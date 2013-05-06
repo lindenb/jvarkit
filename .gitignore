@@ -1,3 +1,7 @@
 jeter*
 *~
 .svn
+.classpath
+.project
+bin
+dist

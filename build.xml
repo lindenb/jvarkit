@@ -59,7 +59,7 @@
    <jar jarfile="dist/vcfstripannot.jar">
 	     <fileset dir="tmp" />
 	     <manifest>
-	       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcfstripannot.VCFStripAnnotations"/>
+	       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"/>
 	     </manifest>
    </jar>	   
    <delete dir="tmp"/>
@@ -78,7 +78,7 @@
 	   <jar jarfile="dist/vcffixindels.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcffixindels.VCFFixIndels"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels"/>
 		     </manifest>
 	   </jar>	   
 	   <delete dir="tmp"/>
@@ -108,7 +108,7 @@
    <jar jarfile="dist/picardmetrics2xml.jar">
 	     <fileset dir="tmp" />
 	     <manifest>
-	       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.picard.metrics2xml.PicardMetricsToXML"/>
+	       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.picard.metrics2xml.PicardMetricsToXML"/>
 	        <attribute name="Class-Path" value="${manifest_cpA}"/>
 	     </manifest>
  	</jar>
@@ -133,7 +133,7 @@
 	   <jar jarfile="dist/comparebams.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.cmpbams.CompareBams"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.cmpbams.CompareBams"/>
 		        <attribute name="Class-Path" value="${manifest_cpB}"/>
 		     </manifest>
 	 	</jar>
@@ -157,7 +157,7 @@
 	   <jar jarfile="dist/vcfbigwig.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcfbigwig.VCFBigWig"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig"/>
 		        <attribute name="Class-Path" value="${manifest_cp1}"/>
 		     </manifest>
 	 	</jar>
@@ -181,7 +181,7 @@
 	   <jar jarfile="dist/vcftabix.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		        <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcftabix.VCFTabix"/>
+		        <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcftabix.VCFTabix"/>
 		        <attribute name="Class-Path" value="${manifest_cp2}"/>
 		     </manifest>
 	 	</jar>
@@ -192,7 +192,7 @@
 <target name="vcftabixml" >
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
-	   <copy todir="dist" file="./src/main/java/fr/inserm/umr1087/jvarkit/tools/vcftabixml/evs2vcf.xsl"/>
+	   <copy todir="dist" file="./src/main/java/com/github/lindenb/jvarkit/tools/vcftabixml/evs2vcf.xsl"/>
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<classpath refid="picard.lib"/>
@@ -204,7 +204,7 @@
 	   <jar jarfile="dist/vcftabixml.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		        <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcftabixml.VCFTabixml"/>
+		        <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcftabixml.VCFTabixml"/>
 		        <attribute name="Class-Path" value="${manifest_cp3}"/>
 		     </manifest>
 	 	</jar>
@@ -227,7 +227,7 @@
 	   <jar jarfile="dist/evs2bed.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		        <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.evs2bed.DumpExomeVariantServerData"/>
+		        <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.evs2bed.DumpExomeVariantServerData"/>
 		        <attribute name="Class-Path" value="${manifest_cp4}"/>
 		     </manifest>
 	 	</jar>
@@ -253,7 +253,7 @@
 	   <jar jarfile="dist/samjs.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.samjs.SamJavascript"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.samjs.SamJavascript"/>
 		        <attribute name="Class-Path" value="${manifest_cp5}"/>
 		     </manifest>
 	 	</jar>
@@ -279,7 +279,7 @@
 	   <jar jarfile="dist/bamstats04.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.bamstats04.BamStats04"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.bamstats04.BamStats04"/>
 		        <attribute name="Class-Path" value="${manifest_cp6}"/>
 		     </manifest>
 	 	</jar>
@@ -305,7 +305,7 @@
 	   <jar jarfile="dist/splitbam.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.splitbam.SplitBam"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.splitbam.SplitBam"/>
 		        <attribute name="Class-Path" value="${manifest_splitbam}"/>
 		     </manifest>
 	 	</jar>
@@ -331,7 +331,7 @@
 	   <jar jarfile="dist/splitread.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.splitread.SplitRead"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.splitread.SplitRead"/>
 		        <attribute name="Class-Path" value="${manifest_splitread}"/>
 		     </manifest>
 	 	</jar>
@@ -388,7 +388,7 @@
 	   <jar jarfile="dist/vcfbedjs.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcfbed.VCFBed"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcfbed.VCFBed"/>
 		        <attribute name="Class-Path" value="${manifest_cp7}"/>
 		     </manifest>
 	 	</jar>
@@ -418,7 +418,7 @@
 	   <jar jarfile="dist/cluster20120920.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.cluster20120920.Cluster20120920"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.cluster20120920.Cluster20120920"/>
 		       <attribute name="Class-Path" value="${manifest_cp}"/>
 		     </manifest>
 	 	</jar>
@@ -446,7 +446,7 @@
 	   <jar jarfile="dist/invert20120917">
 		     <fileset dir="tmp" />
 		     <manifest>
-		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.invert20120917.Invert20120917"/>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.invert20120917.Invert20120917"/>
 		       <attribute name="Class-Path" value="${manifest_cp}"/>
 		     </manifest>
 	 	</jar>
@@ -474,7 +474,7 @@
    <jar jarfile="dist/cnv20120907.jar">
 	     <fileset dir="tmp" />
 	     <manifest>
-	       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.cnv20120907.CNV20120927"/>
+	       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.cnv20120907.CNV20120927"/>
 	       <attribute name="Class-Path" value="${manifest_cp}"/>
 	     </manifest>
  	</jar>
@@ -496,7 +496,7 @@
 <target name="x">
 	 <exec executable="xjc">
 	    <arg value="-d"/> <arg value="src/main/java"/>
-	    <arg value="-p"/> <arg value="fr.inserm.umr1087.jvarkit.ngsproject"/>
+	    <arg value="-p"/> <arg value="com.github.lindenb.jvarkit.ngsproject"/>
 	    <arg value="-b"/> <arg value="src/main/resources/xsd/ngsproject.jxb"/>
 
 	    <arg value="src/main/resources/xsd/ngsproject.xsd"/>
