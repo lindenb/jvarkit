@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="jvarkit" default="mature.projects" basedir=".">
+<property file="build.properties"/>
+
+<path id="bigwig.lib">
+  <fileset dir="${bigwig.dir}">
+    <include name="*.jar"/>
+  </fileset>
+</path>
+
+<path id="picard.lib">
+      <pathelement path="${picard.jar}"/>
+      <pathelement path="${sam.jar}"/>
+</path>
+	
+<path id="bdb.lib">
+      <pathelement path="${berkeleydb.jar}"/>
+</path>
+	
+<path id="math.lib">
+      <pathelement path="${common.math.jar}"/>
+</path>
+	
+	
+<path id="common.libs">
+     <path refid="picard.lib"/>
+     <path refid="bigwig.lib"/>
+     <path refid="bdb.lib"/>
+     <path refid="math.lib"/>
+</path>
+
+<path id="picard.and.bdb.jars">
+     <path refid="bdb.lib"/>
+     <path refid="picard.lib"/>
+</path>
+
+<path id="picard.and.bigwig.jars">
+     <path refid="bigwig.lib"/>
+     <path refid="picard.lib"/>
+</path>
+
+
+<target name="mature.projects" depends="splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
+
+<target name="all" depends="mature.projects,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
+</target>
+
+
+ <target name="vcfstripannot">
+   <mkdir dir="tmp"/>
+   <mkdir dir="dist"/>
+   	   
+   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+   		<src path="src/main/java"/>
+   		<include name="**/VCFStripAnnotations.java"/>
+   </javac>
+   
+
+   <jar jarfile="dist/vcfstripannot.jar">
+	     <fileset dir="tmp" />
+	     <manifest>
+	       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcfstripannot.VCFStripAnnotations"/>
+	     </manifest>
+   </jar>	   
+   <delete dir="tmp"/>
+ </target>
+
+	 <target name="vcffixindels">
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<include name="**/VCFFixIndels.java"/>
+	   </javac>
+	   
+
+	   <jar jarfile="dist/vcffixindels.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcffixindels.VCFFixIndels"/>
+		     </manifest>
+	   </jar>	   
+	   <delete dir="tmp"/>
+	 </target>
+
+
+ <target name="picard2xml" >
+   <mkdir dir="tmp"/>
+   <mkdir dir="dist"/>
+   
+   <copy todir="dist">
+   	<fileset dir="src/main/resources/xsl">
+   	 	<include name="*.xsl"/>
+   	</fileset>
+   </copy>
+   
+   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+   		<src path="src/main/java"/>
+   		<classpath refid="picard.lib"/>
+   		<include name="**/PicardMetricsToXML.java"/>
+   </javac>
+   
+   <pathconvert property="manifest_cpA" pathsep=" " >
+		 <path refid="picard.lib"/>
+   </pathconvert>  
+   
+   <jar jarfile="dist/picardmetrics2xml.jar">
+	     <fileset dir="tmp" />
+	     <manifest>
+	       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.picard.metrics2xml.PicardMetricsToXML"/>
+	        <attribute name="Class-Path" value="${manifest_cpA}"/>
+	     </manifest>
+ 	</jar>
+   
+    <delete dir="tmp"/>
+ </target>
+
+
+<target name="cmpbams" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.and.bdb.jars"/>
+	   		<include name="**/CompareBams.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_cpB" pathsep=" " refid="picard.and.bdb.jars"/>
+
+	  <echo>path= "${manifest_cp}</echo>
+	   <jar jarfile="dist/comparebams.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.cmpbams.CompareBams"/>
+		        <attribute name="Class-Path" value="${manifest_cpB}"/>
+		     </manifest>
+	 	</jar>
+	   
+    <delete dir="tmp"/>
+ </target>
+
+	
+<target name="vcfbigwig" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.and.bigwig.jars"/>
+	   		<include name="**/VCFBigWig.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_cp1" pathsep=" " refid="picard.and.bigwig.jars"/>
+
+	   <jar jarfile="dist/vcfbigwig.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcfbigwig.VCFBigWig"/>
+		        <attribute name="Class-Path" value="${manifest_cp1}"/>
+		     </manifest>
+	 	</jar>
+	   
+    <delete dir="tmp"/>
+ </target>	
+
+	
+<target name="vcftabix" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/VCFTabix.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_cp2" pathsep=" " refid="picard.lib"/>
+
+	   <jar jarfile="dist/vcftabix.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		        <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcftabix.VCFTabix"/>
+		        <attribute name="Class-Path" value="${manifest_cp2}"/>
+		     </manifest>
+	 	</jar>
+	   
+    <delete dir="tmp"/>
+ </target>	
+		
+<target name="vcftabixml" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   <copy todir="dist" file="./src/main/java/fr/inserm/umr1087/jvarkit/tools/vcftabixml/evs2vcf.xsl"/>
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/VCFTabixml.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_cp3" pathsep=" " refid="picard.lib"/>
+
+	   <jar jarfile="dist/vcftabixml.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		        <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcftabixml.VCFTabixml"/>
+		        <attribute name="Class-Path" value="${manifest_cp3}"/>
+		     </manifest>
+	 	</jar>
+	   
+    <delete dir="tmp"/>
+</target>	
+
+<target name="evs2bed" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/DumpExomeVariantServerData.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_cp4" pathsep=" " refid="picard.lib"/>
+
+	   <jar jarfile="dist/evs2bed.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		        <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.evs2bed.DumpExomeVariantServerData"/>
+		        <attribute name="Class-Path" value="${manifest_cp4}"/>
+		     </manifest>
+	 	</jar>
+	   
+    <delete dir="tmp"/>
+</target>	
+
+	
+<target name="samjs" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/SamJavascript.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_cp5" pathsep=" " >
+			 <path refid="picard.lib"/>
+	   </pathconvert>  
+	   
+	   <jar jarfile="dist/samjs.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.samjs.SamJavascript"/>
+		        <attribute name="Class-Path" value="${manifest_cp5}"/>
+		     </manifest>
+	 	</jar>
+	   
+	    <delete dir="tmp"/>
+</target>
+	
+	
+<target name="bamstats04" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/BamStats04.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_cp6" pathsep=" " >
+			 <path refid="picard.lib"/>
+	   </pathconvert>  
+	   
+	   <jar jarfile="dist/bamstats04.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.bamstats04.BamStats04"/>
+		        <attribute name="Class-Path" value="${manifest_cp6}"/>
+		     </manifest>
+	 	</jar>
+	   
+	    <delete dir="tmp"/>
+</target>
+
+
+<target name="splitbam" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/SplitBam.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_splitbam" pathsep=" " >
+			 <path refid="picard.lib"/>
+	   </pathconvert>  
+	   
+	   <jar jarfile="dist/splitbam.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.splitbam.SplitBam"/>
+		        <attribute name="Class-Path" value="${manifest_splitbam}"/>
+		     </manifest>
+	 	</jar>
+	   
+	    <delete dir="tmp"/>
+</target>
+
+	
+<target name="splitread" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/SplitRead.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_splitread" pathsep=" " >
+			 <path refid="picard.lib"/>
+	   </pathconvert>  
+	   
+	   <jar jarfile="dist/splitread.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.splitread.SplitRead"/>
+		        <attribute name="Class-Path" value="${manifest_splitread}"/>
+		     </manifest>
+	 	</jar>
+	   
+	    <delete dir="tmp"/>
+</target>
+	
+	
+<target name="splitbytile" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/SplitByTile.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_splitbytile" pathsep=" " >
+			 <path refid="picard.lib"/>
+	   </pathconvert>  
+	   
+	   <jar jarfile="dist/splitbytile.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.splitbytitle.SplitByTile"/>
+		        <attribute name="Class-Path" value="${manifest_splitbytile}"/>
+		     </manifest>
+	 	</jar>
+	   
+	    <delete dir="tmp"/>
+</target>
+	
+	
+	
+	
+	
+	
+	
+<target name="vcfbedjs" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/VCFBed.java"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_cp7" pathsep=" " >
+			 <path refid="picard.lib"/>
+	   </pathconvert>  
+	   
+	   <jar jarfile="dist/vcfbedjs.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.vcfbed.VCFBed"/>
+		        <attribute name="Class-Path" value="${manifest_cp7}"/>
+		     </manifest>
+	 	</jar>
+	   
+	    <delete dir="tmp"/>
+</target>
+
+	
+	
+<target name="dist/cluster20120920" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   
+	   
+	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/Cluster20120920.java"/>
+	   		
+	   </javac>
+	   
+		<pathconvert property="manifest_cp" pathsep=" " >
+			 <path refid="picard.lib"/>
+		</pathconvert>  
+	   
+	   <jar jarfile="dist/cluster20120920.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.cluster20120920.Cluster20120920"/>
+		       <attribute name="Class-Path" value="${manifest_cp}"/>
+		     </manifest>
+	 	</jar>
+	   
+	    <delete dir="tmp"/>
+</target>
+
+<target name="dist/invert20120917" >
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   
+	   
+	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="common.libs"/>
+	   		<include name="**/Invert20120917.java"/>
+	   		
+	   </javac>
+	   
+		<pathconvert property="manifest_cp" pathsep=" " >
+			 <path refid="common.libs"/>
+		</pathconvert>  
+	   
+	   <jar jarfile="dist/invert20120917">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.invert20120917.Invert20120917"/>
+		       <attribute name="Class-Path" value="${manifest_cp}"/>
+		     </manifest>
+	 	</jar>
+	   
+	    <delete dir="tmp"/>
+</target>
+	
+ <target name="dist/cnv20120907.jar" >
+   <mkdir dir="tmp"/>
+   <mkdir dir="dist"/>
+   
+   
+   
+   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+   		<src path="src/main/java"/>
+   		<classpath refid="common.libs"/>
+   		<include name="**/CNV20120927.java"/>
+   		
+   </javac>
+   
+	<pathconvert property="manifest_cp" pathsep=" " >
+		 <path refid="common.libs"/>
+	</pathconvert>  
+   
+   <jar jarfile="dist/cnv20120907.jar">
+	     <fileset dir="tmp" />
+	     <manifest>
+	       <attribute name="Main-Class" value="fr.inserm.umr1087.jvarkit.tools.cnv20120907.CNV20120927"/>
+	       <attribute name="Class-Path" value="${manifest_cp}"/>
+	     </manifest>
+ 	</jar>
+   
+    <delete dir="tmp"/>
+ </target>
+
+
+<target name="blast">
+	 <exec executable="xjc">
+	    <arg value="-d"/> <arg value="src/main/java"/>
+	    <arg value="-p"/> <arg value="gov.nih.nlm.ncbi.blast"/>
+	    <arg value="-httpproxy"/> <arg value="proxy-upgrade.univ-nantes.prive:3128"/>
+	    <arg value="-dtd"/>
+	    <arg value="http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd"/>
+	  </exec>
+</target>
+	
+<target name="x">
+	 <exec executable="xjc">
+	    <arg value="-d"/> <arg value="src/main/java"/>
+	    <arg value="-p"/> <arg value="fr.inserm.umr1087.jvarkit.ngsproject"/>
+	    <arg value="-b"/> <arg value="src/main/resources/xsd/ngsproject.jxb"/>
+
+	    <arg value="src/main/resources/xsd/ngsproject.xsd"/>
+	  </exec>
+</target>
+
+
+
+
+</project>
