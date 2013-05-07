@@ -39,7 +39,37 @@
      <path refid="picard.lib"/>
 </path>
 
-
+<macrodef name="compile-with-picard">
+	<attribute name="name"/>
+	<attribute name="java"/>
+	<attribute name="main"/>
+	<sequential>
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="@{java}"/>
+	   </javac>
+	   
+	   <pathconvert property="manifest_@{name}" pathsep=" " >
+			 <path refid="picard.lib"/>
+	   </pathconvert>  
+	   
+	   <jar jarfile="dist/@{name}.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="@{main}"/>
+		        <attribute name="Class-Path" value="${manifest_@{name}}"/>
+		     </manifest>
+	 	</jar>
+	   
+	    <delete dir="tmp"/>
+	</sequential>
+</macrodef>
+	
+	
 <target name="mature.projects" depends="splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
 
 <target name="all" depends="mature.projects,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
@@ -366,7 +396,14 @@
 </target>
 	
 	
-	
+<target name="impactofduplicates" >
+	<compile-with-picard 
+		java="**/ImpactOfDuplicates.java"
+		main="com.github.lindenb.jvarkit.tools.impactdup.ImpactOfDuplicates"
+		name="impactofduplicates"
+		/>
+</target>
+
 	
 	
 	
