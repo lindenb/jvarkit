@@ -1,7 +1,9 @@
 package com.github.lindenb.jvarkit.tools.impactdup;
 
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -15,11 +17,13 @@ import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.io.IoUtil;
+import net.sf.picard.util.Interval;
+import net.sf.picard.util.IntervalList;
 import net.sf.picard.util.Log;
+import net.sf.picard.util.SamRecordIntervalIteratorFactory;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.util.BinaryCodec;
 import net.sf.samtools.util.CloseableIterator;
@@ -36,6 +40,8 @@ public class ImpactOfDuplicates extends CommandLineProgram
     public List<File> INPUT = new ArrayList<File>();
     @Option(shortName=StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="Save result as... default is stdout", optional=true)
     public File OUTPUT = null;
+    @Option(shortName="B", doc="BED File", optional=true)
+    public File BEDFILE = null;
 
     /** sam file dict, to retrieve the sequences names  */
     private List< SAMSequenceDictionary> samFileDicts=new ArrayList<SAMSequenceDictionary>();
@@ -176,13 +182,17 @@ public class ImpactOfDuplicates extends CommandLineProgram
     		this.duplicatesBuffer.clear();
     		return;
     		}
+    	
+    	int total=0;
+    	for(int i:counts) total+=i; 
+    	
     	Duplicate front=this.duplicatesBuffer.get(0);
     	out.print(
     			front.getReferenceName()+":"+
     			front.pos+"-"+
     			(front.pos+front.size)
     			);
-
+    	out.print("\t"+maxDup+"\t"+(int)(total/(1.0*counts.length)));
     	for(int i=0;i< counts.length;++i)
     		{
     		out.print('\t');
@@ -213,9 +223,13 @@ public class ImpactOfDuplicates extends CommandLineProgram
                 super.TMP_DIR
                 );
        CloseableIterator<Duplicate> dupIter=null;
-
+      
+       
         try
             {
+        	 
+        	
+        	
             for(this.bamIndex=0;
         		this.bamIndex< this.INPUT.size();
         		this.bamIndex++)
@@ -227,14 +241,37 @@ public class ImpactOfDuplicates extends CommandLineProgram
             	log.info("Processing "+inFile);
                 IoUtil.assertFileIsReadable(inFile);
                 SAMFileReader samReader=null;
-                SAMRecordIterator iter=null;
+                CloseableIterator<SAMRecord> iter=null;
                 try
 	                {
 	                samReader=new SAMFileReader(inFile);
 	                final SAMFileHeader header=samReader.getFileHeader();
 	                this.samFileDicts.add(header.getSequenceDictionary());
 	                samReader.setValidationStringency(super.VALIDATION_STRINGENCY);
-	                iter=samReader.iterator();
+	                if(BEDFILE==null)
+		                {
+		                iter=samReader.iterator();
+		                }
+	                else
+	                	{
+		    	     	   IntervalList intervalList=new IntervalList(header);
+
+		    	     	    BufferedReader in=new BufferedReader(new FileReader(BEDFILE));
+		    	     	    String line=null;
+		    	     	    while((line=in.readLine())!=null)
+		    	     	    	{
+		    	     	    	if(line.isEmpty() || line.startsWith("#")) continue;
+		    	     	    	String tokens[]=line.split("[\t]");
+		    	     	    	Interval interval=new Interval(tokens[0], 1+Integer.parseInt(tokens[1]), Integer.parseInt(tokens[2]));
+		    	     	    	intervalList.add(interval);
+		    	     	    	}
+		    	     	    in.close();
+		    	        intervalList.sort();
+	                    List<Interval> uniqueIntervals=intervalList.getUniqueIntervals(false);
+
+	             	   SamRecordIntervalIteratorFactory sriif=new  SamRecordIntervalIteratorFactory();
+	            	    iter=sriif.makeSamRecordIntervalIterator(samReader, uniqueIntervals, false);
+	                	}
 	                while(iter.hasNext())
 	                    {
 	                    SAMRecord rec=iter.next();
@@ -295,7 +332,7 @@ public class ImpactOfDuplicates extends CommandLineProgram
             	this.out=new PrintStream(OUTPUT);
             	}
             
-        	out.print("#INTERVAL");
+        	out.print("#INTERVAL\tMAX\tMEAN");
         	for(int i=0;i< INPUT.size();++i)
         		{
         		out.print('\t');
