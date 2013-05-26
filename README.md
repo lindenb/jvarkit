@@ -26,20 +26,22 @@ cd jvarkit.git
 edit **build.properties** to configure the project. Something like:
 
 ```
-picard.jar=/path/to/picard-tools-1.91/picard-1.91.jar
-sam.jar=/path/to/picard-tools-1.91/sam-1.91.jar
-variant.jar=/path/to/picard-tools-1.91/variant-1.91.jar
-tribble.jar=/path/to/picard-tools-1.91/tribble-1.91.jar
+picard.version=1.91
+picard.dir=/home/lindenb/package/picard-tools-${picard.version}
+picard.jar=${picard.dir}/picard-${picard.version}.jar
+sam.jar=${picard.dir}/sam-${picard.version}.jar
+variant.jar=${picard.dir}/variant-${picard.version}.jar
+tribble.jar=${picard.dir}/tribble-${picard.version}.jar
 ```
 
-= Tools =
+<h2>Tools</h2>
 
-== Filtering VCF with javascript (rhino) ==
-=== Usage ===
+<h3> Filtering VCF with javascript (rhino) </h3>
+<h4>Usage</h4>
 ```
  java -jar dist/vcffilterjs.jar [option] (vcf|stdin)
 ```
-=== Options ===
+<h4>Options</h4>
 
 * -e (script)
 
@@ -55,7 +57,7 @@ the script binds the following variables:
 
 the script should return '1' or true if the current VCF file should be printed.
 
-==Example==
+<h4>Example</h4>
 
 the file filter.js
 
@@ -97,7 +99,7 @@ chr22	42527793	rs1080989	C	T	3454.66	.	AC=2;AF=0.167;AN=12;BaseQRankSum=-3.007;D
 
 ```
 
-=== compile ===
+<h4>compile</h4>
 
 ```bash
 $ ant vcffilterjs 
