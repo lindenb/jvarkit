@@ -96,7 +96,8 @@ public class VCFFilterJS
 				System.err.println(" -h help; This screen.");
 				System.err.println(" -e (script).");
 				System.err.println(" -f (file).");
-				System.err.println("the script puts 'variant' a org.broadinstitute.variant.variantcontext.VariantContext " +
+				System.err.println(
+					"the script puts 'variant' a org.broadinstitute.variant.variantcontext.VariantContext " +
 						" ( http://sourceforge.net/p/picard/code/HEAD/tree/trunk/src/java/org/broadinstitute/variant/variantcontext/VariantContext.java ) " +
 						" and 'header' ( org.broadinstitute.variant.vcf.VCFHeader http://sourceforge.net/p/picard/code/HEAD/tree/trunk/src/java/org/broadinstitute/variant/vcf/VCFHeader.java) in the script context .");
 				return;
