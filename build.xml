@@ -10,7 +10,9 @@
 
 <path id="picard.lib">
       <pathelement path="${picard.jar}"/>
-      <pathelement path="${sam.jar}"/>
+    <pathelement path="${sam.jar}"/>
+    <pathelement path="${tribble.jar}"/>
+    <pathelement path="${variant.jar}"/>
 </path>
 	
 <path id="bdb.lib">
@@ -70,11 +72,36 @@
 </macrodef>
 	
 	
-<target name="mature.projects" depends="splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
 
 <target name="all" depends="mature.projects,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>
 
+	
+ <target name="vcffilterjs" >
+   <mkdir dir="tmp"/>
+   <mkdir dir="dist"/>
+      
+   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+   		<src path="src/main/java"/>
+   		<classpath refid="picard.lib"/>
+   		<include name="**/VCFFilterJS.java"/>
+   </javac>
+   
+   <pathconvert property="manifest_vcffilterjs" pathsep=" " >
+		 <path refid="picard.lib"/>
+   </pathconvert>  
+   
+   <jar jarfile="dist/vcffilterjs.jar">
+	     <fileset dir="tmp" />
+	     <manifest>
+	       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS"/>
+	        <attribute name="Class-Path" value="${manifest_vcffilterjs}"/>
+	     </manifest>
+ 	</jar>
+   
+    <delete dir="tmp"/>
+ </target>
 
  <target name="vcfstripannot">
    <mkdir dir="tmp"/>
