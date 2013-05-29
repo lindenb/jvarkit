@@ -1,0 +1,503 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<?xml-stylesheet href="logo.css" type="text/css"?>
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="logo.css" />
+<style type="text/css">
+  td.submit { background: #999;}
+  th { background: #bbb;}
+  th.sub { background: #e0e0e0;}
+  td.label  { background: #e0e0e0;}
+  td.input  { background: #e0e0f0;}
+  .error  {
+        border: solid red;
+        border-width: 5px;
+        margin-left: 0;
+        margin-right: 0;
+        color: black;
+        text-align: center;
+  }
+
+ 
+</style>
+<title>WebLogo - Create Sequence Logos </title>
+<meta name="author" content="Gavin E. Crooks" />
+<meta name="ID" content="$ID:" />
+</head>
+
+<body>
+
+<!-- <form method="post" action="logo.cgi"  > -->
+<form method="post" action="/logo.cgi" enctype="multipart/form-data">
+
+<table border="0" cellpadding="2" cellspacing="3" width="100%" >
+
+
+<tr>
+<td colspan="4" align="left">
+  <h1>
+  <a class="in" href="http://weblogo.berkeley.edu/"><img alt="WebLogo" width="146" height="65" border="0" src="img/weblogologo.png" /></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  &middot; 
+  <a href="./">about</a>&nbsp;&middot;
+  <a class="selected" href="logo.cgi">create</a>&nbsp;&middot; 
+  <a href="examples.html">examples</a>&nbsp;&middot; 
+  </h1></td>
+</tr>
+<tr>
+
+<td colspan="4" ></td>
+</tr>
+
+
+<!--
+<tr >
+<td class="submit" align="left" colspan="3">
+ &nbsp;
+</td>
+<td class="submit" align="right" colspan="1">
+  <input type="submit" name="command" value="Create Logo" />
+  &nbsp;&nbsp;
+  <input type="submit" name=".defaults"  value="Reset" />
+</td>
+</tr>
+-->
+
+
+<tr><th colspan="4" >
+<a href="info.html#msa"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+Multiple Sequence Alignment
+</th></tr>
+
+<tr>
+<td colspan="4" class="input" align="center" >
+  <textarea name="sequence"  rows="10" cols="80"></textarea>
+</td>
+</tr>
+
+<tr>
+<td colspan="1" class="label">
+<a href="info.html#upload"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Upload Sequence Data: 
+</td>
+<td colspan="3" class="input">
+  <input type="file" name="aligned_file"  />
+</td>
+</tr>
+
+<tr><th colspan="4" >
+Image Format &amp; Size
+</th></tr>
+
+<tr>
+<td class="label">
+  <a href="info.html#format"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Image Format:
+</td>
+<td class="input">
+  <select name="format" >
+<option value="GIF">GIF (bitmap)</option>
+<option selected="selected" value="PNG">PNG (bitmap)</option>
+<option value="EPS">EPS (vector)</option>
+<option value="PDF">PDF (vector)</option>
+</select> 
+</td>
+<td class="label">
+  <a href="info.html#size"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Logo Size per Line:
+</td>
+<td class="input" >
+  <input type="text" name="logowidth" value="18" size="6" maxlength="80" /> X
+  <input type="text" name="logoheight" value="5" size="6" maxlength="80" /> 
+  <select name="logounits" >
+<option selected="selected" value="cm">cm</option>
+<option value="inches">inches</option>
+<option value="pixels">pixels</option>
+<option value="points">points</option>
+</select>  
+</td>
+</tr>
+
+
+<tr>
+<td class="submit" align="right" colspan="4">
+  <input type="submit" name="command" value="Create Logo" />
+  &nbsp;&nbsp;
+  <input type="submit" name=".defaults"  value="Reset" />
+</td>
+</tr>
+
+<tr><td colspan="4" >
+  &nbsp; &nbsp;<br /> <br /> <br />
+</td></tr>
+
+<tr><th colspan="4" >
+  Advanced Logo Options
+</th></tr>
+
+<tr>
+<td class="label">
+  <a href="info.html#seqtype"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Sequence Type:
+</td>
+<td class="input" colspan="2">
+  <label><input type="radio" name="kind" value="AA" /> amino acid</label> <label><input type="radio" name="kind" value="NA" /> DNA / RNA</label> <label><input type="radio" name="kind" value="AUTO" checked="checked" /> Automatic Detection</label> 
+</td>
+<td class="input">
+  &nbsp;
+</td>
+</tr>
+
+<tr>
+<td class="label">
+<a href="info.html#firstnum"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+ First Position Number:
+</td>
+<td class="input">
+  <input type="text" name="firstnum" value="1" size="4" maxlength="80" />
+</td>
+<td class="label">
+  <a href="info.html#range"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Logo Range:
+</td>
+<td class="input">
+<input type="text" name="logostart"  size="4" maxlength="80" /> - <input type="text" name="logoend"  size="4" maxlength="80" />
+</td>
+</tr>
+
+<tr>
+<td class="label">
+  <a href="info.html#ssc"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>  
+  Small Sample Correction:
+</td>
+<td class="input">
+  <label><input type="checkbox" name="smallsamplecorrection" value="on" checked="checked" /></label>
+</td>
+
+<td class="label">
+  <a href="info.html#uniform"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>  
+  Frequency Plot:
+</td>
+<td class="input">
+  <label><input type="checkbox" name="stretch" value="on" /></label>
+</td>
+</tr>
+
+
+
+<td class="label">
+  <a href="info.html#multiline"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>  
+  Multiline Logo (Symbols per Line):
+</td>
+
+<td class="input">
+  <label><input type="checkbox" name="multiline" value="on" /></label>
+ (<input type="text" name="symbolsperline" value="32" size="4" maxlength="4" />)
+</td>
+</tr>
+
+
+
+
+<tr><th colspan="4" >
+  Advanced Image Options
+</th></tr>
+
+
+
+<tr>
+<td class="label">
+  <a href="info.html#res"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Bitmap Resolution:   
+</td>
+<td class="input">
+  <input type="text" name="res" value="96" size="4" maxlength="8" /><select name="res_units" >
+<option value="ppc">pixels/cm</option>
+<option selected="selected" value="ppi">pixels/inch (dpi)</option>
+<option value="ppp">pixels/point</option>
+</select>
+</td>
+<td class="label">
+  <a href="info.html#antialias"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Antialias Bitmaps:
+</td>
+<td class="input">
+  <label><input type="checkbox" name="antialias" value="on" checked="checked" /></label>
+</td>
+</tr>
+
+
+
+<tr>
+<td class="label">
+  <a href="info.html#title"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Title:
+</td>
+<td class="input" colspan="1">
+  <input type="text" name="title"  size="20" maxlength="80" /> 
+</td>
+<td class="label">
+ <a href="info.html#barbits"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+ Y-Axis Height:
+</td>
+<td class="input">
+  <input type="text" name="barbits"  size="4" maxlength="80" /> (bits)
+</td>
+</tr>
+
+
+<tr>
+<td class="label">
+  <a href="info.html#yaxis"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Show Y-Axis:
+</td>
+<td class="input">
+  <label><input type="checkbox" name="yaxis" value="on" checked="checked" /></label> 
+</td>
+<td class="label">
+  <a href="info.html#yaxis_label"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Y-Axis Label:
+</td>
+<td class="input">
+  <input type="text" name="yaxis_label" value="bits" size="16" maxlength="32" />  
+</td>
+</tr>
+
+<tr>
+
+<td class="label">
+  <a href="info.html#xaxis"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Show X-Axis:
+</td>
+<td class="input">
+  <label><input type="checkbox" name="xaxis" value="on" checked="checked" /></label>
+</td>
+<td class="label">
+  <a href="info.html#xaxis_label"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  X-Axis Label:
+</td>
+<td class="input">
+  <input type="text" name="xaxis_label"  size="16" maxlength="32" />  
+</td>
+</tr>
+
+
+<tr>
+<td class="label">
+  <a href="info.html#errbar"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Show Error Bars:
+</td>
+<td class="input">
+ <label><input type="checkbox" name="errbar" value="on" /></label>
+</td>
+
+<td class="label">
+  <a href="info.html#ends"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Label Sequence Ends:
+</td>
+<td class="input">
+  <label><input type="checkbox" name="showends" value="on" checked="checked" /></label> 
+</td>
+</tr>
+
+
+<tr>
+<td class="label">
+  <a href="info.html#boxed"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Boxed / Boxed Shrink Factor:
+</td>
+<td class="input" colspan="1">
+  <label><input type="checkbox" name="box" value="on" /></label> 
+  &nbsp;/&nbsp;
+  <input type="text" name="shrink" value="0.5" size="4" maxlength="80" /> 
+</td>
+<td class="label" colspan="1">
+  <a href="info.html#outline"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Outline Symbols:
+</td>
+<td class="input" colspan="1">
+  <label><input type="checkbox" name="outline" value="on" /></label>
+</td>
+</tr>
+
+<tr>
+<td class="label">
+  <a href="info.html#fineprint"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Show fine print:
+</td>
+<td class="input" colspan="1">
+  <label><input type="checkbox" name="fineprint" value="on" checked="checked" /></label>&nbsp; 
+</td>
+<td class="label">
+ <a href="info.html#ticbits"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+ Y-Axis Tic Spacing:
+</td>
+<td class="input">
+  <input type="text" name="ticbits" value="1" size="4" maxlength="80" /> (bits)
+</td>
+</tr>
+
+
+
+
+
+<tr><th colspan="4">
+  Colors
+</th></tr>
+
+<tr>
+<td class="label">
+  <a href="info.html#colors"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+  Color Scheme:
+</td>
+<td class="input" colspan="3">
+  <label><input type="radio" name="colorscheme" value="DEFAULT" checked="checked" /> Default</label> <label><input type="radio" name="colorscheme" value="BW" /> Black &amp; White</label> <label><input type="radio" name="colorscheme" value="CUSTOM" /> Custom</label> (See Below.)
+</td>
+</tr>
+
+<tr><td colspan="2">
+<table width="100%" border="0" cellpadding="1" cellspacing="2" >
+<tr>
+  <th class="sub">
+    <a href="info.html#color_sym"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+    Symbols &nbsp;&nbsp;
+  </th>
+  <th class="sub">
+    <a href="info.html#color_color"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+    Color &nbsp;&nbsp;
+  </th>
+  <th class="sub">
+    <a href="info.html#color_rgb"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+    RGB &nbsp;&nbsp;
+  </th>
+</tr>
+<tr><td class="input"><input type="text" name="symbol1" value="KRH" size="16" maxlength="32" /></td><td class="input"><select name="color1" >
+<option value="black">black</option>
+<option value="red">red</option>
+<option selected="selected" value="green">green</option>
+<option value="blue">blue</option>
+<option value="yellow">yellow</option>
+<option value="purple">purple</option>
+<option value="orange">orange</option>
+<option value="RGB=&gt;">RGB=&gt;</option>
+</select></td><td class="input"><input type="text" name="rgb1"  size="8" maxlength="8" /></td></tr>
+<tr><td class="input"><input type="text" name="symbol2" value="DE" size="16" maxlength="32" /></td><td class="input"><select name="color2" >
+<option value="black">black</option>
+<option value="red">red</option>
+<option value="green">green</option>
+<option selected="selected" value="blue">blue</option>
+<option value="yellow">yellow</option>
+<option value="purple">purple</option>
+<option value="orange">orange</option>
+<option value="RGB=&gt;">RGB=&gt;</option>
+</select></td><td class="input"><input type="text" name="rgb2"  size="8" maxlength="8" /></td></tr>
+<tr><td class="input"><input type="text" name="symbol3" value="AVLIPWFM" size="16" maxlength="32" /></td><td class="input"><select name="color3" >
+<option value="black">black</option>
+<option selected="selected" value="red">red</option>
+<option value="green">green</option>
+<option value="blue">blue</option>
+<option value="yellow">yellow</option>
+<option value="purple">purple</option>
+<option value="orange">orange</option>
+<option value="RGB=&gt;">RGB=&gt;</option>
+</select></td><td class="input"><input type="text" name="rgb3"  size="8" maxlength="8" /></td></tr>
+<tr><td class="input"><input type="text" name="symbol4"  size="16" maxlength="32" /></td><td class="input"><select name="color4" >
+<option selected="selected" value="black">black</option>
+<option value="red">red</option>
+<option value="green">green</option>
+<option value="blue">blue</option>
+<option value="yellow">yellow</option>
+<option value="purple">purple</option>
+<option value="orange">orange</option>
+<option value="RGB=&gt;">RGB=&gt;</option>
+</select></td><td class="input"><input type="text" name="rgb4"  size="8" maxlength="8" /></td></tr>
+</table>
+</td><td colspan="2">
+<table width="100%" border="0" cellpadding="2"
+cellspacing="2" >
+<tr>
+  <th class="sub">
+    <a href="info.html#color_sym"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+    Symbols &nbsp;&nbsp;
+  </th>
+  <th class="sub">
+    <a href="info.html#color_color"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+    Color &nbsp;&nbsp;
+  </th>
+  <th class="sub">
+    <a href="info.html#color_rgb"><img src="img/info.gif" alt="help" width="12" height="12" border="0" /></a>
+    RGB &nbsp;&nbsp;
+  </th>
+</tr>
+<tr><td class="input"><input type="text" name="symbol5"  size="16" maxlength="32" /></td><td class="input"><select name="color5" >
+<option value="black">black</option>
+<option value="red">red</option>
+<option value="green">green</option>
+<option value="blue">blue</option>
+<option value="yellow">yellow</option>
+<option selected="selected" value="purple">purple</option>
+<option value="orange">orange</option>
+<option value="RGB=&gt;">RGB=&gt;</option>
+</select></td><td class="input"><input type="text" name="rgb5"  size="8" maxlength="8" /></td></tr>
+<tr><td class="input"><input type="text" name="symbol6"  size="16" maxlength="32" /></td><td class="input"><select name="color6" >
+<option value="black">black</option>
+<option value="red">red</option>
+<option value="green">green</option>
+<option value="blue">blue</option>
+<option value="yellow">yellow</option>
+<option value="purple">purple</option>
+<option selected="selected" value="orange">orange</option>
+<option value="RGB=&gt;">RGB=&gt;</option>
+</select></td><td class="input"><input type="text" name="rgb6"  size="8" maxlength="8" /></td></tr>
+<tr><td class="input"><input type="text" name="symbol7"  size="16" maxlength="32" /></td><td class="input"><select name="color7" >
+<option selected="selected" value="black">black</option>
+<option value="red">red</option>
+<option value="green">green</option>
+<option value="blue">blue</option>
+<option value="yellow">yellow</option>
+<option value="purple">purple</option>
+<option value="orange">orange</option>
+<option value="RGB=&gt;">RGB=&gt;</option>
+</select></td><td class="input"><input type="text" name="rgb7"  size="8" maxlength="8" /></td></tr>
+<tr><td class="label">Other</td><td class="input"><select name="color0" >
+<option selected="selected" value="black">black</option>
+<option value="red">red</option>
+<option value="green">green</option>
+<option value="blue">blue</option>
+<option value="yellow">yellow</option>
+<option value="purple">purple</option>
+<option value="orange">orange</option>
+<option value="RGB=&gt;">RGB=&gt;</option>
+</select></td><td class="input"><input type="text" name="rgb0"  size="8" maxlength="8" /></td></tr>
+</table>
+</td></tr>
+
+<tr>
+<td class="submit" align="right" colspan="4">
+  <input type="submit" name="command" value="Create Logo" />
+  &nbsp;&nbsp;
+  <input type="submit" name=".defaults"  value="Reset" />
+</td>
+</tr>
+
+
+<tr><td colspan="4" align="center">
+<address>
+<a href="mailto:logo@compbio.berkeley.edu">logo@compbio.berkeley</a>
+<a class="out" href="http://threeplusone.com/">.edu</a>
+</address>
+</td>
+</tr>
+
+</table>
+</form>
+
+
+
+</body>
+</html>
+
+
+
+
+
