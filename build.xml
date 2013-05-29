@@ -72,7 +72,7 @@
 </macrodef>
 	
 	
-<target name="mature.projects" depends="vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
 
 <target name="all" depends="mature.projects,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>
@@ -432,7 +432,13 @@
 </target>
 
 	
-	
+<target name="sam4weblogo" >
+	<compile-with-picard 
+		java="**/SAM4WebLogo.java"
+		main="com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo"
+		name="sam4weblogo"
+		/>
+</target>
 	
 	
 <target name="vcfbedjs" >
