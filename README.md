@@ -116,13 +116,15 @@ Total time: 1 second
 <h3>SAM4WebLogo</h3>
 <h4>Motivation</h4>
 "Sequence logo ( http://weblogo.berkeley.edu/logo.cgi ) for different alleles or generated from SAM/BAM" http://www.biostars.org/p/73021
+
+![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/sam2weblogo.png)
+
+
 <h4>Compilation</h4>
 
 ```bash
 ant sam4weblogo
 ```
-
-![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/sam2weblogo.png)
 
 <h4>Options</h4>
 
