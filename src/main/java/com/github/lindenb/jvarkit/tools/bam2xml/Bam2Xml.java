@@ -1,31 +1,21 @@
 package com.github.lindenb.jvarkit.tools.bam2xml;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.lang.reflect.Method;
-import java.util.HashSet;
-import java.util.Set;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import com.github.lindenb.jvarkit.tools.samgrep.SamGrep;
 
 import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.io.IoUtil;
 import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMFileWriterFactory;
-import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMFileHeader.SortOrder;
 
 
 public class Bam2Xml extends CommandLineProgram

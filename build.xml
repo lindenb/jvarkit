@@ -72,7 +72,7 @@
 </macrodef>
 	
 	
-<target name="mature.projects" depends="sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
 
 <target name="all" depends="mature.projects,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>
@@ -439,6 +439,15 @@
 		name="sam4weblogo"
 		/>
 </target>
+
+<target name="sam2tsv" >
+	<compile-with-picard 
+		java="**/Sam2Tsv.java"
+		main="com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv"
+		name="sam2tsv"
+		/>
+</target>
+	
 	
 	
 <target name="vcfbedjs" >

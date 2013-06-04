@@ -178,3 +178,30 @@ TGTGGGGGCCGCAGTG---------------
 TGGGGGGGGCGCAGT----------------
 ```
 
+<h3>SAM2Tsv</h3>
+display a tabular view of each base of the reads vs the reference.
+<h4>Compilation</h4>
+```bash
+ant sam2tsv
+```
+<h4>Options</h4>
+<ul>
+<li>IN=File BAM files to process.  This option may be specified 0 or more times.</li>
+<li>REGION=String restrict to that region (chr:start-end)  Default value: null. </li>
+<li>REF=File Indexed reference  Required. </li>
+</ul>
+<h4>Example</h4>
+```bash
+java -jar dist/sam2tsv.jar \
+	I=sorted.bam \
+	R=genome.fa \
+	L=chr1:32944435-32944435
+
+
+M00491:12:000000000-A3FL3:1:1101:16929:4287	147	1	A	20	chr22	544289	A	M	=
+M00491:12:000000000-A3FL3:1:1101:16929:4287	147	2	G	28	chr22	544290	G	M	=
+M00491:12:000000000-A3FL3:1:1101:16929:4287	147	3	A	32	chr22	544291	C	M	X
+M00491:12:000000000-A3FL3:1:1101:16929:4287	147	4	T	37	chr22	544292	T	M	=
+M00491:12:000000000-A3FL3:1:1101:16929:4287	147	5	C	36	chr22	544293	C	M	=
+```
+

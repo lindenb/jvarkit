@@ -10,6 +10,7 @@ import java.util.Set;
 import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
+import net.sf.picard.cmdline.Usage;
 import net.sf.picard.io.IoUtil;
 import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileHeader;
@@ -23,7 +24,8 @@ import net.sf.samtools.SAMFileHeader.SortOrder;
 public class SamGrep extends CommandLineProgram
 	{
 	private static final Log log = Log.getInstance(SamGrep.class);
-
+	@Usage
+	public String USAGE=getStandardUsagePreamble()+". grep read-names in a bam file";
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="A BAM file to process.")
     public File INPUT=null;
     @Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="The output file. default: stdout",optional=true)
