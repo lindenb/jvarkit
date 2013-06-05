@@ -30,10 +30,161 @@ public class Sam2Tsv extends CommandLineProgram
 	public String REGION=null;
     @Option(shortName= StandardOptionDefinitions.REFERENCE_SHORT_NAME, doc="Indexex reference",optional=false)
 	public File  REF=null;
-    
+    @Option(shortName= "A", doc="Use Alignment output.",optional=false)
+	public boolean ALN=false;
+
     private Interval interval=null;
 	private PrintWriter pw=new PrintWriter(System.out);
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	
+	private void print(final SAMRecord rec)
+		{
+		if(ALN)
+			{
+			printAln(rec);
+			}
+		else
+			{
+			printTsv(rec);
+			}
+		}
+	
+	private void printAln(final SAMRecord rec)
+		{
+		StringBuilder L1=new StringBuilder();
+		StringBuilder L2=new StringBuilder();
+		StringBuilder L3=new StringBuilder();
+		
+		CigarIterator ci=CigarIterator.create(rec, this.indexedFastaSequenceFile);
+		
+		pw.println(">"+rec.getReadName()+
+				"\t"+
+				rec.getReferenceName()
+				);
+		
+		while(ci.next())
+			{
+			int readP=ci.getReadPosition();
+			int refP=ci.getReferencePosition();
+			Character readBase=null;
+			Character refBase=null;
+			
+			if(readP==-1)
+				{
+				L3.append('.');
+				}
+			else
+				{
+				L3.append((readBase=ci.getReadBase()));
+				}
+			
+			if(refP==-1)
+				{
+				L1.append('.');
+				}
+			else
+				{
+				L1.append((refBase=ci.getReferenceBase()));
+				}
+			
+			if(readBase==null || refBase==null)
+				{
+				L2.append(' ');
+				}
+			else if(Character.toUpperCase(readBase)==Character.toUpperCase(refBase))
+				{
+				L2.append('|');
+				}
+			else
+				{
+				L2.append(' ');
+				}
+			}
+		
+		pw.printf("%-30s %-8d %s %8d\n",
+				rec.getReferenceName(),
+				rec.getUnclippedStart(),
+				L1.toString(),
+				rec.getUnclippedEnd()
+				);
+		pw.printf("%-30s %-8s %s\n",
+				"",
+				"",
+				L2.toString()
+				);
+
+		pw.printf("%-30s %-8d %s %8d\n",
+				rec.getReadName(),
+				1,
+				L3.toString(),
+				rec.getReadLength()
+				);
+		pw.println();
+		}
+	
+	
+	private void printTsv(final SAMRecord rec)
+		{
+		CigarIterator ci=CigarIterator.create(rec, this.indexedFastaSequenceFile);
+		
+			
+		while(ci.next())
+			{
+			int readP=ci.getReadPosition();
+			int refP=ci.getReferencePosition();
+			Character readBase=null;
+			Character refBase=null;
+			
+			pw.print(rec.getReadName());
+			pw.print('\t');
+			pw.print(rec.getFlags());
+			pw.print('\t');
+			if(readP==-1)
+				{
+				pw.print(".\t.\t.\t");
+				}
+			else
+				{
+				Integer qual=ci.getReadQual();
+				pw.print(1+readP);
+				pw.print('\t');
+				pw.print((readBase=ci.getReadBase()));
+				pw.print('\t');
+				pw.print(qual==null?".":qual.toString());
+				pw.print('\t');
+				}
+			
+			pw.print(rec.getReferenceName());
+			pw.print('\t');
+			if(refP==-1)
+				{
+				pw.print(".\t.\t");
+				}
+			else
+				{
+				pw.print(refP);
+				pw.print('\t');
+				pw.print((refBase=ci.getReferenceBase()));
+				pw.print('\t');
+				}
+			pw.print(ci.getCigarOperator());
+			pw.print('\t');
+			if(readBase==null || refBase==null)
+				{
+				pw.print('.');
+				}
+			else if(Character.toUpperCase(readBase)==Character.toUpperCase(refBase))
+				{
+				pw.print('=');
+				}
+			else
+				{
+				pw.print('X');
+				}
+			
+			pw.println();
+			}
+		}
 	
 	private void scan(SAMFileReader r) 
 		{
@@ -52,66 +203,7 @@ public class Sam2Tsv extends CommandLineProgram
 			{
 			SAMRecord rec=iter.next();
 			if(rec.getReadUnmappedFlag()) continue;
-			
-			
-			CigarIterator ci=CigarIterator.create(rec, this.indexedFastaSequenceFile);
-			
-				
-			while(ci.next())
-				{
-				int readP=ci.getReadPosition();
-				int refP=ci.getReferencePosition();
-				Character readBase=null;
-				Character refBase=null;
-				
-				pw.print(rec.getReadName());
-				pw.print('\t');
-				pw.print(rec.getFlags());
-				pw.print('\t');
-				if(readP==-1)
-					{
-					pw.print(".\t.\t.\t");
-					}
-				else
-					{
-					pw.print(1+readP);
-					pw.print('\t');
-					pw.print((readBase=ci.getReadBase()));
-					pw.print('\t');
-					pw.print(ci.getReadQual());
-					pw.print('\t');
-					}
-				
-				pw.print(rec.getReferenceName());
-				pw.print('\t');
-				if(refP==-1)
-					{
-					pw.print(".\t.\t");
-					}
-				else
-					{
-					pw.print(refP);
-					pw.print('\t');
-					pw.print((refBase=ci.getReferenceBase()));
-					pw.print('\t');
-					}
-				pw.print(ci.getCigarOperator());
-				pw.print('\t');
-				if(readBase==null || refBase==null)
-					{
-					pw.print('.');
-					}
-				else if(Character.toUpperCase(readBase)==Character.toUpperCase(refBase))
-					{
-					pw.print('=');
-					}
-				else 
-					{
-					pw.print('X');
-					}
-				
-				pw.println();
-				}
+			print(rec);
 			}
 		}
 	

@@ -40,8 +40,9 @@ public class CigarIterator
 			displayReadPos=-1;
 			switch(ce.getOperator())
 				{
+				case H:break;
+				case S:break;
 				case I:
-				case S:
 					{
 					this.displayReadPos= this.readPos;
 					this.readPos++;
@@ -65,7 +66,10 @@ public class CigarIterator
 					this.refPos++;
 					break;
 					}
-				default: throw new IllegalStateException("Doesn't know how to handle cigar operator:"+ce.getOperator());
+				default: throw new IllegalStateException(
+						"Doesn't know how to handle cigar operator:"+ce.getOperator()+
+						" cigar:"+getSAMRecord().getSAMString()
+						);
 				}
 			return true;
 			}
@@ -105,7 +109,11 @@ public class CigarIterator
 	
 	public Integer getReadQual()
 		{
-		return this.displayReadPos==-1?null:(int)getSAMRecord().getBaseQualities()[this.displayReadPos];
+		byte quals[]=getSAMRecord().getBaseQualities();
+		return this.displayReadPos==-1 ||
+				quals==null ||
+				quals.length==0
+				?null:(int)getSAMRecord().getBaseQualities()[this.displayReadPos];
 		}
 	
 	public Character getReferenceBase()

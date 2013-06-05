@@ -189,6 +189,7 @@ ant sam2tsv
 <li>IN=File BAM files to process.  This option may be specified 0 or more times.</li>
 <li>REGION=String restrict to that region (chr:start-end)  Default value: null. </li>
 <li>REF=File Indexed reference  Required. </li>
+<li>A={true,false} Use Alignment format.</li>
 </ul>
 <h4>Example</h4>
 ```bash
