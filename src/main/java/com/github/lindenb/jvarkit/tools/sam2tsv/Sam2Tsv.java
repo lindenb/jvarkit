@@ -101,19 +101,21 @@ public class Sam2Tsv extends CommandLineProgram
 				}
 			}
 		
-		pw.printf("%-30s %-8d %s %8d\n",
+		int len=Math.max(rec.getReadNameLength(), rec.getReferenceName().length())+2;
+		
+		pw.printf("%"+len+"s %8d %s %-8d\n",
 				rec.getReferenceName(),
 				rec.getUnclippedStart(),
 				L1.toString(),
 				rec.getUnclippedEnd()
 				);
-		pw.printf("%-30s %-8s %s\n",
+		pw.printf("%"+len+"s %8s %s\n",
 				"",
 				"",
 				L2.toString()
 				);
 
-		pw.printf("%-30s %-8d %s %8d\n",
+		pw.printf("%"+len+"s %8d %s %-8d\n",
 				rec.getReadName(),
 				1,
 				L3.toString(),
