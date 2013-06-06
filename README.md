@@ -206,3 +206,20 @@ M00491:12:000000000-A3FL3:1:1101:16929:4287	147	4	T	37	chr22	544292	T	M	=
 M00491:12:000000000-A3FL3:1:1101:16929:4287	147	5	C	36	chr22	544293	C	M	=
 ```
 
+<h3>cmpbam: Comparing two or more BAMS</h3>
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>BAM files to process.  This option must be specified at least 2 times. </td></tr>
+<tr><td>REGION=String</td><td>restrict to that region (chr:start-end)  Default value: null. </td></tr>
+<tr><td>USESAMFLAG=Boolean</td><td>use SAM Flag when comparing.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+java -jar dist/cmpbams.ja \
+	I=file1.bam \
+	I=file2.bam \
+	I=file3.bam \
+	L=chr1:32944435-32944435
+```
+
