@@ -250,5 +250,5 @@ java -jar dist/bam2raster.jar \
 	OUT=ouput.png \
 	R=ex1.fa
 ```
-
+![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png)
 

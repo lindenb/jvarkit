@@ -1,9 +1,11 @@
 package com.github.lindenb.jvarkit.tools.bam2graphics;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Shape;
+import java.awt.Stroke;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -45,14 +47,43 @@ public class Bam2Raster extends CommandLineProgram
     private int WIDTH=1000;
     
 	
-
-	
+   private interface Colorizer
+    	{
+    	public Color getColor(SAMRecord rec);
+    	}
+   
+   private class QualityColorizer implements Colorizer
+		{
+	   public Color getColor(SAMRecord rec)
+			{	
+		    int f=rec.getMappingQuality();
+		    if(f>255) f=255;
+		    return new Color(f,f,f);
+			}
+		}
+   
+   private class FlagColorizer implements Colorizer
+		{
+	   public Color getColor(SAMRecord rec)
+			{
+		    if(!rec.getReadPairedFlag() || rec.getProperPairFlag()) return Color.BLACK;
+		    if(rec.getMateUnmappedFlag()) return Color.BLUE;
+		    if(rec.getDuplicateReadFlag()) return Color.GREEN;
+		    return Color.ORANGE;
+			}
+		}
+   
 	
 	private Interval interval=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	private int minHDistance=2;
 	private int minArrowWidth=2;
 	private int maxArrowWidth=5;
+	private int featureHeight=30;
+	private int spaceYbetweenFeatures=4;
+	
+	private Colorizer fillColorizer=new QualityColorizer();
+	private Colorizer strokeColorizer=new FlagColorizer();
 	
 	protected double convertToX(int genomic)
 		{
@@ -95,7 +126,9 @@ public class Bam2Raster extends CommandLineProgram
 				}
 			}
 		iter.close();
-		Dimension imageSize=new Dimension(WIDTH,rows.size()*10);
+		Dimension imageSize=new Dimension(WIDTH,
+				rows.size()*(this.spaceYbetweenFeatures+this.featureHeight)+this.spaceYbetweenFeatures
+				);
 		BufferedImage img=new BufferedImage(
 				imageSize.width,
 				imageSize.height,
@@ -104,7 +137,7 @@ public class Bam2Raster extends CommandLineProgram
 		Graphics2D g=img.createGraphics();
 		g.setColor(Color.WHITE);
 		g.fillRect(0, 0, imageSize.width, imageSize.height);
-		int y=0;
+		int y=this.spaceYbetweenFeatures;
 		for(List<SAMRecord> row:rows)
 			{
 			for(SAMRecord rec:row)
@@ -113,7 +146,7 @@ public class Bam2Raster extends CommandLineProgram
 				double x0=left(rec);
 				double x1=right(rec);
 				double y0=y;
-				double y1=y0+10;
+				double y1=y0+this.featureHeight;
 				Shape shapeRec=null;
 				if(x1-x0 < minArrowWidth)
 					{
@@ -142,10 +175,14 @@ public class Bam2Raster extends CommandLineProgram
 					path.closePath();
 					shapeRec=path;
 					}
-				g.setColor(Color.LIGHT_GRAY);
+				Stroke oldStroke=g.getStroke();
+				g.setStroke(new BasicStroke(2f));
+				g.setColor(this.fillColorizer.getColor(rec));
 				g.fill(shapeRec);
-				g.setColor(Color.BLACK);
+				g.setColor(this.strokeColorizer.getColor(rec));
 				g.draw(shapeRec);
+				g.setStroke(oldStroke);
+				
 				Shape oldClip=g.getClip();
 				g.setClip(shapeRec);
 				CigarIterator ci=CigarIterator.create(rec, this.indexedFastaSequenceFile);
@@ -194,7 +231,7 @@ public class Bam2Raster extends CommandLineProgram
 				
 				g.setClip(oldClip);
 				}
-			y+=10;
+			y+=this.featureHeight+this.spaceYbetweenFeatures;
 			}
 		g.dispose();
 		return img;
