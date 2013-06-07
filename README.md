@@ -207,6 +207,12 @@ M00491:12:000000000-A3FL3:1:1101:16929:4287	147	5	C	36	chr22	544293	C	M	=
 ```
 
 <h3>cmpbam: Comparing two or more BAMS</h3>
+
+<h4>Compilation</h4>
+```bash
+ant cmpbams
+```
+
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -222,4 +228,27 @@ java -jar dist/cmpbams.ja \
 	I=file3.bam \
 	L=chr1:32944435-32944435
 ```
+
+
+<h3>Bam2Raster</h3>
+(under development)
+<h4>Motivation</h4>
+Save a BAM alignment as a PNG image.
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>BAM files to process.  Required. </td></tr>
+<tr><td>OUT=File</td><td>Image name.  Required. </td></tr>
+<tr><td>REGION=String</td><td>restrict to that region (chr:start-end)  Default value: null. </td></tr>
+<tr><td>REF=File</td><td>Indexex reference  Required. </td></tr>
+<tr><td>WIDTH=Integer</td><td>image width  Default value: 1000. This option can be set to 'null' to clear the default value. </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+java -jar dist/bam2raster.jar \
+	IN=sorted.bam L=seq1:200-300 \
+	OUT=ouput.png \
+	R=ex1.fa
+```
+
 

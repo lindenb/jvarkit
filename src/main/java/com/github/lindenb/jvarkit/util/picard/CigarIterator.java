@@ -130,6 +130,27 @@ public class CigarIterator
 				).getBases()[0];
 		}
 	
+	/** return true if : we can get base of read AND reference AND both upper(bases) are the same */
+	public boolean isBaseMatching()
+		{
+		
+		Character c1=getReadBase();
+		if(c1==null) return false;
+		Character c2=getReferenceBase();
+		if(c2==null) return false;
+		return Character.toUpperCase(c1)==Character.toUpperCase(c2);
+		}
+	/** return true if : we can get base of read AND reference AND both upper(bases) are NOT the same */
+	public boolean isBaseMismatching()
+		{
+		Character c1=getReadBase();
+		if(c1==null) return false;
+		Character c2=getReferenceBase();
+		if(c2==null) return false;
+		return Character.toUpperCase(c1)!=Character.toUpperCase(c2);
+		}
+
+	
 	public CigarElement getCigarElement()
 		{
 		return getSAMRecord().getCigar().getCigarElement(cigardElementIndex);
