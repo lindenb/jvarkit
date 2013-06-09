@@ -242,6 +242,8 @@ Save a BAM alignment as a PNG image.
 <tr><td>REGION=String</td><td>restrict to that region (chr:start-end)  Default value: null. </td></tr>
 <tr><td>REF=File</td><td>Indexex reference  Required. </td></tr>
 <tr><td>WIDTH=Integer</td><td>image width  Default value: 1000. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>NAME=Boolean</td><td>print read name.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr> 
+<tr><td>BASE=Boolean</td><td>print base.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
 <h4>Example</h4>
 ```bash

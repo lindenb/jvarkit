@@ -16,6 +16,7 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 
+import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.picard.CigarIterator;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 
@@ -45,6 +46,10 @@ public class Bam2Raster extends CommandLineProgram
 	public File  REF=null;
     @Option(shortName= "W", doc="image width",optional=true)
     private int WIDTH=1000;
+    @Option(shortName= "N", doc="print read name. ",optional=false)
+    private boolean NAME=false;
+    @Option(shortName= "B", doc="print base. ",optional=false)
+    private boolean BASE=false;
     
 	
    private interface Colorizer
@@ -81,7 +86,7 @@ public class Bam2Raster extends CommandLineProgram
 	private int maxArrowWidth=5;
 	private int featureHeight=30;
 	private int spaceYbetweenFeatures=4;
-	
+	private Hershey hersheyFont=new Hershey();
 	private Colorizer fillColorizer=new QualityColorizer();
 	private Colorizer strokeColorizer=new FlagColorizer();
 	
@@ -175,6 +180,7 @@ public class Bam2Raster extends CommandLineProgram
 					path.closePath();
 					shapeRec=path;
 					}
+				
 				Stroke oldStroke=g.getStroke();
 				g.setStroke(new BasicStroke(2f));
 				g.setColor(this.fillColorizer.getColor(rec));
@@ -185,6 +191,13 @@ public class Bam2Raster extends CommandLineProgram
 				
 				Shape oldClip=g.getClip();
 				g.setClip(shapeRec);
+				
+				if(this.NAME)
+					{
+					hersheyFont.paint(g, rec.getReadName(), shapeRec);
+					}
+				
+				
 				CigarIterator ci=CigarIterator.create(rec, this.indexedFastaSequenceFile);
 				int prevRefPos=-1;
 				while(ci.next())
@@ -206,18 +219,8 @@ public class Bam2Raster extends CommandLineProgram
 						}
 					prevRefPos=refPos;
 					CigarOperator op=ci.getCigarOperator();
-					if(ci.isBaseMatching() || op==CigarOperator.EQ)
-						{
-						continue;
-						}
-					g.setColor(Color.RED);
-					double mutW=convertToX(refPos+1)-convertToX(refPos);
-					switch(op)
-						{
-						case D: mutW=1; g.setColor(Color.GREEN);break;
-						default:break;
-						}
 					
+					double mutW=convertToX(refPos+1)-convertToX(refPos);
 					Shape mut= new Rectangle2D.Double(
 							convertToX(refPos),
 							y0,
@@ -225,7 +228,33 @@ public class Bam2Raster extends CommandLineProgram
 							y1-y0
 							);
 					
+					if(ci.getReadBase()!=null)
+						{
+						g.setColor(Color.YELLOW);
+						this.hersheyFont.paint(g,String.valueOf(ci.getReadBase()),mut);
+						}
+					
+					
+					if(ci.isBaseMatching() || op==CigarOperator.EQ)
+						{
+						continue;
+						}
+					g.setColor(Color.RED);
+					
+					switch(op)
+						{
+						case D: mutW=1; g.setColor(Color.GREEN);break;
+						default:break;
+						}
+					
+					
 					g.fill(mut);
+					
+					if(ci.getReadBase()!=null)
+						{
+						g.setColor(Color.YELLOW);
+						this.hersheyFont.paint(g,String.valueOf(ci.getReadBase()),mut);
+						}
 					
 					}
 				
