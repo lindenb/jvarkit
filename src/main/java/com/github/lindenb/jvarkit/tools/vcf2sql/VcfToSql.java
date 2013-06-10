@@ -24,6 +24,7 @@ import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.io.IoUtil;
+import net.sf.picard.util.Log;
 
 public class VcfToSql extends CommandLineProgram
 	{
@@ -37,7 +38,8 @@ public class VcfToSql extends CommandLineProgram
     
     @Option(shortName="SFX",doc="Table suffix",optional=true)
 	public String SUFFIX="";
-
+    
+    private static Log LOG=Log.getInstance(VcfToSql.class); 
     
     private PrintWriter out=new PrintWriter(System.out);
     
@@ -53,6 +55,7 @@ public class VcfToSql extends CommandLineProgram
 		{
 		try
 			{
+			
 		    out.println( "create table if not exists FILE"+SUFFIX+"("+
 		    		COLUMN_ID+
 		    		"filename TEXT NOT NULL"+
@@ -104,7 +107,7 @@ public class VcfToSql extends CommandLineProgram
 				COLUMN_ID+
 				"var_id INT NOT NULL REFERENCES VARIATION"+SUFFIX+"(id) ON DELETE CASCADE,"+
 				"sample_id INT NOT NULL REFERENCES SAMPLE"+SUFFIX+"(id) ON DELETE CASCADE,"+
-				"A1 TEXT, A2 TEXT, dp int, ad varchar(50), gq float,"+
+				"A1 TEXT, A2 TEXT, dp int, ad varchar(50), gq float,pl TEXT,"+
 				"is_phased SMALLINT not null,is_hom SMALLINT not null,is_homref  SMALLINT not null,is_homvar  SMALLINT not null,is_mixed  SMALLINT not null," +
 				"is_nocall SMALLINT not null,is_noninformative SMALLINT not null,is_available SMALLINT not null,is_called SMALLINT not null,is_filtered  SMALLINT not null"+
 				");"
@@ -196,7 +199,7 @@ public class VcfToSql extends CommandLineProgram
 		
 		while((line=r.readLine())!=null)
 			{
-			//out.println("/* "+line +" */");
+			LOG.debug(line);
 			
 			VariantContext var=codec.decode(line);
 			
@@ -260,17 +263,18 @@ public class VcfToSql extends CommandLineProgram
 				
 				out.println(
 						"insert into GENOTYPE"+SUFFIX+
-						"(var_id,sample_id,A1,A2,dp,ad,gq," +
+						"(var_id,sample_id,A1,A2,dp,ad,gq,pl," +
 						"is_phased,is_hom,is_homref,is_homvar,is_mixed," +
 						"is_nocall,is_noninformative,is_available,is_called,is_filtered"+
 						") values ("+
 						"(select max(id) from VARIATION"+SUFFIX+"),"+
 						"(select id from SAMPLE"+SUFFIX+" where name="+quote(g.getSampleName())+"),"+
-						(alleles.size()==2?quote(alleles.get(0).getBaseString()):"null")+","+
-						(alleles.size()==2?quote(alleles.get(1).getBaseString()):"null")+","+
-						(g.hasDP()?g.getDP():"null")+","+
-						(g.hasAD()?quote(infotoString(g.getAD())):"null")+","+
-						(g.hasGQ()?g.getGQ():"null")+","+
+						(alleles.size()==2?quote(alleles.get(0).getBaseString()):"NULL")+","+
+						(alleles.size()==2?quote(alleles.get(1).getBaseString()):"NULL")+","+
+						(g.hasDP()?g.getDP():"NULL")+","+
+						(g.hasAD()?quote(infotoString(g.getAD())):"NULL")+","+
+						(g.hasGQ()?g.getGQ():"NULL")+","+
+						(g.hasPL()?quote(infotoString(g.getPL())):"NULL")+","+
 						(g.isPhased()?1:0)+","+
 						(g.isHom()?1:0)+","+
 						(g.isHomRef()?1:0)+","+
