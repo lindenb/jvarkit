@@ -273,5 +273,5 @@ Generate the SQL code to insert a VCF into sqlite3.
 java -jar dist/vcf2sql.jar I=file.vcf | sqlite3 db.sqlite 
 ```
 <h4>Schema</h4>
-![Schema](https://chart.googleapis.com/chart?cht=gv&chl=graph{HEADER->FILE;VARIATION->FILE;ALT->VARIATION;FILTER->VARIATION;INFO->VARIATION;SAMPLE->GENOTYPE;GENOTYPE->VARIATION;GTPROP->GENOTYPE;})
+![Schema](https://chart.googleapis.com/chart?cht=gv&chl=digraph{HEADER->FILE;VARIATION->FILE;ALT->VARIATION;FILTER->VARIATION;INFO->VARIATION;SAMPLE->GENOTYPE;GENOTYPE->VARIATION;GTPROP->GENOTYPE;})
 
