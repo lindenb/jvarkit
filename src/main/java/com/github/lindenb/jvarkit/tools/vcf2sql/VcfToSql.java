@@ -14,7 +14,10 @@ import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFCodec;
+import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import org.broadinstitute.variant.vcf.VCFHeaderVersion;
 
 import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
@@ -32,6 +35,10 @@ public class VcfToSql extends CommandLineProgram
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF files to process.",minElements=0)
 	public List<File> IN=new ArrayList<File>();
     
+    @Option(shortName="SFX",doc="Table suffix",optional=true)
+	public String SUFFIX="";
+
+    
     private PrintWriter out=new PrintWriter(System.out);
     
     @Override
@@ -40,35 +47,75 @@ public class VcfToSql extends CommandLineProgram
     	return "1.0";
     	}
     
+    
 	@Override
 	protected int doWork()
 		{
 		try
 			{
-		    out.print( "create table if not exists VCFFILE("+
+		    out.println( "create table if not exists FILE"+SUFFIX+"("+
 		    		COLUMN_ID+
 		    		"filename TEXT NOT NULL"+
-		    		")");
-		    out.print( "create table if not exists SAMPLE("+
+		    		");");
+
+		    out.println( "create table if not exists HEADER"+SUFFIX+"("+
+		    		COLUMN_ID+
+					"file_id INT NOT NULL REFERENCES FILE"+SUFFIX+"(id) ON DELETE CASCADE,"+
+		    		"header TEXT"+
+		    		");");
+
+		    
+		    out.println( "create table if not exists SAMPLE"+SUFFIX+"("+
 			    COLUMN_ID+
 			    "name TEXT NOT NULL UNIQUE"+
-			   ")");
-		    out.print( "create table if not exists VARIATION("+
+			   ");");
+		    out.println( "create table if not exists VARIATION"+SUFFIX+"("+
 				COLUMN_ID+
+				"file_id INT NOT NULL REFERENCES FILE"+SUFFIX+"(id) ON DELETE CASCADE,"+
 				"CHROM VARCHAR(20) NOT NULL,"+
 				"POS INT NOT NULL,"+
-				"RS VARCHAR(50),"+
-				"REF VARCHAR(10) NOT NULL"+
-			    ")");
-		    out.print(     "create table if not exists VCFROWINFO("+
-				COLUMN_ID+
-				"vcfrow_id INT NOT NULL REFERENCES VCFROW(id) ON DELETE CASCADE,"+
-				"prop VARCHAR(10) NOT NULL,"+
-				"value TEXT"+
-				   ")");
-
-			
+				"START0 INT NOT NULL,"+
+				"END0 INT NOT NULL,"+
+				"RS_ID VARCHAR(50),"+
+				"REF VARCHAR(10) NOT NULL,"+
+				"QUAL FLOAT"+
+			    ");");
 		    
+		    out.println("create table if not exists ALT"+SUFFIX+"("+
+				COLUMN_ID+
+				"var_id INT NOT NULL REFERENCES VARIATION"+SUFFIX+"(id) ON DELETE CASCADE,"+
+				"ALT TEXT"+
+				  ");");
+		    out.println("create table if not exists FILTER"+SUFFIX+"("+
+				COLUMN_ID+
+				"var_id INT NOT NULL REFERENCES VARIATION"+SUFFIX+"(id) ON DELETE CASCADE,"+
+				"FILTER varchar(50) not null"+
+				 ");");
+
+		    out.println("create table if not exists INFO"+SUFFIX+"("+
+				COLUMN_ID+
+				"var_id INT NOT NULL REFERENCES VARIATION"+SUFFIX+"(id) ON DELETE CASCADE,"+
+				"k varchar(50) not null,"+
+				"v TEXT not null"+
+				 ");");
+
+		    
+		    out.println(     "create table if not exists GENOTYPE"+SUFFIX+"("+
+				COLUMN_ID+
+				"var_id INT NOT NULL REFERENCES VARIATION"+SUFFIX+"(id) ON DELETE CASCADE,"+
+				"sample_id INT NOT NULL REFERENCES SAMPLE"+SUFFIX+"(id) ON DELETE CASCADE,"+
+				"A1 TEXT, A2 TEXT, dp int, ad varchar(50), gq float,"+
+				"is_phased SMALLINT not null,is_hom SMALLINT not null,is_homref  SMALLINT not null,is_homvar  SMALLINT not null,is_mixed  SMALLINT not null," +
+				"is_nocall SMALLINT not null,is_noninformative SMALLINT not null,is_available SMALLINT not null,is_called SMALLINT not null,is_filtered  SMALLINT not null"+
+				");"
+				);
+		    out.println("create table if not exists GTPROP"+SUFFIX+"("+
+				COLUMN_ID+
+				"var_id INT NOT NULL REFERENCES GENOTYPE"+SUFFIX+"(id) ON DELETE CASCADE,"+
+				"k varchar(50) not null,"+
+				"v TEXT not null"+
+				 ");");
+
 			out.println("begin transaction;");
 			if(IN.isEmpty())
 				{
@@ -84,6 +131,7 @@ public class VcfToSql extends CommandLineProgram
 					}
 				}
 			out.println("commit;");
+			out.flush();
 			}
 		catch(IOException err)
 			{
@@ -96,7 +144,7 @@ public class VcfToSql extends CommandLineProgram
 	private void read(InputStream in,String filename)
 		throws IOException
 		{
-		out.println("insert into FILE(filename) values ("+quote(filename)+");");
+		out.println("insert into FILE"+SUFFIX+"(filename) values ("+quote(filename)+");");
 		AsciiLineReader r=new AsciiLineReader(in);
 		
 
@@ -104,13 +152,51 @@ public class VcfToSql extends CommandLineProgram
 		VCFHeader header=(VCFHeader)codec.readHeader(r);
 		for(String S:header.getSampleNamesInOrder())
 			{
-			out.println("insert or ignore into SAMPLE(name) values ("+quote(S)+");");
+			out.println("insert or ignore into SAMPLE"+SUFFIX+"(name) values ("+quote(S)+");");
 			}
+		
+		List<String> headers=new ArrayList<String>();
+
+         for ( VCFHeaderLine line : header.getMetaDataInSortedOrder() )
+         	{
+             if ( VCFHeaderVersion.isFormatString(line.getKey()) )
+                 continue;
+             headers.add(VCFHeader.METADATA_INDICATOR+line);
+             }	
+         
+         String chromLine=VCFHeader.HEADER_INDICATOR;
+         for ( VCFHeader.HEADER_FIELDS field : header.getHeaderFields() )
+         	{
+         	if(!VCFHeader.HEADER_INDICATOR.equals(chromLine))chromLine+=(VCFConstants.FIELD_SEPARATOR);
+         	chromLine+=(field);
+         	}
+
+         if ( header.hasGenotypingData() )
+         	 {
+        	 chromLine+=VCFConstants.FIELD_SEPARATOR+"FORMAT";
+             for ( String sample : header.getGenotypeSamples() ) {
+            	 chromLine+=VCFConstants.FIELD_SEPARATOR;
+                chromLine+=sample;
+             	}
+         	}
+         headers.add(chromLine); 
+
+         for(String line:headers)
+         	{
+ 			out.println(
+					"insert into HEADER"+SUFFIX+
+					"(file_id,header) values ("+
+					"(select max(id) from FILE"+SUFFIX+"),"+
+					quote(line)+");"
+					);
+         	}
+		
+		
 		String line;
 		
 		while((line=r.readLine())!=null)
 			{
-			out.println("/* "+line +" */");
+			//out.println("/* "+line +" */");
 			
 			VariantContext var=codec.decode(line);
 			
@@ -119,24 +205,25 @@ public class VcfToSql extends CommandLineProgram
 		
 			
 			out.println(
-					"insert into VARIATION(file_id,chrom,pos,start0,end0,rs_id,ref,qual) values "+
-					"(select max(id) from FILE),"+
+					"insert into VARIATION"+SUFFIX+
+					"(file_id,chrom,pos,START0,END0,rs_id,ref,qual) values ("+
+					"(select max(id) from FILE"+SUFFIX+"),"+
 					quote(var.getChr())+","+
 					var.getStart()+","+
 					(var.getStart()-1)+","+
 					var.getEnd()+","+
-					quote(var.getID())+","+
+					(var.getID()==null || var.getID().equals(VCFConstants.EMPTY_ID_FIELD) ?"NULL":quote(var.getID()))+","+
 					quote(var.getReference().getDisplayString())+","+
-					(var.getPhredScaledQual()<0?"NULL":var.getPhredScaledQual())+";"
+					(var.getPhredScaledQual()<0?"NULL":var.getPhredScaledQual())+");"
 					);
 			//"create table if not exists ALT(id,var_id,alt)";
 
 			for(Allele alt: var.getAlternateAlleles())
 				{
 				out.println(
-						"insert into ALT(var_id,alt) values "+
-						"(select max(id) from VARIATION),"+
-						quote(alt.getDisplayString())+";"
+						"insert into ALT"+SUFFIX+"(var_id,alt) values ("+
+						"(select max(id) from VARIATION"+SUFFIX+"),"+
+						quote(alt.getDisplayString())+");"
 						);
 				}
 			//"create table if not exists FILTER(id,var_id,filter)";
@@ -144,9 +231,9 @@ public class VcfToSql extends CommandLineProgram
 			for(String filter:var.getFilters())
 				{
 				out.println(
-						"insert into FILTER(var_id,filter) values "+
-						"(select max(id) from VARIATION),"+
-						quote(filter)+";"
+						"insert into FILTER"+SUFFIX+"(var_id,filter) values ("+
+						"(select max(id) from VARIATION"+SUFFIX+"),"+
+						quote(filter)+");"
 						);
 				}
 			CommonInfo infos=var.getCommonInfo();
@@ -158,25 +245,32 @@ public class VcfToSql extends CommandLineProgram
 
 				
 				out.println(
-						"insert into INFO(var_id,k,v) values "+
-						"(select max(id) from VARIATION),"+
+						"insert into INFO"+SUFFIX+"(var_id,k,v) values ("+
+						"(select max(id) from VARIATION"+SUFFIX+"),"+
 						quote(key)+","+
-						quote(infotoString(val))+";"
+						quote(infotoString(val))+");"
 						);
 				}
 			GenotypesContext genotypesCtx =var.getGenotypes();
 			for(Genotype g:genotypesCtx)
 				{
 				//"create table if not exists GENOTYPE(id,var_id,k,v)";
-
+				
+				List<Allele> alleles=g.getAlleles();
 				
 				out.println(
-						"insert into GENOTYPE(var_id,sample_id,dp,ad,gq,is_phased) values "+
-						"(select max(id) from VARIATION),"+
-						"(select id from SAMPLE where name="+quote(g.getSampleName())+"),"+
-						(g.hasDP()?"null":g.getDP())+","+
-						quote(infotoString(g.getAD()))+","+
-						g.getGQ()+","+
+						"insert into GENOTYPE"+SUFFIX+
+						"(var_id,sample_id,A1,A2,dp,ad,gq," +
+						"is_phased,is_hom,is_homref,is_homvar,is_mixed," +
+						"is_nocall,is_noninformative,is_available,is_called,is_filtered"+
+						") values ("+
+						"(select max(id) from VARIATION"+SUFFIX+"),"+
+						"(select id from SAMPLE"+SUFFIX+" where name="+quote(g.getSampleName())+"),"+
+						(alleles.size()==2?quote(alleles.get(0).getBaseString()):"null")+","+
+						(alleles.size()==2?quote(alleles.get(1).getBaseString()):"null")+","+
+						(g.hasDP()?g.getDP():"null")+","+
+						(g.hasAD()?quote(infotoString(g.getAD())):"null")+","+
+						(g.hasGQ()?g.getGQ():"null")+","+
 						(g.isPhased()?1:0)+","+
 						(g.isHom()?1:0)+","+
 						(g.isHomRef()?1:0)+","+
@@ -185,11 +279,8 @@ public class VcfToSql extends CommandLineProgram
 						(g.isNoCall()?1:0)+","+
 						(g.isNonInformative()?1:0)+","+
 						(g.isAvailable()?1:0)+","+
-						(g.isNoCall()?1:0)+","+
 						(g.isCalled()?1:0)+","+
-						(g.isPhased()?1:0)+","+						
-						(g.isCalled()?1:0)+","+						
-						g.getGenotypeString()+"/"+g.getDP()+"/"+g.getAlleles()
+						(g.isFiltered()?1:0)+");"
 						);
 				
 				for(String key:g.getExtendedAttributes().keySet())
@@ -197,17 +288,17 @@ public class VcfToSql extends CommandLineProgram
 					Object val=g.getExtendedAttribute(key);
 					if(val==null) continue;
 					out.println(
-							"insert into GTPROP(genotype_id,k,v) values "+
-							"(select max(id) from GENOTYPE),"+
+							"insert into GTPROP"+SUFFIX+"(genotype_id,k,v) values ("+
+							"(select max(id) from GENOTYPE"+SUFFIX+"),"+
 							quote(key)+","+
-							quote(infotoString(val))+";"
+							quote(infotoString(val))+");"
 							);
 					}
-				if(!g.isAvailable()) break;
-				if(!g.isCalled()) break;
+
 				}
 			
 			}
+		
 		}
 	
 	private String quote(String s)
@@ -220,7 +311,7 @@ public class VcfToSql extends CommandLineProgram
 			char c=s.charAt(i);
 			switch(c)
 				{
-				case '\'': b.append("'''"); break;
+				case '\'': b.append("''"); break;
 				default: b.append(c); break;
 				}
 			}
@@ -230,6 +321,17 @@ public class VcfToSql extends CommandLineProgram
 	
 	private String infotoString(Object o)
 		{
+		if(o instanceof int[])
+			{
+			int array[]=(int[])o;
+			StringBuilder b=new StringBuilder();
+			for(int i=0;i< array.length;++i)
+				{
+				if(i>0) b.append(",");
+				b.append(infotoString(array[i]));
+				}
+			return b.toString();
+			}
 		if(o instanceof List)
 			{
 			List<?> L=List.class.cast(o);

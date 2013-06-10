@@ -245,6 +245,10 @@ Save a BAM alignment as a PNG image.
 <tr><td>NAME=Boolean</td><td>print read name.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr> 
 <tr><td>BASE=Boolean</td><td>print base.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
+<h4>Compilation</h4>
+```bash
+ant bam2raster
+```
 <h4>Example</h4>
 ```bash
 java -jar dist/bam2raster.jar \
@@ -253,4 +257,21 @@ java -jar dist/bam2raster.jar \
 	R=ex1.fa
 ```
 ![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png)
+
+
+<h3>VCF2SQL</h3>
+<h4>Motivation</h4>
+Generate the SQL code to insert a VCF into sqlite3.
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>VCF files to process.  This option may be specified 0 or more times. </td></tr>
+<tr><td>SUFFIX=String</td><td>Table suffix  Default value: (empty). This option can be set to 'null' to clear the default value. </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+java -jar dist/vcf2sql.jar I=file.vcf | sqlite3 db.sqlite 
+```
+<h4>Schema</h4>
+![Schema](https://chart.googleapis.com/chart?cht=gv&chl=graph{HEADER->FILE;VARIATION->FILE;ALT->VARIATION;FILTER->VARIATION;INFO->VARIATION;SAMPLE->GENOTYPE;GENOTYPE->VARIATION;GTPROP->GENOTYPE;})
 
