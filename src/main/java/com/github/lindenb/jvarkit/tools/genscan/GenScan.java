@@ -1,9 +1,10 @@
 package com.github.lindenb.jvarkit.tools.genscan;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.Insets;
-import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -59,11 +60,18 @@ public class GenScan extends CommandLineProgram
 	public File OUT;
     @Option(shortName="DC",doc="Do not display unseen chromosome",optional=false)	
     public boolean DICARD_UNSEEN_CHROM=false;
+    @Option(shortName="DB",doc="ignore chromosomes left/right side if there's no data there.",optional=false)	
+    public boolean DISCARD_BOUNDS=false;
+
+    
     @Option(shortName="IIS",doc="Input is a BAM/SAM file",optional=false)	
     public boolean INPUT_IS_SAM=false;
-   
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="Input Files. default:stdin. ",minElements=0)
 	public List<File> IN=new ArrayList<File>();
+    @Option(shortName= "alpha", doc="Default opacity",optional=true)
+	public double OPACITY=0.2;
+ 
+    
     
     private Hershey hershey=new Hershey();
 	private Insets insets=new Insets(20,150, 30, 30);
@@ -81,10 +89,17 @@ public class GenScan extends CommandLineProgram
 		double width;
 		int max_pos=Integer.MIN_VALUE;
 		int min_pos=Integer.MAX_VALUE;
+		
+		public double converPosToPixel(int pos)
+			{
+			if(DISCARD_BOUNDS) pos-=this.min_pos;
+			return this.x+(pos)/((double)ssr.getSequenceLength())*this.width;
+			}
+		
 		Point2D.Double convert(DataPoint dpt)
 			{
 			return new Point2D.Double(
-				this.x+(dpt.pos)/((double)ssr.getSequenceLength())*this.width,
+				converPosToPixel(dpt.pos),
 				(HEIGHT-insets.bottom)-((dpt.value-min_value)/(max_value-min_value))*(HEIGHT-(insets.bottom+insets.top))
 				);
 			}
@@ -101,6 +116,7 @@ public class GenScan extends CommandLineProgram
 		void draw(Graphics2D g)
 			{
 			Rectangle2D.Double r=getFrame();
+			g.setColor(Color.GRAY);
 			g.draw(r);
 			
 			double optW=Math.min(this.ssr.getSequenceName().length()*10,this.width);
@@ -113,6 +129,17 @@ public class GenScan extends CommandLineProgram
 			hershey.paint(g, this.ssr.getSequenceName(), titleRec);
 			}
 		
+		int getSequenceLength()
+			{
+			if(DISCARD_BOUNDS)
+				{
+				return max_pos-min_pos;
+				}
+			else
+				{
+				return ssr.getSequenceLength();
+				}
+			}
 		}
 	
 	private static class DataPoint implements Comparable<DataPoint>
@@ -210,6 +237,7 @@ public class GenScan extends CommandLineProgram
 					in.close();
 					}
 				}
+			
 			dataPoints.setDestructiveIteration(true);
 			dataPoints.doneAdding();
 			
@@ -231,17 +259,23 @@ public class GenScan extends CommandLineProgram
 			long genomeSize=0L;
 			for(ChromInfo ci:this.chromInfos)
 				{
-				genomeSize+=ci.ssr.getSequenceLength();
+				genomeSize+=ci.getSequenceLength();
 				}
 			
 			double x=this.insets.left;
 			for(ChromInfo ci:this.chromInfos)
 				{
 				ci.x=x;
-				ci.width=(ci.ssr.getSequenceLength()/(double)genomeSize)*(WIDTH-(insets.left+insets.right));
+				ci.width=(ci.getSequenceLength()/(double)genomeSize)*(WIDTH-(insets.left+insets.right));
 				x=ci.x+ci.width;
 				}
-
+			double log10=Math.pow(10,Math.floor(Math.log10(this.max_value)));
+			//max_value=(this.max_value/log10);
+			this.max_value=Math.max(this.max_value,Math.ceil(this.max_value/log10)*log10);
+			
+			log10=Math.pow(10,Math.floor(Math.log10(this.min_value)));
+			this.min_value=Math.min(this.min_value,Math.floor(this.min_value/log10)*log10);
+			
 			
 			BufferedImage img=new BufferedImage(this.WIDTH, this.HEIGHT, BufferedImage.TYPE_INT_RGB);
 			
@@ -256,23 +290,6 @@ public class GenScan extends CommandLineProgram
 				}
 			
 			
-			iter=dataPoints.iterator();
-			while(iter.hasNext())
-				{
-				DataPoint dpt=iter.next();
-				ChromInfo ci=this.chromInfos.get(dpt.tid);
-				g.setColor(Color.RED);
-				Point2D.Double  xy=ci.convert(dpt);
-				g.fill(new Ellipse2D.Double(xy.x-1, xy.y-1, 3, 3));
-				}
-			iter.close();
-			iter=null;
-			
-			for(ChromInfo ci:this.chromInfos)
-				{
-				ci.draw(g);
-				}
-			
 			//draw axis y
 			g.setColor(Color.BLACK);
 			for(int i=0;i<= 10;++i)
@@ -281,11 +298,38 @@ public class GenScan extends CommandLineProgram
 				double y=(HEIGHT-insets.bottom)-
 						((v-min_value)/(max_value-min_value))*(HEIGHT-(insets.bottom+insets.top))
 						;
-				g.draw(new Line2D.Double(insets.left, y, insets.left-5, y));
+				g.setColor(Color.LIGHT_GRAY);
+				g.draw(new Line2D.Double(insets.left-5, y, WIDTH-insets.right, y));
 				
 				Rectangle2D.Double r=new Rectangle2D.Double(0,y-12,insets.left,24);
+				g.setColor(Color.BLACK);
 				this.hershey.paint(g, String.valueOf(v), r);
 				}
+
+			Composite oldComposite=g.getComposite();
+			g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,(float)this.OPACITY));
+			iter=dataPoints.iterator();
+			while(iter.hasNext())
+				{
+				DataPoint dpt=iter.next();
+				ChromInfo ci=this.chromInfos.get(dpt.tid);
+			
+				Point2D.Double  xy=ci.convert(dpt);
+				
+				g.setColor(Color.RED);
+				g.draw(new Line2D.Double(xy.x-1, xy.y,xy.x+1, xy.y));
+				g.draw(new Line2D.Double(xy.x, xy.y-1,xy.x, xy.y+1));
+				
+				}
+			iter.close();
+			iter=null;
+			g.setComposite(oldComposite);
+			
+			for(ChromInfo ci:this.chromInfos)
+				{
+				ci.draw(g);
+				}
+			
 			
 			g.dispose();
 			ImageIO.write(img, "PNG", OUT);
@@ -344,18 +388,20 @@ public class GenScan extends CommandLineProgram
 				System.err.println("bad pos in  "+line);
 				continue;
 				}
-			try {
-				pt.value=Double.parseDouble(tokens[2]);
-				if(Double.isNaN(pt.value))
-					{
-					LOG.warn("bad value in "+line);
+			
+				try {
+					pt.value=Double.parseDouble(tokens[2]);
+					if(Double.isNaN(pt.value))
+						{
+						LOG.warn("bad value in "+line);
+						continue;
+						}
+					}
+				catch (Exception e) {
+					System.err.println("bad value in  "+line);
 					continue;
 					}
-				}
-			catch (Exception e) {
-				System.err.println("bad value in  "+line);
-				continue;
-				}
+				
 			this.dataPoints.add(pt);
 			ci.max_pos=Math.max(ci.max_pos, pt.pos);
 			ci.min_pos=Math.min(ci.min_pos, pt.pos);
@@ -367,6 +413,7 @@ public class GenScan extends CommandLineProgram
 		{
 		LOG.info("reading SAM");
 		SAMFileReader sfr=new SAMFileReader(in);
+		
 		SamLocusIterator sli=new SamLocusIterator(sfr);
 		sli.setEmitUncoveredLoci(true);
 		Iterator<LocusInfo> iter=sli.iterator();
@@ -387,6 +434,7 @@ public class GenScan extends CommandLineProgram
 			this.max_value=Math.max(max_value, pt.value);
 			this.min_value=Math.min(min_value, pt.value);
 			}
+		
 		}
 	public static void main(String[] args)
 		{
