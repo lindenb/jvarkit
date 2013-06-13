@@ -56,32 +56,57 @@ public class AsciiHandler extends AbstractHandler
 			}
 		this.out.print(c1);
 		}
-
+	private StringBuilder ref1=null;//new StringBuilder(); 
+	private StringBuilder ref2=null;//new StringBuilder(); 
+	@Override
+	public void beginReferenceSeq() {
+		ref2=new StringBuilder();
+		ref1=new StringBuilder();
+		}
 	@Override
 	public void reference(IndexedFastaSequenceFile ref, String seqName,int refPos)
 		{
+		while(ref2.length()< ref1.length())
+			{
+			ref2.append(' ');
+			}
 		if(ref==null)
 			{
-			out.print('N');
-			return;
+			ref1.append('N');
 			}
-		if(refPos==-1)
+		else if(refPos==-1)
 			{
-			out.print('*');
-			return;
+			ref1.append('*');
 			}
-		Character c=getReferenceBaseAt(ref,seqName,refPos);
-		if(c==null)
+		else
 			{
-			out.print('#');
-			return;
+			Character c=getReferenceBaseAt(ref,seqName,refPos);
+			if(c==null)
+				{
+				ref1.append('#');
+				}
+			else
+				{
+				ref1.append(c);
+				}
 			}
-		out.print(c);
+		
+		if(refPos!=-1 && refPos%10==0)
+			{
+			ref2.append(String.valueOf(refPos));
+			}
 		}
 	
+	
 	@Override
-	public void endReferenceSeq() {
+	public void endReferenceSeq()
+		{
+		this.out.print(ref2);
 		this.endRow();
+		this.out.print(ref1);
+		this.endRow();
+		ref1=null;
+		ref2=null;
 		}
 	
 	@Override
