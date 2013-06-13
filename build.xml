@@ -484,6 +484,15 @@
 		name="genscan"
 		/>
 </target>	
+
+<target name="tview" >
+	<compile-with-picard 
+		java="**/TViewCmd.java"
+		main="com.github.lindenb.jvarkit.tools.tview.TViewCmd"
+		name="tview"
+		/>
+</target>		
+	
 	
 <target name="vcfbedjs" >
 	   <mkdir dir="tmp"/>
