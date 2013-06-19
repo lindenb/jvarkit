@@ -37,6 +37,12 @@ public class Sam2Tsv extends CommandLineProgram
 	private PrintWriter pw=new PrintWriter(System.out);
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	
+	
+	@Override
+	public String getVersion() {
+		return "1.0";
+		}
+	
 	private void print(final SAMRecord rec)
 		{
 		if(ALN)
