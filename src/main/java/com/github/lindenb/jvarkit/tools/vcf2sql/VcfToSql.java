@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broadinstitute.variant.variantcontext.Allele;
@@ -18,6 +19,7 @@ import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeaderVersion;
+import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
 import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
@@ -101,6 +103,20 @@ public class VcfToSql extends CommandLineProgram
 				"k varchar(50) not null,"+
 				"v TEXT not null"+
 				 ");");
+		    
+		    out.println("create table if not exists VEP"+SUFFIX+"("+
+					COLUMN_ID+
+					"info_id INT NOT NULL REFERENCES INFO"+SUFFIX+"(id) ON DELETE CASCADE,"+
+					"k varchar(50) not null,"+
+					"v TEXT not null"+
+					 ");");
+		    
+		    out.println("create table if not exists SNPEFF"+SUFFIX+"("+
+					COLUMN_ID+
+					"info_id INT NOT NULL REFERENCES INFO"+SUFFIX+"(id) ON DELETE CASCADE,"+
+					"k varchar(50) not null,"+
+					"v TEXT not null"+
+					 ");");
 
 		    
 		    out.println(     "create table if not exists GENOTYPE"+SUFFIX+"("+
@@ -147,12 +163,39 @@ public class VcfToSql extends CommandLineProgram
 	private void read(InputStream in,String filename)
 		throws IOException
 		{
+		Pattern comma=Pattern.compile("[,]");
+		Pattern pipe=Pattern.compile("[\\|]");
 		out.println("insert into FILE"+SUFFIX+"(filename) values ("+quote(filename)+");");
 		AsciiLineReader r=new AsciiLineReader(in);
 		
 
 		VCFCodec codec=new VCFCodec();
 		VCFHeader header=(VCFHeader)codec.readHeader(r);
+		
+		String csqColumns[]=null;
+		VCFInfoHeaderLine infoHeader=header.getInfoHeaderLine("CSQ");
+		if(infoHeader!=null)
+			{
+			final String formatStr="Format: ";
+			int i=infoHeader.getDescription().indexOf(formatStr);
+			if(i!=-1)
+				{
+				csqColumns=pipe.split(infoHeader.getDescription().substring(i+formatStr.length()).trim());
+				}
+			}
+		String snpEffColumns[]=null;
+		infoHeader=header.getInfoHeaderLine("EFF");
+		if(infoHeader!=null)
+			{
+			final String formatStr=".Format: '";
+			int i=infoHeader.getDescription().indexOf(formatStr);
+			if(i!=-1)
+				{
+				snpEffColumns=pipe.split(infoHeader.getDescription().substring(i+formatStr.length()).trim());
+				}
+			}
+		
+		
 		for(String S:header.getSampleNamesInOrder())
 			{
 			out.println("insert or ignore into SAMPLE"+SUFFIX+"(name) values ("+quote(S)+");");
@@ -253,6 +296,33 @@ public class VcfToSql extends CommandLineProgram
 						quote(key)+","+
 						quote(infotoString(val))+");"
 						);
+				
+				if(key.equals("CSQ") && csqColumns!=null)
+					{
+					for(String csqs:comma.split(val.toString()))
+						{
+						if(csqs.isEmpty()) continue;
+						String tokens[]=pipe.split(csqs);
+						
+						for(int t=0;t<tokens.length && t<csqColumns.length;++t)
+							{
+							if(tokens[t].isEmpty()) continue;
+							
+							
+							out.println(
+									"insert into VEP"+SUFFIX+"(info_id,k,v) values ("+
+									"(select max(id) from INFO"+SUFFIX+"),"+
+									quote(csqColumns[t])+","+
+									quote(tokens[t])+");"
+									);
+
+							}
+						
+						}
+					}
+				
+				
+				
 				}
 			GenotypesContext genotypesCtx =var.getGenotypes();
 			for(Genotype g:genotypesCtx)
