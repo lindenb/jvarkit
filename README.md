@@ -266,7 +266,9 @@ Generate the SQL code to insert a VCF into sqlite3.
 <table>
 <tr><th>Option</th><th>Description</th></tr>
 <tr><td>IN=File</td><td>VCF files to process.  This option may be specified 0 or more times. </td></tr>
-<tr><td>SUFFIX=String</td><td>Table suffix  Default value: (empty). This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>SUFFIX=String</td><td>Table suffix  Default value: (empty).</td></tr>
+<tr><td>USE_VEP=Boolean</td><td>Use  and explode VEP predictions  Default value: true. Possible values: {true, false} </td></tr>
+<tr><td>USE_SNPEFF=Boolean</td><td>Use and explode SNPEFF predictions  Default value: true. Possible values: {true, false} </td></tr>
 </table>
 <h4>Example</h4>
 ```bash
@@ -277,5 +279,5 @@ java -jar dist/vcf2sql.jar I=file.vcf | sqlite3 db.sqlite
 ant vcf2sql
 ```
 <h4>Schema</h4>
-![Schema](https://chart.googleapis.com/chart?cht=gv&chl=digraph{HEADER->FILE;VARIATION->FILE;ALT->VARIATION;FILTER->VARIATION;INFO->VARIATION;SAMPLE->GENOTYPE;GENOTYPE->VARIATION;GTPROP->GENOTYPE;})
+![Schema](https://chart.googleapis.com/chart?cht=gv&chl=digraph{HEADER->FILE;VARIATION->FILE;ALT->VARIATION;FILTER->VARIATION;INFO->VARIATION;SAMPLE->GENOTYPE;GENOTYPE->VARIATION;GTPROP->GENOTYPE;EXTRAINFO->INFO;EXTRAINFOPROP->EXTRAINFO;})
 

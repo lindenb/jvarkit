@@ -137,7 +137,7 @@ public class VcfToSql extends CommandLineProgram
 				);
 		    out.println("create table if not exists GTPROP"+SUFFIX+"("+
 				COLUMN_ID+
-				"var_id INT NOT NULL REFERENCES GENOTYPE"+SUFFIX+"(id) ON DELETE CASCADE,"+
+				"genotype_id INT NOT NULL REFERENCES GENOTYPE"+SUFFIX+"(id) ON DELETE CASCADE,"+
 				"k varchar(50) not null,"+
 				"v TEXT not null"+
 				 ");");
@@ -545,7 +545,7 @@ public class VcfToSql extends CommandLineProgram
 						"insert into EXTRAINFO"+SUFFIX+"(info_id,type) values ("+
 						"(select max(id) from INFO"+SUFFIX+"),"+
 						quote(type)+
-						")"
+						");"
 						);
 				first=false;
 	
