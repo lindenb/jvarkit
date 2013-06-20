@@ -43,36 +43,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 package com.github.lindenb.jvarkit.util.align;
 
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.logging.Logger;
 
 
 public class Dpal
 	{
-	int DPAL_MAX_ALIGN=Integer.MAX_VALUE;
-	boolean DPAL_FORGET_PATH=false;
-	boolean DPAL_PRINT_COVERAGE=false;
-	public interface Sequence 
-		{
-		public int size();
-		public char get(int index);
-		}
-	
-	public static class DefaultSequence implements Sequence
-		{
-		private String s;
-		DefaultSequence(String s) { this.s=s;}
-		@Override
-		public char get(int index) {
-			return s.charAt(index);
-		}
-		@Override
-		public int size() {
-			return s.length();
-		}
-		}		
-		
 	private static final Logger LOG=Logger.getLogger("dpal");
+	private int DPAL_MAX_ALIGN=Integer.MAX_VALUE;
+	private boolean DPAL_FORGET_PATH=false;
+	//private boolean DPAL_PRINT_COVERAGE=false;
+	
+		
 	private static class ExtensibleList
 		{
 		private int _size=0;
@@ -90,7 +77,6 @@ public class Dpal
 			{
 			if(index>=L.length)
 				{
-				LOG.info("extend to "+index);
 				int L2[]=new int[index+index/2+1];
 				System.arraycopy(L,0,L2, 0,L.length);
 				L=L2;
@@ -129,31 +115,33 @@ public class Dpal
 		}
 	
    private static final int DPAL_ERROR_SCORE=Integer.MIN_VALUE;
-	  /* 0 means do not exit on error. */
-
-/* 
-				       * The maximum size of a string that can be
-				       * aligned with with generic dpal and for which
-				       * we can return a "path".  Several arrays of
-				       * size DPAL_MAX_ALIGN X DPAL_MAX_ALIGN are
-				       * statically allocated in dpal.o */
-
-	private static final int DPAL_LOCAL=0;  /* Return a local alignment. */
-	private static final int DPAL_GLOBAL_END   =1;  /* 
-				      * Return a global alignment _anchored at the end
-				      * of the first sequence_.
-				      */
-	private static final int  DPAL_GLOBAL       =2;  /* 
-				      * Return an arbitrary global alignment, that is
-				      * one anchored at the end of either the first or
-				      * the second sequence.
-				      */
-	private static final int DPAL_LOCAL_END    =3;   /* 
-	                               * Return a local alignment that includes the
-				       * end (but not necessarily the beginning) of
-				       * the first sequence.
-				       */
-
+	
+   /* 0 means do not exit on error. */
+   	public static enum Flag
+	   	{
+	/* 
+					       * The maximum size of a string that can be
+					       * aligned with with generic dpal and for which
+					       * we can return a "path".  Several arrays of
+					       * size DPAL_MAX_ALIGN X DPAL_MAX_ALIGN are
+					       * statically allocated in dpal.o */
+	
+		DPAL_LOCAL,  /* Return a local alignment. */
+		DPAL_GLOBAL_END ,  /* 
+					      * Return a global alignment _anchored at the end
+					      * of the first sequence_.
+					      */
+		DPAL_GLOBAL,  /* 
+					      * Return an arbitrary global alignment, that is
+					      * one anchored at the end of either the first or
+					      * the second sequence.
+					      */
+		DPAL_LOCAL_END   /* 
+		                               * Return a local alignment that includes the
+					       * end (but not necessarily the beginning) of
+					       * the first sequence.
+					       */
+	   	};
 	/*
 	 * It is not possible to specify end-gap penalties for the DPAL_GLOBAL_END
 	 * and DPLAL_GLOBAL flags.
@@ -163,71 +151,120 @@ public class Dpal
 	 * The data structure that stores the "scoring system matrix". (The socring
 	 * system matrix data structure is of size UCHAR_MAX + 1 by UCHAR_MAX + 1.)
 	 */
-	private static class dpal_ssm
+	public static interface ScoringMatrix 	
+	   	{
+	   	public int f(char i,char j);
+	   	}
+	/** the scoring matrix */
+	private ScoringMatrix scoringMatrix=new DefaultScoringMatrix();
+	
+	public void setScoringMatrix(ScoringMatrix scoringMatrix)
 		{
+		this.scoringMatrix = scoringMatrix;
+		}
+	
+	/** return the scoring matrix */
+	public ScoringMatrix getScoringMatrix()
+		{
+		return scoringMatrix;
+		}
+	
+	
+	
+	public static class DefaultScoringMatrix
+		implements ScoringMatrix
+		{
+		private int matchScore=100;
+		private int mismatchScore=-120;
+		private int baseIsNScore=-25;
+		
+		public void setMatchScore(int matchScore)
+			{
+			this.matchScore = matchScore;
+			}
+		
+		public void setMismatchScore(int mismatchScore)
+			{
+			this.mismatchScore = mismatchScore;
+			}
+		
+		public void setBaseIsNScore(int baseIsNScore)
+			{
+			this.baseIsNScore = baseIsNScore;
+			}
+		
+		private boolean isATGCN(char c)
+			{
+			switch(c)
+				{
+				case 'A': case 'T': case 'G': case 'C': case 'N':
+				case 'a': case 't': case 'g': case 'c': case 'n':return true;
+				default: return false;
+				}
+			}
+		
+		@Override
 		public int f(char i,char j)
 			{
-			if (('A' == i || 'C' == i || 'G' == i || 'T' == i || 'N' == i)
-			          && ('A' == j || 'C' == j || 'G' == j || 'T' == j 
-			              || 'N' == j)) {
-			        if (i == 'N' || j == 'N') 
-			          return -25;
-			        else if (i == j)
-			          return  100;
-			        else 
-			         return -100;
-			      } else
-			        return Integer.MIN_VALUE;
+			if(isATGCN(i) && isATGCN(j))
+				{
+				i=Character.toUpperCase(i);
+				j=Character.toUpperCase(j);
+				if (i == 'N' || j == 'N')  return this.baseIsNScore;
+				if(i==j) return this.matchScore;
+				return this.mismatchScore;
+				}
 			
+			return Integer.MIN_VALUE;
 			}
 		}
 
 	/* Structure for passing in arguments to the main function, dpal. */
-	static class dpal_args {
-	    int check_chars=0;        /* 
+	//private int check_chars=0;        
+						/* 
 			             * If non-0, check for and raise an error on an
 			             * illegal character in the input strings.
 				     */
-	    boolean debug=true;              /* 
+	    private  boolean debug=true;              /* 
 				     * If non-0, print debugging information to
 				     * stderr.
 				     */
-	    int fail_stop=1;           /* Exit with -1 on error. */
-	    int flag=DPAL_LOCAL;                /* 
+	    private int fail_stop=1;           /* Exit with -1 on error. */
+	    private  Flag flag=Flag.DPAL_LOCAL;                /* 
 				      * One of DPAL_GLOBAL, DPAL_LOCAL,
 				      * DPAL_GLOBAL_END, DPAL_LOCAL_END
 				      */
-	    int force_generic=0;      /* Force the use of the generic function. */
-	    int force_long_generic=0; /* 
+	    private int force_generic=0;      /* Force the use of the generic function. */
+	    private int force_long_generic=0; /* 
 				     * Force the use of the long generic no-path
 				     * function.
 				     */
-	    int force_long_maxgap1=0; /* Force the use of the long maxgap 1 functions. */
-	    int gap=-200;                 /* The "gap opening" penalty. */
-	    int gapl=-200;                /* The "gap extension" penalty. */
-	    int max_gap=1;             /* 
+	    //private int force_long_maxgap1=0; /* Force the use of the long maxgap 1 functions. */
+	    private  int gap=-250;                 /* The "gap opening" penalty. */
+	    private  int gapl=-200;                /* The "gap extension" penalty. */
+	    private int max_gap=100;             /* 
 			              * The maximum allowable size for a gap. -1
 			              * indicates that the gap can be of any size.
 				      */
-	    int score_max;           /* If greater than 0 stop search as soon as
+	    //private  int score_max;
+	    			/* If greater than 0 stop search as soon as
 				      * score > score_max.
 				      */
-	    int score_only=0;          /* 
+	    private int score_only=0;          /* 
 				      * If non-0, only print the score on
 				      * stdout. (Incompatible with debug.)
 				      */
-	    dpal_ssm ssm=new dpal_ssm();            /* The scoring system matrix. */
-	} ;
+	
 
 	/*
 	public static class Alignment
 		{
-		private Sequence seq1;
-		private Sequence seq2;
+		private CharSequence seq1;
+		private CharSequence seq2;
 		private int size=0;
 		private int array[];
 		
-		public Sequence getSequence(int y)
+		public CharSequence getSequence(int y)
 			{
 			switch(y)
 				{
@@ -260,15 +297,172 @@ public class Dpal
 			}
 		}*/
 	
+	public static class Alignment
+		{
+		private CharSequence seq1;
+		private CharSequence seq2;
+		private int seqidx[]=new int[]{-1,-1};
+	    public Alignment(CharSequence seq1,CharSequence seq2)
+			{
+			this.seq1=seq1;
+			this.seq2=seq2;
+			}
+	    public CharSequence getSequence(int y)
+	    	{
+	    	return y==0?this.seq1:this.seq2;
+	    	}
+	    public int  index(int i)
+	    	{
+	    	return this.seqidx[i];
+	    	}
+	    public char charAt(int i)
+	    	{
+	    	if(this.index(i)==-1) return '\0';
+	    	return getSequence(i).charAt(this.index(i));
+	    	}
+	    public boolean isMatch()
+	    	{
+	    	if(charAt(0)=='\0' || charAt(1)=='\0') return false;
+	    	return charAt(0)==charAt(1);
+	    	}
+	    public char mid()
+	    	{
+	    	return isMatch()?'|':' ';
+	    	}
+	    
+		}
+	
+	    
 	/* Structure for receiving results from the main function, dpal. */
-	static class dpal_results {
-	    String msg;
+	public static class Result implements Iterable<Alignment>
+		{
+		CharSequence seq1;
+		CharSequence seq2;
+		
+	    String msg=null;
+	    //List<Integer> index1=new ArrayList<Integer>();
+	    //List<Integer> index2=new ArrayList<Integer>();
+	    
 	    Matrix2     path=new Matrix2();
-	    int     path_length;
-	    int     align_end_1; /* Last alignment position in the 1st sequence. */
-	    int     align_end_2; /* Last alignment position in the 2nd sequence. */
-	    double  score;
-	} 
+	    int     path_length=0;
+	    int     align_end_1=-1; /* Last alignment position in the 1st sequence. */
+	    int     align_end_2=-1; /* Last alignment position in the 2nd sequence. */
+	    double  score=DPAL_ERROR_SCORE;
+	    
+	    public Result(CharSequence seq1,CharSequence seq2)
+			{
+			this.seq1=seq1;
+			this.seq2=seq2;
+			}
+	    public CharSequence getSequence(int y)
+	    	{
+	    	return y==0?this.seq1:this.seq2;
+	    	}
+	    
+	    public void print(PrintWriter out)
+	    	{
+	    	for(int i=0;i<3;++i)
+				{
+				for(Alignment a:this)
+					{
+					switch(i)
+						{
+						case 0: out.print(a.charAt(0)=='\0'?' ':a.charAt(0));break;
+						case 1: out.print(a.mid());break;
+						case 2:out.print(a.charAt(1)=='\0'?' ':a.charAt(1));break;
+						}
+					}
+				out.println();
+				}
+	    	}
+	    public void print(PrintStream out)
+	    	{
+	    	PrintWriter w=new PrintWriter(out);
+	    	this.print(w);
+	    	w.flush();
+	    	}
+	    @Override
+	    public String toString()
+	    	{
+	    	StringWriter sw=new StringWriter();
+	    	PrintWriter pw=new PrintWriter(sw);
+	    	print(pw);
+	    	pw.flush();
+	    	return sw.toString();
+	    	}
+	    
+	    public class AlignmentIterator
+	    	implements Iterator<Alignment>
+			{
+			private int array_index=0;
+			private int seqidx[]=new int[]{0,0};
+			
+			@Override
+			public boolean hasNext()
+				{
+				return (seqidx[0]< getSequence(0).length() ||
+						seqidx[1]< getSequence(1).length()
+						);
+				}
+			
+			@Override
+			public Alignment next()
+				{
+				Alignment a=new Alignment(Result.this.seq1,Result.this.seq2);
+				if(array_index>=Result.this.path_length)
+					{
+					if( seqidx[0]<getSequence(0).length() &&
+						seqidx[1]< getSequence(1).length())
+						{
+						for(int i=0;i< 2;++i)
+							{
+							a.seqidx[i]=this.seqidx[i];
+							this.seqidx[i]++;
+							}
+						return a;
+						}
+					for(int i=0;i< 2;++i)
+						{
+						if(this.seqidx[i] < getSequence(i).length())
+							{
+							a.seqidx[i]=this.seqidx[i];
+							this.seqidx[i]++;
+							return a;
+							}
+						}
+					throw new IllegalStateException();
+					}
+				
+				for(int i=0;i< 2;++i)
+					{
+					if(seqidx[i] < Result.this.path.get(array_index,i))
+						{
+						a.seqidx[i]=this.seqidx[i];
+						this.seqidx[i]++;
+						return a;
+						}
+					}
+				for(int i=0;i< 2;++i)
+					{
+					a.seqidx[i]=this.seqidx[i];
+					this.seqidx[i]++;
+					}
+				array_index++;
+				return a;
+				}
+			@Override
+			public void remove()
+				{
+				throw new UnsupportedOperationException();
+				}
+			}
+	    
+	    
+	    public Iterator<Alignment> iterator()
+	    	{
+	    	return new AlignmentIterator();
+	    	}
+		} 
 
 
 	/* 
@@ -288,10 +482,9 @@ public class Dpal
 		throw new IllegalArgumentException("Out of memory");
 		}
 
-	static void fail_action( dpal_args in, dpal_results out) {
-	  if (in.fail_stop==1) {
-	    System.err.printf( "\n%s\n", out.msg);
-	    System.exit(-1);
+	 void fail_action( Result out) {
+	  if (this.fail_stop==1) {
+	    throw new IllegalStateException( ""+out.msg);
 	  } 
 	}
 
@@ -301,6 +494,19 @@ public class Dpal
 		int num_x=0;
 		int num_y=0;
 		
+		public void reset()
+			{
+			num_x=0;
+			num_y=0;
+			Arrays.fill(array, -1);
+			}
+		public void clear()
+			{
+			num_x=0;
+			num_y=0;
+			array=new int[0];
+			}
+
 		
 		private int index(int x,int y)
 			{	
@@ -308,6 +514,8 @@ public class Dpal
 			}
 		int get(int x,int y)
 			{
+			if(x<0 || x>=num_x) throw new ArrayIndexOutOfBoundsException("0<="+x+"<"+num_x);
+			if(y<0 || y>=num_y) throw new ArrayIndexOutOfBoundsException("0<="+y+"<"+num_y);
 			return array[index(x,y)];
 			}
 		void set(int x,int y,int v)
@@ -353,6 +561,22 @@ private  static class Matrix3
 	private int num_y=0;
 	private int num_z=0;
 
+	public void reset()
+		{
+		num_x=0;
+		num_y=0;
+		num_z=0;
+		Arrays.fill(array, -1);
+		}
+	public void clear()
+		{
+		num_x=0;
+		num_y=0;
+		num_z=0;
+		array=new int[0];
+		}
+
+	
 	private int index(int x,int y,int z)
 		{	
 		int n= num_x*y+x +z*(num_x*num_y);
@@ -399,78 +623,72 @@ private  static class Matrix3
 	}
 
 
-void
-dpal( /* unsigned */ Sequence X,
-      /* unsigned */ Sequence Y,
-      dpal_args in,
-     dpal_results out)
-{
+public Result
+dpal( /* unsigned */ CharSequence X,
+      /* unsigned */ CharSequence Y
+      )
+ {
+  this.reset();
   int xlen, ylen;
 
-  out.score = DPAL_ERROR_SCORE;
-  out.path_length = 0;
-  out.msg = null;
 
 
-  xlen =X.size();
-  ylen = Y.size();
+  xlen =X.length();
+  ylen = Y.length();
 
-  out.align_end_1 = -1;
-  out.align_end_2 = -1;
 
-  if (xlen==0) {
+  if (xlen==0)
+	  {
+	  Result out=new Result(X,Y);
     out.msg = "Empty first sequence";
     out.score = 0;
-    return;
+    return out;
   }
   if (ylen==0) {
+    Result out=new Result(X,Y);
     out.msg = "Empty second sequence";
     out.score = 0;
-    return;
+    return out;
   }
-  if (1 == in.force_generic || in.debug  || 0 == in.score_only) {
+  if (1 == this.force_generic || this.debug  || 0 == this.score_only) {
     /* 
      * A true value of in->debug really means "print alignment on stderr"
      * and implies 0 == a.score_only.
      */
-	  LOG.info("iCI");
-    _dpal_generic(X, Y, in, out);
-  } else if (1 == in.force_long_generic) {
-    _dpal_long_nopath_generic(X, Y, in, out);
-  } else if (1 == in.max_gap ) {
-    if (DPAL_LOCAL == in.flag)
-      _dpal_long_nopath_maxgap1_local(X, Y, in, out);
-    else if (DPAL_GLOBAL_END == in.flag)
-      _dpal_long_nopath_maxgap1_global_end(X, Y,  in, out);
-    else if (DPAL_LOCAL_END == in.flag)
-      _dpal_long_nopath_maxgap1_local_end(X, Y, in, out);
+    return _dpal_generic(X, Y);
+  } else if (1 == this.force_long_generic) {
+   return  _dpal_long_nopath_generic(X, Y);
+  } else if (1 == this.max_gap ) {
+    if (Flag.DPAL_LOCAL == this.flag)
+      return _dpal_long_nopath_maxgap1_local(X, Y);
+    else if (Flag.DPAL_GLOBAL_END == this.flag)
+    	return _dpal_long_nopath_maxgap1_global_end(X, Y);
+    else if (Flag.DPAL_LOCAL_END == this.flag)
+    	return _dpal_long_nopath_maxgap1_local_end(X, Y);
     else if (xlen <= DPAL_MAX_ALIGN && ylen <= DPAL_MAX_ALIGN)
-      _dpal_generic(X, Y,  in, out);
-    else _dpal_long_nopath_generic(X, Y, in, out);
+    	return  _dpal_generic(X, Y);
+    else return _dpal_long_nopath_generic(X, Y);
   }
   else if (xlen < DPAL_MAX_ALIGN && ylen < DPAL_MAX_ALIGN)
-    _dpal_generic(X, Y,  in, out);
+	  return _dpal_generic(X, Y);
   else
-    _dpal_long_nopath_generic(X, Y, in, out);
+	  return _dpal_long_nopath_generic(X, Y);
 }
 
- void
-_dpal_generic( /* unsigned */ Sequence X,
-               /* unsigned */ Sequence Y,
-               
-               dpal_args in,
-              dpal_results out)
+private final Matrix2 _S=new Matrix2();
+private final Matrix3 _P=new Matrix3();
+
+ private Result
+_dpal_generic(CharSequence X,CharSequence Y)
 {
-	int xlen=X.size(); 
-    int ylen=Y.size();
-    Matrix2 S=new Matrix2();
-   Matrix3 P=null;
-if(!DPAL_FORGET_PATH){
-  P=new Matrix3();
-}
+	Result out=new Result(X,Y);
+	final int xlen=X.length(); 
+    final int ylen=Y.length();
+    this._S.reset();
+    this._P.reset();
 
      int i, j, k=0, mg, c;
-     int gap = in.gap, gapl = in.gapl, max_gap = in.max_gap;
+     int gap = this.gap, gapl = this.gapl, max_gap = this.max_gap;
 
 
     int i0 = -99, j0 = -99;
@@ -490,43 +708,43 @@ LOG.info("_dpal_generic called\n");
     /* Initialize the 0th column of the score matrix. */
     smax = Integer.MIN_VALUE;
     for(i=0; i < xlen; i++) {
-        score = in.ssm.f(X.get(i),Y.get(0)); 
-        if (DPAL_LOCAL == in.flag) {
+        score = getScoringMatrix().f(X.charAt(i),Y.charAt(0)); 
+        if (Flag.DPAL_LOCAL == this.flag) {
             if (score < 0) score = 0;
             if(score > smax) {
                 smax = score;
                 I=i; J=0;
             }
         }
-        else if (DPAL_LOCAL_END == in.flag) {if (score < 0) score = 0;}
-        S.set(i,0,score);
+        else if (Flag.DPAL_LOCAL_END == this.flag) {if (score < 0) score = 0;}
+        this._S.set(i,0,score);
     }   
     /* Move code for find global-alignment and end-anchored
        alignment below? */
-    if (DPAL_LOCAL != in.flag) {
+    if (Flag.DPAL_LOCAL != this.flag) {
         /* 
          * For a non-local alignment we restrict our search for the maximum
          * score to the last row.
          */
-        smax = S.get(xlen-1,0); I=xlen-1; J=0;
+        smax = this._S.get(xlen-1,0); I=xlen-1; J=0;
     }
            
     /* Initialize the 0th row of the score matrix. */
     for(j=0; j<ylen; j++) { 
-        score = in.ssm.f(X.get(0),Y.get(j)); 
+        score = getScoringMatrix().f(X.charAt(0),Y.charAt(j)); 
 
-        if(DPAL_LOCAL == in.flag){
+        if(Flag.DPAL_LOCAL == this.flag){
             if (score < 0) score = 0;
             if(score > smax){
                 smax = score;
                 I=0; J=j;
             }
         }
-        else if (DPAL_LOCAL_END == in.flag) {if (score < 0) score = 0;}
-        S.set(0,j,score);
+        else if (Flag.DPAL_LOCAL_END == this.flag) {if (score < 0) score = 0;}
+        this._S.set(0,j,score);
     }   
-    if(DPAL_GLOBAL == in.flag&&S.get(0,ylen-1)>smax){
-                smax = S.get(0,ylen-1);
+    if(Flag.DPAL_GLOBAL == this.flag&&this._S.get(0,ylen-1)>smax){
+                smax = this._S.get(0,ylen-1);
                 I=0; J=ylen-1;
     }
 
@@ -534,18 +752,18 @@ LOG.info("_dpal_generic called\n");
     for(i=1; i<xlen; i++) {
         for(j=1; j<ylen; j++) {
 
-            a=S.get(i-1,j-1);
+            a=this._S.get(i-1,j-1);
 
             b = c = Integer.MIN_VALUE;
             if (1 == max_gap) {
                 if (i > 1) {
-                    b = S.get(i-2,j-1) + gap;
+                    b = this._S.get(i-2,j-1) + gap;
 if(!DPAL_FORGET_PATH){
                     i0 = i - 2;
 }
                 }
                 if (j > 1) {
-                    c = S.get(i-1,j-2) + gap;
+                    c = this._S.get(i-1,j-2) + gap;
 if(!DPAL_FORGET_PATH){
                     j0 = j - 2;
 }
@@ -554,7 +772,7 @@ if(!DPAL_FORGET_PATH){
                 max=Integer.MIN_VALUE;
                 mg=(max_gap+1>i||max_gap<0)?i:max_gap+1;
                 for(k=2; k<=mg; k++) {
-                    c = S.get(i-k,j-1) + gap + gapl*(k-2);
+                    c = this._S.get(i-k,j-1) + gap + gapl*(k-2);
                     if(c>max){
                         max=c;
 if(!DPAL_FORGET_PATH){
@@ -567,7 +785,7 @@ if(!DPAL_FORGET_PATH){
                 max=Integer.MIN_VALUE;
                 mg=(max_gap+1>j||max_gap<0)?j:max_gap+1;
                 for(k=2;k<=mg;k++) {
-                    c = S.get(i-1,j-k) + gap + gapl*(k-2);
+                    c = this._S.get(i-1,j-k) + gap + gapl*(k-2);
                     if(c>max){
                         max=c;
 if(!DPAL_FORGET_PATH){
@@ -579,22 +797,22 @@ if(!DPAL_FORGET_PATH){
             }
 
             if(a>=b && a>=c) {
-                score = a + in.ssm.f(X.get(i),Y.get(j));
+                score = a + getScoringMatrix().f(X.charAt(i),Y.charAt(j));
 if(!DPAL_FORGET_PATH){
-                P.set(i,j,1,i-1);
-                P.set(i,j,2,j-1);
+                this._P.set(i,j,1,i-1);
+                this._P.set(i,j,2,j-1);
 }
             } else if (b > a && b >= c) {
-                score = b + in.ssm.f(X.get(i),Y.get(j));
+                score = b + getScoringMatrix().f(X.charAt(i),Y.charAt(j));
 if(!DPAL_FORGET_PATH){
-                P.set(i,j,1,i0);
-                P.set(i,j,2,j-1);
+                this._P.set(i,j,1,i0);
+                this._P.set(i,j,2,j-1);
 }
             } else if (c > a && c > b) {
-                score = c + in.ssm.f(X.get(i),Y.get(j));
+                score = c + getScoringMatrix().f(X.charAt(i),Y.charAt(j));
 if(!DPAL_FORGET_PATH){
-                P.set(i,j,1,i-1);
-                P.set(i,j,2,j0);
+                this._P.set(i,j,1,i-1);
+                this._P.set(i,j,2,j0);
 }
             }
 
@@ -605,10 +823,10 @@ if(!DPAL_FORGET_PATH){
                  * of more than one optimum alignment.
                  */
                 /* Move code to get 'g' and 'e' maxima to a separate loop ? */
-                if (DPAL_LOCAL == in.flag 
-                    || (DPAL_GLOBAL_END == in.flag && i == xlen-1)
-                    || (DPAL_LOCAL_END   == in.flag && i == xlen-1)
-                    || (DPAL_GLOBAL == in.flag&& (i==xlen-1||j==ylen-1))) {
+                if (Flag.DPAL_LOCAL == this.flag 
+                    || (Flag.DPAL_GLOBAL_END == this.flag && i == xlen-1)
+                    || (Flag.DPAL_LOCAL_END   == this.flag && i == xlen-1)
+                    || (Flag.DPAL_GLOBAL == this.flag&& (i==xlen-1||j==ylen-1))) {
                     /*  
                      * If in->flag is DPAL_LOCAL, then a cell anywhere within
                      * S may be the endpoint of the alignment.  If in->flag is
@@ -620,43 +838,51 @@ if(!DPAL_FORGET_PATH){
                     I = i;
                     J = j;
             } /*  put else here ? */
-            if (score < 0 && (DPAL_LOCAL == in.flag 
-                              || DPAL_LOCAL_END == in.flag))
+            if (score < 0 && (Flag.DPAL_LOCAL == this.flag 
+                              || Flag.DPAL_LOCAL_END == this.flag))
                 /* 
                  * For a local alignment, 0 is the lowest score that we record
                  * in S.
                  */
                 score = 0;
 
-            S.set(i,j,score);
+            this._S.set(i,j,score);
         }
     }
     /* I and J now specify the last pair of an optimum alignment. */
 
-if(!DPAL_FORGET_PATH){    
+if(!DPAL_FORGET_PATH)
+	{    
     k = (I > J) ? I+1 : J+1;
     saved_k=k;
-
-    out.path.set(k,0,I); out.path.set(k,1,J);
-    while(out.path.get(k,0)!=0&&out.path.get(k,1)!=0) {
-        if ((in.flag== DPAL_LOCAL || in.flag == DPAL_LOCAL_END)
-                 &&S.get(out.path.get(k,0),out.path.get(k,1))==0) {
-          k++; break;
-        }
-        out.path.set(k-1,0,P.get(out.path.get(k,0),out.path.get(k,1),1));
-        out.path.set(k-1,1,P.get(out.path.get(k,0),out.path.get(k,1),2));
-        k--;
-    }
-    if (k>0) {
-        for (i=0;i<=saved_k-k;i++) {
+    
+    
+    out.path.set(k,0,I);
+    out.path.set(k,1,J);
+    while(out.path.get(k,0)!=0&&out.path.get(k,1)!=0)
+    		{
+    		if ((this.flag== Flag.DPAL_LOCAL || this.flag == Flag.DPAL_LOCAL_END)
+                 && this._S.get(out.path.get(k,0),out.path.get(k,1))==0)
+    			{
+                k++;
+                break;
+    			}
+    		out.path.set(k-1,0,this._P.get(out.path.get(k,0),out.path.get(k,1),1));
+        	out.path.set(k-1,1,this._P.get(out.path.get(k,0),out.path.get(k,1),2));
+        	k--;
+    		}
+    if (k>0)
+    	{
+        for (i=0;i<=saved_k-k;i++)
+        	{
             out.path.set(i,0,out.path.get(i+k,0));
             out.path.set(i,1,out.path.get(i+k,1));
-        }
-    }
+        	}
+    	}
 }
 
-    if ((DPAL_LOCAL == in.flag 
-         || DPAL_LOCAL_END == in.flag)&& S.get(I,J) <= 0) {
+    if ((Flag.DPAL_LOCAL == this.flag 
+         || Flag.DPAL_LOCAL_END == this.flag)&& this._S.get(I,J) <= 0) {
         /* There is no alignment at all. */
         out.score = 0;
         out.path_length = 0;
@@ -672,33 +898,28 @@ else
         out.path_length = 0;
 }
     }
-    LOG.info("Donexx");
-if(!DPAL_FORGET_PATH){LOG.info("Done");
-    if (in.debug) print_align(X,Y,P,I,J, in);
+if(!DPAL_FORGET_PATH){
+    //if (this.debug) print_align(X,Y,P,I,J);
 }
-    return;
+    return out;
 
 } /* _dpal_generic */
 
 /* Linear space, no path, for any value of maxgap and for any alignment. */
- void
-_dpal_long_nopath_generic( /* unsigned */ Sequence X,
-                           /* unsigned */ Sequence Y,
-                          
-                           dpal_args in,
-                          dpal_results out)
+private  Result
+_dpal_long_nopath_generic(CharSequence X,CharSequence Y)
 {
-	
-	 int xlen=X.size();
-     int ylen=Y.size();
+	Result out=new Result(X,Y);
+	 int xlen=X.length();
+     int ylen=Y.length();
 
     /* The "score matrix" (matrix of best scores). */
-    Matrix2 S=new Matrix2();
+    this._S.reset();
     //ExtensibleList SI=new ExtensibleList();
     //Matrix2 P=new Matrix2();    
 
      int i, j, k, mg, mgy, c;
-     int gap = in.gap, gapl = in.gapl, max_gap = in.max_gap;
+     int gap = this.gap, gapl = this.gapl, max_gap = this.max_gap;
 
 
     int I = -99, J = -99; /* Coordinates of the maximum score. */
@@ -714,25 +935,25 @@ _dpal_long_nopath_generic( /* unsigned */ Sequence X,
     /* Initialize the 0th column of the score matrix. */
     smax = Integer.MIN_VALUE;
     for(i=0; i < xlen; i++) {
-        score = in.ssm.f(X.get(i),Y.get(0)); 
-        if (DPAL_LOCAL == in.flag) {
+        score = getScoringMatrix().f(X.charAt(i),Y.charAt(0)); 
+        if (Flag.DPAL_LOCAL == this.flag) {
             if (score < 0) score = 0;
             if(score > smax) {
                 smax = score;
                 I=i; J=0;
             }
         }
-        else if (DPAL_LOCAL_END == in.flag) {if (score < 0) score = 0;}
-        S.set(0,i,score);
+        else if (Flag.DPAL_LOCAL_END == this.flag) {if (score < 0) score = 0;}
+        this._S.set(0,i,score);
     }   
     /* Move code for find global-alignment and end-anchored
        alignment below? */
-    if (DPAL_LOCAL != in.flag) {
+    if (Flag.DPAL_LOCAL != this.flag) {
         /* 
          * For a non-local alignment we restrict our search for the maximum
          * score to the last row.
          */
-        smax = S.get(0,xlen-1); I=xlen-1; J=0;
+        smax = this._S.get(0,xlen-1); I=xlen-1; J=0;
     }
            
     /* Initialize the 0th row of the score matrix. 
@@ -758,27 +979,27 @@ _dpal_long_nopath_generic( /* unsigned */ Sequence X,
     /* Further is the solution for dynamic programming problem. */
     for(j=1; j<ylen; j++) {
         mgy=(max_gap+1>j||max_gap<0)?j:max_gap+1;
-        score = in.ssm.f(X.get(0),Y.get(j));
-         if (DPAL_LOCAL == in.flag) {
+        score = getScoringMatrix().f(X.charAt(0),Y.charAt(j));
+         if (Flag.DPAL_LOCAL == this.flag) {
              if (score < 0) score = 0;
              if(score > smax) smax = score;
          }    
-         else if (DPAL_LOCAL_END == in.flag) { if (score < 0) score = 0;}
-         else if (DPAL_GLOBAL == in.flag && j == ylen-1 && score > smax)
+         else if (Flag.DPAL_LOCAL_END == this.flag) { if (score < 0) score = 0;}
+         else if (Flag.DPAL_GLOBAL == this.flag && j == ylen-1 && score > smax)
                         smax = score;
-        S.set(mgy,0,score);
+        this._S.set(mgy,0,score);
         for(i=1; i<xlen; i++) {
 
-            score=S.get(mgy-1,i-1);
+            score=this._S.get(mgy-1,i-1);
 
                 mg=(max_gap+1>i||max_gap<0)?i:max_gap+1;
                 for(k=2; k<=mg; k++) 
-                    if((c = S.get(mgy-1,i-k) + gap + gapl*(k-2)) > score)score = c;
+                    if((c = this._S.get(mgy-1,i-k) + gap + gapl*(k-2)) > score)score = c;
 
                 for(k=2;k<=mgy;k++) 
-                    if((c = S.get(mgy-k,i-1) + gap + gapl*(k-2)) > score)score=c;
+                    if((c = this._S.get(mgy-k,i-1) + gap + gapl*(k-2)) > score)score=c;
 
-                score += in.ssm.f(X.get(i),Y.get(j));
+                score += getScoringMatrix().f(X.charAt(i),Y.charAt(j));
 
             if (score >= smax)
                 /* 
@@ -787,11 +1008,11 @@ _dpal_long_nopath_generic( /* unsigned */ Sequence X,
                  * of more than one optimum alignment.
                  */
                 /* Move code to get 'g' and 'e' maxima to a separate loop ? */
-                if (DPAL_LOCAL == in.flag 
-                    || ((DPAL_GLOBAL_END == in.flag
-                         || DPAL_LOCAL_END == in.flag) 
+                if (Flag.DPAL_LOCAL == this.flag 
+                    || ((Flag.DPAL_GLOBAL_END == this.flag
+                         || Flag.DPAL_LOCAL_END == this.flag) 
                         && i == xlen-1)
-                    || (DPAL_GLOBAL == in.flag&& (i==xlen-1||j==ylen-1))) {
+                    || (Flag.DPAL_GLOBAL == this.flag&& (i==xlen-1||j==ylen-1))) {
                     /*  
                      * If in->flag is DPAL_LOCAL, then a cell anywhere within
                      * S may be the endpoint of the alignment.  If in->flag is
@@ -803,23 +1024,23 @@ _dpal_long_nopath_generic( /* unsigned */ Sequence X,
                     I = i;
                     J = j;
             } /*  put else here ? */
-            if (score < 0 && (DPAL_LOCAL == in.flag
-                              || DPAL_LOCAL_END == in.flag))
+            if (score < 0 && (Flag.DPAL_LOCAL == this.flag
+                              || Flag.DPAL_LOCAL_END == this.flag))
                 /* 
                  * For a local alignment, 0 is the lowest score that we record
                  * in S.
                  */
                 score = 0;
 
-            S.set(mgy,i,score);
+            this._S.set(mgy,i,score);
         }
         if(mgy == max_gap + 1){
-        	S.shift1(mgy);
+        	this._S.shift1(mgy);
         }
     }
     /* I and J now specify the last pair of an optimum alignment. */
 
-    if (DPAL_LOCAL == in.flag && smax <= 0) {
+    if (Flag.DPAL_LOCAL == this.flag && smax <= 0) {
         /* There is no alignment at all. */
         out.score = 0;
         out.path_length = 0;
@@ -828,17 +1049,17 @@ _dpal_long_nopath_generic( /* unsigned */ Sequence X,
         out.align_end_1 = I;
         out.align_end_2 = J;
     }
+    return out;
 } /* _dpal_long_nopath_generic */
 
- void
-_dpal_long_nopath_maxgap1_local( /* unsigned */ Sequence X,
-                                 /* unsigned */ Sequence Y,
-                                
-                                 dpal_args in,
-                                dpal_results out)
+ private Result
+_dpal_long_nopath_maxgap1_local( /* unsigned */ CharSequence X,
+                                 /* unsigned */ CharSequence Y
+                                 )
 {
-	 int xlen=X.size(); 
-     int ylen=Y.size();
+	Result out=new Result(X,Y);
+	 int xlen=X.length(); 
+     int ylen=Y.length();
      ExtensibleList S0, S1, S2; 
     ExtensibleList P0=new ExtensibleList();
     ExtensibleList P1=new ExtensibleList();
@@ -848,7 +1069,7 @@ _dpal_long_nopath_maxgap1_local( /* unsigned */ Sequence X,
     ExtensibleList S=new ExtensibleList();
 
      int i, j;
-     int gap = in.gap;
+     int gap = this.gap;
      int smax;           /* The optimum score. */
      int score;          /* Current score. */
      int a;
@@ -862,7 +1083,7 @@ _dpal_long_nopath_maxgap1_local( /* unsigned */ Sequence X,
 
     /* Initialize the 0th row of the score matrix. */
     for(j=0; j < ylen; j++) { 
-        score = in.ssm.f(X.get(0),Y.get(j)); 
+        score = getScoringMatrix().f(X.charAt(0),Y.charAt(j)); 
         if (score < 0) score = 0;
         else if (score > smax) smax = score;
         /*S[0][j] = score;*/
@@ -870,27 +1091,27 @@ _dpal_long_nopath_maxgap1_local( /* unsigned */ Sequence X,
     }   
 
     /* Set the 1st row of the score matrix. */
-    score = in.ssm.f(X.get(1),Y.get(0));
+    score = getScoringMatrix().f(X.charAt(1),Y.charAt(0));
     if(score < 0) score = 0;
     else if (score > smax) smax = score;
     S1.set(0,score);
     for(j=1; j < ylen; j++) {
         score = S0.get(j-1);
         if(j>1 && (a=S0.get(j-2) + gap) > score)score = a;
-        score += in.ssm.f(X.get(1),Y.get(j));
+        score += getScoringMatrix().f(X.charAt(1),Y.charAt(j));
         if (score < 0) score = 0;
         else if(score > smax) smax = score;
         S1.set(j,score);
     }
 
     for(i=2; i < xlen; i++) {
-        score = in.ssm.f(X.get(i),Y.get(0));
+        score = getScoringMatrix().f(X.charAt(i),Y.charAt(0));
         if (score < 0) score = 0;
         else if (score > smax) smax = score;
         S2.set(0,score);
         score = S1.get(0);
         if((a=S0.get(0) + gap) > score) score = a;
-        score += in.ssm.f(X.get(i),Y.get(1));
+        score += getScoringMatrix().f(X.charAt(i),Y.charAt(1));
         if(score < 0) score = 0;
         else if (score > smax) smax = score;
         S2.set(1,score);
@@ -900,7 +1121,7 @@ _dpal_long_nopath_maxgap1_local( /* unsigned */ Sequence X,
             score +=gap;
             if((a=S1.get(j-1)) >score) score = a;
 
-            score += in.ssm.f(X.get(i),Y.get(j));       
+            score += getScoringMatrix().f(X.charAt(i),Y.charAt(j));       
             if (score < 0 ) score = 0;
             else if (score > smax) smax = score;
             S2.set(j,score);
@@ -910,18 +1131,15 @@ _dpal_long_nopath_maxgap1_local( /* unsigned */ Sequence X,
     out.score = smax;
     out.path_length=0;
     P0=null; P1=null; P2=null;
-    return;
+    return out;
 } /* _dpal_long_nopath_maxgap1_local */
 
-void
-_dpal_long_nopath_maxgap1_global_end( /* unsigned */ Sequence X,
-        /* unsigned */ Sequence Y,
-                                    
-                                      dpal_args in,
-                                     dpal_results out)
-{
-	  int xlen=X.size(); 
-      int ylen=Y.size();
+private Result
+_dpal_long_nopath_maxgap1_global_end(CharSequence X, CharSequence Y)
+	{
+Result out=new Result(X,Y);
+		int xlen=X.length(); 
+      int ylen=Y.length();
   /* The "score matrix" (matrix of best scores). */
       ExtensibleList P0=new ExtensibleList();
       ExtensibleList P1=new ExtensibleList();
@@ -929,7 +1147,7 @@ _dpal_long_nopath_maxgap1_global_end( /* unsigned */ Sequence X,
       ExtensibleList S,S0,S1,S2;
 
    int i, j, k;
-   int gap = in.gap;
+   int gap = this.gap;
    int smax;           /* The optimum score. */
    int score;          /* Current score. */
    int a, t;
@@ -937,17 +1155,17 @@ _dpal_long_nopath_maxgap1_global_end( /* unsigned */ Sequence X,
 
   S0 = P0; S1 = P1; S2 = P2;
 
-  smax = in.ssm.f(X.get(xlen-1),Y.get(0));
+  smax = getScoringMatrix().f(X.charAt(xlen-1),Y.charAt(0));
            
   /* Set the 0th row of the score matrix. */
-  for(j=0; j<xlen; j++) S0.set(j,in.ssm.f(X.get(j),Y.get(0)));
+  for(j=0; j<xlen; j++) S0.set(j,getScoringMatrix().f(X.charAt(j),Y.charAt(0)));
 
   /* Set the 1st row of the score matrix. */
-  S1.set(0,in.ssm.f(X.get(0),Y.get(1)));
+  S1.set(0,getScoringMatrix().f(X.charAt(0),Y.charAt(1)));
   for(j=1; j < xlen; j++){
     score = S0.get(j-1);
     if(j>1 && (a=S0.get(j-2) + gap)> score)score = a;
-    score += in.ssm.f(X.get(j),Y.get(1));
+    score += getScoringMatrix().f(X.charAt(j),Y.charAt(1));
     if(score > smax && j == xlen-1) smax = score;
     S1.set(j,score);
   }
@@ -957,24 +1175,24 @@ _dpal_long_nopath_maxgap1_global_end( /* unsigned */ Sequence X,
 
   /* Set the rectangular part of almost the remainder of the matrix. */
   for(j=2; j<k+1; j++) {
-    S2.set(0,in.ssm.f(X.get(0),Y.get(j)));
+    S2.set(0,getScoringMatrix().f(X.charAt(0),Y.charAt(j)));
     score = S1.get(0);
     if((a=S0.get(0)+gap) > score) score = a;
-    score += in.ssm.f(X.get(1),Y.get(j));
+    score += getScoringMatrix().f(X.charAt(1),Y.charAt(j));
     S2.set(1,score);
     for(i=2; i<xlen-1; i++) {
       score = S1.get(i-2);
       if((a=S0.get(i-1)) > score)score = a;
       score += gap;
       if((a=S1.get(i-1)) > score)score = a;
-      score += in.ssm.f(X.get(i),Y.get(j));
+      score += getScoringMatrix().f(X.charAt(i),Y.charAt(j));
       S2.set(i,score);
     }
     score = S1.get(xlen-3);
     if((a=S0.get(xlen-2)) > score)score = a;
     score += gap;
     if((a=S1.get(xlen-2)) > score)score = a;
-    score += in.ssm.f(X.get(xlen-1),Y.get(j));
+    score += getScoringMatrix().f(X.charAt(xlen-1),Y.charAt(j));
     S2.set(xlen-1,score);
     if(score > smax) smax = score;
     S = S0; S0 = S1; S1 = S2; S2 = S;
@@ -988,7 +1206,7 @@ _dpal_long_nopath_maxgap1_global_end( /* unsigned */ Sequence X,
       if((a=S0.get(i-1)) > score) score = a;
       score += gap;
       if((a=S1.get(i-1)) > score) score = a;
-      score += in.ssm.f(X.get(i),Y.get(j));
+      score += getScoringMatrix().f(X.charAt(i),Y.charAt(j));
       S2.set(i,score);
     }
     t += 2;
@@ -996,7 +1214,7 @@ _dpal_long_nopath_maxgap1_global_end( /* unsigned */ Sequence X,
     if((a=S0.get(xlen-2)) > score)score = a;
     score += gap;
     if((a=S1.get(xlen-2)) > score)score = a;
-    score += in.ssm.f(X.get(xlen-1),Y.get(j));
+    score += getScoringMatrix().f(X.charAt(xlen-1),Y.charAt(j));
     S2.set(xlen-1,score);
     if(score > smax) smax = score;
     S = S0; S0 = S1; S1 = S2; S2 = S;
@@ -1005,7 +1223,7 @@ _dpal_long_nopath_maxgap1_global_end( /* unsigned */ Sequence X,
   P0=null; P1=null; P2=null;
   out.score = smax;
   out.path_length=0;
-  return;
+  return out;
 
 } /* _dpal_long_nopath_maxgap_global_end */
 
@@ -1013,111 +1231,155 @@ _dpal_long_nopath_maxgap1_global_end( /* unsigned */ Sequence X,
 
 
 
-void print_align( Sequence X,
-		Sequence Y,
+@SuppressWarnings("unused")
+private void print_align( CharSequence X,
+		CharSequence Y,
             Matrix3 P,
             int I,
-            int J,
-             dpal_args dargs)
-{
-	ExtensibleList JX=new ExtensibleList();
-	ExtensibleList JY=new ExtensibleList();
-	ExtensibleString sx=new ExtensibleString();
-	ExtensibleString sy=new ExtensibleString();
-	ExtensibleString sxy=new ExtensibleString();
+            int J
+			)
+		{
+		ExtensibleList JX = new ExtensibleList();
+		ExtensibleList JY = new ExtensibleList();
+		ExtensibleString sx = new ExtensibleString();
+		ExtensibleString sy = new ExtensibleString();
+		ExtensibleString mid = new ExtensibleString();
+
+		int  i, j, n, m;
+		
+		int k=Math.max(I,J)+1;
+
+
+		n = k;
+		JX.set(k, I);
+		JY.set(k, J);
+		while (JX.get(k) != 0 && JY.get(k) != 0)
+			{
+			JX.set(k - 1, P.get(JX.get(k), JY.get(k), 1));
+			JY.set(k - 1, P.get(JX.get(k), JY.get(k), 2));
+			k--;
+			}
+		if (JX.get(k) > JY.get(k))
+			{
+			for (i = 0; i < JX.get(k); i++)
+				{
+				sx.set(i, X.charAt(i));
+				}
+			for (i = 0; i < JX.get(k) - JY.get(k); i++)
+				{
+				sy.set(i, '~');
+				}
+			j = JX.get(k) - JY.get(k);
+			for (i = JX.get(k) - JY.get(k); i < JX.get(k); i++)
+				{
+				sy.set(i, Y.charAt(i - j));
+				}
+			m = JX.get(k);
+			}
+		else
+			{
+			for (i = 0; i < JY.get(k); i++)
+				{
+				sy.set(i, Y.charAt(i));
+				}
+			for (i = 0; i < JY.get(k) - JX.get(k); i++)
+				{
+				sx.set(i, ' ');
+				}
+			j = JY.get(k) - JX.get(k);
+			for (i = j; i < JY.get(k); i++)
+				{
+				sx.set(i, X.charAt(i - j));
+				}
+			m = JY.get(k);
+			}
+		for (i = 0; i < m; i++)
+			{
+			mid.set(i, ' ');
+			}
+		for (i = k; i < n; i++)
+			{
+			sx.set(m, X.charAt(JX.get(i)));
+			sy.set(m, Y.charAt(JY.get(i)));
+			/* if(sx[m]==sy[m]&&sx[m]!='N') sxy[m] = '|'; */
+			if (getScoringMatrix().f((/* unsigned */char) sx.get(m),
+					(/* unsigned */char) sy.get(m)) > 0)
+				{
+				mid.set(m, '|');
+				}
+			else
+				{
+				mid.set(m, ' ');
+				}
+			if (JX.get(i + 1) - JX.get(i) > JY.get(i + 1) - JY.get(i))
+				{
+				for (j = 1; j < JX.get(i + 1) - JX.get(i); j++)
+					{
+					sy.set(m + j, '-');
+					sx.set(m + j, X.charAt(JX.get(i) + j));
+					mid.set(m + j, ' ');
+					}
+				m += JX.get(i + 1) - JX.get(i) - 1;
+				}
+			if (JY.get(i + 1) - JY.get(i) > JX.get(i + 1) - JX.get(i))
+				{
+				for (j = 1; j < JY.get(i + 1) - JY.get(i); j++)
+					{
+					sx.set(m + j, '-');
+					sy.set(m + j, Y.charAt(JY.get(i) + j));
+					mid.set(m + j, ' ');
+					}
+				m += JY.get(i + 1) - JY.get(i) - 1;
+				}
+			m++;
+			}
+		sx.set(m, X.charAt(I));
+		sy.set(m, Y.charAt(J));
+		for (i = m + 1; i < (m + X.length() - I); i++)
+			sx.set(i, X.charAt(i - m + I));
+		for (i = m + 1; i < (m + Y.length() - J); i++)
+			sy.set(i, Y.charAt(i - m + J));
+
+		if (getScoringMatrix().f((/* unsigned */char) sx.get(m),
+				(/* unsigned */char) sy.get(m)) > 0)
+			mid.set(m, '|');
+		else mid.set(m, ' ');
+		m++;
+		if (X.length() - I > Y.length() - J)
+			{
+			k = m + X.length() - I;
+			} else
+			{
+			k = m + Y.length() - J;
+			}
+
+		j = 0;
+		while (j < k)
+			{
+			for (i = j; i < j + 70; i++)
+				System.err.printf("%c", sx.get(i));
+			System.err.printf("\n");
+			for (i = j; i < j + 70; i++)
+				System.err.printf("%c", mid.get(i));
+			System.err.printf("\n");
+			for (i = j; i < j + 70; i++)
+				System.err.printf("%c", sy.get(i));
+			System.err.printf("\n");
+			for (i = 0; i < 70; i++)
+				System.err.printf("_");
+			System.err.printf("\n");
+			j += 70;
+			}
+		}  /* print_align(X,Y,P,I,J, dargs) */
+
+
+
 	
-  int k,i,j,n,m;
-
-  if(I>J)k=I+1;
-  else k=J+1;
-
-  n=k;
-  JX.set(k,I);
-  JY.set(k,J);
-  while(JX.get(k)!=0&&JY.get(k)!=0){
-    JX.set(k-1,P.get(JX.get(k),JY.get(k),1));
-    JY.set(k-1,P.get(JX.get(k),JY.get(k),2));
-    k--;
-  }
-  if(JX.get(k)>JY.get(k)){
-    for(i=0;i<JX.get(k);i++)sx.set(i,X.get(i));
-    for(i=0;i<JX.get(k)-JY.get(k);i++)sy.set(i,' ');
-    j = JX.get(k)-JY.get(k);
-    for(i=JX.get(k)-JY.get(k);i<JX.get(k);i++)sy.set(i,Y.get(i-j));
-    m = JX.get(k);
-  }
-  else{
-    for(i=0;i<JY.get(k);i++)sy.set(i,Y.get(i));
-    for(i=0;i<JY.get(k)-JX.get(k);i++)sx.set(i,' ');
-    j= JY.get(k)-JX.get(k);
-    for(i=j;i<JY.get(k);i++)sx.set(i,X.get(i-j));
-    m = JY.get(k);
-  }
-  for(i=0;i<m;i++)sxy.set(i,' ');
-  for(i=k;i<n;i++){
-    sx.set(m,X.get(JX.get(i)));
-    sy.set(m,Y.get(JY.get(i)));
-    /* if(sx[m]==sy[m]&&sx[m]!='N') sxy[m] = '|'; */
-    if (dargs.ssm.f((/* unsigned */ char)sx.get(m),(/* unsigned */ char)sy.get(m)) > 0)
-      sxy.set(m,'|');
-    else sxy.set(m,' ');
-    if(JX.get(i+1)-JX.get(i)>JY.get(i+1)-JY.get(i)){
-      for(j=1;j<JX.get(i+1)-JX.get(i);j++){
-        sy.set(m+j,'-');
-        sx.set(m+j,X.get(JX.get(i)+j));
-        sxy.set(m+j,' ');
-      }
-      m += JX.get(i+1)-JX.get(i)-1;
-    }
-    if(JY.get(i+1)-JY.get(i)>JX.get(i+1)-JX.get(i)){
-      for(j=1;j<JY.get(i+1)-JY.get(i);j++){
-        sx.set(m+j,'-');
-        sy.set(m+j,Y.get(JY.get(i)+j));
-        sxy.set(m+j,' ');
-      }
-      m += JY.get(i+1)-JY.get(i)-1;
-    }
-    m++;
-  }
-  sx.set(m,X.get(I));
-  sy.set(m,Y.get(J));
-  for (i=m+1; i < (m + X.size() - I); i++) 
-    sx.set(i,X.get(i-m+I));
-  for (i=m+1; i < (m + Y.size() - J); i++) 
-    sy.set(i,Y.get(i-m+J));
-
-  if (dargs.ssm.f((/* unsigned */ char)sx.get(m),(/* unsigned */ char)sy.get(m)) > 0)
-    sxy.set(m,'|');
-  else sxy.set(m,' ');
-  m++;
-  if (X.size() - I >Y.size()-J) {
-    k = m + X.size() - I;
-  } else {
-    k = m + Y.size() - J;
-  }
-        
-  j=0;
-  while(j<k){
-    for(i=j;i<j+70;i++) System.err.printf( "%c",sx.get(i));
-    System.err.printf( "\n");
-    for(i=j;i<j+70;i++) System.err.printf( "%c",sxy.get(i));
-    System.err.printf( "\n");
-    for(i=j;i<j+70;i++) System.err.printf( "%c",sy.get(i)); System.err.printf("\n");
-    for(i=0;i<70;i++)   System.err.printf( "_");
-    System.err.printf( "\n");
-    j +=70;
-  }
-}  /* print_align(X,Y,P,I,J, dargs) */
-
-
-
-	
- void
-_dpal_long_nopath_maxgap1_local_end( Sequence X,
-									Sequence Y,
-                                     dpal_args in,
-                                    dpal_results out)
+ private Result
+_dpal_long_nopath_maxgap1_local_end( CharSequence X,
+									CharSequence Y)
 {
+ Result out=new Result(X,Y);
   /* The "score matrix" (matrix of best scores). */
   ExtensibleList P0=new ExtensibleList(); 
   ExtensibleList P1=new ExtensibleList();
@@ -1126,11 +1388,11 @@ _dpal_long_nopath_maxgap1_local_end( Sequence X,
   ExtensibleList S1=P1;
   ExtensibleList S2=P2;
   ExtensibleList S;
-int ylen=Y.size();
-int xlen=X.size();
+int ylen=Y.length();
+int xlen=X.length();
   
    int i, j;
-   int gap = in.gap;
+   int gap = this.gap;
    int smax;           /* The optimum score. */
    int score;          /* Current score. */
    int a;
@@ -1145,31 +1407,31 @@ int xlen=X.size();
 
   /* Initialize the 0th row of the score matrix. */
   for(j=0; j < ylen; j++) { 
-    score = in.ssm.f(X.get(0),Y.get(j)); 
+    score = getScoringMatrix().f(X.charAt(0),Y.charAt(j)); 
     if (score < 0) score = 0;
     /*S[0][j] = score;*/
     S0.set(j,score);
   }   
 
   /* Set the 1st row of the score matrix. */
-  score = in.ssm.f(X.get(1),Y.get(0));
+  score = getScoringMatrix().f(X.charAt(1),Y.charAt(0));
   if(score < 0) score = 0;
   S1.set(0,score);
   for(j=1; j < ylen; j++) {
     score = S0.get(j-1);
     if(j>1 && (a=S0.get(j-2) + gap) > score)score = a;
-    score += in.ssm.f(X.get(1),Y.get(j));
+    score += getScoringMatrix().f(X.charAt(1),Y.charAt(j));
     if (score < 0) score = 0;
     S1.set(j,score);
   }
 
   for(i=2; i < xlen - 1; i++) {
-    score = in.ssm.f(X.get(i),Y.get(0));
+    score = getScoringMatrix().f(X.charAt(i),Y.charAt(0));
     if (score < 0) score = 0;
     S2.set(0,score);
     score = S1.get(0);
     if((a=S0.get(0) + gap) > score) score = a;
-    score += in.ssm.f(X.get(i),Y.get(1));
+    score += getScoringMatrix().f(X.charAt(i),Y.charAt(1));
     if(score < 0) score = 0;
     S2.set(1,score);
     for(j=2; j < ylen; j++) {
@@ -1178,7 +1440,7 @@ int xlen=X.size();
       score +=gap;
       if((a=S1.get(j-1)) >score) score = a;
 
-      score += in.ssm.f(X.get(i),Y.get(j));       
+      score += getScoringMatrix().f(X.charAt(i),Y.charAt(j));       
       if (score < 0 ) score = 0;
       S2.set(j,score);
     }
@@ -1186,13 +1448,13 @@ int xlen=X.size();
   }
   /* Calculate scores for last row (i = xlen-1) and find smax */
   i = xlen - 1;
-  score = in.ssm.f(X.get(i),Y.get(0));
+  score = getScoringMatrix().f(X.charAt(i),Y.charAt(0));
   if (score < 0) score = 0;
   else if (score > smax) smax = score;
   S2.set(0,score);
   score = S1.get(0);
   if((a=S0.get(0) + gap) > score) score = a;
-  score += in.ssm.f(X.get(i),Y.get(1));
+  score += getScoringMatrix().f(X.charAt(i),Y.charAt(1));
   if(score < 0) score = 0;
   else if (score > smax) smax = score;
   S2.set(1,score);
@@ -1201,7 +1463,7 @@ int xlen=X.size();
     if((a=S1.get(j-2))>score) score = a;
     score +=gap;
     if((a=S1.get(j-1)) >score) score = a;
-    score += in.ssm.f(X.get(i),Y.get(j));
+    score += getScoringMatrix().f(X.charAt(i),Y.charAt(j));
     if (score < 0 ) score = 0;
     else if (score > smax) smax = score;
     S2.set(j,score);
@@ -1210,19 +1472,36 @@ int xlen=X.size();
   out.path_length=0;
   P0=null; P1=null; P2=null;
 
-
+return out;
 } 
+ 
+ 
+ private void reset()
+	 {
+	 
+	 }
 
+ public void dispose()
+	 {
+	 this._S.clear();
+	 this._P.clear();
+	 }
+ 
+ 
 	public static void main(String[] args) 
 		{
-		DefaultSequence X=new DefaultSequence("ACTAGCTGATCGTACGATCGTAACATGCTACGATCGATCGATCA");
-		DefaultSequence Y=new DefaultSequence("CTAGCTGATCGTACGATGCTACGATCGATCATCAATGGGCTAGCTGATCGTACG");
-		dpal_results r=new dpal_results();
 		Dpal app=new Dpal();
-		dpal_args a=new dpal_args();
-	
-		app.dpal(X, Y, a,r);
-		System.out.println("Done");
+		
+			String X= ("TTACTAGCTGATCGTACGATCGTGGGGAACAGGGCTAATCGATCAAAATT");
+			String Y= ("ACTAGCTGATCGTACTCGTGGGGAACATGGGGCTAATCGATCAAAA");
+			
+			
+		
+			Result r=app.dpal(X, Y);
+			System.out.print(r);
+			
+		app.dispose();
+		
 		}
 
 
