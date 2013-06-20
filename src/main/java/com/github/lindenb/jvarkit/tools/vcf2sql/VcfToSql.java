@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -28,11 +30,11 @@ import net.sf.picard.cmdline.Usage;
 import net.sf.picard.io.IoUtil;
 import net.sf.picard.util.Log;
 
+@SuppressWarnings("rawtypes")
 public class VcfToSql extends CommandLineProgram
 	{
-	
 	private static final String COLUMN_ID="id INTEGER PRIMARY KEY AUTOINCREMENT,";
-
+	
 	@Usage(programVersion="1.0")
 	public String USAGE=getStandardUsagePreamble()+"Creates the code to insert one or more VCF into a SQL database. ";
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF files to process.",minElements=0)
@@ -40,6 +42,12 @@ public class VcfToSql extends CommandLineProgram
     
     @Option(shortName="SFX",doc="Table suffix",optional=true)
 	public String SUFFIX="";
+    @Option(shortName="VEP",doc="Use  and explode VEP predictions",optional=true)
+	public boolean USE_VEP=true;
+    @Option(shortName="SNPEFF",doc="Use and explode SNPEFF predictions",optional=true)
+	public boolean USE_SNPEFF=true;
+
+    
     
     private static Log LOG=Log.getInstance(VcfToSql.class); 
     
@@ -104,16 +112,15 @@ public class VcfToSql extends CommandLineProgram
 				"v TEXT not null"+
 				 ");");
 		    
-		    out.println("create table if not exists VEP"+SUFFIX+"("+
+		    out.println("create table if not exists EXTRAINFO"+SUFFIX+"("+
 					COLUMN_ID+
 					"info_id INT NOT NULL REFERENCES INFO"+SUFFIX+"(id) ON DELETE CASCADE,"+
-					"k varchar(50) not null,"+
-					"v TEXT not null"+
+					"type varchar(50) not null"+
 					 ");");
 		    
-		    out.println("create table if not exists SNPEFF"+SUFFIX+"("+
+		    out.println("create table if not exists EXTRAINFOPROP"+SUFFIX+"("+
 					COLUMN_ID+
-					"info_id INT NOT NULL REFERENCES INFO"+SUFFIX+"(id) ON DELETE CASCADE,"+
+					"extrainfo_id INT NOT NULL REFERENCES EXTRAINFO"+SUFFIX+"(id) ON DELETE CASCADE,"+
 					"k varchar(50) not null,"+
 					"v TEXT not null"+
 					 ");");
@@ -130,7 +137,7 @@ public class VcfToSql extends CommandLineProgram
 				);
 		    out.println("create table if not exists GTPROP"+SUFFIX+"("+
 				COLUMN_ID+
-				"var_id INT NOT NULL REFERENCES GENOTYPE"+SUFFIX+"(id) ON DELETE CASCADE,"+
+				"genotype_id INT NOT NULL REFERENCES GENOTYPE"+SUFFIX+"(id) ON DELETE CASCADE,"+
 				"k varchar(50) not null,"+
 				"v TEXT not null"+
 				 ");");
@@ -163,8 +170,10 @@ public class VcfToSql extends CommandLineProgram
 	private void read(InputStream in,String filename)
 		throws IOException
 		{
-		Pattern comma=Pattern.compile("[,]");
+		//Pattern comma=Pattern.compile("[,]");
 		Pattern pipe=Pattern.compile("[\\|]");
+		Pattern amp=Pattern.compile("&");
+
 		out.println("insert into FILE"+SUFFIX+"(filename) values ("+quote(filename)+");");
 		AsciiLineReader r=new AsciiLineReader(in);
 		
@@ -174,27 +183,86 @@ public class VcfToSql extends CommandLineProgram
 		
 		String csqColumns[]=null;
 		VCFInfoHeaderLine infoHeader=header.getInfoHeaderLine("CSQ");
-		if(infoHeader!=null)
+		if(infoHeader!=null && this.USE_VEP)
 			{
+			LOG.info("parsing VEP "+infoHeader.getDescription());
 			final String formatStr="Format: ";
 			int i=infoHeader.getDescription().indexOf(formatStr);
 			if(i!=-1)
 				{
 				csqColumns=pipe.split(infoHeader.getDescription().substring(i+formatStr.length()).trim());
+				LOG.debug(Arrays.asList(csqColumns));
+				}
+			else
+				{
+				LOG.error("Cannot parse "+infoHeader.getDescription());
 				}
 			}
 		String snpEffColumns[]=null;
 		infoHeader=header.getInfoHeaderLine("EFF");
-		if(infoHeader!=null)
+		if(infoHeader!=null && this.USE_SNPEFF)
 			{
+			LOG.info("parsing EFF "+infoHeader.getDescription());
+
 			final String formatStr=".Format: '";
-			int i=infoHeader.getDescription().indexOf(formatStr);
-			if(i!=-1)
+			final String desc=infoHeader.getDescription();
+			int i=desc.indexOf(formatStr);
+			if(i!=-1) i=desc.indexOf('(',i+formatStr.length());
+			int j=desc.lastIndexOf(')');
+			if(i!=-1 && j>i)
 				{
-				snpEffColumns=pipe.split(infoHeader.getDescription().substring(i+formatStr.length()).trim());
+				snpEffColumns=pipe.split(desc.substring(i+1,j).replaceAll("[ \\[\\]()\\.]", "").trim());
+				LOG.info(Arrays.asList(snpEffColumns));
+				}
+			else
+				{
+				LOG.error("Cannot parse "+infoHeader.getDescription());
 				}
 			}
 		
+		String nmdColumns[]=null;
+		infoHeader=header.getInfoHeaderLine("NMD");
+		if(infoHeader!=null && this.USE_SNPEFF)
+			{
+
+			final String formatStr=" Format: '";
+			final String desc=infoHeader.getDescription();
+			int i=desc.indexOf(formatStr);
+			int j=(i==-1?-1:desc.lastIndexOf('\''));
+
+			if(i!=-1 && j>i)
+				{
+				nmdColumns=pipe.split(
+						desc.substring(i+formatStr.length(),j).replaceAll("[ \\[\\]()\\.]", "").trim());
+				}
+			else
+				{
+				LOG.error("Cannot parse "+infoHeader.getDescription());
+				}
+			}
+		
+		String lofColumns[]=null;
+		infoHeader=header.getInfoHeaderLine("LOF");
+		if(infoHeader!=null && this.USE_SNPEFF)
+			{
+
+			final String formatStr=" Format: '";
+			final String desc=infoHeader.getDescription();
+			int i=desc.indexOf(formatStr);
+			int j=(i==-1?-1:desc.lastIndexOf('\''));
+
+			if(i!=-1 && j>i)
+				{
+				lofColumns=pipe.split(
+						desc.substring(i+formatStr.length(),j).replaceAll("[ \\[\\]()\\.]", "").trim());
+				}
+			else
+				{
+				LOG.error("Cannot parse "+infoHeader.getDescription());
+				}
+			}
+		
+
 		
 		for(String S:header.getSampleNamesInOrder())
 			{
@@ -245,7 +313,11 @@ public class VcfToSql extends CommandLineProgram
 			LOG.debug(line);
 			
 			VariantContext var=codec.decode(line);
-			
+			if(var==null)
+				{
+				LOG.error("Cannot parse "+line);
+				continue;
+				}
 			//"create table if not exists FILE(id,filename text)";
 			//"create table if not exists VARIATION(id,file_id,chrom,pos,start0,end0,rs_id,ref,qual)";
 		
@@ -286,41 +358,109 @@ public class VcfToSql extends CommandLineProgram
 			for(String key:infos.getAttributes().keySet())
 				{
 				Object val=infos.getAttribute(key);
-				
 				//"create table if not exists INFO(id,var_id,k,v)";
 
-				
 				out.println(
 						"insert into INFO"+SUFFIX+"(var_id,k,v) values ("+
 						"(select max(id) from VARIATION"+SUFFIX+"),"+
 						quote(key)+","+
 						quote(infotoString(val))+");"
 						);
+					
 				
 				if(key.equals("CSQ") && csqColumns!=null)
 					{
-					for(String csqs:comma.split(val.toString()))
+					List as_array=castToStringArray(val);
+					
+					for(Object csqs:as_array)
 						{
-						if(csqs.isEmpty()) continue;
-						String tokens[]=pipe.split(csqs);
-						
+						if(csqs.toString().isEmpty()) continue;
+						String tokens[]=pipe.split(csqs.toString());
+						List<String> extraInfo=new ArrayList<String>();
 						for(int t=0;t<tokens.length && t<csqColumns.length;++t)
 							{
 							if(tokens[t].isEmpty()) continue;
-							
-							
-							out.println(
-									"insert into VEP"+SUFFIX+"(info_id,k,v) values ("+
-									"(select max(id) from INFO"+SUFFIX+"),"+
-									quote(csqColumns[t])+","+
-									quote(tokens[t])+");"
-									);
-
+							if(csqColumns[t].equals("Consequence"))
+								{
+								for(String pred:amp.split(tokens[t]))
+									{
+									if(pred.isEmpty()) continue;
+									extraInfo.add(csqColumns[t]);
+									extraInfo.add(pred);
+									}
+								
+								}
+							else
+								{
+								extraInfo.add(csqColumns[t]);
+								extraInfo.add(tokens[t]);
+								}
 							}
-						
+						insertExtraInfos("CSQ",extraInfo);
 						}
 					}
 				
+				if(key.equals("EFF") && snpEffColumns!=null)
+					{
+					for(Object item:castToStringArray(val))
+						{
+						String snpeff=item.toString();
+						if(snpeff.isEmpty()) continue;
+						int opar=snpeff.indexOf('(');
+						if(opar==-1) continue;
+						int cpar=snpeff.lastIndexOf(')');
+						if(cpar==-1) continue;
+						String tokens[]=pipe.split(snpeff.substring(opar+1,cpar));
+						List<String> h=new ArrayList<String>();
+						h.add("Effect");
+						h.add(snpeff.substring(0,opar));
+						for(int t=0;t<tokens.length && t<snpEffColumns.length;++t)
+							{
+							if(tokens[t].isEmpty()) continue;
+							h.add(snpEffColumns[t]);
+							h.add(tokens[t]);
+							}
+						insertExtraInfos(key, h);	
+						}
+					}
+				
+				if(key.equals("NMD") && nmdColumns!=null)
+					{
+					
+					for(Object item:castToStringArray(val))
+						{
+						String nmd=item.toString();
+						if(nmd.isEmpty()) continue;
+						String tokens[]=pipe.split(nmd);
+						List<String> h=new ArrayList<String>(nmdColumns.length*2);
+						for(int t=0;t<tokens.length && t<nmdColumns.length;++t)
+							{
+							if(tokens[t].isEmpty()) continue;
+							h.add(nmdColumns[t]);
+							h.add(tokens[t]);
+							}
+						insertExtraInfos(key, h);
+						}	
+					}
+				
+				if(key.equals("LOF") && lofColumns!=null)
+					{
+					
+					for(Object item:castToStringArray(val))
+						{
+						String lof=item.toString();
+						if(lof.isEmpty()) continue;
+						String tokens[]=pipe.split(lof);
+						List<String> h=new ArrayList<String>(lofColumns.length*2);
+						for(int t=0;t<tokens.length && t<lofColumns.length;++t)
+							{
+							if(tokens[t].isEmpty()) continue;
+							h.add(lofColumns[t]);
+							h.add(tokens[t]);
+							}
+						insertExtraInfos(key, h);
+						}	
+					}
 				
 				
 				}
@@ -392,7 +532,47 @@ public class VcfToSql extends CommandLineProgram
 		b.append("\'");
 		return b.toString();
 		}
+	private void insertExtraInfos(String type,List<String> h)
+		{
+		boolean first=true;
+		for(int i=0;i+1< h.size();i+=2)
+			{			
+			if(h.get(i+1).isEmpty()) continue;
+			if(first)
+				{
+				
+				out.println(
+						"insert into EXTRAINFO"+SUFFIX+"(info_id,type) values ("+
+						"(select max(id) from INFO"+SUFFIX+"),"+
+						quote(type)+
+						");"
+						);
+				first=false;
 	
+				}
+			
+			out.println(
+					"insert into EXTRAINFOPROP"+SUFFIX+"(extrainfo_id,k,v) values ("+
+					"(select max(id) from EXTRAINFO"+SUFFIX+"),"+
+					quote(h.get(i))+","+
+					quote(h.get(i+1))+");"
+					);
+			}
+
+		}
+	
+	@SuppressWarnings("unchecked")
+	private List castToStringArray(Object val)
+		{
+		if(val instanceof List)
+			{
+			return (List)val;
+			}
+		else
+			{
+			return new ArrayList(Collections.singleton(val.toString()));
+			}
+		}
 	private String infotoString(Object o)
 		{
 		if(o instanceof int[])
