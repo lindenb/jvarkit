@@ -349,6 +349,11 @@ public class Dpal
 	    int     align_end_2=-1; /* Last alignment position in the 2nd sequence. */
 	    double  score=DPAL_ERROR_SCORE;
 	    
+	    public double getScore()
+	    	{
+			return score;
+			}
+	    
 	    public Result(CharSequence seq1,CharSequence seq2)
 			{
 			this.seq1=seq1;
@@ -361,10 +366,15 @@ public class Dpal
 	    
 	    public void print(PrintWriter out)
 	    	{
+	    	boolean clip=true;
+	    	
 	    	for(int i=0;i<3;++i)
 				{
+	    		boolean first=false;
 				for(Alignment a:this)
 					{
+					if(clip && !first && !a.isMatch()) continue;
+					first=true;
 					switch(i)
 						{
 						case 0: out.print(a.charAt(0)=='\0'?' ':a.charAt(0));break;
@@ -396,10 +406,20 @@ public class Dpal
 			{
 			private int array_index=0;
 			private int seqidx[]=new int[]{0,0};
+			private boolean trimEnds=false;
+			AlignmentIterator()
+				{
+				this.trimEnds=false;
+				
+				}
 			
 			@Override
 			public boolean hasNext()
 				{
+				if(trimEnds)
+					{
+					return array_index < Result.this.path_length;
+					}
 				return (seqidx[0]< getSequence(0).length() ||
 						seqidx[1]< getSequence(1).length()
 						);
@@ -456,12 +476,11 @@ public class Dpal
 				throw new UnsupportedOperationException();
 				}
 			}
-	    
-	    
 	    public Iterator<Alignment> iterator()
 	    	{
 	    	return new AlignmentIterator();
 	    	}
+	    
 		} 
 
 

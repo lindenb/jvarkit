@@ -4,19 +4,17 @@ import java.io.File;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
+
+import com.github.lindenb.jvarkit.util.picard.BWAUtils;
 
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.TextCigarCodec;
 
 public class SplitRead {
 	private static final Logger LOG=Logger.getLogger(SplitRead.class.getSimpleName());
-	private final Pattern semiColon=Pattern.compile("[;]");
-	private final Pattern comma=Pattern.compile("[,]");
 	private float maxFractionCommon=0.1f;
 	
 	private class Fragment
@@ -72,17 +70,12 @@ public class SplitRead {
 				}
 			}
 		
-		for(String s:this.semiColon.split(xp))
+		for(BWAUtils.XPAlign xpAln:BWAUtils.getXPAligns(record))
 			{
-			if(s.isEmpty()) continue;
-			
-			
-			String tokens[]=this.comma.split(s);
-			Cigar cigar2=TextCigarCodec.getSingleton().decode(tokens[2]);
 			
 			readPos=0;
 			float common=0f;
-			for(CigarElement ce:cigar2.getCigarElements())
+			for(CigarElement ce:xpAln.getCigarElements())
 				{
 				switch(ce.getOperator())
 					{
@@ -121,10 +114,10 @@ public class SplitRead {
 			f1.cigar=record.getCigarString();
 			
 			Fragment f2=new Fragment();
-			f2.chrom=tokens[0];
-			f2.pos=Integer.parseInt(tokens[1].substring(1));
-			f2.strand=tokens[1].charAt(0);
-			f2.cigar=tokens[2];
+			f2.chrom=xpAln.getChrom();
+			f2.pos=xpAln.getPos();
+			f2.strand=xpAln.getStrand();
+			f2.cigar=xpAln.getCigarString();
 
 			System.out.print(
 				record.getReadName()+"\t"+
