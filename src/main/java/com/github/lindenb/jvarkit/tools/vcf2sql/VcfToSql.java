@@ -46,6 +46,8 @@ public class VcfToSql extends CommandLineProgram
 	public boolean USE_VEP=true;
     @Option(shortName="SNPEFF",doc="Use and explode SNPEFF predictions",optional=true)
 	public boolean USE_SNPEFF=true;
+    @Option(shortName="SQLIDX",doc="Create misc SQL Indexes.",optional=true)
+	public boolean SQLINDEX=true;
 
     
     
@@ -156,6 +158,20 @@ public class VcfToSql extends CommandLineProgram
 					in.close();
 					}
 				}
+			if(SQLINDEX)
+				{
+				index("SAMPLE","name");
+				index("EXTRAINFO","type");
+				index("EXTRAINFOPROP","k");
+				index("EXTRAINFOPROP","v");
+				
+				index("INFO","var_id");
+				index("INFO","k");
+				index("EXTRAINFO","info_id");
+				index("EXTRAINFOPROP","extrainfo_id");
+				index("GENOTYPE","var_id");
+				index("GENOTYPE","sample_id");
+				}
 			out.println("commit;");
 			out.flush();
 			}
@@ -165,6 +181,13 @@ public class VcfToSql extends CommandLineProgram
 			return -1;
 			}
 		return 0;
+		}
+	
+	private void index(String table,String column)
+		{
+		out.println("create index if not exists  "+
+				(table+SUFFIX+"_"+column+"_IDX").toUpperCase() +
+				" on "+table+SUFFIX+"("+column+");");
 		}
 	
 	private void read(InputStream in,String filename)
