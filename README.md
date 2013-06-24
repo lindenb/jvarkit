@@ -281,3 +281,22 @@ ant vcf2sql
 <h4>Schema</h4>
 ![Schema](https://chart.googleapis.com/chart?cht=gv&chl=digraph{HEADER->FILE;VARIATION->FILE;ALT->VARIATION;FILTER->VARIATION;INFO->VARIATION;SAMPLE->GENOTYPE;GENOTYPE->VARIATION;GTPROP->GENOTYPE;EXTRAINFO->INFO;EXTRAINFOPROP->EXTRAINFO;})
 
+<h3>SortVCFOnRef</h3>
+<h4>Motivation</h4>
+Sort a VCF using the reference order. Version: 1.0
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>VCF file (or stdin).  Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>output file (or stdout).  Default value: null. </td></tr>
+<tr><td>REF=File</td><td>Reference file.  Required. </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+java -jar dist/sortvcfonref.jar I=in.vcf O=out.vcf REF=ref.fa
+```
+<h4>Compilation</h4>
+```bash
+ant sortvcfonref
+```
+
