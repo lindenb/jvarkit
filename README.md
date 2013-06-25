@@ -299,4 +299,47 @@ java -jar dist/sortvcfonref.jar I=in.vcf O=out.vcf REF=ref.fa
 ```bash
 ant sortvcfonref
 ```
+<h3>SamJS: filtering a SAM/BAM file with javascript.</h3>
+<h4>Motivation</h4>
+Filters a BAM using javascript( java rhino engine).
+<h4>Scripting</h4>
+The script puts '<b>record</b>' a SamRecord (http://picard.sourceforge.net/javadoc/net/sf/samtools/SAMRecord.html) 
+and '<b>header</b>' ( http://picard.sourceforge.net/javadoc/net/sf/samtools/SAMFileHeader.html) in the script context 
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>BAM file to process. Default stdin.   Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>output filename. Default stdin.   Default value: null. </td></tr>
+<tr><td>SCRIPT_FILE=File</td><td>javascript file   Default value: null. </td></tr>
+<tr><td>SCRIPT_EXPRESSION=String</td><td>javascript expression   Default value: null. </td></tr>
+<tr><td>SAM_OUTPUT=Boolean</td><td>sam output   Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+<tr><td>LIMIT=Long</td><td>limit to 'L' records.   Default value: null. </td></tr>
+</table>
+<h4>Compilation</h4>
+```bash
+ant samjs
+```
+<h4>Example</h4>
+get a SAM where the  read OR the mate is unmapped
+
+```bash
+java -jar dist/samjs.jar I=ex1.bam \
+	VALIDATION_STRINGENCY=SILENT \
+	SCRIPT_EXPRESSION="record.readUnmappedFlag || record.mateUnmappedFlag;" \
+	SAM=true 
+
+@HD	VN:1.4	SO:unsorted
+@SQ	SN:seq1	LN:1575
+@SQ	SN:seq2	LN:1584
+B7_591:4:96:693:509	73	seq1	1	99	36M	*	0	0	CACTAGTGGCTCATTGTAAATGTGTGGTTTAACTCG	<<<<<<<<<<<<<<<;<<<<<<<<<5<<<<<;:<;7	H0:i:1	H1:i:0	MF:i:18	NM:i:0	UQ:i:0	Aq:i:73
+EAS54_65:7:152:368:113	73	seq1	3	99	35M	*	0	0	CTAGTGGCTCATTGTAAATGTGTGGTTTAACTCGT	<<<<<<<<<<0<<<<655<<7<<<:9<<3/:<6):	H0:i:1	H1:i:0	MF:i:18	NM:i:0	UQ:i:0	Aq:i:66
+EAS51_64:8:5:734:57	137	seq1	5	99	35M	*	0	0	AGTGGCTCATTGTAAATGTGTGGTTTAACTCGTCC	<<<<<<<<<<<7;71<<;<;;<7;<<3;);3*8/5	H0:i:1	H1:i:0	MF:i:18	NM:i:0	UQ:i:0	Aq:i:66
+B7_591:1:289:587:906	137	seq1	6	63	36M	*	0	0	GTGGCTCATTGTAATTTTTTGTTTTAACTCTTCTCT	(-&----,----)-)-),'--)---',+-,),''*,	H0:i:0	H1:i:0	MF:i:130	NM:i:5	UQ:i:38	Aq:i:63
+EAS56_59:8:38:671:758	137	seq1	9	99	35M	*	0	0	GCTCATTGTAAATGTGTGGTTTAACTCGTCCATGG	<<<<<<<<<<<<<<<;<;7<<<<<<<<7<<;:<5%	H0:i:1	H1:i:0	MF:i:18	NM:i:0	UQ:i:0	Aq:i:72
+EAS56_61:6:18:467:281	73	seq1	13	99	35M	*	0	0	ATTGTAAATGTGTGGTTTAACTCGTCCCTGGCCCA	<<<<<<<<;<<<8<<<<<;8:;6/686&;(16666	H0:i:0	H1:i:1	MF:i:18	NM:i:1	UQ:i:5	Aq:i:39
+EAS114_28:5:296:340:699	137	seq1	13	99	36M	*	0	0	ATTGTAAATGTGTGGTTTAACTCGTCCATGGCCCAG	<<<<<;<<<;<;<<<<<<<<<<<8<8<3<8;<;<0;	H0:i:1	H1:i:0	MF:i:18	NM:i:0	UQ:i:0	Aq:i:73
+B7_597:6:194:894:408	73	seq1	15	99	35M	*	0	0	TGTAAATGTGTGGTTTAACTCGTCCATTGCCCAGC	<<<<<<<<<7<<;<<<<;<<<7;;<<<*,;;572<	H0:i:0	H1:i:1	MF:i:18	NM:i:1	UQ:i:9	Aq:i:43
+EAS188_4:8:12:628:973	89	seq1	18	75	35M	*	0	0	AAATGTGTGGTTTAACTCGTCCATGGCCCAGCATT	==;=:;:;;:====;=;===:=======;==;===	H0:i:1	H1:i:0	MF:i:64	NM:i:0	UQ:i:0	Aq:i:0
+(...)
+```
 

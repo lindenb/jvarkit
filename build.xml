@@ -295,30 +295,15 @@
 </target>	
 
 	
+
 <target name="samjs" >
-	   <mkdir dir="tmp"/>
-	   <mkdir dir="dist"/>
-	   	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
-	   		<include name="**/SamJavascript.java"/>
-	   </javac>
-	   
-	   <pathconvert property="manifest_cp5" pathsep=" " >
-			 <path refid="picard.lib"/>
-	   </pathconvert>  
-	   
-	   <jar jarfile="dist/samjs.jar">
-		     <fileset dir="tmp" />
-		     <manifest>
-		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.samjs.SamJavascript"/>
-		        <attribute name="Class-Path" value="${manifest_cp5}"/>
-		     </manifest>
-	 	</jar>
-	   
-	    <delete dir="tmp"/>
-</target>
+	<compile-with-picard 
+		java="**/SamJavascript.java"
+		main="com.github.lindenb.jvarkit.tools.samjs.SamJavascript"
+		name="samjs"
+		/>
+</target>			
+	
 	
 	
 <target name="bamstats04" >

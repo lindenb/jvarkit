@@ -7,11 +7,8 @@ package com.github.lindenb.jvarkit.tools.samjs;
  */
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Iterator;
 
 import javax.script.Bindings;
@@ -20,57 +17,82 @@ import javax.script.CompiledScript;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 
+
+import net.sf.picard.cmdline.CommandLineProgram;
+import net.sf.picard.cmdline.Option;
+import net.sf.picard.cmdline.StandardOptionDefinitions;
+import net.sf.picard.cmdline.Usage;
+import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMFileWriterFactory;
 import net.sf.samtools.SAMRecord;
 
 
 
-public class SamJavascript
+public class SamJavascript extends CommandLineProgram
 	{
+	private static final Log LOG=Log.getInstance(SamJavascript.class);
+	@Usage(programVersion="1.0")
+	public String USAGE=getStandardUsagePreamble()+"Filters a BAM using javascript( java rhino engine)." +
+			"The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/net/sf/samtools/SAMRecord.html)  " +
+			" and 'header' ( http://picard.sourceforge.net/javadoc/net/sf/samtools/SAMFileHeader.html) in the script context .";
+    
+	@Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM file to process. Default stdin. ",optional=true)
+	public File IN=null;
+	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="output filename. Default stdin. ",optional=true)
+	public File OUT=null;
+	@Option(shortName="SF", doc="javascript file ",optional=true)
+	public File SCRIPT_FILE=null;
+	@Option(shortName="SE", doc="javascript expression ",optional=true)
+	public String SCRIPT_EXPRESSION=null;
+	@Option(shortName="SAM",doc="sam output ",optional=true)
+	public boolean SAM_OUTPUT=false;
+	@Option(shortName="L",doc="limit to 'L' records. ",optional=true)
+	public Long LIMIT=null;
+	
+	
+	
 	private CompiledScript  script=null;
 	private ScriptEngine engine=null;
-	private boolean samoutput=false;
-	private long limit=-1L;
-	private File filenameout=null;
-	private SamJavascript()
-		{
-		
+	
+	@Override
+	public String getVersion() {
+		return "1.0";
 		}
 	
-	private void scan(InputStream in) throws Exception
+	private void scan(SAMFileReader samFileReader) throws Exception
 		{
 		
 		long count=0;
-		SAMFileReader samFileReader=new SAMFileReader(in);
-		samFileReader.setValidationStringency(ValidationStringency.SILENT);
+		
+		samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
 		SAMFileHeader header=samFileReader.getFileHeader();
 		
 		
         SAMFileWriterFactory sf=new SAMFileWriterFactory();
         sf.setCreateIndex(false);
-        File stdout=(filenameout==null?new File("/dev/stdout"):filenameout);
+        File stdout=(OUT==null?new File("/dev/stdout"):OUT);
      	
-        SAMFileWriter sw;
-        if(!samoutput )
+        SAMFileWriter sw=null;
+        if(!SAM_OUTPUT )
         	{
-        	if(!stdout.exists() && filenameout==null) //stdout
-			{
-			throw new IOException("Cannot save as BAM because "+stdout+" doesn't exist. Please use SAM.");
-			}
+        	if(!stdout.exists() && OUT==null) //stdout
+				{
+        		samFileReader.close();
+				throw new IOException("Cannot save as BAM because "+stdout+" doesn't exist. Please use SAM.");
+				}
         	sw=sf.makeBAMWriter(header,false,stdout);        
         	}
-        else if(filenameout==null)
+        else if(OUT==null)
         	{
         	sw=sf.makeSAMWriter(header,false,System.out);        
         	}
-	else
-		{
-		sw=sf.makeSAMWriter(header,false,filenameout);
-		}
+		else
+			{
+			sw=sf.makeSAMWriter(header,false,OUT);
+			}
 
         Bindings bindings = this.engine.createBindings();
         bindings.put("header", header);
@@ -87,9 +109,9 @@ public class SamJavascript
 				{
 				if(Boolean.FALSE.equals(result)) continue;
 				}
-			else if(result instanceof Integer)
+			else if(result instanceof Number)
 				{
-				if(((Integer)result).intValue()!=1) continue;
+				if(((Number)result).intValue()!=1) continue;
 				}
 			else
 				{
@@ -97,120 +119,68 @@ public class SamJavascript
 				}
 			++count;
 			sw.addAlignment(record);
-			if(this.limit!=-1L && count>=this.limit) break;
+			if(this.LIMIT!=null && count>=this.LIMIT) break;
 			}
-		samFileReader.close();
 		sw.close();
 		}
 	
-	
-	private void run(String[] args)
-		throws Exception
+	@Override
+	public int doWork()
 		{
-		String scriptStr=null;
-		File scriptFile=null;
-		int optind=0;
-		while(optind< args.length)
-			{
-			if(args[optind].equals("-h") ||
-			   args[optind].equals("-help") ||
-			   args[optind].equals("--help"))
+		try {
+			if(SCRIPT_EXPRESSION==null && SCRIPT_FILE==null)
 				{
-				System.err.println("Pierre Lindenbaum PhD. 2013");
-				System.err.println("Options:");
-				System.err.println(" -h help; This screen.");
-				System.err.println(" -S : SAM output.");
-				System.err.println(" -e (script).");
-				System.err.println(" -o (fileout.bam) or stdout");
-				System.err.println(" -f (file).");
-				System.err.println(" -L (int) limit to 'L' records.");
-				System.err.println("the script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/net/sf/samtools/SAMRecord.html)  " +
-						" and 'header' ( http://picard.sourceforge.net/javadoc/net/sf/samtools/SAMFileHeader.html) in the script context .");
-				return;
+				LOG.error("undefined script");
+				return -1;
 				}
-			else if(args[optind].equals("-S") )
+			
+			ScriptEngineManager manager = new ScriptEngineManager();
+			this.engine = manager.getEngineByName("js");
+			if(this.engine==null)
 				{
-				this.samoutput=true;
+				LOG.error("not available: javascript. Use the SUN/Oracle JDK ?");
+				return -1;
 				}
-			else if(args[optind].equals("-L") && optind+1< args.length)
+			
+			Compilable compilingEngine = (Compilable)this.engine;
+			this.script = null;
+			if(SCRIPT_FILE!=null)
 				{
-				this.limit=Long.parseLong(args[++optind]);
+				FileReader r=new FileReader(SCRIPT_FILE);
+				this.script=compilingEngine.compile(r);
+				r.close();
 				}
-			else if(args[optind].equals("-o") && optind+1< args.length)
+			else
 				{
-				this.filenameout=new File(args[++optind]);
+				this.script=compilingEngine.compile(SCRIPT_EXPRESSION);
 				}
-			else if(args[optind].equals("-e") && optind+1< args.length)
+			
+			if(IN==null)
 				{
-				scriptStr=args[++optind];
+				SAMFileReader samFileReader=new SAMFileReader(System.in);
+				scan(samFileReader);
+				samFileReader.close();
 				}
-			else if(args[optind].equals("-f") && optind+1< args.length)
+			else
 				{
-				scriptFile=new File(args[++optind]);
+				SAMFileReader samFileReader=new SAMFileReader(IN);
+				scan(samFileReader);
+				samFileReader.close();
 				}
-			else if(args[optind].equals("--"))
-				{
-				optind++;
-				break;
-				}
-			else if(args[optind].startsWith("-"))
-				{
-				System.err.println("Unknown option "+args[optind]);
-				return;
-				}
-			else 
-				{
-				break;
-				}
-			++optind;
-			}
-		if(scriptStr==null && scriptFile==null)
-			{
-			System.err.println("undefined script");
-			System.exit(-1);
-			}
-		
-		ScriptEngineManager manager = new ScriptEngineManager();
-		this.engine = manager.getEngineByName("js");
-		if(this.engine==null)
-			{
-			System.err.println("not available: javascript. Use the SUN/Oracle JDK ?");
-			System.exit(-1);
-			}
-		
-		Compilable compilingEngine = (Compilable)this.engine;
-		this.script = null;
-		if(scriptFile!=null)
-			{
-			FileReader r=new FileReader(scriptFile);
-			this.script=compilingEngine.compile(r);
-			r.close();
-			}
-		else
-			{
-			this.script=compilingEngine.compile(scriptStr);
-			}
-		
-		if(optind==args.length)
-			{
-			scan(System.in);
-			}
-		else if(optind+1==args.length)
-			{
-			FileInputStream fin=new FileInputStream(args[optind]);
-			scan(fin);
-			fin.close();
-			}
-		else 
-			{
-			System.err.println("illegal number of arguments.");
-			System.exit(-1);
+			
+			return 0;
+			
+		} catch (Exception e) {
+			LOG.error(e);
+			return -1;
 			}
 		}
+	
+
 		
 	public static void main(String[] args) throws Exception
 		{
-		new SamJavascript().run(args);
+		new SamJavascript().instanceMainWithExit(args);
 		}
 	
 	}
