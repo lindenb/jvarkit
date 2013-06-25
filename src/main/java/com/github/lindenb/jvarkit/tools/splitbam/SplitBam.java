@@ -3,18 +3,24 @@ package com.github.lindenb.jvarkit.tools.splitbam;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 
+import com.github.lindenb.jvarkit.util.picard.IOUtils;
+
+import net.sf.picard.cmdline.CommandLineProgram;
+import net.sf.picard.cmdline.Option;
+import net.sf.picard.cmdline.StandardOptionDefinitions;
+import net.sf.picard.cmdline.Usage;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import net.sf.picard.util.Log;
 import net.sf.samtools.DefaultSAMRecordFactory;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileHeader.SortOrder;
@@ -23,25 +29,56 @@ import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMFileWriterFactory;
 import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMRecordFactory;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
 
-public class SplitBam
+/***
+ * 
+ * SplitBam
+ *
+ */
+public class SplitBam extends CommandLineProgram
 	{
-	private static final Logger LOG=Logger.getLogger("split");
-	private final String REPLACE_CHROM="__CHROM__";
-	private String outFilePattern="";
-	private String underterminedName="Unmapped";
-	private boolean generate_empty_bams=false;
+	
+	private static final Log LOG=Log.getInstance(SplitBam.class);
+	@Usage(programVersion="1.0")
+	public String USAGE=getStandardUsagePreamble()+"Split a BAM by chromosome group.";
+
+    @Option(shortName= StandardOptionDefinitions.REFERENCE_SHORT_NAME, doc="Indexex reference",optional=false)
+	public File  REF=null;
+    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM files to process. Default stdin. ",optional=false)
+	public List<File> IN=new ArrayList<File>();
+    
+    @Option(shortName= "EMPTY_BAM", doc="generate EMPTY bams for chromosome having no read mapped. ",optional=true)
+	public boolean GENERATE_EMPTY_BAM=false;
+
+    @Option(shortName= "GP", doc="Chromosome group file. ",optional=true)
+	public File CHROM_GROUP=null;
+    
+    
+    @Option(shortName= "MOCK", doc="add a mock pair of sam records to the bam. ",optional=true)
+	public boolean ADD_MOCK_RECORD=false;
+
+    
+	private final static String REPLACE_CHROM="__CHROM__";
+	
+	
+	@Option(shortName= "OFP", doc="MUST contain "+REPLACE_CHROM+" and end with .bam. ",optional=false)
+	public String OUT_FILE_PATTERN="";
+	
+	@Option(shortName= "UN", doc="Unmapped chromosome name. ",optional=true)
+	public String UNDERTERMINED_NAME="Unmapped";
+	
+	@Option(shortName= "IS", doc="input is sorted. ",optional=true)
+	public boolean INPUT_IS_SORTED=false;
+	
 	private SAMSequenceDictionary  samSequenceDictionary;
-	private boolean if_bam_empty_add_mock_sam_record=false;
 	private long id_generator=System.currentTimeMillis();
-	private boolean input_is_sorted=false;
-	private boolean create_index=false;
-	private File tmpDir=null;
-	private File chromGroup=null;
+	
+	
+	
+	
 	
 	
 	
@@ -85,13 +122,13 @@ public class SplitBam
 			String groupName
 			) throws IOException
 		{
-		File fileout=new File(this.outFilePattern.replaceAll(REPLACE_CHROM, groupName));
+		File fileout=new File(this.OUT_FILE_PATTERN.replaceAll(REPLACE_CHROM, groupName));
 		LOG.info("creating mock BAM file "+fileout);
 		File parent=fileout.getParentFile();
 		if(parent!=null) parent.mkdirs();
 
 		SAMFileWriter sw=sf.makeBAMWriter(header, true, fileout);
-		if(if_bam_empty_add_mock_sam_record)
+		if(this.ADD_MOCK_RECORD)
 			{
 			addMockPair(sw,header);
 			}
@@ -129,11 +166,11 @@ public class SplitBam
 		{
 		ManyToMany many2many=new ManyToMany();
 
-		many2many.set(this.underterminedName, this.underterminedName);
+		many2many.set(this.UNDERTERMINED_NAME, this.UNDERTERMINED_NAME);
 
 		
 		
-		if(this.chromGroup!=null)
+		if(this.CHROM_GROUP!=null)
 			{
 			Set<String> all_chromosomes=new HashSet<String>();
 
@@ -142,7 +179,7 @@ public class SplitBam
 				all_chromosomes.add(seq.getSequenceName());
 				}
 			
-			BufferedReader r=new BufferedReader(new FileReader(this.chromGroup));
+			BufferedReader r=IOUtils.openFileForBufferedReading(this.CHROM_GROUP);
 			String line;
 			while((line=r.readLine())!=null)
 				{
@@ -179,16 +216,19 @@ public class SplitBam
 		
 		Map<String,SAMFileWriter> seen=new HashMap<String,SAMFileWriter>(many2many.group2chroms.size());
 		SAMFileReader samFileReader=new SAMFileReader(in);
-		samFileReader.setValidationStringency(ValidationStringency.SILENT);
+		samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
 		SAMFileHeader header=samFileReader.getFileHeader();
 		header.setSortOrder(SortOrder.coordinate);
 		
         SAMFileWriterFactory sf=new SAMFileWriterFactory();
-       if(this.tmpDir!=null)
+       if(!super.TMP_DIR.isEmpty())
     	   {
-    	   sf.setTempDirectory(this.tmpDir);
+    	   sf.setTempDirectory(super.TMP_DIR.get(0));
     	   }
-        sf.setCreateIndex(this.create_index);
+        if(super.CREATE_INDEX!=null)
+        	{
+        	sf.setCreateIndex(super.CREATE_INDEX);
+        	}
         
         long nrecords=0L;
        
@@ -208,7 +248,7 @@ public class SplitBam
 				{
 				if(record.getMateUnmappedFlag())
 					{
-					recordChromName=this.underterminedName;
+					recordChromName=this.UNDERTERMINED_NAME;
 					}
 				else
 					{
@@ -230,11 +270,11 @@ public class SplitBam
 			
 			if(writer==null)
 				{
-				File fileout=new File(this.outFilePattern.replaceAll(REPLACE_CHROM, groupName));
+				File fileout=new File(this.OUT_FILE_PATTERN.replaceAll(REPLACE_CHROM, groupName));
 				LOG.info("opening "+fileout);
 				File parent=fileout.getParentFile();
 				if(parent!=null) parent.mkdirs();
-				writer=sf.makeBAMWriter(header,this.input_is_sorted,fileout);
+				writer=sf.makeBAMWriter(header,this.INPUT_IS_SORTED,fileout);
 				seen.put(groupName, writer);
 				nrecords=0L;
 				}
@@ -249,7 +289,7 @@ public class SplitBam
 			}
 		samFileReader.close();
 		
-		if(generate_empty_bams)
+		if(this.GENERATE_EMPTY_BAM)
 			{
 			
 			for(String groupName:many2many.group2chroms.keySet())
@@ -260,131 +300,69 @@ public class SplitBam
 			}
 		
 		}
-	
-	
-	private void run(String[] args)
-		throws Exception
+	@Override
+	protected int doWork()
 		{
-		File referenceFile=null;
-		
-		int optind=0;
-		while(optind< args.length)
+		try
 			{
-			if(args[optind].equals("-h") ||
-			   args[optind].equals("-help") ||
-			   args[optind].equals("--help"))
+			
+			
+			
+			if(this.ADD_MOCK_RECORD)
 				{
-				System.err.println("Pierre Lindenbaum PhD. 2013");
-				System.err.println("Options:");
-				System.err.println(" -h help; This screen.");
-				System.err.println(" -R (reference file) REQUIRED.");
-				System.err.println(" -u (unmapped chromosome name): default:"+this.underterminedName);
-				System.err.println(" -e | --empty : generate EMPTY bams for chromosome having no read mapped");
-				System.err.println(" -m | --mock : if option '-e', add a mock pair of sam records to the bam");
-				System.err.println(" -p (output file/bam pattern) REQUIRED. MUST contain "+REPLACE_CHROM+" and end with .bam");
-				System.err.println(" -s assume input is sorted.");
-				System.err.println(" -x | --index  create index.");
-				System.err.println(" -t | --tmp  (dir) tmp file directory");
-				System.err.println(" -G (file) chrom-group file\n" +
-							       "     Merge some chromosome in the following groups. Format:\n" +
-							       "     (group-name1)\\tchrom1\\tchrom2\\tchrom3...\\n\n"+
-							       "     (group-name2)\\tchrom11\\tchrom12\\tchrom22...\\n\n"+
-							       "     The missing chromosomes are defined in their own group"
-									);
-				return;
+				this.GENERATE_EMPTY_BAM=true;
 				}
-			else if(args[optind].equals("-e")|| args[optind].equals("--empty"))
+			
+			if(!OUT_FILE_PATTERN.contains(REPLACE_CHROM))
 				{
-				this.generate_empty_bams=true;
+				LOG.error("output file pattern undefined or doesn't contain "+REPLACE_CHROM);
+				return -1;
 				}
-			else if(args[optind].equals("-m") || args[optind].equals("--mock"))
+			
+			if(REF==null)
 				{
-				this.generate_empty_bams=true;
-				this.if_bam_empty_add_mock_sam_record=true;
+				LOG.error("Reference file undefined");
+				System.exit(-1);
 				}
-			else if((args[optind].equals("-t") || args[optind].equals("--tmp")) && optind+1< args.length)
+			IndexedFastaSequenceFile indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
+			this.samSequenceDictionary=indexedFastaSequenceFile.getSequenceDictionary();
+			if(this.samSequenceDictionary==null)
 				{
-				this.tmpDir=new File(args[++optind]);
+				LOG.error("Reference file dictionary missing. use picard to create it.");
+				return -1;
 				}
-			else if(args[optind].equals("-R") && optind+1< args.length)
+			
+			if(this.IN.isEmpty())
 				{
-				referenceFile=new File(args[++optind]);
-				}
-			else if(args[optind].equals("-u") && optind+1< args.length)
-				{
-				underterminedName= args[++optind];
-				}
-			else if(args[optind].equals("-p") && optind+1< args.length)
-				{
-				outFilePattern= args[++optind];
-				}
-			else if(args[optind].equals("-G") && optind+1< args.length)
-				{
-				chromGroup= new File(args[++optind]);
-				}
-			else if(args[optind].equals("-s"))
-				{
-				this.input_is_sorted=true;
-				}
-			else if(args[optind].equals("-x") || args[optind].equals("--index"))
-				{
-				this.create_index=true;
-				}
-			else if(args[optind].equals("--"))
-				{
-				optind++;
-				break;
-				}
-			else if(args[optind].startsWith("-"))
-				{
-				System.err.println("Unknown option "+args[optind]);
-				return;
+				LOG.info("reading stdin");
+				scan(System.in);
 				}
 			else 
 				{
-				break;
+				for(File file: this.IN)
+					{
+					LOG.info("reading "+file);
+					FileInputStream fin=new FileInputStream(file);
+					scan(fin);
+					fin.close();
+					}
 				}
-			++optind;
+			return 0;
 			}
-		if(!outFilePattern.contains(REPLACE_CHROM))
+		catch(Exception err)
 			{
-			System.err.println("output file pattern undefined or doesn't contain "+REPLACE_CHROM);
-			System.exit(-1);
+			err.printStackTrace();
+			return -1;
 			}
-		
-		if(referenceFile==null)
+		finally
 			{
-			System.err.println("Reference file undefined");
-			System.exit(-1);
-			}
-		IndexedFastaSequenceFile indexedFastaSequenceFile=new IndexedFastaSequenceFile(referenceFile);
-		this.samSequenceDictionary=indexedFastaSequenceFile.getSequenceDictionary();
-		if(this.samSequenceDictionary==null)
-			{
-			System.err.println("Reference file dictionary missing. use picard to create it.");
-			System.exit(-1);
-			}
-		
-		if(optind==args.length)
-			{
-			scan(System.in);
-			}
-		else if(optind+1==args.length)
-			{
-			FileInputStream fin=new FileInputStream(args[optind]);
-			scan(fin);
-			fin.close();
-			}
-		else 
-			{
-			System.err.println("illegal number of arguments.");
-			System.exit(-1);
+			
 			}
 		}
 		
 	public static void main(String[] args) throws Exception
 		{
-		new SplitBam().run(args);
+		new SplitBam().instanceMainWithExit(args);
 		}
 	
 	}
