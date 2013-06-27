@@ -41,7 +41,7 @@ public class SamJavascript extends CommandLineProgram
     
 	@Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM file to process. Default stdin. ",optional=true)
 	public File IN=null;
-	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="output filename. Default stdin. ",optional=true)
+	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="output filename. Default stdout. ",optional=true)
 	public File OUT=null;
 	@Option(shortName="SF", doc="javascript file ",optional=true)
 	public File SCRIPT_FILE=null;
