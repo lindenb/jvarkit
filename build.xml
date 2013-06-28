@@ -97,7 +97,7 @@
 </macrodef> 	
 	
 	
-<target name="mature.projects" depends="sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
 
 <target name="all" depends="mature.projects,genscan,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>
@@ -128,24 +128,6 @@
     <delete dir="tmp"/>
  </target>
 
- <target name="vcfstripannot">
-   <mkdir dir="tmp"/>
-   <mkdir dir="dist"/>
-   	   
-   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-   		<src path="src/main/java"/>
-   		<include name="**/VCFStripAnnotations.java"/>
-   </javac>
-   
-
-   <jar jarfile="dist/vcfstripannot.jar">
-	     <fileset dir="tmp" />
-	     <manifest>
-	       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"/>
-	     </manifest>
-   </jar>	   
-   <delete dir="tmp"/>
- </target>
 
 	 <target name="vcffixindels">
 	   <mkdir dir="tmp"/>
@@ -295,6 +277,16 @@
 </target>	
 
 	
+	
+	<target name="vcfstripannot" >
+		<compile-with-picard 
+			java="**/VCFStripAnnotations.java"
+			main="com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"
+			name="vcfstripannot"
+			/>
+	</target>			
+		
+
 
 <target name="samjs" >
 	<compile-with-picard 
@@ -487,6 +479,16 @@
 		/>
 </target>		
 	
+<target name="bam4deseq01" >
+	<compile-with-picard 
+		java="**/Bam4DeseqIntervals.java"
+		main="com.github.lindenb.jvarkit.tools.bam4deseq.Bam4DeseqIntervals"
+		name="bam4deseq01"
+		/>
+</target>		
+	
+	
+		
 	
 <target name="vcfbedjs" >
 	   <mkdir dir="tmp"/>

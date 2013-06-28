@@ -113,6 +113,7 @@ Total time: 1 second
 
 ```
 
+<br/>
 <h3>SAM4WebLogo</h3>
 <h4>Motivation</h4>
 "Sequence logo ( http://weblogo.berkeley.edu/logo.cgi ) for different alleles or generated from SAM/BAM" http://www.biostars.org/p/73021
@@ -178,6 +179,7 @@ TGTGGGGGCCGCAGTG---------------
 TGGGGGGGGCGCAGT----------------
 ```
 
+<br/>
 <h3>SAM2Tsv</h3>
 display a tabular view of each base of the reads vs the reference.
 <h4>Compilation</h4>
@@ -206,6 +208,7 @@ M00491:12:000000000-A3FL3:1:1101:16929:4287	147	4	T	37	chr22	544292	T	M	=
 M00491:12:000000000-A3FL3:1:1101:16929:4287	147	5	C	36	chr22	544293	C	M	=
 ```
 
+<br/>
 <h3>cmpbam: Comparing two or more BAMS</h3>
 
 <h4>Compilation</h4>
@@ -229,7 +232,7 @@ java -jar dist/cmpbams.ja \
 	L=chr1:32944435-32944435
 ```
 
-
+<br/>
 <h3>Bam2Raster</h3>
 (under development)
 <h4>Motivation</h4>
@@ -258,7 +261,7 @@ java -jar dist/bam2raster.jar \
 ```
 ![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png)
 
-
+<br/>
 <h3>VCF2SQL</h3>
 <h4>Motivation</h4>
 Generate the SQL code to insert a VCF into sqlite3.
@@ -299,6 +302,8 @@ java -jar dist/sortvcfonref.jar I=in.vcf O=out.vcf REF=ref.fa
 ```bash
 ant sortvcfonref
 ```
+
+<br/>
 <h3>SamJS: filtering a SAM/BAM file with javascript.</h3>
 <h4>Motivation</h4>
 Filters a BAM using javascript( java rhino engine).
@@ -343,3 +348,42 @@ EAS188_4:8:12:628:973	89	seq1	18	75	35M	*	0	0	AAATGTGTGGTTTAACTCGTCCATGGCCCAGCAT
 (...)
 ```
 
+<br/>
+<h3>Bam4DeseqIntervals</h3>
+creates a table for DESEQ with the number of reads within a sliding window for multiple BAMS.Version: 1.0
+<h4>Compilation</h4>
+```bash
+ant bam4deseq01
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>BAM file to process  This option must be specified at least 1 times. </td></tr>
+<tr><td>OUT=File</td><td>output filename. Default stdout.   Default value: null. </td></tr>
+<tr><td>WINDOW_SIZE=Integer</td><td>size of the observed window.   Default value: 500. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>WINDOW_SHIFT=Integer</td><td>shift window by SHIFT pb   Default value: 250. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>ONLY_COVERED=Boolean</td><td>ignore regions with NO coverage  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+<tr><td>HEADER=Boolean</td><td>print header  Default value: true. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+</table>
+
+<br/>
+<h3>VCFStripAnnotations</h3>
+<h4>Motivation</h4>
+Removes one or more field from the INFO column of a VCF.Version
+<h4>Compilation</h4>
+```bash
+ant vcfstripannot
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>VCF file to process. Default stdin.   Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
+<tr><td>KEY=String</td><td>remove this INFO key  This option may be specified 0 or more times. </td></tr>
+<tr><td>RESET_FILTER=Boolean</td><td>Reset the FILTER column  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+</table>
+<br/>
+<h4>Example</h4>
+```bash
+$ java -jar dist/vcfstripannot.jar K=DP4 K=AC1 < in.vcf > out.vcf 
+```
