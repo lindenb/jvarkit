@@ -272,6 +272,8 @@ Generate the SQL code to insert a VCF into sqlite3.
 <tr><td>SUFFIX=String</td><td>Table suffix  Default value: (empty).</td></tr>
 <tr><td>USE_VEP=Boolean</td><td>Use  and explode VEP predictions  Default value: true. Possible values: {true, false} </td></tr>
 <tr><td>USE_SNPEFF=Boolean</td><td>Use and explode SNPEFF predictions  Default value: true. Possible values: {true, false} </td></tr>
+<tr><td>ENGINE=String</td><td>sql engine [sqlite,hsql]  Default value: sqlite. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>SPLIT4=Boolean</td><td>Split DP4  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
 <h4>Example</h4>
 ```bash

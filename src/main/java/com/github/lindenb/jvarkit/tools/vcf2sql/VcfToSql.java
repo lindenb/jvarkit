@@ -23,17 +23,18 @@ import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeaderVersion;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
+
+import com.github.lindenb.jvarkit.util.picard.IOUtils;
+
 import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
-import net.sf.picard.io.IoUtil;
 import net.sf.picard.util.Log;
 
 @SuppressWarnings("rawtypes")
 public class VcfToSql extends CommandLineProgram
 	{
-	private static final String COLUMN_ID="id INTEGER PRIMARY KEY AUTOINCREMENT,";
 	
 	@Usage(programVersion="1.0")
 	public String USAGE=getStandardUsagePreamble()+"Creates the code to insert one or more VCF into a SQL database. ";
@@ -48,8 +49,13 @@ public class VcfToSql extends CommandLineProgram
 	public boolean USE_SNPEFF=true;
     @Option(shortName="SQLIDX",doc="Create misc SQL Indexes.",optional=true)
 	public boolean SQLINDEX=true;
-
+    @Option(shortName="EGN",doc="sql engine [sqlite,hsql]",optional=true)
+	public String ENGINE=SQLEngine.sqlite.name();
+    @Option(shortName="S4",doc="Split DP4",optional=true)
+	public boolean SPLIT4=false;
     
+    private SQLEngine engine=SQLEngine.sqlite;
+    private enum SQLEngine {sqlite,hsql};
     
     private static Log LOG=Log.getInstance(VcfToSql.class); 
     
@@ -62,89 +68,130 @@ public class VcfToSql extends CommandLineProgram
     	}
     
     
+    private String columnId()
+    	{
+    	switch(this.engine)
+    		{
+    		case hsql: return "id INTEGER GENERATED ALWAYS AS IDENTITY(START WITH 1, INCREMENT BY 1) PRIMARY KEY,";
+    		default:return "id INTEGER PRIMARY KEY AUTOINCREMENT,";
+    		}
+    	}
+    
+    private String varchar(int length)
+    	{
+    	switch(this.engine)
+			{
+			case hsql: return "VARCHAR("+length+")";
+			default:return "TEXT";
+			}
+    	}
+    
+    private String text()
+		{
+		switch(this.engine)
+			{
+			case hsql: return "LONGVARCHAR";
+			default:return "TEXT";
+			}
+		}
+
+    
+    
 	@Override
 	protected int doWork()
 		{
 		try
 			{
-			
+			try
+				{
+				this.engine=SQLEngine.valueOf(this.ENGINE);
+				}
+			catch(Exception err)
+				{
+				LOG.error("BAD SQL ENGINE "+this.ENGINE);
+				return -1;
+				}
 		    out.println( "create table if not exists FILE"+SUFFIX+"("+
-		    		COLUMN_ID+
-		    		"filename TEXT NOT NULL"+
+		    		columnId()+
+		    		"filename "+varchar(255)+" NOT NULL"+
 		    		");");
 
 		    out.println( "create table if not exists HEADER"+SUFFIX+"("+
-		    		COLUMN_ID+
+		    		columnId()+
 					"file_id INT NOT NULL REFERENCES FILE"+SUFFIX+"(id) ON DELETE CASCADE,"+
-		    		"header TEXT"+
+		    		"header "+text()+
 		    		");");
 
 		    
 		    out.println( "create table if not exists SAMPLE"+SUFFIX+"("+
-			    COLUMN_ID+
-			    "name TEXT NOT NULL UNIQUE"+
+			    columnId()+
+			    "name "+varchar(100)+" NOT NULL UNIQUE"+
 			   ");");
 		    out.println( "create table if not exists VARIATION"+SUFFIX+"("+
-				COLUMN_ID+
+				columnId()+
 				"file_id INT NOT NULL REFERENCES FILE"+SUFFIX+"(id) ON DELETE CASCADE,"+
 				"CHROM VARCHAR(20) NOT NULL,"+
 				"POS INT NOT NULL,"+
 				"START0 INT NOT NULL,"+
 				"END0 INT NOT NULL,"+
 				"RS_ID VARCHAR(50),"+
-				"REF VARCHAR(10) NOT NULL,"+
+				"REF "+text()+" NOT NULL,"+
 				"QUAL FLOAT"+
 			    ");");
 		    
 		    out.println("create table if not exists ALT"+SUFFIX+"("+
-				COLUMN_ID+
+				columnId()+
 				"var_id INT NOT NULL REFERENCES VARIATION"+SUFFIX+"(id) ON DELETE CASCADE,"+
-				"ALT TEXT"+
+				"ALT "+text()+
 				  ");");
 		    out.println("create table if not exists FILTER"+SUFFIX+"("+
-				COLUMN_ID+
+				columnId()+
 				"var_id INT NOT NULL REFERENCES VARIATION"+SUFFIX+"(id) ON DELETE CASCADE,"+
 				"FILTER varchar(50) not null"+
 				 ");");
 
 		    out.println("create table if not exists INFO"+SUFFIX+"("+
-				COLUMN_ID+
+				columnId()+
 				"var_id INT NOT NULL REFERENCES VARIATION"+SUFFIX+"(id) ON DELETE CASCADE,"+
 				"k varchar(50) not null,"+
-				"v TEXT not null"+
+				"v "+text()+" not null"+
 				 ");");
 		    
 		    out.println("create table if not exists EXTRAINFO"+SUFFIX+"("+
-					COLUMN_ID+
+					columnId()+
 					"info_id INT NOT NULL REFERENCES INFO"+SUFFIX+"(id) ON DELETE CASCADE,"+
 					"type varchar(50) not null"+
 					 ");");
 		    
 		    out.println("create table if not exists EXTRAINFOPROP"+SUFFIX+"("+
-					COLUMN_ID+
+					columnId()+
 					"extrainfo_id INT NOT NULL REFERENCES EXTRAINFO"+SUFFIX+"(id) ON DELETE CASCADE,"+
 					"k varchar(50) not null,"+
-					"v TEXT not null"+
+					"v "+text()+" not null"+
 					 ");");
 
 		    
 		    out.println(     "create table if not exists GENOTYPE"+SUFFIX+"("+
-				COLUMN_ID+
+				columnId()+
 				"var_id INT NOT NULL REFERENCES VARIATION"+SUFFIX+"(id) ON DELETE CASCADE,"+
 				"sample_id INT NOT NULL REFERENCES SAMPLE"+SUFFIX+"(id) ON DELETE CASCADE,"+
-				"A1 TEXT, A2 TEXT, dp int, ad varchar(50), gq float,pl TEXT,"+
+				"A1 "+text()+", A2 "+text()+", dp int, ad varchar(50), gq float,pl "+text()+","+
 				"is_phased SMALLINT not null,is_hom SMALLINT not null,is_homref  SMALLINT not null,is_homvar  SMALLINT not null,is_mixed  SMALLINT not null," +
 				"is_nocall SMALLINT not null,is_noninformative SMALLINT not null,is_available SMALLINT not null,is_called SMALLINT not null,is_filtered  SMALLINT not null"+
 				");"
 				);
 		    out.println("create table if not exists GTPROP"+SUFFIX+"("+
-				COLUMN_ID+
+				columnId()+
 				"genotype_id INT NOT NULL REFERENCES GENOTYPE"+SUFFIX+"(id) ON DELETE CASCADE,"+
 				"k varchar(50) not null,"+
-				"v TEXT not null"+
+				"v "+text()+" not null"+
 				 ");");
-
-			out.println("begin transaction;");
+		    switch(this.engine)
+		    	{
+		    	case sqlite:out.println("begin transaction;");break;
+		    	default:break;
+		    	}
+			
 			if(IN.isEmpty())
 				{
 				read(System.in,"<stdin>");
@@ -153,7 +200,7 @@ public class VcfToSql extends CommandLineProgram
 				{
 				for(File input: IN)
 					{
-					InputStream in=IoUtil.openFileForReading(input);
+					InputStream in=IOUtils.openFileForReading(input);
 					read(in,input.toString());
 					in.close();
 					}
@@ -172,7 +219,12 @@ public class VcfToSql extends CommandLineProgram
 				index("GENOTYPE","var_id");
 				index("GENOTYPE","sample_id");
 				}
-			out.println("commit;");
+			 switch(this.engine)
+		    	{
+		    	case sqlite:out.println("commit;");break;
+		    	default:break;
+		    	}
+			
 			out.flush();
 			}
 		catch(IOException err)
@@ -185,8 +237,16 @@ public class VcfToSql extends CommandLineProgram
 	
 	private void index(String table,String column)
 		{
-		out.println("create index if not exists  "+
-				(table+SUFFIX+"_"+column+"_IDX").toUpperCase() +
+		out.print("create index ");
+
+		switch(this.engine)
+			{
+			case hsql:break;
+			default: out.print(" if not exists ");break;
+			}
+		
+		
+		out.print(" "+ (table+SUFFIX+"_"+column+"_IDX").toUpperCase() +
 				" on "+table+SUFFIX+"("+column+");");
 		}
 	
@@ -289,7 +349,18 @@ public class VcfToSql extends CommandLineProgram
 		
 		for(String S:header.getSampleNamesInOrder())
 			{
-			out.println("insert or ignore into SAMPLE"+SUFFIX+"(name) values ("+quote(S)+");");
+			//merge into SAMPLE using (select 1+MAX(id),'azdazd' from SAMPLE) as vals(x,y) on SAMPLE.name=vals.y when  NOT MATCHED THEN INSERT VALUES vals.x,vals.y;
+			switch(this.engine)
+				{
+				case hsql:out.println(
+						"merge into SAMPLE"+SUFFIX+" using ( values("+quote(S)+") ) " +
+						"AS vals(y) ON SAMPLE"+SUFFIX+".name = vals.y " +
+						"WHEN NOT MATCHED THEN INSERT VALUES  (NULL,vals.y);");
+						break;
+				default:out.println("insert or ignore into SAMPLE"+SUFFIX+"(name) values ("+quote(S)+");");break;
+				
+				}
+			
 			}
 		
 		List<String> headers=new ArrayList<String>();
@@ -382,13 +453,19 @@ public class VcfToSql extends CommandLineProgram
 				{
 				Object val=infos.getAttribute(key);
 				//"create table if not exists INFO(id,var_id,k,v)";
-
-				out.println(
-						"insert into INFO"+SUFFIX+"(var_id,k,v) values ("+
-						"(select max(id) from VARIATION"+SUFFIX+"),"+
-						quote(key)+","+
-						quote(infotoString(val))+");"
-						);
+				
+				if(SPLIT4 && key.equals("DP4"))
+					{
+					String dp4[]=infotoString(val).split("[,]");
+					insertIntoInfo(quote(key+"[refFor]"),quote( dp4[0]));
+					insertIntoInfo(quote(key+"[refRev]"),quote( dp4[1]));
+					insertIntoInfo(quote(key+"[altFor]"),quote( dp4[2]));
+					insertIntoInfo(quote(key+"[altRev]"),quote( dp4[3]));
+					}
+				else
+					{
+					insertIntoInfo(quote(key),quote(infotoString(val)));
+					}
 					
 				
 				if(key.equals("CSQ") && csqColumns!=null)
@@ -622,6 +699,16 @@ public class VcfToSql extends CommandLineProgram
 			}
 		return o.toString();
 		}
+	private void insertIntoInfo(String key,String val)
+		{
+		out.println(
+				"insert into INFO"+SUFFIX+"(var_id,k,v) values ("+
+				"(select max(id) from VARIATION"+SUFFIX+"),"+
+				key+","+
+				val+");"
+				);
+		}
+
 	public static void main(String[] args)
 		{
 		new VcfToSql().instanceMainWithExit(args);
