@@ -366,4 +366,24 @@ ant bam4deseq01
 <tr><td>HEADER=Boolean</td><td>print header  Default value: true. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
 
-
+<br/>
+<h3>VCFStripAnnotations</h3>
+<h4>Motivation</h4>
+Removes one or more field from the INFO column of a VCF.Version
+<h4>Compilation</h4>
+```bash
+ant vcfstripannot
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>VCF file to process. Default stdin.   Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
+<tr><td>KEY=String</td><td>remove this INFO key  This option may be specified 0 or more times. </td></tr>
+<tr><td>RESET_FILTER=Boolean</td><td>Reset the FILTER column  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+</table>
+<br/>
+<h4>Example</h4>
+```bash
+$ java -jar dist/vcfstripannot.jar K=DP4 K=AC1 < in.vcf > out.vcf 
+```
