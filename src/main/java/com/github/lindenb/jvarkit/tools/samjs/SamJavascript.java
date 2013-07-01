@@ -105,6 +105,7 @@ public class SamJavascript extends CommandLineProgram
 			bindings.put("record", record);
 			Object result = script.eval(bindings);
 			if(result==null) continue;
+			
 			if(result instanceof Boolean)
 				{
 				if(Boolean.FALSE.equals(result)) continue;
@@ -115,6 +116,7 @@ public class SamJavascript extends CommandLineProgram
 				}
 			else
 				{
+				LOG.info("script returned neither a number or a boolean "+result.getClass());
 				continue;
 				}
 			++count;

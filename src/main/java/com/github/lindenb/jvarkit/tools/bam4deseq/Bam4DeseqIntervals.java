@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
 
@@ -39,7 +41,8 @@ public class Bam4DeseqIntervals extends CommandLineProgram
 	public boolean ONLY_COVERED=false;
 	@Option(shortName="HEAD",doc="print header",optional=true)
 	public boolean HEADER=true;
-	
+	@Option(shortName="CHR", doc="limit to this chromosome",optional=true,minElements=0)
+	public Set<String> CHROMOSOME=new HashSet<String>();
 
 	@Override
 	public String getVersion() {
@@ -94,6 +97,12 @@ public class Bam4DeseqIntervals extends CommandLineProgram
 				}
 			for(SAMSequenceRecord ssr:ssDict.getSequences())
 				{
+				if(!CHROMOSOME.isEmpty() && !CHROMOSOME.contains(ssr.getSequenceName()))
+					{
+					LOG.info("ignoring "+ssr.getSequenceName());
+					continue;
+					}
+				
 				LOG.info("scanning "+ssr.getSequenceName());
 				int counts[]=new int[IN.size()];
 				for(int i=1;i+this.WINDOW_SIZE <=ssr.getSequenceLength();i+=this.WINDOW_SHIFT)

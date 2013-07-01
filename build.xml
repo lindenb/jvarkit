@@ -128,24 +128,6 @@
     <delete dir="tmp"/>
  </target>
 
- <target name="vcfstripannot">
-   <mkdir dir="tmp"/>
-   <mkdir dir="dist"/>
-   	   
-   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-   		<src path="src/main/java"/>
-   		<include name="**/VCFStripAnnotations.java"/>
-   </javac>
-   
-
-   <jar jarfile="dist/vcfstripannot.jar">
-	     <fileset dir="tmp" />
-	     <manifest>
-	       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"/>
-	     </manifest>
-   </jar>	   
-   <delete dir="tmp"/>
- </target>
 
 	 <target name="vcffixindels">
 	   <mkdir dir="tmp"/>
@@ -295,6 +277,16 @@
 </target>	
 
 	
+	
+	<target name="vcfstripannot" >
+		<compile-with-picard 
+			java="**/VCFStripAnnotations.java"
+			main="com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"
+			name="vcfstripannot"
+			/>
+	</target>			
+		
+
 
 <target name="samjs" >
 	<compile-with-picard 

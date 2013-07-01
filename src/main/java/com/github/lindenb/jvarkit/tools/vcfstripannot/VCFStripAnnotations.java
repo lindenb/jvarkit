@@ -1,147 +1,121 @@
 package com.github.lindenb.jvarkit.tools.vcfstripannot;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import org.broad.tribble.readers.AsciiLineReader;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.variant.variantcontext.writer.Options;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
+import org.broadinstitute.variant.vcf.VCFCodec;
+import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
+
+import net.sf.picard.cmdline.CommandLineProgram;
+import net.sf.picard.cmdline.Option;
+import net.sf.picard.cmdline.StandardOptionDefinitions;
+import net.sf.picard.cmdline.Usage;
+import net.sf.picard.util.Log;
+
+import com.github.lindenb.jvarkit.util.picard.IOUtils;
 
 
-public class VCFStripAnnotations
+public class VCFStripAnnotations extends CommandLineProgram
 	{
-	private PrintStream out=System.out;
-	private Set<String> infoIds=new LinkedHashSet<String>();
-	private VCFUtils vcfUtils=new VCFUtils();
-	private boolean reset_filters=false;
-	
-	
-	private void run(BufferedReader in) throws IOException
-		{
-		Pattern tab=Pattern.compile("[\t]");
-		String line;
-		while((line=in.readLine())!=null)
-			{
+	private static final Log LOG=Log.getInstance(VCFStripAnnotations.class);
+	@Usage(programVersion="1.0")
+	public String USAGE=getStandardUsagePreamble()+" Removes one or more field from the INFO column of a VCF.";
+    
+	@Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF file to process. Default stdin. ",optional=true)
+	public File IN=null;
+	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="VCF file to generate. Default stdout. ",optional=true)
+	public File OUT=null;
+	@Option(shortName="K", doc="remove this INFO key",minElements=0)	
+	public Set<String> KEY=new HashSet<String>();
 
-			if(line.isEmpty()) continue;
-			
-			if(line.startsWith("#"))
-				{
-				if(line.startsWith("#CHROM"))
-					{
-					out.println("##Processed with "+getClass());
-					out.println(line);
-					continue;
-					}
-				else if(line.startsWith("##INFO=<"))
-					{
-					String tokens[]=line.substring(8).split("[<>=,]");//UGLY ! I know...
-					if(tokens.length>2 &&
-						tokens[0].equals("ID") &&
-						this.infoIds.contains(tokens[1])
-						)
-						{
-						continue;
-						}
-					}
-				out.println(line);
-				continue;
-				}
-			
-			String tokens[]=tab.split(line,9);
-			if(tokens.length<8)
-				{
-				System.err.println("[VCFTabix] Error not enough columns in vcf: "+line);
-				continue;
-				}
-			Map<String,String> infos1=this.vcfUtils.parseInfo(tokens[7]);
-			for(String f:this.infoIds)
-				{
-				infos1.remove(f);
-				}
-			
-			
-			String newinfo=this.vcfUtils.joinInfo(infos1);
-			if(reset_filters)
-				{
-				tokens[6]=".";
-				}
-			
-			
-			for(int i=0;i< tokens.length;++i)
-				{
-				if(i>0) out.print('\t');
-				out.print(i==7?newinfo.toString():tokens[i]);
-				}
-			out.println();
-			}
-		
-		}
-	public int run(String[] args) throws IOException
+	@Option(shortName="NF", doc="Reset the FILTER column",optional=true)	
+	public boolean RESET_FILTER=false;
+
+	
+	@Override
+	protected int doWork()
 		{
-		int optind=0;
-		while(optind<args.length)
-			{
-			if(args[optind].equals("-h"))
-				{
-				System.out.println("VCFStripAnnotations. Author: Pierre Lindenbaum PhD. 2013.");
-				System.out.println("Usage: java -jar vcfstripannotations.jar -T IF1 -T F2 -F (file.vcf|stdin) " );
-				System.out.println(" -T (tag String) remove this VCF-INFO-ID");
-				System.out.println(" -F reset the FILTER field.");
-				return 0;
-				}
-			else if(args[optind].equals("-F"))
-				{
-				this.reset_filters=true;
-				}
-			else if(args[optind].equals("-T") && optind+1< args.length)
-				{
-				this.infoIds.add(args[++optind]);
-				}
-			else if(args[optind].equals("--"))
-				{
-				optind++;
-				break;
-				}
-			else if(args[optind].startsWith("-"))
-				{
-				System.err.println("Unnown option: "+args[optind]);
-				return -1;
+		VariantContextWriter w=null;
+		AsciiLineReader r=null;
+		try {
+			VCFCodec codeIn=new VCFCodec();
+			
+		
+			if(IN==null)
+				{	
+				LOG.info("reading from stdin");
+				r=new  AsciiLineReader(System.in);
 				}
 			else
 				{
-				break;
+				LOG.info("reading from "+IN);
+				r=new  AsciiLineReader(IOUtils.openFileForReading(IN));
 				}
-			++optind;
-			}
-		
-		if(optind==args.length)
-			{
-			this.run(new BufferedReader(new InputStreamReader(System.in)));
-			}
-		else if(optind+1==args.length)
-			{
-			String inputName=args[optind++];
-			BufferedReader in=new BufferedReader(new FileReader(inputName));
-			this.run(in);
-			in.close();
-			}
-		else
-			{
-			System.err.println("Illegal Number of arguments");
+			
+			VCFHeader header=(VCFHeader)codeIn.readHeader(r);
+			
+			EnumSet<Options> options = EnumSet.noneOf(Options.class);
+			if(OUT==null) 
+				{
+				LOG.info("writing to stdout");
+				w=VariantContextWriterFactory.create(System.out,
+						null, options);
+				}
+			else
+				{
+				LOG.info("writing to "+OUT);
+				w=VariantContextWriterFactory.create(OUT,
+						null, options);
+				}
+			VCFHeader h2=new VCFHeader(header);
+			
+			for(Iterator<VCFInfoHeaderLine> h=h2.getInfoHeaderLines().iterator();
+					h.hasNext();)
+				{
+				VCFInfoHeaderLine vih=h.next();
+				if(this.KEY.contains(vih.getID()))
+					h.remove();
+				}
+			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),"REMOVED: "+this.KEY.toString()));
+			w.writeHeader(h2);
+			String line;
+			
+			while((line=r.readLine())!=null)
+				{
+				VariantContext ctx=codeIn.decode(line);
+				VariantContextBuilder b=new VariantContextBuilder(ctx);
+				for(String key:KEY) b.rmAttribute(key);
+				if(RESET_FILTER) b.unfiltered();
+				w.add(b.make());
+				}
+			return 0;
+		} catch (Exception e) {
+			LOG.error(e);
 			return -1;
-			}
-		return 0;
 		}
+		finally
+		{
+			if(r!=null) r.close();
+			if(w!=null) w.close();
+		}
+	}
+	
 	
 	public static void main(String[] args) throws IOException
 		{
-		VCFStripAnnotations app=new VCFStripAnnotations();
-		app.run(args);
+		new VCFStripAnnotations().instanceMainWithExit(args);
 		}
 }
