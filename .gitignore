@@ -5,3 +5,12 @@ jeter*
 .project
 bin
 dist
+src/main/java/com/github/lindenb/jvarkit/tools/ws/server/Bam.java
+src/main/java/com/github/lindenb/jvarkit/tools/ws/server/BamHeader.java
+src/main/java/com/github/lindenb/jvarkit/tools/ws/server/BamRecord.java
+src/main/java/com/github/lindenb/jvarkit/tools/ws/server/ObjectFactory.java
+src/main/java/com/github/lindenb/jvarkit/tools/ws/server/Vcf.java
+src/main/java/com/github/lindenb/jvarkit/tools/ws/server/VcfHeader.java
+src/main/java/com/github/lindenb/jvarkit/tools/ws/server/VcfVar.java
+src/main/java/com/github/lindenb/jvarkit/tools/ws/server/package-info.java
+
