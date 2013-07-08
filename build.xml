@@ -623,6 +623,32 @@
 </target>
 
 
+<target name="ws" >
+	 <exec executable="xjc">
+	    <arg value="-d"/> <arg value="src/main/java"/>
+	    <arg value="-p"/> <arg value="com.github.lindenb.jvarkit.tools.ws.server"/>
+	    <arg value="src/main/resources/xsd/ngs.xsd"/>
+	  </exec>
 
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	      
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+	   		<classpath refid="picard.lib"/>
+	   		<include name="**/NGSServiceImpl.java"/>
+	   </javac>
+	<pathconvert  property="wscp" refid="picard.lib"/>
+
+	<exec executable="wsgen">
+	    <arg value="-cp"/> <arg value="tmp:${wscp}"/>
+	    <arg value="-d"/> <arg value="tmp"/>
+		<arg value="-keep"/> <arg value="-wsdl"/>
+	    <arg value="com.github.lindenb.jvarkit.tools.ws.server.NGSServiceImpl"/>
+	</exec>
+	   
+	
+
+ </target>
 
 </project>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://www.example.org/ngs"
+	xmlns:tns="http://www.example.org/ngs"
+	elementFormDefault="qualified"
+	>
+
+<complexType name="bam">
+<sequence>
+	<element name="header" type="tns:bamHeader" minOccurs="1" maxOccurs="1"/>
+	<element name="record" type="tns:bamRecord" minOccurs="0" maxOccurs="unbounded"/>
+</sequence>
+<attribute name="next-chrom" type="token" use="optional"/>
+<attribute name="next-pos" type="int" use="optional"/>
+</complexType>
+
+<complexType name="bamHeader">
+<sequence>
+	<element name="header" type="string"/>
+</sequence>
+</complexType>
+
+
+
+<complexType name="bamRecord">
+<sequence>
+	<element name="name" type="normalizedString"/>
+	<element name="flag" type="int"/>
+	<element name="chrom" type="normalizedString"/>
+	<element name="pos" type="int"/>
+	<element name="qual" type="float"/>
+</sequence>
+</complexType>
+
+
+
+<complexType name="vcf">
+<sequence>
+	<element name="header" type="tns:vcfHeader" minOccurs="1" maxOccurs="1"/>
+	<element name="var" type="tns:vcfVar" minOccurs="0" maxOccurs="unbounded"/>
+</sequence>
+<attribute name="next-chrom" type="token" use="optional"/>
+<attribute name="next-pos" type="int" use="optional"/>
+</complexType>
+
+<complexType name="vcfHeader">
+<sequence>
+	<element name="header" type="string" minOccurs="0" maxOccurs="unbounded"/>
+	<element name="sample" type="normalizedString" maxOccurs="unbounded"/>
+</sequence>
+</complexType>
+
+
+
+<complexType name="vcfVar">
+<sequence>
+	<element name="chrom" type="normalizedString"/>
+	<element name="pos" type="int"/>
+	<element name="id" type="normalizedString"/>
+	<element name="ref" type="normalizedString"/>
+	<element name="alt" type="normalizedString"/>
+	<element name="qual" type="double"/>
+	<element name="filter" type="normalizedString"/>
+	<element name="infos">
+		<complexType>
+		<sequence>
+			<element name="info" minOccurs="0" maxOccurs="unbounded">
+				<complexType>
+					<simpleContent>
+						<extension base="normalizedString">
+							 <attribute name="key" type="string" />
+						</extension>						
+					</simpleContent>
+				</complexType>
+			</element>
+		</sequence>
+		</complexType>
+	</element>
+	<element name="genotypes">
+		<complexType>
+		<sequence>
+			<element name="genotype" minOccurs="0" maxOccurs="unbounded">
+				<complexType>
+						<sequence>
+							<element name="property" minOccurs="0" maxOccurs="unbounded">
+								<complexType>
+								<simpleContent>
+									<extension base="normalizedString">
+										 <attribute name="key" type="normalizedString" />
+									</extension>						
+								</simpleContent>
+								</complexType>
+							</element>
+						</sequence>		
+						<attribute name="sample" type="token" use="required" />				
+				</complexType>
+			</element>
+		</sequence>
+		</complexType>
+	</element>
+</sequence>
+</complexType>
+
+
+</schema>
