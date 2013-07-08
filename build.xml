@@ -129,25 +129,14 @@
  </target>
 
 
-	 <target name="vcffixindels">
-	   <mkdir dir="tmp"/>
-	   <mkdir dir="dist"/>
-	   	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-	   		<src path="src/main/java"/>
-	   		<include name="**/VCFFixIndels.java"/>
-	   </javac>
-	   
-
-	   <jar jarfile="dist/vcffixindels.jar">
-		     <fileset dir="tmp" />
-		     <manifest>
-		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels"/>
-		     </manifest>
-	   </jar>	   
-	   <delete dir="tmp"/>
-	 </target>
-
+<target name="vcffixindels" >
+	<compile-with-picard 
+		java="**/VCFFixIndels.java"
+		main="com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels"
+		name="vcffixindels"
+		/>
+</target>			
+	
 
  <target name="picard2xml" >
    <mkdir dir="tmp"/>

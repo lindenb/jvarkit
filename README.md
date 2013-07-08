@@ -389,3 +389,26 @@ ant vcfstripannot
 ```bash
 $ java -jar dist/vcfstripannot.jar K=DP4 K=AC1 < in.vcf > out.vcf 
 ```
+
+<h3>VCFFixIndels</h3>
+<h4>Motivation</h4>
+Fix samtools INDELS for @SolenaLS
+<h4>Compilation</h4>
+```bash
+ant vcffixindels
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>VCF file to process. Default stdin.   Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
+</table>
+<br/>
+<h4>Example</h4>
+```bash
+$ java -jar dist/vcffixindels.jar I=input.vcf.gz | grep FIX
+
+2	749862	.	T	TT	94.50	.	AC1=2;AF1=1;DP=13;DP4=0,0,5,8;FQ=-73.5;INDEL;INDELFIXED=CTTTTTT|CTTTTTTT|74954856;IS=13,1.000000;MQ=50;VDB=4.019414e-04	GT:PL:DP:GQ	1/1:135,39,0:13:75
+
+
+```

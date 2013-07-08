@@ -1,157 +1,140 @@
 package com.github.lindenb.jvarkit.tools.vcffixindels;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 
+import net.sf.picard.cmdline.Usage;
+import net.sf.picard.util.Log;
 
-public class VCFFixIndels 
+import org.broad.tribble.readers.LineReader;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.GenotypesContext;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.vcf.VCFCodec;
+import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLineType;
+import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
+
+import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
+
+
+public class VCFFixIndels extends AbstractVCFFilter
 	{
-	private static final Logger LOG=Logger.getLogger(VCFFixIndels.class.getSimpleName());
-	private PrintStream out=System.out;
+	@Usage(programVersion="1.0")
+	public String USAGE=getStandardUsagePreamble()+" Fix samtools indels (for @SolenaLS).";
+	
+	private static final Log LOG=Log.getInstance(VCFFixIndels.class);
 	
 	
-	private void run(BufferedReader in) throws IOException
+	@Override
+	protected void doWork(LineReader in, VariantContextWriter w)
+			throws IOException
 		{
-		Pattern tab=Pattern.compile("[\t]");
-		Pattern dna=Pattern.compile("[ATGCatgc]+");
+		long nChanged=0L;
+		final String TAG="INDELFIXED";
+		VCFCodec codeIn=new VCFCodec();		
+		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
+		
+		
+		VCFHeader h2=new VCFHeader(header);
+		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String," Fix Indels for @SolenaLS."));
+
+		
+		w.writeHeader(h2);
 		String line;
+		final Pattern dna=Pattern.compile("[ATGCatgc]+");
 		while((line=in.readLine())!=null)
 			{
+			VariantContext ctx=codeIn.decode(line);
+			VariantContextBuilder b=new VariantContextBuilder(ctx);
+			List<Allele> alleles=ctx.getAlternateAlleles();
+			if(alleles.size()!=1 || 
+				!dna.matcher(ctx.getReference().getBaseString()).matches() ||
+				!dna.matcher(alleles.get(0).getBaseString()).matches()
+				)
+				{
+				w.add(ctx);
+				continue;
+				}
+			StringBuffer ref=new StringBuffer(ctx.getReference().getBaseString().toUpperCase());
+			StringBuffer alt=new StringBuffer(alleles.get(0).getBaseString().toUpperCase());
+			int start=ctx.getStart();
+			int end=ctx.getEnd();
+			
+			boolean changed=false;
+			//REF=TGCTGCGGGGGCCGCTGCGGGGG 	ALT=TGCTGCGGGGG
+			while(	alt.length()>1 &&
+					alt.length() < ref.length() &&
+					ref.charAt(0)==alt.charAt(0)
+					)
+				{
+				changed=true;
+				ref.deleteCharAt(0);
+				alt.deleteCharAt(0);
+				start++;
+				}
+			
+			//REF=TGCTGCGGGGG 	ALT= TGCTGCGGGGGCCGCTGCGGGGG
+			while(	ref.length()>1 &&
+					alt.length() > ref.length() &&
+					ref.charAt(0)==alt.charAt(0)
+					)
+				{
+				changed=true;
+				ref.deleteCharAt(0);
+				alt.deleteCharAt(0);
+				start++;
+				}
+			
+			
+			if(!changed)
+				{
+				w.add(ctx);
+				continue;
+				}
+			
+			
+			/*
+			LOG.info(line);
+			LOG.info("ctx.getStart() "+ctx.getStart());
+			LOG.info("ctx.getEnd() "+ ctx.getEnd());
 
-			if(line.isEmpty()) continue;
 			
-			if(line.startsWith("#"))
-				{
-				if(line.startsWith("#CHROM"))
-					{
-					out.println("##Processed with "+getClass());
-					}
-				out.println(line);
-				continue;
-				}
+
+			LOG.info("start " + start);
+			LOG.info("end "+end);
+			LOG.info("ref " + ref.toString());
+			LOG.info("alt "+alt.toString());
+			*/
+
+			Allele newRef=Allele.create(ref.toString(),true);
+			Allele newAlt=Allele.create(alt.toString(),false);
 			
-			String tokens[]=tab.split(line,6);
-			if(tokens.length<5)
-				{
-				System.err.println("[VCFTabix] Error not enough columns in vcf: "+line);
-				continue;
-				}
-			if(tokens[3].length()!=tokens[4].length() &&
-				dna.matcher(tokens[3]).matches() &&
-				dna.matcher(tokens[4]).matches() )
-				{
-				int pos=Integer.parseInt(tokens[1]);
-				StringBuffer ref=new StringBuffer(tokens[3].toUpperCase());
-				StringBuffer alt=new StringBuffer(tokens[4].toUpperCase());
-				boolean changed=false;
-				//REF=AA ALT=AAT
-				while(		ref.length()>1 &&
-							ref.length() <alt.length() &&
-							ref.charAt(0)==alt.charAt(0)
-							)
-					{
-					changed=true;
-					ref.deleteCharAt(0);
-					alt.deleteCharAt(0);
-					pos++;
-					}
-				//REF=AAT ALT=AA
-				while(	alt.length()>1 &&
-						alt.length() < ref.length() &&
-						ref.charAt(0)==alt.charAt(0)
-						)
-					{
-					changed=true;
-					ref.deleteCharAt(0);
-					alt.deleteCharAt(0);
-					pos++;
-					}
-				
-				if(changed)
-					{
-					LOG.info("changed "+tokens[1]+"/"+tokens[3]+"/"+tokens[4]+" to "+pos+"/"+ref+"/"+alt);
-					}
-				
-				tokens[1]=String.valueOf(pos);
-				tokens[3]=ref.toString();
-				tokens[4]=alt.toString();
-				}
-		
+			
+			Allele newalleles[]=new Allele[]{newRef,newAlt};
+			
+			b.attribute(TAG, ctx.getReference().getBaseString()+"|"+alleles.get(0).getBaseString()+"|"+ctx.getStart());
+			b.start(start);
+			b.stop(end);
+			b.alleles(Arrays.asList(newalleles));
+			nChanged++;
 			
 			
 			
-			for(int i=0;i< tokens.length;++i)
-				{
-				if(i>0) out.print('\t');
-				out.print(tokens[i]);
-				}
-			out.println();
+			VariantContext ctx2=b.make();
+			w.add(ctx2);
 			}
 		
-		}
-	public int run(String[] args) throws IOException
-		{
-		int optind=0;
-		while(optind<args.length)
-			{
-			if(args[optind].equals("-h"))
-				{
-				System.out.println("VCFFixIndels. Author: Pierre Lindenbaum PhD. 2013.");
-				System.out.println("Usage: java -jar vcffixindels.jar (options) (file.vcf|stdin) " );
-				System.out.println(" -L (log-level)");
-				return 0;
-				}
-			
-			else if(args[optind].equals("-L") && optind+1< args.length)
-				{
-				LOG.setLevel(Level.parse(args[++optind]));
-				}
-			else if(args[optind].equals("--"))
-				{
-				optind++;
-				break;
-				}
-			else if(args[optind].startsWith("-"))
-				{
-				System.err.println("Unnown option: "+args[optind]);
-				return -1;
-				}
-			else
-				{
-				break;
-				}
-			++optind;
-			}
-		
-		if(optind==args.length)
-			{
-			this.run(new BufferedReader(new InputStreamReader(System.in)));
-			}
-		else if(optind+1==args.length)
-			{
-			String inputName=args[optind++];
-			BufferedReader in=new BufferedReader(new FileReader(inputName));
-			this.run(in);
-			in.close();
-			}
-		else
-			{
-			System.err.println("Illegal Number of arguments");
-			return -1;
-			}
-		return 0;
+		LOG.info("indels changed:"+nChanged);
 		}
 	
 	public static void main(String[] args) throws IOException
 		{
-		LOG.setLevel(Level.OFF);
-		VCFFixIndels app=new VCFFixIndels();
-		app.run(args);
+		new VCFFixIndels().instanceMainWithExit(args);
 		}
 }
