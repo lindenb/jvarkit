@@ -10,7 +10,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 
-public class VCFFixIndels
+public class VCFFixIndels 
 	{
 	private static final Logger LOG=Logger.getLogger(VCFFixIndels.class.getSimpleName());
 	private PrintStream out=System.out;
