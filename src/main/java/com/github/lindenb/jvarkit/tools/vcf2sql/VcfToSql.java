@@ -194,12 +194,14 @@ public class VcfToSql extends CommandLineProgram
 			
 			if(IN.isEmpty())
 				{
+				LOG.info("reading from stdin");
 				read(System.in,"<stdin>");
 				}
 			else
 				{
 				for(File input: IN)
 					{
+					LOG.info("opening "+input);
 					InputStream in=IOUtils.openFileForReading(input);
 					read(in,input.toString());
 					in.close();
@@ -405,8 +407,19 @@ public class VcfToSql extends CommandLineProgram
 		while((line=r.readLine())!=null)
 			{
 			LOG.debug(line);
+			VariantContext var=null;
 			
-			VariantContext var=codec.decode(line);
+			try {
+				var=codec.decode(line);
+			} catch (Exception e) {
+				LOG.error(e, "Cannot decode VCF :"+line);
+				int n=0;
+				for(String i:line.split("[\t]"))
+					{
+					System.err.println("$\""+(++n)+":"+i+"\"");
+					}
+				throw e;
+			}
 			if(var==null)
 				{
 				LOG.error("Cannot parse "+line);

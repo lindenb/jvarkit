@@ -50,7 +50,7 @@ public class VCFTrios extends AbstractVCFFilter
 		{
 		VCFCodec codeIn=new VCFCodec();		
 		VCFHeader header=(VCFHeader)codeIn.readHeader(r);
-		VCFHeader h2=new VCFHeader(header);
+		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),"TODO"));
 		w.writeHeader(h2);
 		String line;

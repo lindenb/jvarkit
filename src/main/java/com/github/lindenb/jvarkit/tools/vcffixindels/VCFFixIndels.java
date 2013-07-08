@@ -10,8 +10,6 @@ import net.sf.picard.util.Log;
 
 import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
@@ -40,12 +38,12 @@ public class VCFFixIndels extends AbstractVCFFilter
 		VCFCodec codeIn=new VCFCodec();		
 		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
 		
+		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
+		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String,"Fix Indels for @SolenaLS."));
 		
-		VCFHeader h2=new VCFHeader(header);
-		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String," Fix Indels for @SolenaLS."));
-
-		
+		h2.samplesWereAlreadySorted();
 		w.writeHeader(h2);
+	
 		String line;
 		final Pattern dna=Pattern.compile("[ATGCatgc]+");
 		while((line=in.readLine())!=null)
@@ -67,6 +65,36 @@ public class VCFFixIndels extends AbstractVCFFilter
 			int end=ctx.getEnd();
 			
 			boolean changed=false;
+			
+			/**** we trim on the right side ****/
+			//REF=TGCTGCGGGGGCCGCTGCGGGGG 	ALT=TGCTGCGGGGG
+			while(	alt.length()>1 &&
+					alt.length() < ref.length() &&
+					ref.charAt(ref.length()-1)==alt.charAt(alt.length()-1)
+					)
+				{
+				changed=true;
+				ref.setLength(ref.length()-1);
+				alt.deleteCharAt(alt.length()-1);
+				end--;
+				}
+			
+			//REF=TGCTGCGGGGG 	ALT= TGCTGCGGGGGCCGCTGCGGGGG
+			while(	ref.length()>1 &&
+					alt.length() > ref.length() &&
+					ref.charAt(ref.length()-1)==alt.charAt(alt.length()-1)
+					)
+				{
+				changed=true;
+				ref.setLength(ref.length()-1);
+				alt.deleteCharAt(alt.length()-1);
+				end--;
+				}
+			
+			
+			
+			/**** we trim on the left side ****/
+
 			//REF=TGCTGCGGGGGCCGCTGCGGGGG 	ALT=TGCTGCGGGGG
 			while(	alt.length()>1 &&
 					alt.length() < ref.length() &&

@@ -36,7 +36,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter
 			VCFHeader header=(VCFHeader)codeIn.readHeader(r);
 			
 			
-			VCFHeader h2=new VCFHeader(header);
+			VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 			
 			for(Iterator<VCFInfoHeaderLine> h=h2.getInfoHeaderLines().iterator();
 					h.hasNext();)
