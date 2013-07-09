@@ -413,7 +413,7 @@ $ java -jar dist/vcffixindels.jar I=input.vcf.gz | grep FIX
 
 ```
 
-<h3>VCFFixIndels</h3>
+<h3>BlastMapAnnots</h3>
 <h4>Motivation</h4>
 Maps uniprot/genbank annotations on a blast result. See http://www.biostars.org/p/76056
 <h4>Compilation</h4>
