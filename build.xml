@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE project [
+
+  <!ENTITY xjcproxyarg "">
+
+]
+>
 <project name="jvarkit" default="mature.projects" basedir=".">
 <property file="build.properties"/>
+<property name="http.proxy" value="localhost:80"/>
+<property name="generated.dir" value="src/main/generated-sources/java"/>
 
+	
 <path id="bigwig.lib">
   <fileset dir="${bigwig.dir}">
     <include name="*.jar"/>
@@ -51,6 +60,8 @@
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
+   			<src path="${generated.dir}"/>
+
 	   		<classpath refid="picard.lib"/>
 	   		<include name="@{java}"/>
 	   </javac>
@@ -590,23 +601,56 @@
     <delete dir="tmp"/>
  </target>
 
+<target name="blastmapannots" depends="api.ncbi.blast,api.ncbi.gb,api.uniprot">
+	<compile-with-picard 
+		java="**/BlastMapAnnotations.java"
+		main="com.github.lindenb.jvarkit.tools.blastmapannots.BlastMapAnnotations"
+		name="blastmapannots"
+		/>
+</target>
+	
+	
 
-<target name="blast">
-	 <exec executable="xjc">
-	    <arg value="-d"/> <arg value="src/main/java"/>
+<target name="api.ncbi.blast">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
 	    <arg value="-p"/> <arg value="gov.nih.nlm.ncbi.blast"/>
-	    <arg value="-httpproxy"/> <arg value="proxy-upgrade.univ-nantes.prive:3128"/>
+	 	&xjcproxyarg;
 	    <arg value="-dtd"/>
 	    <arg value="http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd"/>
 	  </exec>
 </target>
 	
+<target name="api.ncbi.gb">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
+	    <arg value="-p"/> <arg value="gov.nih.nlm.ncbi.gb"/>
+	 	&xjcproxyarg;
+	    <arg value="-dtd"/>
+	    <arg value="http://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd"/>
+	  </exec>
+</target>	
+	
+<target name="api.uniprot">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
+	    <arg value="-p"/> <arg value="org.uniprot"/>
+	 	&xjcproxyarg;
+	    <arg value="http://www.uniprot.org/support/docs/uniprot.xsd"/>
+	  </exec>
+</target>	
+
+	
+	
 <target name="x">
-	 <exec executable="xjc">
+	 <exec executable="xjc" failonerror="true">
 	    <arg value="-d"/> <arg value="src/main/java"/>
 	    <arg value="-p"/> <arg value="com.github.lindenb.jvarkit.ngsproject"/>
 	    <arg value="-b"/> <arg value="src/main/resources/xsd/ngsproject.jxb"/>
-
+		&xjcproxyarg;
 	    <arg value="src/main/resources/xsd/ngsproject.xsd"/>
 	  </exec>
 </target>

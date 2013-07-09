@@ -412,3 +412,81 @@ $ java -jar dist/vcffixindels.jar I=input.vcf.gz | grep FIX
 
 
 ```
+
+<h3>VCFFixIndels</h3>
+<h4>Motivation</h4>
+Maps uniprot/genbank annotations on a blast result. See http://www.biostars.org/p/76056
+<h4>Compilation</h4>
+This tools call ${JAVA_HOME}/bin/xjc. If you're working being a proxy, you might have to edit the build.xml file to add the -httpproxy option.
+```bash
+ant blastmapannots
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>XML sequence file Genbank.xml or uniprot.xml.  Required. </td></tr>
+<tr><td>BLAST=File</td><td>BLAST XML output (or stdin).  Default value: null. </td></tr>
+<tr><td>APPEND_ACN=Boolean</td><td>append the sequence accession before the feature name.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+<tr><td>FK=String</td><td>Restrict to uniprot/feature/type of genbank/feature/key.  This option may be specified 0 or more times. </td></tr>
+</table>
+<br/>
+<h4>Example</h4>
+Download uniprot P04514  ( Rotavirus Non-structural protein 3 )  as <b>XML</b>
+```bash
+$ curl -o P04514.xml "http://www.uniprot.org/uniprot/P04514.xml"
+```
+Download the same P04514 as <b>fasta</b>
+```bash
+$ curl -o P04514.fasta "http://www.uniprot.org/uniprot/P04514.fasta"
+```
+
+<b>TblastN</b> P04514.fasta vs a RNA of NSP3 in genbank http://www.ncbi.nlm.nih.gov/nuccore/AY065842.1 and save the ouput as XML:
+```xml
+<?xml version="1.0"?>
+<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd">
+<BlastOutput>
+  <BlastOutput_program>tblastn</BlastOutput_program>
+(...)
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gi|18139606|gb|AY065842.1|</Hit_id>
+  <Hit_def>Rhesus rotavirus nonstructural protein 3 (NSP3) gene, complete cds</Hit_def>
+  <Hit_accession>AY065842</Hit_accession>
+  <Hit_len>1078</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_bit-score>546.584</Hsp_bit-score>
+      <Hsp_score>1407</Hsp_score>
+      <Hsp_evalue>0</Hsp_evalue>
+      <Hsp_query-from>1</Hsp_query-from>
+      <Hsp_query-to>313</Hsp_query-to>
+      <Hsp_hit-from>26</Hsp_hit-from>
+      <Hsp_hit-to>964</Hsp_hit-to> <Hsp_qseq>MLKMESTQQMASSIINTSFEAAVVAATSTLELMGIQYDYNEIYTRVKSKFDYVMDDSGVKNNLLGKAATIDQALNGKFGSVMRNKNWMTDSRTVAKLDEDVNKLRMMLSSKGIDQKMRVLNACFSVKRIPGKSSSVIKCTRLMKDKIERGAVEVDDSFVEEKMEVDTVDWKSRYDQLERRFESLKQRVNEKYTTWVQKAKKVNENMYSLQNVISQQQNQIADLQNYCSKLEADLQNKVGSLVSSVEWYLKSMELPDEVKTDIEQQLNSIDTISPINAIDDLEILIRNLIHDYDRTFLMFKGLLRQCNYEYAYE</Hsp_qseq>
+      <Hsp_hseq>MLKMESTQQMASSIINSSFEAAVVAATSTLELMGIQYDYNEVYTRVKSKFDLVMDDSGVKNNLIGKAITIDQALNGKFSSAIRNRNWMTDSRTVAKLDEDVNKLRIMLSSKGIDQKMRVLNACFSVKRIPGKSSSIVKCTRLMKDKLERGEVEVDDSFVEEKMEVDTIDWKSRYEQLEKRFESLKHRVNEKYNHWVLKARKVNENMNSLQNVISQQQAHINELQMYNNKLERDLQSKIGSVVSSIEWYLRSMELSDDVKSDIEQQLNSIDQLNPVNAIDDFESILRNLISDYDRLFIMFKGLLQQCNYTYTYE</Hsp_hseq>
+      <Hsp_midline>MLKMESTQQMASSIIN SFEAAVVAATSTLELMGIQYDYNE YTRVKSKFD VMDDSGVKNNL GKA TIDQALNGKF S  RN NWMTDSRTVAKLDEDVNKLR MLSSKGIDQKMRVLNACFSVKRIPGKSSS  KCTRLMKDK ERG VEVDDSFVEEKMEVDT DWKSRY QLE RFESLK RVNEKY  WV KA KVNENM SLQNVISQQQ  I  LQ Y  KLE DLQ K GS VSS EWYL SMEL D VK DIEQQLNSID   P NAIDD E   RNLI DYDR F MFKGLL QCNY Y YE</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+(...)
+</Iteration>
+</BlastOutput_iterations>
+</BlastOutput>
+```
+Now produce a BED file with this blast result to map the features of P04514 to AY065842.
+
+```bash
+$ java -jar dist/blastmapannots.jar I=P04514.xml B=blast.xml
+
+AY065842	25	961	Non-structural_protein_3	943	+	25961	255,255,255	1	936	25
+AY065842	34	469	RNA-binding	970	+	34	469	255,255,255	1	435	34
+AY065842	472	640	Dimerization	947	+	472	640	255,255,255	1	168	472
+AY065842	532	724	Interaction_with_ZC3H7B	917	+	532	724	255,255,255	1	192	532
+AY065842	646	961	Interaction_with_EIF4G1	905	+	646	961	255,255,255	1	315	646
+AY065842	520	733	coiled-coil_region	916	+	520	733	255,255,255	1	213	520
+```
+
+
+
+
+
+
