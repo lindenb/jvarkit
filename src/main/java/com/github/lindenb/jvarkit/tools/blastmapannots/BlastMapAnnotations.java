@@ -511,18 +511,23 @@ public class BlastMapAnnotations
 			String fkey=this.gbFeature.getGBFeatureKey();
 			TreeMap<QualKey, String> t=new TreeMap<QualKey, String>();
 			
-			for(GBQualifier q:this.gbFeature.getGBFeatureQuals().getGBQualifier())
+			if(this.gbFeature.getGBFeatureQuals()!=null &&
+					this.gbFeature.getGBFeatureQuals().getGBQualifier()!=null
+					)
 				{
-				String key=q.getGBQualifierName();
-				for(QualKey qk:QualKey.values())
+				for(GBQualifier q:this.gbFeature.getGBFeatureQuals().getGBQualifier())
 					{
-					if(qk.name().equals(key))
+					String key=q.getGBQualifierName();
+					for(QualKey qk:QualKey.values())
 						{
-						t.put(qk, q.getGBQualifierValue());
-						break;
+						if(qk.name().equals(key))
+							{
+							t.put(qk, q.getGBQualifierValue());
+							break;
+							}
 						}
+					
 					}
-				
 				}
 			if(t.isEmpty())
 				{
@@ -643,7 +648,7 @@ public class BlastMapAnnotations
 							bi.featureType=feature;
 							bi.hit=hit;
 							bi.hsp=hsp;
-							LOG.info("interval "+bi);
+							LOG.debug("interval "+bi);
 							if(!bi.isFeatureOverlapHsp())
 								{
 								continue;
@@ -698,16 +703,14 @@ public class BlastMapAnnotations
 								bi.gbInterval=interval;
 								bi.hit=hit;
 								bi.hsp=hsp;
-								LOG.info("interval "+bi);
+								LOG.debug("interval "+bi);
 								if(!bi.isGbForward()) LOG.info("CHECK INTERVAL REVERSE");
 								if(!bi.isFeatureOverlapHsp()) continue;
 								System.out.println(bi.toBedString());
 								}
-							
 							}
 						
 						}
-					
 					}
 				break;
 				}
