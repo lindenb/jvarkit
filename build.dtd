@@ -1,0 +1,3 @@
+<!ENTITY httpProxyHost "proxy-upgrade.univ-nantes.prive">
+<!ENTITY httpProxyPort "3128">
+<!ENTITY xjcproxyarg " <arg value='-httpproxy'/> <arg value='&httpProxyHost;:&httpProxyPort;'/>">

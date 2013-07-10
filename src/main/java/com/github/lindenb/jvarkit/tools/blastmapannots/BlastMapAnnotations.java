@@ -224,6 +224,12 @@ public class BlastMapAnnotations
 
 				}
 			int score= (int)((match/len)*1000f);
+			if(score<0) score=0;
+			if(score>1000)
+				{
+				LOG.error("SCORE > 10000 in "+toString());
+				score=1000;
+				}
 			if(score==0) LOG.info("score==0 "+match+"/"+len);
 			return score;
 			}
@@ -277,7 +283,7 @@ public class BlastMapAnnotations
 			b.append(getBedColor()).append('\t');
 			b.append(1).append('\t');
 			b.append(getBedEnd()-getBedStart()).append('\t');
-			b.append(getBedStart());
+			b.append(0);
 			return b.toString();
 			}
 
@@ -347,9 +353,18 @@ public class BlastMapAnnotations
 		public String getBedName()
 			{
 			String s=this.featureType.getType();
-			if(this.featureType.getDescription()!=null)
+			if(this.featureType.getDescription()!=null && !s.equals("sequence conflict"))
 				{
 				s= this.featureType.getDescription();
+				}
+			if(s.equals("sequence conflict") && featureType.getOriginal()!=null && featureType.getVariation()!=null && !featureType.getVariation().isEmpty())
+				{
+				s+=":"+featureType.getOriginal()+"/";
+				for(String v:featureType.getVariation())
+					{
+					if(!s.endsWith("/")) s+=",";
+					s+=v;
+					}
 				}
 			if(!APPEND_ACN) return s;
 			return entryName()+":"+s;
@@ -385,7 +400,12 @@ public class BlastMapAnnotations
 		@Override
 		public int getBedEnd()
 			{
-			return Math.max(convertQuery(getEntryStart1()).hit,convertQuery(getEntryEnd1()).hit)-1;//yes -1 because +1 of convertQuery
+			int bedEnd= Math.max(convertQuery(getEntryStart1()).hit,convertQuery(getEntryEnd1()).hit);
+			if(bedEnd==getBedStart())
+				{
+				LOG.warn("Empty bed:", this.toString());
+				}
+			return bedEnd;
 			}
 
 		
@@ -553,7 +573,7 @@ public class BlastMapAnnotations
 		@Override
 		public int getBedEnd()
 			{
-			return Math.max(convertQuery(getGBStart1()).hit,convertQuery(getGBEnd1()).hit)-1;//yes -1 because +1 of convertQuery
+			return Math.max(convertQuery(getGBStart1()).hit,convertQuery(getGBEnd1()).hit);
 			}
 
 		

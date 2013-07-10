@@ -34,6 +34,24 @@ variant.jar=${picard.dir}/variant-${picard.version}.jar
 tribble.jar=${picard.dir}/tribble-${picard.version}.jar
 ```
 
+Working behind a proxy ? Edit the file build.dtd.
+Change it to:
+```xml
+<!ENTITY httpProxyHost "proxy-upgrade.univ-nantes.prive">
+<!ENTITY httpProxyPort "3128">
+<!ENTITY xjcproxyarg " <arg value='-httpproxy'/> <arg value='&httpProxyHost;:&httpProxyPort;'/>">
+(...)
+```
+no proxy, set build.dtd to
+
+```xml
+<!ENTITY httpProxyHost "">
+<!ENTITY httpProxyPort "">
+<!ENTITY xjcproxyarg "">
+(...)
+```
+
+
 <h2>Tools</h2>
 
 <h3> Filtering VCF with javascript (rhino) </h3>

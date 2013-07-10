@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE project [
-
-  <!ENTITY xjcproxyarg "">
-
-]
->
+<!DOCTYPE project SYSTEM "build.dtd">
 <project name="jvarkit" default="mature.projects" basedir=".">
 <property file="build.properties"/>
 <property name="http.proxy" value="localhost:80"/>
@@ -57,6 +52,7 @@
 	<sequential>
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
+	   <mkdir dir="${generated.dir}"/>
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
@@ -108,7 +104,7 @@
 </macrodef> 	
 	
 	
-<target name="mature.projects" depends="bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
 
 <target name="all" depends="mature.projects,genscan,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>

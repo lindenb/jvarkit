@@ -29,6 +29,7 @@ public class VCFFixIndels extends AbstractVCFFilter
 	private static final Log LOG=Log.getInstance(VCFFixIndels.class);
 	
 	
+	
 	@Override
 	protected void doWork(LineReader in, VariantContextWriter w)
 			throws IOException
