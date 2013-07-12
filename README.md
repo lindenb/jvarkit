@@ -527,7 +527,7 @@ Finds the GO terms for VCF annotated with SNPEFF or VEP
 ant vcfgo
 ```
 <h4>Options</h4>
-<tabl>
+<table>
 <tr><th>Option</th><th>Description</th></tr>
 <tr><td>GOA=String</td><td>GOA file/URI.  Default value: http://cvsweb.geneontology.org/cgi-bin/cvsweb.cgi/go/gene-associations/gene_association.goa_human.gz?rev=HEAD.</td></tr>
 <tr><td>GO=String</td><td>GOA file/URI.  Default value: http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz.</td></tr>
@@ -552,7 +552,7 @@ Set the <b>VCF FILTERs</b> on VCF files annotated with SNPEFF or VCP testing wet
 ant vcffiltergo
 ```
 <h4>Options</h4>
-<tabl>
+<table>
 <tr><th>Option</th><th>Description</th></tr>
 <tr><td>CHILD_OF=String</td><td>list of GO accessions for gene having a GO-term children of the user output.  This option may be specified 0 or more times. </td></tr>
 <tr><td>FILTER=String</td><td>Filter name.  Default value: GO. This option can be set to 'null' to clear the default value. </td></tr>
