@@ -115,7 +115,7 @@
 </macrodef> 	
 	
 	
-<target name="mature.projects" depends="vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
 
 <target name="all" depends="mature.projects,genscan,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>
@@ -634,6 +634,14 @@
 </target>
 
 
+<target name="vcffiltergo">
+	<compile-with-picard 
+		java="**/VcfFilterGo.java"
+		main="com.github.lindenb.jvarkit.tools.vcfgo.VcfFilterGo"
+		name="vcffiltergo"
+		/>
+</target>	
+	
 <target name="api.ncbi.blast">
 	 <mkdir dir="${generated.dir}"/>
 	 <exec executable="xjc" failonerror="true">

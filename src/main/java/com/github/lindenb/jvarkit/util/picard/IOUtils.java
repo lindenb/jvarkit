@@ -46,7 +46,9 @@ public class IOUtils {
 	
 	public static InputStream openURIForReading(String uri) throws IOException
 		{
-		if(uri.startsWith("http://") || uri.startsWith("https://") || uri.startsWith("ftp://"))
+		if(uri.startsWith("http://") ||
+			uri.startsWith("https://") ||
+			uri.startsWith("ftp://"))
 			{
 			URL url=new URL(uri);
 			InputStream in=url.openStream();

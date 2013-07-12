@@ -27,8 +27,8 @@ public abstract class AbstractVCFFilter
 	extends CommandLineProgram
 	{
 	private final Log LOG=Log.getInstance(AbstractVCFFilter.class);
-	@Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF file to process. Default stdin. ",optional=true)
-	public File IN=null;
+	@Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF file/URL to process. Default stdin. ",optional=true)
+	public String IN=null;
 	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="VCF file to generate. Default stdout. ",optional=true)
 	public File OUT=null;
 	
@@ -52,7 +52,7 @@ public abstract class AbstractVCFFilter
 			else
 				{
 				LOG.info("reading from "+IN);
-				r=new AsciiLineReader(IOUtils.openFileForReading(IN));
+				r=new AsciiLineReader(IOUtils.openURIForReading(IN));
 				}
 			if(OUT==null)
 				{

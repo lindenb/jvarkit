@@ -31,8 +31,11 @@ public class GoTree
 		public String getLabel();
 		public Set<Term> getParents();
 		public Set<Term> getChildren();
-		public Set<Term> getAllParents();
-		public Set<Term> getAllChildren();
+		public boolean isDescendantOf(String acn);
+		public boolean hasDescendant(String acn);
+
+		//public Set<Term> getAllParents();
+		//public Set<Term> getAllChildren();
 		}
 	
 	private GoTree()
@@ -100,7 +103,7 @@ public class GoTree
 			{
 			return convert(parents);
 			}
-		
+		/*
 		private void _getAllChildren(Set<String> seen)
 			{
 			for(String s:this.children)
@@ -123,7 +126,7 @@ public class GoTree
 				}
 			}
 		
-		@Override
+		
 		public Set<Term> getAllChildren()
 			{
 			Set<String> seen=new HashSet<String>();
@@ -131,12 +134,40 @@ public class GoTree
 			return convert(seen);
 			}
 		
-		@Override
+		//@Override
 		public Set<Term> getAllParents()
 			{
 			Set<String> seen=new HashSet<String>();
 			_getAllParents(seen);
 			return convert(seen);
+			}*/
+		
+		@Override
+		public boolean isDescendantOf(String parentAcn)
+			{
+			if(parentAcn.equals(this.accession)) return true;
+			if(!parentAcn.startsWith(PREFIX)) parentAcn=PREFIX+parentAcn;
+			for(String p:this.parents)
+				{
+				TermImpl pNode=uri2term.get(p);
+				if(pNode==null || pNode==this) continue;
+				if(pNode.isDescendantOf(parentAcn)) return true;
+				}
+			return false;
+			}
+		
+		@Override
+		public boolean hasDescendant(String descendantAcn)
+			{
+			if(descendantAcn.equals(this.accession)) return true;
+			if(!descendantAcn.startsWith(PREFIX)) descendantAcn=PREFIX+descendantAcn;
+			for(String p:this.children)
+				{
+				TermImpl pNode=uri2term.get(p);
+				if(pNode==null || pNode==this) continue;
+				if(pNode.hasDescendant(descendantAcn)) return true;
+				}
+			return false;
 			}
 		
 		@Override
