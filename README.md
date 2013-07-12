@@ -445,7 +445,8 @@ ant blastmapannots
 <tr><td>IN=File</td><td>XML sequence file Genbank.xml or uniprot.xml.  Required. </td></tr>
 <tr><td>BLAST=File</td><td>BLAST XML output (or stdin).  Default value: null. </td></tr>
 <tr><td>APPEND_ACN=Boolean</td><td>append the sequence accession before the feature name.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
-<tr><td>FK=String</td><td>Restrict to uniprot/feature/type of genbank/feature/key.  This option may be specified 0 or more times. </td></tr>
+<tr><td>INCL=String</td><td>Restrict to uniprot/feature/type of genbank/feature/key.  This option may be specified 0 or more times. </td></tr>
+<tr><td>EXCL=String</td><td>Exclude uniprot/feature/type of genbank/feature/key.  This option may be specified 0 or more times. </td></tr>
 </table>
 <br/>
 <h4>Example</h4>
@@ -504,6 +505,19 @@ AY065842	520	733	coiled-coil_region	916	+	520	733	255,255,255	1	213	520
 ```
 
 
+<h3>VcfViewGui</h3>
+<h4>Motivation</h4>
+Simple java-Swing-based VCF viewer.
+![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/vcfview.png)
+<h4>Compilation</h4>
+```bash
+ant vcfviewgui
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>VCF files to process.  This option may be specified 0 or more times. </td></tr>
+</table>
 
 
 

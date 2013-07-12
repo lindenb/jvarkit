@@ -2,28 +2,43 @@ package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Vector;
 import java.util.regex.Pattern;
 
+import javax.swing.AbstractAction;
+import javax.swing.JButton;
 import javax.swing.JDesktopPane;
 import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JInternalFrame;
+import javax.swing.JLabel;
 import javax.swing.JMenuBar;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
+
 
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.TabixReader;
@@ -31,7 +46,6 @@ import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
 import org.broadinstitute.variant.vcf.VCFCodec;
-import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
@@ -40,6 +54,7 @@ import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
+import net.sf.picard.util.Log;
 
 class VCFFileRef
 	{
@@ -50,6 +65,8 @@ class VCFFileRef
 
 class VCFInternalFrame extends JInternalFrame
 	{
+	private static final long serialVersionUID = 1L;
+
 	private JTable jTable;
 	VCFTableModel tableModel;
 	VCFFileRef ref;
@@ -68,7 +85,7 @@ class VCFInternalFrame extends JInternalFrame
 		this.tableModel=new VCFTableModel(ref);
 		this.jTable=new JTable(tableModel);
 		this.jTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		JScrollPane scroll=new JScrollPane();
+		JScrollPane scroll=new JScrollPane(this.jTable);
 		pane.add(scroll);
 		
 		pane=new JPanel(new BorderLayout(5,5));
@@ -88,6 +105,8 @@ class VCFInternalFrame extends JInternalFrame
 class VCFTableModel
 	extends AbstractTableModel
 	{
+	private static final long serialVersionUID = 1L;
+
 	private VCFFileRef ref;
 	private List<String> rows=new Vector<String>();
 	private Pattern tab=Pattern.compile("[\t]");
@@ -144,55 +163,126 @@ class VCFTableModel
 			}
 		return n+1+ref.header.getSampleNamesInOrder().size();
 		}
+	
+	synchronized void updateRow(List<String> L)
+		{
+		this.rows.clear();
+		this.rows.addAll(L);
+		this.fireTableDataChanged();
+		}
+	}
+class VCFPos
+	{
+	String chrom;
+	int start;
+	int end=-1;
+	@Override
+	public String toString() {
+		return chrom+":"+start+(end==-1?"":"-"+end);
+		}
 	}
 
 class VCFFrame extends JDialog
 	{
+	private static Log LOG=Log.getInstance(VcfViewGui.class);
+
+	private static final long serialVersionUID = 1L;
 	private JDesktopPane desktopPane;
 	private List<VCFFileRef> vcfFileRefs;
 	private List<VCFInternalFrame> vcfInternalFrames=new Vector<VCFInternalFrame>();
+	private Reload dataLoaderThread;
+	private SpinnerNumberModel numFetchModel;
+	private JTextField selectRgnField;
+	//private JTextField jexlField;
 	class Reload extends Thread
 		{
+		List<String> rows=new Vector<String>();
 		int maxRows;
-		String reg;
+		VCFPos reg;
+		private VCFInternalFrame vcfi;
+		
+		private void updateRows() throws InterruptedException,InvocationTargetException
+			{
+			if(dataLoaderThread!=this) return;
+			LOG.info("updating "+rows.size());
+			SwingUtilities.invokeAndWait(new Runnable()
+				{
+				@Override
+				public void run() {
+					vcfi.tableModel.updateRow(rows);
+					}
+				});
+			
+			}
+		
+		
 		@Override
 		public void run()
 			{
 			TabixReader tabixReader=null;
+			
 			try
 				{
 				
-				for(VCFInternalFrame cif:vcfInternalFrames)
+				for(int i=0;i< vcfInternalFrames.size() && dataLoaderThread==this;++i)
 					{
+					this.vcfi = vcfInternalFrames.get(i);
 					String line;
-					List<String> rows=new ArrayList<String>();
-					if(reg!=null)
+					this.rows.clear();
+					try
 						{
-						tabixReader=new TabixReader(cif.ref.vcfFile.getPath());
-						TabixReader.Iterator iter=tabixReader.query(reg);
-						while(iter!=null && (line=iter.next())!=null && rows.size()<maxRows)
+						LOG.info("reading "+vcfi.ref.vcfFile.getPath()+" region:"+reg);
+						tabixReader=new TabixReader(vcfi.ref.vcfFile.getPath());
+						if(reg!=null)
 							{
-							rows.add(line);
+							
+							TabixReader.Iterator iter=tabixReader.query(reg.toString());
+							while(   dataLoaderThread==this &&
+									iter!=null && (line=iter.next())!=null &&
+									rows.size()<maxRows)
+								{
+								rows.add(line);
+								}
+							tabixReader=null;
 							}
-						tabixReader.close();
-						tabixReader=null;
-						
+						else
+							{
+							LOG.info(""+(dataLoaderThread==this));
+
+							while(dataLoaderThread==this &&
+									(line=tabixReader.readLine())!=null &&
+									rows.size()<maxRows)
+								{
+								if(line.startsWith(VCFHeader.METADATA_INDICATOR)) continue;
+								if(line.startsWith(VCFHeader.HEADER_INDICATOR)) continue;
+								
+								this.rows.add(line);
+								}
+							}
 						}
-					else
+					catch(Exception err)
 						{
-						
+						err.printStackTrace();
+						this.rows.clear();
 						}
-					cif.tableModel.setRows(rows);
+					finally
+						{
+						if(tabixReader!=null) tabixReader.close();
+						tabixReader=null;
+						}
+					
+					updateRows();
 					}
 					
 				}
 			catch(Exception err)
 				{
-				
+				err.printStackTrace();
 				}
 			finally
 				{
 				if(tabixReader!=null) tabixReader.close();
+				rows.clear();
 				}
 			}
 		}
@@ -201,28 +291,41 @@ class VCFFrame extends JDialog
 	VCFFrame(List<VCFFileRef> vcfFileRefs)
 		{
 		super((JFrame)null,"VCF View ("+vcfFileRefs.size()+" files)",ModalityType.APPLICATION_MODAL);
+		this.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
 		this.vcfFileRefs=vcfFileRefs;
+		
 		addWindowListener(new WindowAdapter()
 			{
+			
 			@Override
 			public void windowOpened(WindowEvent e)
 				{
-				Dimension d=desktopPane.getMaximumSize();
+				removeWindowListener(this);
+				Dimension d=Toolkit.getDefaultToolkit().getScreenSize();
+				d.width-=150;
+				d.height-=150;
+				LOG.info(d);
 				for(VCFFileRef vfr:VCFFrame.this.vcfFileRefs)
 					{
+					LOG.info("Reading "+vfr.vcfFile);
 					int w=(int)(d.width*0.8);
-					int h=(int)(d.width*0.8);
+					int h=(int)(d.height*0.8);
 					VCFInternalFrame iFrame=new VCFInternalFrame(vfr);
 					iFrame.setBounds(
-							(int)((d.width-w)*Math.random()),
-							(int)((d.height-h)*Math.random()),
+							Math.max((int)((d.width-w)*Math.random()),0),
+							Math.max((int)((d.height-h)*Math.random()),0),
 							w, h);
 					desktopPane.add(iFrame);
 					vcfInternalFrames.add(iFrame);
 					iFrame.setVisible(true);
+					LOG.info(iFrame.getBounds());
 					}
 				reloadFrameContent();
 				}
+			});
+		
+		addWindowListener(new WindowAdapter()
+			{
 			@Override
 			public void windowClosing(WindowEvent e)
 				{
@@ -235,23 +338,120 @@ class VCFFrame extends JDialog
 		JPanel contentPane=new JPanel(new BorderLayout(5,5));
 		setContentPane(contentPane);
 		this.desktopPane=new JDesktopPane();
+		contentPane.add(this.desktopPane, BorderLayout.CENTER);
 		
+		JPanel top=new JPanel(new FlowLayout(FlowLayout.LEADING));
+		contentPane.add(top, BorderLayout.NORTH);
+		
+		JLabel lbl=new JLabel("Max Rows:",JLabel.LEADING);
+		JSpinner spinner=new JSpinner(this.numFetchModel=new SpinnerNumberModel(1000, 1, 1000000, 10));
+		lbl.setLabelFor(spinner);
+		top.add(lbl);
+		top.add(spinner);
+		
+		lbl=new JLabel("JEXL:",JLabel.LEADING);
+		/*jexlField=new JTextField(20);
+		lbl.setLabelFor(jexlField);
+		
+		top.add(lbl);
+		top.add(jexlField);*/
+		
+		lbl=new JLabel("Region:",JLabel.LEADING);
+		selectRgnField=new JTextField(20);
+		lbl.setLabelFor(selectRgnField);
+		AbstractAction action=new AbstractAction("Select")
+			{
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void actionPerformed(ActionEvent a)
+				{
+				if(
+					/* (jexlField.getText().trim().isEmpty() || parseJex(jexlField.getText().trim())!=null) && */
+				   (selectRgnField.getText().trim().isEmpty() ||
+				   parseOne(selectRgnField.getText())!=null))
+					{
+					reloadFrameContent();
+					}
+				else
+					{
+					LOG.info("Bad input "+selectRgnField.getText());
+					}
+				}
+			};
+		selectRgnField.addActionListener(action);
+		//jexlField.addActionListener(action);
+
+		
+		top.add(lbl);
+		top.add(selectRgnField);
+		top.add(new JButton(action));
+		
+		
+			
 		}
-	private void reloadFrameContent()
+	private synchronized void reloadFrameContent()
 		{
-		
+		if(dataLoaderThread!=null)
+			{
+			try { dataLoaderThread.interrupt();}
+			catch(Exception err) {}
+			}
+		dataLoaderThread=new Reload();
+		dataLoaderThread.maxRows=numFetchModel.getNumber().intValue();
+		dataLoaderThread.reg=parseOne(this.selectRgnField.getText());
+		dataLoaderThread.start();
 		}
 	private void doMenuClose()
 		{
 		this.setVisible(false);
 		this.dispose();
 		}
+	
+	
+	
+	public static VCFPos parseOne(String s)
+		{
+		s=s.trim();
+		int colon=s.indexOf(':');
+		if(colon<1 || colon+1==s.length()) return null;
+		int hyphen=s.indexOf('-',colon+1);
+		try {
+			VCFPos pos=new VCFPos();
+			pos.chrom=s.substring(0,colon);
+			
+			
+			if(hyphen==-1)
+				{
+				pos.start=Integer.parseInt(s.substring(colon+1));
+				}
+			else
+				{
+				pos.start=Integer.parseInt(s.substring(colon+1),hyphen);
+				pos.end=Integer.parseInt(s.substring(hyphen+1));
+				if(pos.start<1 || pos.end<pos.start) return null;
+				}
+			return pos;
+		} catch (Exception e)
+			{
+			return null;
+			}
+		
+		}
 	}
 
-public class VcfViewGui extends CommandLineProgram
+/**
+ * 
+ * VcfViewGui
+ *
+ */
+public class VcfViewGui
+	extends CommandLineProgram
 	{
+	private static Log LOG=Log.getInstance(VcfViewGui.class);
+	
 	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"Creates the code to insert one or more VCF into a SQL database. ";
+	public String USAGE=getStandardUsagePreamble()+"Simple java-Swing-based VCF viewer. ";
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF files to process.",minElements=0)
 	public List<File> IN=new ArrayList<File>();
 
@@ -271,7 +471,43 @@ public class VcfViewGui extends CommandLineProgram
 		{
 		try
 			{
+			JFrame.setDefaultLookAndFeelDecorated(true);
+			JDialog.setDefaultLookAndFeelDecorated(true);
 			List<VCFFileRef> vfrs=new ArrayList<VCFFileRef>();
+			if(IN.isEmpty())
+				{
+				LOG.info("NO VCF provided; Opening dialog");
+				JFileChooser chooser=new JFileChooser();
+				chooser.setFileFilter(new FileFilter() {
+					@Override
+					public String getDescription() {
+						return "VCF indexed with tabix";
+					}
+					
+					@Override
+					public boolean accept(File f) {
+						if(f.isDirectory()) return true;
+						if(f.isFile() && f.canRead() && f.getName().endsWith(".vcf.gz"))
+							{
+							File tabix=new File(f.getParentFile(),f.getName()+".tbi");
+							if(!tabix.exists()) return false;
+							if(!tabix.canRead() || tabix.lastModified()< f.lastModified()) return false;
+							return true;
+							}
+						return false;
+						};
+					});
+				chooser.setMultiSelectionEnabled(true);
+				if(chooser.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION)
+					{
+					LOG.info("user pressed cancel");
+					return -1;
+					}
+				File fs[]=chooser.getSelectedFiles();
+				if(fs!=null) IN.addAll(Arrays.asList(chooser.getSelectedFiles()));
+				}
+			
+			
 			for(File in:IN)
 				{
 				vfrs.add(create(in));
@@ -280,11 +516,15 @@ public class VcfViewGui extends CommandLineProgram
 				{
 				return -1;
 				}
+			LOG.info("showing VCF frame");
+			Dimension screen=Toolkit.getDefaultToolkit().getScreenSize();
 			VCFFrame f=new VCFFrame(vfrs);
+			f.setBounds(50, 50, screen.width-100, screen.height-100);
 			f.setVisible(true);
 			}
 		catch(Exception err)
 			{
+			LOG.error(err);
 			return -1;
 			}
 		return 0;
@@ -295,8 +535,7 @@ public class VcfViewGui extends CommandLineProgram
 	 */
 	public static void main(String[] args)
 		{
-		// TODO Auto-generated method stub
-
+		new VcfViewGui().instanceMainWithExit(args);
 		}
 
 	}

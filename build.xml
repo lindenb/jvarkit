@@ -12,11 +12,22 @@
   </fileset>
 </path>
 
+<path id="jexl.lib">
+ <fileset dir="${picard.dir}">
+    <include name="commons-jexl-*.jar"/>
+    <include name="commons-logging-*.jar"/>
+  </fileset>
+</path>
+
+
 <path id="picard.lib">
-      <pathelement path="${picard.jar}"/>
-    <pathelement path="${sam.jar}"/>
-    <pathelement path="${tribble.jar}"/>
-    <pathelement path="${variant.jar}"/>
+	 <fileset dir="${picard.dir}">
+    	<include name="picard-*.jar"/>
+   	 	<include name="sam-*.jar"/>
+   	 	<include name="tribble-*.jar"/>
+    	<include name="variant-*.jar"/>
+ 	 </fileset>
+     <path refid="jexl.lib"/>
 </path>
 	
 <path id="bdb.lib">
@@ -605,6 +616,13 @@
 		/>
 </target>
 	
+<target name="vcfviewgui">
+	<compile-with-picard 
+		java="**/VcfViewGui.java"
+		main="com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui"
+		name="vcfviewgui"
+		/>
+</target>
 	
 
 <target name="api.ncbi.blast">
@@ -654,7 +672,7 @@
 
 <target name="ws" >
 	 <exec executable="xjc">
-	    <arg value="-d"/> <arg value="src/main/java"/>
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
 	    <arg value="-p"/> <arg value="com.github.lindenb.jvarkit.tools.ws.server"/>
 	    <arg value="src/main/resources/xsd/ngs.xsd"/>
 	  </exec>
@@ -664,6 +682,7 @@
 	      
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
+	   		<src path="${generated.dir}"/>
 	   		<classpath refid="picard.lib"/>
 	   		<include name="**/NGSServiceImpl.java"/>
 	   </javac>

@@ -71,8 +71,10 @@ public class BlastMapAnnotations
 	public boolean APPEND_ACN=false;
    
 	
-	@Option(shortName= "RESTRICTKEY", doc="Restrict to uniprot/feature/type of genbank/feature/key.",optional=true,minElements=0)
-	public Set<String> FK=new HashSet<String>();
+	@Option(shortName= "INCLUDE", doc="Restrict to uniprot/feature/type of genbank/feature/key.",optional=true,minElements=0)
+	public Set<String> INCL=new HashSet<String>();
+	@Option(shortName= "EXCLUDE", doc="Exclude uniprot/feature/type of genbank/feature/key.",optional=true,minElements=0)
+	public Set<String> EXCL=new HashSet<String>();
 	
 
     @Override
@@ -631,13 +633,9 @@ public class BlastMapAnnotations
 				{
 				for(FeatureType feature:entry.getFeature())
 					{
-					if(!this.FK.isEmpty())
-						{
-						if(!FK.contains(feature.getType()))
-							{
-							continue;
-							}
-						}
+					if(!acceptfeature(feature.getType())) continue;
+
+					
 					for(Hit hit:iteration.getIterationHits().getHit())
 						{
 						for(Hsp hsp :hit.getHitHsps().getHsp())
@@ -680,14 +678,9 @@ public class BlastMapAnnotations
 					{
 					if(feature.getGBFeatureIntervals()==null) continue;
 					
+					if(!acceptfeature(feature.getGBFeatureKey())) continue;
 					
-					if(!this.FK.isEmpty())
-						{
-						if(!FK.contains(feature.getGBFeatureKey()))
-							{
-							continue;
-							}
-						}
+					
 
 					
 					for(GBInterval interval:feature.getGBFeatureIntervals().getGBInterval())
@@ -797,7 +790,25 @@ public class BlastMapAnnotations
 			return -1;
 			}	
 		}
-	
+	private boolean acceptfeature(String s)
+		{
+		if(s==null || s.isEmpty()) return false;
+		if(!this.INCL.isEmpty())
+			{
+			if(!INCL.contains(s))
+				{
+				return false;
+				}
+			}
+		if(!this.EXCL.isEmpty())
+			{
+			if(EXCL.contains(s))
+				{
+				return false;
+				}
+			}
+		return true;
+		}
 	
 	
 	public static void main(String[] args)
