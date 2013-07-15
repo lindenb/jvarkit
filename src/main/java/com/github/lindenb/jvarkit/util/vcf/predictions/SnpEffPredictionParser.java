@@ -109,6 +109,13 @@ public class SnpEffPredictionParser implements PredictionParser
 		String tokens[]=pipe.split(s);
 		preds.add(new MyPred(tokens));
 		}
+	
+	private static class AAChange
+		{
+		String ref;
+		int pos;
+		String alt;
+		}
 			
 	
 	private class MyPred
@@ -131,6 +138,67 @@ public class SnpEffPredictionParser implements PredictionParser
 			return getByCol(COLS.Gene_Name);
 			}
 		
+		@Override
+		public String getEnsemblTranscript()
+			{
+			String s=getByCol(COLS.Transcript);
+			if(s==null || !s.startsWith("ENST")) return null;
+			return s;
+			}
+		@Override
+		public String getEnsemblProtein()
+			{
+			return null;
+			}
+		
+		@Override
+		public String getEnsemblGene() {
+			return null;
+			}
+		
+		private AAChange getAAChange()
+			{
+			String aa=getByCol(COLS.Amino_Acid_change);
+			if(aa==null || aa.isEmpty()) return null;
+			if(!Character.isLetter(aa.charAt(0))) return null;
+			if(!Character.isDigit(aa.charAt(1))) return null;
+			AAChange change=new AAChange();
+			change.ref=""+aa.charAt(0);
+			change.pos=0;
+			int i=1;
+			while(i< aa.length() && Character.isDigit(aa.charAt(i)))
+				{
+				change.pos+=(aa.charAt(i)-'0')+change.pos*10;
+				++i;
+				}
+			if(change.pos==0) return null;
+			if(i<aa.length() && Character.isLetter(aa.charAt(i)))//occurs when synonymous-lony mutation e.g "M1"
+				{
+				change.alt=aa.substring(i);
+				}
+			return change;
+			}
+		
+		@Override
+		public String getAltAminoAcid()
+			{
+			AAChange aa=getAAChange();
+			return aa==null?null:aa.alt;
+			}
+		
+		@Override
+		public Integer getAminoAcidPosition()
+			{
+			AAChange aa=getAAChange();
+			return aa==null?null:aa.pos;
+			}
+		@Override
+		public String getReferenceAminoAcid() {
+			AAChange aa=getAAChange();
+			return aa==null?null:aa.ref;
+			}
+
+		
 		public Map<COLS,String> getMap()
 			{
 			Map<COLS, String> hash=new HashMap<COLS,String>();
@@ -142,6 +210,9 @@ public class SnpEffPredictionParser implements PredictionParser
 				}
 			return hash;
 			}
+		
+		
+
 		
 		@Override
 		public String toString() {

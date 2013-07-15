@@ -11,15 +11,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.broad.tribble.readers.LineReader;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.vcf.VCFCodec;
+import org.broadinstitute.variant.vcf.VCFHeader;
+
+import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 
 
-import net.sf.samtools.tabix.TabixReader;
-import net.sf.samtools.util.BlockCompressedInputStream;
+import org.broad.tribble.readers.TabixReader;
 
 
-public class VCFTabix
+public class VCFTabix extends AbstractVCFFilter
 	{
 	private PrintStream out=System.out;
 	private String tabixFile;
@@ -33,6 +39,40 @@ public class VCFTabix
 	private VCFUtils vcfUtils=new VCFUtils();
 	
 	
+	@Override
+	protected void doWork(LineReader in, VariantContextWriter w)
+			throws IOException {
+		
+		TabixReader tabix= new TabixReader(this.tabixFile);
+		VCFCodec codeIn=new VCFCodec();		
+		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
+		String line;
+		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
+		w.writeHeader(h2);
+		while((line=in.readLine())!=null)
+			{
+			VariantContext ctx=codeIn.decode(line);
+			String line2;
+			TabixReader.Iterator iter=tabixReader.query(ctx.getChr()+":"+ctx.getStart()+"-"+ctx.getEnd());
+			while(iter!=null && (line2=iter.next())!=null)
+				{
+				String tokens2[]=tab.split(line2,9);
+				
+				if(tokens2.length<8)
+					{
+					System.err.println("[VCFTabix]. Error not enough columns in tabix line "+line2);
+					return;
+					}
+				if(!tokens[0].equals(tokens2[0])) continue;
+				if(!tokens[1].equals(tokens2[1])) continue;
+				if(this.refMatters && !tokens[3].equalsIgnoreCase(tokens2[3])) continue;
+
+				}
+			
+			w.add(ctx);
+			}
+		tabix.close();
+		}
 	
 	private void run(BufferedReader in) throws IOException
 		{
@@ -41,46 +81,6 @@ public class VCFTabix
 		while((line=in.readLine())!=null)
 			{
 
-			if(line.isEmpty()) continue;
-			
-			if(line.startsWith("#"))
-				{
-				if(line.startsWith("#CHROM"))
-					{
-					out.println("##Annotated with "+getClass()+":"+tabixFile);
-					if(!this.infoIds.isEmpty())
-						{
-						BlockCompressedInputStream src=new BlockCompressedInputStream(new File(tabixFile));
-						BufferedReader r2=new BufferedReader(new InputStreamReader(src));
-						String line2;
-						while((line2=r2.readLine())!=null)
-							{
-							if(line2.startsWith("#CHROM")) break;
-							if(!line2.startsWith("##")) break;
-							if(!line2.startsWith("##INFO=")) continue;
-							
-							int i=line2.indexOf("ID=");
-							if(i==-1) continue;
-							int j=line2.indexOf(',',i+1);
-							if(j==-1) j=line2.indexOf('>',i+1);
-							if(j==-1) continue;
-							if(this.infoIds.contains(line2.substring(i+3,j)))
-								{
-								this.out.println(line2);
-								}
-							} 
-						r2.close();
-						}
-					if(altConflictTag!=null)
-						{
-						out.println("##INFO=<ID="+this.altConflictTag+",Number=1,Type=String,Description=\"Conflict ALT alleles with '"+ tabixFile+"' \">");
-						}
-					out.println(line);
-					continue;
-					}
-				out.println(line);
-				continue;
-				}
 			
 			String tokens[]=tab.split(line,9);
 			if(tokens.length<8)

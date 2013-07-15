@@ -51,7 +51,6 @@ public class VcfGeneOntology extends AbstractVcfGeneOntology
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"GO terms from GO "+GO+" and GOA="+GOA));
 		
-		h2.samplesWereAlreadySorted();
 		w.writeHeader(h2);
 	
 		String line;

@@ -144,6 +144,40 @@ public class VepPredictionParser implements PredictionParser
 				}
 			return hash;
 			}
+		
+		@Override
+		public String getAltAminoAcid() {
+			return null;
+			}
+		
+		@Override
+		public Integer getAminoAcidPosition()
+			{
+			return null;
+			}
+		@Override
+		public String getReferenceAminoAcid() {
+			return null;
+			}
+		
+		@Override
+		public String getEnsemblGene() {
+			String s=getByCol(COLS.Gene);
+			if(s.startsWith("ENSG")) return s;
+			return s;
+			}
+		
+		@Override
+		public String getEnsemblProtein() {
+			return null;
+			}
+		
+		@Override
+		public String getEnsemblTranscript() {
+			String s=getByCol(COLS.Feature);
+			if(s.startsWith("ENST")) return s;
+			return null;
+			}
 	
 	@Override
 	public String toString() {

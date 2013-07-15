@@ -22,6 +22,25 @@ import net.sf.samtools.util.BlockCompressedInputStream;
 import net.sf.samtools.util.BlockCompressedOutputStream;
 
 public class IOUtils {
+	
+	public static void copyTo(InputStream in,File f) throws IOException
+		{
+		FileOutputStream fous=new FileOutputStream(f);
+		copyTo(in,fous);
+		fous.flush();
+		fous.close();
+		}
+	public static void copyTo(InputStream in,OutputStream out) throws IOException
+		{
+		byte buffer[]=new byte[2048];
+		int nRead;
+		while((nRead=in.read(buffer))!=-1)
+			{
+			out.write(buffer,0,nRead);
+			}
+		out.flush();
+		}
+
 	public static boolean isRemoteURI(String uri)
 		{	
 	    return  uri.startsWith("http://") ||

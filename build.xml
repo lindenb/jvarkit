@@ -642,6 +642,16 @@
 		/>
 </target>	
 	
+	
+<target name="vcfuniprot" depends="api.uniprot">
+	<compile-with-picard 
+		java="**/VCFUniprot.java"
+		main="com.github.lindenb.jvarkit.tools.vcfuniprot.VCFUniprot"
+		name="vcfuniprot"
+		/>
+</target>
+	
+	
 <target name="api.ncbi.blast">
 	 <mkdir dir="${generated.dir}"/>
 	 <exec executable="xjc" failonerror="true">
