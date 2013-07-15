@@ -22,7 +22,13 @@ import net.sf.samtools.util.BlockCompressedInputStream;
 import net.sf.samtools.util.BlockCompressedOutputStream;
 
 public class IOUtils {
-	
+	public static boolean isRemoteURI(String uri)
+		{	
+	    return  uri.startsWith("http://") ||
+				uri.startsWith("https://") ||
+				uri.startsWith("ftp://")
+				;
+		}
 	private static InputStream tryBGZIP(InputStream in) throws IOException
 		{
 		byte buffer[]=new byte[2048];
@@ -46,9 +52,7 @@ public class IOUtils {
 	
 	public static InputStream openURIForReading(String uri) throws IOException
 		{
-		if(uri.startsWith("http://") ||
-			uri.startsWith("https://") ||
-			uri.startsWith("ftp://"))
+		if(isRemoteURI(uri))
 			{
 			URL url=new URL(uri);
 			InputStream in=url.openStream();
