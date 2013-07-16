@@ -5,6 +5,15 @@
 <property name="http.proxy" value="localhost:80"/>
 <property name="generated.dir" value="src/main/generated-sources/java"/>
 
+<condition property="has.mysql.driver">
+ <isset property="mysql.jar"/>
+</condition>	
+
+<condition property="has.bigwig.lib">
+ <isset property="bigwig.dir"/>
+</condition>	
+	
+		
 	
 <path id="bigwig.lib">
   <fileset dir="${bigwig.dir}">
@@ -190,7 +199,7 @@
 
 
 	
-<target name="vcfbigwig" >
+<target name="vcfbigwig" if="has.bigwig.lib">
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   	   
@@ -649,6 +658,12 @@
 		main="com.github.lindenb.jvarkit.tools.vcfuniprot.VCFUniprot"
 		name="vcfuniprot"
 		/>
+</target>
+
+
+	
+<target name="x2" if="has.mysql.driver">
+	<echo>OOKKK</echo>
 </target>
 	
 	
