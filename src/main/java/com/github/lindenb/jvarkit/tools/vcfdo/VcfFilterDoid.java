@@ -39,11 +39,6 @@ public class VcfFilterDoid extends AbstractVCFDiseaseOntology
 		return "1.0";
 		}
 
-	private Set<Integer> getGeneIds(VariantContext ctx)
-		{
-		Set<Integer> S=new HashSet<Integer>();
-		return S;
-		}
 	
 	@Override
 	protected void doWork(LineReader in, VariantContextWriter w)
@@ -66,7 +61,8 @@ public class VcfFilterDoid extends AbstractVCFDiseaseOntology
 			
 		
 		super.readDiseaseOntoglogyAnnotations();
-
+		super.loadEntrezGenes();
+		
 		VCFCodec codeIn=new VCFCodec();		
 		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
 

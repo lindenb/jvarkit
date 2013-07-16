@@ -16,8 +16,6 @@ import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.go.GoTree;
-import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
 public class VcfFilterGo extends AbstractVcfGeneOntology
 	{
@@ -63,11 +61,10 @@ public class VcfFilterGo extends AbstractVcfGeneOntology
 		VCFCodec codeIn=new VCFCodec();		
 		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
 		
-		super.vepPredictionParser= new VepPredictionParser(header);
-		super.snpeffPredictionParser= new SnpEffPredictionParser(header);
 		
 		
 		super.readGOA();
+		super.loadBiomartHGNC();
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine( new VCFFilterHeaderLine(
