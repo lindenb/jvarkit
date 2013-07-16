@@ -1,20 +1,13 @@
 package com.github.lindenb.jvarkit.tools.vcfbed;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+
+import net.sf.picard.cmdline.Option;
+import net.sf.picard.cmdline.Usage;
 
 import org.broad.tribble.readers.LineReader;
 import org.broad.tribble.readers.TabixReader;
@@ -23,6 +16,9 @@ import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
+import org.broadinstitute.variant.vcf.VCFHeaderLineType;
+import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
 
@@ -32,10 +28,17 @@ import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
 
 public class VCFBed extends AbstractVCFFilter
 	{
+	@Usage(programVersion="1.0")
+	public String USAGE=getStandardUsagePreamble()+" Fix samtools indels (for @SolenaLS).";
+
+	@Option(shortName="FMT",doc="format",optional=true)
 	public String FORMAT="${1}:${2}-${3}";
+	
+	@Option(shortName="TBX",doc="BED file indexed with tabix",optional=false)
 	public String TABIXFILE;
+	
+	@Option(shortName="T",doc="Key for the INFO field",optional=true)
 	public String TAG="TAG";
-	private Set<String> extraHeaderLine=new LinkedHashSet<String>();
 	
 	
 	private static abstract class Chunk
@@ -102,19 +105,24 @@ public class VCFBed extends AbstractVCFFilter
 		return c;
 		}
 	
-	
+	@Override
+	public String getVersion()
+		{
+		return "1.0";
+		}
 	
 	@Override
 	protected void doWork(LineReader in, VariantContextWriter w)
 			throws IOException
 		{
 		Pattern tab=Pattern.compile("[\t]");
-		Chunk parsedFormat=parseFormat("TODO",0);
+		Chunk parsedFormat=parseFormat(this.FORMAT,0);
 		TabixReader tabix= new TabixReader(this.TABIXFILE);
 		VCFCodec codeIn=new VCFCodec();		
 		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
 		String line;
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
+		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "metadata added from "+TABIXFILE));
 		w.writeHeader(h2);
 		while((line=in.readLine())!=null)
 			{
