@@ -42,7 +42,6 @@ public class VCFFixIndels extends AbstractVCFFilter
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String,"Fix Indels for @SolenaLS."));
 		
-		h2.samplesWereAlreadySorted();
 		w.writeHeader(h2);
 	
 		String line;
