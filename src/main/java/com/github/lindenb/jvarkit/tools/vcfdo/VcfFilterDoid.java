@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.vcfgo;
+package com.github.lindenb.jvarkit.tools.vcfdo;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -15,19 +15,19 @@ import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.go.GoTree;
+import com.github.lindenb.jvarkit.util.doid.DiseaseOntoglogyTree;
 
-public class VcfFilterGo extends AbstractVcfGeneOntology
+public class VcfFilterDoid extends AbstractVCFDiseaseOntology
 	{
 	@Usage(programVersion="1.0")
 	public String USAGE=getStandardUsagePreamble()+" Set Filters for VCF annotated with SNPEFF or VEP tesing if Genes are part / are not part of a GeneOntology tree. ";
 	
-    @Option(shortName="CHILD", doc="list of GO accessions for gene having a GO-term children of the user output.",minElements=0)
+    @Option(shortName="CHILD", doc="list of DOID accessions for gene having a DOID-term children of the user output.",minElements=0)
 	public Set<String> CHILD_OF=new HashSet<String>();
    
     
     @Option(shortName="FILTER_NAME", doc="Filter name.",optional=true)
-	public String FILTER="GO";
+	public String FILTER="DOID";
  
     
     
@@ -39,15 +39,16 @@ public class VcfFilterGo extends AbstractVcfGeneOntology
 		return "1.0";
 		}
 
+	
 	@Override
 	protected void doWork(LineReader in, VariantContextWriter w)
 			throws IOException
 		{
-		super.readGO();
-		Set<GoTree.Term> positive_terms=new HashSet<GoTree.Term>(CHILD_OF.size());
+		super.readDiseaseOntoglogyTree();
+		Set<DiseaseOntoglogyTree.Term> positive_terms=new HashSet<DiseaseOntoglogyTree.Term>(CHILD_OF.size());
 		for(String acn:CHILD_OF)
 			{
-			GoTree.Term t=super.goTree.getTermByAccession(acn);
+			DiseaseOntoglogyTree.Term t=super.diseaseOntoglogyTree.getTermByAccession(acn);
 			if(t==null)
 				{
 				throw new IOException("Cannot find GO acn "+acn);
@@ -57,19 +58,19 @@ public class VcfFilterGo extends AbstractVcfGeneOntology
 		
 		LOG.info("positive_terms:"+positive_terms);
 	
+			
+		
+		super.readDiseaseOntoglogyAnnotations();
+		super.loadEntrezGenes();
 		
 		VCFCodec codeIn=new VCFCodec();		
 		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
-		
-		
-		
-		super.readGOA();
-		super.loadBiomartHGNC();
+
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine( new VCFFilterHeaderLine(
 				FILTER
-				,"Flag  GO terms "+CHILD_OF+" using "+super.GO+" and "+super.GOA
+				,"Flag  DOID terms "+CHILD_OF+" using "+super.DOI_INPUT+" and "+super.DOI_ANN
 				));
 		
 		
@@ -82,17 +83,17 @@ public class VcfFilterGo extends AbstractVcfGeneOntology
 			VariantContextBuilder b=new VariantContextBuilder(ctx);
 
 			
-			Set<String> geneNames=getGeneNames(ctx);
+			Set<Integer> geneIds=getGeneIds(ctx);
 		
 			boolean set_positive=false;
 			
-			for(String GN:geneNames)
+			for(Integer GN:geneIds)
 				{
-				Set<GoTree.Term> goset=super.name2go.get(GN);
+				Set<DiseaseOntoglogyTree.Term> goset=super.gene2doid.get(GN);
 				if(goset==null) continue;
-				for(GoTree.Term goParent:positive_terms)
+				for(DiseaseOntoglogyTree.Term goParent:positive_terms)
 					{
-					for(GoTree.Term t:goset)
+					for(DiseaseOntoglogyTree.Term t:goset)
 						{
 						if(goParent.hasDescendant(t.getAcn()))
 							{
@@ -120,6 +121,6 @@ public class VcfFilterGo extends AbstractVcfGeneOntology
 	
 	public static void main(String[] args)
 		{
-		new VcfFilterGo().instanceMainWithExit(args);
+		new VcfFilterDoid().instanceMainWithExit(args);
 		}
 	}

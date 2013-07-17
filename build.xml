@@ -124,36 +124,12 @@
 </macrodef> 	
 	
 	
-<target name="mature.projects" depends="vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcftabix,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="vcffilterdoid,vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcfvcf,evs2bed,vcftabixml"/>
 
 <target name="all" depends="mature.projects,genscan,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>
 
 	
- <target name="vcffilterjs" >
-   <mkdir dir="tmp"/>
-   <mkdir dir="dist"/>
-      
-   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-   		<src path="src/main/java"/>
-   		<classpath refid="picard.lib"/>
-   		<include name="**/VCFFilterJS.java"/>
-   </javac>
-   
-   <pathconvert property="manifest_vcffilterjs" pathsep=" " >
-		 <path refid="picard.lib"/>
-   </pathconvert>  
-   
-   <jar jarfile="dist/vcffilterjs.jar">
-	     <fileset dir="tmp" />
-	     <manifest>
-	       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS"/>
-	        <attribute name="Class-Path" value="${manifest_vcffilterjs}"/>
-	     </manifest>
- 	</jar>
-   
-    <delete dir="tmp"/>
- </target>
 
 
 <target name="vcffixindels" >
@@ -223,28 +199,6 @@
  </target>	
 
 	
-<target name="vcftabix" >
-	   <mkdir dir="tmp"/>
-	   <mkdir dir="dist"/>
-	   	
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
-	   		<include name="**/VCFTabix.java"/>
-	   </javac>
-	   
-	   <pathconvert property="manifest_cp2" pathsep=" " refid="picard.lib"/>
-
-	   <jar jarfile="dist/vcftabix.jar">
-		     <fileset dir="tmp" />
-		     <manifest>
-		        <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcftabix.VCFTabix"/>
-		        <attribute name="Class-Path" value="${manifest_cp2}"/>
-		     </manifest>
-	 	</jar>
-	   
-    <delete dir="tmp"/>
- </target>	
 		
 <target name="vcftabixml" >
 	   <mkdir dir="tmp"/>
@@ -292,6 +246,13 @@
     <delete dir="tmp"/>
 </target>	
 
+	<target name="vcffilterjs" >
+		<compile-with-picard 
+			java="**/VCFFilterJS.java"
+			main="com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS"
+			name="vcffilterjs"
+			/>
+	</target>			
 	
 	
 	<target name="vcfstripannot" >
@@ -650,7 +611,24 @@
 		name="vcffiltergo"
 		/>
 </target>	
+
+<target name="vcffilterdoid">
+	<compile-with-picard 
+		java="**/VcfFilterDoid.java"
+		main="com.github.lindenb.jvarkit.tools.vcfdo.VcfFilterDoid"
+		name="vcffilterdoid"
+		/>
+</target>	
+
 	
+<target name="vcfvcf">
+	<compile-with-picard 
+		java="**/VcfVcf.java"
+		main="com.github.lindenb.jvarkit.tools.vcfvcf.VcfVcf"
+		name="vcfvcf"
+		/>
+</target>
+
 	
 <target name="vcfuniprot" depends="api.uniprot">
 	<compile-with-picard 

@@ -1478,7 +1478,7 @@ class PredictionAnnotator implements Closeable
             	annotations.put("strand", ""+gene.getStrand());
             	annotations.put("kgId", gene.getName());
             	annotations.put("geneSymbol", gene.getGeneSymbol());
-            	call.addProperties("PREDICTION", annotations);
+            	ctx.att("PREDICTION", annotations);
             	}
             
 	    return b.make();

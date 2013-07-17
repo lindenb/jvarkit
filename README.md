@@ -55,17 +55,23 @@ no proxy, set build.dtd to
 <h2>Tools</h2>
 
 <h3> Filtering VCF with javascript (rhino) </h3>
+<h4>Compilation</h4>
+```
+ant vcffilterjs
+```
 <h4>Usage</h4>
 ```
- java -jar dist/vcffilterjs.jar [option] (vcf|stdin)
+ java -jar dist/vcffilterjs.jar [options]
 ```
 <h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>SCRIPT_FILE=File</td><td>javascript file   Default value: null. </td></tr>
+<tr><td>SCRIPT_EXPRESSION=String</td><td>javascript expression   Default value: null. </td></tr>
+<tr><td>IN=String</td><td>VCF file/URL to process. Default stdin.   Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
+</table>
 
-* -e (script)
-
-OR
-
-* -f (srcipt-file)
 
 
 the script binds the following variables:
@@ -104,7 +110,7 @@ myfilterFunction();
 
 ```bash
 $ curl -s "https://raw.github.com/jamescasbon/PyVCF/master/vcf/test/gatk.vcf" |\
-   java -jar  dist/vcffilterjs.jar  -f filter.js
+   java -jar  dist/vcffilterjs.jar  SCRIPT_FILE=filter.js
    
 ##fileformat=VCFv4.1
 ##FORMAT=<ID=AD,Number=.,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
