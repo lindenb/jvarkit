@@ -1,14 +1,9 @@
 package com.github.lindenb.jvarkit.tools.vcfbigwig;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
@@ -48,6 +43,7 @@ public class VCFBigWig extends AbstractVCFFilter
 	protected void doWork(LineReader in, VariantContextWriter w)
 			throws IOException
 		{
+		LOG.info("opening "+this.BIGWIG);
 		this.bbFileReader=new BBFileReader(this.BIGWIG);
 		if(!this.bbFileReader.isBigWigFile())
 			{
@@ -61,6 +57,7 @@ public class VCFBigWig extends AbstractVCFFilter
 			if(i!=-1) TAG=TAG.substring(i+1);
 			i=TAG.indexOf('.');
 			TAG=TAG.substring(0,i);
+			LOG.info("setting tag to "+this.TAG);
 			}
 		
 		
@@ -74,7 +71,6 @@ public class VCFBigWig extends AbstractVCFFilter
 		
 		
 		String line;
-		Pattern tab=Pattern.compile("[\t]");
 		List<Float> values=new ArrayList<Float>();
 		while((line=in.readLine())!=null)
 			{

@@ -110,6 +110,8 @@ public class VCFBed extends AbstractVCFFilter
 		{
 		Pattern tab=Pattern.compile("[\t]");
 		Chunk parsedFormat=parseFormat("TODO",0);
+		if(parsedFormat==null)parsedFormat=new PlainChunk("");
+		
 		TabixReader tabix= new TabixReader(this.TABIXFILE);
 		VCFCodec codeIn=new VCFCodec();		
 		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
