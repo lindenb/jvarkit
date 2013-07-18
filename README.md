@@ -617,7 +617,7 @@ Now, annotate a remote VCF with the data of NCBI biosystems.
 ```bash
 curl "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
  sed 's/^chr//' |\
- java -jar  TABIXFILE=~/ncbibiosystem.bed.gz TAG=NCBIBIOSYS  FMT='($4|$5|$6|$7)' |\
+ java -jar  dist/vcfbed.jar TABIXFILE=~/ncbibiosystem.bed.gz TAG=NCBIBIOSYS  FMT='($4|$5|$6|$7)' |\
  grep -E '(^#CHR|NCBI)'
 
 ##INFO=<ID=NCBIBIOSYS,Number=.,Type=String,Description="metadata added from /home/lindenb/ncbibiosystem.bed.gz . Format was ($4|$5|$6|$7)">
