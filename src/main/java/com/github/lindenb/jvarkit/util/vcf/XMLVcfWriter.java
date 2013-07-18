@@ -1,14 +1,26 @@
 package com.github.lindenb.jvarkit.util.vcf;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import org.broad.tribble.util.ParsingUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.CommonInfo;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypeLikelihoods;
+import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
 import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
 import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
@@ -140,11 +152,20 @@ public class XMLVcfWriter implements VariantContextWriter
 			// TODO: handle exception
 			}
 		}
+	
+    // should we write genotypes or just sites?
+	private boolean doNotWriteGenotypes=false;
+	
 	@Override
 	public void add(VariantContext variant)
 		{
 		try
 			{
+			 if ( doNotWriteGenotypes )
+				 variant = new VariantContextBuilder(variant).noGenotypes().make();
+			
+			 Map<Allele, String> alleleMap = buildAlleleMap(variant);
+			 
 			start("variation");
 			element("chrom",variant.getChr());
 			element("start",variant.getStart());
@@ -152,20 +173,34 @@ public class XMLVcfWriter implements VariantContextWriter
 			element("id",variant.getID());
 			element("ref",variant.getReference().getDisplayString());
 			
-			for(Allele a:variant.getAlternateAlleles())
+			if ( variant.isVariant() )
 				{
-				element("alt",a.getDisplayString());
+				for(Allele a:variant.getAlternateAlleles())
+					{
+					element("alt",a.getDisplayString());
+					}
 				}
-			element("qual",variant.getLog10PError());
+			
+			if(variant.hasLog10PError())
+				{
+				element("qual", variant.getLog10PError());
+				}
 			
 			
 			start("filters");
-			for(String s: variant.getFilters())
+			if(variant.isFiltered())
 				{
-				element("filter",s);
+				for(String s: variant.getFilters())
+					{
+					element("filter",s);
+					}
+				}
+			else if(variant.filtersWereApplied())
+				{
+				element("filter",VCFConstants.PASSES_FILTERS_v4);
 				}
 			end();
-			
+				
 			start("infos");
 			CommonInfo info=variant.getCommonInfo();
 			for(String key:info.getAttributes().keySet())
@@ -178,9 +213,12 @@ public class XMLVcfWriter implements VariantContextWriter
 				}
 			end();
 			
+			final GenotypesContext gc = variant.getGenotypes();
+			
+			
 			if(variant.hasGenotypes())
 				{
-				start("genotype");
+				start("genotypes");
 				for(String sample:variant.getSampleNames())
 					{
 					Genotype g=variant.getGenotype(sample);
@@ -250,7 +288,50 @@ public class XMLVcfWriter implements VariantContextWriter
 			e.printStackTrace();
 			}
 		}
+	List<String> x(VariantContext vc,VCFHeader header)
+		{
+		Set<String> keys = new HashSet<String>();
 
+		 boolean sawGoodGT = false;
+	        boolean sawGoodQual = false;
+	        boolean sawGenotypeFilter = false;
+	        boolean sawDP = false;
+	        boolean sawAD = false;
+	        boolean sawPL = false;
+	        for ( final Genotype g : vc.getGenotypes() ) {
+	            keys.addAll(g.getExtendedAttributes().keySet());
+	            if ( g.isAvailable() ) sawGoodGT = true;
+	            if ( g.hasGQ() ) sawGoodQual = true;
+	            if ( g.hasDP() ) sawDP = true;
+	            if ( g.hasAD() ) sawAD = true;
+	            if ( g.hasPL() ) sawPL = true;
+	            if (g.isFiltered()) sawGenotypeFilter = true;
+	        }
+
+	        if ( sawGoodQual ) keys.add(VCFConstants.GENOTYPE_QUALITY_KEY);
+	        if ( sawDP ) keys.add(VCFConstants.DEPTH_KEY);
+	        if ( sawAD ) keys.add(VCFConstants.GENOTYPE_ALLELE_DEPTHS);
+	        if ( sawPL ) keys.add(VCFConstants.GENOTYPE_PL_KEY);
+	        if ( sawGenotypeFilter ) keys.add(VCFConstants.GENOTYPE_FILTER_KEY);
+
+	        List<String> sortedList = ParsingUtils.sortList(new ArrayList<String>(keys));
+
+	        // make sure the GT is first
+	        if ( sawGoodGT ) {
+	            List<String> newList = new ArrayList<String>(sortedList.size()+1);
+	            newList.add(VCFConstants.GENOTYPE_KEY);
+	            newList.addAll(sortedList);
+	            sortedList = newList;
+	        }
+
+	        if ( sortedList.isEmpty() && header.hasGenotypingData() ) {
+	            // this needs to be done in case all samples are no-calls
+	            return Collections.singletonList(VCFConstants.GENOTYPE_KEY);
+	        } else {
+	            return sortedList;
+	        }
+		}
+	
 	@Override
 	public void close()
 		{
@@ -266,4 +347,18 @@ public class XMLVcfWriter implements VariantContextWriter
 			}
 		
 		}
+	
+    private static Map<Allele, String> buildAlleleMap(final VariantContext vc) {
+    final Map<Allele, String> alleleMap = new HashMap<Allele, String>(vc.getAlleles().size()+1);
+    alleleMap.put(Allele.NO_CALL, VCFConstants.EMPTY_ALLELE); // convenience for lookup
+
+    final List<Allele> alleles = vc.getAlleles();
+    for ( int i = 0; i < alleles.size(); i++ ) {
+        alleleMap.put(alleles.get(i), String.valueOf(i));
+    }
+
+    return alleleMap;
+}
+
+	
 	}
