@@ -597,10 +597,23 @@ ant vcfbed
 </table>
 
 <h4>Example</h4>
-Map the NCBI biosystems to a BED file using the following script:   
-<script src="https://gist.github.com/6024788.js"></script>
+Map the NCBI biosystems to a BED file using the following script:    <a href="https://gist.github.com/6024788">https://gist.github.com/6024788</a> .
 
-Annotate a VCF with the data of NCBI biosystems.
+```bash
+$ gunzip -c ~/ncbibiosystem.bed.gz | head
+1	69091	70008	79501	106356	30	Signaling_by_GPCR
+1	69091	70008	79501	106383	50	Olfactory_Signaling_Pathway
+1	69091	70008	79501	119548	40	GPCR_downstream_signaling
+1	69091	70008	79501	477114	30	Signal_Transduction
+1	69091	70008	79501	498	40	Olfactory_transduction
+1	69091	70008	79501	83087	60	Olfactory_transduction
+1	367640	368634	26683	106356	30	Signaling_by_GPCR
+1	367640	368634	26683	106383	50	Olfactory_Signaling_Pathway
+1	367640	368634	26683	119548	40	GPCR_downstream_signaling
+1	367640	368634	26683	477114	30	Signal_Transduction
+```
+
+Now, annotate a remote VCF with the data of NCBI biosystems.
 ```bash
 curl "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
  sed 's/^chr//' |\
