@@ -26,7 +26,7 @@ import com.github.lindenb.jvarkit.util.picard.IOUtils;
 public abstract class AbstractVCFFilter
 	extends CommandLineProgram
 	{
-	private final Log LOG=Log.getInstance(AbstractVCFFilter.class);
+	private static final Log LOG=Log.getInstance(AbstractVCFFilter.class);
 	@Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF file/URL to process. Default stdin. ",optional=true)
 	public String IN=null;
 	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="VCF file to generate. Default stdout. ",optional=true)
@@ -37,6 +37,33 @@ public abstract class AbstractVCFFilter
 			VariantContextWriter out
 			) throws IOException;
 	
+	protected  AsciiLineReader createAsciiLineReader() throws IOException
+		{
+		if(IN==null)
+			{
+			LOG.info("reading from stdin");
+			return new AsciiLineReader(System.in);
+			}
+		else
+			{
+			LOG.info("reading from "+IN);
+			return new AsciiLineReader(IOUtils.openURIForReading(IN));
+			}
+		}
+	
+	protected VariantContextWriter createVariantContextWriter() throws IOException
+		{
+		if(OUT==null)
+			{
+			LOG.info("writing to stdout");
+			return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+			}
+		else
+			{
+			return  VariantContextWriterFactory.create(OUT,null,EnumSet.noneOf(Options.class));
+			}
+		}
+	
 	@Override
 	protected int doWork()
 		{
@@ -44,25 +71,8 @@ public abstract class AbstractVCFFilter
 		VariantContextWriter w=null;
 		try
 			{
-			if(IN==null)
-				{
-				LOG.info("reading from stdin");
-				r=new AsciiLineReader(System.in);
-				}
-			else
-				{
-				LOG.info("reading from "+IN);
-				r=new AsciiLineReader(IOUtils.openURIForReading(IN));
-				}
-			if(OUT==null)
-				{
-				LOG.info("writing to stdout");
-				w=VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
-				}
-			else
-				{
-				w=VariantContextWriterFactory.create(OUT,null,EnumSet.noneOf(Options.class));
-				}
+			r=this.createAsciiLineReader();
+			w=this.createVariantContextWriter();
 			doWork(r,w);
 			}
 		catch (Exception e)

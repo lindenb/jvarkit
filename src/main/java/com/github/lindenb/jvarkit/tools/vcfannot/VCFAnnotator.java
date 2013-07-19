@@ -48,6 +48,7 @@ import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Log;
 
+import org.broad.tribble.Feature;
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.LineReader;
 import org.broad.tribble.readers.TabixReader;
@@ -64,6 +65,7 @@ import org.xml.sax.helpers.DefaultHandler;
 import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
 import com.github.lindenb.jvarkit.util.GeneticCode;
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 
 
@@ -462,6 +464,7 @@ abstract class AbstractCharSeq implements CharSeq
  */
 class GenomicSequence
 	extends AbstractCharSeq
+	
 	{
 	private String chrom;
 	private byte array[];
@@ -473,6 +476,9 @@ class GenomicSequence
 		this.array=array;
 		this.chromStart0=chromStart0;
 		}
+	
+	
+	
 	
 	public String getChrom()
 		{
@@ -578,325 +584,6 @@ class ProteinCharSequence extends AbstractCharSeq
 		}
 }
 
-
-/**
- * 
- * KnownGene
- *
- */
-class KnownGene
-	{
-	private String name;
-	private String chrom;
-	private char strand;
-	private int txStart;
-	private int txEnd;
-	private int cdsStart;
-	private int cdsEnd;
-	private int exonStarts[];
-	private int exonEnds[];
-	private String geneSymbol;
-	
-	abstract class Segment
-		{
-		private int index;
-		protected Segment(int index)
-			{
-			this.index=index;
-			}
-		
-		public int getIndex()
-			{
-			return index;
-			}
-		
-		public KnownGene getGene()
-			{
-			return KnownGene.this;
-			}
-		
-		public boolean contains(int position)
-			{
-			return getStart()<=position && position< getEnd();
-			}
-		public abstract boolean isSplicingAcceptor(int position);
-		public abstract boolean isSplicingDonor(int position);
-		public boolean isSplicing(int position)
-			{
-			return isSplicingAcceptor(position) || isSplicingDonor(position);
-			}
-		
-		public abstract String getName();
-		public abstract int getStart();
-		public abstract int getEnd();
-		}
-	
-	class Exon extends Segment
-		{
-		private Exon(int index)
-			{
-			super(index);
-			}
-		
-		@Override
-		public String getName()
-			{
-			if(getGene().getStrand()=='+')
-				{
-				return "Exon "+(getIndex()+1);
-				}
-			else
-				{
-				return "Exon "+(getGene().getExonCount()-getIndex());
-				}
-			}
-		
-		@Override
-		public int getStart()
-			{
-			return getGene().getExonStart(getIndex());
-			}
-		
-		@Override
-		public int getEnd()
-			{
-			return getGene().getExonEnd(getIndex());
-			}
-		
-		@Override
-		public String toString()
-			{
-			return getName();
-			}
-		
-		
-		public Intron getNextIntron()
-			{
-			if(getIndex()+1>=getGene().getExonCount()) return null;
-			return getGene().getIntron(getIndex());
-			}
-		public Intron getPrevIntron()
-			{
-			if(getIndex()<=0) return null;
-			return getGene().getIntron(getIndex()-1);
-			}
-		
-		@Override
-		public boolean isSplicingAcceptor(int position)
-			{
-			if(!contains(position)) return false;
-			if(isForward())
-				{
-				if(getIndex()== 0) return false;
-				return position==getStart();
-				}
-			else
-				{
-				if(getIndex()+1== getGene().getExonCount()) return false;
-				return position==getEnd()-1;
-				}
-			}
-		
-		@Override
-		public boolean isSplicingDonor(int position)
-			{
-			if(!contains(position)) return false;
-			if(isForward())
-				{
-				if(getIndex()+1== getGene().getExonCount()) return false;
-				return  (position==getEnd()-1) ||
-						(position==getEnd()-2) ||
-						(position==getEnd()-3) ;
-				}
-			else
-				{
-				if(getIndex()== 0) return false;
-				return  (position==getStart()+0) ||
-						(position==getStart()+1) ||
-						(position==getStart()+2) ;
-				}
-			}
-		
-		}
-		
-	class Intron extends Segment
-			{
-			Intron(int index)
-				{
-				super(index);
-				}
-			
-			@Override
-			public int getStart()
-				{
-				return getGene().getExonEnd(getIndex());
-				}
-			
-			@Override
-			public int getEnd()
-				{
-				return getGene().getExonStart(getIndex()+1);
-				}
-			
-			@Override
-			public String getName() {
-				if(getGene().isForward())
-					{
-					return "Intron "+(getIndex()+1);
-					}
-				else
-					{
-					return "Intron "+(getGene().getExonCount()-getIndex());
-					}
-				}
-
-			public boolean isSplicingAcceptor(int position)
-				{
-				if(!contains(position)) return false;
-				if(isForward())
-					{
-					return  (position==getEnd()-1) ||
-							(position==getEnd()-2);
-					}
-				else
-					{
-					return	position==getStart() ||
-							position==getStart()+1;
-					}
-				}
-			
-
-			public boolean isSplicingDonor(int position)
-				{
-				if(!contains(position)) return false;
-				if(isForward())
-					{
-					return	position==getStart() ||
-							position==getStart()+1;
-							
-					}
-				else
-					{
-					return  (position==getEnd()-1) ||
-							(position==getEnd()-2);
-					}
-				}
-			
-			}
-	
-		/**
-		 * 
-		 * KnownGene 
-		 * 
-		 */
-		public KnownGene(String tokens[])
-			throws IOException
-			{
-			this.name = tokens[0];
-			this.geneSymbol=tokens[0];
-			this.chrom= tokens[1];
-	        this.strand = tokens[2].charAt(0);
-	        this.txStart = Integer.parseInt(tokens[3]);
-	        this.txEnd = Integer.parseInt(tokens[4]);
-	        this.cdsStart= Integer.parseInt(tokens[5]);
-	        this.cdsEnd= Integer.parseInt(tokens[6]);
-	        int exonCount=Integer.parseInt(tokens[7]);
-	        this.exonStarts = new int[exonCount];
-	        this.exonEnds = new int[exonCount];
-	            
-            
-            int index=0;
-            for(String s: tokens[8].split("[,]"))
-            	{
-            	this.exonStarts[index++]=Integer.parseInt(s);
-            	}
-            index=0;
-            for(String s: tokens[9].split("[,]"))
-            	{
-            	this.exonEnds[index++]=Integer.parseInt(s);
-            	}
-			}
-		
-		/** returns knownGene ID */
-		public String getName()
-			{
-			return this.name;
-			}
-		
-		/** returns chromosome name */
-		public String getChromosome()
-			{
-			return this.chrom;
-			}
-		
-		/** returns the strand */
-		public char getStrand()
-			{
-			return strand;
-			}
-		boolean isForward()
-        	{
-        	return getStrand()=='+';
-        	}
-
-		public int getTxStart()
-			{
-			return this.txStart;
-			}
-
-		public int getTxEnd()
-			{
-			return this.txEnd;
-			}
-		
-
-		public int getCdsStart()
-			{
-			return this.cdsStart;
-			}
-		
-
-		public int getCdsEnd()
-			{
-			return this.cdsEnd;
-			}
-		
-
-		public int getExonStart(int index)
-			{
-			return this.exonStarts[index];
-			}
-		
-
-		public int getExonEnd(int index)
-			{
-			return this.exonEnds[index];
-			}
-		
-
-		public Exon getExon(int index)
-			{
-			return new Exon(index);
-			}
-		public Intron getIntron(int i)
-			{
-			return new Intron(i);
-			}
-		public int getExonCount()
-			{
-			return this.exonStarts.length;
-			}
-		public String getGeneSymbol()
-			{
-			return geneSymbol;
-			}
-		
-		public void setGeneSymbol(String geneSymbol)
-			{
-			this.geneSymbol = geneSymbol;
-			}
-		
-		}
 
 
 /*************************************************************************************/

@@ -476,7 +476,8 @@
 		name="bam4deseq01"
 		/>
 </target>		
-	
+
+
 	
 		
 	
@@ -650,6 +651,15 @@
 		name="vcfbed"
 		/>
 </target>
+
+<target name="fixvcf" >
+	<compile-with-picard 
+		java="**/FixVCF.java"
+		main="com.github.lindenb.jvarkit.tools.misc.FixVCF"
+		name="fixvcf"
+		/>
+</target>		
+
 
 
 <target name="biostar" depends="biostar76892">

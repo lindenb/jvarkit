@@ -1,12 +1,9 @@
 package com.github.lindenb.jvarkit.tools.vcftribble;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -18,10 +15,10 @@ import org.broad.tribble.CloseableTribbleIterator;
 import org.broad.tribble.Feature;
 import org.broad.tribble.FeatureCodec;
 import org.broad.tribble.FeatureCodecHeader;
+import org.broad.tribble.Tribble;
 import org.broad.tribble.TribbleIndexedFeatureReader;
 import org.broad.tribble.index.Index;
 import org.broad.tribble.index.IndexFactory;
-import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.LineReader;
 import org.broad.tribble.readers.PositionalBufferedStream;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -29,17 +26,16 @@ import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
+import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed.Chunk;
-import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed.ColChunk;
-import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed.PlainChunk;
 import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
 
 
 
 
-
+@SuppressWarnings("unchecked")
 public class VcfTribble extends AbstractVCFFilter
 	{
 	 private static Log LOG=Log.getInstance(VcfTribble.class); 
@@ -56,9 +52,15 @@ public class VcfTribble extends AbstractVCFFilter
 	@Option(shortName="T",doc="Key for the INFO field",optional=true)
 	public String TAG="TAG";
 	
+	private char columnDelim='\t';
+	private int column_chrom=0;
+	private int column_start=1;
+	private int column_end=2;
+	
+	
 	private static abstract class Chunk
 		{
-		public abstract String toString(String tokens[]);
+		public abstract String toString(List<String> tokens);
 		public Chunk next=null;
 		}
 	
@@ -66,7 +68,7 @@ public class VcfTribble extends AbstractVCFFilter
 		{
 		String s;
 		PlainChunk(String s){this.s=s;}
-		public String toString(String tokens[])
+		public String toString(List<String> tokens)
 			{
 			return s+(next==null?"":next.toString(tokens));
 			}
@@ -75,9 +77,9 @@ public class VcfTribble extends AbstractVCFFilter
 		{
 		int index;
 		ColChunk(int index){ this.index=index;}
-		public String toString(String tokens[])
+		public String toString(List<String> tokens)
 			{
-			return tokens[index]+(next==null?"":next.toString(tokens));
+			return tokens.get(index)+(next==null?"":next.toString(tokens));
 			}
 		}
 
@@ -132,16 +134,50 @@ public class VcfTribble extends AbstractVCFFilter
 		implements FeatureCodec<MyFeature>
 		{
 		@Override
-		public boolean canDecode(String arg0)
+		public boolean canDecode(String filename)
 			{
-			// TODO Auto-generated method stub
-			return false;
+			return true;
+			}
+		private List<String> nextLine(PositionalBufferedStream in)
+			throws IOException
+			{
+			List<String> tokens=null;
+			StringBuilder currStr=null;
+			int c;
+			while((c=in.read())!=-1 && c!='\n')
+				{
+				if(c==columnDelim)
+					{
+					if(tokens==null)
+						{
+						tokens=new ArrayList<String>();
+						tokens.add("");//first character was a delimiter
+						}
+					if(currStr!=null) tokens.add(currStr.toString());
+					currStr=null;
+					continue;
+					}
+				if(currStr!=null) currStr=new StringBuilder();
+				currStr.append((char)c);
+				}
+			if(currStr!=null)
+				{
+				if(tokens==null) tokens=new ArrayList<String>();
+				tokens.add(currStr.toString());
+				}
+			return tokens;
 			}
 		@Override
 		public MyFeature decode(PositionalBufferedStream in)
 				throws IOException
 			{
-			// TODO Auto-generated method stub
+			List<String> tokens;
+			while((tokens=nextLine(in))!=null)
+				{
+				if(tokens.isEmpty()) continue;
+				if(tokens.get(0).startsWith("#")) continue;
+				return new MyFeature(tokens);
+				}
 			return null;
 			}
 		
@@ -155,64 +191,91 @@ public class VcfTribble extends AbstractVCFFilter
 			return MyFeature.class;
 			}
 		@Override
-		public FeatureCodecHeader readHeader(PositionalBufferedStream arg0)
+		public FeatureCodecHeader readHeader(PositionalBufferedStream in)
 				throws IOException
 			{
-			// TODO Auto-generated method stub
-			return null;
+			StringBuilder b=new StringBuilder();
+			for(;;)
+				{
+				int c=in.peek();
+				if(c==-1  || c!='#') break;
+				while((c=in.read())!=-1 && c!='\n')
+					{
+					b.append((char)c);
+					}
+				}
+			return new FeatureCodecHeader(b.toString(),in.getPosition());
 			}
 		}
 	
 	private class MyFeature
 		implements Feature
 		{
-		String tokens[];
+		List<String> tokens;
+		
+		MyFeature(List<String> tokens)
+			{
+			this.tokens=tokens;
+			}
+		
 		@Override
 		public String getChr()
 			{
-			// TODO Auto-generated method stub
-			return null;
+			return this.tokens.get(column_chrom);
 			}
 		
 		@Override
 		public int getStart()
 			{
-			// TODO Auto-generated method stub
-			return 0;
+			return Integer.parseInt(this.tokens.get(column_start));
 			}
 		
 		@Override
 		public int getEnd()
 			{
-			// TODO Auto-generated method stub
-			return 0;
+			return  Integer.parseInt(this.tokens.get(column_end));
 			}
 		
 		}
 	
+	@SuppressWarnings("rawtypes")
 	@Override
 	protected void doWork(LineReader in, VariantContextWriter w)
 			throws IOException
 		{
 		VCFCodec codeIn1=new VCFCodec();	
-		VCFCodec codeIn3=new VCFCodec();	
 		String line;
 		Chunk parsedFormat=parseFormat(this.FORMAT);
 		if(parsedFormat==null)parsedFormat=new PlainChunk("");
 
-		StringWriter sw=new StringWriter();
 		LOG.info("opening "+this.TRIBBLE);
 		
 		MyFeatureCodec tribbleCodec=new MyFeatureCodec();
 		
-		Index tribbleIndex=IndexFactory.createLinearIndex(TRIBBLE, tribbleCodec);
+		 Index tribbleIndex=null;
+		 File idxFile = Tribble.indexFile(this.TRIBBLE);
+		 if(idxFile.exists() && idxFile.lastModified()>=this.TRIBBLE.lastModified())
+		 	{
+			LOG.info("loading index in memory for "+this.TRIBBLE);
+			tribbleIndex=IndexFactory.createLinearIndex(TRIBBLE, tribbleCodec);
+		 	}
+		 else
+		 	{
+			LOG.info("loading index from file "+this.TRIBBLE);
+			tribbleIndex=IndexFactory.loadIndex(idxFile.getPath());
+		 	}
 		
-	    TribbleIndexedFeatureReader<MyFeature> tribbleReader= new TribbleIndexedFeatureReader(this.TRIBBLE.getPath(),tribbleCodec,tribbleIndex);
+		 
+		
+	    TribbleIndexedFeatureReader<MyFeature> tribbleReader= new TribbleIndexedFeatureReader(
+	    		this.TRIBBLE.getPath(),
+	    		tribbleCodec,tribbleIndex
+	    		);
 	   
 		VCFHeader header1=(VCFHeader)codeIn1.readHeader(in);
 		
 		VCFHeader h2=new VCFHeader(header1.getMetaDataInInputOrder(),header1.getSampleNamesInOrder());
-
+		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "metadata added from "+TRIBBLE+" . Format was "+FORMAT));
 		
 		w.writeHeader(h2);
 		while((line=in.readLine())!=null)
@@ -222,8 +285,8 @@ public class VcfTribble extends AbstractVCFFilter
 
 			
 			
-			List<VariantContext> variantsList=new ArrayList<VariantContext>();
-			CloseableTribbleIterator<MyFeature> iter= (CloseableTribbleIterator<MyFeature>)tribbleReader.query(
+			
+			CloseableTribbleIterator<MyFeature> iter= tribbleReader.query(
 					ctx.getChr(),
 					ctx.getStart(),
 					ctx.getEnd()
@@ -231,8 +294,7 @@ public class VcfTribble extends AbstractVCFFilter
 			while(iter.hasNext())
 				{
 				MyFeature feat=iter.next();
-				String tokens[]=feat.tokens;
-				String newannot=parsedFormat.toString(tokens);
+				String newannot=parsedFormat.toString(feat.tokens);
 				if(!newannot.isEmpty())
 					annotations.add(newannot.replaceAll("[ , ;=]","_"));
 				
