@@ -27,7 +27,7 @@ import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
 public class VCFTabixml extends AbstractVCFFilter

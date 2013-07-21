@@ -1,9 +1,13 @@
 package com.github.lindenb.jvarkit.tools.vcftrios;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+
+import net.sf.picard.cmdline.Option;
+import net.sf.picard.cmdline.Usage;
+import net.sf.picard.util.Log;
 
 import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.Allele;
@@ -13,60 +17,28 @@ import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
+import org.broadinstitute.variant.vcf.VCFHeaderLineType;
+import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 public class VCFTrios extends AbstractVCFFilter
 	{
-	private Map<String,Map<String,Person> > pedigree;
+	private static final Log LOG = Log.getInstance(VCFTrios.class);
+    @Usage(programVersion="1.0")
+    public String USAGE = getStandardUsagePreamble() + "Find mendelian incompatibilitie in VCF";
+    @Option(shortName="PED", doc=" Pedigree file",optional=false)
+    public File PEDIGREE=null;
+    @Option(shortName="PF", doc="Set filter 'MENDEL' if incompatibilities found.",optional=false)
+    public boolean FILTER=false;
+
 	
-	private class Person
-		{
-		String family;
-		String id;
-		String fatherId=null;
-		String motherId=null;
-		
-		public Map<String,Person> getFamily()
-			{
-			return VCFTrios.this.pedigree.get(family);
-			}
-		
-		public String getId()
-			{
-			return this.id;
-			}
-		
-		private Person getParent(String s)
-			{
-			if(s==null || s.isEmpty() || s.equals("0")) return null;
-			Map<String,Person> fam=getFamily();
-			if(fam==null) return null;
-			return fam.get(s);
-			}
-		
-		public Person getFather()
-			{
-			return getParent(fatherId);
-			}
-		
-		public Person getMother()
-			{
-			return getParent(motherId);
-			}
-		}
 	
-	private static boolean genotypeHasAllele(final Genotype g,Allele a)
-		{
-		for(Allele A:g.getAlleles())
-			{
-			if(A.equals(a)) return true;
-			}
-		return false;
-		}
 	
-	private boolean childIs(
+	
+	private boolean isChilOf(
 			Allele child1,Allele child2,
 			Allele parent1,Allele parent2)
 		{
@@ -81,31 +53,16 @@ public class VCFTrios extends AbstractVCFFilter
 			Allele father1,Allele father2,
 			Allele mother1,Allele mother2
 			)
-		{
-		return	childIs(child1,child2,father1,mother1) ||
-				childIs(child1,child2,father2,mother1) ||
-				childIs(child1,child2,father1,mother2) ||
-				childIs(child1,child2,father2,mother2)
+		{		
+		return	isChilOf(child1,child2,father1,mother1) ||
+				isChilOf(child1,child2,father2,mother1) ||
+				isChilOf(child1,child2,father1,mother2) ||
+				isChilOf(child1,child2,father2,mother2)
 				;
 		}
 	
 	private boolean trio(Genotype child,Genotype father,Genotype mother)
 		{
-		Set<Allele> childL=new HashSet<Allele>(child.getAlleles());
-		Set<Allele> motherL=new HashSet<Allele>(mother.getAlleles());
-		Set<Allele> fatherL=new HashSet<Allele>(father.getAlleles());
-		
-		Set<Allele> fromHisFather=new HashSet<Allele>(childL);
-		fromHisFather.retainAll(fatherL);
-		if(fromHisFather.isEmpty()) return false;
-		
-		Set<Allele> fromHisMother=new HashSet<Allele>(childL);
-		fromHisMother.retainAll(motherL);
-		if(fromHisMother.isEmpty()) return false;
-		
-		
-		
-		
 		return	trio(
 				child.getAllele(0),child.getAllele(1),
 				father.getAllele(0),father.getAllele(1),
@@ -136,10 +93,13 @@ public class VCFTrios extends AbstractVCFFilter
 	protected void doWork(LineReader r, VariantContextWriter w)
 			throws IOException
 		{
+		LOG.info("reading pedigree");
+		Pedigree pedigree=Pedigree.readPedigree(PEDIGREE);
+		
 		VCFCodec codeIn=new VCFCodec();		
 		VCFHeader header=(VCFHeader)codeIn.readHeader(r);
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),"TODO"));
+		h2.addMetaDataLine(new VCFInfoHeaderLine("MENDEL", VCFHeaderLineCount.INTEGER, VCFHeaderLineType.String, "mendelian incompatibilities. PEd file: "+PEDIGREE));
 		w.writeHeader(h2);
 		String line;
 		
@@ -147,18 +107,37 @@ public class VCFTrios extends AbstractVCFFilter
 			{
 			VariantContext ctx=codeIn.decode(line);
 			Set<String> incompatibilities=new HashSet<String>();
-			for(Map<String,Person> family:pedigree.values())
+			
+			
+			for(Pedigree.Family f:pedigree.getFamilies())
 				{
-				for(Person child:family.values())
+				for(Pedigree.Person child:f.getIndividuals())
 					{
 					Genotype gChild=ctx.getGenotype(child.getId());
 					if(gChild==null) continue;
-					Person parent=child.getFather();
+					if(gChild.getAlleles().size()!=2)
+						{
+						LOG.warn(getClass().getSimpleName()+" only handle two alleles");
+						continue;
+						}
+					
+					Pedigree.Person parent=child.getFather();
 					Genotype gFather=(parent==null?null:ctx.getGenotype(parent.getId()));
+					if(gFather!=null && gFather.getAlleles().size()!=2)
+						{
+						LOG.warn(getClass().getSimpleName()+" only handle two alleles");
+						gFather=null;
+						}
 					if(gFather!=null && !gFather.isCalled()) gFather=null;
 					parent=child.getMother();
 					Genotype gMother=(parent==null?null:ctx.getGenotype(parent.getId()));
 					if(gMother!=null && !gMother.isCalled()) gMother=null;
+					if(gMother!=null && gMother.getAlleles().size()!=2)
+						{
+						LOG.warn(getClass().getSimpleName()+" only handle two alleles");
+						gMother=null;
+						}
+					
 					boolean is_ok=true;
 					if(gFather!=null && gMother!=null)
 						{
@@ -184,14 +163,11 @@ public class VCFTrios extends AbstractVCFFilter
 				continue;
 				}
 			VariantContextBuilder b=new VariantContextBuilder(ctx);
-			b.filter("MENDEL");
+			if( FILTER) b.filter("MENDEL");
 			b.attribute("MENDEL", incompatibilities.toArray());
 			}		
 		}
 
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args)
 		{
 		new VCFTrios().instanceMainWithExit(args);

@@ -82,6 +82,16 @@
 	   		<include name="@{java}"/>
 	   </javac>
 	   
+	 <loadfile
+	      property="git.master.hash"
+	      srcFile=".git/refs/heads/master"
+	 	  failonerror="false"
+	 	  >
+	      <filterchain>
+	        <striplinebreaks/>
+	      </filterchain>
+	    </loadfile>
+		
 	   <pathconvert property="manifest_@{name}" pathsep=" " >
 			 <path refid="picard.lib"/>
 	   </pathconvert>  
@@ -91,6 +101,7 @@
 		     <manifest>
 		       <attribute name="Main-Class" value="@{main}"/>
 		        <attribute name="Class-Path" value="${manifest_@{name}}"/>
+		    	<attribute name="Git-Hash" value="${git.master.hash}"/>
 		     </manifest>
 	 	</jar>
 	   
@@ -660,6 +671,13 @@
 		/>
 </target>		
 
+<target name="vcftrio">
+	<compile-with-picard 
+		java="**/VCFTrios.java"
+		main="com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios"
+		name="vcftrio"
+		/>
+</target>
 
 
 <target name="biostar" depends="biostar76892">
@@ -756,5 +774,16 @@
 	
 
  </target>
+	
+
+<target name="ant.git">
+		   <mkdir dir="tmp"/>
+		   <mkdir dir="dist"/>		   	   
+		   <javac destdir="tmp" includeAntRuntime="true" debug="true">
+		   		<src path="src/main/java"/>
+		   		<include name="**/GitTask.java"/>
+		   </javac>
+
+</target>	
 
 </project>

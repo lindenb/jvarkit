@@ -27,11 +27,11 @@ import net.sf.picard.util.Log;
 
 
 import com.github.lindenb.jvarkit.lang.Function;
-import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
 import com.github.lindenb.jvarkit.util.biomart.BiomartQuery;
 import com.github.lindenb.jvarkit.util.doid.DiseaseOntoglogyTree;
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.IntervalTreeMapFactory;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 	{

@@ -14,7 +14,8 @@ import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
-import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
+
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
 public class VCFStripAnnotations extends AbstractVCFFilter

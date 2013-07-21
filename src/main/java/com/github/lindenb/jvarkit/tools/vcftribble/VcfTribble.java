@@ -30,7 +30,7 @@ import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
 

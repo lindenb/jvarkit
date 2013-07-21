@@ -29,7 +29,7 @@ import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
-import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
 public class VCFFilterJS extends AbstractVCFFilter

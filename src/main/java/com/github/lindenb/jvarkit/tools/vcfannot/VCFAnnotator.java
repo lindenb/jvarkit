@@ -62,10 +62,10 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-import com.github.lindenb.jvarkit.util.AbstractVCFFilter;
 import com.github.lindenb.jvarkit.util.GeneticCode;
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
 
