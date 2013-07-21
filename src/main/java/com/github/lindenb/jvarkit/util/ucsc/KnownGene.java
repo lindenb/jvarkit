@@ -385,7 +385,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 		
 		public List<Exon> getExons()
 			{
-			List<Exon> L=new ArrayList<>(getExonCount());
+			List<Exon> L=new ArrayList<Exon>(getExonCount());
 			for(int i=0;i< getExonCount();++i)
 				{	
 				L.add(getExon(i));

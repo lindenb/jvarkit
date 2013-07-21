@@ -62,7 +62,9 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.GeneticCode;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
@@ -418,118 +420,9 @@ class VCFFile
 	}
 
 
-/** CharSeq a simple string impl */
-interface CharSeq
-	{
-	public int length();
-	public char charAt(int i);
-	}
-
-/**
- * Abstract implementation of CharSeq
- */
-abstract class AbstractCharSeq implements CharSeq
-	{
-	AbstractCharSeq()
-		{
-		}
-	
-	@Override
-	public int hashCode()
-		{
-		return getString().hashCode();
-		}
-	
-	public String getString()
-		{
-		StringBuilder b=new StringBuilder(length());
-		for(int i=0;i< length();++i) b.append(charAt(i));
-		return b.toString();
-		}
-	
-	@Override
-	public String toString()
-		{
-		return getString();
-		}
-	}
 
 
-
-
-/**
- * 
- * A GenomicSequence
- *
- */
-class GenomicSequence
-	extends AbstractCharSeq
-	
-	{
-	private String chrom;
-	private byte array[];
-	private int chromStart0;
-	
-	public GenomicSequence(byte array[],String chrom,int chromStart0)
-		{	
-		this.chrom=chrom;
-		this.array=array;
-		this.chromStart0=chromStart0;
-		}
-	
-	
-	
-	
-	public String getChrom()
-		{
-		return chrom;
-		}
-	public int getChromStart()
-		{
-		return chromStart0;
-		}
-	public int getChromEnd()
-		{
-		return getChromStart()+array.length;
-		}
-	
-	@Override
-	public int length()
-		{
-		return getChromEnd();
-		}
-	
-	@Override
-	public char charAt(int index0)
-		{
-		if(index0 < getChromStart() || index0 >=getChromEnd())
-			{
-			throw new IndexOutOfBoundsException("index:"+index0);
-			}
-		return (char)(array[index0-chromStart0]);
-		}
-	}
-
-
-class DefaultCharSeq extends AbstractCharSeq
-	{
-	private CharSequence seq;
-	DefaultCharSeq(CharSequence seq)
-		{
-		this.seq=seq;
-		}
-	@Override
-	public char charAt(int i)
-		{
-		return seq.charAt(i);
-		}
-	@Override
-	public int length() {
-		return seq.length();
-		}
-	}
-
-class MutedSequence extends AbstractCharSeq
+class MutedSequence extends AbstractCharSequence
 	{
 	private CharSequence wild;
 	private Map<Integer, Character> pos2char=new TreeMap<Integer, Character>();
@@ -558,11 +451,11 @@ class MutedSequence extends AbstractCharSeq
 	}
 
 
-class ProteinCharSequence extends AbstractCharSeq
+class ProteinCharSequence extends AbstractCharSequence
 	{
-	private CharSeq cDNA;
+	private CharSequence cDNA;
 	private GeneticCode geneticCode;
-	ProteinCharSequence(GeneticCode geneticCode,CharSeq cDNA)
+	ProteinCharSequence(GeneticCode geneticCode,CharSequence cDNA)
 		{
 		this.geneticCode=geneticCode;
 		this.cDNA=cDNA;
@@ -656,8 +549,8 @@ class PredictionAnnotator implements Closeable
 			final List<KnownGene> genes)
 			throws IOException
 			{
-			String genomicSeq=null;
-           int position= ctx.getStart()-1;
+			GenomicSequence genomicSeq=null;
+            int position= ctx.getStart()-1;
 
             String ref=ctx.getReference().getDisplayString();
 
@@ -710,7 +603,6 @@ class PredictionAnnotator implements Closeable
             		(alt.equals("A") || alt.equals("T") || alt.equals("G") || alt.equals("C"))
             		)
 	        		{
-	        		LOG.info("fetch genome");
             		GeneticCode geneticCode=GeneticCode.getByChromosome(gene.getChromosome());
 	        		StringBuilder wildRNA=null;
 	        		ProteinCharSequence wildProt=null;
@@ -719,48 +611,18 @@ class PredictionAnnotator implements Closeable
 	        		int position_in_cdna=-1;
 	        		
 	        		
-	        		if(genomicSeq==null ||
-	        	               !gene.getChromosome().equals(genomicSeq.getChrom()) ||
-	        	               !(genomicSeq.getChromStart()<=gene.getTxStart() && gene.getTxEnd()<= genomicSeq.getChromEnd())
-	        	               )
+	        		if(genomicSeq==null ||   !gene.getChromosome().equals(genomicSeq.getChrom())   )
     	            	{
-    	            	final int maxTry=20;
-    	            	for(int tryCount=1;tryCount<=maxTry;++tryCount)
-    	            		{
-    	            		genomicSeq=null;
-    	            		try
-    	            			{
-    	            			genomicSeq=this.indexedFastaSequenceFile.getSequence(
-			    	            		gene.getChromosome(),
-			    	            		Math.max(gene.getTxStart()+1,0),
-			    	            		gene.getTxEnd()
-			    	            		);
-	    	          
-    	            			}
-    	            		catch (Exception e)
-    	            			{
-								LOG.info("Cannot get DAS-DNA sequence "+e.getMessage());
-								genomicSeq=null;
-								}
-    	            		if(genomicSeq!=null)
-    	            			{
-    	            			break;
-    	            			}
-    	            		LOG.info("try to get DAS-DNA "+(tryCount)+"/"+maxTry);
-    	            		}
-    	            	if(genomicSeq==null)
-    	            		{
-    	            		throw new IOException("Cannot get DAS-DNA");
-    	            		}
+    	            	genomicSeq=new GenomicSequence(indexedFastaSequenceFile,gene.getChromosome());
     	            	}
 	        		
 	        		if(!String.valueOf(genomicSeq.charAt(position)).equalsIgnoreCase(ref))
 	        			{
 	        			System.err.println("Warning REF!=GENOMIC SEQ!!! at "+genomicSeq.charAt(position)+"/"+ref);
-	        			return;
+	        			return ctx;
 	        			}
 	        		
-	        		if(gene.isForward())
+	        		if(gene.isPositiveStrand())
 	            		{
 	            		if(position < gene.getCdsStart())
 	            			{
@@ -826,7 +688,7 @@ class PredictionAnnotator implements Closeable
 	            				
 	            				if(wildRNA.length()%3==0 && wildRNA.length()>0 && wildProt==null)
 		            				{
-		            				wildProt=new ProteinCharSequence(geneticCode,new DefaultCharSeq(wildRNA));
+		            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
 		            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
 		            				}
 	            				}
@@ -921,7 +783,7 @@ class PredictionAnnotator implements Closeable
 	            					wildRNA.length()>0 &&
 	            					wildProt==null)
 		            				{
-		            				wildProt=new ProteinCharSequence(geneticCode,new DefaultCharSeq(wildRNA));
+		            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
 		            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
 		            				}
 	            				
@@ -997,7 +859,7 @@ class PredictionAnnotator implements Closeable
 	        		
 	        		
 	        		
-	        		if(gene.isForward())
+	        		if(gene.isPositiveStrand())
 	            		{
 	            		if(position < gene.getCdsStart())
 	            			{

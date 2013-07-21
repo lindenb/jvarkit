@@ -1,5 +1,6 @@
 package com.github.lindenb.jvarkit.tools.vcfdo;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -47,7 +48,9 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 	
 	protected DiseaseOntoglogyTree diseaseOntoglogyTree;
 	protected Map<Integer,Set<DiseaseOntoglogyTree.Term>> gene2doid=new HashMap<Integer,Set<DiseaseOntoglogyTree.Term>>();
+	protected Map<String,Set<DiseaseOntoglogyTree.Term>> ensemblProtein2doid=new HashMap<String,Set<DiseaseOntoglogyTree.Term>>();
 	private IntervalTreeMap<Integer> ncbiGeneMap;
+	private IntervalTreeMap<String> ensemblProteinMap;
 
 	
 	protected void readDiseaseOntoglogyTree() throws IOException
@@ -62,6 +65,17 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 			{
 			throw new IOException(err);
 			}
+		}
+	protected void readJensenLabAnnotations() throws IOException
+		{
+		LOG.info("read DOID-Annotation from "+DOI_ANN);
+		BufferedReader in=IOUtils.openURIForBufferedReading(DOI_ANN);
+		String line;
+		while((line=in.readLine())!=null)
+			{
+			if(!line.startsWith("ENSP")) continue;
+			}
+		in.close();
 		}
 	
 	protected void readDiseaseOntoglogyAnnotations() throws IOException
@@ -136,6 +150,46 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 			throw new IOException(err);
 			}
 		}
+	
+	protected void loadEnsemblProtein() throws IOException
+		{
+	
+		BiomartQuery q=new BiomartQuery();
+		q.setDataSetName("hsapiens_gene_ensembl");
+		q.setAttributes(
+				"chromosome_name",
+				"start_position",
+				"end_position",
+				"ensembl_peptide_id"
+				);
+		q.setUniqRows(true);
+		LOG.info("sending "+q);
+		
+		IntervalTreeMapFactory<String> itf=new IntervalTreeMapFactory<String>();
+		if(REF!=null)
+			{
+			itf.setSamSequenceDictionary(new IndexedFastaSequenceFile(REF).getSequenceDictionary());
+			}
+		itf.setValueFunction(new Function<String[], String>()
+			{
+			@Override
+			public String apply(String[] param)
+				{
+				if(param.length<4 || param[3].isEmpty()) return null;
+				String ensp=param[3];
+				
+				if(!ensemblProtein2doid.containsKey(ensp)) return null;
+				return ensp;
+				}
+			});
+		LOG.info("invoking biomart "+q);
+		LineReader r=q.execute();
+		
+		this.ensemblProteinMap=itf.createIntervalMap(r);
+		r.close();
+		}
+	
+	
 	protected void loadEntrezGenes() throws IOException
 		{
 	
