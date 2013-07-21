@@ -87,9 +87,9 @@
 	      srcFile=".git/refs/heads/master"
 	 	  failonerror="false"
 	 	  >
-	      <filterchain>
-	        <striplinebreaks/>
-	      </filterchain>
+	 	  	<filterchain>
+	 	        <striplinebreaks/>
+			</filterchain>
 	    </loadfile>
 		
 	   <pathconvert property="manifest_@{name}" pathsep=" " >

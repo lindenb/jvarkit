@@ -10,10 +10,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.EnumSet;
 
-import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.util.Log;
+import net.sf.samtools.util.BlockCompressedOutputStream;
 
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.LineReader;
@@ -60,8 +60,15 @@ public abstract class AbstractVCFFilter
 			LOG.info("writing to stdout");
 			return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
 			}
+		else if(OUT.getName().endsWith(".gz"))
+			{
+			LOG.info("writing to "+OUT+" as bgz file.");
+			BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(OUT);
+			return VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
+			}
 		else
 			{
+			LOG.info("writing to "+OUT);
 			return  VariantContextWriterFactory.create(OUT,null,EnumSet.noneOf(Options.class));
 			}
 		}
@@ -80,6 +87,7 @@ public abstract class AbstractVCFFilter
 		catch (Exception e)
 			{
 			LOG.error(e);
+			testRemoteGit();
 			return -1;
 			}
 		finally
