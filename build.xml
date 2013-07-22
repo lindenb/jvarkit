@@ -80,6 +80,7 @@
 
 	   		<classpath refid="picard.lib"/>
 	   		<include name="@{java}"/>
+	   		<include name="**/package-info.java"/>
 	   </javac>
 	   
 	 <loadfile
@@ -686,11 +687,11 @@
 
 <target name="biostar76892"><compile-biostar post="76892"/></target>
 
-<target name="vcfuniprot" depends="api.uniprot">
+<target name="mapuniprot" depends="api.uniprot">
 	<compile-with-picard 
-		java="**/VCFUniprot.java"
-		main="com.github.lindenb.jvarkit.tools.vcfuniprot.VCFUniprot"
-		name="vcfuniprot"
+		java="**/MapUniProtFeatures.java"
+		main="com.github.lindenb.jvarkit.tools.misc.MapUniProtFeatures"
+		name="mapuniprot"
 		/>
 </target>
 

@@ -522,6 +522,9 @@ public class KnownGene implements Iterable<Integer>,Feature
 			
 			public int convertToGenomicCoordinate(int rnaPos0)
 				{
+				if(rnaPos0<0) throw new IllegalArgumentException("negative index:"+rnaPos0);
+				if(rnaPos0>=this.length()) throw new IndexOutOfBoundsException("out of bound index:"+rnaPos0+"<"+this.length());
+				
 				if(getKnownGene().isPositiveStrand())
 					{
 					for(Exon ex:getKnownGene().getExons())
@@ -540,7 +543,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 					}
 				else
 					{
-					for(int idx=getKnownGene().getExonCount()-1;idx<=0;idx--)
+					for(int idx=getKnownGene().getExonCount()-1;idx>=0;idx--)
 						{
 						Exon ex=getExon(idx);
 						if(this.start()>=ex.getEnd()) break;
@@ -592,6 +595,8 @@ public class KnownGene implements Iterable<Integer>,Feature
 			@Override
 			public char charAt(int index0)
 				{
+				if(index0<0) throw new IllegalArgumentException("negative index:"+index0);
+				if(index0>=this.length()) throw new IndexOutOfBoundsException("index:"+index0 +" < "+this.length());
 				int n=convertToGenomicCoordinate(index0);
 				if(n==-1) 	throw new IndexOutOfBoundsException("0<=index:="+index0+"<"+length());
 				if(getKnownGene().isPositiveStrand())
@@ -669,6 +674,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 		
 		public class Peptide extends DelegateCharSequence
 			{
+			private Integer _length=null;
 			private GeneticCode gc;
 			Peptide(GeneticCode gc,CodingRNA rna)
 				{
@@ -680,8 +686,32 @@ public class KnownGene implements Iterable<Integer>,Feature
 				return CodingRNA.class.cast(getDelegate());
 				}
 			@Override
-			public int length() {
-				return getDelegate().length()/3;
+			public int length()
+				{
+				if(_length==null)
+					{
+					_length = getDelegate().length()/3;
+					if(_length==0)
+						{
+						return 0;
+						}
+					int idx1=getCodingRNA().convertToGenomicCoordinate((_length-1)*3+0);
+					int idx2=getCodingRNA().convertToGenomicCoordinate((_length-1)*3+1);
+					int idx3=getCodingRNA().convertToGenomicCoordinate((_length-1)*3+2);
+					if(idx1==-1 || idx2==-1 || idx3==-1)
+						{
+						System.err.println("Bizarre pour "+KnownGene.this.getName()+" "+getStrand());
+						return _length;
+						}
+					
+					char last=this.gc.translate(
+							getCodingRNA().charAt((_length-1)*3+0),	
+							getCodingRNA().charAt((_length-1)*3+1),	
+							getCodingRNA().charAt((_length-1)*3+2)
+							);
+					if(!Character.isLetter(last)) _length--;
+					}
+				return _length;
 				}
 			
 			public char[] getCodon(int pepPos0)
@@ -696,6 +726,9 @@ public class KnownGene implements Iterable<Integer>,Feature
 			
 			public int[] convertToGenomicCoordinates(int pepPos0)
 				{
+				if(pepPos0<0) throw new IndexOutOfBoundsException("negative offset : "+pepPos0);
+				if(pepPos0>=this.length()) throw new IndexOutOfBoundsException(" idx="+pepPos0+" and length="+this.length());
+				
 				return new int[]{
 					getCodingRNA().convertToGenomicCoordinate(pepPos0*3+0),	
 					getCodingRNA().convertToGenomicCoordinate(pepPos0*3+1),	

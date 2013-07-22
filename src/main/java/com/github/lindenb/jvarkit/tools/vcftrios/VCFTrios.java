@@ -31,10 +31,10 @@ public class VCFTrios extends AbstractVCFFilter
 	{
 	private static final Log LOG = Log.getInstance(VCFTrios.class);
     @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + "Find mendelian incompatibilitie in VCF";
+    public String USAGE = getStandardUsagePreamble() + "Find mendelian incompatibilitie in VCF (plink format). ";
     @Option(shortName="PED", doc=" Pedigree file",optional=false)
     public File PEDIGREE=null;
-    @Option(shortName="PF", doc="Set filter 'MENDEL' if incompatibilities found.",optional=false)
+    @Option(shortName="PF", doc="Set filter 'MENDEL' if incompatibilities found. ",optional=false)
     public boolean FILTER=false;
 
 	
