@@ -9,6 +9,11 @@ import java.util.Map;
 import org.broad.tribble.Feature;
 import org.broad.tribble.annotation.Strand;
 
+import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+
 
 public class KnownGene implements Iterable<Integer>,Feature
 	{
@@ -269,6 +274,19 @@ public class KnownGene implements Iterable<Integer>,Feature
 		 * KnownGene 
 		 * 
 		 */
+		public KnownGene()
+			{
+			this.name="";
+			this.chrom="";
+			this.strand='+';
+			this.txStart=0;
+			this.txEnd=0;
+			this.cdsStart=0;
+			this.cdsEnd=0;
+			this.exonStarts=new int[]{0};
+			this.exonEnds=new int[]{0};
+			}
+	
 		public KnownGene(String tokens[])
 			{
 			this.name = tokens[0];
@@ -301,10 +319,18 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.name;
 			}
 		
+		public void setName(String name) {
+			this.name = name;
+		}
+		
 		/** returns chromosome name */
 		public String getChromosome()
 			{
 			return this.chrom;
+			}
+		
+		public void setChrom(String chrom) {
+			this.chrom = chrom;
 			}
 		
 		/** returns the strand */
@@ -317,6 +343,12 @@ public class KnownGene implements Iterable<Integer>,Feature
 				default: return Strand.NONE;
 				}
 			}
+		
+		public void setStrand(char strand)
+			{
+			this.strand = strand;
+			}
+		
 		public boolean isPositiveStrand()
         	{
         	return getStrand()==Strand.POSITIVE;
@@ -327,10 +359,16 @@ public class KnownGene implements Iterable<Integer>,Feature
 	    	return getStrand()==Strand.NEGATIVE;
 	    	}
 
-		
+		public void setTxStart(int txStart) {
+			this.txStart = txStart;
+		}
 		public int getTxStart()
 			{
 			return this.txStart;
+			}
+		
+		public void setTxEnd(int txEnd) {
+			this.txEnd = txEnd;
 			}
 
 		public int getTxEnd()
@@ -338,19 +376,39 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.txEnd;
 			}
 		
-
+		public void setCdsStart(int cdsStart) {
+			this.cdsStart = cdsStart;
+			}
 		public int getCdsStart()
 			{
 			return this.cdsStart;
 			}
 		
-
+		public void setCdsEnd(int cdsEnd) {
+			this.cdsEnd = cdsEnd;
+			}
 		public int getCdsEnd()
 			{
 			return this.cdsEnd;
 			}
 		
 
+		public void setExonBounds(int exonCount,String exonStarts,String exonEnds)
+			{
+			this.exonStarts=new int[exonCount];
+			this.exonEnds=new int[exonCount];
+			int i=0;
+			for(String s: exonStarts.split("[,]"))
+				{
+				this.exonStarts[i++]=Integer.parseInt(s);
+				}
+			i=0;
+			for(String s: exonEnds.split("[,]"))
+				{
+				this.exonEnds[i++]=Integer.parseInt(s);
+				}
+			}
+		
 		public int getExonStart(int index)
 			{
 			return this.exonStarts[index];
@@ -442,5 +500,217 @@ public class KnownGene implements Iterable<Integer>,Feature
 				}
 			}
 		
-	
+		
+		
+		
+		
+		abstract class RNA extends DelegateCharSequence
+			{
+			private Integer _length=null;
+			RNA(CharSequence sequence)
+				{
+				super(sequence);
+				}
+			public final KnownGene getKnownGene()
+				{
+				return KnownGene.this;
+				}
+			protected abstract int start();
+			protected abstract int end();
+			
+		
+			
+			public int convertToGenomicCoordinate(int rnaPos0)
+				{
+				if(getKnownGene().isPositiveStrand())
+					{
+					for(Exon ex:getKnownGene().getExons())
+						{
+						if(this.start()>=ex.getEnd()) continue;
+						if(this.end()<=ex.getStart()) break;
+						int beg=Math.max(this.start(), ex.getStart());
+						int end=Math.min(this.end(), ex.getEnd());
+						int len=end-beg;
+						if(rnaPos0<len)
+							{
+							return beg+rnaPos0;
+							}
+						rnaPos0-=len;
+						}
+					}
+				else
+					{
+					for(int idx=getKnownGene().getExonCount()-1;idx<=0;idx--)
+						{
+						Exon ex=getExon(idx);
+						if(this.start()>=ex.getEnd()) break;
+						if(this.end()<=ex.getStart()) continue;
+						int beg=Math.max(this.start(), ex.getStart());
+						int end=Math.min(this.end(), ex.getEnd());
+						int len=end-beg;
+						if(rnaPos0<len)
+							{
+							return (end-1)-rnaPos0;
+							}
+						rnaPos0-=len;
+						}
+					}
+				return -1;
+				}
+			
+			public Exon getExonAt(int rnaPos0)
+				{
+				for(Exon ex:getKnownGene().getExons())
+					{
+					if(this.start()>=ex.getEnd()) continue;
+					if(this.end()<=ex.getStart()) break;
+					int beg=Math.max(this.start(), ex.getStart());
+					int end=Math.min(this.end(), ex.getEnd());
+					int n=(end-beg);
+					if(rnaPos0<n) return ex;
+					}
+				return null;
+				}
+			
+			@Override
+			public int length()
+				{
+				if(_length==null)
+					{
+					_length=0;
+					for(Exon ex:getKnownGene().getExons())
+						{
+						if(this.start()>=ex.getEnd()) continue;
+						if(this.end()<=ex.getStart()) break;
+						int beg=Math.max(this.start(), ex.getStart());
+						int end=Math.min(this.end(), ex.getEnd());
+						_length+=(end-beg);
+						}
+					}
+				return _length;
+				}
+			@Override
+			public char charAt(int index0)
+				{
+				int n=convertToGenomicCoordinate(index0);
+				if(n==-1) 	throw new IndexOutOfBoundsException("0<=index:="+index0+"<"+length());
+				if(getKnownGene().isPositiveStrand())
+					{
+					return getDelegate().charAt(n);	
+					}
+				else
+					{	
+					return AcidNucleics.complement(getDelegate().charAt(n));	
+					}
+				}
+			
+			}
+		
+		public class CodingRNA  extends RNA
+			{
+			CodingRNA(CharSequence sequence)
+				{
+				super(sequence);
+				}
+			@Override
+			protected  int start()
+				{
+				return getKnownGene().getCdsStart();	
+				}
+			@Override
+			protected  int end()
+				{
+				return getKnownGene().getCdsEnd();	
+				}
+			public Peptide getPeptide()
+				{
+				return new Peptide(GeneticCode.getStandard(), this);
+				}
+			}
+		
+		public CodingRNA getCodingRNA()
+			{
+			return getCodingRNA(new AbstractCharSequence()
+				{
+				@Override
+				public int length() {
+					return KnownGene.this.getTxEnd()+1;
+				}
+				
+				@Override
+				public char charAt(int index) {
+					return 'N';
+				}
+				});
+			}
+		public CodingRNA getCodingRNA(CharSequence genomic)
+			{
+			return new CodingRNA(genomic);
+			}
+		
+		
+		public class MessengerRNA  extends RNA
+			{
+			MessengerRNA(CharSequence sequence)
+				{
+				super(sequence);
+				}
+			@Override
+			protected  int start()
+				{
+				return getKnownGene().getTxStart();	
+				}
+			@Override
+			protected  int end()
+				{
+				return getKnownGene().getTxEnd();	
+				}
+			}
+		
+		public class Peptide extends DelegateCharSequence
+			{
+			private GeneticCode gc;
+			Peptide(GeneticCode gc,CodingRNA rna)
+				{
+				super(rna);
+				this.gc=gc;
+				}
+			public CodingRNA getCodingRNA()
+				{
+				return CodingRNA.class.cast(getDelegate());
+				}
+			@Override
+			public int length() {
+				return getDelegate().length()/3;
+				}
+			
+			public char[] getCodon(int pepPos0)
+				{
+				return new char[]{
+					getCodingRNA().charAt(pepPos0*3+0),	
+					getCodingRNA().charAt(pepPos0*3+1),	
+					getCodingRNA().charAt(pepPos0*3+2)
+					};
+				}
+
+			
+			public int[] convertToGenomicCoordinates(int pepPos0)
+				{
+				return new int[]{
+					getCodingRNA().convertToGenomicCoordinate(pepPos0*3+0),	
+					getCodingRNA().convertToGenomicCoordinate(pepPos0*3+1),	
+					getCodingRNA().convertToGenomicCoordinate(pepPos0*3+2)
+					};
+				}
+			
+			@Override
+			public char charAt(int pepPos0) {
+				return this.gc.translate(
+						getCodingRNA().charAt(pepPos0*3+0),	
+						getCodingRNA().charAt(pepPos0*3+1),	
+						getCodingRNA().charAt(pepPos0*3+2)
+						);
+				}
+			}
+		
 	}

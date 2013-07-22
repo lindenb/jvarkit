@@ -9,6 +9,16 @@ public abstract class AbstractCharSequence
 		return getString().hashCode();
 		}
 	
+	public boolean hasStringValue(String s)
+		{
+		if(s.length()!=this.length()) return false;
+		for(int i=0;i< s.length();++i)
+			{
+			if(this.charAt(i)!=s.charAt(i)) return false;
+			}
+		return true;
+		}
+	
 	public String getString()
 		{
 		StringBuilder b=new StringBuilder(length());

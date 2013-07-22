@@ -676,3 +676,20 @@ ant fixvcf
 <tr><td>OUT=File</td><td>VCF file to generate. Default stdout.</td></tr>
 </table>
 
+<h3>VCFTrio</h3>
+<h4>Motivation</h4>
+Check for mendelian incompatibilities in a VCF
+<h4>Compilation</h4>
+```bash
+ant vcftrio
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>PEDIGREE=File</td><td> Pedigree file (plink format) Required. </td></tr>
+<tr><td>FILTER=Boolean</td><td>Set filter 'MENDEL' if incompatibilities found.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+<tr><td>IN=String</td><td>VCF file/URL to process. Default stdin.   Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
+</table>
+
+

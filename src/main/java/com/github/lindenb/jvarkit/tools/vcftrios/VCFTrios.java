@@ -2,7 +2,9 @@ package com.github.lindenb.jvarkit.tools.vcftrios;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import net.sf.picard.cmdline.Option;
@@ -16,6 +18,7 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFCodec;
+import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -95,77 +98,131 @@ public class VCFTrios extends AbstractVCFFilter
 		{
 		LOG.info("reading pedigree");
 		Pedigree pedigree=Pedigree.readPedigree(PEDIGREE);
+		int count_incompats=0;
 		
 		VCFCodec codeIn=new VCFCodec();		
 		VCFHeader header=(VCFHeader)codeIn.readHeader(r);
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine("MENDEL", VCFHeaderLineCount.INTEGER, VCFHeaderLineType.String, "mendelian incompatibilities. PEd file: "+PEDIGREE));
+		if( FILTER) h2.addMetaDataLine(new VCFFilterHeaderLine("MENDEL", "data filtered with "+this.getCommandLine()));
 		w.writeHeader(h2);
 		String line;
 		
-		while((line=r.readLine())!=null)
+		Map<String,Pedigree.Person> samplename2person=new HashMap<String,Pedigree.Person>(h2.getSampleNamesInOrder().size());
+		for(String sampleName:h2.getSampleNamesInOrder())
 			{
-			VariantContext ctx=codeIn.decode(line);
-			Set<String> incompatibilities=new HashSet<String>();
-			
-			
+			Pedigree.Person p=null;
 			for(Pedigree.Family f:pedigree.getFamilies())
 				{
 				for(Pedigree.Person child:f.getIndividuals())
 					{
-					Genotype gChild=ctx.getGenotype(child.getId());
-					if(gChild==null) continue;
-					if(gChild.getAlleles().size()!=2)
+					if(child.getId().equals(sampleName))
 						{
-						LOG.warn(getClass().getSimpleName()+" only handle two alleles");
-						continue;
-						}
-					
-					Pedigree.Person parent=child.getFather();
-					Genotype gFather=(parent==null?null:ctx.getGenotype(parent.getId()));
-					if(gFather!=null && gFather.getAlleles().size()!=2)
-						{
-						LOG.warn(getClass().getSimpleName()+" only handle two alleles");
-						gFather=null;
-						}
-					if(gFather!=null && !gFather.isCalled()) gFather=null;
-					parent=child.getMother();
-					Genotype gMother=(parent==null?null:ctx.getGenotype(parent.getId()));
-					if(gMother!=null && !gMother.isCalled()) gMother=null;
-					if(gMother!=null && gMother.getAlleles().size()!=2)
-						{
-						LOG.warn(getClass().getSimpleName()+" only handle two alleles");
-						gMother=null;
-						}
-					
-					boolean is_ok=true;
-					if(gFather!=null && gMother!=null)
-						{
-						is_ok=trio(gChild,gFather,gMother);
-						}
-					else if(gFather!=null)
-						{
-						is_ok=duo(gChild,gFather);
-						}
-					else if(gMother!=null)
-						{
-						is_ok=duo(gChild,gMother);
-						}
-					if(!is_ok)
-						{
-						incompatibilities.add(child.getId());
+						if(p!=null)
+							{
+							throw new IllegalArgumentException(sampleName+" found twice in pedigree !");
+							}
+						p=child;
 						}
 					}
 				}
+			if(p==null)
+				{
+				LOG.info("Cannot find "+sampleName+" in "+PEDIGREE);
+				}
+			else
+				{
+				samplename2person.put(sampleName, p);
+				}
+			}
+		
+		LOG.info("persons in pedigree: "+samplename2person.size());
+		while((line=r.readLine())!=null)
+			{
+			VariantContext ctx=codeIn.decode(line);
+			
+			
+			Set<String> incompatibilities=new HashSet<String>();
+			
+			
+			for(Pedigree.Person child:samplename2person.values())
+				{
+				Genotype gChild=ctx.getGenotype(child.getId());
+				if(gChild==null)
+					{
+					LOG.debug("cannot get genotype for child  "+child.getId());
+					continue;
+					}
+				if(!gChild.isCalled())
+					{
+					continue;
+					}
+				if(gChild.getAlleles().size()!=2)
+					{
+					LOG.warn(getClass().getSimpleName()+" only handle two alleles");
+					continue;
+					}
+				
+				Pedigree.Person parent=child.getFather();
+				Genotype gFather=(parent==null?null:ctx.getGenotype(parent.getId()));
+				if(gFather==null && parent!=null)
+					{
+					LOG.debug("cannot get genotype for father  "+parent.getId());
+					}
+				if(gFather!=null && gFather.getAlleles().size()!=2)
+					{
+					LOG.warn(getClass().getSimpleName()+" only handle two alleles");
+					gFather=null;
+					}
+				if(gFather!=null && !gFather.isCalled()) gFather=null;
+				parent=child.getMother();
+				
+				Genotype gMother=(parent==null?null:ctx.getGenotype(parent.getId()));
+				
+				if(gMother==null && parent!=null)
+					{
+					LOG.debug("cannot get genotype for mother  "+parent.getId());
+					}
+				
+				if(gMother!=null && !gMother.isCalled()) gMother=null;
+				if(gMother!=null && gMother.getAlleles().size()!=2)
+					{
+					LOG.warn(getClass().getSimpleName()+" only handle two alleles");
+					gMother=null;
+					}
+				
+				boolean is_ok=true;
+				if(gFather!=null && gMother!=null)
+					{
+					is_ok=trio(gChild,gFather,gMother);
+					}
+				else if(gFather!=null)
+					{
+					is_ok=duo(gChild,gFather);
+					}
+				else if(gMother!=null)
+					{
+					is_ok=duo(gChild,gMother);
+					}
+				if(!is_ok)
+					{
+					incompatibilities.add(child.getId());
+					}
+				}
+				
 			if(incompatibilities.isEmpty())
 				{
+
 				w.add(ctx);
 				continue;
 				}
+			++count_incompats;
 			VariantContextBuilder b=new VariantContextBuilder(ctx);
 			if( FILTER) b.filter("MENDEL");
 			b.attribute("MENDEL", incompatibilities.toArray());
+			w.add(b.make());
 			}		
+		LOG.info("incompatibilities N="+count_incompats);
 		}
 
 	public static void main(String[] args)
