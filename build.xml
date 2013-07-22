@@ -106,11 +106,23 @@
 		     </manifest>
 	 	</jar>
 	   
+		
+		<echo><![CDATA[<h4>Compilation</h4>
+```bash
+ant ]]>@{name}<![CDATA[
+```
+<h4>Options</h4>
+]]></echo>
 		<document-command
 			jar="dist/@{name}.jar"
 			mainclass="@{main}"
 			/>
 	    <delete dir="tmp"/>
+		<echo><![CDATA[<h4>Example</h4>
+```bash
+java -jar dist/]]>@{name}<![CDATA[.jar [options]
+```
+]]></echo>		
 	</sequential>
 </macrodef>
 

@@ -8,427 +8,53 @@
  * Reference:
  *   http://plindenbaum.blogspot.com/2011/01/my-tool-to-annotate-vcf-files.html
  * Motivation:
- * 	Annotate a VCF file with the UCSC data. No SQL Driver required or a local database.
+ * 	Annotate a VCF file with a knownGene structure
  * Compilation:
  */
 package com.github.lindenb.jvarkit.tools.vcfannot;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.io.StringReader;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import java.util.zip.GZIPInputStream;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
 
-import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import net.sf.picard.util.Interval;
+import net.sf.picard.util.IntervalTreeMap;
 import net.sf.picard.util.Log;
+import net.sf.samtools.SAMSequenceRecord;
 
-import org.broad.tribble.Feature;
-import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.LineReader;
-import org.broad.tribble.readers.TabixReader;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFCodec;
-import org.xml.sax.Attributes;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.xml.sax.helpers.DefaultHandler;
+import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLine;
 
-import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
 
-/** a pair chromosome / position */
-class ChromPosition
-	implements Comparable<ChromPosition>
+class MutedSequence extends DelegateCharSequence
 	{
-	private String chromosome;
-	private int position;
-	public ChromPosition(String chromosome,int position)
-		{
-		this.chromosome=chromosome;
-		this.position=position;
-		}
-	
-	public String getChromosome()
-		{
-		return chromosome;
-		}
-	
-	public int getPosition()
-		{
-		return position;
-		}
-	
-	@Override
-	public boolean equals(Object obj)
-		{
-		if (this == obj) { return true; }
-		if (obj == null) { return false; }
-		if (getClass() != obj.getClass()) { return false; }
-		ChromPosition other = (ChromPosition) obj;
-		if (position != other.position) { return false; }
-		if (!chromosome.equalsIgnoreCase(other.chromosome)) { return false; }
-		return true;
-		}
-	
-	@Override
-	public int hashCode()
-		{
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + chromosome.hashCode();
-		result = prime * result + position;
-		return result;
-		}
-	
-	@Override
-	public int compareTo(ChromPosition o)
-		{
-		int i= getChromosome().compareToIgnoreCase(o.getChromosome());
-		if(i!=0) return i;
-		return getPosition()-o.getPosition();
-		}
-	@Override
-	public String toString()
-		{
-		return getChromosome()+":"+getPosition();
-		}
-	}
-
-/**
- * A record in a VCF file
- */
-class VCFCall
-	implements Comparable<VCFCall> //order by chromPosition
-	{
-	@SuppressWarnings("unused")
-	private static Logger LOG=Logger.getLogger("vcf.annotator");
-	/** the position */
-	private ChromPosition chromPosition;
-	/** columns in the VCF */
-	private String columns[];
-	
-	/** cstor */
-	VCFCall(String columns[])
-		{
-		this.columns=columns;
-		if(!columns[0].toLowerCase().startsWith("chr"))
-			{
-			columns[0]="chr"+columns[0];
-			}
-		this.chromPosition=new ChromPosition(columns[0], Integer.parseInt(columns[1]));
-		}
-	
-	/** get the columns from the VCF line */
-	public String[] getColumns()
-		{
-		return columns;
-		}
-	
-	/** get the position */
-	public ChromPosition getChromPosition()
-		{
-		return this.chromPosition;
-		}
-	/** compare by position */
-	@Override
-	public int compareTo(VCFCall o)
-		{
-		return getChromPosition().compareTo(o.getChromPosition());
-		}
-	/** returns the VCF line */
-	public String getLine()
-		{
-		StringBuilder line=new StringBuilder(100);
-		for(int i=0;i< columns.length;++i)
-			{
-			if(i!=0) line.append("\t");
-			line.append(columns[i]);
-			}
-		return line.toString();
-		}
-	
-	
-	@Override
-	public String toString()
-		{
-		return getLine();
-		}
-	
-	public void addProperties(String opcode,Map<String, String> map)
-		{
-		StringBuilder b=new StringBuilder();
-		boolean first=true;
-		for(String key:map.keySet())
-			{
-			if(!first) b.append("|");
-			first=false;
-			b.append(key);
-			b.append(":");
-			b.append(map.get(key));
-			}
-		addProperty(opcode, b.toString());
-		}
-	
-	public void addProperty(String key,String value)
-		{
-		if(columns[7].equals(".")) columns[7]="";	
-		if(!columns[7].isEmpty()) this.columns[7]+=";";
-		columns[7]+=(key+"="+value);
-		}
-	
-	public void addId(String newId)
-		{
-		String rsId= this.getColumns()[2];
-		if(rsId.equals(".")) rsId="";
-		Set<String> set=new HashSet<String>(Arrays.asList(rsId.split("[;]")));
-		
-		set.remove("");
-		set.add(newId);
-		rsId="";
-		for(String s:set)
-			{
-			if(!rsId.isEmpty()) rsId+=";";
-			rsId+=s;
-			}
-		this.getColumns()[2]=rsId;
-		}
-	}
-
-/**
- * A VCF file
- * @author pierre
- *
- */
-class VCFFile
-	{
-	private static Logger LOG=Logger.getLogger("vcf.annotator");
-	//private static final String DEFAULT_HEADER="#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSample";
-	private List<String> headers=new ArrayList<String>();
-	private List<VCFCall> calls=new ArrayList<VCFCall>(10000);
-	
-	public VCFFile()
-		{
-		
-		}
-	
-	public List<String> getHeaders()
-		{
-		return headers;
-		}
-	
-	public List<VCFCall> getCalls()
-		{
-		return calls;
-		}
-	
-	public  int lowerBound( ChromPosition position)
-		{
-		return lowerBound(0, getCalls().size(), position);
-		}
-    /** C+ lower_bound */
-    public  int lowerBound(
-                int first, int last,
-                ChromPosition position
-                )
-        {
-        int len = last - first;
-        while (len > 0)
-                {
-                int half = len / 2;
-                int middle = first + half;
-                VCFCall call= getCalls().get(middle);
-                if ( call.getChromPosition().compareTo(position) < 0  )
-                        {
-                        first = middle + 1;
-                        len -= half + 1;
-                        }
-                else
-                        {
-                        len = half;
-                        }
-                }
-   
-        return first;
-        }
-    /** get the calls at given position */
-	public List<VCFCall> get(ChromPosition pos)
-    	{
-    	int i=lowerBound(0,getCalls().size(),pos);
-    	List<VCFCall> array=new ArrayList<VCFCall>(5);
-    	while(i< getCalls().size())
-    		{
-    		VCFCall call=getCalls().get(i);
-    		if(!call.getChromPosition().equals(pos)) break;
-    		array.add(call);
-    		++i;
-    		}
-    	return array;
-    	}
-	
-	/** prints the VCF line */
-	public void print(PrintWriter out)
-		{
-		for(String header:getHeaders())
-			{
-			out.println(header);
-			}
-		for(VCFCall c:getCalls())
-			{
-			out.println(c.getLine());
-			}
-		out.flush();
-		}
-	
-	/** read VCF file */
-	private void read(BufferedReader in)
-	throws IOException
-		{
-		Pattern tab=Pattern.compile("[\t]");
-		String line;
-		while((line=in.readLine())!=null)
-			{
-			LOG.info(line);
-			if(!line.startsWith("#")) break;
-			this.headers.add(line);
-			}
-		
-		if(!headers.isEmpty())
-			{
-			final String fmt="##fileformat=VCFv";
-			String first= headers.get(0);
-			
-			if(first.startsWith("##format"))
-				{
-				first="##file"+first.substring(2);
-				}
-			
-			if(!(first.startsWith(fmt)))
-				{
-				throw new IOException("firt line should starts with "+fmt);
-				}
-			String last=headers.get(headers.size()-1);
-			if(!last.startsWith("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO"))
-				{
-				throw new IOException("Error in header got "+line+" but expected "+
-						"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO");
-				}
-			}
-		else
-			{
-			this.headers.add("##fileformat=VCFv4.0");
-			this.headers.add("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSample");
-			}
-		
-		while(line!=null)
-			{
-			//LOG.info(line);
-			if(line.startsWith("#")) throw new IOException("line starting with # after header!"+line);
-			String tokens[]=tab.split(line);
-			if(tokens.length<8) throw new IOException("illegal number of columns in "+line);
-			getCalls().add(new VCFCall(tokens));
-			line=in.readLine();
-			}
-		
-		Collections.sort(getCalls());
-		LOG.info("vcf:"+getCalls().size()+" calls");
-		}
-	
-	public Set<String> getChromosomes()
-		{
-		Set<String> set=new HashSet<String>();
-		for(VCFCall c: getCalls())
-			{
-			set.add(c.getChromPosition().getChromosome());
-			}
-		LOG.info(set.toString());
-		return set;
-		}
-	
-	public void addHeader(String key,String value)
-		{
-		while(!key.startsWith("##")) key="#"+key;
-		String line= key+"="+value;
-		if(this.headers.contains(line)) return;
-		this.headers.add(this.headers.size()-1,line);
-		}
-	
-	public void addInfo(
-		String id,Integer number,String type,String desc)
-		{
-		String line;
-		if(this.headers.get(0).startsWith("##fileformat=VCFv4"))
-			{
-			line="<ID="+id+",Number="+(number==null?".":number.toString())+
-				",Type="+type+",Description=\""+desc+"\">";
-			}
-		else if(this.headers.get(0).startsWith("##fileformat=VCFv3"))
-			{
-			line=id+","+(number==null?".":number.toString())+
-			","+type+",\""+desc+"\"";
-			}
-		else
-			{
-			throw new IllegalArgumentException("VCF format not handled. "+this.headers.get(0));
-			}
-		addHeader("##INFO",line);
-		}
-	
-	
-	
-	public static VCFFile parse(BufferedReader in)
-	throws IOException
-		{
-		VCFFile vcf=new VCFFile();
-		vcf.read(in);
-		return vcf;
-		}
-	}
-
-
-
-
-class MutedSequence extends AbstractCharSequence
-	{
-	private CharSequence wild;
 	private Map<Integer, Character> pos2char=new TreeMap<Integer, Character>();
 	MutedSequence(CharSequence wild)
 		{
-		this.wild=wild;
+		super(wild);
 		}
 	
 	void put(int pos,char c)
@@ -440,607 +66,37 @@ class MutedSequence extends AbstractCharSequence
 	public char charAt(int i)
 		{
 		Character c= pos2char.get(i);
-		return c==null?wild.charAt(i):c;
+		return c==null?getDelegate().charAt(i):c;
 		}
 	
-	@Override
-	public int length()
-		{
-		return this.wild.length();
-		}
 	}
 
 
-class ProteinCharSequence extends AbstractCharSequence
+class ProteinCharSequence extends DelegateCharSequence
 	{
-	private CharSequence cDNA;
 	private GeneticCode geneticCode;
 	ProteinCharSequence(GeneticCode geneticCode,CharSequence cDNA)
 		{
+		super(cDNA);
 		this.geneticCode=geneticCode;
-		this.cDNA=cDNA;
 		}
 	
 	@Override
 	public char charAt(int i)
 		{
 		return geneticCode.translate(
-			cDNA.charAt(i*3+0),
-			cDNA.charAt(i*3+1),
-			cDNA.charAt(i*3+2));
+			getDelegate().charAt(i*3+0),
+			getDelegate().charAt(i*3+1),
+			getDelegate().charAt(i*3+2));
 		}	
 	
 	@Override
 	public int length()
 		{
-		return this.cDNA.length()/3;
+		return getDelegate().length()/3;
 		}
-}
-
-
-
-/*************************************************************************************/
-
-/**
- * PredictionAnnotator
- *
- */
-class PredictionAnnotator implements Closeable
-	{
-	static final String KEY_TYPE="type";
-	static final String KEY_SPLICING="splicing";
-	static Logger LOG=Logger.getLogger("vcf.annotator");
-	private Map<String, List<KnownGene>> chrom2genes=new HashMap<String, List<KnownGene>>();
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
-	
-	
-	private static char complement(char c)
-		{
-		switch(c)
-			{
-			case 'A': return 'T';
-			case 'T': return 'A';
-			case 'G': return 'C';
-			case 'C': return 'G';
-			default:throw new IllegalArgumentException(""+c);
-			}
-		}
-	
-	
-
-	TabixReader tabixReader=null;
-	
-	private List<KnownGene> getGenes(final VariantContext ctx)
-	throws IOException	
-		{
-		Pattern tab=Pattern.compile("[\t]");
-		List<KnownGene> L=new ArrayList<KnownGene>();
-		String line;
-		TabixReader.Iterator iter=this.tabixReader.query("");//TODO
-		while((iter!=null && (line=iter.next())!=null))
-			{
-			L.add(new KnownGene(tab.split(line)));
-			}
-		return L;
-		}
-	
-	@Override
-	public void close()
-		{
-		if(this.tabixReader!=null) this.tabixReader.close();
-		this.tabixReader=null;
-		}
-	
-	
-	public VariantContext run(VariantContext ctx) throws IOException
-			{
-			VariantContextBuilder b=new VariantContextBuilder(ctx);
-			
-            List<KnownGene> genes= getGenes(ctx);
-            for(Allele a: ctx.getAlleles())
-            	{
-            	
-            	}
-            return ctx;
-			}
-	
-	private VariantContext run(
-			VariantContext ctx,Allele allele,
-			final List<KnownGene> genes)
-			throws IOException
-			{
-			GenomicSequence genomicSeq=null;
-            int position= ctx.getStart()-1;
-
-            String ref=ctx.getReference().getDisplayString();
-
-			String alt=allele.getDisplayString();
-        	
-            if(ref.equals("A"))
-    			{
-    				 if(alt.equals("W")) { alt="T"; }
-    			else if(alt.equals("M")) { alt="C"; }
-    			else if(alt.equals("R")) { alt="G"; }
-    			}
-    		else if(ref.equals("C"))
-    			{
-    				 if(alt.equals("S")) { alt="G"; }
-    			else if(alt.equals("M")) { alt="A"; }
-    			else if(alt.equals("Y")) { alt="T"; }
-    			}
-    		else if(ref.equals("G"))
-    			{
-    				 if(alt.equals("S")) { alt="C"; }
-    			else if(alt.equals("K")) { alt="T"; }
-    			else if(alt.equals("R")) { alt="A"; }
-    			}
-    		else if(ref.equals("T"))
-    			{
-    				 if(alt.equals("W")) { alt="A"; }
-    			else if(alt.equals("K")) { alt="G"; }
-    			else if(alt.equals("Y")) { alt="C"; }
-    			}
-    		
-    		LOG.info(ref+" "+alt);
-            
-            
-            if(genes.isEmpty())
-            	{
-            	LOG.info("GENOMIC");
-            	continue;
-            	}
-            
-            for(KnownGene gene:genes)
-            	{
-            	LOG.info(gene.getName());
-            	
-            	//switch to 0 based coordinate
-        		
-            	Map<String, String> annotations=new HashMap<String, String>();
-        		
-        		
-            	if( (ref.equals("A") || ref.equals("T") || ref.equals("G") || ref.equals("C")) &&
-            		(alt.equals("A") || alt.equals("T") || alt.equals("G") || alt.equals("C"))
-            		)
-	        		{
-            		GeneticCode geneticCode=GeneticCode.getByChromosome(gene.getChromosome());
-	        		StringBuilder wildRNA=null;
-	        		ProteinCharSequence wildProt=null;
-	        		ProteinCharSequence mutProt=null;
-	        		MutedSequence mutRNA=null;
-	        		int position_in_cdna=-1;
-	        		
-	        		
-	        		if(genomicSeq==null ||   !gene.getChromosome().equals(genomicSeq.getChrom())   )
-    	            	{
-    	            	genomicSeq=new GenomicSequence(indexedFastaSequenceFile,gene.getChromosome());
-    	            	}
-	        		
-	        		if(!String.valueOf(genomicSeq.charAt(position)).equalsIgnoreCase(ref))
-	        			{
-	        			System.err.println("Warning REF!=GENOMIC SEQ!!! at "+genomicSeq.charAt(position)+"/"+ref);
-	        			return ctx;
-	        			}
-	        		
-	        		if(gene.isPositiveStrand())
-	            		{
-	            		if(position < gene.getCdsStart())
-	            			{
-	            			annotations.put("type", "UTR5");
-	            			}
-	            		else if( gene.getCdsEnd()<= position )
-	            			{
-	            			annotations.put("type", "UTR3");
-	            			}
-	            		
-	            		int exon_index=0;
-	            		while(exon_index< gene.getExonCount())
-	            			{
-	            			KnownGene.Exon exon= gene.getExon(exon_index);
-	            			for(int i= exon.getStart();
-	            					i< exon.getEnd();
-	            					++i)
-	            				{
-	            				if(i==position)
-	        						{
-	        						annotations.put("exon.name", exon.getName());
-	        						}
-	            				if(i< gene.getCdsStart()) continue;
-	            				if(i>=gene.getCdsEnd()) break;
-	        					
-	        					if(wildRNA==null)
-	        						{
-	        						wildRNA=new StringBuilder();
-	        						mutRNA=new MutedSequence(wildRNA);
-	        						}
-	        					
-	        					if(i==position)
-	        						{
-	        						annotations.put("type", "EXON");
-	        						annotations.put("exon.name",exon.getName());
-	        						position_in_cdna=wildRNA.length();
-	        						annotations.put("pos.cdna", String.valueOf(position_in_cdna));
-	        						//in splicing ?
-	        						if(exon.isSplicing(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "SPLICING");
-	        							
-	        							if(exon.isSplicingAcceptor(position))
-	        								{
-	        								annotations.put(KEY_SPLICING, "SPLICING_ACCEPTOR");
-	        								}
-	        							else  if(exon.isSplicingDonor(position))
-	        								{
-	        								annotations.put(KEY_SPLICING, "SPLICING_DONOR");
-	        								}
-	        							}
-	        						}
-	        					
-	            				wildRNA.append(genomicSeq.charAt(i));
-	            				
-	            				if(i==position)
-	            					{
-	            					mutRNA.put(
-	            							position_in_cdna,
-	            							alt.charAt(0)
-	            							);
-	            					}
-	            				
-	            				if(wildRNA.length()%3==0 && wildRNA.length()>0 && wildProt==null)
-		            				{
-		            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-		            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
-		            				}
-	            				}
-	            			KnownGene.Intron intron= exon.getNextIntron();
-	            			if(intron!=null && intron.contains(position))
-	            				{
-	            				annotations.put("intron.name",intron.getName());
-	            				annotations.put("type", "INTRON");
-	            				
-	            				if(intron.isSplicing(position))
-	        						{
-	            					annotations.put(KEY_SPLICING, "INTRON_SPLICING");
-	        						if(intron.isSplicingAcceptor(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
-	        							}
-	        						else if(intron.isSplicingDonor(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
-	        							}
-	        						}
-	            				}
-	            			++exon_index;
-	            			}
-	            		
-	            		
-	            		
-	            		}
-	            	else // reverse orientation
-	            		{
-	            	
-	            		if(position < gene.getCdsStart())
-	            			{
-	            			annotations.put(KEY_TYPE, "UTR3");
-	            			}
-	            		else if( gene.getCdsEnd()<=position )
-	            			{
-	            			annotations.put(KEY_TYPE, "UTR5");
-	            			}
-	            	
-	            		
-	            		int exon_index = gene.getExonCount()-1;
-	            		while(exon_index >=0)
-	            			{
-	            			KnownGene.Exon exon= gene.getExon(exon_index);
-	            			for(int i= exon.getEnd()-1;
-	            				    i>= exon.getStart();
-	            				--i)
-	            				{
-	            				if(i==position)
-	        						{
-	            					annotations.put("exon.name", exon.getName());
-	        						}
-	            				if(i>= gene.getCdsEnd()) continue;
-	            				if(i<  gene.getCdsStart()) break;
-	            				
-	            				if(wildRNA==null)
-	        						{
-	        						wildRNA=new StringBuilder();
-	        						mutRNA=new MutedSequence(wildRNA);
-	        						}
-	            				
-	            				if(i==position)
-	        						{
-	            					annotations.put(KEY_TYPE, "EXON");
-	            					position_in_cdna=wildRNA.length();
-	        						annotations.put("pos.cdna",String.valueOf(position_in_cdna));
-	        						//in splicing ?
-	        						if(exon.isSplicing(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING");
-	        							
-	        							if(exon.isSplicingAcceptor(position))
-	        								{
-	        								annotations.put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
-	        								}
-	        							else  if(exon.isSplicingDonor(position))
-	        								{
-	        								annotations.put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
-	        								}
-	        							}
-	        						
-	        						
-	        						mutRNA.put(
-	        								position_in_cdna,
-	        								complement(alt.charAt(0))
-	        								);
-	        						}
-	            				
-	            				wildRNA.append(complement(genomicSeq.charAt(i)));
-	            				if( wildRNA.length()%3==0 &&
-	            					wildRNA.length()>0 &&
-	            					wildProt==null)
-		            				{
-		            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-		            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
-		            				}
-	            				
-	            				}
-	            			
-	            			KnownGene.Intron intron= exon.getPrevIntron();
-	            			if(intron!=null &&
-	            				intron.contains(position))
-	            				{
-	            				annotations.put("intron.name",intron.getName());
-	            				annotations.put(KEY_TYPE, "INTRON");
-	            				
-	            				if(intron.isSplicing(position))
-	        						{
-	            					annotations.put(KEY_SPLICING, "INTRON_SPLICING");
-	        						if(intron.isSplicingAcceptor(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
-	        							}
-	        						else if(intron.isSplicingDonor(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
-	        							}
-	        						}
-	            				}
-	            			--exon_index;
-	            			}
-
-	            		}//end of if reverse
-	        		if( wildProt!=null &&
-	        			mutProt!=null && 
-	        			position_in_cdna>=0)
-		    			{
-	            		int pos_aa=position_in_cdna/3;
-	            		int mod= position_in_cdna%3;
-	            		annotations.put("wild.codon",""+
-	            			wildRNA.charAt(position_in_cdna-mod+0)+
-	            			wildRNA.charAt(position_in_cdna-mod+1)+
-	            			wildRNA.charAt(position_in_cdna-mod+2)
-	            			);
-	            		annotations.put("mut.codon",""+
-	            			mutRNA.charAt(position_in_cdna-mod+0)+
-	            			mutRNA.charAt(position_in_cdna-mod+1)+
-	            			mutRNA.charAt(position_in_cdna-mod+2)
-	            			);
-	            		annotations.put("position.protein",String.valueOf(pos_aa+1));
-	            		annotations.put("wild.aa",String.valueOf(wildProt.charAt(pos_aa)));
-	            		annotations.put("mut.aa",String.valueOf(mutProt.charAt(pos_aa)));
-		    			if(isStop(wildProt.charAt(pos_aa)) &&
-		    			   !isStop(mutProt.charAt(pos_aa)))
-		    				{
-		    				annotations.put("type", "EXON_STOP_LOST");
-		    				}
-		    			else if( !isStop(wildProt.charAt(pos_aa)) &&
-		    				 isStop(mutProt.charAt(pos_aa)))
-		    				{
-		    				annotations.put("type", "EXON_STOP_GAINED");
-		    				}
-		    			else if(wildProt.charAt(pos_aa)==mutProt.charAt(pos_aa))
-		    				{
-		    				annotations.put("type", "EXON_CODING_SYNONYMOUS");
-		    				}
-		    			else
-		    				{
-		    				annotations.put("type", "EXON_CODING_NON_SYNONYMOUS");
-		    				}
-		    			}
-	        		}//end of simpe ATCG
-            	else
-            		{
-	        		Integer wildrna=null;
-	        		int position_in_cdna=-1;
-	        		
-	        		
-	        		
-	        		if(gene.isPositiveStrand())
-	            		{
-	            		if(position < gene.getCdsStart())
-	            			{
-	            			annotations.put("type", "UTR5");
-	            			}
-	            		else if( gene.getCdsEnd()<= position )
-	            			{
-	            			annotations.put("type", "UTR3");
-	            			}
-	            		
-	            		int exon_index=0;
-	            		while(exon_index< gene.getExonCount())
-	            			{
-	            			KnownGene.Exon exon= gene.getExon(exon_index);
-	            			for(int i= exon.getStart();
-	            					i< exon.getEnd();
-	            					++i)
-	            				{
-	            				if(i==position)
-	        						{
-	        						annotations.put("exon.name", exon.getName());
-	        						}
-	            				if(i< gene.getCdsStart()) continue;
-	            				if(i>=gene.getCdsEnd()) break;
-	        					
-	        					if(wildrna==null)
-	        						{
-	        						wildrna=0;
-	        						}
-	        					
-	        					if(i==position)
-	        						{
-	        						annotations.put(KEY_TYPE, "EXON");
-	        						annotations.put("exon.name",exon.getName());
-	        						position_in_cdna=wildrna;
-	        						annotations.put("pos.cdna", String.valueOf(wildrna));
-	        						//in splicing ?
-	        						if(exon.isSplicing(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "SPLICING");
-	        							
-	        							if(exon.isSplicingAcceptor(position))
-	        								{
-	        								annotations.put(KEY_SPLICING, "SPLICING_ACCEPTOR");
-	        								}
-	        							else  if(exon.isSplicingDonor(position))
-	        								{
-	        								annotations.put(KEY_SPLICING, "SPLICING_DONOR");
-	        								}
-	        							}
-	        						}
-	        					
-	        					wildrna++;
-	            				}
-	            			KnownGene.Intron intron= exon.getNextIntron();
-	            			if(intron!=null && intron.contains(position))
-	            				{
-	            				annotations.put("intron.name",intron.getName());
-	            				annotations.put("type", "INTRON");
-	            				
-	            				if(intron.isSplicing(position))
-	        						{
-	            					annotations.put(KEY_SPLICING, "INTRON_SPLICING");
-	        						if(intron.isSplicingAcceptor(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
-	        							}
-	        						else if(intron.isSplicingDonor(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
-	        							}
-	        						}
-	            				}
-	            			++exon_index;
-	            			}
-	            		}
-	            	else // reverse orientation
-	            		{
-	            	
-	            		if(position < gene.getCdsStart())
-	            			{
-	            			annotations.put(KEY_TYPE, "UTR3");
-	            			}
-	            		else if( gene.getCdsEnd()<=position )
-	            			{
-	            			annotations.put(KEY_TYPE, "UTR5");
-	            			}
-	            	
-	            		
-	            		int exon_index = gene.getExonCount()-1;
-	            		while(exon_index >=0)
-	            			{
-	            			KnownGene.Exon exon= gene.getExon(exon_index);
-	            			for(int i= exon.getEnd()-1;
-	            				    i>= exon.getStart();
-	            				--i)
-	            				{
-	            				if(i==position)
-	        						{
-	            					annotations.put("exon.name", exon.getName());
-	        						}
-	            				if(i>= gene.getCdsEnd()) continue;
-	            				if(i<  gene.getCdsStart()) break;
-	            				
-	            				if(wildrna==null)
-	        						{
-	        						wildrna=0;
-	        						}
-	            				
-	            				if(i==position)
-	        						{
-	            					annotations.put(KEY_TYPE, "EXON");
-	            					position_in_cdna=wildrna;
-	        						annotations.put("pos.cdna",String.valueOf(position_in_cdna));
-	        						//in splicing ?
-	        						if(exon.isSplicing(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING");
-	        							
-	        							if(exon.isSplicingAcceptor(position))
-	        								{
-	        								annotations.put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
-	        								}
-	        							else  if(exon.isSplicingDonor(position))
-	        								{
-	        								annotations.put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
-	        								}
-	        							}
-	        						}
-	            				
-	            				wildrna++;
-	            				}
-	            			
-	            			KnownGene.Intron intron= exon.getPrevIntron();
-	            			if(intron!=null &&
-	            				intron.contains(position))
-	            				{
-	            				annotations.put("intron.name",intron.getName());
-	            				annotations.put(KEY_TYPE, "INTRON");
-	            				
-	            				if(intron.isSplicing(position))
-	        						{
-	            					annotations.put(KEY_SPLICING, "INTRON_SPLICING");
-	        						if(intron.isSplicingAcceptor(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
-	        							}
-	        						else if(intron.isSplicingDonor(position))
-	        							{
-	        							annotations.put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
-	        							}
-	        						}
-	            				}
-	            			--exon_index;
-	            			}
-
-	            		}//end of if reverse
-	        		if( wildrna!=null &&
-	        			position_in_cdna>=0)
-		    			{
-	            		int pos_aa=position_in_cdna/3;
-	            		annotations.put("position.protein",String.valueOf(pos_aa+1));
-		    			}
-            		}
-            	annotations.put("strand", ""+gene.getStrand());
-            	annotations.put("kgId", gene.getName());
-            	annotations.put("geneSymbol", gene.getGeneSymbol());
-            	ctx.att("PREDICTION", annotations);
-            	}
-            
-	    return b.make();
-		}
-	
-	
-	private boolean isStop(char aa)
-		{
-		return aa=='*';
-		}
-	
-	
 	}
+
 
 /**
  * VCFAnnotator
@@ -1051,27 +107,360 @@ public class VCFAnnotator extends AbstractVCFFilter
 	{
 	static Log LOG=Log.getInstance(VCFAnnotator.class);
 	public File IN;
+	public File REF;
+	public String KG;
 	
-	public VCFAnnotator()
-		{
-		}
+	private IntervalTreeMap<KnownGene> knownGenes=new IntervalTreeMap<KnownGene>();
+	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	
-	@Override
-	protected void doWork(LineReader in, VariantContextWriter out)
-		throws IOException
+	
+	static class Annotation
 		{
-		// TODO Auto-generated method stub
-		
-		VCFCodec vcfCodec=new VCFCodec();
-		vcfCodec.readHeader(in);
+		KnownGene kg;
+		Allele alt;
+		String exon_name="";
+		String intron_name="";
+		Integer position_cdna=null;
+		String wildAA="";
+		String mutAA="";
+		String wildCodon="";
+		String mutCodon="";
+		Integer position_protein;
+		Set<SequenceOntologyTree.Term> seqont=new HashSet<SequenceOntologyTree.Term>();
+		}	
+	
+	private void loadKnownGenes()throws IOException
+		{
+		LOG.info("loading genes");
+		Set<String> unseen=new HashSet<String>();
+		BufferedReader in=IOUtils.openURIForBufferedReading(KG);
 		String line;
+		Pattern tab=Pattern.compile("[\t]");
+		while((line=in.readLine())!=null)
+			{
+			if(line.isEmpty()) continue;
+			String tokens[]=tab.split(line);
+			KnownGene g=new KnownGene(tokens);
+			SAMSequenceRecord ssr=indexedFastaSequenceFile.getSequenceDictionary().getSequence(g.getChr());
+			if(ssr==null)
+				{
+				if(unseen.add(g.getChr()))
+					{
+					LOG.error("The reference "+REF+" doesn't contain chromosome "+g.getChr());
+					}
+				continue;
+				}
+			Interval interval1=new Interval(g.getChr(), g.getTxStart()+1, g.getTxEnd());
+			this.knownGenes.put(interval1, g);
+			}
+		in.close();
+		LOG.info("genes:"+this.knownGenes.size());
+		}
+	private boolean isStop(char c)
+		{
+		return !Character.isLetter(c);
+		}
+	@Override
+	protected void doWork(LineReader in, VariantContextWriter w)
+		throws IOException
+		{	
+		LOG.info("opening REF:"+REF);
+		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
+		loadKnownGenes();
+		VCFCodec vcfCodec=new VCFCodec();
+		VCFHeader header=(VCFHeader)vcfCodec.readHeader(in);
+		
+		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),"Filtered with "+getCommandLine()));
+		
+		
+        w.writeHeader(h2);
+
+		
+		String line;
+		SequenceOntologyTree seqOntologyTree=SequenceOntologyTree.getInstance();
 		while((line=in.readLine())!=null)
 			{
 			VariantContext ctx=vcfCodec.decode(line);
+			Collection<KnownGene> genes=this.knownGenes.getOverlapping(
+					new Interval(ctx.getChr(), ctx.getStart(), ctx.getEnd()) //1-based
+					);
+			if(genes==null || genes.isEmpty())
+				{
+				//continue;
+				//TODO if no annotation, create one INTERGENIC
+				}
+			else
+				{
+				GenomicSequence genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getChr());
+				for(KnownGene gene:genes)
+					{
+            		GeneticCode geneticCode=GeneticCode.getStandard();
+            		
+            		
+					for(Allele alt:ctx.getAlternateAlleles())
+						{
+						Annotation annotations=new Annotation();
+						annotations.kg=gene;
+						annotations.alt=alt;
+						
+						if(!alt.getBaseString().matches("[ATGC]")) continue;
+						
+
+		        		StringBuilder wildRNA=null;
+		        		ProteinCharSequence wildProt=null;
+		        		ProteinCharSequence mutProt=null;
+		        		MutedSequence mutRNA=null;
+		        		int position_in_cdna=-1;
+		        		
+		        		final int position=ctx.getStart()-1;
+		        		if(!String.valueOf(genomicSequence.charAt(position)).equalsIgnoreCase(ctx.getReference().getBaseString()))
+		        			{
+		        			LOG.warn("Warning REF!=GENOMIC SEQ!!! at "+genomicSequence+"/"+ctx.getReference());
+		        			continue;
+		        			}
+		        		
+		        		if(gene.isPositiveStrand())
+		            		{
+		            		if(position < gene.getCdsStart())
+		            			{
+		            			annotations.seqont.add(seqOntologyTree.getTermByAcn("??"));//UTR5 to do
+		            			}
+		            		else if( gene.getCdsEnd()<= position )
+		            			{
+		            			annotations.seqont.add(seqOntologyTree.getTermByAcn("??"));//UTR3 to do
+		            			}
+		            		
+		            		int exon_index=0;
+		            		while(exon_index< gene.getExonCount())
+		            			{
+		            			KnownGene.Exon exon= gene.getExon(exon_index);
+		            			for(int i= exon.getStart();
+		            					i< exon.getEnd();
+		            					++i)
+		            				{
+		            				if(i==position)
+		        						{
+		        						annotations.exon_name= exon.getName();
+		        						}
+		            				if(i< gene.getCdsStart()) continue;
+		            				if(i>=gene.getCdsEnd()) break;
+		        					
+		        					if(wildRNA==null)
+		        						{
+		        						wildRNA=new StringBuilder();
+		        						mutRNA=new MutedSequence(wildRNA);
+		        						}
+		        					
+		        					if(i==position)
+		        						{
+		        						annotations.seqont.add(null);//TODO put("type", "EXON");
+		        						annotations.exon_name=exon.getName();
+		        						position_in_cdna=wildRNA.length();
+		        						annotations.position_cdna=position_in_cdna;
+		        						//in splicing ?
+		        						if(exon.isSplicing(position))
+		        							{
+		        							annotations.seqont.add(null);//TODO put(KEY_SPLICING, "SPLICING");
+		        							
+		        							if(exon.isSplicingAcceptor(position))
+		        								{
+		        								annotations.seqont.add(null);//TODO put(KEY_SPLICING, "SPLICING_ACCEPTOR");
+		        								}
+		        							else  if(exon.isSplicingDonor(position))
+		        								{
+		        								annotations.seqont.add(null);//TODO put(KEY_SPLICING, "SPLICING_DONOR");
+		        								}
+		        							}
+		        						}
+		        					
+		            				wildRNA.append(genomicSequence.charAt(i));
+		            				
+		            				if(i==position)
+		            					{
+		            					mutRNA.put(
+		            							position_in_cdna,
+		            							alt.getBaseString().charAt(0)
+		            							);
+		            					}
+		            				
+		            				if(wildRNA.length()%3==0 && wildRNA.length()>0 && wildProt==null)
+			            				{
+			            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
+			            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
+			            				}
+		            				}
+		            			KnownGene.Intron intron= exon.getNextIntron();
+		            			if(intron!=null && intron.contains(position))
+		            				{
+		            				annotations.seqont.add(null);//TODO put("intron.name",intron.getName());
+		            				annotations.seqont.add(null);//TODO put("type", "INTRON");
+		            				
+		            				if(intron.isSplicing(position))
+		        						{
+		            					annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING");
+		        						if(intron.isSplicingAcceptor(position))
+		        							{
+		        							annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
+		        							}
+		        						else if(intron.isSplicingDonor(position))
+		        							{
+		        							annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
+		        							}
+		        						}
+		            				}
+		            			++exon_index;
+		            			}
+		            		
+		            		
+		            		
+		            		}
+		            	else // reverse orientation
+		            		{
+		            	
+		            		if(position < gene.getCdsStart())
+		            			{
+		            			annotations.seqont.add(null);//TODO put(KEY_TYPE, "UTR3");
+		            			}
+		            		else if( gene.getCdsEnd()<=position )
+		            			{
+		            			annotations.seqont.add(null);//TODO put(KEY_TYPE, "UTR5");
+		            			}
+		            	
+		            		
+		            		int exon_index = gene.getExonCount()-1;
+		            		while(exon_index >=0)
+		            			{
+		            			KnownGene.Exon exon= gene.getExon(exon_index);
+		            			for(int i= exon.getEnd()-1;
+		            				    i>= exon.getStart();
+		            				--i)
+		            				{
+		            				if(i==position)
+		        						{
+		            					annotations.exon_name=exon.getName();
+		        						}
+		            				if(i>= gene.getCdsEnd()) continue;
+		            				if(i<  gene.getCdsStart()) break;
+		            				
+		            				if(wildRNA==null)
+		        						{
+		        						wildRNA=new StringBuilder();
+		        						mutRNA=new MutedSequence(wildRNA);
+		        						}
+		            				
+		            				if(i==position)
+		        						{
+		            					annotations.seqont.add(null);//TODO put(KEY_TYPE, "EXON");
+		            					position_in_cdna=wildRNA.length();
+		        						annotations.position_cdna=position_in_cdna;
+		        						//in splicing ?
+		        						if(exon.isSplicing(position))
+		        							{
+		        							annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING");
+		        							
+		        							if(exon.isSplicingAcceptor(position))
+		        								{
+		        								annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
+		        								}
+		        							else  if(exon.isSplicingDonor(position))
+		        								{
+		        								annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
+		        								}
+		        							}
+		        						
+		        						
+		        						mutRNA.put(
+		        								position_in_cdna,
+		        								AcidNucleics.complement(alt.getBaseString().charAt(0))
+		        								);
+		        						}
+		            				
+		            				wildRNA.append(AcidNucleics.complement(genomicSequence.charAt(i)));
+		            				if( wildRNA.length()%3==0 &&
+		            					wildRNA.length()>0 &&
+		            					wildProt==null)
+			            				{
+			            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
+			            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
+			            				}
+		            				
+		            				}
+		            			
+		            			KnownGene.Intron intron= exon.getPrevIntron();
+		            			if(intron!=null &&
+		            				intron.contains(position))
+		            				{
+		            				annotations.seqont.add(null);//TODO .put("intron.name",intron.getName());
+		            				annotations.seqont.add(null);//TODO .put(KEY_TYPE, "INTRON");
+		            				
+		            				if(intron.isSplicing(position))
+		        						{
+		            					annotations.seqont.add(null);//TODO .put(KEY_SPLICING, "INTRON_SPLICING");
+		        						if(intron.isSplicingAcceptor(position))
+		        							{
+		        							annotations.seqont.add(null);//TODO .put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
+		        							}
+		        						else if(intron.isSplicingDonor(position))
+		        							{
+		        							annotations.seqont.add(null);//TODO .put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
+		        							}
+		        						}
+		            				}
+		            			--exon_index;
+		            			}
+
+		            		}//end of if reverse
+		        		if( wildProt!=null &&
+		        			mutProt!=null && 
+		        			position_in_cdna>=0)
+			    			{
+		            		int pos_aa=position_in_cdna/3;
+		            		int mod= position_in_cdna%3;
+		            		annotations.wildCodon=(""+
+		            			wildRNA.charAt(position_in_cdna-mod+0)+
+		            			wildRNA.charAt(position_in_cdna-mod+1)+
+		            			wildRNA.charAt(position_in_cdna-mod+2)
+		            			);
+		            		annotations.mutCodon=(""+
+		            			mutRNA.charAt(position_in_cdna-mod+0)+
+		            			mutRNA.charAt(position_in_cdna-mod+1)+
+		            			mutRNA.charAt(position_in_cdna-mod+2)
+		            			);
+		            		annotations.position_protein=(pos_aa+1);
+		            		annotations.wildAA=String.valueOf(wildProt.charAt(pos_aa));
+		            		annotations.mutAA=(String.valueOf(mutProt.charAt(pos_aa)));
+			    			if(isStop(wildProt.charAt(pos_aa)) &&
+			    			   !isStop(mutProt.charAt(pos_aa)))
+			    				{
+			    				annotations.seqont.add(null);//TODO .put("type", "EXON_STOP_LOST");
+			    				}
+			    			else if( !isStop(wildProt.charAt(pos_aa)) &&
+			    				 isStop(mutProt.charAt(pos_aa)))
+			    				{
+			    				annotations.seqont.add(null);//TODO .put("type", "EXON_STOP_GAINED");
+			    				}
+			    			else if(wildProt.charAt(pos_aa)==mutProt.charAt(pos_aa))
+			    				{
+			    				annotations.seqont.add(null);//TODO .put("type", "EXON_CODING_SYNONYMOUS");
+			    				}
+			    			else
+			    				{
+			    				annotations.seqont.add(null);//TODO .put("type", "EXON_CODING_NON_SYNONYMOUS");
+			    				}
+			    			}
+		        		
+						}
+					}
+				}
 			
+			VariantContextBuilder vb=new VariantContextBuilder(ctx);
+			w.add(vb.make());
 			}
 			
 		}
+	
+	
 	
 	public static void main(String[] args)
 		{

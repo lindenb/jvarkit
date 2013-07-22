@@ -7,10 +7,14 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -18,6 +22,7 @@ import java.util.List;
 import java.util.Vector;
 import java.util.regex.Pattern;
 
+import javax.crypto.spec.IvParameterSpec;
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JDesktopPane;
@@ -100,6 +105,7 @@ class VCFInternalFrame extends JInternalFrame
 		area.setEditable(false);
 		pane.add(new JScrollPane(area),BorderLayout.CENTER);
 		}
+	
 	}
 
 class VCFTableModel
@@ -408,7 +414,36 @@ class VCFFrame extends JDialog
 		this.dispose();
 		}
 	
+	String igvIP=null;//"127.0.0.1"
+	Integer igvPort=null;
 	
+	//http://plindenbaum.blogspot.fr/2011/07/controlling-igv-through-port-my.html
+	private void showIgv(String chrom,int pos)
+		{
+		if(igvIP==null || igvPort==null) return;
+		Socket socket=null;
+		PrintWriter out=null;
+		BufferedReader in=null;
+		try
+			{
+			socket = new Socket(igvIP, igvPort);
+			out = new PrintWriter(socket.getOutputStream(), true);
+			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+			out.println("goto "+chrom+":"+pos);
+			//todo wait
+			 }
+		catch(Exception err)
+			{
+			LOG.error(err);
+			}
+		finally
+			{
+			if(in!=null) try {in.close();} catch(Exception err){}
+			if(out!=null) try {out.close();} catch(Exception err){}
+			if(socket!=null) try {socket.close();} catch(Exception err){}
+			}
+		}
 	
 	public static VCFPos parseOne(String s)
 		{
