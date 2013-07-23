@@ -523,6 +523,8 @@ ant vcfviewgui
 <table>
 <tr><th>Option</th><th>Description</th></tr>
 <tr><td>IN=File</td><td>VCF files to process.  This option may be specified 0 or more times. </td></tr>
+<tr><td>IGV_HOST=String</td><td>IGV host. example: '127.0.0.1'   Default value: null. </td></tr>
+<tr><td>IGV_PORT=Integer</td><td>IGV IP. example: '60151'   Default value: null. </td></tr>
 </table>
 
 <h3>VCFGeneOntology</h3>
@@ -692,4 +694,52 @@ ant vcftrio
 <tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
 </table>
 
+<h3>MapUniProtFeatures</h3>
+<h4>Motivation</h4>
+map uniprot features on reference genome.
 
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>REF=File</td><td>Reference  Required. </td></tr>
+<tr><td>OUT=File</td><td>output name (default: stdout)  Required. </td></tr>
+<tr><td>KGURI=String</td><td>KnownGene data  Default value: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>UNIPROT=String</td><td>Uniprot URL/File  Default value: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz. This option can be set to 'null' to clear the default value. </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+$ java  -jar dist/mapuniprot.jar \
+	REF=/path/to/human_g1k_v37.fasta \
+	UNIPROT=/path/uri/uniprot.org/uniprot_sprot.xml.gz  \
+	kgUri=<(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '        ' '{if($2 ~ ".*_.*") next; OFS="       "; gsub(/chr/,"",$2);print;}'   ) |\
+	LC_ALL=C sort -t '	' -k1,1 -k2,2n -k3,3n  | uniq | head
+
+
+1	69090	69144	topological_domain	1000	+	69090	69144	255,0,0	1	54	0
+1	69144	69216	transmembrane_region	1000	+	69144	69216	255,0,0	1	72	0
+1	69216	69240	topological_domain	1000	+	69216	69240	255,0,0	1	24	0
+1	69240	69306	transmembrane_region	1000	+	69240	69306	255,0,0	1	66	0
+1	69306	69369	topological_domain	1000	+	69306	69369	255,0,0	1	63	0
+1	69357	69636	disulfide_bond	1000	+	69357	69636	255,0,0	1	279	0
+1	69369	69429	transmembrane_region	1000	+	69369	69429	255,0,0	1	60	0
+1	69429	69486	topological_domain	1000	+	69429	69486	255,0,0	1	57	0
+1	69486	69543	transmembrane_region	1000	+	69486	69543	255,0,0	1	57	0
+1	69543	69654	topological_domain	1000	+	69543	69654	255,0,0	1	111	0
+```
+<h3>ExtendBed</h3>
+<h4>Motivation</h4>
+Extends a BED file by 'X' bases.
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=String</td><td>BED Input URI/file. default: stdin  Default value: null. </td></tr>
+<tr><td>REF=File</td><td>Reference  Required. </td></tr>
+<tr><td>OUT=File</td><td>output name (default: stdout)</td></tr>
+<tr><td>EXTEND=Integer</td><td>extend by 'X' bases.  Default value: 0. This option can be set to 'null' to clear the default value. </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+head test.bed |\
+	java -jar dist/extendbed.jar \
+	X=100 REF=human_g1k_v37.fa
+```

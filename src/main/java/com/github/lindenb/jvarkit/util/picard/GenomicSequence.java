@@ -10,11 +10,15 @@ public class GenomicSequence
 	{
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	private SAMSequenceRecord samSequenceRecord;
-	
+	private byte buffer[]=null;
+	private int buffer_pos=-1;
+	private int buffer_capacity=1000000;
 	public GenomicSequence(IndexedFastaSequenceFile indexedFastaSequenceFile ,String chrom)
 		{	
 		this.indexedFastaSequenceFile=indexedFastaSequenceFile;
+		if(this.indexedFastaSequenceFile==null) throw new NullPointerException("IndexedFastaSequenceFile");
 		this.samSequenceRecord=this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(chrom);
+		if(this.samSequenceRecord==null) throw new IllegalArgumentException("not chromosome "+chrom+" in reference.");
 		}
 	
 	public SAMSequenceRecord getSAMSequenceRecord()
@@ -42,10 +46,17 @@ public class GenomicSequence
 	@Override
 	public char charAt(int index0)
 		{
-		if(index0 >= getSAMSequenceRecord().getSequenceLength())
+		if(index0 >= length())
 			{
 			throw new IndexOutOfBoundsException("index:"+index0);
 			}
-		return (char)this.indexedFastaSequenceFile.getSubsequenceAt(getChrom(), index0+1, index0+1).getBases()[0];
+		if(buffer!=null && index0>=buffer_pos && index0-buffer_pos < buffer.length)
+			{
+			return (char)buffer[index0-buffer_pos];
+			}
+		int maxEnd=Math.min(index0+buffer_capacity,this.length());
+		this.buffer=this.indexedFastaSequenceFile.getSubsequenceAt(getChrom(), index0+1,maxEnd).getBases();
+		this.buffer_pos=index0;
+		return (char)buffer[0];
 		}
 	}

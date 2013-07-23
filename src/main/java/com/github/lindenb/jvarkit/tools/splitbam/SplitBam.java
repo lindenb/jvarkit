@@ -13,9 +13,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
-import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
@@ -27,6 +28,7 @@ import net.sf.samtools.SAMFileHeader.SortOrder;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMFileWriterFactory;
+import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordFactory;
@@ -38,7 +40,7 @@ import net.sf.samtools.SAMSequenceRecord;
  * SplitBam
  *
  */
-public class SplitBam extends CommandLineProgram
+public class SplitBam extends AbstractCommandLineProgram
 	{
 	
 	private static final Log LOG=Log.getInstance(SplitBam.class);
@@ -220,6 +222,15 @@ public class SplitBam extends CommandLineProgram
 		SAMFileHeader header=samFileReader.getFileHeader();
 		header.setSortOrder(SortOrder.coordinate);
 		
+		SAMProgramRecord sp=new SAMProgramRecord(getClass().getSimpleName());
+		sp.setProgramName(getClass().getSimpleName());
+		sp.setProgramVersion(String.valueOf(getProgramVersion()));
+		sp.setPreviousProgramGroupId(getClass().getSimpleName());
+		sp.setCommandLine(getCommandLine().replace('\t', ' '));
+		header.addProgramRecord(sp);
+
+		
+		
         SAMFileWriterFactory sf=new SAMFileWriterFactory();
        if(!super.TMP_DIR.isEmpty())
     	   {
@@ -275,6 +286,9 @@ public class SplitBam extends CommandLineProgram
 				File parent=fileout.getParentFile();
 				if(parent!=null) parent.mkdirs();
 				writer=sf.makeBAMWriter(header,this.INPUT_IS_SORTED,fileout);
+				
+
+				
 				seen.put(groupName, writer);
 				nrecords=0L;
 				}
@@ -324,8 +338,7 @@ public class SplitBam extends CommandLineProgram
 				LOG.error("Reference file undefined");
 				System.exit(-1);
 				}
-			IndexedFastaSequenceFile indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
-			this.samSequenceDictionary=indexedFastaSequenceFile.getSequenceDictionary();
+			this.samSequenceDictionary=new SAMSequenceDictionaryFactory().load(REF);
 			if(this.samSequenceDictionary==null)
 				{
 				LOG.error("Reference file dictionary missing. use picard to create it.");
@@ -352,6 +365,7 @@ public class SplitBam extends CommandLineProgram
 		catch(Exception err)
 			{
 			err.printStackTrace();
+			super.testRemoteGit();
 			return -1;
 			}
 		finally

@@ -1,14 +1,11 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +20,6 @@ import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.events.XMLEvent;
 
 import org.uniprot.Entry;
@@ -36,20 +32,19 @@ import net.sf.picard.cmdline.Usage;
 import net.sf.picard.illumina.parser.Range;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Log;
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.SortingCollection;
+import net.sf.picard.util.ProgressLogger;
+import net.sf.samtools.SAMFileReader;
 
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import org.uniprot.*;
 
+@SuppressWarnings("unused")
 public class MapUniProtFeatures extends AbstractCommandLineProgram
 	{
 	private static final String UNIPROT_NS="http://uniprot.org/uniprot";
-	@SuppressWarnings("unused")
 	private org.uniprot.ObjectFactory forceJavacCompiler=null;
 	private static Log LOG=Log.getInstance(MapUniProtFeatures.class);
 	
@@ -60,6 +55,12 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
     @Option(shortName=StandardOptionDefinitions.REFERENCE_SHORT_NAME,doc="Reference",optional=false)
     public File REF;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+    @Option(shortName=StandardOptionDefinitions.OUTPUT_SHORT_NAME,doc="output name (default: stdout)",optional=false)
+    public File OUT=null;
+
+	
+	
+    @Option(shortName="KG",doc="KnownGene data",optional=false)
 	public String kgUri="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
 	
 	private Map<String,List<KnownGene>> prot2genes=new HashMap<String,List<KnownGene>>();
@@ -116,72 +117,16 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 				}
 			return b.toString();
 			}
-		void print()
+		void print(PrintWriter pw)
 			{
-			System.out.println(this.toString());
-			}
-		}
-	private class UBedCmp implements Comparator<UBed>
-		{
-		@Override
-		public int compare(UBed a, UBed b) {
-			int i=a.tid-b.tid;
-			if(i!=0) return i;
-			i=a.start()-b.start();
-			if(i!=0) return i;
-			i=a.end()-b.end();
-			if(i!=0) return i;
-			i=a.name.compareTo(b.name);
-			return i;
-			}
-		}
-	
-	private class UBedCodec extends AbstractDataCodec<UBed>
-		{
-		@Override
-		public void encode(DataOutputStream dos, UBed object)
-				throws IOException {
-			dos.writeInt(object.tid);
-			dos.writeInt(object.positions.size());
-			for(Range r: object.positions)
-				{
-				dos.writeInt(r.start);
-				dos.writeInt(r.end);
-				}
-			dos.writeByte(object.strand);
-			dos.writeUTF(object.name);
-			}
-		@Override
-		public UBed decode(DataInputStream dis) throws IOException
-			{
-			UBed o=new UBed();
-			try {
-				o.tid=dis.readInt();
-				}
-			catch(IOException err)
-				{
-				return null;
-				}
-			int n=dis.readInt();
-			for(int i=0;i< n;++i)
-				{
-				int beg=dis.readInt();
-				int end=dis.readInt();
-				o.positions.add(new Range(beg,end));
-				}
-			o.strand=dis.readByte();
-			o.name=dis.readUTF();
-			return o;
-			}	
-		@Override
-		public UBedCodec clone() {
-			return new UBedCodec();
+			pw.println(this.toString());
 			}
 		}
     
 	@Override
 	protected int doWork()
 		{
+		PrintWriter pw=new PrintWriter(System.out);
 		try
 			{
 			JAXBContext jc = JAXBContext.newInstance("org.uniprot");
@@ -198,15 +143,7 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 			while((line=r.readLine())!=null)
 				{
 				String tokens[]=tab.split(line);
-				if(tokens[1].startsWith("chr"))
-					{
-					tokens[1]=tokens[1].substring(3);
-					}
-				if(!(tokens[1].equals("X") || tokens[1].equals("Y") || tokens[1].matches("[0-9]+")))
-					{
-					LOG.debug("ignoring "+tokens[1]);
-					continue;
-					}
+				
 				KnownGene kg=new KnownGene();
 				kg.setName(tokens[0]);
 				kg.setChrom(tokens[1]);
@@ -222,10 +159,24 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 					L=new ArrayList<KnownGene>();
 					prot2genes.put(tokens[10], L);
 					}
+				
+				if(indexedFastaSequenceFile.getSequenceDictionary().getSequence(kg.getChr())==null)
+					{
+					LOG.info("ignoring "+line);
+					continue;
+					}
+				
 				L.add(kg);
 				
 				}
 			r.close();
+			
+			if(OUT!=null) 
+				{
+				LOG.info("opening "+OUT);
+				pw=new PrintWriter(OUT);
+				}
+			
 			LOG.info("knownGenes: "+this.prot2genes.size());
 			
 			XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
@@ -247,17 +198,18 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 			//SortingCollection<UBed> mappedFeatures=SortingCollection.newInstance(UBed.class, new UBedCodec(),new UBedCmp(),super.MAX_RECORDS_IN_RAM);
 			//mappedFeatures.setDestructiveIteration(true);
 			
+			
+			
 			LOG.info("Scanning "+UNIPROT);
 			
 			Reader fr=IOUtils.openURIForBufferedReading(UNIPROT);
 			XMLEventReader rx=xmlInputFactory.createXMLEventReader(fr);
 		
 			final QName uEntry=new QName(UNIPROT_NS,"entry");
-			
-			
-			
+			GenomicSequence genomic=null;
 			while(rx.hasNext())
 				{
+				
 				XMLEvent evt=rx.peek();
 				if(!(evt.isStartElement() && evt.asStartElement().getName().equals(uEntry)))
 					{
@@ -282,21 +234,43 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 				
 				for(KnownGene kg:genes)
 					{
+					if(genomic==null ||  !genomic.getChrom().equals(kg.getChromosome()))
+						{
+						genomic=new GenomicSequence(this.indexedFastaSequenceFile, kg.getChromosome());
+						}
 					
 					
-					GenomicSequence genomic=new GenomicSequence(this.indexedFastaSequenceFile, kg.getChromosome());
 					KnownGene.Peptide pep=kg.getCodingRNA(genomic).getPeptide();
 					
 					
-					
-					if(!entry.getSequence().getValue().equalsIgnoreCase(pep.toString()))
+					int sameSequenceLength=0;
+					while(  sameSequenceLength < entry.getSequence().getValue().length() &&
+							sameSequenceLength < pep.length() 
+							)
 						{
-						System.err.println("Not Same sequence "+kg.getName()+" "+kg.getStrand());
-						System.err.println("P:"+pep.toString()+" "+pep.length());
-						System.err.println("Q:"+entry.getSequence().getValue()+" "+entry.getSequence().getLength());
-						continue;
+						if(Character.toUpperCase(entry.getSequence().getValue().charAt(sameSequenceLength))!=Character.toUpperCase(entry.getSequence().getValue().charAt(sameSequenceLength)))
+							{
+							break;
+							}
+						sameSequenceLength++;
 						}
-
+					
+					if(sameSequenceLength!=pep.length())
+						{
+						if(super.VALIDATION_STRINGENCY!=SAMFileReader.ValidationStringency.SILENT )
+							{
+							System.err.println("Not Same sequence "+kg.getName()+" strand "+kg.getStrand() +" ok-up-to-"+sameSequenceLength);
+							System.err.println("P:"+pep.toString()+" "+pep.length());
+							System.err.println("Q:"+entry.getSequence().getValue()+" "+entry.getSequence().getLength());
+							if(pep.toString().contains("?"))
+								{
+								System.err.println("RNA:"+pep.getCodingRNA().toString());
+								System.exit(-1);
+								}
+							
+							}
+						}
+					if(sameSequenceLength==0) continue;
 					
 					for(FeatureType feat:entry.getFeature())
 						{
@@ -321,6 +295,8 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 							{
 							continue;
 							}
+						if(pepEnd>=sameSequenceLength) continue;
+						
 						List<Integer> genomicPos=new ArrayList<Integer>();
 						while(pepStart< pepEnd)
 							{
@@ -365,8 +341,7 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 							}
 						ubed.strand=(byte)(kg.isPositiveStrand()?'+':'-');
 						ubed.name=feat.getType();
-						LOG.info(ubed.toString());
-						//mappedFeatures.add(ubed);
+						ubed.print(pw);
 						}
 					}					
 					
@@ -390,7 +365,13 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 		catch(Exception err)
 			{
 			err.printStackTrace();
+			if(OUT!=null) OUT.deleteOnExit();
 			return -1;
+			}
+		finally
+			{
+			pw.flush();
+			pw.close();
 			}
 		return 0;
 		}

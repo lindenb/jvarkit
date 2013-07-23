@@ -5,6 +5,8 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
@@ -22,7 +24,6 @@ import java.util.List;
 import java.util.Vector;
 import java.util.regex.Pattern;
 
-import javax.crypto.spec.IvParameterSpec;
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JDesktopPane;
@@ -35,6 +36,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
@@ -47,6 +49,8 @@ import javax.swing.table.AbstractTableModel;
 
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.TabixReader;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
@@ -72,9 +76,11 @@ class VCFInternalFrame extends JInternalFrame
 	{
 	private static final long serialVersionUID = 1L;
 
-	private JTable jTable;
+	JTable jTable;
 	VCFTableModel tableModel;
 	VCFFileRef ref;
+	InfoTableModel infoTableModel;
+	GenotypeTableModel genotypeTableModel;
 	VCFInternalFrame(VCFFileRef ref)
 		{
 		super(ref.vcfFile.getName(),true,false,true,true);
@@ -83,6 +89,9 @@ class VCFInternalFrame extends JInternalFrame
 		setContentPane(mainPane);
 		JTabbedPane tabbedPane=new JTabbedPane();
 		mainPane.add(tabbedPane,BorderLayout.CENTER);
+
+		
+		
 		
 		JPanel pane=new JPanel(new BorderLayout(5,5));
 		tabbedPane.addTab("VCF", pane);
@@ -90,8 +99,45 @@ class VCFInternalFrame extends JInternalFrame
 		this.tableModel=new VCFTableModel(ref);
 		this.jTable=new JTable(tableModel);
 		this.jTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		JScrollPane scroll=new JScrollPane(this.jTable);
-		pane.add(scroll);
+		
+		JScrollPane scroll1=new JScrollPane(this.jTable);
+		
+		this.infoTableModel=new InfoTableModel();
+		JTable tInfo=new JTable(this.infoTableModel);
+		
+		
+		this.genotypeTableModel=new GenotypeTableModel();
+		JTable tGen=new JTable(this.genotypeTableModel);
+		
+		
+		JSplitPane splitH=new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+				new JScrollPane(tInfo),
+				new JScrollPane(tGen)
+				);
+	
+		JSplitPane splitVert=new JSplitPane(JSplitPane.VERTICAL_SPLIT,scroll1,splitH);
+		
+		this.jTable.addMouseListener(new MouseAdapter()
+			{
+			@Override
+			public void mouseClicked(MouseEvent e) {
+		        JTable t = (JTable)e.getSource();
+		        int row = t.getSelectedRow();
+		        VariantContext ctx;
+				if(row==-1 || (ctx=tableModel.getVariantContext(row))==null)
+					{
+					infoTableModel.setContext(null);
+					genotypeTableModel.setContext(null);
+					}
+				else
+					{
+					infoTableModel.setContext(ctx);
+					genotypeTableModel.setContext(ctx);
+					}
+				}
+			});
+		
+		pane.add(splitVert);
 		
 		pane=new JPanel(new BorderLayout(5,5));
 		
@@ -107,6 +153,151 @@ class VCFInternalFrame extends JInternalFrame
 		}
 	
 	}
+
+class InfoTableModel
+	extends AbstractTableModel
+	{
+	private static final long serialVersionUID = 1L;
+	List<String[]> rows=new Vector<String[]>();
+	public InfoTableModel()
+		{
+		}
+	
+	public void setContext(VariantContext ctx)
+		{
+		if(ctx==null)
+			{
+			rows.clear();
+			}
+		else
+			{
+			List<String[]> rows=new Vector<String[]>();
+			for(String key:ctx.getAttributes().keySet())
+				{
+				Object v=ctx.getAttribute(key);
+				Object o[];
+				if(v==null)
+					{
+					o=new Object[]{null};
+					}
+				else if(v instanceof List)
+					{
+					o=((List<?>)v).toArray();
+					}
+				else if(v.getClass().isArray())
+					{
+					o=(Object[])v;
+					}
+				else
+					{
+					o=new Object[]{v};
+					}
+				for(Object v2:o)
+					{
+					rows.add(new String[]{key,String.valueOf(v2)});
+					}
+				}
+			this.rows=rows;
+			}
+		this.fireTableDataChanged();
+		}
+	@Override
+	public boolean isCellEditable(int rowIndex, int columnIndex) {
+		return false;
+		}
+	@Override
+	public Class<?> getColumnClass(int columnIndex) {
+		return String.class;
+		}
+	@Override
+	public String getColumnName(int column)
+		{
+		return column==0?"KEY":"VALUE";
+		}
+	@Override
+	public Object getValueAt(int rowIndex, int columnIndex)
+		{
+		return rows.get(rowIndex)[columnIndex];
+		}
+	@Override
+	public int getRowCount() {
+		return rows.size();
+		}
+	@Override
+	public int getColumnCount() {
+		return 2;
+		}
+	}
+
+class GenotypeTableModel
+extends AbstractTableModel
+	{
+	private static final long serialVersionUID = 1L;
+	private List<Genotype> genotypes=new Vector<Genotype>();
+	private static final String COLS[]=new String[]{"SAMPLE","TYPE","DP","GQ"};
+	public GenotypeTableModel()
+		{
+		
+		}
+	
+	public void setContext(VariantContext ctx)
+		{
+		if(ctx==null)
+			{
+			this.genotypes.clear();
+			}
+		else
+			{
+			this.genotypes=new Vector<Genotype>(ctx.getGenotypes());
+			}
+		super.fireTableDataChanged();
+		}
+	@Override
+	public boolean isCellEditable(int rowIndex, int columnIndex) {
+		return false;
+		}
+	@Override
+	public Class<?> getColumnClass(int columnIndex)
+		{
+		switch(columnIndex)
+			{
+			case 0: return String.class;
+			case 1: return String.class;
+			case 2: return Integer.class;
+			case 3: return Integer.class;
+			default: return Object.class;
+			}
+		}
+	@Override
+	public String getColumnName(int column)
+		{
+		return COLS[column];
+		}
+	@Override
+	public Object getValueAt(int rowIndex, int columnIndex)
+		{
+		Genotype g=this.genotypes.get(rowIndex);
+		if(g==null ) return null;
+		switch(columnIndex)
+			{
+			case 0: return g.getSampleName();
+			case 1: return g.getType()==null?null:g.getType().name();
+			case 2: return g.hasDP()?g.getDP():null;
+			case 3: return g.hasGQ()?g.getGQ():null;
+			default: return null;
+			}
+		}
+	@Override
+	public int getRowCount() {
+		return genotypes.size();
+		}
+	@Override
+	public int getColumnCount() {
+		return  COLS.length;
+		}
+}
+
+
 
 class VCFTableModel
 	extends AbstractTableModel
@@ -135,6 +326,13 @@ class VCFTableModel
 		{
 		return false;
 		}
+	
+	VariantContext getVariantContext(int rowIndex)
+		{
+		String s=this.rows.get(rowIndex);
+		return this.ref.codec.decode(s);
+		}
+	
 	@Override
 	public Object getValueAt(int rowIndex, int columnIndex)
 		{
@@ -300,6 +498,9 @@ class VCFFrame extends JDialog
 		this.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
 		this.vcfFileRefs=vcfFileRefs;
 		
+		
+		 
+		
 		addWindowListener(new WindowAdapter()
 			{
 			
@@ -324,6 +525,18 @@ class VCFFrame extends JDialog
 					desktopPane.add(iFrame);
 					vcfInternalFrames.add(iFrame);
 					iFrame.setVisible(true);
+					iFrame.jTable.addMouseListener(new MouseAdapter(){
+						@Override
+						public void mouseClicked(MouseEvent e) {
+						      if (e.getClickCount() == 2) {
+						         JTable t = (JTable)e.getSource();
+						         int row = t.getSelectedRow();
+						         if(row==-1) return;
+						         VCFTableModel tm=(VCFTableModel)t.getModel();
+						         showIgv(tm.getValueAt(row, 0),tm.getValueAt(row, 1));
+								}
+							}
+					});
 					LOG.info(iFrame.getBounds());
 					}
 				reloadFrameContent();
@@ -418,31 +631,40 @@ class VCFFrame extends JDialog
 	Integer igvPort=null;
 	
 	//http://plindenbaum.blogspot.fr/2011/07/controlling-igv-through-port-my.html
-	private void showIgv(String chrom,int pos)
+	private void showIgv(final Object chrom,final Object pos)
 		{
 		if(igvIP==null || igvPort==null) return;
-		Socket socket=null;
-		PrintWriter out=null;
-		BufferedReader in=null;
-		try
-			{
-			socket = new Socket(igvIP, igvPort);
-			out = new PrintWriter(socket.getOutputStream(), true);
-			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		Thread thread=new Thread()
+			{	
+			@Override
+			public void run()
+				{
+				PrintWriter out=null;
+				BufferedReader in=null;
+				Socket socket=null;
 
-			out.println("goto "+chrom+":"+pos);
-			//todo wait
-			 }
-		catch(Exception err)
-			{
-			LOG.error(err);
-			}
-		finally
-			{
-			if(in!=null) try {in.close();} catch(Exception err){}
-			if(out!=null) try {out.close();} catch(Exception err){}
-			if(socket!=null) try {socket.close();} catch(Exception err){}
-			}
+				try
+					{
+					socket = new Socket(igvIP, igvPort);
+					out = new PrintWriter(socket.getOutputStream(), true);
+					in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+					out.println("goto "+chrom+":"+pos);
+					try{ Thread.sleep(5*1000);}
+					catch(InterruptedException err2) {}
+					 }
+				catch(Exception err)
+					{
+					LOG.error(err);
+					}
+				finally
+					{
+					if(in!=null) try {in.close();} catch(Exception err){}
+					if(out!=null) try {out.close();} catch(Exception err){}
+					if(socket!=null) try {socket.close();} catch(Exception err){}
+					}
+				}
+			};
+		thread.start();
 		}
 	
 	public static VCFPos parseOne(String s)
@@ -489,6 +711,11 @@ public class VcfViewGui
 	public String USAGE=getStandardUsagePreamble()+"Simple java-Swing-based VCF viewer. ";
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF files to process.",minElements=0)
 	public List<File> IN=new ArrayList<File>();
+    
+    @Option(shortName="HOST", doc="IGV host. example: '127.0.0.1' ",optional=true)
+    public String IGV_HOST=null;
+    @Option(shortName="PORT", doc="IGV IP. example: '60151' ",optional=true)
+    public Integer IGV_PORT=null;
 
     private VCFFileRef create(File vcfFile) throws IOException
     	{
@@ -554,6 +781,8 @@ public class VcfViewGui
 			LOG.info("showing VCF frame");
 			Dimension screen=Toolkit.getDefaultToolkit().getScreenSize();
 			VCFFrame f=new VCFFrame(vfrs);
+			f.igvIP=IGV_HOST;
+			f.igvPort=IGV_PORT;
 			f.setBounds(50, 50, screen.width-100, screen.height-100);
 			f.setVisible(true);
 			}

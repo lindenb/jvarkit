@@ -29,10 +29,10 @@ public abstract class GeneticCode
 		{
 		switch(c)
 			{
-			case 'T': return 0;
-			case 'C': return 1;
-			case 'A': return 2;
-			case 'G': return 3;
+			case 'T': case 't': return 0;
+			case 'C': case 'c': return 1;
+			case 'A': case 'a': return 2;
+			case 'G': case 'g': return 3;
 			default: return -1;
 			}
 		}
@@ -64,10 +64,4 @@ public abstract class GeneticCode
 		return MITOCHONDRIAL;
 		}
 	
-	/** get a genetic code from a chromosome name (either std or mitochondrial */
-	public static GeneticCode getByChromosome(String chr)
-		{
-		if(chr.equalsIgnoreCase("chrM")) return getMitochondrial();
-		return getStandard();
-		}
 	}
