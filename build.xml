@@ -702,11 +702,12 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>
 
 
-<target name="biostar" depends="biostar76892">
+<target name="biostar" depends="biostar76892,biostar77288">
 </target>
 
 
 <target name="biostar76892"><compile-biostar post="76892"/></target>
+<target name="biostar77288"><compile-biostar post="77288"/></target>
 
 <target name="mapuniprot" depends="api.uniprot">
 	<compile-with-picard 
