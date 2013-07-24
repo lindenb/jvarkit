@@ -117,12 +117,14 @@ ant ]]>@{name}<![CDATA[
 			jar="dist/@{name}.jar"
 			mainclass="@{main}"
 			/>
-	    <delete dir="tmp"/>
+	    
 		<echo><![CDATA[<h4>Example</h4>
 ```bash
 java -jar dist/]]>@{name}<![CDATA[.jar [options]
 ```
 ]]></echo>		
+
+		<delete dir="tmp"/>
 	</sequential>
 </macrodef>
 
@@ -160,7 +162,48 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	</sequential>
 </macrodef> 	
 	
-	
+
+<macrodef name="compile-standalone">
+	<attribute name="name"/>
+	<attribute name="main"/>
+	<sequential>
+	   <mkdir dir="tmp"/>
+	  
+	   <unzip dest="tmp" overwrite="true">
+	   		<fileset dir="${picard.dir}">
+    			<include name="picard-*.jar"/>
+   	 			<include name="sam-*.jar"/>
+   	 			<include name="tribble-*.jar"/>
+    			<include name="variant-*.jar"/>
+    		</fileset>
+	   </unzip>
+	   <unzip src="dist/@{name}.jar" dest="tmp"  overwrite="true" />
+	   <delete file="tmp/META-INF/MANIFEST.MF"/>
+	   <mkdir dir="dist"/>
+	 <loadfile
+	      property="git.master.hash"
+	      srcFile=".git/refs/heads/master"
+	 	  failonerror="false"
+	 	  >
+	 	  	<filterchain>
+	 	        <striplinebreaks/>
+			</filterchain>
+	    </loadfile>
+			   
+	   <jar jarfile="dist/@{name}-standalone.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="@{main}"/>
+		    	<attribute name="Git-Hash" value="${git.master.hash}"/>
+		     </manifest>
+	   </jar>
+	   <echo file="dist/@{name}-standalone.bat">cmd /k java -cp @{name}-standalone.jar @{main}</echo>
+	   <delete dir="tmp"/>
+	</sequential>
+</macrodef>
+
+
+
 <target name="mature.projects" depends="vcftrio,extendbed,vcfbed,vcffilterdoid,vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcfvcf,evs2bed,vcftabixml"/>
 
 <target name="all" depends="biostar,mature.projects,genscan,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
@@ -630,6 +673,14 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		main="com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui"
 		name="vcfviewgui"
 		/>
+</target>
+<target name="vcfviewgui.exe" depends="vcfviewgui">
+	<compile-standalone 
+		main="com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui"
+		name="vcfviewgui"
+		/>
+
+	
 </target>
 	
 
