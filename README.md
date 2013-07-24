@@ -755,6 +755,7 @@ ant biostar77288
 <tr><th>Option</th><th>Description</th></tr>
 <tr><td>IN=String</td><td>MSA file/URI (default:stdin)</td></tr>
 <tr><td>ALN_WIDTH=Integer</td><td>Alignment width  Default value: 1000. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>SEQLOGO=Boolean</td><td>Input is seqLogo (see https://github.com/lindenb/jvarkit#sam4weblogo)  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
 <h4>Example</h4>
 ```bash
@@ -762,3 +763,30 @@ curl -s "http://www.tcoffee.org/Courses/Exercises/saragosa_pb_2010/practicals/pr
 	java -jar dist/biostar77288.jar  > result.svg
 ```
 ![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/biostar77288.png)
+```bash
+$ java -jar dist/sam4weblogo.jar IN=in.bam   REGION="1:630-719" |\
+	java -jar dist/biostar77288.jar  SEQLOGO=true > result.svg
+```
+
+<h3>VCFAnnotator</h3>
+<h4>Motivation</h4>
+ Basic Variant Effect prediction . First described in http://plindenbaum.blogspot.fr/2011/01/my-tool-to-annotate-vcf-files.html
+<h4>Compilation</h4>
+```bash
+ant vcfpredictions
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>REF=File</td><td>indexed Fasta genome REFERENCE.  Required. </td></tr>
+<tr><td>KGURI=String</td><td>KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.  Default value: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>IN=String</td><td>VCF file/URL to process. Default stdin.   Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+java -jar  dist/vcfpredictions.jar  \
+	REF=human_g1k_v37.fasta \
+	kgUri=<(curl -x proxy-upgrade.univ-nantes.prive:3128  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '   ' '{if($2 ~ ".*_.*") next; OFS="        "; gsub(/chr/,"",$2);print;}'  ) \
+	I=~/WORK/variations.gatk.annotations.vcf.gz 
+```

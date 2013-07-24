@@ -20,7 +20,6 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Log;
 import net.sf.samtools.DefaultSAMRecordFactory;
 import net.sf.samtools.SAMFileHeader;
@@ -79,10 +78,7 @@ public class SplitBam extends AbstractCommandLineProgram
 	private long id_generator=System.currentTimeMillis();
 	
 	
-	
-	
-	
-	
+
 	
 	private SplitBam()
 		{
@@ -219,7 +215,7 @@ public class SplitBam extends AbstractCommandLineProgram
 		Map<String,SAMFileWriter> seen=new HashMap<String,SAMFileWriter>(many2many.group2chroms.size());
 		SAMFileReader samFileReader=new SAMFileReader(in);
 		samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
-		SAMFileHeader header=samFileReader.getFileHeader();
+		final SAMFileHeader header=samFileReader.getFileHeader();
 		header.setSortOrder(SortOrder.coordinate);
 		
 		SAMProgramRecord sp=new SAMProgramRecord(getClass().getSimpleName());

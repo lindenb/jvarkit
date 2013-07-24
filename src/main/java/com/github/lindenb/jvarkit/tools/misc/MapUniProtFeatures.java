@@ -60,7 +60,7 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 
 	
 	
-    @Option(shortName="KG",doc="KnownGene data",optional=false)
+    @Option(shortName="KG",doc="KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.",optional=false)
 	public String kgUri="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
 	
 	private Map<String,List<KnownGene>> prot2genes=new HashMap<String,List<KnownGene>>();

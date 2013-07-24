@@ -110,7 +110,6 @@ public class VCFBigWig extends AbstractVCFFilter
 			b.attribute(this.TAG,(float)(total/values.size()));
 			w.add(b.make());
 			}
-		
 		}
 	
 	public static void main(String[] args) throws IOException

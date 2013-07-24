@@ -752,6 +752,13 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="vcfpredictions">
+	<compile-with-picard 
+		java="**/VCFAnnotator.java"
+		main="com.github.lindenb.jvarkit.tools.vcfannot.VCFAnnotator"
+		name="vcfpredictions"
+		/>
+</target>
 
 <target name="biostar" depends="biostar76892,biostar77288">
 </target>

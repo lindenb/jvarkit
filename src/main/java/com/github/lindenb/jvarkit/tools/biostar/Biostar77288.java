@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.awt.Insets;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,7 +31,10 @@ public class Biostar77288 extends CommandLineProgram
     @Option(shortName= "W", doc="Alignment width",
             optional=true)
     public int ALN_WIDTH=1000;
- 
+    @Option(shortName= "SL", doc="Input is seqLogo (see https://github.com/lindenb/jvarkit#sam4weblogo)",
+            optional=true)
+    public boolean SEQLOGO=false;
+
     
     
     private Log LOG=Log.getInstance(Biostar77288.class);
@@ -62,42 +66,87 @@ public class Biostar77288 extends CommandLineProgram
         return (n/(double)this.max_length)*this.ALN_WIDTH + max_name*(double)featureHeight;
         }
    
+    private void readingClustal() throws IOException
+    	{
+    	LOG.info("reading CLUSTALW");
+        String line;
+        BufferedReader in=(IN==null?
+                new BufferedReader(new InputStreamReader(System.in)):
+                IOUtils.openURIForBufferedReading(IN)
+                );
+        while((line=in.readLine())!=null)
+            {
+        	int ws=0;
+        	if( line.isEmpty() ||
+        		line.startsWith("CLUSTAL W") ||
+        		Character.isWhitespace(line.charAt(0)) ||
+        		(ws=line.indexOf(' '))<1)
+        		{
+        		continue;
+        		}
+        	
+            
+            Seq S=sequences.get(line.substring(0,ws));
+            if(S==null)
+            	{
+            	S=new Seq();
+            	S.name=line.substring(0,ws);
+            	sequences.put(S.name, S);
+            	}
+            S.sequence.append(line.substring(ws+1).trim());
+                            
+            max_name=Math.max(S.name.length()+1,max_name);
+            max_length=Math.max(S.sequence.length(),max_length);
+            }
+        in.close();    
+        }
+    
+    private void readingSeqLogo() throws IOException
+		{
+		LOG.info("reading SeqLogo");
+	    String line;
+	    BufferedReader in=(IN==null?
+	            new BufferedReader(new InputStreamReader(System.in)):
+	            IOUtils.openURIForBufferedReading(IN)
+	            );
+	    while((line=in.readLine())!=null)
+	        {
+	    	if( line.isEmpty() ||
+	    		!line.startsWith(">"))
+	    		{
+	    		continue;
+	    		}
+	    	
+	        
+	        Seq S=new Seq();
+	        S.name=line.substring(1).trim();
+	        line=in.readLine();
+	        if(line==null) break;
+	        
+	        S.sequence.append(line.trim());
+	       
+	        sequences.put(S.name, S);
+
+	        max_name=Math.max(S.name.length()+1,max_name);
+	        max_length=Math.max(S.sequence.length(),max_length);
+	        }
+	    in.close();    
+	    }
+    
+    
     @Override
     protected int doWork()
         {
         try
             {
-        	LOG.info("reading CLUSTALW");
-            String line;
-            BufferedReader in=(IN==null?
-                    new BufferedReader(new InputStreamReader(System.in)):
-                    IOUtils.openURIForBufferedReading(IN)
-                    );
-            while((line=in.readLine())!=null)
-                {
-            	int ws=0;
-            	if( line.isEmpty() ||
-            		line.startsWith("CLUSTAL W") ||
-            		Character.isWhitespace(line.charAt(0)) ||
-            		(ws=line.indexOf(' '))<1)
-            		{
-            		continue;
-            		}
-            	
-                
-                Seq S=sequences.get(line.substring(0,ws));
-                if(S==null)
-                	{
-                	S=new Seq();
-                	S.name=line.substring(0,ws);
-                	sequences.put(S.name, S);
-                	}
-                S.sequence.append(line.substring(ws+1).trim());
-                                
-                max_name=Math.max(S.name.length()-1,max_name);
-                max_length=Math.max(S.sequence.length(),max_length);
-                }
-            in.close();
+        	if(this.SEQLOGO)
+        		{
+        		readingSeqLogo();
+        		}
+        	else
+	        	{
+	        	readingClustal();
+	        	}
            
             final Insets svgInset=new Insets(10, 10, 10, 10);
             final Insets rowInset=new Insets(7,7,7,7);

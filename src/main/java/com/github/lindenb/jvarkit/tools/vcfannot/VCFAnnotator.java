@@ -16,13 +16,18 @@ package com.github.lindenb.jvarkit.tools.vcfannot;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
+import net.sf.picard.cmdline.Option;
+import net.sf.picard.cmdline.StandardOptionDefinitions;
+import net.sf.picard.cmdline.Usage;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Interval;
 import net.sf.picard.util.IntervalTreeMap;
@@ -37,6 +42,9 @@ import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
+import org.broadinstitute.variant.vcf.VCFHeaderLineType;
+import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
@@ -106,9 +114,13 @@ class ProteinCharSequence extends DelegateCharSequence
 public class VCFAnnotator extends AbstractVCFFilter
 	{
 	static Log LOG=Log.getInstance(VCFAnnotator.class);
-	public File IN;
+    @Usage(programVersion="1.0")
+    public String USAGE=getStandardUsagePreamble()+" A Basic Variant Effect prediction .";
+    @Option(shortName=StandardOptionDefinitions.REFERENCE_SHORT_NAME,doc="indexed Fasta genome REFERENCE.",optional=false)
 	public File REF;
-	public String KG;
+	
+    @Option(shortName="KG",doc="KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.",optional=false)
+	public String kgUri="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
 	
 	private IntervalTreeMap<KnownGene> knownGenes=new IntervalTreeMap<KnownGene>();
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
@@ -125,15 +137,42 @@ public class VCFAnnotator extends AbstractVCFFilter
 		String mutAA="";
 		String wildCodon="";
 		String mutCodon="";
-		Integer position_protein;
+		Integer position_protein=null;
 		Set<SequenceOntologyTree.Term> seqont=new HashSet<SequenceOntologyTree.Term>();
+		
+		
+		public String toString()
+			{
+			StringBuilder b=new StringBuilder();
+			
+			b.append(kg==null?"":kg.getName());
+			b.append('|');
+			b.append(position_cdna==null?"":String.valueOf(position_cdna));
+			b.append('|');
+			b.append(position_protein==null?"":String.valueOf(position_protein));
+			b.append('|');
+			b.append(wildCodon.isEmpty() && mutCodon.isEmpty()?"":wildCodon+"/"+mutCodon);
+			b.append('|');
+			b.append(wildAA.isEmpty() && mutAA.isEmpty()?"":wildAA+"/"+mutAA);
+			b.append("|");
+			boolean first=true;
+			for(SequenceOntologyTree.Term t:seqont)
+				{
+				if(!first) b.append('&');
+				first=false;
+				b.append(t.getAcn());
+				}
+			
+			return b.toString();
+			}
+		
 		}	
 	
 	private void loadKnownGenes()throws IOException
 		{
 		LOG.info("loading genes");
 		Set<String> unseen=new HashSet<String>();
-		BufferedReader in=IOUtils.openURIForBufferedReading(KG);
+		BufferedReader in=IOUtils.openURIForBufferedReading(kgUri);
 		String line;
 		Pattern tab=Pattern.compile("[\t]");
 		while((line=in.readLine())!=null)
@@ -165,6 +204,7 @@ public class VCFAnnotator extends AbstractVCFFilter
 		throws IOException
 		{	
 		LOG.info("opening REF:"+REF);
+		final String TAG="PRED";
 		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
 		loadKnownGenes();
 		VCFCodec vcfCodec=new VCFCodec();
@@ -172,23 +212,44 @@ public class VCFAnnotator extends AbstractVCFFilter
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),"Filtered with "+getCommandLine()));
-		
+		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,
+				"Prediction from "+getClass().getSimpleName()+
+				". Format: TRANSCRIPT|CDNAPOS|PROTPOS|CODON|AA|SEQONTOLOGY"
+				));
+	
 		
         w.writeHeader(h2);
 
 		
 		String line;
-		SequenceOntologyTree seqOntologyTree=SequenceOntologyTree.getInstance();
+		SequenceOntologyTree soTree=SequenceOntologyTree.getInstance();
+		final SequenceOntologyTree.Term so_intron=soTree.getTermByAcn("SO:0001627");
+		final SequenceOntologyTree.Term so_exon=soTree.getTermByAcn("SO:0001791");
+		final SequenceOntologyTree.Term so_splice_donor=soTree.getTermByAcn("SO:0001575");
+		final SequenceOntologyTree.Term so_splice_acceptor=soTree.getTermByAcn("SO:0001574");
+		final SequenceOntologyTree.Term so_5_prime_UTR_variant=soTree.getTermByAcn("SO:0001623");
+		final SequenceOntologyTree.Term so_3_prime_UTR_variant=soTree.getTermByAcn("SO:0001624");
+		final SequenceOntologyTree.Term so_splicing_variant=soTree.getTermByAcn("SO:0001568");
+		final SequenceOntologyTree.Term so_stop_lost=soTree.getTermByAcn("SO:0001578");
+		final SequenceOntologyTree.Term so_stop_gained=soTree.getTermByAcn("SO:0001587");
+		final SequenceOntologyTree.Term so_coding_synonymous=soTree.getTermByAcn("SO:0001819");
+		final SequenceOntologyTree.Term so_coding_non_synonymous=soTree.getTermByAcn("SO:0001583");
+		final SequenceOntologyTree.Term so_intergenic=soTree.getTermByAcn("SO:0001628");
+		
 		while((line=in.readLine())!=null)
 			{
 			VariantContext ctx=vcfCodec.decode(line);
 			Collection<KnownGene> genes=this.knownGenes.getOverlapping(
 					new Interval(ctx.getChr(), ctx.getStart(), ctx.getEnd()) //1-based
 					);
-			if(genes==null || genes.isEmpty())
+			List<Annotation> ctx_annotations=new ArrayList<Annotation>();
+			if(!ctx.getReference().getBaseString().matches("[ATGC]"))
 				{
-				//continue;
-				//TODO if no annotation, create one INTERGENIC
+				//ignore
+				}
+			else if(genes==null || genes.isEmpty())
+				{
+				//ignore
 				}
 			else
 				{
@@ -204,8 +265,11 @@ public class VCFAnnotator extends AbstractVCFFilter
 						annotations.kg=gene;
 						annotations.alt=alt;
 						
-						if(!alt.getBaseString().matches("[ATGC]")) continue;
-						
+						if(!alt.getBaseString().matches("[ATGCatgc]"))
+							{
+							continue;
+							}
+						ctx_annotations.add(annotations);
 
 		        		StringBuilder wildRNA=null;
 		        		ProteinCharSequence wildProt=null;
@@ -216,7 +280,7 @@ public class VCFAnnotator extends AbstractVCFFilter
 		        		final int position=ctx.getStart()-1;
 		        		if(!String.valueOf(genomicSequence.charAt(position)).equalsIgnoreCase(ctx.getReference().getBaseString()))
 		        			{
-		        			LOG.warn("Warning REF!=GENOMIC SEQ!!! at "+genomicSequence+"/"+ctx.getReference());
+		        			LOG.warn("Warning REF!=GENOMIC SEQ!!! at "+position+"/"+ctx.getReference());
 		        			continue;
 		        			}
 		        		
@@ -224,11 +288,11 @@ public class VCFAnnotator extends AbstractVCFFilter
 		            		{
 		            		if(position < gene.getCdsStart())
 		            			{
-		            			annotations.seqont.add(seqOntologyTree.getTermByAcn("??"));//UTR5 to do
+		            			annotations.seqont.add(so_5_prime_UTR_variant);//UTR5
 		            			}
 		            		else if( gene.getCdsEnd()<= position )
 		            			{
-		            			annotations.seqont.add(seqOntologyTree.getTermByAcn("??"));//UTR3 to do
+		            			annotations.seqont.add(so_3_prime_UTR_variant);
 		            			}
 		            		
 		            		int exon_index=0;
@@ -254,22 +318,25 @@ public class VCFAnnotator extends AbstractVCFFilter
 		        					
 		        					if(i==position)
 		        						{
-		        						annotations.seqont.add(null);//TODO put("type", "EXON");
+		        						annotations.seqont.add(so_exon);
 		        						annotations.exon_name=exon.getName();
 		        						position_in_cdna=wildRNA.length();
 		        						annotations.position_cdna=position_in_cdna;
 		        						//in splicing ?
 		        						if(exon.isSplicing(position))
 		        							{
-		        							annotations.seqont.add(null);//TODO put(KEY_SPLICING, "SPLICING");
 		        							
 		        							if(exon.isSplicingAcceptor(position))
 		        								{
-		        								annotations.seqont.add(null);//TODO put(KEY_SPLICING, "SPLICING_ACCEPTOR");
+		        								annotations.seqont.add(so_splice_acceptor); //SPLICING_ACCEPTOR
 		        								}
 		        							else  if(exon.isSplicingDonor(position))
 		        								{
-		        								annotations.seqont.add(null);//TODO put(KEY_SPLICING, "SPLICING_DONOR");
+		        								annotations.seqont.add(so_splice_donor); // SPLICING_DONOR
+		        								}
+		        							else //??
+		        								{
+			        							annotations.seqont.add(so_splicing_variant);
 		        								}
 		        							}
 		        						}
@@ -293,19 +360,22 @@ public class VCFAnnotator extends AbstractVCFFilter
 		            			KnownGene.Intron intron= exon.getNextIntron();
 		            			if(intron!=null && intron.contains(position))
 		            				{
-		            				annotations.seqont.add(null);//TODO put("intron.name",intron.getName());
-		            				annotations.seqont.add(null);//TODO put("type", "INTRON");
+		            				annotations.intron_name=intron.getName();
+		            				annotations.seqont.add(so_intron);
 		            				
 		            				if(intron.isSplicing(position))
 		        						{
-		            					annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING");
 		        						if(intron.isSplicingAcceptor(position))
 		        							{
-		        							annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
+		        							annotations.seqont.add(so_splice_acceptor);
 		        							}
 		        						else if(intron.isSplicingDonor(position))
 		        							{
-		        							annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
+		        							annotations.seqont.add(so_splice_donor);
+		        							}
+		        						else //???
+		        							{
+		        							annotations.seqont.add(so_splicing_variant);
 		        							}
 		        						}
 		            				}
@@ -320,11 +390,11 @@ public class VCFAnnotator extends AbstractVCFFilter
 		            	
 		            		if(position < gene.getCdsStart())
 		            			{
-		            			annotations.seqont.add(null);//TODO put(KEY_TYPE, "UTR3");
+		            			annotations.seqont.add(so_3_prime_UTR_variant);
 		            			}
 		            		else if( gene.getCdsEnd()<=position )
 		            			{
-		            			annotations.seqont.add(null);//TODO put(KEY_TYPE, "UTR5");
+		            			annotations.seqont.add(so_5_prime_UTR_variant);
 		            			}
 		            	
 		            		
@@ -351,21 +421,23 @@ public class VCFAnnotator extends AbstractVCFFilter
 		            				
 		            				if(i==position)
 		        						{
-		            					annotations.seqont.add(null);//TODO put(KEY_TYPE, "EXON");
+		            					annotations.seqont.add(so_exon);
 		            					position_in_cdna=wildRNA.length();
 		        						annotations.position_cdna=position_in_cdna;
 		        						//in splicing ?
 		        						if(exon.isSplicing(position))
-		        							{
-		        							annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING");
-		        							
+		        							{		        							
 		        							if(exon.isSplicingAcceptor(position))
 		        								{
-		        								annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
+		        								annotations.seqont.add(so_splice_acceptor);
 		        								}
 		        							else  if(exon.isSplicingDonor(position))
 		        								{
-		        								annotations.seqont.add(null);//TODO put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
+		        								annotations.seqont.add(so_splice_donor);
+		        								}
+		        							else //?
+		        								{
+		        								annotations.seqont.add(so_splicing_variant);
 		        								}
 		        							}
 		        						
@@ -391,19 +463,22 @@ public class VCFAnnotator extends AbstractVCFFilter
 		            			if(intron!=null &&
 		            				intron.contains(position))
 		            				{
-		            				annotations.seqont.add(null);//TODO .put("intron.name",intron.getName());
-		            				annotations.seqont.add(null);//TODO .put(KEY_TYPE, "INTRON");
+		            				annotations.intron_name=intron.getName();
+		            				annotations.seqont.add(so_intron);
 		            				
 		            				if(intron.isSplicing(position))
 		        						{
-		            					annotations.seqont.add(null);//TODO .put(KEY_SPLICING, "INTRON_SPLICING");
 		        						if(intron.isSplicingAcceptor(position))
 		        							{
-		        							annotations.seqont.add(null);//TODO .put(KEY_SPLICING, "INTRON_SPLICING_ACCEPTOR");
+		        							annotations.seqont.add(so_splice_acceptor);
 		        							}
 		        						else if(intron.isSplicingDonor(position))
 		        							{
-		        							annotations.seqont.add(null);//TODO .put(KEY_SPLICING, "INTRON_SPLICING_DONOR");
+		        							annotations.seqont.add(so_splice_donor);
+		        							}
+		        						else //?	
+		        							{
+		        							annotations.seqont.add(so_splicing_variant);
 		        							}
 		        						}
 		            				}
@@ -430,23 +505,26 @@ public class VCFAnnotator extends AbstractVCFFilter
 		            		annotations.position_protein=(pos_aa+1);
 		            		annotations.wildAA=String.valueOf(wildProt.charAt(pos_aa));
 		            		annotations.mutAA=(String.valueOf(mutProt.charAt(pos_aa)));
+		            		
+		            		annotations.seqont.remove(so_exon);
+		            		
 			    			if(isStop(wildProt.charAt(pos_aa)) &&
 			    			   !isStop(mutProt.charAt(pos_aa)))
 			    				{
-			    				annotations.seqont.add(null);//TODO .put("type", "EXON_STOP_LOST");
+			    				annotations.seqont.add(so_stop_lost);
 			    				}
 			    			else if( !isStop(wildProt.charAt(pos_aa)) &&
 			    				 isStop(mutProt.charAt(pos_aa)))
 			    				{
-			    				annotations.seqont.add(null);//TODO .put("type", "EXON_STOP_GAINED");
+			    				annotations.seqont.add(so_stop_gained);
 			    				}
 			    			else if(wildProt.charAt(pos_aa)==mutProt.charAt(pos_aa))
 			    				{
-			    				annotations.seqont.add(null);//TODO .put("type", "EXON_CODING_SYNONYMOUS");
+			    				annotations.seqont.add(so_coding_synonymous);
 			    				}
 			    			else
 			    				{
-			    				annotations.seqont.add(null);//TODO .put("type", "EXON_CODING_NON_SYNONYMOUS");
+			    				annotations.seqont.add(so_coding_non_synonymous);
 			    				}
 			    			}
 		        		
@@ -454,7 +532,20 @@ public class VCFAnnotator extends AbstractVCFFilter
 					}
 				}
 			
+			if(ctx_annotations.isEmpty())
+				{
+				Annotation a=new Annotation();
+				a.seqont.add(so_intergenic);
+				ctx_annotations.add(a);
+				}
+			Set<String> info=new HashSet<String>(ctx_annotations.size());
+			for(Annotation a:ctx_annotations)
+				{
+				info.add(a.toString());
+				}
+			
 			VariantContextBuilder vb=new VariantContextBuilder(ctx);
+			vb.attribute(TAG, info.toArray());
 			w.add(vb.make());
 			}
 			
