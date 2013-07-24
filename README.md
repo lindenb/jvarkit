@@ -743,3 +743,22 @@ head test.bed |\
 	java -jar dist/extendbed.jar \
 	X=100 REF=human_g1k_v37.fa
 ```
+<h3>Biostar77288</h3>
+<h4>Motivation</h4>
+Low resolution sequence alignment visualization http://www.biostars.org/p/77288/
+<h4>Compilation</h4>
+```bash
+ant biostar77288
+ ```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=String</td><td>MSA file/URI (default:stdin)</td></tr>
+<tr><td>ALN_WIDTH=Integer</td><td>Alignment width  Default value: 1000. This option can be set to 'null' to clear the default value. </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+curl -s "http://www.tcoffee.org/Courses/Exercises/saragosa_pb_2010/practicals/practical_2/ex.1.19/file/clustalw.msa" |\
+	java -jar dist/biostar77288.jar  > result.svg
+```
+![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/biostar77288.png)
