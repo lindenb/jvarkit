@@ -1,5 +1,6 @@
 package com.github.lindenb.jvarkit.util.so;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -113,6 +114,11 @@ public class SequenceOntologyTree
 	private SequenceOntologyTree()
 		{
 		
+		}
+	
+	public Collection<? extends Term> getTerms()
+		{
+		return this.uri2term.values();
 		}
 	
 	public static  SequenceOntologyTree getInstance()

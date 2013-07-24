@@ -4,14 +4,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
+
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
 
 /**
@@ -211,7 +215,23 @@ public class SnpEffPredictionParser implements PredictionParser
 			return hash;
 			}
 		
-		
+		@Override
+		public Set<SequenceOntologyTree.Term> getSOTerms()
+			{
+			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
+			String EFF=getByCol(COLS.Effect);
+			if(EFF==null) return set;
+			for(SequenceOntologyTree.Term t:SequenceOntologyTree.getInstance().getTerms())
+				{
+				if(t.getLabel().equals(EFF))
+					{
+					set.add(t);
+					//break ?
+					}
+				}
+			return set;
+			}
+
 
 		
 		@Override

@@ -41,8 +41,13 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
+import javax.swing.event.InternalFrameAdapter;
+import javax.swing.event.InternalFrameEvent;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
 
@@ -81,6 +86,7 @@ class VCFInternalFrame extends JInternalFrame
 	VCFFileRef ref;
 	InfoTableModel infoTableModel;
 	GenotypeTableModel genotypeTableModel;
+	private ListSelectionListener selList;
 	VCFInternalFrame(VCFFileRef ref)
 		{
 		super(ref.vcfFile.getName(),true,false,true,true);
@@ -99,6 +105,7 @@ class VCFInternalFrame extends JInternalFrame
 		this.tableModel=new VCFTableModel(ref);
 		this.jTable=new JTable(tableModel);
 		this.jTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+		this.jTable.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		
 		JScrollPane scroll1=new JScrollPane(this.jTable);
 		
@@ -117,12 +124,13 @@ class VCFInternalFrame extends JInternalFrame
 	
 		JSplitPane splitVert=new JSplitPane(JSplitPane.VERTICAL_SPLIT,scroll1,splitH);
 		
-		this.jTable.addMouseListener(new MouseAdapter()
+		this.jTable.getSelectionModel().addListSelectionListener(new ListSelectionListener()
 			{
 			@Override
-			public void mouseClicked(MouseEvent e) {
-		        JTable t = (JTable)e.getSource();
-		        int row = t.getSelectedRow();
+			public void valueChanged(ListSelectionEvent e)
+				{
+				if(e.getValueIsAdjusting()) return;
+		        int row = jTable.getSelectedRow();
 		        VariantContext ctx;
 				if(row==-1 || (ctx=tableModel.getVariantContext(row))==null)
 					{
@@ -134,6 +142,7 @@ class VCFInternalFrame extends JInternalFrame
 					infoTableModel.setContext(ctx);
 					genotypeTableModel.setContext(ctx);
 					}
+				
 				}
 			});
 		
@@ -150,6 +159,66 @@ class VCFInternalFrame extends JInternalFrame
 		area.setCaretPosition(0);
 		area.setEditable(false);
 		pane.add(new JScrollPane(area),BorderLayout.CENTER);
+		
+		this.selList=new ListSelectionListener()
+			{
+			@Override
+			public void valueChanged(ListSelectionEvent e)
+				{
+				if(e.getValueIsAdjusting()) return;
+				listSelectionChanged();
+				}
+			};
+		
+		this.addInternalFrameListener(new InternalFrameAdapter()
+			{
+			@Override
+			public void internalFrameActivated(InternalFrameEvent e)
+				{
+				jTable.getSelectionModel().addListSelectionListener(selList);
+				}
+			@Override
+			public void internalFrameDeactivated(InternalFrameEvent e) {
+				jTable.getSelectionModel().removeListSelectionListener(selList);
+				}
+			});
+		}
+	
+	private void listSelectionChanged()
+		{
+		int row=jTable.getSelectedRow();
+		if(row==-1 || this.getDesktopPane()==null) return;
+		VariantContext ctx=this.tableModel.getVariantContext(row);
+		
+		if(ctx==null) return;
+		
+		for(JInternalFrame jif:this.getDesktopPane().getAllFrames())
+			{
+			if(jif==this) continue;
+			if(jif.getClass()!=this.getClass() ) continue;
+			VCFInternalFrame other=VCFInternalFrame.class.cast(jif);
+			int row2=-1;
+			for(int i=0;i< other.tableModel.getRowCount();++i)
+				{
+				VariantContext ctx2=other.tableModel.getVariantContext(i);
+				if(ctx.getChr().equals(ctx2.getChr()) &&
+						ctx.getStart()==ctx2.getStart()
+						)
+					{
+					row2=i;
+					break;
+					}
+				}
+			if(row2==-1)
+				{
+				other.jTable.getSelectionModel().clearSelection();
+				}
+			else
+				{
+				other.jTable.getSelectionModel().setSelectionInterval(row2, row2);
+				other.jTable.scrollRectToVisible((other.jTable.getCellRect(row2,0, true)));
+				}
+			}
 		}
 	
 	}

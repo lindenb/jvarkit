@@ -121,12 +121,16 @@ public class VCFAnnotator extends AbstractVCFFilter
 	
     @Option(shortName="KG",doc="KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.",optional=false)
 	public String kgUri="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
-	
+
+    @Option(shortName="ACN",doc="Print SO:term accession rather than label.",optional=false)
+	public boolean SO_ACN=false;
+
+    
 	private IntervalTreeMap<KnownGene> knownGenes=new IntervalTreeMap<KnownGene>();
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	
 	
-	static class Annotation
+	class Annotation
 		{
 		KnownGene kg;
 		Allele alt;
@@ -160,7 +164,14 @@ public class VCFAnnotator extends AbstractVCFFilter
 				{
 				if(!first) b.append('&');
 				first=false;
-				b.append(t.getAcn());
+				if(SO_ACN)
+					{
+					b.append(t.getAcn());
+					}
+				else
+					{
+					b.append(t.getLabel().replaceAll("[ ]","_"));
+					}
 				}
 			
 			return b.toString();

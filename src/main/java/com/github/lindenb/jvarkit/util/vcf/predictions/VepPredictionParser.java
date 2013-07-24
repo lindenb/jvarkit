@@ -4,14 +4,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
+
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
 /**
  * ###INFO=<ID=CSQ,Number=.,Type=String,Description="Consequence type as predicted by VEP. Format: Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_po
@@ -178,7 +182,27 @@ public class VepPredictionParser implements PredictionParser
 			if(s.startsWith("ENST")) return s;
 			return null;
 			}
-	
+		
+		@Override
+		public Set<SequenceOntologyTree.Term> getSOTerms()
+			{
+			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
+			String EFF=getByCol(COLS.Consequence);
+			if(EFF==null) return set;
+			for(SequenceOntologyTree.Term t:SequenceOntologyTree.getInstance().getTerms())
+				{
+				for(String eff:EFF.split("[&]"))
+					{
+					if(t.getLabel().equals(eff))
+						{
+						set.add(t);
+						}
+					}
+				}
+			return set;
+			}
+
+		
 	@Override
 	public String toString() {
 		return getMap().toString()+ " "+Arrays.asList(tokens);
