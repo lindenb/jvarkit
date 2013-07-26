@@ -17,6 +17,7 @@ import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
+import net.sf.picard.PicardException;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
@@ -33,6 +34,7 @@ import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordFactory;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
+import net.sf.samtools.util.SequenceUtil;
 
 /***
  * 
@@ -48,8 +50,8 @@ public class SplitBam extends AbstractCommandLineProgram
 
     @Option(shortName= StandardOptionDefinitions.REFERENCE_SHORT_NAME, doc="Indexex reference",optional=false)
 	public File  REF=null;
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM files to process. Default stdin. ",optional=false)
-	public List<File> IN=new ArrayList<File>();
+    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM file to process. Default stdin. ",optional=true)
+	public File IN=null;
     
     @Option(shortName= "EMPTY_BAM", doc="generate EMPTY bams for chromosome having no read mapped. ",optional=true)
 	public boolean GENERATE_EMPTY_BAM=false;
@@ -80,7 +82,7 @@ public class SplitBam extends AbstractCommandLineProgram
 	
 
 	
-	private SplitBam()
+	public SplitBam()
 		{
 		
 		}
@@ -218,6 +220,15 @@ public class SplitBam extends AbstractCommandLineProgram
 		final SAMFileHeader header=samFileReader.getFileHeader();
 		header.setSortOrder(SortOrder.coordinate);
 		
+		if(!SequenceUtil.areSequenceDictionariesEqual(
+				header.getSequenceDictionary(),
+				this.samSequenceDictionary)
+				)
+			{
+			samFileReader.close();
+			throw new PicardException("Not the same sequence dictionary BAM vs "+REF);
+			}
+		
 		SAMProgramRecord sp=new SAMProgramRecord(getClass().getSimpleName());
 		sp.setProgramName(getClass().getSimpleName());
 		sp.setProgramVersion(String.valueOf(getProgramVersion()));
@@ -253,7 +264,7 @@ public class SplitBam extends AbstractCommandLineProgram
 			String recordChromName=null;
 			if( record.getReadUnmappedFlag() )
 				{
-				if(record.getMateUnmappedFlag())
+				if(!record.getReadPairedFlag() || record.getMateUnmappedFlag())
 					{
 					recordChromName=this.UNDERTERMINED_NAME;
 					}
@@ -270,6 +281,7 @@ public class SplitBam extends AbstractCommandLineProgram
 			String groupName=many2many.chrom2group.get(recordChromName);
 			if(groupName==null)
 				{
+				samFileReader.close();
 				throw new IOException("Undefined group/chrom for "+recordChromName+" (not in ref dictionary "+many2many.chrom2group.keySet()+").");
 				}
 			
@@ -281,7 +293,7 @@ public class SplitBam extends AbstractCommandLineProgram
 				LOG.info("opening "+fileout);
 				File parent=fileout.getParentFile();
 				if(parent!=null) parent.mkdirs();
-				writer=sf.makeBAMWriter(header,this.INPUT_IS_SORTED,fileout);
+				writer=sf.makeBAMWriter(header,this.INPUT_IS_SORTED,fileout,super.COMPRESSION_LEVEL);
 				
 
 				
@@ -341,20 +353,17 @@ public class SplitBam extends AbstractCommandLineProgram
 				return -1;
 				}
 			
-			if(this.IN.isEmpty())
+			if(this.IN==null)
 				{
 				LOG.info("reading stdin");
 				scan(System.in);
 				}
 			else 
 				{
-				for(File file: this.IN)
-					{
-					LOG.info("reading "+file);
-					FileInputStream fin=new FileInputStream(file);
-					scan(fin);
-					fin.close();
-					}
+				LOG.info("reading "+IN);
+				FileInputStream fin=new FileInputStream(IN);
+				scan(fin);
+				fin.close();
 				}
 			return 0;
 			}

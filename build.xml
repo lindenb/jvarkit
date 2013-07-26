@@ -367,30 +367,6 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>
 
 
-<target name="splitbam" >
-	   <mkdir dir="tmp"/>
-	   <mkdir dir="dist"/>
-	   	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
-	   		<include name="**/SplitBam.java"/>
-	   </javac>
-	   
-	   <pathconvert property="manifest_splitbam" pathsep=" " >
-			 <path refid="picard.lib"/>
-	   </pathconvert>  
-	   
-	   <jar jarfile="dist/splitbam.jar">
-		     <fileset dir="tmp" />
-		     <manifest>
-		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.splitbam.SplitBam"/>
-		        <attribute name="Class-Path" value="${manifest_splitbam}"/>
-		     </manifest>
-	 	</jar>
-	   
-	    <delete dir="tmp"/>
-</target>
 
 	
 <target name="splitread" >
@@ -444,6 +420,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	    <delete dir="tmp"/>
 </target>
 
+
+<target name="splitbam" >
+	<compile-with-picard 
+		java="**/SplitBam.java"
+		main="com.github.lindenb.jvarkit.tools.splitbam.SplitBam"
+		name="splitbam"
+		/>
+</target>
+	
 	
 <target name="cmpbams" >
 	<compile-with-picard 
