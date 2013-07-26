@@ -790,3 +790,41 @@ java -jar  dist/vcfpredictions.jar  \
 	kgUri=<(curl -x proxy-upgrade.univ-nantes.prive:3128  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '   ' '{if($2 ~ ".*_.*") next; OFS="        "; gsub(/chr/,"",$2);print;}'  ) \
 	I=~/WORK/variations.gatk.annotations.vcf.gz 
 ```
+
+
+<h3>VCFBigWig</h3>
+<h4>Motivation</h4>
+Annotate a VCF with the data of a bigwig file.
+<h4>Compilation</h4>
+Compiling requires the bigwig library http://code.google.com/p/bigwig/
+
+```bash
+
+$ more build.properties 
+(...)
+bigwig.dir=/path/to/bigwig
+(...)
+
+ant vcfbigwig
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>BW=File</td><td> Path to the bigwig file. The chromosome must have the same names than in the VCF. Required.</td></tr>
+<tr><td>INFOTAG=String</td><td>name of the INFO tag. default: name of the bigwig.  Default value: null</td></tr>
+<tr><td>IN=String</td><td>VCF file/URL to process. Default stdin.   Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+ java -jar dist/vcfbigwig.jar \
+ 	IN=input.vcf.gz \
+ 	BW=gerp.bw
+	
+##INFO=<ID=GERP,Number=1,Type=Float,Description="Values from bigwig file: com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig BIGWIG=gerp.bw TAG=GERP IN=input.vcf.gz    VERBOSITY=INFO QUIET=false VALIDATION_STRINGENCY=STRICT COMPRESSION_LEVEL=5 MAX_RECORDS_IN_RAM=500000 CREATE_INDEX=false CREATE_MD5_FILE=false">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO(...)
+A	33926	.	G	A	182	.	GERP=-6.35(...)
+A	45365	.	A	G	222	.	GERP=-3.55(...)
+```
+
+

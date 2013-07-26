@@ -32,7 +32,7 @@ public class VCFBigWig extends AbstractVCFFilter
 	
 	@Option(shortName="BW",doc="Path to the bigwig file.",optional=false)
 	public String BIGWIG;
-	@Option(shortName="TAG",doc="name of the INFO tag .",optional=true)
+	@Option(shortName="INFOTAG",doc="name of the INFO tag. default: name of the bigwig.",optional=true)
 	public String TAG=null;
 
 	
@@ -43,7 +43,7 @@ public class VCFBigWig extends AbstractVCFFilter
 	protected void doWork(LineReader in, VariantContextWriter w)
 			throws IOException
 		{
-		LOG.info("opening "+this.BIGWIG);
+		LOG.info("opening bigwig: "+this.BIGWIG);
 		this.bbFileReader=new BBFileReader(this.BIGWIG);
 		if(!this.bbFileReader.isBigWigFile())
 			{
@@ -65,7 +65,7 @@ public class VCFBigWig extends AbstractVCFFilter
 		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-		h2.addMetaDataLine(new VCFInfoHeaderLine(this.TAG,1,VCFHeaderLineType.String,"Values from bigwig file: "+BIGWIG));
+		h2.addMetaDataLine(new VCFInfoHeaderLine(this.TAG,1,VCFHeaderLineType.Float,"Values from bigwig file: "+getCommandLine()));
 		
 		w.writeHeader(h2);
 		
@@ -87,14 +87,13 @@ public class VCFBigWig extends AbstractVCFFilter
 					ctx.getEnd(),
 					this.contained
 					);
-			while(iter.hasNext())
+			while(iter!=null && iter.hasNext())
 				{
 				WigItem item=iter.next();
 				float v=item.getWigValue();
 				values.add(v);
 				
 				}
-			
 			if(values.isEmpty())
 				{
 				w.add(ctx);

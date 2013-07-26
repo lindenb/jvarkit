@@ -867,4 +867,38 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 
 </target>	
 
+<!-- experimental RMI part -->
+<target name="rmi4ngs">
+    <mkdir dir="tmp"/>
+    <mkdir dir="dist"/>		   	   
+	<echo file="dist/rmi4ngs.server.policy">grant { permission java.security.AllPermission;};</echo>
+	
+	<compile-with-picard 
+		java="**/NGSServiceImpl.java"
+		main="com.github.lindenb.jvarkit.tools.ws.rmi.server.NGSServiceImpl"
+		name="rmi4ngs"
+		/>
+		
+	<!--
+	 <exec executable="rmiregistry" spawn="true" failonerror="false">
+	 	 <arg value="-J-Djava.rmi.server.useCodebaseOnly=false"/>
+     </exec>	
+		-->
+	<java classname="com.github.lindenb.jvarkit.tools.ws.rmi.server.NGSServiceImpl" fork="true">
+		<jvmarg value="-Djava.security.policy=dist/rmi4ngs.server.policy"/>
+		<jvmarg value="-Djava.rmserver.codebase=file:///home/lindenb/src/jvarkit-git/dist/rmi4ngs.jar"/>
+		<jvmarg value="-Dhttp.nonProxyHosts=192.168.1.1"/>
+		<jvmarg value="-Djava.rmi.server.useCodebaseOnly=false"/>
+		<jvmarg value="-Djava.rmi.server.logCalls=true"/>
+		<jvmarg value="-Dsun.rmi.loader.logLevel=DEBUG"/>
+		<jvmarg value="-Dsun.rmi.server.exceptionTrace=true"/>
+		<jvmarg value="-Dsun.rmi.server.logLevel=DEBUG"/>
+		<classpath>
+			<path refid="picard.lib"/>
+			<pathelement path="dist/rmi4ngs.jar"/>
+		</classpath>
+		<arg value="CONFIG=/home/lindenb/jeter.xml"/>
+	</java>
+</target>
+
 </project>
