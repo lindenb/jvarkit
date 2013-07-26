@@ -280,28 +280,6 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 
 	
 		
-<target name="vcftabixml" >
-	   <mkdir dir="tmp"/>
-	   <mkdir dir="dist"/>
-	   <copy todir="dist" file="./src/main/java/com/github/lindenb/jvarkit/tools/vcftabixml/evs2vcf.xsl"/>
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
-	   		<include name="**/VCFTabixml.java"/>
-	   </javac>
-	   
-	   <pathconvert property="manifest_cp3" pathsep=" " refid="picard.lib"/>
-
-	   <jar jarfile="dist/vcftabixml.jar">
-		     <fileset dir="tmp" />
-		     <manifest>
-		        <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcftabixml.VCFTabixml"/>
-		        <attribute name="Class-Path" value="${manifest_cp3}"/>
-		     </manifest>
-	 	</jar>
-	   
-    <delete dir="tmp"/>
-</target>	
 
 <target name="evs2bed" >
 	   <mkdir dir="tmp"/>
@@ -352,8 +330,16 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		name="samjs"
 		/>
 </target>			
-	
-	
+
+
+<target name="vcftabixml" >
+	<compile-with-picard 
+		java="**/VCFTabixml.java"
+		main="com.github.lindenb.jvarkit.tools.vcftabixml.VCFTabixml"
+		name="vcftabixml"
+		/>
+</target>	
+
 	
 <target name="bamstats04" >
 	   <mkdir dir="tmp"/>

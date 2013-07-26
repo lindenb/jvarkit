@@ -2,62 +2,103 @@ package com.github.lindenb.jvarkit.tools.vcftabixml;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.Unmarshaller;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlValue;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
+import net.sf.picard.PicardException;
+import net.sf.picard.cmdline.Option;
+import net.sf.picard.cmdline.Usage;
+import net.sf.picard.util.Log;
+
 import org.broad.tribble.readers.LineReader;
 import org.broad.tribble.readers.TabixReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFCodec;
+import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderVersion;
+import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.util.picard.IOUtils;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
 public class VCFTabixml extends AbstractVCFFilter
 	{
-	/*
-	 * 				System.out.println("Usage: java -jar vcftabix.jar -f src.vcf.gz -x style.xsl (file.vcf|stdin) " );
-				System.out.println(" -f (BED indexed with tabix. The 4th column is a XML string.) REQUIRED.");
-				System.out.println(" -H (String like '##INFO=...') append extra-info header");
-				System.out.println(" -x xslt-stylesheet. REQUIRED. Should produce a valid set of INFO field.");
-				System.out.println("4th column of the BED indexed with TABIX is a XML string." +
-						"It will be processed with the xslt-stylesheet and should procuce a valdid set of" +
-						" INFO fields. Carriage returns will be removed." +
-						"Parameters to be passed to the stylesheet: vcfchrom (string) vcfpos(int) vcfref(string) vcfalt(string). ");
+	@Usage(programVersion="1.0")
+	public String USAGE=getStandardUsagePreamble()+" annotate a value from a vcf+xml file."+
+		("4th column of the BED indexed with TABIX is a XML string." +
+		"It will be processed with the xslt-stylesheet and should procuce a xml result <properties><property key='key1'>value1</property><property key='key2'>values1</property></properies>" +
+		" INFO fields. Carriage returns will be removed." +
+		"Parameters to be passed to the stylesheet: vcfchrom (string) vcfpos(int) vcfref(string) vcfalt(string). "
+		);
+	
+	private static final Log LOG=Log.getInstance(VCFTabixml.class);
 
-	 */
+	
+	@Option(shortName="BED",doc=" BED file indexed with tabix. The 4th column *is* a XML string.)",optional=false)
 	public String BEDFILE=null;
+	
+	@Option(shortName="XSL",doc="x xslt-stylesheet. REQUIRED. Should produce a valid set of INFO field.",optional=false)
 	public File STYLESHEET=null;
-	private Set<String> extraInfoFields=new LinkedHashSet<String>();
-	private Templates stylesheet;
 	
-	private VCFTabixml()
+	@Option(shortName="F",doc="file containing extra INFO headers line to add version: 4.1",optional=false)
+	public File TAGS=null;
+	
+	
+	private Templates stylesheet=null;
+	
+	@XmlRootElement(name="property")
+	@XmlAccessorType(XmlAccessType.FIELD)
+	public static class Property
 		{
-		
+		@XmlAttribute(name="key")
+		public String key;
+		@XmlValue
+		public String value;
+		}
+	
 
+
+	@XmlRootElement(name="properties")
+	@XmlAccessorType(XmlAccessType.PROPERTY)
+	public static class Properties
+		{
+		private List<Property> property=new ArrayList<Property>();
+		public List<Property> getProperty() {
+			return property;
+			}
+		public void setProperty(List<Property> property)
+			{
+			this.property = property;
+			}
 		}
 	
-	private boolean isEmpty(String s)
-		{
-		return s==null || s.equals(".") || s.isEmpty();
-		}
+	
 	
 	@Override
 	protected void doWork(LineReader in, VariantContextWriter w)
@@ -66,30 +107,54 @@ public class VCFTabixml extends AbstractVCFFilter
 		TabixReader tabixReader =null;
 
 		try {
+			LOG.info("opening BED"+BEDFILE);
+
 			tabixReader=new TabixReader(this.BEDFILE);
 			
 			Pattern tab=Pattern.compile("[\t]");
+			LOG.info("loading xslt "+STYLESHEET);
+			this.stylesheet=TransformerFactory.newInstance().newTemplates(new StreamSource(STYLESHEET));
 			Transformer transformer=this.stylesheet.newTransformer();
-			transformer.setOutputProperty(OutputKeys.METHOD,"text");
+			transformer.setOutputProperty(OutputKeys.METHOD,"xml");
 
 			VCFCodec codeIn=new VCFCodec();		
 			VCFHeader header=(VCFHeader)codeIn.readHeader(in);
 			String line;
-			VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-			//TODO h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "metadata added from "+TABIXFILE+" . Format was "+FORMAT));
+			VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());			
+			
+			LOG.info("reading Tags "+TAGS);
+			BufferedReader rT=IOUtils.openFileForBufferedReading(TAGS);
+			while((line=rT.readLine())!=null)
+				{
+				if(!line.startsWith(VCFHeader.METADATA_INDICATOR))
+					{
+					throw new PicardException("should start with "+ VCFHeader.METADATA_INDICATOR +":"+line);
+					}
+				 if (!line.startsWith(VCFConstants.INFO_HEADER_START) )
+				 	{
+					throw new PicardException("should start with "+ VCFConstants.INFO_HEADER_START +":"+line);
+				 	}
+				VCFInfoHeaderLine hi=new VCFInfoHeaderLine(line.substring(7), VCFHeaderVersion.VCF4_1);
+				LOG.info(hi.toString());
+				h2.addMetaDataLine(hi);
+				}		
+			rT.close();
+			LOG.info("writing header");
 			w.writeHeader(h2);
+			
+			JAXBContext jaxbCtx=JAXBContext.newInstance(Properties.class,Property.class);
+			Unmarshaller unmarshaller=jaxbCtx.createUnmarshaller();
 			
 			while((line=in.readLine())!=null)
 				{
 				VariantContext ctx=codeIn.decode(line);
 				
+				HashMap<String, Set<String>> insert=new LinkedHashMap<String,Set<String>>();
 				
-
 				TabixReader.Iterator iter= tabixReader.query(
 						ctx.getChr()+":"+(ctx.getStart())+"-"+(ctx.getEnd()+1));
 				String line2=null;
 				
-				String infoToAppend=null;
 				while(iter!=null && (line2=iter.next())!=null)
 					{
 
@@ -97,7 +162,7 @@ public class VCFTabixml extends AbstractVCFFilter
 					
 					if(tokens2.length<4)
 						{
-						System.err.println("[VCFTabixml] VCF. Error not enough columns in tabix.line "+line2);
+						LOG.error("[VCFTabixml] VCF. Error not enough columns in tabix.line "+line2);
 						return;
 						}
 					
@@ -105,7 +170,7 @@ public class VCFTabixml extends AbstractVCFFilter
 					int chromEnd=Integer.parseInt(tokens2[2]);
 					if(chromStart+1!=chromEnd)
 						{
-						System.err.println("Error in "+this.BEDFILE+" extected start+1=end int "+tokens2[0]+":"+tokens2[1]+"-"+tokens2[2]);
+						LOG.error("Error in "+this.BEDFILE+" extected start+1=end int "+tokens2[0]+":"+tokens2[1]+"-"+tokens2[2]);
 						continue;
 						}
 					
@@ -119,42 +184,57 @@ public class VCFTabixml extends AbstractVCFFilter
 					transformer.setParameter("vcfref",ctx.getReference().getBaseString());
 					transformer.setParameter("vcfalt",ctx.getAltAlleleWithHighestAlleleCount().getBaseString());
 					
-					StringWriter sw=new StringWriter();
+					
 					try {
+						StringWriter sw=new StringWriter();
 						StreamSource src=new StreamSource(new StringReader(tokens2[3]));
 						StreamResult rez=new StreamResult(sw);
 						transformer.transform(src, rez);
+						Properties props=unmarshaller.unmarshal(new StreamSource(new StringReader(sw.toString())),Properties.class).getValue();
+						for(Property p:props.getProperty())
+							{
+							if(p.key.isEmpty()) continue;
+							if(h2.getInfoHeaderLine(p.key)==null) 
+								{
+								LOG.info("ignoring key "+p.key+" you could set it to:\n"+
+										"##INFO=<ID="+p.key+",Number=1,Type=String,Description=\""+p.key+" from "+BEDFILE+"\">"
+										);
+								continue;
+								}
+							Set<String> x=insert.get(p.key);
+							if(x==null)
+								{
+								x=new LinkedHashSet<String>();
+								insert.put(p.key,x);
+								}
+							x.add(p.value);
+							}
 						}
 					catch (Exception e)
 						{
-						continue;
-						}
-					
-					infoToAppend=sw.toString().replace('\n',';').replaceAll("[;]+",";");
-					if(infoToAppend.isEmpty() || infoToAppend.equals(";"))
-						{
-						infoToAppend=null;
+						throw new PicardException("error",e);
 						}
 					
 					}
-				/*
-				String newInfo;
-				if(isEmpty(tokens[7]))
+				
+				if(insert.isEmpty())
 					{
-					newInfo=infoToAppend;
-					if(isEmpty(newInfo)) newInfo=".";
+					w.add(ctx);
+					continue;
 					}
-				else
+				VariantContextBuilder b=new VariantContextBuilder(ctx);
+				for(String key:insert.keySet())
 					{
-					newInfo=tokens[7];
-					if(!newInfo.endsWith(";")) newInfo+=";";
-					if(!isEmpty(infoToAppend)) newInfo+=infoToAppend;
-					}*/
-
+					b.attribute(key,insert.get(key).toArray());
+					}
+				w.add(b.make());
 				}
-			
-			
-		} catch (TransformerConfigurationException err)
+			}
+		catch (IOException err)
+			{
+			throw err;
+			}
+		catch (Exception err)
 			{
 			throw new IOException(err);
 			}
