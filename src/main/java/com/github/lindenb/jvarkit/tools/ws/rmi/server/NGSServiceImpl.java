@@ -49,7 +49,7 @@ public class NGSServiceImpl extends AbstractCommandLineProgram
 	@Override
 	public List<? extends WSProject> getProjects()
 		{
-		return new ArrayList<>(id2project.values());
+		return new ArrayList<WSProject>(id2project.values());
 		}
 	
 	@Override
@@ -131,7 +131,7 @@ public class NGSServiceImpl extends AbstractCommandLineProgram
 	 */
 	public static void main(String[] args)
 		{
-		new NGSServiceImpl().instanceMainWithExit(args);
+		new NGSServiceImpl().instanceMain(args);
 		}
 
 }
