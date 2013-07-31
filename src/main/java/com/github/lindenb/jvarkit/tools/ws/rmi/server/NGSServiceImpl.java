@@ -25,9 +25,13 @@ import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
 
+import com.github.lindenb.jvarkit.tools.ws.WSBam;
 import com.github.lindenb.jvarkit.tools.ws.WSProject;
+import com.github.lindenb.jvarkit.tools.ws.WSVcf;
+import com.github.lindenb.jvarkit.tools.ws.impl.WSBamImpl;
 import com.github.lindenb.jvarkit.tools.ws.impl.WSProjectImpl;
 import com.github.lindenb.jvarkit.tools.ws.impl.WSReferenceImpl;
+import com.github.lindenb.jvarkit.tools.ws.impl.WSVcfImpl;
 import com.github.lindenb.jvarkit.tools.ws.rmi.NGSService;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 
@@ -45,6 +49,8 @@ public class NGSServiceImpl extends AbstractCommandLineProgram
 	
 	private Map<String,WSReferenceImpl> id2reference=new HashMap<String,WSReferenceImpl>();
 	private Map<String,WSProjectImpl> id2project=new HashMap<String,WSProjectImpl>();
+	private Map<String,WSBamImpl> id2bam=new HashMap<String,WSBamImpl>();
+	private Map<String,WSVcfImpl> id2vcf=new HashMap<String,WSVcfImpl>();
 	
 	@Override
 	public List<? extends WSProject> getProjects()
@@ -57,6 +63,22 @@ public class NGSServiceImpl extends AbstractCommandLineProgram
 			throws RemoteException
 		{
 		return this.id2project.get(id);
+		}
+	
+	@Override
+	public WSBam getBamById(String id) throws RemoteException {
+		return id2bam.get(id);
+	}
+	
+	@Override
+	public WSVcf getVcfById(String id) throws RemoteException {
+		return id2vcf.get(id);
+	}
+	
+	
+	public String getBamHeader(String bamId)
+		{
+		return null;//TODO
 		}
 	
 	
