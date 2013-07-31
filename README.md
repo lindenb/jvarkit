@@ -987,7 +987,7 @@ Runtime.totalMemory()=1916600320
 ```
 
 
-<h3>SplitBam<h3>
+<h3>FindCorruptedFiles<h3>
 <h4>Motivation</h4>
 Searches for corrupted NGS files (VCF/BAM/FASTQ). 
 When a parallel workflow/Makefile/cluster/qmake fails, some files may be truncated, this tool will detect the files having a problem.
@@ -998,8 +998,8 @@ ant findcorruptedfiles
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
-<tr><td>IN=File</td><td>File and/or directories  This option may be specified 0 or more times. </td></tr>
-<tr><td>NUM=Long</td><td>number of features (samrecord, variant) to read. -1= read everything.   Default value: 100. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>IN=File</td><td>File(s) and/or directories  This option may be specified 0 or more times. </td></tr>
+<tr><td>NUM=Long</td><td>number of features (sam-record, variant, fastq) to read. -1= read everything.   Default value: 100. This option can be set to 'null' to clear the default value. </td></tr>
 </table>
 <h4>Example</h4>
 ```bash
