@@ -207,11 +207,9 @@ TGGGGGGGGCGCAGT----------------
 <h3>SAM2Tsv</h3>
 display a tabular view of each base of the reads vs the reference.
 <h4>Compilation</h4>
-
 ```bash
 ant sam2tsv
 ```
-
 <h4>Options</h4>
 <ul>
 <li>IN=File BAM files to process.  This option may be specified 0 or more times.</li>
@@ -220,7 +218,6 @@ ant sam2tsv
 <li>A={true,false} Use Alignment format.</li>
 </ul>
 <h4>Example</h4>
-
 ```bash
 java -jar dist/sam2tsv.jar \
 	I=sorted.bam \
@@ -239,7 +236,6 @@ M00491:12:000000000-A3FL3:1:1101:16929:4287	147	5	C	36	chr22	544293	C	M	=
 <h3>cmpbam: Comparing two or more BAMS</h3>
 
 <h4>Compilation</h4>
-
 ```bash
 ant cmpbams
 ```
@@ -252,7 +248,6 @@ ant cmpbams
 <tr><td>USESAMFLAG=Boolean</td><td>use SAM Flag when comparing.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
 java -jar dist/cmpbams.ja \
 	I=file1.bam \
@@ -278,20 +273,16 @@ Save a BAM alignment as a PNG image.
 <tr><td>BASE=Boolean</td><td>print base.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
 <h4>Compilation</h4>
-
 ```bash
 ant bam2raster
 ```
-
 <h4>Example</h4>
-
 ```bash
 java -jar dist/bam2raster.jar \
 	IN=sorted.bam L=seq1:200-300 \
 	OUT=ouput.png \
 	R=ex1.fa
 ```
-
 ![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png)
 
 <br/>
@@ -309,17 +300,13 @@ Generate the SQL code to insert a VCF into sqlite3.
 <tr><td>SPLIT4=Boolean</td><td>Split DP4  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
 java -jar dist/vcf2sql.jar I=file.vcf | sqlite3 db.sqlite 
 ```
-
 <h4>Compilation</h4>
-
 ```bash
 ant vcf2sql
 ```
-
 <h4>Schema</h4>
 ![Schema](https://chart.googleapis.com/chart?cht=gv&chl=digraph{HEADER->FILE;VARIATION->FILE;ALT->VARIATION;FILTER->VARIATION;INFO->VARIATION;SAMPLE->GENOTYPE;GENOTYPE->VARIATION;GTPROP->GENOTYPE;EXTRAINFO->INFO;EXTRAINFOPROP->EXTRAINFO;})
 
@@ -334,13 +321,10 @@ Sort a VCF using the reference order. Version: 1.0
 <tr><td>REF=File</td><td>Reference file.  Required. </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
 java -jar dist/sortvcfonref.jar I=in.vcf O=out.vcf REF=ref.fa
 ```
-
 <h4>Compilation</h4>
-
 ```bash
 ant sortvcfonref
 ```
@@ -363,11 +347,9 @@ and '<b>header</b>' ( http://picard.sourceforge.net/javadoc/net/sf/samtools/SAMF
 <tr><td>LIMIT=Long</td><td>limit to 'L' records. </td></tr>
 </table>
 <h4>Compilation</h4>
-
 ```bash
 ant samjs
 ```
-
 <h4>Example</h4>
 get a SAM where the  read OR the mate is unmapped
 
@@ -396,11 +378,9 @@ EAS188_4:8:12:628:973	89	seq1	18	75	35M	*	0	0	AAATGTGTGGTTTAACTCGTCCATGGCCCAGCAT
 <h3>Bam4DeseqIntervals</h3>
 creates a table for DESEQ with the number of reads within a sliding window for multiple BAMS.Version: 1.0
 <h4>Compilation</h4>
-
 ```bash
 ant bam4deseq01
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -417,11 +397,9 @@ ant bam4deseq01
 <h4>Motivation</h4>
 Removes one or more field from the INFO column of a VCF.Version
 <h4>Compilation</h4>
-
 ```bash
 ant vcfstripannot
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -432,7 +410,6 @@ ant vcfstripannot
 </table>
 <br/>
 <h4>Example</h4>
-
 ```bash
 $ java -jar dist/vcfstripannot.jar K=DP4 K=AC1 < in.vcf > out.vcf 
 ```
@@ -441,11 +418,9 @@ $ java -jar dist/vcfstripannot.jar K=DP4 K=AC1 < in.vcf > out.vcf
 <h4>Motivation</h4>
 Fix samtools INDELS for @SolenaLS
 <h4>Compilation</h4>
-
 ```bash
 ant vcffixindels
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -454,7 +429,6 @@ ant vcffixindels
 </table>
 <br/>
 <h4>Example</h4>
-
 ```bash
 $ java -jar dist/vcffixindels.jar I=input.vcf.gz | grep FIX
 
@@ -468,11 +442,9 @@ $ java -jar dist/vcffixindels.jar I=input.vcf.gz | grep FIX
 Maps uniprot/genbank annotations on a blast result. See http://www.biostars.org/p/76056
 <h4>Compilation</h4>
 This tools call ${JAVA_HOME}/bin/xjc. If you're working being a proxy, you might have to edit the build.xml file to add the -httpproxy option.
-
 ```bash
 ant blastmapannots
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -485,19 +457,15 @@ ant blastmapannots
 <br/>
 <h4>Example</h4>
 Download uniprot P04514  ( Rotavirus Non-structural protein 3 )  as <b>XML</b>
-
 ```bash
 $ curl -o P04514.xml "http://www.uniprot.org/uniprot/P04514.xml"
 ```
-
 Download the same P04514 as <b>fasta</b>
-
 ```bash
 $ curl -o P04514.fasta "http://www.uniprot.org/uniprot/P04514.fasta"
 ```
 
 <b>TblastN</b> P04514.fasta vs a RNA of NSP3 in genbank http://www.ncbi.nlm.nih.gov/nuccore/AY065842.1 and save the ouput as XML:
-
 ```xml
 <?xml version="1.0"?>
 <!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd">
@@ -529,7 +497,6 @@ $ curl -o P04514.fasta "http://www.uniprot.org/uniprot/P04514.fasta"
 </BlastOutput_iterations>
 </BlastOutput>
 ```
-
 Now produce a BED file with this blast result to map the features of P04514 to AY065842.
 
 ```bash
@@ -549,11 +516,9 @@ AY065842	520	733	coiled-coil_region	916	+	520	733	255,255,255	1	213	520
 Simple java-Swing-based VCF viewer.
 ![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/vcfview.png)
 <h4>Compilation</h4>
-
 ```bash
 ant vcfviewgui
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -566,11 +531,9 @@ ant vcfviewgui
 <h4>Motivation</h4>
 Finds the GO terms for VCF annotated with SNPEFF or VEP
 <h4>Compilation</h4>
-
 ```bash
 ant vcfgo
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -580,7 +543,6 @@ ant vcfgo
 <tr><td>OUT=File</td><td>VCF file to generate. Default stdout. </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
 $ java -jar dist/vcfgo.jar I="https://raw.github.com/arq5x/gemini/master/test/tes.snpeff.vcf" |\
 	grep -v -E '^##' | head -n 3
@@ -594,11 +556,9 @@ chr1	69270	.	A	G	2694.18	.	AC=40;AF=1.000;AN=40;DP=83;Dels=0.00;EFF=SYNONYMOUS_C
 <h4>Motivation</h4>
 Set the <b>VCF FILTERs</b> on VCF files annotated with SNPEFF or VCP testing wether a Gene belong or not to the descendants of a GO term. 
 <h4>Compilation</h4>
-
 ```bash
 ant vcffiltergo
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -610,7 +570,6 @@ ant vcffiltergo
 <tr><td>OUT=File</td><td>VCF file to generate. Default stdout. </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
 $  java -jar dist/vcffiltergo.jar I="https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf"  \
 	CHILD_OF=GO:0005886 FILTER=MEMBRANE  |\
@@ -626,11 +585,9 @@ chr1	69270	.	A	G	2694.18	MEMBRANE	AC=40;AF=1.000;AN=40;DP=83;Dels=0.00;EFF=SYNON
 <h4>Motivation</h4>
 Annotate a VCF with the content of a BED file indexed with tabix
 <h4>Compilation</h4>
-
 ```bash
 ant vcfbed
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -659,7 +616,6 @@ $ gunzip -c ~/ncbibiosystem.bed.gz | head
 ```
 
 Now, annotate a remote VCF with the data of NCBI biosystems.
-
 ```bash
 curl "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
  sed 's/^chr//' |\
@@ -671,16 +627,13 @@ curl "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
 1	69270	.	A	G	2694.18	.	AC=40;AF=1.000;AN=40;DP=83;Dels=0.00;EFF=SYNONYMOUS_CODING(LOW|SILENT|tcA/tcG|S60|305|OR4F5|protein_coding|CODING|ENST00000335137|exon_1_69091_70008);FS=0.000;HRun=0;HaplotypeScore=0.0000;InbreedingCoeff=-0.0598;MQ=31.06;MQ0=0;NCBIBIOSYS=(79501|119548|40|GPCR_downstream_signaling),(79501|106356|30|Signaling_by_GPCR),(79501|498|40|Olfactory_transduction),(79501|83087|60|Olfactory_transduction),(79501|477114|30|Signal_Transduction),(79501|106383|50|Olfactory_Signaling_Pathway);QD=32.86	GT:AD:DP:GQ:PL	./.	./.	1/1:0,3:3:9.03:106,9,0	1/1:0,6:6:18.05:203,18,0
 1	69511	.	A	G	77777.27	.	AC=49;AF=0.875;AN=56;BaseQRankSum=0.150;DP=2816;DS;Dels=0.00;EFF=NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Aca/Gca|T141A|305|OR4F5|protein_coding|CODING|ENST00000335137|exon_1_69091_70008);FS=21.286;HRun=0;HaplotypeScore=3.8956;InbreedingCoeff=0.0604;MQ=32.32;MQ0=0;MQRankSum=1.653;NCBIBIOSYS=(79501|119548|40|GPCR_downstream_signaling),(79501|106356|30|Signaling_by_GPCR),(79501|498|40|Olfactory_transduction),(79501|83087|60|Olfactory_transduction),(79501|477114|30|Signal_Transduction),(79501|106383|50|Olfactory_Signaling_Pathway);QD=27.68;ReadPosRankSum=2.261	GT:AD:DP:GQ:PL	./.	./.	0/1:2,4:6:15.70:16,0,40	0/1:2,2:4:21.59:22,0,40
 ```
-
 <h3>Biostar76892</h3>
 <h4>Motivation</h4>
 Fix strand of two paired reads close but on the same strand http://www.biostars.org/p/76892/
 <h4>Compilation</h4>
-
 ```bash
 ant biostar76892
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -692,22 +645,18 @@ ant biostar76892
 <h4>Example</h4>
 
 Before fixing:
-
 ```bash
 samtools view src.bam | grep "HWI-1KL149:6:C0KTCACXX:5:2107:2283:35906"
 HWI-1KL149:6:C0KTCACXX:5:2107:2283:35906        177     3       1264832 37      101M    =       1264940 109     AGGTGGTGAAGCATGAGATGTAGGGAGAGCTGCTTTAAAACCCAGCACAAGGCTGGTTGTACTGGCTCACACCTGTAATCCCAGGTCTTTGGGAGGCTGAG    """#""""#"""#"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#""""""#""##"""""""#"#"   X0:i:1  X1:i:0  BD:Z:ABBACCABBABAAABABAABAACBBABAA@AAABAABBAABB@AAAAAAABA@ABAA@BAA@@BAAAAAAAA@@BAAAABA@ABAAABAACBBACBAABAA       MD:Z:0C0C0C1C0C0G1G0T1T0T0G0C0C0T0T0C0T0G0T0A0C0A2T2C0A0T0G0C1T0G0T0G2G0T0T0T0G1G0T1T1C0C0A0A0G0T0G0C0G0A1T0G1G0C0T1T0T2C0G0T0G0T0G1C1C0A1G1G0T1C0C1T0T2C0A0     RG:Z:idp63088   XG:i:0  BI:Z:ABBAEDCCCBCBBABABAAAA@CBBAB@A@@A@AAAAAAABA@@AAA@A@BA@@BAA@A@@@@BAA@A@@@A@@AAAAABA@@BAAABBACBBACBBABAA       AM:i:37 NM:i:75 SM:i:37 XM:i:1  XO:i:0  MQ:i:37 XT:A:U
 HWI-1KL149:6:C0KTCACXX:5:2107:2283:35906        113     3       1264940 37      101M    =       1264832 -109    GGTATCTCCATGCTCGAAGCCCTGACCTACTGTATTGCCCCGAAAGTCTTCCCTGCTGTGGCTGCATCTTTTCCACGTGGATAATCTTGGTTCATCTCTAG    """##"""""""""""""""""""""""""#"""""""""""""""""""""""""""#"""""""""""""""#""""""""""""#""#""##"#"##"   X0:i:1  X1:i:0  BD:Z:BBAABBBBAAABBBCBAABCBA@BAAAAAAABAAAAACCCBABAAAAAAACBAAAAABABA@AA@AAABBAAAAACB@BBAAAAAAAABBBAABBBBAAAA       MD:Z:0T0T1G0C0A1G0T1C0C0A1G0T0G0C0A0T0G0T0G0T0G2A0T4G0C0A0A0T0G0T0G0C1G0G0T0G1C0A0G0T0T0G0C0A4C1A0T0G0C0G0T0G2G0G1C0G0T0G0A1C0G0T0G1G0C2T2T0C0G0T0G0T0A0T1       RG:Z:idp63088   XG:i:0  BI:Z:BABADDCCBBBCBBCBAABCBA@AABAAA@AAAAA@BBBBBAAA@AA@AABA@@A@@A@BA@@A@AA@AAAAAAABB@BAAAAAAAA@CBAAABBBBAAAA       AM:i:37 NM:i:74 SM:i:37 XM:i:0  XO:i:0  MQ:i:37 XT:A:U
 ```
-
 Fixing:
-
 ```bash
  java -jar dist/biostar76892.jar ONLYSAVEFIXED=true \
  	IN=src.bam \
  	OUT=fix.bam  \
  	VALIDATION_STRINGENCY=LENIENT
 ```
-
 result
 
 ```bash
@@ -715,16 +664,13 @@ samtools view fix.bam | grep "HWI-1KL149:6:C0KTCACXX:5:2107:2283:35906"
 HWI-1KL149:6:C0KTCACXX:5:2107:2283:35906        163     3       1264832 37      101M    =       1264940 109     AGGTGGTGAAGCATGAGATGTAGGGAGAGCTGCTTTAAAACCCAGCACAAGGCTGGTTGTACTGGCTCACACCTGTAATCCCAGGTCTTTGGGAGGCTGAG    """#""""#"""#"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#""""""#""##"""""""#"#"   X0:i:1  X1:i:0  BD:Z:ABBACCABBABAAABABAABAACBBABAA@AAABAABBAABB@AAAAAAABA@ABAA@BAA@@BAAAAAAAA@@BAAAABA@ABAAABAACBBACBAABAA       MD:Z:0C0C0C1C0C0G1G0T1T0T0G0C0C0T0T0C0T0G0T0A0C0A2T2C0A0T0G0C1T0G0T0G2G0T0T0T0G1G0T1T1C0C0A0A0G0T0G0C0G0A1T0G1G0C0T1T0T2C0G0T0G0T0G1C1C0A1G1G0T1C0C1T0T2C0A0     RG:Z:idp63088   XG:i:0  BI:Z:ABBAEDCCCBCBBABABAAAA@CBBAB@A@@A@AAAAAAABA@@AAA@A@BA@@BAA@A@@@@BAA@A@@@A@@AAAAABA@@BAAABBACBBACBBABAA       AM:i:37 NM:i:75 SM:i:37 XM:i:1  XO:i:0  MQ:i:37 XT:A:U  rv:i:1
 HWI-1KL149:6:C0KTCACXX:5:2107:2283:35906        83      3       1264940 37      101M    =       1264832 -109    GGTATCTCCATGCTCGAAGCCCTGACCTACTGTATTGCCCCGAAAGTCTTCCCTGCTGTGGCTGCATCTTTTCCACGTGGATAATCTTGGTTCATCTCTAG    """##"""""""""""""""""""""""""#"""""""""""""""""""""""""""#"""""""""""""""#""""""""""""#""#""##"#"##"   X0:i:1  X1:i:0  BD:Z:BBAABBBBAAABBBCBAABCBA@BAAAAAAABAAAAACCCBABAAAAAAACBAAAAABABA@AA@AAABBAAAAACB@BBAAAAAAAABBBAABBBBAAAA       MD:Z:0T0T1G0C0A1G0T1C0C0A1G0T0G0C0A0T0G0T0G0T0G2A0T4G0C0A0A0T0G0T0G0C1G0G0T0G1C0A0G0T0T0G0C0A4C1A0T0G0C0G0T0G2G0G1C0G0T0G0A1C0G0T0G1G0C2T2T0C0G0T0G0T0A0T1       RG:Z:idp63088   XG:i:0  BI:Z:BABADDCCBBBCBBCBAABCBA@AABAAA@AAAAA@BBBBBAAA@AA@AABA@@A@@A@BA@@A@AA@AAAAAAABB@BAAAAAAAA@CBAAABBBBAAAA       AM:i:37 NM:i:74 SM:i:37 XM:i:0  XO:i:0  MQ:i:37 XT:A:U  rv:i:1
 ```
-
 <h3>FixVCF</h3>
 <h4>Motivation</h4>
 Fix a VCF HEADER when I forget to declare a FILTER or an INFO field in the HEADER
 <h4>Compilation</h4>
-
 ```bash
 ant fixvcf
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -736,11 +682,9 @@ ant fixvcf
 <h4>Motivation</h4>
 Check for mendelian incompatibilities in a VCF
 <h4>Compilation</h4>
-
 ```bash
 ant vcftrio
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -763,7 +707,6 @@ map uniprot features on reference genome.
 <tr><td>UNIPROT=String</td><td>Uniprot URL/File  Default value: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz. This option can be set to 'null' to clear the default value. </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
 $ java  -jar dist/mapuniprot.jar \
 	REF=/path/to/human_g1k_v37.fasta \
@@ -783,7 +726,6 @@ $ java  -jar dist/mapuniprot.jar \
 1	69486	69543	transmembrane_region	1000	+	69486	69543	255,0,0	1	57	0
 1	69543	69654	topological_domain	1000	+	69543	69654	255,0,0	1	111	0
 ```
-
 <h3>ExtendBed</h3>
 <h4>Motivation</h4>
 Extends a BED file by 'X' bases.
@@ -796,22 +738,18 @@ Extends a BED file by 'X' bases.
 <tr><td>EXTEND=Integer</td><td>extend by 'X' bases.  Default value: 0. This option can be set to 'null' to clear the default value. </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
 head test.bed |\
 	java -jar dist/extendbed.jar \
 	X=100 REF=human_g1k_v37.fa
 ```
-
 <h3>Biostar77288</h3>
 <h4>Motivation</h4>
 Low resolution sequence alignment visualization http://www.biostars.org/p/77288/
 <h4>Compilation</h4>
-
 ```bash
 ant biostar77288
-```
-
+ ```
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -820,7 +758,6 @@ ant biostar77288
 <tr><td>SEQLOGO=Boolean</td><td>Input is seqLogo (see https://github.com/lindenb/jvarkit#sam4weblogo)  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
 curl -s "http://www.tcoffee.org/Courses/Exercises/saragosa_pb_2010/practicals/practical_2/ex.1.19/file/clustalw.msa" |\
 	java -jar dist/biostar77288.jar  > result.svg
@@ -835,11 +772,9 @@ $ java -jar dist/sam4weblogo.jar IN=in.bam   REGION="1:630-719" |\
 <h4>Motivation</h4>
  Basic Variant Effect prediction . First described in http://plindenbaum.blogspot.fr/2011/01/my-tool-to-annotate-vcf-files.html
 <h4>Compilation</h4>
-
 ```bash
 ant vcfpredictions
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -849,7 +784,6 @@ ant vcfpredictions
 <tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
 java -jar  dist/vcfpredictions.jar  \
 	REF=human_g1k_v37.fasta \
@@ -873,7 +807,6 @@ bigwig.dir=/path/to/bigwig
 
 $ ant vcfbigwig
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -883,7 +816,6 @@ $ ant vcfbigwig
 <tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
 </table>
 <h4>Example</h4>
-
 ```bash
  java -jar dist/vcfbigwig.jar \
  	IN=input.vcf.gz \
@@ -900,11 +832,9 @@ A	45365	.	A	G	222	.	GERP=-3.55(...)
 <h4>Motivation</h4>
 Annotate a value from a vcf+xml file.4th column of the BED indexed with TABIX is a XML string.It will be processed with the xslt-stylesheet and should procuce a xml result &lt;properties>&lt;property key='key1'>value1&lt;/property>&lt;property key='key2'>values1&lt;/property>&lt;/properies> INFO fields. Carriage returns will be removed.Parameters to be passed to the stylesheet: vcfchrom (string) vcfpos(int) vcfref(string) vcfalt(string). Version: 1.0
 <h4>Compilation</h4>
-
 ```bash
 ant vcftabixml
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -916,7 +846,6 @@ ant vcftabixml
 </table>
 <h4>Example</h4>
 The header of the tabix-index BED+XML file:
-
 ```
 1	69427	69428	<snpList><positionString>1:69428</positionString><chrPosition>69428</chrPosition><alleles>G/T</alleles><ua..
 1	69475	69476	<snpList><positionString>1:69476</positionString><chrPosition>69476</chrPosition><alleles>C/T</alleles><ua..
@@ -930,9 +859,7 @@ The header of the tabix-index BED+XML file:
 1	801942	801943	<snpList><positionString>1:801943</positionString><chrPosition>801943</chrPosition><alleles>T/C</alleles...
 (...)
 ```
-
 The content of the tags.txt file:
-
 ```
 ##INFO=<ID=EVS_AAMAF,Number=1,Type=String,Description="EVS_AAMAF from EVS">
 ##INFO=<ID=EVS_AVGSAMPLEREADDEPTH,Number=1,Type=String,Description="EVS_AVGSAMPLEREADDEPTH from EVS">
@@ -947,7 +874,6 @@ The content of the tags.txt file:
 ##INFO=<ID=EVS_TOTALMAF,Number=1,Type=String,Description="EVS_TOTALMAF from EVS">
 ##INFO=<ID=EVS_UAMAF,Number=1,Type=String,Description="EVS_UAMAF from EVS">
 ```
-
 The XSLT file:
 
 ```xml
@@ -1011,16 +937,20 @@ A	615009	.	T	A	125	.	AC1=1;AF1=0.5;DP=103;DP4=45,0,56,0;FQ=120;MQ=45;PV4=1,0.14,
 A	615037	.	C	T	161	.	AC1=1;AF1=0.5;DP=353;DP4=0,164,0,165;FQ=110;MQ=48;PV4=1,1,1.1e-23,1;RPB=5.549816e+00;VDB=1.486773e-11	GT:PL:DP:GQ	0/1:191,0,137:329:99
 ```
 
-<h3>SplitBam<h3>
-<h4>Motivation</h4>
+### SplitBam
+
+####Motivation
+
 Split a BAM by chromosome group. Create EMPTY bams if no reads was found for a given group.
-<h4>Compilation</h4>
+
+####Compilation
 
 ```bash
 ant splitbam
 ```
 
-<h4>Options</h4>
+#### Options
+
 <table>
 <tr><th>Option</th><th>Description</th></tr>
 <tr><td>REF=File</td><td>Indexex reference  Required. </td></tr>
@@ -1032,8 +962,9 @@ ant splitbam
 <tr><td>UNDERTERMINED_NAME=String</td><td>Unmapped chromosome name.   Default value: Unmapped. This option can be set to 'null' to clear the default value. </td></tr>
 <tr><td>INPUT_IS_SORTED=Boolean</td><td>input is sorted.   Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
 </table>
-<br/>
-<h4>Example</h4>
+
+#### Example
+
 the content of 'split_g1k_v37_01.txt'
 
 ```
@@ -1068,23 +999,29 @@ Runtime.totalMemory()=1916600320
 ```
 
 
-<h3>FindCorruptedFiles<h3>
-<h4>Motivation</h4>
+### FindCorruptedFiles
+
+#### Motivation
+
 Searches for corrupted NGS files (VCF/BAM/FASTQ). 
+
 When a parallel workflow/Makefile/cluster/qmake fails, some files may be truncated, this tool will detect the files having a problem.
-<h4>Compilation</h4>
+
+#### Compilation
 
 ```bash
 ant findcorruptedfiles
 ```
 
-<h4>Options</h4>
+#### Options
+
 <table>
 <tr><th>Option</th><th>Description</th></tr>
 <tr><td>IN=File</td><td>File(s) and/or directories  This option may be specified 0 or more times. </td></tr>
 <tr><td>NUM=Long</td><td>number of features (sam-record, variant, fastq) to read. -1= read everything.   Default value: 100. This option can be set to 'null' to clear the default value. </td></tr>
 </table>
-<h4>Example</h4>
+
+#### Example
 
 ```bash
 java -jar dist/findcorruptedfiles.jar \
@@ -1094,21 +1031,26 @@ java -jar dist/findcorruptedfiles.jar \
 	
 ```
 
-<h3>NgsFilesSummary<h3>
-<h4>Motivation</h4>
- Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)
-<h4>Compilation</h4>
+### NgsFilesSummary
+
+#### Motivation
+
+Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)
+
+#### Compilation
 
 ```bash
 ant ngsfilessummary
 ```
 
-<h4>Options</h4>
+#### Options
+
 <table>
 <tr><th>Option</th><th>Description</th></tr>
 <tr><td>IN=File</td><td>File(s) and/or directories  This option may be specified 0 or more times. </td></tr>
 </table>
-<h4>Example</h4>
+
+#### Example
 
 ```bash
 java -jar dist/ngsfilessummary.jar \
@@ -1125,18 +1067,18 @@ SAMPLE2	FASTQ	/projects/data
 SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.freebayes.vcf.gz	172970	Mon Jun 17 14:45:51 CEST 2013
 SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.gatk.vcf.gz	106390	Mon Jun 17 11:57:19 CEST 2013
 SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.samtools.vcf.gz	52709	Mon Jun 17 11:58:04 CEST 2013
-
 ```
 
-<h3>Biostar77828</h3>
-<h4>Motivation</h4>
-Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/
-<h4>Compilation</h4>
+### Biostar77828
 
+#### Motivation
+
+Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/
+
+#### Compilation
 ```bash
 ant biostar77828
 ```
-
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
