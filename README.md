@@ -749,7 +749,7 @@ Low resolution sequence alignment visualization http://www.biostars.org/p/77288/
 <h4>Compilation</h4>
 ```bash
 ant biostar77288
- ```
+```
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -939,9 +939,11 @@ A	615037	.	C	T	161	.	AC1=1;AF1=0.5;DP=353;DP4=0,164,0,165;FQ=110;MQ=48;PV4=1,1,1
 <h4>Motivation</h4>
 Split a BAM by chromosome group. Create EMPTY bams if no reads was found for a given group.
 <h4>Compilation</h4>
+
 ```bash
 ant splitbam
 ```
+
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -957,12 +959,15 @@ ant splitbam
 <br/>
 <h4>Example</h4>
 the content of 'split_g1k_v37_01.txt'
+
 ```
 CHROMS_01_09	1 2 3 4 5 6 7 8 9
 CHROMS_10_0Y	10 11 12 13 14 15 16 17 18 19 20 21 22 X Y 
 CHROMS_OTHER	MT GL000207.1 GL000226.1 GL000229.1 GL000231.1 GL000210.1 GL000239.1 GL000235.1 GL000201.1 GL000247.1 GL000245.1 GL000197.1 GL000203.1 GL000246.1 GL000249.1 GL000196.1 GL000248.1 GL000244.1 GL000238.1 GL000202.1 GL000234.1 GL000232.1 GL000206.1 GL000240.1 GL000236.1 GL000241.1 GL000243.1 GL000242.1 GL000230.1 GL000237.1 GL000233.1 GL000204.1 GL000198.1 GL000208.1 GL000191.1 GL000227.1 GL000228.1 GL000214.1 GL000221.1 GL000209.1 GL000218.1 GL000220.1 GL000213.1 GL000211.1 GL000199.1 GL000217.1 GL000216.1 GL000215.1 GL000205.1 GL000219.1 GL000224.1 GL000223.1 GL000195.1 GL000212.1 GL000222.1 GL000200.1 GL000193.1 GL000194.1 GL000225.1 GL000192.1 
 ```
+
 split the output of bwa sampe on the fly:
+
 ```bash
 bwa sampe (...) |\
 java -jar dist/splitbam.jar \
@@ -992,9 +997,11 @@ Runtime.totalMemory()=1916600320
 Searches for corrupted NGS files (VCF/BAM/FASTQ). 
 When a parallel workflow/Makefile/cluster/qmake fails, some files may be truncated, this tool will detect the files having a problem.
 <h4>Compilation</h4>
+
 ```bash
 ant findcorruptedfiles
 ```
+
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
@@ -1002,6 +1009,7 @@ ant findcorruptedfiles
 <tr><td>NUM=Long</td><td>number of features (sam-record, variant, fastq) to read. -1= read everything.   Default value: 100. This option can be set to 'null' to clear the default value. </td></tr>
 </table>
 <h4>Example</h4>
+
 ```bash
 java -jar dist/findcorruptedfiles.jar \
 	I=path1 \
@@ -1009,6 +1017,7 @@ java -jar dist/findcorruptedfiles.jar \
 	VALIDATION_STRINGENCY=SILENT 2> /dev/null
 	
 ```
+
 <h3>NgsFilesSummary<h3>
 <h4>Motivation</h4>
  Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)
@@ -1022,6 +1031,7 @@ ant ngsfilessummary
 <tr><td>IN=File</td><td>File(s) and/or directories  This option may be specified 0 or more times. </td></tr>
 </table>
 <h4>Example</h4>
+
 ```bash
 java -jar dist/ngsfilessummary.jar \
 	I=/projects/align01/ \
@@ -1044,9 +1054,11 @@ SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.samtools.vc
 <h4>Motivation</h4>
 Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/
 <h4>Compilation</h4>
+
 ```bash
 ant biostar77828
 ```
+
 <h4>Options</h4>
 <table>
 <tr><th>Option</th><th>Description</th></tr>
