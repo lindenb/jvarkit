@@ -1009,6 +1009,50 @@ java -jar dist/findcorruptedfiles.jar \
 	VALIDATION_STRINGENCY=SILENT 2> /dev/null
 	
 ```
+<h3>NgsFilesSummary<h3>
+<h4>Motivation</h4>
+ Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)
+<h4>Compilation</h4>
+```bash
+ant ngsfilessummary
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>File(s) and/or directories  This option may be specified 0 or more times. </td></tr>
+</table>
+<h4>Example</h4>
+```bash
+java -jar dist/ngsfilessummary.jar \
+	I=/projects/align01/ \
+	VALIDATION_STRINGENCY=SILENT 2> /dev/null
 
+SAMPLE1	BAM	/projects/align01/Samples/SAMPLE1/BAM/SAMPLE1_final.bam	321262321	Wed Jun 26 10:30:07 CEST 2013
+SAMPLE1	FASTQ	/projects/data
+SAMPLE1	VCF	/projects/align01/Samples/SAMPLE1/VCF/SAMPLE1_variations.freebayes.vcf.gz	184191	Mon Jun 17 14:47:22 CEST 2013
+SAMPLE1	VCF	/projects/align01/Samples/SAMPLE1/VCF/SAMPLE1_variations.gatk.vcf.gz	113341	Mon Jun 17 11:57:19 CEST 2013
+SAMPLE1	VCF	/projects/align01/Samples/SAMPLE1/VCF/SAMPLE1_variations.samtools.vcf.gz	57518	Mon Jun 17 11:58:49 CEST 2013
+SAMPLE2	BAM	/projects/align01/Samples/SAMPLE2/BAM/SAMPLE2_final.bam	286100773	Wed Jun 26 10:47:09 CEST 2013
+SAMPLE2	FASTQ	/projects/data
+SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.freebayes.vcf.gz	172970	Mon Jun 17 14:45:51 CEST 2013
+SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.gatk.vcf.gz	106390	Mon Jun 17 11:57:19 CEST 2013
+SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.samtools.vcf.gz	52709	Mon Jun 17 11:58:04 CEST 2013
 
+```
+
+<h3>Biostar77828</h3>
+<h4>Motivation</h4>
+Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/
+<h4>Compilation</h4>
+```bash
+ant biostar77828
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>Bed file input (default stdin)  Default value: null. </td></tr>
+<tr><td>MIN_CORE=Integer</td><td>min_core  Default value: 20. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>MAX_CORE=Integer</td><td>max_core  Default value: 30. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>N_ITERATIONS=Long</td><td>number of iterations  Default value: 1000000. This option can be set to 'null' to clear the default value. </td></tr>
+</table>
 

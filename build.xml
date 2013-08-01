@@ -204,7 +204,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 
 
 
-<target name="mature.projects" depends="findcorruptedfiles,vcftrio,extendbed,vcfbed,vcffilterdoid,vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcfvcf,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="ngsfilessummary,findcorruptedfiles,vcftrio,extendbed,vcfbed,vcffilterdoid,vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcfvcf,evs2bed,vcftabixml"/>
 
 <target name="all" depends="biostar,mature.projects,genscan,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>
@@ -715,6 +715,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>	
 
+<target name="ngsfilessummary" >
+	<compile-with-picard 
+		java="**/NgsFilesSummary.java"
+		main="com.github.lindenb.jvarkit.tools.misc.NgsFilesSummary"
+		name="ngsfilessummary"
+		/>
+</target>	
+
+
 <target name="extendbed" >
 	<compile-with-picard 
 		java="**/ExtendBed.java"
@@ -740,12 +749,14 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
-<target name="biostar" depends="biostar76892,biostar77288">
+<target name="biostar" depends="biostar76892,biostar77288,biostar77828">
 </target>
 
 
 <target name="biostar76892"><compile-biostar post="76892"/></target>
 <target name="biostar77288"><compile-biostar post="77288"/></target>
+<target name="biostar77828"><compile-biostar post="77828"/></target>
+
 
 <target name="mapuniprot" depends="api.uniprot">
 	<compile-with-picard 
