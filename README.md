@@ -1088,3 +1088,28 @@ ant biostar77828
 <tr><td>N_ITERATIONS=Long</td><td>number of iterations  Default value: 1000000. This option can be set to 'null' to clear the default value. </td></tr>
 </table>
 
+### Biostar78285
+
+#### Motivation
+
+Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/
+
+#### Compilation
+```bash
+ant biostar78285
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>BAM file (sorted on coordinate). Default:stdin  Default value: null. </td></tr>
+</table>
+
+#### Example:
+```bash
+ $ java -jar dist/biostar78285.jar \
+ 	I=sorted.bam \
+ 	VALIDATION_STRINGENCY=LENIENT
+
+seq1	1569	1575
+seq2	1567	1584
+```
