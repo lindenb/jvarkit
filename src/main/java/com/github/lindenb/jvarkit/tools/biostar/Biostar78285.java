@@ -91,11 +91,11 @@ public class Biostar78285 extends AbstractCommandLineProgram
 			    			}
 		    			prev_pos1=1;
 		    			}
-	    			if(prev_pos1< rec.getAlignmentStart()) /* there is a gap */
-	    				{
-		    			System.out.println(rec.getReferenceName()+"\t"+(prev_pos1-1)+"\t"+rec.getAlignmentStart());
-	    				}
 	    			}
+	    		if(prev_pos1< rec.getAlignmentStart()) /* there is a gap */
+					{
+	    			System.out.println(rec.getReferenceName()+"\t"+(prev_pos1-1)+"\t"+rec.getAlignmentStart());
+					}
 	    		seen_tid[tid]=true;
 	    		prev_tid=tid;
 	    		prev_pos1=Math.max(prev_pos1,rec.getAlignmentEnd()+1);
