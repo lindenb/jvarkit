@@ -1109,7 +1109,7 @@ ant biostar78285
 ```bash
  $ java -jar dist/biostar78285.jar \
  	I=sorted.bam \
- 	USE_SAMLOCUSITERATOR=false \
+ 	USECIGAR=false \
  	VALIDATION_STRINGENCY=LENIENT
 
 seq1	1569	1575
