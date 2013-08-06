@@ -2,7 +2,7 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.Iterator;
+import java.util.BitSet;
 
 
 import net.sf.picard.cmdline.Option;
@@ -10,7 +10,8 @@ import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
 import net.sf.picard.util.SamLocusIterator;
-import net.sf.picard.util.SamLocusIterator.LocusInfo;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileHeader.SortOrder;
 import net.sf.samtools.SAMFileReader;
@@ -32,8 +33,8 @@ public class Biostar78285 extends AbstractCommandLineProgram
 
     @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,doc="BAM file (sorted on coordinate). Default:stdin",optional=true)
     public File IN=null;
-    @Option(shortName="SLI",doc="use a Sam locus  net.sf.picard.util.SamLocusIterator: slower but will scan the CIGAR string & detect the gaps in the reads.",optional=true)
-    public boolean USE_SAMLOCUSITERATOR=false;
+    @Option(shortName="CIGAR",doc="scan the CIGAR string & detect the gaps in the reads. Slower & takes more memory",optional=true)
+    public boolean USECIGAR=false;
     
     @Override
     protected int doWork()
@@ -79,60 +80,70 @@ public class Biostar78285 extends AbstractCommandLineProgram
 	    	
 	    	
 	    	
-	    	if(USE_SAMLOCUSITERATOR)
+	    	if(USECIGAR)
 	    		{
-	    		sli=new SamLocusIterator(samFileReader);
-	    		sli.setEmitUncoveredLoci(true);
-	    		Iterator<LocusInfo> liter=sli.iterator();
-	    		LocusInfo locusInfo1=null;
-	    		for(;;)
-	    			{
-	    			if(locusInfo1==null)
-	    				{
-	    				if(!liter.hasNext()) break;
-	    				locusInfo1=liter.next();
-	    				}
-	    			int tid=locusInfo1.getSequenceIndex();
-	    			//System.out.println(locusInfo1.getSequenceName()+" "+locusInfo1.getPosition()+" "+locusInfo1.getRecordAndPositions().size());
-	    			seen_tid[tid]=true;
-	    			if(!locusInfo1.getRecordAndPositions().isEmpty()) 
-	    				{
-	    				locusInfo1=null;
-	    				continue;
-	    				}
-	    			
-	    			String seqName1=locusInfo1.getSequenceName();
-    				int gap_start1=locusInfo1.getPosition();
-    				LocusInfo locusInfo2=null;
-    				if(!liter.hasNext())
-    					{
-						SAMSequenceRecord ssr=dict.getSequence(tid);
-		    			System.out.println(seqName1+"\t"+(gap_start1-1)+"\t"+ssr.getSequenceLength());
-    					}
-    				else
-	    				{
-	    				while(liter.hasNext())
+	    		BitSet mapped=null;
+	    		SAMSequenceRecord ssr=null;
+	    		iter=samFileReader.iterator();
+		    	while(iter.hasNext())
+		    		{
+		    		SAMRecord rec=iter.next();
+		    		if(rec.getReadUnmappedFlag()) continue;
+		    		Cigar cigar=rec.getCigar();
+		    		if(cigar==null) continue;
+		    		if(ssr==null || ssr.getSequenceIndex()!=rec.getReferenceIndex())
+		    			{
+		    			if(ssr!=null && mapped!=null)
+		    				{
+			    			dump(ssr,mapped);
+			    			}
+		    			ssr=dict.getSequence(rec.getReferenceIndex());
+		    			LOG.info("allocating bitset for "+ssr.getSequenceName()+" LENGTH="+ssr.getSequenceLength());
+		    			mapped=new BitSet(ssr.getSequenceLength());
+		    			seen_tid[rec.getReferenceIndex()]=true;
+		    			}
+		    		int refpos0=rec.getUnclippedStart()-1;
+		    		for(CigarElement ce:cigar.getCigarElements())
+		    			{
+	    				switch(ce.getOperator())
 	    					{
-	    					locusInfo2=liter.next();
-	    					if(locusInfo2.getSequenceIndex()!=tid)
+	    					case H:break;
+	    					case S:break;
+	    					case I:break;
+	    					case P:break;
+	    					case N:// reference skip
+	    					case D://deletion in reference
 	    						{
-	    						SAMSequenceRecord ssr=dict.getSequence(tid);
-	    		    			System.out.println(seqName1+"\t"+(gap_start1-1)+"\t"+ssr.getSequenceLength());
-	    		    			break;
+	    						for(int i=0;i< ce.getLength() ;++i)
+		    		    			{
+		    						refpos0++;
+	    		    				}
+	    						break;
 	    						}
-	    	    			if(!locusInfo2.getRecordAndPositions().isEmpty())
-	    	    				{
-	    		    			System.out.println(seqName1+"\t"+(gap_start1-1)+"\t"+(locusInfo2.getPosition()-1));
-	    		    			locusInfo2=null;
-	    		    			break;
-	    	    				}
-	
-		    				}
-	    				}
-    				locusInfo1=locusInfo2;
-	    			
+	    					case M:
+	    					case EQ:
+	    					case X:
+	    						{
+	    						for(int i=0;i< ce.getLength() && refpos0< ssr.getSequenceLength();++i)
+		    		    			{
+		    						mapped.set(refpos0,true);
+		    						refpos0++;
+	    		    				}
+	    						break;
+	    						}
+	    					default: throw new IllegalStateException(
+	    							"Doesn't know how to handle cigar operator:"+ce.getOperator()+
+	    							" cigar:"+cigar
+	    							);
+
+	    					}
+		    				
+		    			}
+		    		}
+		    	if(ssr!=null && mapped!=null)
+    				{
+	    			dump(ssr,mapped);
 	    			}
-	    	
 	    		}
 	    	else
 		    	{
@@ -200,7 +211,25 @@ public class Biostar78285 extends AbstractCommandLineProgram
     		}
     	
     	}
-
+    private void dump(SAMSequenceRecord ssr,BitSet mapped)
+    	{
+    	int i=0;
+    	while(i<ssr.getSequenceLength())
+    		{
+    		if(mapped.get(i))
+    			{
+    			++i;
+    			continue;
+    			}
+    		int j=i+1;
+    		while(j<ssr.getSequenceLength() && !mapped.get(j))
+    			{
+    			++j;
+        		}
+    		System.out.println(ssr.getSequenceName()+"\t"+i+"\t"+j);
+    		i=j;
+    		}
+    	}
 	/**
 	 * @param args
 	 */

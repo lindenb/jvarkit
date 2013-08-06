@@ -1102,7 +1102,7 @@ ant biostar78285
 <table>
 <tr><th>Option</th><th>Description</th></tr>
 <tr><td>IN=File</td><td>BAM file (sorted on coordinate). Default:stdin  Default value: null. </td></tr>
-<tr><td>USE_SAMLOCUSITERATOR=Boolean</td><td>use a Sam locus  net.sf.picard.util.SamLocusIterator: slower but will detect the gaps in the reads.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+<tr><td>USECIGAR=Boolean</td><td>scan the CIGAR string & detect the gaps in the reads. Slower & requires more memory  Default value: false.</td></tr>
 </table>
 
 #### Example:
