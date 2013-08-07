@@ -757,6 +757,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 <target name="biostar77288"><compile-biostar post="77288"/></target>
 <target name="biostar77828"><compile-biostar post="77828"/></target>
 <target name="biostar78285"><compile-biostar post="78285"/></target>
+<target name="biostar78400"><compile-biostar post="78400"/></target>
 
 
 <target name="mapuniprot" depends="api.uniprot">

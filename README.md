@@ -1115,3 +1115,81 @@ ant biostar78285
 seq1	1569	1575
 seq2	1567	1584
 ```
+
+### Biostar78400
+
+#### Motivation
+
+add the read group info to the sam file on a per lane basis
+
+#### Compilation
+```bash
+ant biostar78400
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>BAM file to process (or stdin).  Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>BAM file (or stdout).  Default value: null. </td></tr>
+<tr><td>XML=File</td><td>XML desfription of the groups. See below Required. </td></tr>
+</table>
+
+#### XML config
+the XML should look like this:
+
+```xml
+<read-groups>
+<flowcell name="HS2000-1259_127">
+ <lane index="1">
+   <group ID="X1">
+     <library>L1</library>
+     <platform>P1</platform>
+     <sample>S1</sample>
+     <platformunit>PU1</platformunit>
+     <center>C1</center>
+     <description>blabla</description>
+   </group>
+ </lane>
+</flowcell>
+<flowcell name="HS2000-1259_128">
+ <lane index="2">
+   <group ID="x2">
+     <library>L2</library>
+     <platform>P2</platform>
+     <sample>S2</sample>
+     <platformunit>PU1</platformunit>
+     <center>C1</center>
+     <description>blabla</description>
+   </group>
+ </lane>
+</flowcell>
+</read-groups>
+```
+
+#### Example:
+
+```bash
+$ cat input.sam 
+@SQ	SN:ref	LN:45
+@SQ	SN:ref2	LN:40
+HS2000-1259_127:1:1210:15640:52255	163	ref	7	30	8M4I4M1D3M	=	37	39	
+TTAGATAAAGAGGATACTG	*	XX:B:S,12561,2,20,112
+HS2000-1259_128:2:1210:15640:52255	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	
+0	AAAAGATAAGGGATAAA	*
+
+$java -jar dist/biostar78400.jar \
+	XML=groups.xml \
+	I=input.sam \
+ 	VALIDATION_STRINGENCY=LENIENT
+
+@HD	VN:1.4	SO:unsorted
+@SQ	SN:ref	LN:45
+@SQ	SN:ref2	LN:40
+@RG	ID:X1	PL:P1	PU:P1	LB:L1	DS:blabla	SM:S1	CN:C1
+@RG	ID:x2	PL:P2	PU:P2	LB:L2	DS:blabla	SM:S2	CN:C1
+@PG	ID:Biostar78400	PN:Biostar78400	PP:Biostar78400	VN:1.0	(...)
+HS2000-1259_127:1:1210:15640:52255	163	ref	7	30	8M4I4M1D3M	=	37	39	TTAGATAAAGAGGATACTG	*	RG:Z:X1	XX:B:S,12561,2,20,112
+HS2000-1259_128:2:1210:15640:52255	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0AAAAGATAAGGGATAAA	*	RG:Z:x2
+```
+
+
