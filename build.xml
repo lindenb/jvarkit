@@ -341,30 +341,6 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>	
 
 	
-<target name="bamstats04" >
-	   <mkdir dir="tmp"/>
-	   <mkdir dir="dist"/>
-	   	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
-	   		<include name="**/BamStats04.java"/>
-	   </javac>
-	   
-	   <pathconvert property="manifest_cp6" pathsep=" " >
-			 <path refid="picard.lib"/>
-	   </pathconvert>  
-	   
-	   <jar jarfile="dist/bamstats04.jar">
-		     <fileset dir="tmp" />
-		     <manifest>
-		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.bamstats04.BamStats04"/>
-		        <attribute name="Class-Path" value="${manifest_cp6}"/>
-		     </manifest>
-	 	</jar>
-	   
-	    <delete dir="tmp"/>
-</target>
 
 
 
@@ -516,6 +492,13 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>		
 
 
+<target name="bamstats04" >
+	<compile-with-picard 
+		java="**/BamStats04.java"
+		main="com.github.lindenb.jvarkit.tools.bamstats04.BamStats04"
+		name="bamstats04"
+		/>
+</target>		
 	
 		
 	
