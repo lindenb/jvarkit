@@ -22,7 +22,7 @@ public class BamStats04 extends AbstractCommandLineProgram
 	{
 	private static final Log LOG=Log.getInstance(BamStats04.class);
 	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Coverage statistics for a BED file. It use the Cigar string instead of the start/end to get the voverage";
+	public String USAGE=getStandardUsagePreamble()+" Coverage statistics for a BED file. It uses the Cigar string instead of the start/end to get the voverage";
 
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM file to process.",
     		optional=false)

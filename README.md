@@ -1192,4 +1192,45 @@ HS2000-1259_127:1:1210:15640:52255	163	ref	7	30	8M4I4M1D3M	=	37	39	TTAGATAAAGAGG
 HS2000-1259_128:2:1210:15640:52255	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0AAAAGATAAGGGATAAA	*	RG:Z:x2
 ```
 
+### BamStats04
+
+#### Motivation
+
+ Coverage statistics for a BED file. It uses the Cigar string instead of the start/end to compute the coverage
+ 
+ #### Compilation
+```bash
+ant bamstats04
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>BAM file to process.  Required. </td></tr>
+<tr><td>BEDILE=File</td><td>BED File.  Required. </td></tr>
+<tr><td>NO_DUP=Boolean</td><td>discard duplicates  Default value: true. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+<tr><td>NO_ORPHAN=Boolean</td><td>discard not properly paired  Default value: true. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+<tr><td>NO_VENDOR=Boolean</td><td>discard failing Vendor Quality  Default value: true. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
+<tr><td>MMQ=Integer</td><td>min mapping quality  Default value: 0. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>MIN_COVERAGE=Integer</td><td>min coverage to say the position is not covered  Default value: 0. This option can be set to 'null' to clear the default value. </td></tr>
+</table>
+
+
+ #### Example:
+
+```bash
+$ java -jar dist/bamstats04.jar \
+	BED=data.bed \
+	I=f.bam
+#chrom	start	end	length	mincov	maxcov	mean	nocoveragepb	percentcovered
+1	429665	429785	120	42	105	72.36666666666666	0	100
+1	430108	430144	36	9	9	9.0	0	100
+1	439811	439904	93	0	36	3.6451612903225805	21	77
+1	550198	550246	48	1325	1358	1344.4583333333333	0	100
+1	629855	629906	51	223	520	420.70588235294116	0	100
+1	689960	690029	69	926	1413	1248.9420289855072	0	100
+1	690852	690972	120	126	193	171.24166666666667	0	100
+1	787283	787406	123	212	489	333.9756097560976	0	100
+1	789740	789877	137	245	688	528.6715328467153	0	1
+```
+
 
