@@ -155,16 +155,21 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     
 	private void analyze(File f)
 		{
+		if(f==null) return;
+		if(!f.canRead()) return;
 		LOG.debug("Scanning "+f);
 		if(f.isDirectory())
 			{
+			File children[]=f.listFiles();
+			if(children==null) return;
 			for(File c:f.listFiles())
 				{
 				analyze(c);
 				}
 			}
 		else
-			{	
+			{
+			
 			String name=f.getName();
 			if(name.endsWith(".bam") || name.endsWith(".sam"))
 				{
