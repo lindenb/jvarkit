@@ -73,7 +73,7 @@
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
-	   	   
+	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured</echo>
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
    			<src path="${generated.dir}"/>
@@ -106,6 +106,12 @@
 		     </manifest>
 	 	</jar>
 	   
+	   <echo file="dist/@{name}">#!/bin/bash
+PREFIX=$(dirname $0)
+java -Xmx500m -jar $PREFIX/@{name}.jar $*
+</echo>
+	   
+	   <chmod file="dist/@{name}" perm="ugo+rx"/>
 		
 		<echo><![CDATA[<h4>Compilation</h4>
 ```bash
