@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.tools.vcftribble;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -10,7 +11,9 @@ import java.util.Set;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 
+import org.broad.tribble.AbstractFeatureCodec;
 import org.broad.tribble.CloseableTribbleIterator;
 import org.broad.tribble.Feature;
 import org.broad.tribble.FeatureCodec;
@@ -19,7 +22,10 @@ import org.broad.tribble.Tribble;
 import org.broad.tribble.TribbleIndexedFeatureReader;
 import org.broad.tribble.index.Index;
 import org.broad.tribble.index.IndexFactory;
+import org.broad.tribble.readers.AsciiLineReader;
+import org.broad.tribble.readers.AsciiLineReaderIterator;
 import org.broad.tribble.readers.LineReader;
+import org.broad.tribble.readers.LocationAware;
 import org.broad.tribble.readers.PositionalBufferedStream;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
@@ -131,8 +137,11 @@ public class VcfTribble extends AbstractVCFFilter
 
 	
 	private class MyFeatureCodec
-		implements FeatureCodec<MyFeature>
+		extends AbstractFeatureCodec<MyFeature, PositionalBufferedStream>
 		{
+		protected MyFeatureCodec() {
+			super(MyFeature.class);
+			}
 		@Override
 		public boolean canDecode(String filename)
 			{
@@ -167,6 +176,9 @@ public class VcfTribble extends AbstractVCFFilter
 				}
 			return tokens;
 			}
+		
+		
+		
 		@Override
 		public MyFeature decode(PositionalBufferedStream in)
 				throws IOException
@@ -206,6 +218,40 @@ public class VcfTribble extends AbstractVCFFilter
 				}
 			return new FeatureCodecHeader(b.toString(),in.getPosition());
 			}
+		@Override
+		public PositionalBufferedStream makeSourceFromStream(
+				InputStream bufferedInputStream) {
+
+	        final PositionalBufferedStream pbs;
+	        if (bufferedInputStream instanceof PositionalBufferedStream) {
+	           return (PositionalBufferedStream) bufferedInputStream;
+	        } else {
+	            return new PositionalBufferedStream(bufferedInputStream);
+	        }
+			}
+		@Override
+		public LocationAware makeIndexableSourceFromStream(
+				InputStream bufferedInputStream) {
+	        final PositionalBufferedStream pbs;
+	        if (bufferedInputStream instanceof PositionalBufferedStream) {
+	           return (PositionalBufferedStream) bufferedInputStream;
+	        } else {
+	            return new PositionalBufferedStream(bufferedInputStream);
+	        }
+			}
+		@Override
+		public boolean isDone(PositionalBufferedStream source) {
+			try {
+				return source.isDone();
+			} catch (IOException e) {
+				return true;
+			}
+		}
+		@Override
+		public void close(PositionalBufferedStream source) {
+			source.close();
+			
+		}
 		}
 	
 	private class MyFeature
@@ -240,7 +286,7 @@ public class VcfTribble extends AbstractVCFFilter
 	
 	@SuppressWarnings("rawtypes")
 	@Override
-	protected void doWork(LineReader in, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		VCFCodec codeIn1=new VCFCodec();	
@@ -267,20 +313,21 @@ public class VcfTribble extends AbstractVCFFilter
 		
 		 
 		
-	    TribbleIndexedFeatureReader<MyFeature> tribbleReader= new TribbleIndexedFeatureReader(
+	    TribbleIndexedFeatureReader<MyFeature,PositionalBufferedStream> tribbleReader= new TribbleIndexedFeatureReader(
 	    		this.TRIBBLE.getPath(),
-	    		tribbleCodec,tribbleIndex
+	    		tribbleCodec,
+	    		tribbleIndex
 	    		);
 	   
-		VCFHeader header1=(VCFHeader)codeIn1.readHeader(in);
+		VCFHeader header1=r.getHeader();
 		
 		VCFHeader h2=new VCFHeader(header1.getMetaDataInInputOrder(),header1.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "metadata added from "+TRIBBLE+" . Format was "+FORMAT));
 		
 		w.writeHeader(h2);
-		while((line=in.readLine())!=null)
+		while(r.hasNext())
 			{
-			VariantContext ctx=codeIn1.decode(line);
+			VariantContext ctx=r.next();
 			Set<String> annotations=new HashSet<String>();
 
 			

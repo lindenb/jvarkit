@@ -10,14 +10,13 @@ import java.util.Set;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 
-import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
@@ -93,20 +92,18 @@ public class VCFTrios extends AbstractVCFFilter
 				);
 		}
 	@Override
-	protected void doWork(LineReader r, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		LOG.info("reading pedigree");
 		Pedigree pedigree=Pedigree.readPedigree(PEDIGREE);
 		int count_incompats=0;
 		
-		VCFCodec codeIn=new VCFCodec();		
-		VCFHeader header=(VCFHeader)codeIn.readHeader(r);
+		VCFHeader header=r.getHeader();
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine("MENDEL", VCFHeaderLineCount.INTEGER, VCFHeaderLineType.String, "mendelian incompatibilities. PEd file: "+PEDIGREE));
 		if( FILTER) h2.addMetaDataLine(new VCFFilterHeaderLine("MENDEL", "data filtered with "+this.getCommandLine()));
 		w.writeHeader(h2);
-		String line;
 		
 		Map<String,Pedigree.Person> samplename2person=new HashMap<String,Pedigree.Person>(h2.getSampleNamesInOrder().size());
 		for(String sampleName:h2.getSampleNamesInOrder())
@@ -137,9 +134,9 @@ public class VCFTrios extends AbstractVCFFilter
 			}
 		
 		LOG.info("persons in pedigree: "+samplename2person.size());
-		while((line=r.readLine())!=null)
+		while(r.hasNext())
 			{
-			VariantContext ctx=codeIn.decode(line);
+			VariantContext ctx=r.next();
 			
 			
 			Set<String> incompatibilities=new HashSet<String>();

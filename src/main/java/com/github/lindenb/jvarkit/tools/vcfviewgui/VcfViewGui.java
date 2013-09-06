@@ -52,7 +52,6 @@ import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
 
 
-import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.TabixReader;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -69,6 +68,7 @@ import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 
 class VCFFileRef
 	{
@@ -790,9 +790,9 @@ public class VcfViewGui
     	{
     	VCFFileRef vfr=new VCFFileRef();
     	vfr.vcfFile=vcfFile;
-    	AsciiLineReader r=null;
-    	r=new AsciiLineReader(IOUtils.openFileForReading(vcfFile));
-    	vfr.header=(VCFHeader)vfr.codec.readHeader(r);
+    	VcfIterator r=null;
+    	r=new VcfIterator(IOUtils.openFileForReading(vcfFile));
+    	vfr.header=r.getHeader();
     	r.close();
     	return vfr;
     	}

@@ -6,12 +6,11 @@ import java.util.Set;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
+import net.sf.picard.vcf.VcfIterator;
 
-import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
@@ -40,7 +39,7 @@ public class VcfFilterGo extends AbstractVcfGeneOntology
 		}
 
 	@Override
-	protected void doWork(LineReader in, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		super.readGO();
@@ -58,8 +57,7 @@ public class VcfFilterGo extends AbstractVcfGeneOntology
 		LOG.info("positive_terms:"+positive_terms);
 	
 		
-		VCFCodec codeIn=new VCFCodec();		
-		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
+		VCFHeader header=r.getHeader();
 		
 		
 		
@@ -75,10 +73,9 @@ public class VcfFilterGo extends AbstractVcfGeneOntology
 		
 		w.writeHeader(h2);
 	
-		String line;
-		while((line=in.readLine())!=null)
+		while(r.hasNext())
 			{
-			VariantContext ctx=codeIn.decode(line);
+			VariantContext ctx=r.next();
 			VariantContextBuilder b=new VariantContextBuilder(ctx);
 
 			

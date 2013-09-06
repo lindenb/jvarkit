@@ -12,7 +12,7 @@ http://plindenbaum.blogspot.com
 Dependencies
 ------------
 
-Tested with java 1.7 and the Picard library 1.91 ( http://sourceforge.net/projects/picard/)
+Tested with java 1.7 and the Picard library 1.97 ( http://sourceforge.net/projects/picard/)
 
 
 Download & Install

@@ -31,13 +31,12 @@ import net.sf.picard.PicardException;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 
-import org.broad.tribble.readers.LineReader;
 import org.broad.tribble.readers.TabixReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderVersion;
@@ -101,7 +100,7 @@ public class VCFTabixml extends AbstractVCFFilter
 	
 	
 	@Override
-	protected void doWork(LineReader in, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		TabixReader tabixReader =null;
@@ -117,13 +116,12 @@ public class VCFTabixml extends AbstractVCFFilter
 			Transformer transformer=this.stylesheet.newTransformer();
 			transformer.setOutputProperty(OutputKeys.METHOD,"xml");
 
-			VCFCodec codeIn=new VCFCodec();		
-			VCFHeader header=(VCFHeader)codeIn.readHeader(in);
-			String line;
+			VCFHeader header=r.getHeader();
 			VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());			
 			
 			LOG.info("reading Tags "+TAGS);
 			BufferedReader rT=IOUtils.openFileForBufferedReading(TAGS);
+			String line;
 			while((line=rT.readLine())!=null)
 				{
 				if(!line.startsWith(VCFHeader.METADATA_INDICATOR))
@@ -145,9 +143,9 @@ public class VCFTabixml extends AbstractVCFFilter
 			JAXBContext jaxbCtx=JAXBContext.newInstance(Properties.class,Property.class);
 			Unmarshaller unmarshaller=jaxbCtx.createUnmarshaller();
 			
-			while((line=in.readLine())!=null)
+			while(r.hasNext())
 				{
-				VariantContext ctx=codeIn.decode(line);
+				VariantContext ctx=r.next();
 				
 				HashMap<String, Set<String>> insert=new LinkedHashMap<String,Set<String>>();
 				

@@ -4,16 +4,15 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
+import net.sf.picard.vcf.VcfIterator;
 
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
@@ -30,11 +29,10 @@ public class VCFStripAnnotations extends AbstractVCFFilter
 	public boolean RESET_FILTER=false;
 
 	@Override
-	protected void doWork(LineReader r, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 			{
-			VCFCodec codeIn=new VCFCodec();		
-			VCFHeader header=(VCFHeader)codeIn.readHeader(r);
+			VCFHeader header=r.getHeader();
 			
 			
 			VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
@@ -48,11 +46,10 @@ public class VCFStripAnnotations extends AbstractVCFFilter
 				}
 			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),"REMOVED: "+this.KEY.toString()));
 			w.writeHeader(h2);
-			String line;
 			
-			while((line=r.readLine())!=null)
+			while(r.hasNext())
 				{
-				VariantContext ctx=codeIn.decode(line);
+				VariantContext ctx=r.next();
 				VariantContextBuilder b=new VariantContextBuilder(ctx);
 				for(String key:KEY) b.rmAttribute(key);
 				if(RESET_FILTER) b.unfiltered();

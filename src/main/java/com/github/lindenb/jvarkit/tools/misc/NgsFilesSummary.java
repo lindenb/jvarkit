@@ -8,7 +8,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.broad.tribble.FeatureCodecHeader;
 import org.broad.tribble.readers.AsciiLineReader;
+import org.broad.tribble.readers.AsciiLineReaderIterator;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
@@ -86,8 +88,8 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     private final Pattern uscore=Pattern.compile("_");
     private void readFastq(File f)
 		{
-    	File parent=f.getParentFile();
-    	if(parent==null) return;
+    	//File parent=f.getParentFile();
+    	//if(parent==null || super.VERBOSITY==Log.LogLevel.) return;
     	
     	
     	String tokens[]=this.uscore.split(f.getName());
@@ -117,7 +119,7 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
 			{
 			return;
 			}
-    	print(tokens[0],InfoType.FASTQ, parent);
+    	print(tokens[0],InfoType.FASTQ, f);
     	
 		}
     
@@ -132,9 +134,9 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     	try
     		{
     		in=IOUtils.openFileForReading(f);
-    		AsciiLineReader reader=new AsciiLineReader(in);
+    		AsciiLineReaderIterator reader=new AsciiLineReaderIterator(new AsciiLineReader(in));
         	VCFCodec codec=new VCFCodec();
-        	VCFHeader header=(VCFHeader)codec.readHeader(reader);
+        	VCFHeader header=(VCFHeader)codec.readActualHeader(reader);
         	for(String sample:header.getSampleNamesInOrder())
 	        	{
 	        	print(sample,InfoType.VCF, f);

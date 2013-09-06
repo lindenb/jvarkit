@@ -738,6 +738,24 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+
+<target name="idea20130902">
+	<compile-with-picard 
+		java="**/Idea20130902.java"
+		main="com.github.lindenb.jvarkit.tools.bwamempcr.Idea20130902"
+		name="idea20130902"
+		/>
+</target>
+<target name="blastfastq">
+	<compile-with-picard 
+		java="**/BlastFastQ.java"
+		main="com.github.lindenb.jvarkit.tools.bwamempcr.BlastFastQ"
+		name="blastfastq"
+		/>
+</target>
+
+
+
 <target name="biostar" depends="biostar76892,biostar77288,biostar77828,biostar78285">
 </target>
 

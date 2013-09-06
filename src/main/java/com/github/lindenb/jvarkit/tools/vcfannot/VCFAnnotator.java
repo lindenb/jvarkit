@@ -32,14 +32,13 @@ import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Interval;
 import net.sf.picard.util.IntervalTreeMap;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.SAMSequenceRecord;
 
-import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
@@ -211,15 +210,14 @@ public class VCFAnnotator extends AbstractVCFFilter
 		return !Character.isLetter(c);
 		}
 	@Override
-	protected void doWork(LineReader in, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 		throws IOException
 		{	
 		LOG.info("opening REF:"+REF);
 		final String TAG="PRED";
 		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
 		loadKnownGenes();
-		VCFCodec vcfCodec=new VCFCodec();
-		VCFHeader header=(VCFHeader)vcfCodec.readHeader(in);
+		VCFHeader header=(VCFHeader)r.getHeader();
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),"Filtered with "+getCommandLine()));
@@ -232,7 +230,6 @@ public class VCFAnnotator extends AbstractVCFFilter
         w.writeHeader(h2);
 
 		
-		String line;
 		SequenceOntologyTree soTree=SequenceOntologyTree.getInstance();
 		final SequenceOntologyTree.Term so_intron=soTree.getTermByAcn("SO:0001627");
 		final SequenceOntologyTree.Term so_exon=soTree.getTermByAcn("SO:0001791");
@@ -247,9 +244,9 @@ public class VCFAnnotator extends AbstractVCFFilter
 		final SequenceOntologyTree.Term so_coding_non_synonymous=soTree.getTermByAcn("SO:0001583");
 		final SequenceOntologyTree.Term so_intergenic=soTree.getTermByAcn("SO:0001628");
 		
-		while((line=in.readLine())!=null)
+		while(r.hasNext())
 			{
-			VariantContext ctx=vcfCodec.decode(line);
+			VariantContext ctx=r.next();
 			Collection<KnownGene> genes=this.knownGenes.getOverlapping(
 					new Interval(ctx.getChr(), ctx.getStart(), ctx.getEnd()) //1-based
 					);

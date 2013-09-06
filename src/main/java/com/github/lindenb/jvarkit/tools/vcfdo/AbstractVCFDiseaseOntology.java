@@ -50,6 +50,7 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 	protected Map<Integer,Set<DiseaseOntoglogyTree.Term>> gene2doid=new HashMap<Integer,Set<DiseaseOntoglogyTree.Term>>();
 	protected Map<String,Set<DiseaseOntoglogyTree.Term>> ensemblProtein2doid=new HashMap<String,Set<DiseaseOntoglogyTree.Term>>();
 	private IntervalTreeMap<Integer> ncbiGeneMap;
+	@SuppressWarnings("unused")
 	private IntervalTreeMap<String> ensemblProteinMap;
 
 	

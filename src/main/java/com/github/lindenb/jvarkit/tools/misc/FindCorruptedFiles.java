@@ -10,14 +10,13 @@ import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
 import org.broad.tribble.TribbleException;
-import org.broad.tribble.readers.AsciiLineReader;
-import org.broadinstitute.variant.vcf.VCFCodec;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.fastq.FastqReader;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.util.BlockCompressedInputStream;
@@ -114,13 +113,11 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     private void testVcf(File f,InputStream in) throws IOException,TribbleException
     	{
     	long n=0;
-    	AsciiLineReader reader=new AsciiLineReader(in);
-    	VCFCodec codec=new VCFCodec();
-    	codec.readHeader(reader);
-    	String line;
-    	while((line=reader.readLine())!=null &&  (NUM<0 || n<NUM))
+    	VcfIterator iter=new VcfIterator(in);
+    	iter.getHeader();
+    	while(iter.hasNext() &&  (NUM<0 || n<NUM))
     		{
-    		codec.decode(line);
+    		iter.next();
     		++n;
     		}
     	if(n==0)

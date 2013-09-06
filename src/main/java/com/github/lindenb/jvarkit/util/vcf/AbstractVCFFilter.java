@@ -13,10 +13,9 @@ import java.util.EnumSet;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.util.BlockCompressedOutputStream;
 
-import org.broad.tribble.readers.AsciiLineReader;
-import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
@@ -35,21 +34,21 @@ public abstract class AbstractVCFFilter
 	public File OUT=null;
 	
 	protected abstract void doWork(
-			LineReader in,
+			VcfIterator in,
 			VariantContextWriter out
 			) throws IOException;
 	
-	protected  AsciiLineReader createAsciiLineReader() throws IOException
+	protected  VcfIterator createVcfIterator() throws IOException
 		{
 		if(IN==null)
 			{
 			LOG.info("reading from stdin");
-			return new AsciiLineReader(System.in);
+			return new VcfIterator(System.in);
 			}
 		else
 			{
 			LOG.info("reading from "+IN);
-			return new AsciiLineReader(IOUtils.openURIForReading(IN));
+			return new VcfIterator(IOUtils.openURIForReading(IN));
 			}
 		}
 	
@@ -76,11 +75,11 @@ public abstract class AbstractVCFFilter
 	@Override
 	protected int doWork()
 		{
-		AsciiLineReader r=null;
+		VcfIterator r=null;
 		VariantContextWriter w=null;
 		try
 			{
-			r=this.createAsciiLineReader();
+			r=this.createVcfIterator();
 			w=this.createVariantContextWriter();
 			doWork(r,w);
 			}

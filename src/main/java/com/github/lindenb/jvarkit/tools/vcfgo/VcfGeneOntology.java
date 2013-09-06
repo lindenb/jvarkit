@@ -6,12 +6,11 @@ import java.util.List;
 import java.util.Set;
 
 import net.sf.picard.cmdline.Usage;
+import net.sf.picard.vcf.VcfIterator;
 
-import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -31,7 +30,7 @@ public class VcfGeneOntology extends AbstractVcfGeneOntology
 		}
 	
 	@Override
-	protected void doWork(LineReader in, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		super.readGO();
@@ -39,8 +38,7 @@ public class VcfGeneOntology extends AbstractVcfGeneOntology
 		super.loadBiomartHGNC();
 		
 		final String TAG="GOA";
-		VCFCodec codeIn=new VCFCodec();		
-		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
+		VCFHeader header=r.getHeader();
 		
 		
 		
@@ -49,10 +47,9 @@ public class VcfGeneOntology extends AbstractVcfGeneOntology
 		
 		w.writeHeader(h2);
 	
-		String line;
-		while((line=in.readLine())!=null)
+		while(r.hasNext())
 			{
-			VariantContext ctx=codeIn.decode(line);
+			VariantContext ctx=r.next();
 			Set<String> geneNames=getGeneNames(ctx);
 		
 			

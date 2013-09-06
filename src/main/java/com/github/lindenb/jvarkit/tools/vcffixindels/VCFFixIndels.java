@@ -7,13 +7,12 @@ import java.util.regex.Pattern;
 
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 
-import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
@@ -31,24 +30,22 @@ public class VCFFixIndels extends AbstractVCFFilter
 	
 	
 	@Override
-	protected void doWork(LineReader in, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		long nChanged=0L;
 		final String TAG="INDELFIXED";
-		VCFCodec codeIn=new VCFCodec();		
-		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
+		VCFHeader header=r.getHeader();
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String,"Fix Indels for @SolenaLS."));
 		
 		w.writeHeader(h2);
 	
-		String line;
 		final Pattern dna=Pattern.compile("[ATGCatgc]+");
-		while((line=in.readLine())!=null)
+		while(r.hasNext())
 			{
-			VariantContext ctx=codeIn.decode(line);
+			VariantContext ctx=r.next();
 			VariantContextBuilder b=new VariantContextBuilder(ctx);
 			List<Allele> alleles=ctx.getAlternateAlleles();
 			if(alleles.size()!=1 || 

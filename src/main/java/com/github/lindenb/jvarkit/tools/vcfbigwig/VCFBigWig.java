@@ -8,15 +8,14 @@ import java.util.List;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
-import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
@@ -40,7 +39,7 @@ public class VCFBigWig extends AbstractVCFFilter
 	private boolean contained=true;
 	
 	@Override
-	protected void doWork(LineReader in, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		LOG.info("opening bigwig: "+this.BIGWIG);
@@ -61,8 +60,7 @@ public class VCFBigWig extends AbstractVCFFilter
 			}
 		
 		
-		VCFCodec codeIn=new VCFCodec();		
-		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
+		VCFHeader header=r.getHeader();
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(this.TAG,1,VCFHeaderLineType.Float,"Values from bigwig file: "+getCommandLine()));
@@ -70,12 +68,11 @@ public class VCFBigWig extends AbstractVCFFilter
 		w.writeHeader(h2);
 		
 		
-		String line;
 		List<Float> values=new ArrayList<Float>();
-		while((line=in.readLine())!=null)
+		while(r.hasNext())
 			{
 			
-			VariantContext ctx=codeIn.decode(line);
+			VariantContext ctx=r.next();
 			
 
 			values.clear();

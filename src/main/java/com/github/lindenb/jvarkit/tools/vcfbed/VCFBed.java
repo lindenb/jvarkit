@@ -8,13 +8,12 @@ import java.util.regex.Pattern;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
+import net.sf.picard.vcf.VcfIterator;
 
-import org.broad.tribble.readers.LineReader;
 import org.broad.tribble.readers.TabixReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -121,7 +120,7 @@ public class VCFBed extends AbstractVCFFilter
 		}
 	
 	@Override
-	protected void doWork(LineReader in, VariantContextWriter w)
+	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		Pattern tab=Pattern.compile("[\t]");
@@ -130,15 +129,14 @@ public class VCFBed extends AbstractVCFFilter
 		
 		TabixReader tabix= new TabixReader(this.TABIXFILE);
 		
-		VCFCodec codeIn=new VCFCodec();		
-		VCFHeader header=(VCFHeader)codeIn.readHeader(in);
-		String line;
+		VCFHeader header=r.getHeader();
+
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "metadata added from "+TABIXFILE+" . Format was "+FORMAT));
 		w.writeHeader(h2);
-		while((line=in.readLine())!=null)
+		while(r.hasNext())
 			{
-			VariantContext ctx=codeIn.decode(line);
+			VariantContext ctx=r.next();
 			Set<String> annotations=new HashSet<String>();
 			String line2;
 			

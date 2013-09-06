@@ -10,13 +10,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.broad.tribble.readers.AsciiLineReader;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.CommonInfo;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
@@ -31,6 +29,7 @@ import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 
 @SuppressWarnings("rawtypes")
 public class VcfToSql extends CommandLineProgram
@@ -260,11 +259,10 @@ public class VcfToSql extends CommandLineProgram
 		Pattern amp=Pattern.compile("&");
 
 		out.println("insert into FILE"+SUFFIX+"(filename) values ("+quote(filename)+");");
-		AsciiLineReader r=new AsciiLineReader(in);
+		VcfIterator r=new VcfIterator(in);
 		
 
-		VCFCodec codec=new VCFCodec();
-		VCFHeader header=(VCFHeader)codec.readHeader(r);
+		VCFHeader header=r.getHeader();
 		
 		String csqColumns[]=null;
 		VCFInfoHeaderLine infoHeader=header.getInfoHeaderLine("CSQ");
@@ -402,16 +400,14 @@ public class VcfToSql extends CommandLineProgram
          	}
 		
 		
-		String line;
 		
-		while((line=r.readLine())!=null)
+		while(r.hasNext())
 			{
-			LOG.debug(line);
-			VariantContext var=codec.decode(line);
+			VariantContext var=r.next();
 			
 			if(var==null)
 				{
-				LOG.error("Cannot parse "+line);
+				LOG.error("Cannot parse VCF");
 				continue;
 				}
 			//"create table if not exists FILE(id,filename text)";
