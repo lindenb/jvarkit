@@ -16,12 +16,14 @@ public abstract class AbstractCommandLineProgram
 	@Override
 	public String getVersion()
 		{
-		return getGitHash();
+		String s=getGitHash();
+		return (s.isEmpty()?"null":s);
 		}
 	@Override
 	public String getProgramVersion()
 		{
-		return getGitHash();
+		String s=getGitHash();
+		return (s.isEmpty()?"null":s);
 		}
 
 	public String  getGitHash()

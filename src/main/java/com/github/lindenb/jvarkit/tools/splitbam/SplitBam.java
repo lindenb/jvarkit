@@ -105,7 +105,9 @@ public class SplitBam extends AbstractCommandLineProgram
 			rec.setReadUnmappedFlag(true);
 			rec.setMateUnmappedFlag(true);
 			rec.setReadPairedFlag(true);
-			rec.setReadName("MOCKREAD"+(id_generator)+":6:190:289:82");
+			String readName="MOCKREAD"+(id_generator)+":6:190:289:82";
+			rec.setReadName(readName);
+			LOG.info("generating mock read: "+readName);
 			rec.setAttribute("MK",1);
 			if(G!=null && !G.isEmpty())
 				{
@@ -232,7 +234,7 @@ public class SplitBam extends AbstractCommandLineProgram
 		sp.setProgramName(getClass().getSimpleName());
 		sp.setProgramVersion(String.valueOf(getProgramVersion()));
 		sp.setPreviousProgramGroupId(getClass().getSimpleName());
-		sp.setCommandLine(getCommandLine().replace('\t', ' '));
+		sp.setCommandLine(getCommandLine().replaceAll("[ \\s]+"," "));
 		header.addProgramRecord(sp);
 
 		
@@ -377,7 +379,12 @@ public class SplitBam extends AbstractCommandLineProgram
 			
 			}
 		}
-		
+	
+	@Override
+	public String getProgramVersion() {
+		return "1.0";
+		}
+	
 	public static void main(String[] args) throws Exception
 		{
 		new SplitBam().instanceMainWithExit(args);

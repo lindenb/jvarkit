@@ -1233,4 +1233,43 @@ $ java -jar dist/bamstats04.jar \
 1	789740	789877	137	245	688	528.6715328467153	0	1
 ```
 
+### VCFAnnoBam
 
+#### Motivation
+
+Annotate a VCF with the Coverage statistics of a BAM file +  BED file of capture.
+It uses the Cigar string instead of the start/end to get the voverage
+
+ 
+ #### Compilation
+```bash
+ant vcfannobam
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>BEDILE=File</td><td>BED File capture.  Required. </td></tr>
+<tr><td>BAMFILE=File</td><td>indexed BAM File.  This option must be specified at least 1 times. </td></tr>
+<tr><td>MMQ=Integer</td><td>min mapping quality  Default value: 0. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>MIN_COVERAGE=Integer</td><td>min coverage to say the position is not covered  Default value: 0. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>IN=String</td><td>VCF file/URL to process. Default stdin.   Default value: null. </td></tr>
+<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
+</table>
+
+
+ #### Example:
+
+```bash
+$  java -jar dist/vcfannobam.jar \
+		BAM=input.bam\
+		IN=input.vcf.gz \
+		BED=capture.bed \
+		VALIDATION_STRINGENCY=SILENT
+
+(...)
+##INFO=<ID=CAPTURE,Number=1,Type=String,Description="Capture stats: Format is (start|end|mean|min|max|length|not_covered|percent_covered) ">
+(...)
+2	16100665	.	A	T	13261.77	.	CAPTURE=16100619|16100715|1331.96|1026.0|1773.0|97|0|100
+2	178395141	.	T	A	1940.77	.	CAPTURE=178394991|178395199|193.11|100.0|276.0|209|0|100
+(...)
+```

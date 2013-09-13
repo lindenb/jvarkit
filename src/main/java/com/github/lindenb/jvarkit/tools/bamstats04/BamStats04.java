@@ -98,7 +98,7 @@ public class BamStats04 extends AbstractCommandLineProgram
 					if(NO_DUP && rec.getDuplicateReadFlag() ) continue;
 					if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
 					if(!rec.getReferenceName().equals(chrom)) continue;
-					if(rec.getMappingQuality()!=255 && rec.getMappingQuality()< this.MMQ)
+					if(rec.getMappingQuality()==255 && rec.getMappingQuality()< this.MMQ)
 						{
 						continue;
 						}

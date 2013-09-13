@@ -8,16 +8,13 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import org.broad.tribble.FeatureCodecHeader;
-import org.broad.tribble.readers.AsciiLineReader;
-import org.broad.tribble.readers.AsciiLineReaderIterator;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMReadGroupRecord;
@@ -134,9 +131,9 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     	try
     		{
     		in=IOUtils.openFileForReading(f);
-    		AsciiLineReaderIterator reader=new AsciiLineReaderIterator(new AsciiLineReader(in));
-        	VCFCodec codec=new VCFCodec();
-        	VCFHeader header=(VCFHeader)codec.readActualHeader(reader);
+    		
+    		VcfIterator r=new VcfIterator(in);
+        	VCFHeader header=r.getHeader();
         	for(String sample:header.getSampleNamesInOrder())
 	        	{
 	        	print(sample,InfoType.VCF, f);
