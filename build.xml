@@ -497,7 +497,14 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>		
 
-
+<target name="bamstats01" >
+	<compile-with-picard 
+		java="**/BamStats01.java"
+		main="com.github.lindenb.jvarkit.tools.bamstats01.BamStats01"
+		name="bamstats01"
+		/>
+</target>	
+	
 <target name="bamstats04" >
 	<compile-with-picard 
 		java="**/BamStats04.java"
@@ -506,7 +513,8 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>		
 	
-		
+
+	
 	
 <target name="vcfbedjs" >
 	   <mkdir dir="tmp"/>
