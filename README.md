@@ -1241,7 +1241,7 @@ Annotate a VCF with the Coverage statistics of a BAM file +  BED file of capture
 It uses the Cigar string instead of the start/end to get the voverage
 
  
- #### Compilation
+ #### Compilation  #### 
 ```bash
 ant vcfannobam
 ```
@@ -1257,7 +1257,7 @@ ant vcfannobam
 </table>
 
 
- #### Example:
+ #### Example:  #### 
 
 ```bash
 $  java -jar dist/vcfannobam.jar \

@@ -301,7 +301,8 @@ public class SplitBam extends AbstractCommandLineProgram
 				seen.put(groupName, writer);
 				nrecords=0L;
 				}
-			
+			/* got that problem */
+			if(record.getReadName()==null || record.getReadName().isEmpty()) throw new IOException("Error at read n="+(nrecords)+" "+record);
 			writer.addAlignment(record);
 			}
 		

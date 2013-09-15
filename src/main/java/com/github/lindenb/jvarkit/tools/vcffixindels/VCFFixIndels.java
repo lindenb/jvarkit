@@ -9,6 +9,7 @@ import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
 import net.sf.picard.vcf.VcfIterator;
 
+import org.broad.tribble.TribbleException;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
@@ -142,17 +143,25 @@ public class VCFFixIndels extends AbstractVCFFilter
 			
 			
 			Allele newalleles[]=new Allele[]{newRef,newAlt};
-			
+		
 			b.attribute(TAG, ctx.getReference().getBaseString()+"|"+alleles.get(0).getBaseString()+"|"+ctx.getStart());
 			b.start(start);
 			b.stop(end);
 			b.alleles(Arrays.asList(newalleles));
+			
 			nChanged++;
 			
 			
 			
 			VariantContext ctx2=b.make();
-			w.add(ctx2);
+			try {
+				w.add(ctx2);
+				}
+			catch(TribbleException err)
+				{
+				LOG.error(err,"Cannot convert new context:"+ctx2+" old context:"+ctx);
+				w.add(ctx);
+				}
 			}
 		
 		LOG.info("indels changed:"+nChanged);
