@@ -31,12 +31,20 @@ public class BamStats01
 	{
 	private static final Log LOG=Log.getInstance(BamStats01.class);
 	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Statistics about the reads in a BAM";
+	public String USAGE=getStandardUsagePreamble()+" Statistics about the reads in a BAM. ";
 
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM files to process.",
-    		optional=false)
+    		optional=false,
+    		minElements=1)
 	public List<File> IN=new ArrayList<File>();
 
+    @Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME,
+    		doc="Ouput. Default stdout. ",
+    		optional=true)
+	public File OUT=null;
+
+    
+    
     @Option(shortName="Q", doc="Default treshold quality", optional=true)
 	public double QUAL=30.0;
 	
@@ -60,16 +68,12 @@ public class BamStats01
     		}
     	void watch(SAMRecord rec)
     		{
-			this.increment(Category.ALL);
+			this.increment(Category.TOTAL);
 			
 			if(rec.getReadPairedFlag())
 				{
 				this.increment(Category.PAIRED);
-				if(rec.getProperPairFlag())
-					{
-					this.increment(Category.PROPER_PAIR);
-					
-					}
+				
 				}
 			
 			if(rec.getReadFailsVendorQualityCheckFlag())
@@ -85,6 +89,13 @@ public class BamStats01
 			/* mapped below ************************************/
 			
 			this.increment(Category.MAPPED);
+			
+			if(rec.getReadPairedFlag() && rec.getProperPairFlag())
+				{
+				this.increment(Category.PROPER_PAIR);
+				}
+			
+			
 			
 			if(rec.getReadNegativeStrandFlag())
 				{
@@ -134,7 +145,7 @@ public class BamStats01
 	
 	private enum Category
 		{
-		ALL,
+		TOTAL,
 		PAIRED,
 		UNMAPPED,
 		MAPPED,
@@ -156,20 +167,28 @@ public class BamStats01
 		
 		PrintStream out=System.out;
 		
-		out.print("#Filename\tSample");
-		for(Category2 cat2: Category2.values())
-			{
-			for(Category cat1: Category.values())
-				{
-				out.print("\t"+cat2+"_"+cat1);//je je suis libertineuuh, je suis une cat1
-				}
-			if(BEDILE==null) break;
-			}
-		out.println();
 		
 		
 			try
 				{
+				if(OUT!=null)
+					{
+					LOG.info("opening "+OUT+" for writing.");
+					out=new PrintStream(IOUtils.openFileForWriting(OUT));
+					}
+				
+				
+				out.print("#Filename\tSample");
+				for(Category2 cat2: Category2.values())
+					{
+					for(Category cat1: Category.values())
+						{
+						out.print("\t"+cat2+"_"+cat1);//je je suis libertineuuh, je suis une cat1
+						}
+					if(BEDILE==null) break;
+					}
+				out.println();
+				
 				
 				if(BEDILE!=null)
 					{
@@ -181,7 +200,6 @@ public class BamStats01
 					while((line=bedIn.readLine())!=null)
 						{
 						if(line.isEmpty() || line.startsWith("#")) continue;
-						LOG.info(line);
 						String tokens[]=tab.split(line,5);
 						if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.BEDILE);
 						String chrom=tokens[0];
@@ -223,19 +241,20 @@ public class BamStats01
 						hist.histograms[Category2.ALL.ordinal()].watch(rec);
 						
 						if(intervals==null) continue;
+						if(rec.getReadUnmappedFlag()) continue;
 						
-						if(!intervals.getOverlapping(new Interval(
+						if(intervals.getOverlapping(new Interval(
 									rec.getReferenceName(),
 									rec.getAlignmentStart(),
 									rec.getAlignmentEnd()
 									)).isEmpty()
 							)
 							{
-							hist.histograms[Category2.IN_TARGET.ordinal()].watch(rec);
+							hist.histograms[Category2.OFF_TARGET.ordinal()].watch(rec);
 							}		
 						else
 							{
-							hist.histograms[Category2.OFF_TARGET.ordinal()].watch(rec);
+							hist.histograms[Category2.IN_TARGET.ordinal()].watch(rec);
 							}
 						}
 					samFileReader.close();
@@ -267,6 +286,8 @@ public class BamStats01
 			finally
 				{
 				if(samFileReader!=null) samFileReader.close();
+				out.flush();
+				if(OUT!=null) {out.close();}
 				}
 		
 		return 0;

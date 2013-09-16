@@ -1273,3 +1273,37 @@ $  java -jar dist/vcfannobam.jar \
 2	178395141	.	T	A	1940.77	.	CAPTURE=178394991|178395199|193.11|100.0|276.0|209|0|100
 (...)
 ```
+
+### BamStats01 ###
+
+#### Motivation ####
+
+Statistics about the reads in a BAM
+
+ 
+ #### Compilation  #### 
+```bash
+ant bamstats01
+```
+<h4>Options</h4>
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>BAM files to process.  This option must be specified at least 1 times. </td></tr>
+<tr><td>OUT=File</td><td>Ouput. Default stdout.   Default value: null. </td></tr>
+<tr><td>QUAL=Double</td><td>Default treshold quality  Default value: 30.0. This option can be set to 'null' to clear the default value. </td></tr>
+<tr><td>BEDILE=File</td><td>BED File.  Default value: null. </td></tr>
+</table>
+
+
+ #### Example #### 
+
+```bash
+$  jjava -jar dist/bamstats01.jar \
+		IN=my.bam \
+		BED=capture.bed
+
+(...)
+#Filename	Sample	ALL_TOTAL	ALL_PAIRED	ALL_UNMAPPED	ALL_MAPPED	ALL_PROPER_PAIR	ALL_PLUS_STRAND	ALL_MINUS_STRAND	ALL_PRIMARY_ALIGNMENT	ALL_FAIL_MAPPING_QUALITY	ALL_DUPLICATE	ALL_FAIL_VENDOR_QUALITY	IN_TARGET_TOTAL	IN_TARGET_PAIRED	IN_TARGET_UNMAPPED	IN_TARGET_MAPPED	IN_TARGET_PROPER_PAIR	IN_TARGET_PLUS_STRAND	IN_TARGET_MINUS_STRAND	IN_TARGET_PRIMARY_ALIGNMENT	IN_TARGET_FAIL_MAPPING_QUALITY	IN_TARGET_DUPLICATE	IN_TARGET_FAIL_VENDOR_QUALITY	OFF_TARGET_TOTAL	OFF_TARGET_PAIRED	OFF_TARGET_UNMAPPED	OFF_TARGET_MAPPED	OFF_TARGET_PROPER_PAIR	OFF_TARGET_PLUS_STRAND	OFF_TARGET_MINUS_STRAND	OFF_TARGET_PRIMARY_ALIGNMENT	OFF_TARGET_FAIL_MAPPING_QUALITY	OFF_TARGET_DUPLICATE	OFF_TARGET_FAIL_VENDOR_QUALITY
+my.bam	Sample	1617984	1617984	3966	1614018	1407862	806964	807054	1614018	56980	0	0	1293922	1293922	0	1293922	1133808	644741	649181	1293922	14087	0	0	320096	320096	0	320096	274054	162223	157873	320096	42893	0	0
+(...)
+```
