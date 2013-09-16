@@ -1,26 +1,44 @@
 package com.github.lindenb.jvarkit.tools.vcfmerge;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
+import org.broad.tribble.readers.LineIterator;
+import org.broad.tribble.readers.LineIteratorImpl;
+import org.broad.tribble.readers.LineReaderUtil;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
+import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
+import org.broadinstitute.variant.vcf.VCFHeaderLineType;
+import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.util.CloseableIterator;
 import net.sf.samtools.util.SortingCollection;
@@ -38,6 +56,7 @@ public class VCFMerge extends AbstractCommandLineProgram
 
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME,
     		doc="VCF files to process.",
+    		minElements=1,
     		optional=false)
 	public List<File> IN=new ArrayList<File>();
 
@@ -48,25 +67,83 @@ public class VCFMerge extends AbstractCommandLineProgram
 	public File REF=null;
 
     
+    @Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME,
+    		doc="VCF output. ",
+    		optional=true)
+	public File OUT=null;
+    
 	private SAMSequenceDictionary dictionary;
 	
 	private static class VCFHandler
 		{
-		File vcfFile;
-		StringBuilder headerStr=new StringBuilder();
+		VCFCodec vcfCodec = new VCFCodec();
+		VCFHeader header=null;
+		
+		
+		
+		
+		VariantContext parse(String line)
+			{
+			return vcfCodec.decode(line);
+			}	
 		}
 	
-	private static class VariantOfFile
+	private List<VCFHandler> vcfHandlers=new ArrayList<VCFHandler>();
+	
+	private class VariantOfFile
+		implements Comparable<VariantOfFile>
 		{
-		int fileIndex;
-		String line;
+		int fileIndex=-1;
+		String line=null;
+		private VariantContext var=null;
+		
 		boolean same(VariantOfFile var)
 			{
-			return false;
+			VariantContext vc1=parse();
+			VariantContext vc2=var.parse();
+			if(!vc1.getChr().equals(vc2.getChr())) return false;
+			if(vc1.getStart()!=vc2.getStart()) return false;
+			if(vc1.getEnd()!=vc2.getEnd()) return false;
+			if(!vc1.getReference().equals(vc2.getReference())) return false;
+			return true;
 			}
+		
+		private int ref()
+			{
+			String chrom=parse().getChr();
+			int refId=dictionary.getSequenceIndex(chrom);
+			if(refId==-1) throw new RuntimeException("unknown chromosome "+ chrom+" in "+line);
+			return refId;
+			}
+
+		
+		public int compareTo(VariantOfFile var)
+			{
+			VariantContext vc1=parse();
+			VariantContext vc2=var.parse();
+			int i=ref()-var.ref();
+			if(i!=0) return i;
+			i=vc1.getStart()-vc2.getStart();
+			if(i!=0) return i;
+			i=vc1.getEnd()-vc2.getEnd();
+			if(i!=0) return i;
+			i=vc1.getReference().compareTo(vc2.getReference());
+			if(i!=0) return i;
+			return fileIndex - var.fileIndex;
+			}
+		
+		
+		VariantContext parse()
+			{
+			if(var==null)
+				{
+				var=vcfHandlers.get(fileIndex).parse(this.line);
+				}
+			return var;
+			}	
 		}
 	
-	private static class VariantCodec
+	private  class VariantCodec
 		extends AbstractDataCodec<VariantOfFile>
 		{
 		@Override
@@ -98,41 +175,67 @@ public class VCFMerge extends AbstractCommandLineProgram
 	
 	private class VariantComparator implements Comparator<VariantOfFile>
 		{
-		private int ref(String chrom,VariantOfFile line)
-			{
-			int refId=dictionary.getSequenceIndex(chrom);
-			if(refId==-1) throw new RuntimeException("unknown chromosome "+ chrom+" in "+line);
-			return refId;
-			}
 		@Override
 		public int compare(VariantOfFile o1, VariantOfFile o2)
 			{
-			String tokens1[]=o1.line.split("\t",5);
-			String tokens2[]=o2.line.split("\t",5);
-			
-			int i=ref(tokens1[0],o1) - ref(tokens2[0],o2)  ;
-			if(i!=0) return i;
-			i= Integer.parseInt(tokens1[1])-Integer.parseInt(tokens2[1]);
-			if(i!=0) return i;
-			i=tokens1[3].compareTo(tokens2[3]);
-			if(i!=0) return i;
-			i=tokens1[4].compareTo(tokens2[4]);
-			if(i!=0) return i;
-			return o1.fileIndex - o2.fileIndex;
+			return o1.compareTo(o2);
 			}
 		}
 
+	private VariantContext buildContext(VCFCodec codec,VCFHeader header,List<VariantOfFile> row)
+		{
+		Double qual=null;
+		Set<String> filters=new HashSet<String>();
+		Set<Allele> alleles=new HashSet<Allele>();
+		HashMap<String,Genotype> sample2genotype=new HashMap<String,Genotype>();
+		VariantContextBuilder vcb=new VariantContextBuilder();
+		Map<String,Object> atts=new HashMap<String,Object>();
+		String id=null;
+		vcb.chr(row.get(0).parse().getChr());
+		vcb.start(row.get(0).parse().getStart());
+		vcb.stop(row.get(0).parse().getEnd());
+		for(VariantOfFile var:row)
+			{
+			VariantContext ctx=var.parse();
+			
+			if(qual==null || qual<ctx.getLog10PError()) qual=ctx.getLog10PError();
+			
+			filters.addAll(ctx.getFilters());
+			alleles.addAll(ctx.getAlleles());
+			if(id==null) id=ctx.getID();
+			
+			Map<String,Object> at=ctx.getAttributes();
+			atts.putAll(at);
+			
+			for(String sample:ctx.getSampleNames())
+				{
+				Genotype g1=ctx.getGenotype(sample);
+				if(g1==null) continue;
+				Genotype g2=sample2genotype.get(sample);
+				if(g2==null || g2.getGQ()<g1.getGQ())
+					{
+					sample2genotype.put(sample,g1);
+					}
+				}
+			}
+		vcb.attributes(atts);
+		vcb.filters(filters);
+		vcb.alleles(alleles);
+		if(qual!=null) vcb.log10PError(qual);
+		vcb.genotypes(sample2genotype.values());
+		if(id!=null) vcb.id(id);
+		return vcb.make();
+		}
 	
 	
 	@Override
 	protected int doWork()
 		{
-		List<VCFHandler> vcfHandler=new ArrayList<VCFHandler>();
-		VCFHeader h;
+		PrintStream out=System.out;
 		try {
 	    	this.dictionary=new SAMSequenceDictionaryFactory().load(REF);
 	
-			
+			Set<String> seenAttributes=new HashSet<String>();
 			SortingCollection<VariantOfFile> array=SortingCollection.newInstance(
 					VariantOfFile.class,
 					new VariantCodec(),
@@ -142,11 +245,11 @@ public class VCFMerge extends AbstractCommandLineProgram
 			array.setDestructiveIteration(true);
 			for(int fileIndex=0;fileIndex< this.IN.size();++fileIndex)
 				{
+				StringWriter sw=new StringWriter();
 				File vcfFile= this.IN.get(fileIndex);
 				LOG.info("reading from "+vcfFile);
 				VCFHandler handler=new VCFHandler();
-				handler.vcfFile=vcfFile;
-				vcfHandler.add(handler);
+				vcfHandlers.add(handler);
 				
 				BufferedReader in=IOUtils.openFileForBufferedReading(vcfFile);
 				String line;
@@ -154,20 +257,72 @@ public class VCFMerge extends AbstractCommandLineProgram
 					{
 					if(line.startsWith("#"))
 						{
-						handler.headerStr.append(line).append('\n');
+						sw.append(line).append('\n');
 						continue;
+						}
+					if(handler.header==null)
+						{
+						LOG.info("header is "+sw);
+						ByteArrayInputStream bais=new ByteArrayInputStream(sw.toString().getBytes());
+						LineIterator li=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(bais));
+						handler.header=(VCFHeader)handler.vcfCodec.readActualHeader(li);
+						bais.close();
 						}
 					VariantOfFile vof=new VariantOfFile();
 					vof.fileIndex=fileIndex;
 					vof.line=line;
+					VariantContext ctx=vof.parse();
+					for(String att:ctx.getAttributes().keySet())
+						{
+						seenAttributes.add(att);
+						}
 					array.add(vof);
 					}
 				
 				in.close();
 				}
 			array.doneAdding();
+			LOG.info("merging..."+vcfHandlers.size()+" vcfs");
 			
-			VariantContextWriter w= VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+			/* CREATE THE NEW VCH Header */
+			VCFCodec mergeCodec=new VCFCodec();
+			VCFHeader mergeHeader=null;
+				{
+				/* create the meta data */
+				Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
+				Set<String> sampleNames=new TreeSet<String>();
+				for(VCFHandler handler: this.vcfHandlers)
+					{
+					metaData.addAll(handler.header.getMetaDataInSortedOrder());
+					sampleNames.addAll(handler.header.getSampleNamesInOrder());
+					for(VCFInfoHeaderLine vihl:handler.header.getInfoHeaderLines())
+						{
+						seenAttributes.remove(vihl.getKey());
+						}
+					}
+				
+				mergeHeader=new VCFHeader(
+						metaData,
+						sampleNames
+						);
+				
+				//fix missing atts
+				for(String att:seenAttributes)
+					{
+					mergeHeader.addMetaDataLine(new VCFInfoHeaderLine(att, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Undefined"));
+					}
+				
+				}
+			
+			if(OUT!=null)
+				{
+				LOG.info("opening "+OUT);
+				out=new PrintStream(IOUtils.openFileForWriting(OUT));
+				}
+				
+			//create the context writer
+			VariantContextWriter w= VariantContextWriterFactory.create(out,null,EnumSet.noneOf(Options.class));
+			w.writeHeader(mergeHeader);
 			CloseableIterator<VariantOfFile> iter= array.iterator();
 			List<VariantOfFile> row=new ArrayList<VariantOfFile>();
 			for(;;)
@@ -177,26 +332,39 @@ public class VCFMerge extends AbstractCommandLineProgram
 					{
 					var=iter.next();
 					}
-				if(var==null || (var!=null && !row.isEmpty() && row.get(0).same(var)))
-					{
-					
-					var=null;
-					break;
-					}
 				else
 					{
-					row.add(var);
+					LOG.info("end of iteration");
+					if(!row.isEmpty())
+						{
+						w.add( buildContext(mergeCodec,mergeHeader,row));
+						}
+					
+					break;
 					}
+				
+				if(!row.isEmpty() && !row.get(0).same(var))
+					{
+					w.add( buildContext(mergeCodec,mergeHeader,row));
+					row.clear();
+					}
+				
+				
+				row.add(var);
+					
 				}
 			w.close();
+			LOG.info("done");
 			}
 		catch(Exception err)
 			{
+			LOG.error(err, ""+err.getMessage());
 			return -1;
 			}
 		finally
 			{
-			
+			out.flush();
+			if(OUT!=null) out.close();
 			}		
 		return 0;
 		}
@@ -206,7 +374,7 @@ public class VCFMerge extends AbstractCommandLineProgram
 	 */
 	public static void main(String[] args)
 		{
-		// TODO Auto-generated method stub
+		new VCFMerge().instanceMainWithExit(args);
 
 		}
 

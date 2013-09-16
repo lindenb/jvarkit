@@ -1198,7 +1198,7 @@ HS2000-1259_128:2:1210:15640:52255	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0AAAAGATAAG
 
  Coverage statistics for a BED file. It uses the Cigar string instead of the start/end to compute the coverage
  
- #### Compilation
+#### Compilation
 ```bash
 ant bamstats04
 ```
@@ -1215,7 +1215,7 @@ ant bamstats04
 </table>
 
 
- #### Example:
+#### Example:
 
 ```bash
 $ java -jar dist/bamstats04.jar \
@@ -1241,7 +1241,7 @@ Annotate a VCF with the Coverage statistics of a BAM file +  BED file of capture
 It uses the Cigar string instead of the start/end to get the voverage
 
  
- #### Compilation  #### 
+#### Compilation  #### 
 ```bash
 ant vcfannobam
 ```
@@ -1257,7 +1257,7 @@ ant vcfannobam
 </table>
 
 
- #### Example:  #### 
+Example:  #### 
 
 ```bash
 $  java -jar dist/vcfannobam.jar \
@@ -1281,7 +1281,7 @@ $  java -jar dist/vcfannobam.jar \
 Statistics about the reads in a BAM
 
  
- #### Compilation  #### 
+#### Compilation  #### 
 ```bash
 ant bamstats01
 ```
@@ -1295,7 +1295,7 @@ ant bamstats01
 </table>
 
 
- #### Example #### 
+Example #### 
 
 ```bash
 $  jjava -jar dist/bamstats01.jar \

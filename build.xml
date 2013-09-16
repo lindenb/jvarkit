@@ -754,7 +754,13 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
-
+<target name="vcfmerge">
+	<compile-with-picard 
+		java="**/VCFMerge.java"
+		main="com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge"
+		name="vcfmerge"
+		/>
+</target>
 
 
 <target name="idea20130902">

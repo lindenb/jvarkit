@@ -99,6 +99,7 @@ public class SplitBam extends AbstractCommandLineProgram
 			{
 			SAMRecord rec=f.createSAMRecord(header);
 			rec.setFirstOfPairFlag(i%2==0);
+			rec.setSecondOfPairFlag(i%2==1);
 			rec.setReadBases(bases.getBytes());
 			rec.setMappingQuality(0);
 			rec.setBaseQualityString(bases.replace('N', 'I'));
@@ -229,14 +230,15 @@ public class SplitBam extends AbstractCommandLineProgram
 			samFileReader.close();
 			throw new PicardException("Not the same sequence dictionary BAM vs "+REF);
 			}
-		
+		/*
+		 problem of parsing with GATK 2.6 : ignore this for the moment.
 		SAMProgramRecord sp=new SAMProgramRecord(getClass().getSimpleName());
 		sp.setProgramName(getClass().getSimpleName());
 		sp.setProgramVersion(String.valueOf(getProgramVersion()));
 		sp.setPreviousProgramGroupId(getClass().getSimpleName());
 		sp.setCommandLine(getCommandLine().replaceAll("[ \\s]+"," "));
 		header.addProgramRecord(sp);
-
+*/
 		
 		
         SAMFileWriterFactory sf=new SAMFileWriterFactory();
@@ -301,8 +303,6 @@ public class SplitBam extends AbstractCommandLineProgram
 				seen.put(groupName, writer);
 				nrecords=0L;
 				}
-			/* got that problem */
-			if(record.getReadName()==null || record.getReadName().isEmpty()) throw new IOException("Error at read n="+(nrecords)+" "+record);
 			writer.addAlignment(record);
 			}
 		
