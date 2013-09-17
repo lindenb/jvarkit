@@ -96,8 +96,7 @@ public class VCFTabixml extends AbstractVCFFilter
 			this.property = property;
 			}
 		}
-	
-	
+
 	
 	@Override
 	protected void doWork(VcfIterator r, VariantContextWriter w)
@@ -223,6 +222,8 @@ public class VCFTabixml extends AbstractVCFFilter
 				VariantContextBuilder b=new VariantContextBuilder(ctx);
 				for(String key:insert.keySet())
 					{
+					VCFInfoHeaderLine h=h2.getInfoHeaderLine(key);
+					
 					b.attribute(key,insert.get(key).toArray());
 					}
 				w.add(b.make());
