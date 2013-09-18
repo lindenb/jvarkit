@@ -132,6 +132,15 @@ public class VCFTabixml extends AbstractVCFFilter
 					throw new PicardException("should start with "+ VCFConstants.INFO_HEADER_START +":"+line);
 				 	}
 				VCFInfoHeaderLine hi=new VCFInfoHeaderLine(line.substring(7), VCFHeaderVersion.VCF4_1);
+				if(hi.getCount()!=1)
+					{
+					throw new IllegalArgumentException("VCFHeaderLineCount not supported : "+hi);
+					}
+				switch(hi.getType())
+					{
+					case String:break;
+					default: throw new IllegalArgumentException("VCFHeaderLineTyoe not supported : "+hi);
+					}
 				LOG.info(hi.toString());
 				h2.addMetaDataLine(hi);
 				}		
@@ -222,9 +231,11 @@ public class VCFTabixml extends AbstractVCFFilter
 				VariantContextBuilder b=new VariantContextBuilder(ctx);
 				for(String key:insert.keySet())
 					{
-					VCFInfoHeaderLine h=h2.getInfoHeaderLine(key);
-					
-					b.attribute(key,insert.get(key).toArray());
+					for(String s2:insert.get(key))
+						{
+						b.attribute(key,s2);
+						break;//limit 1
+						}
 					}
 				w.add(b.make());
 				}
