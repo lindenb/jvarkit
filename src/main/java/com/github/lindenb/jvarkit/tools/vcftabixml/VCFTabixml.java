@@ -18,6 +18,7 @@ import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlValue;
 import javax.xml.transform.OutputKeys;
@@ -51,7 +52,7 @@ public class VCFTabixml extends AbstractVCFFilter
 	@Usage(programVersion="1.0")
 	public String USAGE=getStandardUsagePreamble()+" annotate a value from a vcf+xml file."+
 		("4th column of the BED indexed with TABIX is a XML string." +
-		"It will be processed with the xslt-stylesheet and should procuce a xml result <properties><property key='key1'>value1</property><property key='key2'>values1</property></properies>" +
+		"It will be processed with the xslt-stylesheet and should procuce a xml result <properties><entry key='key1'>value1</property><property key='key2'>values1</property></properies>" +
 		" INFO fields. Carriage returns will be removed." +
 		"Parameters to be passed to the stylesheet: vcfchrom (string) vcfpos(int) vcfref(string) vcfalt(string). "
 		);
@@ -71,7 +72,7 @@ public class VCFTabixml extends AbstractVCFFilter
 	
 	private Templates stylesheet=null;
 	
-	@XmlRootElement(name="property")
+	@XmlRootElement(name="entry")
 	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class Property
 		{
@@ -79,6 +80,13 @@ public class VCFTabixml extends AbstractVCFFilter
 		public String key;
 		@XmlValue
 		public String value;
+		
+		
+		
+		@Override
+		public String toString() {
+			return ""+key+"="+value+";";
+			}
 		}
 	
 
@@ -88,12 +96,18 @@ public class VCFTabixml extends AbstractVCFFilter
 	public static class Properties
 		{
 		private List<Property> property=new ArrayList<Property>();
+		
+		@XmlElement(name="entry")
 		public List<Property> getProperty() {
 			return property;
 			}
 		public void setProperty(List<Property> property)
 			{
 			this.property = property;
+			}
+		@Override
+		public String toString() {
+			return property.toString();
 			}
 		}
 
@@ -148,6 +162,8 @@ public class VCFTabixml extends AbstractVCFFilter
 			LOG.info("writing header");
 			w.writeHeader(h2);
 			
+			
+			
 			JAXBContext jaxbCtx=JAXBContext.newInstance(Properties.class,Property.class);
 			Unmarshaller unmarshaller=jaxbCtx.createUnmarshaller();
 			
@@ -197,8 +213,10 @@ public class VCFTabixml extends AbstractVCFFilter
 						StreamResult rez=new StreamResult(sw);
 						transformer.transform(src, rez);
 						Properties props=unmarshaller.unmarshal(new StreamSource(new StringReader(sw.toString())),Properties.class).getValue();
+												
 						for(Property p:props.getProperty())
 							{
+							
 							if(p.key.isEmpty()) continue;
 							if(h2.getInfoHeaderLine(p.key)==null) 
 								{

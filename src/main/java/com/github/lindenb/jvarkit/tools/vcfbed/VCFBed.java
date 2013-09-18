@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
+import net.sf.picard.util.Log;
 import net.sf.picard.vcf.VcfIterator;
 
 import org.broad.tribble.readers.TabixReader;
@@ -29,6 +30,8 @@ import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
  */
 public class VCFBed extends AbstractVCFFilter
 	{
+	 private static Log LOG=Log.getInstance(VCFBed.class);
+	
 	@Usage(programVersion="1.0")
 	public String USAGE=getStandardUsagePreamble()+" Cross information between a VCF and a BED .";
 
@@ -36,7 +39,7 @@ public class VCFBed extends AbstractVCFFilter
 	public String FORMAT="${1}:${2}-${3}";
 	
 	@Option(shortName="TBX",doc="BED file indexed with tabix",optional=false)
-	public String TABIXFILE;
+	public String TABIX;
 	
 	@Option(shortName="T",doc="Key for the INFO field",optional=true)
 	public String TAG="TAG";
@@ -124,15 +127,17 @@ public class VCFBed extends AbstractVCFFilter
 			throws IOException
 		{
 		Pattern tab=Pattern.compile("[\t]");
+		LOG.info("parsing "+this.FORMAT);
 		Chunk parsedFormat=parseFormat(this.FORMAT);
 		if(parsedFormat==null)parsedFormat=new PlainChunk("");
 		
-		TabixReader tabix= new TabixReader(this.TABIXFILE);
+		LOG.info("opening TABIX "+this.TABIX);
+		TabixReader tabix= new TabixReader(this.TABIX);
 		
 		VCFHeader header=r.getHeader();
 
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "metadata added from "+TABIXFILE+" . Format was "+FORMAT));
+		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "metadata added from "+TABIX+" . Format was "+FORMAT));
 		w.writeHeader(h2);
 		while(r.hasNext())
 			{
@@ -155,7 +160,7 @@ public class VCFBed extends AbstractVCFFilter
 				String tokens[]=tab.split(line2);
 				String newannot=parsedFormat.toString(tokens);
 				if(!newannot.isEmpty())
-					annotations.add(newannot.replaceAll("[ , ;=]","_"));
+					annotations.add(newannot.replaceAll("[ , ;=]+","_"));
 				}
 			if(annotations.isEmpty())
 				{

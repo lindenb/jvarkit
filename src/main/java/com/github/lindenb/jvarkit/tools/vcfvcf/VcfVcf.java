@@ -18,12 +18,15 @@ import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
 
+import org.broad.tribble.readers.LineIteratorImpl;
+import org.broad.tribble.readers.LineReaderUtil;
 import org.broad.tribble.readers.TabixReader;
 
 
@@ -43,8 +46,6 @@ public class VcfVcf extends AbstractVCFFilter
 	
 	
 	
-	private TabixReader tabixReader =null;
-	
 	@Option(shortName="RIF",doc="Replace the INFO field if it exists.",minElements=0)	
 	public boolean REPLACE_INFO_FIELD=true;
 	@Option(shortName="RID",doc="Replace the ID field if it exists.",optional=true)			
@@ -54,7 +55,7 @@ public class VcfVcf extends AbstractVCFFilter
 	@Option(shortName="AAM",doc="ALT alleles matters.",optional=true)			
 	public boolean ALT_ALLELES_MATTERS=false;
 	@Option(shortName="ACF",doc="Flag to set if alternate alleles conflict.",optional=true)			
-	public String ALT_CONFLICt_FLAG=null;
+	public String ALT_CONFLICT_FLAG=null;
 	
 	
 	@Override
@@ -65,8 +66,9 @@ public class VcfVcf extends AbstractVCFFilter
 		String line;
 		
 		StringWriter sw=new StringWriter();
-		LOG.info("opening "+this.TABIX);
+		LOG.info("opening tabix file: "+this.TABIX);
 	    TabixReader tabix= new TabixReader(this.TABIX);
+	   
 		while((line=tabix.readLine())!=null)
 			{
 			if(!line.startsWith(VCFHeader.HEADER_INDICATOR))
@@ -75,7 +77,7 @@ public class VcfVcf extends AbstractVCFFilter
 				}
 			sw.append(line).append("\n");
 			}
-		VCFHeader header3=new VcfIterator(new ByteArrayInputStream(sw.toString().getBytes())).getHeader();
+		VCFHeader header3=(VCFHeader)codeIn3.readActualHeader(new LineIteratorImpl(LineReaderUtil.fromBufferedStream(new ByteArrayInputStream(sw.toString().getBytes()))));
 		VCFHeader header1=r.getHeader();
 		
 		VCFHeader h2=new VCFHeader(header1.getMetaDataInInputOrder(),header1.getSampleNamesInOrder());
@@ -94,10 +96,16 @@ public class VcfVcf extends AbstractVCFFilter
 			h2.addMetaDataLine(vihl);
 			}
 		
+		if(ALT_CONFLICT_FLAG!=null)
+			{
+			h2.addMetaDataLine(new VCFInfoHeaderLine(ALT_CONFLICT_FLAG,1,VCFHeaderLineType.Flag,"conflict ALT allele with "+this.TABIX));
+			}
+		
 		w.writeHeader(h2);
 		while(r.hasNext())
 			{
 			VariantContext ctx1=r.next();
+			
 			VariantContextBuilder  vcb=new VariantContextBuilder(ctx1);
 			String line2;
 			String BEST_ID=null;
@@ -105,7 +113,7 @@ public class VcfVcf extends AbstractVCFFilter
 
 			List<VariantContext> variantsList=new ArrayList<VariantContext>();
 			
-			TabixReader.Iterator iter=tabixReader.query(ctx1.getChr()+":"+ctx1.getStart()+"-"+ctx1.getEnd());
+			TabixReader.Iterator iter=tabix.query(ctx1.getChr()+":"+ctx1.getStart()+"-"+ctx1.getEnd());
 			while(iter!=null && (line2=iter.next())!=null)
 				{
 				VariantContext ctx3=codeIn3.decode(line2);
@@ -125,17 +133,11 @@ public class VcfVcf extends AbstractVCFFilter
 					variantsList.add(ctx3);
 					}
 				}
+			
+			
 			for(VariantContext ctx3:variantsList)
 				{
-				if(ctx3.getID()!=null && this.REPLACE_ID)
-					{
-					if(BEST_ID!=null && best_id_match_alt)
-						{
-						continue;
-						}
-					BEST_ID=ctx3.getID();
-					best_id_match_alt=ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles());
-					}
+				
 				
 				if(this.REF_ALLELE_MATTERS && !ctx1.getReference().equals(ctx3.getReference()))
 					{
@@ -145,22 +147,40 @@ public class VcfVcf extends AbstractVCFFilter
 					{
 					continue;
 					}
+				
+				if(ctx3.getID()!=null && this.REPLACE_ID)
+					{
+					if(BEST_ID!=null && best_id_match_alt)
+						{
+						//nothing
+						}
+					else
+						{
+						BEST_ID=ctx3.getID();
+						best_id_match_alt=ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles());
+						}
+					}
+				
+				
 				for(String id:this.INFO_IDS)
 					{
-					Object info3=ctx1.getAttribute(id);
-					if(info3==null) continue;
-					
+					Object info3=ctx3.getAttribute(id);
+					if(info3==null)
+						{
+						continue;
+						}
 					Object info1=ctx1.getAttribute(id);
 					if(info1!=null && !this.REPLACE_INFO_FIELD)
 						{
 						continue;
 						}
+					
 					vcb.attribute(id, info3);
 					}
 				
-				if(ALT_CONFLICt_FLAG!=null && !ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles()))
+				if(ALT_CONFLICT_FLAG!=null && !ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles()))
 					{
-					vcb.attribute(ALT_CONFLICt_FLAG, true);
+					vcb.attribute(ALT_CONFLICT_FLAG, true);
 					}
 				
 				}

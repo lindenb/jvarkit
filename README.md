@@ -831,6 +831,8 @@ A	45365	.	A	G	222	.	GERP=-3.55(...)
 <h3>VCFTabixml</h3>
 <h4>Motivation</h4>
 Annotate a value from a vcf+xml file.4th column of the BED indexed with TABIX is a XML string.It will be processed with the xslt-stylesheet and should procuce a xml result &lt;properties>&lt;property key='key1'>value1&lt;/property>&lt;property key='key2'>values1&lt;/property>&lt;/properies> INFO fields. Carriage returns will be removed.Parameters to be passed to the stylesheet: vcfchrom (string) vcfpos(int) vcfref(string) vcfalt(string). Version: 1.0
+See also evs2bed
+
 <h4>Compilation</h4>
 ```bash
 ant vcftabixml
@@ -897,9 +899,9 @@ The XSLT file:
  <xsl:when test="chromosome=$vcfchrom and chrPosition=$vcfpos and refAllele=$vcfref">
 <xsl:apply-templates select="clinicalLink|rsIds|uaMAF|aaMAF|totalMAF|avgSampleReadDepth|geneList|conservationScore|conservationScoreGERP|gwasPubmedIds|onExomeChip|gwasPubmedIds"/>
   <xsl:if test="altAlleles!=$vcfalt">
-  	<property key="EVS_CONFLICTALT">
+  	<entry key="EVS_CONFLICTALT">
   		<xsl:value-of select="altAlleles"/>
-  	</property>		
+  	</entry>		
   	</xsl:if>
   </xsl:when>
   <xsl:otherwise/>
@@ -907,10 +909,10 @@ The XSLT file:
 </xsl:template>
 <xsl:template match="clinicalLink|rsIds|uaMAF|aaMAF|totalMAF|avgSampleReadDepth|geneList|conservationScore|conservationScoreGERP|onExomeChip|gwasPubmedIds">
 <xsl:if test="string-length(normalize-space(text()))&gt;0">
-<property>
+<entry>
 <xsl:attribute name="key"><xsl:value-of select="concat('EVS_',translate(name(.),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'))"/></xsl:attribute>
 <xsl:value-of select="text()"/>
-</property>
+</entry>
 </xsl:if>
 </xsl:template>
 </xsl:stylesheet>
@@ -1280,7 +1282,6 @@ $  java -jar dist/vcfannobam.jar \
 
 Statistics about the reads in a BAM
 
- 
 #### Compilation  #### 
 ```bash
 ant bamstats01
@@ -1295,7 +1296,7 @@ ant bamstats01
 </table>
 
 
-Example #### 
+#### Example #### 
 
 ```bash
 $  jjava -jar dist/bamstats01.jar \
@@ -1307,3 +1308,61 @@ $  jjava -jar dist/bamstats01.jar \
 my.bam	Sample	1617984	1617984	3966	1614018	1407862	806964	807054	1614018	56980	0	0	1293922	1293922	0	1293922	1133808	644741	649181	1293922	14087	0	0	320096	320096	0	320096	274054	162223	157873	320096	42893	0	0
 (...)
 ```
+### EVS2Bed ###
+
+#### Motivation ####
+
+Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML
+For later use, see vcftabixml
+
+#### Compilation  #### 
+
+```bash
+ant bamstats01
+```	
+
+#### Example  ####
+```bash
+$ java  -jar dist/evs2bed.jar L=10 2> /dev/null | cut -c 1-100
+1	69427	69428	<snpList><positionString>1:69428</positionString><chrPosition>69428</chrPosition><alle..
+1	69475	69476	<snpList><positionString>1:69476</positionString><chrPosition>69476</chrPosition><alle..
+1	69495	69496	<snpList><positionString>1:69496</positionString><chrPosition>69496</chrPosition><alle..
+1	69510	69511	<snpList><positionString>1:69511</positionString><chrPosition>69511</chrPosition><alle..
+```
+
+### Biostar81455 ###
+
+#### Motivation ####
+
+Question: Defining precisely the genomic context based on a position http://www.biostars.org/p/81455/
+
+#### Compilation  #### 
+
+```bash
+ant biostar81455
+```	
+#### Example  ####
+```bash
+echo -e "chr22\t41258261\nchr22\t52000000\nchr22\t0" |\
+	java   dist/biostar81455.jar 
+
+chr22	41258261	uc003azg.2	41253084	41258785	POSITIVE	Exon 2	41257621	41258785	0
+chr22	41258261	uc011aox.2	41253084	41305239	POSITIVE	Exon 1	41253084	41253249	-5012
+chr22	41258261	uc003azi.3	41253084	41328823	POSITIVE	Exon 1	41253084	41253249	-5012
+chr22	41258261	uc003azj.3	41255553	41258130	NEGATIVE	Exon 1	41255553	41258130	-131
+chr22	41258261	uc010gyh.1	41258260	41282519	POSITIVE	Exon 1	41258260	41258683	0
+chr22	41258261	uc011aoy.1	41258260	41363888	POSITIVE	Exon 1	41258260	41258683	0
+chr22	52000000	uc011asd.2	51195513	51227614	POSITIVE	Exon 4	51227177	51227614	-772386
+chr22	52000000	uc003bni.3	51195513	51238065	POSITIVE	Exon 4	51237082	51238065	-761935
+chr22	52000000	uc011ase.1	51205919	51220775	NEGATIVE	Exon 1	51220615	51220775	-779225
+chr22	52000000	uc003bnl.1	51205919	51222087	NEGATIVE	Exon 1	51221928	51222087	-777913
+chr22	52000000	uc003bns.3	51222156	51238065	POSITIVE	Exon 3	51237082	51238065	-761935
+chr22	52000000	uc003bnq.1	51222224	51227600	POSITIVE	Exon 4	51227322	51227600	-772400
+chr22	52000000	uc003bnr.1	51222224	51227781	POSITIVE	Exon 4	51227319	51227781	-772219
+chr22	52000000	uc010hbj.3	51222224	51238065	POSITIVE	Exon 3	51237082	51238065	-761935
+chr22	0	uc002zks.4	16150259	16193004	NEGATIVE	Exon 8	16150259	16151821	16150259
+chr22	0	uc002zkt.3	16162065	16172265	POSITIVE	Exon 1	16162065	16162388	16162065
+chr22	0	uc002zku.3	16179617	16181004	NEGATIVE	Exon 1	16179617	16181004	16179617
+chr22	0	uc002zkv.3	16187164	16193004	NEGATIVE	Exon 5	16187164	16187302	16187164	
+```
+

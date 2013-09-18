@@ -287,29 +287,6 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	
 		
 
-<target name="evs2bed" >
-	   <mkdir dir="tmp"/>
-	   <mkdir dir="dist"/>
-	   	
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
-	   		<include name="**/DumpExomeVariantServerData.java"/>
-	   </javac>
-	   
-	   <pathconvert property="manifest_cp4" pathsep=" " refid="picard.lib"/>
-
-	   <jar jarfile="dist/evs2bed.jar">
-		     <fileset dir="tmp" />
-		     <manifest>
-		        <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.evs2bed.DumpExomeVariantServerData"/>
-		        <attribute name="Class-Path" value="${manifest_cp4}"/>
-		     </manifest>
-	 	</jar>
-	   
-    <delete dir="tmp"/>
-</target>	
-
 	<target name="vcffilterjs" >
 		<compile-with-picard 
 			java="**/VCFFilterJS.java"
@@ -513,7 +490,13 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>		
 	
-
+<target name="evs2bed" >
+	<compile-with-picard 
+		java="**/DumpExomeVariantServerData.java"
+		main="com.github.lindenb.jvarkit.tools.evs2bed.DumpExomeVariantServerData"
+		name="evs2bed"
+		/>
+</target>
 	
 	
 <target name="vcfbedjs" >
@@ -789,7 +772,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 <target name="biostar77828"><compile-biostar post="77828"/></target>
 <target name="biostar78285"><compile-biostar post="78285"/></target>
 <target name="biostar78400"><compile-biostar post="78400"/></target>
-
+<target name="biostar81455"><compile-biostar post="81455"/></target>
 
 <target name="mapuniprot" depends="api.uniprot">
 	<compile-with-picard 
