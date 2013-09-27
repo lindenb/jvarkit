@@ -72,7 +72,7 @@ public class BamStats04 extends AbstractCommandLineProgram
 			while((line=bedIn.readLine())!=null)
 				{
 				if(line.isEmpty() || line.startsWith("#")) continue;
-				LOG.info(line);
+				LOG.debug(line);
 				tokens=tab.split(line,5);
 				if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.BEDILE);
 				String chrom=tokens[0];

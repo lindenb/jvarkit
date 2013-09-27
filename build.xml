@@ -686,6 +686,14 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+
+<target name="ilmnfastqstats" >
+	<compile-with-picard 
+		java="**/IlluminaStatsFastq.java"
+		main="com.github.lindenb.jvarkit.tools.misc.IlluminaStatsFastq"
+		name="ilmnfastqstats"
+		/>
+</target>
 	
 <target name="findcorruptedfiles" >
 	<compile-with-picard 
@@ -746,11 +754,11 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>
 
 
-<target name="idea20130902">
+<target name="idea20130924">
 	<compile-with-picard 
-		java="**/Idea20130902.java"
-		main="com.github.lindenb.jvarkit.tools.bwamempcr.Idea20130902"
-		name="idea20130902"
+		java="**/Idea20130924.java"
+		main="com.github.lindenb.jvarkit.tools.bwamempcr.Idea20130924"
+		name="idea20130924"
 		/>
 </target>
 <target name="blastfastq">
