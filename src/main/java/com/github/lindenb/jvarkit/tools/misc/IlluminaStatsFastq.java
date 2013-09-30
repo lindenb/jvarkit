@@ -25,6 +25,10 @@ public class IlluminaStatsFastq
 	@Option(shortName="SQLITE", doc="sqlite output",optional=false)
 	public boolean sql=false;
 	
+    @Option(shortName="CAT",doc="category name",optional=true)
+    public String CATEGORY="undefined";
+
+	
 	private static String quote(String s)
 		{
 		return "'"+s+"'";
@@ -50,29 +54,34 @@ public class IlluminaStatsFastq
 				LOG.info("invalid file");
 				return;
 				}
+
 			if(sql)
 				{
 				System.out.println(
-						"insert into FASTQ(file,sample,seqindex,lane,side,split,size) values ("+
+						"insert into FASTQ(category,file,sample,seqindex,lane,side,split,size,countReads) values ("+
+						quote(this.CATEGORY)+","+		
 						quote(fq.getFile().getPath())+","+
 						quote(fq.isUndetermined()?"Undetermined":fq.getSample())+","+
 						quote(fq.getSeqIndex())+","+
 						fq.getLane()+","+
 						fq.getSide()+","+
 						fq.getSplit()+","+
-						fq.getFile().length()+
+						fq.getFile().length()+","+
+						fq.countReads()+
 						");");
 				//+ile\tsample\tseqindex\tlane\tside\tsplit\tsize
 				}
 			else
 				{
 				System.out.println(
+					this.CATEGORY+"\t"+
 					fq.getFile().getPath()+"\t"+
 					(fq.isUndetermined()?"Undetermined":fq.getSample())+"\t"+
 					fq.getLane()+"\t"+
 					fq.getSide()+"\t"+
 					fq.getSplit()+"\t"+
-					fq.getFile().length()
+					fq.getFile().length()+"\t"+
+					fq.countReads()
 					);
 				}
 			}
@@ -95,12 +104,12 @@ public class IlluminaStatsFastq
 				}
 			if(sql)
 				{
-				System.out.println("create table  if not exists FASTQ(file TEXT,sample text,seqindex text,lane int,side int,split int,size int);");
+				System.out.println("create table  if not exists FASTQ(category TEXT,file TEXT,sample text,seqindex text,lane int,side int,split int,size int,countReads int);");
 				System.out.println("begin transaction;");
 				}
 			else
 				{
-				System.out.println("#file\tsample\tseqindex\tlane\tside\tsplit\tsize");
+				System.out.println("#category\tfile\tsample\tseqindex\tlane\tside\tsplit\tsize\tcount-reads");
 				}
 			recursive(IN);
 			if(sql)

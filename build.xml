@@ -686,6 +686,14 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="vcfpolyx" >
+	<compile-with-picard 
+		java="**/VCFPolyX.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VCFPolyX"
+		name="vcfpolyx"
+		/>
+</target>
+
 
 <target name="ilmnfastqstats" >
 	<compile-with-picard 

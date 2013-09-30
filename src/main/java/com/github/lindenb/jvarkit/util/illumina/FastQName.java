@@ -5,6 +5,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.zip.GZIPInputStream;
 
+import net.sf.picard.fastq.FastqReader;
+
 /** FastQName */
 public class FastQName
 	{
@@ -17,6 +19,7 @@ public class FastQName
 	private String sample=null;
 	private int split=-1;
 	private boolean undetermined=false;
+	private Long nReads=null;
 	
 	private FastQName()
 		{
@@ -124,6 +127,24 @@ public class FastQName
 	public File getFile()
 		{
 		return file;
+		}
+	
+	
+	public long countReads() throws IOException
+		{
+		if(nReads==null)
+			{
+			long n=0L;
+			FastqReader r=new FastqReader(this.getFile());
+			while(r.hasNext())
+				{
+				r.next();
+				++n;
+				}
+			r.close();
+			nReads=n;
+			}
+		return nReads;
 		}
 	
 	/** test wether the file contains at least one FASTQ record */

@@ -1365,4 +1365,24 @@ chr22	0	uc002zkt.3	16162065	16172265	POSITIVE	Exon 1	16162065	16162388	16162065
 chr22	0	uc002zku.3	16179617	16181004	NEGATIVE	Exon 1	16179617	16181004	16179617
 chr22	0	uc002zkv.3	16187164	16193004	NEGATIVE	Exon 5	16187164	16187302	16187164	
 ```
+### VCFPolyX ###
 
+#### Motivation ####
+
+Number of repeated REF bases around POS.
+ 
+#### Compilation  #### 
+
+```bash
+ant vcfpolyx
+```	
+
+#### Example  ####
+```bash
+$ java  -jar dist/vcfpolyx.jar I=input.vcf REF=reference.fa
+(...)
+2	1133956	.	A	G	2468.84	.	POLYX=23
+2	1133956	.	A	AG	3604.25	.	POLYX=23
+2	2981671	.	T	G	47.18	.	POLYX=24
+(...)
+```
