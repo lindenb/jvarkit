@@ -497,7 +497,8 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		name="evs2bed"
 		/>
 </target>
-	
+
+
 	
 <target name="vcfbedjs" >
 	   <mkdir dir="tmp"/>
@@ -685,6 +686,24 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		name="fixvcf"
 		/>
 </target>
+
+<target name="fixvarscanmissingheader" >
+	<compile-with-picard 
+		java="**/FixVarScanMissingVCFHeader.java"
+		main="com.github.lindenb.jvarkit.tools.misc.FixVarScanMissingVCFHeader"
+		name="fixvarscanmissingheader"
+		/>
+</target>
+
+
+<target name="noemptyvcf" >
+	<compile-with-picard 
+		java="**/NoEmptyVCF.java"
+		main="com.github.lindenb.jvarkit.tools.misc.NoEmptyVCF"
+		name="noemptyvcf"
+		/>
+</target>
+
 
 <target name="vcfpolyx" >
 	<compile-with-picard 

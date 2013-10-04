@@ -96,6 +96,10 @@ public class FastQName
 		}
 	
 	int i2=f.getName().lastIndexOf('_',i1-1);
+	if(i2==-1)
+		{
+		return fq;
+		}
 	String laneStr=f.getName().substring(i2+1,i1);
 	if(!laneStr.startsWith("L"))
 		{
@@ -111,6 +115,10 @@ public class FastQName
 		}
 	
 	int i3=f.getName().lastIndexOf('_',i2-1);
+	if(i3==-1)
+		{
+		return fq;
+		}
 	fq.seqIndex=f.getName().substring(i3+1,i2);
 	
 	fq.sample=f.getName().substring(0, i3);
@@ -135,13 +143,26 @@ public class FastQName
 		if(nReads==null)
 			{
 			long n=0L;
-			FastqReader r=new FastqReader(this.getFile());
-			while(r.hasNext())
+			FastqReader r=null;
+			try
 				{
-				r.next();
-				++n;
+				r=new FastqReader(this.getFile());
+				while(r.hasNext())
+					{
+					r.next();
+					++n;
+					}
 				}
-			r.close();
+			catch(Exception err)
+				{
+				nReads=-1L;
+				throw new IOException(err);
+				}
+			finally
+				{
+				if(r!=null)r.close();
+				}
+			
 			nReads=n;
 			}
 		return nReads;

@@ -172,9 +172,13 @@ public class VCFTabixml extends AbstractVCFFilter
 				VariantContext ctx=r.next();
 				
 				HashMap<String, Set<String>> insert=new LinkedHashMap<String,Set<String>>();
+				int[] array = tabixReader.parseReg(ctx.getChr()+":"+(ctx.getStart())+"-"+(ctx.getEnd()+1));
+				TabixReader.Iterator iter=null;
 				
-				TabixReader.Iterator iter= tabixReader.query(
-						ctx.getChr()+":"+(ctx.getStart())+"-"+(ctx.getEnd()+1));
+				if(array!=null && array.length==3 && array[0]!=-1 && array[1]>=0 && array[2]>=0)
+					{
+					iter=tabixReader.query(array[0],array[1],array[2]);
+					}
 				String line2=null;
 				
 				while(iter!=null && (line2=iter.next())!=null)
@@ -260,10 +264,12 @@ public class VCFTabixml extends AbstractVCFFilter
 			}
 		catch (IOException err)
 			{
+			err.printStackTrace();
 			throw err;
 			}
 		catch (Exception err)
 			{
+			err.printStackTrace();
 			throw new IOException(err);
 			}
 		}
