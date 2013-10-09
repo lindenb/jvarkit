@@ -7,6 +7,7 @@ import java.util.List;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.samtools.util.BufferedLineReader;
 
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.IOUtils;
@@ -15,11 +16,27 @@ public class FixVarScanMissingVCFHeader extends AbstractCommandLineProgram {
 	private static Log LOG=Log.getInstance(FixVarScanMissingVCFHeader.class);
 
     @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + " Fix VCF header missingh in varscan2. Sometimes, but not always, it happends. See  http://seqanswers.com/forums/showthread.php?t=33235 ";
+    public String USAGE = getStandardUsagePreamble() + " Fix the sample name in the #CHROM header and fix VCF header missingh in varscan2. Sometimes, but not always, it happends. See  http://seqanswers.com/forums/showthread.php?t=33235 ";
 
 	
     @Option(shortName="S",doc="add this sample",minElements=0)
     public List<String> SAMPLES=new ArrayList<String>();
+    
+    private void header()
+    	{
+    	System.out.print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO");
+		if(!this.SAMPLES.isEmpty())
+			{
+			System.out.print("\tFORMAT");
+			for(String S:this.SAMPLES)
+				{
+				System.out.print("\t");
+				System.out.print(S);
+				}
+			}
+		System.out.println();
+		}
+    
 	@Override
 	protected int doWork()
 		{
@@ -33,7 +50,7 @@ public class FixVarScanMissingVCFHeader extends AbstractCommandLineProgram {
 				LOG.info("VCF header missing (Sample are "+this.SAMPLES+") . Fixing.");
 				System.out.println("##fileformat=VCFv4.1");
 				System.out.println("##source=VarScan2");
-				System.out.println("##varscan2header=missing>");
+				System.out.println("##varscan2header=missing");
 				System.out.println("##INFO=<ID=ADP,Number=1,Type=Integer,Description=\"Average per-sample depth of bases with Phred score >= 15\">");
 				System.out.println("##INFO=<ID=WT,Number=1,Type=Integer,Description=\"Number of samples called reference (wild-type)\">");
 				System.out.println("##INFO=<ID=HET,Number=1,Type=Integer,Description=\"Number of samples called heterozygous-variant\">");
@@ -55,21 +72,38 @@ public class FixVarScanMissingVCFHeader extends AbstractCommandLineProgram {
 				System.out.println("##FORMAT=<ID=RDR,Number=1,Type=Integer,Description=\"Depth of reference-supporting bases on reverse strand (reads1minus)\">");
 				System.out.println("##FORMAT=<ID=ADF,Number=1,Type=Integer,Description=\"Depth of variant-supporting bases on forward strand (reads2plus)\">");
 				System.out.println("##FORMAT=<ID=ADR,Number=1,Type=Integer,Description=\"Depth of variant-supporting bases on reverse strand (reads2minus)\">");
-				System.out.print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO");
-				if(!this.SAMPLES.isEmpty())
+				header();
+				IOUtils.copyTo(System.in, System.out);
+				}
+			else if(c=='#')
+				{
+				String line;
+				BufferedLineReader r=new BufferedLineReader(System.in);
+				while((line=r.readLine())!=null)
 					{
-					System.out.print("\tFORMAT");
-					for(String S:this.SAMPLES)
+					if(c!=-1)
 						{
-						System.out.print("\t");
-						System.out.print(S);
+						line="#"+line;
+						c=-1;
+						}
+					if(line.startsWith("#CHROM\t"))
+						{
+						System.out.println("##varscan2samples=replace");
+						header();//problem with varscan:it doesn't know the sample names :-) !!
+						}
+					else
+						{
+						System.out.println(line);
 						}
 					}
-				System.out.println();
+				r.close();
 				}
-			if(c==-1) return 0;
-			System.out.print((char)c);
-			IOUtils.copyTo(System.in, System.out);
+			else
+				{
+				throw new IOException("BAD varscan input: first letter is ascii("+c+")");
+				}
+			
+			
 			}
 		catch(IOException err)
 			{

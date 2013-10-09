@@ -113,7 +113,22 @@ public class VcfVcf extends AbstractVCFFilter
 
 			List<VariantContext> variantsList=new ArrayList<VariantContext>();
 			
-			TabixReader.Iterator iter=tabix.query(ctx1.getChr()+":"+ctx1.getStart()+"-"+ctx1.getEnd());
+			
+			
+			int[] array = tabix.parseReg(ctx1.getChr()+":"+(ctx1.getStart())+"-"+(ctx1.getEnd()));
+			TabixReader.Iterator iter=null;
+			
+			if(array!=null && array.length==3 && array[0]!=-1 && array[1]>=0 && array[2]>=0)
+				{
+				iter=tabix.query(array[0],array[1],array[2]);
+				}
+			else
+				{
+				LOG.info("Cannot get "+ctx1.getChr()+":"+(ctx1.getStart())+"-"+(ctx1.getEnd()));
+				}
+
+			
+			
 			while(iter!=null && (line2=iter.next())!=null)
 				{
 				VariantContext ctx3=codeIn3.decode(line2);

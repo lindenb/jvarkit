@@ -179,11 +179,15 @@ public class VCFTabixml extends AbstractVCFFilter
 					{
 					iter=tabixReader.query(array[0],array[1],array[2]);
 					}
+				else
+					{
+					LOG.info("Cannot get "+ctx.getChr()+":"+(ctx.getStart())+"-"+(ctx.getEnd()+1));
+					}
 				String line2=null;
 				
 				while(iter!=null && (line2=iter.next())!=null)
 					{
-
+					
 					String tokens2[]=tab.split(line2,5);
 					
 					if(tokens2.length<4)
@@ -240,6 +244,7 @@ public class VCFTabixml extends AbstractVCFFilter
 						}
 					catch (Exception e)
 						{
+						e.printStackTrace();
 						throw new PicardException("error",e);
 						}
 					
@@ -267,7 +272,7 @@ public class VCFTabixml extends AbstractVCFFilter
 			err.printStackTrace();
 			throw err;
 			}
-		catch (Exception err)
+		catch (Throwable err)
 			{
 			err.printStackTrace();
 			throw new IOException(err);

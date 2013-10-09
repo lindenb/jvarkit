@@ -85,7 +85,9 @@ public abstract class AbstractVCFFilter
 			}
 		catch (Exception e)
 			{
+			e.printStackTrace();
 			LOG.error(e);
+			LOG.error("Commandline was : "+getCommandLine());
 			testRemoteGit();
 			return -1;
 			}
