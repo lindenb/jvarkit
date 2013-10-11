@@ -210,7 +210,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 
 
 
-<target name="mature.projects" depends="vcfannobam,ngsfilessummary,findcorruptedfiles,vcftrio,extendbed,vcfbed,vcffilterdoid,vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcfvcf,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="vcf2rdf,vcfannobam,ngsfilessummary,findcorruptedfiles,vcftrio,extendbed,vcfbed,vcffilterdoid,vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcfvcf,evs2bed,vcftabixml"/>
 
 <target name="all" depends="biostar,mature.projects,genscan,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>
@@ -679,6 +679,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="vcf2rdf">
+	<compile-with-picard 
+		java="**/VCF2RDF.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VCF2RDF"
+		name="vcf2rdf"
+		/>
+</target>
+	
+	
 <target name="fixvcf" >
 	<compile-with-picard 
 		java="**/FixVCF.java"

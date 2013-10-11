@@ -15,7 +15,6 @@ import org.broad.tribble.util.ParsingUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.CommonInfo;
 import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypeLikelihoods;
 import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
@@ -28,9 +27,12 @@ import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
+
 public class XMLVcfWriter implements VariantContextWriter
 	{
 	private XMLStreamWriter writer;
+	
+	
 	public XMLVcfWriter(XMLStreamWriter writer)
 		{
 		this.writer=writer;
