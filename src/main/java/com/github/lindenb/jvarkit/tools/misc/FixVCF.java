@@ -15,7 +15,6 @@ import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.io.IoUtil;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.util.BlockCompressedOutputStream;
 
 import org.broad.tribble.readers.LineIterator;
@@ -34,8 +33,9 @@ import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class FixVCF extends AbstractCommandLineProgram
 	{
@@ -98,6 +98,7 @@ public class FixVCF extends AbstractCommandLineProgram
 		
 		LOG.info("re-reading VCF frm tmpFile:" +tmp);
 		//reopen tmp file
+		
 		VcfIterator in=new VcfIterator(new GZIPInputStream(new FileInputStream(tmp)));
 		
 		w.writeHeader(h2);

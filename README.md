@@ -12,7 +12,7 @@ http://plindenbaum.blogspot.com
 Dependencies
 ------------
 
-Tested with java 1.7 and the Picard library 1.97 ( http://sourceforge.net/projects/picard/)
+Tested with java 1.7 and the Picard library 1.100 ( http://sourceforge.net/projects/picard/)
 
 
 Download & Install
@@ -26,7 +26,7 @@ cd jvarkit.git
 edit **build.properties** to configure the project. Something like:
 
 ```
-picard.version=1.91
+picard.version=1.100
 picard.dir=/home/lindenb/package/picard-tools-${picard.version}
 picard.jar=${picard.dir}/picard-${picard.version}.jar
 sam.jar=${picard.dir}/sam-${picard.version}.jar

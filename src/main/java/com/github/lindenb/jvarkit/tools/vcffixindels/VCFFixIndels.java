@@ -7,8 +7,7 @@ import java.util.regex.Pattern;
 
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
-
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import org.broad.tribble.TribbleException;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;

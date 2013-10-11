@@ -6,7 +6,7 @@ import java.util.Set;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
-import net.sf.picard.vcf.VcfIterator;
+
 
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
@@ -15,6 +15,7 @@ import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.doid.DiseaseOntoglogyTree;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class VcfFilterDoid extends AbstractVCFDiseaseOntology
 	{

@@ -22,7 +22,7 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
-public class XMLVcfReader implements VcfReader
+public class XMLVcfReader 
 	{
 	private XMLEventReader in;
 	
@@ -68,7 +68,7 @@ public class XMLVcfReader implements VcfReader
 	
 	private List<Object> _list(StartElement root) throws XMLStreamException
 		{
-		List<Object> L=new ArrayList<>();
+		List<Object> L=new ArrayList<Object>();
 		while(in.hasNext())
 			{
 			XMLEvent evt=in.nextEvent();
@@ -146,13 +146,12 @@ public class XMLVcfReader implements VcfReader
 			}
 		}
 	
-	@Override
+	
 	public VCFHeader readHeader() throws IOException {
 		return null;
 		}
 
 	
-	@Override
 	public void close() throws IOException {
 		if(in!=null)
 			{
@@ -162,7 +161,6 @@ public class XMLVcfReader implements VcfReader
 			}
 		}
 	
-	@Override
 	public VariantContext next()throws IOException
 		{
 		if(in==null) return null;

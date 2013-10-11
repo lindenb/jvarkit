@@ -16,12 +16,12 @@ import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.fastq.FastqReader;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.util.BlockCompressedInputStream;
 
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class FindCorruptedFiles extends AbstractCommandLineProgram
 	{
@@ -124,6 +124,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 			{
 			LOG.warn("No Variant in "+f);
 			}
+    	iter.close();
     	}
     
     private void testFastq(File f)
