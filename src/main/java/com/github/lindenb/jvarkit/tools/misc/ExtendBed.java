@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.LineReader;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
 import net.sf.picard.PicardException;

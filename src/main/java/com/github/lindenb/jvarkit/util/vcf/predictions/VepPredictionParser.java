@@ -33,12 +33,23 @@ public class VepPredictionParser implements PredictionParser
 	private String tag;
 	public VepPredictionParser(VCFHeader header)
 		{		
-		this(header,"CSQ");
+		this(header,getDefaultTag());
+		}
+	
+	@Override
+	public String getTag()
+		{
+		return this.tag;
+		}
+	
+	public static final String getDefaultTag()
+		{
+		return "CSQ";
 		}
 	
 	public VepPredictionParser(VCFHeader header,String tag)
 		{	
-		this.tag=tag;
+		this.tag=(tag==null?getDefaultTag():tag);
 		VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
 		if(info==null || info.getDescription()==null)
 			{

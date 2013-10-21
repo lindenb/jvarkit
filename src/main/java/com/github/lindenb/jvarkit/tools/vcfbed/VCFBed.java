@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
+
 
 import org.broad.tribble.readers.TabixReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -21,6 +21,7 @@ import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 /**

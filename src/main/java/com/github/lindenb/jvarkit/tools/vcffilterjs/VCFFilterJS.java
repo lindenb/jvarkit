@@ -20,7 +20,7 @@ import javax.script.ScriptException;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;

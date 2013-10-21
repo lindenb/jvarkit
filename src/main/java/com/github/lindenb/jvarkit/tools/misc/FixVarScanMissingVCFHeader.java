@@ -9,8 +9,8 @@ import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
 import net.sf.samtools.util.BufferedLineReader;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
 
 public class FixVarScanMissingVCFHeader extends AbstractCommandLineProgram {
 	private static Log LOG=Log.getInstance(FixVarScanMissingVCFHeader.class);

@@ -19,7 +19,7 @@ import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
 
 public class DiseaseOntoglogyTree
 	{

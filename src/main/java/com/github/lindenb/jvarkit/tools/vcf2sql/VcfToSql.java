@@ -22,14 +22,15 @@ import org.broadinstitute.variant.vcf.VCFHeaderVersion;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
 
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
+
 
 @SuppressWarnings("rawtypes")
 public class VcfToSql extends CommandLineProgram

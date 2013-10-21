@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.util.picard;
+package com.github.lindenb.jvarkit.io;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;

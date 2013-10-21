@@ -13,6 +13,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
@@ -61,15 +62,14 @@ import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFact
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
 
 import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
-
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 class VCFFileRef
 	{
 	File vcfFile;
@@ -791,9 +791,10 @@ public class VcfViewGui
     	VCFFileRef vfr=new VCFFileRef();
     	vfr.vcfFile=vcfFile;
     	VcfIterator r=null;
-    	r=new VcfIterator(IOUtils.openFileForReading(vcfFile));
+    	InputStream in=IOUtils.openFileForReading(vcfFile);
+    	r=new VcfIterator(in);
     	vfr.header=r.getHeader();
-    	r.close();
+    	in.close();
     	return vfr;
     	}
     

@@ -10,8 +10,7 @@ import java.util.Set;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
-
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.VariantContext;

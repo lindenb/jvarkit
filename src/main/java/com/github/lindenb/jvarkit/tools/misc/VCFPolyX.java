@@ -8,7 +8,6 @@ import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
 
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
@@ -19,6 +18,7 @@ import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class VCFPolyX extends AbstractVCFFilter
 	{

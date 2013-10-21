@@ -20,7 +20,6 @@ import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Interval;
 import net.sf.picard.util.IntervalTreeMap;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.SAMFileHeader;
@@ -37,8 +36,9 @@ import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
  * @author lindenb
@@ -236,7 +236,7 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 			LOG.info("read bed "+BEDILE);
 			bedIn=IOUtils.openFileForBufferedReading(BEDILE);
 			String line;
-			String warningBED=null;
+
 			while((line=bedIn.readLine())!=null)
 				{
 				if(line.isEmpty() || line.startsWith("#")) continue;
@@ -264,7 +264,6 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 				capture.put(rgn.interval, rgn);
 				}
 			intervalList=null;
-			if(warningBED!=null) LOG.info(warningBED);
 			
 			VCFHeader header=r.getHeader();
 			VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());

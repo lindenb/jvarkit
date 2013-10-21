@@ -9,6 +9,7 @@ import net.sf.picard.fastq.FastqReader;
 
 /** FastQName */
 public class FastQName
+	implements Comparable<FastQName>
 	{
 	private static final String SUFFIX=".fastq.gz";
 	private File file;
@@ -209,6 +210,41 @@ public class FastQName
 	}
 
 
+	@Override
+	public int hashCode() {
+		return getFile().hashCode();
+		}
 	
+	@Override
+	public boolean equals(Object obj) {
+		if(obj==null || !(obj instanceof FastQName)) return false;
+		if(obj==this ) return true;
+		return getFile().equals(((FastQName)obj).getFile());
+		}
+	
+	@Override
+	public int compareTo(FastQName o) {
+		return getFile().getPath().compareTo(o.getFile().getPath());
+		}
+	
+	public boolean isComplementOf(final FastQName other)
+		{
+		if(!isValid() || !other.isValid()) return false;
+		if(! ((this.isUndetermined() && other.isUndetermined()) || (this.getSample().equals(other.getSample()))) )
+			{
+			return false;
+			}
+		
+		if(!this.isUndetermined() && !this.getSeqIndex().equals(other.getSeqIndex()))
+			{
+			return false;
+			}
+		if(this.getLane()!=other.getLane()) return false;
+		if(this.getSplit()!=other.getSplit()) return false;
+		if(! this.getSeqIndex().equals(other.getSeqIndex())  ) return false;
+		if(this.getSide()==other.getSide()) return false;
+		return true;
+		}
+    		
 	
 	}

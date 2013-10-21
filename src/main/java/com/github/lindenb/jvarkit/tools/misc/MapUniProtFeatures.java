@@ -35,9 +35,9 @@ import net.sf.picard.util.Log;
 import net.sf.picard.util.ProgressLogger;
 import net.sf.samtools.SAMFileReader;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import org.uniprot.*;
 

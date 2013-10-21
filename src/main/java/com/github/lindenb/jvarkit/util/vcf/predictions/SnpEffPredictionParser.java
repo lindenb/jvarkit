@@ -34,13 +34,18 @@ public class SnpEffPredictionParser implements PredictionParser
 	private String tag;
 	public SnpEffPredictionParser(VCFHeader header)
 		{		
-		this(header,"EFF");
-		
+		this(header,getDefaultTag());
 		}
+	
+	public static final String getDefaultTag()
+		{
+		return "EFF";
+		}
+	
 	
 	public SnpEffPredictionParser(VCFHeader header,String tag)
 		{	
-		this.tag=tag;
+		this.tag=(tag==null?getDefaultTag():tag);
 		VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
 		if(info==null || info.getDescription()==null)
 			{
@@ -76,6 +81,12 @@ public class SnpEffPredictionParser implements PredictionParser
 			col2col.put(col, i);
 			}
 		}
+	
+	public String getTag()
+		{
+		return this.tag;
+		}
+	
 	@Override
 	public List<? extends Prediction> getPredictions(VariantContext ctx)
 		{
@@ -84,7 +95,7 @@ public class SnpEffPredictionParser implements PredictionParser
 			{
 			return preds;
 			}
-		Object o=ctx.getAttribute(this.tag);
+		Object o=ctx.getAttribute(getTag());
 		if(o==null) return preds;
 		if(o.getClass().isArray())
 			{

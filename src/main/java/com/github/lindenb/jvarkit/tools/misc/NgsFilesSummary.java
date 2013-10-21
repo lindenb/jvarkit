@@ -14,13 +14,13 @@ import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMReadGroupRecord;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class NgsFilesSummary extends AbstractCommandLineProgram
 	{
@@ -138,6 +138,7 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
 	        	{
 	        	print(sample,InfoType.VCF, f);
 	    		}
+
     		}
     	catch(Exception err)
     		{

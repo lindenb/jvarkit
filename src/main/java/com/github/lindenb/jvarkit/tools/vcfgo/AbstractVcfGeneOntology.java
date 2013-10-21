@@ -21,10 +21,10 @@ import net.sf.picard.util.Log;
 import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.Function;
 import com.github.lindenb.jvarkit.util.biomart.BiomartQuery;
 import com.github.lindenb.jvarkit.util.go.GoTree;
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.IntervalTreeMapFactory;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 

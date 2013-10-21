@@ -32,8 +32,7 @@ import net.sf.picard.PicardException;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
-
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import org.broad.tribble.readers.TabixReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
@@ -43,7 +42,7 @@ import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderVersion;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 

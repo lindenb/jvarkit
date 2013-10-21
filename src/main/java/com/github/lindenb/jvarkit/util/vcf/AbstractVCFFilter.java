@@ -13,15 +13,14 @@ import java.util.EnumSet;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.util.Log;
-import net.sf.picard.vcf.VcfIterator;
 import net.sf.samtools.util.BlockCompressedOutputStream;
 
 import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.IOUtils;
 
 
 public abstract class AbstractVCFFilter
