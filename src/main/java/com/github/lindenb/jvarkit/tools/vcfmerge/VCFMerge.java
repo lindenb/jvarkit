@@ -245,9 +245,10 @@ public class VCFMerge extends AbstractCommandLineProgram
 			array.setDestructiveIteration(true);
 			for(int fileIndex=0;fileIndex< this.IN.size();++fileIndex)
 				{
+				long nLine=0L;
 				StringWriter sw=new StringWriter();
 				File vcfFile= this.IN.get(fileIndex);
-				LOG.info("reading from "+vcfFile);
+				LOG.info("reading from "+vcfFile+" "+( fileIndex+1)+"/"+ this.IN.size());
 				VCFHandler handler=new VCFHandler();
 				vcfHandlers.add(handler);
 				
@@ -262,7 +263,6 @@ public class VCFMerge extends AbstractCommandLineProgram
 						}
 					if(handler.header==null)
 						{
-						LOG.info("header is "+sw);
 						ByteArrayInputStream bais=new ByteArrayInputStream(sw.toString().getBytes());
 						LineIterator li=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(bais));
 						handler.header=(VCFHeader)handler.vcfCodec.readActualHeader(li);
@@ -276,6 +276,8 @@ public class VCFMerge extends AbstractCommandLineProgram
 						{
 						seenAttributes.add(att);
 						}
+					++nLine;
+					if( nLine % 10000 ==0) LOG.info("reading var "+nLine +" of "+ vcfFile);
 					array.add(vof);
 					}
 				

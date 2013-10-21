@@ -64,6 +64,64 @@ public class IlluminaStatsFastq
 				return;
 				}
 			
+			
+			
+			if(sql)
+				{
+				System.out.println(
+						"insert into FASTQ(category,file,sample,seqindex,lane,side,split,size,countReads) values ("+
+						quote(this.CATEGORY)+","+		
+						quote(fq.getFile().getPath())+","+
+						quote(fq.isUndetermined()?"Undetermined":fq.getSample())+","+
+						quote(fq.getSeqIndex())+","+
+						fq.getLane()+","+
+						fq.getSide()+","+
+						fq.getSplit()+","+
+						fq.getFile().length()+","+
+						fq.countReads()+
+						");");
+	
+				
+		
+				}
+			else
+				{
+				System.out.println(
+					this.CATEGORY+"\t"+
+					fq.getFile().getPath()+"\t"+
+					(fq.isUndetermined()?"Undetermined":fq.getSample())+"\t"+
+					fq.getLane()+"\t"+
+					fq.getSide()+"\t"+
+					fq.getSplit()+"\t"+
+					fq.getFile().length()+"\t"+
+					fq.countReads()
+					);
+				}
+			}
+		}
+	
+	@SuppressWarnings("unused")
+	private void recursive1(File f) throws IOException
+		{
+		if(f==null) return;
+		if(f.isDirectory())
+			{
+			File children[]=f.listFiles();
+			if(children==null) return;
+			for(File c:children)
+				{
+				recursive1(c);
+				}
+			} 
+		else if(f.getName().endsWith(".fastq.gz") && f.isFile())
+			{
+			FastQName fq=FastQName.parse(f);
+			if(!fq.isValid())
+				{
+				LOG.info("invalid file");
+				return;
+				}
+			
 			Map<Integer,Integer> lengths2count=new TreeMap<Integer, Integer>();
 			List<long[]> pos2bases=new ArrayList<long[]>(100);
 			List<Map<Integer,Long>> pos2qual=new ArrayList<Map<Integer,Long>>(100);
@@ -231,9 +289,9 @@ public class IlluminaStatsFastq
 			if(sql)
 				{
 				System.out.println("create table  if not exists FASTQ(category TEXT,file TEXT,sample text,seqindex text,lane int,side int,split int,size int,countReads int);");
-				System.out.println("create table  if not exists SEQINDEX(file TEXT,seqindex text,int countindex);");
-				System.out.println("create table  if not exists BASES(file TEXT,position int,A int,T int,G int,C int,N int);");
-				System.out.println("create table  if not exists QUALITY(file TEXT,position int,qual float);");
+				//System.out.println("create table  if not exists SEQINDEX(file TEXT,seqindex text,int countindex);");
+				//System.out.println("create table  if not exists BASES(file TEXT,position int,A int,T int,G int,C int,N int);");
+				//System.out.println("create table  if not exists QUALITY(file TEXT,position int,qual float);");
 				System.out.println("begin transaction;");
 				}
 			else

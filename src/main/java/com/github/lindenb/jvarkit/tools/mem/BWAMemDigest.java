@@ -1,8 +1,11 @@
 package com.github.lindenb.jvarkit.tools.mem;
 
 
+import java.io.BufferedReader;
 import java.io.File;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.picard.XPAlign;
 import com.github.lindenb.jvarkit.util.picard.XPalignFactory;
 
@@ -23,8 +26,12 @@ public class BWAMemDigest extends CommandLineProgram
     @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME, doc="SAM or BAM input file or stdin.", optional=true)
     public File IN = null;
 
-    private SAMFileHeader header;
-    
+    @Option(shortName="BED", doc="Regions to ignore.", optional=true)
+    public File IGNORE_BED = null;
+ 
+    @Option(shortName="XBED", doc=" Extend BED Regions to ignore by 'x' bases. ", optional=true)
+    public int IGNORE_EXTEND = 0;
+
     
     
 	public BWAMemDigest()
@@ -53,6 +60,9 @@ public class BWAMemDigest extends CommandLineProgram
 	@Override
 	protected int doWork()
 		{
+		SamSequenceRecordTreeMap<Boolean> ignore=null;
+		
+		
 		final float limitcigar=0.15f;
 		SAMFileReader r=null;
 		try {
@@ -67,8 +77,29 @@ public class BWAMemDigest extends CommandLineProgram
 				r=new SAMFileReader(IN);
 				}
 		r.setValidationStringency(super.VALIDATION_STRINGENCY);
-		this.header=r.getFileHeader();
-		XPalignFactory xPalignFactory=new XPalignFactory(this.header);
+		SAMFileHeader header=r.getFileHeader();
+		
+		if(IGNORE_BED!=null)
+			{
+			LOG.info("open "+IGNORE_BED);
+			ignore=new SamSequenceRecordTreeMap<Boolean>(header.getSequenceDictionary());
+			BufferedReader in=IOUtils.openFileForBufferedReading(IGNORE_BED);
+			String line;
+			while((line=in.readLine())!=null)
+				{
+				if(line.isEmpty() || line.startsWith("#")) continue;
+				String tokens[]=line.split("[\t]");
+				if(tokens.length<3) continue;
+				ignore.put(tokens[0],
+						Math.max(1,Integer.parseInt(tokens[1])-(1+IGNORE_EXTEND)),
+						Integer.parseInt(tokens[2])+IGNORE_EXTEND,
+						Boolean.TRUE
+						);
+				}	
+			in.close();
+			}
+		
+		XPalignFactory xPalignFactory=new XPalignFactory(header);
 		SAMRecordIterator iter=r.iterator();	
 		long readNum=0L;
 		while(iter.hasNext())
@@ -80,7 +111,14 @@ public class BWAMemDigest extends CommandLineProgram
 			if(record.getReadFailsVendorQualityCheckFlag()) continue;
 			if(record.getDuplicateReadFlag()) continue;
 			if(record.getReadUnmappedFlag()) continue;
-			
+			if(ignore!=null && ignore.containsOverlapping(
+					record.getReferenceIndex(),
+					record.getAlignmentStart(),
+					record.getAlignmentEnd())
+					)
+				{
+				continue;
+				}
 			
 			float countM=0f;
 			float countS=0f;
@@ -106,6 +144,14 @@ public class BWAMemDigest extends CommandLineProgram
 			
 			for(XPAlign xp: xPalignFactory.getXPAligns(record))
 				{
+				if(ignore!=null &&
+						ignore.containsOverlapping(
+						xp.getChrom(),
+						xp.getPos(),
+						xp.getPos()
+						)) continue;
+				
+				
 				System.out.println(
 						bed(record)+
 						"\t"+readNum+
@@ -129,6 +175,15 @@ public class BWAMemDigest extends CommandLineProgram
 				continue;
 				}
 			
+			
+			if(ignore!=null && ignore.containsOverlapping(
+					record.getMateReferenceIndex(),
+					record.getMateAlignmentStart(),
+					record.getMateAlignmentStart())
+					)
+				{
+				continue;
+				}
 			
 			System.out.println(
 						bed(record)+
