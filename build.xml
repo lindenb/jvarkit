@@ -696,6 +696,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="illuminadir">
+	<compile-with-picard 
+		java="**/IlluminaDirectory.java"
+		main="com.github.lindenb.jvarkit.tools.misc.IlluminaDirectory"
+		name="illuminadir"
+		/>
+</target>
+
+
 <target name="fixvarscanmissingheader" >
 	<compile-with-picard 
 		java="**/FixVarScanMissingVCFHeader.java"

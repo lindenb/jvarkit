@@ -16,11 +16,16 @@ public class FastQName
 	private boolean is_valid=false;
 	private String seqIndex;
 	private int lane;
-	private int side=-1;
+	private Side side=Side.None;
 	private String sample=null;
 	private int split=-1;
 	private boolean undetermined=false;
 	private Long nReads=null;
+	
+	public enum Side {
+		None,//first in list
+		Forward,Reverse
+		}
 	
 	private FastQName()
 		{
@@ -44,7 +49,7 @@ public class FastQName
 		return split;
 		}
 	
-	public int getSide()
+	public Side getSide()
 		{
 		return side;
 		}
@@ -85,11 +90,11 @@ public class FastQName
 	String sideStr=f.getName().substring(i1+1,i0);
 	if(sideStr.equals("R1"))
 		{
-		fq.side=0;
+		fq.side=Side.Forward;
 		}
 	else if(sideStr.equals("R2"))
 		{
-		fq.side=1;
+		fq.side=Side.Reverse;
 		}
 	else
 		{
@@ -241,7 +246,7 @@ public class FastQName
 			}
 		if(this.getLane()!=other.getLane()) return false;
 		if(this.getSplit()!=other.getSplit()) return false;
-		if(! this.getSeqIndex().equals(other.getSeqIndex())  ) return false;
+		if(this.getSeqIndex()!=null && !this.getSeqIndex().equals(other.getSeqIndex())  ) return false;
 		if(this.getSide()==other.getSide()) return false;
 		return true;
 		}

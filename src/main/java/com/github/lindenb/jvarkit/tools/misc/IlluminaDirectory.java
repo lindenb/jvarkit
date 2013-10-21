@@ -2,6 +2,9 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +38,28 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     
     @Option(shortName="J",doc="json output",optional=true)
     public boolean JSON=false;
+    private MessageDigest md5;
+
     
+    private  String md5(String in)
+    	{
+    	if(md5==null)
+	    	{
+	    	  try {
+	              md5 = MessageDigest.getInstance("MD5");
+	          } catch (NoSuchAlgorithmException e) {
+	              throw new PicardException("MD5 algorithm not found", e);
+	          }
+	    	}
+    	 md5.reset();
+         md5.update(in.getBytes());
+         String s = new BigInteger(1, md5.digest()).toString(16);
+         if (s.length() != 32) {
+             final String zeros = "00000000000000000000000000000000";
+             s = zeros.substring(0, 32 - s.length()) + s;
+         }
+         return s;
+    	}
     
     private class Folder
     	{
@@ -105,9 +129,10 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     		for(Pair p:undtermined)
 				{
     			if(!first) out.print(',');
+    			first=false;
 				p.json(out);
 				}
-    		out.print("]");
+    		out.print("]}");
     		}
     	
     	void write(XMLStreamWriter w) throws XMLStreamException
@@ -138,17 +163,11 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     	
     	Pair(FastQName fq)
     		{
-    		if(fq.getSide()==1)
+    		switch(fq.getSide())
     			{
-    			forward=fq;
-    			}
-    		else if(fq.getSide()==2)
-    			{
-    			reverse=fq;
-    			}
-    		else
-    			{
-    			throw new PicardException("bad side "+fq);
+    			case Forward:forward=fq; break;
+    			case Reverse:reverse=fq; break;
+    			default:throw new PicardException("bad side "+fq);
     			}
     		}
     	
@@ -174,6 +193,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
 				{
 	    		
 	    		out.print("{");
+	    		out.print("\"md5pair\":\""+md5(forward.getFile().getPath()+reverse.getFile().getPath())+"\",");
 	    		out.print("\"lane\":"+forward.getLane()+",");
     			if(forward.getSeqIndex()!=null)
     				{
@@ -185,12 +205,14 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     				}
 	    		out.print("\"split\":"+forward.getSplit()+",");
 	    		out.print("\"forward\":{");
+	    		out.print("\"md5filename\":\""+md5(forward.getFile().getPath())+"\",");
 	    		out.print("\"path\":\""+forward.getFile().getPath()+"\",");
-	    		out.print("\"side\":"+forward.getSide()+",");
+	    		out.print("\"side\":"+forward.getSide().ordinal()+",");
 	    		out.print("\"file-size\":"+forward.getFile().length());
 	    		out.print("},\"reverse\":{");
+	    		out.print("\"md5filename\":\""+md5(reverse.getFile().getPath())+"\",");
 	    		out.print("\"path\":\""+reverse.getFile().getPath()+"\",");
-	    		out.print("\"side\":"+reverse.getSide()+",");
+	    		out.print("\"side\":"+reverse.getSide().ordinal()+",");
 	    		out.print("\"file-size\":"+reverse.getFile().length());
 	    		out.print("}}");
 				}
@@ -198,6 +220,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     			{
     			FastQName F=(forward==null?reverse:forward);
     			out.print("{");
+    			out.print("\"md5filename\":\""+md5(F.getFile().getPath())+"\",");
 	    		out.print("\"lane\":"+F.getLane()+",");
     			if(forward.getSeqIndex()!=null)
     				{
@@ -219,19 +242,22 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     		if(forward!=null && reverse!=null)
     			{
     			w.writeStartElement("pair");
+    			w.writeAttribute("md5",md5(forward.getFile().getPath()+reverse.getFile().getPath()));
     			w.writeAttribute("lane", String.valueOf(forward.getLane()));
     			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(forward.getSeqIndex()));
     			w.writeAttribute("split", String.valueOf(forward.getSplit()));
     			
     			w.writeStartElement("fastq");
-    			w.writeAttribute("side", String.valueOf(forward.getSide()));
+    			w.writeAttribute("md5filename",md5(forward.getFile().getPath()));
+    			w.writeAttribute("side", String.valueOf(forward.getSide().ordinal()));
     			w.writeAttribute("path", forward.getFile().getPath());
     			w.writeAttribute("file-size",String.valueOf( forward.getFile().length()));
     			w.writeEndElement();
     			
     			
     			w.writeStartElement("fastq");
-    			w.writeAttribute("side", String.valueOf(reverse.getSide()));
+    			w.writeAttribute("md5filename",md5(reverse.getFile().getPath()));
+    			w.writeAttribute("side", String.valueOf(reverse.getSide().ordinal()));
     			w.writeAttribute("path", reverse.getFile().getPath());
     			w.writeAttribute("file-size",String.valueOf( reverse.getFile().length()));
     			w.writeEndElement();
@@ -243,12 +269,13 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     			FastQName F=(forward==null?reverse:forward);
     			
     			w.writeStartElement("single");
+    			w.writeAttribute("md5filename",md5(F.getFile().getPath()));
     			w.writeAttribute("lane", String.valueOf(F.getLane()));
     			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(F.getSeqIndex()));
     			w.writeAttribute("split", String.valueOf(F.getSplit()));
     			
     			w.writeStartElement("fastq");
-    			w.writeAttribute("side", String.valueOf(F.getSide()));
+    			w.writeAttribute("side", String.valueOf(F.getSide().ordinal()));
     			w.writeAttribute("path", F.getFile().getPath());
     			w.writeAttribute("file-size",String.valueOf( F.getFile().length()));
     			w.writeEndElement();

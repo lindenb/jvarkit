@@ -1376,6 +1376,13 @@ Number of repeated REF bases around POS.
 ```bash
 ant vcfpolyx
 ```	
+#### Options  #### 
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>REF=File</td><td>Reference  Required. </td></tr>
+<tr><td>IN=String</td><td>VCF file/URL to process. Default stdin. </td></tr>
+<tr><td>OUT=File</td><td>VCF file to generate. Default stdout. </td></tr>
+</table>
 
 #### Example  ####
 ```bash
@@ -1386,3 +1393,31 @@ $ java  -jar dist/vcfpolyx.jar I=input.vcf REF=reference.fa
 2	2981671	.	T	G	47.18	.	POLYX=24
 (...)
 ```
+
+### IlluminaDir ###
+
+#### Motivation ####
+
+Scan folders , search for FASTQs and generate a structured summary of the files (xml or json).
+Currently only tested with HiSeq data having an index
+ 
+#### Compilation  #### 
+
+```bash
+ant illuminadir
+```	
+
+<table>
+<tr><th>Option</th><th>Description</th></tr>
+<tr><td>IN=File</td><td>root directories  This option may be specified 0 or more times. </td></tr>
+<tr><td>JSON=Boolean</td><td>json output  Default value: false.  Ouput, could be used with jsvelocity https://github.com/lindenb/jsvelocity </td></tr>
+</table>
+
+#### Example  ####
+```bash
+$ java  -jar dist/illuminadir.jar \
+	I=dir1 \
+	I=dir2 | xsltproc xml2script.xslt > script.bash
+(...)
+```
+
