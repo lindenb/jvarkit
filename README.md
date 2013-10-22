@@ -17,10 +17,10 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 I'm slowly moving the pages below to the github wiki  ( https://github.com/lindenb/jvarkit/wiki/_pages )
 <table>
 <tr><th>Tool</th><th>Description</th></tr>
-<tr><th>[IlluminaDir](https://github.com/lindenb/jvarkit/wiki/Illuminadir)</th><td>Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina 
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Illuminadir">Illuminadir</a></th><td>Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina 
 FASTQs.</td></tr>
-<tr><th>[SamJS](https://github.com/lindenb/jvarkit/wiki/SamJS)</th><td>Filtering a SAM/BAM with javascript (rhino).</td></tr>
-<tr><th>[VCFFilterJS](https://github.com/lindenb/jvarkit/wiki/VCFFilterJS)</th><td>Filtering a VCF with javascript (rhino)</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamJS">SamJS</a></th><td>Filtering a SAM/BAM with javascript (rhino).</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFFilterJS">VCFFilterJS</a></th><td>Filtering a VCF with javascript (rhino)</td></tr>
 </table>
 
 
