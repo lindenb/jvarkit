@@ -21,6 +21,7 @@ I'm slowly moving the pages below to the github wiki  ( https://github.com/linde
 FASTQs.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamJS">SamJS</a></th><td>Filtering a SAM/BAM with javascript (rhino).</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFFilterJS">VCFFilterJS</a></th><td>Filtering a VCF with javascript (rhino)</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SplitBam">SplitBam</a></th><td>Split a BAM by chromosome group. Creates EMPTY bams if no reads was found for a given group. </td></tr>
 </table>
 
 
@@ -784,66 +785,6 @@ A	615009	.	T	A	125	.	AC1=1;AF1=0.5;DP=103;DP4=45,0,56,0;FQ=120;MQ=45;PV4=1,0.14,
 A	615037	.	C	T	161	.	AC1=1;AF1=0.5;DP=353;DP4=0,164,0,165;FQ=110;MQ=48;PV4=1,1,1.1e-23,1;RPB=5.549816e+00;VDB=1.486773e-11	GT:PL:DP:GQ	0/1:191,0,137:329:99
 ```
 
-### SplitBam
-
-####Motivation
-
-Split a BAM by chromosome group. Create EMPTY bams if no reads was found for a given group.
-
-####Compilation
-
-```bash
-ant splitbam
-```
-
-#### Options
-
-<table>
-<tr><th>Option</th><th>Description</th></tr>
-<tr><td>REF=File</td><td>Indexex reference  Required. </td></tr>
-<tr><td>IN=File</td><td>BAM file to process. Default stdin.   Default value: null. </td></tr>
-<tr><td>GENERATE_EMPTY_BAM=Boolean</td><td>generate EMPTY bams for chromosome having no read mapped.   Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
-<tr><td>CHROM_GROUP=File</td><td>Chromosome group file.   Default value: null. </td></tr>
-<tr><td>ADD_MOCK_RECORD=Boolean</td><td>add a mock pair of sam records to the bam.   Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
-<tr><td>OUT_FILE_PATTERN=String</td><td>MUST contain __CHROM__ and end with .bam.   Default value: . This option can be set to 'null' to clear the default value. </td></tr>
-<tr><td>UNDERTERMINED_NAME=String</td><td>Unmapped chromosome name.   Default value: Unmapped. This option can be set to 'null' to clear the default value. </td></tr>
-<tr><td>INPUT_IS_SORTED=Boolean</td><td>input is sorted.   Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
-</table>
-
-#### Example
-
-the content of 'split_g1k_v37_01.txt'
-
-```
-CHROMS_01_09	1 2 3 4 5 6 7 8 9
-CHROMS_10_0Y	10 11 12 13 14 15 16 17 18 19 20 21 22 X Y 
-CHROMS_OTHER	MT GL000207.1 GL000226.1 GL000229.1 GL000231.1 GL000210.1 GL000239.1 GL000235.1 GL000201.1 GL000247.1 GL000245.1 GL000197.1 GL000203.1 GL000246.1 GL000249.1 GL000196.1 GL000248.1 GL000244.1 GL000238.1 GL000202.1 GL000234.1 GL000232.1 GL000206.1 GL000240.1 GL000236.1 GL000241.1 GL000243.1 GL000242.1 GL000230.1 GL000237.1 GL000233.1 GL000204.1 GL000198.1 GL000208.1 GL000191.1 GL000227.1 GL000228.1 GL000214.1 GL000221.1 GL000209.1 GL000218.1 GL000220.1 GL000213.1 GL000211.1 GL000199.1 GL000217.1 GL000216.1 GL000215.1 GL000205.1 GL000219.1 GL000224.1 GL000223.1 GL000195.1 GL000212.1 GL000222.1 GL000200.1 GL000193.1 GL000194.1 GL000225.1 GL000192.1 
-```
-
-split the output of bwa sampe on the fly:
-
-```bash
-bwa sampe (...) |\
-java -jar dist/splitbam.jar \
-	VALIDATION_STRINGENCY=LENIENT  \
-	OUT_FILE_PATTERN=TESTSPLITBAM/__CHROM__.bam \
-	REF=human_g1k_v37.fasta \
-	ADD_MOCK_RECORD=true \
-	GENERATE_EMPTY_BAM=true \
-	GP=split_g1k_v37_01.txt 
-
-
-[Fri Jul 26 13:25:56 CEST 2013] Executing as lindenb@master on Linux 2.6.32-358.6.2.el6.x86_64 amd64; OpenJDK 64-Bit Server VM 1.7.0_19-mockbuild_2013_04_17_19_18-b00; Picard version: null
-INFO	2013-07-26 13:25:56	SplitBam	reading stdin
-INFO	2013-07-26 13:25:56	SplitBam	opening TESTSPLITBAM/CHROMS_01_09.bam
-INFO	2013-07-26 13:25:57	SplitBam	opening TESTSPLITBAM/CHROMS_10_0Y.bam
-INFO	2013-07-26 13:25:58	SplitBam	opening TESTSPLITBAM/CHROMS_OTHER.bam
-INFO	2013-07-26 13:35:58	SplitBam	closing group CHROMS_01_09
-INFO	2013-07-26 13:35:59	SplitBam	closing group CHROMS_10_0Y
-INFO	2013-07-26 13:35:59	SplitBam	closing group CHROMS_OTHER
-INFO	2013-07-26 13:36:00	SplitBam	closing group Unmapped
-Runtime.totalMemory()=1916600320
-```
 
 
 ### FindCorruptedFiles
@@ -1236,35 +1177,6 @@ $ java  -jar dist/vcfpolyx.jar I=input.vcf REF=reference.fa
 2	1133956	.	A	G	2468.84	.	POLYX=23
 2	1133956	.	A	AG	3604.25	.	POLYX=23
 2	2981671	.	T	G	47.18	.	POLYX=24
-(...)
-```
-
-### IlluminaDir ###
-
-#### Motivation ####
-
-
-
-[Illuminadir](wiki/Illuminadir) scans folders , search for FASTQs and generate a structured summary of the files (xml or json).
-Currently only tested with HiSeq data having an index
- 
-#### Compilation  #### 
-
-```bash
-ant illuminadir
-```	
-
-<table>
-<tr><th>Option</th><th>Description</th></tr>
-<tr><td>IN=File</td><td>root directories  This option may be specified 0 or more times. </td></tr>
-<tr><td>JSON=Boolean</td><td>json output  Default value: false.  Ouput, could be used with jsvelocity https://github.com/lindenb/jsvelocity </td></tr>
-</table>
-
-#### Example  ####
-```bash
-$ java  -jar dist/illuminadir.jar \
-	I=dir1 \
-	I=dir2 | xsltproc xml2script.xslt > script.bash
 (...)
 ```
 
