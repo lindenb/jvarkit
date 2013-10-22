@@ -1400,7 +1400,7 @@ $ java  -jar dist/vcfpolyx.jar I=input.vcf REF=reference.fa
 
 
 
-[[Illuminadir]] Scans folders , search for FASTQs and generate a structured summary of the files (xml or json).
+[[Illuminadir|Illuminadir]] Scans folders , search for FASTQs and generate a structured summary of the files (xml or json).
 Currently only tested with HiSeq data having an index
  
 #### Compilation  #### 
