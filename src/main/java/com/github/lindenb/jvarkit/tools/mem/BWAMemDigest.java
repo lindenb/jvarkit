@@ -2,7 +2,10 @@ package com.github.lindenb.jvarkit.tools.mem;
 
 
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
@@ -18,6 +21,7 @@ import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
+import net.sf.samtools.util.CloserUtil;
 
 public class BWAMemDigest extends CommandLineProgram
 	{
@@ -31,8 +35,74 @@ public class BWAMemDigest extends CommandLineProgram
  
     @Option(shortName="XBED", doc=" Extend BED Regions to ignore by 'x' bases. ", optional=true)
     public int IGNORE_EXTEND = 0;
-
     
+    
+    private abstract class AbstractMemOuput
+    	implements Closeable
+    	{
+    	
+    	}
+    
+    
+    private class DefaultMemOuput extends AbstractMemOuput
+		{
+    	PrintWriter out=new PrintWriter(System.out);
+    	
+    	public void insertion(SAMRecord record,long readNum,float countS,float countM)
+	    	{
+	    	System.out.println(
+					bed(record)+
+					"\t"+readNum+
+					"\tINSERT\t"+
+					record.getCigarString()+"\t"+(countS/countM)
+					);
+	    	}
+    	
+    	public void xp(SAMRecord record,long readNum,XPAlign xp)
+    		{
+    		System.out.println(
+					bed(record)+
+					"\t"+readNum+
+					"\tXP"+
+				    "\t"+record.getCigarString()+
+				    "\t"+xp.getChrom()+
+				    "\t"+xp.getPos()+
+				    "\t"+xp.getStrand()+
+				    "\t"+xp.getCigarString()
+					);
+    		}
+    	public void orphan(SAMRecord record,long readNum)
+	    	{
+	    	System.out.println(
+					bed(record)+
+					"\t"+readNum+
+				    "\tORPHAN"
+					);
+	    	}
+    	public void deletion(SAMRecord record,long readNum)
+	    	{
+	    	System.out.println(
+					bed(record)+
+					"\t"+readNum+
+				    "\tDEL"+
+				    "\t"+mate(record)
+					);
+	    	}
+    	public void transloc(SAMRecord record,long readNum)
+	    	{
+	    	System.out.println(
+					bed(record)+
+					"\t"+readNum+
+				    "\tRANSLOC"+
+				    "\t"+mate(record)
+					);
+	    	}
+    	@Override
+    	public void close() throws IOException {
+    		out.flush();
+    		out.close();
+    		}
+    	}
     
 	public BWAMemDigest()
 		{
@@ -61,7 +131,7 @@ public class BWAMemDigest extends CommandLineProgram
 	protected int doWork()
 		{
 		SamSequenceRecordTreeMap<Boolean> ignore=null;
-		
+		DefaultMemOuput output=new DefaultMemOuput();
 		
 		final float limitcigar=0.15f;
 		SAMFileReader r=null;
@@ -134,12 +204,7 @@ public class BWAMemDigest extends CommandLineProgram
 			
 			if(countM>10 && ((countS/countM)>(1f-limitcigar) && (countS/countM)< (1f+limitcigar) ))
 				{
-				System.out.println(
-						bed(record)+
-						"\t"+readNum+
-						"\tINSERT\t"+
-						record.getCigarString()+"\t"+(countS/countM)
-						);
+				output.insertion(record, readNum, countS, countM);
 				}
 			
 			for(XPAlign xp: xPalignFactory.getXPAligns(record))
@@ -152,26 +217,13 @@ public class BWAMemDigest extends CommandLineProgram
 						)) continue;
 				
 				
-				System.out.println(
-						bed(record)+
-						"\t"+readNum+
-						"\tXP"+
-					    "\t"+record.getCigarString()+
-					    "\t"+xp.getChrom()+
-					    "\t"+xp.getPos()+
-					    "\t"+xp.getStrand()+
-					    "\t"+xp.getCigarString()
-						);				
+				output.xp(record, readNum, xp);
 				}
 			
 			
 			if(record.getMateUnmappedFlag())
 				{
-				System.out.println(
-					bed(record)+
-					"\t"+readNum+
-				    "\tORPHAN"
-					);
+				output.orphan(record, readNum);
 				continue;
 				}
 			
@@ -184,13 +236,14 @@ public class BWAMemDigest extends CommandLineProgram
 				{
 				continue;
 				}
-			
-			System.out.println(
-						bed(record)+
-						"\t"+readNum+
-					    "\t"+(record.getReferenceIndex()==record.getMateReferenceIndex()?"DEL":"TRANSLOC")+
-					    "\t"+mate(record)
-						);
+			if(record.getReferenceIndex()==record.getMateReferenceIndex())
+				{
+				output.deletion(record, readNum);
+				}
+			else
+				{
+				output.transloc(record, readNum);
+				}
 			
 			
 			}
@@ -205,6 +258,7 @@ public class BWAMemDigest extends CommandLineProgram
 		finally
 			{
 			if(r!=null) r.close();
+			CloserUtil.close(output);
 			}
 		return 0;
 		}
