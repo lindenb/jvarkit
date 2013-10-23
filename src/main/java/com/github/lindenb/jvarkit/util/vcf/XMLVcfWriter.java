@@ -5,7 +5,6 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import javax.xml.stream.XMLOutputFactory;
@@ -125,14 +124,14 @@ public class XMLVcfWriter implements VariantContextWriter
 				for(VCFInfoHeaderLine h:header.getInfoHeaderLines())
 					{
 					start("info");
-					element("key",h.getID());
-					element("countType",h.getCountType());
+					attribute("key",h.getID());
+					attribute("countType",h.getCountType());
 					if(h.getCountType()==VCFHeaderLineCount.INTEGER)
 						{
-						element("count",h.getCount());
+						attribute("count",h.getCount());
 						}
-					
-					element("value",h.getValue());
+					if(h.getValue()!=null && !h.getValue().isEmpty())
+						attribute("value",h.getValue());
 					characters(h.getDescription());
 					end();
 					if(!info2handler.containsKey(h.getID()))
@@ -150,14 +149,14 @@ public class XMLVcfWriter implements VariantContextWriter
 				for(VCFFormatHeaderLine h: header.getFormatHeaderLines())
 					{
 					start("format");
-					element("key",h.getID());
-					element("countType",h.getCountType());
+					attribute("key",h.getID());
+					attribute("countType",h.getCountType());
 					if(h.getCountType()==VCFHeaderLineCount.INTEGER)
 						{
-						element("count",h.getCount());
+						attribute("count",h.getCount());
 						}
-					
-					element("value",h.getValue());
+					if(h.getValue()!=null && !h.getValue().isEmpty())
+						attribute("value",h.getValue());
 					characters(h.getDescription());
 					end();
 					
@@ -363,6 +362,9 @@ public class XMLVcfWriter implements VariantContextWriter
 					start("alleles");
 					for(Allele a:g.getAlleles())
 						{
+						if(a.isNoCall()) continue;
+						if(a.getBaseString().isEmpty()) continue;
+						if(a.getBaseString().equals(".")) continue;
 						start("allele");
 						if(a.isReference()) attribute("ref", a.isReference());
 						if(a.isSymbolic()) attribute("symbolic",true);
