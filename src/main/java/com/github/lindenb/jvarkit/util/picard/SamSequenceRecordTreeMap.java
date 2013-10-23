@@ -60,19 +60,25 @@ public class SamSequenceRecordTreeMap<T>
 	    IntervalTree<T> tree=tree(tid);
 	    return tree!=null && tree.overlappers(start1,end1).hasNext();
 	 	}
-
-	public void put(String chrom,int start1,int end1,T o)
+	
+	/** inserts object o at chrom/start1/end1 
+	 *  returns true if object was inserted
+	 * */
+	public boolean put(String chrom,int start1,int end1,T o)
 		{
-		put(getSAMSequenceDictionary().getSequenceIndex(chrom),start1,end1,o);
+		return put(getSAMSequenceDictionary().getSequenceIndex(chrom),start1,end1,o);
 		}
 	
-	
-	public void put(int tid,int start1,int end1,T o)
+	/** inserts object o at tid/start1/end1 
+	 *  returns true if object was inserted
+	 * */
+	public boolean put(int tid,int start1,int end1,T o)
 		{
-		if(tid<0) return;
+		if(tid<0) return false;
 		IntervalTree<T> m;
 		if(this.chroms.size()<=tid)
 			{
+			if(tid>=this.getSAMSequenceDictionary().size()) return false;
 			while(this.chroms.size()<tid) this.chroms.add(null);
 			m=new IntervalTree<T>();
 			this.chroms.add(m);
@@ -87,6 +93,7 @@ public class SamSequenceRecordTreeMap<T>
 				}
 			}
 		m.put(start1, end1, o);
+		return true;
 		}
 	
 	public boolean isEmpty()

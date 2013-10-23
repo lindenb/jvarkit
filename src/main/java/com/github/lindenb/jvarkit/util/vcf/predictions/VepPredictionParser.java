@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,10 +28,13 @@ sition|Protein_position|Amino_acids|Codons|Existing_variation|HGNC|DISTANCE|SIFT
 public class VepPredictionParser implements PredictionParser
 	{
 
-	private enum COLS{Allele,Gene,Feature,Feature_type,Consequence,cDNA_position,CDS_position,Protein_position,Amino_acids,Codons,Existing_variation,HGNC,DISTANCE,SIFT,PolyPhen,CELL_TYPE};
+	private enum COLS{Allele,Gene,Feature,Feature_type,Consequence,cDNA_position,CDS_position,Protein_position,Amino_acids,Codons,Existing_variation,HGNC,DISTANCE,SIFT,PolyPhen,CELL_TYPE,RefSeq};
 	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
 	private Pattern pipe=Pattern.compile("[\\|]");
 	private String tag;
+	private List<String> declaredCols;
+
+	
 	public VepPredictionParser(VCFHeader header)
 		{		
 		this(header,getDefaultTag());
@@ -67,6 +71,7 @@ public class VepPredictionParser implements PredictionParser
 			}
 		description=description.substring(i+chunck.length()).replaceAll("[ \'\\.\\(\\)]+","").trim();
 		String tokens[]=pipe.split(description);
+		this.declaredCols=Arrays.asList(tokens);
 		for(i=0;i< tokens.length;++i)
 			{
 			if(tokens[i].isEmpty()) continue;
@@ -85,6 +90,54 @@ public class VepPredictionParser implements PredictionParser
 			col2col.put(col, i);
 			}
 		}
+	
+	
+	public List<Map<String,String>> split(VariantContext ctx)
+		{
+		ArrayList<Map<String, String>> preds= new ArrayList<Map<String, String>>();
+		if(col2col.isEmpty())
+			{
+			return preds;
+			}
+		Object o=ctx.getAttribute(getTag());
+		if(o==null) return preds;
+		if(o.getClass().isArray())
+			{
+			for(Object o2:(Object[])o) _map(preds,o2);
+			}
+		else if(o instanceof List)
+			{
+			for(Object o2:(List<?>)o)  _map(preds,o2);
+			}
+		else
+			{
+			_map(preds,Collections.singleton(o));
+			}
+		return preds;
+		}
+
+	private void _map( List<Map<String,String>> preds,Object o)
+		{
+		if(o==null) return;
+		if(!(o instanceof String))
+			{
+			_map(preds, o.toString());
+			return;
+			}
+		String s=String.class.cast(o).trim();
+		String tokens[]=pipe.split(s);
+		Map<String,String> m=new LinkedHashMap<String,String>();
+		for(int i=0;i< tokens.length && i< this.declaredCols.size();++i)
+			{
+			if( this.declaredCols.get(i).isEmpty()) continue;
+			if( tokens[i].isEmpty()) continue;
+			m.put( this.declaredCols.get(i), tokens[i]);
+			}
+		preds.add(m);
+		}
+
+	
+	
 	@Override
 	public List<? extends Prediction> getPredictions(VariantContext ctx)
 		{

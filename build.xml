@@ -705,6 +705,16 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>
 
 
+<target name="vcf2xml">
+	<compile-with-picard 
+		java="**/Vcf2Xml.java"
+		main="com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml"
+		name="vcf2xml"
+		/>
+</target>
+
+
+
 <target name="fixvarscanmissingheader" >
 	<compile-with-picard 
 		java="**/FixVarScanMissingVCFHeader.java"

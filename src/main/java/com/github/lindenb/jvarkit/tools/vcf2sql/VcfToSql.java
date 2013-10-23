@@ -261,7 +261,6 @@ public class VcfToSql extends CommandLineProgram
 
 		out.println("insert into FILE"+SUFFIX+"(filename) values ("+quote(filename)+");");
 		VcfIterator r=new VcfIterator(in);
-		
 
 		VCFHeader header=r.getHeader();
 		
@@ -611,7 +610,7 @@ public class VcfToSql extends CommandLineProgram
 				}
 			
 			}
-		
+		r.close();
 		}
 	
 	private String quote(String s)

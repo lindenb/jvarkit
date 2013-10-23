@@ -8,11 +8,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.picard.XPAlign;
 import com.github.lindenb.jvarkit.util.picard.XPalignFactory;
 
-import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.util.Log;
@@ -23,7 +23,14 @@ import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.util.CloserUtil;
 
-public class BWAMemDigest extends CommandLineProgram
+/**
+ * : ant  bwamemdigest && ~/package/bwa/bwa-0.7.4/bwa mem \
+ * 		 -M  ~/tmp/DATASANGER/hg18/chr1.fa  \
+ * 			  ~/tmp/DATASANGER/4368_1_1.fastq.gz  ~/tmp/DATASANGER/4368_1_2.fastq.gz 2> /dev/null | 
+ * 			java -jar dist/bwamemdigest.jar BED=<(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt.gz" | gunzip -c | cut -f2,3,4 ) XBED=500  | tee /dev/tty | gzip --best > /tmp/jeter.mem.bed.gz
+
+ */
+public class BWAMemDigest extends AbstractCommandLineProgram
 	{
     private static final Log LOG = Log.getInstance(BWAMemDigest.class);
 
@@ -93,7 +100,7 @@ public class BWAMemDigest extends CommandLineProgram
 	    	System.out.println(
 					bed(record)+
 					"\t"+readNum+
-				    "\tRANSLOC"+
+				    "\tTRANSLOC"+
 				    "\t"+mate(record)
 					);
 	    	}
@@ -160,11 +167,14 @@ public class BWAMemDigest extends CommandLineProgram
 				if(line.isEmpty() || line.startsWith("#")) continue;
 				String tokens[]=line.split("[\t]");
 				if(tokens.length<3) continue;
-				ignore.put(tokens[0],
+				if(ignore.put(tokens[0],
 						Math.max(1,Integer.parseInt(tokens[1])-(1+IGNORE_EXTEND)),
 						Integer.parseInt(tokens[2])+IGNORE_EXTEND,
 						Boolean.TRUE
-						);
+						))
+					{
+					LOG.warn("BED:ignoring "+line);
+					}
 				}	
 			in.close();
 			}
@@ -187,6 +197,7 @@ public class BWAMemDigest extends CommandLineProgram
 					record.getAlignmentEnd())
 					)
 				{
+				LOG.info("ignore "+record);
 				continue;
 				}
 			
@@ -214,7 +225,11 @@ public class BWAMemDigest extends CommandLineProgram
 						xp.getChrom(),
 						xp.getPos(),
 						xp.getPos()
-						)) continue;
+						))
+					{
+					LOG.info("ignore "+record);
+					continue;
+					}
 				
 				
 				output.xp(record, readNum, xp);
@@ -234,6 +249,7 @@ public class BWAMemDigest extends CommandLineProgram
 					record.getMateAlignmentStart())
 					)
 				{
+				LOG.info("ignore "+record);
 				continue;
 				}
 			if(record.getReferenceIndex()==record.getMateReferenceIndex())
