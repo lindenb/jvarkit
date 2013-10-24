@@ -7,12 +7,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
+
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
-import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
@@ -21,7 +25,11 @@ import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.util.CloseableIterator;
 import net.sf.samtools.util.SortingCollection;
 
-public class SortVcfOnRef extends CommandLineProgram
+/**
+ * Sort a VCF on the REFERENCE
+ *
+ */
+public class SortVcfOnRef extends AbstractCommandLineProgram
 	{
 	
 	@Usage(programVersion="1.0")
@@ -89,7 +97,13 @@ public class SortVcfOnRef extends CommandLineProgram
 			}
 		}
 	
-    
+    private static int containsvcfformat(String s)
+    	{
+    	if( s.startsWith("##fileformat=")) return 0;
+    	if (s.startsWith("##format=")) return 1;
+    	return 2;
+    	}
+	
     @Override
     protected int doWork() 
     	{
@@ -111,7 +125,7 @@ public class SortVcfOnRef extends CommandLineProgram
 				}
 			if(OUT==null)
 				{
-				out=new PrintWriter(out);
+				out=new PrintWriter(System.out);
 				}
 			else
 				{
@@ -126,10 +140,33 @@ public class SortVcfOnRef extends CommandLineProgram
 				);
 			array.setDestructiveIteration(true);
 			String line;
+			List<String> heads=new ArrayList<String>();
 			while((line=in.readLine())!=null)
 				{
 				if(line.startsWith("#"))
 					{
+					if(line.startsWith("##"))
+						{
+						heads.add(line);
+						continue;
+						}
+					//#CHROM line below
+					Collections.sort(heads,new Comparator<String>()
+							{
+							//sort, we want the format as the first line.
+							@Override
+							public int compare(String o1, String o2)
+								{ 
+								int i=containsvcfformat(o1)-containsvcfformat(o2);
+								if(i!=0) return i;
+								return o1.compareTo(o2);
+								}
+							});
+					for(String s:heads)
+						{
+						out.println(s);
+						}
+					heads.clear();
 					out.println(line);
 					continue;
 					}

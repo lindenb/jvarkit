@@ -17,7 +17,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -29,10 +28,7 @@ import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalTreeMap;
 import net.sf.picard.util.Log;
-import net.sf.samtools.SAMSequenceRecord;
 
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -49,6 +45,7 @@ import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
@@ -125,8 +122,11 @@ public class VCFAnnotator extends AbstractVCFFilter
 	public boolean SO_ACN=false;
 
     
-	private IntervalTreeMap<KnownGene> knownGenes=new IntervalTreeMap<KnownGene>();
+	private SamSequenceRecordTreeMap<KnownGene> knownGenes=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	
+	
+	
 	
 	
 	class Annotation
@@ -180,8 +180,12 @@ public class VCFAnnotator extends AbstractVCFFilter
 	
 	private void loadKnownGenes()throws IOException
 		{
+		int n_genes=0;
+		this.knownGenes=new SamSequenceRecordTreeMap<KnownGene>(
+				this.indexedFastaSequenceFile.getSequenceDictionary()
+				);
 		LOG.info("loading genes");
-		Set<String> unseen=new HashSet<String>();
+		Set<String> unknown=new HashSet<String>();
 		BufferedReader in=IOUtils.openURIForBufferedReading(kgUri);
 		String line;
 		Pattern tab=Pattern.compile("[\t]");
@@ -190,20 +194,22 @@ public class VCFAnnotator extends AbstractVCFFilter
 			if(line.isEmpty()) continue;
 			String tokens[]=tab.split(line);
 			KnownGene g=new KnownGene(tokens);
-			SAMSequenceRecord ssr=indexedFastaSequenceFile.getSequenceDictionary().getSequence(g.getChr());
-			if(ssr==null)
+
+			if(!this.knownGenes.put(g.getChr(), g.getTxStart()+1, g.getTxEnd(),g))
 				{
-				if(unseen.add(g.getChr()))
+				if(!unknown.contains(g.getChr()))
 					{
-					LOG.error("The reference "+REF+" doesn't contain chromosome "+g.getChr());
+					LOG.warn("The reference "+REF+" doesn't contain chromosome "+g.getChr());
+					unknown.add(g.getChr());
 					}
-				continue;
 				}
-			Interval interval1=new Interval(g.getChr(), g.getTxStart()+1, g.getTxEnd());
-			this.knownGenes.put(interval1, g);
+			else
+				{
+				++n_genes;
+				}
 			}
 		in.close();
-		LOG.info("genes:"+this.knownGenes.size());
+		LOG.info("genes:"+n_genes);
 		}
 	private boolean isStop(char c)
 		{
@@ -213,6 +219,7 @@ public class VCFAnnotator extends AbstractVCFFilter
 	protected void doWork(VcfIterator r, VariantContextWriter w)
 		throws IOException
 		{	
+		GenomicSequence genomicSequence=null;
 		LOG.info("opening REF:"+REF);
 		final String TAG="PRED";
 		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
@@ -243,12 +250,18 @@ public class VCFAnnotator extends AbstractVCFFilter
 		final SequenceOntologyTree.Term so_coding_synonymous=soTree.getTermByAcn("SO:0001819");
 		final SequenceOntologyTree.Term so_coding_non_synonymous=soTree.getTermByAcn("SO:0001583");
 		final SequenceOntologyTree.Term so_intergenic=soTree.getTermByAcn("SO:0001628");
-		
+		long n_variants=0L;
 		while(r.hasNext())
 			{
 			VariantContext ctx=r.next();
-			Collection<KnownGene> genes=this.knownGenes.getOverlapping(
-					new Interval(ctx.getChr(), ctx.getStart(), ctx.getEnd()) //1-based
+			
+			if(++n_variants%1000==0)
+				{
+				LOG.info("N(variants)="+n_variants+" current is "+ctx.getChr()+":"+ctx.getStart());
+				}
+			
+			List<KnownGene> genes=this.knownGenes.getOverlapping(
+					ctx.getChr(), ctx.getStart(), ctx.getEnd() //1-based
 					);
 			List<Annotation> ctx_annotations=new ArrayList<Annotation>();
 			if(!ctx.getReference().getBaseString().matches("[ATGC]"))
@@ -261,10 +274,15 @@ public class VCFAnnotator extends AbstractVCFFilter
 				}
 			else
 				{
-				GenomicSequence genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getChr());
+				if(genomicSequence==null || !genomicSequence.getChrom().equals(ctx.getChr()))
+					{
+					LOG.info("getting genomic Sequence for "+ctx.getChr());
+					genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getChr());
+					}
+				
 				for(KnownGene gene:genes)
 					{
-            		GeneticCode geneticCode=GeneticCode.getStandard();
+					GeneticCode geneticCode=GeneticCode.getStandard();
             		
             		
 					for(Allele alt:ctx.getAlternateAlleles())
@@ -302,100 +320,106 @@ public class VCFAnnotator extends AbstractVCFFilter
 		            			{
 		            			annotations.seqont.add(so_3_prime_UTR_variant);
 		            			}
-		            		
-		            		int exon_index=0;
-		            		while(exon_index< gene.getExonCount())
-		            			{
-		            			KnownGene.Exon exon= gene.getExon(exon_index);
-		            			for(int i= exon.getStart();
-		            					i< exon.getEnd();
-		            					++i)
-		            				{
-		            				if(i==position)
-		        						{
-		        						annotations.exon_name= exon.getName();
-		        						}
-		            				if(i< gene.getCdsStart()) continue;
-		            				if(i>=gene.getCdsEnd()) break;
-		        					
-		        					if(wildRNA==null)
-		        						{
-		        						wildRNA=new StringBuilder();
-		        						mutRNA=new MutedSequence(wildRNA);
-		        						}
-		        					
-		        					if(i==position)
-		        						{
-		        						annotations.seqont.add(so_exon);
-		        						annotations.exon_name=exon.getName();
-		        						position_in_cdna=wildRNA.length();
-		        						annotations.position_cdna=position_in_cdna;
-		        						//in splicing ?
-		        						if(exon.isSplicing(position))
-		        							{
-		        							
-		        							if(exon.isSplicingAcceptor(position))
-		        								{
-		        								annotations.seqont.add(so_splice_acceptor); //SPLICING_ACCEPTOR
-		        								}
-		        							else  if(exon.isSplicingDonor(position))
-		        								{
-		        								annotations.seqont.add(so_splice_donor); // SPLICING_DONOR
-		        								}
-		        							else //??
-		        								{
-			        							annotations.seqont.add(so_splicing_variant);
-		        								}
-		        							}
-		        						}
-		        					
-		            				wildRNA.append(genomicSequence.charAt(i));
-		            				
-		            				if(i==position)
-		            					{
-		            					mutRNA.put(
-		            							position_in_cdna,
-		            							alt.getBaseString().charAt(0)
-		            							);
-		            					}
-		            				
-		            				if(wildRNA.length()%3==0 && wildRNA.length()>0 && wildProt==null)
+		            		else
+			            		{
+			            		int exon_index=0;
+			            		while(exon_index< gene.getExonCount())
+			            			{
+			            			KnownGene.Exon exon= gene.getExon(exon_index);
+			            			
+			            			
+			            			
+			            			
+			            			for(int i= exon.getStart();
+			            					i< exon.getEnd();
+			            					++i)
 			            				{
-			            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-			            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
+			            				
+			            				if(i==position)
+			        						{
+			        						annotations.exon_name= exon.getName();
+			        						}
+			            				if(i< gene.getCdsStart()) continue;
+			            				if(i>=gene.getCdsEnd()) break;
+			        					
+			        					if(wildRNA==null)
+			        						{
+			        						wildRNA=new StringBuilder();
+			        						mutRNA=new MutedSequence(wildRNA);
+			        						}
+			        					
+			        					if(i==position)
+			        						{
+			        						annotations.seqont.add(so_exon);
+			        						annotations.exon_name=exon.getName();
+			        						position_in_cdna=wildRNA.length();
+			        						annotations.position_cdna=position_in_cdna;
+			        						//in splicing ?
+			        						if(exon.isSplicing(position))
+			        							{
+			        							
+			        							if(exon.isSplicingAcceptor(position))
+			        								{
+			        								annotations.seqont.add(so_splice_acceptor); //SPLICING_ACCEPTOR
+			        								}
+			        							else  if(exon.isSplicingDonor(position))
+			        								{
+			        								annotations.seqont.add(so_splice_donor); // SPLICING_DONOR
+			        								}
+			        							else //??
+			        								{
+				        							annotations.seqont.add(so_splicing_variant);
+			        								}
+			        							}
+			        						}
+			        					
+			            				wildRNA.append(genomicSequence.charAt(i));
+			            				
+			            				if(i==position)
+			            					{
+			            					mutRNA.put(
+			            							position_in_cdna,
+			            							alt.getBaseString().charAt(0)
+			            							);
+			            					}
+			            				
+			            				if(wildRNA.length()%3==0 && wildRNA.length()>0 && wildProt==null)
+				            				{
+				            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
+				            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
+				            				}
 			            				}
-		            				}
-		            			KnownGene.Intron intron= exon.getNextIntron();
-		            			if(intron!=null && intron.contains(position))
-		            				{
-		            				annotations.intron_name=intron.getName();
-		            				annotations.seqont.add(so_intron);
-		            				
-		            				if(intron.isSplicing(position))
-		        						{
-		        						if(intron.isSplicingAcceptor(position))
-		        							{
-		        							annotations.seqont.add(so_splice_acceptor);
-		        							}
-		        						else if(intron.isSplicingDonor(position))
-		        							{
-		        							annotations.seqont.add(so_splice_donor);
-		        							}
-		        						else //???
-		        							{
-		        							annotations.seqont.add(so_splicing_variant);
-		        							}
-		        						}
-		            				}
-		            			++exon_index;
-		            			}
-		            		
+			            			KnownGene.Intron intron= exon.getNextIntron();
+			            			if(intron!=null && intron.contains(position))
+			            				{
+			            				annotations.intron_name=intron.getName();
+			            				annotations.seqont.add(so_intron);
+			            				
+			            				if(intron.isSplicing(position))
+			        						{
+			        						if(intron.isSplicingAcceptor(position))
+			        							{
+			        							annotations.seqont.add(so_splice_acceptor);
+			        							}
+			        						else if(intron.isSplicingDonor(position))
+			        							{
+			        							annotations.seqont.add(so_splice_donor);
+			        							}
+			        						else //???
+			        							{
+			        							annotations.seqont.add(so_splicing_variant);
+			        							}
+			        						}
+			            				}
+			            			++exon_index;
+			            			}
+			            		}
 		            		
 		            		
 		            		}
 		            	else // reverse orientation
 		            		{
-		            	
+
 		            		if(position < gene.getCdsStart())
 		            			{
 		            			annotations.seqont.add(so_3_prime_UTR_variant);
@@ -404,96 +428,102 @@ public class VCFAnnotator extends AbstractVCFFilter
 		            			{
 		            			annotations.seqont.add(so_5_prime_UTR_variant);
 		            			}
-		            	
-		            		
-		            		int exon_index = gene.getExonCount()-1;
-		            		while(exon_index >=0)
-		            			{
-		            			KnownGene.Exon exon= gene.getExon(exon_index);
-		            			for(int i= exon.getEnd()-1;
-		            				    i>= exon.getStart();
-		            				--i)
-		            				{
-		            				if(i==position)
-		        						{
-		            					annotations.exon_name=exon.getName();
-		        						}
-		            				if(i>= gene.getCdsEnd()) continue;
-		            				if(i<  gene.getCdsStart()) break;
-		            				
-		            				if(wildRNA==null)
-		        						{
-		        						wildRNA=new StringBuilder();
-		        						mutRNA=new MutedSequence(wildRNA);
-		        						}
-		            				
-		            				if(i==position)
-		        						{
-		            					annotations.seqont.add(so_exon);
-		            					position_in_cdna=wildRNA.length();
-		        						annotations.position_cdna=position_in_cdna;
-		        						//in splicing ?
-		        						if(exon.isSplicing(position))
-		        							{		        							
-		        							if(exon.isSplicingAcceptor(position))
-		        								{
-		        								annotations.seqont.add(so_splice_acceptor);
-		        								}
-		        							else  if(exon.isSplicingDonor(position))
-		        								{
-		        								annotations.seqont.add(so_splice_donor);
-		        								}
-		        							else //?
-		        								{
-		        								annotations.seqont.add(so_splicing_variant);
-		        								}
-		        							}
-		        						
-		        						
-		        						mutRNA.put(
-		        								position_in_cdna,
-		        								AcidNucleics.complement(alt.getBaseString().charAt(0))
-		        								);
-		        						}
-		            				
-		            				wildRNA.append(AcidNucleics.complement(genomicSequence.charAt(i)));
-		            				if( wildRNA.length()%3==0 &&
-		            					wildRNA.length()>0 &&
-		            					wildProt==null)
+		            		else
+			            		{
+			            		int exon_index = gene.getExonCount()-1;
+			            		while(exon_index >=0)
+			            			{
+
+			            			KnownGene.Exon exon= gene.getExon(exon_index);
+			            			
+			            			
+			            			for(int i= exon.getEnd()-1;
+			            				    i>= exon.getStart();
+			            				--i)
 			            				{
-			            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-			            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
+			            				
+			            				
+			            				if(i==position)
+			        						{
+			            					annotations.exon_name=exon.getName();
+			        						}
+			            				if(i>= gene.getCdsEnd()) continue;
+			            				if(i<  gene.getCdsStart()) break;
+			            				
+			            				
+			            				if(wildRNA==null)
+			        						{
+			        						wildRNA=new StringBuilder();
+			        						mutRNA=new MutedSequence(wildRNA);
+			        						}
+			            				
+			            				if(i==position)
+			        						{
+			            					annotations.seqont.add(so_exon);
+			            					position_in_cdna=wildRNA.length();
+			        						annotations.position_cdna=position_in_cdna;
+			        						//in splicing ?
+			        						if(exon.isSplicing(position))
+			        							{		        							
+			        							if(exon.isSplicingAcceptor(position))
+			        								{
+			        								annotations.seqont.add(so_splice_acceptor);
+			        								}
+			        							else  if(exon.isSplicingDonor(position))
+			        								{
+			        								annotations.seqont.add(so_splice_donor);
+			        								}
+			        							else //?
+			        								{
+			        								annotations.seqont.add(so_splicing_variant);
+			        								}
+			        							}
+			        						
+			        						
+			        						mutRNA.put(
+			        								position_in_cdna,
+			        								AcidNucleics.complement(alt.getBaseString().charAt(0))
+			        								);
+			        						}
+			            				
+			            				wildRNA.append(AcidNucleics.complement(genomicSequence.charAt(i)));
+			            				if( wildRNA.length()%3==0 &&
+			            					wildRNA.length()>0 &&
+			            					wildProt==null)
+				            				{
+				            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
+				            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
+				            				}
 			            				}
-		            				
-		            				}
-		            			
-		            			KnownGene.Intron intron= exon.getPrevIntron();
-		            			if(intron!=null &&
-		            				intron.contains(position))
-		            				{
-		            				annotations.intron_name=intron.getName();
-		            				annotations.seqont.add(so_intron);
-		            				
-		            				if(intron.isSplicing(position))
-		        						{
-		        						if(intron.isSplicingAcceptor(position))
-		        							{
-		        							annotations.seqont.add(so_splice_acceptor);
-		        							}
-		        						else if(intron.isSplicingDonor(position))
-		        							{
-		        							annotations.seqont.add(so_splice_donor);
-		        							}
-		        						else //?	
-		        							{
-		        							annotations.seqont.add(so_splicing_variant);
-		        							}
-		        						}
-		            				}
-		            			--exon_index;
-		            			}
+			            			KnownGene.Intron intron= exon.getPrevIntron();
+			            			if(intron!=null &&
+			            				intron.contains(position))
+			            				{
+			            				annotations.intron_name=intron.getName();
+			            				annotations.seqont.add(so_intron);
+			            				
+			            				if(intron.isSplicing(position))
+			        						{
+			        						if(intron.isSplicingAcceptor(position))
+			        							{
+			        							annotations.seqont.add(so_splice_acceptor);
+			        							}
+			        						else if(intron.isSplicingDonor(position))
+			        							{
+			        							annotations.seqont.add(so_splice_donor);
+			        							}
+			        						else //?	
+			        							{
+			        							annotations.seqont.add(so_splicing_variant);
+			        							}
+			        						}
+			            				}
+			            			--exon_index;
+			            			}
+			            		}
 
 		            		}//end of if reverse
+
 		        		if( wildProt!=null &&
 		        			mutProt!=null && 
 		        			position_in_cdna>=0)
@@ -556,7 +586,6 @@ public class VCFAnnotator extends AbstractVCFFilter
 			vb.attribute(TAG, info.toArray());
 			w.add(vb.make());
 			}
-			
 		}
 	
 	

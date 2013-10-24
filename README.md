@@ -23,6 +23,8 @@ FASTQs.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFFilterJS">VCFFilterJS</a></th><td>Filtering a VCF with javascript (rhino)</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SplitBam">SplitBam</a></th><td>Split a BAM by chromosome group. Creates EMPTY bams if no reads was found for a given group. </td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCF2XML">VCF2XML</a></th><td>Transforms a VCF to XML. </td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFPredictions">VCFPredictions<a></th><td>Basic variant prediction using UCSC knownGenes.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SortVCFOnRef">SortVCFOnRef<a></th><td>Sort a VCF using the order of the chromosomes in a REFerence index.</td></tr>
 </table>
 
 
@@ -198,27 +200,6 @@ ant vcf2sql
 ```
 <h4>Schema</h4>
 ![Schema](https://chart.googleapis.com/chart?cht=gv&chl=digraph{HEADER->FILE;VARIATION->FILE;ALT->VARIATION;FILTER->VARIATION;INFO->VARIATION;SAMPLE->GENOTYPE;GENOTYPE->VARIATION;GTPROP->GENOTYPE;EXTRAINFO->INFO;EXTRAINFOPROP->EXTRAINFO;})
-
-<h3>SortVCFOnRef</h3>
-<h4>Motivation</h4>
-Sort a VCF using the reference order. Version: 1.0
-<h4>Options</h4>
-<table>
-<tr><th>Option</th><th>Description</th></tr>
-<tr><td>IN=File</td><td>VCF file (or stdin).  Default value: null. </td></tr>
-<tr><td>OUT=File</td><td>output file (or stdout).  Default value: null. </td></tr>
-<tr><td>REF=File</td><td>Reference file.  Required. </td></tr>
-</table>
-<h4>Example</h4>
-```bash
-java -jar dist/sortvcfonref.jar I=in.vcf O=out.vcf REF=ref.fa
-```
-<h4>Compilation</h4>
-```bash
-ant sortvcfonref
-```
-
-<br/>
 
 
 <br/>
@@ -613,29 +594,6 @@ curl -s "http://www.tcoffee.org/Courses/Exercises/saragosa_pb_2010/practicals/pr
 ```bash
 $ java -jar dist/sam4weblogo.jar IN=in.bam   REGION="1:630-719" |\
 	java -jar dist/biostar77288.jar  SEQLOGO=true > result.svg
-```
-
-<h3>VCFAnnotator</h3>
-<h4>Motivation</h4>
- Basic Variant Effect prediction . First described in http://plindenbaum.blogspot.fr/2011/01/my-tool-to-annotate-vcf-files.html
-<h4>Compilation</h4>
-```bash
-ant vcfpredictions
-```
-<h4>Options</h4>
-<table>
-<tr><th>Option</th><th>Description</th></tr>
-<tr><td>REF=File</td><td>indexed Fasta genome REFERENCE.  Required. </td></tr>
-<tr><td>KGURI=String</td><td>KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.  Default value: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz. This option can be set to 'null' to clear the default value. </td></tr>
-<tr><td>IN=String</td><td>VCF file/URL to process. Default stdin.   Default value: null. </td></tr>
-<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
-</table>
-<h4>Example</h4>
-```bash
-java -jar  dist/vcfpredictions.jar  \
-	REF=human_g1k_v37.fasta \
-	kgUri=<(curl  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '   ' '{if($2 ~ ".*_.*") next; OFS="        "; gsub(/chr/,"",$2);print;}'  ) \
-	I=~/WORK/variations.gatk.annotations.vcf.gz 
 ```
 
 
