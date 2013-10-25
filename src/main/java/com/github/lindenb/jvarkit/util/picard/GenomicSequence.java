@@ -12,7 +12,7 @@ public class GenomicSequence
 	private SAMSequenceRecord samSequenceRecord;
 	private byte buffer[]=null;
 	private int buffer_pos=-1;
-	private int buffer_capacity=1000000;
+	private int half_buffer_capacity=1000000;
 	public GenomicSequence(IndexedFastaSequenceFile indexedFastaSequenceFile ,String chrom)
 		{	
 		this.indexedFastaSequenceFile=indexedFastaSequenceFile;
@@ -54,9 +54,13 @@ public class GenomicSequence
 			{
 			return (char)buffer[index0-buffer_pos];
 			}
-		int maxEnd=Math.min(index0+buffer_capacity,this.length());
-		this.buffer=this.indexedFastaSequenceFile.getSubsequenceAt(getChrom(), index0+1,maxEnd).getBases();
-		this.buffer_pos=index0;
-		return (char)buffer[0];
+		int minStart=Math.max(0, index0-half_buffer_capacity);
+		int maxEnd=Math.min(minStart+2*half_buffer_capacity,this.length());
+		this.buffer=this.indexedFastaSequenceFile.getSubsequenceAt(
+				getChrom(),
+				minStart+1,
+				maxEnd).getBases();
+		this.buffer_pos=minStart;
+		return (char)buffer[index0-minStart];
 		}
 	}

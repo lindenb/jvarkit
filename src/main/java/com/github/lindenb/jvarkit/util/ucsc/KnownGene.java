@@ -34,6 +34,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 		return getChromosome();
 		}
 	
+	
 	@Override
 	public final int getStart() {
 		return getTxStart();
@@ -44,6 +45,11 @@ public class KnownGene implements Iterable<Integer>,Feature
 		return getTxEnd();
 		}
 	
+	/** returns true if cdsStart==cdsEnd */
+	public boolean isNonCoding()
+		{
+		return getCdsStart()==getCdsEnd();
+		}
 	
 	public abstract class Segment implements Iterable<Integer>
 		{
@@ -122,7 +128,14 @@ public class KnownGene implements Iterable<Integer>,Feature
 			{
 			super(index);
 			}
-		
+		/** return true if this exon does NOT overlap a CDS = exon in UTR or gene is non-coding*/
+		public boolean isNonCoding()
+			{
+			if(getGene().isNonCoding()) return true;
+			if(this.getEnd()<=getGene().getCdsStart()) return true;
+			if(getGene().getCdsEnd()<=this.getStart()) return true;
+			return false;
+			}
 		@Override
 		public String getName()
 			{

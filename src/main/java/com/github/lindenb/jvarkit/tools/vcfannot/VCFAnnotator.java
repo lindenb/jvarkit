@@ -132,7 +132,7 @@ public class VCFAnnotator extends AbstractVCFFilter
 	class Annotation
 		{
 		KnownGene kg;
-		Allele alt;
+		Allele alt2;
 		String exon_name="";
 		String intron_name="";
 		Integer position_cdna=null;
@@ -215,6 +215,20 @@ public class VCFAnnotator extends AbstractVCFFilter
 		{
 		return !Character.isLetter(c);
 		}
+	
+	private  boolean isSimpleBase(Allele a)
+		{
+		String s=a.getBaseString();
+		if(s.length()!=1) return false;
+		switch(s.charAt(0))
+			{
+			case 'A':case 'a':case 'T':case 't':
+			case 'G':case 'g':case 'C':case 'c':
+				return true;
+			}
+		return false;
+		}
+	
 	@Override
 	protected void doWork(VcfIterator r, VariantContextWriter w)
 		throws IOException
@@ -250,6 +264,9 @@ public class VCFAnnotator extends AbstractVCFFilter
 		final SequenceOntologyTree.Term so_coding_synonymous=soTree.getTermByAcn("SO:0001819");
 		final SequenceOntologyTree.Term so_coding_non_synonymous=soTree.getTermByAcn("SO:0001583");
 		final SequenceOntologyTree.Term so_intergenic=soTree.getTermByAcn("SO:0001628");
+		final SequenceOntologyTree.Term so_nc_transcript_variant=soTree.getTermByAcn("SO:0001619");
+		final SequenceOntologyTree.Term so_non_coding_exon_variant=soTree.getTermByAcn("SO:0001792");
+
 		long n_variants=0L;
 		while(r.hasNext())
 			{
@@ -285,16 +302,19 @@ public class VCFAnnotator extends AbstractVCFFilter
 					GeneticCode geneticCode=GeneticCode.getStandard();
             		
             		
-					for(Allele alt:ctx.getAlternateAlleles())
+					for(Allele alt2:ctx.getAlternateAlleles())
 						{
 						Annotation annotations=new Annotation();
 						annotations.kg=gene;
-						annotations.alt=alt;
+						annotations.alt2=alt2;
 						
-						if(!alt.getBaseString().matches("[ATGCatgc]"))
+						if(gene.isNonCoding())
 							{
+							annotations.seqont.add(so_nc_transcript_variant);
 							continue;
 							}
+						
+						
 						ctx_annotations.add(annotations);
 
 		        		StringBuilder wildRNA=null;
@@ -338,6 +358,10 @@ public class VCFAnnotator extends AbstractVCFFilter
 			            				if(i==position)
 			        						{
 			        						annotations.exon_name= exon.getName();
+			        						if(exon.isNonCoding())
+			            						{
+			            						annotations.seqont.add(so_non_coding_exon_variant);
+			            						}
 			        						}
 			            				if(i< gene.getCdsStart()) continue;
 			            				if(i>=gene.getCdsEnd()) break;
@@ -375,12 +399,13 @@ public class VCFAnnotator extends AbstractVCFFilter
 			        					
 			            				wildRNA.append(genomicSequence.charAt(i));
 			            				
-			            				if(i==position)
+			            				if(i==position && isSimpleBase(alt2))
 			            					{
 			            					mutRNA.put(
 			            							position_in_cdna,
-			            							alt.getBaseString().charAt(0)
+			            							alt2.getBaseString().charAt(0)
 			            							);
+			            					
 			            					}
 			            				
 			            				if(wildRNA.length()%3==0 && wildRNA.length()>0 && wildProt==null)
@@ -446,6 +471,10 @@ public class VCFAnnotator extends AbstractVCFFilter
 			            				if(i==position)
 			        						{
 			            					annotations.exon_name=exon.getName();
+			            					if(exon.isNonCoding())
+			            						{
+			            						annotations.seqont.add(so_non_coding_exon_variant);
+			            						}
 			        						}
 			            				if(i>= gene.getCdsEnd()) continue;
 			            				if(i<  gene.getCdsStart()) break;
@@ -479,11 +508,13 @@ public class VCFAnnotator extends AbstractVCFFilter
 			        								}
 			        							}
 			        						
-			        						
-			        						mutRNA.put(
-			        								position_in_cdna,
-			        								AcidNucleics.complement(alt.getBaseString().charAt(0))
-			        								);
+			        						if(isSimpleBase(alt2))
+				        						{
+				        						mutRNA.put(
+				        								position_in_cdna,
+				        								AcidNucleics.complement(alt2.getBaseString().charAt(0))
+				        								);
+				        						}
 			        						}
 			            				
 			            				wildRNA.append(AcidNucleics.complement(genomicSequence.charAt(i)));
@@ -523,8 +554,10 @@ public class VCFAnnotator extends AbstractVCFFilter
 			            		}
 
 		            		}//end of if reverse
-
-		        		if( wildProt!=null &&
+		        		
+		        		
+		        		if( isSimpleBase(alt2) &&
+		        			wildProt!=null &&
 		        			mutProt!=null && 
 		        			position_in_cdna>=0)
 			    			{
