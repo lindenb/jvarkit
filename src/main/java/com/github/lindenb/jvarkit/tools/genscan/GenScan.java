@@ -40,6 +40,7 @@ import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.CloseableIterator;
+import net.sf.samtools.util.CloserUtil;
 import net.sf.samtools.util.SortingCollection;
 
 /**
@@ -197,9 +198,9 @@ public class GenScan extends CommandLineProgram
 	protected int doWork()
 		{
 		CloseableIterator<DataPoint> iter=null;
+		IndexedFastaSequenceFile faidx=null;
 		try {
-			
-			IndexedFastaSequenceFile faidx=new IndexedFastaSequenceFile(REF);
+			faidx=new IndexedFastaSequenceFile(REF);
 			this.dict=faidx.getSequenceDictionary();
 			this.chromInfos=new ArrayList<GenScan.ChromInfo>(dict.size());
 			for(SAMSequenceRecord rec:this.dict.getSequences())
@@ -340,7 +341,8 @@ public class GenScan extends CommandLineProgram
 			}
 		finally
 			{
-			if(iter!=null) iter.close();
+			CloserUtil.close(iter);
+			CloserUtil.close(faidx);
 			if(dataPoints!=null) dataPoints.cleanup();
 			}
 		return 0;

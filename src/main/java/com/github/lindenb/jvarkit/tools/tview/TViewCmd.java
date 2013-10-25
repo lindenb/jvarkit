@@ -13,6 +13,7 @@ import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Interval;
 import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileReader;
+import net.sf.samtools.util.CloserUtil;
 
 
 public class TViewCmd extends CommandLineProgram
@@ -37,7 +38,7 @@ public class TViewCmd extends CommandLineProgram
     @Override
 	protected int doWork()
 		{
-    	
+    	IndexedFastaSequenceFile ref=null;
 		PrintWriter out=new PrintWriter(System.out);
 		SAMFileReader samReader=null;
 		try {
@@ -51,7 +52,7 @@ public class TViewCmd extends CommandLineProgram
 				return -1;
 				}
 			
-			IndexedFastaSequenceFile ref=new IndexedFastaSequenceFile(REF);
+			ref=new IndexedFastaSequenceFile(REF);
 	        
 	  
 	        TViewHandler handler=new AsciiHandler();
@@ -63,8 +64,10 @@ public class TViewCmd extends CommandLineProgram
 			}
 		finally
 			{
-			if(samReader!=null) samReader.close();
+			
 			out.flush();
+			CloserUtil.close(samReader);
+			CloserUtil.close(ref);
 			}
 		return 0;
 		}

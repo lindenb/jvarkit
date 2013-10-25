@@ -18,6 +18,7 @@ import net.sf.picard.util.Interval;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
+import net.sf.samtools.util.CloserUtil;
 
 public class Sam2Tsv extends CommandLineProgram
 	{
@@ -35,7 +36,7 @@ public class Sam2Tsv extends CommandLineProgram
 
     private Interval interval=null;
 	private PrintWriter pw=new PrintWriter(System.out);
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
 	
 	@Override
@@ -257,7 +258,10 @@ public class Sam2Tsv extends CommandLineProgram
 			e.printStackTrace();
 			return -1;
 			}
-		
+		finally
+			{
+			CloserUtil.close(indexedFastaSequenceFile);
+			}
 		return 0;
 		}
 

@@ -29,6 +29,7 @@ import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Log;
+import net.sf.samtools.util.CloserUtil;
 
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -123,7 +124,7 @@ public class VCFAnnotator extends AbstractVCFFilter
 
     
 	private SamSequenceRecordTreeMap<KnownGene> knownGenes=null;
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
 	
 	
@@ -281,13 +282,12 @@ public class VCFAnnotator extends AbstractVCFFilter
 					ctx.getChr(), ctx.getStart(), ctx.getEnd() //1-based
 					);
 			List<Annotation> ctx_annotations=new ArrayList<Annotation>();
-			if(!ctx.getReference().getBaseString().matches("[ATGC]"))
+			if(genes==null || genes.isEmpty())
 				{
-				//ignore
-				}
-			else if(genes==null || genes.isEmpty())
-				{
-				//ignore
+				//intergenic
+				Annotation a=new Annotation();
+				a.seqont.add(so_intergenic);
+				ctx_annotations.add(a);
 				}
 			else
 				{
@@ -326,7 +326,10 @@ public class VCFAnnotator extends AbstractVCFFilter
 		        		final int position=ctx.getStart()-1;
 		        		if(!String.valueOf(genomicSequence.charAt(position)).equalsIgnoreCase(ctx.getReference().getBaseString()))
 		        			{
-		        			LOG.warn("Warning REF!=GENOMIC SEQ!!! at "+position+"/"+ctx.getReference());
+		        			if(isSimpleBase(ctx.getReference()))
+			        			{
+			        			LOG.warn("Warning REF!=GENOMIC SEQ!!! at "+position+"/"+ctx.getReference());
+			        			}
 		        			continue;
 		        			}
 		        		
@@ -399,7 +402,9 @@ public class VCFAnnotator extends AbstractVCFFilter
 			        					
 			            				wildRNA.append(genomicSequence.charAt(i));
 			            				
-			            				if(i==position && isSimpleBase(alt2))
+			            				if(i==position && 
+			            						isSimpleBase(alt2) && 
+			            						isSimpleBase(ctx.getReference()))
 			            					{
 			            					mutRNA.put(
 			            							position_in_cdna,
@@ -508,7 +513,8 @@ public class VCFAnnotator extends AbstractVCFFilter
 			        								}
 			        							}
 			        						
-			        						if(isSimpleBase(alt2))
+			        						if(isSimpleBase(alt2) &&
+			        							isSimpleBase(ctx.getReference()))
 				        						{
 				        						mutRNA.put(
 				        								position_in_cdna,
@@ -557,6 +563,7 @@ public class VCFAnnotator extends AbstractVCFFilter
 		        		
 		        		
 		        		if( isSimpleBase(alt2) &&
+		        			isSimpleBase(ctx.getReference()) &&
 		        			wildProt!=null &&
 		        			mutProt!=null && 
 		        			position_in_cdna>=0)
@@ -603,12 +610,8 @@ public class VCFAnnotator extends AbstractVCFFilter
 					}
 				}
 			
-			if(ctx_annotations.isEmpty())
-				{
-				Annotation a=new Annotation();
-				a.seqont.add(so_intergenic);
-				ctx_annotations.add(a);
-				}
+		
+			
 			Set<String> info=new HashSet<String>(ctx_annotations.size());
 			for(Annotation a:ctx_annotations)
 				{
@@ -619,6 +622,7 @@ public class VCFAnnotator extends AbstractVCFFilter
 			vb.attribute(TAG, info.toArray());
 			w.add(vb.make());
 			}
+		CloserUtil.close(this.indexedFastaSequenceFile);
 		}
 	
 	

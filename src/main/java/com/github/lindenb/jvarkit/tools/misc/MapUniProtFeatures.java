@@ -34,6 +34,7 @@ import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Log;
 import net.sf.picard.util.ProgressLogger;
 import net.sf.samtools.SAMFileReader;
+import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
@@ -372,6 +373,7 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 			{
 			pw.flush();
 			pw.close();
+			CloserUtil.close(this.indexedFastaSequenceFile);
 			}
 		return 0;
 		}

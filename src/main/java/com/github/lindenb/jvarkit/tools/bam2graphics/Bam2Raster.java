@@ -30,6 +30,7 @@ import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
+import net.sf.samtools.util.CloserUtil;
 
 public class Bam2Raster extends CommandLineProgram
 	{
@@ -289,6 +290,7 @@ public class Bam2Raster extends CommandLineProgram
 			samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
 			BufferedImage img=build(samFileReader);
 			samFileReader.close();
+			samFileReader=null;
 			ImageIO.write(img, "PNG", OUT);
 			}
 		catch(IOException err)
@@ -298,7 +300,8 @@ public class Bam2Raster extends CommandLineProgram
 			}
 		finally
 			{
-			if(samFileReader!=null) samFileReader.close();
+			CloserUtil.close(indexedFastaSequenceFile);
+			CloserUtil.close(samFileReader);
 			}
 		return 0;
 		}

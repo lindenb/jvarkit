@@ -13,7 +13,6 @@ import javax.xml.stream.XMLStreamException;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Interval;
 import net.sf.picard.util.IntervalTreeMap;
 import net.sf.picard.util.Log;
@@ -26,6 +25,7 @@ import com.github.lindenb.jvarkit.lang.Function;
 import com.github.lindenb.jvarkit.util.biomart.BiomartQuery;
 import com.github.lindenb.jvarkit.util.go.GoTree;
 import com.github.lindenb.jvarkit.util.picard.IntervalTreeMapFactory;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 public abstract class AbstractVcfGeneOntology extends AbstractVCFFilter
@@ -109,7 +109,7 @@ public abstract class AbstractVcfGeneOntology extends AbstractVCFFilter
 		IntervalTreeMapFactory<String> itf=new IntervalTreeMapFactory<String>();
 		if(REF!=null)
 			{
-			itf.setSamSequenceDictionary(new IndexedFastaSequenceFile(REF).getSequenceDictionary());
+			itf.setSamSequenceDictionary(new SAMSequenceDictionaryFactory().load(REF));
 			}
 		itf.setValueFunction(new Function<String[], String>()
 			{

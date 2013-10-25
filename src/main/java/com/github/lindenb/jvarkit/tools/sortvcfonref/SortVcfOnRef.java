@@ -23,6 +23,7 @@ import net.sf.picard.cmdline.Usage;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.util.CloseableIterator;
+import net.sf.samtools.util.CloserUtil;
 import net.sf.samtools.util.SortingCollection;
 
 /**
@@ -111,8 +112,9 @@ public class SortVcfOnRef extends AbstractCommandLineProgram
     	CloseableIterator<String> iter=null;
 		BufferedReader in=null;
 		PrintWriter out=null;
+		IndexedFastaSequenceFile ref=null;
     	try {
-        	IndexedFastaSequenceFile ref=new IndexedFastaSequenceFile(REF);
+        	ref=new IndexedFastaSequenceFile(REF);
         	this.dict=ref.getSequenceDictionary();
 
 			if(IN==null)
@@ -185,10 +187,11 @@ public class SortVcfOnRef extends AbstractCommandLineProgram
 			}
     	finally
 	    	{
-	    	if(in!=null) try { in.close();} catch(Exception err){}
+    		CloserUtil.close(in);
 	    	if(out!=null) try { out.flush();} catch(Exception err){}
-	    	if(out!=null) try { out.close();} catch(Exception err){}
-	    	if(iter!=null) try { iter.close();} catch(Exception err){}
+	    	CloserUtil.close(out);
+	    	CloserUtil.close(iter);
+	    	CloserUtil.close(ref);
 	    	}
     	return 0;
     	}
