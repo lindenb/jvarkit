@@ -832,7 +832,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>
 
 
-<target name="biostar" depends="biostar76892,biostar77288,biostar77828,biostar78285">
+<target name="biostar" depends="biostar76892,biostar77288,biostar77828,biostar78285,biostar81455,biostar84786">
 </target>
 
 
@@ -842,6 +842,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 <target name="biostar78285"><compile-biostar post="78285"/></target>
 <target name="biostar78400"><compile-biostar post="78400"/></target>
 <target name="biostar81455"><compile-biostar post="81455"/></target>
+<target name="biostar84786"><compile-biostar post="84786"/></target>
 
 <target name="mapuniprot" depends="api.uniprot">
 	<compile-with-picard 
