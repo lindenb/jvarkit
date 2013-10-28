@@ -25,127 +25,13 @@ FASTQs.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCF2XML">VCF2XML</a></th><td>Transforms a VCF to XML. </td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFPredictions">VCFPredictions<a></th><td>Basic variant prediction using UCSC knownGenes.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SortVCFOnRef">SortVCFOnRef<a></th><td>Sort a VCF using the order of the chromosomes in a REFerence index.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SAM4WebLogo">SAM4WebLogo<a></th><td>Creates an Input file for BAM + WebLogo.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SAM2Tsv">SAM2Tsv<a></th><td>Tabular view of each base of the reads vs the reference.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/CmpBams">CmpBams<a></th><td>Compare two or more BAMs.</td></tr>
 </table>
 
 
 
-<h3>SAM4WebLogo</h3>
-<h4>Motivation</h4>
-"Sequence logo ( http://weblogo.berkeley.edu/logo.cgi ) for different alleles or generated from SAM/BAM" http://www.biostars.org/p/73021
-
-![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/sam2weblogo.png)
-
-
-<h4>Compilation</h4>
-
-```bash
-ant sam4weblogo
-```
-
-<h4>Options</h4>
-
-* INPUT=File                        A BAM file to process.  Required. 
-* REGION=String Region to observe: chrom:start-end  Required.
-
-<h4>Example</h4>
-```bash
-$ java -jar dist/sam4weblogo.jar I=path/to/samtools-0.1.18/examples/sorted.bam R=seq1:80-110 2> /dev/null | head -n 50
->B7_593:4:106:316:452/1
-TGTTG--------------------------
->B7_593:4:106:316:452a/1
-TGTTG--------------------------
->B7_593:4:106:316:452b/1
-TGTTG--------------------------
->B7_589:8:113:968:19/2
-TGGGG--------------------------
->B7_589:8:113:968:19a/2
-TGGGG--------------------------
->B7_589:8:113:968:19b/2
-TGGGG--------------------------
->EAS54_65:3:321:311:983/1
-TGTGGG-------------------------
->EAS54_65:3:321:311:983a/1
-TGTGGG-------------------------
->EAS54_65:3:321:311:983b/1
-TGTGGG-------------------------
->B7_591:6:155:12:674/2
-TGTGGGGG-----------------------
->B7_591:6:155:12:674a/2
-TGTGGGGG-----------------------
->B7_591:6:155:12:674b/2
-TGTGGGGG-----------------------
->EAS219_FC30151:7:51:1429:1043/2
-TGTGGGGGGCGCCG-----------------
->EAS219_FC30151:7:51:1429:1043a/2
-TGTGGGGGGCGCCG-----------------
->EAS219_FC30151:7:51:1429:1043b/2
-TGTGGGGGGCGCCG-----------------
->B7_591:5:42:540:501/1
-TGTGGGGGCCGCAGTG---------------
->EAS192_3:5:223:142:410/1
-TGGGGGGGGCGCAGT----------------
->B7_591:5:42:540:501a/1
-TGTGGGGGCCGCAGTG---------------
->EAS192_3:5:223:142:410a/1
-TGGGGGGGGCGCAGT----------------
->B7_591:5:42:540:501b/1
-TGTGGGGGCCGCAGTG---------------
->EAS192_3:5:223:142:410b/1
-TGGGGGGGGCGCAGT----------------
-```
-
-<br/>
-<h3>SAM2Tsv</h3>
-display a tabular view of each base of the reads vs the reference.
-<h4>Compilation</h4>
-```bash
-ant sam2tsv
-```
-<h4>Options</h4>
-<ul>
-<li>IN=File BAM files to process.  This option may be specified 0 or more times.</li>
-<li>REGION=String restrict to that region (chr:start-end)  Default value: null. </li>
-<li>REF=File Indexed reference  Required. </li>
-<li>A={true,false} Use Alignment format.</li>
-</ul>
-<h4>Example</h4>
-```bash
-java -jar dist/sam2tsv.jar \
-	I=sorted.bam \
-	R=genome.fa \
-	L=chr1:32944435-32944435
-
-
-M00491:12:000000000-A3FL3:1:1101:16929:4287	147	1	A	20	chr22	544289	A	M	=
-M00491:12:000000000-A3FL3:1:1101:16929:4287	147	2	G	28	chr22	544290	G	M	=
-M00491:12:000000000-A3FL3:1:1101:16929:4287	147	3	A	32	chr22	544291	C	M	X
-M00491:12:000000000-A3FL3:1:1101:16929:4287	147	4	T	37	chr22	544292	T	M	=
-M00491:12:000000000-A3FL3:1:1101:16929:4287	147	5	C	36	chr22	544293	C	M	=
-```
-
-<br/>
-<h3>cmpbam: Comparing two or more BAMS</h3>
-
-<h4>Compilation</h4>
-```bash
-ant cmpbams
-```
-
-<h4>Options</h4>
-<table>
-<tr><th>Option</th><th>Description</th></tr>
-<tr><td>IN=File</td><td>BAM files to process.  This option must be specified at least 2 times. </td></tr>
-<tr><td>REGION=String</td><td>restrict to that region (chr:start-end)  Default value: null. </td></tr>
-<tr><td>USESAMFLAG=Boolean</td><td>use SAM Flag when comparing.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
-</table>
-<h4>Example</h4>
-```bash
-java -jar dist/cmpbams.ja \
-	I=file1.bam \
-	I=file2.bam \
-	I=file3.bam \
-	L=chr1:32944435-32944435
-```
 
 <br/>
 <h3>Bam2Raster</h3>

@@ -83,6 +83,9 @@ public class SortVcfOnRef extends AbstractCommandLineProgram
 			if(refId==-1) throw new RuntimeException("unknown chromosome "+ chrom+" in "+line);
 			return refId;
 			}
+		
+		
+		
 		@Override
 		public int compare(String o1, String o2)
 			{
@@ -91,6 +94,9 @@ public class SortVcfOnRef extends AbstractCommandLineProgram
 			
 			int i=ref(tokens1[0],o1) - ref(tokens2[0],o2)  ;
 			if(i!=0) return i;
+			
+			
+			
 			i= Integer.parseInt(tokens1[1])-Integer.parseInt(tokens2[1]);
 			if(i!=0) return i;
 			i=tokens1[3].compareTo(tokens2[3]);
@@ -104,6 +110,19 @@ public class SortVcfOnRef extends AbstractCommandLineProgram
     	if (s.startsWith("##format=")) return 1;
     	return 2;
     	}
+    
+    private int contig(String line)
+		{
+		String tokens1[]=line.split("[<=,]");
+		for(int i=0;i+1< tokens1.length;++i)
+			{
+			if(tokens1[i].equals("ID"))
+				{
+				return dict.getSequenceIndex(tokens1[i+1]);
+				}
+			}
+		return -1;
+		}
 	
     @Override
     protected int doWork() 
@@ -161,6 +180,15 @@ public class SortVcfOnRef extends AbstractCommandLineProgram
 								{ 
 								int i=containsvcfformat(o1)-containsvcfformat(o2);
 								if(i!=0) return i;
+								
+								if( o1.startsWith("##contig=") &&
+									o2.startsWith("##contig=")
+									)
+									{
+									i=contig(o1)-contig(o2);
+									if(i!=0) return i;
+									}
+								
 								return o1.compareTo(o2);
 								}
 							});
