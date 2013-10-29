@@ -2,11 +2,9 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
@@ -14,7 +12,10 @@ import net.sf.picard.cmdline.Usage;
 import net.sf.picard.fastq.FastqReader;
 import net.sf.picard.fastq.FastqRecord;
 import net.sf.picard.util.Log;
+import net.sf.samtools.SAMUtils;
 
+import com.github.lindenb.jvarkit.io.ArchiveFactory;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 
@@ -25,29 +26,52 @@ public class IlluminaStatsFastq
 	
 	
 	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"  Count FASTQs in Illumina Result";
+	public String USAGE=getStandardUsagePreamble()+"  Count FASTQs in Illumina Result. Generate a script for sqlite3 ";
 	@Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="Directories to process",optional=false)
 	public File IN=null;
-
-	@Option(shortName="SQLITE", doc="sqlite output",optional=false)
-	public boolean sql=false;
 	
-    @Option(shortName="CAT",doc="category name",optional=true)
-    public String CATEGORY="undefined";
-
+	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="Output Name (Directory or .zip file)",optional=false)
+	public File OUT=null;
 	
-   
-    
-	private static String quote(String s)
+	private static class Bases
 		{
-		return "'"+s+"'";
+		long A=0L;
+		long T=0L;
+		long G=0L;
+		long C=0L;
+		long N=0L;
+		}
+	
+	/* archive factory, where to put the results */
+    private ArchiveFactory archiveFactory;
+    private PrintWriter wnames=null;
+    private PrintWriter wcount=null;
+    private PrintWriter wquals=null;
+    private PrintWriter wbadfastq=null;
+    private PrintWriter whistquals=null;
+    private PrintWriter wqualperpos=null;
+    private PrintWriter wbases=null;
+    private PrintWriter wlength=null;
+    
+	
+	
+	private static void tsv(PrintWriter out,Object...array)
+		{
+		for(int i=0;i< array.length;++i)
+			{
+			if(i>0) out.print('\t');
+			out.print(array[i]);
+			}
+		out.println();
 		}
 	
 	private void recursive(File f) throws IOException
 		{
 		if(f==null) return;
+		LOG.info(f);
 		if(f.isDirectory())
 			{
+			
 			File children[]=f.listFiles();
 			if(children==null) return;
 			for(File c:children)
@@ -57,219 +81,147 @@ public class IlluminaStatsFastq
 			} 
 		else if(f.getName().endsWith(".fastq.gz") && f.isFile())
 			{
+			final int QUALITY_STEP=5;
+			
 			FastQName fq=FastQName.parse(f);
-			if(!fq.isValid())
-				{
-				LOG.info("invalid file");
-				return;
-				}
 			
-			
-			
-			if(sql)
-				{
-				System.out.println(
-						"insert into FASTQ(category,file,sample,seqindex,lane,side,split,size,countReads) values ("+
-						quote(this.CATEGORY)+","+		
-						quote(fq.getFile().getPath())+","+
-						quote(fq.isUndetermined()?"Undetermined":fq.getSample())+","+
-						quote(fq.getSeqIndex())+","+
-						fq.getLane()+","+
-						fq.getSide()+","+
-						fq.getSplit()+","+
-						fq.getFile().length()+","+
-						fq.countReads()+
-						");");
-	
-				
-		
-				}
-			else
-				{
-				System.out.println(
-					this.CATEGORY+"\t"+
-					fq.getFile().getPath()+"\t"+
-					(fq.isUndetermined()?"Undetermined":fq.getSample())+"\t"+
-					fq.getLane()+"\t"+
-					fq.getSide()+"\t"+
-					fq.getSplit()+"\t"+
-					fq.getFile().length()+"\t"+
-					fq.countReads()
-					);
-				}
-			}
-		}
-	
-	@SuppressWarnings("unused")
-	private void recursive1(File f) throws IOException
-		{
-		if(f==null) return;
-		if(f.isDirectory())
-			{
-			File children[]=f.listFiles();
-			if(children==null) return;
-			for(File c:children)
-				{
-				recursive1(c);
-				}
-			} 
-		else if(f.getName().endsWith(".fastq.gz") && f.isFile())
-			{
-			FastQName fq=FastQName.parse(f);
-			if(!fq.isValid())
-				{
-				LOG.info("invalid file");
-				return;
-				}
-			
-			Map<Integer,Integer> lengths2count=new TreeMap<Integer, Integer>();
-			List<long[]> pos2bases=new ArrayList<long[]>(100);
-			List<Map<Integer,Long>> pos2qual=new ArrayList<Map<Integer,Long>>(100);
-			Map<String,Integer> indexseq2count=new HashMap<String, Integer>();
-			
+			Counter<Integer> qualityHistogram=new Counter<Integer>();
+			Counter<Integer> pos2quality=new Counter<Integer>();
+			List<Bases> pos2bases=new ArrayList<Bases>(300);
+			Counter<Integer> lengths=new Counter<Integer>();
+			Counter<Integer> pos2count=new Counter<Integer>();
+
 			long nReads=0L;
-			
-			
-			FastqReader fqr=null;
+			double sum_qualities=0L;
+			long count_bases=0L;
+			long count_read_fails_filter=0L;
+			long count_read_doesnt_fail_filter=0L;
+			FastqReader r=null;
 			try
 				{
-				fqr=new FastqReader(f);
-				while(fqr.hasNext())
-					{
-					FastqRecord r=fqr.next();
-					++nReads;
-					int readLen=r.getReadString().length();
-					Integer countLength=lengths2count.get(readLen);
-					lengths2count.put(readLen,
-							countLength==null?1:countLength+1
-							);
-					
-					while(pos2bases.size()< readLen)
-						{
-						pos2bases.add(new long[]{0L,0L,0L,0L,0L});
-						pos2qual.add(new HashMap<Integer,Long>(128));
-						}
-					
-					
-					for(int b=0;b< readLen ;++b)
-						{
-						int countBaseIndex=-1;
-						switch(r.getReadString().charAt(b))
-							{
-							case 'A': case 'a':countBaseIndex=0;break;
-							case 'T': case 't':countBaseIndex=1;break;
-							case 'G': case 'g':countBaseIndex=2;break;
-							case 'C': case 'c':countBaseIndex=3;break;
-							default: countBaseIndex=4;break;
-							}
-						pos2bases.get(b)[countBaseIndex]++;
-						}
-					
-					for(int b=0;b< readLen ;++b)
-						{
-						int qual=(int)r.getBaseQualityString().charAt(b) - 33;
-						Map<Integer,Long> qual2count=pos2qual.get(b);
-						Long qualc=qual2count.get(qual);
-						qual2count.put(qual,
-								qualc==null?1:qualc+1
-								);
-						}
-					
-					
-					IlluminaReadName fqName=IlluminaReadName.parse1_4(r.getReadHeader());
-					String indexSeq=fqName.getIndex();
-					Integer countIndex=indexseq2count.get(indexSeq);
-					indexseq2count.put(indexSeq,
-							countIndex==null?1:countIndex+1
-							);
-					}
-				
-
-				
-				
+				r=new FastqReader(f);
 				}
-			catch(Exception err)
+			catch(Exception error)
 				{
-				nReads=-1L;
-				err.printStackTrace();
-				}
-			finally
-				{
-				if(fqr!=null) fqr.close();
-				}
+				error.printStackTrace();
+				tsv(wbadfastq,f.getPath(),error.getMessage());
+				return;
+				}	
 			
-			
-			if(sql)
+			while(r.hasNext())
 				{
-				System.out.println(
-						"insert into FASTQ(category,file,sample,seqindex,lane,side,split,size,countReads) values ("+
-						quote(this.CATEGORY)+","+		
-						quote(fq.getFile().getPath())+","+
-						quote(fq.isUndetermined()?"Undetermined":fq.getSample())+","+
-						quote(fq.getSeqIndex())+","+
-						fq.getLane()+","+
-						fq.getSide()+","+
-						fq.getSplit()+","+
-						fq.getFile().length()+","+
-						nReads+
-						");");
-
-				
-				for(String seqindex:indexseq2count.keySet())
+				FastqRecord record=r.next();
+				++nReads;
+				if(record.getReadHeader().contains(":Y:"))
 					{
-					System.out.println(
-							"insert into SEQINDEX(file,seqindex,countindex) values ("+
-							quote(fq.getFile().getPath())+","+
-							quote(seqindex)+","+
-							indexseq2count.get(seqindex)+
-							");");
+					count_read_fails_filter++;
+					continue;
+					}
+				else if(record.getReadHeader().contains(":N:"))
+					{
+					count_read_doesnt_fail_filter++;
 					}
 				
-				for(int b=0;b< pos2bases.size();++b)
+				byte phred[]=SAMUtils.fastqToPhred(record.getBaseQualityString());
+				
+				for(int i=0;i< phred.length ;++i)
 					{
-					long counts[]=pos2bases.get(b);
-					System.out.println(
-							"insert into BASES(file,position,A,T,G,C,N) values ("+
-							quote(fq.getFile().getPath())+","+
-							(b+1)+","+
-							counts[0]+","+counts[1]+","+counts[2]+","+counts[3]+","+counts[4]+
-							");");
+					sum_qualities+=phred[i];
+					count_bases++;
+					
+					qualityHistogram.incr(phred[i]/QUALITY_STEP);
+					pos2quality.incr(i,phred[i]);
+					pos2count.incr(i);
 					}
-				for(int b=0;b< pos2qual.size();++b)
+				/* get base usage */
+				while(pos2bases.size() <record.getReadString().length())
 					{
-					Map<Integer,Long> qual2count=pos2qual.get(b);
-					long total=0L;
-					long count=0L;
-					for(Integer q:qual2count.keySet())
-						{	
-						long n_qual=qual2count.get(q);
-						total+=q*n_qual;
-						count+=n_qual;
+					pos2bases.add(new Bases());
+					}
+				for(int i=0;i< record.getReadString().length() ;++i)
+					{
+					Bases bases=pos2bases.get(i);
+					switch(record.getReadString().charAt(i))
+						{
+						case 'A': case 'a':bases.A++;break;
+						case 'T': case 't':bases.T++;break;
+						case 'G': case 'g':bases.G++;break;
+						case 'C': case 'c':bases.C++;break;
+						default: bases.N++;break;
 						}
-					double mean=(total)/(double)count;
-					System.out.println(
-							"insert into QUALITY(file,position,qual) values ("+
-							quote(this.CATEGORY)+","+		
-							(b+1)+","+
-							mean+
-							");");
 					}
+				lengths.incr(record.getBaseQualityString().length());
+				}
+			r.close();
+			
+			if(fq.isValid())
+				{
+				tsv(this.wnames,
+					f.getPath(),
+					(fq.isUndetermined()?"Undetermined":fq.getSample()),
+					fq.getSeqIndex(),
+					fq.getLane(),
+					fq.getSide(),
+					fq.getSplit(),
+					fq.getFile().length()
+					);
 				}
 			else
 				{
-				System.out.println(
-					this.CATEGORY+"\t"+
-					fq.getFile().getPath()+"\t"+
-					(fq.isUndetermined()?"Undetermined":fq.getSample())+"\t"+
-					fq.getLane()+"\t"+
-					fq.getSide()+"\t"+
-					fq.getSplit()+"\t"+
-					fq.getFile().length()+"\t"+
-					nReads
+				tsv(wbadfastq,f.getPath());
+				}
+			
+			tsv(this.wcount,
+				f.getPath(),
+				nReads,
+				count_read_fails_filter,
+				count_read_doesnt_fail_filter
+				);
+			
+			tsv(this.wquals,
+				f.getPath(),
+				sum_qualities/count_bases
+				);
+			for(Integer step:qualityHistogram.keySet())
+				{
+				tsv(this.whistquals,
+						f.getPath(),
+						step*QUALITY_STEP,
+						qualityHistogram.count(step)
+						);
+				
+				}
+			for(Integer position:pos2quality.keySet())
+				{
+				tsv(this.wqualperpos,
+						f.getPath(),
+						position+1,
+						pos2quality.count(position)/(double)pos2count.count(position),
+						pos2count.count(position)
+						);
+				}
+			
+			for(int i=0;i< pos2bases.size();++i)
+				{
+				Bases b=pos2bases.get(i);
+				tsv(this.wbases,
+					f.getPath(),
+					i+1,b.A,b.T,b.G,b.C,b.N
 					);
 				}
+			for(Integer L:lengths.keySet())
+				{
+				tsv(this.wlength,
+						f.getPath(),
+						L,
+						lengths.count(L)
+						);
+				}
+			
+			
 			}
 		}
+	
 	
 	@Override
 	protected int doWork()
@@ -281,27 +233,24 @@ public class IlluminaStatsFastq
 				LOG.error("Input "+IN+" doesnt exists.");
 				return -1;
 				}
-			if(!IN.isDirectory())
-				{
-				LOG.error("Input "+IN+" is not a directory.");
-				return -1;
-				}
-			if(sql)
-				{
-				System.out.println("create table  if not exists FASTQ(category TEXT,file TEXT,sample text,seqindex text,lane int,side int,split int,size int,countReads int);");
-				//System.out.println("create table  if not exists SEQINDEX(file TEXT,seqindex text,int countindex);");
-				//System.out.println("create table  if not exists BASES(file TEXT,position int,A int,T int,G int,C int,N int);");
-				//System.out.println("create table  if not exists QUALITY(file TEXT,position int,qual float);");
-				System.out.println("begin transaction;");
-				}
-			else
-				{
-				System.out.println("#category\tfile\tsample\tseqindex\tlane\tside\tsplit\tsize\tcount-reads");
-				}
+			
+			archiveFactory=ArchiveFactory.open(OUT);
+			this.wnames = archiveFactory.openWriter("names.tsv");
+			this.wcount = archiveFactory.openWriter("counts.tsv");
+			this.wquals = archiveFactory.openWriter("quals.tsv");
+			this.wbadfastq = archiveFactory.openWriter("notfastq.tsv");
+			this.whistquals = archiveFactory.openWriter("histquals.tsv");
+			this.wqualperpos = archiveFactory.openWriter("histpos2qual.tsv");
+			this.wbases = archiveFactory.openWriter("bases.tsv");
+			this.wlength = archiveFactory.openWriter("lengths.tsv");
+			
 			recursive(IN);
-			if(sql)
+			
+				
+			
+			if(archiveFactory!=null)
 				{
-				System.out.println("commit;");
+				this.archiveFactory.close();
 				}
 			} 
 		catch (Exception e) {

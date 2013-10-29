@@ -14,7 +14,7 @@ public class FastQName
 	private static final String SUFFIX=".fastq.gz";
 	private File file;
 	private boolean is_valid=false;
-	private String seqIndex;
+	private String seqIndex="";
 	private int lane;
 	private Side side=Side.None;
 	private String sample=null;
@@ -59,6 +59,8 @@ public class FastQName
 		return seqIndex;
 		}
 	
+	
+	
 	public static FastQName parse(File f)
 		{
 		
@@ -70,69 +72,84 @@ public class FastQName
 			return fq;
 			}
 	
-	//SAMPLENAME_GATCAG_L007_R2_001.fastq.gz
-	//lane7_Undetermined_L007_R2_008.fastq.gz
-	int i0=f.getName().lastIndexOf('_');
-	if(i0==-1)
-		{
-		return fq;
-		}
-	
-	String splitS=f.getName().substring(i0+1);
-	fq.split=Integer.parseInt(splitS.substring(0,splitS.length()-SUFFIX.length()));
-	
-	int i1=f.getName().lastIndexOf('_',i0-1);
-	if(i1==-1)
-		{
-		return fq;
-		}
-	
-	String sideStr=f.getName().substring(i1+1,i0);
-	if(sideStr.equals("R1"))
-		{
-		fq.side=Side.Forward;
-		}
-	else if(sideStr.equals("R2"))
-		{
-		fq.side=Side.Reverse;
-		}
-	else
-		{
-		return fq;
-		}
-	
-	int i2=f.getName().lastIndexOf('_',i1-1);
-	if(i2==-1)
-		{
-		return fq;
-		}
-	String laneStr=f.getName().substring(i2+1,i1);
-	if(!laneStr.startsWith("L"))
-		{
-		return fq;
-		}
-	fq.lane=Integer.parseInt(laneStr.substring(1));
-	
-	if(f.getName().substring(0,i2).toLowerCase().endsWith("undetermined"))
-		{
-		fq.is_valid=true;
-		fq.undetermined=true;
-		return fq;
-		}
-	
-	int i3=f.getName().lastIndexOf('_',i2-1);
-	if(i3==-1)
-		{
-		return fq;
-		}
-	fq.seqIndex=f.getName().substring(i3+1,i2);
-	
-	fq.sample=f.getName().substring(0, i3);
-	
-	
-	
-	
+		String tokens[]=f.getName().split("[_]");
+		//remove suffix
+		int token_index=tokens.length-1;
+		tokens[token_index]=tokens[token_index].substring(0,tokens[token_index].length()-SUFFIX.length());
+		try
+			{
+			fq.split=Integer.parseInt(tokens[token_index]);
+			}
+		catch(Exception err)
+			{
+			return fq;
+			}
 		
+		token_index--;
+		if(token_index<0) return fq;
+		
+
+		if(tokens[token_index].equals("R1"))
+			{
+			fq.side=Side.Forward;
+			}
+		else if(tokens[token_index].equals("R2"))
+			{
+			fq.side=Side.Reverse;
+			}
+		else
+			{
+			return fq;
+			}
+		
+		token_index--;
+		if(token_index<0) return fq;
+		
+		
+		if(!tokens[token_index].startsWith("L"))
+			{
+			return fq;
+			}
+		try
+			{
+			fq.lane=Integer.parseInt(tokens[token_index].substring(1));
+			}
+		catch(Exception err)
+			{
+			return fq;
+			}
+		
+		token_index--;
+		if(token_index<0) return fq;
+		
+		
+		if(tokens[token_index].equalsIgnoreCase("undetermined"))
+			{
+			fq.is_valid=true;
+			fq.undetermined=true;
+			return fq;
+			}
+		
+		if(token_index>0 && tokens[token_index].matches("[ATGC]{4,9}"))
+			{
+			fq.seqIndex=tokens[token_index];
+			token_index--;
+			}
+		else if(token_index>0 && tokens[token_index].matches("S[0-9]+"))
+			{
+			//MiSeq
+			token_index--;
+			}
+			
+		
+		StringBuilder b=new StringBuilder();
+		for(int i=0;i<=token_index;++i)
+			{
+			if(i>0) b.append('_');
+			b.append(tokens[i]);
+			}
+		
+		fq.sample=b.toString();
 		fq.is_valid=true;
 		return fq;
 		}
