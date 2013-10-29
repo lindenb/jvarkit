@@ -246,7 +246,21 @@ public class IlluminaStatsFastq
 			
 			recursive(IN);
 			
-				
+			for(PrintWriter pw: new PrintWriter[]{
+					this.wnames,
+					this.wcount,
+					this.wquals,
+					this.wbadfastq,
+					this.whistquals,
+					this.wqualperpos,
+					this.wbases,
+					this.wlength})
+				{
+				pw.flush();
+				pw.close();
+				}
+			
+
 			
 			if(archiveFactory!=null)
 				{
