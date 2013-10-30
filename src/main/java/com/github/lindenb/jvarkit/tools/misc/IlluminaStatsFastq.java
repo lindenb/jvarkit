@@ -68,10 +68,10 @@ public class IlluminaStatsFastq
 	private void recursive(File f) throws IOException
 		{
 		if(f==null) return;
-		LOG.info(f);
+		
 		if(f.isDirectory())
 			{
-			
+			LOG.info(f);
 			File children[]=f.listFiles();
 			if(children==null) return;
 			for(File c:children)
@@ -82,7 +82,7 @@ public class IlluminaStatsFastq
 		else if(f.getName().endsWith(".fastq.gz") && f.isFile())
 			{
 			final int QUALITY_STEP=5;
-			
+			LOG.info(f);
 			FastQName fq=FastQName.parse(f);
 			
 			Counter<Integer> qualityHistogram=new Counter<Integer>();
