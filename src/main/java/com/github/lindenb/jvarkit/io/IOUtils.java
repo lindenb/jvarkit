@@ -119,10 +119,10 @@ public class IOUtils {
     	{
         return new BufferedWriter(new OutputStreamWriter(openFileForWriting(file)), Defaults.BUFFER_SIZE);
     	}
-
+    
     public static OutputStream openFileForWriting(final File file) throws IOException
     	{
-        if (file.getName().endsWith(".gz"))
+        if (file.getName().endsWith(".vcf.gz"))
         	{
             return new BlockCompressedOutputStream(file);
         	}
@@ -131,5 +131,7 @@ public class IOUtils {
             return new FileOutputStream(file);
         	}         
     	}
+    
+   
 
 }

@@ -713,6 +713,13 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="samgrep">
+	<compile-with-picard 
+		java="**/SamGrep.java"
+		main="com.github.lindenb.jvarkit.tools.samgrep.SamGrep"
+		name="samgrep"
+		/>
+</target>
 
 
 <target name="fixvarscanmissingheader" >

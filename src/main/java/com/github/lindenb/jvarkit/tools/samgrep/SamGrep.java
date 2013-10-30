@@ -6,8 +6,9 @@ import java.io.File;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 
-import net.sf.picard.cmdline.CommandLineProgram;
+
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
@@ -21,7 +22,7 @@ import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.SAMFileHeader.SortOrder;
 
-public class SamGrep extends CommandLineProgram
+public class SamGrep extends AbstractCommandLineProgram
 	{
 	private static final Log log = Log.getInstance(SamGrep.class);
 	@Usage
@@ -34,7 +35,7 @@ public class SamGrep extends CommandLineProgram
     public File NAMES=null;
     @Option(shortName="V", doc="inverse",optional=false)
     public boolean inverse=false;
-    @Option(shortName="ONE", doc="remove read from the list.",optional=false)
+    @Option(shortName="ONE", doc="when found, remove the read from the list of names (increase speed)",optional=false)
     public boolean removeRead=false;
     
     
@@ -72,7 +73,7 @@ public class SamGrep extends CommandLineProgram
 	    	
 	    	if(readNames.isEmpty())
 	    		{
-	    		
+	    		log.warn("not read found in "+NAMES);
 	    		}
 
 	        
@@ -82,10 +83,12 @@ public class SamGrep extends CommandLineProgram
 			iter=samReader.iterator();
 			if(OUTPUT==null)
 				{
+				log.info("writing as SAM");
 				sfw=sfwFactory.makeSAMWriter(header, header.getSortOrder()==SortOrder.coordinate, System.out);
 				}
 			else
 				{
+				log.info("writing to BAM "+OUTPUT);
 				sfw=sfwFactory.makeBAMWriter(header, header.getSortOrder()==SortOrder.coordinate, OUTPUT);
 				}
 			while(iter.hasNext())
@@ -112,6 +115,7 @@ public class SamGrep extends CommandLineProgram
 			sfw.close();	
 			} 
     	catch (Exception e) {
+    		e.printStackTrace();
     		log.error(e);
     		return -1;
 			}
