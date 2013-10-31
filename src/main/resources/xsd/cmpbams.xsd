@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="https://github.com/lindenb/jvarkit/cmpbams"
+	xmlns:tns="https://github.com/lindenb/jvarkit/cmpbams"
+	elementFormDefault="unqualified"
+	attributeFormDefault="unqualified"
+	>
+
+<!-- XSD schema used to compare Bams -->
+<complexType name="records">
+<sequence>
+	<element name="record" type="tns:bamRecord" minOccurs="0" maxOccurs="unbounded"/>
+</sequence>
+<attribute name="name" use="required" type="normalizedString"/>
+<attribute name="side" use="optional" type="byte"/>
+</complexType>
+
+
+<complexType name="bamRecord">
+<sequence>
+	<element name="flag" type="int" minOccurs="0"/>
+	<element name="chrom" type="token" minOccurs="0"/>
+	<element name="pos" type="int" minOccurs="0"/>
+	<element name="mapq" type="int" minOccurs="0"/>
+	<element name="cigar" type="token" minOccurs="0"/>
+	<element name="rnext" type="token" minOccurs="0"/>
+	<element name="pnext" type="int" minOccurs="0"/>
+	<element name="tlen" type="int" minOccurs="0"/>
+</sequence>
+<attribute name="file-index" type="int" use="required"/>
+</complexType>
+
+
+
+<complexType name="comparebams">
+<sequence>
+	<element name="header">
+		<complexType>
+			<sequence>
+				<element name="files" minOccurs="1" maxOccurs="1">
+				<complexType>
+					<sequence>
+						<element name="file"  minOccurs="1" maxOccurs="unbounded">
+							<complexType>
+								<attribute name="path" type="normalizedString" use="required"/>
+								<attribute name="index" type="int" use="required"/>
+							</complexType>
+						</element>
+					</sequence>
+				</complexType>
+				</element>
+			</sequence>
+		</complexType>
+	</element>
+	<element name="body" >
+		<complexType>
+			<sequence>
+				<element name="sam" type="tns:records" minOccurs="0" maxOccurs="unbounded"/>
+			</sequence>
+		</complexType>
+	</element>
+</sequence>
+</complexType>
+
+
+
+
+</schema>

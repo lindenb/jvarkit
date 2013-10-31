@@ -194,11 +194,6 @@ public class CompareBams3  extends AbstractCommandLineProgram
 					
 					SAMRecord rec=iter.next();
 					
-					if(rec.getReadName().equals("M00491:4:000000000-A1B8M:1:1107:15601:15021"))
-						{	
-						LOG.info("OKKKK in "+samFile);
-						}
-					
 					Match m=new Match();
 					if(rec.getReadPairedFlag())
 						{
