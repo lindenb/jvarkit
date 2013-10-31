@@ -7,10 +7,17 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.logging.Logger;
 
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.Marshaller;
+import javax.xml.namespace.QName;
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamWriter;
+
+import com.github.lindenb.jvarkit.tools.cmpbams.entities.BamRecord;
+import com.github.lindenb.jvarkit.tools.cmpbams.entities.Records;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
@@ -22,29 +29,24 @@ import net.sf.picard.util.Interval;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.CloseableIterator;
 import net.sf.samtools.util.SortingCollection;
 
 
-public class CompareBams2  extends AbstractCommandLineProgram
+public class CompareBams3  extends AbstractCommandLineProgram
 	{
-	private static final Logger LOG=Logger.getLogger(CompareBams2.class.getName());
+	private static final Logger LOG=Logger.getLogger(CompareBams3.class.getName());
 	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"Compare two or more BAM files.";
+	public String USAGE=getStandardUsagePreamble()+"Compare two or more BAM files, generate a XML report.";
 
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM files to process.",
     		minElements=2,optional=false)
 	public List<File> IN=new ArrayList<File>();
     @Option(shortName= "L", doc="restrict to that region (chr:start-end)",optional=true)
 	public String REGION=null;
-    
-    @Option(shortName= "FLG", doc="use SAM Flag when comparing.",optional=true)
-    public boolean useSamFlag=false;
 	
-	
-	private class MatchComparator
-		implements Comparator<Match>
+    private class ReadComparator
+	implements Comparator<Match>
 		{
 		@Override
 		public int compare(Match m0, Match m1)
@@ -52,17 +54,10 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			int i=m0.readName.compareTo(m1.readName);
 			if(i!=0) return i;
 			i=m0.num_in_pair-m1.num_in_pair;
-			if(i!=0) return i;
-			//i= m0.bamIndex - m1.bamIndex;//NO ! (when comparing two Set<Match>)
-			//if(i!=0) return i;
-			i= m0.tid - m1.tid;
-			if(i!=0) return i;
-			i= m0.pos - m1.pos;
-			if(i!=0) return i;
-			i= m0.flag - m1.flag;
-			return 0;
+			return i;
 			}
 		}
+	
 	
 	private class MatchCodec
 		extends AbstractDataCodec<Match>
@@ -86,8 +81,15 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			m.bamIndex=dis.readInt();
 			m.tid=dis.readInt();
 			m.pos=dis.readInt();
-			m.num_in_pair=dis.readInt();
-			if(useSamFlag) m.flag=dis.readInt();
+			m.num_in_pair=dis.readByte();
+			m.flag=dis.readInt();
+			m.cigar=dis.readUTF();
+			
+			m.rnext=dis.readInt();
+			m.pnext=dis.readInt();
+			m.tlen=dis.readInt();
+			m.mapq=dis.readInt();
+			
 			return m;
 			}
 		@Override
@@ -98,66 +100,34 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			dos.writeInt(match.bamIndex);
 			dos.writeInt(match.tid);
 			dos.writeInt(match.pos);
-			dos.writeInt(match.num_in_pair);
-			if(useSamFlag) dos.writeInt(match.flag);
+			dos.writeByte(match.num_in_pair);
+			dos.writeInt(match.flag);
+			dos.writeUTF(match.cigar);
+			dos.writeInt(match.rnext);
+			dos.writeInt(match.pnext);
+			dos.writeInt(match.tlen);
+			dos.writeInt(match.mapq);
+			
 			}
 		
 		}
 	
 	private static class Match
 		{
-		String readName;
-		int num_in_pair=0;
+		String readName="";
+		byte num_in_pair=0;
 		int tid=-1;
 		int bamIndex=-1;
 		int pos=-1;
 		int flag=0;
-
-		@Override
-		public int hashCode()
-			{
-			int result = 1;
-			result = 31 * result + num_in_pair;
-			result = 31 * result + pos;
-			result = 31 * result + tid;
-			result = 31 * result + readName.hashCode();
-			result = 31 * result + bamIndex;
-			return result;
-			}
-		@Override
-		public boolean equals(Object obj)
-			{
-			if (this == obj) { return true; }
-			if (obj == null) { return false; }
-			Match other = (Match) obj;
-			if (num_in_pair != other.num_in_pair) { return false; }
-			if (tid != other.tid) { return false; }
-			if(tid==-1) return true;
-			if (pos != other.pos) { return false; }
-			if (bamIndex != other.bamIndex) { return false; }
-			if(!readName.equals(other.readName)) return false;
-			return true;
-			}
+		String cigar="";
+		int rnext=-1;
+		int pnext=-1;
+		int tlen=0;
+		int mapq=0;
 		}
 	
 	
-	
-	private void print(final Set<Match> set,final SAMSequenceDictionary dict)
-		{
-		boolean first=true;
-		for(Match m:set)
-			{
-			if(!first)System.out.print(',');
-			first=false;
-			if(m.tid<0){ System.out.print("unmapped"); continue;}
-			SAMSequenceRecord ssr=(dict==null?null:dict.getSequence(m.tid));
-			String seqName=(ssr==null?null:ssr.getSequenceName());
-			if(seqName==null) seqName="tid"+m.tid;
-			System.out.print(String.valueOf(seqName+":"+(m.pos)));
-			if(this.useSamFlag) System.out.print("="+m.flag);
-			}
-		if(first) System.out.print("(empty)");
-		}
 	
 	@Override
 	protected int doWork()
@@ -172,7 +142,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 				}
 			
 			
-			final MatchComparator matchComparator=new MatchComparator();
+			final ReadComparator matchComparator=new ReadComparator();
 			SortingCollection<Match> database=SortingCollection.newInstance(
 					Match.class,
 					new MatchCodec(),
@@ -219,11 +189,32 @@ public class CompareBams2  extends AbstractCommandLineProgram
 				while(iter.hasNext() )
 					{
 					if(nReads++%10000000==0) LOG.info("in "+samFile+" count:"+nReads);
+					
+					
+					
 					SAMRecord rec=iter.next();
+					
+					if(rec.getReadName().equals("M00491:4:000000000-A1B8M:1:1107:15601:15021"))
+						{	
+						LOG.info("OKKKK in "+samFile);
+						}
+					
 					Match m=new Match();
 					if(rec.getReadPairedFlag())
 						{
-						m.num_in_pair=(rec.getFirstOfPairFlag()?1:2);
+						m.num_in_pair=(byte)(rec.getFirstOfPairFlag()?1:2);
+						
+						if(!rec.getMateUnmappedFlag())
+							{
+							m.rnext=rec.getMateReferenceIndex();
+							m.pnext=rec.getMateAlignmentStart();
+							}
+						else
+							{
+							m.rnext=-1;
+							m.pnext=-1;
+							}
+						
 						}
 					else
 						{
@@ -236,12 +227,23 @@ public class CompareBams2  extends AbstractCommandLineProgram
 						{
 						m.tid=-1;
 						m.pos=-1;
+						m.mapq=0;
+						m.tlen=0;
+						m.cigar="";
 						}
 					else
 						{
 						m.tid=rec.getReferenceIndex();
 						m.pos=rec.getAlignmentStart();
+						m.mapq=rec.getMappingQuality();
+						m.cigar=rec.getCigarString();
+						if(m.cigar==null) m.cigar="";
+						if(m.rnext!=-1)//mate mapped
+							{
+							m.tlen=rec.getInferredInsertSize();
+							}
 						}
+					
 					database.add(m);
 					}
 				samFileReader.close();
@@ -251,34 +253,34 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			database.doneAdding();
 			LOG.info("Writing results....");
 			
-			//compute the differences for each read
-			System.out.print("#READ-Name\t");
+			XMLOutputFactory xmlOutputFactory=XMLOutputFactory.newFactory();
+			XMLStreamWriter w=xmlOutputFactory.createXMLStreamWriter(System.out, "UTF-8");
+			w.writeStartDocument("UTF-8", "1.0");
+			w.writeStartElement("comparebams");
+			
+			w.writeStartElement("header");
+			w.writeStartElement("files");
 			for(int x=0;x<this.IN.size();++x)
 				{
-				for(int y=x+1;y<this.IN.size();++y)
-					{
-					if(!(x==0 && y==1)) System.out.print("|");
-					System.out.print(IN.get(x));
-					System.out.print(" ");
-					System.out.print(IN.get(y));
-					}
+				w.writeEmptyElement("file");
+				w.writeAttribute("path", this.IN.get(x).getPath());
+				w.writeAttribute("index", String.valueOf(x+1));
 				}
-			for(int x=0;x<this.IN.size();++x)
-				{
-				System.out.print("\t"+IN.get(x));
-				}
-			System.out.println();
+			w.writeEndElement();//files
+			w.writeEndElement();//header
+			
+			w.writeStartElement("body");
+			w.writeCharacters("\n");
+			
+			
 			
 			/* create an array of set<Match> */
-			List<Set<Match>> matches=new ArrayList<Set<CompareBams2.Match>>(this.IN.size());
-			while(matches.size() < this.IN.size())
-				{
-				matches.add(new TreeSet<CompareBams2.Match>(matchComparator));
-				}
+			List<Match> row=new ArrayList<CompareBams3.Match>(this.IN.size());
 			
+			JAXBContext jc = JAXBContext.newInstance(BamRecord.class,Records.class);
+			Marshaller marshaller=jc.createMarshaller();
+			marshaller.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);
 			CloseableIterator<Match> iter=database.iterator();
-			String currReadName=null;
-			int curr_num_in_pair=-1;
 			for(;;)
 				{
 				Match nextMatch = null;
@@ -286,56 +288,58 @@ public class CompareBams2  extends AbstractCommandLineProgram
 					{
 					nextMatch = iter.next();
 					}
-				if(nextMatch==null ||
-					(currReadName!=null && !currReadName.equals(nextMatch.readName)) ||
-					(curr_num_in_pair!=-1 && curr_num_in_pair!=nextMatch.num_in_pair))
+				if(nextMatch==null && row.isEmpty()) break;
+				if(!row.isEmpty() &&  (nextMatch==null || matchComparator.compare(nextMatch, row.get(0))!=0))
 					{
-					if(currReadName!=null)
+					Match first=row.get(0);
+					Records records=new Records();
+					records.setName(first.readName);
+					records.setSide(first.num_in_pair);
+					for(Match m:row)
 						{
-						System.out.print(currReadName);
-						if(curr_num_in_pair>0)
+						BamRecord br=new BamRecord();
+						br.setFileIndex(m.bamIndex+1);
+						if(m.tid!=-1)
 							{
-							System.out.print("/");
-							System.out.print(curr_num_in_pair);
-							}
-						System.out.print("\t");
-						
-						
-						for(int x=0;x<this.IN.size();++x)
-							{
-							Set<Match> first=matches.get(x);
-							for(int y=x+1;y<this.IN.size();++y)
+							br.setChrom(sequenceDictionaries.get(m.bamIndex).getSequence(m.tid).getSequenceName());
+							br.setPos(m.pos);
+							if(m.rnext!=-1)
 								{
-								if(!(x==0 && y==1)) System.out.print("|");
-								Set<Match> second=matches.get(y);
-								if(first.size()==second.size() && first.containsAll(second))
-									{
-									System.out.print("EQ");
-									}
-								else
-									{
-									System.out.print("NE");
-									}
+								br.setTlen(m.tlen);
 								}
+							br.setMapq(m.mapq);
+							if(!m.cigar.isEmpty()) br.setCigar(m.cigar);
 							}
-	
-						for(int x=0;x<this.IN.size();++x)
+						if(m.rnext!=-1)
 							{
-							System.out.print("\t");
-							print(matches.get(x),sequenceDictionaries.get(x));
+							br.setRnext(sequenceDictionaries.get(m.bamIndex).getSequence(m.rnext).getSequenceName());
+							br.setPnext(m.pnext);
 							}
+						br.setFlag(m.flag);
 						
-						System.out.println();
+						
+						records.getRecord().add(br);
+						
 						}
+					
+					marshaller.marshal(new JAXBElement<Records>(
+							new QName("records"),
+							Records.class, records), w);
+					w.writeCharacters("\n");
 					if(nextMatch==null) break;
-					for(Set<Match> set:matches) set.clear();
+					row.clear();
 					}
-				currReadName=nextMatch.readName;
-				curr_num_in_pair=nextMatch.num_in_pair;
-				matches.get(nextMatch.bamIndex).add(nextMatch);
+				row.add(nextMatch);
 				}
 			
 			iter.close();
+			
+			w.writeEndElement();//body
+			w.writeEndElement();//cmpbames
+			w.writeEndDocument();
+			w.flush();
+			w.close();
+			
 			}
 		catch(Exception err)
 			{
@@ -351,6 +355,6 @@ public class CompareBams2  extends AbstractCommandLineProgram
 		
 	public static void main(String[] args) throws Exception
 		{
-		new CompareBams2().instanceMainWithExit(args);
+		new CompareBams3().instanceMainWithExit(args);
 		}
 }

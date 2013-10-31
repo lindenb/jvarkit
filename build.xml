@@ -396,7 +396,23 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		name="cmpbams"
 		/>
 </target>
-	
+
+<target name="cmpbamsxml" depends="api.cmpbams">
+	<compile-with-picard 
+		java="**/CompareBams3.java"
+		main="com.github.lindenb.jvarkit.tools.cmpbams.CompareBams3"
+		name="cmpbamsxml"
+		/>
+</target>
+
+<target name="cmpbamhandler1" depends="api.cmpbams">
+	<compile-with-picard 
+		java="**/CmpBamHandler1.java"
+		main="com.github.lindenb.jvarkit.tools.cmpbams.CmpBamHandler1"
+		name="cmpbamhandler1"
+		/>
+</target>
+
 	
 <target name="impactofduplicates" >
 	<compile-with-picard 
@@ -898,7 +914,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	  </exec>
 </target>	
 
-	
+<target name="api.cmpbams">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
+	    <arg value="-p"/> <arg value="com.github.lindenb.jvarkit.tools.cmpbams.entities"/>
+	    <arg value="src/main/resources/xsd/cmpbams.xsd"/>
+	  </exec>
+</target>	
+
 	
 <target name="x">
 	 <exec executable="xjc" failonerror="true">

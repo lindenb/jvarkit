@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
@@ -33,6 +34,15 @@ public class IlluminaStatsFastq
 	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="Output Name (Directory or .zip file)",optional=false)
 	public File OUT=null;
 	
+	@Option(shortName= "EXC", doc="regular expression exclude pattern",minElements=0)
+	public List<String> EXCLUDE_REGEXES = new ArrayList<String>();
+
+	@Option(shortName= "INC", doc="regular expression include pattern",minElements=0)
+	public List<String> INCLUDE_REGEXES = new ArrayList<String>();
+	@Option(shortName= "CI", doc="maximum number of DNA indexes to print. memory consuming if not 0.",optional=true)
+	public int COUNT_INDEX=0;
+	
+	
 	private static class Bases
 		{
 		long A=0L;
@@ -52,8 +62,12 @@ public class IlluminaStatsFastq
     private PrintWriter wqualperpos=null;
     private PrintWriter wbases=null;
     private PrintWriter wlength=null;
+    private PrintWriter wDNAIndexes=null;
     
+    private List<Pattern> excludePatterns=new ArrayList<>();
+    private List<Pattern> includePatterns=new ArrayList<>();
 	
+    private final Pattern DNARegex=Pattern.compile("[ATGCatcNn]{4,8}");
 	
 	private static void tsv(PrintWriter out,Object...array)
 		{
@@ -82,6 +96,37 @@ public class IlluminaStatsFastq
 		else if(f.getName().endsWith(".fastq.gz") && f.isFile())
 			{
 			final int QUALITY_STEP=5;
+			
+			if(!excludePatterns.isEmpty())
+				{
+				for(Pattern regex:excludePatterns)
+					{
+					if(regex.matcher(f.getName()).find())
+						{
+						LOG.info("exclude "+f+" because matching "+regex.pattern());
+						return;
+						}
+					}
+				}
+			if(!includePatterns.isEmpty())
+				{
+				boolean found=false;
+				for(Pattern regex:includePatterns)
+					{
+					
+					if(regex.matcher(f.getName()).find())
+						{
+						found=true;
+						break;
+						}
+					}
+				if(!found)
+					{
+					LOG.info("exclude "+f+" (no matching regex");
+					return;
+					}
+				}
+			
 			LOG.info(f);
 			FastQName fq=FastQName.parse(f);
 			
@@ -90,7 +135,7 @@ public class IlluminaStatsFastq
 			List<Bases> pos2bases=new ArrayList<Bases>(300);
 			Counter<Integer> lengths=new Counter<Integer>();
 			Counter<Integer> pos2count=new Counter<Integer>();
-
+			Counter<String> dnaIndexes=new Counter<String>();
 			long nReads=0L;
 			double sum_qualities=0L;
 			long count_bases=0L;
@@ -100,59 +145,78 @@ public class IlluminaStatsFastq
 			try
 				{
 				r=new FastqReader(f);
+				while(r.hasNext())
+					{
+					FastqRecord record=r.next();
+					++nReads;
+					if(record.getReadHeader().contains(":Y:"))
+						{
+						count_read_fails_filter++;
+						continue;
+						}
+					else if(record.getReadHeader().contains(":N:"))
+						{
+						count_read_doesnt_fail_filter++;
+						}
+					
+					if(COUNT_INDEX>0)
+						{
+						//index
+						int last_colon=record.getReadHeader().lastIndexOf(':');
+						if(last_colon!=-1 && last_colon+1< record.getReadHeader().length())
+							{
+							String dnaIndex=record.getReadHeader().substring(last_colon+1).trim().toUpperCase();
+							if(DNARegex.matcher(dnaIndex).matches())
+								{
+								dnaIndexes.incr(dnaIndex);
+								}
+							}
+						}
+					
+					byte phred[]=SAMUtils.fastqToPhred(record.getBaseQualityString());
+					
+					for(int i=0;i< phred.length ;++i)
+						{
+						sum_qualities+=phred[i];
+						count_bases++;
+						
+						qualityHistogram.incr(phred[i]/QUALITY_STEP);
+						pos2quality.incr(i,phred[i]);
+						pos2count.incr(i);
+						}
+					/* get base usage */
+					while(pos2bases.size() <record.getReadString().length())
+						{
+						pos2bases.add(new Bases());
+						}
+					for(int i=0;i< record.getReadString().length() ;++i)
+						{
+						Bases bases=pos2bases.get(i);
+						switch(record.getReadString().charAt(i))
+							{
+							case 'A': case 'a':bases.A++;break;
+							case 'T': case 't':bases.T++;break;
+							case 'G': case 'g':bases.G++;break;
+							case 'C': case 'c':bases.C++;break;
+							default: bases.N++;break;
+							}
+						}
+					lengths.incr(record.getBaseQualityString().length());
+					}
 				}
 			catch(Exception error)
 				{
+				LOG.error(error,"BOUM");
 				error.printStackTrace();
 				tsv(wbadfastq,f.getPath(),error.getMessage());
 				return;
 				}	
-			
-			while(r.hasNext())
+			finally
 				{
-				FastqRecord record=r.next();
-				++nReads;
-				if(record.getReadHeader().contains(":Y:"))
-					{
-					count_read_fails_filter++;
-					continue;
-					}
-				else if(record.getReadHeader().contains(":N:"))
-					{
-					count_read_doesnt_fail_filter++;
-					}
-				
-				byte phred[]=SAMUtils.fastqToPhred(record.getBaseQualityString());
-				
-				for(int i=0;i< phred.length ;++i)
-					{
-					sum_qualities+=phred[i];
-					count_bases++;
-					
-					qualityHistogram.incr(phred[i]/QUALITY_STEP);
-					pos2quality.incr(i,phred[i]);
-					pos2count.incr(i);
-					}
-				/* get base usage */
-				while(pos2bases.size() <record.getReadString().length())
-					{
-					pos2bases.add(new Bases());
-					}
-				for(int i=0;i< record.getReadString().length() ;++i)
-					{
-					Bases bases=pos2bases.get(i);
-					switch(record.getReadString().charAt(i))
-						{
-						case 'A': case 'a':bases.A++;break;
-						case 'T': case 't':bases.T++;break;
-						case 'G': case 'g':bases.G++;break;
-						case 'C': case 'c':bases.C++;break;
-						default: bases.N++;break;
-						}
-					}
-				lengths.incr(record.getBaseQualityString().length());
+				if(r!=null) r.close();
+				r=null;
 				}
-			r.close();
+			
 			
 			if(fq.isValid())
 				{
@@ -218,6 +282,12 @@ public class IlluminaStatsFastq
 						);
 				}
 			
+			int count_out=0;
+			for(String dna:dnaIndexes.keySetDecreasing())
+				{
+				if(++count_out>COUNT_INDEX) break;
+				tsv(this.wDNAIndexes,f.getPath(),dna,dnaIndexes.count(dna));
+				}
 			
 			}
 		}
@@ -233,6 +303,15 @@ public class IlluminaStatsFastq
 				LOG.error("Input "+IN+" doesnt exists.");
 				return -1;
 				}
+			for(String p:this.INCLUDE_REGEXES)
+				{
+				this.includePatterns.add(Pattern.compile(p));
+				}
+			
+			for(String p:this.EXCLUDE_REGEXES)
+				{
+				this.excludePatterns.add(Pattern.compile(p));
+				}
 			
 			archiveFactory=ArchiveFactory.open(OUT);
 			this.wnames = archiveFactory.openWriter("names.tsv");
@@ -243,6 +322,7 @@ public class IlluminaStatsFastq
 			this.wqualperpos = archiveFactory.openWriter("histpos2qual.tsv");
 			this.wbases = archiveFactory.openWriter("bases.tsv");
 			this.wlength = archiveFactory.openWriter("lengths.tsv");
+			this.wDNAIndexes = archiveFactory.openWriter("indexes.tsv");
 			
 			recursive(IN);
 			
@@ -254,7 +334,8 @@ public class IlluminaStatsFastq
 					this.whistquals,
 					this.wqualperpos,
 					this.wbases,
-					this.wlength})
+					this.wlength,
+					this.wDNAIndexes})
 				{
 				pw.flush();
 				pw.close();

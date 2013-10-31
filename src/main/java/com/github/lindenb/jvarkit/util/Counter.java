@@ -1,6 +1,10 @@
 package com.github.lindenb.jvarkit.util;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,6 +40,37 @@ public class Counter<T>
 		{
 		return this.object2count.keySet();
 		}
+	
+	public List<T> keySetDecreasing()
+		{
+		List<T> L=new ArrayList<T>(this.object2count.keySet());
+		Collections.sort(L, new Comparator<T>()
+			{
+			@Override
+			public int compare(T o1, T o2)
+				{
+				long n= count(o2)-count(o1);
+				return (n<0L?-1:n>0L?1:0);
+				}
+			});
+		return L;
+		}
+	
+	public List<T> keySetIncreasing()
+		{
+		List<T> L=new ArrayList<T>(this.object2count.keySet());
+		Collections.sort(L, new Comparator<T>()
+			{
+			@Override
+			public int compare(T o1, T o2)
+				{
+				long n= count(o1)-count(o2);
+				return (n<0L?-1:n>0L?1:0);
+				}
+			});
+		return L;
+		}
+	
 	@Override
 	public String toString() {
 		return "Counter "+this.getTotal();
