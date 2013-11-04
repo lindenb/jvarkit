@@ -14,17 +14,18 @@ import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalTreeMap;
 import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
+import net.sf.samtools.SAMSequenceDictionary;
+import net.sf.samtools.util.SequenceUtil;
 
 public class BamStats01
 	extends AbstractCommandLineProgram
@@ -163,8 +164,8 @@ public class BamStats01
 	protected int doWork()
 		{
 		SAMFileReader samFileReader=null;
-		IntervalTreeMap<Interval> intervals=null;
-		
+		//IntervalTreeMap<Interval> intervals=null;
+		SamSequenceRecordTreeMap<Boolean> intervals=null;
 		PrintStream out=System.out;
 		
 		
@@ -189,27 +190,8 @@ public class BamStats01
 					}
 				out.println();
 				
+				SAMSequenceDictionary samSequenceDictionary=null;
 				
-				if(BEDILE!=null)
-					{
-					intervals=new IntervalTreeMap<Interval>();
-					LOG.info("opening "+BEDILE);
-					Pattern tab=Pattern.compile("[\t]");
-					String line;
-					BufferedReader bedIn=IOUtils.openFileForBufferedReading(BEDILE);
-					while((line=bedIn.readLine())!=null)
-						{
-						if(line.isEmpty() || line.startsWith("#")) continue;
-						String tokens[]=tab.split(line,5);
-						if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.BEDILE);
-						String chrom=tokens[0];
-						int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
-						int chromEnd1= Integer.parseInt(tokens[2]);
-						Interval interval=new Interval(chrom, chromStart1, chromEnd1);
-						intervals.put(interval, interval);
-						}
-					bedIn.close();
-					}
 					
 				for(File f:IN)
 					{
@@ -218,6 +200,50 @@ public class BamStats01
 					LOG.info("opening "+f);
 					samFileReader=new SAMFileReader(f);
 					samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
+					
+					if(BEDILE!=null )
+						{
+						SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
+
+						if(samSequenceDictionary==null)
+							{
+							samSequenceDictionary=dict;
+							}
+						else
+							{
+							if(!SequenceUtil.areSequenceDictionariesEqual(dict, samSequenceDictionary))
+								{
+								samFileReader.close();
+								throw new IOException("incompatible sequence dictionaries. ("+f+")");
+								}
+							}
+						
+						if(intervals==null)
+							{
+							intervals=new SamSequenceRecordTreeMap<Boolean>(dict);
+							LOG.info("opening "+BEDILE);
+							Pattern tab=Pattern.compile("[\t]");
+							String line;
+							BufferedReader bedIn=IOUtils.openFileForBufferedReading(BEDILE);
+							while((line=bedIn.readLine())!=null)
+								{
+								if(line.isEmpty() || line.startsWith("#")) continue;
+								String tokens[]=tab.split(line,5);
+								if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.BEDILE);
+								int seqIndex=dict.getSequenceIndex(tokens[0]);
+								if(seqIndex==-1)
+									{
+									throw new IOException("unknown chromosome from dict in  in "+line+" "+this.BEDILE);
+									}
+								int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
+								int chromEnd1= Integer.parseInt(tokens[2]);
+								intervals.put(seqIndex, chromStart1, chromEnd1,Boolean.TRUE);
+								}
+							bedIn.close();
+							}
+						}
+					
+					
 					SAMRecordIterator iter=samFileReader.iterator();
 					while(iter.hasNext())
 						{
@@ -243,12 +269,11 @@ public class BamStats01
 						if(intervals==null) continue;
 						if(rec.getReadUnmappedFlag()) continue;
 						
-						if(intervals.getOverlapping(new Interval(
-									rec.getReferenceName(),
+						if(!intervals.containsOverlapping(
+									rec.getReferenceIndex(),
 									rec.getAlignmentStart(),
 									rec.getAlignmentEnd()
-									)).isEmpty()
-							)
+									))
 							{
 							hist.histograms[Category2.OFF_TARGET.ordinal()].watch(rec);
 							}		

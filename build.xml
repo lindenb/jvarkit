@@ -97,12 +97,17 @@
 			 <path refid="picard.lib"/>
 	   </pathconvert>  
 	   
+	<tstamp>
+    	<format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss" />
+	</tstamp>
+	   
 	   <jar jarfile="dist/@{name}.jar">
 		     <fileset dir="tmp" />
 		     <manifest>
 		       <attribute name="Main-Class" value="@{main}"/>
 		        <attribute name="Class-Path" value="${manifest_@{name}}"/>
 		    	<attribute name="Git-Hash" value="${git.master.hash}"/>
+		    	<attribute name="Compile-Date" value="${TODAY}"/>
 		     </manifest>
 	 	</jar>
 	   
@@ -133,6 +138,59 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		<delete dir="tmp"/>
 	</sequential>
 </macrodef>
+
+
+
+<macrodef name="compile-picard-cmd">
+	<attribute name="name"/>
+	<attribute name="java"/>
+	<attribute name="main"/>
+	<sequential>
+	   <mkdir dir="tmp"/>
+	   <mkdir dir="dist"/>
+	   <mkdir dir="${generated.dir}"/>
+	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured</echo>
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		<src path="src/main/java"/>
+   			<src path="${generated.dir}"/>
+
+	   		<classpath refid="picard.lib"/>
+	   		<include name="@{java}"/>
+	   		<include name="**/package-info.java"/>
+	   </javac>
+	   
+	 <loadfile
+	      property="git.master.hash"
+	      srcFile=".git/refs/heads/master"
+	 	  failonerror="false"
+	 	  >
+	 	  	<filterchain>
+	 	        <striplinebreaks/>
+			</filterchain>
+	    </loadfile>
+		
+	   <pathconvert property="manifest_@{name}" pathsep=" " >
+			 <path refid="picard.lib"/>
+	   </pathconvert>  
+	   
+	<tstamp>
+    	<format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss" />
+	</tstamp>
+	   
+	   <jar jarfile="dist/@{name}.jar">
+		     <fileset dir="tmp" />
+		     <manifest>
+		       <attribute name="Main-Class" value="@{main}"/>
+		        <attribute name="Class-Path" value="${manifest_@{name}}"/>
+		    	<attribute name="Git-Hash" value="${git.master.hash}"/>
+		    	<attribute name="Compile-Date" value="${TODAY}"/>
+		     </manifest>
+	 	</jar>
+	   
+		<delete dir="tmp"/>
+	</sequential>
+</macrodef>
+
 
 <macrodef name="compile-biostar">
 	<attribute name="post"/>
@@ -774,7 +832,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>
 	
 <target name="findcorruptedfiles" >
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/FindCorruptedFiles.java"
 		main="com.github.lindenb.jvarkit.tools.misc.FindCorruptedFiles"
 		name="findcorruptedfiles"
