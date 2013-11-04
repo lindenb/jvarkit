@@ -21,9 +21,17 @@ public abstract class AbstractCommandLineProgram
 		{
 		}
 	
-	
+	protected void printStandardPreamble()
+		{
+		System.out.println(getClass().getSimpleName());
+		System.out.println("Compilation "+getCompileDate());
+		System.out.println("Version "+getVersion());
+		System.out.println(getProgramDescription());
+		
+		}
 	public void printUsage()
 		{
+		printStandardPreamble();
 		System.out.println( "See https://github.com/lindenb/jvarkit");
 		}
 	

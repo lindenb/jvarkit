@@ -824,7 +824,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 
 
 <target name="ilmnfastqstats" >
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/IlluminaStatsFastq.java"
 		main="com.github.lindenb.jvarkit.tools.misc.IlluminaStatsFastq"
 		name="ilmnfastqstats"

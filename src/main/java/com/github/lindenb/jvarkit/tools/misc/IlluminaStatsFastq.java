@@ -1,46 +1,30 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.regex.Pattern;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
 import net.sf.picard.fastq.FastqReader;
 import net.sf.picard.fastq.FastqRecord;
-import net.sf.picard.util.Log;
 import net.sf.samtools.SAMUtils;
 
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 
 public class IlluminaStatsFastq
 	extends AbstractCommandLineProgram
 	{
-	private static final Log LOG=Log.getInstance(IlluminaStatsFastq.class);
 	
 	
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"  Count FASTQs in Illumina Result. Generate a script for sqlite3 ";
-	@Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="Directories to process",optional=false)
-	public File IN=null;
-	
-	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="Output Name (Directory or .zip file)",optional=false)
-	public File OUT=null;
-	
-	@Option(shortName= "EXC", doc="regular expression exclude pattern",minElements=0)
-	public List<String> EXCLUDE_REGEXES = new ArrayList<String>();
-
-	@Option(shortName= "INC", doc="regular expression include pattern",minElements=0)
-	public List<String> INCLUDE_REGEXES = new ArrayList<String>();
-	@Option(shortName= "CI", doc="maximum number of DNA indexes to print. memory consuming if not 0.",optional=true)
-	public int COUNT_INDEX=0;
 	
 	
 	private static class Bases
@@ -63,10 +47,7 @@ public class IlluminaStatsFastq
     private PrintWriter wbases=null;
     private PrintWriter wlength=null;
     private PrintWriter wDNAIndexes=null;
-    
-    private List<Pattern> excludePatterns=new ArrayList<>();
-    private List<Pattern> includePatterns=new ArrayList<>();
-	
+    	
     private final Pattern DNARegex=Pattern.compile("[ATGCatcNn]{4,8}");
 	
 	private static void tsv(PrintWriter out,Object...array)
@@ -79,55 +60,23 @@ public class IlluminaStatsFastq
 		out.println();
 		}
 	
-	private void recursive(File f) throws IOException
+	@Override
+	public String getProgramDescription()
+		{
+		return "Reads filenames from stdin: Count FASTQs in Illumina Result.";
+		}
+	
+	private void analyze(File f) throws IOException
 		{
 		if(f==null) return;
+		if(!(f.getName().endsWith(".fastq.gz") && f.isFile())) return;
 		
-		if(f.isDirectory())
-			{
-			LOG.info(f);
-			File children[]=f.listFiles();
-			if(children==null) return;
-			for(File c:children)
-				{
-				recursive(c);
-				}
-			} 
-		else if(f.getName().endsWith(".fastq.gz") && f.isFile())
-			{
+			
 			final int QUALITY_STEP=5;
 			
-			if(!excludePatterns.isEmpty())
-				{
-				for(Pattern regex:excludePatterns)
-					{
-					if(regex.matcher(f.getName()).find())
-						{
-						LOG.info("exclude "+f+" because matching "+regex.pattern());
-						return;
-						}
-					}
-				}
-			if(!includePatterns.isEmpty())
-				{
-				boolean found=false;
-				for(Pattern regex:includePatterns)
-					{
-					
-					if(regex.matcher(f.getName()).find())
-						{
-						found=true;
-						break;
-						}
-					}
-				if(!found)
-					{
-					LOG.info("exclude "+f+" (no matching regex");
-					return;
-					}
-				}
 			
-			LOG.info(f);
+			
+			getLogger().info(f.toString());
 			FastQName fq=FastQName.parse(f);
 			
 			Counter<Integer> qualityHistogram=new Counter<Integer>();
@@ -206,7 +155,7 @@ public class IlluminaStatsFastq
 				}
 			catch(Exception error)
 				{
-				LOG.error(error,"BOUM");
+				getLogger().severe("BOUM "+error.getMessage());
 				error.printStackTrace();
 				tsv(wbadfastq,f.getPath(),error.getMessage());
 				return;
@@ -289,29 +238,67 @@ public class IlluminaStatsFastq
 				tsv(this.wDNAIndexes,f.getPath(),dna,dnaIndexes.count(dna));
 				}
 			
-			}
+			
 		}
-	
+
+	private int COUNT_INDEX=0;
+	private File OUT=null;
 	
 	@Override
-	protected int doWork()
+	public void printUsage()
 		{
+		printStandardPreamble();
+		System.out.println(" -h help. This Screen");
+		System.out.println(" -v print version and exits");
+		System.out.println(" -L (log-level , a "+Level.class.getName()+"). Optional");
+		System.out.println(" -X (int) maximum number of DNA indexes to print. memory consuming if not 0. Optional");
+		System.out.println(" -o (filename out) Directory or ZIP. Required.");
+		}
+	
+	@Override
+	public int doWork(String args[])
+		{
+		GetOpt getopt=new GetOpt();
+		int c;
+		while((c=getopt.getopt(args, "hvL:o:X:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'h': printUsage();return 0;
+				case 'v': System.out.println(getVersion());break;
+				case 'L': getLogger().setLevel(Level.parse(getopt.getOptArg()));break;
+				case 'X':
+					{
+					COUNT_INDEX=Integer.parseInt(getopt.getOptArg());
+					break;
+					}
+				case 'o':
+					{
+					this.OUT=new File(getopt.getOptArg());
+					break;
+					}
+				default:
+					{
+					System.err.println("Unknown option or missing argument. "+(char)getopt.getOptOpt());
+					return -1;
+					}
+				}
+			}
+		
+		
+		if(getopt.getOptInd()!=args.length)
+			{
+			System.err.println("Expected reads from stdin. Illegal Number of arguments.");
+			return -1;
+			}
+		if(OUT==null)
+			{
+			System.err.println("undefined output file.");
+			return -1;
+			}
+		
+		
 		try {
-			
-			if(!IN.exists())
-				{
-				LOG.error("Input "+IN+" doesnt exists.");
-				return -1;
-				}
-			for(String p:this.INCLUDE_REGEXES)
-				{
-				this.includePatterns.add(Pattern.compile(p));
-				}
-			
-			for(String p:this.EXCLUDE_REGEXES)
-				{
-				this.excludePatterns.add(Pattern.compile(p));
-				}
 			
 			archiveFactory=ArchiveFactory.open(OUT);
 			this.wnames = archiveFactory.openWriter("names.tsv");
@@ -324,7 +311,24 @@ public class IlluminaStatsFastq
 			this.wlength = archiveFactory.openWriter("lengths.tsv");
 			this.wDNAIndexes = archiveFactory.openWriter("indexes.tsv");
 			
-			recursive(IN);
+			getLogger().info("reading from stdin");
+			BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
+			String line;
+			while((line=in.readLine())!=null)
+				{	
+				if(line.isEmpty() || line.startsWith("#")) continue;
+				try 
+					{
+					analyze(new File(line));
+					}
+				catch(IOException err)
+					{
+					getLogger().warning("Cannot analyse "+line);
+					}
+				}
+			
+			in.close();
+			
 			
 			for(PrintWriter pw: new PrintWriter[]{
 					this.wnames,
@@ -349,7 +353,8 @@ public class IlluminaStatsFastq
 				}
 			} 
 		catch (Exception e) {
-			LOG.error(e, "Error");
+			e.printStackTrace();
+			getLogger().severe("ERROR:"+e.getMessage());
 			return -1;
 			}
 		finally	

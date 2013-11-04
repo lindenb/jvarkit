@@ -69,21 +69,27 @@ public class BamStats01
     		}
     	void watch(SAMRecord rec)
     		{
+    		boolean ok_pe_alignment=true;
 			this.increment(Category.TOTAL);
 			
 			if(rec.getReadPairedFlag())
 				{
 				this.increment(Category.PAIRED);
-				
+				}
+			else
+				{
+				ok_pe_alignment=false;
 				}
 			
 			if(rec.getReadFailsVendorQualityCheckFlag())
 				{
+				ok_pe_alignment=false;
 				this.increment(Category.FAIL_VENDOR_QUALITY);
 				}
 			
 			if(rec.getReadUnmappedFlag())
 				{
+				ok_pe_alignment=false;
 				this.increment(Category.UNMAPPED);
 				return;
 				}
@@ -95,7 +101,10 @@ public class BamStats01
 				{
 				this.increment(Category.PROPER_PAIR);
 				}
-			
+			else
+				{
+				ok_pe_alignment=false;	
+				}		
 			
 			
 			if(rec.getReadNegativeStrandFlag())
@@ -112,18 +121,31 @@ public class BamStats01
 				{
 				this.increment(Category.PRIMARY_ALIGNMENT);
 				}
-			
+			else
+				{
+				ok_pe_alignment=false;
+				}
 			
 			if(rec.getDuplicateReadFlag())
 				{
 				this.increment(Category.DUPLICATE);
+				ok_pe_alignment=false;
 				}
 			
 			if(rec.getMappingQuality()<QUAL)
 				{
 				this.increment(Category.FAIL_MAPPING_QUALITY);
+				ok_pe_alignment=false;
 				}
-
+			
+			
+			
+			if(ok_pe_alignment)
+				{
+				this.increment(Category.OK_FOR_PE_CALLING);
+				}
+			
+			
     		}
     	
     	}
@@ -156,8 +178,8 @@ public class BamStats01
 		PRIMARY_ALIGNMENT,
 		FAIL_MAPPING_QUALITY,
 		DUPLICATE,
-		FAIL_VENDOR_QUALITY;
-		
+		FAIL_VENDOR_QUALITY,
+		OK_FOR_PE_CALLING;
 		};
 	
 	@Override
