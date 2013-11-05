@@ -14,6 +14,7 @@ public class GetOpt
 	private String optarg=null;
 	public static final int EOF=-1;
 	public static final int ERROR='?';
+	public static final int MISSING_ARG=':';
 
 
 	public GetOpt()
@@ -33,7 +34,7 @@ public class GetOpt
 		return this.optind;
 		}
 	
-	public int getOptOpt()
+	public char getOptOpt()
 		{
 		return this.optopt;
 		}
@@ -103,7 +104,7 @@ public class GetOpt
 				}
 			else
 				{
-				return ERROR;
+				return MISSING_ARG;
 				}
 				
 			}
