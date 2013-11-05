@@ -839,6 +839,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>	
 
+<target name="vcfcomparegt" >
+	<compile-picard-cmd 
+		java="**/VCFCompareGT.java"
+		main="com.github.lindenb.jvarkit.tools.vcfcmp.VCFCompareGT"
+		name="vcfcomparegt"
+		/>
+</target>
+
+
 <target name="ngsfilessummary" >
 	<compile-with-picard 
 		java="**/NgsFilesSummary.java"
