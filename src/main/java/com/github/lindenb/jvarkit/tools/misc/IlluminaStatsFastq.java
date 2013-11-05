@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +77,7 @@ public class IlluminaStatsFastq
 			
 			
 			
-			getLogger().info(f.toString());
+			info(f.toString());
 			FastQName fq=FastQName.parse(f);
 			
 			Counter<Integer> qualityHistogram=new Counter<Integer>();
@@ -153,11 +154,11 @@ public class IlluminaStatsFastq
 					lengths.incr(record.getBaseQualityString().length());
 					}
 				}
-			catch(Exception error)
+			catch(Exception err2)
 				{
-				getLogger().severe("BOUM "+error.getMessage());
-				error.printStackTrace();
-				tsv(wbadfastq,f.getPath(),error.getMessage());
+				error(err2,"BOUM "+err2.getMessage());
+				err2.printStackTrace();
+				tsv(wbadfastq,f.getPath(),err2.getMessage());
 				return;
 				}	
 			finally
@@ -245,14 +246,15 @@ public class IlluminaStatsFastq
 	private File OUT=null;
 	
 	@Override
-	public void printUsage()
+	public void printUsage(PrintStream out)
 		{
-		printStandardPreamble();
-		System.out.println(" -h help. This Screen");
-		System.out.println(" -v print version and exits");
-		System.out.println(" -L (log-level , a "+Level.class.getName()+"). Optional");
-		System.out.println(" -X (int) maximum number of DNA indexes to print. memory consuming if not 0. Optional");
-		System.out.println(" -o (filename out) Directory or ZIP. Required.");
+		printStandardPreamble(out);
+		out.println("Options:");
+		out.println(" -h help. This Screen");
+		out.println(" -v print version and exits");
+		out.println(" -L (log-level , a "+Level.class.getName()+"). Optional");
+		out.println(" -X (int) maximum number of DNA indexes to print. memory consuming if not 0. Optional");
+		out.println(" -o (filename out) Directory or ZIP. Required.");
 		}
 	
 	@Override
@@ -311,7 +313,7 @@ public class IlluminaStatsFastq
 			this.wlength = archiveFactory.openWriter("lengths.tsv");
 			this.wDNAIndexes = archiveFactory.openWriter("indexes.tsv");
 			
-			getLogger().info("reading from stdin");
+			info("reading from stdin");
 			BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
 			String line;
 			while((line=in.readLine())!=null)
@@ -323,7 +325,7 @@ public class IlluminaStatsFastq
 					}
 				catch(IOException err)
 					{
-					getLogger().warning("Cannot analyse "+line);
+					warning(err,"Cannot analyse "+line);
 					}
 				}
 			
@@ -354,7 +356,7 @@ public class IlluminaStatsFastq
 			} 
 		catch (Exception e) {
 			e.printStackTrace();
-			getLogger().severe("ERROR:"+e.getMessage());
+			error(e,"ERROR:"+e.getMessage());
 			return -1;
 			}
 		finally	

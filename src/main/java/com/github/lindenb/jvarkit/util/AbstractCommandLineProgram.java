@@ -1,12 +1,14 @@
 package com.github.lindenb.jvarkit.util;
 
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.DecimalFormat;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.jar.Manifest;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public abstract class AbstractCommandLineProgram
@@ -21,18 +23,71 @@ public abstract class AbstractCommandLineProgram
 		{
 		}
 	
-	protected void printStandardPreamble()
+	/* logging stuff */
+	protected void info(Object o)
 		{
-		System.out.println(getClass().getSimpleName());
-		System.out.println("Compilation "+getCompileDate());
-		System.out.println("Version "+getVersion());
-		System.out.println(getProgramDescription());
-		
+		getLogger().info(String.valueOf(o));
 		}
+	
+	protected void error(Object o)
+		{
+		getLogger().log(Level.SEVERE, String.valueOf(o));
+		}
+	
+	protected void error(Throwable thrown,Object o)
+		{
+		getLogger().log(Level.SEVERE, String.valueOf(o), thrown);
+		}
+	
+	protected void warning(Object o)
+		{
+		getLogger().log(Level.WARNING, String.valueOf(o));
+		}
+	
+	protected void warning(Throwable thrown,Object o)
+		{
+		getLogger().log(Level.WARNING, String.valueOf(o), thrown);
+		}
+	
+	protected void printStandardPreamble(PrintStream out)
+		{
+		out.println(getClass().getSimpleName());
+		out.println(getProgramDescription());
+		out.println("Author :"+getAuthorName());
+		out.println("Mail :"+getAuthorMail());
+		out.println("WWW: "+getOnlineDocUrl());
+		out.println("Compilation :"+getCompileDate());
+		out.println("Version :"+getVersion());
+		}
+	
+	
+	
+	protected String getOnlineDocUrl()
+		{
+		return "https://github.com/lindenb/jvarkit";
+		}
+	
+	protected String getAuthorName()
+		{
+		return "Pierre Lindenbaum PhD.";
+		}
+	protected String getAuthorMail()
+		{
+		return "plinden"+"baum"+
+				'@'+
+				"yahoo"+
+				'.'+
+				"fr";
+		}
+	
+	public void printUsage(PrintStream out)
+		{
+		printStandardPreamble(out);
+		}
+	
 	public void printUsage()
 		{
-		printStandardPreamble();
-		System.out.println( "See https://github.com/lindenb/jvarkit");
+		printUsage(System.err);
 		}
 	
 	public String getProgramDescription()
@@ -123,10 +178,10 @@ public abstract class AbstractCommandLineProgram
 		this.commandLine=b.toString();
 		b=null;
 		Date startDate=new Date();
-		getLogger().info("Starting JOB at "+startDate+" "+getClass().getName()+
+		info("Starting JOB at "+startDate+" "+getClass().getName()+
 				" version="+getVersion()+" "+
 				" built="+getCompileDate());
-		getLogger().info(this.commandLine);
+		info(this.commandLine);
 		String hostname="";
 		try
 			{
@@ -136,7 +191,7 @@ public abstract class AbstractCommandLineProgram
 			{
 			hostname="host";
 			}
-		getLogger().info("Executing as " +
+		info("Executing as " +
                 System.getProperty("user.name") + "@" + hostname +
                 " on " + System.getProperty("os.name") + " " + System.getProperty("os.version") +
                 " " + System.getProperty("os.arch") + "; " + System.getProperty("java.vm.name") +
@@ -147,7 +202,7 @@ public abstract class AbstractCommandLineProgram
 		final Date endDate = new Date();
 		final double elapsedMinutes = (endDate.getTime() - startDate.getTime()) / (1000d * 60d);
         final String elapsedString  = new DecimalFormat("#,##0.00").format(elapsedMinutes);
-    	getLogger().info("End JOB status="+ret+" [" + endDate + "] " + getClass().getName() + " done. Elapsed time: " + elapsedString + " minutes.");
+    	info("End JOB status="+ret+" [" + endDate + "] " + getClass().getName() + " done. Elapsed time: " + elapsedString + " minutes.");
 		return ret;
 		}
 	
