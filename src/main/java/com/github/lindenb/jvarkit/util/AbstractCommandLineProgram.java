@@ -86,9 +86,16 @@ public abstract class AbstractCommandLineProgram
 		return commandLine;
 		}
 	
+	public void printOptions(PrintStream out)
+		{
+		}
+	
 	public void printUsage(PrintStream out)
 		{
 		printStandardPreamble(out);
+		out.println("Options:");
+		printOptions(out);
+		out.println();
 		}
 	
 	public void printUsage()

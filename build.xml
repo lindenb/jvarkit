@@ -499,7 +499,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	
 
 <target name="bam2raster" >
-	<compile-with-picard 
+	<compile-picard-cmd
 		java="**/Bam2Raster.java"
 		main="com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster"
 		name="bam2raster"

@@ -11,47 +11,38 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 
 import javax.imageio.ImageIO;
 
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.CigarIterator;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 
-import net.sf.picard.cmdline.CommandLineProgram;
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Interval;
 import net.sf.samtools.CigarOperator;
+import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
+import net.sf.samtools.SAMSequenceDictionary;
+import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.CloserUtil;
 
-public class Bam2Raster extends CommandLineProgram
+public class Bam2Raster extends AbstractCommandLineProgram
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"BAM to raster graphics.";
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM files to process.",optional=false)
-	public File IN=null;
-    @Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="Image name.",optional=false)
-	public File OUT=null;
-
-    @Option(shortName= "L", doc="restrict to that region (chr:start-end)",optional=true)
-	public String REGION=null;
-    @Option(shortName= StandardOptionDefinitions.REFERENCE_SHORT_NAME, doc="Indexex reference",optional=false)
-	public File  REF=null;
-    @Option(shortName= "W", doc="image width",optional=true)
-    private int WIDTH=1000;
-    @Option(shortName= "N", doc="print read name. ",optional=false)
-    private boolean NAME=false;
-    @Option(shortName= "B", doc="print base. ",optional=false)
-    private boolean BASE=false;
     
+    @Override
+    public String getProgramDescription() {
+    	return "BAM to raster graphics.";
+    	}
 	
    private interface Colorizer
     	{
@@ -81,7 +72,7 @@ public class Bam2Raster extends CommandLineProgram
    
 	
 	private Interval interval=null;
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private int minHDistance=2;
 	private int minArrowWidth=2;
 	private int maxArrowWidth=5;
@@ -111,11 +102,12 @@ public class Bam2Raster extends CommandLineProgram
 		{
 		List<List<SAMRecord>> rows=new ArrayList<List<SAMRecord>>();
 		SAMRecordIterator iter=r.queryOverlapping(interval.getSequence(),interval.getStart(), interval.getEnd());
-
+		int countReads=0;
 		while(iter.hasNext())
 			{
 			SAMRecord rec=iter.next();
 			if(rec.getReadUnmappedFlag()) continue;
+			countReads++;
 			for(List<SAMRecord> row:rows)
 				{
 				SAMRecord last=row.get(row.size()-1);
@@ -132,6 +124,7 @@ public class Bam2Raster extends CommandLineProgram
 				}
 			}
 		iter.close();
+		info("Reads:"+countReads);
 		Dimension imageSize=new Dimension(WIDTH,
 				rows.size()*(this.spaceYbetweenFeatures+this.featureHeight)+this.spaceYbetweenFeatures
 				);
@@ -143,6 +136,7 @@ public class Bam2Raster extends CommandLineProgram
 		Graphics2D g=img.createGraphics();
 		g.setColor(Color.WHITE);
 		g.fillRect(0, 0, imageSize.width, imageSize.height);
+		info("image : "+imageSize.width+"x"+imageSize.height);
 		int y=this.spaceYbetweenFeatures;
 		for(List<SAMRecord> row:rows)
 			{
@@ -193,7 +187,7 @@ public class Bam2Raster extends CommandLineProgram
 				Shape oldClip=g.getClip();
 				g.setClip(shapeRec);
 				
-				if(this.NAME)
+				if(this.printName)
 					{
 					hersheyFont.paint(g, rec.getReadName(), shapeRec);
 					}
@@ -266,36 +260,103 @@ public class Bam2Raster extends CommandLineProgram
 		g.dispose();
 		return img;
 		}
+	@Override
+	public void printOptions(PrintStream out) {
+		out.println(" -h get help (this screen)");
+		out.println(" -v print version and exit.");
+		out.println(" -L (level) log level. One of "+Level.class.getName()+" currently:"+getLogger().getLevel());
+		out.println(" -b print bases . Optional. currently:"+printBases);
+		out.println(" -r (chr:start-end) restrict to that region. Optional.");
+		out.println(" -R (path to fasta) indexed fasta reference. Optional.");
+		out.println(" -w (int) image width. Optional. " +WIDTH);
+		out.println(" -N print Read name.");
+		out.println(" -o (filename) output name. Optional. Default: stdout.");
+		}
+		
+	private boolean printBases=false;
+	private boolean printName=false;
+	private int WIDTH=1000;
+	
+	
+
 	
 	@Override
-	protected int doWork()
+	public int doWork(String args[])
 		{
+		File fileOut=null;
+		File referenceFile=null;
+		String region=null;
+	    GetOpt getopt=new GetOpt();
+		int c;
+		while((c=getopt.getopt(args, "hvL:o:R:r:w:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'h': printUsage();break;
+				case 'v': System.out.println(getVersion());return 0;
+				case 'L': getLogger().setLevel(Level.parse(getopt.getOptArg()));break;
+				case 'o': fileOut=new File(getopt.getOptArg());break;
+				case 'R': referenceFile=new File(getopt.getOptArg());break;
+				case 'r': region=getopt.getOptArg();break;
+				case 'w': this.WIDTH=Math.max(100,Integer.parseInt(getopt.getOptArg()));break;
+				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
+				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
+				}
+			}
+		
+		if(getopt.getOptInd()+1!=args.length)
+			{
+			System.err.println("illegal number of arguments.");
+			return -1;
+			}
+	    
+		File bamFile=new File(args[getopt.getOptInd()]);
 		SAMFileReader samFileReader=null;
 		try
 			{
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
-
-			
-			samFileReader=new SAMFileReader(IN);
-			
-			this.interval=IntervalUtils.parseOne(
-					samFileReader.getFileHeader().getSequenceDictionary(),
-					REGION);
-			if(this.interval==null)
+			if(referenceFile!=null)
 				{
-				System.err.println("Cannot parse interval "+REGION+" or chrom doesn't exists.");
-				return -1;
+				this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(referenceFile);
+				}
+			
+			samFileReader=new SAMFileReader(bamFile);
+			
+			if(region!=null)
+				{
+				this.interval=IntervalUtils.parseOne(
+						samFileReader.getFileHeader().getSequenceDictionary(),
+						region);
+				if(this.interval==null)
+					{
+					System.err.println("Cannot parse interval "+region+" or chrom doesn't exists.");
+					return -1;
+					}
+				}
+			else
+				{
+				SAMFileHeader header=samFileReader.getFileHeader();
+				SAMSequenceDictionary dict=header.getSequenceDictionary();
+				SAMSequenceRecord rec=dict.getSequence(0);
+				this.interval=new Interval(rec.getSequenceName(), 1,Math.min(rec.getSequenceLength(), 100));
 				}
 	
-			samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
+			samFileReader.setValidationStringency(ValidationStringency.SILENT);
 			BufferedImage img=build(samFileReader);
 			samFileReader.close();
 			samFileReader=null;
-			ImageIO.write(img, "PNG", OUT);
+			if(fileOut==null)
+				{
+				ImageIO.write(img, "PNG", System.out);
+				}
+			else
+				{
+				info("saving to "+fileOut);
+				ImageIO.write(img, "PNG", fileOut);
+				}
 			}
 		catch(IOException err)
 			{
-			err.printStackTrace();
+			error(err, err);
 			return -1;
 			}
 		finally
