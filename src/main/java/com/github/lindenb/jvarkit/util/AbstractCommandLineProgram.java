@@ -80,6 +80,12 @@ public abstract class AbstractCommandLineProgram
 				"fr";
 		}
 	
+	
+	protected String getProgramCommandLine()
+		{
+		return commandLine;
+		}
+	
 	public void printUsage(PrintStream out)
 		{
 		printStandardPreamble(out);

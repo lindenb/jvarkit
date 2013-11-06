@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -140,15 +141,15 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public void printUsage() {
-		printStandardPreamble();
-		System.out.println("Options:");
-		System.out.println(" -h get help (this screen)");
-		System.out.println(" -v print version and exit.");
-		System.out.println(" -L (level) log level. One of "+Level.class.getName()+" currently:"+getLogger().getLevel());
-		System.out.println(" -M (int) Max recods in RAM. Optional. currently:"+maxRecordsInRAM);
-		System.out.println(" -T (dir) add temporary directory. Optional");
-		System.out.println(" -m only print modified samples. Optional");
+	public void printUsage(PrintStream out) {
+		printStandardPreamble(out);
+		out.println("Options:");
+		out.println(" -h get help (this screen)");
+		out.println(" -v print version and exit.");
+		out.println(" -L (level) log level. One of "+Level.class.getName()+" currently:"+getLogger().getLevel());
+		out.println(" -M (int) Max recods in RAM. Optional. currently:"+maxRecordsInRAM);
+		out.println(" -T (dir) add temporary directory. Optional");
+		out.println(" -m only print modified samples. Optional");
 		}
 	
 	@Override
@@ -191,7 +192,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 			variants.setDestructiveIteration(true);
 			
 			Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
-			metaData.add(new VCFHeaderLine(getClass().getSimpleName(),"TODO put command line here"));//TODO
+			metaData.add(new VCFHeaderLine(getClass().getSimpleName(),"version:"+getVersion()+" command:"+getProgramCommandLine()));
 			
 			
 			for(int i=getopt.getOptInd();i< args.length;++i)
