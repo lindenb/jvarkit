@@ -8,14 +8,21 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Logger;
 
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
+
 public class Hershey
 	{
+	private static final Logger LOG=Logger.getLogger("jvarkit");
 	private double scalex=15;
 	private double scaley=15;
 	private enum Op {MOVETO,LINETO};
@@ -74,8 +81,8 @@ public class Hershey
 		  " 14MWUPTRRSPROPPNRMTNUPUSTURVPV"
 		};
 
-	
-	private static String charToHersheyString(char c)
+	private Set<Character> undefined=new HashSet<Character>();
+	private  String charToHersheyString(char c)
 		{
 		if(Character.isLetter(c))
 			{
@@ -85,13 +92,43 @@ public class Hershey
 			{
 			return DIGITS[Character.toUpperCase(c)-'0'];
 			}
-		return null;
+		switch(c)
+			{
+			case '.': return "  6PURURVSVSURU";//210
+			case ',': return "  7PUSVRVRUSUSWRY";//211
+			case ':': return " 12PURPRQSQSPRP RRURVSVSURU";//212
+			case ';': return " 13PURPRQSQSPRP RSVRVRUSUSWRY";//213
+			case '!': return " 12PURMRR RSMSR RRURVSVSURU";//214
+			case '?': return " 17NWPNRMSMUNUPRQRRSRSQUP RRURVSVSURU";//215
+			case '\'':return "  3PTRMRQ";//216
+			case '\"':return "  6NVPMPQ RTMTQ";//217
+			case '/': return "  3MWVLNW";//220
+			case '(': return "  7OVTLRNQPQSRUTW";//221
+			case ')': return "  7NUPLRNSPSSRUPW";//222
+			case '|': return "  3PTRLRW";//223
+			case '#': return " 12MXRLPW RULSW ROPVP ROSVS";//233
+			default:
+				{
+				if(!undefined.contains(c))
+					{
+					LOG.info("missing hershey char: "+c);
+					undefined.add(c);
+					}
+				return null;
+				}
+			}
 		}
+	
+	private Map<Character, List<PathOp>> letter2path=new HashMap<Character, List<PathOp>>();
 	
 	private List<PathOp> charToPathOp(char letter)
 		{
 		int i;
-		String s=Hershey.charToHersheyString(letter);
+		if(letter==' ') return Collections.emptyList();
+		List<PathOp> array=letter2path.get(letter);
+		if(array!=null) return array;
+		
+		String s=this.charToHersheyString(letter);
 		if(s==null) return Collections.emptyList();
 		
 		int num_vertices=0;
@@ -104,7 +141,7 @@ public class Hershey
 		num_vertices--;
 		i+=2;
 		int nop=0;
-		List<PathOp> array=new ArrayList<Hershey.PathOp>(num_vertices);
+		array=new ArrayList<Hershey.PathOp>(num_vertices);
 		while(nop<num_vertices)
 			{
 			PathOp pathOp=new PathOp();
@@ -124,6 +161,7 @@ public class Hershey
 			nop++;
 			array.add(pathOp);
 			}
+		letter2path.put(letter, array);
 		return array;
 		}
 	public void paint(

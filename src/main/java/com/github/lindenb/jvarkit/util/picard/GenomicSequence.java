@@ -22,7 +22,8 @@ public class GenomicSequence
 	public GenomicSequence(IndexedFastaSequenceFile indexedFastaSequenceFile ,String chrom)
 		{	
 		this.indexedFastaSequenceFile=indexedFastaSequenceFile;
-		if(this.indexedFastaSequenceFile==null) throw new NullPointerException("IndexedFastaSequenceFile");
+		if(this.indexedFastaSequenceFile==null) throw new NullPointerException("IndexedFastaSequenceFile is null");
+		if(this.indexedFastaSequenceFile.getSequenceDictionary()==null) throw new NullPointerException("no sequence dictionary in the reference. Use picard to index the sequence.");
 		this.samSequenceRecord=this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(chrom);
 		if(this.samSequenceRecord==null) throw new IllegalArgumentException("not chromosome "+chrom+" in reference.");
 		}

@@ -3,7 +3,6 @@ package com.github.lindenb.jvarkit.tools.bam2graphics;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.LinearGradientPaint;
 import java.awt.Paint;
@@ -25,6 +24,7 @@ import java.util.logging.Level;
 
 import javax.imageio.ImageIO;
 
+import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
@@ -103,23 +103,32 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		{
 		return convertToX(rec.getAlignmentEnd());
 		}
-
+	
+	private Color base2color(char c)
+		{
+		switch(Character.toUpperCase(c))
+			{
+			case 'N': return Color.BLACK;
+			case 'A': return Color.RED;
+			case 'T': return Color.GREEN;
+			case 'G': return Color.YELLOW;
+			case 'C': return Color.BLUE;
+			default: return Color.ORANGE;
+			}
+		}
 	
 	private BufferedImage build(SAMFileReader r)
 		{
 		List<List<SAMRecord>> rows=new ArrayList<List<SAMRecord>>();
 		SAMRecordIterator iter=null;
-		if(interval!=null)
+		if(bamFile!=null)//got index
 			{
 			iter=r.queryOverlapping(interval.getSequence(),interval.getStart(), interval.getEnd());
 			}
-		else
+		else //loop until we get the data
 			{
 			iter=r.iterator();
 			}
-		String currChrom=null;
-		int min_left=Integer.MAX_VALUE;
-		int max_right=0;
 		
 		int countReads=0;
 		while(iter.hasNext())
@@ -127,8 +136,8 @@ public class Bam2Raster extends AbstractCommandLineProgram
 			SAMRecord rec=iter.next();
 			if(rec.getReadUnmappedFlag()) continue;
 			
-			//when reading from stdin and interval is declared check were ar in the right interval
-			if(this.bamFile==null && this.interval!=null)
+			//when reading from stdin  we're in the right interval
+			if(this.bamFile==null)
 				{
 				if(!this.interval.getSequence().equals(rec.getReferenceName())) continue;
 				if(rec.getAlignmentEnd() < this.interval.getStart()) continue;
@@ -136,25 +145,20 @@ public class Bam2Raster extends AbstractCommandLineProgram
 				}
 			
 			//when interval is not declared, check only one chromosome
-			if(currChrom==null)
-				{
-				currChrom=rec.getReferenceName();
-				}
-			else if(!currChrom.equals(rec.getReferenceName()))
-				{
-				warning("breaking after chromosome "+currChrom);
-				break;
-				}
-			countReads++;
-			min_left=Math.min(min_left,rec.getAlignmentStart());
-			max_right=Math.max(max_right,rec.getAlignmentEnd());
 			
-			
+			countReads++;			
 			
 			for(List<SAMRecord> row:rows)
 				{
 				SAMRecord last=row.get(row.size()-1);
-				if(right(last)+ this.minHDistance > left(rec)) continue;
+				if(this.interval!=null )
+					{
+					if(right(last)+ this.minHDistance > left(rec)) continue;
+					}
+				else
+					{
+					if(last.getAlignmentEnd()+1> rec.getAlignmentStart()) continue;
+					}
 				row.add(rec);
 				rec=null;
 				break;
@@ -168,16 +172,10 @@ public class Bam2Raster extends AbstractCommandLineProgram
 			}
 		iter.close();
 		
-		
-		if(interval==null)
-			{		
-			if(currChrom==null || min_left>max_right) return null;
-			interval=new Interval(currChrom, min_left, max_right);
-			info("setting interval to "+this.interval);
-			}
+	
 		
 		info("Reads:"+countReads);
-		final int ruler_height=100;
+		final int ruler_height=String.valueOf(this.interval.getEnd()).length()*20;
 		final int refw=(int)Math.max(1.0, WIDTH/(double)(1+interval.getEnd()-interval.getStart()));
 		info("refw:"+refw+" "+WIDTH+" "+(1+interval.getEnd()-interval.getStart()));
 		final int margin_top=10+(refw*2)+ruler_height;
@@ -192,12 +190,29 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		
 		
 		
-		GenomicSequence genomicSequence=null;
+		CharSequence genomicSequence=null;
 		if(this.indexedFastaSequenceFile !=null)
 			{
-			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.getSequence());
+			genomicSequence=new GenomicSequence(
+					this.indexedFastaSequenceFile, this.interval.getSequence());
 			}
-		
+		else
+			{
+			genomicSequence=new AbstractCharSequence()
+					{
+					@Override
+					public int length()
+						{
+						return interval.getStart()+10;
+						}
+					
+					@Override
+					public char charAt(int index)
+						{
+						return 'N';
+						}
+				};
+			}
 		Graphics2D g=img.createGraphics();
 		g.setColor(Color.WHITE);
 		g.fillRect(0, 0, imageSize.width, imageSize.height);
@@ -205,14 +220,14 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		Map<Integer, Counter<Character>> ref2consensus=new HashMap<Integer,  Counter<Character>>();
 		//draw bases positions
 		
-		for(int x=min_left;x<=max_right;++x)
+		for(int x=this.interval.getStart();x<=this.interval.getEnd();++x)
 			{
 			final double oneBaseWidth=convertToX(x+1)-convertToX(x);
 			//draw vertical line
 			g.setColor(x%10==0?Color.BLACK:Color.LIGHT_GRAY);
 			g.draw(new Line2D.Double(convertToX(x), 0, convertToX(x), imageSize.height));
 			
-			if((x-min_left)%1==0)
+			if((x-this.interval.getStart())%10==0)
 				{
 				g.setColor(Color.BLACK);
 				String xStr=String.format("%,d",x);
@@ -230,17 +245,18 @@ public class Bam2Raster extends AbstractCommandLineProgram
 						);
 				g.setTransform(tr);
 				}
-			if(genomicSequence!=null)
-				{
-				char c=genomicSequence.charAt(x-1);
-				hersheyFont.paint(g,
-						String.valueOf(c),
-						convertToX(x)+1,
-						ruler_height,
-						oneBaseWidth-2,
-						oneBaseWidth-2
-						);
-				}
+			
+			//paint genomic sequence
+			char c=genomicSequence.charAt(x-1);
+			g.setColor(base2color(c));
+			hersheyFont.paint(g,
+					String.valueOf(c),
+					convertToX(x)+1,
+					ruler_height,
+					oneBaseWidth-2,
+					oneBaseWidth-2
+					);
+				
 			}
 		
 		
@@ -303,10 +319,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 				Shape oldClip=g.getClip();
 				g.setClip(shapeRec);
 				
-				if(this.printName)
-					{
-					hersheyFont.paint(g, rec.getReadName(), shapeRec);
-					}
+				
 				Cigar cigar=rec.getCigar();
 				if(cigar!=null)
 					{
@@ -317,7 +330,8 @@ public class Bam2Raster extends AbstractCommandLineProgram
 						{
 						switch(ce.getOperator())
 							{
-							case H:case S: readpos+=ce.getLength();break;
+							case H: break;
+							case S: readpos+=ce.getLength();break;
 							case I:
 								{
 								g.setColor(Color.GREEN); 
@@ -353,6 +367,11 @@ public class Bam2Raster extends AbstractCommandLineProgram
 								{
 								for(int i=0;i< ce.getLength();++i)
 									{
+									if(readpos>=bases.length)
+										{
+										System.err.println(rec.getReadName()+" "+rec.getCigarString()+" "+rec.getReadString());
+										}
+									
 									char c1=(char)bases[readpos];
 									
 									/* handle consensus */
@@ -365,11 +384,8 @@ public class Bam2Raster extends AbstractCommandLineProgram
 									consensus.incr(Character.toUpperCase(c1));
 									
 									
-									char c2=c1;
-									if(genomicSequence!=null)
-										{
-										c2=genomicSequence.charAt(refpos-1);
-										}
+									char c2=genomicSequence.charAt(refpos-1);
+									
 									double mutW=convertToX(refpos+1)-convertToX(refpos);
 									g.setColor(Color.BLACK);
 									Shape mut= new Rectangle2D.Double(
@@ -379,11 +395,27 @@ public class Bam2Raster extends AbstractCommandLineProgram
 											y1-y0
 											);
 									if(ce.getOperator()==CigarOperator.X ||
-										Character.toUpperCase(c1)!=Character.toUpperCase(c2))
+										(c2!='N' && c2!='n' && Character.toUpperCase(c1)!=Character.toUpperCase(c2)))
 										{
 										g.setColor(Color.RED);
 										g.fill(mut);
 										g.setColor(Color.WHITE);
+										}
+									
+									//print read name instead of base
+									if(printName)
+										{
+										
+										if(readpos<rec.getReadName().length())
+											{
+											c1=rec.getReadName().charAt(readpos);
+											c1=rec.getReadNegativeStrandFlag()?
+													Character.toLowerCase(c1):Character.toUpperCase(c1);
+											}
+										else
+											{
+											c1=' ';
+											}
 										}
 									this.hersheyFont.paint(g,String.valueOf(c1),mut);
 									
@@ -405,7 +437,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 			}
 		
 		//print consensus
-		for(int x=min_left;x<=max_right ;++x)
+		for(int x=this.interval.getStart();x<=this.interval.getEnd() ;++x)
 			{
 			Counter<Character> cons=ref2consensus.get(x);
 			if(cons==null || cons.getCountCategories()==0)
@@ -450,7 +482,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		out.println(" -v print version and exit.");
 		out.println(" -L (level) log level. One of "+Level.class.getName()+" currently:"+getLogger().getLevel());
 		out.println(" -b print bases . Optional. currently:"+printBases);
-		out.println(" -r (chr:start-end) restrict to that region. Optional.");
+		out.println(" -r (chr:start-end) restrict to that region. REQUIRED.");
 		out.println(" -R (path to fasta) indexed fasta reference. Optional.");
 		out.println(" -w (int) image width. Optional. " +WIDTH);
 		out.println(" -N print Read name.");
@@ -471,7 +503,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		String region=null;
 	    GetOpt getopt=new GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "hvL:o:R:r:w:"))!=-1)
+		while((c=getopt.getopt(args, "hvL:o:R:r:w:N"))!=-1)
 			{
 			switch(c)
 				{
@@ -481,12 +513,18 @@ public class Bam2Raster extends AbstractCommandLineProgram
 				case 'o': fileOut=new File(getopt.getOptArg());break;
 				case 'R': referenceFile=new File(getopt.getOptArg());break;
 				case 'r': region=getopt.getOptArg();break;
+				case 'N': printName=!printName;break;
 				case 'w': this.WIDTH=Math.max(100,Integer.parseInt(getopt.getOptArg()));break;
 				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
 				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
 				}
 			}
 		
+		if(region==null)
+			{
+			error("Region was not defined.");
+			return -1;
+			}
 		
 		if(getopt.getOptInd()==args.length)
 			{
@@ -524,21 +562,16 @@ public class Bam2Raster extends AbstractCommandLineProgram
 				}
 			
 			SAMFileHeader header=samFileReader.getFileHeader();
-			if(region!=null)
+			this.interval=IntervalUtils.parseOne(
+					header.getSequenceDictionary(),
+					region);
+			if(this.interval==null)
 				{
-				this.interval=IntervalUtils.parseOne(
-						header.getSequenceDictionary(),
-						region);
-				if(this.interval==null)
-					{
-					System.err.println("Cannot parse interval "+region+" or chrom doesn't exists.");
-					return -1;
-					}
+				System.err.println(
+						"Cannot parse interval "+region+" or chrom doesn't exists in sam dictionary.");
+				return -1;
 				}
-			else
-				{
-				warning("NO Interval specified: reading all. Beware memory");
-				}
+			
 	
 			samFileReader.setValidationStringency(ValidationStringency.SILENT);
 			BufferedImage img=build(samFileReader);
