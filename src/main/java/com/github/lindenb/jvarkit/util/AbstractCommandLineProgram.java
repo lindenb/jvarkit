@@ -35,6 +35,10 @@ public abstract class AbstractCommandLineProgram
 				System.err.print(" \"");
 				System.err.print(record.getMessage());
 				System.err.println("\"");
+				if(record.getThrown()!=null)
+					{
+					
+					}
 				}
 			
 			@Override
@@ -77,13 +81,13 @@ public abstract class AbstractCommandLineProgram
 	
 	protected void printStandardPreamble(PrintStream out)
 		{
-		out.println(getClass().getSimpleName());
 		out.println(getProgramName());
-		out.println("Author :"+getAuthorName());
-		out.println("Mail :"+getAuthorMail());
-		out.println("WWW: "+getOnlineDocUrl());
+		out.println(getProgramDescription());
+		out.println("Author      :"+getAuthorName());
+		out.println("Mail        : "+getAuthorMail());
+		out.println("WWW         : "+getOnlineDocUrl());
 		out.println("Compilation :"+getCompileDate());
-		out.println("Version :"+getVersion());
+		out.println("Version     :"+getVersion());
 		}
 	
 	
@@ -140,6 +144,10 @@ public abstract class AbstractCommandLineProgram
 		return getClass().getName();
 		}
 	
+	public String getProgramDescription()
+		{
+		return "";
+		}
     
 	public Logger getLogger()
 		{

@@ -71,6 +71,14 @@ public class Counter<T>
 		return L;
 		}
 	
+	/** return the number of categories */
+	public int getCountCategories()
+		{
+		return this.object2count.size();
+		}
+	
+	
+	
 	@Override
 	public String toString() {
 		return "Counter "+this.getTotal();
