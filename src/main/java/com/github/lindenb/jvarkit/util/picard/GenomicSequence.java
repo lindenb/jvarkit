@@ -5,6 +5,12 @@ import net.sf.samtools.SAMSequenceRecord;
 
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 
+/**
+ * 
+ * implementation of java.lang.CharSequence for a given
+ * chromosome of a picard IndexedFastaSequenceFile
+ *
+ */
 public class GenomicSequence
 	extends AbstractCharSequence
 	{

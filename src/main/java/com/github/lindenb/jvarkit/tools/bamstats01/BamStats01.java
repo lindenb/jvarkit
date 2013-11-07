@@ -262,6 +262,7 @@ public class BamStats01
 								intervals.put(seqIndex, chromStart1, chromEnd1,Boolean.TRUE);
 								}
 							bedIn.close();
+							LOG.info("done reading "+BEDILE);
 							}
 						}
 					

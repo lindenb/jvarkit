@@ -62,7 +62,7 @@ public class IlluminaStatsFastq
 		}
 	
 	@Override
-	public String getProgramDescription()
+	public String getProgramName()
 		{
 		return "Reads filenames from stdin: Count FASTQs in Illumina Result.";
 		}

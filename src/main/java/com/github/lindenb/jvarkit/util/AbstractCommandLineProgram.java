@@ -4,11 +4,14 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.URL;
+import java.sql.Timestamp;
 import java.text.DecimalFormat;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.jar.Manifest;
+import java.util.logging.Handler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 public abstract class AbstractCommandLineProgram
@@ -21,6 +24,29 @@ public abstract class AbstractCommandLineProgram
 	
 	protected AbstractCommandLineProgram()
 		{
+		LOG.setUseParentHandlers(false);
+		LOG.addHandler(new Handler()
+			{
+			@Override
+			public void publish(LogRecord record) {
+				System.err.print("["+record.getLevel()+"/"+AbstractCommandLineProgram.this.getClass().getSimpleName()+"]");
+				System.err.print(" ");
+				System.err.print(new Timestamp(record.getMillis()));
+				System.err.print(" \"");
+				System.err.print(record.getMessage());
+				System.err.println("\"");
+				}
+			
+			@Override
+			public void flush() {
+				System.err.flush();
+				}
+			
+			@Override
+			public void close() throws SecurityException {
+				
+				}
+			});
 		}
 	
 	/* logging stuff */
@@ -52,7 +78,7 @@ public abstract class AbstractCommandLineProgram
 	protected void printStandardPreamble(PrintStream out)
 		{
 		out.println(getClass().getSimpleName());
-		out.println(getProgramDescription());
+		out.println(getProgramName());
 		out.println("Author :"+getAuthorName());
 		out.println("Mail :"+getAuthorMail());
 		out.println("WWW: "+getOnlineDocUrl());
@@ -90,9 +116,15 @@ public abstract class AbstractCommandLineProgram
 		{
 		}
 	
+	protected void printSynopsis(PrintStream out)
+		{
+		out.println("\tjava -jar "+getClass().getName()+" [options] (files)");
+		}
 	public void printUsage(PrintStream out)
 		{
 		printStandardPreamble(out);
+		out.println("Usage:");
+		printSynopsis(out);
 		out.println("Options:");
 		printOptions(out);
 		out.println();
@@ -103,7 +135,7 @@ public abstract class AbstractCommandLineProgram
 		printUsage(System.err);
 		}
 	
-	public String getProgramDescription()
+	public String getProgramName()
 		{
 		return getClass().getName();
 		}
