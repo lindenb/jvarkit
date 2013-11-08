@@ -56,7 +56,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
     	{
     	public Color getColor(SAMRecord rec);
     	}
-   
+   /*
    private class QualityColorizer implements Colorizer
 		{
 	   public Color getColor(SAMRecord rec)
@@ -65,7 +65,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		    if(f>255) f=255;
 		    return new Color(f,f,f);
 			}
-		}
+		}*/
    
    private class FlagColorizer implements Colorizer
 		{
@@ -240,7 +240,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 						xStr,
 						0,
 						0,
-						Math.min(ruler_height,xStr.length()*10),
+						ruler_height,
 						oneBaseWidth
 						);
 				g.setTransform(tr);
