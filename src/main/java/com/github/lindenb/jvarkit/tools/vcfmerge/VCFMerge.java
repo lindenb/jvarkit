@@ -29,6 +29,7 @@ import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
 import org.broadinstitute.variant.vcf.VCFCodec;
+import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
@@ -194,6 +195,7 @@ public class VCFMerge extends AbstractCommandLineProgram
 		vcb.chr(row.get(0).parse().getChr());
 		vcb.start(row.get(0).parse().getStart());
 		vcb.stop(row.get(0).parse().getEnd());
+		
 		for(VariantOfFile var:row)
 			{
 			VariantContext ctx=var.parse();
@@ -212,14 +214,15 @@ public class VCFMerge extends AbstractCommandLineProgram
 				Genotype g1=ctx.getGenotype(sample);
 				if(g1==null) continue;
 				Genotype g2=sample2genotype.get(sample);
-				if(g2==null || g2.getGQ()<g1.getGQ())
+				if(g2==null || (g2.hasGQ() && g1.hasGQ() && g2.getGQ()<g1.getGQ()))
 					{
 					sample2genotype.put(sample,g1);
 					}
 				}
 			}
 		vcb.attributes(atts);
-		vcb.filters(filters);
+		filters.remove(VCFConstants.PASSES_FILTERS_v4);
+		if(!filters.isEmpty()) vcb.filters(filters);
 		vcb.alleles(alleles);
 		if(qual!=null) vcb.log10PError(qual);
 		vcb.genotypes(sample2genotype.values());

@@ -93,7 +93,8 @@ public class NoEmptyVCF extends AbstractCommandLineProgram
 				int c=System.in.read();
 				if(c!=-1 && c!='#')
 					{
-					LOG.warn("VCF starts with # but with ascii("+c+")");
+					LOG.warn("VCF doesn't start with # but with ascii("+c+")");
+					System.out.print((char)c);
 					IOUtils.copyTo(System.in, System.out);
 					return 0;
 					}
@@ -104,6 +105,7 @@ public class NoEmptyVCF extends AbstractCommandLineProgram
 					}
 				else
 					{
+					System.out.print((char)c);
 					IOUtils.copyTo(System.in, System.out);
 					}
 				}

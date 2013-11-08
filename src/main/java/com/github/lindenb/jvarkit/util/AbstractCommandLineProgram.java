@@ -96,11 +96,11 @@ public abstract class AbstractCommandLineProgram
 		{
 		out.println(getProgramName());
 		out.println(getProgramDescription());
-		out.println("Author      :"+getAuthorName());
+		out.println("Author      : "+getAuthorName());
 		out.println("Mail        : "+getAuthorMail());
 		out.println("WWW         : "+getOnlineDocUrl());
-		out.println("Compilation :"+getCompileDate());
-		out.println("Version     :"+getVersion());
+		out.println("Compilation : "+getCompileDate());
+		out.println("Version     : "+getVersion());
 		}
 	
 	
@@ -269,7 +269,11 @@ public abstract class AbstractCommandLineProgram
 		final double elapsedMinutes = (endDate.getTime() - startDate.getTime()) / (1000d * 60d);
         final String elapsedString  = new DecimalFormat("#,##0.00").format(elapsedMinutes);
     	info("End JOB status="+ret+" [" + endDate + "] " + getClass().getName() + " done. Elapsed time: " + elapsedString + " minutes.");
-		return ret;
+		if(ret!=0)
+			{
+			error("##### ERROR: return status = "+ret+ "################");
+			}
+    	return ret;
 		}
 	
     public void instanceMainWithExit(final String[] argv) {
