@@ -61,6 +61,12 @@ public abstract class AbstractCommandLineProgram
 	
 	protected void error(Object o)
 		{
+		if(o!=null && (o instanceof Throwable))
+			{
+			Throwable T=Throwable.class.cast(o);
+			error(T,T.getMessage());
+			return;
+			}
 		getLogger().log(Level.SEVERE, String.valueOf(o));
 		}
 	
@@ -71,11 +77,18 @@ public abstract class AbstractCommandLineProgram
 	
 	protected void warning(Object o)
 		{
+		if(o!=null && (o instanceof Throwable))
+			{
+			Throwable T=Throwable.class.cast(o);
+			warning(T,T.getMessage());
+			return;
+			}
 		getLogger().log(Level.WARNING, String.valueOf(o));
 		}
 	
 	protected void warning(Throwable thrown,Object o)
 		{
+		
 		getLogger().log(Level.WARNING, String.valueOf(o), thrown);
 		}
 	

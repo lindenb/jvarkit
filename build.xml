@@ -506,6 +506,16 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+
+<target name="howmanybamdict" >
+	<compile-picard-cmd
+		java="**/HowManyBamDict.java"
+		main="com.github.lindenb.jvarkit.tools.misc.HowManyBamDict"
+		name="howmanybamdict"
+		/>
+</target>
+
+
 <target name="vcf2sql" >
 	<compile-with-picard 
 		java="**/VcfToSql.java"

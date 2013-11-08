@@ -45,6 +45,7 @@ FASTQs.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFBed">VCFBed<a></th><td>Annotate a VCF with the content of a BED file indexed with tabix.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar76892">Biostar76892<a></th><td>Fix strand of two paired reads close but on the same strand http://www.biostars.org/p/76892/</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFCompareGT">VCFCompareGT<a></th><td>VCF : compare genotypes of two or more callers for the same samples.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/HowManyBamDict">HowManyBamDict<a></th><td>for @abinouze : quickly find the number of distinct BAM Dictionaries from a set of BAM files..</td></tr>
 </table>
 
 

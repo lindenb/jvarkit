@@ -48,8 +48,8 @@ public class IlluminaStatsFastq
     private PrintWriter wbases=null;
     private PrintWriter wlength=null;
     private PrintWriter wDNAIndexes=null;
+    private int nThreads=1;
     	
-    private final Pattern DNARegex=Pattern.compile("[ATGCatcNn]{4,8}");
 	
 	private static void tsv(PrintWriter out,Object...array)
 		{
@@ -62,184 +62,223 @@ public class IlluminaStatsFastq
 		}
 	
 	@Override
-	public String getProgramName()
-		{
+	public String getProgramDescription() {
 		return "Reads filenames from stdin: Count FASTQs in Illumina Result.";
 		}
 	
-	private void analyze(File f) throws IOException
+	private class Analyzer extends Thread
 		{
-		if(f==null) return;
-		if(!(f.getName().endsWith(".fastq.gz") && f.isFile())) return;
+		private File fastqFile;
+	    private final Pattern DNARegex=Pattern.compile("[ATGCatcNn]{4,8}");
+
+		Analyzer(File fastqFile)
+			{
+			this.fastqFile=fastqFile;
+			}
 		
-			
-			final int QUALITY_STEP=5;
-			
-			
-			
-			info(f.toString());
-			FastQName fq=FastQName.parse(f);
-			
-			Counter<Integer> qualityHistogram=new Counter<Integer>();
-			Counter<Integer> pos2quality=new Counter<Integer>();
-			List<Bases> pos2bases=new ArrayList<Bases>(300);
-			Counter<Integer> lengths=new Counter<Integer>();
-			Counter<Integer> pos2count=new Counter<Integer>();
-			Counter<String> dnaIndexes=new Counter<String>();
-			long nReads=0L;
-			double sum_qualities=0L;
-			long count_bases=0L;
-			long count_read_fails_filter=0L;
-			long count_read_doesnt_fail_filter=0L;
-			FastqReader r=null;
-			try
+		@Override
+		public void run()
+			{
+			try {
+				analyze(this.fastqFile);
+				}
+			catch (Exception e) {
+				error(e);
+				}
+		
+			}
+		
+		IlluminaStatsFastq owner()
+			{
+			return IlluminaStatsFastq.this;
+			}
+		
+		private void analyze(File f) throws IOException
+			{
+			if(f==null) return;
+			if(!(f.getName().endsWith(".fastq.gz") && f.isFile())) return;
+			if(!f.canRead())
 				{
-				r=new FastqReader(f);
-				while(r.hasNext())
+				synchronized (IlluminaStatsFastq.class)
 					{
-					FastqRecord record=r.next();
-					++nReads;
-					if(record.getReadHeader().contains(":Y:"))
+					tsv(owner().wbadfastq,f.getPath(),"Cannot read");
+					}
+				return;
+				}
+				
+				final int QUALITY_STEP=5;
+				
+				
+				
+				info(f.toString());
+				FastQName fq=FastQName.parse(f);
+				
+				Counter<Integer> qualityHistogram=new Counter<Integer>();
+				Counter<Integer> pos2quality=new Counter<Integer>();
+				List<Bases> pos2bases=new ArrayList<Bases>(300);
+				Counter<Integer> lengths=new Counter<Integer>();
+				Counter<Integer> pos2count=new Counter<Integer>();
+				Counter<String> dnaIndexes=new Counter<String>();
+				long nReads=0L;
+				double sum_qualities=0L;
+				long count_bases=0L;
+				long count_read_fails_filter=0L;
+				long count_read_doesnt_fail_filter=0L;
+				FastqReader r=null;
+				try
+					{
+					r=new FastqReader(f);
+					while(r.hasNext())
 						{
-						count_read_fails_filter++;
-						continue;
-						}
-					else if(record.getReadHeader().contains(":N:"))
-						{
-						count_read_doesnt_fail_filter++;
-						}
-					
-					if(COUNT_INDEX>0)
-						{
-						//index
-						int last_colon=record.getReadHeader().lastIndexOf(':');
-						if(last_colon!=-1 && last_colon+1< record.getReadHeader().length())
+						FastqRecord record=r.next();
+						++nReads;
+						if(record.getReadHeader().contains(":Y:"))
 							{
-							String dnaIndex=record.getReadHeader().substring(last_colon+1).trim().toUpperCase();
-							if(DNARegex.matcher(dnaIndex).matches())
+							count_read_fails_filter++;
+							continue;
+							}
+						else if(record.getReadHeader().contains(":N:"))
+							{
+							count_read_doesnt_fail_filter++;
+							}
+						
+						if(owner().COUNT_INDEX>0)
+							{
+							//index
+							int last_colon=record.getReadHeader().lastIndexOf(':');
+							if(last_colon!=-1 && last_colon+1< record.getReadHeader().length())
 								{
-								dnaIndexes.incr(dnaIndex);
+								String dnaIndex=record.getReadHeader().substring(last_colon+1).trim().toUpperCase();
+								if(this.DNARegex.matcher(dnaIndex).matches())
+									{
+									dnaIndexes.incr(dnaIndex);
+									}
 								}
 							}
-						}
-					
-					byte phred[]=SAMUtils.fastqToPhred(record.getBaseQualityString());
-					
-					for(int i=0;i< phred.length ;++i)
-						{
-						sum_qualities+=phred[i];
-						count_bases++;
 						
-						qualityHistogram.incr(phred[i]/QUALITY_STEP);
-						pos2quality.incr(i,phred[i]);
-						pos2count.incr(i);
-						}
-					/* get base usage */
-					while(pos2bases.size() <record.getReadString().length())
-						{
-						pos2bases.add(new Bases());
-						}
-					for(int i=0;i< record.getReadString().length() ;++i)
-						{
-						Bases bases=pos2bases.get(i);
-						switch(record.getReadString().charAt(i))
+						byte phred[]=SAMUtils.fastqToPhred(record.getBaseQualityString());
+						
+						for(int i=0;i< phred.length ;++i)
 							{
-							case 'A': case 'a':bases.A++;break;
-							case 'T': case 't':bases.T++;break;
-							case 'G': case 'g':bases.G++;break;
-							case 'C': case 'c':bases.C++;break;
-							default: bases.N++;break;
+							sum_qualities+=phred[i];
+							count_bases++;
+							
+							qualityHistogram.incr(phred[i]/QUALITY_STEP);
+							pos2quality.incr(i,phred[i]);
+							pos2count.incr(i);
 							}
+						/* get base usage */
+						while(pos2bases.size() <record.getReadString().length())
+							{
+							pos2bases.add(new Bases());
+							}
+						for(int i=0;i< record.getReadString().length() ;++i)
+							{
+							Bases bases=pos2bases.get(i);
+							switch(record.getReadString().charAt(i))
+								{
+								case 'A': case 'a':bases.A++;break;
+								case 'T': case 't':bases.T++;break;
+								case 'G': case 'g':bases.G++;break;
+								case 'C': case 'c':bases.C++;break;
+								default: bases.N++;break;
+								}
+							}
+						lengths.incr(record.getBaseQualityString().length());
 						}
-					lengths.incr(record.getBaseQualityString().length());
 					}
-				}
-			catch(Exception err2)
-				{
-				error(err2,"BOUM "+err2.getMessage());
-				err2.printStackTrace();
-				tsv(wbadfastq,f.getPath(),err2.getMessage());
-				return;
-				}	
-			finally
-				{
-				if(r!=null) r.close();
-				r=null;
-				}
-			
-			
-			if(fq.isValid())
-				{
-				tsv(this.wnames,
-					f.getPath(),
-					(fq.isUndetermined()?"Undetermined":fq.getSample()),
-					fq.getSeqIndex(),
-					fq.getLane(),
-					fq.getSide(),
-					fq.getSplit(),
-					fq.getFile().length()
-					);
-				}
-			else
-				{
-				tsv(wbadfastq,f.getPath());
-				}
-			
-			tsv(this.wcount,
-				f.getPath(),
-				nReads,
-				count_read_fails_filter,
-				count_read_doesnt_fail_filter
-				);
-			
-			tsv(this.wquals,
-				f.getPath(),
-				sum_qualities/count_bases
-				);
-			for(Integer step:qualityHistogram.keySet())
-				{
-				tsv(this.whistquals,
-						f.getPath(),
-						step*QUALITY_STEP,
-						qualityHistogram.count(step)
-						);
+				catch(Exception err2)
+					{
+					error(err2,"BOUM "+err2.getMessage());
+					err2.printStackTrace();
+					synchronized (IlluminaStatsFastq.class)
+						{
+						tsv(owner().wbadfastq,f.getPath(),err2.getMessage());
+						}
+					
+					return;
+					}	
+				finally
+					{
+					if(r!=null) r.close();
+					r=null;
+					}
 				
-				}
-			for(Integer position:pos2quality.keySet())
-				{
-				tsv(this.wqualperpos,
+				synchronized (IlluminaStatsFastq.class)
+					{
+					if(fq.isValid())
+						{
+						tsv(owner().wnames,
+							f.getPath(),
+							(fq.isUndetermined()?"Undetermined":fq.getSample()),
+							fq.getSeqIndex(),
+							fq.getLane(),
+							fq.getSide(),
+							fq.getSplit(),
+							fq.getFile().length()
+							);
+						}
+					else
+						{
+						tsv(owner().wbadfastq,f.getPath());
+						}
+					
+					tsv(owner().wcount,
 						f.getPath(),
-						position+1,
-						pos2quality.count(position)/(double)pos2count.count(position),
-						pos2count.count(position)
+						nReads,
+						count_read_fails_filter,
+						count_read_doesnt_fail_filter
 						);
-				}
-			
-			for(int i=0;i< pos2bases.size();++i)
-				{
-				Bases b=pos2bases.get(i);
-				tsv(this.wbases,
-					f.getPath(),
-					i+1,b.A,b.T,b.G,b.C,b.N
-					);
-				}
-			for(Integer L:lengths.keySet())
-				{
-				tsv(this.wlength,
+					
+					tsv(owner().wquals,
 						f.getPath(),
-						L,
-						lengths.count(L)
+						sum_qualities/count_bases
 						);
-				}
-			
-			int count_out=0;
-			for(String dna:dnaIndexes.keySetDecreasing())
-				{
-				if(++count_out>COUNT_INDEX) break;
-				tsv(this.wDNAIndexes,f.getPath(),dna,dnaIndexes.count(dna));
-				}
-			
-			
+					for(Integer step:qualityHistogram.keySet())
+						{
+						tsv(owner().whistquals,
+								f.getPath(),
+								step*QUALITY_STEP,
+								qualityHistogram.count(step)
+								);
+						
+						}
+					for(Integer position:pos2quality.keySet())
+						{
+						tsv(owner().wqualperpos,
+								f.getPath(),
+								position+1,
+								pos2quality.count(position)/(double)pos2count.count(position),
+								pos2count.count(position)
+								);
+						}
+					
+					for(int i=0;i< pos2bases.size();++i)
+						{
+						Bases b=pos2bases.get(i);
+						tsv(owner().wbases,
+							f.getPath(),
+							i+1,b.A,b.T,b.G,b.C,b.N
+							);
+						}
+					for(Integer L:lengths.keySet())
+						{
+						tsv(owner().wlength,
+								f.getPath(),
+								L,
+								lengths.count(L)
+								);
+						}
+					
+					int count_out=0;
+					for(String dna:dnaIndexes.keySetDecreasing())
+						{
+						if(++count_out>owner().COUNT_INDEX) break;
+						tsv(owner().wDNAIndexes,f.getPath(),dna,dnaIndexes.count(dna));
+						}
+					}
+				
+			}
 		}
 
 	private int COUNT_INDEX=0;
@@ -255,6 +294,7 @@ public class IlluminaStatsFastq
 		out.println(" -L (log-level , a "+Level.class.getName()+"). Optional");
 		out.println(" -X (int) maximum number of DNA indexes to print. memory consuming if not 0. Optional");
 		out.println(" -o (filename out) Directory or ZIP. Required.");
+		out.println(" -T (int) number of threads current:"+this.nThreads);
 		}
 	
 	@Override
@@ -262,12 +302,12 @@ public class IlluminaStatsFastq
 		{
 		GetOpt getopt=new GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "hvL:o:X:"))!=-1)
+		while((c=getopt.getopt(args, "hvL:o:X:T:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());break;
+				case 'v': System.out.println(getVersion());return 0;
 				case 'L': getLogger().setLevel(Level.parse(getopt.getOptArg()));break;
 				case 'X':
 					{
@@ -279,9 +319,19 @@ public class IlluminaStatsFastq
 					this.OUT=new File(getopt.getOptArg());
 					break;
 					}
+				case 'T':
+					{
+					this.nThreads=Math.max(1, Integer.parseInt(getopt.getOptArg()));
+					break;
+					}
+				case ':':
+					{
+					System.err.println("Missing argument. -"+(char)getopt.getOptOpt());
+					return -1;
+					}
 				default:
 					{
-					System.err.println("Unknown option or missing argument. "+(char)getopt.getOptOpt());
+					System.err.println("Unknown option -"+(char)getopt.getOptOpt());
 					return -1;
 					}
 				}
@@ -315,18 +365,24 @@ public class IlluminaStatsFastq
 			
 			info("reading from stdin");
 			BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
-			String line;
-			while((line=in.readLine())!=null)
-				{	
-				if(line.isEmpty() || line.startsWith("#")) continue;
-				try 
+			List<Analyzer> pool=new ArrayList<Analyzer>(this.nThreads);
+			for(;;)
+				{
+				String line=in.readLine();
+				if(line==null || pool.size()==this.nThreads)
 					{
-					analyze(new File(line));
+					for(Analyzer analyzer:pool)
+						{
+						analyzer.start();
+						}
+					for(Analyzer analyzer:pool)
+						{
+						analyzer.join();
+						}
+					pool.clear();
+					if(line==null) break;
 					}
-				catch(IOException err)
-					{
-					warning(err,"Cannot analyse "+line);
-					}
+				pool.add(new Analyzer(new File(line)));
 				}
 			
 			in.close();
@@ -353,6 +409,7 @@ public class IlluminaStatsFastq
 				{
 				this.archiveFactory.close();
 				}
+			info("Done.");
 			} 
 		catch (Exception e) {
 			e.printStackTrace();
