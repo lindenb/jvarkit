@@ -49,71 +49,14 @@ FASTQs.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFPolyX">VCFPolyX<a></th><td>Number of repeated REF bases around POS.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar81455">Biostar81455<a></th><td>Defining precisely the genomic context based on a position http://www.biostars.org/p/81455/</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/NoZeroVariationVCF">NoZeroVariationVCF<a></th><td>creates a VCF containing one fake variation if the input is empty.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FixVCF">FixVCF<a></th><td>cFix a VCF HEADER when I forgot to declare a FILTER or an INFO field in the HEADER</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFTrio">VCFTrio<a></th><td>Check for mendelian incompatibilities in a VCF.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MapUniProtFeatures">MapUniProtFeatures<a></th><td>map Uniprot features on reference genome.</td></tr>
 </table>
 
 
-<h3>FixVCF</h3>
-<h4>Motivation</h4>
-Fix a VCF HEADER when I forget to declare a FILTER or an INFO field in the HEADER
-<h4>Compilation</h4>
-```bash
-ant fixvcf
-```
-<h4>Options</h4>
-<table>
-<tr><th>Option</th><th>Description</th></tr>
-<tr><td>IN=String</td><td>VCF file/URL to process. Default stdin. </td></tr>
-<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.</td></tr>
-</table>
-
-<h3>VCFTrio</h3>
-<h4>Motivation</h4>
-Check for mendelian incompatibilities in a VCF
-<h4>Compilation</h4>
-```bash
-ant vcftrio
-```
-<h4>Options</h4>
-<table>
-<tr><th>Option</th><th>Description</th></tr>
-<tr><td>PEDIGREE=File</td><td> Pedigree file (plink format) Required. </td></tr>
-<tr><td>FILTER=Boolean</td><td>Set filter 'MENDEL' if incompatibilities found.  Default value: false. This option can be set to 'null' to clear the default value. Possible values: {true, false} </td></tr>
-<tr><td>IN=String</td><td>VCF file/URL to process. Default stdin.   Default value: null. </td></tr>
-<tr><td>OUT=File</td><td>VCF file to generate. Default stdout.   Default value: null. </td></tr>
-</table>
-
-<h3>MapUniProtFeatures</h3>
-<h4>Motivation</h4>
-map uniprot features on reference genome.
-
-<h4>Options</h4>
-<table>
-<tr><th>Option</th><th>Description</th></tr>
-<tr><td>REF=File</td><td>Reference  Required. </td></tr>
-<tr><td>OUT=File</td><td>output name (default: stdout)  Required. </td></tr>
-<tr><td>KGURI=String</td><td>KnownGene data  Default value: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz. This option can be set to 'null' to clear the default value. </td></tr>
-<tr><td>UNIPROT=String</td><td>Uniprot URL/File  Default value: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz. This option can be set to 'null' to clear the default value. </td></tr>
-</table>
-<h4>Example</h4>
-```bash
-$ java  -jar dist/mapuniprot.jar \
-	REF=/path/to/human_g1k_v37.fasta \
-	UNIPROT=/path/uri/uniprot.org/uniprot_sprot.xml.gz  \
-	kgUri=<(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '        ' '{if($2 ~ ".*_.*") next; OFS="       "; gsub(/chr/,"",$2);print;}'   ) |\
-	LC_ALL=C sort -t '	' -k1,1 -k2,2n -k3,3n  | uniq | head
 
 
-1	69090	69144	topological_domain	1000	+	69090	69144	255,0,0	1	54	0
-1	69144	69216	transmembrane_region	1000	+	69144	69216	255,0,0	1	72	0
-1	69216	69240	topological_domain	1000	+	69216	69240	255,0,0	1	24	0
-1	69240	69306	transmembrane_region	1000	+	69240	69306	255,0,0	1	66	0
-1	69306	69369	topological_domain	1000	+	69306	69369	255,0,0	1	63	0
-1	69357	69636	disulfide_bond	1000	+	69357	69636	255,0,0	1	279	0
-1	69369	69429	transmembrane_region	1000	+	69369	69429	255,0,0	1	60	0
-1	69429	69486	topological_domain	1000	+	69429	69486	255,0,0	1	57	0
-1	69486	69543	transmembrane_region	1000	+	69486	69543	255,0,0	1	57	0
-1	69543	69654	topological_domain	1000	+	69543	69654	255,0,0	1	111	0
-```
 <h3>ExtendBed</h3>
 <h4>Motivation</h4>
 Extends a BED file by 'X' bases.

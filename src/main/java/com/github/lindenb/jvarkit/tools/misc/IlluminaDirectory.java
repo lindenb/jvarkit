@@ -6,9 +6,7 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -17,27 +15,17 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import net.sf.picard.PicardException;
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Log;
+
 
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
 public class IlluminaDirectory extends AbstractCommandLineProgram
 	{
-	private static Log LOG=Log.getInstance(IlluminaDirectory.class);
-
-    @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + " Scan folders and generate a structured summary of the files. ";
+	private int ID_GENERATOR=0;
 
 	
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,doc="root directories",minElements=0)
-    public Set<File> IN=new HashSet<File>();
     
-    @Option(shortName="J",doc="json output",optional=true)
-    public boolean JSON=false;
     private MessageDigest md5;
 
     
@@ -70,7 +58,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     		{
     		if(f==null) return;
     		if(!f.canRead()) return;
-    		LOG.debug("Scanning "+f);
+    		IlluminaDirectory.this.info("Scanning "+f);
     		if(f.isDirectory())
     			{
     			File children[]=f.listFiles();
@@ -87,7 +75,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     				FastQName fq=FastQName.parse(f);
     				if(!fq.isValid())
     					{
-    					LOG.warn("invalid name:"+fq);
+    					warning("invalid name:"+fq);
     					return;
     					}
     				if(fq.isUndetermined())
@@ -158,11 +146,13 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     
     private class Pair
     	{
+    	int id;
     	FastQName forward;
     	FastQName reverse;
     	
     	Pair(FastQName fq)
     		{
+    		id=++ID_GENERATOR;
     		switch(fq.getSide())
     			{
     			case Forward:forward=fq; break;
@@ -193,6 +183,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
 				{
 	    		
 	    		out.print("{");
+	    		out.print("\"id\":\"p"+this.id+"\",");
 	    		out.print("\"md5pair\":\""+md5(forward.getFile().getPath()+reverse.getFile().getPath())+"\",");
 	    		out.print("\"lane\":"+forward.getLane()+",");
     			if(forward.getSeqIndex()!=null)
@@ -220,6 +211,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     			{
     			FastQName F=(forward==null?reverse:forward);
     			out.print("{");
+    			out.print("\"id\":\"p"+this.id+"\",");
     			out.print("\"md5filename\":\""+md5(F.getFile().getPath())+"\",");
 	    		out.print("\"lane\":"+F.getLane()+",");
     			if(forward.getSeqIndex()!=null)
@@ -242,6 +234,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     		if(forward!=null && reverse!=null)
     			{
     			w.writeStartElement("pair");
+    			w.writeAttribute("id","p"+this.id);
     			w.writeAttribute("md5",md5(forward.getFile().getPath()+reverse.getFile().getPath()));
     			w.writeAttribute("lane", String.valueOf(forward.getLane()));
     			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(forward.getSeqIndex()));
@@ -269,6 +262,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     			FastQName F=(forward==null?reverse:forward);
     			
     			w.writeStartElement("single");
+    			w.writeAttribute("id","p"+this.id);
     			w.writeAttribute("md5filename",md5(F.getFile().getPath()));
     			w.writeAttribute("lane", String.valueOf(F.getLane()));
     			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(F.getSeqIndex()));
@@ -327,57 +321,97 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
 		}
     
     
+    
     @Override
-    protected int doWork()
-    	{
-    	List<Folder> folders=new ArrayList<Folder>();
-    	for(File f:this.IN)
-    		{
-    		if(!f.isDirectory()) throw new PicardException("Not a directory:"+f);
-    		Folder folder=new Folder();
-    		folder.folder=f;
-    		folder.scan(f);
-    		folders.add(folder);
-    		}
-    	if(JSON)
-    		{
-    		System.out.print("[");
-    		for(int i=0;i< folders.size();++i)
-    			{
-    			if(i>0) System.out.print(",");
-    			folders.get(i).json(System.out);
-    			}
-    		
-    		System.out.println("]");
-    		}
-    	else
-    		{
-    		try
-    			{
+	public String getProgramDescription() {
+		return "Scan folders and generate a structured summary of the files in JSON or XML";
+		}
+	
+	@Override
+	public void printOptions(PrintStream out)
+		{
+		out.println(" -h get help (this screen)");
+		out.println(" -v print version and exit.");
+		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
+		out.println(" -J produces a JSON output");
+		}
+	
+
+	@Override
+	public int doWork(String[] args)
+		{
+		 boolean JSON=false;
+		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=getopt.getopt(args, "hvL:J"))!=-1)
+			{
+			switch(c)
+				{
+				case 'h': printUsage();return 0;
+				case 'v': System.out.println(getVersion());return 0;
+				case 'L': getLogger().setLevel(java.util.logging.Level.parse(getopt.getOptArg()));break;
+				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
+				case 'J': JSON=true; break;
+				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
+				}
+			}
+		if(getopt.getOptInd()==args.length)
+			{
+			error("No directory given");
+			return -1;
+			}
+				
+		try
+			{
+
+			List<Folder> folders=new ArrayList<Folder>();
+	    	for(int i=getopt.getOptInd();i< args.length;++i)
+	    		{
+	    		File f=new File(args[i]);
+	    		if(!f.isDirectory()) throw new PicardException("Not a directory:"+f);
+	    		Folder folder=new Folder();
+	    		folder.folder=f;
+	    		folder.scan(f);
+	    		folders.add(folder);
+	    		}
+	    	if(JSON)
+	    		{
+	    		System.out.print("[");
+	    		for(int i=0;i< folders.size();++i)
+	    			{
+	    			if(i>0) System.out.print(",");
+	    			folders.get(i).json(System.out);
+	    			}
+	    		
+	    		System.out.println("]");
+	    		}
+	    	else
+	    		{
     			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
     			XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
     			w.writeStartDocument("UTF-8","1.0");
     			w.writeStartElement("illumina");
-    			w.writeComment(getCommandLine());
+    			w.writeComment(this.getProgramCommandLine());
     			for(Folder f:folders) f.write(w);
     			w.writeEndElement();
     			w.writeEndDocument();
     			w.flush();
     			w.close();
-    			}
-    		catch(Exception err)
-    			{
-    			err.printStackTrace();
-    			LOG.error(err);
-    			return -1;
-    			}
-    		}
-    	
-    	
-    	
-    	return 0;
-    	}
-	
+	    		}
+			
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			
+			}
+		return 0;
+		}
+   
 
 	/**
 	 * @param args

@@ -203,7 +203,16 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	</sequential>
 </macrodef>
 
-
+<macrodef name="compile-biostar-cmd">
+	<attribute name="post"/>
+	<sequential>
+		<compile-picard-cmd 
+		java="**/Biostar@{post}.java"
+		main="com.github.lindenb.jvarkit.tools.biostar.Biostar@{post}"
+		name="biostar@{post}"
+		/>
+	</sequential>
+</macrodef>
 
 	
 <macrodef name="document-command" >
@@ -515,6 +524,14 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="nozerovariationvcf" >
+	<compile-picard-cmd
+		java="**/NoZeroVariationVCF.java"
+		main="com.github.lindenb.jvarkit.tools.misc.NoZeroVariationVCF"
+		name="nozerovariationvcf"
+		/>
+</target>
+
 
 <target name="vcf2sql" >
 	<compile-with-picard 
@@ -781,7 +798,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>
 
 <target name="illuminadir">
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/IlluminaDirectory.java"
 		main="com.github.lindenb.jvarkit.tools.misc.IlluminaDirectory"
 		name="illuminadir"
@@ -943,6 +960,9 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 <target name="biostar78400"><compile-biostar post="78400"/></target>
 <target name="biostar81455"><compile-biostar post="81455"/></target>
 <target name="biostar84786"><compile-biostar post="84786"/></target>
+<target name="biostar59647"><compile-biostar-cmd post="59647"/></target>
+
+
 
 <target name="mapuniprot" depends="api.uniprot">
 	<compile-with-picard 
