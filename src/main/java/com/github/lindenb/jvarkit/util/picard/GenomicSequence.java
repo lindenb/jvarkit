@@ -4,6 +4,7 @@ import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.samtools.SAMSequenceRecord;
 
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
 
 /**
  * 
@@ -13,6 +14,7 @@ import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
  */
 public class GenomicSequence
 	extends AbstractCharSequence
+	implements ChromosomeSequence
 	{
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	private SAMSequenceRecord samSequenceRecord;
@@ -39,6 +41,8 @@ public class GenomicSequence
 		return getSAMSequenceRecord().hashCode();
 		}
 	
+	/** get the chromosome name of that genomic sequence */
+	@Override
 	public String getChrom()
 		{
 		return getSAMSequenceRecord().getSequenceName();
