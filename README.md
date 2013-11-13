@@ -52,6 +52,7 @@ FASTQs.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FixVCF">FixVCF<a></th><td>cFix a VCF HEADER when I forgot to declare a FILTER or an INFO field in the HEADER</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFTrio">VCFTrio<a></th><td>Check for mendelian incompatibilities in a VCF.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MapUniProtFeatures">MapUniProtFeatures<a></th><td>map Uniprot features on reference genome.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar86363">Biostar86363<a></th><td>Set genotype of specific sample/genotype comb to unknown in multisample vcf file.</td></tr>
 </table>
 
 
