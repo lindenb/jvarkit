@@ -962,6 +962,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 <target name="biostar84786"><compile-biostar post="84786"/></target>
 <target name="biostar59647"><compile-biostar-cmd post="59647"/></target>
 <target name="biostar86363"><compile-biostar-cmd post="86363"/></target>
+<target name="biostar86480"><compile-biostar-cmd post="86480"/></target>
 
 
 
