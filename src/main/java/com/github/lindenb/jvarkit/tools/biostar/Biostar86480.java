@@ -87,7 +87,7 @@ public class Biostar86480 extends AbstractCommandLineProgram
 					System.out.print('\t');
 					System.out.print(1000);
 					System.out.print('\t');
-					System.out.print(strand==1?'+':'-');
+					System.out.print(strand==1?'-':'+');
 					System.out.print('\t');
 					System.out.print(enzyme.getName());
 					System.out.print('\t');
