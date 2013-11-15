@@ -875,6 +875,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>
 
 
+<target name="vcfrebase" >
+	<compile-picard-cmd 
+		java="**/VcfRebase.java"
+		main="com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase"
+		name="vcfrebase"
+		/>
+</target>
+
+
 <target name="ngsfilessummary" >
 	<compile-with-picard 
 		java="**/NgsFilesSummary.java"

@@ -20,7 +20,6 @@ public class Biostar86480 extends AbstractCommandLineProgram
 	{
 	private Rebase rebase=Rebase.createDefaultRebase();
 	
-	
 	private Biostar86480()
 		{
 		}

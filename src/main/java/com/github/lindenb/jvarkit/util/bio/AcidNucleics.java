@@ -49,4 +49,54 @@ public static char complement(char c)
 		default: return 'N';
 		}
 	}
+
+/** return the 'weight' of a degenerate base e.g: A=1, N=0, W=0.5, B=0.25, used with restriction enzymes */
+public static float weight(char c)
+	{
+	switch(c)
+		{
+        case 'A': 
+        case 'T':
+        case 'U': 
+        case 'G': 
+        case 'C': 
+        case 'a':
+        case 't':
+        case 'u': 
+        case 'g': 
+        case 'c': return 1f;
+
+        case 'w': 
+        case 'W': 
+
+        case 's': 
+        case 'S': 
+
+        case 'y': 
+        case 'Y': 
+
+        case 'r': 
+        case 'R':
+
+        case 'k':
+        case 'K': 
+
+        case 'm': 
+        case 'M': return 0.5f;
+
+        case 'b': 
+        case 'd': 
+        case 'h': 
+        case 'v': 
+        case 'B': 
+        case 'D': 
+        case 'H': 
+        case 'V': return 0.25f;
+
+        case 'N':
+        case 'n':
+		default: return 0.f;
+		}
+	}
+
 }

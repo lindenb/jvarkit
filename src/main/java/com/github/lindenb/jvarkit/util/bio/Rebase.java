@@ -16,6 +16,7 @@ public class Rebase
 		public boolean isPalindromic();
 		public int size();
 		public char at(int index);
+		public float getWeight();
 		}
 	
 	public  Rebase.Enzyme getEnzymeByName(String name)
@@ -72,13 +73,19 @@ public class Rebase
 		private String seq;
 		private String decl;
 		private boolean palindromic;
+		private float weight=0f;
 		public EnzymeImpl(String name,String decl)
 			{
 			this.name=name;
 			this.decl=decl;
 			this.seq=decl.replaceAll("[^A-Za-z]","").toUpperCase();
 			this.palindromic=decl.contains("^");
+			for(int i=0;i< this.seq.length();++i)
+				{
+				this.weight+=AcidNucleics.weight(this.seq.charAt(i));
+				}	
 			}
+		public float getWeight() { return this.weight;}
 		public String getName() { return this.name;}
 		public String getBases() { return this.seq;}
 		public String getDecl() { return this.decl;}
