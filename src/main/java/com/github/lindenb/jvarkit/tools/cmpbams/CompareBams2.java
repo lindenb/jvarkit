@@ -41,7 +41,10 @@ public class CompareBams2  extends AbstractCommandLineProgram
     
     @Option(shortName= "FLG", doc="use SAM Flag when comparing.",optional=true)
     public boolean useSamFlag=false;
-	
+
+    @Option(shortName= "CIGAR", doc="use CIGAR when comparing.",optional=true)
+    public boolean useCigar=false;
+
 	
 	private class MatchComparator
 		implements Comparator<Match>
@@ -60,6 +63,8 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			i= m0.pos - m1.pos;
 			if(i!=0) return i;
 			i= m0.flag - m1.flag;
+			if(i!=0) return i;
+			i= m0.cigar.compareTo(m1.cigar);
 			return 0;
 			}
 		}
@@ -88,6 +93,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			m.pos=dis.readInt();
 			m.num_in_pair=dis.readInt();
 			if(useSamFlag) m.flag=dis.readInt();
+			if(useCigar) m.cigar=dis.readUTF();
 			return m;
 			}
 		@Override
@@ -100,6 +106,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			dos.writeInt(match.pos);
 			dos.writeInt(match.num_in_pair);
 			if(useSamFlag) dos.writeInt(match.flag);
+			if(useCigar) dos.writeUTF(match.cigar);
 			}
 		
 		}
@@ -112,6 +119,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 		int bamIndex=-1;
 		int pos=-1;
 		int flag=0;
+		String cigar="";
 
 		@Override
 		public int hashCode()
@@ -122,6 +130,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			result = 31 * result + tid;
 			result = 31 * result + readName.hashCode();
 			result = 31 * result + bamIndex;
+			result = 31 * result + cigar.hashCode();
 			return result;
 			}
 		@Override
@@ -155,6 +164,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			if(seqName==null) seqName="tid"+m.tid;
 			System.out.print(String.valueOf(seqName+":"+(m.pos)));
 			if(this.useSamFlag) System.out.print("="+m.flag);
+			if(this.useCigar) System.out.print("/"+m.cigar);
 			}
 		if(first) System.out.print("(empty)");
 		}
@@ -232,6 +242,8 @@ public class CompareBams2  extends AbstractCommandLineProgram
 					m.readName=rec.getReadName();
 					m.bamIndex=currentSamFileIndex;
 					m.flag=rec.getFlags();
+					m.cigar=rec.getCigarString();
+					if(m.cigar==null) m.cigar="";
 					if(rec.getReadUnmappedFlag())
 						{
 						m.tid=-1;
