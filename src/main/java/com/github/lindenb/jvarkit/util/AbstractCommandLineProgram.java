@@ -248,7 +248,7 @@ public abstract class AbstractCommandLineProgram
 		info("Starting JOB at "+startDate+" "+getClass().getName()+
 				" version="+getVersion()+" "+
 				" built="+getCompileDate());
-		info(this.commandLine);
+		info("Command Line args : "+this.commandLine);
 		String hostname="";
 		try
 			{

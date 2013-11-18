@@ -22,6 +22,11 @@ public class FastqRevComp extends AbstractCommandLineProgram
 		}
 	
 	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/FastqRevComp";
+		}
+	
+	@Override
 	public String getProgramDescription() {
 		return "produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )";
 		}
@@ -109,7 +114,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 			
 			if(getopt.getOptInd()==args.length)
 				{
-				info("Reading from stding");
+				info("Reading from stdin");
 				FastqReader fqR=new FastqReader(new BufferedReader(new InputStreamReader(System.in)));
 				run(fqR,out);
 				fqR.close();
