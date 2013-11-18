@@ -515,6 +515,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="fastqrevcomp" >
+	<compile-picard-cmd
+		java="**/FastqRevComp.java"
+		main="com.github.lindenb.jvarkit.tools.misc.FastqRevComp"
+		name="fastqrevcomp"
+		/>
+</target>
+
+
 
 <target name="howmanybamdict" >
 	<compile-picard-cmd

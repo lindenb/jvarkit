@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -24,9 +27,6 @@ import com.github.lindenb.jvarkit.util.illumina.FastQName;
 public class IlluminaStatsFastq
 	extends AbstractCommandLineProgram
 	{
-	
-	
-	
 	
 	private static class Bases
 		{
@@ -48,6 +48,7 @@ public class IlluminaStatsFastq
     private PrintWriter wbases=null;
     private PrintWriter wlength=null;
     private PrintWriter wDNAIndexes=null;
+    private PrintWriter wsqlite=null;
     private int nThreads=1;
     	
 	
@@ -70,11 +71,31 @@ public class IlluminaStatsFastq
 		{
 		private File fastqFile;
 	    private final Pattern DNARegex=Pattern.compile("[ATGCatcNn]{4,8}");
-
+	    private String hash;
+	    
 		Analyzer(File fastqFile)
 			{
 			this.fastqFile=fastqFile;
+			 try {
+				 MessageDigest md5=MessageDigest.getInstance("MD5");
+		   		md5.reset();
+		   		md5.update(String.valueOf(fastqFile.getPath()).getBytes());
+		   	
+		        
+		   		hash = new BigInteger(1, md5.digest()).toString(16);
+		        if (hash.length() != 32) {
+		            final String zeros = "00000000000000000000000000000000";
+		            hash= zeros.substring(0, 32 - hash.length()) + hash;
+		        }
+		         } catch (NoSuchAlgorithmException e) {
+		           throw new RuntimeException("MD5 algorithm not found",e);
+		         }
 			}
+		
+		
+			
+		
+   
 		
 		@Override
 		public void run()
@@ -193,7 +214,7 @@ public class IlluminaStatsFastq
 					err2.printStackTrace();
 					synchronized (IlluminaStatsFastq.class)
 						{
-						tsv(owner().wbadfastq,f.getPath(),err2.getMessage());
+						tsv(owner().wbadfastq,f.getPath(),this.hash,err2.getMessage());
 						}
 					
 					return;
@@ -210,6 +231,9 @@ public class IlluminaStatsFastq
 						{
 						tsv(owner().wnames,
 							f.getPath(),
+							f.getParentFile(),
+							f.getName(),
+							this.hash,
 							(fq.isUndetermined()?"Undetermined":fq.getSample()),
 							fq.getSeqIndex(),
 							fq.getLane(),
@@ -220,24 +244,24 @@ public class IlluminaStatsFastq
 						}
 					else
 						{
-						tsv(owner().wbadfastq,f.getPath());
+						tsv(owner().wbadfastq,f.getPath(),this.hash);
 						}
 					
 					tsv(owner().wcount,
-						f.getPath(),
+						this.hash,
 						nReads,
 						count_read_fails_filter,
 						count_read_doesnt_fail_filter
 						);
 					
 					tsv(owner().wquals,
-						f.getPath(),
+						this.hash,
 						sum_qualities/count_bases
 						);
 					for(Integer step:qualityHistogram.keySet())
 						{
 						tsv(owner().whistquals,
-								f.getPath(),
+								this.hash,
 								step*QUALITY_STEP,
 								qualityHistogram.count(step)
 								);
@@ -246,7 +270,7 @@ public class IlluminaStatsFastq
 					for(Integer position:pos2quality.keySet())
 						{
 						tsv(owner().wqualperpos,
-								f.getPath(),
+								this.hash,
 								position+1,
 								pos2quality.count(position)/(double)pos2count.count(position),
 								pos2count.count(position)
@@ -257,14 +281,14 @@ public class IlluminaStatsFastq
 						{
 						Bases b=pos2bases.get(i);
 						tsv(owner().wbases,
-							f.getPath(),
+							this.hash,
 							i+1,b.A,b.T,b.G,b.C,b.N
 							);
 						}
 					for(Integer L:lengths.keySet())
 						{
 						tsv(owner().wlength,
-								f.getPath(),
+								this.hash,
 								L,
 								lengths.count(L)
 								);
@@ -274,7 +298,7 @@ public class IlluminaStatsFastq
 					for(String dna:dnaIndexes.keySetDecreasing())
 						{
 						if(++count_out>owner().COUNT_INDEX) break;
-						tsv(owner().wDNAIndexes,f.getPath(),dna,dnaIndexes.count(dna));
+						tsv(owner().wDNAIndexes,this.hash,dna,dnaIndexes.count(dna));
 						}
 					}
 				
@@ -285,10 +309,7 @@ public class IlluminaStatsFastq
 	private File OUT=null;
 	
 	@Override
-	public void printUsage(PrintStream out)
-		{
-		printStandardPreamble(out);
-		out.println("Options:");
+	public void printOptions(PrintStream out) {
 		out.println(" -h help. This Screen");
 		out.println(" -v print version and exits");
 		out.println(" -L (log-level , a "+Level.class.getName()+"). Optional");
@@ -362,6 +383,7 @@ public class IlluminaStatsFastq
 			this.wbases = archiveFactory.openWriter("bases.tsv");
 			this.wlength = archiveFactory.openWriter("lengths.tsv");
 			this.wDNAIndexes = archiveFactory.openWriter("indexes.tsv");
+			this.wsqlite = archiveFactory.openWriter("sqlite3.sql");
 			
 			info("reading from stdin");
 			BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
@@ -387,6 +409,26 @@ public class IlluminaStatsFastq
 			
 			in.close();
 			
+		
+			this.wsqlite.println("create table if not exists wnames ( path TEXT, directory PATH, filename TEXT, md5 TEST,sample TEXT, dnaIndex TEXT, lane INT, side TEXT, split INT, fileSize INT );");
+			this.wsqlite.println("create table if not exists wcount ( md5 TEXT, nReads INT, count_read_fails_filter INT, count_read_doesnt_fail_filter INT );");
+			this.wsqlite.println("create table if not exists wquals ( md5 TEXT, qual FLOAT );");
+			this.wsqlite.println("create table if not exists whistquals ( md5 TEXT, qual FLOAT, nqual INT );");
+			this.wsqlite.println("create table if not exists wqualperpos ( md5 TEXT, position INT, qual FLOAT, nbases INT );");
+			this.wsqlite.println("create table if not exists wbases ( md5 TEXT, position INT, A INT, T INT, G INT, C INT, N INT );");
+			this.wsqlite.println("create table if not exists wlength ( md5 TEXT, readLen INT, nReads INT );");
+			this.wsqlite.println("create table if not exists wDNAIndexes ( md5 TEXT, dnaIndex TEXT, nReads INT );");
+			this.wsqlite.println(".separator '\t'");
+			
+			this.wsqlite.println(".import  names.tsv  wnames\n");
+			this.wsqlite.println(".import  counts.tsv  wcount\n");
+			this.wsqlite.println(".import  quals.tsv  wquals\n");
+			this.wsqlite.println(".import  histquals.tsv  whistquals\n");
+			this.wsqlite.println(".import  histpos2qual.tsv  wqualperpos\n");
+			this.wsqlite.println(".import  bases.tsv  wbases\n");
+			this.wsqlite.println(".import  lengths.tsv  wlength\n");
+			this.wsqlite.println(".import  indexes.tsv  wDNAIndexes\n");
+			
 			
 			for(PrintWriter pw: new PrintWriter[]{
 					this.wnames,
@@ -397,7 +439,9 @@ public class IlluminaStatsFastq
 					this.wqualperpos,
 					this.wbases,
 					this.wlength,
-					this.wDNAIndexes})
+					this.wDNAIndexes,
+					this.wsqlite
+					})
 				{
 				pw.flush();
 				pw.close();

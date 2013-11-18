@@ -49,6 +49,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/IlluminaFastqStats">IlluminaFastqStats<a></th><td>Statistics on Illumina Fastqs</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2Raster">Bam2Raster<a></th><td>Save a BAM alignment as a PNG image.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRebase">VcfRebase<a></th><td>Finds restriction sites overlapping variants in a VCF file</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqRevComp">FastqRevComp<a></th><td>Reverse complement a FATQ file for mate-pair alignment</td></tr>
 </table>
 
 

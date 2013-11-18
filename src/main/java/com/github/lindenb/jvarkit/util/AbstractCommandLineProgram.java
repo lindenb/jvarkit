@@ -37,7 +37,7 @@ public abstract class AbstractCommandLineProgram
 				System.err.println("\"");
 				if(record.getThrown()!=null)
 					{
-					
+					record.getThrown().printStackTrace(System.err);
 					}
 				}
 			
@@ -73,6 +73,7 @@ public abstract class AbstractCommandLineProgram
 	protected void error(Throwable thrown,Object o)
 		{
 		getLogger().log(Level.SEVERE, String.valueOf(o), thrown);
+		
 		}
 	
 	protected void warning(Object o)
