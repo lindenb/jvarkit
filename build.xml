@@ -277,7 +277,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 
 
 
-<target name="mature.projects" depends="vcf2rdf,vcfannobam,ngsfilessummary,findcorruptedfiles,vcftrio,extendbed,vcfbed,vcffilterdoid,vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,picard2xml,cmpbams,vcfbigwig,vcfvcf,evs2bed,vcftabixml"/>
+<target name="mature.projects" depends="vcf2rdf,vcfannobam,ngsfilessummary,findcorruptedfiles,vcftrio,extendbed,vcfbed,vcffilterdoid,vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,cmpbams,vcfbigwig,vcfvcf,evs2bed,vcftabixml"/>
 
 <target name="all" depends="biostar,mature.projects,genscan,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
 </target>
@@ -294,36 +294,6 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 </target>			
 	
 
- <target name="picard2xml" >
-   <mkdir dir="tmp"/>
-   <mkdir dir="dist"/>
-   
-   <copy todir="dist">
-   	<fileset dir="src/main/resources/xsl">
-   	 	<include name="*.xsl"/>
-   	</fileset>
-   </copy>
-   
-   <javac destdir="tmp" includeAntRuntime="false" debug="true">
-   		<src path="src/main/java"/>
-   		<classpath refid="picard.lib"/>
-   		<include name="**/PicardMetricsToXML.java"/>
-   </javac>
-   
-   <pathconvert property="manifest_cpA" pathsep=" " >
-		 <path refid="picard.lib"/>
-   </pathconvert>  
-   
-   <jar jarfile="dist/picardmetrics2xml.jar">
-	     <fileset dir="tmp" />
-	     <manifest>
-	       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.picard.metrics2xml.PicardMetricsToXML"/>
-	        <attribute name="Class-Path" value="${manifest_cpA}"/>
-	     </manifest>
- 	</jar>
-   
-    <delete dir="tmp"/>
- </target>
 
 
 
@@ -891,6 +861,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		name="vcfrebase"
 		/>
 </target>
+
+<target name="metrics2xml" >
+	<compile-picard-cmd 
+		java="**/PicardMetricsToXML.java"
+		main="com.github.lindenb.jvarkit.tools.metrics2xml.PicardMetricsToXML"
+		name="metrics2xml"
+		/>
+</target>
+
 
 
 <target name="ngsfilessummary" >

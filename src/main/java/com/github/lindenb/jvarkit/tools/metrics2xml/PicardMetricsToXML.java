@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.metrics2xml;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.io.Reader;
 import java.io.File;
 import java.lang.reflect.Field;
@@ -14,12 +15,16 @@ import javax.xml.XMLConstants;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+
 import net.sf.picard.metrics.Header;
 import net.sf.picard.metrics.MetricBase;
 import net.sf.picard.metrics.MetricsFile;
 import net.sf.picard.util.Histogram;
 
 public class PicardMetricsToXML
+	extends AbstractCommandLineProgram
 	{
 	private static final String NS="http://picard.sourceforge.net/";
 	private static class MinMax
@@ -213,63 +218,85 @@ public class PicardMetricsToXML
 		{
 		parse(file.toString(),new FileReader(file));
 		}
-	public void run(String[] args) throws IOException,XMLStreamException
+	
+	@Override
+	public String getProgramDescription() {
+		return "transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html ";
+		}
+	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/PicardMetricsToXML";
+		}
+	
+	@Override
+	public void printOptions(PrintStream out)
 		{
-		
-		int optind=0;
-		while(optind<args.length)
+		out.println(" -h get help (this screen)");
+		out.println(" -v print version and exit.");
+		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
+		out.println(" -s print sum");
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=getopt.getopt(args, "hvL:s"))!=-1)
 			{
-			if(args[optind].equals("-h"))
+			switch(c)
 				{
-				return;
+				case 'h': printUsage();return 0;
+				case 'v': System.out.println(getVersion());return 0;
+				case 'L': getLogger().setLevel(java.util.logging.Level.parse(getopt.getOptArg()));break;
+				case 's': print_sums=true;break;
+				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
+				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
 				}
-			else if(args[optind].equals("-s"))
+			}
+	
+		try
+			{
+			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
+			this.out= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
+			this.out.setDefaultNamespace(NS);
+			out.writeStartDocument("UTF-8","1.0");
+			out.writeStartElement("picard-metrics");
+			out.writeDefaultNamespace(NS);
+			out.writeAttribute(XMLConstants.XMLNS_ATTRIBUTE, XMLConstants.XML_NS_URI,"xsi", XMLConstants.W3C_XML_SCHEMA_INSTANCE_NS_URI);
+
+			if(getopt.getOptInd()==args.length)
 				{
-				print_sums=true;
-				}
-			else if(args[optind].equals("--"))
-				{
-				optind++;
-				break;
-				}
-			else if(args[optind].startsWith("-"))
-				{
-				System.err.println("Unnown option: "+args[optind]);
-				return;
+				parse("stdin",new InputStreamReader(System.in));
 				}
 			else
 				{
-				break;
+				for(int i=getopt.getOptInd();i< args.length;++i)
+					{
+					parse(new File(args[i]));
+					}
 				}
-			++optind;
+			out.writeEndElement();
+			out.writeEndDocument();
+			out.flush();
+			out.close();
 			}
-		XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-		this.out= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
-		this.out.setDefaultNamespace(NS);
-		out.writeStartDocument("UTF-8","1.0");
-		out.writeStartElement("picard-metrics");
-		out.writeDefaultNamespace(NS);
-		out.writeAttribute(XMLConstants.XMLNS_ATTRIBUTE, XMLConstants.XML_NS_URI,"xsi", XMLConstants.W3C_XML_SCHEMA_INSTANCE_NS_URI);
-		if(optind==args.length)
+		catch(Exception err)
 			{
-			parse("stdin",new InputStreamReader(System.in));
+			error(err);
+			return -1;
 			}
-		else
+		finally
 			{
-			while(optind< args.length)
-				{
-				String inputName=args[optind++];
-				parse(new File(inputName));
-				}
+			
 			}
-		out.writeEndElement();
-		out.writeEndDocument();
-		out.flush();
-		out.close();
+		return 0;
 		}
+	
 	public static void main(String[] args)
 		throws IOException,XMLStreamException
 		{
-		new PicardMetricsToXML().run(args);
+		new PicardMetricsToXML().instanceMainWithExit(args);
 		}
 	}
