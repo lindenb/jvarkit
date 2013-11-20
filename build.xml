@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE project SYSTEM "build.dtd">
-<project name="jvarkit" default="mature.projects" basedir=".">
+<project name="jvarkit" default="all" basedir=".">
 <property file="build.properties"/>
 <property name="http.proxy" value="localhost:80"/>
 <property name="generated.dir" value="src/main/generated-sources/java"/>
@@ -277,9 +277,16 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 
 
 
-<target name="mature.projects" depends="vcf2rdf,vcfannobam,ngsfilessummary,findcorruptedfiles,vcftrio,extendbed,vcfbed,vcffilterdoid,vcffiltergo,vcfgo,vcfviewgui,blastmapannots,bam4deseq01,sortvcfonref,vcf2sql,sam2tsv,sam4weblogo,vcffilterjs,splitbytile,splitread,vcffixindels,vcfstripannot,splitbam,vcfbedjs,bamstats04,samjs,cmpbams,vcfbigwig,vcfvcf,evs2bed,vcftabixml"/>
 
-<target name="all" depends="biostar,mature.projects,genscan,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar">
+
+<target name="all">
+	<fail>
+###
+###
+### Please use a specific target
+### For example ` ant splitbam`
+### See https://github.com/lindenb/jvarkit/wiki/_pages)
+</fail>
 </target>
 
 
@@ -870,7 +877,13 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
-
+<target name="bam2fastq" >
+	<compile-picard-cmd 
+		java="**/BamToFastq.java"
+		main="com.github.lindenb.jvarkit.tools.fastq.BamToFastq"
+		name="bam2fastq"
+		/>
+</target>
 
 <target name="ngsfilessummary" >
 	<compile-with-picard 
