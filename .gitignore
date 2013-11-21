@@ -3,7 +3,7 @@ jeter*
 .svn
 .classpath
 .project
-bin
+./bin
 dist
 src/main/java/com/github/lindenb/jvarkit/tools/ws/server/Bam.java
 src/main/java/com/github/lindenb/jvarkit/tools/ws/server/BamHeader.java

@@ -214,6 +214,17 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	</sequential>
 </macrodef>
 
+<macrodef name="compile-seqanswers-cmd">
+	<attribute name="post"/>
+	<sequential>
+		<compile-picard-cmd 
+		java="**/SeqAnswers@{post}.java"
+		main="com.github.lindenb.jvarkit.tools.seqanswers.SeqAnswers@{post}"
+		name="seqanswers@{post}"
+		/>
+	</sequential>
+</macrodef>
+
 	
 <macrodef name="document-command" >
 	<attribute name="jar"/>
@@ -560,6 +571,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		name="bam4deseq01"
 		/>
 </target>		
+
+<target name="deseqcount" >
+	<compile-picard-cmd
+		java="**/HtSeqCount.java"
+		main="com.github.lindenb.jvarkit.tools.bam4deseq.HtSeqCount"
+		name="deseqcount"
+		/>
+</target>		
+
 
 <target name="bamstats01" >
 	<compile-with-picard 
@@ -974,6 +994,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 <target name="biostar86363"><compile-biostar-cmd post="86363"/></target>
 <target name="biostar86480"><compile-biostar-cmd post="86480"/></target>
 
+<target name="seqanswers36046"><compile-seqanswers-cmd post="36046"/></target>
 
 
 <target name="mapuniprot" depends="api.uniprot">

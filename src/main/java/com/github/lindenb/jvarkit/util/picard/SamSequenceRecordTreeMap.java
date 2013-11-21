@@ -96,6 +96,29 @@ public class SamSequenceRecordTreeMap<T>
 		return true;
 		}
 	
+	public T get(String chrom,int start1,int end1)
+		{
+		return get(getSAMSequenceDictionary().getSequenceIndex(chrom),start1,end1);
+		}
+	
+	public T get(int tid,int start1,int end1)
+		{
+		
+		if(tid<0 || this.chroms.size()<=tid)
+			{
+			return null;
+			}
+		
+		IntervalTree<T> m= this.chroms.get(tid);
+		if(m==null)
+			{
+			return null;
+			}
+		IntervalTree.Node<T> node=m.find(start1, end1);
+		if(node==null) return null;
+		return node.getValue();
+		}
+	
 	public boolean isEmpty()
 		{
 		return this.chroms.isEmpty();
