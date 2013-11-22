@@ -905,6 +905,16 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="pademptyfastq" >
+	<compile-picard-cmd 
+		java="**/PadEmptyFastq.java"
+		main="com.github.lindenb.jvarkit.tools.misc.PadEmptyFastq"
+		name="pademptyfastq"
+		/>
+</target>
+
+
+
 <target name="ngsfilessummary" >
 	<compile-with-picard 
 		java="**/NgsFilesSummary.java"
@@ -994,7 +1004,6 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 <target name="biostar86363"><compile-biostar-cmd post="86363"/></target>
 <target name="biostar86480"><compile-biostar-cmd post="86480"/></target>
 
-<target name="seqanswers36046"><compile-seqanswers-cmd post="36046"/></target>
 
 
 <target name="mapuniprot" depends="api.uniprot">

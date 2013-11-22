@@ -48,10 +48,10 @@ public class NoZeroVariationVCF extends AbstractVCFFilter2
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		System.out.println(" -h get help (this screen)");
-		System.out.println(" -v print version and exit.");
-		System.out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
-		System.out.println(" -r (file)  fasta sequence file indexed with picard. Required.");
+		out.println(" -h get help (this screen)");
+		out.println(" -v print version and exit.");
+		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
+		out.println(" -r (file)  fasta sequence file indexed with picard. Required.");
 		}
 	@Override
 	protected void doWork(VcfIterator in, VariantContextWriter out)

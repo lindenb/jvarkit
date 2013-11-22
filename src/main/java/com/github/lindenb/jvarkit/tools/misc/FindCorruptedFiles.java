@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.zip.GZIPInputStream;
 
@@ -214,12 +215,38 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 				}
 			}
 		}
+	
+	@Override
+	public String getProgramDescription() {
+		return "Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ)";
+		}
+	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/FindCorruptedFiles";
+	}
+	
+	@Override
+	public void printOptions(PrintStream out)
+		{
+		out.println(" -h get help (this screen)");
+		
+		out.println(" -V (validation stringency). Optional");
+		out.println(" -N (number). Number of records to test in each file (BAM, FASTQ, VCF...). ptional");
+
+		
+		out.println(" -v print version and exit.");
+		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
+		out.println(" -r (file)  fasta sequence file indexed with picard. Required.");
+		}
+
+	
 	@Override
 	public int doWork(String args[])
 		{
 		GetOpt getopt=new GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "vhN:V:L:"))!=-1)
+		while((c=getopt.getopt(args, "vhN:V:N:L:"))!=-1)
 			{
 			switch(c)
 				{

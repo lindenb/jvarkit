@@ -1,7 +1,6 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Date;
 import java.util.HashSet;
@@ -17,6 +16,7 @@ import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMReadGroupRecord;
+import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
@@ -126,19 +126,19 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     	LOG.debug("readVCF  "+f);
     	    	
 
-    	
+    	VcfIterator r=null;
     	InputStream in=null;
     	try
     		{
     		in=IOUtils.openFileForReading(f);
     		
-    		VcfIterator r=new VcfIterator(in);
+    		r=new VcfIterator(in);
         	VCFHeader header=r.getHeader();
         	for(String sample:header.getSampleNamesInOrder())
 	        	{
 	        	print(sample,InfoType.VCF, f);
 	    		}
-
+        	
     		}
     	catch(Exception err)
     		{
@@ -146,7 +146,8 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     		}
     	finally
     		{
-    		if(in!=null) try{ in.close();in=null;} catch(IOException e) {}
+    		CloserUtil.close(r);
+    		CloserUtil.close(in);
     		}
     	
 		}
