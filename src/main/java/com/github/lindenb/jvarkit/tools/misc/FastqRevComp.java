@@ -1,18 +1,17 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
 
 import net.sf.picard.fastq.FastqConstants;
-import net.sf.picard.fastq.FastqReader;
 import net.sf.picard.fastq.FastqRecord;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.picard.FastqReader;
 
 public class FastqRevComp extends AbstractCommandLineProgram
 	{
@@ -45,6 +44,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 	private void run(FastqReader r,PrintStream out)
 		{
 		long nRec=0L;
+		r.setValidationStringency(ValidationStringency.LENIENT);
 		while(r.hasNext())
 			{
 			if(++nRec%1E6==0)
@@ -115,7 +115,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 			if(getopt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				FastqReader fqR=new FastqReader(new BufferedReader(new InputStreamReader(System.in)));
+				FastqReader fqR=new FastqReader(System.in);
 				run(fqR,out);
 				fqR.close();
 				}

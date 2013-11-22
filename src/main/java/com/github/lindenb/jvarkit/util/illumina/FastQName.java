@@ -5,7 +5,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.zip.GZIPInputStream;
 
-import net.sf.picard.fastq.FastqReader;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
+
+import com.github.lindenb.jvarkit.util.picard.FastqReader;
+
 
 /** FastQName */
 public class FastQName
@@ -170,6 +173,7 @@ public class FastQName
 			try
 				{
 				r=new FastqReader(this.getFile());
+				r.setValidationStringency(ValidationStringency.LENIENT);
 				while(r.hasNext())
 					{
 					r.next();

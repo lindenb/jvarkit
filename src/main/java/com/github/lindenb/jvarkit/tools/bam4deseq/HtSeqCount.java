@@ -7,6 +7,7 @@ import java.io.StreamTokenizer;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -334,10 +335,24 @@ public class HtSeqCount extends AbstractCommandLineProgram
 				System.out.println();
 				}
 			
+			List<Transcript> ordered=new ArrayList<Transcript>(this.name2transcript.values());
+			Collections.sort(ordered,new java.util.Comparator<Transcript>()
+					{
+					@Override
+					public int compare(Transcript a,Transcript b)
+						{
+						int i= a.tid-b.tid;
+						if(i!=0) return i;
+						i= a.start-b.start;
+						if(i!=0) return i;
+						i= a.end-b.end;
+						if(i!=0) return i;
+						return a.name.compareTo(b.name);
+						}
+					});
 			
-			for(String name:this.name2transcript.keySet())
+			for(Transcript tr:ordered)
 				{
-				Transcript tr=this.name2transcript.get(name);
 				if(tr.bad_flag) continue;
 				
 				if(this.removeZero)

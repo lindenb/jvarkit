@@ -14,8 +14,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 
-import net.sf.picard.fastq.FastqReader;
 import net.sf.picard.fastq.FastqRecord;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMUtils;
 
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
@@ -23,6 +23,7 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
+import com.github.lindenb.jvarkit.util.picard.FastqReader;
 
 public class IlluminaStatsFastq
 	extends AbstractCommandLineProgram
@@ -149,6 +150,7 @@ public class IlluminaStatsFastq
 				try
 					{
 					r=new FastqReader(f);
+					r.setValidationStringency(ValidationStringency.LENIENT);
 					while(r.hasNext())
 						{
 						FastqRecord record=r.next();

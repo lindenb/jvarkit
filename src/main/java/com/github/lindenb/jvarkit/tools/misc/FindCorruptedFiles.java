@@ -12,7 +12,6 @@ import java.util.zip.GZIPInputStream;
 
 import org.broad.tribble.TribbleException;
 
-import net.sf.picard.fastq.FastqReader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMRecordIterator;
@@ -20,6 +19,7 @@ import net.sf.samtools.util.BlockCompressedInputStream;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class FindCorruptedFiles extends AbstractCommandLineProgram
@@ -111,6 +111,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     	try
     		{
     		r=new FastqReader(f);
+    		r.setValidationStringency(this.validationStringency);
     		while(r.hasNext() && (NUM<0 || n<NUM))
     			{
     			r.next();
