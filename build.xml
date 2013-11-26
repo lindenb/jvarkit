@@ -987,11 +987,20 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		name="blastfastq"
 		/>
 </target>
+
 <target name="bwamemdigest">
 	<compile-with-picard 
 		java="**/BWAMemDigest.java"
 		main="com.github.lindenb.jvarkit.tools.mem.BWAMemDigest"
 		name="bwamemdigest"
+		/>
+</target>
+
+<target name="blastn2snp" depends="api.ncbi.blast">
+	<compile-picard-cmd 
+		java="**/BlastNToSnp.java"
+		main="com.github.lindenb.jvarkit.tools.blast.BlastNToSnp"
+		name="blastn2snp"
 		/>
 </target>
 
