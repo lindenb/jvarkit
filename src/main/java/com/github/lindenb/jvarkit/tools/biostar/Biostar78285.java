@@ -102,7 +102,7 @@ public class Biostar78285 extends AbstractCommandLineProgram
 		    			mapped=new BitSet(ssr.getSequenceLength());
 		    			seen_tid[rec.getReferenceIndex()]=true;
 		    			}
-		    		int refpos0=rec.getUnclippedStart()-1;
+		    		int refpos0=rec.getAlignmentStart()-1;
 		    		for(CigarElement ce:cigar.getCigarElements())
 		    			{
 	    				switch(ce.getOperator())

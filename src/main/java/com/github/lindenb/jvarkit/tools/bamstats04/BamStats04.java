@@ -105,7 +105,7 @@ public class BamStats04 extends AbstractCommandLineProgram
 						}
 					Cigar cigar=rec.getCigar();
 					if(cigar==null) continue;
-		    		int refpos1=rec.getUnclippedStart();
+		    		int refpos1=rec.getAlignmentStart();
 		    		for(CigarElement ce:cigar.getCigarElements())
 		    			{
 	    				switch(ce.getOperator())

@@ -145,7 +145,7 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 				
 				Cigar cigar=rec.getCigar();
 				if(cigar==null) continue;
-	    		int refpos1=rec.getUnclippedStart();
+	    		int refpos1=rec.getAlignmentStart();
 	    		for(CigarElement ce:cigar.getCigarElements())
 	    			{
 					switch(ce.getOperator())

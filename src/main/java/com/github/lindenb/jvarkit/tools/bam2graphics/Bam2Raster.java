@@ -324,7 +324,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 				if(cigar!=null)
 					{
 					byte bases[]=rec.getReadBases();
-					int refpos=rec.getUnclippedStart();
+					int refpos=rec.getAlignmentStart();
 					int readpos=0;
 					for(CigarElement ce:cigar.getCigarElements())
 						{
@@ -503,11 +503,12 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		String region=null;
 	    GetOpt getopt=new GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "hvL:o:R:r:w:N"))!=-1)
+		while((c=getopt.getopt(args, "hvL:o:R:r:w:Nb"))!=-1)
 			{
 			switch(c)
 				{
 				case 'h': printUsage();return 0;
+				case 'b': printBases=true;break;
 				case 'v': System.out.println(getVersion());return 0;
 				case 'L': getLogger().setLevel(Level.parse(getopt.getOptArg()));break;
 				case 'o': fileOut=new File(getopt.getOptArg());break;

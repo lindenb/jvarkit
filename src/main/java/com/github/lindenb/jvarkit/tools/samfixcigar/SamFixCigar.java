@@ -160,8 +160,10 @@ public class SamFixCigar extends AbstractCommandLineProgram
 					}
 				
 				newCigar.clear();
-				int refPos1=rec.getUnclippedStart();
+				int refPos1=rec.getAlignmentStart();
 				int readPos0=0;
+				
+				
 				for(CigarElement ce:cigar.getCigarElements())
 					{
 					switch(ce.getOperator())
@@ -181,7 +183,7 @@ public class SamFixCigar extends AbstractCommandLineProgram
 						case I:
 							{
 							newCigar.add(ce);
-							readPos0+=ce.getLength();
+							readPos0+=ce.getLength();							
 							break;
 							}
 						case EQ://cont
@@ -209,6 +211,7 @@ public class SamFixCigar extends AbstractCommandLineProgram
 									newCigar.add(new CigarElement(1, CigarOperator.X));
 									X=true;
 									}
+								
 	    						refPos1++;
 	    						readPos0++;
     		    				}
