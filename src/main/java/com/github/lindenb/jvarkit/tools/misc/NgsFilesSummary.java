@@ -1,41 +1,43 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.regex.Pattern;
 
 import org.broadinstitute.variant.vcf.VCFHeader;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class NgsFilesSummary extends AbstractCommandLineProgram
 	{
-	private static Log LOG=Log.getInstance(NgsFilesSummary.class);
-
-    @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + " Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). ";
-
-	
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,doc="File and/or directories",minElements=0)
-    public Set<File> IN=new HashSet<File>();
 
     private enum InfoType { BAM,FASTQ,VCF};
     
-  
+    private NgsFilesSummary()
+    	{
+    	
+    	}		
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/NgsFilesSummary";
+    	}
+    
+    @Override
+    public String getProgramDescription() {
+    	return "Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)";
+    	}
     
     
     private void print(String sample,InfoType it,File f)
@@ -63,7 +65,7 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     	SAMFileReader r=null;
     	try {
 			r=new SAMFileReader(f);
-			r.setValidationStringency(super.VALIDATION_STRINGENCY);
+			r.setValidationStringency(ValidationStringency.LENIENT);
 			SAMFileHeader h=r.getFileHeader();
 			for(SAMReadGroupRecord rg: h.getReadGroups())
 				{
@@ -74,7 +76,7 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
 			} 
     	catch (Exception e)
     		{
-    		LOG.warn(e, "Error in "+f);
+    		warning(e, "Error in "+f);
 			}
     	finally
     		{
@@ -82,48 +84,26 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     		}
     	}
     
-    private final Pattern uscore=Pattern.compile("_");
     private void readFastq(File f)
 		{
     	//File parent=f.getParentFile();
     	//if(parent==null || super.VERBOSITY==Log.LogLevel.) return;
+    	FastQName fq=FastQName.parse(f);
     	
-    	
-    	String tokens[]=this.uscore.split(f.getName());
 		
-		if(tokens.length<5)
+		if(!fq.isValid())
 			{
 			//bad name
 			return;
 			}
-		else if(tokens.length>5)
-			{
-			String tokens2[]=new String[5];
-			tokens2[0]=tokens[0];
-			int name_count=(tokens.length-5);
-			for(int i=1;i<= name_count;++i)
-				{
-				tokens2[0]+="_"+tokens[i];
-				}
-			for(int i=name_count+1; i< tokens.length;++i)
-				{
-				tokens2[i-name_count]=tokens[i];
-				}
-			tokens=tokens2;
-			}
-
-		if(tokens[0].equalsIgnoreCase("Undetermined") ||  tokens[1].equalsIgnoreCase("Undetermined"))
-			{
-			return;
-			}
-    	print(tokens[0],InfoType.FASTQ, f);
-    	
+		
+    	print(fq.getSample(),InfoType.FASTQ, f);
 		}
     
     private void readVCF(File f)
 		{
     	if(!f.canRead()) return;
-    	LOG.debug("readVCF  "+f);
+    	debug("readVCF  "+f);
     	    	
 
     	VcfIterator r=null;
@@ -142,7 +122,7 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     		}
     	catch(Exception err)
     		{
-    		LOG.info(err,"Error in VCF "+f);
+    		error(err,"Error in VCF "+f);
     		}
     	finally
     		{
@@ -152,47 +132,94 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     	
 		}
 
-    
+    private void scan(BufferedReader in) throws IOException
+    	{
+    	String line;
+    	while((line=in.readLine())!=null)
+    			{
+    			if(line.isEmpty() || line.startsWith("#")) continue;
+    			analyze(new File(line));
+    			}
+    	}
     
 	private void analyze(File f)
 		{
 		if(f==null) return;
-		if(!f.canRead()) return;
-		LOG.debug("Scanning "+f);
+		if(!f.canRead() || !f.exists()) return;
+		debug("Scanning "+f);
 		if(f.isDirectory())
 			{
-			File children[]=f.listFiles();
-			if(children==null) return;
-			for(File c:f.listFiles())
-				{
-				analyze(c);
-				}
+			return;
 			}
-		else
+		
+		String name=f.getName();
+		if(name.endsWith(".bam") || name.endsWith(".sam"))
 			{
+			readBam(f);
+			}
+		else if(name.endsWith(".vcf.gz") || name.endsWith(".vcf"))
+			{
+			readVCF(f);
+			}
+		else if(name.endsWith(".fastq") || name.endsWith(".fastq.gz") ||
+				name.endsWith(".fq") || name.endsWith(".fq.gz"))
+			{
+			readFastq(f);
+			}
 			
-			String name=f.getName();
-			if(name.endsWith(".bam") || name.endsWith(".sam"))
+		}
+	
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		out.println(" -h get help (this screen)");
+		out.println(" -v print version and exit.");
+		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
+		}
+
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args, "hvL:"))!=-1)
+			{
+			switch(c)
 				{
-				readBam(f);
-				}
-			else if(name.endsWith(".vcf.gz") || name.endsWith(".vcf"))
-				{
-				readVCF(f);
-				}
-			else if(name.endsWith(".fastq") || name.endsWith(".fastq.gz") ||
-					name.endsWith(".fq") || name.endsWith(".fq.gz"))
-				{
-				readFastq(f);
+				case 'h': printUsage();return 0;
+				case 'v': System.out.println(getVersion());return 0;
+				case 'L': getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));break;
+				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
+				default: System.err.println("Unknown option -"+opt.getOptOpt());return -1;
 				}
 			}
+		try
+			{
+			if(opt.getOptInd()==args.length)
+				{
+				info("Reading from stdin");
+				scan(new BufferedReader(new InputStreamReader(System.in)));
+				}
+			else
+				{
+				for(int i=opt.getOptInd();i< args.length;++i)
+					{
+					String filename=args[i];
+					info("Reading from "+filename);
+					BufferedReader r=IOUtils.openURIForBufferedReading(filename);
+					scan(r);
+					r.close();
+					}
+				}
+			return 0;
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
 		}
-	@Override
-	protected int doWork()
-		{
-		for(File in:IN) analyze(in);
-		return 0;
-		}
+	
 	/**
 	 * @param args
 	 */

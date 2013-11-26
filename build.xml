@@ -923,7 +923,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 
 
 <target name="ngsfilessummary" >
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/NgsFilesSummary.java"
 		main="com.github.lindenb.jvarkit.tools.misc.NgsFilesSummary"
 		name="ngsfilessummary"
