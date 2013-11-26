@@ -199,10 +199,10 @@ public class SamFixCigar extends AbstractCommandLineProgram
 							boolean X=false;
 							for(int i=0;i< ce.getLength();++i)
 	    		    			{
-								char c1=(char)bases[readPos0];
-								char c2=(refPos1-1< genomicSequence.length()?genomicSequence.charAt(refPos1-1):'\0');
+								char c1=Character.toUpperCase((char)bases[readPos0]);
+								char c2=Character.toUpperCase(refPos1-1< genomicSequence.length()?genomicSequence.charAt(refPos1-1):'*');
 								
-								if(Character.toUpperCase(c1)==Character.toUpperCase(c2))
+								if(c2=='N' || c1==c2)
 									{
 									newCigar.add(new CigarElement(1, CigarOperator.EQ));
 									}
