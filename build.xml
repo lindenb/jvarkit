@@ -913,6 +913,13 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="samfixcigar" >
+	<compile-picard-cmd 
+		java="**/SamFixCigar.java"
+		main="com.github.lindenb.jvarkit.tools.samfixcigar.SamFixCigar"
+		name="samfixcigar"
+		/>
+</target>
 
 
 <target name="ngsfilessummary" >

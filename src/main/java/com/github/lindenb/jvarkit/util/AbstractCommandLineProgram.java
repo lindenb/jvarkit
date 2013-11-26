@@ -93,6 +93,25 @@ public abstract class AbstractCommandLineProgram
 		getLogger().log(Level.WARNING, String.valueOf(o), thrown);
 		}
 	
+	protected void debug(Object o)
+		{
+		if(o!=null && (o instanceof Throwable))
+			{
+			Throwable T=Throwable.class.cast(o);
+			debug(T,T.getMessage());
+			return;
+			}
+		getLogger().log(Level.FINE, String.valueOf(o));
+		}
+
+	protected void debug(Throwable thrown,Object o)
+		{
+		
+		getLogger().log(Level.FINE, String.valueOf(o), thrown);
+		}
+
+	
+	
 	protected void printStandardPreamble(PrintStream out)
 		{
 		out.println(getProgramName());

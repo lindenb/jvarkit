@@ -80,4 +80,5 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar86480">Biostar86480<a></th><td>Genomic restriction finder See http://www.biostars.org/p/86480/</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamToFastq">BamToFastq<a></th><td>Shrink your FASTQ.bz2 files by 40+% using this one weird tip  by ordering them by alignment to reference</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PadEmptyFastq">PadEmptyFastq<a></th><td>Pad empty fastq sequence/qual with N/#</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamFixCigar">SamFixCigar<a></th><td>Replace 'M'(match) in SAM cigar by 'X' or '='</td></tr>
 </table>
