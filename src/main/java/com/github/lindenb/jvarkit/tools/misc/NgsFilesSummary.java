@@ -67,11 +67,14 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
 			r=new SAMFileReader(f);
 			r.setValidationStringency(ValidationStringency.LENIENT);
 			SAMFileHeader h=r.getFileHeader();
-			for(SAMReadGroupRecord rg: h.getReadGroups())
+			if(h!=null && h.getReadGroups()!=null)
 				{
-				String sample=rg.getSample();
-				if(sample==null || sample.isEmpty()) continue;
-				print(sample,InfoType.BAM, f);
+				for(SAMReadGroupRecord rg: h.getReadGroups())
+					{
+					String sample=rg.getSample();
+					if(sample==null || sample.isEmpty()) continue;
+					print(sample,InfoType.BAM, f);
+					}
 				}
 			} 
     	catch (Exception e)
@@ -145,12 +148,9 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
 	private void analyze(File f)
 		{
 		if(f==null) return;
-		if(!f.canRead() || !f.exists()) return;
+		if(!f.canRead() || !f.exists() || f.isDirectory()) return;
 		debug("Scanning "+f);
-		if(f.isDirectory())
-			{
-			return;
-			}
+		
 		
 		String name=f.getName();
 		if(name.endsWith(".bam") || name.endsWith(".sam"))
