@@ -75,7 +75,6 @@ public class BlastNToSnp extends AbstractCommandLineProgram {
 		}
 	
 	
-	
 private void run(
 		XMLEventReader r
 		)
@@ -157,7 +156,24 @@ private void run(
 					int j=i+1;
 					while(j< align_length)
 						{
-						if(hspMid.charAt(j)!=cm) break;
+						
+						if(hspMid.charAt(j)!='|')
+							{
+							int k=j;
+							while(k< align_length)
+								{
+								if(hspMid.charAt(k)!='|') break;
+								++k;
+								}
+							if(j-k<4 )
+								{
+								j=k;
+								}
+							else
+								{
+								break;
+								}
+							}
 						++j;
 						}
 					int var_length=j-i;

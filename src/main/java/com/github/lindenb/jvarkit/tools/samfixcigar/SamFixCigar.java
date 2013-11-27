@@ -88,18 +88,7 @@ public class SamFixCigar extends AbstractCommandLineProgram
 			{
 			info("Loading reference");
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				}
-			else
-				{
-				for(int i=opt.getOptInd();i< args.length;++i)
-					{
-					String filename=args[i];
-					info("Reading from "+filename);
-					}
-				}
+			
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading stdin");
