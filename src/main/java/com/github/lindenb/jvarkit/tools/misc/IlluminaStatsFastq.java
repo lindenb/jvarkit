@@ -24,6 +24,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
+import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 public class IlluminaStatsFastq
 	extends AbstractCommandLineProgram
@@ -149,7 +150,7 @@ public class IlluminaStatsFastq
 				FastqReader r=null;
 				try
 					{
-					r=new FastqReader(f);
+					r=new FourLinesFastqReader(f);
 					r.setValidationStringency(ValidationStringency.LENIENT);
 					while(r.hasNext())
 						{

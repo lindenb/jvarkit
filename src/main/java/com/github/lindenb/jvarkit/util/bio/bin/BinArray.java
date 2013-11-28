@@ -21,7 +21,7 @@ public class BinArray<T> implements Iterable<T>
 			}
 		}
 	
-	private List<Node<T>> bin2node=new ArrayList<>();
+	private List<Node<T>> bin2node=new ArrayList<Node<T>>();
 
 	public boolean put(int start0,int end0,T value)
 		{

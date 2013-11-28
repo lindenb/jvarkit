@@ -253,7 +253,7 @@ public class HtSeqCount extends AbstractCommandLineProgram
 				
 				case 'F':
 					{
-					if(features==null) features=new HashSet<>();
+					if(features==null) features=new HashSet<String>();
 					features.add(opt.getOptArg());
 					break;
 					}

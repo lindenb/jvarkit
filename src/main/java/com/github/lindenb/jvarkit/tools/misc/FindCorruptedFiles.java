@@ -16,10 +16,12 @@ import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.util.BlockCompressedInputStream;
+import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
+import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class FindCorruptedFiles extends AbstractCommandLineProgram
@@ -110,7 +112,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     	FastqReader r=null;
     	try
     		{
-    		r=new FastqReader(f);
+    		r=new FourLinesFastqReader(f);
     		r.setValidationStringency(this.validationStringency);
     		while(r.hasNext() && (NUM<0 || n<NUM))
     			{
@@ -125,7 +127,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     		}
     	finally
     		{
-    		if(r!=null) r.close();
+    		CloserUtil.close(r);
     		}
 		}
     

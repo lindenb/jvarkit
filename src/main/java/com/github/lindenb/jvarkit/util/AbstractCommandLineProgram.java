@@ -149,9 +149,6 @@ public abstract class AbstractCommandLineProgram
 		return commandLine;
 		}
 	
-	public void printOptions(PrintStream out)
-		{
-		}
 	
 	protected void printSynopsis(PrintStream out)
 		{
@@ -243,6 +240,8 @@ public abstract class AbstractCommandLineProgram
 		return compileDate;
 		}
 	
+	
+	
 	public String getVersion()
 		{
 		if(this.version==null)
@@ -251,6 +250,55 @@ public abstract class AbstractCommandLineProgram
 			loadManifest();
 			}
 		return version;
+		}
+	
+	protected String getGetOptDefault()
+		{
+		return "hvL:";
+		}
+	
+	protected enum GetOptStatus {OK,EXIT_FAILURE,EXIT_SUCCESS};
+	
+	
+
+	public void printOptions(PrintStream out)
+		{
+		out.println(" -h get help (this screen)");
+		out.println(" -v print version and exit.");
+		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
+		}
+	
+	protected GetOptStatus handleOtherOptions(
+			int c,
+			com.github.lindenb.jvarkit.util.cli.GetOpt opt
+			)
+		{
+		switch(c)
+			{
+			case 'h': printUsage();return GetOptStatus.EXIT_SUCCESS;
+			case 'v': System.out.println(getVersion());return GetOptStatus.EXIT_SUCCESS;
+			case 'L':
+				try
+					{
+					getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));
+					}
+				catch(Exception err)
+					{
+					System.err.println("Bad value for log level. Expected one of SEVERE WARNING ALL INFO FINE FINER FINEST OFF");
+					return GetOptStatus.EXIT_FAILURE;
+					}
+				return GetOptStatus.OK;
+			case ':': 
+				{
+				System.err.println("Missing argument for option -"+opt.getOptOpt());
+				return GetOptStatus.EXIT_FAILURE;
+				}
+			default:
+				{
+				System.err.println("Unknown option -"+opt.getOptOpt());
+				return GetOptStatus.EXIT_FAILURE;
+				}
+			}
 		}
  
 	protected int instanceMain(String args[])

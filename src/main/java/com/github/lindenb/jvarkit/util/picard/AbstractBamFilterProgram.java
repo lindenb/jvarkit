@@ -1,11 +1,14 @@
 package com.github.lindenb.jvarkit.util.picard;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.util.cli.GetOpt;
 
-import net.sf.picard.cmdline.CommandLineProgram;
+
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileWriter;
@@ -14,14 +17,15 @@ import net.sf.samtools.SAMFileHeader.SortOrder;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.IOUtil;
 
 
 public abstract class AbstractBamFilterProgram
 	extends com.github.lindenb.jvarkit.util.AbstractCommandLineProgram
 		{
-		protected List<File> TMP_DIR=new ArrayList<File>();
-	CommandLineProgram x;
+		protected List<File> tmpDirs=new ArrayList<File>();
+		protected File bamFileOut=null;
+		protected ValidationStringency validationStringency=ValidationStringency.LENIENT;
+		
 		@Override
 		public String getProgramDescription() {
 			return "Filter Sam";
@@ -30,7 +34,7 @@ public abstract class AbstractBamFilterProgram
 	
 		protected boolean create_md5=false;
 		protected boolean create_index=false;
-		protected int max_records_in_ram=5000;
+		protected int max_records_in_ram=50000;
 
 		protected abstract int doWork(SAMFileReader in,SAMFileWriter out);
 		
@@ -79,9 +83,70 @@ public abstract class AbstractBamFilterProgram
 			spr.setProgramName(this.getProgramName());
 			String cmd=getProgramCommandLine().replaceAll("[\t \n]+"," ").trim();
 			if(!cmd.isEmpty()) spr.setCommandLine(cmd);
+			String vers=getVersion().trim();
+			if(!vers.isEmpty()) spr.setProgramVersion(vers);
 			h2.addProgramRecord(spr);
 			return h2;
 			}
+		
+		
+		@Override
+		public void printOptions(PrintStream out)
+			{
+			out.print(" -o (filename) out. Optional");
+			out.print(" -V (Validation stringency ) Optional. Current is :"+validationStringency);
+			out.print(" -c (int) max records in ram. Optional. Current is :"+max_records_in_ram);
+			super.printOptions(out);
+			}
+		
+		@Override
+		protected String getGetOptDefault()
+			{
+			return super.getGetOptDefault()+"V:o:c:";
+			}
+		
+		@Override
+		protected GetOptStatus handleOtherOptions(int c, GetOpt opt)
+			{
+			switch(c)
+				{
+				case 'c':
+					{
+					try
+						{
+						this.max_records_in_ram=Integer.parseInt(opt.getOptArg());
+						}
+					catch(NumberFormatException err)
+						{
+						error("Bad value for max_records_in_ram");
+						return GetOptStatus.EXIT_FAILURE;
+						}
+					return GetOptStatus.OK;
+					}
+				case 'o':
+					{
+					this.bamFileOut=new File(opt.getOptArg());
+					return GetOptStatus.OK;
+					}
+				case 'V':
+					{
+					try
+						{
+						this.validationStringency=ValidationStringency.valueOf(opt.getOptArg());
+						}
+					catch(Exception err)
+						{
+						error("Bad validation stringency: expected one of: "+Arrays.asList(ValidationStringency.values()));
+						return GetOptStatus.EXIT_FAILURE;
+						}
+					return GetOptStatus.OK;
+					}
+				default:return super.handleOtherOptions(c, opt);
+				}
+			
+			}
+		
+		
 		
 		protected int doWork(File fileIn,File fileOut)
 			throws Exception
@@ -91,9 +156,14 @@ public abstract class AbstractBamFilterProgram
 			SAMFileHeader header;
 			try
 				{
-		        if (this.TMP_DIR.isEmpty())
+		        if (this.tmpDirs.isEmpty())
 		        	{
-		        	TMP_DIR.add(IOUtil.getDefaultTmpDir());
+		        	if(tmpDirs.isEmpty())
+		        		{
+		        		File tf=new File(System.getProperty("java.io.tmpdir"));
+		        		warning("adding "+tf+" as tmp directory");
+		        		tmpDirs.add(tf);
+		        		}
 		        	}
 
 				
@@ -108,7 +178,7 @@ public abstract class AbstractBamFilterProgram
 					sfr=new SAMFileReader(fileIn);
 					}
 				
-				sfr.setValidationStringency(ValidationStringency.LENIENT);
+				sfr.setValidationStringency(this.validationStringency);
 				header=sfr.getFileHeader();
 				if(!verifySortOrder(header.getSortOrder()))
 					{

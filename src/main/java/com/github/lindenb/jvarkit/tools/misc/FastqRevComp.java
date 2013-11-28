@@ -12,6 +12,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
+import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 public class FastqRevComp extends AbstractCommandLineProgram
 	{
@@ -115,7 +116,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 			if(getopt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				FastqReader fqR=new FastqReader(System.in);
+				FastqReader fqR=new FourLinesFastqReader(System.in);
 				run(fqR,out);
 				fqR.close();
 				}
@@ -123,7 +124,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 				{
 				File f=new File(args[optind]);
 				info("Reading from "+f);
-				FastqReader fqR=new FastqReader(f);
+				FastqReader fqR=new FourLinesFastqReader(f);
 				run(fqR,out);
 				fqR.close();
 				}

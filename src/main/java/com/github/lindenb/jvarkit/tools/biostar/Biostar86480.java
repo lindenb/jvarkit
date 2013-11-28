@@ -45,10 +45,8 @@ public class Biostar86480 extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
 		out.println(" -E (name) restrict to that enzyme. Can be called multiple times. Optional.");
+		super.printOptions(out);
 		}
 	
 	private void digest(
@@ -153,16 +151,20 @@ public class Biostar86480 extends AbstractCommandLineProgram
 		Set<String> onlyEnz=new HashSet<String>();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args, "hvL:E:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "E:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));break;
 				case 'E': onlyEnz.add(opt.getOptArg()); break;
-				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+opt.getOptOpt());return -1;
+				default:
+					{
+					switch(handleOtherOptions(c, opt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
 				}
 			}
 		if(!onlyEnz.isEmpty())

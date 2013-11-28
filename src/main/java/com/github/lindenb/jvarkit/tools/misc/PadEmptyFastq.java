@@ -11,6 +11,7 @@ import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
+import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 public class PadEmptyFastq extends AbstractCommandLineProgram
 	{
@@ -130,7 +131,7 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				FastqReader fqr=new FastqReader(System.in);
+				FastqReader fqr=new FourLinesFastqReader(System.in);
 				copyTo(fqr,fqw);
 				fqr.close();
 				}
@@ -140,7 +141,7 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 					{
 					String filename=args[i];
 					info("Reading from "+filename);
-					FastqReader fqr=new FastqReader(new File(filename));
+					FastqReader fqr=new FourLinesFastqReader(new File(filename));
 					copyTo(fqr,fqw);
 					fqr.close();
 					}
