@@ -104,6 +104,15 @@ private void run(
 	System.out.print("REF(hit)");
 	System.out.print('\t');
 	System.out.print("ALT(query)");
+	System.out.print('\t');
+	System.out.print("blast.align_length");
+	System.out.print('\t');
+	System.out.print("blast.hit.var");
+	System.out.print('\t');
+	System.out.print("blast.query.var");
+	System.out.print('\t');
+	System.out.print("blast.mid.var");
+	
 	System.out.println();
 	for(;;)
 		{
@@ -154,49 +163,18 @@ private void run(
 					found_mismatch=true;
 					
 					int j=i+1;
-					while(j< align_length)
+					for(;;)
 						{
-						
-						if(hspMid.charAt(j)!='|')
-							{
-							int k=j;
-							while(k< align_length)
-								{
-								if(hspMid.charAt(k)!='|') break;
-								++k;
-								}
-							if(j-k<4 )
-								{
-								j=k;
-								}
-							else
-								{
-								break;
-								}
-							}
-						++j;
+						int k=hspMid.indexOf(' ', j);
+						if(k==-1 || k-j>3) break;
+						j=k+1;
 						}
-					int var_length=j-i;
+					
+					
 					String ref=new String(hspHSeq.substring(i, j)).replaceAll("[\\- ]", "");
 					String alt=new String(hspQseq.substring(i, j)).replaceAll("[\\- ]", "");
 					
-					//if(cm=='|')
-					if(cm==':')
-						{
-						
-						}
-					else if(ch=='-')
-						{
-						
-						}
-					else if(cq=='-')
-						{
 					
-						}
-					else
-						{
-						
-						}
 					
 					if(hit_shift<0)
 						{
@@ -230,17 +208,28 @@ private void run(
 					System.out.print('\t');
 					System.out.print(hit_index);
 					System.out.print('\t');
-					System.out.print(hit_shift);
+					System.out.print(hit_shift==1?'+':'-');
 					
 					System.out.print('\t');
 					System.out.print(ref);
 					System.out.print('\t');
 					System.out.print(alt);
 					
+					
+					System.out.print('\t');
+					System.out.print(align_length);
+					System.out.print('\t');
+					System.out.print(hspHSeq.substring(i, j).replace(' ', '.'));
+					System.out.print('\t');
+					System.out.print(hspQseq.substring(i, j).replace(' ', '.'));
+					System.out.print('\t');
+					System.out.print(hspMid.substring(i, j).replace(' ', '.'));
+
+					
 					System.out.println();
 					
-					marshaller.marshal(new JAXBElement<Hsp>(new QName("Hsp"), Hsp.class, hsp), System.out);
-					System.out.println();
+					//marshaller.marshal(new JAXBElement<Hsp>(new QName("Hsp"), Hsp.class, hsp), System.out);
+					//System.out.println();
 					
 					while(i<j)
 						{
@@ -288,9 +277,7 @@ private void run(
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
+		super.printOptions(out);
 		}
 	
 	@Override
@@ -298,16 +285,20 @@ private void run(
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args, "hvL:r:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()))!=-1)
 			{
 			switch(c)
 				{
 			
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));break;
-				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+opt.getOptOpt());return -1;
+				default:
+					{
+					switch(handleOtherOptions(c, opt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
 				}
 			}
 		

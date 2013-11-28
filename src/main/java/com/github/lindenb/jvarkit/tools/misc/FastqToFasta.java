@@ -10,10 +10,14 @@ import net.sf.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
+import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
-public class FastqToFasta extends AbstractCommandLineProgram
+public class FastqToFasta
+	extends AbstractCommandLineProgram
 	{
-
+	private int fastaLineLen=50;
+	private boolean trim_after_space=false;
+	
 	private FastqToFasta()
 		{
 		}
@@ -31,16 +35,17 @@ public class FastqToFasta extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
 		out.println(" -o (fileout) Filename output . Optional ");
+		out.println(" -N (fasta line length)  Optional. Default: "+fastaLineLen);
+		out.println(" -b trim fasta header after space.");
+		super.printOptions(out);
 		}
 	
 	
 	
 	private void run(FastqReader r,PrintStream out)
 		{
+		int wsp=0;
 		long nRec=0L;
 		r.setValidationStringency(ValidationStringency.LENIENT);
 		while(r.hasNext())
@@ -51,16 +56,24 @@ public class FastqToFasta extends AbstractCommandLineProgram
 				}
 			FastqRecord fastq=r.next();
 			out.print(">");
-			out.println(fastq.getReadHeader());
+			if(!trim_after_space || (wsp=fastq.getReadHeader().indexOf(' '))==-1)
+				{
+				out.println(fastq.getReadHeader());
+				}
+			else
+				{
+				out.println(fastq.getReadHeader().substring(0, wsp));
+				}
+			
 			int readLen=fastq.getReadString().length();
 			int i=0;
 			while(i< readLen)
 				{
-				int end=Math.min(i+50,readLen);
+				int end=Math.min(i+fastaLineLen,readLen);
 				out.println(fastq.getReadString().substring(i, end));
 				i=end;
 				}
-			if(i%50!=0) out.println();
+			
 			if(out.checkError()) break;
 			}
 		out.flush();
@@ -73,16 +86,22 @@ public class FastqToFasta extends AbstractCommandLineProgram
 		File fileout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "hvL:o:"))!=-1)
+		while((c=getopt.getopt(args, getGetOptDefault()+"o:N:b"))!=-1)
 			{
 			switch(c)
 				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(getopt.getOptArg()));break;
 				case 'o': fileout=new File(getopt.getOptArg());break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
+				case 'b': trim_after_space=true;break;
+				case 'N': fastaLineLen=Math.max(1,Integer.parseInt(getopt.getOptArg()));break;
+				default: 
+					{
+					switch(handleOtherOptions(c, getopt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default: break;
+						}
+					}
 				}
 			}
 		
@@ -103,7 +122,7 @@ public class FastqToFasta extends AbstractCommandLineProgram
 			if(getopt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				FastqReader fqR=new FastqReader(System.in);
+				FastqReader fqR=new FourLinesFastqReader(System.in);
 				run(fqR,out);
 				fqR.close();
 				}
@@ -111,7 +130,7 @@ public class FastqToFasta extends AbstractCommandLineProgram
 				{
 				File f=new File(args[optind]);
 				info("Reading from "+f);
-				FastqReader fqR=new FastqReader(f);
+				FastqReader fqR=new FourLinesFastqReader(f);
 				run(fqR,out);
 				fqR.close();
 				}

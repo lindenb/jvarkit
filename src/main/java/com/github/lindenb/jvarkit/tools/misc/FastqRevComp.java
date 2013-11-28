@@ -31,13 +31,14 @@ public class FastqRevComp extends AbstractCommandLineProgram
 		return "produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )";
 		}
 	
+	
+	
+	
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
 		out.println(" -o (fileout) Filename output . Optional ");
+		super.printOptions(out);
 		}
 	
 	
@@ -75,6 +76,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 				out.print(s.charAt(i));
 				}
 			out.println();
+			if(out.checkError()) break;
 			}
 		out.flush();
 		info("Done. N-Reads:"+nRec);
@@ -86,16 +88,20 @@ public class FastqRevComp extends AbstractCommandLineProgram
 		File fileout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "hvL:o:"))!=-1)
+		while((c=getopt.getopt(args, getGetOptDefault()+"o:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(getopt.getOptArg()));break;
 				case 'o': fileout=new File(getopt.getOptArg());break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
+				default: 
+					{
+					switch(handleOtherOptions(c, getopt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default: break;
+						}
+					}
 				}
 			}
 		

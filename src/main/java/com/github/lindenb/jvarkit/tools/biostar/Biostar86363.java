@@ -156,6 +156,7 @@ public class Biostar86363 extends AbstractVCFFilter2
 				if(tokens.length<3)
 					{
 					error("Bad line in "+line);
+					in.close();
 					return -1;
 					}
 				ChromAndPos cap=new ChromAndPos(
