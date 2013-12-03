@@ -996,6 +996,24 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 </target>
 
+<target name="scanshortinvert">
+	<compile-picard-cmd 
+		java="**/ScanShortInvert.java"
+		main="com.github.lindenb.jvarkit.tools.mem.ScanShortInvert"
+		name="scanshortinvert"
+		/>
+</target>
+
+<target name="bam2wig">
+	<compile-picard-cmd 
+		java="**/Bam2Wig.java"
+		main="com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig"
+		name="bam2wig"
+		/>
+</target>
+
+
+
 <target name="blastn2snp" depends="api.ncbi.blast">
 	<compile-picard-cmd 
 		java="**/BlastNToSnp.java"

@@ -51,6 +51,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRebase">VcfRebase<a></th><td>Finds restriction sites overlapping variants in a VCF file</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqRevComp">FastqRevComp<a></th><td>Reverse complement a FATQ file for mate-pair alignment</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PicardMetricsToXML">PicardMetricsToXML<a></th><td>Convert picards metrics file to XML.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2Wig">Bam2Wig</thd><td>Bam to Wiggle converter</td></tr>
 </table>
 
 

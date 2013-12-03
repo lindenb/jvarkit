@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 
 import javax.imageio.ImageIO;
 
@@ -478,15 +477,13 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		}
 	@Override
 	public void printOptions(PrintStream out) {
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of "+Level.class.getName()+" currently:"+getLogger().getLevel());
 		out.println(" -b print bases . Optional. currently:"+printBases);
 		out.println(" -r (chr:start-end) restrict to that region. REQUIRED.");
 		out.println(" -R (path to fasta) indexed fasta reference. Optional.");
 		out.println(" -w (int) image width. Optional. " +WIDTH);
 		out.println(" -N print Read name.");
 		out.println(" -o (filename) output name. Optional. Default: stdout.");
+		super.printOptions(out);
 		}
 		
 	private boolean printBases=false;
@@ -503,21 +500,23 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		String region=null;
 	    GetOpt getopt=new GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "hvL:o:R:r:w:Nb"))!=-1)
+		while((c=getopt.getopt(args,getGetOptDefault()+ "o:R:r:w:Nb"))!=-1)
 			{
 			switch(c)
 				{
-				case 'h': printUsage();return 0;
 				case 'b': printBases=true;break;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(Level.parse(getopt.getOptArg()));break;
 				case 'o': fileOut=new File(getopt.getOptArg());break;
 				case 'R': referenceFile=new File(getopt.getOptArg());break;
 				case 'r': region=getopt.getOptArg();break;
 				case 'N': printName=!printName;break;
 				case 'w': this.WIDTH=Math.max(100,Integer.parseInt(getopt.getOptArg()));break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
+				default: 
+					switch(handleOtherOptions(c, getopt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
 				}
 			}
 		
