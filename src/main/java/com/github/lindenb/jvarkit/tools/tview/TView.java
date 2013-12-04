@@ -14,8 +14,12 @@ import net.sf.picard.util.IntervalList;
 //import net.sf.picard.util.Log;
 import net.sf.picard.util.SamLocusIterator;
 import net.sf.picard.util.SamLocusIterator.RecordAndOffset;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
+import net.sf.samtools.SAMRecordIterator;
+import net.sf.samtools.SAMSequenceRecord;
 
 
 public class TView
@@ -46,20 +50,102 @@ public class TView
 	public int execute(
 			final SAMFileReader samReader,
 			final IndexedFastaSequenceFile reference,
-			final Interval interval,
+			Interval interval,
 			final TViewHandler handler
 			)
-		{    	
+		{   
+		
+		if(samReader==null) throw new NullPointerException("undefined samReader");
+		if(interval==null)
+			{
+			SAMSequenceRecord ssr=samReader.getFileHeader().getSequence(0);
+			interval=new Interval(ssr.getSequenceName(), 1, 80);
+			}
+		
+		List<List<SAMRecord>> rows=new ArrayList<List<SAMRecord>>();
 		SamLocusIterator slit=null;
 		Iterator<SamLocusIterator.LocusInfo> iter=null;
 		try {
+	        
+            //loop over reads overlaping region
+            SAMRecordIterator sri=samReader.queryOverlapping(
+            		interval.getSequence(),
+            		interval.getStart(), 
+            		interval.getEnd()
+            		);
+            while(sri.hasNext())
+            	{
+            	SAMRecord rec=sri.next();
+            	if(rec.getReadUnmappedFlag()) continue;
+                if(rec.getAlignmentEnd() < interval.getStart() ) continue;
+                if(rec.getAlignmentStart() > interval.getEnd() ) continue;
+            	
+                Cigar c=rec.getCigar();
+                if(c==null) continue;
+                
+                
+                
+                int readpos0=0;
+                int refpos1=rec.getAlignmentStart();
+                for(CigarElement ce:c.getCigarElements())
+                	{
+                	switch(ce.getOperator())
+                		{
+                		case S:
+                			{
+                			readpos0+=ce.getLength();
+                			break;
+                			}
+                		case D:
+                			{
+                			
+                			break;
+                			}
+                		case EQ: case M: case X:
+                			{
+                			readpos0+=ce.getLength();
+                			refpos1+=ce.getLength();
+                			break;
+                			}
+                		default:
+                			{
+                			throw new IllegalStateException("Operator not handled: "+rec.getCigarString());
+                			}
+                		}
+                	}
+            	int y=0;
+                for(y=0;y< rows.size();++y)
+                	{
+                	List<SAMRecord> row=rows.get(y);
+                	SAMRecord last=row.get(row.size()-1);
+                	if(last.getAlignmentEnd()+1 < rec.getAlignmentStart())
+                		{
+                		row.add(rec);
+                		break;
+                		}
+                	}
+                if(y==rows.size())
+                	{
+                	List<SAMRecord> row=new ArrayList<SAMRecord>();
+                	row.add(rec);
+                	rows.add(row);
+                	}
+            	}
+            sri.close();
+            
+            
+            
 	        Map<SAMRecord, Read> record2seq =new LinkedHashMap<SAMRecord, Read>();
             IntervalList  iL=new  IntervalList(samReader.getFileHeader());
             iL.add(interval);
-	        slit=new  SamLocusIterator(samReader,iL,true);
+
+            slit=new  SamLocusIterator(samReader,iL,true);
 	        slit.setEmitUncoveredLoci(false);
 	        Map<Integer,Integer> maxInsertAt=new HashMap<Integer, Integer>();
-
+	        
+	        
+	        
+	        
 	        for(iter=slit.iterator();
                     iter.hasNext();
                     )

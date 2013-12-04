@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.samfixcigar;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.Deflater;
 
 import net.sf.picard.PicardException;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
@@ -18,6 +19,7 @@ import net.sf.samtools.SAMFileWriterFactory;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.TextCigarCodec;
+import net.sf.samtools.util.BlockCompressedOutputStream;
 import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
@@ -42,12 +44,9 @@ public class SamFixCigar extends AbstractCommandLineProgram
 		{
 		out.println(" -r (file) reference indexed with samtools faidx . Required.");
 		out.println(" -o (file) BAM/SAM fileout. default:stdout.");
+		out.println(" -C (int) set zip compression level.");
 
-		
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
-		
+		super.printOptions(out);
 		}
 	
 	@Override
@@ -59,18 +58,25 @@ public class SamFixCigar extends AbstractCommandLineProgram
 		File fout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args, "hvL:r:o:"))!=-1)
+		while((c=opt.getopt(args, getGetOptDefault()+"r:o:C:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'r': faidx=new File(opt.getOptArg());break;
 				case 'o': fout=new File(opt.getOptArg());break;
-					
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));break;
-				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+opt.getOptOpt());return -1;
+				case 'C': 
+					{
+					BlockCompressedOutputStream.setDefaultCompressionLevel(
+							Math.max(Deflater.NO_COMPRESSION, Math.min(Deflater.BEST_COMPRESSION, Integer.parseInt(opt.getOptArg())))
+							);
+					break;
+					}
+				default: switch(handleOtherOptions(c, opt))
+					{
+					case EXIT_FAILURE: return -1;
+					case EXIT_SUCCESS: return 0;
+					default:break;
+					}
 				}
 			}
 		

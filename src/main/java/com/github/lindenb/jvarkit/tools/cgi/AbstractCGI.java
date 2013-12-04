@@ -17,8 +17,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
+import java.util.logging.Level;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
@@ -30,7 +29,7 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
 public abstract class AbstractCGI extends AbstractCommandLineProgram
 	{
-	private static final String PROPERTY_PREFFILE="prefs.file";
+	private static final String PROPERTY_PREFFILE="prefs.file.xml";
 	
 	protected StringBuilder logStream=new StringBuilder();
 	private List<Parameter> parameters=new ArrayList<Parameter>();
@@ -86,6 +85,7 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 				}
 			};
 		System.setErr(new PrintStream(redirect));
+		getLogger().setLevel(Level.SEVERE);
 		}
 	
 	protected List<File> getPreferenceFiles()
@@ -132,6 +132,7 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 				{
 				CloserUtil.close(is);
 				}
+			this.prefs=Preferences.userRoot();
 			}
 		return this.prefs;
 		}

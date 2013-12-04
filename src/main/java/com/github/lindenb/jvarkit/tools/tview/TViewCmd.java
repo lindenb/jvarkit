@@ -3,57 +3,97 @@ package com.github.lindenb.jvarkit.tools.tview;
 import java.io.File;
 import java.io.PrintWriter;
 
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 
-import net.sf.picard.cmdline.CommandLineProgram;
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Interval;
-import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileReader;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.util.CloserUtil;
 
 
-public class TViewCmd extends CommandLineProgram
+public class TViewCmd extends AbstractCommandLineProgram
 	{
-	private static final Log LOG = Log.getInstance(TView.class);
-    @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + " java equivalent of samtools tview. ";
-    @Option(shortName= StandardOptionDefinitions.REFERENCE_SHORT_NAME, doc="Genome Reference",optional=false)
-    public File REF=null;
 
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="A BAM file to process.")
-    public File INPUT=null;
-    @Option(shortName= "L", doc="Region to observe: chrom:start-end",optional=false)
-    public String REGION="";
-    
     
     @Override
-    public String getVersion() {
-    	return "1.0";
-    	}
-    
-    @Override
-	protected int doWork()
+	public String getProgramDescription() {
+		return "java equivalent of samtools tview";
+		}
+	
+	@Override
+	public void printOptions(java.io.PrintStream out)
 		{
+		out.println("-p (chrom:pos) region");
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		String region=null;
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args, getGetOptDefault()+"r:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'r': region=opt.getOptArg();break;
+				default: 
+					{
+					switch(handleOtherOptions(c, opt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default: break;
+						}
+					}
+				}
+			}
+		
+		File faidx=null;
+		File bamFile=null;
+		
+		if(opt.getOptInd()+1==args.length )
+			{
+			bamFile=new File(args[opt.getOptInd()]);
+			}
+		else if(opt.getOptInd()+2==args.length )
+			{
+			bamFile=new File(args[opt.getOptInd()]);
+			faidx=new File(args[opt.getOptInd()+1]);
+			}
+		else
+			{
+			System.err.println("Illegal Number of arguments.");
+			return -1;
+			}
+		
+		
+	
+		
     	IndexedFastaSequenceFile ref=null;
 		PrintWriter out=new PrintWriter(System.out);
 		SAMFileReader samReader=null;
 		try {
-	        samReader=new SAMFileReader(INPUT);
-	        samReader.setValidationStringency(super.VALIDATION_STRINGENCY);
+			info("opening "+bamFile);
+	        samReader=new SAMFileReader(bamFile);
+	        samReader.setValidationStringency(ValidationStringency.LENIENT);
 	        
-			Interval interval=IntervalUtils.parseOne(samReader.getFileHeader().getSequenceDictionary(),REGION);
+			Interval interval=IntervalUtils.parseOne(
+					samReader.getFileHeader().getSequenceDictionary(),
+					region
+					);
 			if(interval==null)
 				{
-				LOG.error("Bad interval "+interval);
+				error("Bad interval "+interval);
 				return -1;
 				}
-			
-			ref=new IndexedFastaSequenceFile(REF);
-	        
+			if(faidx!=null)
+				{
+				ref=new IndexedFastaSequenceFile(faidx);
+				}
 	  
 	        TViewHandler handler=new AsciiHandler();
 	        new TView().execute(samReader, ref, interval, handler);
@@ -64,7 +104,6 @@ public class TViewCmd extends CommandLineProgram
 			}
 		finally
 			{
-			
 			out.flush();
 			CloserUtil.close(samReader);
 			CloserUtil.close(ref);

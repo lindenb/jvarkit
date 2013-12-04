@@ -32,20 +32,23 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 	private void goButton(
 			XMLStreamWriter w,
 			String bamStr,
+			String label,
 			int shift,
 			String chrom,
 			int position1
 			) throws XMLStreamException,IOException
 		{
 		if(chrom==null || bamStr==null || position1+shift<1) return;
+		w.writeCharacters("[");
 		w.writeStartElement("a");
-		w.writeAttribute("title", (position1<0?"+":"")+shift);
+		w.writeAttribute("title", chrom+":"+(position1<0?"+":"")+shift);
 		w.writeAttribute("href",
 				"?bam="+URLEncoder.encode(bamStr,"UTF-8")+
 				"&pos="+URLEncoder.encode(chrom+":"+(position1+shift),"UTF-8")
 				);
-		w.writeCharacters((position1<0?"+":"")+shift);
+		w.writeEntityRef(label);
 		w.writeEndElement();
+		w.writeCharacters("] ");
 		}
 		
 	
@@ -85,7 +88,6 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 		w.writeAttribute("id", "pos");		
 		w.writeAttribute("value", posStr==null?"":posStr.trim());		
 		w.writeAttribute("placeholder", "chrom:pos");
-		w.writeAttribute("required", "true");
 		
 		w.writeEmptyElement("br");
 
@@ -105,6 +107,9 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 		System.out.print("Content-type: text/html;charset=utf-8\n");
 		System.out.println();
 		System.out.flush();
+		
+		
+		
 		XMLStreamWriter w=null;
 		try
 			{
@@ -112,6 +117,19 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 			w=xof.createXMLStreamWriter(System.out,"UTF-8");
 			w.writeStartElement("html");
 			w.writeStartElement("body");
+			w.flush();
+			
+			try
+				{
+				getPreferences();
+				}
+			catch(Exception err)
+				{
+				w.writeCharacters(String.valueOf(err.getMessage()));
+				w.flush();
+				}
+			w.writeComment("ici1");w.flush();
+			
 			String bamStr=this.getString("bam");
 			File bamFile=null;
 			if(bamStr!=null && bamStr.trim().endsWith(".bam"))
@@ -138,6 +156,9 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 						}
 					}
 				}
+			
+			w.writeComment("ici2");w.flush();
+			
 			String chrom=null;
 			int position1=-1;
 			String posStr=this.getString("pos");
@@ -163,23 +184,52 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 					w.writeEmptyElement("br");
 					}
 				}
+			w.writeComment("ici3");w.flush();
+			
+			File samtools=null;
+			try
+				{
+				samtools=new File(getPreferences().get("samtools.path", "samtools"));
+				if(!samtools.exists())
+					{
+					w.writeCharacters("Cannot find samtools: "+samtools);
+					w.writeEmptyElement("br");
+					bamFile=null;
+					}
+				}
+			catch(Exception err)
+				{
+				err.printStackTrace(System.out);
+				bamFile=null;
+				}
 			
 			
 			
 			printForm(w,bamStr,posStr);
-			
+
 			if(bamFile!=null)
 				{
+				if(chrom!=null)
+					{
+					w.writeStartElement("h2");
+					w.writeAttribute("style", "text-align:center;");
+					w.writeCharacters(chrom+":"+position1);
+					w.writeEndElement();//h2
+					w.flush();
+					}
+
+				
 				w.writeStartElement("div");
-				goButton(w,bamStr,-30,chrom,position1);
-				goButton(w,bamStr,-20,chrom,position1);
-				goButton(w,bamStr,-10,chrom,position1);
-				goButton(w,bamStr,-1,chrom,position1);
-				goButton(w,bamStr,1,chrom,position1);
-				goButton(w,bamStr,10,chrom,position1);
-				goButton(w,bamStr,20,chrom,position1);
-				goButton(w,bamStr,30,chrom,position1);
+				w.writeAttribute("style", "text-align:center;");
+				goButton(w,bamStr,"#x21DA",-30,chrom,position1);
+				goButton(w,bamStr,"#x21D0",-20,chrom,position1);
+				goButton(w,bamStr,"#x2190",-10,chrom,position1);
+				goButton(w,bamStr,"#x2192",1,chrom,position1);
+				goButton(w,bamStr,"#x21D2",10,chrom,position1);
+				goButton(w,bamStr,"#x21D2",20,chrom,position1);
+				goButton(w,bamStr,"#x21DB",30,chrom,position1);
 				w.writeEndElement();//div
+				w.flush();
 				
 				Process proc=null;
 				InputStream os=null;
@@ -190,7 +240,7 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 					
 					
 					
-					args.add(getPreferences().get("samtools.path", "samtools"));
+					args.add(samtools.getPath());
 					args.add("tview");
 					args.add("-d");args.add("T");
 					if(chrom!=null && position1>0)
@@ -205,6 +255,8 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 						{
 						args.add(ref);
 						}
+					w.writeComment(args.toString());
+					w.flush();
 					
 					
 					proc=Runtime.getRuntime().exec(
@@ -216,7 +268,10 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 				    err.start();
 				    int c;
 				    os=proc.getInputStream();
+					w.writeStartElement("div");
+					w.writeAttribute("style", "text-align:center;");
 				    w.writeStartElement("pre");
+				    w.writeAttribute("style", "border:1px solid black;");
 				    while((c=os.read())!=-1)
 				    	{
 				    	if(c=='\n')
@@ -230,11 +285,13 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 				    	if(System.out.checkError()) break;
 				    	}
 				    w.writeEndElement();//pre
+				    w.writeEndElement();//div
 				    err.join();
 					}
 				catch(Throwable t)
 					{	
-					
+					t.printStackTrace(System.out);
+					w.writeCharacters(String.valueOf(t.getMessage()));
 					}
 				finally
 					{

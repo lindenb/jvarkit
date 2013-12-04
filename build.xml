@@ -187,6 +187,15 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		     </manifest>
 	 	</jar>
 	   
+	   
+	   	   <echo file="dist/@{name}">#!/bin/bash
+PREFIX=$(dirname $0)
+java -Xmx500m -jar $PREFIX/@{name}.jar $*
+</echo>
+	   
+	   <chmod file="dist/@{name}" perm="ugo+rx"/>
+	   
+	   
 		<delete dir="tmp"/>
 	</sequential>
 </macrodef>
@@ -224,6 +233,31 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		/>
 	</sequential>
 </macrodef>
+
+
+<macrodef name="compile-cgi-cmd">
+	<attribute name="name"/>
+	<attribute name="java"/>
+	<attribute name="main"/>
+	<sequential>
+		<compile-picard-cmd 
+		java="@{java}"
+		main="@{main}"
+		name="@{name}"
+		/>
+	<echo file="dist/@{name}.cgi">#!/bin/bash
+PREFIX=$(dirname $0)
+java -Xmx500m -Dprefs.file.xml=/tmp/prefs.xml -jar $PREFIX/@{name}.jar $*
+</echo>
+	   
+	   <chmod file="dist/@{name}.cgi" perm="ugo+rx"/>
+	
+	</sequential>
+	
+	
+	
+</macrodef>
+
 
 	
 <macrodef name="document-command" >
@@ -1029,6 +1063,16 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		name="fastq2fasta"
 		/>
 </target>
+
+<target name="tview.cgi">
+	<compile-cgi-cmd
+		java="**/SamtoolsTviewCGI.java"
+		main="com.github.lindenb.jvarkit.tools.cgi.SamtoolsTviewCGI"
+		name="tviewweb"
+		/>
+</target>
+
+
 
 
 
