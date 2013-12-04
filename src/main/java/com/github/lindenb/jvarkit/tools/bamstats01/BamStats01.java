@@ -100,6 +100,10 @@ public class BamStats01
 			if(rec.getReadPairedFlag() && rec.getProperPairFlag())
 				{
 				this.increment(Category.PROPER_PAIR);
+				if(rec.getMappingQuality()>=QUAL)
+					{
+					this.increment(Category.PROPER_PAIR_HMQ);
+					}
 				}
 			else
 				{
@@ -173,6 +177,7 @@ public class BamStats01
 		UNMAPPED,
 		MAPPED,
 		PROPER_PAIR,
+		PROPER_PAIR_HMQ,
 		PLUS_STRAND,
 		MINUS_STRAND,
 		PRIMARY_ALIGNMENT,
