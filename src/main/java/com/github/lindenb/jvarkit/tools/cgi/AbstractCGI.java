@@ -22,6 +22,7 @@ import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
 import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import net.sf.samtools.util.CloserUtil;
 
@@ -352,6 +353,61 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 	protected void setMimeHeaderPrinted(boolean mimeHeaderPrinted) {
 		this.mimeHeaderPrinted = mimeHeaderPrinted;
 		}	
+	
+	protected void writeHTMLException(XMLStreamWriter w,Throwable err) throws XMLStreamException
+		{
+		if(err==null) return;
+		w.writeStartElement("pre");
+		w.writeCharacters(String.valueOf(err.getMessage()));w.writeEmptyElement("br");
+		for(StackTraceElement e:err.getStackTrace())
+			{
+			w.writeCharacters(" ");
+			w.writeCharacters(String.valueOf(e.getClassName()));
+			w.writeCharacters(" ");
+			w.writeCharacters(String.valueOf(e.getMethodName()));
+			w.writeCharacters(" ");
+			w.writeCharacters(String.valueOf(e.getLineNumber()));
+			w.writeEmptyElement("br");
+			}
+		w.writeEndElement();
+		}
+	protected void writeHtmlFooter(XMLStreamWriter w) throws XMLStreamException
+		{
+		w.writeEmptyElement("hr");
+		w.writeStartElement("div");
+		
+		w.writeCharacters("Author : ");
+
+		w.writeStartElement("a");
+		w.writeAttribute("href","mailto:"+String.valueOf(getAuthorMail()));
+		w.writeAttribute("title", String.valueOf(getAuthorMail()));
+		w.writeCharacters(String.valueOf(getAuthorName()));
+		w.writeEndElement();
+		
+		String s=getOnlineDocUrl();
+		if(s!=null && !s.isEmpty())
+			{
+			w.writeCharacters(" Documentation : ");
+			w.writeStartElement("a");
+			w.writeAttribute("href", s);
+			w.writeAttribute("title", s);
+			w.writeCharacters(s);
+			w.writeEndElement();
+			}
+		
+		w.writeCharacters(" Version: ");
+		w.writeStartElement("i");
+		w.writeCharacters(String.valueOf(getVersion()));
+		w.writeEndElement();
+		
+		w.writeCharacters(" Compilation: ");
+		w.writeStartElement("i");
+		w.writeCharacters(String.valueOf(getCompileDate()));
+		w.writeEndElement();
+		
+		
+		w.writeEndElement();
+		}
 	
 	abstract protected void doCGI();
 

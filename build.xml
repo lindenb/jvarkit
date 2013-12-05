@@ -247,7 +247,7 @@ java -Xmx500m -jar $PREFIX/@{name}.jar $*
 		/>
 	<echo file="dist/@{name}.cgi">#!/bin/bash
 PREFIX=$(dirname $0)
-java -Xmx500m -Dprefs.file.xml=/tmp/prefs.xml -jar $PREFIX/@{name}.jar $*
+java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.jar $*
 </echo>
 	   
 	   <chmod file="dist/@{name}.cgi" perm="ugo+rx"/>
