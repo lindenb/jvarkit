@@ -1,5 +1,7 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -7,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.SequenceInputStream;
 import java.util.EnumSet;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -30,6 +33,7 @@ import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
+
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -192,14 +196,29 @@ public class FixVCF
 		pw=null;
 		
 		info("re-reading VCF frm tmpFile:" +tmp);
-		//reopen tmp file
 		
-		VcfIterator in=new VcfIterator(new GZIPInputStream(new FileInputStream(tmp)));
-		
-		w.writeHeader(h2);
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),
 				"Saved VCF FILTER AND INFO from "+filenameIn
 				));
+
+		
+		//save header in memory
+		ByteArrayOutputStream baos=new ByteArrayOutputStream();
+		VariantContextWriter w2= VariantContextWriterFactory.create(baos,null,EnumSet.noneOf(Options.class));
+		w2.writeHeader(h2);
+		w2.close();
+		baos.close();
+		 
+		//reopen tmp file
+
+		@SuppressWarnings("resource")
+		VcfIterator in=new VcfIterator(new SequenceInputStream(
+				new ByteArrayInputStream(baos.toByteArray()),
+				new GZIPInputStream(new FileInputStream(tmp)))
+				);
+		
+		w.writeHeader(h2);
+
 		while(in.hasNext())
 			{
 			w.add(in.next());
