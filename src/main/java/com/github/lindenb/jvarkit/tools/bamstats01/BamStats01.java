@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionayProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 
 import net.sf.picard.cmdline.Option;
@@ -25,6 +26,7 @@ import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.SAMSequenceDictionary;
+import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.SequenceUtil;
 
 public class BamStats01
@@ -53,6 +55,11 @@ public class BamStats01
     		optional=true)
 	public File BEDILE=null;
 
+    
+	private int chrX_index=-1;
+	private int chrY_index=-1;
+
+    
     
     private  class Histogram2
     	{
@@ -142,6 +149,14 @@ public class BamStats01
 				ok_pe_alignment=false;
 				}
 			
+			if(chrX_index==rec.getReferenceIndex())
+				{
+				this.increment(Category.X);
+				}
+			else if(chrY_index==rec.getReferenceIndex())
+				{
+				this.increment(Category.Y);
+				}
 			
 			
 			if(ok_pe_alignment)
@@ -184,7 +199,8 @@ public class BamStats01
 		FAIL_MAPPING_QUALITY,
 		DUPLICATE,
 		FAIL_VENDOR_QUALITY,
-		OK_FOR_PE_CALLING;
+		OK_FOR_PE_CALLING,
+		X,Y;
 		};
 	
 	@Override
@@ -228,26 +244,25 @@ public class BamStats01
 					samFileReader=new SAMFileReader(f);
 					samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
 					
+					SAMSequenceDictionary currDict=samFileReader.getFileHeader().getSequenceDictionary();
+
+					if(samSequenceDictionary==null)
+						{
+						samSequenceDictionary=currDict;
+						}
+					
 					if(BEDILE!=null )
 						{
-						SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
-
-						if(samSequenceDictionary==null)
+						if(!SequenceUtil.areSequenceDictionariesEqual(currDict, samSequenceDictionary))
 							{
-							samSequenceDictionary=dict;
+							samFileReader.close();
+							throw new IOException("incompatible sequence dictionaries. ("+f+")");
 							}
-						else
-							{
-							if(!SequenceUtil.areSequenceDictionariesEqual(dict, samSequenceDictionary))
-								{
-								samFileReader.close();
-								throw new IOException("incompatible sequence dictionaries. ("+f+")");
-								}
-							}
+							
 						
 						if(intervals==null)
 							{
-							intervals=new SamSequenceRecordTreeMap<Boolean>(dict);
+							intervals=new SamSequenceRecordTreeMap<Boolean>(currDict);
 							LOG.info("opening "+BEDILE);
 							Pattern tab=Pattern.compile("[\t]");
 							String line;
@@ -257,7 +272,7 @@ public class BamStats01
 								if(line.isEmpty() || line.startsWith("#")) continue;
 								String tokens[]=tab.split(line,5);
 								if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.BEDILE);
-								int seqIndex=dict.getSequenceIndex(tokens[0]);
+								int seqIndex=currDict.getSequenceIndex(tokens[0]);
 								if(seqIndex==-1)
 									{
 									throw new IOException("unknown chromosome from dict in  in "+line+" "+this.BEDILE);
@@ -270,13 +285,33 @@ public class BamStats01
 							LOG.info("done reading "+BEDILE);
 							}
 						}
+					this.chrX_index=-1;
+					this.chrY_index=-1;
 					
 					
+					for(SAMSequenceRecord rec:currDict.getSequences())
+						{
+						String chromName=rec.getSequenceName().toLowerCase();
+						if(chromName.equals("x") || chromName.equals("chrx"))
+							{
+							this.chrX_index=rec.getSequenceIndex();
+							}
+						else if(chromName.equals("y") || chromName.equals("chry"))
+							{
+							this.chrY_index=rec.getSequenceIndex();
+							}
+						}
+					
+					
+					SAMSequenceDictionayProgress progess=new SAMSequenceDictionayProgress(currDict);
 					SAMRecordIterator iter=samFileReader.iterator();
 					while(iter.hasNext())
 						{
 						String sampleName=null;
 						SAMRecord rec=iter.next();
+						
+						progess.watch(rec);
+						
 						SAMReadGroupRecord grp=rec.getReadGroup();
 						if(grp!=null)
 							{
@@ -294,8 +329,15 @@ public class BamStats01
 						
 						hist.histograms[Category2.ALL.ordinal()].watch(rec);
 						
+						
+						
 						if(intervals==null) continue;
-						if(rec.getReadUnmappedFlag()) continue;
+						if(rec.getReadUnmappedFlag())
+							{
+							continue;
+							}
+						
+					
 						
 						if(!intervals.containsOverlapping(
 									rec.getReferenceIndex(),

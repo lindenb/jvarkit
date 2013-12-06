@@ -53,11 +53,13 @@ public class VcfRebase extends AbstractVCFFilter2 {
 		final String ATT="ENZ";
 		GenomicSequence genomicSequence=null;
 		VCFHeader header=in.getHeader();
+		
 		header.addMetaDataLine(new VCFInfoHeaderLine(ATT, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Enzyme overlapping: Format: (Name,Site,Sequence,pos-1,strand)"));
 		out.writeHeader(header);
 		while(in.hasNext())
 			{
 			VariantContext var=in.next();
+
 			if(genomicSequence==null || !genomicSequence.getChrom().equals(var.getChr()))
 				{
 				info("Loading sequence "+var.getChr());
