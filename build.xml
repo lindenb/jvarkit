@@ -830,7 +830,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	
 	
 <target name="fixvcf" >
-	<compile-with-picard 
+	<compile-picard-cmd
 		java="**/FixVCF.java"
 		main="com.github.lindenb.jvarkit.tools.misc.FixVCF"
 		name="fixvcf"
@@ -952,6 +952,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		java="**/SamFixCigar.java"
 		main="com.github.lindenb.jvarkit.tools.samfixcigar.SamFixCigar"
 		name="samfixcigar"
+		/>
+</target>
+
+
+<target name="fixvcfformat" >
+	<compile-picard-cmd 
+		java="**/FixVcfFormat.java"
+		main="com.github.lindenb.jvarkit.tools.misc.FixVcfFormat"
+		name="fixvcfformat"
 		/>
 </target>
 

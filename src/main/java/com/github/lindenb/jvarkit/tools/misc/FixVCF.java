@@ -5,17 +5,15 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.EnumSet;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
 import net.sf.picard.io.IoUtil;
-import net.sf.picard.util.Log;
 import net.sf.samtools.util.BlockCompressedOutputStream;
+import net.sf.samtools.util.CloserUtil;
 
 import org.broad.tribble.readers.LineIterator;
 import org.broad.tribble.readers.LineIteratorImpl;
@@ -34,29 +32,114 @@ import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class FixVCF extends AbstractCommandLineProgram
+public class FixVCF
+	extends com.github.lindenb.jvarkit.util.AbstractCommandLineProgram
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"  Fix a VCF if INFO or FILTER are missing";
-	@Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF file/URL to process. Default stdin. ",optional=true)
-	public String IN=null;
-	@Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="VCF file to generate. Default stdout. ",optional=true)
-	public File OUT=null;
-	
-	
-	private static final Log LOG=Log.getInstance(FixVCF.class);
+	private File tmpDir=null;
 
-	
-	
 	@Override
-	public String getVersion() {
-		return "1.0";
+	public String getProgramDescription() {
+		return "Fix a VCF if INFO or FILTER are missing";
 		}
 	
-	private void doWork(
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/FixVCF";
+		}
+	
+	@Override
+	public void printOptions(PrintStream out) {
+		out.println(" -o (filenameout) optional. default stdout.");
+		out.println(" -T (dir) tmp directory. Optional");
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		File fileout=null;
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+"o:T:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'o':fileout=new File(args[opt.getOptInd()]);break;
+				case 'T':tmpDir=new File(args[opt.getOptInd()]);break;
+				default:
+					{
+					switch(handleOtherOptions(c, opt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		
+		if(tmpDir==null)
+			{
+			tmpDir=new File(System.getProperty("java.io.tmpdir"));
+			}
+		
+		VariantContextWriter w=null;
+		try
+			{
+			if(fileout==null)
+				{
+				this.info("writing to stdout");
+				w= VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+				}
+			else if(fileout.getName().endsWith(".gz"))
+				{
+				this.info("writing to "+fileout+" as bgz file.");
+				BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(fileout);
+				w= VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
+				}
+			else
+				{
+				this.info("writing to "+fileout);
+				w=  VariantContextWriterFactory.create(fileout,null,EnumSet.noneOf(Options.class));
+				}
+			
+
+			
+			if(opt.getOptInd()==args.length)
+				{
+				info("Reading from stdin");
+				doWork("stdin",System.in,w);
+				}
+			else if(opt.getOptInd()+1==args.length)
+				{
+				String filename=args[opt.getOptInd()];
+				info("Reading from "+filename);
+				InputStream in=IOUtils.openURIForReading(filename);
+				doWork(filename,System.in,w);
+				CloserUtil.close(in);
+				}
+			else
+				{
+				error("Illegal number of arguments.");
+				return -1;
+				}
+			return 0;
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(w);
+			}
+		}
+	
+	private int doWork(
+			String filenameIn,
 			InputStream vcfStream, VariantContextWriter w)
 			throws IOException
 		{
@@ -68,7 +151,7 @@ public class FixVCF extends AbstractCommandLineProgram
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		
-		File tmp=IoUtil.newTempFile("tmp", ".vcf.gz", super.TMP_DIR.toArray(new File[super.TMP_DIR.size()]));
+		File tmp=IoUtil.newTempFile("tmp", ".vcf.gz",new File[]{tmpDir});
 		tmp.deleteOnExit();
 
 		PrintWriter pw=new PrintWriter(new GZIPOutputStream(new FileOutputStream(tmp)));
@@ -76,19 +159,31 @@ public class FixVCF extends AbstractCommandLineProgram
 			{
 			String line=r.next();
 			pw.println(line);
-			VariantContext ctx=vcfCodec.decode(line);
+			VariantContext ctx=null;
+			
+			try
+				{
+				ctx=vcfCodec.decode(line);
+				}
+			catch(Exception err)
+				{
+				pw.close();
+				error(line);
+				error(err);
+				return -1;
+				}
 			for(String f:ctx.getFilters())
 				{
 				if(h2.getFilterHeaderLine(f)!=null) continue;
 				//if(f.equals(VCFConstants.PASSES_FILTERS_v4)) continue; hum...
 				if(f.isEmpty() || f.equals(VCFConstants.UNFILTERED)) continue;
- 				LOG.info("Fixing missing Filter:"+f);
+ 				info("Fixing missing Filter:"+f);
 				h2.addMetaDataLine(new VCFFilterHeaderLine(f));
 				}
 			for(String tag:ctx.getAttributes().keySet())
 				{
 				if(h2.getInfoHeaderLine(tag)!=null) continue;
-				LOG.info("Fixing missing INFO:"+tag);
+				info("Fixing missing INFO:"+tag);
 				h2.addMetaDataLine(new VCFInfoHeaderLine(tag, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "undefined. Saved by "+getClass()));
 				}
 			}
@@ -96,79 +191,25 @@ public class FixVCF extends AbstractCommandLineProgram
 		pw.close();
 		pw=null;
 		
-		LOG.info("re-reading VCF frm tmpFile:" +tmp);
+		info("re-reading VCF frm tmpFile:" +tmp);
 		//reopen tmp file
 		
 		VcfIterator in=new VcfIterator(new GZIPInputStream(new FileInputStream(tmp)));
 		
 		w.writeHeader(h2);
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),"Saved VCF FILTER AND INFO from IN="+this.IN));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),
+				"Saved VCF FILTER AND INFO from "+filenameIn
+				));
 		while(in.hasNext())
 			{
 			w.add(in.next());
 			}
 		in.close();
 		tmp.delete();
-		}
-	
-	
-	protected VariantContextWriter createVariantContextWriter() throws IOException
-	{
-	if(OUT==null)
-		{
-		LOG.info("writing to stdout");
-		return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
-		}
-	else if(OUT.getName().endsWith(".gz"))
-		{
-		LOG.info("writing to "+OUT+" as bgz file.");
-		BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(OUT);
-		return VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
-		}
-	else
-		{
-		LOG.info("writing to "+OUT);
-		return  VariantContextWriterFactory.create(OUT,null,EnumSet.noneOf(Options.class));
-		}
-	}
-
-	
-	@Override
-	protected int doWork()
-		{
-		InputStream r=null;
-		VariantContextWriter w=null;
-		try
-			{
-			if(IN==null)
-				{
-				LOG.info("reading from stdin");
-				r=System.in;
-				}
-			else
-				{
-				LOG.info("reading from "+IN);
-				r=IOUtils.openURIForReading(IN);
-				}
-			w=this.createVariantContextWriter();
-			doWork(r,w);
-			}
-		catch (Exception e)
-			{
-			LOG.error(e);
-			testRemoteGit();
-			return -1;
-			}
-		finally
-			{
-			if(w!=null) w.close();
-			if(r!=null) try{r.close();}catch(IOException err){}
-			}	
 		return 0;
 		}
+	
 
-	
-	
 	
 	public static void main(String[] args)
 		{

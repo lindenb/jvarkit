@@ -315,7 +315,7 @@ public abstract class AbstractCommandLineProgram
 		info("Starting JOB at "+startDate+" "+getClass().getName()+
 				" version="+getVersion()+" "+
 				" built="+getCompileDate());
-		info("Command Line args : "+this.commandLine);
+		info("Command Line args : "+(this.commandLine.isEmpty()?"(EMPTY/NO-ARGS)":this.commandLine));
 		String hostname="";
 		try
 			{

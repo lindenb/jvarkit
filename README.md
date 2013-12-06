@@ -83,4 +83,5 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamToFastq">BamToFastq<a></th><td>Shrink your FASTQ.bz2 files by 40+% using this one weird tip  by ordering them by alignment to reference</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PadEmptyFastq">PadEmptyFastq<a></th><td>Pad empty fastq sequence/qual with N/#</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamFixCigar">SamFixCigar<a></th><td>Replace 'M'(match) in SAM cigar by 'X' or '='</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FixVcfFormat">FixVcfFormat<a></th><td>Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453</td></tr>
 </table>
