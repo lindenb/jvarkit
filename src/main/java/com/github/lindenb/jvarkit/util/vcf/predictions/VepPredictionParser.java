@@ -5,10 +5,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 
@@ -27,12 +27,12 @@ sition|Protein_position|Amino_acids|Codons|Existing_variation|HGNC|DISTANCE|SIFT
  */
 public class VepPredictionParser implements PredictionParser
 	{
+	private static final Logger LOG=Logger.getLogger("jvarkit");
 
 	private enum COLS{Allele,Gene,Feature,Feature_type,Consequence,cDNA_position,CDS_position,Protein_position,Amino_acids,Codons,Existing_variation,HGNC,DISTANCE,SIFT,PolyPhen,CELL_TYPE,RefSeq};
 	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
 	private Pattern pipe=Pattern.compile("[\\|]");
 	private String tag;
-	private List<String> declaredCols;
 
 	
 	public VepPredictionParser(VCFHeader header)
@@ -65,13 +65,12 @@ public class VepPredictionParser implements PredictionParser
 		int i=description.indexOf(chunck);
 		if(i==-1)
 			{
-			System.err.println("Cannot find "+chunck+ " in "+description);
-	
+			LOG.warning("Cannot find "+chunck+ " in "+description);
 			return;
 			}
 		description=description.substring(i+chunck.length()).replaceAll("[ \'\\.\\(\\)]+","").trim();
 		String tokens[]=pipe.split(description);
-		this.declaredCols=Arrays.asList(tokens);
+
 		for(i=0;i< tokens.length;++i)
 			{
 			if(tokens[i].isEmpty()) continue;
@@ -92,56 +91,11 @@ public class VepPredictionParser implements PredictionParser
 		}
 	
 	
-	public List<Map<String,String>> split(VariantContext ctx)
-		{
-		ArrayList<Map<String, String>> preds= new ArrayList<Map<String, String>>();
-		if(col2col.isEmpty())
-			{
-			return preds;
-			}
-		Object o=ctx.getAttribute(getTag());
-		if(o==null) return preds;
-		if(o.getClass().isArray())
-			{
-			for(Object o2:(Object[])o) _map(preds,o2);
-			}
-		else if(o instanceof List)
-			{
-			for(Object o2:(List<?>)o)  _map(preds,o2);
-			}
-		else
-			{
-			_map(preds,Collections.singleton(o));
-			}
-		return preds;
-		}
-
-	private void _map( List<Map<String,String>> preds,Object o)
-		{
-		if(o==null) return;
-		if(!(o instanceof String))
-			{
-			_map(preds, o.toString());
-			return;
-			}
-		String s=String.class.cast(o).trim();
-		String tokens[]=pipe.split(s);
-		Map<String,String> m=new LinkedHashMap<String,String>();
-		for(int i=0;i< tokens.length && i< this.declaredCols.size();++i)
-			{
-			if( this.declaredCols.get(i).isEmpty()) continue;
-			if( tokens[i].isEmpty()) continue;
-			m.put( this.declaredCols.get(i), tokens[i]);
-			}
-		preds.add(m);
-		}
-
-	
 	
 	@Override
-	public List<? extends Prediction> getPredictions(VariantContext ctx)
+	public List<VepPrediction> getPredictions(VariantContext ctx)
 		{
-		 ArrayList<Prediction> preds= new ArrayList<Prediction>();
+		ArrayList<VepPrediction> preds= new ArrayList<VepPrediction>();
 		if(col2col.isEmpty()) return preds;
 		Object o=ctx.getAttribute(this.tag);
 		if(o==null)
@@ -164,7 +118,7 @@ public class VepPredictionParser implements PredictionParser
 		return preds;
 		}
 	
-	private void _predictions( List<Prediction> preds,Object o)
+	private void _predictions( List<VepPrediction> preds,Object o)
 		{
 		if(o==null) return;
 		if(!(o instanceof String))
@@ -174,15 +128,15 @@ public class VepPredictionParser implements PredictionParser
 			}
 		String s=String.class.cast(o).trim();
 		String tokens[]=pipe.split(s);
-		preds.add(new MyPred(tokens));
+		preds.add(new VepPrediction(tokens));
 		}
 			
 	
-	private class MyPred
+	public class VepPrediction
 		implements Prediction
 		{
 		private String tokens[];
-		MyPred(String tokens[])
+		VepPrediction(String tokens[])
 			{
 			this.tokens=tokens;
 			}
@@ -201,7 +155,12 @@ public class VepPredictionParser implements PredictionParser
 			return getByCol(COLS.HGNC);
 			}
 		
-		public Map<COLS,String> getMap()
+		public String getHGNC()
+			{
+			return getByCol(COLS.HGNC);
+			}
+		
+		private Map<COLS,String> getMap()
 			{
 			Map<COLS, String> hash=new HashMap<COLS,String>();
 			for(COLS c: col2col.keySet())

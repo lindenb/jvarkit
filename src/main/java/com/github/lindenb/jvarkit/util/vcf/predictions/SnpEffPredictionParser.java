@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +30,6 @@ public class SnpEffPredictionParser implements PredictionParser
 		Amino_Acid_change,Amino_Acid_length,Gene_Name , Gene_BioType , Coding , Transcript,
 		Exon  , GenotypeNum , ERRORS , WARNINGS};
 	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
-	private List<String> declaredCols;
 	private Pattern pipe=Pattern.compile("[\\|\\(\\)]");
 	private String tag;
 	public SnpEffPredictionParser(VCFHeader header)
@@ -65,7 +63,6 @@ public class SnpEffPredictionParser implements PredictionParser
 			}
 		description=description.substring(i+chunck.length()).replace('(','|').replaceAll("[ \'\\.)\\[\\]]+","").trim();
 		String tokens[]=pipe.split(description);
-		this.declaredCols=Arrays.asList(tokens);
 		for(i=0;i< tokens.length;++i)
 			{
 			if(tokens[i].isEmpty()) continue;
@@ -91,55 +88,11 @@ public class SnpEffPredictionParser implements PredictionParser
 		return this.tag;
 		}
 	
-	
-	public List<Map<String,String>> split(VariantContext ctx)
-		{
-		ArrayList<Map<String, String>> preds= new ArrayList<Map<String, String>>();
-		if(col2col.isEmpty())
-			{
-			return preds;
-			}
-		Object o=ctx.getAttribute(getTag());
-		if(o==null) return preds;
-		if(o.getClass().isArray())
-			{
-			for(Object o2:(Object[])o) _map(preds,o2);
-			}
-		else if(o instanceof List)
-			{
-			for(Object o2:(List<?>)o)  _map(preds,o2);
-			}
-		else
-			{
-			_map(preds,Collections.singleton(o));
-			}
-		return preds;
-		}
-	
-	private void _map( List<Map<String,String>> preds,Object o)
-		{
-		if(o==null) return;
-		if(!(o instanceof String))
-			{
-			_map(preds, o.toString());
-			return;
-			}
-		String s=String.class.cast(o).trim();
-		String tokens[]=pipe.split(s);
-		Map<String,String> m=new LinkedHashMap<String,String>();
-		for(int i=0;i< tokens.length && i< this.declaredCols.size();++i)
-			{
-			if( this.declaredCols.get(i).isEmpty()) continue;
-			if( tokens[i].isEmpty()) continue;
-			m.put( this.declaredCols.get(i), tokens[i]);
-			}
-		preds.add(m);
-		}
 
 	@Override
-	public List<? extends Prediction> getPredictions(VariantContext ctx)
+	public List<SnpEffPrediction> getPredictions(VariantContext ctx)
 		{
-		 ArrayList<Prediction> preds= new ArrayList<Prediction>();
+		 ArrayList<SnpEffPrediction> preds= new ArrayList<SnpEffPrediction>();
 		if(col2col.isEmpty())
 			{
 			return preds;
@@ -161,7 +114,7 @@ public class SnpEffPredictionParser implements PredictionParser
 		return preds;
 		}
 	
-	private void _predictions( List<Prediction> preds,Object o)
+	private void _predictions( List<SnpEffPrediction> preds,Object o)
 		{
 		if(o==null) return;
 		if(!(o instanceof String))
@@ -171,7 +124,7 @@ public class SnpEffPredictionParser implements PredictionParser
 			}
 		String s=String.class.cast(o).trim();
 		String tokens[]=pipe.split(s);
-		preds.add(new MyPred(tokens));
+		preds.add(new SnpEffPrediction(tokens));
 		}
 	
 	
@@ -185,11 +138,11 @@ public class SnpEffPredictionParser implements PredictionParser
 		}
 			
 	
-	private class MyPred
+	public class SnpEffPrediction
 		implements Prediction
 		{
 		private String tokens[];
-		MyPred(String tokens[])
+		SnpEffPrediction(String tokens[])
 			{
 			this.tokens=tokens;
 			}
@@ -266,7 +219,7 @@ public class SnpEffPredictionParser implements PredictionParser
 			}
 
 		
-		public Map<COLS,String> getMap()
+		private Map<COLS,String> getMap()
 			{
 			Map<COLS, String> hash=new HashMap<COLS,String>();
 			for(COLS c: col2col.keySet())

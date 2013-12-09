@@ -29,6 +29,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFPolyX">VCFPolyX<a></th><td>Number of repeated REF bases around POS.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFBigWig">VCFBigWig<a></th><td>Annotate a VCF with the data of a bigwig file.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFTabixml">VCFTabixml<a></th><td>Annotate a value from a vcf+xml file.4th column of the BED indexed with TABIX is a XML string.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/GroupByGene">GroupByGene<a></th><td>Group VCF data by gene/transcript.</td></tr>
 </table>
 
 ###Less used, but useful

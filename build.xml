@@ -829,6 +829,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>
 	
 	
+<target name="groupbygene">
+	<compile-picard-cmd
+		java="**/GroupByGene.java"
+		main="com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene"
+		name="groupbygene"
+		/>
+</target>
+
+	
 <target name="fixvcf" >
 	<compile-picard-cmd
 		java="**/FixVCF.java"
