@@ -149,19 +149,20 @@ public class BamStats01
 				ok_pe_alignment=false;
 				}
 			
-			if(chrX_index==rec.getReferenceIndex())
-				{
-				this.increment(Category.X);
-				}
-			else if(chrY_index==rec.getReferenceIndex())
-				{
-				this.increment(Category.Y);
-				}
 			
 			
 			if(ok_pe_alignment)
 				{
 				this.increment(Category.OK_FOR_PE_CALLING);
+				if(chrX_index==rec.getReferenceIndex())
+					{
+					this.increment(Category.X);
+					}
+				else if(chrY_index==rec.getReferenceIndex())
+					{
+					this.increment(Category.Y);
+					}
+
 				}
 			
 			

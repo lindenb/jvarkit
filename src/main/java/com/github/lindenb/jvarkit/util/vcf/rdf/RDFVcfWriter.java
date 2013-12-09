@@ -5,7 +5,6 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -32,6 +31,11 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
+/** 
+ * RDFVcfWriter
+ * @author lindenb
+ *
+ */
 public class RDFVcfWriter
 	implements VariantContextWriter
 	{
@@ -246,6 +250,7 @@ public class RDFVcfWriter
 						"urn:filter/"+ filt
 						);
 				}
+			
 			//INFO
 			for(String key:ctx.getAttributes().keySet())
 				{
@@ -437,6 +442,7 @@ public class RDFVcfWriter
 					}
 				else if(o instanceof Collection)
 					{
+					@SuppressWarnings("rawtypes")
 					Collection array=(Collection)o;
 					for(Object o2:array) handleObject(o2);
 					}

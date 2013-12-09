@@ -821,9 +821,9 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>
 
 <target name="vcf2rdf">
-	<compile-with-picard 
-		java="**/VCF2RDF.java"
-		main="com.github.lindenb.jvarkit.tools.misc.VCF2RDF"
+	<compile-picard-cmd
+		java="**/VcfToRdf.java"
+		main="com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdf"
 		name="vcf2rdf"
 		/>
 </target>
