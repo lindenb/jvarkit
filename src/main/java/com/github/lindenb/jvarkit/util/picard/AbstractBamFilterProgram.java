@@ -85,7 +85,7 @@ public abstract class AbstractBamFilterProgram
 			if(!cmd.isEmpty()) spr.setCommandLine(cmd);
 			String vers=getVersion().trim();
 			if(!vers.isEmpty()) spr.setProgramVersion(vers);
-			h2.addProgramRecord(spr);
+			//h2.addProgramRecord(spr);
 			return h2;
 			}
 		
@@ -146,7 +146,13 @@ public abstract class AbstractBamFilterProgram
 			
 			}
 		
-		
+		protected boolean isOutputPresorted(final SAMFileHeader header)
+			{
+			return	header!=null &&
+					header.getSortOrder()!=null &&
+					header.getSortOrder()!=SortOrder.unsorted
+					;
+			}
 		
 		protected int doWork(File fileIn,File fileOut)
 			throws Exception
@@ -196,7 +202,7 @@ public abstract class AbstractBamFilterProgram
 					info("Writing to stdout");
 					sfw=sfwf.makeSAMWriter(
 							headerOut, 
-							headerOut.getSortOrder()!=SortOrder.unsorted
+							isOutputPresorted(headerOut)
 							,System.out);
 					}
 				else
@@ -204,7 +210,7 @@ public abstract class AbstractBamFilterProgram
 					info("Writing to "+fileOut);
 					sfw=sfwf.makeSAMOrBAMWriter(
 							headerOut, 
-							headerOut.getSortOrder()!=SortOrder.unsorted
+							isOutputPresorted(headerOut)
 							,fileOut);
 					}
 				

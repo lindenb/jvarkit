@@ -10,7 +10,9 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -153,15 +155,39 @@ public class FixVCF
 		LineIterator r= new LineIteratorImpl(LineReaderUtil.fromBufferedStream(vcfStream));
 		VCFHeader header=(VCFHeader) vcfCodec.readActualHeader(r);
 		
-		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
+		//samples names have been changed by picard api and reordered !!!
+		//re-create the original order
+		List<String> sampleNamesInSameOrder=new ArrayList<String>(header.getSampleNamesInOrder().size());
+		for(int col=0;col< header.getSampleNamesInOrder().size();++col )
+			{
+			for(String sample: header.getSampleNameToOffset().keySet())
+				{
+				if(header.getSampleNameToOffset().get(sample)==col)
+					{
+					sampleNamesInSameOrder.add(sample);
+					break;
+					}
+				}
+			}
+		if(sampleNamesInSameOrder.size()!=header.getSampleNamesInOrder().size())
+			{
+			throw new IllegalStateException();
+			}
+		
+		VCFHeader h2=new VCFHeader(
+				header.getMetaDataInInputOrder(),
+				sampleNamesInSameOrder
+				);
 		
 		File tmp=IoUtil.newTempFile("tmp", ".vcf.gz",new File[]{tmpDir});
 		tmp.deleteOnExit();
-
+		
+		
 		PrintWriter pw=new PrintWriter(new GZIPOutputStream(new FileOutputStream(tmp)));
 		while(r.hasNext())
 			{
 			String line=r.next();
+			
 			pw.println(line);
 			VariantContext ctx=null;
 			

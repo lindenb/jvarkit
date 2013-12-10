@@ -102,7 +102,7 @@ public class SplitBam extends AbstractCommandLineProgram
 			rec.setSecondOfPairFlag(i%2==1);
 			rec.setReadBases(bases.getBytes());
 			rec.setMappingQuality(0);
-			rec.setBaseQualityString(bases.replace('N', 'I'));
+			rec.setBaseQualityString(bases.replace('N', '#'));
 			rec.setReadUnmappedFlag(true);
 			rec.setMateUnmappedFlag(true);
 			rec.setReadPairedFlag(true);

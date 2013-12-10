@@ -396,7 +396,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 
 
 <target name="samjs" >
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/SamJavascript.java"
 		main="com.github.lindenb.jvarkit.tools.samjs.SamJavascript"
 		name="samjs"
@@ -1081,6 +1081,23 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="fastq2fasta"
 		/>
 </target>
+
+<target name="coveragenormalizer">
+	<compile-picard-cmd 
+		java="**/CoverageNormalizer.java"
+		main="com.github.lindenb.jvarkit.tools.misc.CoverageNormalizer"
+		name="coveragenormalizer"
+		/>
+</target>
+
+<target name="vcfshuffle">
+	<compile-picard-cmd 
+		java="**/VCFShuffle.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VCFShuffle"
+		name="vcfshuffle"
+		/>
+</target>
+
 
 <target name="tview.cgi">
 	<compile-cgi-cmd

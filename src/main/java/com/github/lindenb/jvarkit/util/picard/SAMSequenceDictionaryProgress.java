@@ -70,26 +70,27 @@ public class SAMSequenceDictionaryProgress
 		watch(samSequenceDictionary.getSequenceIndex(chrom),pos);
 		}
 	
+	
 	private String duration(long millisecs)
 		{
 		long n =millisecs/1000;
 		if(n<60)
 			{
-			return n+" seconds";
+			return n+" second"+(n<2?"":"s");
 			}
 		n/=60;//minutes
 		if(n< 60)
 			{
-			return n+" minutes";
+			return n+" minute"+(n<2?"":"s");
 			}
 		n/=60;//hours
 		if(n< 24)
 			{
-			return n+" hours";
+			return n+" hour"+(n<2?"":"s");
 			}
 		n/=24;
 	
-		return n+" days";
+		return n+" day"+(n<2?"":"s");
 		}
 	
 	/** return the number of records seen so far */
