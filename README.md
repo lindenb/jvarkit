@@ -86,6 +86,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamFixCigar">SamFixCigar<a></th><td>Replace 'M'(match) in SAM cigar by 'X' or '='</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FixVcfFormat">FixVcfFormat<a></th><td>Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfToRdf">VcfToRdf<a></th><td>Convert a VCF to RDF.</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFShuffle">VCFShuffle<a></th><td>Shuffle a VCF.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFShuffle">VcfShuffle<a></th><td>Shuffle a VCF.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/DownSampleVcf">DownSampleVcf<a></th><td>Down sample a VCF.</td></tr>
 
 </table>

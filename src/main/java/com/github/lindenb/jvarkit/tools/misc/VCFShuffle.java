@@ -88,7 +88,7 @@ public class VCFShuffle extends AbstractVCFFilter2
 		}
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/Vcfshuffle";
+		return "https://github.com/lindenb/jvarkit/wiki/VcfShuffle";
 		}
 	
 	
@@ -114,7 +114,7 @@ public class VCFShuffle extends AbstractVCFFilter2
 		{
 		int maxRecordsInRAM=50000;
 		File tmpFile=null;
-		long seed=0L;
+		long seed=System.currentTimeMillis();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
 		while((c=opt.getopt(args,getGetOptDefault()+ "T:N:m:"))!=-1)

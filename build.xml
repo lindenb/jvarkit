@@ -1098,6 +1098,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="downsamplevcf">
+	<compile-picard-cmd 
+		java="**/DownSampleVcf.java"
+		main="com.github.lindenb.jvarkit.tools.misc.DownSampleVcf"
+		name="downsamplevcf"
+		/>
+</target>
+
 
 <target name="tview.cgi">
 	<compile-cgi-cmd
