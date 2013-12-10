@@ -1106,6 +1106,23 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfhead">
+	<compile-picard-cmd 
+		java="**/VcfHead.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfHead"
+		name="vcfhead"
+		/>
+</target>
+
+<target name="vcftail">
+	<compile-picard-cmd 
+		java="**/VcfTail.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfTail"
+		name="vcftail"
+		/>
+</target>
+		
+
 
 <target name="tview.cgi">
 	<compile-cgi-cmd

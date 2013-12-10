@@ -88,5 +88,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfToRdf">VcfToRdf<a></th><td>Convert a VCF to RDF.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFShuffle">VcfShuffle<a></th><td>Shuffle a VCF.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/DownSampleVcf">DownSampleVcf<a></th><td>Down sample a VCF.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfHead">VcfHead<a></th><td>Print the first variants of a VCF.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfTail">VcfTail<a></th><td>Print the last variants of a VCF</td></tr>
 
 </table>
