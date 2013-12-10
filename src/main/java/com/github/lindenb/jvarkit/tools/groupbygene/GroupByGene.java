@@ -29,7 +29,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionayProgress;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -358,7 +358,7 @@ public class GroupByGene extends AbstractCommandLineProgram
 		snpEffPredictionParser=new SnpEffPredictionParser(header);
 		vepPredictionParser=new VepPredictionParser(header);
 		SAMSequenceDictionary dict=header.getSequenceDictionary();
-		SAMSequenceDictionayProgress progress=new SAMSequenceDictionayProgress(dict);
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 		while(iter.hasNext())
 			{
 			VariantContext ctx=iter.next();

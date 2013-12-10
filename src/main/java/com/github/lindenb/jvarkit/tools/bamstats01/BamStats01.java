@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionayProgress;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 
 import net.sf.picard.cmdline.Option;
@@ -304,7 +304,7 @@ public class BamStats01
 						}
 					
 					
-					SAMSequenceDictionayProgress progess=new SAMSequenceDictionayProgress(currDict);
+					SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(currDict);
 					SAMRecordIterator iter=samFileReader.iterator();
 					while(iter.hasNext())
 						{

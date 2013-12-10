@@ -7,7 +7,7 @@ import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
 
-public class SAMSequenceDictionayProgress
+public class SAMSequenceDictionaryProgress
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 	private SAMSequenceDictionary samSequenceDictionary;
@@ -22,7 +22,7 @@ public class SAMSequenceDictionayProgress
 	/**
 	 * SAMSequenceDictionayProgress
 	 */
-	public SAMSequenceDictionayProgress(SAMSequenceDictionary dict)
+	public SAMSequenceDictionaryProgress(SAMSequenceDictionary dict)
 		{
 		this.samSequenceDictionary=dict;
 		if(dict!=null)
