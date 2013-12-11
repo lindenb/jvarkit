@@ -1,6 +1,8 @@
 package com.github.lindenb.jvarkit.tools.bamviewgui;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -20,8 +22,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 import java.util.logging.Logger;
@@ -55,6 +59,8 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableModel;
 
 import net.sf.picard.util.Interval;
 import net.sf.samtools.SAMFileHeader;
@@ -67,6 +73,7 @@ import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.util.picard.SamFlag;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 
@@ -77,6 +84,7 @@ class BamFileRef
 	SAMFileHeader header;
 	}
 
+@SuppressWarnings("serial")
 class BamInternalFrame extends JInternalFrame
 	{
 	private static final long serialVersionUID = 1L;
@@ -101,24 +109,25 @@ class BamInternalFrame extends JInternalFrame
 		
 		
 		JPanel pane=new JPanel(new BorderLayout(5,5));
-		tabbedPane.addTab("VCF", pane);
+		tabbedPane.addTab("BAM", pane);
 		
 		this.tableModel=new BamTableModel();
-		this.jTable=new JTable(tableModel);
+		this.jTable=createTable(tableModel);
 		this.jTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 		this.jTable.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		
 		JScrollPane scroll1=new JScrollPane(this.jTable);
 		
 		this.infoTableModel=new FlagTableModel();
-		JTable tInfo=new JTable(this.infoTableModel);
+		JTable tInfo=createTable(this.infoTableModel);
 		
 		
 		this.genotypeTableModel=new SAMTagAndValueModel();
-		JTable tGen=new JTable(this.genotypeTableModel);
+		JTable tGen=createTable(this.genotypeTableModel);
+		
 		
 		this.groupTableModel=new ReadGroupTableModel();
-		JTable tGrp=new JTable(this.groupTableModel);
+		JTable tGrp=createTable(this.groupTableModel);
 	
 		
 		JPanel splitH=new JPanel(new GridLayout(1, 0,5,5));
@@ -155,13 +164,21 @@ class BamInternalFrame extends JInternalFrame
 		
 		pane.add(splitVert);
 		
+		//header as text
 		pane=new JPanel(new BorderLayout(5,5));
-		
 		tabbedPane.addTab("Header", pane);
 		JTextArea area=new JTextArea(String.valueOf(ref.header.getTextHeader()));
 		area.setCaretPosition(0);
 		area.setEditable(false);
 		pane.add(new JScrollPane(area),BorderLayout.CENTER);
+		
+		//dict
+		pane=new JPanel(new BorderLayout(5,5));
+		tabbedPane.addTab("Reference", pane);
+		JTable dictTable=createTable(new SAMSequenceDictionaryTableModel(ref.header.getSequenceDictionary()));
+		dictTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+		pane.add(new JScrollPane(dictTable),BorderLayout.CENTER);
+		
 		
 		this.selList=new ListSelectionListener()
 			{
@@ -185,6 +202,52 @@ class BamInternalFrame extends JInternalFrame
 				jTable.getSelectionModel().removeListSelectionListener(selList);
 				}
 			});
+		}
+	private static final Color color1=Color.WHITE;
+	private static final Color color2=new Color(255,255,230);
+	
+	private static JTable createTable(TableModel m)
+		{
+		JTable t=new JTable(m)
+			{
+			@Override
+			public String getToolTipText(MouseEvent event)
+				{
+				JTable t=(JTable)event.getSource();
+				int x= t.rowAtPoint(event.getPoint()); if(x==-1) return null;
+				int y= t.columnAtPoint(event.getPoint()); if(y==-1) return null;
+				Object o= t.getValueAt(x, y);
+				if(o==null) return null;
+				return String.valueOf(o);
+				}
+			
+			
+			};
+		t.setToolTipText("");
+		t.setShowVerticalLines(false);
+		DefaultTableCellRenderer render=new DefaultTableCellRenderer()
+			{
+			@Override
+			public Component getTableCellRendererComponent(JTable table,
+					Object value, boolean isSelected, boolean hasFocus,
+					int row, int column) {
+				Component c= super.getTableCellRendererComponent(table, value, isSelected, hasFocus,
+						row, column);
+				if(!isSelected && !hasFocus) this.setBackground(row%2==0?color1:color2);
+				if(value !=null && value instanceof Boolean)
+					{
+					if(Boolean.TRUE.equals(value)) this.setText("\u2612");
+					else if(Boolean.FALSE.equals(value)) this.setText("");
+					}
+				return c;
+				}
+			};
+		render.setOpaque(true);
+		for(int i=0;i< t.getColumnModel().getColumnCount();++i)
+			{
+			t.getColumnModel().getColumn(i).setCellRenderer(render);
+			}
+		return t;
 		}
 	
 	private void listSelectionChanged()
@@ -287,11 +350,12 @@ class FlagTableModel
 		}
 	}
 
+@SuppressWarnings("serial")
 class SAMTagAndValueModel
 extends AbstractGenericTable<SAMTagAndValue>
 	{
 	private static final long serialVersionUID = 1L;
-	private static final String COLS[]=new String[]{"KEY","TYPE","VALUE"};
+	private static final String COLS[]=new String[]{"KEY","DESC","VALUE","TYPE"};
 	public SAMTagAndValueModel()
 		{
 		
@@ -317,8 +381,10 @@ extends AbstractGenericTable<SAMTagAndValue>
 		switch(columnIndex)
 			{
 			case 0: return o.tag;
-			case 1: return o.value==null?null:o.value.getClass().getSimpleName();
+			case 1: return getDescription(o.tag);
 			case 2: return o.value;
+			case 3: return o.value==null?null:o.value.getClass().getSimpleName();
+			
 			}
 		return null;
 		}
@@ -327,8 +393,9 @@ extends AbstractGenericTable<SAMTagAndValue>
 	public Class<?> getColumnClass(int columnIndex) {
 		switch(columnIndex)
 			{
-			case 0: return String.class;
-			case 1: return String.class;
+			case 0: 
+			case 1:
+			case 3: return String.class;
 			default: return Object.class;
 			}
 		}
@@ -343,8 +410,60 @@ extends AbstractGenericTable<SAMTagAndValue>
 	public int getColumnCount() {
 		return  COLS.length;
 		}
-}
+	
+	private static final Map<String,String> defs=new HashMap<String,String>()
+			{{{
+			put("AM","The smallest template-independent mapping quality of segments in the rest ");
+		  put("AS","Alignment score generated by aligner ");
+		  put("BC","Barcode sequence, with any quality scores stored in the QT tag. ");
+		  put("CC","Reference name of the next hit; \"=\" for the same chromosome ");
+		  put("CM","Edit distance between the color sequence and the color reference (see also NM)");
+		  put("CO","Free-text comments ");
+		  put("CQ","Color read quality on the original strand of the read. Same encoding as QUAL; same length as CS.");
+		  put("CS","Color read sequence on the original strand of the read. The primer base must be included.");
+		  put("CT","Complete read annotation tag, used for consensus annotation dummy features.");
+		  put("E2","The 2nd most likely base calls. Same encoding and same length as QUAL.");
+		  put("FI","The index of segment in the template.");
+		  put("FS","Segment suffix.");
+		  put("FZ","Flow signal intensities on the original strand of the read. ");
+		  put("LB","Library. Value to be consistent with the header   RG-LB tag if @RG is present.");
+		  put("H0","Number of perfect hits");
+		  put("H1","Number of 1-difference hits (see also NM)");
+		  put("H2","Number of 2-difference hits ");
+		  put("HI","Query hit index, indicating the alignment record is the i-th one stored in SAM");
+		  put("IH","Number of stored alignments in SAM that contains the query in the current record");
+		  put("MD","String for mismatching positions.");
+		  put("MQ","Mapping quality of the mate/next segment ");
+		  put("NH","Number of reported alignments that contains the query in the current record");
+		  put("NM","Edit distance to the reference, including ambiguous bases but excluding clipping");
+		  put("OQ","Original base quality (usually before recalibration).");
+		  put("OP","Original mapping position (usually before realignment) ");
+		  put("OC","Original CIGAR (usually before realignment) ");
+		  put("PG","Program. Value matches the header  PG-ID tag if @PG is present. ");
+		  put("PQ","Phred likelihood of the template, conditional on both the mapping being correct ");
+		  put("PT","Read annotations for parts of the padded read sequenc");
+		  put("PU","Platform unit. Value to be consistent with the header RG-PU tag if @RG is present.");
+		  put("QT","Phred quality of the barcode sequence in the  BC or RT tag. Same encoding as  QUAL. ");
+		  put("Q2","Phred quality of the mate/next segment sequence in the  R2 tag. Same encoding as QUAL.");
+		  put("R2","Sequence of the mate/next segment in the template. ");
+		  put("RG","Read group. Value matches the header RG-ID tag if   @RG is present in the header. ");
+		  put("RT","Deprecated alternative to  BC tag originally used at Sanger. ");
+		  put("SM","Template-independent mapping quality ");
+		  put("TC","The number of segments in the template.");
+		  put("U2","Phred probility of the 2nd call being wrong conditional on the best being wrong. The same encoding as QUAL. ");
+		  put("UQ","Phred likelihood of the segment, conditional on the mapping being correct ");
+			}}};
+	/* curl -s "https://raw.github.com/samtools/hts-specs/master/SAMv1.tex" | grep -E '\\$' | grep '{\\tt' | grep ' & ' | cut -d '&' -f 1,3 | sed -e  's/{\\tt /if(key.equals("/' -e 's/} \& /")) return "/' | sed 's/\\\\$/";/' */
+	private static String getDescription(String key)
+		{
+		if(key==null) return null;
+		 if(key.startsWith("X")) return "Reserved fields for end users (together with Y? and Z?) ";
+		 
+		 return defs.get(key);
+		}
+	}
 
+@SuppressWarnings("serial")
 class ReadGroupTableModel
 	extends  AbstractTableModel
 	{
@@ -863,6 +982,10 @@ public class BamViewGui
     public String getProgramDescription() {
     	return "Simple java-Swing-based BAM viewer.";
     	}
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/BamViewGui";
+    	}
     
     private BamFileRef create(File bamFile) throws IOException
     	{
@@ -899,8 +1022,8 @@ public class BamViewGui
     
     @Override
     public void printOptions(PrintStream out) {
-    	out.print(" -H (host) IGV host example: '127.0.0.1' .Optional.");
-    	out.print(" -P (port:integer) IGV port example: '60151' .Optional.");
+    	out.println(" -H (host) IGV host example: '127.0.0.1' .Optional.");
+    	out.println(" -P (port:integer) IGV port example: '60151' .Optional.");
     	super.printOptions(out);
     	}
     

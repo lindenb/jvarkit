@@ -149,7 +149,11 @@ public class BamStats01
 				ok_pe_alignment=false;
 				}
 			
-			
+			if(rec.getSupplementaryAlignmentFlag())
+				{
+				this.increment(Category.SUPPLEMENTARY_ALIGNMENT);
+				//ok_pe_alignment=false;//??
+				}
 			
 			if(ok_pe_alignment)
 				{
@@ -201,6 +205,7 @@ public class BamStats01
 		DUPLICATE,
 		FAIL_VENDOR_QUALITY,
 		OK_FOR_PE_CALLING,
+		SUPPLEMENTARY_ALIGNMENT,//new in samSpec 2013-12
 		X,Y;
 		};
 	
