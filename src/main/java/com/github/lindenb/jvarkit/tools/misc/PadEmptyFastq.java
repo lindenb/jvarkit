@@ -23,16 +23,6 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 		{
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/PadEmptyFastq";
-	}
-	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Pad empty fastq sequence/qual with N/#";
-		}
 	
 	private void copyTo(FastqReader r,FastqWriter w)
 		{
@@ -83,15 +73,27 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 		}
 	
 	@Override
+	protected String getOnlineDocUrl()
+		{
+		return "https://github.com/lindenb/jvarkit/wiki/PadEmptyFastq";
+		}
+	
+	@Override
+	public String getProgramDescription()
+		{
+		return "Pad empty fastq sequence/qual with N/#";
+		}
+
+	
+	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
 		out.println(" -o (Filename out). Default: stdout");
 		out.println(" -N (integer). number of bases/qual to be added.  Default: length of the first read  or "+DEFAULT_LENGTH);
-
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
+		super.printOptions(out);
 		}
+	
+	
 	
 	@Override
 	public int doWork(String[] args)
@@ -100,17 +102,22 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 		File fileOut=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args, "hvL:o:N:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:N:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o':fileOut=new File(opt.getOptArg());break;
 				case 'N':N=Math.max(0,Integer.parseInt(opt.getOptArg()));break;
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));break;
-				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+opt.getOptOpt());return -1;
+				default:
+					{
+					switch(handleOtherOptions(c, opt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					break;
+					}
 				}
 			}
 		
