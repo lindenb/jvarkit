@@ -1,5 +1,8 @@
 package com.github.lindenb.jvarkit.util.picard;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public enum SamFlag
 	{
 		READ_PAIRED(0x1),
@@ -12,7 +15,8 @@ public enum SamFlag
 		SECOND_IN_PAIR(0x80),
 		NOT_PRIMARY_ALIGNMENT(0x100),
 		READ_FAILS_VENDOR_QUALITY_CHECK(0x200),
-		READ_IS_DUPLICATE(0x400)
+		READ_IS_DUPLICATE(0x400),
+		SUPPLEMENTARY_ALIGNMENT(0x800)
 		;
 	private int flag;
 	SamFlag(int flag)
@@ -38,4 +42,25 @@ public enum SamFlag
 			}
 		return null;
 		}
+	
+	public boolean isSet(int flag)
+		{
+		return (getFlag() & flag)!=0; 
+		}
+	
+	public boolean isUnset(int flag)
+		{
+		return !isSet(flag);
+		}
+	
+	public static Set<SamFlag> getFlags(int flag)
+		{
+		Set<SamFlag> set=new HashSet<SamFlag>();
+		for(SamFlag f:values())
+			{
+			if(f.isSet(flag)) set.add(f);
+			}
+		return set;
+		}
+	
 	}

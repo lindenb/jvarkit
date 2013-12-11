@@ -62,6 +62,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th>Tool</th><th>Description</th></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BlastMapAnnots">BlastMapAnnots<a></th><td>Maps uniprot/genbank annotations on a blast result. See http://www.biostars.org/p/76056</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfViewGui">VcfViewGui<a></th><td>Simple java-Swing-based VCF viewer.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamViewGui">BamViewGui<a></th><td>Simple java-Swing-based BAM viewer.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar81455">Biostar81455<a></th><td>Defining precisely the genomic context based on a position http://www.biostars.org/p/81455/</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MapUniProtFeatures">MapUniProtFeatures<a></th><td>map Uniprot features on reference genome.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar86363">Biostar86363<a></th><td>Set genotype of specific sample/genotype comb to unknown in multisample vcf file.</td></tr>
