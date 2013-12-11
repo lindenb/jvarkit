@@ -1064,6 +1064,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcf2ps">
+	<compile-picard-cmd 
+		java="**/VcfToPostscript.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfToPostscript"
+		name="vcf2ps"
+		/>
+</target>
 
 
 <target name="blastn2snp" depends="api.ncbi.blast">
