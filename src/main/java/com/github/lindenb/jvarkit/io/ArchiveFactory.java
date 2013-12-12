@@ -135,9 +135,14 @@ public abstract class ArchiveFactory
 		{
 		private File baseDir;
 		
-		FileInstance(File baseDir)
+		FileInstance(File baseDir) throws IOException
 			{
 			this.baseDir=baseDir;
+			if(baseDir.exists() && !baseDir.isDirectory())
+				{
+				throw new IOException("Not a directory:"+baseDir);
+				}
+				
 			}
 		
 		@Override

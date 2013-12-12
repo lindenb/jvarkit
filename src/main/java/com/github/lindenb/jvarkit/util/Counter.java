@@ -77,7 +77,10 @@ public class Counter<T>
 		return this.object2count.size();
 		}
 	
-	
+	public boolean isEmpty()
+		{
+		return this.object2count.isEmpty();
+		}
 	
 	@Override
 	public String toString() {

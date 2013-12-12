@@ -18,6 +18,8 @@ public class SAMSequenceDictionaryProgress
 	private long count=0L;
 	private long print_every_n_seconds=10L;
 	private String prefix=null;
+	private int prev_tid=-1;
+	private int prev_pos=-1;
 	
 	/**
 	 * SAMSequenceDictionayProgress
@@ -112,6 +114,28 @@ public class SAMSequenceDictionaryProgress
 			}
 		
 		if(curr-last < print_every_n_seconds*1000) return;
+		
+		//check order of data
+		if(samSequenceDictionary!=null)
+			{
+			if(prev_tid==-1 || prev_tid!=tid)
+				{
+				prev_tid=tid;
+				prev_pos=pos;
+				}
+			else if(prev_tid==tid)
+				{
+				if(pos<prev_pos) 
+					{
+					LOG.info((this.prefix==null?"":"["+this.prefix+"]")+
+						"Data are not ordered on chromosome "+
+						samSequenceDictionary.getSequence(tid).getSequenceName()+" saw "+pos+" after "+prev_pos
+						);
+					samSequenceDictionary=null;//data are not ordered, just print the number or items later
+					}
+				prev_pos=pos;
+				}
+			}
 		
 		if(samSequenceDictionary==null)
 			{

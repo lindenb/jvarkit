@@ -1137,6 +1137,22 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcf2newick">
+	<compile-picard-cmd 
+		java="**/VcfToNewick.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfToNewick"
+		name="vcf2newick"
+		/>
+</target>
+
+<target name="vcfcutsamples">
+	<compile-picard-cmd 
+		java="**/VcfCutSamples.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfCutSamples"
+		name="vcfcutsamples"
+		/>
+</target>
+
 
 <target name="tview.cgi">
 	<compile-cgi-cmd
@@ -1146,6 +1162,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfstats">
+	<compile-picard-cmd 
+		java="**/VcfStats.java"
+		main="com.github.lindenb.jvarkit.tools.vcfstats.VcfStats"
+		name="vcfstats"
+		/>
+</target>
 
 
 
