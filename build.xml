@@ -1170,6 +1170,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfrenamesamples">
+	<compile-picard-cmd 
+		java="**/VcfRenameSamples.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfRenameSamples"
+		name="vcfrenamesamples"
+		/>
+</target>
 
 
 
