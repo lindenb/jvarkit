@@ -4,8 +4,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -88,6 +90,8 @@ public class VcfStats extends AbstractCommandLineProgram
 			{
 			List<Allele> alleles=null;
 			boolean is_in_coding=false;
+			Set<SequenceOntologyTree.Term> vepSet=new HashSet<SequenceOntologyTree.Term >();
+			Set<SequenceOntologyTree.Term> snpEffSet=new HashSet<SequenceOntologyTree.Term >();
 			
 			
 			
@@ -96,7 +100,7 @@ public class VcfStats extends AbstractCommandLineProgram
 				for(SequenceOntologyTree.Term t:eff.getSOTerms())
 					{
 					if(t.equals(coding_exon_variant)) is_in_coding=true;
-					snpEffSo.incr(t);
+					snpEffSet.add(t);
 					}
 				}
 			for(VepPrediction eff :vepPredictionParser.getPredictions(ctx))
@@ -104,12 +108,18 @@ public class VcfStats extends AbstractCommandLineProgram
 				for(SequenceOntologyTree.Term t:eff.getSOTerms())
 					{
 					if(t.equals(coding_exon_variant)) is_in_coding=true;
-					vepSo.incr(t);
+					vepSet.add(t);
 					}
 				}
 			
-		
-			
+			for(SequenceOntologyTree.Term t:snpEffSet)
+				{
+				snpEffSo.incr(t);
+				}
+			for(SequenceOntologyTree.Term t:vepSet)
+				{
+				vepSo.incr(t);
+				}
 			
 			if(sampleName!=null)
 				{
@@ -203,52 +213,149 @@ public class VcfStats extends AbstractCommandLineProgram
 				}
 			
 			}
+		
+		
 		void xml(XMLStreamWriter out) throws XMLStreamException
 			{
 			if(!counter.isEmpty())
 				{
-				out.writeStartElement("counts");
-				out.writeAttribute("name", "general");
-				out.writeAttribute("description", "General");
-				out.writeAttribute("keytype", "string");
-				for(String s:counter.keySet())
+				out.writeStartElement("div");
+				
+				out.writeStartElement("h4");
+				out.writeCharacters("Counts");
+				out.writeEndElement();
+
+				
+				out.writeStartElement("table");
+				out.writeAttribute("j:title", "counts");
+				
+				out.writeStartElement("thead");
+				out.writeStartElement("caption");
+				out.writeCharacters("Counts");
+				out.writeEndElement();
+				out.writeStartElement("tr");
+				for(String th:new String[]{"Key","Count"})
 					{
-					out.writeStartElement("property");
-					out.writeAttribute("key", s);
-					out.writeCharacters(String.valueOf(counter.count(s)));
+					out.writeStartElement("th");
+					out.writeCharacters(th);
 					out.writeEndElement();
 					}
-				out.writeEndElement();
+				out.writeEndElement();//tr
+				out.writeEndElement();//thead
+
+				
+				for(String s:counter.keySet())
+					{
+					out.writeStartElement("tr");
+					
+					out.writeStartElement("th");
+					out.writeCharacters(s);
+					out.writeEndElement();
+					
+					out.writeStartElement("td");
+					out.writeCharacters(String.valueOf(counter.count(s)));
+					out.writeEndElement();
+					
+					out.writeEndElement();//tr
+					}
+				out.writeEndElement();//table
+				
+				out.writeEndElement();//
 				}
 			if(!alternate_alleles.isEmpty())
 				{
-				out.writeStartElement("data-table");
-				out.writeAttribute("name", "alternate-alleles");
-				out.writeAttribute("description", "Number of alternal alleles");
-				out.writeAttribute("keytype", "int");
-				for(Integer i:(new TreeSet<Integer>(alternate_alleles.keySet())))
+				out.writeStartElement("div");
+				
+				out.writeStartElement("h4");
+				out.writeCharacters("Alternate Alleles");
+				out.writeEndElement();
+				
+				
+				out.writeStartElement("table");
+				out.writeAttribute("j:title", "alt-alleles");
+				out.writeStartElement("thead");
+				out.writeStartElement("caption");
+				out.writeCharacters("Alternate Alleles");
+				out.writeEndElement();
+				out.writeStartElement("tr");
+				for(String th:new String[]{"Num-Alt-Alleles","Count"})
 					{
-					out.writeStartElement("property");
-					out.writeAttribute("key", String.valueOf(i));
-					out.writeCharacters(String.valueOf(alternate_alleles.count(i)));
+					out.writeStartElement("th");
+					out.writeCharacters(th);
 					out.writeEndElement();
 					}
-				out.writeEndElement();
+				out.writeEndElement();//tr
+				out.writeEndElement();//thead
+
+				
+				out.writeStartElement("tbody");
+				for(Integer i:(new TreeSet<Integer>(alternate_alleles.keySet())))
+					{
+					out.writeStartElement("tr");
+					
+					out.writeStartElement("th");
+					out.writeCharacters(String.valueOf(i));
+					out.writeEndElement();
+
+					
+					out.writeStartElement("td");
+					out.writeCharacters(String.valueOf(alternate_alleles.count(i)));
+					out.writeEndElement();
+
+					out.writeEndElement();
+					}
+				out.writeEndElement();//tbody
+				out.writeEndElement();//table
+				out.writeEndElement();//div
 				}
 			if(!depth.isEmpty())
 				{
-				out.writeStartElement("data-table");
-				out.writeAttribute("name", "depth");
-				out.writeAttribute("description", "Coverage/Depth");
-				out.writeAttribute("keytype", "string");
-				for(Integer i:(new TreeSet<Integer>(depth.keySet())))
+				out.writeStartElement("div");
+				
+				out.writeStartElement("h4");
+				out.writeCharacters("Depth");
+				out.writeEndElement();
+
+				
+				out.writeStartElement("table");
+				out.writeAttribute("j:title", "depth");
+				out.writeStartElement("thead");
+				out.writeStartElement("caption");
+				out.writeCharacters("Depth");
+				out.writeEndElement();
+				out.writeStartElement("tr");
+				for(String th:new String[]{"Lower","Upper","Count"})
 					{
-					out.writeStartElement("property");
-					out.writeAttribute("key","["+(i*HISTOGRAM_STEP)+"-"+((i+1)*HISTOGRAM_STEP)+"[");
-					out.writeCharacters(String.valueOf(depth.count(i)));
+					out.writeStartElement("th");
+					out.writeCharacters(th);
 					out.writeEndElement();
 					}
-				out.writeEndElement();
+				out.writeEndElement();//tr
+				out.writeEndElement();//thead
+
+				out.writeStartElement("tbody");
+				for(Integer i:(new TreeSet<Integer>(depth.keySet())))
+					{
+					out.writeStartElement("tr");
+					
+					out.writeStartElement("td");
+					out.writeCharacters(String.valueOf(i*HISTOGRAM_STEP));
+					out.writeEndElement();
+
+					out.writeStartElement("td");
+					out.writeCharacters(String.valueOf((i+1)*HISTOGRAM_STEP));
+					out.writeEndElement();
+
+					
+					out.writeStartElement("td");
+					out.writeCharacters(String.valueOf(depth.count(i)));
+					out.writeEndElement();
+
+					out.writeEndElement();
+					}
+				out.writeEndElement();//tbody
+				out.writeEndElement();//table
+				out.writeEndElement();//div
 				}
 			else
 				{
@@ -257,18 +364,54 @@ public class VcfStats extends AbstractCommandLineProgram
 			
 			if(!qual.isEmpty())
 				{
-				out.writeStartElement("data-table");
-				out.writeAttribute("name", "Quality");
-				out.writeAttribute("description", "Quality");
-				out.writeAttribute("keytype", "string");
-				for(Integer i:(new TreeSet<Integer>(qual.keySet())))
+				out.writeStartElement("div");
+				
+				
+				
+				out.writeStartElement("h4");
+				out.writeCharacters("Quality");
+				out.writeEndElement();
+
+				
+				out.writeStartElement("table");
+				out.writeAttribute("j:title", "qualities");
+				out.writeStartElement("thead");
+				out.writeStartElement("caption");
+				out.writeCharacters("Qualities");
+				out.writeEndElement();
+				out.writeStartElement("tr");
+				for(String th:new String[]{"Lower","Upper","Count"})
 					{
-					out.writeStartElement("property");
-					out.writeAttribute("key","["+(i*HISTOGRAM_STEP)+"-"+((i+1)*HISTOGRAM_STEP)+"[");
-					out.writeCharacters(String.valueOf(qual.count(i)));
+					out.writeStartElement("th");
+					out.writeCharacters(th);
 					out.writeEndElement();
 					}
-				out.writeEndElement();
+				out.writeEndElement();//tr
+				out.writeEndElement();//thead
+
+				out.writeStartElement("tbody");
+				for(Integer i:(new TreeSet<Integer>(qual.keySet())))
+					{
+					out.writeStartElement("tr");
+					
+					out.writeStartElement("td");
+					out.writeCharacters(String.valueOf(i*HISTOGRAM_STEP));
+					out.writeEndElement();
+
+					out.writeStartElement("td");
+					out.writeCharacters(String.valueOf((i+1)*HISTOGRAM_STEP));
+					out.writeEndElement();
+
+					
+					out.writeStartElement("td");
+					out.writeCharacters(String.valueOf(qual.count(i)));
+					out.writeEndElement();
+
+					out.writeEndElement();
+					}
+				out.writeEndElement();//tbody
+				out.writeEndElement();//table
+				out.writeEndElement();//div
 				}
 			else
 				{
@@ -283,20 +426,57 @@ public class VcfStats extends AbstractCommandLineProgram
 					out.writeComment("No prediction for "+predName+" available");
 					continue;
 					}
-				out.writeStartElement("chart");
-				out.writeAttribute("name", predName);
-				out.writeAttribute("description","predictions for "+predName);
-				out.writeAttribute("keytype", "SO");
-				for(SequenceOntologyTree.Term t:set.keySet())
+				
+				
+				out.writeStartElement("div");
+				
+				out.writeStartElement("h4");
+				out.writeCharacters("Predictions for "+predName);
+				out.writeEndElement();
+
+				
+				out.writeStartElement("table");
+				out.writeAttribute("j:title", predName+":predictions");
+				out.writeStartElement("thead");
+				out.writeStartElement("caption");
+				out.writeCharacters("Predictions for "+predName);
+				out.writeEndElement();
+				out.writeStartElement("tr");
+				for(String th:new String[]{"ACN","label","Count"})
 					{
-					out.writeStartElement("property");
-					out.writeAttribute("key",t.getAcn());
-					out.writeAttribute("label",t.getLabel());
-					
-					out.writeCharacters(String.valueOf(set.count(t)));
+					out.writeStartElement("th");
+					out.writeCharacters(th);
 					out.writeEndElement();
 					}
-				out.writeEndElement();
+				out.writeEndElement();//tr
+				out.writeEndElement();//thead
+				
+				out.writeStartElement("tbody");
+				for(SequenceOntologyTree.Term t:set.keySet())
+					{
+					out.writeStartElement("tr");
+					
+					out.writeStartElement("th");
+					out.writeStartElement("a");
+					out.writeAttribute("href", "http://www.sequenceontology.org/miso/current_release/term/"+t.getAcn());
+					out.writeCharacters(t.getAcn());
+					out.writeEndElement();
+					out.writeEndElement();
+
+					out.writeStartElement("td");
+					out.writeCharacters(t.getLabel());
+					out.writeEndElement();
+
+					
+					out.writeStartElement("td");
+					out.writeCharacters(String.valueOf(set.count(t)));
+					out.writeEndElement();
+
+					out.writeEndElement();
+					}
+				out.writeEndElement();//tbody
+				out.writeEndElement();//table
+				out.writeEndElement();//div
 				}
 			
 			}
@@ -428,12 +608,38 @@ public class VcfStats extends AbstractCommandLineProgram
 			this.vepPredictionParser=new VepPredictionParser(header);
 			this.snpEffPredictionParser=new SnpEffPredictionParser(header);
 			
-			xout.writeStartDocument("UTF-8", "1.0");
-			xout.writeStartElement("vcf-statistics");
-			xout.writeAttribute("version", String.valueOf(getVersion()));
-			xout.writeAttribute("input", filename);
-			xout.writeAttribute("date", String.valueOf(new Date()));
+			xout.writeStartElement("html");
+			xout.writeAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+			xout.writeAttribute("xmlns:j", "https://github.com/lindenb/jvarkit/wiki/VcfStats");
 			
+			xout.writeStartElement("head");
+			
+			xout.writeEmptyElement("meta");
+			xout.writeAttribute("name", "version");
+			xout.writeAttribute("content", String.valueOf(getVersion()));
+			
+			xout.writeEmptyElement("meta");
+			xout.writeAttribute("name", "input");
+			xout.writeAttribute("content", filename);
+
+			xout.writeEmptyElement("meta");
+			xout.writeAttribute("name", "date");
+			xout.writeAttribute("content", String.valueOf(new Date()));
+
+			
+			xout.writeStartElement("style");
+			xout.writeCharacters(
+					"table { border-collapse:collapse;width:100%;}\n"+
+					"table,th, td { border: 1px solid black; }\n"
+					);
+			xout.writeEndElement();//style
+			
+			
+			xout.writeEndElement();//head
+			
+			xout.writeStartElement("body");
+			
+						
 			
 			Stats g_stats=new Stats();
 			Map<String,Stats> stats_per_samples=new TreeMap<String,Stats>();
@@ -471,54 +677,108 @@ public class VcfStats extends AbstractCommandLineProgram
 					}
 				}
 			
+			//hyperlink for chromosomes
+			xout.writeStartElement("div");
+			xout.writeCharacters("Chromosomes : ");
+			for(String k:stats_per_chr.keySet())
+				{
+				xout.writeCharacters(" [");
+				xout.writeStartElement("a");
+				xout.writeAttribute("href","#chrom_"+k);
+				xout.writeCharacters(k);
+				xout.writeEndElement();//a
+				xout.writeCharacters(" ]");
+				}
+			xout.writeEndElement();//div
+			
+			//hyperlink for samples
+			xout.writeStartElement("div");
+			xout.writeCharacters("Samples : ");
+			for(String s:stats_per_samples.keySet())
+				{
+				xout.writeCharacters(" [");
+				xout.writeStartElement("a");
+				xout.writeAttribute("href","#sample_"+s);
+				xout.writeCharacters(s);
+				xout.writeEndElement();//a
+				xout.writeCharacters(" ]");
+				}
+			xout.writeEndElement();//div
+
+			
 			
 			g_stats.counter.incr("num.seen.chromosomes",stats_per_chr.size());
 			
-			xout.writeStartElement("section");
-			xout.writeAttribute("name","General");
-			xout.writeStartElement("statistics");
-			xout.writeAttribute("name","general");
-			xout.writeAttribute("description","general");
+			xout.writeStartElement("div");
+			xout.writeAttribute("j:title","General");
+			xout.writeStartElement("h2");
+			xout.writeCharacters("General");
+			xout.writeEndElement();
 			g_stats.xml(xout);
-			xout.writeEndElement();
-			xout.writeEndElement();
+			xout.writeEndElement();//div
 			
-			xout.writeStartElement("section");
-			xout.writeAttribute("name","Sample");
+			xout.writeStartElement("div");
+			xout.writeAttribute("j:title","Samples");
+			xout.writeStartElement("h2");
+			xout.writeCharacters("Samples");
+			xout.writeEndElement();
 			for(String sample:stats_per_samples.keySet())
 				{
-				xout.writeStartElement("statistics");
-				xout.writeAttribute("name",sample);
-				xout.writeAttribute("description","Sample "+sample);
-				xout.writeAttribute("sample",sample);
-				stats_per_samples.get(sample).xml(xout);
+				xout.writeStartElement("div");
+				
+				
+				
+				xout.writeAttribute("j:name",sample);
+				xout.writeAttribute("j:sample",sample);
+				
+				
+				xout.writeEmptyElement("a");
+				xout.writeAttribute("name","sample_"+sample);
+
+				
+				xout.writeStartElement("h3");
+				xout.writeCharacters(sample);
 				xout.writeEndElement();
+				
+				stats_per_samples.get(sample).xml(xout);
+				xout.writeEndElement();//div
 				}
+			xout.writeEndElement();//div
+			
+			
+			xout.writeStartElement("div");
+			xout.writeAttribute("title","Chromosomes");
+			xout.writeStartElement("h2");
+			xout.writeCharacters("chromosomes");
 			xout.writeEndElement();
-			
-			
-			xout.writeStartElement("section");
-			xout.writeAttribute("name","Chromosomes");
 			for(String k:stats_per_chr.keySet())
 				{
-				xout.writeStartElement("statistics");
-				xout.writeAttribute("name",k);
-				xout.writeAttribute("description","Chromosome "+k);
-				xout.writeAttribute("chromosome",k);
+				xout.writeStartElement("div");
+				
+
+				
+				xout.writeAttribute("j:name",k);
+				xout.writeAttribute("j:chromosome",k);
 				if(header.getSequenceDictionary()!=null)
 					{
 					SAMSequenceRecord ssr=header.getSequenceDictionary().getSequence(k);
 					xout.writeAttribute("length",String.valueOf(ssr.getSequenceLength()));
 					}
+				xout.writeEmptyElement("a");
+				xout.writeAttribute("name","chrom_"+k);
+
+				xout.writeStartElement("h3");
+				xout.writeCharacters(k);
+				xout.writeEndElement();				
 
 				stats_per_chr.get(k).xml(xout);
-				xout.writeEndElement();
+				xout.writeEndElement();//div
 				}
-			xout.writeEndElement();
+			xout.writeEndElement();//div
 			
 			
-			xout.writeEndElement();
-			xout.writeEndDocument();
+			xout.writeEndElement();//body
+			xout.writeEndElement();//html
 			xout.flush();
 			return 0;
 			}
