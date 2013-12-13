@@ -5,6 +5,8 @@ import java.io.PrintStream;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFlag;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
@@ -16,12 +18,20 @@ import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.util.CloserUtil;
+import net.sf.samtools.util.SequenceUtil;
 
 public class Biostar59647 extends AbstractCommandLineProgram
 	{
 
 	private  Biostar59647() {
 		}
+	
+	@Override
+	protected String getOnlineDocUrl()
+		{
+		return "https://github.com/lindenb/jvarkit/wiki/Biostar59647";
+		}
+	
 	@Override
 	public String getProgramDescription() {
 		return "SAM/BAM to XML. See http://www.biostars.org/p/59647/";
@@ -30,10 +40,8 @@ public class Biostar59647 extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
 		out.println(" -r (reference) Reference file indexed with picard. REQUIRED.");
+		super.printOptions(out);
 		}
 	
 	@Override
@@ -42,16 +50,20 @@ public class Biostar59647 extends AbstractCommandLineProgram
 		File refFile=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "hvL:r:"))!=-1)
+		while((c=getopt.getopt(args,getGetOptDefault()+ "r:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(getopt.getOptArg()));break;
 				case 'r': refFile=new File(getopt.getOptArg());break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
+				default: 
+					{
+					switch(handleOtherOptions(c, getopt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default: break;
+						}
+					}
 				}
 			}
 		
@@ -87,49 +99,56 @@ public class Biostar59647 extends AbstractCommandLineProgram
 				{
 				samFileReader=new SAMFileReader(bamFile);
 				}
+			
+			if(SequenceUtil.areSequenceDictionariesEqual(
+					indexedFastaSequenceFile.getSequenceDictionary(),
+					samFileReader.getFileHeader().getSequenceDictionary())
+					)
+				{
+				warning("Not the same sequence dictionaries");
+				}
+			
 			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 			XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("sam");
-			w.writeComment(getProgramCommandLine());
 			w.writeAttribute("ref",(bamFile==null?"stdin": bamFile.getPath()));
 			w.writeAttribute("bam", args[1]);
+
+			w.writeComment(getProgramCommandLine());
+
 			
 			
-		
+			
+			
 
 				
-
+				SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(samFileReader.getFileHeader().getSequenceDictionary());
 				SAMRecordIterator iter=samFileReader.iterator();
 				while(iter.hasNext())
 					{
 					SAMRecord rec=iter.next();
-					
+					progess.watch(rec);
 					final byte readbases[]=rec.getReadBases();
 					w.writeStartElement("read");
 					
 					w.writeStartElement("name");
 					w.writeCharacters(rec.getReadName());
 					w.writeEndElement();
+					
 					w.writeStartElement("sequence");
 					w.writeCharacters(new String(readbases));
 					w.writeEndElement();
-					w.writeStartElement("flags");
-					w.writeAttribute("paired",String.valueOf(rec.getReadPairedFlag()));
-					w.writeAttribute("failsVendorQual",String.valueOf(rec.getReadFailsVendorQualityCheckFlag()));
-					w.writeAttribute("mapped",String.valueOf(!rec.getReadUnmappedFlag()));
-					w.writeAttribute("strand",(rec.getReadNegativeStrandFlag()?"-":"+"));
-
-					if(rec.getReadPairedFlag())
-						{
-						w.writeAttribute("mate-mapped",String.valueOf(!rec.getMateUnmappedFlag()));
-						w.writeAttribute("mate-strand",(rec.getMateNegativeStrandFlag()?"-":"+"));
-						w.writeAttribute("proper-pair",String.valueOf(rec.getProperPairFlag()));
-						
-						}
 					
+					w.writeStartElement("flags");
+					for(SamFlag f: SamFlag.values())
+						{
+						w.writeAttribute(f.name(),String.valueOf(f.isSet(rec.getFlags())));
+						}
+										
 					w.writeCharacters(String.valueOf(rec.getFlags()));
-					w.writeEndElement();
+					w.writeEndElement();//flags
+					
 					if(!rec.getReadUnmappedFlag())
 						{
 						w.writeStartElement("qual");
@@ -140,29 +159,33 @@ public class Biostar59647 extends AbstractCommandLineProgram
 						w.writeAttribute("index",String.valueOf(rec.getReferenceIndex()));
 						w.writeCharacters(rec.getReferenceName());
 						w.writeEndElement();
+						
 						w.writeStartElement("pos");
 						w.writeCharacters(String.valueOf(rec.getAlignmentStart()));
 						w.writeEndElement();
+						
 						w.writeStartElement("cigar");
 						w.writeCharacters(rec.getCigarString());
 						w.writeEndElement();
 						}
 					
-					if(!rec.getMateUnmappedFlag())
+					if(rec.getReadPairedFlag() && !rec.getMateUnmappedFlag())
 						{
 						w.writeStartElement("mate-chrom");
 						w.writeAttribute("index",String.valueOf(rec.getMateReferenceIndex()));
 						w.writeCharacters(rec.getMateReferenceName());
 						w.writeEndElement();
+						
 						w.writeStartElement("mate-pos");
 						w.writeCharacters(String.valueOf(rec.getMateAlignmentStart()));
 						w.writeEndElement();
 						}
 					
 					
-					if(!rec.getReadUnmappedFlag())
+					if(!rec.getReadUnmappedFlag() && rec.getCigar()!=null)
 						{
-						if(genomicSequence==null || genomicSequence.getChrom().equals(rec.getReferenceName()))
+						if(genomicSequence==null ||
+							!genomicSequence.getChrom().equals(rec.getReferenceName()))
 							{
 							genomicSequence=new GenomicSequence(indexedFastaSequenceFile, rec.getReferenceName());
 							}
@@ -247,24 +270,19 @@ public class Biostar59647 extends AbstractCommandLineProgram
 								 default : throw new IllegalStateException("Case statement didn't deal with cigar op: " + e.getOperator());
 								 }
 							 }
-	
+						 w.writeEndElement();
 						}
 					
 					
-					
-					w.writeEndElement();
-
-					
-					
-					w.writeEndElement();
-					
-				iter.close();
+				
+				
 				w.writeEndElement();
 				}
+			iter.close();
 			w.writeEndElement();
 			w.writeEndDocument();
 			w.flush();
-			w.close();
+			CloserUtil.close(w);
 			}
 		catch(Exception err)
 			{
@@ -273,6 +291,7 @@ public class Biostar59647 extends AbstractCommandLineProgram
 			}
 		finally
 			{
+			
 			CloserUtil.close(samFileReader);
 			CloserUtil.close(indexedFastaSequenceFile);
 			}

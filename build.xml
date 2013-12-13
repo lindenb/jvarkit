@@ -1105,6 +1105,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfsimulator">
+	<compile-picard-cmd 
+		java="**/VcfSimulator.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfSimulator"
+		name="vcfsimulator"
+		/>
+</target>
+	
+	
 <target name="downsamplevcf">
 	<compile-picard-cmd 
 		java="**/DownSampleVcf.java"
