@@ -234,6 +234,7 @@ public class VCFAnnotator extends AbstractVCFFilter2
 		loadKnownGenesFromUri();
 		VCFHeader header=(VCFHeader)r.getHeader();
 		
+		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",getVersion()));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
@@ -249,7 +250,7 @@ public class VCFAnnotator extends AbstractVCFFilter2
 				"Prediction from "+getClass().getSimpleName()+
 				". Format: "+format
 				));
-	
+		
 		
         w.writeHeader(h2);
 

@@ -162,7 +162,8 @@ public class SAMSequenceDictionaryProgress
 			{
 			
 			LOG.info( (this.prefix==null?"":"["+this.prefix+"]")+" Count="+
-					count+" Elapsed: "+duration(curr-start)
+					count+" Elapsed: "+duration(curr-start)+
+					(tid>0 && pos>0?" Last: tid("+tid+":"+pos:"")
 					);
 			this.last=curr;
 			return;
