@@ -94,6 +94,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCutSamples">VcfCutSamples<a></th><td>Select/Exclude some samples from a VCF</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfStats">VcfStats<a></th><td>Generate some statistics from a VCF</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfSampleRename">VcfSampleRename<a></th><td>Rename Samples in a VCF.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcffilterSequenceOntology">VcffilterSequenceOntology<a></th><td>Filter a VCF on Seqence Ontology (SO).</td></tr>
 
 
 </table>

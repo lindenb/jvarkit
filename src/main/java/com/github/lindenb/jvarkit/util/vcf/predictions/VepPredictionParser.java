@@ -29,7 +29,7 @@ public class VepPredictionParser implements PredictionParser
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 
-	private enum COLS{Allele,Gene,Feature,Feature_type,Consequence,cDNA_position,CDS_position,Protein_position,Amino_acids,Codons,Existing_variation,HGNC,DISTANCE,SIFT,PolyPhen,CELL_TYPE,RefSeq};
+	private enum COLS{Allele,Gene,Feature,Feature_type,Consequence,cDNA_position,CDS_position,Protein_position,Amino_acids,Codons,Existing_variation,HGNC,DISTANCE,SIFT,PolyPhen,CELL_TYPE,RefSeq,EXON};
 	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
 	private Pattern pipe=Pattern.compile("[\\|]");
 	private String tag;
@@ -149,6 +149,13 @@ public class VepPredictionParser implements PredictionParser
 				}
 			return tokens[idx];
 			}
+		
+		public String getExon()
+			{
+			return getByCol(COLS.EXON);
+			}
+		
+		
 		@Override
 		public String getGeneName()
 			{

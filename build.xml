@@ -1179,6 +1179,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>
 
 
+<target name="vcffilterso">
+	<compile-picard-cmd 
+		java="**/VcfFilterSequenceOntology.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology"
+		name="vcffilterso"
+		/>
+</target>
+
 
 <target name="biostar" depends="biostar76892,biostar77288,biostar77828,biostar78285,biostar81455,biostar84786">
 </target>

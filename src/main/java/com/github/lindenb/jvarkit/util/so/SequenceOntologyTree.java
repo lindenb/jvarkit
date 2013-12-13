@@ -20,7 +20,10 @@ public class SequenceOntologyTree
 		public String getAcn();
 		public String getLabel();
 		public Set<Term> getParents();
+		/** get direct children of this node */
 		public Set<Term> getChildren();
+		/** get ALL (recursive) children of this node */
+		public Set<Term> getAllDescendants();
 
 		}
 	private class TermImpl implements Term
@@ -52,11 +55,22 @@ public class SequenceOntologyTree
 			return S2;
 			}
 		
+		/** returns only the direct children of this node */
 		@Override
 		public Set<Term> getChildren()
 			{
 			return convert(children);
 			}
+		
+		/** recursive operation on getChildren, including self */
+		@Override
+		public Set<Term> getAllDescendants()
+			{
+			Set<Term> set=new HashSet<Term>();
+			_getAllDescendants(this,set);
+			return set;
+			}
+		
 		
 		@Override
 		public Set<Term> getParents()
@@ -87,6 +101,15 @@ public class SequenceOntologyTree
 
 		}
 	
+	private static void _getAllDescendants(Term term,Set<Term> set)
+		{
+		set.add(term);
+		for(Term c:term.getChildren())
+			{
+			_getAllDescendants(c,set);
+			}
+		}
+
 	
 	private void addTerm(String acn,String label,String parent,String children)
 		{
