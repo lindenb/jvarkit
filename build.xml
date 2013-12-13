@@ -377,7 +377,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		
 
 	<target name="vcffilterjs" >
-		<compile-with-picard 
+		<compile-picard-cmd 
 			java="**/VCFFilterJS.java"
 			main="com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS"
 			name="vcffilterjs"

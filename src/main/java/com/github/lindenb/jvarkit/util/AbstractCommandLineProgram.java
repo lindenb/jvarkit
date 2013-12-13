@@ -309,7 +309,11 @@ public abstract class AbstractCommandLineProgram
 			if(i!=0) b.append(' ');
 			b.append(args[i]);
 			}
-		this.commandLine=b.toString();
+		this.commandLine=b.toString().
+				replace('\n', ' ').
+				replace('\t', ' ').
+				replace('\"', ' ').
+				replace('\'', ' ');
 		b=null;
 		Date startDate=new Date();
 		info("Starting JOB at "+startDate+" "+getClass().getName()+
