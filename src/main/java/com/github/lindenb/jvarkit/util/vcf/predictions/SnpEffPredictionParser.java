@@ -2,12 +2,13 @@ package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 
@@ -26,6 +27,8 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
  */
 public class SnpEffPredictionParser implements PredictionParser
 	{
+	private static final Logger LOG=Logger.getLogger("jvarkit");
+
 	private enum COLS{ Effect , Effect_Impact , Functional_Class,Codon_Change, 
 		Amino_Acid_change,Amino_Acid_length,Gene_Name , Gene_BioType , Coding , Transcript,
 		Exon  , GenotypeNum , ERRORS , WARNINGS};
@@ -49,7 +52,7 @@ public class SnpEffPredictionParser implements PredictionParser
 		VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
 		if(info==null || info.getDescription()==null)
 			{
-			System.err.println("no INFO["+tag+"] or no description ");
+			LOG.warning("no INFO["+tag+"] or no description ");
 			return;
 			}
 		String description=info.getDescription();
@@ -57,7 +60,7 @@ public class SnpEffPredictionParser implements PredictionParser
 		int i=description.indexOf(chunck);
 		if(i==-1)
 			{
-			System.err.println("Cannot find "+chunck+ " in "+description);
+			LOG.warning("Cannot find "+chunck+ " in "+description);
 
 			return;
 			}
@@ -76,7 +79,8 @@ public class SnpEffPredictionParser implements PredictionParser
 				}
 			if(col==null)
 				{
-				System.err.println("Undefined SnpEff tag \""+tokens[i]+"\"");
+				LOG.warning("Undefined SnpEff tag \""+tokens[i]+"\"");
+				continue;
 				}
 			col2col.put(col, i);
 			}
@@ -103,13 +107,13 @@ public class SnpEffPredictionParser implements PredictionParser
 			{
 			for(Object o2:(Object[])o) _predictions(preds,o2);
 			}
-		else if(o instanceof List)
+		else if(o instanceof Collection)
 			{
-			for(Object o2:(List<?>)o)  _predictions(preds,o2);
+			for(Object o2:(Collection<?>)o)  _predictions(preds,o2);
 			}
 		else
 			{
-			_predictions(preds,Collections.singleton(o));
+			_predictions(preds,o);
 			}
 		return preds;
 		}

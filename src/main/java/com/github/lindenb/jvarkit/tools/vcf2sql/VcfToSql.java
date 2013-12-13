@@ -666,6 +666,10 @@ public class VcfToSql extends CommandLineProgram
 			{
 			return (List)val;
 			}
+		else if(val instanceof java.util.Collection)
+			{
+			return new ArrayList(( java.util.Collection)val);
+			}
 		else
 			{
 			return new ArrayList(Collections.singleton(val.toString()));
@@ -684,14 +688,17 @@ public class VcfToSql extends CommandLineProgram
 				}
 			return b.toString();
 			}
-		if(o instanceof List)
+		if(o instanceof java.util.Collection)
 			{
-			List<?> L=List.class.cast(o);
+			
+			java.util.Collection<?> L=(java.util.Collection)(o);
 			StringBuilder b=new StringBuilder();
-			for(int i=0;i< L.size();++i)
+			int i=0;
+			for(Object o2:L)
 				{
 				if(i>0) b.append(",");
-				b.append(infotoString(L.get(i)));
+				b.append(infotoString(o2));
+				++i;
 				}
 			return b.toString();
 			}

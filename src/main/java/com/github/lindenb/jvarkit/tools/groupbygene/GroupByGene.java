@@ -161,7 +161,15 @@ public class GroupByGene extends AbstractCommandLineProgram
 			s=pred.getEnsemblGene();
 			if(s!=null)  set.add(new GeneName(s,"vep-ensembl-gene-name"));
 			s=pred.getEnsemblTranscript();
-			if(s!=null)  set.add(new GeneName(s,"vep-ensembl-transcript-name"));
+			if(s!=null)
+				{
+				set.add(new GeneName(s,"vep-ensembl-transcript-name"));
+				String ex=pred.getExon();
+				if(ex!=null)
+					{
+					set.add(new GeneName(s+"|"+ex,"vep-ensembl-transcript-exon-name"));
+					}
+				}
 			}
 		for(SnpEffPredictionParser.SnpEffPrediction pred: this.snpEffPredictionParser.getPredictions(ctx))
 			{
@@ -186,9 +194,9 @@ public class GroupByGene extends AbstractCommandLineProgram
 				{
 				for(Object o2:(Object[])o) tag.add(String.valueOf(o2));
 				}
-			else if(o instanceof List)
+			else if(o instanceof java.util.Collection)
 				{
-				for(Object o2:(List<?>)o) tag.add(String.valueOf(o2));
+				for(Object o2:(java.util.Collection<?>)o) tag.add(String.valueOf(o2));
 				}
 			else
 				{

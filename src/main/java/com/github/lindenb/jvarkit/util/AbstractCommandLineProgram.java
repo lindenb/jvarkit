@@ -152,7 +152,7 @@ public abstract class AbstractCommandLineProgram
 	
 	protected void printSynopsis(PrintStream out)
 		{
-		out.println("\tjava -jar "+getClass().getName()+" [options] (files)");
+		out.println("\tjava -cp jar1.jar:jar2.jar:jar3.jar "+getClass().getName()+" [options] (files)");
 		}
 	public void printUsage(PrintStream out)
 		{

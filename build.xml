@@ -1001,7 +1001,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>
 
 <target name="vcfpredictions">
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/VCFAnnotator.java"
 		main="com.github.lindenb.jvarkit.tools.vcfannot.VCFAnnotator"
 		name="vcfpredictions"

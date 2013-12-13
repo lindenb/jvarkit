@@ -5,8 +5,6 @@ package com.github.lindenb.jvarkit.tools.vcf2xml;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Map;
-import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 import javax.xml.stream.XMLStreamException;
@@ -21,6 +19,7 @@ import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.tools.vcf2sql.VcfToSql;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.XMLVcfWriter;
@@ -98,20 +97,30 @@ public class Vcf2Xml extends AbstractVCFFilter
 	private static class SnpEffInfoHandler implements XMLVcfWriter.XMLInfoHandler
 		{	
 		private SnpEffPredictionParser parser=null;
+		
+		
+		
 		@Override
 		public void handle(VCFHeader header, XMLStreamWriter w,
 				VariantContext ctx) throws XMLStreamException {
 			if(parser==null) parser=new SnpEffPredictionParser(header);
 			
-			for(Map<String,String> pred:parser.split(ctx))
+			for(SnpEffPredictionParser.SnpEffPrediction pred:parser.getPredictions(ctx))
 				{
 				w.writeStartElement(getKey());
-				for(String k:pred.keySet())
+				
+				simpleTag2(w,"altAA",pred.getAltAminoAcid());
+				simpleTag2(w,"posAA",pred.getAminoAcidPosition());
+				simpleTag2(w,"ensGene",pred.getEnsemblGene());
+				simpleTag2(w,"ensProtein",pred.getEnsemblProtein());
+				simpleTag2(w,"ensTranscript",pred.getEnsemblTranscript());
+				simpleTag2(w,"gene",pred.getGeneName());
+				simpleTag2(w,"refAA",pred.getReferenceAminoAcid());
+				for(SequenceOntologyTree.Term t:pred.getSOTerms())
 					{
-					w.writeStartElement(k);
-					w.writeCharacters(pred.get(k));
-					w.writeEndElement();
+					simpleTag2(w,"so",t.getAcn());
 					}
+
 				
 				w.writeEndElement();
 				}
@@ -123,7 +132,6 @@ public class Vcf2Xml extends AbstractVCFFilter
 		}
 	private static class VepInfoHandler  implements XMLVcfWriter.XMLInfoHandler
 		{	
-		private Pattern amp=Pattern.compile("[&]");
 		private VepPredictionParser parser=null;
 		@Override
 		public void handle(VCFHeader header, XMLStreamWriter w,
@@ -132,24 +140,22 @@ public class Vcf2Xml extends AbstractVCFFilter
 			{
 			if(parser==null) parser=new VepPredictionParser(header);
 			
-			for(Map<String,String> pred:parser.split(ctx))
+			for(VepPredictionParser.VepPrediction pred:parser.getPredictions(ctx))
 				{
 				w.writeStartElement(getKey());
-				for(String k:pred.keySet())
+				
+				simpleTag2(w,"altAA",pred.getAltAminoAcid());
+				simpleTag2(w,"posAA",pred.getAminoAcidPosition());
+				simpleTag2(w,"ensGene",pred.getEnsemblGene());
+				simpleTag2(w,"ensProtein",pred.getEnsemblProtein());
+				simpleTag2(w,"ensTranscript",pred.getEnsemblTranscript());
+				simpleTag2(w,"gene",pred.getGeneName());
+				simpleTag2(w,"exon",pred.getExon());
+				simpleTag2(w,"hgnc",pred.getHGNC());
+				simpleTag2(w,"refAA",pred.getReferenceAminoAcid());
+				for(SequenceOntologyTree.Term t:pred.getSOTerms())
 					{
-					String array[]=new String[]{pred.get(k)};
-					if(k.equals("Consequence"))
-						{
-						array=amp.split(array[0]);
-						}
-					
-					for(String item:array)
-						{
-						if(item.isEmpty()) continue;
-						w.writeStartElement(k);
-						w.writeCharacters(item);
-						w.writeEndElement();
-						}
+					simpleTag2(w,"so",t.getAcn());
 					}
 				
 				w.writeEndElement();
@@ -161,5 +167,19 @@ public class Vcf2Xml extends AbstractVCFFilter
 			return VepPredictionParser.getDefaultTag();
 			}
 		}
-
+	
+	private static void simpleTag2(XMLStreamWriter w,String tag,Object content) throws XMLStreamException
+		{
+		if(content==null || content.toString().isEmpty()) return;
+		simpleTag1(w,tag,content);
+		}
+	private static void simpleTag1(XMLStreamWriter w,String tag,Object content) throws XMLStreamException
+		{
+		
+		w.writeStartElement(tag);
+		w.writeCharacters(String.valueOf(content));
+		w.writeEndElement();
+		}
+	
+	
 }

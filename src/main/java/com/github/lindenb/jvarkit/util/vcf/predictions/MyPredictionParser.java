@@ -16,48 +16,33 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.tools.vcfannot.VCFAnnotator;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
 /**
- * ###INFO=<ID=CSQ,Number=.,Type=String,Description="Consequence type as predicted by VEP. Format: Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_po
-sition|Protein_position|Amino_acids|Codons|Existing_variation|HGNC|DISTANCE|SIFT|PolyPhen|CELL_TYPE"
-
  * @author lindenb
  *
  */
-public class VepPredictionParser implements PredictionParser
+public class MyPredictionParser implements PredictionParser
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private Map<VCFAnnotator.FORMAT1, Integer> col2col=new HashMap<VCFAnnotator.FORMAT1, Integer>();
 
-	private enum COLS{Allele,Gene,Feature,Feature_type,Consequence,cDNA_position,CDS_position,Protein_position,Amino_acids,Codons,Existing_variation,HGNC,DISTANCE,SIFT,PolyPhen,CELL_TYPE,RefSeq,EXON};
-	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
 	private Pattern pipe=Pattern.compile("[\\|]");
-	private String tag;
 
-	
-	public VepPredictionParser(VCFHeader header)
-		{		
-		this(header,getDefaultTag());
-		}
-	
-	@Override
-	public String getTag()
+	public final String getTag()
 		{
-		return this.tag;
+		return VCFAnnotator.TAG;
 		}
 	
-	public static final String getDefaultTag()
-		{
-		return "CSQ";
-		}
 	
-	public VepPredictionParser(VCFHeader header,String tag)
+	
+	public MyPredictionParser(VCFHeader header)
 		{	
-		this.tag=(tag==null?getDefaultTag():tag);
-		VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
+		VCFInfoHeaderLine info=header.getInfoHeaderLine(getTag());
 		if(info==null || info.getDescription()==null)
 			{
-			LOG.warning("NO "+tag+" found in header");
+			LOG.warning("NO "+getTag()+" found in header");
 			return;
 			}
 		String description=info.getDescription();
@@ -74,8 +59,8 @@ public class VepPredictionParser implements PredictionParser
 		for(i=0;i< tokens.length;++i)
 			{
 			if(tokens[i].isEmpty()) continue;
-			COLS col=null;
-			for(COLS c:COLS.values())
+			VCFAnnotator.FORMAT1 col=null;
+			for(VCFAnnotator.FORMAT1 c:VCFAnnotator.FORMAT1.values())
 				{
 				if(c.name().equalsIgnoreCase(tokens[i]))
 					{
@@ -84,7 +69,7 @@ public class VepPredictionParser implements PredictionParser
 				}
 			if(col==null)
 				{
-				LOG.warning("Undefined VEP tag "+tokens[i]);
+				LOG.warning("Undefined "+" tag "+tokens[i]);
 				continue;
 				}
 			col2col.put(col, i);
@@ -94,11 +79,11 @@ public class VepPredictionParser implements PredictionParser
 	
 	
 	@Override
-	public List<VepPrediction> getPredictions(VariantContext ctx)
+	public List<MyPrediction> getPredictions(VariantContext ctx)
 		{
-		ArrayList<VepPrediction> preds= new ArrayList<VepPrediction>();
+		ArrayList<MyPrediction> preds= new ArrayList<MyPrediction>();
 		if(col2col.isEmpty()) return preds;
-		Object o=ctx.getAttribute(this.tag);
+		Object o=ctx.getAttribute(getTag());
 		if(o==null)
 			{
 			return preds;
@@ -114,12 +99,12 @@ public class VepPredictionParser implements PredictionParser
 			}
 		else
 			{
-			_predictions(preds,o);
+			_predictions(preds, o);
 			}
 		return preds;
 		}
 	
-	private void _predictions( List<VepPrediction> preds,Object o)
+	private void _predictions( List<MyPrediction> preds,Object o)
 		{
 		if(o==null) return;
 		if(!(o instanceof String))
@@ -128,20 +113,21 @@ public class VepPredictionParser implements PredictionParser
 			return;
 			}
 		String s=String.class.cast(o).trim();
+		
 		String tokens[]=pipe.split(s);
-		preds.add(new VepPrediction(tokens));
+		preds.add(new MyPrediction(tokens));
 		}
 			
 	
-	public class VepPrediction
+	public class MyPrediction
 		implements Prediction
 		{
 		private String tokens[];
-		VepPrediction(String tokens[])
+		MyPrediction(String tokens[])
 			{
 			this.tokens=tokens;
-			}
-		private String getByCol(COLS col)
+			}			
+		private String getByCol(VCFAnnotator.FORMAT1 col)
 			{
 			Integer idx=col2col.get(col);
 			if(idx==null || idx>=tokens.length || tokens[idx].isEmpty())
@@ -151,27 +137,23 @@ public class VepPredictionParser implements PredictionParser
 			return tokens[idx];
 			}
 		
-		public String getExon()
+		public String getTranscript()
 			{
-			return getByCol(COLS.EXON);
+			return getByCol(VCFAnnotator.FORMAT1.TRANSCRIPT);
 			}
 		
 		
 		@Override
 		public String getGeneName()
 			{
-			return getByCol(COLS.HGNC);
+			return getTranscript();
 			}
 		
-		public String getHGNC()
-			{
-			return getByCol(COLS.HGNC);
-			}
 		
-		private Map<COLS,String> getMap()
+		private Map<VCFAnnotator.FORMAT1,String> getMap()
 			{
-			Map<COLS, String> hash=new HashMap<COLS,String>();
-			for(COLS c: col2col.keySet())
+			Map<VCFAnnotator.FORMAT1, String> hash=new HashMap<VCFAnnotator.FORMAT1,String>();
+			for(VCFAnnotator.FORMAT1 c: col2col.keySet())
 				{
 				int idx=col2col.get(c);
 				if(idx>=this.tokens.length) continue;
@@ -180,26 +162,69 @@ public class VepPredictionParser implements PredictionParser
 			return hash;
 			}
 		
-		@Override
-		public String getAltAminoAcid() {
-			return null;
+		
+		public String getCodonChange()
+			{
+			return getByCol(VCFAnnotator.FORMAT1.CODON);
 			}
+		
+		public String getAltCodon()
+			{
+			String s=getCodonChange();
+			if(s==null || s.isEmpty()) return null;
+			int slash=s.indexOf('/');
+			return slash==-1?null:s.substring(slash+1);
+			}
+		
+		public String getRefCodon()
+			{
+			String s=getCodonChange();
+			if(s==null || s.isEmpty()) return null;
+			int slash=s.indexOf('/');
+			return slash==-1?null:s.substring(0,slash);
+			}
+
+
+		
+		
+		public String getAminoAcidChange()
+			{
+			return getByCol(VCFAnnotator.FORMAT1.AA);
+			}
+		
+		@Override
+		public String getAltAminoAcid()
+			{
+			String s=getAminoAcidChange();
+			if(s==null || s.isEmpty()) return null;
+			int slash=s.indexOf('/');
+			return slash==-1?null:s.substring(slash+1);
+			}
+		
 		
 		@Override
 		public Integer getAminoAcidPosition()
 			{
-			return null;
+			String s= getByCol(VCFAnnotator.FORMAT1.PROTPOS);
+			if(s==null || s.isEmpty()) return null;
+			try {
+				return Integer.parseInt(s);
+			} catch (Exception e) {
+				return null;
+				}
 			}
 		@Override
 		public String getReferenceAminoAcid() {
-			return null;
+
+			String s=getAminoAcidChange();
+			if(s==null || s.isEmpty()) return null;
+			int slash=s.indexOf('/');
+			return slash==-1?null:s.substring(0,slash);
 			}
 		
 		@Override
 		public String getEnsemblGene() {
-			String s=getByCol(COLS.Gene);
-			if(s.startsWith("ENSG")) return s;
-			return s;
+			return null;
 			}
 		
 		@Override
@@ -209,8 +234,7 @@ public class VepPredictionParser implements PredictionParser
 		
 		@Override
 		public String getEnsemblTranscript() {
-			String s=getByCol(COLS.Feature);
-			if(s.startsWith("ENST")) return s;
+			
 			return null;
 			}
 		
@@ -218,13 +242,17 @@ public class VepPredictionParser implements PredictionParser
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
 			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
-			String EFF=getByCol(COLS.Consequence);
+			String EFF=getByCol(VCFAnnotator.FORMAT1.SEQONTOLOGY);
 			if(EFF==null) return set;
 			for(SequenceOntologyTree.Term t:SequenceOntologyTree.getInstance().getTerms())
 				{
 				for(String eff:EFF.split("[&]"))
 					{
-					if(t.getLabel().equals(eff))
+					if(t.getLabel().replace(' ', '_').equals(eff))
+						{
+						set.add(t);
+						}
+					else if(t.getAcn().equals(eff))
 						{
 						set.add(t);
 						}

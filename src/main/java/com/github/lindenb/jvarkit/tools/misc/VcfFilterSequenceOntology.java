@@ -15,6 +15,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
@@ -45,7 +46,6 @@ public class VcfFilterSequenceOntology extends AbstractVCFFilter2
 			{
 			if(this.user_terms.contains(ctxTerm))
 				{
-				info("CONTAINS: "+ctxTerm.getAcn()+" "+ctxTerm.getLabel());
 				return true;
 				}
 			}
@@ -61,9 +61,9 @@ public class VcfFilterSequenceOntology extends AbstractVCFFilter2
 		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 		out.writeHeader(header);
 		
-		VepPredictionParser vepParser=new VepPredictionParser(header);
-		SnpEffPredictionParser snpEffparser=new SnpEffPredictionParser(header);
-		
+		final VepPredictionParser vepParser=new VepPredictionParser(header);
+		final SnpEffPredictionParser snpEffparser=new SnpEffPredictionParser(header);
+		final MyPredictionParser myPredParser=new MyPredictionParser(header);
 		while(in.hasNext() )
 			{	
 			VariantContext ctx=in.next();
@@ -80,7 +80,13 @@ public class VcfFilterSequenceOntology extends AbstractVCFFilter2
 					if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
 					}
 				}
-			
+			if(!keep)
+				{
+				for(MyPredictionParser.MyPrediction pred:myPredParser.getPredictions(ctx))
+					{
+					if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
+					}
+				}
 			if(inverse_result ) keep=!keep;
 			if(keep) out.add(ctx);
 			}

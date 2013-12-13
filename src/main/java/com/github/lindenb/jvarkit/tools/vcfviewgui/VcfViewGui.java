@@ -249,9 +249,9 @@ class InfoTableModel
 					{
 					o=new Object[]{null};
 					}
-				else if(v instanceof List)
+				else if(v instanceof java.util.Collection)
 					{
-					o=((List<?>)v).toArray();
+					o=((java.util.Collection<?>)v).toArray();
 					}
 				else if(v.getClass().isArray())
 					{
