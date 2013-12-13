@@ -68,7 +68,11 @@ public class SAMSequenceDictionaryProgress
 	
 	public void watch(String chrom,int pos)
 		{
-		if(chrom==null || samSequenceDictionary==null) return;
+		if(chrom==null || samSequenceDictionary==null)
+			{
+			watch(-1,pos);
+			return;
+			}
 		watch(samSequenceDictionary.getSequenceIndex(chrom),pos);
 		}
 	
@@ -92,7 +96,13 @@ public class SAMSequenceDictionaryProgress
 			}
 		n/=24;
 	
-		return n+" day"+(n<2?"":"s");
+		if(n< 365)
+			{
+			return n+" day"+(n<2?"":"s");
+			}
+		n/=365;
+		
+		return n+" year"+(n<2?"":"s");
 		}
 	
 	/** return the number of records seen so far */
@@ -104,7 +114,7 @@ public class SAMSequenceDictionaryProgress
 	public void watch(int tid,int pos)
 		{
 		this.count++;
-		long curr=System.currentTimeMillis();
+		final long curr=System.currentTimeMillis();
 	
 		if(start==-1L )
 			{
@@ -115,9 +125,20 @@ public class SAMSequenceDictionaryProgress
 		
 		if(curr-last < print_every_n_seconds*1000) return;
 		
+		if(tid==-1)
+			{
+			samSequenceDictionary=null;
+			}
+		
 		//check order of data
 		if(samSequenceDictionary!=null)
 			{
+			if( tid>=samSequenceDictionary.size()) 
+				{
+				samSequenceDictionary=null;
+				return;
+				}
+			
 			if(prev_tid==-1 || prev_tid!=tid)
 				{
 				prev_tid=tid;
@@ -140,16 +161,19 @@ public class SAMSequenceDictionaryProgress
 		if(samSequenceDictionary==null)
 			{
 			
-			LOG.info(
-					String.format("%sCount: %,10d",
-					(this.prefix==null?"":"["+this.prefix+"]"))+
-					count
+			LOG.info( (this.prefix==null?"":"["+this.prefix+"]")+" Count="+
+					count+" Elapsed: "+duration(curr-start)
 					);
+			this.last=curr;
 			return;
 			}
-
 		
-		if(tid<0 || tid>=samSequenceDictionary.size() || pos<1) return;
+		
+		if(tid<0 || tid>=samSequenceDictionary.size() || pos<1)
+			{
+			this.last=curr;
+			return;
+			}
 	
 		
 		long numBasesDone=(tid==0?0:this.cumulLengthDone[tid-1])+pos;
