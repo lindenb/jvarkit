@@ -1,270 +1,348 @@
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.PrintStream;
 
-import com.github.lindenb.jvarkit.util.picard.CigarIterator;
-import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-import net.sf.picard.cmdline.CommandLineProgram;
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
+import net.sf.picard.PicardException;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.picard.util.Interval;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.util.CloserUtil;
 
-public class Sam2Tsv extends CommandLineProgram
+/**
+ * https://github.com/lindenb/jvarkit/wiki/SAM2Tsv
+ */
+public class Sam2Tsv
+	extends AbstractCommandLineProgram
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"Prints the SAM alignments as a TAB delimited file. ";
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM files to process.",minElements=0)
-	public List<File> IN=new ArrayList<File>();
-
-    @Option(shortName= "L", doc="restrict to that region (chr:start-end)",optional=true)
-	public String REGION=null;
-    @Option(shortName= StandardOptionDefinitions.REFERENCE_SHORT_NAME, doc="Indexex reference",optional=false)
-	public File  REF=null;
-    @Option(shortName= "A", doc="Use Alignment output.",optional=false)
-	public boolean ALN=false;
-
-    private Interval interval=null;
-	private PrintWriter pw=new PrintWriter(System.out);
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private GenomicSequence genomicSequence=null;
+	private boolean printAlignment=false;
+	/** lines for alignments */
+	private StringBuilder L1=null;
+	private StringBuilder L2=null;
+	private StringBuilder L3=null;
+
 	
 	
-	@Override
-	public String getVersion() {
-		return "1.0";
-		}
-	
-	private void print(final SAMRecord rec)
-		{
-		if(ALN)
+	private void printAln(
+			final SAMRecord rec,
+			Integer readPos,
+			Character readChar,
+			Integer refPos,
+			Character refChar,
+			CigarOperator op
+			)
 			{
-			printAln(rec);
+			System.out.print(rec.getReadName());
+			System.out.print("\t");
+			System.out.print(rec.getReadUnmappedFlag()?".":rec.getReferenceName());
+			System.out.print("\t");
+			if(readPos!=null && readChar!=null)
+				{
+				System.out.print(readPos);
+				System.out.print("\t");
+				System.out.print(readChar);
+				System.out.print("\t");
+				}
+			else
+				{
+				System.out.print(".\t.\t");
+				}
+			if(refPos!=null && refChar!=null)
+				{
+				System.out.print(refPos);
+				System.out.print("\t");
+				System.out.print(refChar);
+				System.out.print("\t");
+				}
+			else
+				{
+				System.out.print(".\t.\t");
+				}
+			System.out.print(op==null?".":op.name());
+			System.out.println();
+			if(this.printAlignment)
+				{
+				L1.append(readChar==null?'-':readChar);
+				L3.append(refChar==null?'-':refChar);
+				if(refChar!=null && readChar!=null && Character.toUpperCase(refChar)==Character.toUpperCase(readChar))
+					{
+					L2.append('|');
+					}
+				else
+					{
+					L2.append(' ');
+					}
+				}
 			}
-		else
-			{
-			printTsv(rec);
-			}
-		}
 	
 	private void printAln(final SAMRecord rec)
 		{
-		StringBuilder L1=new StringBuilder();
-		StringBuilder L2=new StringBuilder();
-		StringBuilder L3=new StringBuilder();
-		
-		CigarIterator ci=CigarIterator.create(rec, this.indexedFastaSequenceFile);
-		
-		pw.println(">"+rec.getReadName()+
-				"\t"+
-				rec.getReferenceName()
-				);
-		
-		while(ci.next())
+		if(rec==null) return;
+		byte readbases[]=rec.getReadBases();
+		if(readbases==null || rec.getReadUnmappedFlag())
 			{
-			int readP=ci.getReadPosition();
-			int refP=ci.getReferencePosition();
-			Character readBase=null;
-			Character refBase=null;
-			
-			if(readP==-1)
-				{
-				L3.append('.');
-				}
-			else
-				{
-				L3.append((readBase=ci.getReadBase()));
-				}
-			
-			if(refP==-1)
-				{
-				L1.append('.');
-				}
-			else
-				{
-				L1.append((refBase=ci.getReferenceBase()));
-				}
-			
-			if(readBase==null || refBase==null)
-				{
-				L2.append(' ');
-				}
-			else if(Character.toUpperCase(readBase)==Character.toUpperCase(refBase))
-				{
-				L2.append('|');
-				}
-			else
-				{
-				L2.append(' ');
-				}
+			printAln(rec,null,null,null,null,null);
+			return;
 			}
 		
-		int len=Math.max(rec.getReadNameLength(), rec.getReferenceName().length())+2;
+		if(genomicSequence==null || !genomicSequence.getChrom().equals(rec.getReferenceName()))
+			{
+			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, rec.getReferenceName());
+			}
 		
-		pw.printf("%"+len+"s %8d %s %-8d\n",
-				rec.getReferenceName(),
-				rec.getUnclippedStart(),
-				L1.toString(),
-				rec.getUnclippedEnd()
-				);
-		pw.printf("%"+len+"s %8s %s\n",
-				"",
-				"",
-				L2.toString()
-				);
 
-		pw.printf("%"+len+"s %8d %s %-8d\n",
-				rec.getReadName(),
-				1,
-				L3.toString(),
-				rec.getReadLength()
-				);
-		pw.println();
-		}
-	
-	
-	private void printTsv(final SAMRecord rec)
-		{
-		CigarIterator ci=CigarIterator.create(rec, this.indexedFastaSequenceFile);
 		
-			
-		while(ci.next())
-			{
-			int readP=ci.getReadPosition();
-			int refP=ci.getReferencePosition();
-			Character readBase=null;
-			Character refBase=null;
-			
-			pw.print(rec.getReadName());
-			pw.print('\t');
-			pw.print(rec.getFlags());
-			pw.print('\t');
-			if(readP==-1)
+		
+		
+		 int readIndex = 0;
+		 int refIndex = rec.getAlignmentStart();
+		 				 
+		 for (final CigarElement e : rec.getCigar().getCigarElements())
+			 {
+			 switch (e.getOperator())
+				 {
+				 case H : break; // ignore hard clips
+				 case P : break; // ignore pads
+				 case I : //cont.
+				 case S :
+				 		{
+				 		for(int i=0;i<e.getLength();++i)
+				 			{
+				 			if(readIndex>=0 && readIndex< readbases.length)
+				 				{
+				 				printAln(rec,
+				 						readIndex,
+				 						(char)(readbases[readIndex]),
+				 						null,
+				 						null,
+				 						e.getOperator()
+				 						);
+				 				}
+				 			readIndex++;
+				 			}
+				 		break;
+				 		}
+				 case N :  //cont. -- reference skip
+				 case D :
+				 		{
+				 		for(int i=0;i<e.getLength();++i)
+				 			{
+				 			if(refIndex>=1 && refIndex<=this.genomicSequence.length())
+				 				{
+				 				printAln(rec,
+				 						null,
+				 						null,
+				 						refIndex,
+				 						genomicSequence.charAt(refIndex-1),
+				 						e.getOperator()
+				 						);
+				 				}
+				 			refIndex++;
+				 			}
+				 		break;
+				 		}
+				 case M :
+				 case EQ :
+				 case X :
+			 			{
+				 		final int length = e.getLength();
+				 		for(int i=0;i<length;++i)
+				 			{
+				 			char baseRead='*';
+				 			char baseRef='*';
+				 			
+				 			if(readIndex>=0 && readIndex< readbases.length)
+				 				{
+					 			baseRead=(char)(rec.getReadBases()[readIndex]);
+				 				}
+				 			if(refIndex>=1 && refIndex<= genomicSequence.length())
+					 			{
+				 				baseRef=genomicSequence.charAt(refIndex-1);
+					 			}
+				 			printAln(rec,
+				 					readIndex,
+				 					baseRead,
+			 						refIndex,
+			 						baseRef,
+			 						e.getOperator()
+			 						);
+				 			
+				 			refIndex++;
+				 			readIndex++;
+				 			}
+				 		break;
+			 			}
+					
+				 default : throw new IllegalStateException("Case statement didn't deal with cigar op: " + e.getOperator());
+				 }
+
+			 }
+	
+		
+		
+		 if(printAlignment)
 				{
-				pw.print(".\t.\t.\t");
+				
+				int len=Math.max(rec.getReadNameLength(), rec.getReferenceName().length())+2;
+				
+				System.out.printf(":%"+len+"s %8d %s %-8d\n",
+						rec.getReferenceName(),
+						rec.getUnclippedStart(),
+						L1.toString(),
+						rec.getUnclippedEnd()
+						);
+				System.out.printf(":%"+len+"s %8s %s\n",
+						"",
+						"",
+						L2.toString()
+						);
+
+				System.out.printf(":%"+len+"s %8d %s %-8d\n",
+						rec.getReadName(),
+						1,
+						L3.toString(),
+						rec.getReadLength()
+						);
+
+				L1.setLength(0);
+				L2.setLength(0);
+				L3.setLength(0);
 				}
-			else
-				{
-				Integer qual=ci.getReadQual();
-				pw.print(1+readP);
-				pw.print('\t');
-				pw.print((readBase=ci.getReadBase()));
-				pw.print('\t');
-				pw.print(qual==null?".":qual.toString());
-				pw.print('\t');
-				}
-			
-			pw.print(rec.getReferenceName());
-			pw.print('\t');
-			if(refP==-1)
-				{
-				pw.print(".\t.\t");
-				}
-			else
-				{
-				pw.print(refP);
-				pw.print('\t');
-				pw.print((refBase=ci.getReferenceBase()));
-				pw.print('\t');
-				}
-			pw.print(ci.getCigarOperator());
-			pw.print('\t');
-			if(readBase==null || refBase==null)
-				{
-				pw.print('.');
-				}
-			else if(Character.toUpperCase(readBase)==Character.toUpperCase(refBase))
-				{
-				pw.print('=');
-				}
-			else
-				{
-				pw.print('X');
-				}
-			
-			pw.println();
-			}
+
 		}
+	
+	
 	
 	private void scan(SAMFileReader r) 
 		{
-		r.setValidationStringency(super.VALIDATION_STRINGENCY);
+		r.setValidationStringency(ValidationStringency.LENIENT);
 		SAMRecordIterator iter=null;
-		if(interval==null)
-			{
-			iter=r.iterator();
+		try{
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(r.getFileHeader().getSequenceDictionary());
+			iter=r.iterator();	
+			while(iter.hasNext())
+				{
+				SAMRecord rec=iter.next();
+				progress.watch(rec);
+				printAln(rec);
+				if(System.out.checkError()) break;
+				}
 			}
-		else
+		catch(Exception err)
 			{
-			iter=r.queryOverlapping(interval.getSequence(),interval.getStart(), interval.getEnd());
+			error(err);
+			throw new PicardException(String.valueOf(err.getMessage()),err);
 			}
-		
-		while(iter.hasNext())
+		finally
 			{
-			SAMRecord rec=iter.next();
-			if(rec.getReadUnmappedFlag()) continue;
-			print(rec);
+			CloserUtil.close(iter);
 			}
 		}
 	
+	
 	@Override
-	protected int doWork()
+	protected String getOnlineDocUrl()
 		{
-		try {
-			
-			
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
-			
-			if(REGION!=null)
-				{
-				this.interval=IntervalUtils.parseOne(
-						this.indexedFastaSequenceFile.getSequenceDictionary(),
-						REGION);
-				if(this.interval==null)
-					{
-					System.err.println("Cannot parse interval "+REGION+" or chrom doesn't exists.");
-					return -1;
-					}
-				}
-			
-			if(IN.isEmpty())
-				{
-				SAMFileReader r=new SAMFileReader(System.in);
-				scan(r);
-				r.close();
-				}
-			else
-				{
-				for(File f:this.IN)
-					{
-					SAMFileReader r=new SAMFileReader(f);
-					scan(r);
-					r.close();
-					}
-				}
-			pw.flush();
-			}	
-		catch (FileNotFoundException e)
+		return "https://github.com/lindenb/jvarkit/wiki/SAM2Tsv";
+		}
+	
+	@Override
+	public String getProgramDescription() {
+		return "Prints the SAM alignments as a TAB delimited file.";
+		}
+	
+	@Override
+	public void printOptions(PrintStream out)
+		{
+		out.println(" -r (reference) Fasta Reference indexed file . REQUIRED.");
+		out.println(" -A display alignment.");
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		File refFile=null;
+		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=getopt.getopt(args,getGetOptDefault()+ "r:R:A"))!=-1)
 			{
-			e.printStackTrace();
+			switch(c)
+				{
+				case 'A': this.printAlignment=true;break;
+				case 'R': case 'r': refFile=new File(getopt.getOptArg());break;
+				default: 
+					{
+					switch(handleOtherOptions(c, getopt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default: break;
+						}
+					}
+				}
+			}
+		
+		if(refFile==null)
+			{
+			error("Undefined REF file");
+			return -1;
+			}
+		
+		if(printAlignment)
+			{
+			L1=new StringBuilder();
+			L2=new StringBuilder();
+			L3=new StringBuilder();
+			}
+		
+		SAMFileReader samFileReader=null;
+		try
+			{
+			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
+			samFileReader=null;
+			if(getopt.getOptInd()==args.length)
+				{
+				info("Reading from stdin");
+				samFileReader=new SAMFileReader(System.in);
+				scan(samFileReader);
+				samFileReader.close();
+				}
+			else 
+				{
+				for(int optind=getopt.getOptInd();optind< args.length;++optind)
+					{
+					File bamFile=new File(args[optind]);
+					info("Reading "+bamFile);
+					samFileReader=new SAMFileReader(bamFile);
+					scan(samFileReader);
+					samFileReader.close();
+					}
+				}
+			return 0;
+			}
+		catch (Exception e)
+			{
+			error(e);
 			return -1;
 			}
 		finally
 			{
 			CloserUtil.close(indexedFastaSequenceFile);
+			CloserUtil.close(samFileReader);
 			}
-		return 0;
 		}
-
+	
 	public static void main(String[] args)
 		{
 		new Sam2Tsv().instanceMainWithExit(args);

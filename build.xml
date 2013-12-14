@@ -73,7 +73,7 @@
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
-	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured</echo>
+	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured. See https://github.com/lindenb/jvarkit/wiki/Compilation </echo>
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
    			<src path="${generated.dir}"/>
@@ -149,7 +149,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
-	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured</echo>
+	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured. See https://github.com/lindenb/jvarkit/wiki/Compilation</echo>
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
    			<src path="${generated.dir}"/>
@@ -521,7 +521,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>
 
 <target name="sam2tsv" >
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/Sam2Tsv.java"
 		main="com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv"
 		name="sam2tsv"
