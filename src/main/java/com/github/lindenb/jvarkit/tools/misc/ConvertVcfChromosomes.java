@@ -41,15 +41,15 @@ public class ConvertVcfChromosomes extends AbstractVCFFilter2 {
 		String newname=customMapping.get(chrom);
 		if(newname==null)
 			{
-			if(use_original_chrom_name_if_no_mapping)
+			if(!unmappedChromosomes.contains(chrom))
 				{
-				if(!unmappedChromosomes.contains(chrom))
-					{
-					warning("unmapped chromosome "+chrom);
-					unmappedChromosomes.add(chrom);
-					}
-				if(ignore_if_no_mapping) return null;
-				
+				warning("unmapped chromosome "+chrom);
+				unmappedChromosomes.add(chrom);
+				}
+			if(ignore_if_no_mapping) return null;
+			
+			if(use_original_chrom_name_if_no_mapping)
+				{	
 				return chrom;
 				}
 			throw new IOException("No mapping found to convert name of chromosome \""+chrom+"\"");
