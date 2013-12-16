@@ -15,19 +15,21 @@ import java.util.Set;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import net.sf.picard.PicardException;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Log;
+import net.sf.samtools.BAMIndex;
 import net.sf.samtools.DefaultSAMRecordFactory;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileHeader.SortOrder;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMFileWriterFactory;
-import net.sf.samtools.SAMProgramRecord;
+//import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordFactory;
@@ -78,7 +80,7 @@ public class SplitBam extends AbstractCommandLineProgram
 	private SAMSequenceDictionary  samSequenceDictionary;
 	private long id_generator=System.currentTimeMillis();
 	
-	
+	private Set<File> deleteOnError=new HashSet<File>();
 
 	
 	public SplitBam()
@@ -130,6 +132,10 @@ public class SplitBam extends AbstractCommandLineProgram
 		if(parent!=null) parent.mkdirs();
 
 		SAMFileWriter sw=sf.makeBAMWriter(header, true, fileout);
+		
+		deleteOnError.add(fileout);
+		deleteOnError.add(indexFor(fileout));
+		
 		if(this.ADD_MOCK_RECORD)
 			{
 			addMockPair(sw,header);
@@ -251,19 +257,14 @@ public class SplitBam extends AbstractCommandLineProgram
         	sf.setCreateIndex(super.CREATE_INDEX);
         	}
         
-        long nrecords=0L;
        
-       
+       SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samFileReader.getFileHeader()==null?null:samFileReader.getFileHeader().getSequenceDictionary());
         
 		for(Iterator<SAMRecord> iter=samFileReader.iterator();
 				iter.hasNext(); )
 			{
 			SAMRecord record=iter.next();
-			++nrecords;
-			if(nrecords%1E6==0)
-				{
-				LOG.info("nRecord:"+nrecords);
-				}
+			progress.watch(record);
 			String recordChromName=null;
 			if( record.getReadUnmappedFlag() )
 				{
@@ -296,12 +297,20 @@ public class SplitBam extends AbstractCommandLineProgram
 				LOG.info("opening "+fileout);
 				File parent=fileout.getParentFile();
 				if(parent!=null) parent.mkdirs();
-				writer=sf.makeBAMWriter(header,this.INPUT_IS_SORTED,fileout,super.COMPRESSION_LEVEL);
-				
+				writer=sf.makeBAMWriter(
+						header,
+						this.INPUT_IS_SORTED,
+						fileout,
+						super.COMPRESSION_LEVEL
+						);
+				deleteOnError.add(fileout);
+				deleteOnError.add(indexFor(fileout));
 
 				
 				seen.put(groupName, writer);
-				nrecords=0L;
+				
+				
+				
 				}
 			writer.addAlignment(record);
 			}
@@ -322,7 +331,7 @@ public class SplitBam extends AbstractCommandLineProgram
 				createEmptyFile(sf,header,groupName);
 				}
 			}
-		
+		deleteOnError.clear();
 		}
 	@Override
 	protected int doWork()
@@ -372,6 +381,14 @@ public class SplitBam extends AbstractCommandLineProgram
 		catch(Exception err)
 			{
 			err.printStackTrace();
+			for(File f:deleteOnError)
+				{
+				if(f!=null && f.exists() && f.isFile())
+					{
+					LOG.info("Cleanup: delete "+f);
+					f.delete();
+					}
+				}
 			super.testRemoteGit();
 			return -1;
 			}
@@ -379,6 +396,14 @@ public class SplitBam extends AbstractCommandLineProgram
 			{
 			
 			}
+		}
+	
+	private static File indexFor(File bamFile)
+		{
+		final String bamExtension = ".bam";
+		String fileName=bamFile.getName();
+		final String bai = fileName.substring(0, fileName.length() - bamExtension.length()) + BAMIndex.BAMIndexSuffix;
+        return new File(bamFile.getParent(), bai);
 		}
 	
 	@Override
