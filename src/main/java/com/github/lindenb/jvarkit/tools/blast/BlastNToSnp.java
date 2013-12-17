@@ -36,6 +36,12 @@ public class BlastNToSnp extends AbstractCommandLineProgram {
 		{
 		
 		}
+	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/BlastnToSnp";
+		}
+	
 	@Override
 	public String getProgramDescription() {
 		return "print indel/mismatch in a blastn stream";
