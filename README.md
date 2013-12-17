@@ -97,6 +97,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcffilterSequenceOntology">VcffilterSequenceOntology<a></th><td>Filter a VCF on Seqence Ontology (SO).</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar59647">Biostar59647<a></th><td>position of mismatches per read from a sam/bam file (XML) See http://www.biostars.org/p/59647/</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRenameChromosomes">VcfRenameChromosomes<a></th><td>Rename chromosomes in a VCF (eg. convert hg19/ucsc to grch37/ensembl)</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamRenameChromosomes">BamRenameChromosomes<a></th><td>Rename chromosomes in a BAM (eg. convert hg19/ucsc to grch37/ensembl)</td></tr>
 
 
 </table>

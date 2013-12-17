@@ -145,6 +145,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	<attribute name="name"/>
 	<attribute name="java"/>
 	<attribute name="main"/>
+	<attribute name="libraryid" default="picard.lib"/>
 	<sequential>
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
@@ -154,7 +155,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   		<src path="src/main/java"/>
    			<src path="${generated.dir}"/>
 
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="@{libraryid}"/>
 	   		<include name="@{java}"/>
 	   		<include name="**/package-info.java"/>
 	   </javac>
@@ -170,8 +171,13 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	    </loadfile>
 		
 	   <pathconvert property="manifest_@{name}" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="@{libraryid}"/>
 	   </pathconvert>  
+
+	   <pathconvert property="manifest_@{name}_for_exe" >
+			 <path refid="@{libraryid}"/>
+	   </pathconvert>  
+
 	   
 	<tstamp>
     	<format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss" />
@@ -190,12 +196,11 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   
 	   	   <echo file="dist/@{name}">#!/bin/bash
 PREFIX=$(dirname $0)
-java -Xmx500m -jar $PREFIX/@{name}.jar $*
+java -Xmx500m -cp ${manifest_@{name}_for_exe}:$PREFIX/@{name}.jar @{main} $*
 </echo>
 	   
 	   <chmod file="dist/@{name}" perm="ugo+rx"/>
-	   
-	   
+	   	   
 		<delete dir="tmp"/>
 	</sequential>
 </macrodef>
@@ -1204,6 +1209,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="bamrenamechr">
+	<compile-picard-cmd 
+		java="**/ConvertBamChromosomes.java"
+		main="com.github.lindenb.jvarkit.tools.misc.ConvertBamChromosomes"
+		name="bamrenamechr"
+		/>
+</target>
 
 
 <target name="biostar" depends="biostar76892,biostar77288,biostar77828,biostar78285,biostar81455,biostar84786">

@@ -1,18 +1,15 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-import net.sf.picard.PicardException;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.CloserUtil;
@@ -29,19 +26,15 @@ import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
-import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class VcfSimulator extends AbstractCommandLineProgram
 	{
 	private Random random;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	private Set<String> samples=new HashSet<String>();
-	private VariantContextWriter variantContextWriter=null;
 	private Integer numSamples=null;
 	
 	private VcfSimulator()
@@ -97,9 +90,9 @@ public class VcfSimulator extends AbstractCommandLineProgram
 			error("Reference is undefined");
 			return -1;
 			}
-		this.random=new Random();
+		this.random=new Random(seed);
 		if(numSamples==null) numSamples=1+this.random.nextInt(10);
-		while(this.samples.isEmpty()) this.samples.add("SAMPLE"+(1+this.samples.size()));
+		while(this.samples.size()<numSamples) this.samples.add("SAMPLE"+(1+this.samples.size()));
 		VariantContextWriter writer=null;
 		try
 			{
@@ -110,6 +103,11 @@ public class VcfSimulator extends AbstractCommandLineProgram
 					VCFHeaderLineCount.INTEGER,
 					VCFHeaderLineType.String,
 					"Genotype"));
+			metaData.add(new VCFFormatHeaderLine(
+					"DP",
+					VCFHeaderLineCount.INTEGER,
+					VCFHeaderLineType.String,
+					"Depth"));
 			
 			VCFHeader header=new VCFHeader(
 					metaData,
@@ -163,6 +161,8 @@ public class VcfSimulator extends AbstractCommandLineProgram
 										sample,
 										Arrays.asList(a1,a2)
 										);
+								gb.DP(1+random.nextInt(50));
+								
 								}
 							genotypes.add(gb.make());
 							}
