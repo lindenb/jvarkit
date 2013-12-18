@@ -1086,6 +1086,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="blast2sam" depends="api.ncbi.blast">
+	<compile-picard-cmd 
+		java="**/BlastToSam.java"
+		main="com.github.lindenb.jvarkit.tools.blast2sam.BlastToSam"
+		name="blast2sam"
+		/>
+</target>
+
+
 <target name="fastq2fasta">
 	<compile-picard-cmd 
 		java="**/FastqToFasta.java"

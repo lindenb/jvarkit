@@ -76,17 +76,27 @@ public class VcfCutSamples extends AbstractVCFFilter2
 				}
 			}
 		
-		Set<String> samples2;
+		List<String> samples2=new ArrayList<String>();
 
-		if(invert)
+		for(String sample: header.getSampleNamesInOrder())
 			{
-			samples2=new HashSet<String>(samples1);
-			samples2.removeAll(this.user_samples);
+			if(this.user_samples.contains(sample))
+				{
+				if(!invert)
+					{
+					samples2.add(sample);
+					}
+				}
+			else
+				{
+				if(invert)
+					{
+					samples2.add(sample);
+					}
+				}
 			}
-		else
-			{
-			samples2=new HashSet<String>(this.user_samples);
-			}
+		
+		
 		VCFHeader header2=new VCFHeader(
 				header.getMetaDataInInputOrder(),
 				samples2
