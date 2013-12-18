@@ -1,13 +1,79 @@
 package com.github.lindenb.jvarkit.util.vcf;
 
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Pattern;
+import java.io.File;
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.logging.Logger;
+
+import net.sf.samtools.util.BlockCompressedOutputStream;
+
+import org.broadinstitute.variant.variantcontext.writer.Options;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
 
 public class VCFUtils
 	{
+	private static final Logger LOG=Logger.getLogger("jvarkit");
+	
+	
+	/** create a VCF iterator
+	 * 
+	 * @param IN input vcf file
+	 * */
+	public static  VcfIterator createVcfIteratorFromFile(File f) throws IOException
+		{
+		LOG.info("reading vcf from "+f);
+		return new VcfIterator(IOUtils.openFileForReading(f));	
+		}
+	
+	/** create a VCF iterator
+	 * 
+	 * @param IN : input uri or null for stdin
+	 * */
+	public static  VcfIterator createVcfIterator(String IN) throws IOException
+		{
+		if(IN==null)
+			{
+			LOG.info("reading from stdin");
+			return new VcfIterator(System.in);
+			}
+		else
+			{
+			LOG.info("reading from "+IN);
+			return new VcfIterator(IOUtils.openURIForReading(IN));
+			}
+		}
+
+	/**
+	 * create a VariantContextWriter
+	 * @param OUT output file or null to stdout
+	 * @return
+	 * @throws IOException
+	 */
+	public static  VariantContextWriter createVariantContextWriter(File OUT) throws IOException
+		{
+		if(OUT==null)
+			{
+			LOG.info("writing to stdout");
+			return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+			}
+		else if(OUT.getName().endsWith(".gz"))
+			{
+			LOG.info("writing to "+OUT+" as bgz file.");
+			BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(OUT);
+			return VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
+			}
+		else
+			{
+			LOG.info("writing to "+OUT);
+			return  VariantContextWriterFactory.create(OUT,null,EnumSet.noneOf(Options.class));
+			}
+		}
+	
+	
+	/*
 	private Pattern semicolon=Pattern.compile("[;]");
 	public VCFUtils()
 		{
@@ -91,4 +157,5 @@ public class VCFUtils
 		{
 		return s==null || s.equals(".") || s.isEmpty();
 		}
+		*/
 	}

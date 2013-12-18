@@ -46,36 +46,12 @@ public abstract class AbstractVCFFilter2
 	
 	protected  VcfIterator createVcfIterator(String IN) throws IOException
 		{
-		if(IN==null)
-			{
-			this.info("reading from stdin");
-			return new VcfIterator(System.in);
-			}
-		else
-			{
-			this.info("reading from "+IN);
-			return new VcfIterator(IOUtils.openURIForReading(IN));
-			}
+		return VCFUtils.createVcfIterator(IN);
 		}
 	
 	protected VariantContextWriter createVariantContextWriter(File OUT) throws IOException
 		{
-		if(OUT==null)
-			{
-			this.info("writing to stdout");
-			return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
-			}
-		else if(OUT.getName().endsWith(".gz"))
-			{
-			this.info("writing to "+OUT+" as bgz file.");
-			BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(OUT);
-			return VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
-			}
-		else
-			{
-			this.info("writing to "+OUT);
-			return  VariantContextWriterFactory.create(OUT,null,EnumSet.noneOf(Options.class));
-			}
+		return VCFUtils.createVariantContextWriter(OUT);
 		}
 	
 	protected int doWork(String IN,File OUT)

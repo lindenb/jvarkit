@@ -54,6 +54,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PicardMetricsToXML">PicardMetricsToXML<a></th><td>Convert picards metrics file to XML.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2Wig">Bam2Wig</thd><td>Bam to Wiggle converter</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/TViewWeb">TViewWeb</thd><td>CGI/Web based version of samtools tview</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRegistryWeb">VcfRegistryWeb</thd><td>CGI/Web tool printing all the variants at a given position for a collection VCF</td></tr>
 </table>
 
 

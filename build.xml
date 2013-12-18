@@ -1176,6 +1176,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfregistry.cgi">
+	<compile-cgi-cmd
+		java="**/VcfRegistryCGI.java"
+		main="com.github.lindenb.jvarkit.tools.cgi.VcfRegistryCGI"
+		name="vcfregistry"
+		/>
+</target>
+
+
 <target name="vcfstats">
 	<compile-picard-cmd 
 		java="**/VcfStats.java"
