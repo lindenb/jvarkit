@@ -107,7 +107,9 @@ public class BlastHspAlignment
 		@Override
 		public String toString()
 			{
-			return "align["+getIndex()+"]";
+			return "align["+getIndex()+"]="+getQueryChar()+getMidChar()+getHitChar()+
+					"/"+
+					this.getQueryIndex1()+","+this.getHitIndex1();
 			}
 		}
 	public BlastHspAlignment(final Hsp hsp)
@@ -121,12 +123,21 @@ public class BlastHspAlignment
 		return _hsp;
 		}
 	
+	
+	
 	private int alignLen=-1;
 	public int getAlignLength()
 		{
 		if(this.alignLen<0)
 			{
-			this.alignLen=Integer.parseInt(getHsp().getHspAlignLen());
+			if(getHsp().getHspAlignLen()!=null)
+				{
+				this.alignLen=Integer.parseInt(getHsp().getHspAlignLen());
+				}
+			else
+				{
+				this.alignLen=getHsp().getHspMidline().length();
+				}
 			}
 		return this.alignLen; 
 		}
@@ -201,6 +212,7 @@ public class BlastHspAlignment
 			curr=new Align();
 			curr.query_index = owner().getQueryFrom1();
 			curr.hit_index = owner().getHitFrom1();
+			curr.indexInAlignment=0;
 			}
 		
 		BlastHspAlignment owner()
@@ -211,16 +223,17 @@ public class BlastHspAlignment
 		@Override
 		public boolean hasNext()
 			{
-			return curr.indexInAlignment+1< owner().getAlignLength();
+			return curr.indexInAlignment< owner().getAlignLength();
 			}
 		@Override
 		public Align next()
 			{
-			if(curr.indexInAlignment+1 >= owner().getAlignLength())
+			if(curr.indexInAlignment >= owner().getAlignLength())
 				{
 				throw new IllegalStateException();
 				}
-			++curr.indexInAlignment;
+			
+			Align ret= curr.clone();
 			
 			char ch= curr.getHitChar();
 			char cq= curr.getQueryChar();
@@ -234,7 +247,9 @@ public class BlastHspAlignment
 				curr.query_index++;
 				}
 
-			return curr.clone();
+			
+			++curr.indexInAlignment;
+			return ret;
 			}
 		
 		@Override
