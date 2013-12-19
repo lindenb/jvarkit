@@ -100,5 +100,5 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRenameChromosomes">VcfRenameChromosomes<a></th><td>Rename chromosomes in a VCF (eg. convert hg19/ucsc to grch37/ensembl)</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamRenameChromosomes">BamRenameChromosomes<a></th><td>Rename chromosomes in a BAM (eg. convert hg19/ucsc to grch37/ensembl)</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BlastnToSnp">BlastnToSnp<a></th><td>Map variations from a BLASTN-XML file.</td></tr>
-
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Blast2Sam">Blast2Sam<a></th><td>Convert a BLASTN-XML input to SAM</td></tr>
 </table>

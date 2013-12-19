@@ -3,30 +3,23 @@ package com.github.lindenb.jvarkit.tools.blast2sam;
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
-import gov.nih.nlm.ncbi.blast.IterationHits;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
 import net.sf.picard.PicardException;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.picard.util.CigarUtil;
 import net.sf.samtools.DefaultSAMRecordFactory;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileHeader.SortOrder;
@@ -54,11 +47,13 @@ public class BlastToSam extends AbstractCommandLineProgram
 	private Unmarshaller unmarshaller;
 	private int EXPECTED_SIZE=500;
 	//fool javac
+	@SuppressWarnings("unused")
 	private final static gov.nih.nlm.ncbi.blast.ObjectFactory _foolJavac=null;
 	
 	private static class SequenceIteration
 		{
-		Iteration iteration;
+		//Iteration iteration;
+		//String queryDef;
 		List<SAMRecord> records=new ArrayList<SAMRecord>();
 		}
 	
@@ -170,7 +165,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 	@Override
 	protected String getOnlineDocUrl()
 		{
-		return "https://github.com/lindenb/jvarkit/wiki/BlastToSam";
+		return "https://github.com/lindenb/jvarkit/wiki/Blast2Sam";
 		}
 	
 
@@ -216,6 +211,18 @@ public class BlastToSam extends AbstractCommandLineProgram
 			}
 		}
 	
+	private void dumpSingle(SAMFileWriter w,SequenceIteration si)
+		{
+		boolean first=true;
+		for(SAMRecord rec:si.records)
+			{
+			rec.setNotPrimaryAlignmentFlag(!first);
+			first=false;
+			w.addAlignment(rec);
+			}
+		si.records.clear();
+		}
+	
 	private void run_single(
 			SAMFileWriter w,
 			XMLEventReader r,
@@ -223,178 +230,189 @@ public class BlastToSam extends AbstractCommandLineProgram
 			)
 			throws XMLStreamException,JAXBException
 		{
+		List<Iteration> stack=new ArrayList<Iteration>();
+		String prev=null;
 		for(;;)
 			{
 			Iteration iter1=peekIteration(r);
-			if(iter1==null) return;
-			SequenceIteration si=convertIterationToSequenceIteration(iter1, header);
-			boolean first=true;
-			for(SAMRecord rec:si.records)
+			if(iter1==null || !(iter1.getIterationQueryDef().equals(prev)))
 				{
-				rec.setNotPrimaryAlignmentFlag(!first);
-				first=false;
-				w.addAlignment(rec);
+				SequenceIteration si=convertIterationToSequenceIteration(stack,header);
+				dumpSingle(w,si);
+				if(iter1==null) break;
+				stack.clear();
+				prev=iter1.getIterationQueryDef();
 				}
+			stack.add(iter1);
 			}
 		}
 	
 	private SequenceIteration convertIterationToSequenceIteration(
-			Iteration iter1,
+			List<Iteration> stack,
 			final SAMFileHeader header
 			)
 			throws XMLStreamException,JAXBException
 			{
+			SequenceIteration sequenceIteration=new SequenceIteration(); 
+			if(stack.isEmpty()) return sequenceIteration;
+			
 			SAMReadGroupRecord rg1=header.getReadGroup("g1");
-			SequenceIteration sequenceIteration=new SequenceIteration();
-			sequenceIteration.iteration=iter1;
+			//sequenceIteration.iteration=iter1;
 			
 			SAMRecordFactory samRecordFactory=new DefaultSAMRecordFactory();
 
 			
 			
+			final StringBuilder readContent=new StringBuilder();
+			final int iterLength=Integer.parseInt(stack.get(0).getIterationQueryLen());
 			
-			StringBuilder readContent=new StringBuilder();
-			int iterLength=Integer.parseInt(iter1.getIterationQueryLen());
-			
-			
-			for(Hit hit: iter1.getIterationHits().getHit())
+			for(Iteration iter1:stack)
 				{
-				
-				for(Hsp hsp: hit.getHitHsps().getHsp())
+				for(Hit hit: iter1.getIterationHits().getHit())
 					{
 					
-					for(BlastHspAlignment.Align a:new BlastHspAlignment(hsp))
+					for(Hsp hsp: hit.getHitHsps().getHsp())
 						{
-						char c=a.getQueryChar();
-						if(!Character.isLetter(c)) continue;
-						int queryIndex0=a.getQueryIndex1()-1;
-						while(readContent.length()<=queryIndex0) readContent.append('N');
-						if(readContent.charAt(queryIndex0)=='N')
+						
+						for(BlastHspAlignment.Align a:new BlastHspAlignment(hsp))
 							{
-							readContent.setCharAt(queryIndex0, c);
-							}
-						else if(readContent.charAt(queryIndex0)!=c)
-							{
-							throw new IllegalStateException();
+							char c=a.getQueryChar();
+							if(!Character.isLetter(c)) continue;
+							int queryIndex0=a.getQueryIndex1()-1;
+							while(readContent.length()<=queryIndex0) readContent.append('N');
+							if(readContent.charAt(queryIndex0)=='N')
+								{
+								readContent.setCharAt(queryIndex0, c);
+								}
+							else if(readContent.charAt(queryIndex0)!=c)
+								{
+								throw new IllegalStateException();
+								}
 							}
 						}
 					}
 				}
 			
 			
-			for(Hit hit: iter1.getIterationHits().getHit())
+			for(Iteration iter1:stack)
 				{
-				for(Hsp hsp: hit.getHitHsps().getHsp())
+				for(Hit hit: iter1.getIterationHits().getHit())
 					{
-					SAMRecord rec=samRecordFactory.createSAMRecord(header);
-					rec.setReadName(iter1.getIterationQueryDef());
-					if(hit.getHitAccession()!=null && !hit.getHitAccession().trim().isEmpty())
+					for(Hsp hsp: hit.getHitHsps().getHsp())
 						{
-						rec.setReferenceName(hit.getHitAccession());
-						}
-					else
-						{
-						rec.setReferenceName(hit.getHitDef());
-						}
-					SAMSequenceRecord ssr=this.dictionary.getSequence(hit.getHitDef());
-					if(ssr==null)
-						{
-						warning("Hit is not in SAMDictionary "+hit.getHitDef());
-						rec.setReferenceIndex(-1);
-						}
-					else
-						{
-						rec.setReferenceIndex(ssr.getSequenceIndex());
-						}
-					
-					BlastHspAlignment blastHspAlignment=new BlastHspAlignment(hsp);
-					rec.setReadNegativeStrandFlag(blastHspAlignment.isPlusMinus());
-
-					
-					List<CigarOperator> cigarL=new ArrayList<CigarOperator>();
-					for(BlastHspAlignment.Align a:blastHspAlignment)
-						{
-						//System.err.println("##"+a);
-						if(a.getMidChar()=='|')
+						SAMRecord rec=samRecordFactory.createSAMRecord(header);
+						rec.setReadUnmappedFlag(false);
+						rec.setReadName(iter1.getIterationQueryDef());
+						if( hit.getHitAccession()!=null &&
+							!hit.getHitAccession().trim().isEmpty() &&
+							this.dictionary.getSequence(hit.getHitAccession())!=null
+							)
 							{
-							cigarL.add(CigarOperator.EQ);
-							}
-						else if(a.getMidChar()==':')
-							{
-							cigarL.add(CigarOperator.M);
-							}
-						else if(a.getHitChar()=='-')
-							{
-							cigarL.add(CigarOperator.I);
-							}
-						else if(a.getQueryChar()=='-')
-							{
-							cigarL.add(CigarOperator.D);
+							rec.setReferenceName(hit.getHitAccession());
 							}
 						else
 							{
-							cigarL.add(CigarOperator.X);
+							rec.setReferenceName(hit.getHitDef());
 							}
-
-						}
-
-					
-					if(cigarL.size()!=hsp.getHspMidline().length())
-						{
-						throw new IllegalStateException("Boumm");
-						}
-					
-					
-					Cigar cigarE=new Cigar();
-					
-					if(blastHspAlignment.getQueryFrom1()>1)
-						{
-						cigarE.add(new CigarElement(
-								blastHspAlignment.getQueryFrom1()-1,
-								CigarOperator.S
-								));
-						}
-					int x=0;
-					while(x< cigarL.size())
-						{
-						int y=x+1;
-						while(y< cigarL.size() && cigarL.get(x)==cigarL.get(y))
+						SAMSequenceRecord ssr=this.dictionary.getSequence(hit.getHitDef());
+						if(ssr==null)
 							{
-							++y;
+							warning("Hit is not in SAMDictionary "+hit.getHitDef());
+							rec.setReferenceIndex(-1);
 							}
-						cigarE.add(new CigarElement(y-x, cigarL.get(x)));
-						x=y;
+						else
+							{
+							rec.setReferenceIndex(ssr.getSequenceIndex());
+							}
+						
+						BlastHspAlignment blastHspAlignment=new BlastHspAlignment(hsp);
+						rec.setReadNegativeStrandFlag(blastHspAlignment.isPlusMinus());
+	
+						
+						List<CigarOperator> cigarL=new ArrayList<CigarOperator>();
+						for(BlastHspAlignment.Align a:blastHspAlignment)
+							{
+							//System.err.println("##"+a);
+							if(a.getMidChar()=='|')
+								{
+								cigarL.add(CigarOperator.EQ);
+								}
+							else if(a.getMidChar()==':')
+								{
+								cigarL.add(CigarOperator.M);
+								}
+							else if(a.getHitChar()=='-')
+								{
+								cigarL.add(CigarOperator.I);
+								}
+							else if(a.getQueryChar()=='-')
+								{
+								cigarL.add(CigarOperator.D);
+								}
+							else
+								{
+								cigarL.add(CigarOperator.X);
+								}
+	
+							}
+	
+						
+						if(cigarL.size()!=hsp.getHspMidline().length())
+							{
+							throw new IllegalStateException("Boumm");
+							}
+						
+						
+						Cigar cigarE=new Cigar();
+						
+						if(blastHspAlignment.getQueryFrom1()>1)
+							{
+							cigarE.add(new CigarElement(
+									blastHspAlignment.getQueryFrom1()-1,
+									CigarOperator.S
+									));
+							}
+						int x=0;
+						while(x< cigarL.size())
+							{
+							int y=x+1;
+							while(y< cigarL.size() && cigarL.get(x)==cigarL.get(y))
+								{
+								++y;
+								}
+							cigarE.add(new CigarElement(y-x, cigarL.get(x)));
+							x=y;
+							}
+						/* soft clip */ 
+						if(blastHspAlignment.getQueryTo1()< readContent.length())
+							{
+							cigarE.add(new CigarElement(
+									(readContent.length()-blastHspAlignment.getQueryTo1()),
+									CigarOperator.S 
+									));
+							}
+						/* hard clip */
+						if(readContent.length() < iterLength)
+							{
+							cigarE.add(new CigarElement(
+									(iterLength-readContent.length()),
+									CigarOperator.H
+									));
+							}
+						
+						
+						rec.setCigar(cigarE);
+						rec.setMappingQuality(40);
+						rec.setAlignmentStart(Math.min(blastHspAlignment.getHitFrom1(),blastHspAlignment.getHitTo1()));
+						rec.setAttribute("BB", Float.parseFloat(hsp.getHspBitScore()));
+						rec.setAttribute("BE", Float.parseFloat(hsp.getHspEvalue()));
+						rec.setAttribute("BS", Float.parseFloat(hsp.getHspScore()));
+						rec.setAttribute("NM", Integer.parseInt(hsp.getHspGaps()));
+						rec.setAttribute("RG", rg1.getId());
+						// setAlignmentEnd not supported in SAM API
+						//rec.setAlignmentEnd(Math.max(blastHspAlignment.getHitFrom1(),blastHspAlignment.getHitTo1())); 
+						sequenceIteration.records.add(rec);
 						}
-					/* soft clip */ 
-					if(blastHspAlignment.getQueryTo1()< readContent.length())
-						{
-						cigarE.add(new CigarElement(
-								(readContent.length()-blastHspAlignment.getQueryTo1()),
-								CigarOperator.S 
-								));
-						}
-					/* hard clip */
-					 int query_len=Integer.parseInt(iter1.getIterationQueryLen());
-					if(readContent.length() < query_len)
-						{
-						cigarE.add(new CigarElement(
-								(query_len-readContent.length()),
-								CigarOperator.H
-								));
-						}
-					
-					
-					rec.setCigar(cigarE);
-					rec.setMappingQuality(40);
-					rec.setAlignmentStart(Math.min(blastHspAlignment.getHitFrom1(),blastHspAlignment.getHitTo1()));
-					rec.setAttribute("BB", Float.parseFloat(hsp.getHspBitScore()));
-					rec.setAttribute("BE", Float.parseFloat(hsp.getHspEvalue()));
-					rec.setAttribute("BS", Float.parseFloat(hsp.getHspScore()));
-					rec.setAttribute("NM", Integer.parseInt(hsp.getHspGaps()));
-					rec.setAttribute("RG", rg1.getId());
-					// setAlignmentEnd not supported in SAM API
-					//rec.setAlignmentEnd(Math.max(blastHspAlignment.getHitFrom1(),blastHspAlignment.getHitTo1())); 
-					sequenceIteration.records.add(rec);
 					}
 				}
 			
@@ -418,7 +436,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 			if(sequenceIteration.records.isEmpty())
 				{
 				SAMRecord rec=samRecordFactory.createSAMRecord(header);
-				rec.setReadName(iter1.getIterationQueryDef());
+				rec.setReadName(stack.get(0).getIterationQueryDef());
 				rec.setReadUnmappedFlag(true);
 				rec.setAttribute("RG", rg1.getId());
 				sequenceIteration.records.add(rec);
@@ -437,6 +455,98 @@ public class BlastToSam extends AbstractCommandLineProgram
 		return sequenceIteration;
 		}
 	
+	private static SAMRecord cloneSAMRecord(final SAMRecord rec)
+		{
+		try {
+			return (SAMRecord)rec.clone();
+			}
+		catch (Exception e)
+			{
+			throw new PicardException("Cannot clone a SAMRecord ?",e);
+			}
+		}
+	
+	private void dumpPaired(SAMFileWriter w,SequenceIteration si1,SequenceIteration si2)
+		{
+		if(si1.records.isEmpty()) return;
+		
+		SequenceIteration siL[]=new SequenceIteration[]{si1,si2};
+		for(SequenceIteration si:siL)
+			{
+			for(SAMRecord rec:si.records)
+				{
+				rec.setReadPairedFlag(true);
+				rec.setMateUnmappedFlag(true);
+				}
+			}
+		List<Paired> paired=new ArrayList<Paired>();
+		int x=0;
+		while(x < si1.records.size())
+			{
+			SAMRecord rec1=si1.records.get(x);
+			int y=0;
+			
+			while(y < si2.records.size())
+				{
+				SAMRecord rec2=si2.records.get(y);
+				
+				Paired pair=new Paired();
+				
+				pair.rec1=cloneSAMRecord(rec1);
+				pair.rec2=cloneSAMRecord(rec2);
+				
+				if(pair.rec1.getReadUnmappedFlag() && pair.rec2.getReadUnmappedFlag())
+					{
+					++y;
+					continue;
+					}	
+				
+				if(!paired.isEmpty() )
+					{
+					int cmp= pair.compareTo(paired.get(0)) ;
+					if(cmp<0)
+						{
+						paired.clear();
+						}
+					else if(cmp>0)
+						{
+						++y;
+						continue;
+						}
+					}
+				paired.add(pair);
+				++y;
+				}
+			++x;
+			}
+		
+		if(paired.isEmpty())
+			{
+			Paired pair=new Paired();
+			pair.rec1=cloneSAMRecord(si1.records.get(0));
+			pair.rec2=cloneSAMRecord(si2.records.get(0));
+			paired.add(pair);
+			}
+		
+		for(int i=0;i< paired.size();++i)
+			{
+			Paired pair=paired.get(i);
+			pair.completeFlags();
+			if(!pair.rec1.getReadUnmappedFlag())
+				{
+				pair.rec1.setNotPrimaryAlignmentFlag(i!=0);
+				}
+			if(!pair.rec2.getReadUnmappedFlag())
+				{
+				pair.rec2.setNotPrimaryAlignmentFlag(i!=0);
+				}
+			w.addAlignment(pair.rec1);
+			w.addAlignment(pair.rec2);
+			}
+		si1.records.clear();
+		si2.records.clear();
+		}
+	
 	private void run_paired(
 			SAMFileWriter w,
 			XMLEventReader r,
@@ -444,87 +554,59 @@ public class BlastToSam extends AbstractCommandLineProgram
 			)
 			throws XMLStreamException,JAXBException
 		{
+		List<Iteration> stack1=new ArrayList<Iteration>();
+		Iteration iter=null;
 		for(;;)
 			{
-			Iteration iter1=peekIteration(r);
-			if(iter1==null) return;
-			Iteration iter2=peekIteration(r);
-			if(iter2==null) throw new PicardException("Illegal number of read forward/reverse");
-			SequenceIteration si1=convertIterationToSequenceIteration(iter1, header);
-			SequenceIteration si2=convertIterationToSequenceIteration(iter2, header);
-			SequenceIteration siL[]=new SequenceIteration[]{si1,si2};
-			for(SequenceIteration si:siL)
+			String prev_name=null;
+			if( iter==null)
 				{
-				for(SAMRecord rec:si.records)
-					{
-					rec.setReadPairedFlag(true);
-					rec.setMateUnmappedFlag(true);
-					}
+				iter=peekIteration(r);
+				if(iter==null) break;
 				}
-			List<Paired> paired=new ArrayList<Paired>();
-			int x=0;
-			while(x < si1.records.size())
+			stack1.add(iter);
+			List<Iteration> stack2=new ArrayList<Iteration>();
+			prev_name=iter.getIterationQueryDef();
+			
+			//pileup first of pair
+			for(;;)
 				{
-				SAMRecord rec1=si1.records.get(x);
-				int y=0;
-				
-				while(y < si2.records.size())
+				iter=peekIteration(r);
+				if(iter==null)
 					{
-					SAMRecord rec2=si2.records.get(y);
-					
-					Paired pair=new Paired();
-					pair.rec1=rec1;
-					pair.rec2=rec2;
-					
-					if(!(rec1.getReadUnmappedFlag() && rec2.getReadUnmappedFlag()))
-						{
-						++y;
-						continue;
-						}	
-					
-					if(!paired.isEmpty() )
-						{
-						int cmp= pair.compareTo(paired.get(0)) ;
-						if(cmp<0)
-							{
-							paired.clear();
-							}
-						else if(cmp>0)
-							{
-							++y;
-							continue;
-							}
-						}
-					paired.add(pair);
-					++y;
+					throw new PicardException("Illegal number of read forward/reverse");
 					}
-				++x;
+				else if(iter.getIterationQueryDef().equals(prev_name))
+					{
+					stack1.add(iter);
+					}
+				else
+					{
+					stack2.add(iter);
+					prev_name=iter.getIterationQueryDef();
+					break;
+					}
 				}
 			
-			if(paired.isEmpty())
+			//pileup second of pair
+			for(;;)
 				{
-				Paired pair=new Paired();
-				pair.rec1=si1.records.get(0);
-				pair.rec2=si2.records.get(0);
-				paired.add(pair);
-				
-				}
-			
-			for(int i=0;i< paired.size();++i)
-				{
-				Paired pair=paired.get(i);
-				pair.completeFlags();
-				if(!pair.rec1.getReadUnmappedFlag())
+				iter=peekIteration(r);
+				if(iter==null || !iter.getIterationQueryDef().equals(prev_name))
 					{
-					pair.rec1.setNotPrimaryAlignmentFlag(i!=0);
+					SequenceIteration si1=convertIterationToSequenceIteration(stack1, header);
+					SequenceIteration si2=convertIterationToSequenceIteration(stack2, header);
+					dumpPaired(w,si1,si2);
+					stack1.clear();
+					stack2.clear();
+					break;
 					}
-				if(!pair.rec2.getReadUnmappedFlag())
+				else
 					{
-					pair.rec2.setNotPrimaryAlignmentFlag(i!=0);
+					stack2.add(iter);
 					}
-				w.addAlignment(pair.rec1);
-				w.addAlignment(pair.rec2);
 				}
+			if(iter==null) break;
 			}
 		
 		}
@@ -534,7 +616,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 		{
 		out.println(" -r (file)  fasta sequence file indexed with picard. Required.");
 		out.println(" -o (file.bam) filename out . Default: SAM stdout");
-		out.println(" -p (int expected size) input is an interlaced list of sequences forward and reverse (paired-ends)");
+		out.println(" -p (int expected size) input is an interleaved list of sequences forward and reverse (paired-ends)");
 		super.printOptions(out);
 		}
 
@@ -542,7 +624,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
-		boolean interlaced_input=false;
+		boolean interleaved_input=false;
 		int maxRecordsInRam=10000;
 		File fileout=null;
 		String faidx=null;
@@ -553,7 +635,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 			switch(c)
 				{	
 				case 'p':
-						interlaced_input=true;
+					interleaved_input=true;
 						EXPECTED_SIZE=Integer.parseInt(getopt.getOptArg());
 						break;
 				case 'r': faidx=getopt.getOptArg();break;
@@ -649,7 +731,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 				}
 
 			
-			if(interlaced_input)
+			if(interleaved_input)
 				{
 				run_paired(sfw,rx,header);
 				}
