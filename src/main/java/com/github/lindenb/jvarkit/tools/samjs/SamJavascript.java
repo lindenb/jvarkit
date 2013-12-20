@@ -19,6 +19,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 import com.github.lindenb.jvarkit.util.picard.AbstractBamFilterProgram;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
@@ -77,12 +78,13 @@ public class SamJavascript
 			long count=0L;
 	        Bindings bindings = this.engine.createBindings();
 	        bindings.put("header", samFileReader.getFileHeader());
-	       
+	        SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 	        
 			for(Iterator<SAMRecord> iter=samFileReader.iterator();
 					iter.hasNext(); )
 				{
 				SAMRecord record=iter.next();
+				progress.watch(record);
 				bindings.put("record", record);
 				Object result = script.eval(bindings);
 				if(result==null)
