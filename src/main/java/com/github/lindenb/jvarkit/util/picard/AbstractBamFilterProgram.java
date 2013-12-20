@@ -93,9 +93,9 @@ public abstract class AbstractBamFilterProgram
 		@Override
 		public void printOptions(PrintStream out)
 			{
-			out.print(" -o (filename) out. Optional");
-			out.print(" -V (Validation stringency ) Optional. Current is :"+validationStringency);
-			out.print(" -c (int) max records in ram. Optional. Current is :"+max_records_in_ram);
+			out.println(" -o (filename) out. Optional");
+			out.println(" -V (Validation stringency ) Optional. Current is :"+validationStringency);
+			out.println(" -c (int) max records in ram. Optional. Current is :"+max_records_in_ram);
 			super.printOptions(out);
 			}
 		
@@ -213,6 +213,8 @@ public abstract class AbstractBamFilterProgram
 							isOutputPresorted(headerOut)
 							,fileOut);
 					}
+				
+				
 				
 				return  doWork(sfr,sfw);
 				}

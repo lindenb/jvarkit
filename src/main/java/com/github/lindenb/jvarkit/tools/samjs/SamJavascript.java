@@ -17,10 +17,15 @@ import javax.script.CompiledScript;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+
 import com.github.lindenb.jvarkit.util.picard.AbstractBamFilterProgram;
+
+import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileWriter;
+import net.sf.samtools.SAMFileWriterFactory;
 import net.sf.samtools.SAMRecord;
+import net.sf.samtools.util.CloserUtil;
 
 
 
@@ -31,10 +36,36 @@ public class SamJavascript
 
 	private CompiledScript  script=null;
 	private ScriptEngine engine=null;
+	private File failingReadsFile=null;
+	private SAMFileWriter failingReadsWriter=null;
 	
+
 	private SamJavascript()
 		{
 		
+		}
+	
+	private void failing(SAMRecord rec,SAMFileHeader h)
+		{
+		if(this.failingReadsFile==null) return;
+		if(this.failingReadsWriter==null)
+			{
+			info("Writing failings to "+ this.failingReadsFile);
+			SAMFileHeader header=createOuputSamFileHeader(h);
+			
+			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
+			sfwf.setCreateIndex(super.create_index);
+			sfwf.setCreateMd5File(super.create_md5);
+			sfwf.setMaxRecordsInRam(super.max_records_in_ram);
+			
+
+			
+			failingReadsWriter=sfwf.makeSAMOrBAMWriter(
+					header, 
+					isOutputPresorted(header)
+					,this.failingReadsFile);
+			}
+		failingReadsWriter.addAlignment(rec);
 		}
 	
 	@Override
@@ -42,6 +73,7 @@ public class SamJavascript
 		{
 		try
 			{
+			SAMFileHeader header=samFileReader.getFileHeader();
 			long count=0L;
 	        Bindings bindings = this.engine.createBindings();
 	        bindings.put("header", samFileReader.getFileHeader());
@@ -53,19 +85,32 @@ public class SamJavascript
 				SAMRecord record=iter.next();
 				bindings.put("record", record);
 				Object result = script.eval(bindings);
-				if(result==null) continue;
+				if(result==null)
+					{
+					failing(record,header);
+					continue;
+					}
 				
 				if(result instanceof Boolean)
 					{
-					if(Boolean.FALSE.equals(result)) continue;
+					if(Boolean.FALSE.equals(result))
+						{
+						failing(record,header);
+						continue;
+						}
 					}
 				else if(result instanceof Number)
 					{
-					if(((Number)result).intValue()!=1) continue;
+					if(((Number)result).intValue()!=1)
+						{
+						failing(record,header);
+						continue;
+						}
 					}
 				else
 					{
 					warning("script returned neither a number or a boolean "+result.getClass());
+					failing(record,header);
 					continue;
 					}
 				++count;
@@ -99,6 +144,8 @@ public class SamJavascript
 		out.println(" -f (script) script file");
 		out.println(" -e (script) script expression");
 		out.println(" -N (limit:int) limit to 'N' records");
+		out.println(" -X (fail.bam) Save dicarded reads in that file. Optional. Default: no file.");
+
 		super.printOptions(out);
 		}
 
@@ -106,6 +153,7 @@ public class SamJavascript
 	@Override
 	public int doWork(String[] args)
 		{
+	
 		try
 			{
 			ScriptEngineManager manager = new ScriptEngineManager();
@@ -123,15 +171,19 @@ public class SamJavascript
 			return -1;
 			}
 			
-		
 		String SCRIPT_EXPRESSION=null;
 		File SCRIPT_FILE=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"e:f:N:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"e:f:N:X:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'X':
+					{
+					this.failingReadsFile=new File(opt.getOptArg());
+					break;
+					}
 				case 'e':SCRIPT_EXPRESSION=opt.getOptArg();break;
 				case 'f':SCRIPT_FILE=new File(opt.getOptArg());break;
 				case 'N': this.LIMIT=Long.parseLong(opt.getOptArg());break;
@@ -173,6 +225,10 @@ public class SamJavascript
 			{
 			error(err);
 			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(failingReadsWriter);
 			}
 		}
 	
