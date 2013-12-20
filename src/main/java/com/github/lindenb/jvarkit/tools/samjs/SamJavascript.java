@@ -46,7 +46,8 @@ public class SamJavascript
 		
 		}
 	
-	private void failing(SAMRecord rec,SAMFileHeader h)
+	/* open failing bam if it was not already open */
+	private void openFailing(SAMFileHeader h)
 		{
 		if(this.failingReadsFile==null) return;
 		if(this.failingReadsWriter==null)
@@ -66,6 +67,11 @@ public class SamJavascript
 					isOutputPresorted(header)
 					,this.failingReadsFile);
 			}
+		}
+	
+	private void failing(SAMRecord rec,SAMFileHeader h)
+		{
+		openFailing(h);
 		failingReadsWriter.addAlignment(rec);
 		}
 	
@@ -120,6 +126,9 @@ public class SamJavascript
 				if(this.LIMIT>0L && count>=this.LIMIT) break;
 				}
 			sw.close();
+			
+			openFailing(header);
+			
 			return 0;
 			}
 		catch(ScriptException err)
