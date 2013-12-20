@@ -1235,6 +1235,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfmapuniprot" depends="api.uniprot">
+	<compile-picard-cmd 
+		java="**/VcfMapUniprot.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfMapUniprot"
+		name="vcfmapuniprot"
+		/>
+</target>
+
 
 <target name="biostar" depends="biostar76892,biostar77288,biostar77828,biostar78285,biostar81455,biostar84786">
 </target>

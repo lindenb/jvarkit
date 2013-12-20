@@ -54,6 +54,12 @@ public abstract class AbstractVCFFilter2
 		return VCFUtils.createVariantContextWriter(OUT);
 		}
 	
+	/** returns wether the output (stdout) has raised an error */
+	protected boolean outCheckError()
+		{
+		return System.out.checkError();
+		}
+	
 	protected int doWork(String IN,File OUT)
 		{
 		VcfIterator r=null;
