@@ -928,6 +928,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfcompare" >
+	<compile-picard-cmd 
+		java="**/VCFCompare.java"
+		main="com.github.lindenb.jvarkit.tools.vcfcmp.VCFCompare"
+		name="vcfcompare"
+		/>
+</target>
 
 <target name="vcfrebase" >
 	<compile-picard-cmd 

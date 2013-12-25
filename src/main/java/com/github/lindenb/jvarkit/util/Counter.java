@@ -13,6 +13,25 @@ public class Counter<T>
 	private Map<T,Long> object2count=new HashMap<T,Long>();
 	private long total=0L;
 	
+	public Counter()
+		{
+		}
+	
+	public void initializeIfNotExists(final T key)
+		{
+		initializeIfNotExists(key,0L);
+		}
+	
+	public void initializeIfNotExists(final T key,long initialValue)
+		{
+		if(!this.object2count.containsKey(key))
+			{
+			if(initialValue<0) throw new IllegalArgumentException("n<0 :"+initialValue);
+			this.object2count.put(key,initialValue);
+			this.total+=initialValue;
+			}
+		}
+	
 	public void incr(final T object)
 		{
 		incr(object,1L);

@@ -3,11 +3,13 @@ package com.github.lindenb.jvarkit.tools.vcfdo;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.Reader;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -16,51 +18,81 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
+import org.broad.tribble.readers.LineIterator;
+import org.broad.tribble.readers.LineIteratorImpl;
 import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.picard.util.Interval;
 import net.sf.picard.util.IntervalTreeMap;
-import net.sf.picard.util.Log;
+import net.sf.samtools.SAMSequenceDictionary;
+import net.sf.samtools.SAMSequenceRecord;
+
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.Function;
 import com.github.lindenb.jvarkit.util.biomart.BiomartQuery;
+import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.doid.DiseaseOntoglogyTree;
 import com.github.lindenb.jvarkit.util.picard.IntervalTreeMapFactory;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 
-public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
+public abstract class AbstractVCFDiseaseOntology
+	extends AbstractVCFFilter2
 	{
-	@Option(shortName="DOI", doc="Disease Ontology OWL file/URI.",optional=true)
-	public String DOI_INPUT="http://www.berkeleybop.org/ontologies/doid.owl";
-	@Option(shortName="DGA", doc="Disease Ontology Annotations.",optional=true)
-	public String DOI_ANN="http://dga.nubic.northwestern.edu/ajax/Download.ajax.php?exportType=ids";
-	@Option(shortName=StandardOptionDefinitions.REFERENCE_SHORT_NAME, doc="Reference (used to reduce the number of mapped genes)",optional=true)
-	public File REF=null;
-
-	protected static final Log LOG=Log.getInstance(AbstractVCFDiseaseOntology.class);
-
+	/* Disease Ontology OWL file/URI. */
+	protected String DOI_INPUT="http://www.berkeleybop.org/ontologies/doid.owl";
+	/* Disease Ontology Annotations.",optional=true */
+	protected String DOI_ANN="http://dga.nubic.northwestern.edu/ajax/Download.ajax.php?exportType=ids";
+	/*  used to reduce the number of mapped genes */
+	protected File REF=null;
+	
 	
 	protected DiseaseOntoglogyTree diseaseOntoglogyTree;
 	protected Map<Integer,Set<DiseaseOntoglogyTree.Term>> gene2doid=new HashMap<Integer,Set<DiseaseOntoglogyTree.Term>>();
 	protected Map<String,Set<DiseaseOntoglogyTree.Term>> ensemblProtein2doid=new HashMap<String,Set<DiseaseOntoglogyTree.Term>>();
-	private IntervalTreeMap<Integer> ncbiGeneMap;
+	private SamSequenceRecordTreeMap<Integer> ncbiGeneMap=null;
 	@SuppressWarnings("unused")
-	private IntervalTreeMap<String> ensemblProteinMap;
-
+	private SamSequenceRecordTreeMap<String> ensemblProteinMap;
+	
+	
+	@Override
+	public void printOptions(PrintStream out)
+		{
+		out.println(" -D (url) Disease Ontology OWL file/URI. default:"+DOI_INPUT);
+		out.println(" -A (url) Disease Annotations. default:"+DOI_ANN);
+		out.println(" -R (fasta) Indexed  Genome Reference.");
+		super.printOptions(out);
+		}
+	
+	@Override
+	protected String getGetOptDefault()
+		{
+		return super.getGetOptDefault()+"D:A:R:";
+		}
+	@Override
+	protected GetOptStatus handleOtherOptions(int c, GetOpt opt)
+		{
+		switch(c)
+			{
+			case 'D': DOI_INPUT=opt.getOptArg(); return GetOptStatus.OK;
+			case 'A': DOI_ANN=opt.getOptArg(); return GetOptStatus.OK;
+			case 'R': REF=new File(opt.getOptArg());return GetOptStatus.OK;
+			default:return super.handleOtherOptions(c, opt);
+			}
+		
+		}
 	
 	protected void readDiseaseOntoglogyTree() throws IOException
 		{
-		LOG.info("read DOI "+DOI_INPUT);
+		this.info("read DOI "+DOI_INPUT);
 		try
 			{
 			diseaseOntoglogyTree=DiseaseOntoglogyTree.parse(DOI_INPUT);
-			LOG.info("GO size:"+diseaseOntoglogyTree.size());
+			this.info("GO size:"+diseaseOntoglogyTree.size());
 			}
 		catch(XMLStreamException err)
 			{
@@ -69,7 +101,7 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 		}
 	protected void readJensenLabAnnotations() throws IOException
 		{
-		LOG.info("read DOID-Annotation from "+DOI_ANN);
+		this.info("read DOID-Annotation from "+DOI_ANN);
 		BufferedReader in=IOUtils.openURIForBufferedReading(DOI_ANN);
 		String line;
 		while((line=in.readLine())!=null)
@@ -83,7 +115,7 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 		{
 		try
 			{
-			LOG.info("read DOID-Annotation from "+DOI_ANN);
+			this.info("read DOID-Annotation from "+DOI_ANN);
 		XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
 		xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
 		xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
@@ -164,7 +196,7 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 				"ensembl_peptide_id"
 				);
 		q.setUniqRows(true);
-		LOG.info("sending "+q);
+		this.info("sending "+q);
 		
 		IntervalTreeMapFactory<String> itf=new IntervalTreeMapFactory<String>();
 		if(REF!=null)
@@ -183,7 +215,7 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 				return ensp;
 				}
 			});
-		LOG.info("invoking biomart "+q);
+		this.info("invoking biomart "+q);
 		LineReader r=q.execute();
 		
 		this.ensemblProteinMap=itf.createIntervalMap(r);
@@ -191,9 +223,9 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 		}
 	
 	
-	protected void loadEntrezGenes() throws IOException
+	protected void loadEntrezGenes(SAMSequenceDictionary dict) throws IOException
 		{
-	
+		this.ncbiGeneMap=new SamSequenceRecordTreeMap<Integer>(dict);
 		BiomartQuery q=new BiomartQuery();
 		q.setDataSetName("hsapiens_gene_ensembl");
 		q.setAttributes(
@@ -203,46 +235,46 @@ public abstract class AbstractVCFDiseaseOntology extends AbstractVCFFilter
 				"entrezgene"
 				);
 		q.setUniqRows(true);
-		LOG.info("sending "+q);
+		this.info("sending "+q);
 		
-		IntervalTreeMapFactory<Integer> itf=new IntervalTreeMapFactory<Integer>();
-		if(REF!=null)
-			{
-			itf.setSamSequenceDictionary(new IndexedFastaSequenceFile(REF).getSequenceDictionary());
-			}
-		itf.setValueFunction(new Function<String[], Integer>()
-			{
-			@Override
-			public Integer apply(String[] param)
-				{
-				if(param.length<4 || param[3].isEmpty()) return null;
-				Integer ncbiGene=null;
-				try
-					{
-					ncbiGene=new Integer(param[3]);
-					}
-				catch (Exception e)
-					{
-					return null;
-					}
-				if(!gene2doid.containsKey(ncbiGene)) return null;
-				return ncbiGene;
-				}
-			});
-		LOG.info("invoking biomart "+q);
+		
+		this.info("invoking biomart "+q);
 		LineReader r=q.execute();
-		
-		this.ncbiGeneMap=itf.createIntervalMap(r);
+		LineIterator lr=new LineIteratorImpl(r);
+		Pattern pattern=Pattern.compile("[\t]");
+		while(lr.hasNext())
+			{
+			String line=lr.next();
+			String param[]=pattern.split(line);
+			if(param.length<4 || param[3].isEmpty()) continue;
+			SAMSequenceRecord rec=null;
+			if((rec=dict.getSequence(param[0]))==null) continue;
+			try
+				{
+				int start=Integer.parseInt(param[0]);
+				int end=Integer.parseInt(param[1]);
+				int ncbiGene=Integer.parseInt(param[3]);
+				if(!gene2doid.containsKey(ncbiGene)) continue;
+				ncbiGeneMap.put(rec.getSequenceIndex(),start,end,ncbiGene);
+				}
+			catch (Exception e)
+				{
+				warning(e);
+				continue;
+				}
+			
+			
+			}
 		r.close();
 		}
 
 	protected Set<Integer> getGeneIds(VariantContext ctx)
 		{
-		return new HashSet<Integer>(this.ncbiGeneMap.getOverlapping(new Interval(
+		return new HashSet<Integer>(this.ncbiGeneMap.getOverlapping(
 				ctx.getChr(),
 				ctx.getStart(),
 				ctx.getEnd()
-				)));
+				));
 		}
-
+	
 	}

@@ -8,15 +8,7 @@ package com.github.lindenb.jvarkit.util.vcf;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.EnumSet;
-
-import net.sf.samtools.util.BlockCompressedOutputStream;
-
-import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
-
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
 

@@ -306,6 +306,8 @@ public class VCFMerge extends AbstractCommandLineProgram
 						}
 					}
 				
+				
+				
 				mergeHeader=new VCFHeader(
 						metaData,
 						sampleNames

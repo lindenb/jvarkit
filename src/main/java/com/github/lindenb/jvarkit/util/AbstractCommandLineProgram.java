@@ -1,13 +1,16 @@
 package com.github.lindenb.jvarkit.util;
 
+import java.io.File;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.URL;
 import java.sql.Timestamp;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.jar.Manifest;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -20,6 +23,7 @@ public abstract class AbstractCommandLineProgram
 	private String commandLine="";
 	private String version=null;
 	private String compileDate;
+	private List<File> tmpDirs=null;
 	
 	
 	protected AbstractCommandLineProgram()
@@ -301,6 +305,41 @@ public abstract class AbstractCommandLineProgram
 			}
 		}
  
+	protected int getCountTmpDirectories()
+		{
+		return this.tmpDirs==null?0:this.tmpDirs.size();
+		}
+	
+	protected void addTmpDirectory(File dirOrFile)
+		{
+		if(dirOrFile==null) return;
+		if(dirOrFile.isFile())
+			{
+			dirOrFile=dirOrFile.getParentFile();
+			if(dirOrFile==null) return;
+			}
+		if(this.tmpDirs==null)
+			{
+			this.tmpDirs=new ArrayList<File>();
+			}
+		
+		this.tmpDirs.add(dirOrFile);
+		}
+	
+	protected List<File> getTmpDirectories()
+		{
+		if(this.tmpDirs==null)
+			{
+			this.tmpDirs=new ArrayList<File>();
+			}
+		if(this.tmpDirs.isEmpty())
+			{
+			info("Adding 'java.io.tmpdir' directory to the list of tmp directories");
+			this.tmpDirs.add(new File(System.getProperty("java.io.tmpdir")));
+			}
+		return this.tmpDirs;
+		}
+	
 	protected int instanceMain(String args[])
 		{
 		StringBuilder b=new StringBuilder();
