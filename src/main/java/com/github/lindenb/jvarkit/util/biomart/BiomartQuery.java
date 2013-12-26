@@ -14,7 +14,9 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -33,10 +35,21 @@ public class BiomartQuery
 	private String dataSetConfigVersion="0.6";
 	private String dataSetName="hsapiens_gene_ensembl";
 	private List<String> attributes=Collections.emptyList();
-	
+	private Map<String,String> filters=new LinkedHashMap<String,String>();
+	private boolean showHeader=false;
 	public BiomartQuery()
 		{
 		
+		}
+	
+	public void setShowHeader(boolean showHeader)
+		{
+		this.showHeader = showHeader;
+		}
+	
+	public boolean isShowingHeader()
+		{
+		return showHeader;
 		}
 	
 	public void setServiceUrl(String url)
@@ -103,7 +116,26 @@ public class BiomartQuery
 		this.attributes = Arrays.asList(atts);
 		}
 	
-
+	public void addFilter(String name,String value)
+		{
+		this.filters.put(name, value);
+		}
+	
+	public Map<String,String> getFilters()
+		{
+		return this.filters;
+		}
+	
+	protected void writeFilters(XMLStreamWriter w) throws XMLStreamException
+		{
+		Map<String,String> m=this.getFilters();
+		for(String f:m.keySet())
+	         {
+	         w.writeEmptyElement("Filter");
+	         w.writeAttribute("name", f);
+	         w.writeAttribute("value", f);
+	         }
+		}
 	
 	protected void writeAttributes(XMLStreamWriter w) throws XMLStreamException
 		{
@@ -120,7 +152,7 @@ public class BiomartQuery
 	     w.writeStartElement("Query");
 	     w.writeAttribute("virtualSchemaName", "default");
 	     w.writeAttribute("formatter", "TSV");
-	     w.writeAttribute("header", "0");
+	     w.writeAttribute("header", isShowingHeader()?"1":"0");
 	     w.writeAttribute("uniqueRows",isUniqRows()?"0":"1");
 	     w.writeAttribute("count", "0");
 	     w.writeAttribute("datasetConfigVersion",getDataSetConfigVersion());
@@ -128,6 +160,7 @@ public class BiomartQuery
 	     w.writeStartElement("Dataset");
 	     w.writeAttribute("name",getDataSetName());
 	     w.writeAttribute("interface", "default");
+	     writeFilters(w);
 	     writeAttributes(w);
 	    
 	

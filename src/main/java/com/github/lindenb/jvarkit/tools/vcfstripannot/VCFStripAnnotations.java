@@ -1,6 +1,7 @@
 package com.github.lindenb.jvarkit.tools.vcfstripannot;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -10,23 +11,38 @@ import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.Usage;
+
+
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
-public class VCFStripAnnotations extends AbstractVCFFilter
+public class VCFStripAnnotations extends AbstractVCFFilter2
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Removes one or more field from the INFO column of a VCF.";
-    
-	@Option(shortName="K", doc="remove this INFO key",minElements=0)	
-	public Set<String> KEY=new HashSet<String>();
-
-	@Option(shortName="NF", doc="Reset the FILTER column",optional=true)	
-	public boolean RESET_FILTER=false;
-
+	private Set<String> KEY=new HashSet<String>();
+	private boolean RESET_FILTER=false;
+	
+	
+	@Override
+	protected String getOnlineDocUrl()
+		{
+		return "https://github.com/lindenb/jvarkit/wiki/VCFStripAnnotations";
+		}
+	
+	@Override
+	protected String getProgramCommandLine()
+		{
+		return " Removes one or more field from the INFO column of a VCF.";
+		}
+	
+	@Override
+	public void printOptions(PrintStream out)
+		{
+		out.println(" -k (key) remove this INFO attribute");
+		out.println(" -F reset filters.");
+		super.printOptions(out);
+		}
+	
 	@Override
 	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
@@ -43,7 +59,8 @@ public class VCFStripAnnotations extends AbstractVCFFilter
 				if(this.KEY.contains(vih.getID()))
 					h.remove();
 				}
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),"REMOVED: "+this.KEY.toString()));
+			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 			w.writeHeader(h2);
 			
 			while(r.hasNext())
@@ -56,6 +73,33 @@ public class VCFStripAnnotations extends AbstractVCFFilter
 				}		
 			}
 	
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+ "k:F"))!=-1)
+			{
+			switch(c)
+				{
+				case 'k': this.KEY.add(opt.getOptArg()); break;
+				case 'F': RESET_FILTER=true; break;
+				default: 
+					{
+					switch(handleOtherOptions(c, opt))
+						{
+						case EXIT_FAILURE:return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		
+		return doWork(opt.getOptInd(), args);
+		}
+
 	
 	public static void main(String[] args) throws IOException
 		{

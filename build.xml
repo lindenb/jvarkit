@@ -391,7 +391,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	
 	
 	<target name="vcfstripannot" >
-		<compile-with-picard 
+		<compile-picard-cmd 
 			java="**/VCFStripAnnotations.java"
 			main="com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"
 			name="vcfstripannot"
@@ -1067,6 +1067,16 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="scanshortinvert"
 		/>
 </target>
+	
+<target name="vcfbiomart">
+	<compile-picard-cmd 
+		java="**/VcfBiomart.java"
+		main="com.github.lindenb.jvarkit.tools.vcfbiomart.VcfBiomart"
+		name="vcfbiomart"
+		/>
+</target>
+	
+	
 
 <target name="bam2wig">
 	<compile-picard-cmd 
