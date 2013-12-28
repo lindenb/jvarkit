@@ -1252,6 +1252,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+	
+<target name="vcfliftover">
+	<compile-picard-cmd 
+		java="**/VcfLiftOver.java"
+		main="com.github.lindenb.jvarkit.tools.liftover.VcfLiftOver"
+		name="vcfliftover"
+		/>
+</target>	
+	
 <target name="vcfmapuniprot" depends="api.uniprot">
 	<compile-picard-cmd 
 		java="**/VcfMapUniprot.java"
