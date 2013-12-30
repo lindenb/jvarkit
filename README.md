@@ -105,4 +105,5 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCompare">VcfCompare<a></th><td>Compare two VCF files.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfBiomart">VcfBiomart<a></th><td>Annotate a VCF with the data from Biomart.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfLiftOver">VcfLiftOver<a></th><td>LiftOver a VCF file.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfConcat">VcfConcat<a></th><td>Concatenate VCF files.</td></tr>
 </table>

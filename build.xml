@@ -1168,6 +1168,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="vcftail"
 		/>
 </target>
+	
+	<target name="vcfconcat">
+		<compile-picard-cmd 
+			java="**/VcfConcat.java"
+			main="com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat"
+			name="vcfconcat"
+			/>
+	</target>
 		
 <target name="bamviewgui">
 	<compile-picard-cmd 
@@ -1260,6 +1268,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="vcfliftover"
 		/>
 </target>	
+	
+<target name="bamliftover">
+	<compile-picard-cmd 
+		java="**/BamLiftOver.java"
+		main="com.github.lindenb.jvarkit.tools.liftover.BamLiftOver"
+		name="bamliftover"
+		/>
+</target>	
+
 	
 <target name="vcfmapuniprot" depends="api.uniprot">
 	<compile-picard-cmd 
