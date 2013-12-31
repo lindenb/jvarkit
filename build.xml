@@ -1301,6 +1301,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 <target name="biostar59647"><compile-biostar-cmd post="59647"/></target>
 <target name="biostar86363"><compile-biostar-cmd post="86363"/></target>
 <target name="biostar86480"><compile-biostar-cmd post="86480"/></target>
+<target name="biostar84452"><compile-biostar-cmd post="84452"/></target>
 
 
 
