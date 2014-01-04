@@ -869,7 +869,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>
 
 <target name="samgrep">
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/SamGrep.java"
 		main="com.github.lindenb.jvarkit.tools.samgrep.SamGrep"
 		name="samgrep"

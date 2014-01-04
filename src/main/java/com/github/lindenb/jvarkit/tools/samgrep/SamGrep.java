@@ -3,102 +3,167 @@ package com.github.lindenb.jvarkit.tools.samgrep;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.util.HashSet;
-import java.util.Set;
+import java.io.PrintStream;
+import java.util.HashMap;
+import java.util.Map;
 
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.io.IoUtil;
-import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMFileWriterFactory;
+import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMFileHeader.SortOrder;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
+import net.sf.samtools.util.CloserUtil;
 
 public class SamGrep extends AbstractCommandLineProgram
 	{
-	private static final Log log = Log.getInstance(SamGrep.class);
-	@Usage
-	public String USAGE=getStandardUsagePreamble()+". grep read-names in a bam file";
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="A BAM file to process.")
-    public File INPUT=null;
-    @Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="The output file. default: stdout",optional=true)
-    public File OUTPUT=null;
-    @Option(shortName="N", doc="file containing a list of read names",optional=false)
-    public File NAMES=null;
-    @Option(shortName="V", doc="inverse",optional=false)
-    public boolean inverse=false;
-    @Option(shortName="ONE", doc="when found, remove the read from the list of names (increase speed)",optional=false)
-    public boolean removeRead=false;
-    
+    private SamGrep()
+    	{
+    	}
     
 	@Override
-	protected int doWork()
+	public String getProgramDescription()
 		{
-    	IoUtil.assertFileIsReadable(INPUT);
-		Set<String> readNames=new HashSet<String>(); 
-    	if(OUTPUT!=null && !OUTPUT.getName().endsWith(".bam"))
-    		{
-    		log.error("Bad OUPUT name "+OUTPUT+".");
-    		return -1;
-    		}
-    	
-    	
-        SAMFileReader samReader = null;
-        SAMRecordIterator iter=null;
-        SAMFileWriterFactory sfwFactory=new SAMFileWriterFactory();
-        if(OUTPUT!=null)
-        	{
-        	sfwFactory.setCreateIndex(super.CREATE_INDEX);
-        	sfwFactory.setCreateMd5File(super.CREATE_MD5_FILE);
-        	}
-        SAMFileWriter sfw=null;
-        try
-	        {
-	    	BufferedReader in=IoUtil.openFileForBufferedReading(NAMES);
-	    	String line;
-	    	while((line=in.readLine())!=null)
-	    		{
-	    		if(line.isEmpty()) continue;
-	    		readNames.add(line);
-	    		}
-	    	in.close();
-	    	
-	    	if(readNames.isEmpty())
-	    		{
-	    		log.warn("not read found in "+NAMES);
-	    		}
+		return "grep read-names in a bam file";
+		}
+	
+	@Override
+	protected String getOnlineDocUrl()
+		{
+		return "https://github.com/lindenb/jvarkit/wiki/SamGrep";
+		}
+	
+	@Override
+	public void printOptions(PrintStream out)
+		{
+		
+		out.println(" -f (file) file containing a list of read names..");
+		out.println(" -R (name) add the read.");
+		out.println(" -n (int) when found, remove the read from the list of names when found more that 'n' time (increase speed)");
+		out.println(" -V  invert");
 
-	        
-	        samReader=new SAMFileReader(INPUT);
-	        final SAMFileHeader header=samReader.getFileHeader();
-	        samReader.setValidationStringency(super.VALIDATION_STRINGENCY);
-			iter=samReader.iterator();
-			if(OUTPUT==null)
+		out.println(" -o (filename) output file. default: stdout.");
+		out.println(" -c (int) compression level");
+		out.println(" -b force binary");
+		super.printOptions(out);
+		}
+
+    
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		int n_before_remove=-1;
+		Map<String,Integer> readNames=new HashMap<String,Integer>(); 
+		SamWriterFactory swf=SamWriterFactory.newInstance();
+		File fileout=null;
+		boolean inverse=false;
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:bc:f:R:n:"))!=-1)
+			{
+			switch(c)
 				{
-				log.info("writing as SAM");
-				sfw=sfwFactory.makeSAMWriter(header, header.getSortOrder()==SortOrder.coordinate, System.out);
+				case 'n': n_before_remove=Integer.parseInt(opt.getOptArg()); break;
+				case 'V': inverse=true;break;
+				case 'R': readNames.put(opt.getOptArg(),0);break;
+				case 'f':
+					{
+					BufferedReader in=null;
+					try
+						{
+						in=IOUtils.openURIForBufferedReading(opt.getOptArg());
+				    	String line;
+				    	while((line=in.readLine())!=null)
+				    		{
+				    		line=line.trim();
+				    		if(line.isEmpty()) continue;
+				    		readNames.put(line,0);
+				    		}
+						}
+					catch(Exception err)
+						{
+						error(err);
+						return -1;
+						}
+					finally
+						{
+						CloserUtil.close(in);
+						}
+					break;
+					}
+				case 'o': fileout=new File(opt.getOptArg());break;
+				case 'b': swf.setBinary(true);break;
+				case 'c': swf.setCompressionLevel(Integer.parseInt(opt.getOptArg()));break;
+				default:
+					{
+					switch(handleOtherOptions(c, opt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		
+		if(readNames.isEmpty())
+    		{
+    		warning("no read found.");
+    		}
+		
+		SAMFileWriter sfw=null;
+		SAMFileReader sfr=null;
+		try
+			{
+			
+			if(opt.getOptInd()==args.length)
+				{
+				info("Reading sfomr stdin");
+				sfr=new SAMFileReader(System.in);
+				}
+			else if(opt.getOptInd()+1==args.length)
+				{
+				File filename=new File(args[opt.getOptInd()]);
+				info("Reading from "+filename);
+				sfr=new SAMFileReader(filename);
 				}
 			else
 				{
-				log.info("writing to BAM "+OUTPUT);
-				sfw=sfwFactory.makeBAMWriter(header, header.getSortOrder()==SortOrder.coordinate, OUTPUT);
+				error("Illegal number of arguments.");
+				return -1;
 				}
+			sfr.setValidationStringency(ValidationStringency.LENIENT);
+			SAMFileHeader header=sfr.getFileHeader();
+			SAMProgramRecord prg=header.createProgramRecord();
+			prg.setProgramName(getProgramName());
+			prg.setProgramVersion(getVersion());
+			prg.setCommandLine(getProgramCommandLine());
+			
+			
+			if(fileout==null)
+				{
+				sfw=swf.make(header);
+				}
+			else
+				{
+				sfw=swf.make(header,fileout);
+				}
+			SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
 				boolean keep=false;
-				if(readNames.contains(rec.getReadName()))
+				SAMRecord rec=iter.next();
+				Integer count=readNames.get(rec.getReadName());
+				if(count!=null)
 					{
 					keep=true;
-					
 					}
 				if(inverse) keep=!keep;
 				if(keep)
@@ -106,26 +171,35 @@ public class SamGrep extends AbstractCommandLineProgram
 					sfw.addAlignment(rec);
 					}
 				
-				if(removeRead && !inverse && keep)
+				if(n_before_remove!=-1 && !inverse && keep)
 					{
-					readNames.remove(rec.getReadName());
-					if(readNames.isEmpty()) break;
+					count++;
+					if(count>=n_before_remove)
+						{
+						readNames.remove(rec.getReadName());
+						if(readNames.isEmpty()) break;
+						}
+					else
+						{
+						readNames.put(rec.getReadName(),count);
+						}
 					}
+				
 				}
-			sfw.close();	
-			} 
-    	catch (Exception e) {
-    		e.printStackTrace();
-    		log.error(e);
-    		return -1;
 			}
-        finally
-	    	{
-	    	if(iter!=null) iter.close();
-	    	if(samReader!=null) samReader.close();
-	    	}
-    	return 0;
-    	}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(sfw);
+			CloserUtil.close(sfr);
+			}
+		return 0;
+		}
+
     public static void main(final String[] argv)
 		{
 	    new SamGrep().instanceMainWithExit(argv);

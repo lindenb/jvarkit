@@ -10,7 +10,6 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileWriterFactory;
 import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMFileWriter;
@@ -19,6 +18,7 @@ import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 
 public class Biostar84452 extends AbstractCommandLineProgram
 	{
@@ -42,19 +42,25 @@ public class Biostar84452 extends AbstractCommandLineProgram
 	public void printOptions(PrintStream out)
 		{
 		out.println(" -o (filename) output file. default: stdout.");
+		out.println(" -c (int) compression level");
+		out.println(" -b force binary");
 		super.printOptions(out);
 		}
+	
 	@Override
 	public int doWork(String[] args)
 		{
+		SamWriterFactory swf=SamWriterFactory.newInstance();
 		File fileout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:bc:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': fileout=new File(opt.getOptArg());break;
+				case 'b': swf.setBinary(true);break;
+				case 'c': swf.setCompressionLevel(Integer.parseInt(opt.getOptArg()));break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt))
@@ -94,21 +100,14 @@ public class Biostar84452 extends AbstractCommandLineProgram
 			prg.setProgramVersion(getVersion());
 			prg.setCommandLine(getProgramCommandLine());
 			
-			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
-			sfwf.setCreateMd5File(false);
-			sfwf.setCreateIndex(false);
-			sfwf.setTempDirectory(getTmpDirectories().get(0));
 			
-			final boolean sorted=true;
 			if(fileout==null)
 				{
-				info("writing to stdout");
-				sfw=sfwf.makeSAMWriter(header,sorted, System.out);
+				sfw=swf.make(header);
 				}
 			else
 				{
-				info("Writing to "+fileout);
-				sfw=sfwf.makeSAMOrBAMWriter(header, sorted, fileout);
+				sfw=swf.make(header,fileout);
 				}
 			long nChanged=0L;
 			SAMRecordIterator iter=sfr.iterator();
@@ -182,6 +181,7 @@ public class Biostar84452 extends AbstractCommandLineProgram
 					continue;
 					}
 				++nChanged;
+				rec.setAttribute("XS", 1);
 				rec.setCigar(new Cigar(L));
 				rec.setReadBases(nseq.toByteArray());
 				if(quals.length!=0)  rec.setBaseQualities(nqual.toByteArray());
