@@ -30,6 +30,11 @@ public class VcfIterator implements Iterator<VariantContext>,Closeable
     	}
 
 	
+    public VariantContext peek()
+    	{
+    	return vcfCodec.decode(lineIterator.peek());
+		}
+    
 	@Override
 	public boolean hasNext() {
         return lineIterator.hasNext();

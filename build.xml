@@ -47,6 +47,10 @@
       <pathelement path="${common.math.jar}"/>
 </path>
 	
+<path id="mysql.lib">
+      <pathelement path="${mysql.jar}"/>
+</path>
+	
 	
 <path id="common.libs">
      <path refid="picard.lib"/>
@@ -62,6 +66,11 @@
 
 <path id="picard.and.bigwig.jars">
      <path refid="bigwig.lib"/>
+     <path refid="picard.lib"/>
+</path>
+
+<path id="picard.and.mysql.jars">
+     <path refid="mysql.lib"/>
      <path refid="picard.lib"/>
 </path>
 
@@ -1036,7 +1045,16 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+	<target name="vcfmerge2">
+		<compile-picard-cmd 
+			java="**/VCFMerge2.java"
+			main="com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2"
+			name="vcfmerge2"
+			/>
+	</target>
 
+	
+	
 <target name="idea20130924">
 	<compile-with-picard 
 		java="**/Idea20130924.java"
@@ -1091,6 +1109,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		java="**/VcfToPostscript.java"
 		main="com.github.lindenb.jvarkit.tools.misc.VcfToPostscript"
 		name="vcf2ps"
+		/>
+</target>
+
+<target name="vcfsetdict">
+	<compile-picard-cmd 
+		java="**/VcfSetSequenceDictionary.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary"
+		name="vcfsetdict"
 		/>
 </target>
 
@@ -1286,6 +1312,16 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfucsc" depends="api.printf">
+	<compile-picard-cmd 
+		java="**/VcfUcsc.java"
+		main="com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcsc"
+		name="vcfucsc"
+		libraryid="picard.and.mysql.jars"
+		/>
+</target>
+	
+	
 
 <target name="biostar" depends="biostar76892,biostar77288,biostar77828,biostar78285,biostar81455,biostar84786">
 </target>
@@ -1361,6 +1397,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	  </exec>
 </target>	
 
+
+<target name="api.printf">
+	<mkdir dir="${generated.dir}/com/github/lindenb/jvarkit/util/printf"/>
+	<exec executable="javacc">
+		<arg value="-OUTPUT_DIRECTORY=${generated.dir}/com/github/lindenb/jvarkit/util/printf"/>
+		<arg value="src/main/resources/javacc/com/github/lindenb/jvarkit/util/printf/Printf.jj"/>
+	</exec>
+</target>
 	
 <target name="x">
 	 <exec executable="xjc" failonerror="true">

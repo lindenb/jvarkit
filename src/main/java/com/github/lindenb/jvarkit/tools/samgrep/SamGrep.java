@@ -49,6 +49,7 @@ public class SamGrep extends AbstractCommandLineProgram
 		out.println(" -V  invert");
 
 		out.println(" -o (filename) output file. default: stdout.");
+		out.println(" -X if -o used, continue to output original input to stdout.");
 		out.println(" -c (int) compression level");
 		out.println(" -b force binary");
 		super.printOptions(out);
@@ -59,6 +60,7 @@ public class SamGrep extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
+		boolean divertToStdout=false;
 		int n_before_remove=-1;
 		Map<String,Integer> readNames=new HashMap<String,Integer>(); 
 		SamWriterFactory swf=SamWriterFactory.newInstance();
@@ -66,10 +68,11 @@ public class SamGrep extends AbstractCommandLineProgram
 		boolean inverse=false;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:bc:f:R:n:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:bc:f:R:n:X"))!=-1)
 			{
 			switch(c)
 				{
+				case 'X': divertToStdout=true;break;
 				case 'n': n_before_remove=Integer.parseInt(opt.getOptArg()); break;
 				case 'V': inverse=true;break;
 				case 'R': readNames.put(opt.getOptArg(),0);break;
@@ -119,6 +122,7 @@ public class SamGrep extends AbstractCommandLineProgram
     		}
 		
 		SAMFileWriter sfw=null;
+		SAMFileWriter samStdout=null;
 		SAMFileReader sfr=null;
 		try
 			{
@@ -140,7 +144,7 @@ public class SamGrep extends AbstractCommandLineProgram
 				return -1;
 				}
 			sfr.setValidationStringency(ValidationStringency.LENIENT);
-			SAMFileHeader header=sfr.getFileHeader();
+			SAMFileHeader header=sfr.getFileHeader().clone();
 			SAMProgramRecord prg=header.createProgramRecord();
 			prg.setProgramName(getProgramName());
 			prg.setProgramVersion(getVersion());
@@ -153,6 +157,7 @@ public class SamGrep extends AbstractCommandLineProgram
 				}
 			else
 				{
+				if(divertToStdout) samStdout=swf.make(sfr.getFileHeader());
 				sfw=swf.make(header,fileout);
 				}
 			SAMRecordIterator iter=sfr.iterator();
@@ -160,6 +165,7 @@ public class SamGrep extends AbstractCommandLineProgram
 				{
 				boolean keep=false;
 				SAMRecord rec=iter.next();
+				if(samStdout!=null) samStdout.addAlignment(rec);
 				Integer count=readNames.get(rec.getReadName());
 				if(count!=null)
 					{
@@ -177,7 +183,7 @@ public class SamGrep extends AbstractCommandLineProgram
 					if(count>=n_before_remove)
 						{
 						readNames.remove(rec.getReadName());
-						if(readNames.isEmpty()) break;
+						if(samStdout==null && readNames.isEmpty()) break;
 						}
 					else
 						{
@@ -194,6 +200,7 @@ public class SamGrep extends AbstractCommandLineProgram
 			}
 		finally
 			{
+			CloserUtil.close(samStdout);
 			CloserUtil.close(sfw);
 			CloserUtil.close(sfr);
 			}

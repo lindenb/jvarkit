@@ -1,0 +1,300 @@
+options {
+static=false;
+DEBUG_PARSER=false;
+IGNORE_CASE=true;
+}
+
+PARSER_BEGIN(Printf)
+package com.github.lindenb.jvarkit.util.printf;
+/**
+ * Author:
+ *	Pierre Lindenbaum PhD
+ * WWW
+ *	http://plindenbaum.blogspot.com
+ *
+ */
+
+
+public class Printf
+	{
+	private java.util.Map<String,Object> properties=new java.util.HashMap<String,Object>();
+	private Node root=null;
+	
+	private abstract class Node
+		{
+		Node next=null;
+		abstract void eval(StringBuilder sb,java.sql.ResultSet row);
+		abstract void eval(StringBuilder sb,java.util.List<Object> L);
+		abstract void eval(StringBuilder sb,java.util.Map<String,Object> map);
+		abstract void appendChild(Node n);
+		}
+	
+	private class PlainText
+	extends Node
+		{
+		StringBuilder content=new StringBuilder();
+		@Override
+		void appendChild(Node n)
+			{
+			if(next==null && (n instanceof PlainText))
+				{
+				this.content.append(PlainText.class.cast(n).content);
+				}
+			else if(next==null)
+				{
+				next=n;
+				}
+			else
+				{
+				next.appendChild(n);
+				}
+			}
+		
+		@Override
+		void eval(StringBuilder sb,java.util.List<Object> L)
+			{
+			sb.append(this.content);
+			if(this.next!=null) this.next.eval(sb, L);
+			}
+		@Override
+		void eval(StringBuilder sb,java.sql.ResultSet row)
+			{
+			sb.append(this.content);
+			if(this.next!=null) this.next.eval(sb, row);
+			}
+		@Override
+		void eval(StringBuilder sb,java.util.Map<String,Object> map)
+			{
+			sb.append(this.content);
+			if(this.next!=null) this.next.eval(sb, map);
+			}
+		}
+	
+	private class Column
+	extends Node
+		{
+		int column1;
+		
+		@Override
+		void eval(StringBuilder sb,java.util.List<Object> L)
+			{
+			sb.append(column1>0 && column1<=L.size()?
+					L.get(column1-1).toString():
+					""
+					);
+			if(this.next!=null) this.next.eval(sb, L);
+			}
+		
+		@Override
+		void eval(StringBuilder sb,java.sql.ResultSet row)
+			{
+			
+			try
+				{
+				if(column1>0 && column1<=row.getMetaData().getColumnCount())
+					{
+					String v=row.getString(column1);
+					if(v==null && properties.containsKey(String.valueOf(column1))) v=properties.get(String.valueOf(column1)).toString();
+					if(v!=null) sb.append(v);
+					}
+				}
+			catch(java.sql.SQLException err)
+				{
+				//nothing
+				}
+				
+			if(this.next!=null) this.next.eval(sb, row);
+			}
+		
+		@Override
+		void eval(StringBuilder sb,java.util.Map<String,Object> m)
+			{
+			Object v=m.get(String.valueOf(column1));
+			if(v==null) v=properties.get(String.valueOf(column1));
+			if(v!=null) sb.append(v.toString());
+			if(this.next!=null) this.next.eval(sb, m);
+			}
+		
+		@Override
+		void appendChild(Node n)
+			{
+			if(next==null)
+				{
+				next=n;
+				}
+			else
+				{
+				next.appendChild(n);
+				}
+			}
+		}
+
+	private class NamedColumn
+	extends Node
+		{
+		String label;
+		
+		@Override
+		void eval(StringBuilder sb,java.util.List<Object> L)
+			{
+			if(this.next!=null) this.next.eval(sb, L);
+			}
+		
+		@Override
+		void eval(StringBuilder sb,java.sql.ResultSet row)
+			{
+			try
+				{
+				String v=row.getString(label);
+				if(v==null && properties.containsKey(label)) v=properties.get(label).toString();
+				if(v!=null) sb.append(v);
+				}
+			catch(java.sql.SQLException err)
+				{
+				//nothing
+				}	
+			if(this.next!=null) this.next.eval(sb, row);
+			}
+		
+		@Override
+		void eval(StringBuilder sb,java.util.Map<String,Object> m)
+			{
+			Object v=m.get(label);
+			if(v==null) v=properties.get(label);
+			if(v!=null) sb.append(v);
+			if(this.next!=null) this.next.eval(sb, m);
+			}
+		
+		@Override
+		void appendChild(Node n)
+			{
+			if(next==null)
+				{
+				next=n;
+				}
+			else
+				{
+				next.appendChild(n);
+				}
+			}
+		}	
+	
+	public void putProperty(String key,Object v)
+		{
+		this.properties.put(key, v);
+		}
+	public void removeProperty(String key)
+		{
+		this.properties.remove(key);
+		}
+	
+	public void setProperties(java.util.Map<String,Object> m)
+		{
+		this.properties=new java.util.HashMap<String,Object>(m);
+		}
+	
+	
+	public String eval(java.util.List<Object> L)
+		{
+		StringBuilder content=new StringBuilder();
+		this.root.eval(content,L);
+		return  content.toString();
+		}
+	
+	public String eval(java.sql.ResultSet row)
+		{
+		StringBuilder content=new StringBuilder();
+		this.root.eval(content,row);
+		return  content.toString();
+		}
+	
+	public String eval(java.util.Map<String,Object> m)
+		{
+		StringBuilder content=new StringBuilder();
+		this.root.eval(content,m);
+		return  content.toString();
+		}
+	
+	public static Printf compile(String expr) throws ParseException
+		{
+		Printf parser = new Printf(new java.io.StringReader(expr));
+		parser.root=parser.input();
+		return parser;	
+		}
+	
+
+	
+	}
+	
+PARSER_END(Printf)
+
+
+
+TOKEN:
+{
+  <#WS: ( " " | "\t" )>
+| <#DIGIT:["0"-"9"]>
+| <#DOLLAR: "$">
+| <#LETTER: (["a"-"z"]|"_"|["A"-"Z"])>
+| <#INT:<DIGIT>  (<DIGIT>)*  >
+| <#WORD: <LETTER> (<LETTER>|<DIGIT>)*>
+| <COL1: <DOLLAR> "{" (<WS>)* <INT> (<WS>)*  "}" >
+| <COL2: <DOLLAR> <INT> >
+| <COL3: <DOLLAR> "{" (<WS>)* <WORD> (<WS>)*  "}" >
+| <COL4: <DOLLAR> <WORD> >
+| <ANY: ~[]>
+}
+
+private Node input():
+	{
+	Node  s1=new PlainText();
+	Node  s2;
+	}
+	{
+	(s1=node() (s2=node() { s1.appendChild(s2);} )*)? <EOF>
+		{
+		return s1;
+		}
+	}
+
+private Node node():{Node n; }
+	{
+	(n=text()|n=column()|n=named()) { return n;}
+	}
+
+private PlainText text():{Token t;PlainText n=new PlainText();}
+	{
+	t=<ANY> { n.content.append( t.image); return  n; } 
+	}
+
+private Column column():{Token t;Column n=new Column();}
+	{
+	(t=<COL1>
+		{
+		n.column1=Integer.parseInt(t.image.substring(2,t.image.length()-1).trim());
+		return n;
+		}
+	| t=<COL2>
+		{
+		n.column1=Integer.parseInt(t.image.substring(1));
+		return n;
+		}
+	)
+	}	
+
+private NamedColumn named():{Token t;NamedColumn n=new NamedColumn();}
+	{
+	(t=<COL3>
+		{
+		n.label=t.image.substring(2,t.image.length()-1).trim();
+		return n;
+		}
+	| t=<COL4>
+		{
+		n.label=t.image.substring(1);
+		return n;
+		}
+	)
+	}	
+	
+	

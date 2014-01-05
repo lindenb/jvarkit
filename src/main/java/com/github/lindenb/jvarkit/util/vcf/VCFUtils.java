@@ -3,13 +3,20 @@ package com.github.lindenb.jvarkit.util.vcf;
 import java.io.File;
 import java.io.IOException;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.logging.Logger;
 
+import net.sf.samtools.SAMSequenceDictionary;
+import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.BlockCompressedOutputStream;
 
 import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
+import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
@@ -72,6 +79,20 @@ public class VCFUtils
 			}
 		}
 	
+	public static SortedSet<VCFContigHeaderLine>
+		samSequenceDictToVCFContigHeaderLine(SAMSequenceDictionary dict)
+		{
+		SortedSet<VCFContigHeaderLine> meta2=new TreeSet<VCFContigHeaderLine>();
+		for(SAMSequenceRecord ssr: dict.getSequences())
+			{
+			Map<String,String> mapping=new HashMap<String,String>();
+			mapping.put("ID", ssr.getSequenceName());
+			mapping.put("length",String.valueOf(ssr.getSequenceLength()));
+			VCFContigHeaderLine h=new VCFContigHeaderLine(mapping,ssr.getSequenceIndex());
+			meta2.add(h);
+			}
+		return meta2;
+		}
 	
 	/*
 	private Pattern semicolon=Pattern.compile("[;]");

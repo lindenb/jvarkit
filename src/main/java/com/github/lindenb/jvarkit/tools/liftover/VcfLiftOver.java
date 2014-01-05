@@ -4,17 +4,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import net.sf.picard.liftover.LiftOver;
 import net.sf.picard.util.Interval;
 import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.CloserUtil;
 
 import org.broadinstitute.variant.variantcontext.Allele;
@@ -24,7 +21,6 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -102,14 +98,8 @@ public class VcfLiftOver extends AbstractVCFFilter2
 					hh.add(h);
 					}
 				}
-			for(SAMSequenceRecord ssr:newDict.getSequences())
-				{
-				Map<String,String> mapping=new HashMap<String,String>();
-				mapping.put("ID", ssr.getSequenceName());
-				mapping.put("length",String.valueOf(ssr.getSequenceLength()));
-				VCFContigHeaderLine h=new VCFContigHeaderLine(mapping,ssr.getSequenceIndex());
-				hh.add(h);
-				}
+			hh.addAll(VCFUtils.samSequenceDictToVCFContigHeaderLine(newDict));
+			
 			header3=new VCFHeader(
 					hh,header.getGenotypeSamples()
 					);
