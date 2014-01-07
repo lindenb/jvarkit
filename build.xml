@@ -493,7 +493,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	
 	
 <target name="cmpbams" >
-	<compile-with-picard 
+	<compile-picard-cmd
 		java="**/CompareBams2.java"
 		main="com.github.lindenb.jvarkit.tools.cmpbams.CompareBams2"
 		name="cmpbams"

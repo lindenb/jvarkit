@@ -5,47 +5,29 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.logging.Logger;
-
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
 import net.sf.picard.util.Interval;
 import net.sf.samtools.SAMFileReader;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMRecord;
+import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.CloseableIterator;
+import net.sf.samtools.util.SequenceUtil;
 import net.sf.samtools.util.SortingCollection;
 
 
 public class CompareBams2  extends AbstractCommandLineProgram
 	{
-	private static final Logger LOG=Logger.getLogger(CompareBams2.class.getName());
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"Compare two or more BAM files.";
-
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM files to process.",
-    		minElements=2,optional=false)
-	public List<File> IN=new ArrayList<File>();
-    @Option(shortName= "L", doc="restrict to that region (chr:start-end)",optional=true)
-	public String REGION=null;
-    
-    @Option(shortName= "FLG", doc="use SAM Flag when comparing.",optional=true)
-    public boolean useSamFlag=false;
-
-    @Option(shortName= "CIGAR", doc="use CIGAR when comparing.",optional=true)
-    public boolean useCigar=false;
-
-	
 	private class MatchComparator
 		implements Comparator<Match>
 		{
@@ -170,25 +152,128 @@ public class CompareBams2  extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	protected int doWork()
+	public String getProgramDescription() {
+		return "Compare two or more BAM files.";
+		}
+	
+	
+	
+	private List<File> IN=new ArrayList<File>();
+    private String REGION=null;
+    private boolean useSamFlag=false;
+    private boolean useCigar=false;
+    private SortingCollectionFactory<Match> sortingFactory=new SortingCollectionFactory<Match>();
+	private int distance_tolerance=10;
+	
+    private boolean same(Set<Match> set1,Set<Match> set2)
+    	{
+    	for(Match m0:set1)
+    		{
+    		for(Match m1:set2)
+	    		{
+    			int i=m0.readName.compareTo(m1.readName);
+    			if(i!=0) continue;
+    			i=m0.num_in_pair-m1.num_in_pair;
+    			if(i!=0) continue;
+    			//i= m0.bamIndex - m1.bamIndex;//NO ! (when comparing two Set<Match>)
+    			//if(i!=0) return i;
+    			i= m0.tid - m1.tid;
+    			if(i!=0) continue;
+    			i= Math.abs(m0.pos - m1.pos);
+    			if(i>this.distance_tolerance) continue;
+    			i= m0.flag - m1.flag;
+    			if(i!=0) continue;
+    			i= m0.cigar.compareTo(m1.cigar);
+    			if(i!=0) continue;
+    			return true;
+	    		}
+    		}
+    	return false;
+    	}
+    
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/CmpBams";
+    	}
+    
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		out.println(" -d (dist) distance tolerance between two alignments.");
+		out.println(" -r (region) restrict to that region chr:start-end");
+		out.println(" -F use SAM Flag when comparing.");
+		out.println(" -C use CIGAR when comparing.");
+		out.println(" -n (int)  MaxRecords In RAM. Optional.");
+		out.println(" -T (dir)  Add this tmp directory. Optional");
+		super.printOptions(out);
+		}
+
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+"r:FCn:d:T:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'd':distance_tolerance=Integer.parseInt(opt.getOptArg());break;
+				case 'r':REGION=opt.getOptArg();break;
+				case 'F':useSamFlag=true;break;
+				case 'C':useCigar=true;break;
+				case 'n': sortingFactory.setMaxRecordsInRAM(Integer.parseInt(opt.getOptArg()));break;
+				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;
+				default:
+					{
+					switch(handleOtherOptions(c, opt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		this.sortingFactory.setTmpDirs(this.getTmpDirectories());
+		for(int i=opt.getOptInd();i< args.length;++i)
+			{
+			this.IN.add(new File(args[i]));
+			}
+		
+		try
+			{
+			return doWork();
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			
+			}
+		}
+
+	private int doWork()
 		{
 		SAMFileReader samFileReader=null;
 		try
 			{
 			if(this.IN.size() <2)
 				{
-				System.err.println("Need more bams please");
+				error("Need more bams please");
 				return -1;
 				}
 			
 			
 			final MatchComparator matchComparator=new MatchComparator();
-			SortingCollection<Match> database=SortingCollection.newInstance(
-					Match.class,
-					new MatchCodec(),
-					matchComparator,
-					super.MAX_RECORDS_IN_RAM
-					);
+			
+			this.sortingFactory.setComparator(matchComparator);
+			this.sortingFactory.setCodec(new MatchCodec());
+			this.sortingFactory.setComponentType(Match.class);
+			
+			SortingCollection<Match> database=this.sortingFactory.make();
 			database.setDestructiveIteration(true);
 	
 			List<SAMSequenceDictionary> sequenceDictionaries=new ArrayList<SAMSequenceDictionary>(this.IN.size());
@@ -197,13 +282,17 @@ public class CompareBams2  extends AbstractCommandLineProgram
 					currentSamFileIndex<this.IN.size();
 					currentSamFileIndex++ )
 				{
-				long nReads=0L;
 				File samFile=this.IN.get(currentSamFileIndex);
-				LOG.info("Opening "+samFile);
+				info("Opening "+samFile);
 				samFileReader=new SAMFileReader(samFile);
-				samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
+				samFileReader.setValidationStringency(ValidationStringency.SILENT);
 				SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
+				if(!sequenceDictionaries.isEmpty() && !SequenceUtil.areSequenceDictionariesEqual(sequenceDictionaries.get(0), dict))
+					{
+					warning("FOOL !! THE SEQUENCE DICTIONARIES ARE **NOT** THE SAME. ");
+					}
 				sequenceDictionaries.add(dict);
+				
 				
 				Interval interval=null;
 				if(REGION!=null)
@@ -216,7 +305,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 						}
 					}
 				
-				Iterator<SAMRecord> iter=null;
+				SAMRecordIterator iter=null;
 				if(interval==null)
 					{
 					iter=samFileReader.iterator();
@@ -225,11 +314,13 @@ public class CompareBams2  extends AbstractCommandLineProgram
 					{
 					iter=samFileReader.queryOverlapping(interval.getSequence(), interval.getStart(), interval.getEnd());
 					}
-				
+				SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 				while(iter.hasNext() )
 					{
-					if(nReads++%10000000==0) LOG.info("in "+samFile+" count:"+nReads);
 					SAMRecord rec=iter.next();
+					progress.watch(rec);
+					if(rec.isSecondaryOrSupplementary()) continue;
+					
 					Match m=new Match();
 					if(rec.getReadPairedFlag())
 						{
@@ -256,12 +347,13 @@ public class CompareBams2  extends AbstractCommandLineProgram
 						}
 					database.add(m);
 					}
+				iter.close();
 				samFileReader.close();
 				samFileReader=null;
-				LOG.info("Close "+samFile);
+				info("Close "+samFile);
 				}
 			database.doneAdding();
-			LOG.info("Writing results....");
+			info("Writing results....");
 			
 			//compute the differences for each read
 			System.out.print("#READ-Name\t");
@@ -320,7 +412,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 								{
 								if(!(x==0 && y==1)) System.out.print("|");
 								Set<Match> second=matches.get(y);
-								if(first.size()==second.size() && first.containsAll(second))
+								if(same(first,second))
 									{
 									System.out.print("EQ");
 									}
