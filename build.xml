@@ -1129,6 +1129,16 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+
+<target name="mergesplittedblast" depends="api.ncbi.blast">
+	<compile-picard-cmd 
+		java="**/MergeSplittedBlast.java"
+		main="com.github.lindenb.jvarkit.tools.blast.MergeSplittedBlast"
+		name="mergesplittedblast"
+		/>
+</target>
+
+
 <target name="blast2sam" depends="api.ncbi.blast">
 	<compile-picard-cmd 
 		java="**/BlastToSam.java"

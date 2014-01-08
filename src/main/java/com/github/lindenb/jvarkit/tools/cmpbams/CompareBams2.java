@@ -28,6 +28,10 @@ import net.sf.samtools.util.SortingCollection;
 
 public class CompareBams2  extends AbstractCommandLineProgram
 	{
+	private boolean samSequenceDictAreTheSame=true;
+	private List<SAMSequenceDictionary> sequenceDictionaries=new ArrayList<SAMSequenceDictionary>();
+
+	
 	private class MatchComparator
 		implements Comparator<Match>
 		{
@@ -40,7 +44,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			if(i!=0) return i;
 			//i= m0.bamIndex - m1.bamIndex;//NO ! (when comparing two Set<Match>)
 			//if(i!=0) return i;
-			i= m0.tid - m1.tid;
+			i= compareTid(m0.bamIndex,m0.tid ,m1.bamIndex, m1.tid);
 			if(i!=0) return i;
 			i= m0.pos - m1.pos;
 			if(i!=0) return i;
@@ -48,6 +52,19 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			if(i!=0) return i;
 			i= m0.cigar.compareTo(m1.cigar);
 			return 0;
+			}
+		}
+	
+	private class MatchOrderer
+	implements Comparator<Match>
+		{
+		@Override
+		public int compare(Match m0, Match m1)
+			{
+			int i=m0.readName.compareTo(m1.readName);
+			if(i!=0) return i;
+			i=m0.num_in_pair-m1.num_in_pair;
+			return i;
 			}
 		}
 	
@@ -93,7 +110,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 		
 		}
 	
-	private static class Match
+	private class Match
 		{
 		String readName;
 		int num_in_pair=0;
@@ -122,7 +139,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			if (obj == null) { return false; }
 			Match other = (Match) obj;
 			if (num_in_pair != other.num_in_pair) { return false; }
-			if (tid != other.tid) { return false; }
+			if (compareTid(this.bamIndex,tid,other.bamIndex,other.tid)!=0) { return false; }
 			if(tid==-1) return true;
 			if (pos != other.pos) { return false; }
 			if (bamIndex != other.bamIndex) { return false; }
@@ -131,7 +148,39 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			}
 		}
 	
+	private String norm(String s1)
+		{
+		if(s1.startsWith("chr")) s1=s1.substring(3);
+		if(s1.startsWith("0")) s1=s1.substring(1);
+		if(s1.equals("MT")) s1="M";
+		return s1;
+		}
 	
+	private int compare(String s1,String s2)
+		{
+		return norm(s1).compareToIgnoreCase(norm(s2));
+		}
+	
+	private int compareTid(int file_id1,int tid1,int file_id2,int tid2)
+		{
+		if(samSequenceDictAreTheSame) return tid1-tid2;
+		if(tid1==-1)
+			{
+			return tid2==-1?0:-1;
+			}
+		if(tid2==-1)
+			{
+			return 1;
+			}
+		String chrom1=this.sequenceDictionaries.get(file_id1).getSequence(tid1).getSequenceName();
+		String chrom2=this.sequenceDictionaries.get(file_id2).getSequence(tid2).getSequenceName();
+		if(chrom1==null)
+			{
+			return chrom2==null?0:-1;
+			}
+		if(chrom2==null) return 1;
+		return compare(chrom1,chrom2);
+		}
 	
 	private void print(final Set<Match> set,final SAMSequenceDictionary dict)
 		{
@@ -267,16 +316,14 @@ public class CompareBams2  extends AbstractCommandLineProgram
 				}
 			
 			
-			final MatchComparator matchComparator=new MatchComparator();
 			
-			this.sortingFactory.setComparator(matchComparator);
+			this.sortingFactory.setComparator(new MatchOrderer());
 			this.sortingFactory.setCodec(new MatchCodec());
 			this.sortingFactory.setComponentType(Match.class);
-			
+			this.samSequenceDictAreTheSame=true;
 			SortingCollection<Match> database=this.sortingFactory.make();
 			database.setDestructiveIteration(true);
 	
-			List<SAMSequenceDictionary> sequenceDictionaries=new ArrayList<SAMSequenceDictionary>(this.IN.size());
 			
 			for(int currentSamFileIndex=0;
 					currentSamFileIndex<this.IN.size();
@@ -287,9 +334,16 @@ public class CompareBams2  extends AbstractCommandLineProgram
 				samFileReader=new SAMFileReader(samFile);
 				samFileReader.setValidationStringency(ValidationStringency.SILENT);
 				SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
-				if(!sequenceDictionaries.isEmpty() && !SequenceUtil.areSequenceDictionariesEqual(sequenceDictionaries.get(0), dict))
+				if(dict.isEmpty())
 					{
-					warning("FOOL !! THE SEQUENCE DICTIONARIES ARE **NOT** THE SAME. ");
+					error("Empty Dict  in "+samFile);
+					return -1;
+					}
+				
+				if(!this.sequenceDictionaries.isEmpty() && !SequenceUtil.areSequenceDictionariesEqual(this.sequenceDictionaries.get(0), dict))
+					{
+					this.samSequenceDictAreTheSame=false;
+					warning("FOOL !! THE SEQUENCE DICTIONARIES ARE **NOT** THE SAME. I will try to compare anyway but it will be slower.");
 					}
 				sequenceDictionaries.add(dict);
 				
@@ -374,10 +428,11 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			System.out.println();
 			
 			/* create an array of set<Match> */
+			final MatchComparator match_comparator=new MatchComparator();
 			List<Set<Match>> matches=new ArrayList<Set<CompareBams2.Match>>(this.IN.size());
 			while(matches.size() < this.IN.size())
 				{
-				matches.add(new TreeSet<CompareBams2.Match>(matchComparator));
+				matches.add(new TreeSet<CompareBams2.Match>(match_comparator));
 				}
 			
 			CloseableIterator<Match> iter=database.iterator();

@@ -1,5 +1,6 @@
 package com.github.lindenb.jvarkit.util.bio.blast;
 
+import java.lang.reflect.Method;
 import java.util.Iterator;
 
 import gov.nih.nlm.ncbi.blast.Hsp;
@@ -123,6 +124,38 @@ public class BlastHspAlignment
 		return _hsp;
 		}
 	
+	
+	public static Hsp cloneHsp(Hsp hsp)
+		{
+		Hsp h2=new Hsp();
+		h2.setHspNum(hsp.getHspNum());
+		h2.setHspBitScore(hsp.getHspBitScore());
+		h2.setHspScore(hsp.getHspScore());
+		h2.setHspEvalue(hsp.getHspEvalue());
+		h2.setHspIdentity(hsp.getHspIdentity());
+		h2.setHspGaps(hsp.getHspGaps());
+		h2.setHspPositive(hsp.getHspPositive());
+		h2.setHspAlignLen(hsp.getHspAlignLen());
+		
+		
+		h2.setHspQueryFrom(hsp.getHspQueryFrom());
+		h2.setHspQueryTo(hsp.getHspQueryTo());
+		h2.setHspQueryFrame(hsp.getHspQueryFrame());
+		
+		
+		h2.setHspHitFrom(hsp.getHspHitFrom());
+		h2.setHspHitTo(hsp.getHspHitTo());
+		h2.setHspHitFrame(hsp.getHspHitFrame());
+
+		h2.setHspQseq(hsp.getHspQseq());
+		h2.setHspHseq(hsp.getHspHseq());
+		h2.setHspMidline(hsp.getHspMidline());
+		
+		h2.setHspPatternFrom(hsp.getHspPatternFrom());
+		h2.setHspPatternTo(hsp.getHspPatternTo());
+		
+		return h2;
+		}
 	
 	
 	private int alignLen=-1;
