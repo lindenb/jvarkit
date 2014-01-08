@@ -108,4 +108,5 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfConcat">VcfConcat<a></th><td>Concatenate VCF files.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MergeSplittedBlast">MergeSplittedBlast<a></th><td>Merge Blast hit from a splitted database</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FindMyVirus">FindMyVirus<a></th><td>Virus+host cell : split BAM into categories.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar90204">Biostar90204<a></th><td>linux split equivalent for BAM file .</td></tr>
 </table>
