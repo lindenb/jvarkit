@@ -119,6 +119,17 @@ public class FindMyVirus extends AbstractCommandLineProgram
 			return name();
 			}
 		};
+
+
+
+
+
+	@Override
+        protected String getOnlineDocUrl()
+                {
+                return "https://github.com/lindenb/jvarkit/wiki/FindMyVirus";
+                }
+
 	@Override
 	public String getProgramDescription() {
 		return "Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. ";

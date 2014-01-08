@@ -10,8 +10,7 @@ See also [[Compilation]].
 $  ant __TODO__
 ```
 
-
-##Usage
+##Synopsis
 
 ```
 $ java -jar dist/__TODO__.jar (stdin|file) 
@@ -40,5 +39,5 @@ $  java -jar dist/__TODO__.jar < in.vcf > out.vcf
 
 ##History
 
-* 2013: Creation
+* 2014: Creation
 

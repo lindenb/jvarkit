@@ -84,15 +84,14 @@ public class MergeSplittedBlast extends AbstractCommandLineProgram {
 	
 	private boolean overlap(int a_start1,int a_end1,int b_start1,int b_end1)
 		{
-		info(" overlapp ["+a_start1+"-"+a_end1+"] vs ["+b_start1+"-"+b_end1+"]");
+		//debug(" overlapp ["+a_start1+"-"+a_end1+"] vs ["+b_start1+"-"+b_end1+"]");
 		if(b_end1+1 < a_start1) return false;
 		if(a_end1+1 < b_start1) return false;
-		info(" ok overlap");
+		//debug(" ok overlap");
 		return true;
 		}
 	private Hsp merge(Hsp hh0,Hsp hh1)
 		{
-		info("ICIIII");
 		BlastHspAlignment aln0=new BlastHspAlignment(hh0);
 		BlastHspAlignment aln1=new BlastHspAlignment(hh1);
 		
@@ -109,43 +108,69 @@ public class MergeSplittedBlast extends AbstractCommandLineProgram {
 		/* not the same strand */
 		if(aln0.isPlusPlus()!=aln1.isPlusPlus())
 			{
-			debug("strand");
+			//debug("strand");
 			return null;
 			}
 		
-		
+		/* hits overlap */	
 		if(!overlap(aln0.getHitFrom1(),aln0.getHitTo1(),aln1.getHitFrom1(),aln1.getHitTo1()))
 			{
-			
+			//debug("no overlap hit");
 			return null;
 			}
+		/* query overlap */
 		if(!overlap(aln0.getQueryFrom1(),aln0.getQueryTo1(),aln1.getQueryFrom1(),aln1.getQueryTo1()))
 			{
+			//debug("no overlap query");
 			return null;
 			}
 		//hit1 is contained in hit0
 		if(aln0.getQueryFrom1() <= aln1.getQueryFrom1() && aln1.getQueryTo1()<=aln0.getQueryTo1())
 			{
+			//debug("contained");
 			return hh0;
 			}
 		
 		StringBuilder qsb=new StringBuilder();
 		StringBuilder msb=new StringBuilder();
 		StringBuilder hsb=new StringBuilder();
+		int expect_hit=-1;
+		int found_hit=-1;
 		for(BlastHspAlignment.Align a:aln0)
 			{
-			if(a.getQueryIndex1()>=aln1.getQueryFrom1()) break;
+			if(a.getQueryIndex1()>=aln1.getQueryFrom1())
+				{
+				//debug("###BREAK###############");
+				expect_hit=a.getHitIndex1();
+				break;
+				}
 			qsb.append(a.getQueryChar());
 			msb.append(a.getMidChar());
 			hsb.append(a.getHitChar());
+			}
+		if(expect_hit==-1)
+			{
+			//debug("HU?");
+			return null;
 			}
 		for(BlastHspAlignment.Align a:aln1)
 			{
 			if(a.getQueryIndex1()<aln1.getQueryFrom1()) continue;
+			if(found_hit==-1)
+				{
+				found_hit=a.getHitIndex1();
+				if(expect_hit!=found_hit)
+					{
+					info("Not the expected hit position "+expect_hit+"/"+found_hit);
+					return null;
+					}
+				}
 			qsb.append(a.getQueryChar());
 			msb.append(a.getMidChar());
 			hsb.append(a.getHitChar());
 			}
+		//info("\n"+qsb+"\n"+msb+"\n"+hsb);
+		
 		Hsp newHsp=BlastHspAlignment.cloneHsp(hh0);
 		newHsp.setHspAlignLen(String.valueOf(msb.length()));
 		newHsp.setHspMidline(msb.toString());
@@ -165,6 +190,7 @@ public class MergeSplittedBlast extends AbstractCommandLineProgram {
 			}
 		newHsp.setHspGaps(String.valueOf(newHsp.getHspMidline().replaceAll("[^ ]", "").length()));
 		newHsp.setHspScore(String.valueOf(newHsp.getHspMidline().replaceAll("[ ]", "").length()));
+		//debug("success");
 		return newHsp;
 		}
 	
@@ -218,6 +244,7 @@ public class MergeSplittedBlast extends AbstractCommandLineProgram {
 				Hsp hsp0=hsps.get(i);
 				for(int j=i+1;j< hsps.size();++j)
 					{
+					//debug("comparing hsp "+i+" vs "+j+" N="+hsps.size());
 					Hsp hsp1=hsps.get(j);
 					Hsp newHitHsp=merge(hsp0,hsp1);
 					if(newHitHsp!=null)
