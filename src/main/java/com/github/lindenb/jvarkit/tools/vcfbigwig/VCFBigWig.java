@@ -34,11 +34,17 @@ public class VCFBigWig extends AbstractVCFFilter
 	@Option(shortName="INFOTAG",doc="name of the INFO tag. default: name of the bigwig.",optional=true)
 	public String TAG=null;
 
-        @Option(doc="Specifies wig values must be contained by region, if set, else return any intersecting region values.",optional=true)
-	public boolean notContained = false;
+    @Option(shortName="CONT",doc=
+    		"Specifies wig values must be contained by region. if false: return any intersecting region values.",optional=true)
+	public boolean contained = true;
 	
 	private BBFileReader bbFileReader=null;
-	private boolean contained=!notContained;
+	
+	private boolean isContained()
+		{
+		return contained;
+		}
+	
 	
 	@Override
 	protected void doWork(VcfIterator r, VariantContextWriter w)
@@ -84,7 +90,7 @@ public class VCFBigWig extends AbstractVCFFilter
 					ctx.getStart()-1,
 					ctx.getChr(),
 					ctx.getEnd(),
-					this.contained
+					isContained()
 					);
 			while(iter!=null && iter.hasNext())
 				{
