@@ -1338,6 +1338,22 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="findmyvirus"
 		/>
 </target>
+
+	
+<target name="genomicjaspar">
+	<compile-picard-cmd 
+		java="**/GenomicJaspar.java"
+		main="com.github.lindenb.jvarkit.tools.jaspar.GenomicJaspar"
+		name="genomicjaspar"
+		/>
+</target>
+<target name="vcfjaspar">
+	<compile-picard-cmd 
+		java="**/VcfJaspar.java"
+		main="com.github.lindenb.jvarkit.tools.jaspar.VcfJaspar"
+		name="vcfjaspar"
+		/>
+</target>
 	
 
 <target name="biostar" depends="biostar76892,biostar77288,biostar77828,biostar78285,biostar81455,biostar84786">
