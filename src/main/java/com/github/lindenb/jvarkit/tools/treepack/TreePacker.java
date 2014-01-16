@@ -19,7 +19,7 @@ public class TreePacker
 						}
 				};
     
-	public void layout(List<TreePack> items,final Rectangle2D.Double bounds)
+	public void layout(List<TreePack> items,final Rectangle2D bounds)
     	{
         layout(sortDescending(items),0,items.size()-1,bounds);
     	}
@@ -41,7 +41,8 @@ public class TreePacker
 	    return L;
 	    }
 	
-	private void layout(List<TreePack> items, int start, int end, final Rectangle2D.Double bounds)
+	private void layout(List<TreePack> items, int start, int end,
+			final Rectangle2D bounds)
     {
         if (start>end) return;
             
@@ -51,7 +52,7 @@ public class TreePacker
             return;
         }
         
-        double x=bounds.x, y=bounds.y, w=bounds.width, h=bounds.height;
+        double x=bounds.getX(), y=bounds.getY(), w=bounds.getWidth(), h=bounds.getHeight();
         
         double total=sum(items, start, end);
         int mid=start;
@@ -101,11 +102,11 @@ public class TreePacker
         return x;
     }
 
-    private void layoutBest(List<TreePack> items, int start, int end, final Rectangle2D.Double bounds)
+    private void layoutBest(List<TreePack> items, int start, int end, final Rectangle2D bounds)
 	    {
 	    sliceLayout(
 	    		items,start,end,bounds,
-	            bounds.width>bounds.height ? Orientation.HORIZONTAL : Orientation.VERTICAL,
+	            bounds.getWidth()>bounds.getHeight() ? Orientation.HORIZONTAL : Orientation.VERTICAL,
 	            Direction.ASCENDING);
 	    }
     
@@ -115,7 +116,7 @@ public class TreePacker
             sliceLayout(items,start,end,bounds,orientation,Direction.ASCENDING);
         }*/
         
-    private  void sliceLayout(List<TreePack> items, int start, int end, final Rectangle2D.Double bounds, Orientation orientation, Direction order)
+    private  void sliceLayout(List<TreePack> items, int start, int end, final Rectangle2D bounds, Orientation orientation, Direction order)
         {
             double total=sum(items, start, end);
             double a=0;
@@ -127,23 +128,23 @@ public class TreePacker
                 double b=items.get(i).getWeight()/total;
                 if (vertical)
                 {
-                    r.x=bounds.x;
-                    r.width=bounds.width;
+                    r.x=bounds.getX();
+                    r.width=bounds.getWidth();
                     if (order==Direction.ASCENDING)
-                        r.y=bounds.y+bounds.height*a;
+                        r.y=bounds.getY()+bounds.getHeight()*a;
                     else
-                        r.y=bounds.y+bounds.height*(1-a-b);
-                    r.height=bounds.height*b;
+                        r.y=bounds.getY()+bounds.getHeight()*(1-a-b);
+                    r.height=bounds.getHeight()*b;
                 }
                 else
                 {
                     if (order==Direction.ASCENDING)
-                        r.x=bounds.x+bounds.width*a;
+                        r.x=bounds.getX()+bounds.getWidth()*a;
                     else
-                        r.x=bounds.x+bounds.width*(1-a-b);
-                    r.width=bounds.width*b;
-                    r.y=bounds.y;
-                    r.height=bounds.height;
+                        r.x=bounds.getX()+bounds.getWidth()*(1-a-b);
+                    r.width=bounds.getWidth()*b;
+                    r.y=bounds.getY();
+                    r.height=bounds.getHeight();
                 }
      
                 items.get(i).setBounds(r);
