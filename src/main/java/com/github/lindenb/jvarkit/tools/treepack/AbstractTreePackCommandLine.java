@@ -1,21 +1,20 @@
 package com.github.lindenb.jvarkit.tools.treepack;
 
 import java.awt.geom.Rectangle2D;
-import java.util.Collection;
 
 
 
-public abstract class AbstractTreePack implements TreePack
+public abstract class AbstractTreePackCommandLine implements TreePack
 	{
-	private AbstractTreePack parent=null;
+	private AbstractTreePackCommandLine parent=null;
 	private Rectangle2D bounds=new Rectangle2D.Double();
 	
-	protected AbstractTreePack(AbstractTreePack parent)
+	protected AbstractTreePackCommandLine(AbstractTreePackCommandLine parent)
 		{
 		this.parent=parent;
 		}
 	
-	public AbstractTreePack getParent()
+	public AbstractTreePackCommandLine getParent()
 		{
 		return parent;
 		}
@@ -24,7 +23,7 @@ public abstract class AbstractTreePack implements TreePack
 	public int getDepth()
 		{
 		int d=0;
-		AbstractTreePack p=this;
+		AbstractTreePackCommandLine p=this;
 		while(p.parent!=null)
 			{
 			p=p.parent;
