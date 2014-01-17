@@ -6,6 +6,7 @@ import java.awt.Shape;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -203,7 +204,54 @@ public class Hershey
 				}
 			}
 		}
+	public String svgPath(
+			String s,
+			Shape shape
+			)
+		{
+		Rectangle2D r=shape.getBounds2D();
+		return svgPath(s,r.getX(),r.getY(),r.getWidth(),r.getHeight());
+		}
 
+	
+	public String svgPath(
+			String s,
+			double x, double y,
+			double width, double height
+			)
+		{
+		StringWriter sw=new StringWriter();
+		
+		
+		if(s.isEmpty() || width==0 || height==0) return "";
+		
+		double dx=width/s.length();
+		for(int i=0;i < s.length();++i)
+			{
+			List<PathOp> array=charToPathOp(s.charAt(i));
+			
+			for(int n=0;n< array.size();++n)
+				{
+				PathOp p2=array.get(n);
+				double x2=(p2.x/this.scalex)*dx + x+dx*i +dx/2.0;
+				double y2=(p2.y/this.scaley)*height +y +height/2.0 ;
+				switch(p2.operator)
+					{
+					case LINETO: sw.append("L ");break;
+					case MOVETO: sw.append("M ");break;
+					default: throw new IllegalStateException();
+					}
+				sw.append(String.format("%.3f",x2));
+				sw.append(" ");
+				sw.append(String.format("%.3f",y2));
+				sw.append(" ");
+				}
+			
+			}
+		sw.append("z");
+		return sw.toString();
+		}
+	
 	public static void main(String[] args)
 		{
 		BufferedImage img=new BufferedImage(300, 100, BufferedImage.TYPE_INT_RGB);

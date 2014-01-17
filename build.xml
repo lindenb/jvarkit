@@ -587,13 +587,22 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>
 			
 <target name="sortvcfonref" >
-	<compile-with-picard 
-		java="**/SortVcfOnRef.java"
-		main="com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnRef"
-		name="sortvcfonref"
-		/>
+<fail>
+###
+###
+### sortvcfonref is Deprecated, the command line has changed, please use `ant sortvcfonref2`
+###
+###
+</fail>
 </target>
 
+<target name="sortvcfonref2" >
+	<compile-picard-cmd 
+		java="**/SortVcfOnRef2.java"
+		main="com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnRef2"
+		name="sortvcfonref2"
+		/>
+</target>
 	
 	
 <target name="genscan" >

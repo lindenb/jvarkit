@@ -287,6 +287,10 @@ public class SAMSequenceDictionaryProgress
 		return this.count;
 		}
 	
+	public void finish()
+		{
+		LOG.info("done: N="+getCount());
+		}
 
 
 	}

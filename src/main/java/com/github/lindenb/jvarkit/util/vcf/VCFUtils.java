@@ -16,6 +16,7 @@ import net.sf.samtools.util.BlockCompressedOutputStream;
 import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
+import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -79,6 +80,43 @@ public class VCFUtils
 			}
 		}
 	
+	public static SAMSequenceRecord contigLineToSamSequenceRecord(String line)
+		{
+		if(!line.startsWith(VCFConstants.CONTIG_HEADER_START+"="))
+			{
+			throw new IllegalArgumentException("not a contig line "+line);
+			}
+		String sequencename=null;
+		Integer sequencelength=null;
+		String tokens1[]=line.split("[<=,]");
+		for(int i=0;i+1< tokens1.length;++i)
+			{
+			if(tokens1[i].equals("ID"))
+				{
+				sequencename=tokens1[i+1];
+				}
+			else if(tokens1[i].equals("length"))
+				{
+				sequencelength=Integer.parseInt(tokens1[i+1]);
+				}
+			}
+		if(sequencelength==null) throw new IllegalArgumentException("no 'length' in  contig line "+line);
+		if(sequencename==null) throw new IllegalArgumentException("no 'name' in  contig line "+line);
+		return new SAMSequenceRecord(sequencename, sequencelength);
+		}
+	
+	public static String samSequenceRecordToVcfContigLine(final SAMSequenceRecord ssr)
+		{
+		String as=ssr.getAssembly();
+		if(as==null) as="";
+		as=as.trim();
+		return VCFConstants.CONTIG_HEADER_START+
+				"=<ID="+ssr.getSequenceName()+
+				",length="+ssr.getSequenceLength()+
+				(as.isEmpty()?"":",assembly="+as)+
+				">";
+		}
+	
 	public static SortedSet<VCFContigHeaderLine>
 		samSequenceDictToVCFContigHeaderLine(SAMSequenceDictionary dict)
 		{
@@ -88,6 +126,8 @@ public class VCFUtils
 			Map<String,String> mapping=new HashMap<String,String>();
 			mapping.put("ID", ssr.getSequenceName());
 			mapping.put("length",String.valueOf(ssr.getSequenceLength()));
+			String as=ssr.getAssembly();
+			if(as!=null && !as.trim().isEmpty()) mapping.put("assembly",as);
 			VCFContigHeaderLine h=new VCFContigHeaderLine(mapping,ssr.getSequenceIndex());
 			meta2.add(h);
 			}

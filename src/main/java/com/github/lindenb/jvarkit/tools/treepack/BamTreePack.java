@@ -1,21 +1,10 @@
 package com.github.lindenb.jvarkit.tools.treepack;
 
-import java.awt.Rectangle;
-import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import javax.xml.XMLConstants;
-import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
-
-import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMReadGroupRecord;
@@ -23,89 +12,89 @@ import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
-public class BamTreePack extends AbstractCommandLineProgram
+public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 	{
-	private Rectangle viewRect=new Rectangle(1000,1000);
-	private final String SVG="http://www.w3.org/2000/svg";
-	private final String XLINK="http://www.w3.org/1999/xlink";
-	private List<NodeFactory> nodeFactoryChain=new ArrayList<NodeFactory>();
-	private enum FactoryType {sample,chrom,mapq,properlypaired};
-	private Node root=null;
-	private interface NodeFactory
-		{
-		public FactoryType getType();
-		public Node create(Branch parent);
-		}
+	
+
 	
 	
 	
 	/** Group by Sample */
-	private class SampleNodeFactory implements NodeFactory
+	private class SampleNodeFactory extends NodeFactory
 		{
-		private class MyNode extends Branch
+		private class MyNode extends BranchNode
 			{
-			private MyNode(Branch parent)
+			private MyNode(BranchNode parent)
 				{
-				super(parent);
+				super(SampleNodeFactory.this,parent);
 				}
 			
 			@Override
-			public void watch(SAMFileHeader header,SAMRecord seq)
+			public void watch(SAMRecord seq)
 				{
 				SAMReadGroupRecord g=seq.getReadGroup();
 				String sample=(g==null?"*":g.getSample());
 				if(sample==null || sample.isEmpty()) sample="*";
-				this.get(sample).watch(header, seq);
+				this.get(sample).watch(seq);
 				}
 			}
 		@Override
-		public FactoryType getType()	{return FactoryType.sample;}
-		public Node create(Branch parent)
+		public String getName() {
+			return "sample";
+			}
+		
+		@Override
+		public BranchNode createBranch(BranchNode parent)
 			{
 			return new MyNode(parent);
 			}
 		}
 	
 	/** Group by Chromosome */
-	private class ChromosomeNodeFactory implements NodeFactory
+	private class ChromosomeNodeFactory extends NodeFactory
 		{
-		private class MyNode extends Branch
+		private class MyNode extends BranchNode
 			{
-			private MyNode(Branch parent)
+			private MyNode(BranchNode parent)
 				{
-				super(parent);
+				super(ChromosomeNodeFactory.this,parent);
 				}
 			
 			@Override
-			public void watch(SAMFileHeader header,SAMRecord seq)
+			public void watch(SAMRecord seq)
 				{
 				String chr=seq.getReferenceName();
 				if(chr==null) chr=SAMRecord.NO_ALIGNMENT_REFERENCE_NAME;
-				this.get(chr).watch(header, seq);
+				this.get(chr).watch(seq);
 				}
 			}
 		@Override
-		public FactoryType getType()	{return FactoryType.chrom;}
-		public Node create(Branch parent)
+		public String getName()
+			{
+			return "chrom";
+			}
+		
+		@Override
+		public BranchNode createBranch(BranchNode parent)
 			{
 			return new MyNode(parent);
 			}
 		}
 	
 	/** Group by MAPQ */
-	private class MappingQualityFactory implements NodeFactory
+	private class MappingQualityFactory
+		extends NodeFactory
 		{
-		private class MyNode extends Branch
+		private class MyNode extends BranchNode
 			{
-			private MyNode(Branch parent)
+			private MyNode(BranchNode parent)
 				{
-				super(parent);
+				super(MappingQualityFactory.this,parent);
 				}
 			
 			@Override
-			public void watch(SAMFileHeader header,SAMRecord seq)
+			public void watch(SAMRecord seq)
 				{
 				String qualStr="*";
 				if(!seq.getReadUnmappedFlag())
@@ -121,43 +110,48 @@ public class BamTreePack extends AbstractCommandLineProgram
 						qualStr=String.valueOf(qual);
 						}
 					}
-				this.get(qualStr).watch(header, seq);
+				this.get(qualStr).watch(seq);
 				}
 			}
 		@Override
-		public FactoryType getType()	{return FactoryType.mapq;}
+		public String getName() {
+			return "mapq";
+			}
 
-		public Node create(Branch parent)
+		public BranchNode createBranch(BranchNode parent)
 			{
 			return new MyNode(parent);
 			}
 		}
 
 	/** Group by MAPQ */
-	private class PropertyPairedFactory implements NodeFactory
+	private class PropertyPairedFactory extends NodeFactory
 		{
-		private class MyNode extends Branch
+		private class MyNode extends BranchNode
 			{
-			private MyNode(Branch parent)
+			private MyNode(BranchNode parent)
 				{
-				super(parent);
+				super(PropertyPairedFactory.this,parent);
 				}
 			
 			@Override
-			public void watch(SAMFileHeader header,SAMRecord seq)
+			public void watch(SAMRecord seq)
 				{
 				String s="";
 				if(seq.getReadPairedFlag())
 					{
 					s=(seq.getReadPairedFlag()?"properly-paired":"not-property-paired");
 					}
-				this.get(s).watch(header, seq);
+				this.get(s).watch(seq);
 				}
 			}
 		@Override
-		public FactoryType getType()	{return FactoryType.properlypaired;}
-
-		public Node create(Branch parent)
+		public String getName() {
+			return "properly-paired";
+			}
+		
+		@Override
+		public BranchNode createBranch(BranchNode parent)
 			{
 			return new MyNode(parent);
 			}
@@ -165,139 +159,8 @@ public class BamTreePack extends AbstractCommandLineProgram
 	
 	
 	
-	private abstract class Node
-		extends AbstractTreePack
-		{
-		protected Node(Node parent)
-			{
-			super(parent);
-			}
-		public abstract void watch(SAMFileHeader header,SAMRecord seq);
-		public abstract boolean isLeaf();
-		public void layout()
-			{
-			
-			}
-		
-		void svg(XMLStreamWriter w,String label)throws XMLStreamException
-		   {
-		   if(this.isLeaf()) return;
-		   final Rectangle2D bounds=this.getBounds();
-		   w.writeStartElement("svg","g",SVG);
-		   	
-		   w.writeEmptyElement("svg", "rect", SVG);
-		   if(label!=null) w.writeAttribute("title",label);
-		  
-		   w.writeAttribute("x",String.valueOf(bounds.getX()));
-		   w.writeAttribute("y",String.valueOf(bounds.getY()));
-		   w.writeAttribute("width",String.valueOf(bounds.getWidth()));
-		   w.writeAttribute("height",String.valueOf(bounds.getHeight()));
-		 
-		  
-		   Branch me=(Branch)this;
-		   for(String key:me.children.keySet())
-			   {
-			   Node c=me.children.get(key);
-			   if(!c.isLeaf())
-				   {
-				   c.svg(w,key);
-				   }
-			   }
-		   if(label!=null)
-			   {
-			   //todo hershey
-			   }
-			   
-			   
-		 
-		   
-		   w.writeEndElement();//g
-		   }
-		}
 	
 	
-	
-	private abstract class Branch extends Node
-		{
-		private Map<String,Node> children=new HashMap<String,Node>();
-	
-		public Branch(BamTreePack.Branch parent)
-			{
-			super(parent);
-			}
-		public Collection<Node> getChildren()
-			{
-			return children.values();
-			}
-		
-		public void layout()
-			{
-			Rectangle2D frame=getParent()==null ?
-					new Rectangle2D.Double(0,0,viewRect.width,viewRect.height):
-					getParent().getBounds();
-			List<TreePack> L=new ArrayList<TreePack>(children.values());
-			new  TreePacker().layout(L, frame 	);
-			}
-		
-		@Override
-		public double getWeight()
-			{
-			double N=0;
-			for(TreePack c:this.getChildren()) N+=c.getWeight();
-			return N;
-			}
-		
-		protected Node get(String key)
-			{
-			Node c=this.children.get(key);
-			if(c==null)
-				{
-				 if(getDepth()< BamTreePack.this.nodeFactoryChain.size())
-					 {
-					 c=nodeFactoryChain.get(getDepth()).create(this);
-					 }
-				 else
-					 {
-					 c=new Leaf(this);
-					 }
-				this.children.put(key, c);
-				}
-			return c;
-			}
-
-		@Override
-		public final boolean isLeaf()
-			{
-			return false;
-			}
-
-		}
-	
-
-	private class Leaf extends Node
-		{
-		protected long count=0L;
-		public Leaf(Branch parent)
-			{
-			super(parent);
-			}
-		@Override
-		public void watch(SAMFileHeader header, SAMRecord seq)
-			{
-			++count;
-			}
-		@Override
-		public double getWeight()
-			{
-			return count;
-			}
-		
-		@Override
-		public final boolean isLeaf()
-			{
-			return true;
-			}
-		}
 
 	
 	
@@ -307,36 +170,13 @@ public class BamTreePack extends AbstractCommandLineProgram
 		}
 	
 	
-	 
- 
-	  private void svg(Node root) throws XMLStreamException
-	  	{
-		XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-		XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
-		w.writeStartDocument("UTF-8","1.0");
-		w.writeStartElement("svg","svg",SVG);
-		w.writeAttribute("style", "fill:none;stroke:black;stroke-width:0.5px;");
-		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "svg", SVG);
-		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "xlink", XLINK);
-		w.writeAttribute("width",String.valueOf(this.viewRect.getWidth()));
-		w.writeAttribute("height",String.valueOf(this.viewRect.getHeight()));
-		w.writeStartElement("svg","title",SVG);
-		w.writeCharacters("made with TreeMapMaker (c) Pierre Lindenbaum");
-		w.writeEndElement();
-		root.svg(w,null);
-		w.writeEndElement();//svg
-		w.writeEndDocument();
-		w.flush();
-	  	}
-
 	 private void scan(SAMFileReader sfr)
 		 {
 		 sfr.setValidationStringency(ValidationStringency.LENIENT);
-		 SAMFileHeader header=sfr.getFileHeader();
 		 SAMRecordIterator iter=sfr.iterator();
 		 while(iter.hasNext())
 			 {
-			 root.watch(header,iter.next());
+			 root.watch(iter.next());
 			 }
 		 }
 	  
@@ -346,19 +186,21 @@ public class BamTreePack extends AbstractCommandLineProgram
 		super.printOptions(out);
 		}
 	
-	private static void register(Map<String,NodeFactory> map,NodeFactory nf)
-		{
-		map.put(nf.getType().name(), nf);
+	
+	
+	@Override
+	protected List<NodeFactory> getAllAvailableFactories() {
+		List<NodeFactory> L=new ArrayList<NodeFactory>();
+		L.add(new ChromosomeNodeFactory());
+		L.add(new SampleNodeFactory());
+		L.add(new PropertyPairedFactory());
+		L.add(new MappingQualityFactory());
+		return L;
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
-		Map<String,NodeFactory> factorymap=new HashMap<String,NodeFactory>();
-		register(factorymap,new ChromosomeNodeFactory());
-		register(factorymap,new SampleNodeFactory());
-		register(factorymap,new PropertyPairedFactory());
-		register(factorymap,new MappingQualityFactory());
 		String path=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
@@ -378,32 +220,10 @@ public class BamTreePack extends AbstractCommandLineProgram
 					}
 				}
 			}
-		if(path==null)
+		if(buildFactoryChain(path)!=0)
 			{
-			warning("No path defined!");
-			root=new Leaf(null);
-			}
-		else
-			{
-			for(String p: path.split("[ \t/,;]+"))
-				{
-				NodeFactory nf=factorymap.get(p.toLowerCase());
-				if(nf==null)
-					{
-					error("Cannot get type \'"+p+"\' in "+factorymap.keySet());
-					return -1;
-					}
-				if(this.nodeFactoryChain.isEmpty())
-					{
-					root=nf.create(null);
-					}
-				this.nodeFactoryChain.add(nf);
-				}
-			if(root==null)
-				{
-				error("Wrong path");
-				return -1;
-				}
+			error("Cannot parse "+path);
+			return -1;
 			}
 		
 		SAMFileReader sfr=null;
@@ -427,9 +247,8 @@ public class BamTreePack extends AbstractCommandLineProgram
 					CloserUtil.close(sfr);
 					}
 				}
-			root.setBounds(new Rectangle2D.Double(0, 0, this.viewRect.getWidth(), this.viewRect.getHeight()));
-			root.layout();
-			svg(root);
+			this.layout();
+			this.svg();
 			return 0;
 			}
 		catch (Exception e)
