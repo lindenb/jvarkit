@@ -3,7 +3,9 @@ package com.github.lindenb.jvarkit.util;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.StringWriter;
@@ -27,6 +29,8 @@ public class Hershey
 	private double scalex=15;
 	private double scaley=15;
 	private enum Op {MOVETO,LINETO};
+	private AffineTransform affineTransform=new AffineTransform();
+	
 	private static class PathOp
 		{
 		Op operator;
@@ -82,6 +86,8 @@ public class Hershey
 		  " 14MWUPTRRSPROPPNRMTNUPUSTURVPV"
 		};
 
+	
+	
 	private Set<Character> undefined=new HashSet<Character>();
 	private  String charToHersheyString(char c)
 		{
@@ -108,6 +114,15 @@ public class Hershey
 			case ')': return "  7NUPLRNSPSSRUPW";//222
 			case '|': return "  3PTRLRW";//223
 			case '#': return " 12MXRLPW RULSW ROPVP ROSVS";//233
+			case '*': return "  9JZRLRX RMOWU RWOMU";//728
+			case '=': return "  6LXNPVP RNTVT";//226
+			case '-': return "  3KYKRYR";//806
+			case '_': return "  3JZJZZZ";//998
+			case '[': return " 12MWPHP\\ RQHQ\\ RPHUH RP\\U\\";//1223
+			case ']': return " 12MWSHS\\ RTHT\\ ROHTH RO\\T\\";//1224
+			case '{': return " 38LWSHQIPJPLRNSP RQIPL RSNRQ RPJQLSNSPRQPRRSSTSVQXPZ RRSSV RPXQ[ RSTRVPXPZQ[S\\"; 
+			case '}': return " 38MXQHSITJTLRNQP RSITL RQNRQ RTJSLQNQPRQTRRSQTQVSXTZ RRSQV RTXS[ R QTRVTXTZS[Q\\";
+
 			default:
 				{
 				if(!undefined.contains(c))
@@ -121,6 +136,28 @@ public class Hershey
 		}
 	
 	private Map<Character, List<PathOp>> letter2path=new HashMap<Character, List<PathOp>>();
+	
+	public AffineTransform getTransform()
+		{
+		return this.affineTransform;
+		}
+	
+	public void setTransform(AffineTransform tr)
+		{
+		if(tr==null) tr=new AffineTransform();
+		this.affineTransform=tr;
+		}
+	
+	private PathOp transform(PathOp op)
+		{
+		Point2D p=new Point2D.Double(op.x,op.y);
+		getTransform().transform(p,p);
+		PathOp op2=new PathOp();
+		op2.operator=op.operator;
+		op2.x=p.getX();
+		op2.y=p.getY();
+		return op2;
+		}
 	
 	private List<PathOp> charToPathOp(char letter)
 		{
@@ -190,9 +227,9 @@ public class Hershey
 			
 			for(int n=0;n< array.size();++n)
 				{
-				PathOp p2=array.get(n);
+				PathOp p2=transform(array.get(n));
 				if(p2.operator==Op.MOVETO) continue;
-				PathOp p1=array.get(n-1);
+				PathOp p1=transform(array.get(n-1));
 				
 				double x1=(p1.x/this.scalex)*dx + x+dx*i +dx/2.0;
 				double y1=(p1.y/this.scaley)*height +y +height/2.0 ;
@@ -232,7 +269,7 @@ public class Hershey
 			
 			for(int n=0;n< array.size();++n)
 				{
-				PathOp p2=array.get(n);
+				PathOp p2=transform(array.get(n));
 				double x2=(p2.x/this.scalex)*dx + x+dx*i +dx/2.0;
 				double y2=(p2.y/this.scaley)*height +y +height/2.0 ;
 				switch(p2.operator)
@@ -248,7 +285,7 @@ public class Hershey
 				}
 			
 			}
-		sw.append("z");
+		//sw.append("z");
 		return sw.toString();
 		}
 	

@@ -44,8 +44,7 @@ public class VCFUtils
 		{
 		if(IN==null)
 			{
-			LOG.info("reading from stdin");
-			return new VcfIterator(System.in);
+			return createVcfIteratorStdin();
 			}
 		else
 			{
@@ -53,7 +52,15 @@ public class VCFUtils
 			return new VcfIterator(IOUtils.openURIForReading(IN));
 			}
 		}
-
+	/** create a VCF iterator
+	 * 
+	 * @param IN : input uri or null for stdin
+	 * */
+	public static  VcfIterator createVcfIteratorStdin() throws IOException
+		{
+		LOG.info("reading from stdin");
+		return new VcfIterator(System.in);
+		}
 	/**
 	 * create a VariantContextWriter
 	 * @param OUT output file or null to stdout

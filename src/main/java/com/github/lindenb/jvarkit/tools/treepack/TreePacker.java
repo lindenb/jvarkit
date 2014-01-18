@@ -13,8 +13,12 @@ public class TreePacker
 	
 	private Comparator<TreePack> comparator=new Comparator<TreePack>()
 				{
-				public int compare(TreePack arg0, TreePack arg1)
+				public int compare(TreePack pack1, TreePack pack2)
 						{
+						double w1=pack1.getWeight();
+						double w2=pack2.getWeight();
+						if(w1<w2) return 1;
+						if(w1>w2) return -1;
 						return 0;
 						}
 				};
@@ -110,12 +114,8 @@ public class TreePacker
 	            Direction.ASCENDING);
 	    }
     
-    /*
-    private  void sliceLayout(List<Frame> items, int start, int end, Rectangle2D.Double bounds, Orientation orientation)
-        {
-            sliceLayout(items,start,end,bounds,orientation,Direction.ASCENDING);
-        }*/
-        
+    
+
     private  void sliceLayout(List<TreePack> items, int start, int end, final Rectangle2D bounds, Orientation orientation, Direction order)
         {
             double total=sum(items, start, end);
