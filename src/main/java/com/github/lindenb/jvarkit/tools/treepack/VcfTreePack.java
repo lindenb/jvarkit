@@ -9,6 +9,7 @@ import net.sf.samtools.util.CloserUtil;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFHeader;
+
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -221,18 +222,32 @@ public class VcfTreePack extends AbstractTreePackCommandLine<VariantContext>
 		 progress.finish();
 		 }
 
-	
+	private  List<NodeFactory> _factories=null;
+
 	@Override
 	protected List<NodeFactory> getAllAvailableFactories()
 		{
-		List<NodeFactory> L=new ArrayList<NodeFactory>();
-		L.add(new ChromosomeNodeFactory());
-		L.add(new QualityFactory());
-		L.add(new SampleNodeFactory());
-		L.add(new GenotypeNodeFactory());
-		return L;
+		if(_factories==null)
+			{
+			_factories=new ArrayList<NodeFactory>();
+			_factories.add(new ChromosomeNodeFactory());
+			_factories.add(new QualityFactory());
+			_factories.add(new SampleNodeFactory());
+			_factories.add(new GenotypeNodeFactory());
+			}
+		return _factories;
 		}
-
+	@Override
+	protected String getOnlineDocUrl()
+		{
+		return "https://github.com/lindenb/jvarkit/wiki/VcfTreePack";
+		}
+	@Override
+	public String getProgramDescription()
+		{
+		return "Create a TreeMap from one or more VCF. Ouput is a SVG file.";
+		}
+	
 	@Override
 	public int doWork(String[] args)
 		{

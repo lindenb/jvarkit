@@ -112,5 +112,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfJaspar">VcfJaspar<a></th><td>Finds JASPAR profiles in VCF</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/GenomicJaspar">GenomicJaspar<a></th><td>Finds JASPAR profiles in Fasta</td></tr>
 
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfTreePack">VcfTreePack<a></th><td>Create a TreeMap from one or more VCF</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamTreePack">BamTreePack<a></th><td>Create a TreeMap from one or more Bam.</td></tr>
 
 </table>

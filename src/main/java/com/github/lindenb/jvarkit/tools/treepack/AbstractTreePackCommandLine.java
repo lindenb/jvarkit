@@ -481,7 +481,9 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		{
 		switch(c)
 			{
-			case 'e':buildFactoryChain(opt.getOptArg());return GetOptStatus.OK;
+			case 'e':
+				if(buildFactoryChain(opt.getOptArg())!=0) return GetOptStatus.EXIT_FAILURE;
+				return GetOptStatus.OK;
 			case 'x':
 					{
 					String s=opt.getOptArg();

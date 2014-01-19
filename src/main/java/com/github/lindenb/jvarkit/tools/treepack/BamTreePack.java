@@ -1,10 +1,12 @@
 package com.github.lindenb.jvarkit.tools.treepack;
 
 import java.io.File;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import net.sf.samtools.SAMFileReader;
@@ -84,6 +86,46 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 		@Override
 		public String getName() {
 			return "sample";
+			}
+		
+		@Override
+		public BranchNode createBranch(BranchNode parent,String label)
+			{
+			return new MyNode(parent,label);
+			}
+		}
+	
+	
+	/** Group by InsertSize */
+	private class InsertSizeNodeFactory extends NodeFactory
+		{
+		private class MyNode extends BranchNode
+			{
+			private MyNode(BranchNode parent,String label)
+				{
+				super(InsertSizeNodeFactory.this,parent,label);
+				}
+			
+			@Override
+			public void watch(SAMRecord rec)
+				{
+				String s="*";
+				int v=Math.abs(rec.getInferredInsertSize());
+				if(v>0) s=intervalToString(v, 10);
+					
+				this.get(s).watch(rec);
+				}
+			}
+		
+		@Override
+		public String getDescription()
+			{
+			return "Insert-Size";
+			}
+		
+		@Override
+		public String getName() {
+			return "insertsize";
 			}
 		
 		@Override
@@ -219,8 +261,90 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 			}
 		}
 	
+	/** Group by NotSameChromNodeFactory */
+	private class NotSameChromNodeFactory extends NodeFactory
+		{
+		private class MyNode extends BranchNode
+			{
+			private MyNode(BranchNode parent,String label)
+				{
+				super(NotSameChromNodeFactory.this,parent,label);
+				}
+			
+			@Override
+			public void watch(SAMRecord rec)
+				{
+				String ref1=null;
+				String ref2=null;
+				if(rec.getReadPairedFlag() && 
+					!rec.getReadUnmappedFlag() &&
+					!rec.getMateUnmappedFlag() &&
+					(ref1=rec.getReferenceName())!=(ref2=rec.getMateReferenceName())
+					)
+					{
+					String s=ref1.compareTo(ref2)<0?
+							ref1+"/"+ref2:
+							ref2+"/"+ref1
+							;
+					this.get(s).watch(rec);
+					}
+				
+				}
+			}
+		
+		@Override
+		public String getDescription()
+			{
+			return "read chromosome != mate chromosome";
+			}
+		
+		@Override
+		public String getName() {
+			return "splitchrom";
+			}
+		
+		@Override
+		public BranchNode createBranch(BranchNode parent,String label)
+			{
+			return new MyNode(parent,label);
+			}
+		}
+
 	
-	
+	private class SamFlagNodeFactory extends NodeFactory
+		{
+		private class MyNode extends BranchNode
+			{
+			private MyNode(BranchNode parent,String label)
+				{
+				super(SamFlagNodeFactory.this,parent,label);
+				}
+			
+			@Override
+			public void watch(SAMRecord rec)
+				{
+				String s=String.valueOf(rec.getFlags());
+				this.get(s).watch(rec);	
+				}
+			}
+		
+		@Override
+		public String getDescription()
+			{
+			return "sam flag";
+			}
+		
+		@Override
+		public String getName() {
+			return "samflag";
+			}
+		
+		@Override
+		public BranchNode createBranch(BranchNode parent,String label)
+			{
+			return new MyNode(parent,label);
+			}
+		}
 	
 	
 
@@ -231,10 +355,15 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 		
 		}
 	
+	private String intervalToString(int value,int step)
+		{
+		value=((int)(value/(double)step));
+		return String.valueOf((int)(value)*step+"-"+((value+1)*step));
+		}
 	
 	 private void scan(SAMFileReader sfr)
 		 {
-		 sfr.setValidationStringency(ValidationStringency.LENIENT);
+		 sfr.setValidationStringency(ValidationStringency.SILENT);
 		 SAMRecordIterator iter=sfr.iterator();
 		 SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader().getSequenceDictionary());
 		 while(iter.hasNext())
@@ -253,18 +382,35 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 		}
 	
 	
-	
+	private  List<NodeFactory> _factories=null;
 	@Override
-	protected List<NodeFactory> getAllAvailableFactories() {
-		List<NodeFactory> L=new ArrayList<NodeFactory>();
-		L.add(new ChromosomeNodeFactory());
-		L.add(new SampleNodeFactory());
-		L.add(new PropertyPairedFactory());
-		L.add(new MappingQualityFactory());
-		L.add(new GroupIdNodeFactory());
-		return L;
+	protected List<NodeFactory> getAllAvailableFactories()
+		{
+		if(_factories==null)
+			{
+			_factories=new ArrayList<NodeFactory>();
+			_factories.add(new ChromosomeNodeFactory());
+			_factories.add(new SampleNodeFactory());
+			_factories.add(new PropertyPairedFactory());
+			_factories.add(new MappingQualityFactory());
+			_factories.add(new GroupIdNodeFactory());
+			_factories.add(new InsertSizeNodeFactory());
+			_factories.add(new NotSameChromNodeFactory());
+			_factories.add(new SamFlagNodeFactory());
+			}
+		return _factories;
 		}
-	
+	@Override
+	protected String getOnlineDocUrl()
+		{
+		return "https://github.com/lindenb/jvarkit/wiki/BamTreePack";
+		}
+	@Override
+	public String getProgramDescription()
+		{
+		return "Create a TreeMap from one or more SAM/BAM file. Ouput is a SVG file.";
+		}
+
 	@Override
 	public int doWork(String[] args)
 		{
@@ -300,18 +446,32 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 				sfr=new SAMFileReader(System.in);
 				scan(sfr);
 				CloserUtil.close(sfr);
+				info("Done stdin");
 				}
 			else
 				{
 				for(int optind =opt.getOptInd(); optind < args.length;++optind)
 					{
-					File f=new File(args[optind]);
-					info("Reading stdin");
-					sfr=new SAMFileReader(f);
+					InputStream in=null;
+					String filename= args[optind];
+					info("Reading "+filename);
+					if(IOUtils.isRemoteURI(filename))
+						{
+						in=IOUtils.openURIForReading(filename);
+						sfr=new SAMFileReader(in);
+						}
+					else
+						{
+						sfr=new SAMFileReader(new File(filename));
+						}
 					scan(sfr);
+					info("Done "+filename);
 					CloserUtil.close(sfr);
+					CloserUtil.close(in);
+					
 					}
 				}
+			
 			this.layout();
 			this.svg();
 			return 0;
