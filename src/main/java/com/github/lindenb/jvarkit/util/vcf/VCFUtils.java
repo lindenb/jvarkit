@@ -95,7 +95,7 @@ public class VCFUtils
 			}
 		String sequencename=null;
 		Integer sequencelength=null;
-		String tokens1[]=line.split("[<=,]");
+		String tokens1[]=line.split("[<=,>\'\"]+");
 		for(int i=0;i+1< tokens1.length;++i)
 			{
 			if(tokens1[i].equals("ID"))
