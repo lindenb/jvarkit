@@ -490,6 +490,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="splitbam"
 		/>
 </target>
+<target name="splitbam2" >
+	<compile-picard-cmd
+		java="**/SplitBam2.java"
+		main="com.github.lindenb.jvarkit.tools.splitbam.SplitBam2"
+		name="splitbam2"
+		/>
+</target>
 	
 	
 <target name="cmpbams" >
