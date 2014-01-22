@@ -355,11 +355,6 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 		
 		}
 	
-	private String intervalToString(int value,int step)
-		{
-		value=((int)(value/(double)step));
-		return String.valueOf((int)(value)*step+"-"+((value+1)*step));
-		}
 	
 	 private void scan(SAMFileReader sfr)
 		 {

@@ -385,12 +385,12 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 	protected String getCascadingStylesheet()
 		{
 		return "svg {fill:none;stroke:black;stroke-width:0.5px;}\n"+
-				".r0 {fill:rgb(240,240,240);stroke:black;stroke-width:1px;}\n"+
-				".r1 {fill:rgb(250,250,250);stroke:black;stroke-width:1px;}\n"+
-				".lbla0 {stroke:black;stroke-width:1px;}\n"+
-				".lblb0 {stroke:red;stroke-width:2px;}\n"+
-				".lbla1 {stroke:gray;stroke-width:1px;}\n"+
-				".lblb1 {stroke:red;stroke-width:2px;}\n"+
+				".r0 {fill:none;stroke:black;stroke-width:0.5px;}\n"+
+				".r1 {fill:none;stroke:black;stroke-width:0.5px;}\n"+
+				".lbla0 {stroke:black;stroke-width:0.3px;}\n"+
+				".lblb0 {stroke:red;stroke-width:0.3px;}\n"+
+				".lbla1 {stroke:gray;stroke-width:0.3px;}\n"+
+				".lblb1 {stroke:red;stroke-width:0.3px;}\n"+
 				""
 				;
 		}
@@ -441,7 +441,12 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		NumberFormat format=NumberFormat.getInstance();
 		return format.format((long)weight);
 		}
-	
+	protected String intervalToString(int value,int step)
+		{
+		value=((int)(value/(double)step));
+		return String.valueOf((int)(value)*step+"-"+((value+1)*step));
+		}
+
 	protected void layout()
 		{
 		info("layout");
