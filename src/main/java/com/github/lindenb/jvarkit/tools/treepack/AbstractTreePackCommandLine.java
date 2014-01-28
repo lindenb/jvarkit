@@ -18,13 +18,13 @@ import javax.xml.stream.XMLStreamWriter;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.svg.SVG;
 
 
 public abstract class AbstractTreePackCommandLine<WATCH>
 	extends AbstractCommandLineProgram
 	{
 	protected Rectangle viewRect=new Rectangle(1000,1000);
-	protected final String SVG="http://www.w3.org/2000/svg";
 	protected final String XLINK="http://www.w3.org/1999/xlink";
 	protected final String JVARKIT_NS="https://github.com/lindenb/jvarkit";
 	protected List<NodeFactory> nodeFactoryChain=new ArrayList<NodeFactory>();
@@ -156,7 +156,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			   return;
 			   }
 		   
-		   w.writeStartElement("svg","g",SVG);
+		   w.writeStartElement("svg","g",SVG.NS);
 		   w.writeAttribute("title",getPath()+"="+convertWeightToString());
 		   w.writeAttribute("jvarkit",JVARKIT_NS,"path",getPath());
 		   w.writeAttribute("jvarkit",JVARKIT_NS,"weight",convertWeightToString());
@@ -166,7 +166,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		   		w.writeAttribute("jvarkit",JVARKIT_NS,"count",""+((BranchNode)this).children.size());
 		   		}
 		   
-		   w.writeEmptyElement("svg", "rect", SVG);
+		   w.writeEmptyElement("svg", "rect", SVG.NS);
 		   w.writeAttribute("class", "r"+(getDepth()%2));
 		   w.writeAttribute("x",String.valueOf(frameUsed.getX()));
 		   w.writeAttribute("y",String.valueOf(frameUsed.getY()));
@@ -178,7 +178,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			   {
 			   BranchNode me=((BranchNode)this);
 			   
-			   w.writeEmptyElement("svg", "path", SVG);
+			   w.writeEmptyElement("svg", "path", SVG.NS);
 			   w.writeAttribute("d",
 						hershey.svgPath(getLabel()+"="+convertWeightToString(),
 								me.getTitleFrame())
@@ -195,7 +195,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			   			insets.getX(),insets.getY(),
 			   			insets.getWidth(),insets.getHeight()/2.0
 			   			);
-			   	w.writeEmptyElement("svg", "path", SVG);
+			   	w.writeEmptyElement("svg", "path", SVG.NS);
 				w.writeAttribute("d",
 						hershey.svgPath(getLabel(),f_up)
 						);	
@@ -205,7 +205,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 						insets.getX(),insets.getCenterY(),
 						insets.getWidth(),insets.getHeight()/2.0
 			   			);
-				w.writeEmptyElement("svg", "path", SVG);
+				w.writeEmptyElement("svg", "path", SVG.NS);
 				w.writeAttribute("d",
 						hershey.svgPath(convertWeightToString(),f_down)
 						);
@@ -401,26 +401,26 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 		XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
 		w.writeStartDocument("UTF-8","1.0");
-		w.writeStartElement("svg","svg",SVG);
+		w.writeStartElement("svg","svg",SVG.NS);
 		
 		
 		
-		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "svg", SVG);
+		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "svg", SVG.NS);
 		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "xlink", XLINK);
 		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "jvarkit", JVARKIT_NS);
 		w.writeAttribute("width",String.valueOf(this.viewRect.getWidth()));
 		w.writeAttribute("height",String.valueOf(this.viewRect.getHeight()));
 		
 		
-		w.writeStartElement("svg","defs",SVG);
-		w.writeStartElement("svg","style",SVG);
+		w.writeStartElement("svg","defs",SVG.NS);
+		w.writeStartElement("svg","style",SVG.NS);
 		w.writeAttribute("type","text/css");
 		w.writeCharacters(getCascadingStylesheet());
 		w.writeEndElement();//svg:style
 		w.writeEndElement();//svg:def
 
 		
-		w.writeStartElement("svg","title",SVG);
+		w.writeStartElement("svg","title",SVG.NS);
 		w.writeCharacters(getProgramName());
 		w.writeEndElement();
 		w.writeComment("Cmd-Line:"+getProgramCommandLine());

@@ -288,7 +288,7 @@ public class SplitBam2 extends AbstractCommandLineProgram
 		{
 		out.println("-p (file) output file pattern. MUST contain "+REPLACE_CHROM+" and end with .bam");
 		out.println("-g (file) Chromosome group file. Optional");
-		out.println("-U (name) unmapped chromosome name. Optional. Default "+UNDERTERMINED_NAME);
+		out.println("-u (name) unmapped chromosome name. Optional. Default "+UNDERTERMINED_NAME);
 		out.println("-m add mock record if no samRecord saved in bam");
 		out.println("-E generate empty bam if no samRecord found for a given group.");
 		super.printOptions(out);

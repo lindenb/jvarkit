@@ -13,6 +13,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import net.sf.picard.cmdline.CommandLineProgram;
 import net.sf.picard.cmdline.Option;
@@ -38,7 +39,6 @@ public class Biostar77288 extends CommandLineProgram
     
     
     private Log LOG=Log.getInstance(Biostar77288.class);
-    private static final String NS="http://www.w3.org/2000/svg";
    
     private Map<String,Seq> sequences=new LinkedHashMap<String,Seq>();
     private int max_length=0;
@@ -157,7 +157,7 @@ public class Biostar77288 extends CommandLineProgram
             this.w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
             w.writeStartDocument("UTF-8","1.0");
             w.writeStartElement("svg");
-            w.writeDefaultNamespace(NS);
+            w.writeDefaultNamespace(SVG.NS);
             w.writeAttribute("width", ""+(max_name*featureHeight+1000)+(svgInset.top+svgInset.left));
             w.writeAttribute("height", ""+(sequences.size())*(featureHeight+rowInset.top+rowInset.left)+(svgInset.top+svgInset.left));
             w.writeAttribute("style", "stroke:none;stroke-width:1px;text-anchor:start;font-size:"+featureHeight+"px;font-family:Courier;");

@@ -1312,6 +1312,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="bedrenamechr">
+	<compile-picard-cmd 
+		java="**/ConvertBedChromosomes.java"
+		main="com.github.lindenb.jvarkit.tools.misc.ConvertBedChromosomes"
+		name="bedrenamechr"
+		/>
+</target>
+
 	
 <target name="vcfliftover">
 	<compile-picard-cmd 
@@ -1574,5 +1582,26 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 
 <target name="deprecated.all" depends="vcffixindels,vcfbigwig,vcffilterjs,vcfstripannot,samjs,vcftabixml,splitread,splitbytile,splitbam,cmpbams,cmpbamsxml,cmpbamhandler1,impactofduplicates,sam4weblogo,sam2tsv,bam2raster,fastqrevcomp,howmanybamdict,nozerovariationvcf,vcf2sql,sortvcfonref,genscan,tview,bam4deseq01,deseqcount,bamstats01,bamstats04,evs2bed,vcfbedjs,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar,blastmapannots,vcfviewgui,vcfviewgui.exe,vcfgo,vcffiltergo,vcffilterdoid,vcfvcf,vcfbed,vcf2rdf,groupbygene,fixvcf,illuminadir,vcf2xml,samgrep,fixvarscanmissingheader,noemptyvcf,vcfpolyx,ilmnfastqstats,findcorruptedfiles,vcfcomparegt,vcfrebase,metrics2xml,bam2fastq,pademptyfastq,samfixcigar,fixvcfformat,ngsfilessummary,extendbed,vcftrio,vcfpredictions,vcfannobam,vcfmerge,idea20130924,blastfastq,bwamemdigest,scanshortinvert,bam2wig,vcf2ps,blastn2snp,fastq2fasta,coveragenormalizer,vcfshuffle,downsamplevcf,vcfhead,vcftail,bamviewgui,vcf2newick,vcfcutsamples,tview.cgi,vcfstats,vcfrenamesamples,vcffilterso,biostar,biostar76892,biostar77288,biostar77828,biostar78285,biostar78400,biostar81455,biostar84786,biostar59647,biostar86363,biostar86480,mapuniprot,api.ncbi.blast,api.ncbi.gb,api.uniprot,api.cmpbams">
 </target>
+
+
+<target name="jeter" >
+	<mkdir dir="src/main/resources/img"/>
+	<mkdir dir="tmp/META-INF/img"/>
+	<!--
+	<get usetimestamp="true"
+		verbose="true"
+		src="http://upload.wikimedia.org/wikipedia/commons/7/76/World_V2.0.svg"
+		dest="src/main/resources/img/World_V2.0.svg"
+		/>
+		-->
+	<copy file="src/main/resources/img/World_V2.0.svg" todir="tmp/META-INF/img"/>
+	<compile-picard-cmd 
+		java="**/WorldMapGenome.java"
+		main="com.github.lindenb.jvarkit.tools.circular.WorldMapGenome"
+		name="jeter"
+		/>
+</target>
+
+
 
 </project>
