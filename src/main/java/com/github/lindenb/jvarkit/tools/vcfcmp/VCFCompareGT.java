@@ -39,11 +39,11 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class VCFCompareGT extends AbstractCommandLineProgram
 	{
-	private int maxRecordsInRAM=100000;
 	
 	private class Variant
 		{
@@ -141,36 +141,36 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public void printUsage(PrintStream out) {
-		printStandardPreamble(out);
-		out.println("Options:");
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of "+Level.class.getName()+" currently:"+getLogger().getLevel());
-		out.println(" -M (int) Max recods in RAM. Optional. currently:"+maxRecordsInRAM);
+	public void printOptions(PrintStream out) {
+		out.println(" -M (int) Max recods in RAM. Optional.");
 		out.println(" -T (dir) add temporary directory. Optional");
 		out.println(" -m only print modified samples. Optional");
+		super.printOptions(out);
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
+		SortingCollectionFactory<Variant> factory=new SortingCollectionFactory<>();
 		boolean only_print_modified=false;
-		List<File> tmpDirs=new ArrayList<File>();
 		GetOpt getopt=new GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "hvL:M:T:m"))!=-1)
+		while((c=getopt.getopt(args, super.getGetOptDefault()+"M:T:m"))!=-1)
 			{
 			switch(c)
 				{
-				case 'h': printUsage();break;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(Level.parse(getopt.getOptArg()));break;
-				case 'M': this.maxRecordsInRAM=Math.max(1,Integer.parseInt(getopt.getOptArg()));break;
-				case 'T': tmpDirs.add(new File(getopt.getOptArg()));break;
+				case 'M': factory.setMaxRecordsInRAM(Math.max(1,Integer.parseInt(getopt.getOptArg())));break;
+				case 'T': this.addTmpDirectory(new File(getopt.getOptArg()));break;
 				case 'm': only_print_modified=true; break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
+				default:
+					{
+					switch(super.handleOtherOptions(c, getopt))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
 				}
 			}
 		if(getopt.getOptInd()==args.length)
@@ -178,17 +178,17 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 			System.err.println("VCF missing.");
 			return -1;
 			}
-		if(tmpDirs.isEmpty()) tmpDirs.add( new File(System.getProperty("java.io.tmpdir")));
-		SortingCollection<Variant> variants=null;
+		VariantComparator varcmp=new VariantComparator();
+		factory.setCodec(new VariantCodec());
+		factory.setComponentType(Variant.class);
+		factory.setComparator(varcmp);
+		factory.setTmpDirs(this.getTmpDirectories());
+		SortingCollection<Variant> variants=factory.make();
 		Set<String> sampleNames=new LinkedHashSet<String>();
 		try
 			{
-			VariantComparator varcmp=new VariantComparator();
-			variants=SortingCollection.newInstance(
-					Variant.class, new VariantCodec(), varcmp,
-					this.maxRecordsInRAM,
-					tmpDirs
-					);
+			
+			variants=factory.make();
 			variants.setDestructiveIteration(true);
 			
 			Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();

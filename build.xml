@@ -1400,6 +1400,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 			/>
 	</target>	
 	
+<target name="worldmapgenome" >
+	<compile-picard-cmd 
+		java="**/WorldMapGenome.java"
+		main="com.github.lindenb.jvarkit.tools.circular.WorldMapGenome"
+		name="worldmapgenome"
+		/>
+</target>
 	
 	
 
@@ -1584,23 +1591,6 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>
 
 
-<target name="jeter" >
-	<mkdir dir="src/main/resources/img"/>
-	<mkdir dir="tmp/META-INF/img"/>
-	<!--
-	<get usetimestamp="true"
-		verbose="true"
-		src="http://upload.wikimedia.org/wikipedia/commons/7/76/World_V2.0.svg"
-		dest="src/main/resources/img/World_V2.0.svg"
-		/>
-		-->
-	<copy file="src/main/resources/img/World_V2.0.svg" todir="tmp/META-INF/img"/>
-	<compile-picard-cmd 
-		java="**/WorldMapGenome.java"
-		main="com.github.lindenb.jvarkit.tools.circular.WorldMapGenome"
-		name="jeter"
-		/>
-</target>
 
 
 
