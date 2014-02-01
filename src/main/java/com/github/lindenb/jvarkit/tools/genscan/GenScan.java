@@ -1,11 +1,8 @@
 package com.github.lindenb.jvarkit.tools.genscan;
 
-import java.awt.AlphaComposite;
 import java.awt.Color;
-import java.awt.Composite;
-import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.Insets;
+import java.awt.Shape;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -15,37 +12,24 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
-import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.LineIterator;
 import org.broad.tribble.readers.LineIteratorImpl;
 import org.broad.tribble.readers.LineReaderUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.tools.genscan.AbstractGeneScan.ChromInfo;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
+import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.io.IoUtil;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.picard.util.Log;
-import net.sf.picard.util.SamLocusIterator;
-import net.sf.picard.util.SamLocusIterator.LocusInfo;
-import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.CloseableIterator;
@@ -62,11 +46,11 @@ public class GenScan extends AbstractGeneScan
    // @Option(shortName="IIS",doc="Input is a BAM/SAM file",optional=false)	
  
     
-	private List<ChromInfo> chromInfos=new ArrayList<ChromInfo>();
 	private Map<String,ChromInfo> chrom2chromInfo=new HashMap<String,ChromInfo>();
 	private SortingCollection<DataPoint> dataPoints=null;
 	private File faidxFile=null;
-	
+	private boolean drawLines=true;
+	private boolean firstLineIsHeader=true;
 
 	
 	private class DataPoint implements Comparable<DataPoint>
@@ -215,28 +199,76 @@ public class GenScan extends AbstractGeneScan
 		return 0;
 		}*/
 	
-	private Point2D.Double convert(ChromInfo ci,DataPoint dpt,int sample_ids)
-		{
-		return new Point2D.Double(
-			ci.converPosToPixel(dpt.pos),
-			(screenSize.getHeight()-insets.bottom)-((dpt.values[sample_ids]-min_value)/(max_value-min_value))*(screenSize.getHeight()-(insets.bottom+insets.top))
-			);
-		}
+	
 	protected void drawPoints(Graphics2D g)
 		{
+		Point2D.Double[] previous=null;
+		int prev_tid=-1;
+		if(drawLines)
+			{
+			previous=new Point2D.Double[samples.size()];
+			}
 		CloseableIterator<DataPoint> iter=dataPoints.iterator();
 		while(iter.hasNext())
 			{
 			DataPoint dpt=iter.next();
 			ChromInfo ci=this.chromInfos.get(dpt.tid);
-		
+			if(!ci.visible) continue;
+			double x=ci.x;
+			if(drawLines && prev_tid!=ci.tid)
+				{
+				Arrays.fill(previous, null);
+				prev_tid=ci.tid;
+				}
+			
+			if(!super.DISCARD_BOUNDS)
+				{
+				x+=(((double)dpt.pos/ci.minmaxBase.getMax())*ci.width);
+				}
+			else
+				{
+				x+=((((double)dpt.pos-ci.minmaxBase.getMin())/ci.minmaxBase.getAmplitude())*ci.width);
+				}
+			
 			for(int i=0;i< getSamples().size();++i)
 				{
-				Point2D.Double  xy=convert(ci,dpt,i);
+				Sample sample=getSamples().get(i);
+				if(!sample.visible) continue;
+				double value=dpt.values[i];
+				if(Double.isNaN(value)) continue;
+				if(!drawLines && !this.minMaxY.contains(value))
+					{
+					continue;
+					}
 				
-				g.setColor(Color.RED);
-				g.draw(new Line2D.Double(xy.x-1, xy.y,xy.x+1, xy.y));
-				g.draw(new Line2D.Double(xy.x, xy.y-1,xy.x, xy.y+1));
+				double y= sample.y + sample.height -sample.height*this.minMaxY.getFraction(value);
+				
+				g.setColor(i%2==0?Color.YELLOW:Color.GREEN);
+				
+				Shape clip=g.getClip();
+				g.setClip(new Rectangle2D.Double(
+						ci.x,sample.y,
+						ci.width,sample.height
+						));
+				if(drawLines)
+					{
+					if(previous[i]!=null)
+						{
+						g.draw(new Line2D.Double(
+								previous[i].x, previous[i].y,
+								x, y
+								));
+						
+						}
+					previous[i]=new Point2D.Double(x,y);
+					}
+				else
+					{
+					g.draw(new Line2D.Double(x-1,y,x+1, y));
+					g.draw(new Line2D.Double(x, y-1,x,y+1));
+					}
+				g.setClip(clip);
+				g.setColor(Color.BLACK);
 				}
 			}
 		iter.close();
@@ -244,11 +276,11 @@ public class GenScan extends AbstractGeneScan
 		}
 	
 	
-	boolean firstLineIsHeader=true;
-	@SuppressWarnings("resource")
+	
 	private void readTsv(InputStream in) throws IOException
 		{
 		info("reading tsv");
+		int nLines=0;
 		Pattern tab=Pattern.compile("[\t]");
 		
 		LineIterator r=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(in));
@@ -265,16 +297,19 @@ public class GenScan extends AbstractGeneScan
 				sample.sample_id=this.samples.size();
 				sample.name=tokens[c];
 				this.samples.add(sample);
+				info("Adding sample "+sample.name+" "+samples.size());
 				}
 			foundHeader=true;
+			++nLines;
 			}
 		
 		
 		while(r.hasNext())
 			{
 			String line=r.next();
+			++nLines;
 			if(line.isEmpty() ) continue;
-			String tokens[]=tab.split(line, 4);
+			String tokens[]=tab.split(line);
 			if(tokens.length<4) throw new IOException("Expected at least 4 columns in "+line);
 			if(!foundHeader && !firstLineIsHeader)
 				{
@@ -284,15 +319,16 @@ public class GenScan extends AbstractGeneScan
 					sample.sample_id=this.samples.size();
 					sample.name="$"+(c-2);
 					this.samples.add(sample);
+					info("Adding sample "+sample.name+" "+samples.size());
 					}
 				foundHeader=true;
-				continue;
 				}
 			else
 				{
 				if(tokens.length!=(3+samples.size()))
 					{
-					throw new IOException("Expected at least "+(3+samples.size())+" columns in "+line);
+					throw new IOException(
+							"Expected at least "+(3+samples.size())+" columns in "+line+" but got "+tokens.length);
 					}
 				}
 			
@@ -308,6 +344,7 @@ public class GenScan extends AbstractGeneScan
 				ci=new ChromInfo();
 				ci.sequenceName=tokens[0];
 				ci.tid=this.chromInfos.size();
+				this.chromInfos.add(ci);
 				this.chrom2chromInfo.put(tokens[0], ci);
 				}
 			
@@ -315,7 +352,12 @@ public class GenScan extends AbstractGeneScan
 			
 			try {
 				pt.pos=Integer.parseInt(tokens[1]);
-				if(pt.pos< 0 || pt.pos > ci.getSequenceLength())//TODO only if defined dict
+				if(pt.pos<0)
+					{
+					warning("Position <0 in "+line);
+					continue;
+					}
+				if(this.faidxFile!=null && (pt.pos< 0 || pt.pos > ci.getSequenceLength()))
 					{
 					warning("Position out of range in "+line);
 					continue;
@@ -328,30 +370,23 @@ public class GenScan extends AbstractGeneScan
 			for(int i=0;i< samples.size();++i)
 				{
 				try {
-					pt.values[i]=Double.parseDouble(tokens[2]);
+					pt.values[i]=Double.parseDouble(tokens[3+i]);
 					if(Double.isNaN(pt.values[i]))
 						{
 						warning("bad value in "+line);
-						continue;
 						}
 					}
 				catch (Exception e) {
 					warning("bad value in  "+line);
-					continue;//TODO
+					pt.values[i]=Double.NaN;
 					}
-				samples.get(i).max_value=Math.max(samples.get(i).max_value, pt.values[i]);
-				samples.get(i).min_value=Math.min(samples.get(i).min_value, pt.values[i]);
+				samples.get(i).minmax.visit(pt.values[i]);
 				}
 			this.dataPoints.add(pt);
-			ci.max_pos=Math.max(ci.max_pos, pt.pos);
-			ci.min_pos=Math.min(ci.min_pos, pt.pos);
+			ci.minmaxBase.visit(pt.pos);
 			}
 		CloserUtil.close(r);
-		for(Sample sample:this.samples)
-			{
-			this.max_value=Math.max(sample.max_value, max_value);
-			this.min_value=Math.min(sample.min_value, min_value);
-			}
+		info("num lines:"+nLines);
 		}
 	
 	@Override
@@ -359,63 +394,53 @@ public class GenScan extends AbstractGeneScan
 		return this.chromInfos;
 		}
 	
-	/*
-	private void readSAM(InputStream in) throws IOException
+	@Override
+	public String getProgramName()
 		{
-		info("reading SAM");
-		SAMFileReader sfr=new SAMFileReader(in);
-		
-		SamLocusIterator sli=new SamLocusIterator(sfr);
-		sli.setEmitUncoveredLoci(true);
-		Iterator<LocusInfo> iter=sli.iterator();
-		while(iter.hasNext())
-			{
-			LocusInfo li=iter.next();
-			if(li.getRecordAndPositions().isEmpty()) continue;
-			DataPoint pt=new DataPoint();
-			pt.tid=li.getSequenceIndex();
-			ChromInfo ci=this.chromInfos.get(pt.tid);
-			pt.pos=li.getPosition();
-			pt.value=li.getRecordAndPositions().size();
-			
-			this.dataPoints.add(pt);
-			
-			ci.max_pos=Math.max(ci.max_pos, pt.pos);
-			ci.min_pos=Math.min(ci.min_pos, pt.pos);
-			this.max_value=Math.max(max_value, pt.value);
-			this.min_value=Math.min(min_value, pt.value);
-			}
-		
+		return "GenScan";
 		}
-		*/
+	
 	@Override
 	public String getProgramDescription() {
-		return "Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE) or a SAM.";
+		return "Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....) or a SAM.";
 		}
 	
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println(" -o (file.jpg) picture filename out. Required");
+		out.println(" -o (file.jpg) picture filename out. if undefined, show a Window");
 		out.println(" -R (fasta) reference fasta indexed with samtools. Optional.");
+		out.println(" -T (dir) add tmp directory. Optional.");
 		super.printOptions(out);
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
+		SortingCollectionFactory<DataPoint> sortingCollectionFactory=new SortingCollectionFactory<GenScan.DataPoint>();
+		sortingCollectionFactory.setComparator(new Comparator<GenScan.DataPoint>()
+			{
+			@Override
+			public int compare(DataPoint o1, DataPoint o2)
+				{
+				return o1.compareTo(o2);
+				}
+			});
+		sortingCollectionFactory.setComponentType(DataPoint.class);
+		sortingCollectionFactory.setCodec(new DataPointCodec());
 		File filout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:R:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:R:T:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'T': addTmpDirectory(new File(opt.getOptArg()));break;
 				case 'o': filout=new File(opt.getOptArg());break;
 				case 'R': faidxFile=new File(opt.getOptArg());break;
 				default:
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt,args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
@@ -425,19 +450,16 @@ public class GenScan extends AbstractGeneScan
 				}
 			}
 		
-
-		if(filout==null)
-			{
-			error("undefined output filename");
-			return -1;
-			}
+		sortingCollectionFactory.setTmpDirs(getTmpDirectories());
+	
 		InputStream in=null;
 		try
 			{
 			
 			if(opt.getOptInd()==args.length)
 				{
-				in=null;
+				info("Reading from stdin.");
+				in=System.in;
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
@@ -457,15 +479,32 @@ public class GenScan extends AbstractGeneScan
 				for(SAMSequenceRecord rec: dict.getSequences())
 					{
 					ChromInfo ci=new ChromInfo();
-					ci.sequenceLength=rec.getSequenceLength();
+					ci.dictSequenceLength=(double)rec.getSequenceLength();
 					ci.sequenceName=rec.getSequenceName();
 					ci.tid=chromInfos.size();
 					chromInfos.add(ci);
+					this.chrom2chromInfo.put(ci.sequenceName, ci);
 					}
 				}
+			this.dataPoints=sortingCollectionFactory.make();
+			
 			readTsv(in);
+			
+			this.dataPoints.doneAdding();
+			this.dataPoints.setDestructiveIteration(true);
 			BufferedImage img=makeImage();
-			ImageIO.write(img, "JPG", filout);
+			this.dataPoints.cleanup();
+			this.dataPoints=null;
+
+			
+			if(filout==null)
+				{
+				showGui(img);
+				}
+			else
+				{
+				ImageIO.write(img, "JPG", filout);
+				}
 			return 0;
 			}
 		catch(Exception err)
@@ -476,6 +515,8 @@ public class GenScan extends AbstractGeneScan
 		finally
 			{
 			CloserUtil.close(in);
+			try { if(this.dataPoints!=null) this.dataPoints.cleanup();}
+			catch(Exception er){}
 			}
 		
 		}

@@ -626,7 +626,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	
 	
 <target name="genscan" >
-	<compile-with-picard 
+	<compile-picard-cmd
 		java="**/GenScan.java"
 		main="com.github.lindenb.jvarkit.tools.genscan.GenScan"
 		name="genscan"

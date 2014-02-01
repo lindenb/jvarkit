@@ -12,9 +12,11 @@ public class GetOpt
 	private int idxoptind=1;
 	private char optopt='\0';
 	private String optarg=null;
+	private String longopt=null;
 	public static final int EOF=-1;
 	public static final int ERROR='?';
 	public static final int MISSING_ARG=':';
+	public static final int LONG_OPT=1;
 
 
 	public GetOpt()
@@ -34,16 +36,44 @@ public class GetOpt
 		return this.optind;
 		}
 	
+	public String increaseOptind(String args[])
+		{
+		String s= args[optind++];
+		this.idxoptind=1;
+		this.optarg=null;
+		return s;
+		}
+	
+	public void setOptInd(int optind)
+		{
+		if(optind<=this.optind)
+			{
+			throw new IllegalStateException("Cannot set optind "+optind+" <="+this.optind);
+			}
+		this.optind = optind;
+		this.idxoptind=1;
+		this.optarg=null;
+		}
+	
 	public char getOptOpt()
 		{
 		return this.optopt;
 		}
 	
+	public String getLongOpt()
+		{
+		if(this.longopt==null)
+			{
+			throw new IllegalStateException("currently no a long opt.");
+			}
+		return this.longopt;
+		}
 	
 	public int getopt(String args[],String pattern)
 		{
 		this.optopt='\0';
 		this.optarg=null;
+		this.longopt=null;
 		if(this.optind>=args.length) return EOF;
 		
 		
@@ -53,10 +83,14 @@ public class GetOpt
 			++optind;
 			return EOF;
 			}
-		/* long arguments, not handled */
+		/* long arguments */
 		else if(args[this.optind].startsWith("--"))
 			{
-			return ERROR;
+			this.longopt=args[this.optind].substring(2);
+			this.optind++;
+			this.idxoptind=1;
+			this.optopt='\0';
+			return LONG_OPT;
 			}
 		else if(args[this.optind].startsWith("-") &&
 				args[this.optind].length()>1)
