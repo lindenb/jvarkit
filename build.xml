@@ -74,6 +74,12 @@
      <path refid="picard.lib"/>
 </path>
 
+<path id="picard.and.math.jars">
+     <path refid="picard.lib"/>
+     <path refid="math.lib"/>
+</path>
+
+
 <macrodef name="compile-with-picard">
 	<attribute name="name"/>
 	<attribute name="java"/>
@@ -566,6 +572,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="addlinearindextobed" >
+	<compile-picard-cmd
+		java="**/AddLinearIndexToBed.java"
+		main="com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed"
+		name="addlinearindextobed"
+		/>
+</target>
 
 
 <target name="howmanybamdict" >
@@ -1407,6 +1420,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="worldmapgenome"
 		/>
 </target>
+
+<target name="cnv01" >
+	<compile-picard-cmd 
+		java="**/CopyNumber01.java"
+		main="com.github.lindenb.jvarkit.tools.redon.CopyNumber01"
+		libraryid="picard.and.math.jars"
+		name="cnv01"
+		/>
+</target>	
 	
 	
 

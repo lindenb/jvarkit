@@ -61,6 +61,19 @@ public class SamSequenceRecordTreeMap<T>
 	    return tree!=null && tree.overlappers(start1,end1).hasNext();
 	 	}
 	
+	/** return true if there is one element defined for this chromosome */
+	public boolean  containsChromosome(int tid)
+		{
+	    return tree(tid)!=null;
+	 	}
+	
+	/** return true if there is one element defined for this chromosome */
+	public boolean  containsChromosome(String chrom)
+		{
+	    return containsChromosome(getSAMSequenceDictionary().getSequenceIndex(chrom));
+	 	}
+	
+	
 	/** inserts object o at chrom/start1/end1 
 	 *  returns true if object was inserted
 	 * */

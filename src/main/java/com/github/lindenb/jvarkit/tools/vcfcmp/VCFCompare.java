@@ -36,18 +36,78 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
 public class VCFCompare extends AbstractCommandLineProgram
 	{
 	private Input inputs[]=new Input[]{null,null};
-
-	private int maxRecordsInRAM=100000;
+	
+	
+	
+	private static class Venn
+		{
+		private class Circle
+			{
+			double x=0;
+			int uniq=0;
+			
+			double weight() { return this.uniq+comm;}
+			
+			double radius()
+				{
+				return Math.sqrt(((comm+this.uniq)/weight())/Math.PI);
+				}
+			double intersectionX(Circle other)
+				{
+				return 0;
+				}
+			}
+		
+		Circle c1=new Circle();
+		Circle c2=new Circle();
+		int comm=0;
+		
+		private double intersectionX()
+			{
+			return 0;
+			}
+		
+		void make()
+			{
+			double total=comm+c1.uniq+c2.uniq;
+			double maxx=(c1.x+c1.radius()+c2.radius());
+			double minx=(c1.x+c1.radius()-c2.radius());
+			if(comm==0)
+				{
+				c2.x=maxx;
+				}
+			else
+				{
+				for(;;)
+					{
+					double xmid=intersectionX();
+					}
+				}
+			}
+		}
+	
+	private static interface VariantFilter
+		{
+		VariantContext filter(VariantContext ctx,int fileIndex);
+		public String getSuffix();
+		}
 	
 	private class Input
 		{
 		String filename;
 		VCFHeader header;
 		VCFCodec codec;
+		SnpEffPredictionParser snpEffPredictionParser=null;
+		VepPredictionParser vepPredictionParser=null;
+		MyPredictionParser myPredictionParser=null;
 		}
 	
 	private class LineAndFile
@@ -135,7 +195,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 	
 	@Override
 	public void printOptions(PrintStream out) {
-		out.println(" -M (int) Max records in RAM. Optional. currently:"+maxRecordsInRAM);
+		out.println(" -M (int) Max records in RAM. Optional.");
 		out.println(" -T (dir) add temporary directory. Optional");
 		super.printOptions(out);
 		}
@@ -143,13 +203,14 @@ public class VCFCompare extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
+		SortingCollectionFactory<LineAndFile> factory=new SortingCollectionFactory<LineAndFile>();
 		GetOpt getopt=new GetOpt();
 		int c;
 		while((c=getopt.getopt(args, super.getGetOptDefault()+"M:T:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'M': this.maxRecordsInRAM=Math.max(1,Integer.parseInt(getopt.getOptArg()));break;
+				case 'M': factory.setMaxRecordsInRAM(Math.max(1,Integer.parseInt(getopt.getOptArg())));break;
 				case 'T': super.addTmpDirectory(new File(getopt.getOptArg()));break;
 				default: switch(super.handleOtherOptions(c, getopt))
 					{
@@ -170,6 +231,74 @@ public class VCFCompare extends AbstractCommandLineProgram
 			System.err.println("Illegal number or arguments. Expected two VCFs");
 			return -1;
 			}
+		List<VariantFilter> variantFilters=new ArrayList<VariantFilter>();
+		
+		variantFilters.add(new VariantFilter()
+			{
+			@Override
+			public String getSuffix()
+				{
+				return "";//all
+				}
+			@Override
+			public VariantContext filter(VariantContext ctx,int fileIndex) {
+				return ctx;
+				}
+			});
+		
+		variantFilters.add(new VariantFilter()
+			{
+			@Override
+			public String getSuffix()
+				{
+				return ".havingID";
+				}
+			@Override
+			public VariantContext filter(VariantContext ctx,int fileIndex) {
+				return ctx==null || !ctx.hasID()?null:ctx;
+				}
+			});
+		
+		variantFilters.add(new VariantFilter()
+			{
+			@Override
+			public String getSuffix()
+				{
+				return ".qualgt30";
+				}
+			@Override
+			public VariantContext filter(VariantContext ctx,int fileIndex) {
+				return ctx==null || !ctx.hasLog10PError() || ctx.getPhredScaledQual()<30.0?null:ctx;
+				}
+			});
+		
+		variantFilters.add(new VariantFilter()
+			{
+			@Override
+			public String getSuffix()
+				{
+				return ".snp";
+				}
+			@Override
+			public VariantContext filter(VariantContext ctx,int fileIndex) {
+				return ctx==null || !ctx.isSNP() ? null:ctx;
+				}
+			});
+		
+		variantFilters.add(new VariantFilter()
+			{
+			@Override
+			public String getSuffix()
+				{
+				return ".indel";
+				}
+			@Override
+			public VariantContext filter(VariantContext ctx,int fileIndex) {
+				return ctx==null || !ctx.isIndel() ? null:ctx;
+				}
+			});
+		
+		
 		XMLStreamWriter w=null;
 		InputStream in=null;
 		SortingCollection<LineAndFile> variants=null;
@@ -177,11 +306,13 @@ public class VCFCompare extends AbstractCommandLineProgram
 		try
 			{
 			LineAndFileComparator varcmp=new LineAndFileComparator();
-			variants=SortingCollection.newInstance(
-					LineAndFile.class, new LineAndFileCodec(), varcmp,
-					this.maxRecordsInRAM,
-					super.getTmpDirectories()
-					);
+			
+			factory.setComponentType(LineAndFile.class);
+			factory.setComparator(varcmp);
+			factory.setTmpDirs(this.getTmpDirectories());
+			factory.setCodec(new LineAndFileCodec());
+			
+			variants=factory.make();
 			variants.setDestructiveIteration(true);
 
 			
@@ -195,6 +326,10 @@ public class VCFCompare extends AbstractCommandLineProgram
 				LineReader lr=LineReaderUtil.fromBufferedStream(in);
 				LineIterator li=new LineIteratorImpl(lr);
 				this.inputs[i].header=(VCFHeader)this.inputs[i].codec.readActualHeader(li);
+				
+				this.inputs[i].vepPredictionParser=new VepPredictionParser(this.inputs[i].header);
+				this.inputs[i].snpEffPredictionParser=new SnpEffPredictionParser(this.inputs[i].header);
+				this.inputs[i].myPredictionParser=new MyPredictionParser(this.inputs[i].header);
 				
 				while(li.hasNext())
 					{
@@ -231,49 +366,62 @@ public class VCFCompare extends AbstractCommandLineProgram
 					if(!row.isEmpty())
 						{
 						diff.incr("count.variations");
-						VariantContext contexes[]=new VariantContext[]{null,null};
+						VariantContext contexes_init[]=new VariantContext[]{null,null};
 						for(LineAndFile var:row)
 							{
-							if(contexes[var.fileIdx]!=null)
+							if(contexes_init[var.fileIdx]!=null)
 								{
 								error("Duplicate context in "+inputs[var.fileIdx].filename+" : "+var.line);
 								continue;
 								}
-							contexes[var.fileIdx]=var.getContext();
+							contexes_init[var.fileIdx]=var.getContext();
 							}
 						
-						if(contexes[0]==null && contexes[1]!=null)
+						if(contexes_init[0]==null && contexes_init[1]!=null)
 							{
 							diff.incr("variation.unique.to.second.file");
 							}
-						else if(contexes[0]!=null && contexes[1]==null)
+						for(VariantFilter varfilter:variantFilters)
 							{
-							diff.incr("variation.unique.to.first.file");
-							}
-						else if(contexes[0]==null && contexes[1]==null)
-							{
-							throw new IllegalStateException();
-							}
-						else
-							{
-							diff.incr("variation.in.both.files");
+							VariantContext contexes[]=new VariantContext[]{
+									varfilter.filter(contexes_init[0],0),
+									varfilter.filter(contexes_init[1],1)
+									};
 							
-							for(String sample:commonSamples)
+							if(contexes[0]==null && contexes[1]==null)
 								{
-								Counter<String> counter=sample2count.get(sample);
-								Genotype g0=contexes[0].getGenotype(sample);
-								Genotype g1=contexes[1].getGenotype(sample);
-								if(g0.sameGenotype(g1))
-									{
-									counter.incr("same.genotype");
-									counter.incr("same.genotype."+g0.getType().name());
-									}
-								else
-									{
-									counter.incr("diff.genotype");
-									counter.incr("diff.genotype."+g0.getType().name()+".to."+g1.getType().name());
-									}
+								//both filterered
+								continue;
+								}
+							else if(contexes[0]!=null && contexes[1]==null)
+								{
+								diff.incr("variation"+varfilter.getSuffix()+".unique.to.first.file");
+								}
+							else if(contexes[0]==null && contexes[1]==null)
+								{
+								throw new IllegalStateException();
+								}
+							else
+								{
+								diff.incr("variation"+varfilter.getSuffix()+".in.both.files");
 								
+								for(String sample:commonSamples)
+									{
+									Counter<String> counter=sample2count.get(sample);
+									Genotype g0=contexes[0].getGenotype(sample);
+									Genotype g1=contexes[1].getGenotype(sample);
+									if(g0.sameGenotype(g1))
+										{
+										counter.incr("same.genotype"+varfilter.getSuffix());
+										counter.incr("same.genotype"+varfilter.getSuffix()+"."+g0.getType().name());
+										}
+									else
+										{
+										counter.incr("diff.genotype"+varfilter.getSuffix());
+										counter.incr("diff.genotype"+varfilter.getSuffix()+"."+g0.getType().name()+".to."+g1.getType().name());
+										}
+									
+									}
 								}
 							}
 						row.clear();

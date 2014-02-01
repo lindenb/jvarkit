@@ -16,6 +16,11 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.zip.GZIPInputStream;
 
+import org.broad.tribble.readers.LineIterator;
+import org.broad.tribble.readers.LineIteratorImpl;
+import org.broad.tribble.readers.LineReader;
+import org.broad.tribble.readers.LineReaderUtil;
+
 
 import net.sf.samtools.Defaults;
 import net.sf.samtools.util.BlockCompressedInputStream;
@@ -134,6 +139,13 @@ public class IOUtils {
         	}         
     	}
     
-   
-
+    public static LineReader openFileForLineReader(File file) throws IOException
+		{
+		return  LineReaderUtil.fromBufferedStream(openFileForReading(file));
+		}
+    /** @return a LineIterator that should be closed with CloserUtils */
+    public static LineIterator openFileForLineIterator(File file) throws IOException
+  		{
+  		return  new LineIteratorImpl(openFileForLineReader(file));
+  		}
 }
