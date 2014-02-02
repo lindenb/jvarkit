@@ -87,7 +87,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 				case 'F': RESET_FILTER=true; break;
 				default: 
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE:return -1;
 						case EXIT_SUCCESS: return 0;

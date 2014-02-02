@@ -1,12 +1,9 @@
 package com.github.lindenb.jvarkit.tools.vcfdo;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.Set;
-
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.Usage;
-
 
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
@@ -17,26 +14,23 @@ import org.broadinstitute.variant.vcf.VCFHeader;
 import com.github.lindenb.jvarkit.util.doid.DiseaseOntoglogyTree;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfFilterDoid extends AbstractVCFDiseaseOntology
+public class VcfFilterDoid
+	extends AbstractVCFDiseaseOntology
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Set Filters for VCF annotated with SNPEFF or VEP tesing if Genes are part / are not part of a GeneOntology tree. ";
 	
-    @Option(shortName="CHILD", doc="list of DOID accessions for gene having a DOID-term children of the user output.",minElements=0)
-	public Set<String> CHILD_OF=new HashSet<String>();
+   /* list of DOID accessions for gene having a DOID-term children of the user output. */
+	private Set<String> CHILD_OF=new HashSet<String>();
    
     
-    @Option(shortName="FILTER_NAME", doc="Filter name.",optional=true)
-	public String FILTER="DOID";
+    /* Filter name */
+    private String FILTER="DOID";
  
     
-    
-
-	
+	    
 	@Override
-	public String getVersion()
+	public String getProgramDescription()
 		{
-		return "1.0";
+		return "Set Filters for VCF annotated with SNPEFF or VEP tesing if Genes are part / are not part of a GeneOntology tree. ";
 		}
 
 	
@@ -56,14 +50,14 @@ public class VcfFilterDoid extends AbstractVCFDiseaseOntology
 			positive_terms.add(t);
 			}
 		
-		LOG.info("positive_terms:"+positive_terms);
+		this.info("positive_terms:"+positive_terms);
 	
-			
+		VCFHeader header=r.getHeader();
+
 		
 		super.readDiseaseOntoglogyAnnotations();
-		super.loadEntrezGenes();
+		super.loadEntrezGenes(header.getSequenceDictionary());
 		
-		VCFHeader header=r.getHeader();
 
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
@@ -116,6 +110,41 @@ public class VcfFilterDoid extends AbstractVCFDiseaseOntology
 			w.add(b.make());
 			}
 		}
+	
+	@Override
+	public void printOptions(PrintStream out)
+		{
+		out.println("-C (term) ist of DOID accessions for gene having a DOID-term children of the user output");
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+ "C:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'C':CHILD_OF.add(opt.getOptArg()); break;
+				default: 
+					{
+					switch(handleOtherOptions(c, opt, args))
+						{
+						case EXIT_FAILURE:return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		System.err.println("I'm working on this. Sorry. Exiting");
+		if("A".equals("A")) System.exit(-1);
+		return doWork(opt.getOptInd(), args);
+		}
+
 	
 	public static void main(String[] args)
 		{

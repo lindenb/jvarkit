@@ -8,14 +8,14 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 
 import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import net.sf.samtools.util.CloseableIterator;
@@ -27,6 +27,7 @@ import org.broad.tribble.readers.LineIteratorImpl;
 import org.broad.tribble.readers.LineReader;
 import org.broad.tribble.readers.LineReaderUtil;
 import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.GenotypeType;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
@@ -37,6 +38,8 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -45,59 +48,225 @@ public class VCFCompare extends AbstractCommandLineProgram
 	{
 	private Input inputs[]=new Input[]{null,null};
 	
-	
-	
-	private static class Venn
+	private abstract class Venn0
 		{
-		private class Circle
+		String title=null;
+		Venn0(String title)
 			{
-			double x=0;
-			int uniq=0;
-			
-			double weight() { return this.uniq+comm;}
-			
-			double radius()
-				{
-				return Math.sqrt(((comm+this.uniq)/weight())/Math.PI);
-				}
-			double intersectionX(Circle other)
-				{
-				return 0;
-				}
+			this.title=title;
 			}
-		
-		Circle c1=new Circle();
-		Circle c2=new Circle();
-		int comm=0;
-		
-		private double intersectionX()
+		VariantContext filter(VariantContext ctx,int file_id)
 			{
-			return 0;
+			return ctx;
 			}
+		abstract void  visit(VariantContext ctx[]);
 		
-		void make()
+		
+		void write(XMLStreamWriter w) throws XMLStreamException
 			{
-			double total=comm+c1.uniq+c2.uniq;
-			double maxx=(c1.x+c1.radius()+c2.radius());
-			double minx=(c1.x+c1.radius()-c2.radius());
-			if(comm==0)
+			w.writeStartElement("div");
+			w.writeStartElement("table");
+			w.writeStartElement("thead");
+			
+			w.writeStartElement("caption");
+			w.writeCharacters(String.valueOf(title));
+			w.writeEndElement();//caption	
+			
+			w.writeStartElement("tr");
+			for(String k:new String[]{"Key","Count"})
 				{
-				c2.x=maxx;
+				w.writeStartElement("th");
+				w.writeCharacters(k);
+				w.writeEndElement();
 				}
-			else
+			w.writeEndElement();//tr	
+			w.writeEndElement();//thead
+			w.writeStartElement("tbody");
+			/*
+			for(String k:count.keySet())
 				{
-				for(;;)
-					{
-					double xmid=intersectionX();
-					}
+				w.writeStartElement("tr");
+				
+				w.writeStartElement("td");
+				w.writeCharacters(k);
+				w.writeEndElement();
+					
+				w.writeStartElement("td");
+				w.writeCharacters(String.valueOf(count.count(k)));
+				w.writeEndElement();
+				
+				w.writeEndElement();//tr
 				}
+			w.writeEndElement();//tbody 
+			*/
+			
+			w.writeEndElement();//table
+			w.writeEndElement();//div
 			}
 		}
 	
-	private static interface VariantFilter
+	private class Venn1 extends Venn0
 		{
-		VariantContext filter(VariantContext ctx,int fileIndex);
-		public String getSuffix();
+		int uniq[]=new int[]{0,0};
+		int comm=0;
+		
+		Venn1(String title)
+			{
+			super(title);
+			}
+		
+		
+		void  visit(VariantContext ctx[])
+			{
+			VariantContext ctx0=filter(ctx[0], 0);
+			VariantContext ctx1=filter(ctx[1], 1);
+			if(ctx0!=null)
+				{
+				if(ctx1!=null)
+					{
+					comm++;
+					}
+				else
+					{
+					uniq[0]++;
+					}
+				}
+			else if(ctx1!=null)
+				{
+				uniq[1]++;
+				}
+			}
+		String getSampleName()
+			{
+			return "*";
+			}
+		void write(XMLStreamWriter w) throws XMLStreamException
+			{
+			w.writeStartElement("tr");
+			
+			w.writeStartElement("th");
+			w.writeCharacters(String.valueOf(title));
+			w.writeEndElement();
+			
+			w.writeStartElement("th");
+			w.writeCharacters(getSampleName());
+			w.writeEndElement();
+			
+			
+			
+			w.writeEndElement();
+			}
+		}
+	
+	private  class VennType extends Venn1
+		{
+		private VariantContext.Type type;
+		public VennType(VariantContext.Type type)
+			{
+			super(type.name());
+			this.type=type;
+			}
+		@Override
+		VariantContext filter(VariantContext ctx, int file_id)
+			{
+			return ctx==null || !this.type.equals(ctx.getType())?null:ctx;
+			}
+		}
+	
+	private abstract class VennPred extends Venn1
+		{
+		private SequenceOntologyTree.Term term;
+		public VennPred(
+				String prefix,
+				SequenceOntologyTree.Term term)
+			{
+			super(prefix+" "+term.getAcn());
+			this.term=term;
+			}
+		abstract Set<SequenceOntologyTree.Term> terms(VariantContext ctx,int file_id);
+		@Override
+		VariantContext filter(VariantContext ctx, int file_id)
+			{
+			if(ctx==null) return null;
+			return terms(ctx,file_id).contains(this.term)?ctx:null;
+			}
+		}
+	
+	
+	private static class Transition<X>
+		{
+		X from;
+		X to;
+		Transition(X from,X to)
+			{
+			this.from=from;
+			this.to=to;
+			}
+		@Override
+		public int hashCode()
+			{
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((from == null) ? 0 : from.hashCode());
+			result = prime * result + ((to == null) ? 0 : to.hashCode());
+			return result;
+			}
+		@Override
+		public boolean equals(Object obj)
+			{
+			if (this == obj) return true;
+			if (obj == null) return false;
+			if (!(obj instanceof Transition)) return false;
+			@SuppressWarnings("unchecked")
+			Transition<X> other = (Transition<X>) obj;
+			return from.equals(other.from) &&
+				   to.equals(other.to);
+			}
+		@Override
+		public String toString()
+			{
+			return from.toString()+" "+to.toString();
+			}
+		
+		}
+	
+	private abstract class Venn2 extends Venn0
+		{
+		private String sample;
+		Venn2(String title,String sample)
+			{
+			super(title);
+			this.sample=sample;
+			}
+		
+		abstract void visit(Genotype[] g);
+		@Override
+		void visit(VariantContext[] ctx)
+			{
+			VariantContext v0=filter(ctx[0],0);
+			if(v0==null) return;
+			Genotype g0=v0.getGenotype(this.sample);
+			if(g0==null) return;
+			
+			VariantContext v1=filter(ctx[1],1);
+			if(v1==null) return;
+			Genotype g1=v1.getGenotype(this.sample);
+			if(g1==null) return;
+			visit(new Genotype[]{g0,g1});
+			}
+		}
+	private class VennGType extends Venn2
+		{
+		Counter<Transition<GenotypeType>> count=new Counter<Transition<GenotypeType>>(); 
+		VennGType(String sample)
+			{
+			super("genotypes",sample);
+			}
+		@Override
+		void visit(Genotype[] g)
+			{
+			count.incr(new Transition<GenotypeType>(g[0].getType(), g[1].getType()));
+			}
 		}
 	
 	private class Input
@@ -212,7 +381,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 				{
 				case 'M': factory.setMaxRecordsInRAM(Math.max(1,Integer.parseInt(getopt.getOptArg())));break;
 				case 'T': super.addTmpDirectory(new File(getopt.getOptArg()));break;
-				default: switch(super.handleOtherOptions(c, getopt))
+				default: switch(super.handleOtherOptions(c, getopt, args))
 					{
 					case EXIT_FAILURE: return -1;
 					case EXIT_SUCCESS: return 0;
@@ -231,78 +400,15 @@ public class VCFCompare extends AbstractCommandLineProgram
 			System.err.println("Illegal number or arguments. Expected two VCFs");
 			return -1;
 			}
-		List<VariantFilter> variantFilters=new ArrayList<VariantFilter>();
 		
-		variantFilters.add(new VariantFilter()
-			{
-			@Override
-			public String getSuffix()
-				{
-				return "";//all
-				}
-			@Override
-			public VariantContext filter(VariantContext ctx,int fileIndex) {
-				return ctx;
-				}
-			});
 		
-		variantFilters.add(new VariantFilter()
-			{
-			@Override
-			public String getSuffix()
-				{
-				return ".havingID";
-				}
-			@Override
-			public VariantContext filter(VariantContext ctx,int fileIndex) {
-				return ctx==null || !ctx.hasID()?null:ctx;
-				}
-			});
 		
-		variantFilters.add(new VariantFilter()
-			{
-			@Override
-			public String getSuffix()
-				{
-				return ".qualgt30";
-				}
-			@Override
-			public VariantContext filter(VariantContext ctx,int fileIndex) {
-				return ctx==null || !ctx.hasLog10PError() || ctx.getPhredScaledQual()<30.0?null:ctx;
-				}
-			});
-		
-		variantFilters.add(new VariantFilter()
-			{
-			@Override
-			public String getSuffix()
-				{
-				return ".snp";
-				}
-			@Override
-			public VariantContext filter(VariantContext ctx,int fileIndex) {
-				return ctx==null || !ctx.isSNP() ? null:ctx;
-				}
-			});
-		
-		variantFilters.add(new VariantFilter()
-			{
-			@Override
-			public String getSuffix()
-				{
-				return ".indel";
-				}
-			@Override
-			public VariantContext filter(VariantContext ctx,int fileIndex) {
-				return ctx==null || !ctx.isIndel() ? null:ctx;
-				}
-			});
+
 		
 		
 		XMLStreamWriter w=null;
 		InputStream in=null;
 		SortingCollection<LineAndFile> variants=null;
-		Map<String,Counter<String>> sample2count=new TreeMap<String,Counter<String>>();
 		try
 			{
 			LineAndFileComparator varcmp=new LineAndFileComparator();
@@ -349,8 +455,83 @@ public class VCFCompare extends AbstractCommandLineProgram
 			Set<String> commonSamples=new TreeSet<String>(this.inputs[0].header.getSampleNamesInOrder());
 			commonSamples.retainAll(this.inputs[1].header.getSampleNamesInOrder());
 			
-			for(String s:commonSamples) sample2count.put(s, new Counter<String>());
 			
+			
+			
+			
+			List<Venn0> venn1List=new ArrayList<VCFCompare.Venn0>();
+			venn1List.add(new Venn1("ALL"));
+			venn1List.add(new Venn1("having ID")
+				{
+				@Override
+				public VariantContext filter(VariantContext ctx,int fileIndex) {
+					return ctx==null || !ctx.hasID()?null:ctx;
+					}
+				});
+			
+			venn1List.add(new Venn1("QUAL greater 30")
+				{
+				@Override
+				public VariantContext filter(VariantContext ctx,int fileIndex) {
+					return ctx==null || !ctx.hasLog10PError() || ctx.getPhredScaledQual()<30.0?null:ctx;
+					}
+				});
+			
+			for(VariantContext.Type t: VariantContext.Type.values())
+				{
+				venn1List.add(new VennType(t));
+				}
+			
+			
+			for(SequenceOntologyTree.Term term:SequenceOntologyTree.getInstance().getTerms())
+				{
+				venn1List.add(new VennPred("vep",term)
+					{	
+					@Override
+					Set<Term> terms(VariantContext ctx, int file_id)
+						{
+						Set<Term> tt=new HashSet<SequenceOntologyTree.Term>();
+						for(VepPredictionParser.VepPrediction pred:VCFCompare.this.inputs[file_id].vepPredictionParser.getPredictions(ctx))
+							{
+							tt.addAll(pred.getSOTerms());
+							}
+						return tt;
+						}
+					});
+				venn1List.add(new VennPred("SnpEff",term)
+					{	
+					@Override
+					Set<Term> terms(VariantContext ctx, int file_id)
+						{
+						Set<Term> tt=new HashSet<SequenceOntologyTree.Term>();
+						for(SnpEffPredictionParser.SnpEffPrediction pred:VCFCompare.this.inputs[file_id].snpEffPredictionParser.getPredictions(ctx))
+							{
+							tt.addAll(pred.getSOTerms());
+							}
+						return tt;
+						}
+					});
+				venn1List.add(new VennPred("mypred",term)
+					{	
+					@Override
+					Set<Term> terms(VariantContext ctx, int file_id)
+						{
+						Set<Term> tt=new HashSet<SequenceOntologyTree.Term>();
+						for(MyPredictionParser.MyPrediction pred:VCFCompare.this.inputs[file_id].myPredictionParser.getPredictions(ctx))
+							{
+							tt.addAll(pred.getSOTerms());
+							}
+						return tt;
+						}
+					});
+				}
+			for(String s:commonSamples) 
+				{
+				venn1List.add(new VennGType(s));
+				}
+
+
+			/* START : digest results ====================== */
 			Counter<String> diff=new Counter<String>();
 			List<LineAndFile> row=new ArrayList<LineAndFile>();
 			CloseableIterator<LineAndFile> iter=variants.iterator();
@@ -376,54 +557,11 @@ public class VCFCompare extends AbstractCommandLineProgram
 								}
 							contexes_init[var.fileIdx]=var.getContext();
 							}
+						for(Venn0 venn: venn1List)
+							{
+							venn.visit(contexes_init);
+							}
 						
-						if(contexes_init[0]==null && contexes_init[1]!=null)
-							{
-							diff.incr("variation.unique.to.second.file");
-							}
-						for(VariantFilter varfilter:variantFilters)
-							{
-							VariantContext contexes[]=new VariantContext[]{
-									varfilter.filter(contexes_init[0],0),
-									varfilter.filter(contexes_init[1],1)
-									};
-							
-							if(contexes[0]==null && contexes[1]==null)
-								{
-								//both filterered
-								continue;
-								}
-							else if(contexes[0]!=null && contexes[1]==null)
-								{
-								diff.incr("variation"+varfilter.getSuffix()+".unique.to.first.file");
-								}
-							else if(contexes[0]==null && contexes[1]==null)
-								{
-								throw new IllegalStateException();
-								}
-							else
-								{
-								diff.incr("variation"+varfilter.getSuffix()+".in.both.files");
-								
-								for(String sample:commonSamples)
-									{
-									Counter<String> counter=sample2count.get(sample);
-									Genotype g0=contexes[0].getGenotype(sample);
-									Genotype g1=contexes[1].getGenotype(sample);
-									if(g0.sameGenotype(g1))
-										{
-										counter.incr("same.genotype"+varfilter.getSuffix());
-										counter.incr("same.genotype"+varfilter.getSuffix()+"."+g0.getType().name());
-										}
-									else
-										{
-										counter.incr("diff.genotype"+varfilter.getSuffix());
-										counter.incr("diff.genotype"+varfilter.getSuffix()+"."+g0.getType().name()+".to."+g1.getType().name());
-										}
-									
-									}
-								}
-							}
 						row.clear();
 						}
 					if(rec==null) break;
@@ -431,6 +569,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 				row.add(rec);
 				}
 			iter.close();
+			/* END : digest results ====================== */
 			
 			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 			w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
@@ -474,86 +613,11 @@ public class VCFCompare extends AbstractCommandLineProgram
 			w.writeEndElement();//dl
 			w.writeEndElement();//div
 			
-			/* diff */
-			w.writeStartElement("div");
-			w.writeStartElement("table");
-			w.writeStartElement("thead");
-			
-			w.writeStartElement("caption");
-			w.writeCharacters("Differences");
-			w.writeEndElement();//caption	
-			
-			w.writeStartElement("tr");
-			for(String k:new String[]{"Key","Count"})
+			for(Venn0 v: venn1List)
 				{
-				w.writeStartElement("th");
-				w.writeCharacters(k);
-				w.writeEndElement();
+				v.write(w);
 				}
-			w.writeEndElement();//tr	
-			w.writeEndElement();//thead
-			w.writeStartElement("tbody");
 			
-			for(String k:diff.keySet())
-				{
-				w.writeStartElement("tr");
-				
-				w.writeStartElement("td");
-				w.writeCharacters(k);
-				w.writeEndElement();
-					
-				w.writeStartElement("td");
-				w.writeCharacters(String.valueOf(diff.count(k)));
-				w.writeEndElement();
-				
-				w.writeEndElement();//tr
-				}
-			w.writeEndElement();//table
-			
-			w.writeEndElement();//table
-			w.writeEndElement();//div
-			
-			for(String sample:commonSamples)
-				{
-				Counter<String> count=sample2count.get(sample);
-				w.writeStartElement("div");
-				w.writeStartElement("table");
-				w.writeStartElement("thead");
-				
-				w.writeStartElement("caption");
-				w.writeCharacters(sample);
-				w.writeEndElement();//caption	
-				
-				w.writeStartElement("tr");
-				for(String k:new String[]{"Key","Count"})
-					{
-					w.writeStartElement("th");
-					w.writeCharacters(k);
-					w.writeEndElement();
-					}
-				w.writeEndElement();//tr	
-				w.writeEndElement();//thead
-				w.writeStartElement("tbody");
-				
-				for(String k:count.keySet())
-					{
-					w.writeStartElement("tr");
-					
-					w.writeStartElement("td");
-					w.writeCharacters(k);
-					w.writeEndElement();
-						
-					w.writeStartElement("td");
-					w.writeCharacters(String.valueOf(count.count(k)));
-					w.writeEndElement();
-					
-					w.writeEndElement();//tr
-					}
-				w.writeEndElement();//table
-				
-				w.writeEndElement();//table
-				w.writeEndElement();//div
-				}
 			
 			
 			w.writeEndElement();//body

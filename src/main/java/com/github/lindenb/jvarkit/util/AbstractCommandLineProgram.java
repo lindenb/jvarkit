@@ -17,6 +17,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import com.github.lindenb.jvarkit.util.cli.GetOpt;
+
 public abstract class AbstractCommandLineProgram
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
@@ -274,7 +276,7 @@ public abstract class AbstractCommandLineProgram
 	
 	protected GetOptStatus handleOtherOptions(
 			int c,
-			com.github.lindenb.jvarkit.util.cli.GetOpt opt
+			com.github.lindenb.jvarkit.util.cli.GetOpt opt, String[] args
 			)
 		{
 		switch(c)
@@ -292,9 +294,19 @@ public abstract class AbstractCommandLineProgram
 					return GetOptStatus.EXIT_FAILURE;
 					}
 				return GetOptStatus.OK;
-			case ':': 
+			case GetOpt.MISSING_ARG: 
 				{
 				System.err.println("Missing argument for option -"+opt.getOptOpt());
+				return GetOptStatus.EXIT_FAILURE;
+				}
+			case GetOpt.LONG_OPT:
+				{
+				if("help".equals(opt.getLongOpt()))
+					{
+					printUsage();
+					return GetOptStatus.EXIT_SUCCESS;
+					}
+				System.err.println("Unknown long option \"--"+opt.getLongOpt()+"\"");
 				return GetOptStatus.EXIT_FAILURE;
 				}
 			default:

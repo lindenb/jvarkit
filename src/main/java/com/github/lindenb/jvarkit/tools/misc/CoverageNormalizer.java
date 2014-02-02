@@ -294,7 +294,7 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 				case 's':window_shift=Math.max(1, Integer.parseInt(opt.getOptArg()));break;
 				default:
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

@@ -259,7 +259,7 @@ public class VcfTreePack extends AbstractTreePackCommandLine<VariantContext>
 				{
 				default: 
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE:return -1;
 						case EXIT_SUCCESS: return 0;

@@ -482,7 +482,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		super.printOptions(out);
 		}
 	@Override
-	protected GetOptStatus handleOtherOptions(int c, GetOpt opt)
+	protected GetOptStatus handleOtherOptions(int c, GetOpt opt, String[] args)
 		{
 		switch(c)
 			{
@@ -507,7 +507,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 						}
 					return GetOptStatus.OK;
 					}
-			default:return super.handleOtherOptions(c, opt);
+			default:return super.handleOtherOptions(c, opt, args);
 			}
 		
 		}

@@ -199,7 +199,7 @@ public class VcfLiftOver extends AbstractVCFFilter2
 				case 'm': minMatch=Double.parseDouble(opt.getOptArg()); break;
 				default: 
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE:return -1;
 						case EXIT_SUCCESS: return 0;

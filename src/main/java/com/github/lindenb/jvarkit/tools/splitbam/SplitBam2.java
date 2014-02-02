@@ -311,7 +311,7 @@ public class SplitBam2 extends AbstractCommandLineProgram
 				case 'E': GENERATE_EMPTY_BAM=true;break;
 				default:
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

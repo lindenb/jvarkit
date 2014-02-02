@@ -252,7 +252,7 @@ public class Bam2Wig extends AbstractCommandLineProgram
 				case 'g': min_gap=Math.max(1, Integer.parseInt(getopt.getOptArg())); break;
 				case 'd': min_depth=Math.max(0, Integer.parseInt(getopt.getOptArg())); break;
 				default: 
-					switch(handleOtherOptions(c, getopt))
+					switch(handleOtherOptions(c, getopt, null))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

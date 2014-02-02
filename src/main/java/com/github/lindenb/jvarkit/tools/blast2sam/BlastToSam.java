@@ -642,7 +642,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 				case 'o': fileout=new File(getopt.getOptArg());break;
 				default:
 					{
-					switch(handleOtherOptions(c, getopt))
+					switch(handleOtherOptions(c, getopt, null))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

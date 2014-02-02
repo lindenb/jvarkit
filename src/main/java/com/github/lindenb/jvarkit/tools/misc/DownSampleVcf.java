@@ -89,7 +89,7 @@ public class DownSampleVcf extends AbstractVCFFilter2
 				case 'n': reservoir_size=Math.max(0, Integer.parseInt(opt.getOptArg())); break;
 				default: 
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE:return -1;
 						case EXIT_SUCCESS: return 0;

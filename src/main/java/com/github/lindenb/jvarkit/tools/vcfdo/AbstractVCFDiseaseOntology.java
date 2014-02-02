@@ -74,14 +74,14 @@ public abstract class AbstractVCFDiseaseOntology
 		return super.getGetOptDefault()+"D:A:R:";
 		}
 	@Override
-	protected GetOptStatus handleOtherOptions(int c, GetOpt opt)
+	protected GetOptStatus handleOtherOptions(int c, GetOpt opt, String[] args)
 		{
 		switch(c)
 			{
 			case 'D': DOI_INPUT=opt.getOptArg(); return GetOptStatus.OK;
 			case 'A': DOI_ANN=opt.getOptArg(); return GetOptStatus.OK;
 			case 'R': REF=new File(opt.getOptArg());return GetOptStatus.OK;
-			default:return super.handleOtherOptions(c, opt);
+			default:return super.handleOtherOptions(c, opt, args);
 			}
 		
 		}

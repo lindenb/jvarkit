@@ -454,7 +454,7 @@ public class GroupByGene extends AbstractCommandLineProgram
 				case 'T': user_gene_tags.add(opt.getOptArg());break;
 				default:
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

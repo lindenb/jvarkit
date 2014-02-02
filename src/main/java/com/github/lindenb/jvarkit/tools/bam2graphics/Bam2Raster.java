@@ -511,7 +511,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 				case 'N': printName=!printName;break;
 				case 'w': this.WIDTH=Math.max(100,Integer.parseInt(getopt.getOptArg()));break;
 				default: 
-					switch(handleOtherOptions(c, getopt))
+					switch(handleOtherOptions(c, getopt, null))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

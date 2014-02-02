@@ -151,7 +151,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
-		SortingCollectionFactory<Variant> factory=new SortingCollectionFactory<>();
+		SortingCollectionFactory<Variant> factory=new SortingCollectionFactory<Variant>();
 		boolean only_print_modified=false;
 		GetOpt getopt=new GetOpt();
 		int c;
@@ -164,7 +164,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 				case 'm': only_print_modified=true; break;
 				default:
 					{
-					switch(super.handleOtherOptions(c, getopt))
+					switch(super.handleOtherOptions(c, getopt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

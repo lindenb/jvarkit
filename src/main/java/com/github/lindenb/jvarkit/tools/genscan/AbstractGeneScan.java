@@ -409,6 +409,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 		return img;
 		}
 	
+	@Override
 	protected GetOptStatus handleOtherOptions(int c, GetOpt opt,String args[])
 		{
 		switch(c)
@@ -429,7 +430,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 					break;
 					}
 			}
-		return super.handleOtherOptions(c, opt);
+		return super.handleOtherOptions(c, opt, args);
 		}
 	
 	protected void showGui(BufferedImage img)

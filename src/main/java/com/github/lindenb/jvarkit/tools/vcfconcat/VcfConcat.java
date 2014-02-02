@@ -134,7 +134,7 @@ public class VcfConcat extends AbstractCommandLineProgram
 			{
 			switch(c)
 				{
-				default: switch(super.handleOtherOptions(c, getopt))
+				default: switch(super.handleOtherOptions(c, getopt, null))
 					{
 					case EXIT_FAILURE: return -1;
 					case EXIT_SUCCESS: return 0;

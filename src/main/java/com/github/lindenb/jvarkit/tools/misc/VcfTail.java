@@ -78,7 +78,7 @@ public class VcfTail extends AbstractVCFFilter2
 				case 'n': this.count=Math.max(0, Long.parseLong(opt.getOptArg())); break;
 				default: 
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE:return -1;
 						case EXIT_SUCCESS: return 0;

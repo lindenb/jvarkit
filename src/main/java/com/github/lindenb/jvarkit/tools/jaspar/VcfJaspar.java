@@ -155,7 +155,7 @@ public class VcfJaspar extends AbstractVCFFilter2
 				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
 				default:
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

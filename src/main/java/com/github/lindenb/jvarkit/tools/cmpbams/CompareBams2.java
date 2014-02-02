@@ -274,7 +274,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;
 				default:
 					{
-					switch(handleOtherOptions(c, opt))
+					switch(handleOtherOptions(c, opt, null))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
