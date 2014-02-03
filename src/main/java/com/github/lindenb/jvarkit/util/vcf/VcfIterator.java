@@ -20,8 +20,18 @@ public class VcfIterator implements Iterator<VariantContext>,Closeable
     private final LineIterator lineIterator;
 	public VcfIterator(InputStream vcfStream)
 		{
-		this.lineIterator = new LineIteratorImpl(LineReaderUtil.fromBufferedStream(vcfStream));
+		this( new LineIteratorImpl(LineReaderUtil.fromBufferedStream(vcfStream)));
+		}
+	
+	public VcfIterator(LineIterator r)
+		{
+		this.lineIterator = r;
 	    this.vcfHeader = (VCFHeader) vcfCodec.readActualHeader(lineIterator);
+		}
+	
+	public VCFCodec getCodec()
+		{
+		return this.vcfCodec;
 		}
 	
     public VCFHeader getHeader()

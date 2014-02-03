@@ -296,6 +296,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		{
 		int index;
 		double all_samples[];
+		boolean printed=false;
 		OuputRow(int index)
 			{
 			this.index=index;
@@ -306,9 +307,11 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		}
 	private static final int SMOOTH_WINDOW=5;
 	/** print smoothing values with neighbours */
-	void print(final SAMSequenceRecord ssr,final List<OuputRow> rows,int rowIndex)
+	private void _print(final SAMSequenceRecord ssr,final List<OuputRow> rows,int rowIndex)
 		{
 		OuputRow row=rows.get(rowIndex);
+		if(row.printed) return ;
+		row.printed=true;
 		System.out.print(ssr.getSequenceName());
 		System.out.print('\t');
 		System.out.print(row.index*windowStep);
@@ -327,6 +330,21 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			}
 		System.out.println();
 		}
+	private void cleanup(final List<OuputRow> rows)
+		{
+		for(;;)
+			{
+			int i=0;
+			for(i=0;i< rows.size();++i)
+				{
+				OuputRow row=rows.get(i);
+				if(!row.printed) break;
+				}
+			if(i<(SMOOTH_WINDOW+2)) break;
+			rows.remove(0);
+			}
+		}
+	
 	
 	private void digestAll() throws Exception
 		{
@@ -382,7 +400,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				if(!accept(ssr,j*windowStep))
 					{
 					//dump buffer
-					for(int x=0;x<rowBuffer.size();++x) print(ssr, rowBuffer, x);
+					for(int x=0;x<rowBuffer.size();++x) _print(ssr, rowBuffer, x);
 					rowBuffer.clear();
 					if(System.out.checkError()) break;
 					continue;
@@ -403,7 +421,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				if(System.out.checkError()) break;
 				}
 			//dump buffer
-			for(int x=0;x<rowBuffer.size();++x) print(ssr, rowBuffer, x);
+			for(int x=0;x<rowBuffer.size();++x) _print(ssr, rowBuffer, x);
 			rowBuffer.clear();
 			if(System.out.checkError()) break;
 			}

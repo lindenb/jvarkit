@@ -148,7 +148,7 @@ public class VcfUcsc extends AbstractVCFFilter2
 					}
 				default: 
 					{
-					switch(handleOtherOptions(c, opt, null))
+					switch(handleOtherOptions(c, opt, args))
 						{
 						case EXIT_FAILURE:return -1;
 						case EXIT_SUCCESS: return 0;

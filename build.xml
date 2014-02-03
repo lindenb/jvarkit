@@ -974,6 +974,16 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfcomm" >
+	<compile-picard-cmd 
+		java="**/VCFComm.java"
+		main="com.github.lindenb.jvarkit.tools.vcfcmp.VCFComm"
+		name="vcfcomm"
+		/>
+</target>
+
+
+
 <target name="vcfrebase" >
 	<compile-picard-cmd 
 		java="**/VcfRebase.java"
