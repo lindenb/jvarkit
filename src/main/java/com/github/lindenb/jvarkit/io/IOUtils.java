@@ -148,4 +148,28 @@ public class IOUtils {
   		{
   		return  new LineIteratorImpl(openFileForLineReader(file));
   		}
+    
+    public static LineReader openStdinForLineReader() throws IOException
+		{
+		return  LineReaderUtil.fromBufferedStream(System.in);
+		}
+    /** @return a LineIterator that should be closed with CloserUtils */
+    public static LineIterator openStdinForLineIterator() throws IOException
+  		{
+  		return  new LineIteratorImpl(openStdinForLineReader());
+  		}
+
+    
+    public static LineReader openURIForLineReader(String uri) throws IOException
+		{
+		return  LineReaderUtil.fromBufferedStream(openURIForReading(uri));
+		}
+    /** @return a LineIterator that should be closed with CloserUtils */
+    public static LineIterator openURIForLineIterator(String uri) throws IOException
+  		{
+  		return  new LineIteratorImpl(openURIForLineReader(uri));
+  		}
+
+    
+    
 }

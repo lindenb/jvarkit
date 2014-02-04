@@ -79,6 +79,11 @@
      <path refid="math.lib"/>
 </path>
 
+<path id="picard.and.bdb.jars">
+     <path refid="picard.lib"/>
+     <path refid="bdb.lib"/>
+</path>
+
 
 <macrodef name="compile-with-picard">
 	<attribute name="name"/>
@@ -234,11 +239,13 @@ java -Xmx500m -cp ${manifest_@{name}_for_exe}:$PREFIX/@{name}.jar @{main} $*
 
 <macrodef name="compile-biostar-cmd">
 	<attribute name="post"/>
+	<attribute name="libraryid" default="picard.lib"/>
 	<sequential>
 		<compile-picard-cmd 
 		java="**/Biostar@{post}.java"
 		main="com.github.lindenb.jvarkit.tools.biostar.Biostar@{post}"
 		name="biostar@{post}"
+		libraryid="@{libraryid}"
 		/>
 	</sequential>
 </macrodef>
@@ -1475,6 +1482,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 <target name="biostar86480"><compile-biostar-cmd post="86480"/></target>
 <target name="biostar84452"><compile-biostar-cmd post="84452"/></target>
 <target name="biostar90204"><compile-biostar-cmd post="90204"/></target>
+<target name="biostar92368"><compile-biostar-cmd post="92368" libraryid="picard.and.bdb.jars"/></target>
 
 
 
