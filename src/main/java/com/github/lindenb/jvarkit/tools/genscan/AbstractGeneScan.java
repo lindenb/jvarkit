@@ -6,10 +6,13 @@ import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.RenderingHints;
 import java.awt.Toolkit;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.PrintStream;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,10 +30,7 @@ import com.github.lindenb.jvarkit.util.cli.GetOpt;
 public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 	{
 	protected Dimension screenSize=new Dimension(1000,300);
-    //@Option(shortName="DC",doc="Do not display unseen chromosome",optional=false)	
-    //@Option(shortName="DC",doc="Do not display unseen chromosome",optional=false)	
 	protected boolean DISCARD_UNSEEN_CHROM=false;
-    //@Option(shortName="DB",doc="ignore chromosomes left/right side if there's no data there.",optional=false)	
 	protected boolean DISCARD_BOUNDS=false;
     private Hershey hershey=new Hershey();
     protected Insets insets=new Insets(20,150, 30, 30);
@@ -128,7 +128,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 		{
 		int tid=-1;
 		String sequenceName=null;
-		Double dictSequenceLength=null;//sequence set via SamSequenceDict
+		Integer dictSequenceLength=null;//sequence set via SamSequenceDict
 		double x;
 		double width;
 		MinMaxDouble minmaxBase=new MinMaxDouble();
@@ -203,6 +203,18 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 		while(i<samples.size())
 			{
 			Sample sample=samples.get(i);
+			
+			if(this.user_min_value!=null)
+				{
+				sample.minmax.setMin(this.user_min_value);
+				this.minMaxY.setMin(this.user_min_value);
+				}
+			if(this.user_max_value!=null)
+				{
+				this.minMaxY.setMax(this.user_max_value);
+				sample.minmax.setMax(this.user_max_value);
+				}
+			
 			if(sample.minmax.isValid())
 				{
 				this.minMaxY.merge(sample.minmax);
@@ -212,13 +224,11 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 			else
 				{
 				warning("No valid data for "+sample.name);
+				
 				sample.visible=false;
 				num_visible_samples--;
 				}
 			}
-		
-		info(this.minMaxY);
-		
 		if(this.user_min_value!=null)
 			{
 			this.minMaxY.setMin(this.user_min_value);
@@ -227,6 +237,9 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 			{
 			this.minMaxY.setMax(this.user_max_value);
 			}
+		info(this.minMaxY);
+		
+		
 		
 		if(!this.minMaxY.isValid())
 			{
@@ -285,7 +298,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 			
 			if(!DISCARD_BOUNDS && ci.dictSequenceLength!=null)
 				{
-				ci.minmaxBase.setMax(ci.dictSequenceLength);
+				ci.minmaxBase.setMax(ci.dictSequenceLength.doubleValue());
 				}
 		
 			if(ci.minmaxBase.getMin()==ci.minmaxBase.getMax())
@@ -336,6 +349,9 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 				);
 		
 		Graphics2D g=img.createGraphics();
+		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+		
 		g.setColor(Color.WHITE);
 		g.fillRect(0, 0,this.screenSize.width, this.screenSize.height);
 		
@@ -372,7 +388,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 						font_size
 						);
 				g.setColor(Color.BLACK);
-				this.hershey.paint(g, fmt.format(v), r);
+				this.hershey.paint(g, String.format("%8s",fmt.format(v)), r);
 				}
 			
 			if(merge_sample) break;
@@ -383,13 +399,30 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 			for(Sample sample:this.samples)
 				{
 				if(!sample.visible) continue;
+				/*
 				Rectangle2D.Double r=new Rectangle2D.Double(
 						this.screenSize.width-(double)this.insets.right,
 						sample.y,
 						(double)insets.right,
 						Math.min(12.0, sample.height)
 						);
-				this.hershey.paint(g,sample.name, r);
+				this.hershey.paint(g,sample.name, r);*/
+				
+				AffineTransform old=g.getTransform();
+				AffineTransform tr2=new AffineTransform(old);
+				tr2.translate(this.screenSize.width-(double)this.insets.right, sample.y);
+				tr2.rotate(Math.PI/2.0);
+				g.setTransform(tr2);
+				this.hershey.paint(g,
+						sample.name,
+						0.0,
+						0.0,
+						sample.height,
+						(double)insets.right
+						);
+				g.setTransform(old);
+
+				
 				}
 			}
 		float OPACITY=0.9f;
@@ -408,6 +441,13 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 		g.dispose();	
 		return img;
 		}
+	@Override
+	public void printOptions(PrintStream out) {
+		out.println( " --min-y (double) min y value. Optional.");
+		out.println( " --max-y (double) min y value. Optional.");
+		out.println( " --image-size (int)x(int) image width x height . Default:"+screenSize+". Optional.");
+		super.printOptions(out);
+		}
 	
 	@Override
 	protected GetOptStatus handleOtherOptions(int c, GetOpt opt,String args[])
@@ -425,6 +465,19 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 					else if("max-y".equals(lo))
 						{
 						this.user_max_value=Double.parseDouble(opt.increaseOptind(args));
+						return GetOptStatus.OK;
+						}
+					else if("image-size".equals(lo))
+						{
+						String v=opt.increaseOptind(args);
+						int x=v.indexOf('x');
+						if(x<1)
+							{
+							error("bad size. Expected (width)x(heigh) "+v);
+							}
+						this.screenSize.width=Integer.parseInt(v.substring(0, x));
+						this.screenSize.height=Integer.parseInt(v.substring(x+1));
+						
 						return GetOptStatus.OK;
 						}
 					break;

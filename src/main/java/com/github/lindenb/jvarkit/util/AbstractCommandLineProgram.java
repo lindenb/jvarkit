@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.sql.Timestamp;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
@@ -27,7 +28,6 @@ public abstract class AbstractCommandLineProgram
 	private String compileDate;
 	private List<File> tmpDirs=null;
 	
-	
 	protected AbstractCommandLineProgram()
 		{
 		LOG.setUseParentHandlers(false);
@@ -35,9 +35,10 @@ public abstract class AbstractCommandLineProgram
 			{
 			@Override
 			public void publish(LogRecord record) {
+				Date now = new Date(record.getMillis());
 				System.err.print("["+record.getLevel()+"/"+AbstractCommandLineProgram.this.getClass().getSimpleName()+"]");
 				System.err.print(" ");
-				System.err.print(new Timestamp(record.getMillis()));
+				System.err.print(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now));
 				System.err.print(" \"");
 				System.err.print(record.getMessage());
 				System.err.println("\"");

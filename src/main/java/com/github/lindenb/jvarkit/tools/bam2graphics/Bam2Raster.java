@@ -45,10 +45,18 @@ import net.sf.samtools.util.CloserUtil;
 
 public class Bam2Raster extends AbstractCommandLineProgram
 	{
+    private Bam2Raster()
+    	{
+    	}
     
     @Override
     public String getProgramDescription() {
     	return "BAM to raster graphics.";
+    	}
+    
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/Bam2Raster";
     	}
 	
    private interface Colorizer
@@ -511,7 +519,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 				case 'N': printName=!printName;break;
 				case 'w': this.WIDTH=Math.max(100,Integer.parseInt(getopt.getOptArg()));break;
 				default: 
-					switch(handleOtherOptions(c, getopt, null))
+					switch(handleOtherOptions(c, getopt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

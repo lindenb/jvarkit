@@ -631,7 +631,17 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		main="com.github.lindenb.jvarkit.tools.genscan.GenScan"
 		name="genscan"
 		/>
-</target>	
+</target>
+
+
+	
+<target name="bamgenscan" >
+	<compile-picard-cmd
+		java="**/BamGenScan.java"
+		main="com.github.lindenb.jvarkit.tools.genscan.BamGenScan"
+		name="bamgenscan"
+		/>
+</target>		
 
 <target name="tview" >
 	<compile-with-picard 
@@ -982,6 +992,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="vcfin" >
+	<compile-picard-cmd 
+		java="**/VcfIn.java"
+		main="com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn"
+		name="vcfin"
+		/>
+</target>
 
 
 <target name="vcfrebase" >

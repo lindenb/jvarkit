@@ -45,6 +45,11 @@ public class VCFComm extends AbstractVCFCompare {
 		}
 	
 	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/VCFComm";
+		}
+	
+	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println(" -a  ignore variations present in ALL files");

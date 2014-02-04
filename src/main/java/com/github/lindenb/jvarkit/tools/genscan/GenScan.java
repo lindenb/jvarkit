@@ -283,6 +283,7 @@ public class GenScan extends AbstractGeneScan
 		int nLines=0;
 		Pattern tab=Pattern.compile("[\t]");
 		
+		@SuppressWarnings("resource")
 		LineIterator r=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(in));
 		boolean foundHeader=false;
 		if(firstLineIsHeader)
@@ -402,7 +403,12 @@ public class GenScan extends AbstractGeneScan
 	
 	@Override
 	public String getProgramDescription() {
-		return "Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....) or a SAM.";
+		return "Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).";
+		}
+	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/Genscan";
 		}
 	
 	@Override
@@ -479,7 +485,7 @@ public class GenScan extends AbstractGeneScan
 				for(SAMSequenceRecord rec: dict.getSequences())
 					{
 					ChromInfo ci=new ChromInfo();
-					ci.dictSequenceLength=(double)rec.getSequenceLength();
+					ci.dictSequenceLength=rec.getSequenceLength();
 					ci.sequenceName=rec.getSequenceName();
 					ci.tid=chromInfos.size();
 					chromInfos.add(ci);

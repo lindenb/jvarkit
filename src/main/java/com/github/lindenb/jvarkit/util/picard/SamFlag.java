@@ -3,20 +3,193 @@ package com.github.lindenb.jvarkit.util.picard;
 import java.util.HashSet;
 import java.util.Set;
 
+import net.sf.samtools.SAMRecord;
+
+import com.github.lindenb.jvarkit.lang.Predicate;
+
 public enum SamFlag
-	{
-		READ_PAIRED(0x1),
-		READ_MAPPED_IN_PROPER_PAIR(0x2),
-		READ_UNMAPPED(0x4),
-		MATE_UNMAPPED(0x8),
-		READ_REVERSE_STRAND(0x10),
-		MATE_REVERSE_STRAND(0x20),
-		FIRST_IN_PAIR(0x40),
-		SECOND_IN_PAIR(0x80),
-		NOT_PRIMARY_ALIGNMENT(0x100),
-		READ_FAILS_VENDOR_QUALITY_CHECK(0x200),
-		READ_IS_DUPLICATE(0x400),
+		{
+		READ_PAIRED(0x1)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getReadPairedFlag();
+						}
+					};
+				}	
+			},
+		READ_MAPPED_IN_PROPER_PAIR(0x2)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getReadPairedFlag() && rec.getProperPairFlag();
+						}
+					};
+				}	
+			},
+		READ_UNMAPPED(0x4)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getReadUnmappedFlag();
+						}
+					};
+				}	
+			},
+		MATE_UNMAPPED(0x8)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getReadPairedFlag() && rec.getMateUnmappedFlag();
+						}
+					};
+				}	
+			},
+		READ_REVERSE_STRAND(0x10)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getReadNegativeStrandFlag();
+						}
+					};
+				}	
+			},
+		MATE_REVERSE_STRAND(0x20)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getReadPairedFlag() && rec.getMateNegativeStrandFlag();
+						}
+					};
+				}	
+			},
+		FIRST_IN_PAIR(0x40)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getReadPairedFlag() && rec.getFirstOfPairFlag();
+						}
+					};
+				}	
+			},
+		SECOND_IN_PAIR(0x80)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getReadPairedFlag() && rec.getSecondOfPairFlag();
+						}
+					};
+				}	
+			},
+		/*	the alignment is not primary (a read having split hits may have multiple primary alignment records).*/
+		NOT_PRIMARY_ALIGNMENT(0x100)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getNotPrimaryAlignmentFlag();
+						}
+					};
+				}	
+			},
+		READ_FAILS_VENDOR_QUALITY_CHECK(0x200)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getReadFailsVendorQualityCheckFlag();
+						}
+					};
+				}	
+			},
+		READ_IS_DUPLICATE(0x400)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getDuplicateReadFlag();
+						}
+					};
+				}	
+			},
 		SUPPLEMENTARY_ALIGNMENT(0x800)
+			{
+			@Override
+			public Predicate<SAMRecord> getAcceptFilter()
+				{
+				return new Predicate<SAMRecord>()
+					{
+					@Override
+					public boolean apply(SAMRecord rec)
+						{
+						return rec.getSupplementaryAlignmentFlag();
+						}
+					};
+				}	
+			}
 		;
 	private int flag;
 	SamFlag(int flag)
@@ -63,4 +236,5 @@ public enum SamFlag
 		return set;
 		}
 	
+	public abstract Predicate<SAMRecord> getAcceptFilter();
 	}

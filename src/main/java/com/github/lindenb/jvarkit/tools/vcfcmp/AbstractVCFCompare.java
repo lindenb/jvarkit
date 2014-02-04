@@ -16,6 +16,7 @@ import net.sf.samtools.util.SortingCollection;
 import org.broad.tribble.readers.LineIterator;
 import org.broad.tribble.readers.LineIteratorImpl;
 import org.broad.tribble.readers.LineReader;
+import org.broad.tribble.readers.LineReaderUtil;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
@@ -39,6 +40,7 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 		VCFHeader header;
 		VCFCodec codec;
 		int file_id=-1;
+		long count=0L;
 		}
 	
 	protected class LineAndFile
@@ -54,6 +56,36 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 				this._ctx=inputs.get(this.fileIdx).codec.decode(this.line);
 				}
 			return this._ctx;
+			}
+		private String token(int index)
+			{
+			int i=0;
+			int prev=0;
+			while(prev< line.length())
+				{
+				int tab=this.line.indexOf('\t',prev);
+				if(tab==-1)
+					{
+					tab=this.line.length();
+					}
+				if(i==index) return this.line.substring(prev, tab);
+				prev=tab+1;
+				++i;
+				}
+			throw new IllegalStateException("Bad VCF line :"+line+" cannot get tokens["+index+"]");
+			}
+		
+		public String getChrom()
+			{	
+			return token(0);
+			}
+		public int getStart()
+			{	
+			return Integer.parseInt(token(1));
+			}
+		public String getReference()
+			{	
+			return token(3);
 			}
 		}
 	
@@ -94,13 +126,11 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 		@Override
 		public int compare(LineAndFile v1, LineAndFile v2)
 			{
-			VariantContext ctx1=v1.getContext();
-			VariantContext ctx2=v2.getContext();
-			int i=ctx1.getChr().compareTo(ctx2.getChr());
+			int i=v1.getChrom().compareTo(v2.getChrom());
 			if(i!=0) return i;
-			i=ctx1.getStart()-ctx2.getStart();
+			i=v1.getStart()-v2.getStart();
 			if(i!=0) return i;
-			i=ctx1.getReference().compareTo(ctx2.getReference());
+			i=v1.getReference().compareToIgnoreCase(v2.getReference());
 			if(i!=0) return i;
 			return 0;
 			}
@@ -174,11 +204,26 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 		return input;
 		}
 	
+	protected String simplify(String line,int input_idx)
+		{
+		return line;
+		}
+	
 	protected Input put(SortingCollection<LineAndFile> variants, String vcfUri)
 		throws IOException
 		{
 		info("begin inserting "+vcfUri);
-		LineIterator iter=IOUtils.openFileForLineIterator(new File(vcfUri));
+		LineIterator iter=null;
+		if(vcfUri==null)
+			{
+			vcfUri="stdin";
+			iter=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(System.in));
+			}
+		else
+			{
+			iter=IOUtils.openFileForLineIterator(new File(vcfUri));
+			}
+		
 		List<String> headerLines=new ArrayList<String>();
 		while(iter.hasNext() && iter.peek().startsWith("#"))
 			{
@@ -194,13 +239,14 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 			String line=iter.next();
 			LineAndFile laf=new LineAndFile();
 			laf.fileIdx=input.file_id;
-			laf.line=line;
-			VariantContext ctx=laf.getContext();
-			progress.watch(ctx.getChr(), ctx.getStart());
+			laf.line=simplify(line,laf.fileIdx);
+			progress.watch(laf.getChrom(), laf.getStart());
 			variants.add(laf);
+			input.count++;
 			}
 		progress.finish();
-		info("end inserting "+vcfUri);
+		info("end inserting "+vcfUri+" N="+input.count);
+		CloserUtil.close(iter);
 		return input;
 		}
 	
