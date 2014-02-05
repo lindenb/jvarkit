@@ -172,7 +172,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 				}
 			else
 				{
-				return this.getSequenceLength();
+				return (int) this.minmaxBase.getMax();
 				}
 			}
 		}

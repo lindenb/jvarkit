@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -45,6 +46,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	private int windowSize=50;
 	private int windowStep=25;
 	private SamSequenceRecordTreeMap<Boolean> capture=null;
+	private List<Replicate> replicates=new ArrayList<Replicate>();
 	
 	private static class GCAndDepth
 		implements Comparable<GCAndDepth>
@@ -71,7 +73,85 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		List<SAMFileReader> samFileReaders=new ArrayList<>();
 		File tmpFile;
 		}
-	private List<Replicate> replicates=new ArrayList<Replicate>();
+	
+	private class RegionCaptured
+		{
+		int tid;
+		int start0;
+		int end0;
+		
+	
+		public SAMSequenceRecord getSAMSequenceRecord()
+			{
+			return indexedFastaSequenceFile.getSequenceDictionary().getSequence(this.tid);
+			}
+		
+		public String getChromosome()
+			{
+			return getSAMSequenceRecord().getSequenceName();
+			}
+		
+		Iterator<Window> windows()
+			{
+			return new MyIter();
+			}
+		
+		private class MyIter
+			implements Iterator<Window>
+			{
+			int index_in_roi=0;
+			Window make()
+				{
+				return new Window(index_in_roi);
+				}
+			@Override
+			public boolean hasNext()
+				{
+				Window w=make();
+				return w==null;//TODO <########################################
+				}
+			@Override
+			public Window next()
+				{
+				Window w=make();
+				return w;
+				}
+			
+			@Override
+			public void remove()
+				{
+				throw new UnsupportedOperationException();
+				}
+			}
+		
+		public class Window
+			{
+			int index_in_roi;
+			Window(int index_in_roi)
+				{
+				this.index_in_roi=index_in_roi;
+				}
+			public String getChromosome()
+				{
+				return RegionCaptured.this.getChromosome();
+				}
+			public int getStart()
+				{
+				return index_in_roi*windowStep + RegionCaptured.this.start0;
+				}
+			public int getEnd()
+				{
+				return getStart()+windowSize;
+				}
+			public int length()
+				{
+				return getEnd()-getStart();
+				}
+			}
+		}
+	
+	
+	
 	
 	private CopyNumber01() {
 		

@@ -290,7 +290,7 @@ public class GenScan extends AbstractGeneScan
 			{
 			if(!r.hasNext()) throw new IOException("First line/header is Missing");
 			String line=r.next();
-			String tokens[]=tab.split(r.next());
+			String tokens[]=tab.split(line);
 			if(tokens.length<4) throw new IOException("Expected at least 4 columns in "+line);
 			for(int c=3;c<tokens.length;++c)
 				{
@@ -358,11 +358,13 @@ public class GenScan extends AbstractGeneScan
 					warning("Position <0 in "+line);
 					continue;
 					}
-				if(this.faidxFile!=null && (pt.pos< 0 || pt.pos > ci.getSequenceLength()))
+				if(this.faidxFile!=null && (pt.pos< 0 || pt.pos > ci.dictSequenceLength))
 					{
-					warning("Position out of range in "+line);
+					warning("Position 0<"+pt.pos+"<"+ci.dictSequenceLength+" out of range in "+line);
 					continue;
 					}
+				
+				
 				}
 			catch (Exception e) {
 				warning("bad pos in  "+line);
@@ -374,17 +376,20 @@ public class GenScan extends AbstractGeneScan
 					pt.values[i]=Double.parseDouble(tokens[3+i]);
 					if(Double.isNaN(pt.values[i]))
 						{
-						warning("bad value in "+line);
+						warning("bad value in "+tokens[0]+":"+tokens[1]+":"+tokens[2]+"="+tokens[3+i]);
 						}
 					}
 				catch (Exception e) {
-					warning("bad value in  "+line);
+					warning("bad value in "+tokens[0]+":"+tokens[1]+":"+tokens[2]+"="+tokens[3+i]);
 					pt.values[i]=Double.NaN;
 					}
 				samples.get(i).minmax.visit(pt.values[i]);
 				}
 			this.dataPoints.add(pt);
-			ci.minmaxBase.visit(pt.pos);
+			if(this.faidxFile==null)
+				{
+				ci.minmaxBase.visit(pt.pos);
+				}
 			}
 		CloserUtil.close(r);
 		info("num lines:"+nLines);
@@ -488,7 +493,7 @@ public class GenScan extends AbstractGeneScan
 					ci.dictSequenceLength=rec.getSequenceLength();
 					ci.sequenceName=rec.getSequenceName();
 					ci.tid=chromInfos.size();
-					chromInfos.add(ci);
+					this.chromInfos.add(ci);
 					this.chrom2chromInfo.put(ci.sequenceName, ci);
 					}
 				}
