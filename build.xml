@@ -1091,6 +1091,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="vcfpredictions"
 		/>
 </target>
+	
+<target name="vcfstopcodon">
+	<compile-picard-cmd 
+		java="**/VCFStopCodon.java"
+		main="com.github.lindenb.jvarkit.tools.vcfannot.VCFStopCodon"
+		name="vcfstopcodon"
+		/>
+</target>
+
 
 <target name="vcfannobam">
 	<compile-with-picard 

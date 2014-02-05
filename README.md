@@ -111,6 +111,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFComm">VCFComm<a></th><td>Compare mulitple VCF files, ouput a new VCF file.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfIn">VcfIn<a></th><td>Prints variants that are contained/not contained into another VCF</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar92368">Biostar92368<a></th><td>Binary interactions depth See also http://www.biostars.org/p/92368</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFStopCodon">VCFStopCodon<a></th><td>TODO</td></tr>
 
 
 </table>

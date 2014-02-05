@@ -52,53 +52,6 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 
-class MutedSequence extends DelegateCharSequence
-	{
-	private Map<Integer, Character> pos2char=new TreeMap<Integer, Character>();
-	MutedSequence(CharSequence wild)
-		{
-		super(wild);
-		}
-	
-	void put(int pos,char c)
-		{
-		this.pos2char.put(pos, c);
-		}
-	
-	@Override
-	public char charAt(int i)
-		{
-		Character c= pos2char.get(i);
-		return c==null?getDelegate().charAt(i):c;
-		}
-	
-	}
-
-
-class ProteinCharSequence extends DelegateCharSequence
-	{
-	private GeneticCode geneticCode;
-	ProteinCharSequence(GeneticCode geneticCode,CharSequence cDNA)
-		{
-		super(cDNA);
-		this.geneticCode=geneticCode;
-		}
-	
-	@Override
-	public char charAt(int i)
-		{
-		return geneticCode.translate(
-			getDelegate().charAt(i*3+0),
-			getDelegate().charAt(i*3+1),
-			getDelegate().charAt(i*3+2));
-		}	
-	
-	@Override
-	public int length()
-		{
-		return getDelegate().length()/3;
-		}
-	}
 
 
 /**
@@ -117,8 +70,55 @@ public class VCFAnnotator extends AbstractVCFFilter2
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
 	
-
 	
+	private static class MutedSequence extends DelegateCharSequence
+		{
+		private Map<Integer, Character> pos2char=new TreeMap<Integer, Character>();
+		MutedSequence(CharSequence wild)
+			{
+			super(wild);
+			}
+		
+		void put(int pos,char c)
+			{
+			this.pos2char.put(pos, c);
+			}
+		
+		@Override
+		public char charAt(int i)
+			{
+			Character c= pos2char.get(i);
+			return c==null?getDelegate().charAt(i):c;
+			}
+		
+		}
+	
+	
+	private static class ProteinCharSequence extends DelegateCharSequence
+		{
+		private GeneticCode geneticCode;
+		ProteinCharSequence(GeneticCode geneticCode,CharSequence cDNA)
+			{
+			super(cDNA);
+			this.geneticCode=geneticCode;
+			}
+		
+		@Override
+		public char charAt(int i)
+			{
+			return geneticCode.translate(
+				getDelegate().charAt(i*3+0),
+				getDelegate().charAt(i*3+1),
+				getDelegate().charAt(i*3+2));
+			}	
+		
+		@Override
+		public int length()
+			{
+			return getDelegate().length()/3;
+			}
+		}
+		
 	
 	class Annotation
 		{
@@ -675,32 +675,7 @@ public class VCFAnnotator extends AbstractVCFFilter2
 			return -1;
 			}
 		
-		
-		try
-			{
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				}
-			else
-				{
-				for(int i=opt.getOptInd();i< args.length;++i)
-					{
-					String filename=args[i];
-					info("Reading from "+filename);
-					}
-				}
-			return super.doWork(opt.getOptInd(), args);
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			
-			}
+		return super.doWork(opt.getOptInd(), args);
 		}
 	
 	public static void main(String[] args)
