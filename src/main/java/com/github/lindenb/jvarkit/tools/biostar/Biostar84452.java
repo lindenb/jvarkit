@@ -44,26 +44,38 @@ public class Biostar84452 extends AbstractCommandLineProgram
 		out.println(" -o (filename) output file. default: stdout.");
 		out.println(" -c (int) compression level");
 		out.println(" -b force binary");
+		out.println(" -t (tag) tag to flag samrecord as processed. default:XS");
 		super.printOptions(out);
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
+		String tag="XS";
 		SamWriterFactory swf=SamWriterFactory.newInstance();
 		File fileout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:bc:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:bc:t:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': fileout=new File(opt.getOptArg());break;
 				case 'b': swf.setBinary(true);break;
 				case 'c': swf.setCompressionLevel(Integer.parseInt(opt.getOptArg()));break;
+				case 't':
+					{	
+					tag=opt.getOptArg();
+					if(tag.length()!=2 || !tag.startsWith("X"))
+						{
+						error("Bad tag: expect length=2 && start with 'X'");
+						return -1;
+						}
+					break;
+					}
 				default:
 					{
-					switch(handleOtherOptions(c, opt, null))
+					switch(handleOtherOptions(c, opt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
@@ -181,7 +193,7 @@ public class Biostar84452 extends AbstractCommandLineProgram
 					continue;
 					}
 				++nChanged;
-				rec.setAttribute("XS", 1);
+				rec.setAttribute(tag, 1);
 				rec.setCigar(new Cigar(L));
 				rec.setReadBases(nseq.toByteArray());
 				if(quals.length!=0)  rec.setBaseQualities(nqual.toByteArray());
