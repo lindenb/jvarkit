@@ -10,10 +10,13 @@
  */
 package com.github.lindenb.jvarkit.tools.vcfannot;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -23,6 +26,11 @@ import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import net.sf.samtools.SAMSequenceDictionary;
+import net.sf.samtools.SAMSequenceRecord;
+import net.sf.samtools.util.CloserUtil;
+
+import org.broad.tribble.readers.LineIterator;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
@@ -38,7 +46,6 @@ import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -48,7 +55,8 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 /**
- * 
+ * VCFStopCodon
+ * @SolenaLS 's idea: consecutive synonymous bases give a stop codon
  *
  */
 public class VCFStopCodon extends AbstractVCFFilter2
@@ -57,7 +65,7 @@ public class VCFStopCodon extends AbstractVCFFilter2
 	private File REF=null;
 	private String kgURI=DEFAULT_KG_URI;
 
-	private SamSequenceRecordTreeMap<KnownGene> knownGenes=null;
+	private Map<String,List<KnownGene>> knownGenes=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
 	
@@ -72,6 +80,7 @@ public class VCFStopCodon extends AbstractVCFFilter2
 		
 		void put(int pos,char c)
 			{
+			if(pos2char.containsKey(pos)) throw new IllegalStateException();
 			this.pos2char.put(pos, c);
 			}
 		
@@ -112,35 +121,51 @@ public class VCFStopCodon extends AbstractVCFFilter2
 		
 	private void loadKnownGenesFromUri() throws IOException
 		{
+		if(this.knownGenes!=null) return;
 		int n_genes=0;
-		this.knownGenes=new SamSequenceRecordTreeMap<KnownGene>(
-				this.indexedFastaSequenceFile.getSequenceDictionary()
-				);
-		info("loading genes");
-		Set<String> unknown=new HashSet<String>();
-		BufferedReader in=IOUtils.openURIForBufferedReading(this.kgURI);
-		String line;
-		Pattern tab=Pattern.compile("[\t]");
-		while((line=in.readLine())!=null)
+		SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
+		this.knownGenes=new HashMap<String, List<KnownGene>>(dict.size());
+		for(SAMSequenceRecord ssr:dict.getSequences())
 			{
+			this.knownGenes.put(ssr.getSequenceName(), new ArrayList<KnownGene>());
+			}
+		info("loading genes from "+this.kgURI);
+		Set<String> unknown=new HashSet<String>();
+		LineIterator iter=IOUtils.openURIForLineIterator(this.kgURI);
+		Pattern tab=Pattern.compile("[\t]");
+		while(iter.hasNext())
+			{
+			String line=iter.next();
 			if(line.isEmpty()) continue;
 			String tokens[]=tab.split(line);
 			KnownGene g=new KnownGene(tokens);
+			if(g.isNonCoding()) continue;
 
-			if(!this.knownGenes.put(g.getChr(), g.getTxStart()+1, g.getTxEnd(),g))
+			List<KnownGene> L=this.knownGenes.get(g.getChr());
+			if(L==null)
 				{
 				if(!unknown.contains(g.getChr()))
 					{
 					warning("The reference "+REF+" doesn't contain chromosome "+g.getChr());
 					unknown.add(g.getChr());
 					}
+				continue;
 				}
-			else
-				{
-				++n_genes;
-				}
+			L.add(g);
+			++n_genes;
 			}
-		in.close();
+		CloserUtil.close(iter);
+		for(String C:knownGenes.keySet())
+			{
+			Collections.sort(knownGenes.get(C),new Comparator<KnownGene>()
+				{
+				@Override
+				public int compare(KnownGene o1, KnownGene o2)
+					{
+					return o1.getTxStart()-o2.getTxStart();
+					}
+				});
+			}
 		info("genes:"+n_genes);
 		}
 	
@@ -152,8 +177,12 @@ public class VCFStopCodon extends AbstractVCFFilter2
 		int position_in_cdna=-1;
 		MutedSequence mutRNA=null;
 		Set<String> set=new HashSet<String>();
+		@Override
+		public String toString() {
+			return ctx.getChr()+":"+ctx.getStart()+" "+ctx.getReference()+"/"+ctx.getAlternateAllele(0);
+			}
 		}
-	static final String TAG="STOPCODON";
+	static final String TAG="STREAMCODON";
 	
 	protected void dump(VariantContextWriter w,Variant var)
 		{
@@ -175,6 +204,7 @@ public class VCFStopCodon extends AbstractVCFFilter2
 	
 		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
 		loadKnownGenesFromUri();
+		
 		VCFHeader header=(VCFHeader)r.getHeader();
 		
 		
@@ -189,51 +219,98 @@ public class VCFStopCodon extends AbstractVCFFilter2
 		
 		
         w.writeHeader(h2);
-
-		
+        long n_variants=0L;
+        String currChrom=null;
         LinkedList<Variant> variantStack=new LinkedList<Variant>();
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+        final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
+		List<KnownGene> currListOfGenes=null; 
 		while(r.hasNext())
 			{
 			VariantContext ctx=r.next();
 			progress.watch(ctx.getChr(), ctx.getStart());
+			
+			if(n_variants++%1000==0)
+				{
+				if(currListOfGenes!=null) info("Genes: "+currListOfGenes.size());
+				info("Variants: "+variantStack.size());
+				}
+			
 			if(!ctx.isSNP() || ctx.getAlternateAlleles().size()!=1)
 				{
 				w.add(ctx);
 				continue;
 				}
+
+			
+			//unknown chromosome
+			if(!this.knownGenes.containsKey(ctx.getChr()))
+				{
+				while(!variantStack.isEmpty())
+					{
+					dump(w,variantStack.removeFirst());
+					}
+				warning("unknown chrom "+ctx.getChr());
+				currChrom=null;
+				continue;
+				}
+			
+			//not same chromosome
+			if(!ctx.getChr().equals(currChrom))
+				{
+				while(!variantStack.isEmpty())
+					{
+					dump(w,variantStack.removeFirst());
+					}
+				currChrom=ctx.getChr();
+				currListOfGenes=new ArrayList<KnownGene>(this.knownGenes.get(currChrom));
+				}
+			
 			Variant variant=new Variant();
 			variant.ctx=ctx;
 			variantStack.add(variant);
 			
-			if(variantStack.size()>3)
+			
+			
+			//no more genes
+			if(currListOfGenes.isEmpty())
+				{
+				while(!variantStack.isEmpty())
+					{
+					dump(w,variantStack.removeFirst());
+					}
+				continue;
+				}
+			
+			//remove old variants
+			while(  !variantStack.isEmpty() &&
+					!currListOfGenes.isEmpty() &&
+					variantStack.getFirst().ctx.getEnd()-1 < currListOfGenes.get(0).getTxStart()
+					)
 				{
 				dump(w,variantStack.removeFirst());
 				}
 			
-			if(variantStack.size()>2)
+			//find genes to be processed
+			int kgIndex=0;
+			while(kgIndex< currListOfGenes.size())
 				{
-				int prev_idx=variantStack.size()-3;
-				if(!(variantStack.get(prev_idx).ctx.getChr().equals(ctx.getChr()) &&
-					 variantStack.get(prev_idx).ctx.getStart()+2!=ctx.getStart()))
+				KnownGene kg=currListOfGenes.get(kgIndex);
+				if(kg.getTxEnd() < ctx.getStart())
 					{
-					dump(w,variantStack.remove(prev_idx));
+					challenge(variantStack,kg);
+					currListOfGenes.remove(kgIndex);
+					}
+				else if(kg.getTxStart() > ctx.getEnd())
+					{
+					break;
+					}
+				else
+					{
+					kgIndex++;
 					}
 				}
 			
-			if(variantStack.size()>1)
-				{
-				int prev_idx=variantStack.size()-2;
-				if(!(variantStack.get(prev_idx).ctx.getChr().equals(ctx.getChr()) &&
-					 variantStack.get(prev_idx).ctx.getStart()+1!=ctx.getStart()))
-					{
-					dump(w,variantStack.remove(prev_idx));
-					}
-				}
-			if(variantStack.size()>1)
-				{
-				check(variantStack);
-				}
 			}
 		while(!variantStack.isEmpty())
 			{
@@ -241,104 +318,158 @@ public class VCFStopCodon extends AbstractVCFFilter2
 			}
 		}
 	
-	private void check(LinkedList<Variant> variants)
+	private void challenge(List<Variant> L,KnownGene gene) throws IOException
 		{
+		if(L.size()<2) return;
+		List<Variant> variants=new ArrayList<Variant>(L);
 		
-		String chrom=variants.getFirst().ctx.getChr();
-		int start1=variants.getFirst().ctx.getStart();
-		int end1=variants.getLast().ctx.getStart();
-		info(chrom+":"+start1+"-"+end1);
-		
-		List<KnownGene> genes=this.knownGenes.getOverlapping(
-				chrom, start1,end1 //1-based
-				);
-		if(genes==null || genes.isEmpty())
+		for(int i=1;i< variants.size();++i)
 			{
-			return;
+			VariantContext ctx1=variants.get(i-1).ctx;
+			VariantContext ctx2=variants.get(i).ctx;
+			if(!ctx1.getChr().equals(ctx2.getChr())) throw new IllegalStateException();
+			if(ctx1.getStart()> ctx2.getStart())
+				{
+				error("Data are not sorted");
+				throw new IOException("VCF is not sorted");
+				}
 			}
-			
-		if(genomicSequence==null || !genomicSequence.getChrom().equals(chrom))
+		Map<Integer,Variant> genomicposzero2var=new HashMap<Integer,Variant>(variants.size());
+		for(Variant var:variants)
 			{
-			info("getting genomic Sequence for "+chrom);
-			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, chrom);
+			if(genomicposzero2var.put(var.ctx.getStart()-1, var)!=null)
+				{
+				warning("duplicate variant at position "+gene.getChr()+":"+var.ctx.getStart());
+				}
+			}
+		
+			
+		if(genomicSequence==null || !genomicSequence.getChrom().equals(gene.getChr()))
+			{
+			info("getting genomic Sequence for "+gene.getChr());
+			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, gene.getChr());
 			}
 				
-		for(KnownGene gene:genes)
-			{
-			if(gene.isNonCoding()) continue;
-			GeneticCode geneticCode=GeneticCode.getStandard();
-    		
-    		
-	
-    		StringBuilder wildRNA=new StringBuilder();
-    		MutedSequence mutRNA=new MutedSequence(wildRNA);
-    					
-
-			for(Variant var:variants)
-				{
-				var.position_in_cdna=-1;
-				var.mutRNA=new MutedSequence(wildRNA);
-				}
 			
-        	for(int exon_index=0;exon_index< gene.getExonCount();++exon_index)
-        		{
-        		KnownGene.Exon exon= gene.getExon(exon_index);
-        		for(int i= exon.getStart();
-    					i< exon.getEnd();
-    					++i)
-    				{
-    				if(i< gene.getCdsStart()) continue;
-    				if(i>=gene.getCdsEnd()) break;
-    				
-    				for(Variant var:variants)
-    					{
-    					if(var.ctx.getStart()==i)
-    						{
-    						var.position_in_cdna=wildRNA.length();
-    						}
-    					}
-    				
-    				if(gene.isPositiveStrand())
-    					{
-    					wildRNA.append(genomicSequence.charAt(i));
-    					}
-    				else
-    					{
-    					wildRNA.insert(0,AcidNucleics.complement(genomicSequence.charAt(i)));
-    					}
-    				
-    				for(Variant var:variants)
-    					{
-    					if(var.ctx.getStart()==i)
-    						{
-    						char mutBase=var.ctx.getAlternateAllele(0).getBaseString().charAt(0);
-    						if(gene.isNegativeStrand())
-    							{
-    							mutBase=AcidNucleics.complement(mutBase);
-    							}
-    						mutRNA.put( wildRNA.length()-1, mutBase 	);
-							var.mutRNA.put( wildRNA.length()-1, mutBase );
-    						}
-    					}
-    				}
-        		}
-        	
-        	for(Variant var:variants)
-        		{
-        		if(var.position_in_cdna==-1) continue;
-        		int pos_aa=var.position_in_cdna/3;
-        		//int mod= var.position_in_cdna%3;
-        		ProteinCharSequence wildProt=new ProteinCharSequence(geneticCode, wildRNA);
-        		ProteinCharSequence mutProt=new ProteinCharSequence(geneticCode, mutRNA);
-        		ProteinCharSequence varProt=new ProteinCharSequence(geneticCode, var.mutRNA);
-        		char aa1=wildProt.charAt(pos_aa);
-        		char aa2=mutProt.charAt(pos_aa);
-        		char aa3=varProt.charAt(pos_aa);
-        		if(aa3==aa2) continue;//already known mutation
-        		if(aa3==aa1) continue;//silent mutation
-        		var.set.add("FOUUUNNNNNNNNNNNNNNNNNNNNNNNNNNNND");
-        		}            	
+		GeneticCode geneticCode=GeneticCode.getStandard();
+    		
+		StringBuilder wildRNA=new StringBuilder();
+		MutedSequence mutRNA=new MutedSequence(wildRNA);
+    					
+		for(Variant var:variants)
+			{
+			var.position_in_cdna=-1;
+			var.mutRNA=new MutedSequence(wildRNA);
 			}
+		if(gene.isPositiveStrand())
+			{
+	    	for(int exon_index=0;exon_index< gene.getExonCount();++exon_index)
+	    		{
+	    		KnownGene.Exon exon= gene.getExon(exon_index);
+	    		for(int i= exon.getStart();
+						i< exon.getEnd();
+						++i)
+					{
+					if(i< gene.getCdsStart()) continue;
+					if(i>=gene.getCdsEnd()) break;
+
+					wildRNA.append(genomicSequence.charAt(i));
+					
+					Variant var=genomicposzero2var.get(i);
+					if(var!=null)
+						{
+						var.position_in_cdna=wildRNA.length()-1;
+						char mutBase=var.ctx.getAlternateAllele(0).getBaseString().charAt(0);
+						mutRNA.put( wildRNA.length()-1, mutBase 	);
+						var.mutRNA.put( wildRNA.length()-1, mutBase );
+						}
+						
+					}
+	    		}
+			}
+		else
+			{
+			int exon_index = gene.getExonCount()-1;
+			while(exon_index >=0)
+				{
+	
+				KnownGene.Exon exon= gene.getExon(exon_index);
+				
+				
+				for(int i= exon.getEnd()-1;
+					    i>= exon.getStart();
+					--i)
+					{
+					if(i>= gene.getCdsEnd()) continue;
+					if(i<  gene.getCdsStart()) break;
+	
+				
+					wildRNA.append(AcidNucleics.complement(genomicSequence.charAt(i)));
+					
+					
+					Variant var=genomicposzero2var.get(i);
+						
+					if(var!=null)
+						{
+						var.position_in_cdna=wildRNA.length()-1;
+						char mutBase=AcidNucleics.complement(var.ctx.getAlternateAllele(0).getBaseString().charAt(0));
+						mutRNA.put( wildRNA.length()-1, mutBase 	);
+						var.mutRNA.put( wildRNA.length()-1, mutBase );
+						}
+						
+    				}
+    			--exon_index;
+    			}
+			}
+        	
+    	for(Variant var:variants)
+    		{
+    		if(var.position_in_cdna==-1) continue;
+    		int pos_aa=var.position_in_cdna/3;
+    		int mod= var.position_in_cdna%3;
+    		ProteinCharSequence wildProt=new ProteinCharSequence(geneticCode, wildRNA);
+    		ProteinCharSequence mutProt=new ProteinCharSequence(geneticCode, mutRNA);
+    		ProteinCharSequence varProt=new ProteinCharSequence(geneticCode, var.mutRNA);
+    		char aa1=wildProt.charAt(pos_aa);
+    		char aa2=mutProt.charAt(pos_aa);
+    		char aa3=varProt.charAt(pos_aa);
+    		if(aa3==aa2) continue;//already known mutation
+    		if(aa3==aa1) continue;//silent mutation
+    		int first_base_codon_in_cdna=var.position_in_cdna-mod;
+    		StringBuilder sb=new StringBuilder();
+    		sb.append(gene.getName());
+    		sb.append("|");
+    		sb.append(gene.isPositiveStrand()?'+':'-');
+    		sb.append("|");
+    		sb.append((1+var.position_in_cdna));
+    		sb.append("|");
+    		sb.append(wildRNA.substring(first_base_codon_in_cdna, first_base_codon_in_cdna+3));
+    		sb.append("|");
+    		sb.append(aa1);
+    		sb.append("|");
+    		sb.append(mutRNA.subSequence(first_base_codon_in_cdna, first_base_codon_in_cdna+3));
+    		sb.append("|");
+    		sb.append(aa2);
+    		sb.append("|");
+    		sb.append(var.mutRNA.subSequence(first_base_codon_in_cdna, first_base_codon_in_cdna+3));
+    		sb.append("|");
+    		sb.append(aa3);
+    		sb.append("|");
+    		for(Variant var2:variants)
+    			{
+    			if(var==var2) continue;
+    			if(var2.position_in_cdna==-1) continue;
+    			if(var2.position_in_cdna/3 != pos_aa) continue;
+    			if(var2.ctx.hasID()) sb.append(var2.ctx.getID()+"_");
+    			sb.append(var2.ctx.getStart());
+    			sb.append("/");
+    			}
+    		
+    		var.set.add(sb.toString());
+    		//System.err.println(wildProt);
+    		//System.err.println(mutProt);
+    		}
+			
 		}
 	
 	@Override
@@ -392,6 +523,7 @@ public class VCFStopCodon extends AbstractVCFFilter2
 		
 		try
 			{
+
 			return super.doWork(opt.getOptInd(), args);
 			}
 		catch(Exception err)
