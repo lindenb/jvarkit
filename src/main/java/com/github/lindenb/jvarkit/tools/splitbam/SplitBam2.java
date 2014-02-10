@@ -13,7 +13,6 @@ import java.util.Set;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 
 import net.sf.picard.PicardException;
 import net.sf.samtools.DefaultSAMRecordFactory;
@@ -21,6 +20,7 @@ import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMFileWriter;
+import net.sf.samtools.SAMFileWriterFactory;
 //import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMRecord;
@@ -42,10 +42,9 @@ public class SplitBam2 extends AbstractCommandLineProgram
 	private String OUT_FILE_PATTERN="";
 	private String UNDERTERMINED_NAME="Unmapped";
 	
-	private SamWriterFactory samFileWriterFactory=SamWriterFactory.newInstance();
+	private SAMFileWriterFactory samFileWriterFactory = new SAMFileWriterFactory();
 	private long id_generator=System.currentTimeMillis();
 	
-	private Set<File> deleteOnError=new HashSet<File>();
 
 	
 	private SplitBam2()
@@ -94,10 +93,9 @@ public class SplitBam2 extends AbstractCommandLineProgram
 		info("creating mock BAM file "+fileout);
 		File parent=fileout.getParentFile();
 		if(parent!=null) parent.mkdirs();
-
-		SAMFileWriter sw=this.samFileWriterFactory.make(header, fileout);
+	
+		SAMFileWriter sw=this.samFileWriterFactory.makeBAMWriter(header,false, fileout);
 		
-		deleteOnError.add(fileout);
 		
 		if(this.ADD_MOCK_RECORD)
 			{
@@ -248,11 +246,13 @@ public class SplitBam2 extends AbstractCommandLineProgram
 				info("opening "+fileout);
 				File parent=fileout.getParentFile();
 				if(parent!=null) parent.mkdirs();
-				writer=this.samFileWriterFactory.make(
+				samFileWriterFactory.setMaxRecordsInRam( 1 + (maxRecordsInRam/many2many.group2chroms.size() ) );
+				info("Max rec in ram "+ ( 1 + (maxRecordsInRam/many2many.group2chroms.size() ) ));
+				writer=this.samFileWriterFactory.makeBAMWriter(
 						header,
+						false,
 						fileout
 						);
-				deleteOnError.add(fileout);
 				seen.put(groupName, writer);
 				}
 			writer.addAlignment(record);
@@ -275,7 +275,6 @@ public class SplitBam2 extends AbstractCommandLineProgram
 				createEmptyFile(header,groupName);
 				}
 			}
-		deleteOnError.clear();
 		}
 	
 	@Override
@@ -288,30 +287,38 @@ public class SplitBam2 extends AbstractCommandLineProgram
 		{
 		out.println("-p (file) output file pattern. MUST contain "+REPLACE_CHROM+" and end with .bam");
 		out.println("-g (file) Chromosome group file. Optional");
+		out.println("-T (dir) add tmp directory. Optional");
 		out.println("-u (name) unmapped chromosome name. Optional. Default "+UNDERTERMINED_NAME);
 		out.println("-m add mock record if no samRecord saved in bam");
 		out.println("-E generate empty bam if no samRecord found for a given group.");
+		out.println("-S sort/create index");
+		out.println("-R (int)  max records in RAM");
 		super.printOptions(out);
 		}
-	
+	private int maxRecordsInRam=100000;
+
+
 	@Override
 	public int doWork(String[] args)
 		{
 		File chromGroupFile=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"u:g:p:mE"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"u:g:p:mET:SR:"))!=-1)
 			{
 			switch(c)
 				{	
+				case 'R': maxRecordsInRam= Integer.parseInt(opt.getOptArg());break;
 				case 'u': UNDERTERMINED_NAME= opt.getOptArg();break;
 				case 'p': OUT_FILE_PATTERN= opt.getOptArg();break;
 				case 'g': chromGroupFile=new File(opt.getOptArg());break;
+				case 'T': addTmpDirectory(new File(opt.getOptArg()));break;
 				case 'm': ADD_MOCK_RECORD=true;this.GENERATE_EMPTY_BAM=true;break;
 				case 'E': GENERATE_EMPTY_BAM=true;break;
+				case 'S': samFileWriterFactory.setCreateIndex(true); break;
 				default:
 					{
-					switch(handleOtherOptions(c, opt, null))
+					switch(handleOtherOptions(c, opt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
@@ -337,7 +344,7 @@ public class SplitBam2 extends AbstractCommandLineProgram
 				return -1;
 				}
 			
-			
+			 samFileWriterFactory.setTempDirectory(  this.getTmpDirectories().get(0) );
 			
 			if(opt.getOptInd()==args.length)
 				{
@@ -367,14 +374,6 @@ public class SplitBam2 extends AbstractCommandLineProgram
 		catch(Exception err)
 			{
 			error(err);
-			for(File f:deleteOnError)
-				{
-				if(f!=null && f.exists() && f.isFile())
-					{
-					info("Cleanup: delete "+f);
-					f.delete();
-					}
-				}
 			return -1;
 			}
 		finally

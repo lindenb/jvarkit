@@ -20,6 +20,7 @@ public abstract class SamWriterFactory
 		{
 		}
 	
+
 	public SamWriterFactory setBinary(boolean binary)
 		{
 		this.binary=binary;
