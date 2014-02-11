@@ -72,7 +72,7 @@ public class SamJavascript
 	private void failing(SAMRecord rec,SAMFileHeader h)
 		{
 		openFailing(h);
-		failingReadsWriter.addAlignment(rec);
+		if(failingReadsWriter!=null) failingReadsWriter.addAlignment(rec);
 		}
 	
 	@Override
