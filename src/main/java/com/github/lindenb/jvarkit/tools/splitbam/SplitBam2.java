@@ -17,6 +17,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import net.sf.picard.PicardException;
 import net.sf.samtools.DefaultSAMRecordFactory;
 import net.sf.samtools.SAMFileHeader;
+import net.sf.samtools.SAMFileHeader.SortOrder;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMFileWriter;
@@ -192,7 +193,11 @@ public class SplitBam2 extends AbstractCommandLineProgram
 		Map<String,SAMFileWriter> seen=new HashMap<String,SAMFileWriter>(many2many.group2chroms.size());
 		
 		final SAMFileHeader header=samFileReader.getFileHeader();
-		
+		if(createIndex)
+			{
+			header.setSortOrder(SortOrder.coordinate);
+			this.samFileWriterFactory.setCreateIndex(true);
+			}
 		/*
 		 problem of parsing with GATK 2.6 : ignore this for the moment.
 		SAMProgramRecord sp=new SAMProgramRecord(getClass().getSimpleName());
@@ -296,7 +301,7 @@ public class SplitBam2 extends AbstractCommandLineProgram
 		super.printOptions(out);
 		}
 	private int maxRecordsInRam=100000;
-
+	private boolean createIndex=false;
 
 	@Override
 	public int doWork(String[] args)
@@ -315,7 +320,7 @@ public class SplitBam2 extends AbstractCommandLineProgram
 				case 'T': addTmpDirectory(new File(opt.getOptArg()));break;
 				case 'm': ADD_MOCK_RECORD=true;this.GENERATE_EMPTY_BAM=true;break;
 				case 'E': GENERATE_EMPTY_BAM=true;break;
-				case 'S': samFileWriterFactory.setCreateIndex(true); break;
+				case 'S': createIndex=true;break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt, args))
@@ -327,7 +332,7 @@ public class SplitBam2 extends AbstractCommandLineProgram
 					}
 				}
 			}
-		
+		samFileWriterFactory.setCreateIndex(this.createIndex); 
 		SAMFileReader sfr=null;
 		try
 			{

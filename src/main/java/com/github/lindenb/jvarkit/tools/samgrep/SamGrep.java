@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 
 
@@ -149,7 +150,7 @@ public class SamGrep extends AbstractCommandLineProgram
 			prg.setProgramName(getProgramName());
 			prg.setProgramVersion(getVersion());
 			prg.setCommandLine(getProgramCommandLine());
-			
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			
 			if(fileout==null)
 				{
@@ -165,6 +166,7 @@ public class SamGrep extends AbstractCommandLineProgram
 				{
 				boolean keep=false;
 				SAMRecord rec=iter.next();
+				progress.watch(rec);
 				if(samStdout!=null) samStdout.addAlignment(rec);
 				Integer count=readNames.get(rec.getReadName());
 				if(count!=null)
@@ -192,6 +194,7 @@ public class SamGrep extends AbstractCommandLineProgram
 					}
 				
 				}
+			progress.finish();
 			}
 		catch(Exception err)
 			{

@@ -283,7 +283,7 @@ public class Sam2Tsv
 				case 'R': case 'r': refFile=new File(getopt.getOptArg());break;
 				default: 
 					{
-					switch(handleOtherOptions(c, getopt, null))
+					switch(handleOtherOptions(c, getopt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
