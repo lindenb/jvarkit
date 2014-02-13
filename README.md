@@ -30,7 +30,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFBigWig">VCFBigWig<a></th><td>Annotate a VCF with the data of a bigwig file.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFTabixml">VCFTabixml<a></th><td>Annotate a value from a vcf+xml file.4th column of the BED indexed with TABIX is a XML string.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/GroupByGene">GroupByGene<a></th><td>Group VCF data by gene/transcript.</td></tr>
-<tr><th>Tool</th><th>Description</th></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFPredictions">VCFPredictions<a></th><td>Basic variant prediction using UCSC knownGenes.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FindCorruptedFiles">FindCorruptedFiles<a></th><td>Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ). </td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCF2XML">VCF2XML</a></th><td>Transforms a VCF to XML. </td></tr>
@@ -51,7 +50,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2Wig">Bam2Wig</thd><td>Bam to Wiggle converter</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/TViewWeb">TViewWeb</thd><td>CGI/Web based version of samtools tview</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRegistryWeb">VcfRegistryWeb</thd><td>CGI/Web tool printing all the variants at a given position for a collection VCF</td></tr>
-<tr><th>Tool</th><th>Description</th></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BlastMapAnnots">BlastMapAnnots<a></th><td>Maps uniprot/genbank annotations on a blast result. See http://www.biostars.org/p/76056</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfViewGui">VcfViewGui<a></th><td>Simple java-Swing-based VCF viewer.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamViewGui">BamViewGui<a></th><td>Simple java-Swing-based BAM viewer.</td></tr>

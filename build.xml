@@ -571,6 +571,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="paintcontext" >
+	<compile-picard-cmd
+		java="**/PaintContext.java"
+		main="com.github.lindenb.jvarkit.tools.bam2graphics.PaintContext"
+		name="paintcontext"
+		/>
+</target>
+
+
 <target name="fastqrevcomp" >
 	<compile-picard-cmd
 		java="**/FastqRevComp.java"

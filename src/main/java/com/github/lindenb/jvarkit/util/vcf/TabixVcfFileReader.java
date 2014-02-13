@@ -2,28 +2,27 @@ package com.github.lindenb.jvarkit.util.vcf;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 
 import javax.xml.ws.WebServiceException;
 
-import net.sf.picard.PicardException;
 
 import org.broad.tribble.readers.LineIteratorImpl;
 import org.broad.tribble.readers.LineReader;
-import org.broad.tribble.readers.TabixReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
+import com.github.lindenb.jvarkit.util.TabixFileReader;
 
-public class TabixFileReader implements Closeable
+
+public class TabixVcfFileReader implements Closeable
 	//,Iterable<VariantContext> NO, not a true iterator
 	{
     private final VCFCodec vcfCodec = new VCFCodec();
     private final VCFHeader vcfHeader;
-    private TabixReader tabix=null;
+    private TabixFileReader tabix=null;
     private String uri;
     private static class LR implements LineReader
     	{
@@ -42,10 +41,10 @@ public class TabixFileReader implements Closeable
     		}
     	}
     
-    public TabixFileReader(String uri) throws IOException
+    public TabixVcfFileReader(String uri) throws IOException
     	{
     	this.uri=uri;
-    	this.tabix=new TabixReader(uri);
+    	this.tabix=new TabixFileReader(uri);
     	
     	LinkedList<String> stack=new LinkedList<>();
     	String line;
@@ -75,31 +74,20 @@ public class TabixFileReader implements Closeable
 		}
     public Iterator<VariantContext> iterator(String chrom)
 		{
-    	return iterator(tabix.parseReg(chrom));
+    	return iterator(tabix.iterator(chrom));
 		}
 
     public Iterator<VariantContext> iterator(String chrom,int start)
 		{
-    	return iterator(tabix.parseReg(chrom+":"+start));
+    	return iterator(tabix.iterator(chrom+":"+start));
 		}
     public Iterator<VariantContext> iterator(String chrom,int start,int end)
     	{
-    	return iterator(tabix.parseReg(chrom+":"+start+"-"+end));
+    	return iterator(tabix.iterator(chrom+":"+start+"-"+end));
     	}
-    private  Iterator<VariantContext> iterator(int parseReg[])
+    private  Iterator<VariantContext> iterator(Iterator<String> delegate)
 		{
-		if(parseReg==null || parseReg.length!=3 ||
-				parseReg[0]==-1 || parseReg[1]>parseReg[2])
-			{
-			return Collections.emptyIterator();
-			}
-		TabixReader.Iterator titer=this.tabix.query(parseReg[0], parseReg[1],parseReg[2]);
-		if(titer==null)
-			{
-			return Collections.emptyIterator();
-			}
-		
-		return new MyIterator(titer);
+		return new MyIterator(delegate);
 		}
     
     @Override
@@ -110,36 +98,19 @@ public class TabixFileReader implements Closeable
     private class MyIterator
     	implements Iterator<VariantContext>
     	{
-    	TabixReader.Iterator delegate;
-    	String _next=null;
-    	MyIterator(TabixReader.Iterator delegate)
+    	Iterator<String> delegate;
+    	MyIterator(Iterator<String> delegate)
     		{
     		this.delegate=delegate;
     		}
     	@Override
     	public boolean hasNext()
     		{
-    		if(delegate==null) return false;
-    		if(_next==null)
-    			{
-    			try
-    				{
-    				_next=delegate.next();
-    				}
-    			catch(IOException err)
-    				{
-    				throw new PicardException("Tabix",err);
-    				}
-    			if(_next==null) delegate=null;
-    			}
-    		return _next!=null;
+    		return delegate.hasNext();
     		}
     	@Override
     	public VariantContext next() {
-    		if(!hasNext()) throw new IllegalStateException();
-    		String s=_next;
-    		_next=null;
-    		return getCodec().decode(s);
+    		return getCodec().decode(delegate.next());
     		}
     	@Override
     	public void remove() {
