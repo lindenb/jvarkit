@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.bam2graphics;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -25,6 +26,7 @@ import javax.xml.stream.XMLStreamWriter;
 
 import org.broad.tribble.readers.LineIterator;
 import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.GenotypeType;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.samtools.SAMFileReader;
@@ -50,7 +52,7 @@ public class PaintContext extends AbstractCommandLineProgram
 	private static final String REPLACE="__REGION__";
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
-	private List<SAMFileReader> samFileReaders=new ArrayList<SAMFileReader>();
+	private List<BamFile> samFileReaders=new ArrayList<BamFile>();
 	private TabixVcfFileReader tabixReader=null;
 	private TabixFileReader knownGenes=null;
 	private Insets insets=new Insets(100, 100, 100, 100);
@@ -58,30 +60,23 @@ public class PaintContext extends AbstractCommandLineProgram
 	private int gcWindowSize=5;
 	private String fileOutPattern=null;
 	private Hershey hershey=new Hershey();
+	private final int TRANSCRIPT_HEIGHT=30;
+	private final int GC_PERCENT_HEIGHT=100;
+	private final int BAM_COVERAGE_HEIGHT=100;
+	private final int SAMPLE_HEIGHT=50;
+
 	
-	private abstract class ROD
+	private class BamFile
 		{
-		String name;
 		File file;
+		SAMFileReader sfr=null;
+		public void close()
+			{
+			sfr.close();
+			}
 		}
 	
-	private class BamROD
-		extends ROD
-		{
-		SAMFileReader sfr;
-		}
-	
-	private class VCFRod
-		extends ROD
-		{
-		TabixVcfFileReader tabixReader;
-		}
-	
-	private class KnownGenesRod
-		extends ROD
-		{
-		private Map<String,List<KnownGene>> chrom2genes=new HashMap<>();
-		}
+
 	
 	
 	private static class Interval
@@ -104,6 +99,10 @@ public class PaintContext extends AbstractCommandLineProgram
 		private int distance()
 			{
 			return this.getEnd()-this.getStart();
+			}
+		@Override
+		public String toString() {
+			return chrom+":"+start+"-"+end;
 			}
 		}
 	
@@ -133,31 +132,27 @@ public class PaintContext extends AbstractCommandLineProgram
 				;
 		}
 	
-	private final int TRANSCRIPT_HEIGHT=30;
-	private final int GC_PERCENT_HEIGHT=100;
-	private final int BAM_COVERAGE_HEIGHT=100;
-	private int maxDepth=100;
 	
 	private void writeBamSection(
-			XMLStreamWriter w,
-			Interval minMaxBase
+			XMLStreamWriter w
 			) throws XMLStreamException
 		{
 		final int drawinAreaWidth= screenWidth-(this.insets.right+this.insets.left);
 		int y=0;
-		for(SAMFileReader sfr:this.samFileReaders)
+		for(BamFile bf:this.samFileReaders)
 			{
 			w.writeStartElement("g");
 			w.writeAttribute("transform", "translate(0,"+y+")");
-			int depth[]=new int[drawinAreaWidth];
+			int maxDepth=1;
+			int depths[]=new int[interval.distance()];
 			
 			SAMRecordIterator iter=null;
 			try
 				{
-				iter=sfr.query(
+				iter=bf.sfr.query(
 						genomicSequence.getChrom(),
-						minMaxBase.getStart()+1,
-						minMaxBase.getEnd(),
+						interval.start+1,
+						interval.end,
 						true
 						);
 				while(iter.hasNext())
@@ -167,12 +162,19 @@ public class PaintContext extends AbstractCommandLineProgram
 					if(rec.getNotPrimaryAlignmentFlag()) continue;
 					if(rec.getDuplicateReadFlag()) continue;
 					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-					for(int i1=Math.max(minMaxBase.getStart()+1, rec.getAlignmentStart());
-							(i1-(minMaxBase.getStart()+1)) < depth.length && i1 <= rec.getAlignmentEnd();
+					for(int i1= Math.max(interval.start+1,rec.getAlignmentStart());
+							i1 <= rec.getAlignmentEnd() && i1 <interval.end;
 							++i1)
 						{
-						int index = i1-(minMaxBase.getStart()+1);
-						depth[index]=Math.max(depth[index]+1,maxDepth);
+						int index= (i1-interval.start)-1;
+						if(index<0 || index > depths.length)
+							{
+							System.err.println("boum "+index);
+							continue;
+							}
+						
+						depths[index]++;
+						maxDepth=Math.max(maxDepth, depths[index]);
 						}
 					}
 				}
@@ -188,35 +190,95 @@ public class PaintContext extends AbstractCommandLineProgram
 			
 			
 			w.writeAttribute("title","BAM");
-			List<Point2D.Double> points=new ArrayList<Point2D.Double>();
-			points.add(new Point2D.Double(insets.left,BAM_COVERAGE_HEIGHT));//left,bottom
 			
-			
-			int pixelX=0;
-			while(pixelX< depth.length)
+			double y_array[]=new double[drawinAreaWidth];
+			for(int pixelX=0;pixelX <y_array.length;++pixelX)
 				{
-				int x2=pixelX+1;
-				while(x2< depth.length && depth[pixelX]==depth[x2])
+				int base_0=(int)(((pixelX+0)/(double)drawinAreaWidth)*this.interval.distance());
+				int base_1=(int)(((pixelX+1)/(double)drawinAreaWidth)*this.interval.distance());
+				if(base_1==base_0) base_1++;
+				
+				double d=0;
+				for(int i=base_0;i< base_1;++i)
 					{
-					++x2;
+					d+=depths[i];
 					}
-				double y2=BAM_COVERAGE_HEIGHT-(float)BAM_COVERAGE_HEIGHT*(depth[pixelX]/(double)maxDepth);
-				points.add(new Point2D.Double(pixelX,y2));
-				points.add(new Point2D.Double(x2,y2));
-				pixelX=x2;
+				d=d/(base_1-base_0);
+				d=d/(double)maxDepth;
+				if(d>1.0) d=1.0;
+
+				double y2=BAM_COVERAGE_HEIGHT-(float)BAM_COVERAGE_HEIGHT*(d);
+				y_array[pixelX]=y2;
+				}
+			
+			List<Point2D.Double> points=new ArrayList<Point2D.Double>();
+			points.add(new Point2D.Double(0,BAM_COVERAGE_HEIGHT));//left,bottom
+			for(int pixelX=0;pixelX <y_array.length;++pixelX)
+				{
+				if(pixelX>0 && pixelX+1 !=y_array.length)
+					{
+					if(y_array[pixelX]==y_array[pixelX+1]) continue;
+					}
+				Point2D.Double pt=new Point2D.Double(pixelX,y_array[pixelX]);
+				points.add(pt);
 				}
 			points.add(new Point2D.Double(drawinAreaWidth,BAM_COVERAGE_HEIGHT));//right,bottom
+			points.add(new Point2D.Double(0,BAM_COVERAGE_HEIGHT));//left,bottom
+
 			StringBuilder sw=new StringBuilder();
-			for(Point2D.Double pt:points) sw.append(pt.getX()).append(",").append(pt.getY()).append(" ");
-			w.writeEmptyElement("polyline");
+			for(Point2D.Double pt:points) sw.append((int)pt.getX()).append(",").append(pt.getY()).append(" ");
+			w.writeEmptyElement("polygon");
+			w.writeAttribute("class","coverage");
 			w.writeAttribute("points",sw.toString().trim());
 			
+			//label
+			int font_size=10;
+			String label=String.format("%10s",bf.file.getName());
+			w.writeEmptyElement("path");
+			w.writeAttribute("title",bf.file.getPath());
+			w.writeAttribute("style","stroke:black;");
+			w.writeAttribute("d",this.hershey.svgPath(
+					label,
+					 -Math.min(insets.left,label.length()*font_size),
+					0,
+					Math.min(insets.left,label.length()*font_size),
+					font_size)
+					);
+
+			
+			//axis
+			
+			for(int step=1;step<=10;++step)
+				{	
+				double y1=BAM_COVERAGE_HEIGHT-(BAM_COVERAGE_HEIGHT/10.0)*step;
+				double x1=drawinAreaWidth+5;
+				w.writeEmptyElement("line");
+				w.writeAttribute("class", "xaxis");
+				w.writeAttribute("x1",String.valueOf(0));
+				w.writeAttribute("y1",String.valueOf(y1));
+				w.writeAttribute("x2",String.valueOf(x1));
+				w.writeAttribute("y2",String.valueOf(y1));
+				w.writeEmptyElement("path");
+				label=String.valueOf(maxDepth/10.0*step);
+				w.writeAttribute("d",this.hershey.svgPath(
+						label,
+						x1,
+						y1-font_size/2,
+						label.length()*font_size,
+						font_size)
+						);
+				}
+			
 			//frame
-			w.writeEmptyElement("rec");
+			w.writeEmptyElement("rect");
+			w.writeAttribute("class","frame");
+
 			w.writeAttribute("x",String.valueOf(0));
 			w.writeAttribute("y",String.valueOf(0));
 			w.writeAttribute("width",String.valueOf(drawinAreaWidth));
 			w.writeAttribute("height",String.valueOf(BAM_COVERAGE_HEIGHT));
+			
+			
 			
 			w.writeEndElement();//g
 			y+=BAM_COVERAGE_HEIGHT;
@@ -230,16 +292,6 @@ public class PaintContext extends AbstractCommandLineProgram
 			) throws XMLStreamException
 		{
 		final int drawinAreaWidth= screenWidth-(this.insets.right+this.insets.left);
-		w.writeStartElement("defs");
-		w.writeStartElement("mask");
-		w.writeAttribute("id", "kgclip");
-		w.writeEmptyElement("rec");
-		w.writeAttribute("x", "0");
-		w.writeAttribute("y", "0");
-		w.writeAttribute("width",String.valueOf(drawinAreaWidth));
-		w.writeAttribute("height",String.valueOf(operon.size()*TRANSCRIPT_HEIGHT));
-		w.writeEndElement();//masks
-		w.writeEndElement();//defs
 
 		if(operon.isEmpty()) return;
 		int y=0;
@@ -260,19 +312,12 @@ public class PaintContext extends AbstractCommandLineProgram
 			/* transcript line */
 			w.writeEmptyElement("line");
 			w.writeAttribute("class","kgtr");
-			w.writeAttribute("x1",String.valueOf(baseToPixel(g.getTxStart())));
+			w.writeAttribute("x1",String.valueOf(baseToPixel(trim(g.getTxStart()))));
 			w.writeAttribute("y1",String.valueOf(midY));
-			w.writeAttribute("x2",String.valueOf(baseToPixel(g.getTxEnd())));
+			w.writeAttribute("x2",String.valueOf(baseToPixel(trim(g.getTxEnd()))));
 			w.writeAttribute("y2",String.valueOf(midY));
 			
 			
-			/* coding line */
-			w.writeEmptyElement("rect");
-			w.writeAttribute("class","kgcds");
-			w.writeAttribute("x",String.valueOf(baseToPixel(g.getCdsStart())));
-			w.writeAttribute("y",String.valueOf(midY-cdsHeigh/2));
-			w.writeAttribute("width",String.valueOf(baseToPixel(g.getCdsEnd())-baseToPixel(g.getCdsStart())));
-			w.writeAttribute("height",String.valueOf(cdsHeigh));
 			
 			
 			/* strand symbols */
@@ -293,16 +338,31 @@ public class PaintContext extends AbstractCommandLineProgram
 			/* exons */
 			for(KnownGene.Exon exon:g.getExons())
 					{
+					if(exon.getStart()>= this.interval.end) continue;
+					if(exon.getEnd()<= this.interval.start) continue;
 					w.writeEmptyElement("rect");
 					w.writeAttribute("class","kgexon");
 					w.writeAttribute("title",exon.getName());
-					w.writeAttribute("x",String.valueOf(baseToPixel(exon.getStart())));
+					w.writeAttribute("x",String.valueOf(baseToPixel(trim(exon.getStart()))));
 					w.writeAttribute("y",String.valueOf(midY-exonHeight/2));
-					w.writeAttribute("width",String.valueOf(baseToPixel(exon.getEnd())-baseToPixel(exon.getStart())));
+					w.writeAttribute("width",String.valueOf(baseToPixel(trim(exon.getEnd()))-baseToPixel(trim(exon.getStart()))));
 					w.writeAttribute("height",String.valueOf(exonHeight));
 					}
 			
+			/* coding line */
+			w.writeEmptyElement("rect");
+			w.writeAttribute("class","kgcds");
+			w.writeAttribute("x",String.valueOf(baseToPixel(trim(g.getCdsStart()))));
+			w.writeAttribute("y",String.valueOf(midY-cdsHeigh/2));
+			w.writeAttribute("width",String.valueOf(baseToPixel(trim(g.getCdsEnd()))-baseToPixel(trim(g.getCdsStart()))));
+			w.writeAttribute("height",String.valueOf(cdsHeigh));
+
 			
+			String label=String.format("%15s", g.getName());
+			w.writeEmptyElement("path");
+			double fontHeight=Math.min(10,0.8*TRANSCRIPT_HEIGHT);
+			w.writeAttribute("d",this.hershey.svgPath(label,-insets.left,midY-fontHeight/2,insets.left*0.9,fontHeight));
+
 			
 			w.writeEndElement();
 			y+=TRANSCRIPT_HEIGHT;
@@ -349,7 +409,7 @@ public class PaintContext extends AbstractCommandLineProgram
 		while(pixelX< gcPercent.length)
 			{
 			int x2=pixelX+1;
-			while(x2< gcPercent.length && gcPercent[pixelX]==gcPercent[x2])
+			while(x2< gcPercent.length && (float)gcPercent[pixelX]==(float)gcPercent[x2])
 				{
 				++x2;
 				}
@@ -361,11 +421,12 @@ public class PaintContext extends AbstractCommandLineProgram
 		points.add(new Point2D.Double(drawinAreaWidth,GC_PERCENT_HEIGHT));//right,bottom
 		points.add(new Point2D.Double(0,GC_PERCENT_HEIGHT));//left,bottom
 		StringBuilder sw=new StringBuilder();
-		for(Point2D.Double pt:points) sw.append(pt.getX()).append(",").append(pt.getY()).append(" ");
+		for(Point2D.Double pt:points) sw.append((int)pt.getX()).append(",").append((float)pt.getY()).append(" ");
 		w.writeEmptyElement("polygon");
 		w.writeAttribute("points",sw.toString().trim());
+		w.writeAttribute("class","gcpercent");
 		
-		w.writeEmptyElement("rec");
+		w.writeEmptyElement("rect");
 		w.writeAttribute("class", "frame");
 		w.writeAttribute("x",String.valueOf(0));
 		w.writeAttribute("y","0");
@@ -398,14 +459,14 @@ public class PaintContext extends AbstractCommandLineProgram
 		final Dimension svgSize=new Dimension();
 		final int drawinAreaWidth= screenWidth-(this.insets.right+this.insets.left);
 		svgSize.width=screenWidth;
-		svgSize.height=1000;
+		svgSize.height=1500;
 
 		
 		
 		List<VariantContext> variants=new ArrayList<>();
 		if(this.tabixReader!=null)
 			{
-			for(Iterator<VariantContext> iter=tabixReader.iterator(genomicSequence.getChrom(), this.interval.getStart(), this.interval.getEnd());
+			for(Iterator<VariantContext> iter=tabixReader.iterator(interval.chrom, this.interval.getStart(), this.interval.getEnd());
 					iter.hasNext();)
 				{
 				VariantContext ctx=iter.next();
@@ -419,7 +480,7 @@ public class PaintContext extends AbstractCommandLineProgram
 					GC_PERCENT_HEIGHT+
 					variants.size()
 					;
-
+		svgSize.height=1550;
 		
 		w.writeStartElement("svg");
 		w.writeDefaultNamespace(SVG.NS);
@@ -434,6 +495,41 @@ public class PaintContext extends AbstractCommandLineProgram
 		w.writeEndElement();
 		
 		w.writeStartElement("defs");
+
+		//genotypes
+		w.writeEmptyElement("rect");
+		w.writeAttribute("id","g_"+GenotypeType.HOM_REF); //
+		w.writeAttribute("style","fill:none;stroke;black;");
+		w.writeAttribute("x", "-15" );
+		w.writeAttribute("y", "-15" );
+		w.writeAttribute("width", "30" );
+		w.writeAttribute("height", "30" );
+		
+		w.writeEmptyElement("rect");
+		w.writeAttribute("id","g_"+GenotypeType.HOM_VAR); //
+		w.writeAttribute("style","fill:black;stroke;black;");
+		w.writeAttribute("x", "-15" );
+		w.writeAttribute("y", "-15" );
+		w.writeAttribute("width", "30" );
+		w.writeAttribute("height", "30" );
+		
+		w.writeStartElement("g");
+		w.writeAttribute("id","g_"+GenotypeType.HET); //
+			w.writeEmptyElement("rect");
+			w.writeAttribute("style","fill:none;stroke;black;");
+			w.writeAttribute("x", "-15" );
+			w.writeAttribute("y", "-15" );
+			w.writeAttribute("width", "30" );
+			w.writeAttribute("height", "30" );
+			w.writeEmptyElement("polygon");
+			w.writeAttribute("style","fill:black;stroke;black;");
+			w.writeAttribute("points","-15,-15 15,-15 15,15 -15,-15");
+		w.writeEndElement();
+
+		
+
+		
+		//strand
 		w.writeEmptyElement("polyline");
 			w.writeAttribute("id","strandF");
 			w.writeAttribute("points", "-5,-5 0,0 -5,5" );
@@ -442,8 +538,53 @@ public class PaintContext extends AbstractCommandLineProgram
 			w.writeAttribute("id","strandR");
 			w.writeAttribute("points", "5,-5 0,0 5,5" );
 		
+		//gradients
+			w.writeStartElement("linearGradient");
+				w.writeAttribute("id","grad01");
+				w.writeAttribute("x1","50%");
+				w.writeAttribute("x2","50%");
+				w.writeAttribute("y1","0%");
+				w.writeAttribute("y2","100%");
+				w.writeEmptyElement("stop");
+					w.writeAttribute("offset","0%");
+					w.writeAttribute("style","stop-color:black;stop-opacity:1;");
+				w.writeEmptyElement("stop");
+					w.writeAttribute("offset","50%");
+					w.writeAttribute("style","stop-color:white;stop-opacity:1;");
+				w.writeEmptyElement("stop");
+					w.writeAttribute("offset","100%");
+					w.writeAttribute("style","stop-color:black;stop-opacity:1;");
+			w.writeEndElement();
+
+			w.writeStartElement("linearGradient");
+				w.writeAttribute("id","grad02");
+				w.writeAttribute("x1","50%");
+				w.writeAttribute("x2","50%");
+				w.writeAttribute("y1","0%");
+				w.writeAttribute("y2","100%");
+				w.writeEmptyElement("stop");
+					w.writeAttribute("offset","0%");
+					w.writeAttribute("style","stop-color:steelblue;stop-opacity:1;");
+				w.writeEmptyElement("stop");
+					w.writeAttribute("offset","100%");
+					w.writeAttribute("style","stop-color:lightblue;stop-opacity:1;");
+			w.writeEndElement();
+
+			w.writeStartElement("linearGradient");
+				w.writeAttribute("id","grad03");
+				w.writeAttribute("x1","50%");
+				w.writeAttribute("x2","50%");
+				w.writeAttribute("y1","100%");
+				w.writeAttribute("y2","0%");
+				w.writeEmptyElement("stop");
+					w.writeAttribute("offset","0%");
+					w.writeAttribute("style","stop-color:red;stop-opacity:1;");
+				w.writeEmptyElement("stop");
+					w.writeAttribute("offset","20%");
+					w.writeAttribute("style","stop-color:lightblue;stop-opacity:1;");
+			w.writeEndElement();
 		
-		
+			
 		if(indexedFastaSequenceFile!=null)
 			{
 			for(String base:new String[]{"a","A","t","T","g","G","c","C","n","N"})
@@ -469,7 +610,13 @@ public class PaintContext extends AbstractCommandLineProgram
 		w.writeCharacters(
 				"svg {fill:none; stroke:black;}\n"+
 				".ruler-label { stroke:red;}\n"+
-				".frame { stroke:gray;}"
+				".frame { stroke:black;fill:none;}\n"+
+				".kgexon {fill:url(#grad01);stroke:black;}\n"+
+				".gcpercent {fill:url(#grad02);stroke:black;}"+
+				".coverage {fill:url(#grad03);stroke:black;}"+
+				".kgcds {fill:mediumpurple;stroke:black;}\n"+
+				".variant{stroke:none;fill:red;opacity:0.2;}\n"+
+				".xaxis{stroke:gray;fill:none;opacity:0.2;}"
 				);
 		w.writeEndElement();//style
 		
@@ -477,6 +624,8 @@ public class PaintContext extends AbstractCommandLineProgram
 		
 		int y=insets.top;
 		
+		
+	
 		
 		/* left and right position */
 		{
@@ -551,52 +700,153 @@ public class PaintContext extends AbstractCommandLineProgram
 			}
 		
 		
-		{
-		w.writeStartElement("g");
-		w.writeAttribute("title","kg");
-		w.writeAttribute("transform","translate("+insets.left+","+y+")");
-
-		writeKownGeneSection(w, operon);
-		w.writeEndElement();
-		}
+			{
+			w.writeStartElement("g");
+			w.writeAttribute("title","kg");
+			w.writeAttribute("transform","translate("+insets.left+","+y+")");
+	
+			writeKownGeneSection(w, operon);
+			w.writeEndElement();
+			y+=operon.size()*TRANSCRIPT_HEIGHT;
+			}
+			
+			{
+			w.writeStartElement("g");
+			w.writeAttribute("title","bams");
+			w.writeAttribute("transform","translate("+insets.left+","+y+")");
+	
+			writeBamSection(w);
+			w.writeEndElement();
+			y+=operon.size()*BAM_COVERAGE_HEIGHT;
+			}	
 		
+			
+			
+			/* variants */
+			{
+			w.writeStartElement("g");
+			w.writeAttribute("transform","translate("+insets.left+",0)");
+
+			w.writeAttribute("title","variants");
+			
+			
+			for(VariantContext ctx:variants)
+				{
+				if(ctx.getStart()< (this.interval.start+1)) continue;
+				if(ctx.getStart()>= (this.interval.end)) continue;
+				
+				w.writeStartElement("g");
+				w.writeAttribute("title", "("+ctx.getStart()+")");
+				
+				Rectangle2D.Double rect=new Rectangle2D.Double();
+				rect.x= ((ctx.getStart()-(interval.start+1))/(double)interval.distance())*drawinAreaWidth;
+				rect.width= (((ctx.getEnd()+1)-(interval.start+1))/(double)interval.distance())*drawinAreaWidth - rect.x;
+				rect.y=0;
+				rect.height=1000;
+				
+				w.writeEmptyElement("rect");
+				w.writeAttribute("class","variant");
+				w.writeAttribute("title", "("+ctx.getStart()+")");
+				w.writeAttribute("x", String.valueOf(rect.x));
+				w.writeAttribute("y", String.valueOf(rect.y));
+				w.writeAttribute("width", String.valueOf(rect.width));
+				w.writeAttribute("height", String.valueOf(rect.height));
+				
+				w.writeEndElement();
+				
+				}
+			
+			
+			w.writeEndElement();
+			}
+			
 		/* samples */
 		if(tabixReader!=null)
 			{
-			for(String sample:tabixReader.getHeader().getSampleNamesInOrder() )
+			List<String> samples=tabixReader.getHeader().getSampleNamesInOrder();
+			w.writeStartElement("g");
+			w.writeAttribute("transform","translate("+insets.left+","+y+")");
+
+			w.writeAttribute("title","samples");
+
+			for(int i=0;i< samples.size();++i)
 				{
+				w.writeStartElement("g");
+				w.writeAttribute("transform","translate(0,"+(i*SAMPLE_HEIGHT)+")");
+
+				w.writeAttribute("title",samples.get(i));
+
+				
 				w.writeEmptyElement("line");
-				w.writeAttribute("class","variant");
+				w.writeAttribute("class","sample");
+				w.writeAttribute("style","stroke:black;");
+
 				w.writeAttribute("x1",String.valueOf(0));
-				w.writeAttribute("y1","0");
-				w.writeAttribute("x2",String.valueOf(1000));
-				w.writeAttribute("y1",String.valueOf(1000));
-				}
-			}
-		/* variants */
-		for(VariantContext var: variants)
-			{
-			double pos0=baseToPixel(var.getStart());
-			w.writeEmptyElement("line");
-			w.writeAttribute("class","variant");
-			w.writeAttribute("x1",String.valueOf(pos0));
-			w.writeAttribute("y1","0");
-			w.writeAttribute("x2",String.valueOf(pos0));
-			w.writeAttribute("y1",String.valueOf(1000));
-			for(String sample:tabixReader.getHeader().getSampleNamesInOrder() )
-				{
-				Genotype genotype=var.getGenotype(sample);
-				if(genotype==null || !genotype.isCalled() || !genotype.isAvailable())
+				w.writeAttribute("y1",String.valueOf(SAMPLE_HEIGHT/2));
+				w.writeAttribute("x2",String.valueOf(drawinAreaWidth));
+				w.writeAttribute("y2",String.valueOf(SAMPLE_HEIGHT/2));
+				
+				String label=String.format("%10s", samples.get(i));
+				w.writeEmptyElement("path");
+				w.writeAttribute("title",label);
+				w.writeAttribute("style","stroke:black;");
+				w.writeAttribute("d",this.hershey.svgPath(
+						label,
+						-label.length()*font_size,
+						SAMPLE_HEIGHT/2-font_size/2,
+						label.length()*font_size,
+						font_size)
+						);
+				
+				
+				
+				/* variants */
+				for(VariantContext ctx: variants)
 					{
-					continue;
+
+					for(String sample:tabixReader.getHeader().getSampleNamesInOrder() )
+						{
+						Genotype genotype=ctx.getGenotype(sample);
+						if(genotype==null || !genotype.isCalled() || !genotype.isAvailable())
+							{
+							continue;
+							}
+						double pixX= ((((ctx.getStart()+(ctx.getEnd()+1))/2.0)-(interval.start+1))/(double)interval.distance())*drawinAreaWidth;
+						String gType=null;
+						switch(genotype.getType())
+							{
+							case HET: case HOM_REF: case HOM_VAR:
+								{
+								gType="g_"+genotype.getType().name();
+								break;
+								}
+							default: error("Cannot handle "+genotype.getType());break;
+							}
+						
+						if(gType==null) continue;
+						w.writeEmptyElement("use");
+						w.writeAttribute("xlink", XLINK, "href", "#"+gType);
+						w.writeAttribute("x",String.valueOf(pixX));
+						w.writeAttribute("y",String.valueOf(SAMPLE_HEIGHT/2));
+
+						}
 					}
+
 				
 				}
+			y+=SAMPLE_HEIGHT*samples.size();
 			}
+		
+		
 		
 		
 		w.writeEndElement();//g
 		w.writeEndElement();//svg
+		}
+	
+	private int trim(int pos0)
+		{
+		return Math.min(Math.max(pos0, interval.start),interval.end);
 		}
 	
 	private Interval parseIntervalString(String input)
@@ -631,7 +881,7 @@ public class PaintContext extends AbstractCommandLineProgram
 	
 	private void run(Interval R)throws IOException,XMLStreamException
 		{
-		if(R==null) return;
+		if(R==null || R.end<R.start) return;
 		this.interval=R;
 		info("Processing "+this.interval);
 		XMLOutputFactory xof=XMLOutputFactory.newFactory();
@@ -709,8 +959,8 @@ public class PaintContext extends AbstractCommandLineProgram
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println(" -r (region chr:start-end) . Optional");
-		out.println(" -R (file) reference fasta file indexed with faidx . Optional");
-		out.println(" -k (file) tabix indexed knownGene list . Optional");
+		out.println(" -R (file) "+getMessageBundle("reference.faidx")+". Optional");
+		out.println(" -k (file)  knownGene file."+getMessageBundle("file.tabix")+" Optional");
 		super.printOptions(out);
 		}
 
@@ -720,7 +970,6 @@ public class PaintContext extends AbstractCommandLineProgram
 		{
 		Interval userInterval=null;
 		String vcfFile=null;
-		List<File> bamFiles=new ArrayList<File>();
 		SAMFileReader.setDefaultValidationStringency(ValidationStringency.SILENT);
 		File faidx=null;
 		String knownGeneUri=null;
@@ -740,7 +989,13 @@ public class PaintContext extends AbstractCommandLineProgram
 					break;
 					}
 				case 'o': fileOutPattern=opt.getOptArg();break;
-				case 'B': bamFiles.add(new File(opt.getOptArg()));break;
+				case 'B':
+					{
+					BamFile bf=new BamFile();
+					bf.file=(new File(opt.getOptArg()));
+					this.samFileReaders.add(bf);
+					break;
+					}
 				case 'R': faidx=new File(opt.getOptArg());break;
 				case 'k': knownGeneUri=opt.getOptArg();break;
 				case 'V': vcfFile=opt.getOptArg();break;
@@ -780,19 +1035,18 @@ public class PaintContext extends AbstractCommandLineProgram
 				}
 			
 			
-			for(File bamFile:bamFiles)
+			for(BamFile input: samFileReaders)
 				{
-				info("Opening "+bamFile);
-				SAMFileReader samFileReader=new SAMFileReader(faidx);
+				info("Opening "+input.file);
+				input.sfr=new SAMFileReader(input.file);
 				if(dict!=null && !SequenceUtil.areSequenceDictionariesEqual(
-						samFileReader.getFileHeader().getSequenceDictionary(),
+						input.sfr.getFileHeader().getSequenceDictionary(),
 						dict))
 					{
-					samFileReader.close();
-					error("NOT the same sequence dictionaries between "+faidx+" and "+bamFile);
+					input.sfr.close();
+					error("NOT the same sequence dictionaries between "+faidx+" and "+input.file);
 					return -1;
 					}
-				this.samFileReaders.add(samFileReader);
 				}
 				
 			if(vcfFile!=null)

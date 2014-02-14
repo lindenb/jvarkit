@@ -5,13 +5,13 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.URL;
-import java.sql.Timestamp;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.ResourceBundle;
 import java.util.jar.Manifest;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -27,9 +27,11 @@ public abstract class AbstractCommandLineProgram
 	private String version=null;
 	private String compileDate;
 	private List<File> tmpDirs=null;
+	private ResourceBundle messagesBundle=ResourceBundle.getBundle("messages");
 	
 	protected AbstractCommandLineProgram()
 		{
+		final SimpleDateFormat datefmt=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		LOG.setUseParentHandlers(false);
 		LOG.addHandler(new Handler()
 			{
@@ -38,7 +40,7 @@ public abstract class AbstractCommandLineProgram
 				Date now = new Date(record.getMillis());
 				System.err.print("["+record.getLevel()+"/"+AbstractCommandLineProgram.this.getClass().getSimpleName()+"]");
 				System.err.print(" ");
-				System.err.print(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now));
+				System.err.print(datefmt.format(now));
 				System.err.print(" \"");
 				System.err.print(record.getMessage());
 				System.err.println("\"");
@@ -58,6 +60,19 @@ public abstract class AbstractCommandLineProgram
 				
 				}
 			});
+		}
+	
+	protected String getMessageBundle(String key)
+		{
+		if(key==null) return "(null)";
+		try
+			{
+			return this.messagesBundle.getString(key);
+			}
+		catch(Exception err)
+			{
+			return key;
+			}
 		}
 	
 	/* logging stuff */
@@ -178,6 +193,7 @@ public abstract class AbstractCommandLineProgram
 	
 	public String getProgramName()
 		{
+		if(!getClass().isAnonymousClass()) return getClass().getSimpleName();
 		return getClass().getName();
 		}
 	

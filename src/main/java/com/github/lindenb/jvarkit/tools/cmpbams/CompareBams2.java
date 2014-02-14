@@ -252,8 +252,8 @@ public class CompareBams2  extends AbstractCommandLineProgram
 		out.println(" -r (region) restrict to that region chr:start-end");
 		out.println(" -F use SAM Flag when comparing.");
 		out.println(" -C use CIGAR when comparing.");
-		out.println(" -n (int)  MaxRecords In RAM. Optional.");
-		out.println(" -T (dir)  Add this tmp directory. Optional");
+		out.println(" -n (int) "+getMessageBundle("max.records.in.ram")+" Optional.");
+		out.println(" -T (dir) "+getMessageBundle("add.tmp.dir")+" Optional.");
 		super.printOptions(out);
 		}
 

@@ -170,6 +170,10 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
+	   <mkdir dir="tmp/META-INF"/>
+	   
+	   <copy file="src/main/resources/messages/messages.properties" todir="tmp"/>
+	   
 	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured. See https://github.com/lindenb/jvarkit/wiki/Compilation</echo>
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
