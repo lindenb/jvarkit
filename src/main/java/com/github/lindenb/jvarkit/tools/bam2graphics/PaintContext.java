@@ -40,9 +40,9 @@ import net.sf.samtools.util.SequenceUtil;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Hershey;
-import com.github.lindenb.jvarkit.util.TabixFileReader;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 

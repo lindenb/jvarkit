@@ -14,7 +14,7 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.TabixFileReader;
+import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 
 
 public class TabixVcfFileReader implements Closeable

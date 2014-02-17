@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.util;
+package com.github.lindenb.jvarkit.util.tabix;
 
 import java.io.Closeable;
 import java.io.IOException;
