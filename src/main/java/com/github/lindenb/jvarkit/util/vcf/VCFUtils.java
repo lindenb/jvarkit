@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -13,11 +15,15 @@ import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.BlockCompressedOutputStream;
 
+import org.broad.tribble.readers.LineIterator;
+import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.writer.Options;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
+import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
+import org.broadinstitute.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
@@ -25,6 +31,91 @@ public class VCFUtils
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 	
+	public static class CodecAndHeader
+		{
+		public VCFCodec codec;
+		public VCFHeader header;
+		}
+	/*
+	private static class LR implements LineReader
+		{
+		LinkedList<String> stack=null;
+		LR(LinkedList<String> stack)
+			{
+			this.stack=stack;
+			}
+		@Override
+		public String readLine() throws IOException {
+			return (stack.isEmpty()?null:stack.removeFirst());
+			}
+		@Override
+		public void close() {
+			
+			}
+		}*/
+	private static class LIT implements LineIterator
+		{
+		LinkedList<String> stack=null;
+		LIT(LinkedList<String> stack)
+			{
+			this.stack=stack;
+			}
+		@Override
+		public boolean hasNext() {
+			return !stack.isEmpty();
+			}
+		@Override
+		public String next() {
+			return stack.removeFirst();
+			}
+		@Override
+		public String peek() {
+			return stack.peek();
+			}
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+			}
+		}
+	
+	public static CodecAndHeader parseHeader(LineReader r) throws IOException
+		{
+		CodecAndHeader vh=new CodecAndHeader();
+		vh.codec=new VCFCodec();
+		LinkedList<String> stack=new LinkedList<String>();
+    	String line;
+    	while((line=r.readLine())!=null && line.startsWith("#"))
+    		{
+    		stack.add(line);
+    		if(line.startsWith("#CHROM\t")) break;
+    		}
+    	vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(stack));
+    	return vh;
+		}
+	
+	public static CodecAndHeader parseHeader(LineIterator r)
+		{
+		CodecAndHeader vh=new CodecAndHeader();
+		vh.codec=new VCFCodec();
+		LinkedList<String> stack=new LinkedList<String>();
+		while(r.hasNext())
+			{
+			String line=r.peek();
+			if(!line.startsWith("#")) break;
+			stack.add(r.next());
+			if(line.startsWith("#CHROM\t")) break;
+			}
+		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(stack));
+    	return vh;
+		}
+
+	public static CodecAndHeader parseHeader(List<String> list)
+		{
+		CodecAndHeader vh=new CodecAndHeader();
+		vh.codec=new VCFCodec();
+		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(new LinkedList<String>(list)));
+		return vh;
+		}
 	
 	/** create a VCF iterator
 	 * 
@@ -61,6 +152,11 @@ public class VCFUtils
 		LOG.info("reading from stdin");
 		return new VcfIterator(System.in);
 		}
+	
+	public static  VariantContextWriter createVariantContextWriterToStdout()
+		{
+		return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+		}
 	/**
 	 * create a VariantContextWriter
 	 * @param OUT output file or null to stdout
@@ -72,7 +168,7 @@ public class VCFUtils
 		if(OUT==null)
 			{
 			LOG.info("writing to stdout");
-			return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+			return createVariantContextWriterToStdout();
 			}
 		else if(OUT.getName().endsWith(".gz"))
 			{

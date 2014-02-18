@@ -43,7 +43,7 @@ public class FixVcfFormat extends AbstractCommandLineProgram
 				{
 				default:
 					{
-					switch(handleOtherOptions(c, opt, null))
+					switch(handleOtherOptions(c, opt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
@@ -55,6 +55,7 @@ public class FixVcfFormat extends AbstractCommandLineProgram
 		long n_var=0L;
 		BufferedReader in=null;
 		long n_fix=0L;
+		int report_mismatch_sample_call=0;
 		try
 			{
 			Pattern tab=Pattern.compile("[\t]");
@@ -126,10 +127,18 @@ public class FixVcfFormat extends AbstractCommandLineProgram
 						}
 					
 					String calls[]=colon.split(tokens[sample]);
-					if(calls.length!=formats.length)
+					if(calls.length>formats.length)
 						{
-						error("not same number of columns between FORMAT and call:"+tokens[9]+" vs "+tokens[sample]);
+						error("not same number of columns between FORMAT and call:"+tokens[8]+" vs "+tokens[sample]);
 						return -1;
+						}
+					else if(calls.length<formats.length)
+						{
+						if(report_mismatch_sample_call<10)
+							{
+							warning("not same number of columns between FORMAT and call:"+tokens[8]+" vs "+tokens[sample]);
+							}
+						report_mismatch_sample_call++;
 						}
 					
 					for(int i=0;i< calls.length;++i)
@@ -156,6 +165,12 @@ public class FixVcfFormat extends AbstractCommandLineProgram
 							{
 							System.out.print(calls[i]);
 							}
+						}
+					//FORMAT missing
+					for(int i=calls.length;i< formats.length ; ++i)
+						{
+						if(i>0) System.out.print(':');
+						System.out.print(".");
 						}
 					
 					}

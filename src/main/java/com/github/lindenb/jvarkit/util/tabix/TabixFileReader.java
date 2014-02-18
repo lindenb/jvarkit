@@ -4,6 +4,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import net.sf.picard.PicardException;
@@ -31,6 +32,11 @@ public class TabixFileReader implements Closeable
     public TabixReader getTabix() {
 		return tabix;
 		}
+    
+    public Set<String> getChromosomes()
+    	{
+    	return Collections.unmodifiableSet(getTabix().mChr2tid.keySet());
+    	}
     
     public String getURI()
     	{

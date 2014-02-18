@@ -76,7 +76,7 @@ public class FixVCF
 				case 'T':tmpDir=new File(args[opt.getOptInd()]);break;
 				default:
 					{
-					switch(handleOtherOptions(c, opt, null))
+					switch(handleOtherOptions(c, opt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
