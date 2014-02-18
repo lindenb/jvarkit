@@ -8,7 +8,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalTreeMap;
+import net.sf.picard.util.IntervalTree;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.CloserUtil;
@@ -30,7 +30,18 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VcfCadd extends AbstractVCFFilter2
 	{
 	private TabixFileReader tabix=null;
+	private int buffer_size=100000;
 	private String ccaduri="http://krishna.gs.washington.edu/download/CADD/v1.0/whole_genome_SNVs.tsv.gz";
+	
+	private static class Record
+		{
+		int pos;
+		Allele ref;
+		Allele alt;
+		float score;
+		float phred;
+		}
+	
 	private VcfCadd()
 		{
 		}
@@ -69,21 +80,21 @@ public class VcfCadd extends AbstractVCFFilter2
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		final String CCAD_CSCORE="CCAD_CScore";
-		final String CCAD_PHRED="CCAD_PHRED";
+		final String CCAD_CSCORE="CADD_CScore";
+		final String CCAD_PHRED="CADD_PHRED";
 		header.addMetaDataLine(new VCFInfoHeaderLine(CCAD_CSCORE,1,VCFHeaderLineType.Float,
-				"CCAD CScore. Suggests that that variant is likely to be  observed (negative values) vs simulated(positive values)."+
+				"CADD CScore. Suggests that that variant is likely to be  observed (negative values) vs simulated(positive values)."+
 				"However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more likely to have deleterious effects"
 						));
 		header.addMetaDataLine(new VCFInfoHeaderLine(CCAD_PHRED,1,VCFHeaderLineType.Float,
-				"CCAD PHRED. Expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc"
+				"CADD PHRED. Expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc"
 				));
 		
 		Pattern tab=Pattern.compile("[\t]");
 		out.writeHeader(header);
 		String prevChromBuffer=null;
 		long prevEndBuffer=-1;
-		IntervalTreeMap<String> buffer=null;
+		IntervalTree<Record> buffer=null;
 		while(in.hasNext() )
 			{	
 			VariantContext ctx=in.next();
@@ -96,47 +107,53 @@ public class VcfCadd extends AbstractVCFFilter2
 				prevEndBuffer<=ctx.getStart())
 				{
 				prevChromBuffer=ctx.getChr();
-				prevEndBuffer=ctx.getEnd()+100000;
+				prevEndBuffer=ctx.getEnd()+this.buffer_size;
 				info("Fill buffer "+ctx.getChr()+":"+ctx.getStart()+"-"+prevEndBuffer);
-				buffer=new IntervalTreeMap<String>();
-				for(Iterator<String> iter=tabix.iterator(ctx.getChr(), ctx.getStart(),(int)Math.min(Integer.MAX_VALUE,prevEndBuffer));
-						iter.hasNext();
-						)
+				buffer=new IntervalTree<Record>();
+				for(Iterator<String> iter=tabix.iterator(ctx.getChr(),
+					(int)Math.max(1,ctx.getStart()-1),
+					(int)Math.min(Integer.MAX_VALUE,prevEndBuffer)
+					);
+					iter.hasNext();
+					)
 					{
 					String line=iter.next();
 					String tokens[]=tab.split(line);
-					if(tokens.length!=6) throw new IOException("Bad CCAD line . Expected 6 fields:"+line);
-					int pos1=Integer.parseInt(tokens[1]);
-					buffer.put(new Interval(ctx.getChr(), pos1, pos1), line);
+					if(tokens.length!=6) throw new IOException("Bad CADD line . Expected 6 fields:"+line);
+					Record rec=new Record();
+					rec.pos= Integer.parseInt(tokens[1]);
+					rec.ref=Allele.create(tokens[2],true);
+					rec.alt=Allele.create(tokens[3],false);
+					rec.score=Float.parseFloat(tokens[4]);
+					rec.phred=Float.parseFloat(tokens[5]);
+					buffer.put(rec.pos,rec.pos, rec);
 					}
 				info("Fill: Done.");
 				}
 			
 			boolean found=false;
-			for(String line:buffer.getContained(new Interval(ctx.getChr(), ctx.getStart(), ctx.getEnd())))
+			for( Iterator<IntervalTree.Node<Record>> reciter= buffer.iterator(ctx.getStart(), ctx.getEnd());
+				!found && reciter.hasNext() ;
+				)
 				{
-				String tokens[]=tab.split(line);
-				if(tokens.length!=6) throw new IOException("Bad CCAD line . Expected 6 fields:"+line);
-				if(!tokens[0].equals(ctx.getChr())) continue;
-				if(Integer.parseInt(tokens[1])!=ctx.getStart()) continue;
-				if(!ctx.getReference().getBaseString().equalsIgnoreCase(tokens[2])) continue;
+				Record rec=reciter.next().getValue();
+				if(rec.pos!=ctx.getStart()) continue;
+				if(!ctx.getReference().equals(rec.ref)) continue;
 				for(Allele alt:ctx.getAlternateAlleles())
 					{
-					if(!alt.getBaseString().equalsIgnoreCase(tokens[3])) continue;					
+					if(!alt.equals(rec.alt)) continue;				
 					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-					vcb.attribute(CCAD_CSCORE, Float.parseFloat(tokens[4]));
-					vcb.attribute(CCAD_PHRED, Float.parseFloat(tokens[5]));
+					vcb.attribute(CCAD_CSCORE,rec.score);
+					vcb.attribute(CCAD_PHRED,rec.phred);
 					out.add(vcb.make());
 					found=true;
 					break;
 					}
-				if(found) break;
 				}
 			
 			if(!found)
 				{
 				out.add(ctx);
-				continue;
 				}
 			}
 		progress.finish();
@@ -147,6 +164,7 @@ public class VcfCadd extends AbstractVCFFilter2
 	public void printOptions(PrintStream out)
 		{
 		out.println(" -u (uri) Combined Annotation Dependent Depletion (CADD) Tabix file URI . Default:"+this.ccaduri);
+		out.println(" -d (int) buffer size . Default:"+this.buffer_size);
 		super.printOptions(out);
 		}
 	
@@ -155,10 +173,11 @@ public class VcfCadd extends AbstractVCFFilter2
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "u:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "u:b:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'b': this.buffer_size=Math.max(1,Integer.parseInt(opt.getOptArg()));break;
 				case 'u': this.ccaduri=opt.getOptArg(); break;
 				default: 
 					{

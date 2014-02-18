@@ -111,5 +111,5 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar92368">Biostar92368<a></th><td>Binary interactions depth See also http://www.biostars.org/p/92368</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFStopCodon">VCFStopCodon<a></th><td>TODO</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqGrep">FastqGrep<a></th><td>Finds reads in fastq files</td></tr>
-
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCadd">VcfCadd<a></th><td>Annotate a VCF with Combined Annotation Dependent Depletion (CADD) data.</td></tr>
 </table>
