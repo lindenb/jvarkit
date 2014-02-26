@@ -29,7 +29,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 	private Set<String> KEY=new HashSet<String>();
 	private Set<String> FORMAT=new HashSet<String>();
 	private Set<String> FILTER=new HashSet<String>();
-	
+	private boolean inverse=false;
 	
 	@Override
 	protected String getOnlineDocUrl()
@@ -49,7 +49,20 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 		out.println(" -k (key) remove this INFO attribute. '*'= all keys");
 		out.println(" -f (format) remove this FORMAT attribute. '*'= all keys BUT GT/DP/AD/GQ/PL");
 		out.println(" -F (filter) remove this FILTER. '*'= all keys.");
+		out.println(" -v inverse selection.");
 		super.printOptions(out);
+		}
+	
+	private boolean inSet(Set<String> set,String key)
+		{
+		if(!inverse)
+			{
+			return set.contains(key);
+			}
+		else
+			{
+			return !set.contains(key);
+			}
 		}
 	
 	@Override
@@ -67,7 +80,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 					h.hasNext();)
 				{
 				VCFInfoHeaderLine vih=h.next();
-				if(this.KEY.contains(vih.getID()))
+				if(inSet(this.KEY,vih.getID()))
 					h.remove();
 				}
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
@@ -88,7 +101,13 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 					}
 				else if(!KEY.isEmpty())
 					{
-					for(String key:KEY) b.rmAttribute(key);
+					for(String k2: ctx.getAttributes().keySet())
+						{
+						if(inSet(KEY, k2))
+							{
+							b.rmAttribute(k2);
+							}
+						}
 					}
 				
 				/* formats */
@@ -112,7 +131,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 						Map<String, Object> map=new HashMap<String, Object>();
 						for(String key: g.getExtendedAttributes().keySet())
 							{
-							if(this.FORMAT.contains(key)) continue;
+							if(inSet(this.FORMAT,key)) continue;
 							map.put(key, g.getExtendedAttribute(key));
 							}
 						gb.attributes(map);
@@ -131,7 +150,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 					b.unfiltered();
 					for(String key:ctx.getFilters())
 						{
-						if(this.FILTER.contains(key)) continue;
+						if(inSet(this.FILTER,key)) continue;
 						if(key.equals("PASS")) continue;
 						b.filter(key);
 						}
@@ -146,10 +165,11 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "k:F:f:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "k:F:f:v"))!=-1)
 			{
 			switch(c)
 				{
+				case 'v': inverse=true;break;
 				case 'k': this.KEY.add(opt.getOptArg()); break;
 				case 'f': this.FORMAT.add(opt.getOptArg()); break;
 				case 'F': this.FILTER.add(opt.getOptArg()); break;

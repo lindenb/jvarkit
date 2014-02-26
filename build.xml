@@ -584,6 +584,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>
 
 
+<target name="samshortinvert" >
+	<compile-picard-cmd
+		java="**/SamShortInvertion.java"
+		main="com.github.lindenb.jvarkit.tools.misc.SamShortInvertion"
+		name="samshortinvert"
+		/>
+</target>
+
 <target name="fastqrevcomp" >
 	<compile-picard-cmd
 		java="**/FastqRevComp.java"
@@ -591,6 +599,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="fastqrevcomp"
 		/>
 </target>
+
 
 <target name="fastqgrep" >
 	<compile-picard-cmd
@@ -1693,6 +1702,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 
 
 
+<target name="jeter" >
+	<compile-picard-cmd
+		java="**/DisplayShortInvertions.java"
+		main="com.github.lindenb.jvarkit.tools.bam2graphics.DisplayShortInvertions"
+		name="jeter"
+		/>
+</target>
 
 
 </project>

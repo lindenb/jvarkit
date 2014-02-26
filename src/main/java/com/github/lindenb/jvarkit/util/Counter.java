@@ -60,6 +60,19 @@ public class Counter<T>
 		return this.object2count.keySet();
 		}
 	
+	public T getMostFrequent()
+		{
+		T key=null;
+		for(T o:this.object2count.keySet())
+			{
+			if(key==null || count(key)< count(o))
+				{
+				key=o;
+				}
+			}
+		return key;
+		}
+	
 	public List<T> keySetDecreasing()
 		{
 		List<T> L=new ArrayList<T>(this.object2count.keySet());

@@ -138,7 +138,7 @@ public class ConvertBamChromosomes
 					}
 				default:
 					{
-					switch(handleOtherOptions(c, opt, null))
+					switch(handleOtherOptions(c, opt,args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
@@ -236,17 +236,17 @@ public class ConvertBamChromosomes
 				progress.watch(rec1);
 				String newName1=null;
 				String newName2=null;
-				if(!rec1.getReadUnmappedFlag())
+				if(!SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(rec1.getReferenceName()))
 					{
 					newName1=convertName(rec1.getReferenceName());
 					}
-				if(rec1.getReadPairedFlag() && !rec1.getMateUnmappedFlag())
+				if(rec1.getReadPairedFlag() && !SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(rec1.getMateReferenceName()))
 					{
 					newName2=convertName(rec1.getMateReferenceName());
 					}
 				rec1.setHeader(header2);
 
-				if(!rec1.getReadUnmappedFlag())
+				if(!SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(rec1.getReferenceName()))
 					{
 					if(newName1==null)
 						{
@@ -255,7 +255,7 @@ public class ConvertBamChromosomes
 						}
 					rec1.setReferenceName(newName1);
 					}
-				if(rec1.getReadPairedFlag() && !rec1.getMateUnmappedFlag())
+				if(rec1.getReadPairedFlag() && !SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(rec1.getMateReferenceName()))
 					{
 					if(newName2==null)
 						{
