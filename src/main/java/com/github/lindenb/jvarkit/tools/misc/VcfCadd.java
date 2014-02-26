@@ -7,7 +7,6 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import net.sf.picard.util.Interval;
 import net.sf.picard.util.IntervalTree;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
@@ -30,7 +29,6 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VcfCadd extends AbstractVCFFilter2
 	{
 	private TabixFileReader tabix=null;
-	private int buffer_size=100000;
 	private String ccaduri="http://krishna.gs.washington.edu/download/CADD/v1.0/whole_genome_SNVs.tsv.gz";
 	
 	private static class Record
@@ -89,59 +87,38 @@ public class VcfCadd extends AbstractVCFFilter2
 		header.addMetaDataLine(new VCFInfoHeaderLine(CCAD_PHRED,1,VCFHeaderLineType.Float,
 				"CADD PHRED. Expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc"
 				));
-		
+		final Record rec=new Record();
 		Pattern tab=Pattern.compile("[\t]");
 		out.writeHeader(header);
-		String prevChromBuffer=null;
-		long prevEndBuffer=-1;
-		IntervalTree<Record> buffer=null;
 		while(in.hasNext() )
 			{	
 			VariantContext ctx=in.next();
 			
 			progress.watch(ctx.getChr(), ctx.getStart());
 			
-			if(	buffer==null || 
-				prevChromBuffer==null ||
-				!ctx.getChr().equals(prevChromBuffer) ||
-				prevEndBuffer<=ctx.getStart())
-				{
-				prevChromBuffer=ctx.getChr();
-				prevEndBuffer=ctx.getEnd()+this.buffer_size;
-				info("Fill buffer "+ctx.getChr()+":"+ctx.getStart()+"-"+prevEndBuffer);
-				buffer=new IntervalTree<Record>();
-				for(Iterator<String> iter=tabix.iterator(ctx.getChr(),
-					(int)Math.max(1,ctx.getStart()-1),
-					(int)Math.min(Integer.MAX_VALUE,prevEndBuffer)
-					);
-					iter.hasNext();
-					)
-					{
-					String line=iter.next();
-					String tokens[]=tab.split(line);
-					if(tokens.length!=6) throw new IOException("Bad CADD line . Expected 6 fields:"+line);
-					Record rec=new Record();
-					rec.pos= Integer.parseInt(tokens[1]);
-					rec.ref=Allele.create(tokens[2],true);
-					rec.alt=Allele.create(tokens[3],false);
-					rec.score=Float.parseFloat(tokens[4]);
-					rec.phred=Float.parseFloat(tokens[5]);
-					buffer.put(rec.pos,rec.pos, rec);
-					}
-				info("Fill: Done.");
-				}
-			
 			boolean found=false;
-			for( Iterator<IntervalTree.Node<Record>> reciter= buffer.iterator(ctx.getStart(), ctx.getEnd());
-				!found && reciter.hasNext() ;
-				)
+			for(Iterator<String> iter=tabix.iterator(ctx.getChr(),
+					(int)Math.max(1,ctx.getStart()),
+					(int)Math.min(Integer.MAX_VALUE,ctx.getEnd())
+					);
+					iter.hasNext() && !found;
+					)
 				{
-				Record rec=reciter.next().getValue();
+				String line=iter.next();
+				String tokens[]=tab.split(line);
+				if(tokens.length!=6) throw new IOException("Bad CADD line . Expected 6 fields:"+line);
+				rec.pos= Integer.parseInt(tokens[1]);
 				if(rec.pos!=ctx.getStart()) continue;
+				rec.ref=Allele.create(tokens[2],true);
 				if(!ctx.getReference().equals(rec.ref)) continue;
+				
+				rec.alt=Allele.create(tokens[3],false);
 				for(Allele alt:ctx.getAlternateAlleles())
 					{
-					if(!alt.equals(rec.alt)) continue;				
+					if(!alt.equals(rec.alt)) continue;
+					
+					rec.score=Float.parseFloat(tokens[4]);
+					rec.phred=Float.parseFloat(tokens[5]);
 					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					vcb.attribute(CCAD_CSCORE,rec.score);
 					vcb.attribute(CCAD_PHRED,rec.phred);
@@ -149,10 +126,12 @@ public class VcfCadd extends AbstractVCFFilter2
 					found=true;
 					break;
 					}
+				
 				}
 			
 			if(!found)
 				{
+				//if(ctx.isSNP()) info("Nothing foud for "+ctx);
 				out.add(ctx);
 				}
 			}
@@ -164,7 +143,6 @@ public class VcfCadd extends AbstractVCFFilter2
 	public void printOptions(PrintStream out)
 		{
 		out.println(" -u (uri) Combined Annotation Dependent Depletion (CADD) Tabix file URI . Default:"+this.ccaduri);
-		out.println(" -d (int) buffer size . Default:"+this.buffer_size);
 		super.printOptions(out);
 		}
 	
@@ -173,11 +151,10 @@ public class VcfCadd extends AbstractVCFFilter2
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "u:b:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "u:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'b': this.buffer_size=Math.max(1,Integer.parseInt(opt.getOptArg()));break;
 				case 'u': this.ccaduri=opt.getOptArg(); break;
 				default: 
 					{

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Comparator;
+import java.util.List;
 
 import org.broad.tribble.readers.LineIterator;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -69,6 +70,13 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
     			Object array[]=(Object[])o;
     			return array==null || array.length==0 ?null:array[0].toString();
     			}
+    		if(o instanceof List)
+    			{
+    			@SuppressWarnings("rawtypes")
+				List L=(List)o;
+    			if(L.isEmpty()) return null;
+    			return L.get(0).toString();
+    			}
     		return o.toString();
     		}
     	@Override
@@ -79,11 +87,11 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
     		if(o1==null)
     			{
     			if(o2==null) return line.compareTo(other.line);
-    			return 1;
+    			return -1;
     			}
     		else if(o2==null)
     			{
-    			return -1;
+    			return 1;
     			}
     		switch(infoDecl.getType())
     			{	
@@ -97,7 +105,7 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 					}
     			default:
     				{
-    				return o1.toString().compareTo(o2.toString());
+    				return o1.compareTo(o2);
     				}
     			}
     		
@@ -165,7 +173,12 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 		VCFHeader header=ch.header;
 		this.codec=ch.codec;
 		this.infoDecl=header.getInfoHeaderLine(this.infoField);
-		if(infoDecl==null) throw new IOException("VCF doesn't contain the INFO field :"+infoField);
+		if(infoDecl==null)
+			{
+			StringBuilder msg=new StringBuilder("VCF doesn't contain the INFO field :"+infoField+". Available:");
+			for(VCFInfoHeaderLine vil:header.getInfoHeaderLines()) msg.append(" ").append(vil.getID());
+			throw new IOException(msg.toString());
+			}
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(
 				header.getSequenceDictionary()
 				);
@@ -198,8 +211,8 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println(" -F (field) INFO field for sorting. REQUIRED.");
-		out.println(" -T (dir) add tmp directory (optional)");
-		out.println(" -N (int) max records in ram. default: "+sortingCollectionFactory.getMaxRecordsInRAM());
+		out.println(" -T (dir) "+getMessageBundle("add.tmp.dir")+" (optional)");
+		out.println(" -N (int) "+getMessageBundle("max.records.in.ram")+" default: "+sortingCollectionFactory.getMaxRecordsInRAM());
 		super.printOptions(out);
 		}
     
