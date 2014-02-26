@@ -112,4 +112,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFStopCodon">VCFStopCodon<a></th><td>TODO</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqGrep">FastqGrep<a></th><td>Finds reads in fastq files</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCadd">VcfCadd<a></th><td>Annotate a VCF with Combined Annotation Dependent Depletion (CADD) data.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SortVCFOnInfo">SortVCFOnInfo<a></th><td>sort a VCF using a field in the INFO column</td></tr>
+
+
 </table>
