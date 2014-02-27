@@ -22,6 +22,7 @@ import net.sf.samtools.util.CloserUtil;
 import net.sf.samtools.util.SortingCollection;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
 public class BamToFastq
@@ -122,46 +123,46 @@ public class BamToFastq
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
 		out.println(" -t (dir) set temporary directory . Optional.");
 		out.println(" -F (fastq) Save fastq_R1 to file (default: stdout) . Optional.");
 		out.println(" -R (fastq) Save fastq_R2 to file (default: interlaced with forward) . Optional.");
 		out.println(" -r  repair: insert missing read");
 		out.println(" -N (int) max records in memory. Optional.");
+		super.printOptions(out);
 		}
 
-	
 	
 	@Override
 	public int doWork(String[] args)
 		{
 		boolean repair_missing_read=false;
 		int maxRecordsInRAM=500000;
-		List<File> tmpDirs=new ArrayList<File>();
 		SortingCollection<MappedFastq> fastqCollection=null;
 		File forwardFile=null;
 		File reverseFile=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args, "hvL:F:R:N:r"))!=-1)
+		while((c=opt.getopt(args,super.getGetOptDefault()+ "F:R:N:r"))!=-1)
 			{
 			switch(c)
 				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));break;
 				case 'F': forwardFile=new File(opt.getOptArg());break;
 				case 'R': reverseFile=new File(opt.getOptArg());break;
-				case 't': tmpDirs.add(new File(opt.getOptArg()));break;
+				case 't': addTmpDirectory(new File(opt.getOptArg()));break;
 				case 'N': maxRecordsInRAM=Math.max(Integer.parseInt(opt.getOptArg()),100);break;
 				case 'r': repair_missing_read=true;break;
 				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+opt.getOptOpt());return -1;
+				default:
+					{
+					switch(handleOtherOptions(c, opt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
 				}
 			}
-		if(tmpDirs.isEmpty()) tmpDirs.add(new File(System.getProperty("java.io.tmpdir")));
 		SAMFileReader sfr=null;
 		try
 			{
@@ -171,7 +172,7 @@ public class BamToFastq
 					new MappedFastqCodec(),
 					new MappedFastqComparator(),
 					maxRecordsInRAM,
-					tmpDirs
+					getTmpDirectories()
 					);
 			fastqCollection.setDestructiveIteration(true);
 			boolean found_single=false;
@@ -220,9 +221,16 @@ public class BamToFastq
 				m.name=rec.getReadName();
 				if(m.name==null)m.name="";
 				m.seq=rec.getReadString();
+				
 				if(m.seq.equals(SAMRecord.NULL_SEQUENCE_STRING)) m.seq="";
 				m.qual=rec.getBaseQualityString();
 				if(m.qual.equals(SAMRecord.NULL_QUALS_STRING)) m.qual="";
+				if(!rec.getReadUnmappedFlag() && rec.getReadNegativeStrandFlag())
+					{
+					m.seq=AcidNucleics.reverseComplement(m.seq);
+					m.qual=new StringBuilder(m.qual).reverse().toString();
+					}
+				
 				
 				if(rec.getReadPairedFlag())
 					{

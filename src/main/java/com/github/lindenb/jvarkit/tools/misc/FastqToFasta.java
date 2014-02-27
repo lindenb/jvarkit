@@ -95,7 +95,7 @@ public class FastqToFasta
 				case 'N': fastaLineLen=Math.max(1,Integer.parseInt(getopt.getOptArg()));break;
 				default: 
 					{
-					switch(handleOtherOptions(c, getopt, null))
+					switch(handleOtherOptions(c, getopt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;

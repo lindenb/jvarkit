@@ -1,6 +1,8 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
+import java.io.PrintStream;
+import java.util.LinkedList;
 
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.samtools.Cigar;
@@ -28,6 +30,65 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 	private boolean ignore_poly_x=false;
 	private int max_size_inversion=2000;
 	private float pct_identity=1.0f;
+	GenomicSequence genomicSequence=null;
+	
+	private class ShortRead
+		{
+		SAMRecord rec;
+	
+		
+		ShortRead(SAMRecord rec)
+			{
+			this.rec=rec;
+			}
+		
+		public boolean isClipped()
+			{
+			return isClipped(0) || isClipped(1);
+			}
+		private CigarElement getCigarElement(int side)
+			{
+			Cigar cigar=rec.getCigar();
+			CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
+			return ce;
+			}
+		public boolean isClipped(int side)
+			{
+			CigarElement ce=getCigarElement(side);
+			return ce.getOperator().equals(CigarOperator.S) && ce.getLength() >= min_clip_length;
+			}
+		
+		public String getClippedSequence(int side)
+			{
+			CigarElement ce=getCigarElement(side);
+			if(side==0)
+				{
+				return rec.getReadString().substring(0, ce.getLength());
+				}
+			else
+				{
+				return rec.getReadString().substring(rec.getReadLength()-ce.getLength());
+				}
+			}
+		public String getGenomicSequence(int side)
+			{
+			CigarElement ce=getCigarElement(side);
+			int start,end;
+			if(side==0)
+				{
+				start=rec.getUnclippedStart()-1;
+				end=start+ce.getLength();
+				}
+			else
+				{
+				
+				end=rec.getUnclippedEnd();
+				start=end-ce.getLength();
+				}
+			return genomicSequence.subSequence(start, end).toString();
+			}
+		
+		}
 	
 	@Override
 	public String getProgramDescription() {
@@ -52,6 +113,8 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 		return Character.toUpperCase(c1)==Character.toUpperCase(c2);
 		}
 	
+	
+	
 	@Override
 	public int doWork(String[] args)
 		{
@@ -67,7 +130,7 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 				case 'f':pct_identity=Float.parseFloat(opt.getOptArg());break;
 				case 'x': ignore_poly_x=true;break;
 				case 'R':faidx=new File(opt.getOptArg());break;
-				case 'm':faidx=new File(opt.getOptArg());break;
+				case 'm':max_size_inversion= Integer.parseInt(opt.getOptArg());break;
 				case 'c':min_clip_length=Integer.parseInt(opt.getOptArg());break;
 				default:
 					{
@@ -87,7 +150,8 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 			}
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 		SAMFileReader r=null;
-		SAMFileWriter w=null;
+		PrintStream out=System.out;
+		//SAMFileWriter w=null;
 		try
 			{
 			indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
@@ -114,33 +178,41 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 			spr.setProgramName(getProgramName());
 			spr.setProgramVersion(getVersion());
 			spr.setCommandLine(getProgramCommandLine());
-			GenomicSequence genomicSequence=null;
-			w=swf.make(header, System.out);
+			
+			//w=swf.make(header, System.out);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			SAMRecordIterator it= r.iterator();
+			LinkedList<ShortRead> buffer=new LinkedList<ShortRead>();
 			while(it.hasNext())
 				{
 				SAMRecord rec=it.next();
 				progress.watch(rec);
 				if(rec.getReadUnmappedFlag()) continue;
+				if(rec.isSecondaryOrSupplementary()) continue;
 				if(rec.getDuplicateReadFlag()) continue;
+				
 				Cigar cigar=rec.getCigar();
 				if(cigar==null || cigar.isEmpty()) continue;
+				ShortRead shortRead=new ShortRead(rec);
+				
+				//this read must be soft clipped in 5' or 3'
+				if(!shortRead.isClipped()) continue;
+				
+				if(!buffer.isEmpty() && !(buffer.getFirst().rec.getReferenceIndex().equals(rec.getReferenceIndex())))
+					{
+					buffer.clear();
+					}
+				while(!buffer.isEmpty() && buffer.getFirst().rec.getAlignmentEnd()+this.max_size_inversion < rec.getAlignmentStart())
+					{
+					buffer.removeFirst();
+					}
+				
 				boolean changed=false;
 				for(int side=0;side<2;++side)
 					{
-					CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
-					if(ce.getOperator()!=CigarOperator.S) continue;
-					if((float)ce.getLength() < min_clip_length) continue;
-					String clippedSeq;
-					if(side==0)
-						{
-						clippedSeq=rec.getReadString().substring(0, ce.getLength());
-						}
-					else
-						{
-						clippedSeq=rec.getReadString().substring(rec.getReadLength()-ce.getLength());
-						}
+					if(!shortRead.isClipped(side))continue;
+					String clippedSeq=shortRead.getClippedSequence(side);
+					
 					
 					if(ignore_poly_x)
 						{
@@ -163,27 +235,18 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 							{
 							continue;
 							}*/
-						}
-					
+						}					
 					clippedSeq=AcidNucleics.reverseComplement(clippedSeq);
 					
-					if(clippedSeq.contains("N")) continue;
-					
-					
-					
-					if(genomicSequence==null || !genomicSequence.getChrom().equals(rec.getReferenceName()))
+
+					if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(rec.getReferenceName()))
 						{
-						genomicSequence=new GenomicSequence(indexedFastaSequenceFile, rec.getReferenceName());
+						this.genomicSequence=new GenomicSequence(indexedFastaSequenceFile, rec.getReferenceName());
 						}
 					int genomeStart;
 					int genomeEnd;
-					
+					/*
 					if(side==0)
-						{
-						genomeStart=Math.max(1,rec.getAlignmentStart()-this.max_size_inversion);
-						genomeEnd=rec.getAlignmentStart()-clippedSeq.length();
-						}
-					else
 						{
 						genomeStart=rec.getAlignmentEnd();
 						genomeEnd=Math.min(
@@ -191,11 +254,29 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 								rec.getAlignmentEnd()+this.max_size_inversion
 								);
 						}
+					else
+						{
+						genomeStart=Math.max(1,rec.getAlignmentStart()-this.max_size_inversion);
+						genomeEnd=rec.getAlignmentStart()-clippedSeq.length();
+
+						}*/
+					
+					genomeStart=Math.max(1,rec.getAlignmentStart()-this.max_size_inversion);
+					genomeEnd=Math.min(
+							genomicSequence.length()-clippedSeq.length(),
+							rec.getAlignmentEnd()+this.max_size_inversion
+							);
+					
 					
 					for(int x=genomeStart;
 							x< genomeEnd && !changed;
 							++x)
 						{
+						if(!(x+clippedSeq.length()<rec.getAlignmentStart() || x>rec.getAlignmentEnd()))
+							{
+							continue;
+							}
+						
 						int y=0;
 						if(pct_identity>=1)
 							{
@@ -223,15 +304,66 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 								}
 							}
 						changed=true;
-						String msg= ""+(side==0?rec.getAlignmentStart():rec.getAlignmentEnd())+
-								","+x+","+clippedSeq+","+(side==0?genomeEnd-x:x-genomeStart);
-						rec.setAttribute(samTag,msg);
-						info("Found "+rec+" ["+rec.getReferenceName()+":"+(side==0?rec.getAlignmentStart():rec.getAlignmentEnd())+"]" +"  "+msg);
+						
+						boolean found_clip_in_buffer=false;
+						String genomicClip=shortRead.getGenomicSequence(side);
+						for(ShortRead prev:buffer)
+							{
+							if(!prev.isClipped(side==0?1:0)) continue;
+							String complRead=prev.getClippedSequence(side==0?1:0);
+							if(complRead.contains(genomicClip) || complRead.contains(AcidNucleics.reverseComplement(genomicClip)))
+								{
+								found_clip_in_buffer=true;
+								}
+							}
+						
+						//String msg= ""+(side==0?rec.getAlignmentStart():rec.getAlignmentEnd())+
+						//		","+x+","+clippedSeq+","+(side==0?genomeEnd-x:x-genomeStart)+","+shortRead.getGenomicSequence(side);
+						//rec.setAttribute(samTag,msg);
+						//info("Found "+rec+" ["+rec.getReferenceName()+":"+(side==0?rec.getAlignmentStart():rec.getAlignmentEnd())+"]" +"  "+msg+" "+buffer.size());
+						
+						
+						
+						out.print(rec.getReferenceName());
+						out.print("\t");
+						out.print(rec.getAlignmentStart());
+						out.print("\t");
+						out.print(rec.getAlignmentEnd());
+						out.print("\t");
+						out.print(rec.getReadName());
+						out.print("\t");
+						out.print(rec.getFlags());
+						out.print("\t");
+						out.print(rec.getCigarString());
+						out.print("\t");
+						out.print(rec.getReadString());
+						out.print("\t");
+						out.print(side==0?"5_prime":"3_prime");
+						out.print("\t");
+						out.print(clippedSeq);
+						out.print("\t");
+						out.print(clippedSeq.length());
+						out.print("\t");
+						out.print(10*((int)(x/10.0)));
+						out.print("\t");
+						out.print(x<rec.getAlignmentStart()?
+								rec.getAlignmentStart()-x:
+								x-rec.getAlignmentEnd());
+						out.print("\t");
+						out.print(found_clip_in_buffer);
+						out.println();
 						}
-					
 					}
+				buffer.add(shortRead);
+				
 				if(!changed) continue;
-				w.addAlignment(rec);
+				
+				
+				
+				
+				
+				
+				//w.addAlignment(rec);
 				}
 			
 			it.close();
@@ -248,7 +380,7 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 			{
 			CloserUtil.close(indexedFastaSequenceFile);
 			CloserUtil.close(r);
-			CloserUtil.close(w);
+			//CloserUtil.close(w);
 			}
 		}
 	/**
