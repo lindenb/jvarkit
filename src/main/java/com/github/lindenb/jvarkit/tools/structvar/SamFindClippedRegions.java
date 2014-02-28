@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 public class SamFindClippedRegions extends AbstractCommandLineProgram
 	{
-	private int min_clip_length=10;
+	private int min_clip_length=20;
 	private boolean ignore_poly_x=false;
 	//private int rounding_pos=5;
 	//private float min_fraction_of_clipped_records=0.3f;
@@ -350,8 +350,10 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 					if(!buffer.isEmpty())
 						{
 						info("Analysing buffer buffer.size: "+buffer.size()+". tid:"+prev_tid);
-						for(SuspectRgn rgn:buffer)
+						for(int rgn_idx=0; rgn_idx< buffer.size(); ++rgn_idx )
 							{
+							if(rgn_idx%100==0) info(""+rgn_idx+"/"+buffer.size());
+							SuspectRgn rgn=buffer.get(rgn_idx);
 							/* collect the depth of this SuspectRgn for all samples */
 							List<Count> counts=new ArrayList<Count>(inputs.size());
 							for(Input input:inputs)
@@ -418,7 +420,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 									max_depth_here=Math.max(max_depth_here, depth);
 									sum_depth+=depth;
 									float fraction_of_clipped=(float)(count.count_clipped[side])/(float)depth;
-									info(input.sampleName+" "+rgn+" depth="+(count.count_clipped[side])+"/"+depth);
+									//info(input.sampleName+" "+rgn+" depth="+(count.count_clipped[side])+"/"+depth);
 								
 									if(depth>=min_depth)
 										{
