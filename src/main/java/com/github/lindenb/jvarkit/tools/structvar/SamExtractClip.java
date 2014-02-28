@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.File;
 

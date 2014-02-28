@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -10,7 +10,6 @@ import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
@@ -22,7 +21,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
+//import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 
 public class SamShortInvertion extends AbstractCommandLineProgram
 	{
@@ -30,7 +29,7 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 	private boolean ignore_poly_x=false;
 	private int max_size_inversion=2000;
 	private float pct_identity=1.0f;
-	GenomicSequence genomicSequence=null;
+	private GenomicSequence genomicSequence=null;
 	
 	private class ShortRead
 		{
@@ -118,8 +117,8 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
-		String samTag="XI";
-		SamWriterFactory swf=SamWriterFactory.newInstance();
+		//String samTag="XI";
+		//SamWriterFactory swf=SamWriterFactory.newInstance();
 		File faidx=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
