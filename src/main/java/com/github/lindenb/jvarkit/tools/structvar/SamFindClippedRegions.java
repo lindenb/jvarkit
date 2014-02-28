@@ -55,28 +55,35 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 	{
 	private int min_clip_length=10;
 	private boolean ignore_poly_x=false;
-	private int rounding_pos=5;
+	//private int rounding_pos=5;
 	//private float min_fraction_of_clipped_records=0.3f;
 	private int min_depth=10;
+	
+	private static class Count
+		{
+		int count_clipped[]=new int[]{0,0};
+		int count_no_clip=0;
+		}
 	
 	private static class SuspectRgn
 		{
 		int tid=-1;
 		int pos=0;
-		Map<String,int[]> sample2count=new HashMap<>(); 
+		//boolean found[]=null;
 		
 		SuspectRgn()
 			{
 			}
 		@Override
 		public String toString() {
-			return "tid="+tid+":"+pos+" N="+sample2count.size();
+			return "tid="+tid+":"+pos;
 			}
 		}
 	
 	private class Input
 		implements Closeable
 		{
+		int index;
 		File bamFile;
 		SAMFileReader samFileReaderScan;
 		SAMFileReader samFileReaderDepth;
@@ -125,36 +132,9 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 		}
 	
 
-	
-	private boolean isClipped(final SAMRecord rec)
+	private static boolean closeTo(int pos1,int pos2, int max)
 		{
-		return isClipped(rec,0) || isClipped(rec,1);
-		}
-	private CigarElement getCigarElement(final SAMRecord rec,int side)
-		{
-		Cigar cigar=rec.getCigar();
-		if(cigar==null || cigar.isEmpty()) return null;
-		CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
-		return ce;
-		}
-	private boolean isClipped(final SAMRecord rec,int side)
-		{
-		CigarElement ce=getCigarElement(rec,side);
-		if(ce==null) return false;
-		return ce.getOperator().equals(CigarOperator.S) && ce.getLength() >= min_clip_length;
-		}
-	
-	private String getClippedSequence(final SAMRecord rec,int side)
-		{
-		CigarElement ce=getCigarElement(rec,side);
-		if(side==0)
-			{
-			return rec.getReadString().substring(0, ce.getLength());
-			}
-		else
-			{
-			return rec.getReadString().substring(rec.getReadLength()-ce.getLength());
-			}
+		return Math.abs(pos2-pos1)<=max;
 		}
 	
 	
@@ -170,6 +150,9 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 		if(rec.getReadUnmappedFlag()) return false;
 		if(rec.isSecondaryOrSupplementary()) return false;
 		if(rec.getDuplicateReadFlag()) return false;
+		if(rec.getReadFailsVendorQualityCheckFlag()) return false;
+		Cigar cigar=rec.getCigar();
+		if(cigar==null || cigar.isEmpty()) return false;
 		SAMReadGroupRecord g=rec.getReadGroup();
 		if(g==null || g.getSample()==null || g.getSample().isEmpty()) return false;
 		return true;
@@ -187,6 +170,8 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
+		final int CLOSE_DISTANCE=5;
+		int readLength=150;
 		File bedFile=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
@@ -232,6 +217,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 					++optind)
 				{
 				Input input=new Input(new File(args[optind]));
+				input.index=inputs.size();
 				inputs.add(input);
 				
 				if(sample2input.containsKey(input.sampleName))
@@ -265,20 +251,28 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 			MergingSamRecordIterator merginIter=new MergingSamRecordIterator(headerMerger, readers, true);
 			
 			Allele reference_allele=Allele.create("N",true);			
-			Allele alternate_allele=Allele.create("<DEL>",false);
+			Allele alternate_alleles[]=new Allele[]{ 
+				Allele.create("<CLIP5>",false),
+				Allele.create("<CLIP3>",false)
+				};
 
 			Set<VCFHeaderLine> vcfHeaderLines=new HashSet<VCFHeaderLine>();
-			vcfHeaderLines.add(new VCFSimpleHeaderLine(
-					"<ID="+alternate_allele.getDisplayString()+",Description=\"StructVar\">",
-					VCFHeaderVersion.VCF4_1,
-					VCFConstants.ALT_HEADER_START.substring(2),
-					Arrays.asList("ID", "Description")
-					));
+			for(Allele alt:alternate_alleles)
+				{
+				vcfHeaderLines.add(new VCFSimpleHeaderLine(
+						"<ID="+alt.getDisplayString()+",Description=\"StructVar\">",
+						VCFHeaderVersion.VCF4_1,
+						VCFConstants.ALT_HEADER_START.substring(2),
+						Arrays.asList("ID", "Description")
+						));
+				}
 			vcfHeaderLines.add(new VCFInfoHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth."));
 			vcfHeaderLines.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			vcfHeaderLines.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			vcfHeaderLines.add(new VCFFormatHeaderLine("CN",1,VCFHeaderLineType.String,"count(Clipped 5'):count(Clipped 3')"));
-
+			for(int side=0;side<2;++side)
+				{
+				vcfHeaderLines.add(new VCFFormatHeaderLine("CN"+(side==0?5:3),1,VCFHeaderLineType.Integer,"count clipped in "+(side==0?5:3)+"'"));
+				}
 			if(dict!=null)
 				{
 				vcfHeaderLines.addAll(VCFUtils.samSequenceDictToVCFContigHeaderLine(dict));
@@ -322,20 +316,32 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 			
 			
 			
-
+			CigarElement cigarElements[]=new CigarElement[]{null,null};
 			int prev_tid=-1;
 			List<SuspectRgn> buffer=new ArrayList<SuspectRgn>();
 			for(;;)
 				{
 				
 				SAMRecord rec=null;
-				
+				Cigar cigar=null;
 				if(merginIter.hasNext())
 					{
 					rec=merginIter.next();
 					progress.watch(rec);
 					if(!accept(rec)) continue;
-					if(!isClipped(rec)) continue;
+					cigar=rec.getCigar();
+					if(cigar==null || cigar.numCigarElements()<2) continue;
+					cigarElements[0]=cigar.getCigarElement(0);
+					cigarElements[1]=cigar.getCigarElement(cigar.numCigarElements()-1);
+					//read must be clipped on 5' or 3' with a good length
+					if(!(
+						(cigarElements[0].getOperator().equals(CigarOperator.S) && cigarElements[0].getLength()>= this.min_clip_length ) ||
+						(cigarElements[1].getOperator().equals(CigarOperator.S) && cigarElements[1].getLength()>= this.min_clip_length )
+						))
+						{
+						continue;
+						}
+					//not included in bed file ?
 					if(intervals!=null && !intervals.containsOverlapping(rec.getReferenceName(),rec.getAlignmentStart(),rec.getAlignmentEnd())) continue;
 					}
 				
@@ -343,112 +349,130 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 					{
 					if(!buffer.isEmpty())
 						{
-						info("Analysing buffer buffer.size: "+buffer.size());
+						info("Analysing buffer buffer.size: "+buffer.size()+". tid:"+prev_tid);
 						for(SuspectRgn rgn:buffer)
 							{
-							/* shall we process it ? check at least one depth is OK 
-							boolean process_it=false;
-							
+							/* collect the depth of this SuspectRgn for all samples */
+							List<Count> counts=new ArrayList<Count>(inputs.size());
 							for(Input input:inputs)
 								{
-								int count[]=rgn.sample2count.get(input.sampleName);
-								if(count==null) continue; 
-								if((count[0]+count[1])*Math.max(1f-min_fraction_of_clipped_records,min_fraction_of_clipped_records) < min_depth) continue;
-								process_it=true;
-								}
-							
-							if(!process_it) continue;*/
-							Set<Allele> alleles=new HashSet<Allele>();
-							int whole_count[]=new int[]{0,0};
-							int sum_depth=0;
-							List<Genotype> genotypes=new ArrayList<Genotype>();
-							int max_depth_here=0;
-							
-							for(Input input:inputs)
-								{
-								int count[]=rgn.sample2count.get(input.sampleName);
-								if(count==null) count=new int[]{0,0};
-								whole_count[0]+=count[0];
-								whole_count[1]+=count[1];
+								Count count=new Count();
+								counts.add(count);
+								//if(!rgn.found[input.index]) continue;
 								
 								
-								int depth=0;
 								//get depth at position
 								SAMRecordIterator it2= input.samFileReaderDepth.queryOverlapping(
 										dict.getSequence(rgn.tid).getSequenceName(),
-										rgn.pos,
-										rgn.pos+(rounding_pos)
+										Math.max(1, rgn.pos-readLength),
+										rgn.pos+readLength
 										);
 								while(it2.hasNext())
 									{
 									SAMRecord rec2=it2.next();
 									if(!accept(rec2)) continue;
-									++depth;
+									/* 5' */
+									if( rec2.getUnclippedStart()<=rgn.pos &&
+										rec2.getUnclippedStart()< rec2.getAlignmentStart() && //read is clipped in 5' 
+										closeTo(rec2.getAlignmentStart(), rgn.pos,CLOSE_DISTANCE) &&
+										rec2.getAlignmentEnd()>rgn.pos)
+										{
+										/* this read is clipped in 5' */
+										count.count_clipped[0]++;
+										}
+									/* 3' */
+									else if( rec2.getUnclippedEnd()>=rgn.pos &&
+											 rec2.getUnclippedEnd()> rec2.getAlignmentEnd() && //read is clipped in 3' 
+											closeTo(rec2.getAlignmentEnd(), rgn.pos,CLOSE_DISTANCE) &&
+											rec2.getAlignmentStart()<rgn.pos)
+										{
+										/* this read is clipped in 5' */
+										count.count_clipped[1]++;
+										}
+									else if(rec2.getAlignmentStart()<=rgn.pos &&
+											rec2.getAlignmentEnd()>rgn.pos)
+										{
+										count.count_no_clip++;
+										}
 									}
 								it2.close();
-								
-								if(depth==0) continue;
-								sum_depth+=depth;
-								max_depth_here=Math.max(max_depth_here, depth);
-								
-								float fraction_of_clipped=(float)(count[0]+count[1])/(float)depth;
-								info(input.sampleName+" "+rgn+" depth="+(count[0]+count[1])+"/"+depth);
+								}/* end foreach input */
+							
+							int sum_depth=0;
+							int max_depth_here=0;
+							List<Genotype> genotypes=new ArrayList<Genotype>();	
+							Set<Allele> all_alleles=new HashSet<Allele>();
+							all_alleles.add(reference_allele);
+							boolean found_one_alt=false;
+							for(Input input:inputs)
+								{
+								Count count=counts.get(input.index);
+								Set<Allele> sample_alleles=new HashSet<Allele>(3);
 								GenotypeBuilder gb=new GenotypeBuilder(input.sampleName);
-								gb.DP(count[0]+count[1]);
-								if(depth>=min_depth)
+								gb.DP(count.count_no_clip+count.count_clipped[0]+count.count_clipped[1]);
+
+								for(int side=0;side<2;++side)
 									{
-									if(fraction_of_clipped<=0.25)
+									int depth= count.count_no_clip+count.count_clipped[side];
+									if(depth==0) continue;//prevent div by 0
+									max_depth_here=Math.max(max_depth_here, depth);
+									sum_depth+=depth;
+									float fraction_of_clipped=(float)(count.count_clipped[side])/(float)depth;
+									info(input.sampleName+" "+rgn+" depth="+(count.count_clipped[side])+"/"+depth);
+								
+									if(depth>=min_depth)
 										{
-										gb.alleles(Arrays.asList(reference_allele,reference_allele));
-										alleles.add(reference_allele);
+										if(fraction_of_clipped<=0.25)
+											{
+											sample_alleles.add(reference_allele);
+											}
+										else if(fraction_of_clipped>0.75)
+											{
+											sample_alleles.add(alternate_alleles[side]);
+											found_one_alt=true;
+											}
+										else
+											{
+											sample_alleles.add(reference_allele);
+											sample_alleles.add(alternate_alleles[side]);
+											found_one_alt=true;
+											}
+										
+										gb.attribute("CN"+(side==0?5:3),count.count_clipped[side]);
+										
 										}
-									else if(fraction_of_clipped>0.75)
-										{
-										gb.alleles(Arrays.asList(alternate_allele,alternate_allele));
-										alleles.add(alternate_allele);
-										}
-									else
-										{
-										gb.alleles(Arrays.asList(reference_allele,alternate_allele));
-										alleles.add(reference_allele);
-										alleles.add(alternate_allele);
-										}
-									
-									gb.attribute("CN", count[0]+"/"+count[1]);
-									}
-								else
-									{
-									//unavailable genotype
-									}
+									}//end loop side
+								if(sample_alleles.isEmpty()) continue;
+								gb.alleles(new ArrayList<Allele>(sample_alleles));
+								all_alleles.addAll(sample_alleles);
 								genotypes.add(gb.make());
 								}
+							
 							if(genotypes.isEmpty())
 								{
-								info("No genotype "+rgn);
+								//info("No genotype "+rgn);
 								continue;
 								}
 							if(max_depth_here< this.min_depth) 
 								{
-								info("Low max-depth "+max_depth_here+" "+rgn);
+								//info("Low max-depth "+max_depth_here+" "+rgn);
 								continue;
 								}
-							if(alleles.size()<=1)
+							if(!found_one_alt)
 								{
-								info("All homozygotes "+rgn);
+								//info("All homozygotes "+rgn);
 								continue;//all homozygotes
 								}
 							Map<String,Object> atts=new HashMap<String,Object>();
 							VariantContextBuilder vcb=new VariantContextBuilder();
 							vcb.chr(dict.getSequence(rgn.tid).getSequenceName());
 							vcb.start(rgn.pos);
-							vcb.stop(rgn.pos+this.rounding_pos);
-							vcb.alleles(alleles);
+							vcb.stop(rgn.pos);
+							vcb.alleles(all_alleles);
 							atts.put("DP", sum_depth);
 							
 							vcb.attributes(atts);
 							vcb.genotypes(genotypes);
-							
-							
 							}
 						
 						buffer.clear();
@@ -463,13 +487,22 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 				//this read must be soft clipped in 5' or 3'
 				
 				
-				String sampleName=rec.getReadGroup().getSample();
 				
 			
 				for(int side=0;side<2;++side)
 					{
-					if(!isClipped(rec,side))continue;
-					String clippedSeq=getClippedSequence(rec,side);
+					CigarElement ce=cigarElements[side];
+					if(!ce.getOperator().equals(CigarOperator.S)) continue;
+					if(ce.getLength() < this.min_clip_length) continue; 
+					String clippedSeq;
+					if(side==0)
+						{
+						clippedSeq=rec.getReadString().substring(0,ce.getLength());
+						}
+					else
+						{
+						clippedSeq=rec.getReadString().substring(rec.getReadLength()-ce.getLength());
+						}
 					
 					
 					if(ignore_poly_x)
@@ -491,19 +524,14 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 						}					
 					int pos=(side==0?rec.getAlignmentStart():rec.getAlignmentEnd());
 					
-					pos= pos - pos%rounding_pos;
 					boolean found_in_buffer=false;
 					for(int x=buffer.size()-1;x>=0;--x )
 						{
 						SuspectRgn rgn=buffer.get(x);
-						if(rgn.pos < rec.getUnclippedStart()) break;
+						if(rgn.pos < rec.getUnclippedStart() - readLength ) break;
 						if(rgn.tid!=rec.getReferenceIndex()) continue;
 						if(rgn.pos!=pos) continue;
-						if(!rgn.sample2count.containsKey(sampleName))
-							{
-							rgn.sample2count.put(sampleName,new int[]{0,0});
-							}
-						rgn.sample2count.get(sampleName)[side]++;
+						//rgn.found[sample2input.get(sampleName).index]=true;
 						found_in_buffer=true;
 						break;
 						}
@@ -513,7 +541,9 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 						SuspectRgn rgn=new SuspectRgn();
 						rgn.tid=rec.getReferenceIndex();
 						rgn.pos=pos;
-						rgn.sample2count.put(sampleName,new int[]{(side==0?1:0),(side==0?0:1)});
+						//rgn.found=new boolean[inputs.size()];
+						//Arrays.fill(rgn.found, false);
+						//rgn.found[sample2input.get(sampleName).index]=true;
 						buffer.add(rgn);
 						if(buffer.size()%10000==0)
 							{
