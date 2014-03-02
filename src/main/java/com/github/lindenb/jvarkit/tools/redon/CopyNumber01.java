@@ -125,7 +125,7 @@ class ListOfDouble implements Iterable<Double>,Cloneable
 		{
 		for(int i=0;i< this._len;++i)
 			{
-			this._array[i]+=v;
+			this._array[i]-=v;
 			}
 		}
 	
@@ -711,15 +711,6 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		double minDepth=depth0List.getMin();
 		info("substract depth :"+minDepth);
 		depth0List.substract(minDepth);
-		
-		
-		
-		
-		for(int i=0;i< depth0List.size();++i)
-			{
-			double v=depth0List.get(i);
-			depth0List.set(i, v-minDepth);
-			}
 		
 		
 		info("get median");
