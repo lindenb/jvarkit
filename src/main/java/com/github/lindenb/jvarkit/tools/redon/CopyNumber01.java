@@ -10,7 +10,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,12 +22,14 @@ import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import org.apache.commons.math3.analysis.interpolation.LoessInterpolator;
-import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
+import org.apache.commons.math3.distribution.NormalDistribution;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.broad.tribble.readers.LineIterator;
 
 import net.sf.picard.PicardException;
 import net.sf.picard.io.IoUtil;
+import net.sf.picard.reference.FastaSequenceIndex;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
@@ -40,187 +42,10 @@ import net.sf.samtools.util.CloserUtil;
 import net.sf.samtools.util.SequenceUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.Function;
+import com.github.lindenb.jvarkit.math.DoubleArray;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-
-
-class ListOfDouble implements Iterable<Double>,Cloneable
-	{
-	private double _array[];
-	private int _len=0;
-	private int _extend=-1;
-	ListOfDouble(ListOfDouble copy)
-		{
-		this._len=copy._len;
-		this._array=Arrays.copyOf(copy._array, copy._len);
-		this._extend=copy._extend;
-		}
-	ListOfDouble(int capacity)
-		{
-		this(capacity,-1);
-		}
-	ListOfDouble(int capacity,int extend)
-		{
-		this._array=new double[capacity];
-		this._extend=extend;
-		Arrays.fill(this._array, 0);
-		}
-	
-	public void push_back(double v)
-		{
-		if(_len>=this._array.length)
-			{
-			int x=this._extend;
-			if(x==-1) x=1+(_array.length)/2;
-			this._array=Arrays.copyOf(_array, _len+x);
-			}	
-		this._array[_len]=v;
-		++_len;
-		}
-	public int size()
-		{
-		return _len;
-		}
-	public double get(int index)
-		{
-		if(index<0 || index >=_len) throw new IndexOutOfBoundsException("0<="+index+"<"+_len);
-		return _array[index];
-		}
-	public double set(int index,double v)
-		{
-		if(index<0 || index >=_len) throw new IndexOutOfBoundsException("0<="+index+"<"+_len);
-		double old= _array[index];
-		_array[index]=v;
-		return old;
-		}
-	@Override
-	public Iterator<Double> iterator() {
-		return new MyIterator();
-		}
-	@Override
-	public ListOfDouble clone()
-		{
-		return new ListOfDouble(this);
-		}
-	public double calc(ProbabilityDistribution algo)
-		{
-		return algo.calc(this._array,0,this._len);
-		}		
-	
-	public double getMin()
-		{
-		double minDepth=Double.MAX_VALUE;
-		for(int i=0;i< _len;++i)
-			{
-			double v=_array[i];
-			if(Double.isNaN(v)) continue;
-			minDepth=Math.min(minDepth,v);
-			}
-		return minDepth;
-		}
-	
-	public void substract(double v)
-		{
-		for(int i=0;i< this._len;++i)
-			{
-			this._array[i]-=v;
-			}
-		}
-	
-	public void divide(double v)
-		{
-		if(v==0) throw new IllegalArgumentException();
-		for(int i=0;i< this._len;++i)
-			{
-			this._array[i]/=v;
-			}
-		}
-
-	
-	private class MyIterator implements Iterator<Double>
-		{
-		private int index=0;
-		@Override
-		public boolean hasNext() {
-			return index < ListOfDouble.this.size();
-			}
-		@Override
-		public Double next()
-			{
-			return ListOfDouble.this.get(index++);
-			}
-		
-		@Override
-		public void remove()
-			{
-			throw new UnsupportedOperationException();
-			}
-		}
-	
-	}
-abstract class  ProbabilityDistribution 
-	{
-	public <IN >double calc(Collection<IN> L,Function<IN, Double> converter)
-		{
-		double v[]=new double[L.size()];
-		int i=0;
-		for(IN o:L)
-			{
-			v[i++]=converter.apply(o);
-			}
-		return calc(v);
-		}
-	public double calc(Collection<Double> L)
-		{
-		double v[]=new double[L.size()];
-		int i=0;
-		for(Double d:L)
-			{
-			v[i++]=d;
-			}
-		return calc(v);
-		}
-	public double calc(double v[])
-		{
-		return calc(v,0,v.length);
-		}
-	public abstract double calc(double v[],int start,int len);
-	}
-
-/* use a MEAN */
-class  Mean extends ProbabilityDistribution 
-	{
-	public double calc(double v[],int beg, int len)
-		{
-		if(len==0) throw new IllegalArgumentException();
-		double sum=0;
-		for(int i=0;i< len;++i) sum+=v[beg+i];
-		return sum/len;
-		}
-	}
-/* use the median  */
-class  Median extends ProbabilityDistribution 
-	{
-	public double calc(double v[],int beg, int len)
-		{
-		if(len==0) throw new IllegalArgumentException();
-		if(len==1) return v[beg];
-		double copy[]=new double[len];
-		System.arraycopy(v, beg, copy, 0, len);
-		Arrays.sort(copy);
-		int mid=copy.length/2;
-		if(copy.length%2==1)
-			{
-			return copy[mid];
-			}
-		else
-			{
-			return (copy[mid-1]+copy[mid])/2.0;
-			}
-		}
-	}
 
 
 /**
@@ -231,8 +56,8 @@ class  Median extends ProbabilityDistribution
 public class CopyNumber01 extends AbstractCommandLineProgram
 	{
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-	private int windowSize=50;
-	private int windowStep=25;
+	private int windowSize=100;
+	private int windowStep=50;
 	private List<Replicate> replicates=new ArrayList<Replicate>();
 	private Set<String> sexualChromosomes=new HashSet<String>();
 	private List<List<RegionCaptured>> chrom2capture=null;
@@ -240,22 +65,93 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	private Map<String,String> resolveChromName=new HashMap<String, String>();
 
 	
+	/* http://www.biostars.org/p/92744/ */
+	private static class GCBin
+		{
+		double gc;
+		double medianDepth;
+		double stddev_for_GC;
+		DoubleArray depths=new DoubleArray(10);
+		GCBin(double y_gc,double x_depth)
+			{
+			this.gc=y_gc;
+			this.depths.push_back(x_depth);
+			}
+		double zScore(double observed_depth)
+			{
+			return (observed_depth - this.medianDepth) / this.stddev_for_GC;
+			}
+		double smooth(double observed_depth)
+			{
+			return this.medianDepth * zScore(observed_depth);
+			}
+		}
+	
+	private static class GCBinMap
+		{
+		ArrayList<GCBin> gc=new ArrayList<GCBin>(100);
+		public void put(double y_gc,double x_depth)
+			{
+			for(int i=0;i<gc.size();++i)
+				{
+				GCBin gcBin=gc.get(i);
+				if(gcBin.gc==y_gc)
+					{
+					gcBin.depths.push_back(x_depth);
+					return;
+					}
+				else if(gcBin.gc>y_gc)
+					{
+					gc.add(i, new GCBin(y_gc,x_depth));
+					return;
+					}
+				}
+			gc.add( new GCBin(y_gc,x_depth));
+			}
+		
+		
+		public double smooth(double y_gc,double x_depth)
+			{
+			if(Double.isNaN(y_gc)) return x_depth;
+			for(int i=0;i<gc.size();++i)
+				{
+				GCBin gcBin=gc.get(i);
+				if(gcBin.gc==y_gc)
+					{
+					return gcBin.smooth(x_depth);
+					}
+				}
+			return x_depth;
+			}
+		}
 
+	/* fact: Y=depth X=GC% */
 	private static class GCAndDepth
 		implements Comparable<GCAndDepth>
 		{
+		//int tid;
+		//int pos;
 		double depth=0;
 		double gc=0;
 		@Override
 		public int compareTo(final GCAndDepth o)
 			{
-			if(depth < o.depth) return -1;
-			if(depth > o.depth) return  1;
+			if(getX() < o.getX()) return -1;
+			if(getX() > o.getX()) return  1;
 
-			if(gc < o.gc) return -1;
-			if(gc > o.gc) return  1;
+			if(getY() < o.getY()) return -1;
+			if(getY() > o.getY()) return  1;
 			return 0;
 			}
+		double getX()
+			{
+			return gc;
+			}
+		double getY()
+			{
+			return depth;
+			}
+		
 		
 		}
 
@@ -406,6 +302,26 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		{
 		}
 	
+	private static double median(final DoubleArray L)
+		{
+
+		if(L.isEmpty()) throw new IllegalArgumentException();
+		if(L.size()==1) return L.get(0);
+		double copy[]=L.toArray();
+		Arrays.sort(copy);
+		int mid=copy.length/2;
+		if(copy.length%2==1)
+			{
+			return copy[mid];
+			}
+		else
+			{
+			return (copy[mid-1]+copy[mid])/2.0;
+			}
+		
+		}
+	
+	
 	private File createTempFile(String prefix)
 			throws IOException
 		{
@@ -438,19 +354,15 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		return this.indexedFastaSequenceFile.getSequenceDictionary();
 		}
 	
-	/** get a GC% , ignore the sexual chromosomes */
-	private ListOfDouble createGCPercent() throws Exception
+	/** get a GC% */
+	private DoubleArray createGCPercent() throws Exception
 		{
-		ListOfDouble gcPercent=new ListOfDouble(this.num_windows);
+		DoubleArray gcPercent=new DoubleArray(this.num_windows);
 		for(List<RegionCaptured> rois:this.chrom2capture)
 			{
 			if(rois.isEmpty()) continue;
 			final String chrom=rois.get(0).getChromosome();
-			if(this.sexualChromosomes.contains(chrom))
-				{
-				info("Ignoring chromosome "+chrom);
-				continue;
-				}
+			
 			GenomicSequence genomic=new GenomicSequence(
 					this.indexedFastaSequenceFile,
 					chrom
@@ -490,7 +402,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		}
 	
 	
-	private void scan(Replicate replicate,final ListOfDouble gcPercentArray) throws Exception
+	private void scan(Replicate replicate,final DoubleArray gcPercentArray) throws Exception
 		{
 		List<SAMFileReader> samFileReaders=new ArrayList<SAMFileReader>();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(getDicionary());
@@ -519,7 +431,8 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			throw new PicardException("empty input for replicate \""+replicate.filename+"\"");
 			}
 		
-		ListOfDouble depth0List=new ListOfDouble(this.num_windows);
+		//ListOfDouble depth0List=new ListOfDouble(this.num_windows);
+		GCBinMap gcBinMap=new GCBinMap();
 		Iterator<Double> gcIter=gcPercentArray.iterator();
 		List<GCAndDepth> gcAndDepth=new ArrayList<GCAndDepth>(this.num_windows);
 		for(List<RegionCaptured> rois:this.chrom2capture)
@@ -547,7 +460,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 						}
 					if(sfr.getFileHeader().getSequenceDictionary().getSequence(altName)==null)
 						{
-						throw new PicardException("in SamFile: unknown chromosome \""+samChromName+" or "+altName+ "\"");
+						throw new PicardException("in SamFile: unknown chromosome \""+samChromName+" or "+altName+ "\" . resolver="+resolveChromName);
 						}
 					info(samChromName+ " Resolved as "+altName);
 					samChromName=altName;
@@ -606,22 +519,19 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 						}
 					
 					double mean_depth=(float)depth/(float)win.length();
-					depth0List.push_back(mean_depth);
+					double GCPercent=gcIter.next();
 					
-					
-					if(!is_sexual_chromosome)
+					GCAndDepth pair=new GCAndDepth();
+					//pair.tid=roi.tid;
+					//pair.pos=win.getStart();
+					pair.depth=(float)mean_depth;
+					pair.gc=GCPercent;
+					gcAndDepth.add(pair);
+					if(!is_sexual_chromosome && !Double.isNaN(pair.gc))
 						{
-						double G=gcIter.next();
-						
-						if(!Double.isNaN(G))
-							{
-							GCAndDepth pair=new GCAndDepth();
-							pair.depth=(float)mean_depth;
-							pair.gc=G;
-							gcAndDepth.add(pair);
-							}
+						gcBinMap.put(GCPercent,mean_depth);
 						}
-
+						
 					}
 				}
 			}
@@ -631,105 +541,57 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		if(gcIter.hasNext()) throw new IllegalStateException();
 
 		
-		info("sorting gc/depth N="+ gcAndDepth.size());
-		Collections.sort(gcAndDepth);
-		info("sort done");
-			
+		
+		for(GCBin gcBin:gcBinMap.gc)
 			{
-			ProbabilityDistribution pDist=new Median();
-			int j=0;
-			int  i1=0;
-			while(i1< gcAndDepth.size())
+			gcBin.medianDepth=median(gcBin.depths);
+			double stdd=0;
+			for(int i=0;i< gcBin.depths.size();++i)
 				{
-				
-				double i1_depth=gcAndDepth.get(i1).depth;
-				ListOfDouble all_gc=new ListOfDouble(100);
-				all_gc.push_back(gcAndDepth.get(i1).gc);
-				int i2=i1+1;
-				while(	i2 < gcAndDepth.size() &&
-						gcAndDepth.get(i2).depth == i1_depth)
-					{
-					
-					all_gc.push_back(gcAndDepth.get(i2).gc);
-					i2++;
-					}
-				i1=i2;
-				
-				gcAndDepth.get(j).depth=(float)i1_depth;
-				gcAndDepth.get(j).gc=all_gc.calc(pDist);
-				j++;
+				stdd+=Math.pow((gcBin.depths.get(i)-gcBin.medianDepth), 2);
 				}
-			while(gcAndDepth.size()>j) gcAndDepth.remove(gcAndDepth.size()-1);
+			gcBin.stddev_for_GC= Math.sqrt(stdd/(double)gcBin.depths.size());
 			}
 			
-		info("compacted same depth N="+ gcAndDepth.size() );
-		double xval[]=new double[gcAndDepth.size()];
-		double yval[]=new double[gcAndDepth.size()];
 		
-		for(int i=0;i<gcAndDepth.size();++i)
+		for(GCAndDepth gad:gcAndDepth)
 			{
-			xval[i]=gcAndDepth.get(i).depth;
-			yval[i]=gcAndDepth.get(i).gc;
+			gad.depth=gcBinMap.smooth(gad.gc,gad.depth);
+			}
+		/* substract min depth */
+		double minDepth=Double.MAX_VALUE;
+		for(GCAndDepth gad:gcAndDepth)
+			{
+			minDepth=Math.min(gad.depth, minDepth);
+			}
+		for(GCAndDepth gad:gcAndDepth)
+			{
+			gad.depth-=minDepth;
 			}
 		
-		PolynomialSplineFunction spline=null;
-		try
+		{
+		/* dividide mediane of depth */
+			DoubleArray med=new DoubleArray(gcAndDepth.size());
+		for(GCAndDepth gad:gcAndDepth)
 			{
-			LoessInterpolator loessInterpolator=new LoessInterpolator();
-			info("interpolate");
-			spline=loessInterpolator.interpolate(xval,yval);
+			med.push_back(gad.depth);
 			}
-		catch(org.apache.commons.math3.exception.NumberIsTooSmallException err)
+		double median=median(med);
+		
+		for(GCAndDepth gad:gcAndDepth)
 			{
-			spline=null;
-			warning(err);
+			gad.depth/=median;
 			}
+		}
 		
-		info("apply loess");
-		for(int i=0;i< depth0List.size();++i)
-            {
-            if(spline!=null)
-            	{
-            	try
-	            	{
-	            	double smoothed=spline.value(depth0List.get(i));
-	            	depth0List.set(i,smoothed);
-	            	}
-            	catch(Exception err)
-            		{
-            		warning(err);
-            		}
-            	}
-            }
-		spline=null;
-		xval=null;
-		yval=null;
-		
-		
-		
-		info("get min depth");
-		double minDepth=depth0List.getMin();
-		info("substract depth :"+minDepth);
-		depth0List.substract(minDepth);
-		
-		
-		info("get median");
-		double median=depth0List.calc(new Median());
-
-		if(median!=0)
-			{
-			info("div median:="+median);
-			depth0List.divide(median);
-			}
 		replicate.tmpFile=replicate.createTmpFile("depth");
 		DataOutputStream daos=openDataStreamForWriting(replicate.tmpFile);
-		for(int i=0;i< depth0List.size();++i)
+		for(int i=0;i< gcAndDepth.size();++i)
 			{
-			daos.writeDouble(depth0List.get(i));
+			daos.writeDouble(gcAndDepth.get(i).depth);
 			}
 		daos.flush();
 		daos.close();
-		if(depth0List.size()!=this.num_windows) throw new IllegalStateException();
 		info("filesize: "+replicate.tmpFile.length());
 		}
 	
@@ -775,9 +637,8 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			}
 		
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(getDicionary());
-		double all_samples[]=new double[this.replicates.size()];
-		ProbabilityDistribution calcMedian=new Median();
-		ProbabilityDistribution smoothSamples=new Median();
+		DoubleArray all_samples=new DoubleArray(this.replicates.size());
+		all_samples.setSize(this.replicates.size(),0);
 		for(List<RegionCaptured> rois:this.chrom2capture)
 			{
 			if(rois.isEmpty()) continue;
@@ -791,18 +652,18 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 					progress.watch(chrom, win.getStart());
 					for(int i=0;i< this.replicates.size();++i)
 						{
-						all_samples[i]=disL.get(i).readDouble();
+						all_samples.set(i,disL.get(i).readDouble());
 						}
-					double median=calcMedian.calc(all_samples);
-					if(median>0.2)
-						{
+					double median = median(all_samples);
+					
+						
 						OuputRow newrow=new OuputRow(win);
 						rowBuffer.add(newrow);
 						for(int i=0;i< this.replicates.size();++i)
 							{
-							newrow.all_samples[i]=(all_samples[i]/median);
+							newrow.all_samples[i]=all_samples.get(i)/median;
 							}
-						}
+						
 					}
 				info("N rows: "+rowBuffer.size());
 				for(int rowIndex=0;rowIndex< rowBuffer.size();++rowIndex)
@@ -817,14 +678,14 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 					for(int i=0;i<replicates.size();++i)
 						{
 						System.out.print('\t');
-						ListOfDouble array=new ListOfDouble(SMOOTH_WINDOW*3);
+						DoubleArray array=new DoubleArray(SMOOTH_WINDOW*3);
 						for(int x= Math.max(0,rowIndex-SMOOTH_WINDOW);
 								x<=(rowIndex+SMOOTH_WINDOW) && x< rowBuffer.size();
 								++x)
 							{
 							array.push_back(rowBuffer.get(x).all_samples[i]);
 							}
-						System.out.print(array.calc(smoothSamples));
+						System.out.print(median(array));
 						}
 					System.out.println();
 					if(System.out.checkError()) break;
@@ -921,6 +782,11 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			info("Loading "+refFile);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
 			SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
+			if(dict==null)
+				{
+				error("Cannot get sequence dictionary for "+refFile);
+				return -1;
+				}
 			this.chrom2capture=new ArrayList<List<RegionCaptured>>(dict.size());
 			while(this.chrom2capture.size() < dict.size())
 				{
@@ -936,7 +802,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 					String tokens[]=r.next().split("[\t]");
 					if(tokens.length<2) continue;
 					this.resolveChromName.put(tokens[0], tokens[1]);
-					this.resolveChromName.put(tokens[1], tokens[1]);
+					this.resolveChromName.put(tokens[1], tokens[0]);
 					}
 				CloserUtil.close(r);
 				}
@@ -1011,7 +877,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				}
 			info("Number of windows : "+this.num_windows);
 			
-			ListOfDouble gcPercentArray=createGCPercent();
+			DoubleArray gcPercentArray=createGCPercent();
 			for(int optind=opt.getOptInd();optind< args.length;++optind)
 				{
 				Replicate replicate=new Replicate();

@@ -115,5 +115,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SortVCFOnInfo">SortVCFOnInfo<a></th><td>sort a VCF using a field in the INFO column</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamChangeReference">SamChangeReference<a></th><td>TODO</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamExtractClip">SamExtractClip<a></th><td>TODO</td></tr>
-
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/GCAndDepth">GCAndDepth<a></th><td>Extracts GC% and depth for multiple bam using a sliding window.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar94573">Biostar94573<a></th><td>Getting a VCF file from a CLUSTAW alignment</td></tr>
 </table>

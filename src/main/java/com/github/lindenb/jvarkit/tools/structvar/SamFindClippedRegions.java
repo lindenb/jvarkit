@@ -58,7 +58,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 	//private boolean ignore_poly_x=false;
 	//private int rounding_pos=5;
 	//private float min_fraction_of_clipped_records=0.3f;
-	private int min_depth=10;
+	private int min_depth=15;
 	
 
 	
@@ -277,7 +277,12 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 						Arrays.asList("ID", "Description")
 						));
 				}
+			
+			
+			vcfHeaderLines.add(new VCFInfoHeaderLine("COUNT_SAMPLES", 1, VCFHeaderLineType.Integer, "Number of samples with  depth>="+this.min_depth));
 			vcfHeaderLines.add(new VCFInfoHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth."));
+			vcfHeaderLines.add(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_KEY, 1, VCFHeaderLineType.String, "Genotype"));
+			vcfHeaderLines.add(new VCFFormatHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth"));
 			vcfHeaderLines.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			vcfHeaderLines.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 			for(int side=0;side<2;++side)
@@ -369,14 +374,12 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 					}
 				//need to flush buffer ?
 				if( rec==null ||
-					!(buffer.isEmpty() && !buffer.getLast().getReferenceIndex().equals(rec.getReferenceIndex())) ||
-					!(buffer.isEmpty() && buffer.getLast().getUnclippedEnd()+readLength < rec.getUnclippedStart())
+					(!buffer.isEmpty() && !buffer.getLast().getReferenceIndex().equals(rec.getReferenceIndex())) ||
+					(!buffer.isEmpty() && buffer.getLast().getUnclippedEnd()+readLength < rec.getUnclippedStart())
 					)
 					{
-					if(buffer.size()< min_depth) buffer.clear();
 					if(!buffer.isEmpty())
 						{
-						info("Analysing buffer buffer.size: "+buffer.size());
 						int chromStart=buffer.getFirst().getUnclippedStart();
 						int chromEnd=buffer.getFirst().getUnclippedEnd();
 						for(SAMRecord sam:buffer)
@@ -387,12 +390,14 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 						final int winShift=5;
 						for(int pos=chromStart;pos+winShift<=chromEnd;pos+=winShift)
 							{
-							boolean found_one_big_clip[]=new boolean[]{false,false};
+							int count_big_clip[]=new int[]{0,0};
 							//int max_depth[]=new int[]{0,0};
 							List<Genotype> genotypes=new ArrayList<Genotype>();	
 							Set<Allele> all_alleles=new HashSet<Allele>();
 							all_alleles.add(reference_allele);
+							boolean found_one_depth_ok=false;
 							int sum_depth=0;
+							int samples_with_high_depth=0;
 							for(String sample: sample2input.keySet())
 								{
 								GenotypeBuilder gb=new GenotypeBuilder(sample);
@@ -412,14 +417,19 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 										count_clipped[side]++;
 										if(ce.getLength()>=this.min_clip_length)
 											{
-											found_one_big_clip[side]=true;
+											count_big_clip[side]++;
 											}
 										sample_alleles.add(alternate_alleles[side]);
 										gb.attribute("CN"+(side==0?5:3),count_clipped[side]);
 										}
 									}
-								if(!(found_one_big_clip[0] || found_one_big_clip[1])) continue;
+								//if(!(found_one_big_clip[0] || found_one_big_clip[1])) continue;
 								if(count_clipped[0]+count_clipped[1]==0) continue;
+								if((count_clipped[0]+count_clipped[1]) > min_depth)
+									{
+									found_one_depth_ok=true;
+									++samples_with_high_depth;
+									}
 								sum_depth+=(count_clipped[0]+count_clipped[1]);
 								gb.alleles(new ArrayList<Allele>(sample_alleles));
 								all_alleles.addAll(sample_alleles);
@@ -431,7 +441,16 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 								{
 								continue;//all homozygotes
 								}
+							if(!found_one_depth_ok)
+								{
+								continue;
+								}
+							if(!(count_big_clip[0]>=1 || count_big_clip[1]>=1) )
+								{
+								continue;
+								}
 							Map<String,Object> atts=new HashMap<String,Object>();
+							atts.put("COUNT_SAMPLES",samples_with_high_depth);
 							atts.put(VCFConstants.DEPTH_KEY, sum_depth);
 							VariantContextBuilder vcb=new VariantContextBuilder();
 							vcb.chr(buffer.getFirst().getReferenceName());
@@ -451,7 +470,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 						}
 					}
 				
-				//this read must be soft clipped in 5' or 3'
+				buffer.add(rec);
 				
 				
 				

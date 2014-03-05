@@ -592,6 +592,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="gcanddepth" >
+	<compile-picard-cmd
+		java="**/GcPercentAndDepth.java"
+		main="com.github.lindenb.jvarkit.tools.misc.GcPercentAndDepth"
+		name="gcanddepth"
+		/>
+</target>
+
+
 <target name="fastqrevcomp" >
 	<compile-picard-cmd
 		java="**/FastqRevComp.java"
@@ -1552,7 +1561,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 <target name="biostar84452"><compile-biostar-cmd post="84452"/></target>
 <target name="biostar90204"><compile-biostar-cmd post="90204"/></target>
 <target name="biostar92368"><compile-biostar-cmd post="92368" libraryid="picard.and.bdb.jars"/></target>
-
+<target name="biostar94573"><compile-biostar-cmd post="94573"/></target>
 
 
 <target name="mapuniprot" depends="api.uniprot">
