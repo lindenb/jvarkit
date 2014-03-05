@@ -201,6 +201,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				VariantContextBuilder vcb=new VariantContextBuilder();
 				List<Genotype> genotypes=new ArrayList<Genotype>(samples.size());
 				
+				String longest=null;
 				Counter<String> countAlleles=new Counter<String>();
 				Map<String,String> sample2genotype=new HashMap<String,String>(samples.size());
 				for(String sample:samples)
@@ -226,12 +227,16 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						if(sb.length()==0) continue;
 						al=sb.toString();
 						}
+					if(longest==null || longest.length()< al.length())
+						{
+						longest=al;
+						}
 					countAlleles.incr(al);
 					sample2genotype.put(sample,al);
 					}
 				
 				if(countAlleles.isEmpty()) continue;
-				String refAllStr=countAlleles.getMostFrequent();
+				String refAllStr=(is_subsitution?countAlleles.getMostFrequent():longest);
 				Allele refAllele=Allele.create(refAllStr, true);
 				alleles.add(refAllele);
 				
