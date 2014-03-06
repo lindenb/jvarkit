@@ -34,25 +34,67 @@ public class Biostar94573 extends AbstractCommandLineProgram
 	{
 	private static final char CLIPPING=' ';
 	private static final char DELETION='-';
-	private static final char MISMATCH='*';
+	private static final char MATCH='*';
 	private int align_length=0;
+	private Map<String, AlignSequence> sample2sequence=new HashMap<String, AlignSequence>();
+	private AbstractSequence consensus=null;
+	private enum Format{None,Clustal,Fasta};
 	
-	private class Sequence
+	private abstract class AbstractSequence
 		{
-		String name;
+		abstract char at(int index);
+		@Override
+		public String toString()
+			{
+			StringBuilder b=new StringBuilder(align_length);
+			for(int i=0;i< align_length;++i) b.append(at(i));
+			return b.toString();
+			}
+		}
+	
+	
+	
+	private abstract class Sequence extends AbstractSequence
+		{
 		StringBuilder seq=new StringBuilder();
 		char at(int index)
 			{
 			return(index< 0 || index >=seq.length()?CLIPPING:Character.toUpperCase(seq.charAt(index)));
 			}
 		}
+	
+	private class AlignSequence extends Sequence
+		{
+		String name;
+		}
+	
+	private class ClustalConsensus extends Sequence
+		{
+		}
+	
+
+	private class FastaConsensus extends AbstractSequence
+		{
+		@Override
+		char at(int index)
+			{
+			Counter<Character> count=new Counter<Character>();
+			for(AlignSequence a:sample2sequence.values()) count.incr(a.at(index));
+			if(count.getCountCategories()<=1) return MATCH;
+			return ' ';
+			}
+		}
+		
+	
+	
+	
 	@Override
 	protected String getOnlineDocUrl() {
 		return "https://github.com/lindenb/jvarkit/wiki/Biostar94573";
 		}
 	@Override
 	public String getProgramDescription() {
-		return "Getting a VCF file from a CLUSTAW alignment. See also http://www.biostars.org/p/94573/";
+		return "Getting a VCF file from a CLUSTAW or FASTA alignment. See also http://www.biostars.org/p/94573/";
 		}
 	
 	@Override
@@ -104,56 +146,112 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
-			Sequence consensus=new Sequence();
-			consensus.name="";
-		
-			Map<String, Sequence> sample2seq=new HashMap<String, Biostar94573.Sequence>();
-			int columnStart=-1;
-			while(r.hasNext())
+			Format format=Format.None;
+
+			
+			while(r.hasNext() && format==Format.None)
 				{
-				String line=r.next();
-				
-				if( line.trim().isEmpty() || line.startsWith("CLUSTAL W"))
+				String line=r.peek();
+				if( line.trim().isEmpty()) { r.next(); continue;}
+				if(line.startsWith("CLUSTAL W"))
 					{
-					columnStart=-1;
-					continue;
+					format=Format.Clustal;
+					r.next();//consume
+					break;
 					}
-				Sequence curr;
-				if(line.charAt(0)==' ')
+				else if(line.startsWith(">"))
 					{
-					if(columnStart==-1)
-						{
-						error("illegal consensus line for "+line);
-						return -1;
-						}	
-					curr=consensus;
+					format=Format.Fasta;
+					break;
 					}
 				else
 					{
-					 if(columnStart==-1)
-						 {
-						columnStart=line.indexOf(' ');
-						if(columnStart==-1)
+					error("MSA format not recognized in "+line);
+					return -1;
+					}
+				}
+			info("format : "+format);
+			if(Format.Fasta.equals(format))
+				{
+				this.consensus=new FastaConsensus();
+				AlignSequence curr=null;
+				while(r.hasNext())
+					{
+					String line=r.next();
+					if(line.startsWith(">"))
+						{
+						curr=new AlignSequence();
+						curr.name=line.substring(1).trim();
+						if(sample2sequence.containsKey(curr.name))
 							{
-							error("no whithespace in "+line);
+							error("Sequence ID "+curr.name +" defined twice");
 							return -1;
 							}
-						while(columnStart< line.length() && line.charAt(columnStart)==' ')
-							{
-							columnStart++;
-							}
+						sample2sequence.put(curr.name, curr);
 						}
-					String seqname=line.substring(0, columnStart).trim();
-					curr=sample2seq.get(seqname);
-					if(curr==null)
+					else if(curr!=null)
 						{
-						curr=new Sequence();
-						curr.name=seqname;
-						sample2seq.put(curr.name, curr);
+						curr.seq.append(line.trim());
+						this.align_length=Math.max(this.align_length, curr.seq.length());
 						}
 					}
-				curr.seq.append(line.substring(columnStart));
-				this.align_length=Math.max(align_length, curr.seq.length());
+				}
+			else if(Format.Clustal.equals(format))
+				{
+				ClustalConsensus clustalconsensus=new ClustalConsensus();
+				this.consensus=clustalconsensus;
+				AlignSequence curr=null;
+				int columnStart=-1;
+				while(r.hasNext())
+					{
+					String line=r.next();
+					
+					if( line.trim().isEmpty() || line.startsWith("CLUSTAL W"))
+						{
+						columnStart=-1;
+						continue;
+						}
+					if(line.charAt(0)==' ')
+						{
+						if(columnStart==-1)
+							{
+							error("illegal consensus line for "+line);
+							return -1;
+							}	
+						clustalconsensus.seq.append(line.substring(columnStart));
+						}
+					else
+						{
+						 if(columnStart==-1)
+							 {
+							columnStart=line.indexOf(' ');
+							if(columnStart==-1)
+								{
+								error("no whithespace in "+line);
+								return -1;
+								}
+							while(columnStart< line.length() && line.charAt(columnStart)==' ')
+								{
+								columnStart++;
+								}
+							}
+						String seqname=line.substring(0, columnStart).trim();
+						curr=this.sample2sequence.get(seqname);
+						if(curr==null)
+							{
+							curr=new AlignSequence();
+							curr.name=seqname;
+							this.sample2sequence.put(curr.name, curr);
+							}
+						curr.seq.append(line.substring(columnStart));
+						this.align_length=Math.max(align_length, curr.seq.length());
+						}
+					}
+				}
+			else
+				{
+				error("Undefined input format");
+				return -1;
 				}
 			CloserUtil.close(r);
 			
@@ -169,15 +267,18 @@ public class Biostar94573 extends AbstractCommandLineProgram
 			mapping.put("length",String.valueOf(this.align_length));
 			vcfHeaderLines.add(new VCFContigHeaderLine(mapping,1));
 
-			Set<String> samples=new TreeSet<String>(sample2seq.keySet());
+			Set<String> samples=new TreeSet<String>(this.sample2sequence.keySet());
 			VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
 			
 			w=VCFUtils.createVariantContextWriterToStdout();
 			w.writeHeader(vcfHeader);
+			
+			
+			
 			int pos1=0;
 			while(pos1< align_length)
 				{
-				if(consensus.at(pos1)==MISMATCH) {++pos1;continue;}
+				if(consensus.at(pos1)==MATCH) {++pos1;continue;}
 				int pos2=pos1+1;
 				while(pos2<align_length && consensus.at(pos2)!='*')
 					{
@@ -186,7 +287,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				boolean is_subsitution=(pos1+1==pos2);
 				if(is_subsitution && pos1!=0)//need pos1>0 because ALT contains prev base.
 					{
-					for(Sequence seq: sample2seq.values())
+					for(Sequence seq: this.sample2sequence.values())
 						{
 						if(seq.at(pos1)=='-')
 							{
@@ -206,7 +307,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				Map<String,String> sample2genotype=new HashMap<String,String>(samples.size());
 				for(String sample:samples)
 					{
-					Sequence seq=sample2seq.get(sample);
+					Sequence seq=this.sample2sequence.get(sample);
 					String al=null;
 					if(is_subsitution)
 						{
@@ -229,6 +330,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						}
 					if(longest==null || longest.length()< al.length())
 						{
+						countAlleles=new Counter<String>();//reset count of most frequent, we'll use the longest indel or subst
 						longest=al;
 						}
 					countAlleles.incr(al);
@@ -236,7 +338,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 					}
 				
 				if(countAlleles.isEmpty()) continue;
-				String refAllStr=(is_subsitution?countAlleles.getMostFrequent():longest);
+				String refAllStr=countAlleles.getMostFrequent();
 				Allele refAllele=Allele.create(refAllStr, true);
 				alleles.add(refAllele);
 				
