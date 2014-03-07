@@ -524,6 +524,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="cmpbamsandbuild" >
+	<compile-picard-cmd
+		java="**/CompareBamAndBuild.java"
+		main="com.github.lindenb.jvarkit.tools.cmpbams.CompareBamAndBuild"
+		name="cmpbamsandbuild"
+		/>
+</target>
+
+
 <target name="cmpbamsxml" depends="api.cmpbams">
 	<compile-with-picard 
 		java="**/CompareBams3.java"
