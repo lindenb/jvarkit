@@ -4,8 +4,8 @@ import java.io.File;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import com.github.lindenb.jvarkit.util.picard.XPAlign;
-import com.github.lindenb.jvarkit.util.picard.XPalignFactory;
+import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
+import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
@@ -38,7 +38,7 @@ public class SplitRead {
 		}
 	
 	
-	private void scanRecord(final SAMRecord record,final XPalignFactory xPalignFactory) throws Exception
+	private void scanRecord(final SAMRecord record,final OtherCanonicalAlignFactory xPalignFactory) throws Exception
 		{
 		if(record.getReadUnmappedFlag()) return;
 		String xp=record.getStringAttribute("XP");
@@ -69,7 +69,7 @@ public class SplitRead {
 				default: throw new RuntimeException("cigar operator not handled:"+ce.getOperator());
 				}
 			}
-		for(XPAlign xpAln:xPalignFactory.getXPAligns(record))
+		for(OtherCanonicalAlign xpAln:xPalignFactory.getXPAligns(record))
 			{
 			
 			readPos=0;
@@ -141,7 +141,7 @@ public class SplitRead {
 
 	private void scan(SAMFileReader reader) throws Exception
 		{
-		XPalignFactory xpalignFactory=new XPalignFactory(reader.getFileHeader());
+		OtherCanonicalAlignFactory xpalignFactory=new OtherCanonicalAlignFactory(reader.getFileHeader());
 		long nrecords=0L;
 		for(Iterator<SAMRecord> iter=reader.iterator();
 				iter.hasNext(); )

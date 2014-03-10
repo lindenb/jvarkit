@@ -4,8 +4,8 @@ import java.util.List;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 
-
-public interface XPAlign  extends Comparable<XPAlign>
+/**  canonical alignments in a chimeric alignment */
+public interface OtherCanonicalAlign  extends Comparable<OtherCanonicalAlign>
 	{
 	public String getChrom();
 	public int getChromIndex();
@@ -14,4 +14,6 @@ public interface XPAlign  extends Comparable<XPAlign>
 	public String getCigarString();
 	public Cigar getCigar();
 	public List<CigarElement> getCigarElements();
+	public int getMapQ();
+	public int getNM();
 	}

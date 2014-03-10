@@ -21,7 +21,9 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 //import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
+import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
 public class SamShortInvertion extends AbstractCommandLineProgram
 	{
@@ -153,6 +155,7 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 		//SAMFileWriter w=null;
 		try
 			{
+			
 			indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
 			
 			if(opt.getOptInd()==args.length)
@@ -173,6 +176,7 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 				}
 			r.setValidationStringency(ValidationStringency.SILENT);
 			SAMFileHeader header=r.getFileHeader();
+			OtherCanonicalAlignFactory xpalignFactory=new OtherCanonicalAlignFactory(header);
 			SAMProgramRecord spr=header.createProgramRecord();
 			spr.setProgramName(getProgramName());
 			spr.setProgramVersion(getVersion());
@@ -189,6 +193,8 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 				if(rec.getReadUnmappedFlag()) continue;
 				if(rec.isSecondaryOrSupplementary()) continue;
 				if(rec.getDuplicateReadFlag()) continue;
+				
+				xpalignFactory.getXPAligns(rec);
 				
 				Cigar cigar=rec.getCigar();
 				if(cigar==null || cigar.isEmpty()) continue;

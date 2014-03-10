@@ -10,8 +10,8 @@ import java.io.PrintWriter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
-import com.github.lindenb.jvarkit.util.picard.XPAlign;
-import com.github.lindenb.jvarkit.util.picard.XPalignFactory;
+import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
+import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
@@ -65,7 +65,7 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 					);
 	    	}
     	
-    	public void xp(SAMRecord record,long readNum,XPAlign xp)
+    	public void xp(SAMRecord record,long readNum,OtherCanonicalAlign xp)
     		{
     		System.out.println(
 					bed(record)+
@@ -179,7 +179,7 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 			in.close();
 			}
 		
-		XPalignFactory xPalignFactory=new XPalignFactory(header);
+		OtherCanonicalAlignFactory xPalignFactory=new OtherCanonicalAlignFactory(header);
 		SAMRecordIterator iter=r.iterator();	
 		long readNum=0L;
 		while(iter.hasNext())
@@ -218,7 +218,7 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 				output.insertion(record, readNum, countS, countM);
 				}
 			
-			for(XPAlign xp: xPalignFactory.getXPAligns(record))
+			for(OtherCanonicalAlign xp: xPalignFactory.getXPAligns(record))
 				{
 				if(ignore!=null &&
 						ignore.containsOverlapping(

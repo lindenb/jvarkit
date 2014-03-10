@@ -23,8 +23,8 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFlag;
 import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
-import com.github.lindenb.jvarkit.util.picard.XPAlign;
-import com.github.lindenb.jvarkit.util.picard.XPalignFactory;
+import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
+import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
 public class FindMyVirus extends AbstractCommandLineProgram
 	{
@@ -221,14 +221,14 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				sfwArray[category.ordinal()]=sfw;
 				}
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-			XPalignFactory xpAlignFactory=new XPalignFactory(header);
+			OtherCanonicalAlignFactory xpAlignFactory=new OtherCanonicalAlignFactory(header);
 			SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
 				SAMRecord rec=iter.next();
 				progress.watch(rec);
 				CAT category=null;
-				List<XPAlign> xpList=Collections.emptyList();
+				List<OtherCanonicalAlign> xpList=Collections.emptyList();
 				if(category==null && !rec.getReadPairedFlag())
 					{
 					category=CAT.unpaired;
@@ -262,7 +262,7 @@ public class FindMyVirus extends AbstractCommandLineProgram
 			
 				boolean xp_containsVirus=false;
 				boolean xp_containsChrom=false;
-				for(XPAlign xpa:xpList)
+				for(OtherCanonicalAlign xpa:xpList)
 					{
 					if(virusNames.contains(xpa.getChrom()))
 						{
