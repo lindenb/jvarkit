@@ -85,7 +85,7 @@
 </path>
 
 
-<macrodef name="compile-with-picard">
+<macrodef name="compile-with-picard" >
 	<attribute name="name"/>
 	<attribute name="java"/>
 	<attribute name="main"/>
@@ -167,6 +167,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	<attribute name="main"/>
 	<attribute name="libraryid" default="picard.lib"/>
 	<sequential>
+	  
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
@@ -176,6 +177,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   
 	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured. See https://github.com/lindenb/jvarkit/wiki/Compilation</echo>
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   		
 	   		<src path="src/main/java"/>
    			<src path="${generated.dir}"/>
 
@@ -226,6 +228,8 @@ java -Xmx500m -cp ${manifest_@{name}_for_exe}:$PREFIX/@{name}.jar @{main} $*
 	   <chmod file="dist/@{name}" perm="ugo+rx"/>
 	   	   
 		<delete dir="tmp"/>
+		
+		
 	</sequential>
 </macrodef>
 
@@ -608,7 +612,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="gcanddepth"
 		/>
 </target>
-
+<target name="kg2bed" >
+	<compile-picard-cmd
+		java="**/KnownGenesToBed.java"
+		main="com.github.lindenb.jvarkit.tools.misc.KnownGenesToBed"
+		name="kg2bed"
+		/>
+</target>
 
 <target name="fastqrevcomp" >
 	<compile-picard-cmd
@@ -1448,6 +1458,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>	
 
+<target name="bedliftover">
+	<compile-picard-cmd 
+		java="**/BedLiftOver.java"
+		main="com.github.lindenb.jvarkit.tools.liftover.BedLiftOver"
+		name="bedliftover"
+		/>
+</target>	
+
 	
 <target name="vcfmapuniprot" depends="api.uniprot">
 	<compile-picard-cmd 
@@ -1743,6 +1761,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="jeter"
 		/>
 </target>
+
 
 
 </project>

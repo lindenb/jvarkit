@@ -27,7 +27,7 @@ public abstract class AbstractCommandLineProgram
 	private String version=null;
 	private String compileDate;
 	private List<File> tmpDirs=null;
-	private ResourceBundle messagesBundle=ResourceBundle.getBundle("messages");
+	private ResourceBundle messagesBundle=null;
 	
 	protected AbstractCommandLineProgram()
 		{
@@ -60,11 +60,19 @@ public abstract class AbstractCommandLineProgram
 				
 				}
 			});
+		try {
+			this.messagesBundle=ResourceBundle.getBundle("messages");
+			} 
+		catch (Exception e)
+			{
+			LOG.warning("Cannot get messages bundle "+e);
+			}
 		}
 	
 	protected String getMessageBundle(String key)
 		{
 		if(key==null) return "(null)";
+		if(this.messagesBundle==null) return key;
 		try
 			{
 			return this.messagesBundle.getString(key);

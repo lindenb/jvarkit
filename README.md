@@ -95,6 +95,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCompare">VcfCompare<a></th><td>Compare two VCF files.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfBiomart">VcfBiomart<a></th><td>Annotate a VCF with the data from Biomart.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfLiftOver">VcfLiftOver<a></th><td>LiftOver a VCF file.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BedLiftOver">BedLiftOver<a></th><td>LiftOver a BED file.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfConcat">VcfConcat<a></th><td>Concatenate VCF files.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MergeSplittedBlast">MergeSplittedBlast<a></th><td>Merge Blast hit from a splitted database</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FindMyVirus">FindMyVirus<a></th><td>Virus+host cell : split BAM into categories.</td></tr>
@@ -118,4 +119,5 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/GCAndDepth">GCAndDepth<a></th><td>Extracts GC% and depth for multiple bam using a sliding window.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar94573">Biostar94573<a></th><td>Getting a VCF file from a CLUSTAW or FASTA alignment</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/CompareBamAndBuild">CompareBamAndBuild<a></th><td>Compare two  BAM files mapped on two different builds. Requires a liftover chain file.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/KnownGenesToBed">KnownGenesToBed<a></th><td>Convert UCSC KnownGene to BED.</td></tr>
 </table>

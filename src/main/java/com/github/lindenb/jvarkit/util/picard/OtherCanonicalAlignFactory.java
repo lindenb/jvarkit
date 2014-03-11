@@ -48,7 +48,7 @@ public class OtherCanonicalAlignFactory {
 			if(s.isEmpty()) continue;
 			
 			String tokens[]=this.comma.split(s);
-	
+
 			XPAlignImpl f2=new XPAlignImpl();
 			
 			f2.tid= this.header.getSequenceIndex(tokens[0]);
@@ -56,8 +56,8 @@ public class OtherCanonicalAlignFactory {
 			f2.pos=Integer.parseInt(tokens[1]);
 			f2.strand=tokens[2].charAt(0);
 			f2.cigarStr=tokens[3];
-			f2.mapq=Integer.parseInt(tokens[3]);	
-			f2.nm=Integer.parseInt(tokens[4]);
+			f2.mapq=Integer.parseInt(tokens[4]);	
+			f2.nm=Integer.parseInt(tokens[5]);
 				
 			L.add(f2);
 			}
@@ -141,6 +141,8 @@ public class OtherCanonicalAlignFactory {
 			result = prime * result + cigarStr.hashCode();
 			result = prime * result + pos;
 			result = prime * result + strand;
+			result = prime * result + mapq;
+			result = prime * result + nm;
 			return result;
 			}
 		
@@ -161,12 +163,14 @@ public class OtherCanonicalAlignFactory {
 				return false;
 			if (!cigarStr.equals(other.getCigar()))
 				return false;
+			if(mapq!=other.getMapQ()) return false;
+			if(nm!=other.getNM()) return false;
 			return true;
 			}
 	
 		@Override
 		public String toString() {
-			return getChrom()+","+getStrand()+getPos()+","+getCigarString();
+			return getChrom()+","+getStrand()+getPos()+","+getCigarString()+","+mapq+","+nm;
 			}
 		
 	
