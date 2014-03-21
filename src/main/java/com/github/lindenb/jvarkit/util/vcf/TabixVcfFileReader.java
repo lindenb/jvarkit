@@ -1,67 +1,39 @@
 package com.github.lindenb.jvarkit.util.vcf;
 
-import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.List;
 
-import javax.xml.ws.WebServiceException;
-
-
-import org.broad.tribble.readers.LineIteratorImpl;
-import org.broad.tribble.readers.LineReader;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import org.broadinstitute.variant.vcf.VCFHeader;
+import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 
-import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 
-
-public class TabixVcfFileReader implements Closeable
+public class TabixVcfFileReader extends AbstractTabixObjectReader<VariantContext>
 	//,Iterable<VariantContext> NO, not a true iterator
 	{
-    private final VCFCodec vcfCodec = new VCFCodec();
-    private final VCFHeader vcfHeader;
-    private TabixFileReader tabix=null;
-    private String uri;
-    private static class LR implements LineReader
-    	{
-    	LinkedList<String> stack=null;
-    	LR(LinkedList<String> stack)
-    		{
-    		this.stack=stack;
-    		}
-    	@Override
-    	public String readLine() throws IOException {
-    		return (stack.isEmpty()?null:stack.removeFirst());
-    		}
-    	@Override
-    	public void close() {
-    		
-    		}
-    	}
+    private VCFCodec vcfCodec;
+    private VCFHeader vcfHeader;
+   
     
     public TabixVcfFileReader(String uri) throws IOException
     	{
-    	this.uri=uri;
-    	this.tabix=new TabixFileReader(uri);
+    	super(uri);
     	
-    	LinkedList<String> stack=new LinkedList<>();
+    	List<String> stack=new ArrayList<String>();
     	String line;
-    	while((line=tabix.readLine())!=null && line.startsWith("#"))
+    	while((line=super.tabix.readLine())!=null && line.startsWith("#"))
     		{
     		stack.add(line);
     		if(line.startsWith("#CHROM\t")) break;
     		}
-    	this.vcfHeader=(VCFHeader)vcfCodec.readActualHeader(
-    			new LineIteratorImpl(new LR(stack))
-    			);
+    	VCFUtils.CodecAndHeader cah=VCFUtils.parseHeader(stack);
+    	this.vcfHeader=cah.header;
+    	this.vcfCodec=cah.codec;
     	}
     
-    public String getURI()
-    	{
-    	return this.uri;
-    	}
     
 	public VCFCodec getCodec()
 		{
@@ -72,54 +44,25 @@ public class TabixVcfFileReader implements Closeable
 		{
 	    return this.vcfHeader;
 		}
-    public Iterator<VariantContext> iterator(String chrom)
-		{
-    	return iterator(tabix.iterator(chrom));
-		}
-
-    public Iterator<VariantContext> iterator(String chrom,int start)
-		{
-    	return iterator(tabix.iterator(chrom+":"+start));
-		}
-    public Iterator<VariantContext> iterator(String chrom,int start,int end)
-    	{
-    	return iterator(tabix.iterator(chrom+":"+start+"-"+end));
-    	}
-    private  Iterator<VariantContext> iterator(Iterator<String> delegate)
+    
+    @Override
+    protected  Iterator<VariantContext> iterator(Iterator<String> delegate)
 		{
 		return new MyIterator(delegate);
 		}
     
-    @Override
-    public void close() throws WebServiceException {
-    	this.tabix.close();
-    	}
     
     private class MyIterator
-    	implements Iterator<VariantContext>
+    	extends AbstractMyIterator
     	{
-    	Iterator<String> delegate;
     	MyIterator(Iterator<String> delegate)
     		{
-    		this.delegate=delegate;
-    		}
-    	@Override
-    	public boolean hasNext()
-    		{
-    		return delegate.hasNext();
+    		super(delegate);
     		}
     	@Override
     	public VariantContext next() {
     		return getCodec().decode(delegate.next());
     		}
-    	@Override
-    	public void remove() {
-    		throw new UnsupportedOperationException();
-    		}
     	}	
     
-    @Override
-    public String toString() {
-    	return getURI();
-    	}
 	}
