@@ -16,4 +16,7 @@ public interface OtherCanonicalAlign  extends Comparable<OtherCanonicalAlign>
 	public List<CigarElement> getCigarElements();
 	public int getMapQ();
 	public int getNM();
+	public int getUnclippedStart();
+	public int getUnclippedEnd();
+	public int getAlignmentEnd();
 	}

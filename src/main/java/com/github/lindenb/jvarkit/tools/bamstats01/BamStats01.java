@@ -4,62 +4,38 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Log;
+
 import net.sf.samtools.SAMFileReader;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
+import net.sf.samtools.util.CloserUtil;
 import net.sf.samtools.util.SequenceUtil;
 
 public class BamStats01
 	extends AbstractCommandLineProgram
 	{
-	private static final Log LOG=Log.getInstance(BamStats01.class);
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Statistics about the reads in a BAM. ";
-
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM files to process.",
-    		optional=false,
-    		minElements=1)
-	public List<File> IN=new ArrayList<File>();
-
-    @Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME,
-    		doc="Ouput. Default stdout. ",
-    		optional=true)
-	public File OUT=null;
-
-    
-    
-    @Option(shortName="Q", doc="Default treshold quality", optional=true)
-	public double QUAL=30.0;
-	
-    @Option(shortName= "BED", doc="BED File.",
-    		optional=true)
-	public File BEDILE=null;
-
-    
+	private PrintStream out=System.out;
+	private File bedFile=null;
+	private double QUAL=30.0;
 	private int chrX_index=-1;
 	private int chrY_index=-1;
-
-    
+	private SAMSequenceDictionary samSequenceDictionary=null;
+	private SamSequenceRecordTreeMap<Boolean> intervals=null;
     
     private  class Histogram2
     	{
@@ -94,6 +70,14 @@ public class BamStats01
 				this.increment(Category.FAIL_VENDOR_QUALITY);
 				}
 			
+			/* count reads = unmapped+ primary align */
+			if(rec.getReadUnmappedFlag() ||
+				!rec.isSecondaryOrSupplementary())
+				{
+				this.increment(Category.UNMAPPED_PLUS_PRIMARY);
+				}
+			
+			
 			if(rec.getReadUnmappedFlag())
 				{
 				ok_pe_alignment=false;
@@ -116,6 +100,7 @@ public class BamStats01
 				{
 				ok_pe_alignment=false;	
 				}		
+			
 			
 			
 			if(rec.getReadNegativeStrandFlag())
@@ -152,7 +137,7 @@ public class BamStats01
 			if(rec.getSupplementaryAlignmentFlag())
 				{
 				this.increment(Category.SUPPLEMENTARY_ALIGNMENT);
-				//ok_pe_alignment=false;//??
+				ok_pe_alignment=false;
 				}
 			
 			if(ok_pe_alignment)
@@ -193,6 +178,7 @@ public class BamStats01
 	private enum Category
 		{
 		TOTAL,
+		UNMAPPED_PLUS_PRIMARY,
 		PAIRED,
 		UNMAPPED,
 		MAPPED,
@@ -209,189 +195,244 @@ public class BamStats01
 		X,Y;
 		};
 	
-	@Override
-	protected int doWork()
+	private BamStats01()
 		{
-		SAMFileReader samFileReader=null;
-		//IntervalTreeMap<Interval> intervals=null;
-		SamSequenceRecordTreeMap<Boolean> intervals=null;
-		PrintStream out=System.out;
 		
+		}
 		
-		
-			try
+	private void run(String filename,SAMFileReader samFileReader) throws IOException
+		{	
+		Map<String,Histogram> sample2hist=new HashMap<String, BamStats01.Histogram>();
+			samFileReader.setValidationStringency(ValidationStringency.SILENT);
+			
+			SAMSequenceDictionary currDict=samFileReader.getFileHeader().getSequenceDictionary();
+
+			if(samSequenceDictionary==null)
 				{
-				if(OUT!=null)
+				samSequenceDictionary=currDict;
+				}
+			
+			if(this.bedFile!=null )
+				{
+				if(!SequenceUtil.areSequenceDictionariesEqual(currDict, samSequenceDictionary))
 					{
-					LOG.info("opening "+OUT+" for writing.");
-					out=new PrintStream(IOUtils.openFileForWriting(OUT));
+					samFileReader.close();
+					throw new IOException("incompatible sequence dictionaries."+filename);
+					}
+					
+				
+				if(intervals==null)
+					{
+					intervals=new SamSequenceRecordTreeMap<Boolean>(currDict);
+					info("opening "+this.bedFile);
+					Pattern tab=Pattern.compile("[\t]");
+					String line;
+					BufferedReader bedIn=IOUtils.openFileForBufferedReading(bedFile);
+					while((line=bedIn.readLine())!=null)
+						{
+						if(line.isEmpty() || line.startsWith("#")) continue;
+						String tokens[]=tab.split(line,5);
+						if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.bedFile);
+						int seqIndex=currDict.getSequenceIndex(tokens[0]);
+						if(seqIndex==-1)
+							{
+							throw new IOException("unknown chromosome from dict in  in "+line+" "+this.bedFile);
+							}
+						int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
+						int chromEnd1= Integer.parseInt(tokens[2]);
+						intervals.put(seqIndex, chromStart1, chromEnd1,Boolean.TRUE);
+						}
+					bedIn.close();
+					info("done reading "+this.bedFile);
+					}
+				}
+			this.chrX_index=-1;
+			this.chrY_index=-1;
+			
+			
+			for(SAMSequenceRecord rec:currDict.getSequences())
+				{
+				String chromName=rec.getSequenceName().toLowerCase();
+				if(chromName.equals("x") || chromName.equals("chrx"))
+					{
+					this.chrX_index=rec.getSequenceIndex();
+					}
+				else if(chromName.equals("y") || chromName.equals("chry"))
+					{
+					this.chrY_index=rec.getSequenceIndex();
+					}
+				}
+			
+			
+			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(currDict);
+			SAMRecordIterator iter=samFileReader.iterator();
+			while(iter.hasNext())
+				{
+				String sampleName=null;
+				SAMRecord rec=iter.next();
+				
+				progess.watch(rec);
+				
+				SAMReadGroupRecord grp=rec.getReadGroup();
+				if(grp!=null)
+					{
+					sampleName=grp.getSample();
 					}
 				
+				if(sampleName==null || sampleName.isEmpty()) sampleName="undefined";
 				
-				out.print("#Filename\tSample");
+				Histogram hist=sample2hist.get(sampleName);
+				if(hist==null)
+					{
+					hist=new Histogram();
+					sample2hist.put(sampleName, hist);
+					}
+				
+				hist.histograms[Category2.ALL.ordinal()].watch(rec);
+				
+				
+				
+				if(intervals==null) continue;
+				if(rec.getReadUnmappedFlag())
+					{
+					continue;
+					}
+				
+			
+				
+				if(!intervals.containsOverlapping(
+							rec.getReferenceIndex(),
+							rec.getAlignmentStart(),
+							rec.getAlignmentEnd()
+							))
+					{
+					hist.histograms[Category2.OFF_TARGET.ordinal()].watch(rec);
+					}		
+				else
+					{
+					hist.histograms[Category2.IN_TARGET.ordinal()].watch(rec);
+					}
+				}
+			progess.finish();
+			samFileReader.close();
+			samFileReader=null;
+		
+			for(String sampleName: sample2hist.keySet())
+				{
+				Histogram hist=sample2hist.get(sampleName);
+				out.print(filename+"\t"+sampleName);
+				
 				for(Category2 cat2: Category2.values())
 					{
-					for(Category cat1: Category.values())
+					for(Category cat1: Category.values())//je je suis libertineuuh, je suis une cat1
 						{
-						out.print("\t"+cat2+"_"+cat1);//je je suis libertineuuh, je suis une cat1
+						out.print("\t");
+						out.print(hist.histograms[cat2.ordinal()].counts[cat1.ordinal()]);
 						}
-					if(BEDILE==null) break;
+					if(intervals==null) break;
 					}
 				out.println();
-				
-				SAMSequenceDictionary samSequenceDictionary=null;
-				
-					
-				for(File f:IN)
+				}
+		}
+	
+	@Override
+	public String getProgramDescription()
+		{
+		return "Statistics about the reads in a BAM.";
+		}
+	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/BamStats01";
+		}
+	
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		out.println("-o (file) output. Default: stdout");
+		out.println("-q (qual) min mapping quality: default: "+this.QUAL);
+		out.println("-B (file) capture bed file.  Optional");
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		File OUT=null;
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+"o:q:B:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'o': OUT=new File(opt.getOptArg());break;
+				case 'B': this.bedFile=new File(opt.getOptArg());break;
+				case 'q': QUAL=Double.parseDouble(opt.getOptArg());break;
+				default:
 					{
-					Map<String,Histogram> sample2hist=new HashMap<String, BamStats01.Histogram>();
-					samFileReader=null;
-					LOG.info("opening "+f);
-					samFileReader=new SAMFileReader(f);
-					samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
-					
-					SAMSequenceDictionary currDict=samFileReader.getFileHeader().getSequenceDictionary();
-
-					if(samSequenceDictionary==null)
+					switch(handleOtherOptions(c, opt,args))
 						{
-						samSequenceDictionary=currDict;
-						}
-					
-					if(BEDILE!=null )
-						{
-						if(!SequenceUtil.areSequenceDictionariesEqual(currDict, samSequenceDictionary))
-							{
-							samFileReader.close();
-							throw new IOException("incompatible sequence dictionaries. ("+f+")");
-							}
-							
-						
-						if(intervals==null)
-							{
-							intervals=new SamSequenceRecordTreeMap<Boolean>(currDict);
-							LOG.info("opening "+BEDILE);
-							Pattern tab=Pattern.compile("[\t]");
-							String line;
-							BufferedReader bedIn=IOUtils.openFileForBufferedReading(BEDILE);
-							while((line=bedIn.readLine())!=null)
-								{
-								if(line.isEmpty() || line.startsWith("#")) continue;
-								String tokens[]=tab.split(line,5);
-								if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.BEDILE);
-								int seqIndex=currDict.getSequenceIndex(tokens[0]);
-								if(seqIndex==-1)
-									{
-									throw new IOException("unknown chromosome from dict in  in "+line+" "+this.BEDILE);
-									}
-								int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
-								int chromEnd1= Integer.parseInt(tokens[2]);
-								intervals.put(seqIndex, chromStart1, chromEnd1,Boolean.TRUE);
-								}
-							bedIn.close();
-							LOG.info("done reading "+BEDILE);
-							}
-						}
-					this.chrX_index=-1;
-					this.chrY_index=-1;
-					
-					
-					for(SAMSequenceRecord rec:currDict.getSequences())
-						{
-						String chromName=rec.getSequenceName().toLowerCase();
-						if(chromName.equals("x") || chromName.equals("chrx"))
-							{
-							this.chrX_index=rec.getSequenceIndex();
-							}
-						else if(chromName.equals("y") || chromName.equals("chry"))
-							{
-							this.chrY_index=rec.getSequenceIndex();
-							}
-						}
-					
-					
-					SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(currDict);
-					SAMRecordIterator iter=samFileReader.iterator();
-					while(iter.hasNext())
-						{
-						String sampleName=null;
-						SAMRecord rec=iter.next();
-						
-						progess.watch(rec);
-						
-						SAMReadGroupRecord grp=rec.getReadGroup();
-						if(grp!=null)
-							{
-							sampleName=grp.getSample();
-							}
-						
-						if(sampleName==null || sampleName.isEmpty()) sampleName="undefined";
-						
-						Histogram hist=sample2hist.get(sampleName);
-						if(hist==null)
-							{
-							hist=new Histogram();
-							sample2hist.put(sampleName, hist);
-							}
-						
-						hist.histograms[Category2.ALL.ordinal()].watch(rec);
-						
-						
-						
-						if(intervals==null) continue;
-						if(rec.getReadUnmappedFlag())
-							{
-							continue;
-							}
-						
-					
-						
-						if(!intervals.containsOverlapping(
-									rec.getReferenceIndex(),
-									rec.getAlignmentStart(),
-									rec.getAlignmentEnd()
-									))
-							{
-							hist.histograms[Category2.OFF_TARGET.ordinal()].watch(rec);
-							}		
-						else
-							{
-							hist.histograms[Category2.IN_TARGET.ordinal()].watch(rec);
-							}
-						}
-					samFileReader.close();
-					samFileReader=null;
-					for(String sampleName: sample2hist.keySet())
-						{
-						Histogram hist=sample2hist.get(sampleName);
-						out.print(f.getPath()+"\t"+sampleName);
-						
-						for(Category2 cat2: Category2.values())
-							{
-							for(Category cat1: Category.values())//je je suis libertineuuh, je suis une cat1
-								{
-								out.print("\t");
-								out.print(hist.histograms[cat2.ordinal()].counts[cat1.ordinal()]);
-								}
-							if(intervals==null) break;
-							}
-						out.println();
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
 						}
 					}
-				out.flush();
-		        }
-			catch(Exception err)
-				{
-				LOG.error(err, ""+err.getMessage());
-				return -1;
 				}
-			finally
-				{
-				if(samFileReader!=null) samFileReader.close();
-				out.flush();
-				if(OUT!=null) {out.close();}
-				}
+			}
 		
-		return 0;
+		SAMFileReader samFileReader=null;		
+		try
+			{
+			if(OUT!=null)
+				{
+				info("opening "+OUT+" for writing.");
+				out=new PrintStream(IOUtils.openFileForWriting(OUT));
+				}
+			
+			
+			out.print("#Filename\tSample");
+			for(Category2 cat2: Category2.values())
+				{
+				for(Category cat1: Category.values())
+					{
+					out.print("\t"+cat2+"_"+cat1);//je je suis libertineuuh, je suis une cat1
+					}
+				if(bedFile==null) break;
+				}
+			out.println();
+			
+			
+			if(opt.getOptInd()==args.length)
+				{
+				info("Reading from stdin");
+				SAMFileReader sfr=new SAMFileReader(System.in);
+				run("stdin",sfr);
+				sfr.close();
+				}
+			else
+				{
+				for(int i=opt.getOptInd();i< args.length;++i)
+					{
+					String filename=args[i];
+					info("Reading from "+filename);
+					SAMFileReader sfr=new SAMFileReader(new File(filename));
+					run(filename,sfr);
+					sfr.close();
+					}
+				}
+			out.flush();
+			return 0;
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(samFileReader);
+			CloserUtil.close(out);
+			}
 		}
 	
 	public static void main(String[] args)

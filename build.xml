@@ -740,13 +740,18 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </target>		
 
 
-<target name="bamstats01" >
-	<compile-with-picard 
+<target name="samstats01" >
+	<compile-picard-cmd 
 		java="**/BamStats01.java"
 		main="com.github.lindenb.jvarkit.tools.bamstats01.BamStats01"
-		name="bamstats01"
+		name="samstats01"
 		/>
 </target>	
+<target name="bamstats01" depends="samstats01">
+ <echo>Bamstats01 was replaced by samstats01</echo>
+</target>
+
+
 	
 <target name="bamstats04" >
 	<compile-with-picard 
@@ -1554,6 +1559,39 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="sam2json" >
+	<compile-picard-cmd
+		java="**/SamToJson.java"
+		main="com.github.lindenb.jvarkit.tools.misc.SamToJson"
+		name="sam2json"
+		/>
+</target>
+
+
+
+<target name="fastqphred64to33" >
+	<compile-picard-cmd
+		java="**/ConvertPhred64toFastq33.java"
+		main="com.github.lindenb.jvarkit.tools.fastq.ConvertPhred64toFastq33"
+		name="fastqphred64to33"
+		/>
+</target>
+
+<target name="sam2psl" >
+	<compile-picard-cmd
+		java="**/SamToPsl.java"
+		main="com.github.lindenb.jvarkit.tools.misc.SamToPsl"
+		name="sam2psl"
+		/>
+</target>
+
+<target name="findnewsplicesites" >
+	<compile-picard-cmd
+		java="**/FindNewSpliceSites.java"
+		main="com.github.lindenb.jvarkit.tools.rnaseq.FindNewSpliceSites"
+		name="findnewsplicesites"
+		/>
+</target>
 
 <target name="samextractclip" >
 	<compile-picard-cmd
@@ -1759,8 +1797,8 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 
 <target name="jeter" >
 	<compile-picard-cmd
-		java="**/DisplayShortInvertions.java"
-		main="com.github.lindenb.jvarkit.tools.bam2graphics.DisplayShortInvertions"
+		java="**/BlatFastq.java"
+		main="com.github.lindenb.jvarkit.tools.blat.BlatFastq"
 		name="jeter"
 		/>
 </target>

@@ -7,7 +7,6 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import net.sf.picard.util.IntervalTree;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
 import net.sf.samtools.util.CloserUtil;

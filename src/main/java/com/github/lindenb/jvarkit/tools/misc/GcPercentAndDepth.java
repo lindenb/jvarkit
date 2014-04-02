@@ -377,7 +377,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 				while(r.hasNext())
 					{
 					String line=r.next();
-					if(line.startsWith("#") || line.isEmpty()) continue;
+					if(line.startsWith("#") || line.startsWith("browser") || line.startsWith("track") || line.isEmpty()) continue;
 					String tokens[]=tab.split(line,4);
 					if(tokens.length<3)
 						{
@@ -389,13 +389,21 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 					if(roi.tid==-1)
 						{
 						String altName= resolveChromName.get(tokens[0]);
-						if(altName!=null) roi.tid=firstSamDict.getSequenceIndex(altName);
+						if(altName!=null)
+								{
+								info(tokens[0]+" was resolved to "+altName);
+								roi.tid=firstSamDict.getSequenceIndex(altName);
+								}
+						else
+								{
+								warning("Cannot resolve "+tokens[0]+ " from "+new ArrayList<String>(resolveChromName.keySet()));
+								}
 						}
 					
 					
 					if(roi.tid==-1)
 						{
-						warning("not in reference: chromosome "+tokens[0]+" in "+line+" "+bedFile);
+						warning("not in reference: chromosome "+tokens[0]+" in \""+line+"\" "+bedFile);
 						continue;
 						}
 					roi.start0=Integer.parseInt(tokens[1]);

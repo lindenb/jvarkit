@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 import net.sf.picard.PicardException;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.TextCigarCodec;
@@ -74,6 +75,7 @@ public class OtherCanonicalAlignFactory {
 		private Cigar cigar=null;
 		private int mapq=0;
 		private int nm=0;
+		private int  mAlignmentEnd = SAMRecord.NO_ALIGNMENT_START;
 		
 		@Override
 		public int getChromIndex() {
@@ -173,8 +175,56 @@ public class OtherCanonicalAlignFactory {
 			return getChrom()+","+getStrand()+getPos()+","+getCigarString()+","+mapq+","+nm;
 			}
 		
+		@Override
+	    public int getUnclippedStart() {
+	        int pos = this.getPos();
+
+	        for (final CigarElement cig : getCigar().getCigarElements()) {
+	            final CigarOperator op = cig.getOperator();
+	            if (op == CigarOperator.SOFT_CLIP || op == CigarOperator.HARD_CLIP) {
+	                pos -= cig.getLength();
+	            }
+	            else {
+	                break;
+	            }
+	        }
+
+	        return pos;
+	    	}
+
+		@Override
+		public int getUnclippedEnd() {
+		        int pos = getAlignmentEnd();
+		        final List<CigarElement> cigs = getCigar().getCigarElements();
+		        for (int i=cigs.size() - 1; i>=0; --i) {
+		            final CigarElement cig = cigs.get(i);
+		            final CigarOperator op = cig.getOperator();
+
+		            if (op == CigarOperator.SOFT_CLIP || op == CigarOperator.HARD_CLIP) {
+		                pos += cig.getLength();
+		            }
+		            else {
+		                break;
+		            }
+		        }
+
+		        return pos;               
+		    }
+		
+
+	    /**
+	     * @return 1-based inclusive rightmost position of the clipped sequence, or 0 read if unmapped.
+	     */
+		@Override
+	    public int getAlignmentEnd() {
+	       if(this.mAlignmentEnd == SAMRecord.NO_ALIGNMENT_START) {
+	            this.mAlignmentEnd = getPos() + getCigar().getReferenceLength() - 1;
+	       		}
+	        return this.mAlignmentEnd;
+	    	}
+		
 	
-}
+		}
 
 	
 }
