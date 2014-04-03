@@ -2,9 +2,7 @@ package com.github.lindenb.jvarkit.util.picard;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 
@@ -22,7 +20,6 @@ import net.sf.samtools.util.CloserUtil;
 public abstract class AbstractBamFilterProgram
 	extends com.github.lindenb.jvarkit.util.AbstractCommandLineProgram
 		{
-		protected List<File> tmpDirs=new ArrayList<File>();
 		protected File bamFileOut=null;
 		protected ValidationStringency validationStringency=ValidationStringency.LENIENT;
 		
@@ -162,15 +159,6 @@ public abstract class AbstractBamFilterProgram
 			SAMFileHeader header;
 			try
 				{
-		        if (this.tmpDirs.isEmpty())
-		        	{
-		        	if(tmpDirs.isEmpty())
-		        		{
-		        		File tf=new File(System.getProperty("java.io.tmpdir"));
-		        		warning("adding "+tf+" as tmp directory");
-		        		tmpDirs.add(tf);
-		        		}
-		        	}
 
 				
 				if( fileIn==null)

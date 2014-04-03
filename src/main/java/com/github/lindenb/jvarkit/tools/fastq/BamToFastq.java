@@ -24,15 +24,17 @@ import net.sf.samtools.util.SortingCollection;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 
 public class BamToFastq
 	extends AbstractCommandLineProgram
 	{
 	
 	@Override
-	public String getProgramDescription() {
-		return "Implementation of https://twitter.com/DNAntonie/status/402909852277932032 " +
-				"Shrink your FASTQ.bz2 files by 40+% using this one weird tip -> order them by alignment to reference before compression";
+	public String getProgramDescription()
+		{
+		return "Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. Previous version was an Implementation of https://twitter.com/DNAntonie/status/402909852277932032";
 		}
 	
 	
@@ -43,15 +45,14 @@ public class BamToFastq
 	
 	private static class MappedFastq
 		{
-		int tid;
-		int pos;
 		byte side;
+		int hash;
 		String name;
 		String seq;
 		String qual;
 		@Override
 		public String toString() {
-			return "("+name+" tid:"+tid+" pos:"+pos+" side:"+(int)side+")";
+			return "("+name+" "+qual+")";
 			}
 		}
 	
@@ -61,9 +62,7 @@ public class BamToFastq
 		@Override
 		public int compare(MappedFastq o1, MappedFastq o2)
 			{
-			int i= o1.tid - o2.tid;
-			if(i!=0) return i;
-			i= o1.pos - o2.pos;
+			int i= o1.hash - o2.hash;
 			if(i!=0) return i;
 			return o1.name.compareTo(o2.name);
 			}
@@ -76,8 +75,7 @@ public class BamToFastq
 		public void encode(DataOutputStream dos, MappedFastq o)
 				throws IOException
 			{
-			dos.writeInt(o.tid);
-			dos.writeInt(o.pos);
+			dos.writeInt(o.hash);
 			dos.writeByte(o.side);
 			dos.writeUTF(o.name);
 			dos.writeUTF(o.seq);
@@ -88,11 +86,10 @@ public class BamToFastq
 			{
 			MappedFastq m=new MappedFastq();
 			try {
-				m.tid=dis.readInt();
+				m.hash=dis.readInt();
 			} catch (IOException e) {
 				return null;
 				}
-			m.pos=dis.readInt();
 			m.side=dis.readByte();
 			m.name=dis.readUTF();
 			m.seq=dis.readUTF();
@@ -123,11 +120,11 @@ public class BamToFastq
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println(" -t (dir) set temporary directory . Optional.");
+		out.println(" -t (dir) "+getMessageBundle("illegal.number.of.arguments")+" . Optional.");
 		out.println(" -F (fastq) Save fastq_R1 to file (default: stdout) . Optional.");
 		out.println(" -R (fastq) Save fastq_R2 to file (default: interlaced with forward) . Optional.");
 		out.println(" -r  repair: insert missing read");
-		out.println(" -N (int) max records in memory. Optional.");
+		out.println(" -N (int) "+getMessageBundle("max.records.in.ram")+". Optional.");
 		super.printOptions(out);
 		}
 
@@ -136,12 +133,16 @@ public class BamToFastq
 	public int doWork(String[] args)
 		{
 		boolean repair_missing_read=false;
-		int maxRecordsInRAM=500000;
-		SortingCollection<MappedFastq> fastqCollection=null;
+		SortingCollectionFactory<MappedFastq> sortingFactory=new SortingCollectionFactory<MappedFastq>();
 		File forwardFile=null;
 		File reverseFile=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
+		
+		sortingFactory.setComponentType(MappedFastq.class);
+		sortingFactory.setCodec(new MappedFastqCodec());
+		sortingFactory.setComparator(new MappedFastqComparator());
+		
 		while((c=opt.getopt(args,super.getGetOptDefault()+ "F:R:N:r"))!=-1)
 			{
 			switch(c)
@@ -149,7 +150,7 @@ public class BamToFastq
 				case 'F': forwardFile=new File(opt.getOptArg());break;
 				case 'R': reverseFile=new File(opt.getOptArg());break;
 				case 't': addTmpDirectory(new File(opt.getOptArg()));break;
-				case 'N': maxRecordsInRAM=Math.max(Integer.parseInt(opt.getOptArg()),100);break;
+				case 'N': sortingFactory.setMaxRecordsInRAM(Math.max(Integer.parseInt(opt.getOptArg()),100));break;
 				case 'r': repair_missing_read=true;break;
 				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
 				default:
@@ -164,16 +165,11 @@ public class BamToFastq
 				}
 			}
 		SAMFileReader sfr=null;
+		SortingCollection<MappedFastq> fastqCollection=null;
 		try
 			{
-
-			fastqCollection=SortingCollection.newInstance(
-					MappedFastq.class,
-					new MappedFastqCodec(),
-					new MappedFastqComparator(),
-					maxRecordsInRAM,
-					getTmpDirectories()
-					);
+			sortingFactory.setTmpDirs(this.getTmpDirectories());
+			fastqCollection=sortingFactory.make();
 			fastqCollection.setDestructiveIteration(true);
 			boolean found_single=false;
 			boolean found_paired=false;
@@ -191,35 +187,32 @@ public class BamToFastq
 				}
 			else
 				{
-				error("Illegal parameters: check the number of arguments and the interlaced option.");
+				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
 			sfr.setValidationStringency(ValidationStringency.LENIENT);
 			SAMRecordIterator iter=sfr.iterator();
-			long nReads=0;
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader().getSequenceDictionary());
 			while(iter.hasNext())
 				{
 				SAMRecord rec=iter.next();
-				
+				progress.watch(rec);
 
 				
-				if(rec.getNotPrimaryAlignmentFlag())
+				if(rec.isSecondaryOrSupplementary())
 					{
-					if(non_primary_alignmaned_flag%maxRecordsInRAM==0)
+					if(non_primary_alignmaned_flag==0)
 						{
 						warning("SKIPPING NON-PRIMARY "+(non_primary_alignmaned_flag+1)+" ALIGNMENTS");
-						
 						}
 					non_primary_alignmaned_flag++;
 					continue;
 					}
-				if(++nReads%maxRecordsInRAM==0)
-					{
-					info("Read "+nReads+" SAM records");
-					}
+				
 				MappedFastq m=new MappedFastq();
 				m.name=rec.getReadName();
 				if(m.name==null)m.name="";
+				m.hash=m.name.hashCode();
 				m.seq=rec.getReadString();
 				
 				if(m.seq.equals(SAMRecord.NULL_SEQUENCE_STRING)) m.seq="";
@@ -229,6 +222,16 @@ public class BamToFastq
 					{
 					m.seq=AcidNucleics.reverseComplement(m.seq);
 					m.qual=new StringBuilder(m.qual).reverse().toString();
+					}
+				if(m.seq.length()!=m.qual.length())
+					{
+					error("length(seq)!=length(qual) in "+m.name);
+					continue;
+					}
+				if(m.seq.isEmpty() && m.qual.isEmpty())
+					{
+					m.seq="N";
+					m.qual="#";
 					}
 				
 				
@@ -241,33 +244,6 @@ public class BamToFastq
 						throw new PicardException("input is a mix of paired/singled reads");
 						}
 					m.side=(byte)(rec.getSecondOfPairFlag()?2:1);
-					if(rec.getReadUnmappedFlag())
-						{
-						if(rec.getMateUnmappedFlag())
-							{
-							m.tid=Integer.MAX_VALUE-1;
-							m.pos=0;
-							}
-						else
-							{
-							m.tid=rec.getMateReferenceIndex();
-							m.pos=rec.getMateAlignmentStart();
-							}
-						}
-					else
-						{
-						if(rec.getMateUnmappedFlag())
-							{
-							m.tid=rec.getReferenceIndex();
-							m.pos=rec.getAlignmentStart();
-							}
-						else
-							{
-							m.tid=Math.min(rec.getReferenceIndex(),rec.getMateReferenceIndex());
-							m.pos=Math.min(rec.getAlignmentStart(),rec.getMateAlignmentStart());
-							}
-						}
-					
 					}
 				else
 					{
@@ -278,22 +254,13 @@ public class BamToFastq
 						throw new PicardException("input is a mix of paired/singled reads");
 						}
 					m.side=(byte)0;
-					if(rec.getReadUnmappedFlag())
-						{
-						m.tid=Integer.MAX_VALUE-1;
-						m.pos=0;
-						}
-					else
-						{
-						m.tid=rec.getReferenceIndex();
-						m.pos=rec.getAlignmentStart();
-						}
 					}
 				fastqCollection.add(m);
 				}
 			iter.close();
 			CloserUtil.close(iter);
 			CloserUtil.close(sfr);
+			progress.finish();
 			
 			fastqCollection.doneAdding();
 			info("Done reading.");
@@ -324,7 +291,6 @@ public class BamToFastq
 					}
 				List<MappedFastq> row=new ArrayList<MappedFastq>();
 				CloseableIterator<MappedFastq> r=fastqCollection.iterator();
-				long nWrite=0;
 				for(;;)
 					{
 					MappedFastq curr=null;
@@ -363,12 +329,10 @@ public class BamToFastq
 									{
 									warning("forward not found for "+row.get(0));
 									MappedFastq pad=new MappedFastq();
-									pad.tid=0;
-									pad.pos=0;
 									pad.side=(byte)1;
 									pad.name=row.get(0).name;
-									pad.seq="";
-									pad.qual="";
+									pad.seq="N";
+									pad.qual="#";
 									echo(fqw1,pad);
 									}
 								else
@@ -382,12 +346,10 @@ public class BamToFastq
 									{
 									warning("reverse not found for "+row.get(0));
 									MappedFastq pad=new MappedFastq();
-									pad.tid=0;
-									pad.pos=0;
 									pad.side=(byte)2;
 									pad.name=row.get(0).name;
-									pad.seq="";
-									pad.qual="";
+									pad.seq="N";
+									pad.qual="#";
 									echo(fqw2,pad);
 									}
 								else
@@ -398,10 +360,6 @@ public class BamToFastq
 							}
 						if(curr==null) break;
 						row.clear();
-						}
-					if(nWrite++%maxRecordsInRAM==0)
-						{
-						info("Wrote "+nWrite+" records");
 						}
 					row.add(curr);
 					}

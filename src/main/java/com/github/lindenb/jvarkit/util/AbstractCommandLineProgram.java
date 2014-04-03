@@ -18,6 +18,10 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
+
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 
 public abstract class AbstractCommandLineProgram
@@ -297,6 +301,7 @@ public abstract class AbstractCommandLineProgram
 		out.println(" -h get help (this screen)");
 		out.println(" -v print version and exit.");
 		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
+		out.println(" --doap prints a XML description of the program and exit.");
 		}
 	
 	protected GetOptStatus handleOtherOptions(
@@ -326,6 +331,20 @@ public abstract class AbstractCommandLineProgram
 				}
 			case GetOpt.LONG_OPT:
 				{
+				if("doap".equals(opt.getLongOpt()))
+					{
+					try
+						{
+						printDoap();
+						return GetOptStatus.EXIT_SUCCESS;
+						}
+					catch(Exception err)
+						{
+						System.err.println("Error "+err.getMessage()+"");
+						return GetOptStatus.EXIT_FAILURE;
+						}
+					
+					}
 				if("help".equals(opt.getLongOpt()))
 					{
 					printUsage();
@@ -427,4 +446,67 @@ public abstract class AbstractCommandLineProgram
     public void instanceMainWithExit(final String[] argv) {
         System.exit(instanceMain(argv));
     }
+    
+    private void printDoap() throws XMLStreamException
+    	{
+    	final String RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    	final String DOAP="http://usefulinc.com/ns/doap#";
+    	final String FOAF="http://xmlns.com/foaf/0.1/";
+    	XMLOutputFactory xof=XMLOutputFactory.newFactory();
+		XMLStreamWriter w=xof.createXMLStreamWriter(System.out,"UTF-8");
+		w.writeStartDocument("UTF-8", "1.0");
+		w.writeStartElement("rdf","RDF",RDF);
+		w.writeNamespace("rdf", RDF);
+		w.writeNamespace("doap", RDF);
+		w.writeNamespace("foaf", FOAF);
+		w.writeStartElement("doap","Project",DOAP);
+		
+		
+		w.writeStartElement("doap","name",DOAP);	
+		w.writeCharacters(getProgramName());
+		w.writeEndElement();
+		
+		w.writeEmptyElement("doap","homepage",DOAP);
+		w.writeAttribute("rdf", RDF, "resource", getOnlineDocUrl());
+		
+		w.writeStartElement("doap","programming-language",DOAP);	
+		w.writeCharacters("java");
+		w.writeEndElement();
+		
+		w.writeEmptyElement("doap","licence",DOAP);
+		w.writeAttribute("rdf", RDF, "resource","http://opensource.org/licenses/MIT");
+		
+		
+		w.writeStartElement("doap","shortdesc",DOAP);	
+		w.writeAttribute("xml:lang","en");
+		w.writeCharacters(getProgramDescription());
+		w.writeEndElement();
+
+		
+		w.writeStartElement("doap","release",DOAP);	
+		w.writeStartElement("doap","Version",DOAP);	
+			w.writeStartElement("doap","revision",DOAP);	
+			w.writeCharacters(getVersion());
+			w.writeEndElement();
+		w.writeEndElement();
+		w.writeEndElement();
+		
+		w.writeStartElement("doap","maintainer",DOAP);	
+		w.writeStartElement("foaf","Person",FOAF);	
+			w.writeStartElement("foaf","name",FOAF);	
+			w.writeCharacters(getAuthorName());
+			w.writeEndElement();
+			w.writeEmptyElement("foaf","mbox",FOAF);	
+			w.writeAttribute("rdf", RDF, "resource","mailto:"+getAuthorMail());
+		w.writeEndElement();
+		w.writeEndElement();
+
+		
+		
+		w.writeEndElement();
+		w.writeEndDocument();
+    	w.flush();
+    	}
+    
+    
 }

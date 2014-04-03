@@ -313,14 +313,16 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
 	public String getProgramDescription() {
 		return "Scan folders and generate a structured summary of the files in JSON or XML";
 		}
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/Illuminadir";
+    	}
 	
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
 		out.println(" -J produces a JSON output");
+		super.printOptions(out);
 		}
 	
 
@@ -330,16 +332,20 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
 		 boolean JSON=false;
 		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "hvL:J"))!=-1)
+		while((c=getopt.getopt(args, super.getGetOptDefault()+"J"+args))!=-1)
 			{
 			switch(c)
 				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(getopt.getOptArg()));break;
 				case 'J': JSON=true;break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
+				default:
+					{
+					switch(super.handleOtherOptions(c, getopt, args))
+						{
+						case EXIT_FAILURE:return -1;
+						case EXIT_SUCCESS:return 0;
+						case OK:break;
+						}
+					}
 				}
 			}
 		
