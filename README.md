@@ -121,4 +121,5 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/CompareBamAndBuild">CompareBamAndBuild<a></th><td>Compare two  BAM files mapped on two different builds. Requires a liftover chain file.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/KnownGenesToBed">KnownGenesToBed<a></th><td>Convert UCSC KnownGene to BED.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar95652">Biostar95652<a></th><td>Drawing a schematic genomic context tree. See also http://www.biostars.org/p/95652/</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamToPsl">SamToPsl<a></th><td>Convert SAM/BAM to PSL  or BED12 .</td></tr>
 </table>
