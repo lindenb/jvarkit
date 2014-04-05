@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.tools.sam2tsv;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -31,45 +32,59 @@ public class Sam2Tsv
 	private StringBuilder L2=null;
 	private StringBuilder L3=null;
 
-	
+	private PrintWriter out=new PrintWriter(System.out);
 	
 	private void printAln(
 			final SAMRecord rec,
 			Integer readPos,
 			Character readChar,
+			int qualChar,
 			Integer refPos,
 			Character refChar,
 			CigarOperator op
 			)
 			{
-			System.out.print(rec.getReadName());
-			System.out.print("\t");
-			System.out.print(rec.getReadUnmappedFlag()?".":rec.getReferenceName());
-			System.out.print("\t");
+			this.out.print(rec.getReadName());
+			this.out.print("\t");
+			this.out.print(rec.getFlags());
+			this.out.print("\t");
+			this.out.print(rec.getReadUnmappedFlag()?".":rec.getReferenceName());
+			this.out.print("\t");
 			if(readPos!=null && readChar!=null)
 				{
-				System.out.print(readPos);
-				System.out.print("\t");
-				System.out.print(readChar);
-				System.out.print("\t");
+				this.out.print(readPos);
+				this.out.print("\t");
+				this.out.print(readChar);
+				this.out.print("\t");
 				}
 			else
 				{
-				System.out.print(".\t.\t");
+				this.out.print(".\t.\t");
 				}
+			if(qualChar<0)
+				{
+				this.out.print(".");
+				}
+			else
+				{
+				this.out.print((int)qualChar);
+				}
+			
+			this.out.print("\t");
+			
 			if(refPos!=null && refChar!=null)
 				{
-				System.out.print(refPos);
-				System.out.print("\t");
-				System.out.print(refChar);
-				System.out.print("\t");
+				this.out.print(refPos);
+				this.out.print("\t");
+				this.out.print(refChar);
+				this.out.print("\t");
 				}
 			else
 				{
-				System.out.print(".\t.\t");
+				this.out.print(".\t.\t");
 				}
-			System.out.print(op==null?".":op.name());
-			System.out.println();
+			this.out.print(op==null?".":op.name());
+			this.out.println();
 			if(this.printAlignment)
 				{
 				L1.append(readChar==null?'-':readChar);
@@ -89,9 +104,10 @@ public class Sam2Tsv
 		{
 		if(rec==null) return;
 		byte readbases[]=rec.getReadBases();
+		byte readQuals[]=rec.getBaseQualities();
 		if(readbases==null || rec.getReadUnmappedFlag())
 			{
-			printAln(rec,null,null,null,null,null);
+			printAln(rec,null,null,-1,null,null,null);
 			return;
 			}
 		
@@ -111,10 +127,10 @@ public class Sam2Tsv
 			 {
 			 switch (e.getOperator())
 				 {
+				 case S : readIndex++; break;// ignore soft clip
 				 case H : break; // ignore hard clips
 				 case P : break; // ignore pads
 				 case I : //cont.
-				 case S :
 				 		{
 				 		for(int i=0;i<e.getLength();++i)
 				 			{
@@ -123,6 +139,7 @@ public class Sam2Tsv
 				 				printAln(rec,
 				 						readIndex,
 				 						(char)(readbases[readIndex]),
+				 						(readQuals!=null && readIndex<readQuals.length?(int)(readQuals[readIndex]):-1),
 				 						null,
 				 						null,
 				 						e.getOperator()
@@ -142,6 +159,7 @@ public class Sam2Tsv
 				 				printAln(rec,
 				 						null,
 				 						null,
+				 						-1,
 				 						refIndex,
 				 						genomicSequence.charAt(refIndex-1),
 				 						e.getOperator()
@@ -160,18 +178,24 @@ public class Sam2Tsv
 				 			{
 				 			char baseRead='*';
 				 			char baseRef='*';
+				 			int baseQual=-1;
 				 			
 				 			if(readIndex>=0 && readIndex< readbases.length)
 				 				{
-					 			baseRead=(char)(rec.getReadBases()[readIndex]);
+					 			baseRead=(char)(readbases[readIndex]);
 				 				}
 				 			if(refIndex>=1 && refIndex<= genomicSequence.length())
 					 			{
 				 				baseRef=genomicSequence.charAt(refIndex-1);
 					 			}
+				 			if(readQuals!=null && (readIndex>=0 && readIndex< readQuals.length))
+				 				{
+				 				baseQual=(int)(readQuals[readIndex]);
+				 				}
 				 			printAln(rec,
 				 					readIndex,
 				 					baseRead,
+				 					baseQual,
 			 						refIndex,
 			 						baseRef,
 			 						e.getOperator()
@@ -195,19 +219,19 @@ public class Sam2Tsv
 				
 				int len=Math.max(rec.getReadNameLength(), rec.getReferenceName().length())+2;
 				
-				System.out.printf(":%"+len+"s %8d %s %-8d\n",
+				this.out.printf(":%"+len+"s %8d %s %-8d\n",
 						rec.getReferenceName(),
 						rec.getUnclippedStart(),
 						L1.toString(),
 						rec.getUnclippedEnd()
 						);
-				System.out.printf(":%"+len+"s %8s %s\n",
+				this.out.printf(":%"+len+"s %8s %s\n",
 						"",
 						"",
 						L2.toString()
 						);
 
-				System.out.printf(":%"+len+"s %8d %s %-8d\n",
+				this.out.printf(":%"+len+"s %8d %s %-8d\n",
 						rec.getReadName(),
 						1,
 						L3.toString(),
@@ -235,7 +259,7 @@ public class Sam2Tsv
 				SAMRecord rec=iter.next();
 				progress.watch(rec);
 				printAln(rec);
-				if(System.out.checkError()) break;
+				if(this.out.checkError()) break;
 				}
 			}
 		catch(Exception err)
@@ -264,7 +288,7 @@ public class Sam2Tsv
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -r (reference) Fasta Reference indexed file . REQUIRED.");
+		out.println(" -r (reference) "+ getMessageBundle("reference.faidx") +" . REQUIRED.");
 		out.println(" -A display alignment.");
 		super.printOptions(out);
 		}
@@ -295,7 +319,7 @@ public class Sam2Tsv
 		
 		if(refFile==null)
 			{
-			error("Undefined REF file");
+			error(getMessageBundle("reference.undefined"));
 			return -1;
 			}
 		
