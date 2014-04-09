@@ -1,9 +1,9 @@
 package com.github.lindenb.jvarkit.tools.rnaseq;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.broad.tribble.readers.LineIterator;
@@ -27,8 +27,6 @@ import net.sf.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
-import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
@@ -38,7 +36,6 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 	{
 	private IntervalTreeMap<KnownGene> knownGenesMap=new IntervalTreeMap<KnownGene>();
 	private int max_distance=10;
-	private int max_extend_gene=2000;
 	private SAMFileWriter sfw=null;
 	private SAMFileWriter weird=null;
 
@@ -74,8 +71,15 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 			}
 		return false;
 		}
-	
-	private void topHat(
+	private static boolean isMatch(CigarElement e)
+		{
+		switch(e.getOperator())
+			{
+			case X:case EQ: case M: return true;
+			default: return false;
+			}
+		}
+	private void scanRead(
 			SAMRecord rec,
 			SAMSequenceDictionary dict
 			)
@@ -103,22 +107,23 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 					{
 					case S: break;
 					case I: break;
-					case D:
 					case N:
 						{
+						if(cIdx+1<cigar.numCigarElements() &&
+							isMatch(cigar.getCigarElement(cIdx+1)) &&	
+							!findJunction(genes,refPos1-1,refPos1+ce.getLength()))
+							{
+							this.sfw.addAlignment(rec);//unknown junction
+							return;
+							}
 						refPos1+=ce.getLength();	
 						break;
 						}
+					case D:
 					case X:
 					case EQ:
 					case M:
 						{
-						if(cIdx>0 &&
-							cigar.getCigarElement(cIdx-1).getOperator().equals(CigarOperator.N) &&	
-							findJunction(genes,refPos1,refPos1+ce.getLength()))
-							{
-							return;//known transcript
-							}
 						refPos1+=ce.getLength();
 						break;
 						}
@@ -127,93 +132,9 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 					}
 				}
 			
-			this.sfw.addAlignment(rec);
+			
 			}
 
-	
-	private void bwaMem(
-			SAMRecord rec,
-			SAMSequenceDictionary dict,
-			ArrayList<OtherCanonicalAlign> xpAligns)
-		{
-		if(xpAligns.isEmpty()) return;
-		
-		
-		Interval interval=new Interval(rec.getReferenceName(), rec.getAlignmentStart(), rec.getAlignmentEnd());
-		
-		Collection<KnownGene> genes=this.knownGenesMap.getOverlapping(interval);
-		
-		if(genes.isEmpty())
-			{
-			return;
-			}
-		
-		
-		
-		//remove XP aligns if no overlap/ transcripts
-		int i=0;
-		List<OtherCanonicalAlign>  weirdPslAlignments=new ArrayList<OtherCanonicalAlign>();
-		while(i< xpAligns.size())
-			{
-			OtherCanonicalAlign xp=xpAligns.get(i);
-			
-			boolean found=false;
-			for(KnownGene g:genes)
-				{
-				if(!rec.getReferenceIndex().equals(xp.getChromIndex())) continue;
-				if(g.getTxEnd()+this.max_extend_gene < xp.getPos()) continue;
-				if(g.getTxStart()>xp.getAlignmentEnd()+this.max_extend_gene) continue;
-				found=true;
-				
-				if((xp.getStrand()=='-')!=rec.getReadNegativeStrandFlag())
-					{
-					weirdPslAlignments.add(xp);
-					}
-				break;
-				}
-			
-			//xp overlap read
-			if(found && !(xp.getAlignmentEnd()<rec.getAlignmentStart()||xp.getPos()>rec.getAlignmentEnd()) )
-				{
-				found=false;
-				}
-			
-			if(found)
-				{
-				++i;
-				}
-			else
-				{
-				xpAligns.remove(i);
-				}
-			}
-		if(xpAligns.isEmpty())
-			{
-			return;
-			}
-		
-		if(weirdPslAlignments.size()==xpAligns.size())
-			{
-			this.weird.addAlignment(rec);
-			return;
-			}
-		
-		boolean found_known_junction=false;
-		for(OtherCanonicalAlign xp:xpAligns)
-			{
-			if((xp.getStrand()=='-')!=rec.getReadNegativeStrandFlag()) continue;
-			if( findJunction(genes,rec.getAlignmentEnd(),xp.getPos()) ||
-				findJunction(genes,xp.getAlignmentEnd(),rec.getAlignmentStart())
-				)
-				{
-				found_known_junction=true;
-				break;
-				}
-			
-			}
-		if(found_known_junction) return;
-		this.sfw.addAlignment(rec);
-		}
 	
 	
 	private static boolean isWeird(SAMRecord rec,SAMSequenceDictionary dict)
@@ -246,8 +167,6 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 		if(dict==null) throw new PicardException("Sequence dictionary missing");
 		SAMRecordIterator iter=in.iterator();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-		OtherCanonicalAlignFactory xpFactory=new OtherCanonicalAlignFactory(in.getFileHeader());;
-		
 		
 		while(iter.hasNext())
 			{
@@ -262,44 +181,34 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 				continue;
 				}
 			
-			boolean has_N=false;
 			for(CigarElement ce:rec.getCigar().getCigarElements())
 				{
 				if(ce.getOperator().equals(CigarOperator.N))
 					{
-					has_N=true;
+					scanRead(rec,dict);
 					break;
 					}
 				}	
-			if(has_N)
-				{
-				topHat(rec, dict);
-				}
-			else
-				{
-				ArrayList<OtherCanonicalAlign> xpAligns=new ArrayList<OtherCanonicalAlign>(xpFactory.getXPAligns(rec));
-				if(!xpAligns.isEmpty())
-					{
-					bwaMem(rec, dict, xpAligns);
-					}
-				}
 			}
 		iter.close();
 		progress.finish();
 		}
-	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/FindNewSpliceSites";
+		}
+
 	@Override
 	public String getProgramDescription()
 		{
-		return "Find new splice sites";
+		return "use the 'N' operator in the cigar string to find unknown splice sites";
 		}
 	
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println("-k (uri) UCSC Known Gene URI. Required.");
+		out.println("-k (uri) UCSC Known Gene URI. Required. May be specified multiple times");
 		out.println("-d (int) max distance between known splice site and cigar end default:"+this.max_distance);
-		out.println("-g (int) max pb to extend gene. default:"+this.max_extend_gene);
 		super.printOptions(out);
 		}
 
@@ -309,15 +218,13 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 		SamWriterFactory swf=SamWriterFactory.newInstance();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		String kgUri=null;
-		
-		while((c=opt.getopt(args,getGetOptDefault()+"k:d:g:"))!=-1)
+		Set<String> kgUris=new HashSet<String>();
+		while((c=opt.getopt(args,getGetOptDefault()+"k:d:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'k': kgUri=opt.getOptArg();break;
+				case 'k': kgUris.add( opt.getOptArg() );break;
 				case 'd': max_distance=Integer.parseInt(opt.getOptArg());break;
-				case 'g': max_extend_gene=Integer.parseInt(opt.getOptArg());break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -330,7 +237,7 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 				}
 			}
 		
-		if(kgUri==null)
+		if(kgUris.isEmpty())
 			{
 			error("known Gene file undefined");
 			return -1;
@@ -341,16 +248,18 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 			{
 
 			Pattern tab=Pattern.compile("[\t]");
-			info("Opening "+kgUri);
-			LineIterator r=IOUtils.openURIForLineIterator(kgUri);
-			while(r.hasNext())
+			for(String kgUri: kgUris)
 				{
-				KnownGene g=new KnownGene(tab.split(r.next()));
-				if(g.getExonCount()==1) continue;//need spliced one
-				this.knownGenesMap.put(new Interval(g.getChr(), g.getTxStart()+1, g.getTxEnd()), g);
+				info("Opening "+kgUri);
+				LineIterator r=IOUtils.openURIForLineIterator(kgUri);
+				while(r.hasNext())
+					{
+					KnownGene g=new KnownGene(tab.split(r.next()));
+					if(g.getExonCount()==1) continue;//need spliced one
+					this.knownGenesMap.put(new Interval(g.getChr(), g.getTxStart()+1, g.getTxEnd()), g);
+					}
+				info("Done reading: "+kgUri);
 				}
-			info("Done reading: "+kgUri);
-			
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
