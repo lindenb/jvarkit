@@ -7,10 +7,16 @@ import net.sf.samtools.CigarElement;
 /**  canonical alignments in a chimeric alignment */
 public interface OtherCanonicalAlign  extends Comparable<OtherCanonicalAlign>
 	{
+	@Deprecated
 	public String getChrom();
+	public String getReferenceName();
 	public int getChromIndex();
+	@Deprecated
 	public int getPos();
+	public int getAlignmentStart();
+	@Deprecated
 	public char getStrand();
+	public boolean getReadNegativeStrandFlag();
 	public String getCigarString();
 	public Cigar getCigar();
 	public List<CigarElement> getCigarElements();

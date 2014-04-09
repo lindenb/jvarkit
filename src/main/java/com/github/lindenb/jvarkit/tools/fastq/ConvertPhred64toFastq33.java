@@ -47,11 +47,11 @@ public class ConvertPhred64toFastq33 extends AbstractCommandLineProgram
 					throw new IOException("q="+(int)quals[i]);
 					}
 				}
-			String seq=rec.getReadHeader();
-			int diez=seq.indexOf('#');
-			if(diez!=-1) seq=seq.substring(0, diez);
+			String name=rec.getReadHeader();
+			int diez=name.indexOf('#');
+			if(diez!=-1) name=name.substring(0, diez);
 	        pw.print(FastqConstants.SEQUENCE_HEADER);
-	        pw.println(seq);
+	        pw.println(name);
 	        pw.println(rec.getReadString());
 	        pw.print(FastqConstants.QUALITY_HEADER);
 	        pw.println(rec.getBaseQualityHeader() == null || rec.getReadHeader().equals(rec.getBaseQualityHeader())? "" : rec.getBaseQualityHeader());

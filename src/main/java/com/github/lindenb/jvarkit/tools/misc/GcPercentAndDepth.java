@@ -304,8 +304,14 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 				LineIterator r=IOUtils.openURIForLineIterator(chromNameFile);
 				while(r.hasNext())
 					{
-					String tokens[]=r.next().split("[\t]");
-					if(tokens.length<2) continue;
+					String line=r.next();
+					if(line.isEmpty()) continue;
+					String tokens[]=line.split("[\t]");
+					if(tokens.length<2)
+						{
+						warning("Bad conversion line (column count<2) in "+line);
+						continue;
+						}
 					resolveChromName.put(tokens[0], tokens[1]);
 					resolveChromName.put(tokens[1], tokens[0]);
 					}
@@ -453,7 +459,10 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 						}
 					else
 						{
-						error(getMessageBundle("chrom.missing.in.sequence.dictionary")+" "+chromName);
+						
+						error(
+								"when looking for genomic sequence "+getMessageBundle("chrom.missing.in.sequence.dictionary")+" "+chromName+
+								" conversions available:"+resolveChromName);
 						return -1;
 						}
 					}

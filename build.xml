@@ -1220,6 +1220,15 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="bwamemnop">
+	<compile-picard-cmd 
+		java="**/BWAMemNOp.java"
+		main="com.github.lindenb.jvarkit.tools.mem.BWAMemNOp"
+		name="bwamemnop"
+		/>
+</target>
+
+
 <target name="scanshortinvert">
 	<compile-picard-cmd 
 		java="**/ScanShortInvert.java"

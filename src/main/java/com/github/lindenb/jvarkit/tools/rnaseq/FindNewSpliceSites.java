@@ -1,8 +1,6 @@
 package com.github.lindenb.jvarkit.tools.rnaseq;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -13,8 +11,14 @@ import org.broad.tribble.readers.LineIterator;
 import net.sf.picard.PicardException;
 import net.sf.picard.util.Interval;
 import net.sf.picard.util.IntervalTreeMap;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
+import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
+import net.sf.samtools.SAMFileWriter;
+import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
 import net.sf.samtools.SAMSequenceDictionary;
@@ -26,17 +30,18 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene.Exon;
-import com.github.lindenb.jvarkit.util.ucsc.PslAlign;
 
 public class FindNewSpliceSites extends AbstractCommandLineProgram
 	{
 	private IntervalTreeMap<KnownGene> knownGenesMap=new IntervalTreeMap<KnownGene>();
 	private int max_distance=10;
 	private int max_extend_gene=2000;
-	private PrintWriter pslWriter=new PrintWriter(System.out);
-	private PrintWriter weirdPslWriter=new PrintWriter(new NullOuputStream());
+	private SAMFileWriter sfw=null;
+	private SAMFileWriter weird=null;
+
 	private FindNewSpliceSites()
 		{
 		}
@@ -46,75 +51,196 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 		return Math.abs(d1-d2)<=this.max_distance;
 		}
 	
-	
-	private PslAlign createPslAlign(SAMRecord rec,SAMFileReader in)
+
+
+	private boolean findJunction(
+			Collection<KnownGene> genes,
+			int start1,
+			int end1
+			)
 		{
-		PslAlign a=new PslAlign();
-		
-		a.setMatches(rec.getCigar().getReferenceLength()*2);
-		
-		a.setStrand('+');
-		a.setQName(rec.getReadName());
-		a.setQSize(rec.getReadLength()*2);
-		a.setQStart(0);
-		a.setQEnd(rec.getReadLength()*2);
-		
-		a.setTName(rec.getReferenceName());
-		a.setTStart(Math.min( rec.getAlignmentStart(),rec.getMateAlignmentStart())-1);
-		a.setTEnd(Math.max( rec.getAlignmentEnd(),rec.getMateAlignmentStart()+rec.getReadLength()));
-		a.setTSize(in.getFileHeader().getSequenceDictionary().getSequence(rec.getReferenceIndex()).getSequenceLength());
-		
-		if(rec.getAlignmentStart() < rec.getMateAlignmentStart())
+		for(KnownGene g:genes)
 			{
-			a.addBlock(0,rec.getAlignmentStart()-1,rec.getReadLength());
-			a.addBlock(rec.getReadLength(),rec.getMateAlignmentStart()-1,rec.getReadLength());			
+			for(int k=0;k+1< g.getExonCount();++k)
+				{
+				Exon ex0=g.getExon(k);
+				Exon ex1=g.getExon(k+1);
+				if( is_close_to(ex0.getEnd()+1,start1) &&
+					is_close_to(ex1.getStart()+1,end1))
+					{
+					return true;
+					}
+				}
 			}
-		else
-			{
-			a.addBlock(0,rec.getMateAlignmentStart()-1,rec.getReadLength());
-			a.addBlock(rec.getReadLength(),rec.getAlignmentStart()-1,rec.getReadLength());			
-			}
-		
-		return a;
+		return false;
 		}
+	
+	private void topHat(
+			SAMRecord rec,
+			SAMSequenceDictionary dict
+			)
+			{
+			Cigar cigar=rec.getCigar();
+			//if(cigar==null || !rec.getCigarString().contains("N")) return; //aleady checked
+
+		
+			
+			Interval interval=new Interval(rec.getReferenceName(), rec.getAlignmentStart(), rec.getAlignmentEnd());
+			Collection<KnownGene> genes=this.knownGenesMap.getOverlapping(interval);
+			if(genes.isEmpty())
+				{
+				return;
+				}
+
+			
+			int refPos1=rec.getAlignmentStart();
+			
+			
+			for(int cIdx=0;cIdx< cigar.numCigarElements();++cIdx)
+				{
+				CigarElement ce=cigar.getCigarElement(cIdx);
+				switch(ce.getOperator())
+					{
+					case S: break;
+					case I: break;
+					case D:
+					case N:
+						{
+						refPos1+=ce.getLength();	
+						break;
+						}
+					case X:
+					case EQ:
+					case M:
+						{
+						if(cIdx>0 &&
+							cigar.getCigarElement(cIdx-1).getOperator().equals(CigarOperator.N) &&	
+							findJunction(genes,refPos1,refPos1+ce.getLength()))
+							{
+							return;//known transcript
+							}
+						refPos1+=ce.getLength();
+						break;
+						}
+					case H:case P: break;//ignore
+					default:throw new RuntimeException("operator not handled. ops.");
+					}
+				}
+			
+			this.sfw.addAlignment(rec);
+			}
 
 	
-	private PslAlign createPslAlign(SAMRecord rec,OtherCanonicalAlign xp,SAMFileReader in)
+	private void bwaMem(
+			SAMRecord rec,
+			SAMSequenceDictionary dict,
+			ArrayList<OtherCanonicalAlign> xpAligns)
 		{
-		PslAlign a=new PslAlign();
+		if(xpAligns.isEmpty()) return;
 		
-		a.setMatches(rec.getCigar().getReferenceLength()+xp.getCigar().getReferenceLength());
 		
-		a.setStrand('+');
-		a.setQName(rec.getReadName());
-		a.setQSize(rec.getCigar().getReferenceLength()+xp.getCigar().getReferenceLength());
-		a.setQStart(0);
-		a.setQEnd(rec.getCigar().getReferenceLength()+xp.getCigar().getReferenceLength());
+		Interval interval=new Interval(rec.getReferenceName(), rec.getAlignmentStart(), rec.getAlignmentEnd());
 		
-		a.setTName(rec.getReferenceName());
-		a.setTStart(Math.min(rec.getAlignmentStart(),xp.getPos())-1);
-		a.setTEnd(Math.max(rec.getAlignmentEnd(),xp.getAlignmentEnd())-1);
-		a.setTSize(in.getFileHeader().getSequenceDictionary().getSequence(rec.getReferenceIndex()).getSequenceLength());
+		Collection<KnownGene> genes=this.knownGenesMap.getOverlapping(interval);
 		
-		if(rec.getAlignmentStart() < xp.getPos())
+		if(genes.isEmpty())
 			{
-			a.addBlock(0,rec.getAlignmentStart()-1,rec.getCigar().getReferenceLength());
-			a.addBlock(rec.getCigar().getReferenceLength(),xp.getPos()-1,xp.getCigar().getReferenceLength());			
-			}
-		else
-			{
-			a.addBlock(0,xp.getPos()-1,xp.getCigar().getReferenceLength());
-			a.addBlock(xp.getCigar().getReferenceLength(),rec.getAlignmentStart()-1,rec.getCigar().getReferenceLength());
+			return;
 			}
 		
-		return a;
+		
+		
+		//remove XP aligns if no overlap/ transcripts
+		int i=0;
+		List<OtherCanonicalAlign>  weirdPslAlignments=new ArrayList<OtherCanonicalAlign>();
+		while(i< xpAligns.size())
+			{
+			OtherCanonicalAlign xp=xpAligns.get(i);
+			
+			boolean found=false;
+			for(KnownGene g:genes)
+				{
+				if(!rec.getReferenceIndex().equals(xp.getChromIndex())) continue;
+				if(g.getTxEnd()+this.max_extend_gene < xp.getPos()) continue;
+				if(g.getTxStart()>xp.getAlignmentEnd()+this.max_extend_gene) continue;
+				found=true;
+				
+				if((xp.getStrand()=='-')!=rec.getReadNegativeStrandFlag())
+					{
+					weirdPslAlignments.add(xp);
+					}
+				break;
+				}
+			
+			//xp overlap read
+			if(found && !(xp.getAlignmentEnd()<rec.getAlignmentStart()||xp.getPos()>rec.getAlignmentEnd()) )
+				{
+				found=false;
+				}
+			
+			if(found)
+				{
+				++i;
+				}
+			else
+				{
+				xpAligns.remove(i);
+				}
+			}
+		if(xpAligns.isEmpty())
+			{
+			return;
+			}
+		
+		if(weirdPslAlignments.size()==xpAligns.size())
+			{
+			this.weird.addAlignment(rec);
+			return;
+			}
+		
+		boolean found_known_junction=false;
+		for(OtherCanonicalAlign xp:xpAligns)
+			{
+			if((xp.getStrand()=='-')!=rec.getReadNegativeStrandFlag()) continue;
+			if( findJunction(genes,rec.getAlignmentEnd(),xp.getPos()) ||
+				findJunction(genes,xp.getAlignmentEnd(),rec.getAlignmentStart())
+				)
+				{
+				found_known_junction=true;
+				break;
+				}
+			
+			}
+		if(found_known_junction) return;
+		this.sfw.addAlignment(rec);
 		}
-
 	
+	
+	private static boolean isWeird(SAMRecord rec,SAMSequenceDictionary dict)
+		{
+		if(rec.getReadPairedFlag() && !rec.getMateUnmappedFlag() && 
+				rec.getReferenceIndex().equals(rec.getMateReferenceIndex()) &&
+				(
+				rec.getReadNegativeStrandFlag()==rec.getMateNegativeStrandFlag() ||
+				(rec.getReadNegativeStrandFlag()&& !rec.getMateNegativeStrandFlag() && rec.getAlignmentStart() < rec.getMateAlignmentStart()) ||
+				(!rec.getReadNegativeStrandFlag() && rec.getMateNegativeStrandFlag() && rec.getAlignmentStart() > rec.getMateAlignmentStart())
+				))
+			{
+			if(rec.getAlignmentStart() < rec.getMateAlignmentStart())
+				{
+				if(rec.getMateAlignmentStart() < rec.getAlignmentEnd()) return true;
+				}
+			if(rec.getAlignmentStart() > rec.getMateAlignmentStart())
+				{
+				if(rec.getMateAlignmentStart() + Math.abs(rec.getInferredInsertSize() ) > rec.getAlignmentStart()) return true;
+				}
+			return true;
+			}
+		return false;
+		}
 	
 	private void scan(SAMFileReader in) 
 		{
-		long count_intergenic=0;
 		in.setValidationStringency(ValidationStringency.LENIENT);
 		SAMSequenceDictionary dict=in.getFileHeader().getSequenceDictionary();
 		if(dict==null) throw new PicardException("Sequence dictionary missing");
@@ -129,124 +255,37 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 			if(rec.getReadUnmappedFlag()) continue;
 			if(rec.isSecondaryOrSupplementary()) continue;
 			progress.watch(rec);
-			List<OtherCanonicalAlign> xpAligns=new ArrayList<OtherCanonicalAlign>(xpFactory.getXPAligns(rec));
-			if(xpAligns.isEmpty()) continue;
-			Interval interval=new Interval(rec.getReferenceName(), rec.getAlignmentStart(), rec.getAlignmentEnd());
-			List<PslAlign> weirdPslAlignments=new ArrayList<PslAlign>();
 			
-			Collection<KnownGene> genes=this.knownGenesMap.getOverlapping(interval);
-			
-			if(genes.isEmpty())
+			if(isWeird(rec,dict))
 				{
-				count_intergenic++;
-				continue;
-				}
-			if(rec.getReadPairedFlag() && !rec.getMateUnmappedFlag() && 
-					rec.getReferenceIndex().equals(rec.getMateReferenceIndex()) &&
-					(
-					rec.getReadNegativeStrandFlag()==rec.getMateNegativeStrandFlag() ||
-					(rec.getReadNegativeStrandFlag()&& !rec.getMateNegativeStrandFlag() && rec.getAlignmentStart() < rec.getMateAlignmentStart()) ||
-					(!rec.getReadNegativeStrandFlag() && rec.getMateNegativeStrandFlag() && rec.getAlignmentStart() > rec.getMateAlignmentStart())
-					))
-				{
-				if(rec.getAlignmentStart() < rec.getMateAlignmentStart())
-					{
-					if(rec.getMateAlignmentStart() < rec.getAlignmentEnd()) continue;
-					}
-				if(rec.getAlignmentStart() > rec.getMateAlignmentStart())
-					{
-					if(rec.getMateAlignmentStart() + Math.abs(rec.getInferredInsertSize() ) > rec.getAlignmentStart()) continue;
-					}
-				weirdPslWriter.println(	createPslAlign(rec,in));
+				this.weird.addAlignment(rec);
 				continue;
 				}
 			
-			
-			//remove XP aligns if no overlap/ transcripts
-			int i=0;
-			while(i< xpAligns.size())
+			boolean has_N=false;
+			for(CigarElement ce:rec.getCigar().getCigarElements())
 				{
-				OtherCanonicalAlign xp=xpAligns.get(i);
-				
-				boolean found=false;
-				for(KnownGene g:genes)
+				if(ce.getOperator().equals(CigarOperator.N))
 					{
-					if(!rec.getReferenceIndex().equals(xp.getChromIndex())) continue;
-					if(g.getTxEnd()+this.max_extend_gene < xp.getPos()) continue;
-					if(g.getTxStart()>xp.getAlignmentEnd()+this.max_extend_gene) continue;
-					found=true;
-					
-					if((xp.getStrand()=='-')!=rec.getReadNegativeStrandFlag())
-						{
-						weirdPslAlignments.add(createPslAlign(rec, xp,in));
-						}
+					has_N=true;
 					break;
 					}
-				
-				//xp overlap read
-				if(found && !(xp.getAlignmentEnd()<rec.getAlignmentStart()||xp.getPos()>rec.getAlignmentEnd()) )
-					{
-					found=false;
-					}
-				
-				if(found)
-					{
-					++i;
-					}
-				else
-					{
-					xpAligns.remove(i);
-					}
-				}
-			if(xpAligns.isEmpty())
+				}	
+			if(has_N)
 				{
-				continue;
+				topHat(rec, dict);
 				}
-			
-			if(weirdPslAlignments.size()==xpAligns.size())
+			else
 				{
-				for(PslAlign a:weirdPslAlignments) 
-					this.weirdPslWriter.println(a);
-				continue;
-				}
-			List<PslAlign> novoPslAlignments=new ArrayList<PslAlign>();
-			
-			boolean found_known_junction=false;
-			for(OtherCanonicalAlign xp:xpAligns)
-				{
-				if((xp.getStrand()=='-')!=rec.getReadNegativeStrandFlag()) continue;
-				for(KnownGene g:genes)
+				ArrayList<OtherCanonicalAlign> xpAligns=new ArrayList<OtherCanonicalAlign>(xpFactory.getXPAligns(rec));
+				if(!xpAligns.isEmpty())
 					{
-					for(int k=0;k+1< g.getExonCount();++k)
-						{
-						Exon ex0=g.getExon(k);
-						Exon ex1=g.getExon(k+1);
-						if( is_close_to(ex0.getEnd()+1,rec.getAlignmentEnd()) &&
-							is_close_to(ex1.getStart()+1,xp.getPos()))
-							{
-							found_known_junction=true;
-							}
-						else if( is_close_to(ex0.getEnd()+1,xp.getAlignmentEnd()) &&
-								 is_close_to(ex1.getStart()+1,rec.getAlignmentStart()))
-							{
-							found_known_junction=true;
-							}
-						if(found_known_junction) break;
-						}
-					if(found_known_junction) break;
+					bwaMem(rec, dict, xpAligns);
 					}
-				if(found_known_junction) break;
-				novoPslAlignments.add(createPslAlign(rec, xp,in));
-				}
-			if(found_known_junction) continue;
-			for(PslAlign a:novoPslAlignments)
-				{
-				this.pslWriter.println(a);
 				}
 			}
 		iter.close();
 		progress.finish();
-		info("Intergenic: "+count_intergenic);
 		}
 	
 	@Override
@@ -267,28 +306,18 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
+		SamWriterFactory swf=SamWriterFactory.newInstance();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
 		String kgUri=null;
 		
-		while((c=opt.getopt(args,getGetOptDefault()+"k:d:w:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"k:d:g:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'k': kgUri=opt.getOptArg();break;
 				case 'd': max_distance=Integer.parseInt(opt.getOptArg());break;
-				case 'w':
-					{
-					try
-						{
-						weirdPslWriter=new PrintWriter(new File(opt.getOptArg()));break;
-						}
-					catch(IOException err)
-						{
-						error(err);
-						return -1;
-						}
-					}
+				case 'g': max_extend_gene=Integer.parseInt(opt.getOptArg());break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -339,12 +368,23 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 				return -1;
 				}
 			sfr.setValidationStringency(ValidationStringency.SILENT);
+			SAMFileHeader header=sfr.getFileHeader().clone();
+			SAMProgramRecord p=header.createProgramRecord();
+			p.setCommandLine(getProgramCommandLine());
+			p.setProgramVersion(getVersion());
+			p.setProgramName(getProgramName());
+			this.sfw=swf.make(header, System.out);
+			
+			header=sfr.getFileHeader().clone();
+			p=header.createProgramRecord();
+			p.setCommandLine(getProgramCommandLine());
+			p.setProgramVersion(getVersion());
+			p.setProgramName(getProgramName());
+			this.weird=swf.make(header, new NullOuputStream());
 			
 			scan(sfr);
 			sfr.close();
 			info("Done");
-			pslWriter.flush();
-			weirdPslWriter.flush();
 			return 0;
 			}
 		catch(Exception err)
@@ -355,8 +395,8 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 		finally
 			{
 			CloserUtil.close(sfr);
-			CloserUtil.close(pslWriter);
-			CloserUtil.close(weirdPslWriter);
+			CloserUtil.close(this.sfw);
+			CloserUtil.close(this.weird);
 			}
 		}
 	/**

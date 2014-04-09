@@ -83,20 +83,35 @@ public class OtherCanonicalAlignFactory {
 			}
 		
 		@Override
+		public String getReferenceName() {
+			return OtherCanonicalAlignFactory.this.header.getSequenceDictionary().getSequence(this.tid).getSequenceName();
+			}	
+		
+		@Override
 		public String getChrom()
 			{
-			return OtherCanonicalAlignFactory.this.header.getSequenceDictionary().getSequence(this.tid).getSequenceName();
+			return getReferenceName();
+			}
+		
+		@Override
+		public int getAlignmentStart() {
+			return pos;
 			}
 		@Override
 		public int getPos()
 			{
-			return pos;
+			return getAlignmentStart();
+			}
+		@Override
+		public boolean getReadNegativeStrandFlag() {
+			return strand=='-';
 			}
 		@Override
 		public char getStrand()
 			{
-			return strand;
+			return getReadNegativeStrandFlag()?'-':'+';
 			}
+
 		@Override
 		public String getCigarString()
 			{
@@ -127,9 +142,9 @@ public class OtherCanonicalAlignFactory {
 		public int compareTo(OtherCanonicalAlign o) {
 			int i= this.tid - o.getChromIndex();
 			if(i!=0) return i;
-			i=getPos()-(o.getPos());
+			i=getAlignmentStart()-(o.getAlignmentStart());
 			if(i!=0) return i;
-			i=getStrand()-(o.getStrand());
+			i=(getReadNegativeStrandFlag()?-1:1)-(o.getReadNegativeStrandFlag()?-1:1);
 			if(i!=0) return i;
 			return getCigarString().compareTo(o.getCigarString());
 			}
@@ -157,9 +172,9 @@ public class OtherCanonicalAlignFactory {
 			if (getClass() != obj.getClass())
 				return false;
 			OtherCanonicalAlign other = (OtherCanonicalAlign) obj;
-			if (pos != other.getPos())
+			if (pos != other.getAlignmentStart())
 				return false;
-			if (strand != other.getStrand())
+			if ((strand=='-') != other.getReadNegativeStrandFlag())
 				return false;
 			if (tid != other.getChromIndex())
 				return false;
@@ -172,7 +187,7 @@ public class OtherCanonicalAlignFactory {
 	
 		@Override
 		public String toString() {
-			return getChrom()+","+getStrand()+getPos()+","+getCigarString()+","+mapq+","+nm;
+			return getReferenceName()+","+getStrand()+getAlignmentStart()+","+getCigarString()+","+mapq+","+nm;
 			}
 		
 		@Override
