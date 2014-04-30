@@ -124,5 +124,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamToPsl">SamToPsl<a></th><td>Convert SAM/BAM to PSL  or BED12 .</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BWAMemNOp">BWAMemNOp<a></th><td>merge the SA:Z:* attributes of a read mapped with bwa-mem and prints a read containing a cigar string with 'N' (Skipped region from the REF).</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqEntropy">FastqEntropy<a></th><td>Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence)))</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/NgsFilesScanner">NgsFilesScanner<a></th><td>Build a persistent database of NGS file. Dump as XML.</td></tr>
+
 </table>
 

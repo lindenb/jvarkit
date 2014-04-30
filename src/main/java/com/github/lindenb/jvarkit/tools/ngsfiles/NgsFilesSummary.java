@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.ngsfiles;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,15 +16,11 @@ import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class NgsFilesSummary extends AbstractCommandLineProgram
+public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 	{
-
-    private enum InfoType { BAM,FASTQ,VCF};
-    
     private NgsFilesSummary()
     	{
     	
@@ -58,8 +54,8 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
 		}
     	
     
-	
-    private void readBam(File f)
+	@Override
+    protected void readBam(File f)
     	{
     	if(!f.canRead()) return;
     	SAMFileReader r=null;
@@ -86,8 +82,9 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     		if(r!=null) r.close();
     		}
     	}
-    
-    private void readFastq(File f)
+   
+   @Override
+   protected void readFastq(File f)
 		{
     	//File parent=f.getParentFile();
     	//if(parent==null || super.VERBOSITY==Log.LogLevel.) return;
@@ -103,7 +100,8 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     	print(fq.getSample(),InfoType.FASTQ, f);
 		}
     
-    private void readVCF(File f)
+   @Override
+   protected void readVCF(File f)
 		{
     	if(!f.canRead()) return;
     	debug("readVCF  "+f);
@@ -145,35 +143,7 @@ public class NgsFilesSummary extends AbstractCommandLineProgram
     			}
     	}
     
-	private void analyze(File f)
-		{
-		if(f==null) return;
-		if(!f.canRead() || !f.exists() || f.isDirectory()) return;
-		debug("Scanning "+f);
-		
-		
-		String name=f.getName();
-		if(name.endsWith(".bam") || name.endsWith(".sam"))
-			{
-			readBam(f);
-			}
-		else if(name.endsWith(".vcf.gz") || name.endsWith(".vcf"))
-			{
-			readVCF(f);
-			}
-		else if(name.endsWith(".fastq") || name.endsWith(".fastq.gz") ||
-				name.endsWith(".fq") || name.endsWith(".fq.gz"))
-			{
-			readFastq(f);
-			}
-			
-		}
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
 
 	@Override
 	public int doWork(String[] args)

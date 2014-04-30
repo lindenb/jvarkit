@@ -1140,10 +1140,19 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 <target name="ngsfilessummary" >
 	<compile-picard-cmd 
 		java="**/NgsFilesSummary.java"
-		main="com.github.lindenb.jvarkit.tools.misc.NgsFilesSummary"
+		main="com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary"
 		name="ngsfilessummary"
 		/>
+</target>
+<target name="ngsfilesscanner" >
+	<compile-picard-cmd 
+		java="**/NgsFilesScanner.java"
+		main="com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesScanner"
+		name="ngsfilesscanner"
+		libraryid="picard.and.bdb.jars"
+		/>
 </target>	
+
 
 
 <target name="extendbed" >

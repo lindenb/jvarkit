@@ -293,6 +293,7 @@ public class BWAMemNOp extends AbstractCommandLineProgram
 							CigarOperator.N)
 							);
 					
+					
 					i=0;
 					while(i< L2.size())
 						{
@@ -304,6 +305,35 @@ public class BWAMemNOp extends AbstractCommandLineProgram
 						cigarElements.add(new CigarElement(j-i, L2.get(i).op));
 						i=j;
 						}
+					
+					//cleanup : case where  'S' is close to 'N'
+					i=0;
+					while(i+1< cigarElements.size())
+						{
+						CigarElement ce1=cigarElements.get(i);
+						CigarElement ce2=cigarElements.get(i+1);
+						
+						if( i>0 &&
+							ce1.getOperator().equals(CigarOperator.S) && 
+							ce2.getOperator().equals(CigarOperator.N) )
+							{
+							cigarElements.set(i, new CigarElement(
+								ce1.getLength(),
+								CigarOperator.X));
+							}
+						else if(i+2 < cigarElements.size() &&
+								ce1.getOperator().equals(CigarOperator.N) && 
+								ce2.getOperator().equals(CigarOperator.S) )
+							{
+							cigarElements.set(i+1, new CigarElement(
+								ce2.getLength(),
+								CigarOperator.X));
+							}
+						i++;
+							
+						}
+
+					
 					
 					newrec.setCigar(new Cigar(cigarElements));
 					List<SAMValidationError> validations=newrec.isValid();
