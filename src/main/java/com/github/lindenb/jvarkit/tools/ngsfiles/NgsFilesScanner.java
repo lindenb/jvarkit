@@ -228,7 +228,8 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     		}
     	
 		}
-
+   
+   
    private void fastqDir(File dir,Counter<String> samples)
    	{
    	try {
@@ -286,15 +287,26 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	   	return fastqSamples;
 	   	}
 	
+    private long lastDirTimeMillis=System.currentTimeMillis();
     private void recursive(File f) throws IOException
     	{
     	if(f==null || !f.exists() || !f.canRead()) return;
     	if(f.isDirectory() && f.canRead())
     		{
-    		File array[]=f.listFiles(this.fileFilter);
-    		if(array==null) return;
+    		long now=System.currentTimeMillis();
+    		if(now-lastDirTimeMillis > 30*1000)
+	    		{
+    			info("In "+f);
+	    		this.lastDirTimeMillis=now;
+	    		}
     		
-    		for(File f2:array) recursive(f2);    		
+    		File array[]=f.listFiles(this.fileFilter);
+    		if(array!=null)
+    			{
+    			for(File f2:array) recursive(f2);    		
+    			}
+    		
+    		
     		Counter<String> fastqSamples=getFastqSampleInDirectory(f);
     		if(!fastqSamples.isEmpty())
     			{
