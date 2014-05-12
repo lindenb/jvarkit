@@ -32,6 +32,7 @@
 <path id="picard.lib">
 	 <fileset dir="${htsjdk.home}/dist">
     	<include name="htsjdk-*.jar"/>
+    	<include name="apache-ant-*-bzip2.jar"/>
  	 </fileset>
      <path refid="jexl.lib"/>
 </path>
