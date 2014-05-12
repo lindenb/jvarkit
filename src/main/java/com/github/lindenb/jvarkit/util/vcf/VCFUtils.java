@@ -2,7 +2,7 @@ package com.github.lindenb.jvarkit.util.vcf;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.EnumSet;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -13,13 +13,11 @@ import java.util.logging.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.BlockCompressedOutputStream;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineReader;
-import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFContigHeaderLine;
@@ -155,8 +153,20 @@ public class VCFUtils
 	
 	public static  VariantContextWriter createVariantContextWriterToStdout()
 		{
-		return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+		return createVariantContextWriterToOutputStream(System.out);
 		}
+	
+	public static  VariantContextWriter createVariantContextWriterToOutputStream(OutputStream ostream)
+		{
+		VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+		vcwb.setCreateMD5(false);
+		vcwb.setOutputStream(ostream);
+		vcwb.setReferenceDictionary(null);
+		vcwb.clearOptions();
+		return vcwb.build();
+		}
+
+	
 	/**
 	 * create a VariantContextWriter
 	 * @param OUT output file or null to stdout
@@ -165,21 +175,20 @@ public class VCFUtils
 	 */
 	public static  VariantContextWriter createVariantContextWriter(File OUT) throws IOException
 		{
+		VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+		vcwb.setCreateMD5(false);
+		vcwb.setReferenceDictionary(null);
+		vcwb.clearOptions();
+		
 		if(OUT==null)
 			{
 			LOG.info("writing to stdout");
 			return createVariantContextWriterToStdout();
 			}
-		else if(OUT.getName().endsWith(".gz"))
-			{
-			LOG.info("writing to "+OUT+" as bgz file.");
-			BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(OUT);
-			return VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
-			}
 		else
 			{
-			LOG.info("writing to "+OUT);
-			return  VariantContextWriterFactory.create(OUT,null,EnumSet.noneOf(Options.class));
+			vcwb.setOutputFile(OUT);
+			return vcwb.build();
 			}
 		}
 	

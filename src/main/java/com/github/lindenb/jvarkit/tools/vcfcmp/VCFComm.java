@@ -4,11 +4,12 @@
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
@@ -19,9 +20,7 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
@@ -144,7 +143,7 @@ public class VCFComm extends AbstractVCFCompare {
 					);
 
 			
-			VariantContextWriter w= VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+			VariantContextWriter w= VCFUtils.createVariantContextWriterToStdout();
 			w.writeHeader(header);
 			List<LineAndFile> row=new ArrayList<LineAndFile>(super.inputs.size());
 			

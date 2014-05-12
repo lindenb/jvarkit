@@ -22,7 +22,7 @@
 </path>
 
 <path id="jexl.lib">
- <fileset dir="${picard.dir}">
+ <fileset dir="${htsjdk.home}/dist">
     <include name="commons-jexl-*.jar"/>
     <include name="commons-logging-*.jar"/>
   </fileset>
@@ -30,11 +30,8 @@
 
 
 <path id="picard.lib">
-	 <fileset dir="${picard.dir}">
-    	<include name="picard-*.jar"/>
-   	 	<include name="sam-*.jar"/>
-   	 	<include name="tribble-*.jar"/>
-    	<include name="variant-*.jar"/>
+	 <fileset dir="${htsjdk.home}/dist">
+    	<include name="htsjdk-*.jar"/>
  	 </fileset>
      <path refid="jexl.lib"/>
 </path>

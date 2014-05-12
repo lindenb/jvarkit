@@ -17,7 +17,7 @@ import htsjdk.samtools.util.BlockCompressedOutputStream;
 
 import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
@@ -56,18 +56,12 @@ public abstract class AbstractVCFFilter
 		if(OUT==null)
 			{
 			LOG.info("writing to stdout");
-			return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
-			}
-		else if(OUT.getName().endsWith(".gz"))
-			{
-			LOG.info("writing to "+OUT+" as bgz file.");
-			BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(OUT);
-			return VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
+			return VCFUtils.createVariantContextWriterToStdout();
 			}
 		else
 			{
 			LOG.info("writing to "+OUT);
-			return  VariantContextWriterFactory.create(OUT,null,EnumSet.noneOf(Options.class));
+			return VCFUtils.createVariantContextWriter(OUT);
 			}
 		}
 	

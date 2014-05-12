@@ -26,7 +26,7 @@ import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
@@ -38,6 +38,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class FixVCF
@@ -97,18 +98,12 @@ public class FixVCF
 			if(fileout==null)
 				{
 				this.info("writing to stdout");
-				w= VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
-				}
-			else if(fileout.getName().endsWith(".gz"))
-				{
-				this.info("writing to "+fileout+" as bgz file.");
-				BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(fileout);
-				w= VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
+				w= VCFUtils.createVariantContextWriterToStdout();
 				}
 			else
 				{
 				this.info("writing to "+fileout);
-				w=  VariantContextWriterFactory.create(fileout,null,EnumSet.noneOf(Options.class));
+				w= VCFUtils.createVariantContextWriter(fileout);
 				}
 			
 
@@ -230,7 +225,7 @@ public class FixVCF
 		
 		//save header in memory
 		ByteArrayOutputStream baos=new ByteArrayOutputStream();
-		VariantContextWriter w2= VariantContextWriterFactory.create(baos,null,EnumSet.noneOf(Options.class));
+		VariantContextWriter w2= VariantContextWriterBuilder.create(baos,null,EnumSet.noneOf(Options.class));
 		w2.writeHeader(h2);
 		w2.close();
 		baos.close();

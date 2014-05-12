@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -23,9 +22,7 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -40,6 +37,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class VCFCompareGT extends AbstractCommandLineProgram
@@ -300,7 +298,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 					metaData,
 					new ArrayList<String>(newSampleNames));
 			
-			VariantContextWriter w= VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+			VariantContextWriter w= VCFUtils.createVariantContextWriterToStdout();
 			w.writeHeader(header);
 			List<Variant> row=new ArrayList<Variant>();
 			final PosComparator posCompare=new PosComparator();

@@ -28,7 +28,6 @@ import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
-import htsjdk.samtools.io.IoUtil;
 import htsjdk.samtools.reference.FastaSequenceIndex;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMFileHeader;
@@ -39,6 +38,7 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -345,7 +345,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			throws IOException
 		{
 		info("Opening "+f);
-		IoUtil.assertFileIsReadable(f);
+		IOUtil.assertFileIsReadable(f);
 		return new DataInputStream(new BufferedInputStream(new GZIPInputStream(new FileInputStream(f))));
 		}
 	

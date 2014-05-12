@@ -10,7 +10,6 @@ import java.io.PrintStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -25,9 +24,7 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
@@ -48,6 +45,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 public class VCFMerge extends AbstractCommandLineProgram
 	{
@@ -320,15 +318,18 @@ public class VCFMerge extends AbstractCommandLineProgram
 					}
 				
 				}
-			
+			VariantContextWriter w=null;
 			if(OUT!=null)
 				{
 				LOG.info("opening "+OUT);
-				out=new PrintStream(IOUtils.openFileForWriting(OUT));
+				w=VCFUtils.createVariantContextWriter(OUT);
+				}
+			else
+				{
+				w=VCFUtils.createVariantContextWriterToStdout();
 				}
 				
 			//create the context writer
-			VariantContextWriter w= VariantContextWriterFactory.create(out,null,EnumSet.noneOf(Options.class));
 			w.writeHeader(mergeHeader);
 			CloseableIterator<VariantOfFile> iter= array.iterator();
 			List<VariantOfFile> row=new ArrayList<VariantOfFile>();

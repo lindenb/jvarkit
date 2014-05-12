@@ -274,6 +274,7 @@ public class VCFMerge2
 	
 	private void copyTo(InputStream in) throws IOException
 		{
+		@SuppressWarnings("resource")
 		VcfIterator iter=new VcfIterator(in);
 		VCFHeader h=iter.getHeader();
 		VariantContextWriter out=VCFUtils.createVariantContextWriter(null);

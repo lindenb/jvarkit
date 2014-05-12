@@ -1,13 +1,12 @@
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import htsjdk.variant.variantcontext.writer.Options;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
@@ -109,7 +108,7 @@ public class VcfIn extends AbstractVCFCompare
 				return -1;
 				}
 			VCFHeader header=super.inputs.get(1).header;
-			vcw = VariantContextWriterFactory.create(System.out, header.getSequenceDictionary(), EnumSet.noneOf(Options.class));
+			vcw = VCFUtils.createVariantContextWriterToStdout();
 			
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));

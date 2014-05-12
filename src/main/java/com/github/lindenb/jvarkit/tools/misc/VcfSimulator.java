@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -18,9 +17,7 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -29,6 +26,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 public class VcfSimulator extends AbstractCommandLineProgram
 	{
@@ -112,11 +110,11 @@ public class VcfSimulator extends AbstractCommandLineProgram
 			VCFHeader header=new VCFHeader(
 					metaData,
 					this.samples);
-			writer=VariantContextWriterFactory.create(
-					System.out,
-					this.indexedFastaSequenceFile.getSequenceDictionary(),
-					EnumSet.noneOf(Options.class)
-					);
+			header.setSequenceDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
+			
+			writer=VCFUtils.createVariantContextWriterToStdout();
+			
+			
 			writer.writeHeader(header);
 			for(;;)
 				{
