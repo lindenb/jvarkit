@@ -1,7 +1,7 @@
 package com.github.lindenb.jvarkit.util.picard;
 
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.picard.fastq.FastqRecord;
+import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.fastq.FastqRecord;
 
 import java.io.Closeable;
 import java.util.Iterator;

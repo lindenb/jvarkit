@@ -5,8 +5,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import net.sf.picard.util.IntervalTree;
-import net.sf.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.IntervalTree;
+import htsjdk.samtools.SAMSequenceDictionary;
 
 public class SamSequenceRecordTreeMap<T>
 	{

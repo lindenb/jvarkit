@@ -5,11 +5,11 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.Arrays;
 
-import net.sf.picard.cmdline.CommandLineProgram;
-import net.sf.picard.fastq.FastqReader;
-import net.sf.picard.fastq.FastqRecord;
-import net.sf.picard.fastq.FastqWriter;
-import net.sf.picard.util.Log;
+import htsjdk.samtools.cmdline.CommandLineProgram;
+import htsjdk.samtools.fastq.FastqReader;
+import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.fastq.FastqWriter;
+import htsjdk.samtools.util.Log;
 
 public class MergeFastqs extends CommandLineProgram
 	{

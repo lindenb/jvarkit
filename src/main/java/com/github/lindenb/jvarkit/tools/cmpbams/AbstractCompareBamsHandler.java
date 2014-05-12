@@ -20,9 +20,9 @@ import com.github.lindenb.jvarkit.tools.cmpbams.entities.Comparebams;
 import com.github.lindenb.jvarkit.tools.cmpbams.entities.Records;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.util.Log;
+import htsjdk.samtools.cmdline.Option;
+import htsjdk.samtools.cmdline.StandardOptionDefinitions;
+import htsjdk.samtools.util.Log;
 
 
 public abstract class AbstractCompareBamsHandler extends AbstractCommandLineProgram

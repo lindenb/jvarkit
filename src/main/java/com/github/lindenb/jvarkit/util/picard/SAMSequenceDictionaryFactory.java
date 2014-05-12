@@ -10,14 +10,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import net.sf.picard.PicardException;
-import net.sf.picard.io.IoUtil;
-import net.sf.picard.reference.ReferenceSequenceFileFactory;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
-import net.sf.samtools.SAMTextHeaderCodec;
-import net.sf.samtools.util.BufferedLineReader;
+import htsjdk.samtools.PicardException;
+import htsjdk.samtools.io.IoUtil;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMTextHeaderCodec;
+import htsjdk.samtools.util.BufferedLineReader;
 
 /** utility to load a SAMSequenceDictionary */
 public class SAMSequenceDictionaryFactory 

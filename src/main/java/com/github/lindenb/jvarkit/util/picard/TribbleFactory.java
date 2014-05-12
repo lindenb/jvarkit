@@ -9,20 +9,20 @@ import java.io.PrintWriter;
 import java.util.Comparator;
 import java.util.regex.Pattern;
 
-import net.sf.picard.util.Interval;
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.SortingCollection;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.SortingCollection;
 
-import org.broad.tribble.index.Index;
-import org.broad.tribble.index.IndexFactory;
-import org.broad.tribble.readers.LineReader;
-import org.broad.tribble.readers.PositionalBufferedStream;
-import org.broad.tribble.util.LittleEndianOutputStream;
+import htsjdk.tribble.index.Index;
+import htsjdk.tribble.index.IndexFactory;
+import htsjdk.tribble.readers.LineReader;
+import htsjdk.tribble.readers.PositionalBufferedStream;
+import htsjdk.tribble.util.LittleEndianOutputStream;
 
-import org.broad.tribble.AbstractFeatureReader;
-import org.broad.tribble.Feature;
-import org.broad.tribble.FeatureCodecHeader;
-import org.broad.tribble.Tribble;
+import htsjdk.tribble.AbstractFeatureReader;
+import htsjdk.tribble.Feature;
+import htsjdk.tribble.FeatureCodecHeader;
+import htsjdk.tribble.Tribble;
 
 
 public class TribbleFactory<T>

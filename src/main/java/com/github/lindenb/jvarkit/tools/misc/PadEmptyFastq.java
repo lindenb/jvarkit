@@ -2,12 +2,12 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 
-import net.sf.picard.fastq.BasicFastqWriter;
-import net.sf.picard.fastq.FastqRecord;
-import net.sf.picard.fastq.FastqWriter;
-import net.sf.picard.fastq.FastqWriterFactory;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.fastq.BasicFastqWriter;
+import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.fastq.FastqWriter;
+import htsjdk.samtools.fastq.FastqWriterFactory;
+import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;

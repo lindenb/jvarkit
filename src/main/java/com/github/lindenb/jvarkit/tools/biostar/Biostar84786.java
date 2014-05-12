@@ -7,13 +7,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Comparator;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Log;
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.SortingCollection;
+import htsjdk.samtools.cmdline.Option;
+import htsjdk.samtools.cmdline.StandardOptionDefinitions;
+import htsjdk.samtools.cmdline.Usage;
+import htsjdk.samtools.util.Log;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SortingCollection;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;

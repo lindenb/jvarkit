@@ -15,9 +15,9 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Log;
+import htsjdk.samtools.cmdline.Option;
+import htsjdk.samtools.cmdline.Usage;
+import htsjdk.samtools.util.Log;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;

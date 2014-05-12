@@ -1,7 +1,7 @@
 package com.github.lindenb.jvarkit.tools.tview;
 
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.samtools.SAMRecord;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.SAMRecord;
 
 public interface TViewHandler {
 	public void beginRow();

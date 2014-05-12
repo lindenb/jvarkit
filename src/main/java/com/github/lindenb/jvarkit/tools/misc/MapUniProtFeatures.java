@@ -26,15 +26,15 @@ import org.uniprot.Entry;
 import org.uniprot.FeatureType;
 import org.uniprot.LocationType;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.illumina.parser.Range;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.picard.util.Log;
-import net.sf.picard.util.ProgressLogger;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.cmdline.Option;
+import htsjdk.samtools.cmdline.StandardOptionDefinitions;
+import htsjdk.samtools.cmdline.Usage;
+import htsjdk.samtools.illumina.parser.Range;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.util.Log;
+import htsjdk.samtools.util.ProgressLogger;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;

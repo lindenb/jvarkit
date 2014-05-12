@@ -22,15 +22,15 @@ import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Interval;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.SortingCollection;
+import htsjdk.samtools.cmdline.Option;
+import htsjdk.samtools.cmdline.StandardOptionDefinitions;
+import htsjdk.samtools.cmdline.Usage;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.SortingCollection;
 
 
 public class CompareBams3  extends AbstractCommandLineProgram

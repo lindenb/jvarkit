@@ -8,24 +8,24 @@ import java.io.PrintStream;
 import java.util.Comparator;
 import java.util.Random;
 
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.SortingCollection;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SortingCollection;
 
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import org.broad.tribble.readers.LineIterator;
-import org.broad.tribble.readers.LineIteratorImpl;
-import org.broad.tribble.readers.LineReader;
-import org.broad.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIteratorImpl;
+import htsjdk.tribble.readers.LineReader;
+import htsjdk.tribble.readers.LineReaderUtil;
 
 
 public class VCFShuffle extends AbstractVCFFilter2

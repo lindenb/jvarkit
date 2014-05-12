@@ -3,12 +3,12 @@ package com.github.lindenb.jvarkit.tools.treepack;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.picard.PicardException;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.PicardException;
+import htsjdk.samtools.util.CloserUtil;
 
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.vcf.VCFHeader;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;

@@ -6,11 +6,11 @@ import java.io.PrintWriter;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.picard.util.Interval;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.util.CloserUtil;
 
 
 public class TViewCmd extends AbstractCommandLineProgram

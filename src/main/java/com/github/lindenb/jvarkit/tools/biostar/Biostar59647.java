@@ -11,14 +11,14 @@ import com.github.lindenb.jvarkit.util.picard.SamFlag;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.SequenceUtil;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SequenceUtil;
 
 public class Biostar59647 extends AbstractCommandLineProgram
 	{

@@ -9,13 +9,13 @@ import java.util.regex.Pattern;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalTree;
-import net.sf.picard.util.IntervalTreeMap;
-import net.sf.picard.util.Log;
+import htsjdk.samtools.cmdline.Option;
+import htsjdk.samtools.cmdline.StandardOptionDefinitions;
+import htsjdk.samtools.cmdline.Usage;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTree;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Log;
 
 
 public class Biostar81455 extends AbstractCommandLineProgram

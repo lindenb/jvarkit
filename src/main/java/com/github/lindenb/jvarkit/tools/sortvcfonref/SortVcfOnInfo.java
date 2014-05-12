@@ -9,13 +9,13 @@ import java.math.BigInteger;
 import java.util.Comparator;
 import java.util.List;
 
-import org.broad.tribble.readers.LineIterator;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
-import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -24,9 +24,9 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.SortingCollection;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SortingCollection;
 
 /**
  * Sort a VCF on the INFO field

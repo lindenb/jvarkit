@@ -8,7 +8,7 @@ package com.github.lindenb.jvarkit.util.vcf;
 
 import java.io.File;
 import java.io.IOException;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
 

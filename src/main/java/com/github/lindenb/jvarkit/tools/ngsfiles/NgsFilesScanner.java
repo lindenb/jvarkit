@@ -21,13 +21,13 @@ import javax.xml.stream.XMLStreamWriter;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamResult;
 
-import org.broadinstitute.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeader;
 
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMReadGroupRecord;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;

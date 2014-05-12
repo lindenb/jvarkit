@@ -13,11 +13,11 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloserUtil;
 
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;

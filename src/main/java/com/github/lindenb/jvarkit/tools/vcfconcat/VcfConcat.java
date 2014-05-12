@@ -2,16 +2,16 @@ package com.github.lindenb.jvarkit.tools.vcfconcat;
 
 import java.io.InputStream;
 
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloserUtil;
 
-import org.broad.tribble.readers.LineIterator;
-import org.broad.tribble.readers.LineIteratorImpl;
-import org.broad.tribble.readers.LineReader;
-import org.broad.tribble.readers.LineReaderUtil;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFCodec;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIteratorImpl;
+import htsjdk.tribble.readers.LineReader;
+import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;

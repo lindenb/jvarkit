@@ -7,10 +7,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import net.sf.picard.PicardException;
-import net.sf.samtools.SAMFileWriterImpl;
-import net.sf.samtools.util.SortingCollection;
-import net.sf.samtools.util.SortingCollection.Codec;
+import htsjdk.samtools.PicardException;
+import htsjdk.samtools.SAMFileWriterImpl;
+import htsjdk.samtools.util.SortingCollection;
+import htsjdk.samtools.util.SortingCollection.Codec;
 
 public class SortingCollectionFactory<T>
 	{

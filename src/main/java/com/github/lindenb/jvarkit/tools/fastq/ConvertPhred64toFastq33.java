@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 
-import net.sf.picard.fastq.FastqConstants;
-import net.sf.picard.fastq.FastqRecord;
+import htsjdk.samtools.fastq.FastqConstants;
+import htsjdk.samtools.fastq.FastqRecord;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;

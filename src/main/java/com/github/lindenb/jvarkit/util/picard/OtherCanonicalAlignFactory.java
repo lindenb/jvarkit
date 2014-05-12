@@ -5,13 +5,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import net.sf.picard.PicardException;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.TextCigarCodec;
+import htsjdk.samtools.PicardException;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.TextCigarCodec;
 
 /** in the SAM Spec 2014, XP was renamed SA */ 
 public class OtherCanonicalAlignFactory {

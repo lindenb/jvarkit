@@ -7,11 +7,11 @@ import java.util.logging.Logger;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMFileReader.ValidationStringency;
 
 public class SplitRead {
 	private static final Logger LOG=Logger.getLogger(SplitRead.class.getSimpleName());

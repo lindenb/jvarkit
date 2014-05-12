@@ -4,8 +4,8 @@ import java.awt.geom.Arc2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 
 public class CircularContext
 	{

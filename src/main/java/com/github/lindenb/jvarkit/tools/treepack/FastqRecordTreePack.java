@@ -10,9 +10,9 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
-import net.sf.picard.fastq.FastqRecord;
-import net.sf.samtools.SAMUtils;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.SAMUtils;
+import htsjdk.samtools.util.CloserUtil;
 
 
 public class FastqRecordTreePack extends AbstractTreePackCommandLine<FastqRecord>

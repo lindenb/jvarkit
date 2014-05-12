@@ -7,7 +7,7 @@ import java.net.URLConnection;
 import java.util.jar.Manifest;
 
 
-import net.sf.picard.cmdline.CommandLineProgram;
+import htsjdk.samtools.cmdline.CommandLineProgram;
 
 public abstract class AbstractCommandLineProgram
 	extends CommandLineProgram

@@ -21,12 +21,12 @@ import javax.script.ScriptException;
 import com.github.lindenb.jvarkit.util.picard.AbstractBamFilterProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMFileWriterFactory;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.util.CloserUtil;
 
 
 

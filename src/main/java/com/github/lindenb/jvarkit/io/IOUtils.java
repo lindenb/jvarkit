@@ -16,15 +16,15 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.zip.GZIPInputStream;
 
-import org.broad.tribble.readers.LineIterator;
-import org.broad.tribble.readers.LineIteratorImpl;
-import org.broad.tribble.readers.LineReader;
-import org.broad.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIteratorImpl;
+import htsjdk.tribble.readers.LineReader;
+import htsjdk.tribble.readers.LineReaderUtil;
 
 
-import net.sf.samtools.Defaults;
-import net.sf.samtools.util.BlockCompressedInputStream;
-import net.sf.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.Defaults;
+import htsjdk.samtools.util.BlockCompressedInputStream;
+import htsjdk.samtools.util.BlockCompressedOutputStream;
 
 public class IOUtils {
 	

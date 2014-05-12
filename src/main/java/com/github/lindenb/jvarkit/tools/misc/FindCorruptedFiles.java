@@ -10,13 +10,13 @@ import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.zip.GZIPInputStream;
 
-import org.broad.tribble.TribbleException;
+import htsjdk.tribble.TribbleException;
 
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.util.BlockCompressedInputStream;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.BlockCompressedInputStream;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;

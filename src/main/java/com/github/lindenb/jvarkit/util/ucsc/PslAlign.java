@@ -5,8 +5,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.broad.tribble.readers.LineIterator;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 /**
  * PSL format align.

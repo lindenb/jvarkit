@@ -4,14 +4,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
-import net.sf.picard.PicardException;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.StringUtil;
-import net.sf.picard.fastq.FastqConstants;
-import net.sf.picard.fastq.FastqRecord;
+import htsjdk.samtools.PicardException;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.samtools.fastq.FastqConstants;
+import htsjdk.samtools.fastq.FastqRecord;
 
-import org.broad.tribble.readers.LineReader;
-import org.broad.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.LineReader;
+import htsjdk.tribble.readers.LineReaderUtil;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;

@@ -5,11 +5,11 @@ import java.io.OutputStream;
 import java.util.logging.Logger;
 import java.util.zip.Deflater;
 
-import net.sf.samtools.BAMFileWriter;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMTextWriter;
-import net.sf.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.BAMFileWriter;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMTextWriter;
+import htsjdk.samtools.util.BlockCompressedOutputStream;
 
 public abstract class SamWriterFactory
 	{

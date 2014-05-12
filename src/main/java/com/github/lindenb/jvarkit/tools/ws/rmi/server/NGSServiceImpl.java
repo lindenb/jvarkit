@@ -21,9 +21,9 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Log;
+import htsjdk.samtools.cmdline.Option;
+import htsjdk.samtools.cmdline.Usage;
+import htsjdk.samtools.util.Log;
 
 import com.github.lindenb.jvarkit.tools.ws.WSBam;
 import com.github.lindenb.jvarkit.tools.ws.WSProject;

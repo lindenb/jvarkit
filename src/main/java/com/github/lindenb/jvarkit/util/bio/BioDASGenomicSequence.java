@@ -10,7 +10,7 @@ import java.util.logging.Logger;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-import net.sf.picard.PicardException;
+import htsjdk.samtools.PicardException;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;

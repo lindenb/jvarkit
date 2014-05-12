@@ -5,21 +5,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import net.sf.samtools.DefaultSAMRecordFactory;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMProgramRecord;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecord.SAMTagAndValue;
-import net.sf.samtools.SAMRecordFactory;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMValidationError;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.DefaultSAMRecordFactory;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecord.SAMTagAndValue;
+import htsjdk.samtools.SAMRecordFactory;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMValidationError;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;

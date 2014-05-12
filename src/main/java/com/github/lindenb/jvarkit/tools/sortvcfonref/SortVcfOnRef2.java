@@ -10,11 +10,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import org.broad.tribble.readers.LineIterator;
-import org.broad.tribble.readers.LineIteratorImpl;
-import org.broad.tribble.readers.LineReader;
-import org.broad.tribble.readers.LineReaderUtil;
-import org.broadinstitute.variant.vcf.VCFConstants;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIteratorImpl;
+import htsjdk.tribble.readers.LineReader;
+import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.variant.vcf.VCFConstants;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -25,11 +25,11 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.SortingCollection;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SortingCollection;
 
 /**
  * Sort a VCF on the REFERENCE

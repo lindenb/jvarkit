@@ -9,15 +9,15 @@ import java.util.regex.Pattern;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Log;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
+import htsjdk.samtools.cmdline.Option;
+import htsjdk.samtools.cmdline.StandardOptionDefinitions;
+import htsjdk.samtools.cmdline.Usage;
+import htsjdk.samtools.util.Log;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
 
 public class BamStats04 extends AbstractCommandLineProgram
 	{

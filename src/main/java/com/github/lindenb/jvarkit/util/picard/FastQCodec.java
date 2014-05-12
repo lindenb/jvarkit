@@ -4,7 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import net.sf.picard.fastq.FastqRecord;
+import htsjdk.samtools.fastq.FastqRecord;
 
 public class FastQCodec extends AbstractDataCodec<FastqRecord>
 	{

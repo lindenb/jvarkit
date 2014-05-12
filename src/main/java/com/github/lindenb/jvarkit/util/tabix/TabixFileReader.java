@@ -7,9 +7,9 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import net.sf.picard.PicardException;
+import htsjdk.samtools.PicardException;
 
-import org.broad.tribble.readers.TabixReader;
+import htsjdk.tribble.readers.TabixReader;
 
 /**
  * Safe wrapper around org.broad.tribble.readers.TabixReader (won't return a null iterator )
