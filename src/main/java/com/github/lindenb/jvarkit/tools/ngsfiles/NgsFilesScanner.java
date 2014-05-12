@@ -291,14 +291,37 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     private void recursive(File f) throws IOException
     	{
     	if(f==null || !f.exists() || !f.canRead()) return;
+    	
+    	if(f.getName().startsWith(".")) return;
+    	
     	if(f.isDirectory() && f.canRead())
     		{
+    		if(f.getName().toLowerCase().equals("tmp")) return;
+    		if(f.getName().toLowerCase().equals("jeter")) return;
+    		
+    		
+    		if(f.getName().equals("Intensities") && f.getParentFile()!=null &&
+    				f.getParentFile().getName().equals("Data"))
+    			{
+    			info("Skipping "+f);
+    			return;
+    			}
+    		if(f.getName().startsWith("L") && f.getParentFile()!=null &&
+    				(f.getParentFile().getName().equals("Thumbnail_Images") || 
+    				 f.getParentFile().getName().equals("Processed")
+    				))
+    			{
+    			info("Skipping "+f);
+    			return;
+    			}
+    		
     		long now=System.currentTimeMillis();
     		if(now-lastDirTimeMillis > 30*1000)
 	    		{
     			info("In "+f);
 	    		this.lastDirTimeMillis=now;
 	    		}
+    		
     		
     		File array[]=f.listFiles(this.fileFilter);
     		if(array!=null)
