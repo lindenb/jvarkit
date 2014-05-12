@@ -67,7 +67,7 @@ import htsjdk.samtools.util.zip.DeflaterFactory;
 
  */
 public abstract class CommandLineProgram {
-
+	static CreateHtmlDocForProgram _forcejavac=null;
     @Option(common=true, optional=true)
     public List<File> TMP_DIR = new ArrayList<File>();
 

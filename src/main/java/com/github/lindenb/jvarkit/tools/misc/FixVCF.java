@@ -11,12 +11,10 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 
@@ -24,9 +22,7 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
@@ -225,7 +221,7 @@ public class FixVCF
 		
 		//save header in memory
 		ByteArrayOutputStream baos=new ByteArrayOutputStream();
-		VariantContextWriter w2= VariantContextWriterBuilder.create(baos,null,EnumSet.noneOf(Options.class));
+		VariantContextWriter w2= VCFUtils.createVariantContextWriterToOutputStream(baos);
 		w2.writeHeader(h2);
 		w2.close();
 		baos.close();

@@ -297,7 +297,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	<attribute name="mainclass"/>
 	<sequential>
 		<java
-			classname="net.sf.picard.cmdline.CreateHtmlDocForProgram"
+			classname="com.github.lindenb.jvarkit.util.picard.cmdline.CreateHtmlDocForProgram"
 			failonerror="false"	
 			fork="false"
 			
