@@ -461,6 +461,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	    				if(evt.isEndDocument()) break;
 	    				out.add(evt);
 	    				}
+	    			xr.close();
 	    			sr.close();
 	    			}
 	    		cursor.close();
@@ -470,6 +471,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	    		out.flush();
 	    		out.close();
 	    		System.out.flush();
+	    		System.out.close();
 				}
 			else
 				{
@@ -510,6 +512,8 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		/* https://bugs.openjdk.java.net/browse/JDK-8028111 */
+		System.setProperty("jdk.xml.entityExpansionLimit","0");
 		new NgsFilesScanner().instanceMainWithExit(args);
 
 	}
