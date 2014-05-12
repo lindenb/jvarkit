@@ -5,9 +5,9 @@ import java.util.Arrays;
 import java.util.BitSet;
 
 
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.StandardOptionDefinitions;
-import htsjdk.samtools.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.Cigar;

@@ -17,7 +17,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;

@@ -20,8 +20,8 @@ import com.github.lindenb.jvarkit.tools.cmpbams.entities.Comparebams;
 import com.github.lindenb.jvarkit.tools.cmpbams.entities.Records;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import htsjdk.samtools.util.Log;
 
 

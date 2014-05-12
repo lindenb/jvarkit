@@ -27,7 +27,7 @@ import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import htsjdk.tribble.readers.LineIterator;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.io.IoUtil;
 import htsjdk.samtools.reference.FastaSequenceIndex;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;

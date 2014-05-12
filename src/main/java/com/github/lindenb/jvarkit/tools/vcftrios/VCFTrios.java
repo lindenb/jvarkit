@@ -7,8 +7,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import htsjdk.variant.variantcontext.Allele;

@@ -2,7 +2,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;

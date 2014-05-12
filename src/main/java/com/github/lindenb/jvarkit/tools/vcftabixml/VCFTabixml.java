@@ -28,9 +28,9 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import htsjdk.samtools.PicardException;
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import htsjdk.tribble.readers.TabixReader;

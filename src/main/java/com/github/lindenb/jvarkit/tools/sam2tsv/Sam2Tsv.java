@@ -8,7 +8,7 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;

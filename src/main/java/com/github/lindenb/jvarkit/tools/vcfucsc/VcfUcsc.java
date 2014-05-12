@@ -10,7 +10,7 @@ import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.variant.variantcontext.VariantContext;

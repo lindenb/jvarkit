@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import htsjdk.samtools.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;

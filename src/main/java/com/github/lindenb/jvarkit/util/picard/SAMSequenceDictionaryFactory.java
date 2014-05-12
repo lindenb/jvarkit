@@ -10,14 +10,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import htsjdk.samtools.PicardException;
-import htsjdk.samtools.io.IoUtil;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.util.BufferedLineReader;
+import htsjdk.samtools.util.IOUtil;
 
 /** utility to load a SAMSequenceDictionary */
 public class SAMSequenceDictionaryFactory 
@@ -35,7 +35,7 @@ public  SAMSequenceDictionary load(File file) throws IOException
 		if(dict2==null) throw new FileNotFoundException("Cannot find dict file for "+file+". Was the reference sequence indexed with Picard ?");
 		return loadFaidxSequenceDict(dict2);
 		}
-	IoUtil.assertFileIsReadable(dictionary);
+	IOUtil.assertFileIsReadable(dictionary);
 	BufferedLineReader blr=null;
     try {
         final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();

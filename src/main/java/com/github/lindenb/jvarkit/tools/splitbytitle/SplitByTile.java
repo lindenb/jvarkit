@@ -5,11 +5,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import htsjdk.samtools.cmdline.CommandLineProgram;
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.StandardOptionDefinitions;
-import htsjdk.samtools.cmdline.Usage;
-import htsjdk.samtools.io.IoUtil;
+import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
@@ -40,7 +40,7 @@ public class SplitByTile  extends CommandLineProgram
     
     @Override
     protected int doWork() {
-    	IoUtil.assertFileIsReadable(INPUT);
+    	IOUtil.assertFileIsReadable(INPUT);
     	if(OUTPUT==null || !OUTPUT.contains(TILEWORD) || !OUTPUT.endsWith(".bam"))
     		{
     		log.error("Bad OUPUT name "+OUTPUT+". must contain "+TILEWORD+" and ends with .bam");

@@ -5,7 +5,7 @@ import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;

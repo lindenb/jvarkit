@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import htsjdk.samtools.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import htsjdk.tribble.TribbleException;

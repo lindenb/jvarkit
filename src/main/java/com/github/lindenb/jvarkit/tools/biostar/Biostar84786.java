@@ -7,9 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Comparator;
 
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.StandardOptionDefinitions;
-import htsjdk.samtools.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;

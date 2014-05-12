@@ -9,9 +9,9 @@ import java.util.List;
 
 import htsjdk.variant.vcf.VCFCodec;
 
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.StandardOptionDefinitions;
-import htsjdk.samtools.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
 
 import com.github.lindenb.jvarkit.io.IOUtils;

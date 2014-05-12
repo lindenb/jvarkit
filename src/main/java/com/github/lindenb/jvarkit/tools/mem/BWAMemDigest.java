@@ -13,8 +13,8 @@ import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
@@ -72,7 +72,7 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 					"\t"+readNum+
 					"\tXP"+
 				    "\t"+record.getCigarString()+
-				    "\t"+xp.getChrom()+
+				    "\t"+xp.getReferenceName()+
 				    "\t"+xp.getPos()+
 				    "\t"+xp.getStrand()+
 				    "\t"+xp.getCigarString()

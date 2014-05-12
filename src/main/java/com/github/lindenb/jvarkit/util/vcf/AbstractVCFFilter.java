@@ -10,8 +10,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.EnumSet;
 
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 

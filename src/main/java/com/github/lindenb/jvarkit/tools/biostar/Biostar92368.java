@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.LineIterator;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;

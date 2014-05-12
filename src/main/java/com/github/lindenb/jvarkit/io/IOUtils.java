@@ -25,6 +25,7 @@ import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.samtools.Defaults;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.util.IOUtil;
 
 public class IOUtils {
 	
@@ -108,7 +109,7 @@ public class IOUtils {
 	@SuppressWarnings("resource")
 	public static InputStream openFileForReading(File file) throws IOException
 		{
-		net.sf.picard.io.IoUtil.assertFileIsReadable(file);
+		IOUtil.assertFileIsReadable(file);
 		InputStream in= new FileInputStream(file);
 		if(file.getName().endsWith(".gz"))
 			{

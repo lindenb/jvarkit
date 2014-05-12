@@ -8,6 +8,7 @@ import java.util.zip.Deflater;
 import htsjdk.samtools.BAMFileWriter;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMTextWriter;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 
@@ -80,8 +81,10 @@ public abstract class SamWriterFactory
         	}
         else
         	{
+        	SAMFileWriterFactory swf=new SAMFileWriterFactory();
         	LOG.info("opening BAM file to stream");
-        	BAMFileWriter w= new BAMFileWriter(os,null);
+        	
+        	SAMFileWriter w= swf.makeBAMWriter(header, false, os);
         	w.setHeader(header);
         	return w;
         	}

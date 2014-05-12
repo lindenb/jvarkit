@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.LineIterator;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.Cigar;

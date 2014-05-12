@@ -1,6 +1,6 @@
 package com.github.lindenb.jvarkit.util.picard;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.SAMFileReader.ValidationStringency;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.fastq.FastqRecord;

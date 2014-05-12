@@ -3,7 +3,7 @@ package com.github.lindenb.jvarkit.tools.treepack;
 import java.util.ArrayList;
 import java.util.List;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.variant.variantcontext.Genotype;

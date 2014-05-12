@@ -7,7 +7,7 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import htsjdk.tribble.readers.TabixReader;
 

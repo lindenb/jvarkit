@@ -16,9 +16,9 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import htsjdk.samtools.io.IoUtil;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
@@ -179,7 +179,7 @@ public class FixVCF
 				sampleNamesInSameOrder
 				);
 		
-		File tmp=IoUtil.newTempFile("tmp", ".vcf.gz",new File[]{tmpDir});
+		File tmp=IOUtil.newTempFile("tmp", ".vcf.gz",new File[]{tmpDir});
 		tmp.deleteOnExit();
 		
 		

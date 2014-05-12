@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMProgramRecord;
@@ -16,6 +16,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.ProgressLoggerInterface;
 import htsjdk.samtools.SAMFileWriter;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
@@ -264,7 +265,7 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				boolean xp_containsChrom=false;
 				for(OtherCanonicalAlign xpa:xpList)
 					{
-					if(virusNames.contains(xpa.getChrom()))
+					if(virusNames.contains(xpa.getReferenceName()))
 						{
 						xp_containsVirus=true;
 						}
@@ -404,6 +405,9 @@ public class FindMyVirus extends AbstractCommandLineProgram
 		private File countFile;
 		private Counter<String> chrom=new Counter<String>();
 		private Counter<Integer> flags=new Counter<Integer>();
+		@SuppressWarnings("unused")
+		private ProgressLoggerInterface progressLogger;
+		
 		SAMFileWriterCount(SAMFileWriter delegate,File countFile,CAT category)
 			{
 			this.category=category;
@@ -414,6 +418,10 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				chrom.initializeIfNotExists(rec.getSequenceName());
 				}
 			chrom.initializeIfNotExists(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
+			}
+		@Override
+		public void setProgressLogger(ProgressLoggerInterface progressLogger) {
+			this.progressLogger=progressLogger;
 			}
 		@Override
 		public void addAlignment(SAMRecord alignment) {

@@ -8,8 +8,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import htsjdk.samtools.util.LocationAware;
 import htsjdk.samtools.util.Log;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import htsjdk.tribble.AbstractFeatureCodec;
@@ -24,7 +26,6 @@ import htsjdk.tribble.index.IndexFactory;
 import htsjdk.tribble.readers.AsciiLineReader;
 import htsjdk.tribble.readers.AsciiLineReaderIterator;
 import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.readers.LocationAware;
 import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;

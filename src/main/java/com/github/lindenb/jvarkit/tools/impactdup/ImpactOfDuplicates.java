@@ -12,14 +12,16 @@ import java.util.Comparator;
 import java.util.List;
 
 
-import htsjdk.samtools.cmdline.CommandLineProgram;
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.StandardOptionDefinitions;
-import htsjdk.samtools.cmdline.Usage;
-import htsjdk.samtools.io.IoUtil;
+import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.Log;
+import htsjdk.samtools.util.RuntimeEOFException;
 import htsjdk.samtools.util.SamRecordIntervalIteratorFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileReader;
@@ -143,7 +145,7 @@ public class ImpactOfDuplicates extends CommandLineProgram
 	        	{
 	            d.tid=this.readInt();
 	        	}
-        	catch(net.sf.samtools.util.RuntimeEOFException err)
+        	catch(RuntimeEOFException err)
         		{
         		return null;
         		}
@@ -239,7 +241,7 @@ public class ImpactOfDuplicates extends CommandLineProgram
             	long nLines=0L;
             	File inFile=this.INPUT.get(this.bamIndex);
             	log.info("Processing "+inFile);
-                IoUtil.assertFileIsReadable(inFile);
+                IOUtil.assertFileIsReadable(inFile);
                 SAMFileReader samReader=null;
                 CloseableIterator<SAMRecord> iter=null;
                 try

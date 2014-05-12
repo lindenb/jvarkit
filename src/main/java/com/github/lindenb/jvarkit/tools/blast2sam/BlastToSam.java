@@ -19,7 +19,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
@@ -450,7 +450,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 				rec.setReadString(new String(readBases));
 				rec.setReadBases(readBases);
 				rec.setBaseQualityString(new String(readQuals,0,readQuals.length));
-				rec.setBaseQualities(net.sf.samtools.SAMUtils.fastqToPhred(new String(readQuals,0,readQuals.length)));
+				rec.setBaseQualities(htsjdk.samtools.SAMUtils.fastqToPhred(new String(readQuals,0,readQuals.length)));
 				}
 		return sequenceIteration;
 		}

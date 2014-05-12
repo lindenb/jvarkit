@@ -29,12 +29,11 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFSimpleHeaderLine;
 
 
-import htsjdk.samtools.PicardException;
-import htsjdk.samtools.sam.MergingSamRecordIterator;
-import htsjdk.samtools.sam.SamFileHeaderMerger;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.MergingSamRecordIterator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileReader;
@@ -42,6 +41,7 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMFileReader.ValidationStringency;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 

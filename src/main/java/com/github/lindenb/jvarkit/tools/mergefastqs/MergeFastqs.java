@@ -5,7 +5,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.Arrays;
 
-import htsjdk.samtools.cmdline.CommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.fastq.FastqWriter;

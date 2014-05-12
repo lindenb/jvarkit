@@ -3,6 +3,11 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
@@ -10,6 +15,7 @@ import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.Log;
 
 
 public class Biostar76892 extends CommandLineProgram

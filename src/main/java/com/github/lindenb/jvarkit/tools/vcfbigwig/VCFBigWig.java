@@ -5,13 +5,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import htsjdk.samtools.cmdline.Option;
-import htsjdk.samtools.cmdline.Usage;
+import org.broad.igv.bbfile.BBFileReader;
+import org.broad.igv.bbfile.BigWigIterator;
+import org.broad.igv.bbfile.WigItem;
+
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
 
-import htsjdk.igv.bbfile.BBFileReader;
-import htsjdk.igv.bbfile.BigWigIterator;
-import htsjdk.igv.bbfile.WigItem;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;

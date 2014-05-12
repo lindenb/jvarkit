@@ -6,7 +6,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileReader.ValidationStringency;
 import htsjdk.samtools.CigarElement;

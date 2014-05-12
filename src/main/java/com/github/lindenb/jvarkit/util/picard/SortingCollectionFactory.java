@@ -7,7 +7,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.SAMFileWriterImpl;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.SortingCollection.Codec;

@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.variant.variantcontext.Allele;

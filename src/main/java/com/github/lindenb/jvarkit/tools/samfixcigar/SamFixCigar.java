@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.Deflater;
 
-import htsjdk.samtools.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMFileHeader;
