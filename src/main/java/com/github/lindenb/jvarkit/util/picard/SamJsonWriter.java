@@ -1,7 +1,6 @@
 package com.github.lindenb.jvarkit.util.picard;
 
 import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.List;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -9,6 +8,7 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.ProgressLoggerInterface;
 
 public class SamJsonWriter implements SAMFileWriter
 	{
@@ -18,6 +18,8 @@ public class SamJsonWriter implements SAMFileWriter
 	private boolean crlf=false;
 	private boolean header_printed=false;
 	private boolean print_header=true;
+	@SuppressWarnings("unused")
+	private ProgressLoggerInterface progress;
 	public SamJsonWriter(PrintWriter out,SAMFileHeader header)
 		{
 		this.out=out;
@@ -142,6 +144,7 @@ public class SamJsonWriter implements SAMFileWriter
 			}
 		else if(o instanceof List)
 			{
+			@SuppressWarnings("rawtypes")
 			List<?> L=(List)o;
 			out.print("[");
 			for(int i=0;i<L.size();++i)
@@ -248,5 +251,10 @@ public class SamJsonWriter implements SAMFileWriter
 		out.flush();
 		out=null;
 		}
+
+	@Override
+	public void setProgressLogger(ProgressLoggerInterface progress) {
+		this.progress=progress;
+	}
 
 	}

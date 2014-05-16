@@ -574,6 +574,7 @@ public static class DefaultXMLFormatHandler extends AbstractXMLFormatHandler
 					XMLStreamWriter w, int index, Object o)
 					throws XMLStreamException {
 			}
+		@SuppressWarnings("rawtypes")
 		@Override
 		protected void handleArray(VCFHeader header, XMLStreamWriter w,
 					Collection array) throws XMLStreamException {

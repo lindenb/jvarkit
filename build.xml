@@ -88,6 +88,7 @@
 	<attribute name="java"/>
 	<attribute name="main"/>
 	<sequential>
+	   <antcall target="htsjdk"/>
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
@@ -165,7 +166,8 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	<attribute name="main"/>
 	<attribute name="libraryid" default="picard.lib"/>
 	<sequential>
-	  
+
+	   <antcall target="htsjdk"/>	  
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
@@ -355,6 +357,21 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 
 
 
+
+<target name="htsjdk">
+<!--
+	<echo>If the next statement fails, check that JAVA6_HOME is set. For example :
+
+   JAVA6_HOME=/path/to/jdk6 ant splitbam
+or
+   
+   export JAVA6_HOME=/path/to/jdk6
+   ant splitbam
+
+</echo>
+	<ant antfile="${htsjdk.home}/build.xml" target="all" inheritAll="false"/>
+-->
+</target>
 
 
 <target name="all">

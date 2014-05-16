@@ -1,7 +1,6 @@
 package com.github.lindenb.jvarkit.util.bio.circular;
 
 import java.awt.geom.Arc2D;
-import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 
 import htsjdk.samtools.SAMSequenceDictionary;
