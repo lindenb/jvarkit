@@ -16,6 +16,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
@@ -26,7 +27,7 @@ import htsjdk.samtools.BAMIndex;
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 //import htsjdk.samtools.SAMProgramRecord;
@@ -42,6 +43,7 @@ import htsjdk.samtools.util.SequenceUtil;
  * SplitBam
  *
  */
+@Deprecated
 public class SplitBam extends AbstractCommandLineProgram
 	{
 	
@@ -223,8 +225,7 @@ public class SplitBam extends AbstractCommandLineProgram
 		
 		
 		Map<String,SAMFileWriter> seen=new HashMap<String,SAMFileWriter>(many2many.group2chroms.size());
-		SAMFileReader samFileReader=new SAMFileReader(in);
-		samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
+		SamReader samFileReader=SamFileReaderFactory.mewInstance().open(in);
 		final SAMFileHeader header=samFileReader.getFileHeader();
 		header.setSortOrder(SortOrder.coordinate);
 		

@@ -7,15 +7,15 @@ import java.io.PrintWriter;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
 /**
@@ -247,9 +247,8 @@ public class Sam2Tsv
 	
 	
 	
-	private void scan(SAMFileReader r) 
+	private void scan(SamReader r) 
 		{
-		r.setValidationStringency(ValidationStringency.LENIENT);
 		SAMRecordIterator iter=null;
 		try{
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(r.getFileHeader().getSequenceDictionary());
@@ -330,7 +329,7 @@ public class Sam2Tsv
 			L3=new StringBuilder();
 			}
 		
-		SAMFileReader samFileReader=null;
+		SamReader samFileReader=null;
 		try
 			{
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
@@ -338,7 +337,7 @@ public class Sam2Tsv
 			if(getopt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				samFileReader=new SAMFileReader(System.in);
+				samFileReader=SamFileReaderFactory.mewInstance().openStdin();
 				scan(samFileReader);
 				samFileReader.close();
 				}
@@ -348,7 +347,7 @@ public class Sam2Tsv
 					{
 					File bamFile=new File(args[optind]);
 					info("Reading "+bamFile);
-					samFileReader=new SAMFileReader(bamFile);
+					samFileReader=SamFileReaderFactory.mewInstance().open(bamFile);
 					scan(samFileReader);
 					samFileReader.close();
 					}

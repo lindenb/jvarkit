@@ -31,7 +31,7 @@ import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.reference.FastaSequenceIndex;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -46,6 +46,7 @@ import com.github.lindenb.jvarkit.math.DoubleArray;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 
 /**
@@ -404,7 +405,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	
 	private void scan(Replicate replicate,final DoubleArray gcPercentArray) throws Exception
 		{
-		List<SAMFileReader> samFileReaders=new ArrayList<SAMFileReader>();
+		List<SamReader> samFileReaders=new ArrayList<SamReader>();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(getDicionary());
 		/** open all BAM for this replicate */
 		for(String samfile:replicate.filename.split("[\\:]"))
@@ -412,9 +413,8 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			if(samfile.isEmpty()) continue;
 			File bamFile=new File(samfile);
 			info("opening "+bamFile);
-			SAMFileReader samFileReader=new SAMFileReader(bamFile);
+			SamReader samFileReader=SamFileReaderFactory.mewInstance().open(bamFile);
 			samFileReaders.add(samFileReader);
-			samFileReader.setValidationStringency(ValidationStringency.SILENT);
 			SAMFileHeader header=samFileReader.getFileHeader();
 			
 			/* check same dictionaries */
@@ -445,7 +445,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			short wholeDepth[]=new short[getDicionary().getSequence(chrom).getSequenceLength()];
 			Arrays.fill(wholeDepth, (short)0);
 			info("Scanning whole "+chrom);
-			for(SAMFileReader sfr:samFileReaders)
+			for(SamReader sfr:samFileReaders)
 				{
 				String samChromName=chrom;
 				
@@ -628,7 +628,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		System.out.println();
 
 		
-		List<DataInputStream> disL=new ArrayList<>(this.replicates.size()); 
+		List<DataInputStream> disL=new ArrayList<DataInputStream>(this.replicates.size()); 
 		for(int i=0;i< this.replicates.size();++i)
 			{
 			info("Open "+this.replicates.get(i).tmpFile);

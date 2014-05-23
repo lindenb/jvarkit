@@ -15,15 +15,18 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.IntervalList;
@@ -113,7 +116,7 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 
     	}
 
-    private void process(Rgn rgn,List<SAMFileReader> samReaders)
+    private void process(Rgn rgn,List<SamReader> samReaders)
 		{
     	rgn.processed=true;
 		int chromStart1= rgn.interval.getStart();
@@ -124,7 +127,7 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 		if(counts.length==0) return;
 		Arrays.fill(counts, 0);
 		
-		for(SAMFileReader samReader:samReaders)
+		for(SamReader samReader:samReaders)
 			{
 			/**
 			 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
@@ -207,7 +210,7 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 			throws IOException
 		{
 		BufferedReader bedIn=null;
-		List<SAMFileReader> samReaders=new ArrayList<SAMFileReader>();
+		List<SamReader> samReaders=new ArrayList<SamReader>();
 		IntervalTreeMap<Rgn> capture=new IntervalTreeMap<Rgn>();
 		try
 			{
@@ -215,8 +218,7 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 			for(File samFile:new HashSet<File>(BAMFILE))
 				{
 				LOG.info("open bam "+samFile);
-				SAMFileReader samReader = new SAMFileReader(samFile);
-				samReader.setValidationStringency(super.VALIDATION_STRINGENCY);
+				SamReader samReader = SamFileReaderFactory.mewInstance().open(samFile);
 				SAMFileHeader samHeader=samReader.getFileHeader();
 				samReaders.add(samReader);
 				if(firstHeader==null)
@@ -256,8 +258,8 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 				}
 			bedIn.close();
 			bedIn=null;
-			intervalList.sort();
-			for(Interval interval:intervalList.getUniqueIntervals())
+			intervalList=intervalList.sorted();
+			for(Interval interval:intervalList.uniqued())
 				{				
 				Rgn rgn=new Rgn();
 				rgn.interval=interval;
@@ -298,7 +300,7 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 			}
 		finally
 			{
-			for(SAMFileReader samReader:samReaders) samReader.close();
+			for(SamReader samReader:samReaders) CloserUtil.close(samReader);
 			}
 		}
 

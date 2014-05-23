@@ -6,12 +6,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.ValidationStringency;
 
 public class SplitRead {
 	private static final Logger LOG=Logger.getLogger(SplitRead.class.getSimpleName());
@@ -113,9 +113,9 @@ public class SplitRead {
 			f1.cigar=record.getCigarString();
 			
 			Fragment f2=new Fragment();
-			f2.chrom=xpAln.getChrom();
-			f2.pos=xpAln.getPos();
-			f2.strand=xpAln.getStrand();
+			f2.chrom=xpAln.getReferenceName();
+			f2.pos=xpAln.getAlignmentStart();
+			f2.strand=xpAln.getReadNegativeStrandFlag()?'-':'+';
 			f2.cigar=xpAln.getCigarString();
 
 			System.out.print(
@@ -139,7 +139,7 @@ public class SplitRead {
 		}
 	
 
-	private void scan(SAMFileReader reader) throws Exception
+	private void scan(SamReader reader) throws Exception
 		{
 		OtherCanonicalAlignFactory xpalignFactory=new OtherCanonicalAlignFactory(reader.getFileHeader());
 		long nrecords=0L;
@@ -199,18 +199,17 @@ public class SplitRead {
 			++optind;
 			}
 		
-		SAMFileReader.setDefaultValidationStringency(ValidationStringency.LENIENT);
 		
 		if(optind==args.length)
 			{
-			SAMFileReader r=new SAMFileReader(System.in);
+			SamReader r=SamFileReaderFactory.mewInstance().openStdin();
 			scan(r);
 			r.close();
 			}
 		else if(optind+1==args.length)
 			{
 			File file=new File(args[optind++]); 
-			SAMFileReader r=new SAMFileReader(file);
+			SamReader r=SamFileReaderFactory.mewInstance().open(file);
 			scan(r);
 			r.close();
 			}

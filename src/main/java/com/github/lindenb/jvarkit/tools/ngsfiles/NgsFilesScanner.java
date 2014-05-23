@@ -24,13 +24,13 @@ import javax.xml.transform.stream.StreamResult;
 import htsjdk.variant.vcf.VCFHeader;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.sleepycat.bind.tuple.StringBinding;
@@ -129,7 +129,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     protected void readBam(File f)
     	{
     	if(!f.canRead()) return;
-    	SAMFileReader r=null;
+    	SamReader r=null;
     	try {
     		StringWriter sw=new StringWriter();
     		XMLOutputFactory xof=XMLOutputFactory.newFactory();
@@ -139,8 +139,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     		out.writeStartElement("bam");
     		writeFile(out,f);
     		
-			r=new SAMFileReader(f);
-			r.setValidationStringency(ValidationStringency.LENIENT);
+			r=SamFileReaderFactory.mewInstance().open(f);
 			SAMFileHeader h=r.getFileHeader();
 			
 			out.writeStartElement("samples");
@@ -173,7 +172,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 			}
     	finally
     		{
-    		if(r!=null) r.close();
+    		CloserUtil.close(r);
     		}
     	}
    

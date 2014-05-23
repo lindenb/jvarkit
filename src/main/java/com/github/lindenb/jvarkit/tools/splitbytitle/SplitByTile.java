@@ -5,19 +5,22 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamReader;
 
 public class SplitByTile  extends CommandLineProgram
 	{
@@ -47,7 +50,7 @@ public class SplitByTile  extends CommandLineProgram
     		return -1;
     		}
     	
-        SAMFileReader samReader = null;
+        SamReader samReader = null;
         Map<Integer, SAMFileWriter> tile2writer=new HashMap<Integer, SAMFileWriter>();
         Pattern colon=Pattern.compile("[\\:]");
         SAMRecordIterator iter=null;
@@ -57,9 +60,8 @@ public class SplitByTile  extends CommandLineProgram
         
         try
 	        {
-	        samReader=new SAMFileReader(INPUT);
+	        samReader=SamFileReaderFactory.mewInstance().open(INPUT);
 	        final SAMFileHeader header=samReader.getFileHeader();
-	        samReader.setValidationStringency(super.VALIDATION_STRINGENCY);
 			iter=samReader.iterator();
 			while(iter.hasNext())
 				{
@@ -68,6 +70,7 @@ public class SplitByTile  extends CommandLineProgram
 				if(tokens.length<5)
 					{
 		    		log.error("Cannot get the 6th field in "+rec.getReadName());
+		    		samReader.close();samReader=null;
 		    		return -1;
 					}
 				int tile=-1;
@@ -81,6 +84,7 @@ public class SplitByTile  extends CommandLineProgram
 				if(tile<0)
 					{
 					log.error("Bad tile in read: "+rec.getReadName());
+					samReader.close();samReader=null;
 					return -1;
 					}
 				
@@ -112,7 +116,7 @@ public class SplitByTile  extends CommandLineProgram
         finally
 	    	{
 	    	if(iter!=null) iter.close();
-	    	if(samReader!=null) samReader.close();
+	    	CloserUtil.close(samReader);
 	    	}
     	return 0;
     	}

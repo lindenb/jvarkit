@@ -9,16 +9,16 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class SamExtractClip extends AbstractCommandLineProgram
 	{
@@ -72,7 +72,7 @@ public class SamExtractClip extends AbstractCommandLineProgram
 				}
 			}
 	
-		SAMFileReader r=null;
+		SamReader r=null;
 		BasicFastqWriter out=null;
 		try
 				{
@@ -89,7 +89,7 @@ public class SamExtractClip extends AbstractCommandLineProgram
 				if(opt.getOptInd()==args.length)
 					{
 					info("Reading from stdin");
-					r=new SAMFileReader(System.in);
+					r=SamFileReaderFactory.mewInstance().openStdin();
 					run(r,out);
 					r.close();
 					}
@@ -99,7 +99,7 @@ public class SamExtractClip extends AbstractCommandLineProgram
 						{
 						String filename=args[optind];
 						info("Reading from "+filename);
-						r=new SAMFileReader(new File(filename));
+						r=SamFileReaderFactory.mewInstance().open(filename);
 						run(r,out);
 						r.close();
 						}
@@ -119,10 +119,9 @@ public class SamExtractClip extends AbstractCommandLineProgram
 				}
 		}
 		
-		private void run(SAMFileReader r,FastqWriter out)
+		private void run(SamReader r,FastqWriter out)
 			{
 			int startend[]=new int[2];
-			r.setValidationStringency(ValidationStringency.SILENT);
 			SAMFileHeader header=r.getFileHeader();
 			SAMProgramRecord spr=header.createProgramRecord();
 			spr.setProgramName(getProgramName());

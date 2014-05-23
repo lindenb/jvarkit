@@ -139,6 +139,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		
 		public abstract void layout(TreePacker packer);		
 		
+		@SuppressWarnings("unchecked")
 		public void svg(XMLStreamWriter w) throws XMLStreamException
 		   {
 		   if(getWeight()<=0)

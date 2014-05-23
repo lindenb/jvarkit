@@ -13,15 +13,16 @@ import java.util.Set;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.ValidationStringency;
 //import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
@@ -132,9 +133,8 @@ public class SplitBam2 extends AbstractCommandLineProgram
 			
 		}
 	
-	private void scan(SAMFileReader samFileReader,File chromGroupFile) throws Exception
+	private void scan(SamReader samFileReader,File chromGroupFile) throws Exception
 		{
-		samFileReader.setValidationStringency(ValidationStringency.SILENT);
 		SAMSequenceDictionary samSequenceDictionary=samFileReader.getFileHeader().getSequenceDictionary();
 		if(samSequenceDictionary==null || samSequenceDictionary.isEmpty())
 			{
@@ -333,7 +333,7 @@ public class SplitBam2 extends AbstractCommandLineProgram
 				}
 			}
 		samFileWriterFactory.setCreateIndex(this.createIndex); 
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		try
 			{
 			
@@ -354,13 +354,13 @@ public class SplitBam2 extends AbstractCommandLineProgram
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().stringency(ValidationStringency.SILENT).openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				String filename=args[opt.getOptInd()];
 				info("Reading from "+filename);
-				sfr=new SAMFileReader(new File(filename));
+				sfr=SamFileReaderFactory.mewInstance().stringency(ValidationStringency.SILENT).open(new File(filename));
 				}
 			else
 				{
