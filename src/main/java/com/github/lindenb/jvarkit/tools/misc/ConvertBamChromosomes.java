@@ -12,8 +12,7 @@ import java.util.Set;
 
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
@@ -28,6 +27,7 @@ import htsjdk.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class ConvertBamChromosomes
 	extends AbstractCommandLineProgram
@@ -147,7 +147,7 @@ public class ConvertBamChromosomes
 					}
 				}
 			}
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
@@ -156,13 +156,13 @@ public class ConvertBamChromosomes
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				File fin=new File(args[opt.getOptInd()]);
 				info("Reading from "+fin);
-				sfr=new SAMFileReader(fin);
+				sfr=SamFileReaderFactory.mewInstance().open(fin);
 				}
 			else
 				{
@@ -170,7 +170,6 @@ public class ConvertBamChromosomes
 				return -1;
 				}
 			
-			sfr.setValidationStringency(ValidationStringency.LENIENT);
 			SAMFileHeader header1=sfr.getFileHeader();
 			if(header1==null)
 				{

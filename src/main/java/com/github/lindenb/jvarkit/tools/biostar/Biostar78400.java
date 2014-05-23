@@ -19,12 +19,14 @@ import javax.xml.transform.stream.StreamSource;
 
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Log;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
@@ -32,6 +34,7 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SamReader;
 
 
 public class Biostar78400 extends CommandLineProgram
@@ -109,6 +112,7 @@ public class Biostar78400 extends CommandLineProgram
 	
 	private Map<String, Map<Integer,String>> flowcell2lane2id=new HashMap<String, Map<Integer,String>>();
 	
+	@SuppressWarnings("resource")
 	@Override
 	protected int doWork()
 		{
@@ -116,7 +120,7 @@ public class Biostar78400 extends CommandLineProgram
 		
 		
 		
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
@@ -132,17 +136,14 @@ public class Biostar78400 extends CommandLineProgram
 
 
 			
-			if(IN!=null)
-				{
-				LOG.info("opening "+IN);
-				sfr=new SAMFileReader(IN);
-				}
-			else
-				{
-				LOG.info("opening stdin");
-				sfr=new SAMFileReader(System.in);
-				}
-			sfr.setValidationStringency(super.VALIDATION_STRINGENCY);
+	    	if(IN==null)
+	    		{
+	    		sfr=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).openStdin();
+	    		}
+	    	else
+	    		{
+	    		sfr=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).open(IN);
+	    		}
 			
 			
 			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
@@ -251,8 +252,8 @@ public class Biostar78400 extends CommandLineProgram
 			}
 		finally
 			{
-			if(sfw!=null)sfw.close();
-			if(sfr!=null)sfr.close();
+			CloserUtil.close(sfw);
+			CloserUtil.close(sfr);
 			}
 		}
 	

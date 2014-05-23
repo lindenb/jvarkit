@@ -100,7 +100,7 @@ public class VCFComm extends AbstractVCFCompare {
 			variants=this.factory.make();
 			variants.setDestructiveIteration(true);
 			
-			List<String> newSampleNames=new ArrayList<>();
+			List<String> newSampleNames=new ArrayList<String>();
 			Set<String> sampleSet=new HashSet<String>();
 			for(int i=opt.getOptInd();i< args.length;++i)
 				{

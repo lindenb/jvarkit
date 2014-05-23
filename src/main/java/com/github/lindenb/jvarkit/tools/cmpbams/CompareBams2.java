@@ -12,16 +12,17 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 
@@ -306,7 +307,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 
 	private int doWork()
 		{
-		SAMFileReader samFileReader=null;
+		SamReader samFileReader=null;
 		try
 			{
 			if(this.IN.size() <2)
@@ -331,8 +332,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 				{
 				File samFile=this.IN.get(currentSamFileIndex);
 				info("Opening "+samFile);
-				samFileReader=new SAMFileReader(samFile);
-				samFileReader.setValidationStringency(ValidationStringency.SILENT);
+				samFileReader=SamFileReaderFactory.mewInstance().open(samFile);
 				SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
 				if(dict.isEmpty())
 					{
@@ -503,7 +503,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			}
 		finally
 			{
-			if(samFileReader!=null) samFileReader.close();
+			CloserUtil.close(samFileReader);
 			}
 		return 0;
 		}

@@ -65,7 +65,7 @@ import javax.swing.table.TableModel;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;

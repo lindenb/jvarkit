@@ -12,7 +12,6 @@ import java.util.Set;
 
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
@@ -177,7 +176,7 @@ public class VcfSetSequenceDictionary extends AbstractVCFFilter2
 						new SAMSequenceDictionary(list)
 						);
 		        final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
-		        codec.setValidationStringency(SAMFileReader.ValidationStringency.SILENT);
+		        codec.setValidationStringency(htsjdk.samtools.ValidationStringency.SILENT);
 				out=new FileWriter(newDictOut);
 				codec.encode(out, sfh);
 				out.flush();

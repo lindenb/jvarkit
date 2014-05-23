@@ -3,18 +3,20 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Log;
 
 
@@ -51,14 +53,13 @@ public class Biostar76892 extends CommandLineProgram
 	@Override
 	protected int doWork()
 		{
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
 		
 			LOG.info("opening "+IN);
-			sfr=new SAMFileReader(IN);
-			sfr.setValidationStringency(super.VALIDATION_STRINGENCY);
+			sfr=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).open(IN);
 			if(sfr.getFileHeader().getSortOrder()!=SortOrder.coordinate)
 				{
 				LOG.error("input must be sorted on coordinate ? got: "+sfr.getFileHeader().getSortOrder() );
@@ -188,7 +189,7 @@ public class Biostar76892 extends CommandLineProgram
 		finally
 			{
 			if(sfw!=null)sfw.close();
-			if(sfr!=null)sfr.close();
+			CloserUtil.close(sfr);
 			}
 		}
 	

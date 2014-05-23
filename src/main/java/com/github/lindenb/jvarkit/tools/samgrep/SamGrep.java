@@ -19,7 +19,7 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
 public class SamGrep extends AbstractCommandLineProgram

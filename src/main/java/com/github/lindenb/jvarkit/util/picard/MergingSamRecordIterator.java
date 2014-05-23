@@ -16,7 +16,7 @@ import htsjdk.samtools.util.CloseableIterator;
  * assuming sam sequence dictionaries are the same */
 public class MergingSamRecordIterator implements Iterator<SAMRecord>,CloseableIterator<SAMRecord>
 	{
-	private List<PeekableIterator<SAMRecord>> iterators=new ArrayList<>();
+	private List<PeekableIterator<SAMRecord>> iterators=new ArrayList<PeekableIterator<SAMRecord>>();
 	private SAMRecord _next=null;
 	private SAMRecordComparator comparator=new SAMRecordCoordinateComparator();
 	public MergingSamRecordIterator(List<SAMRecordIterator> iterators)

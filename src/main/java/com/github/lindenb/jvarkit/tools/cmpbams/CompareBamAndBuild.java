@@ -12,12 +12,12 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -324,9 +324,7 @@ public class CompareBamAndBuild  extends AbstractCommandLineProgram
 				{
 				File samFile=new File(args[opt.getOptInd()+currentSamFileIndex]);
 				this.bamFiles[currentSamFileIndex]=samFile;
-				info("Opening "+samFile);
-				SAMFileReader samFileReader=new SAMFileReader(samFile);
-				samFileReader.setValidationStringency(ValidationStringency.SILENT);
+				SamReader samFileReader=SamFileReaderFactory.mewInstance().open(samFile);
 				SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
 				this.sequenceDictionaries[currentSamFileIndex]=dict;
 				if(dict.isEmpty())

@@ -11,7 +11,7 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.util.CloserUtil;
 

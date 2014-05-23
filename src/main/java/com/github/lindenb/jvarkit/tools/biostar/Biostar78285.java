@@ -8,19 +8,22 @@ import java.util.BitSet;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class Biostar78285 extends AbstractCommandLineProgram
 	{
@@ -39,7 +42,7 @@ public class Biostar78285 extends AbstractCommandLineProgram
     @Override
     protected int doWork()
     	{
-    	SAMFileReader samFileReader=null;
+    	SamReader samFileReader=null;
     	SAMRecordIterator iter=null;
     	SamLocusIterator sli=null;
     	try
@@ -48,15 +51,12 @@ public class Biostar78285 extends AbstractCommandLineProgram
 	    	
 	    	if(IN==null)
 	    		{
-	    		LOG.info("read stdin");
-	    		samFileReader=new SAMFileReader(System.in,false);
+	    		samFileReader=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).openStdin();
 	    		}
 	    	else
 	    		{
-	    		LOG.info("read "+IN);
-	    		samFileReader=new SAMFileReader(IN);
+	    		samFileReader=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).open(IN);
 	    		}
-	    	samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
 	    	SAMFileHeader header=samFileReader.getFileHeader();
 	    	if(header.getSortOrder()!=SortOrder.coordinate)
 	    		{
@@ -205,9 +205,9 @@ public class Biostar78285 extends AbstractCommandLineProgram
     		}
     	finally
     		{
-    		if(iter!=null) iter.close();
-    		if(sli!=null) sli.close();
-    		if(samFileReader!=null) samFileReader.close();
+    		CloserUtil.close(iter);
+    		CloserUtil.close(sli);
+    		CloserUtil.close(samFileReader);
     		}
     	
     	}

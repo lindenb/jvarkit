@@ -268,8 +268,8 @@ public class ImpactOfDuplicates extends CommandLineProgram
 		    	     	    	intervalList.add(interval);
 		    	     	    	}
 		    	     	    in.close();
-		    	        intervalList.sort();
-	                    List<Interval> uniqueIntervals=intervalList.getUniqueIntervals(false);
+		    	        intervalList=intervalList.sorted();
+	                    List<Interval> uniqueIntervals=IntervalList.getUniqueIntervals(intervalList,false);
 
 	             	   SamRecordIntervalIteratorFactory sriif=new  SamRecordIntervalIteratorFactory();
 	            	    iter=sriif.makeSamRecordIntervalIterator(samReader, uniqueIntervals, false);

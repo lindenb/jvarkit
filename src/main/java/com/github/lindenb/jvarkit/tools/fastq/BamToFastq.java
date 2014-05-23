@@ -13,8 +13,7 @@ import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.fastq.BasicFastqWriter;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.fastq.FastqWriter;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloseableIterator;
@@ -25,6 +24,7 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 
 public class BamToFastq
@@ -164,7 +164,7 @@ public class BamToFastq
 					}
 				}
 			}
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		SortingCollection<MappedFastq> fastqCollection=null;
 		try
 			{
@@ -177,20 +177,18 @@ public class BamToFastq
 			
 			if(opt.getOptInd()==args.length)
 				{
-				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				String filename=args[opt.getOptInd()];
-				sfr=new SAMFileReader(new File(filename));
+				sfr=SamFileReaderFactory.mewInstance().open(filename);
 				}
 			else
 				{
 				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
-			sfr.setValidationStringency(ValidationStringency.LENIENT);
 			SAMRecordIterator iter=sfr.iterator();
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader().getSequenceDictionary());
 			while(iter.hasNext())

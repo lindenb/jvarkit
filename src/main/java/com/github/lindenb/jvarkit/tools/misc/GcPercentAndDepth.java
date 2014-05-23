@@ -18,8 +18,7 @@ import htsjdk.tribble.readers.LineIterator;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -33,6 +32,7 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 
 /**
@@ -282,7 +282,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			return -1;
 			}
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-		List<SAMFileReader> readers=new ArrayList<SAMFileReader>();
+		List<SamReader> readers=new ArrayList<SamReader>();
 
 		PrintStream out=System.out;
 		try
@@ -328,9 +328,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 				{
 				File bamFile=new File(args[optind]);
 				info("Opening "+bamFile);
-				SAMFileReader samFileReaderScan=new SAMFileReader(bamFile);
-				
-				samFileReaderScan.setValidationStringency(ValidationStringency.SILENT);
+				SamReader samFileReaderScan=SamFileReaderFactory.mewInstance().open(bamFile);
 				readers.add(samFileReaderScan);
 				
 				SAMFileHeader header= samFileReaderScan.getFileHeader();
@@ -373,7 +371,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			out.println();
 			
 			
-			List<RegionCaptured> regionsCaptured=new ArrayList<>();
+			List<RegionCaptured> regionsCaptured=new ArrayList<RegionCaptured>();
 			if(bedFile!=null)
 				{
 				int N=0;
@@ -475,7 +473,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 					sample2depth.put(sample, depth);
 					}
 				List<SAMRecordIterator> iterators=new ArrayList<SAMRecordIterator>();
-				for(SAMFileReader r:readers)
+				for(SamReader r:readers)
 					{
 					iterators.add(r.query(roi.getChromosome(), roi.getStart()+1, roi.getEnd(), false));
 					}
@@ -585,7 +583,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			}
 		finally
 			{
-			for(SAMFileReader r:readers) CloserUtil.close(r);
+			for(SamReader r:readers) CloserUtil.close(r);
 			CloserUtil.close(indexedFastaSequenceFile);
 			}	
 		}

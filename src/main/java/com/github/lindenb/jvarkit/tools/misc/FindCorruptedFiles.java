@@ -12,8 +12,8 @@ import java.util.zip.GZIPInputStream;
 
 import htsjdk.tribble.TribbleException;
 
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.CloserUtil;
@@ -22,6 +22,7 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class FindCorruptedFiles extends AbstractCommandLineProgram
@@ -60,11 +61,10 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     	
     	
     	long n=0L;
-    	SAMFileReader r=null;
+    	SamReader r=null;
     	SAMRecordIterator iter=null;
     	try {
-			r=new SAMFileReader(f);
-			r.setValidationStringency(this.validationStringency);
+			r=SamFileReaderFactory.mewInstance().stringency(this.validationStringency).open(f);
 			r.getFileHeader();
 			iter=r.iterator();
 			while(iter.hasNext() && (NUM<0 || n<NUM))
@@ -84,8 +84,8 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 			}
     	finally
     		{
-    		if(iter!=null) iter.close();
-    		if(r!=null) r.close();
+    		CloserUtil.close(iter);
+    		CloserUtil.close(r);
     		}
     	}
     private void testVcf(File f,InputStream in) throws IOException,TribbleException

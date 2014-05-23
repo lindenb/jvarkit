@@ -29,7 +29,6 @@ import java.text.DecimalFormat;
 import java.util.*;
 
 import htsjdk.samtools.Defaults;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMFileWriterImpl;
 import htsjdk.samtools.metrics.Header;
@@ -38,7 +37,6 @@ import htsjdk.samtools.metrics.MetricsFile;
 import htsjdk.samtools.metrics.StringHeader;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.BlockCompressedStreamConstants;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.Log.LogLevel;
 import htsjdk.samtools.util.zip.DeflaterFactory;
@@ -80,7 +78,7 @@ public abstract class CommandLineProgram {
     @Option(doc = "Validation stringency for all SAM files read by this program.  Setting stringency to SILENT " +
             "can improve performance when processing a BAM file in which variable-length data (read, qualities, tags) " +
             "do not otherwise need to be decoded.", common=true)
-    public SAMFileReader.ValidationStringency VALIDATION_STRINGENCY = SAMFileReader.ValidationStringency.DEFAULT_STRINGENCY;
+    public htsjdk.samtools.ValidationStringency VALIDATION_STRINGENCY = htsjdk.samtools.ValidationStringency.DEFAULT_STRINGENCY;
 
     @Option(doc = "Compression level for all compressed files created (e.g. BAM and GELI).", common=true)
     public int COMPRESSION_LEVEL = BlockCompressedStreamConstants.DEFAULT_COMPRESSION_LEVEL;
@@ -138,8 +136,6 @@ public abstract class CommandLineProgram {
         this.defaultHeaders.add(new StringHeader("Started on: " + startDate));
 
         Log.setGlobalLogLevel(VERBOSITY);
-        final SAMFileReader.ValidationStringency originalStringency = SAMFileReader.getDefaultValidationStringency();
-        SAMFileReader.setDefaultValidationStringency(VALIDATION_STRINGENCY);
         BlockCompressedOutputStream.setDefaultCompressionLevel(COMPRESSION_LEVEL);
 
         if (MAX_RECORDS_IN_RAM != null) {
@@ -181,7 +177,6 @@ public abstract class CommandLineProgram {
         try {
             ret = doWork();
         } finally {
-            SAMFileReader.setDefaultValidationStringency(originalStringency);
             try {
                 // Emit the time even if program throws
                 if (!QUIET) {

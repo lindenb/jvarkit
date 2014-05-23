@@ -390,7 +390,7 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 	
 	private void scan(Graphics2D g,InputStream input) throws IOException
 		{
-		Set<String> unknownC=new HashSet<>();
+		Set<String> unknownC=new HashSet<String>();
 		Pattern tab=Pattern.compile("[\t]");
 		LineIterator in=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(input));
 		while(in.hasNext())

@@ -6,6 +6,7 @@ import java.io.PrintStream;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.SamFlag;
 
 import javax.xml.stream.XMLOutputFactory;
@@ -13,8 +14,7 @@ import javax.xml.stream.XMLStreamWriter;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -83,21 +83,20 @@ public class Biostar59647 extends AbstractCommandLineProgram
 			}
 	
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-		SAMFileReader samFileReader=null;
+		SamReader samFileReader=null;
 		
 		try
 			{
 			GenomicSequence genomicSequence=null;
 			indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
-			SAMFileReader.setDefaultValidationStringency(ValidationStringency.SILENT);
 			samFileReader=null;
 			if(bamFile==null)
 				{
-				samFileReader=new SAMFileReader(System.in);
+				samFileReader= SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else
 				{
-				samFileReader=new SAMFileReader(bamFile);
+				samFileReader=SamFileReaderFactory.mewInstance().open(bamFile);
 				}
 			
 			if(SequenceUtil.areSequenceDictionariesEqual(

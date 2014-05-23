@@ -6,13 +6,13 @@ import java.io.PrintWriter;
 
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -49,7 +49,7 @@ public class Biostar90204 extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
-		SamWriterFactory swfactory=SamWriterFactory.newInstance();
+		SAMFileWriterFactory swfactory=new SAMFileWriterFactory();
 		File manifestFile=null;
 		long record_per_file=-1L;
 		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
@@ -103,27 +103,24 @@ public class Biostar90204 extends AbstractCommandLineProgram
 		
 		SAMFileWriter sfw=null;
 		SAMRecordIterator iter=null;
-		SAMFileReader samFileReader=null;
+		SamReader samFileReader=null;
 		PrintWriter manifest=new PrintWriter(new NullOuputStream());
 		try
 			{
 			if(getopt.getOptInd()==args.length)
 				{
 				info("reading from stdin.");
-				samFileReader=new SAMFileReader(System.in);
+				samFileReader=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(getopt.getOptInd()+1==args.length)
 				{
-				File file=new File(args[getopt.getOptInd()]);
-				info("REading "+file);
-				samFileReader=new SAMFileReader(file);
+				samFileReader=SamFileReaderFactory.mewInstance().open(args[getopt.getOptInd()]);
 				}
 			else
 				{
 				error("Illegal number of arguments.");
 				return -1;
 				}
-			samFileReader.setValidationStringency(ValidationStringency.SILENT);
 			SAMFileHeader header=samFileReader.getFileHeader();
 			SAMProgramRecord prg=header.createProgramRecord();
 			prg.setCommandLine(this.getProgramCommandLine());
@@ -136,6 +133,7 @@ public class Biostar90204 extends AbstractCommandLineProgram
 			
 			if(manifestFile!=null)
 				{
+				manifest.close();
 				manifest=new PrintWriter(manifestFile);
 				}
 			
@@ -156,7 +154,7 @@ public class Biostar90204 extends AbstractCommandLineProgram
 					header2.addComment("SPLIT:"+split_file_number);
 					header2.addComment("SPLIT:Starting from Read"+nReads);
 					
-					sfw=swfactory.make(header2, out);
+					sfw=swfactory.makeSAMOrBAMWriter(header2, true, out);
 					}
 				sfw.addAlignment(rec);
 				
@@ -183,6 +181,7 @@ public class Biostar90204 extends AbstractCommandLineProgram
 			}
 		finally
 			{
+			CloserUtil.close(manifest);
 			CloserUtil.close(sfw);
 			CloserUtil.close(iter);
 			CloserUtil.close(samFileReader);

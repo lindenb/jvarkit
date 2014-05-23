@@ -10,8 +10,8 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
@@ -24,7 +24,7 @@ import htsjdk.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
-import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class BWAMemNOp extends AbstractCommandLineProgram
 	{
@@ -57,7 +57,7 @@ public class BWAMemNOp extends AbstractCommandLineProgram
 		}
 	private static List<CigarEvt> cigarEvents(int read0,int ref1,Cigar cigar)
 		{
-		List<CigarEvt> L=new ArrayList<>();
+		List<CigarEvt> L=new ArrayList<CigarEvt>();
 		for(CigarElement ce:cigar.getCigarElements())
 			{
 			for(int i=0;i< ce.getLength();++i)
@@ -102,7 +102,7 @@ public class BWAMemNOp extends AbstractCommandLineProgram
 	public int doWork(String[] args)
 		{
 		File bamOut=null;
-		SamWriterFactory swf=SamWriterFactory.newInstance();
+		SAMFileWriterFactory swf=new SAMFileWriterFactory();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
 		while((c=opt.getopt(args,getGetOptDefault()+"o:Sm:"))!=-1)
@@ -124,27 +124,25 @@ public class BWAMemNOp extends AbstractCommandLineProgram
 				}
 			}
 		
-		SAMFileReader r=null;
+		SamReader r=null;
 		SAMFileWriter w=null;
 		try
 			{
 			if(opt.getOptInd()==args.length)
 				{
-				info("Reading from stdin");
-				r=new SAMFileReader(System.in);
+				r=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				String filename=args[opt.getOptInd()];
 				info("Reading from "+filename);
-				r=new SAMFileReader(new File(filename));
+				r=SamFileReaderFactory.mewInstance().open(new File(filename));
 				}
 			else
 				{
 				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
-			r.setValidationStringency(ValidationStringency.SILENT);
 			SAMFileHeader header=r.getFileHeader();
 			OtherCanonicalAlignFactory ocaf=new OtherCanonicalAlignFactory(header);
 			SAMProgramRecord prg=header.createProgramRecord();
@@ -153,11 +151,11 @@ public class BWAMemNOp extends AbstractCommandLineProgram
 			prg.setProgramVersion(getVersion());
 			if(bamOut==null)
 				{
-				w=swf.make(header, System.out);
+				w=swf.makeSAMWriter(header, true, System.out);
 				}
 			else
 				{
-				w=swf.make(header, bamOut);
+				w=swf.makeSAMOrBAMWriter(header, true, bamOut);
 				}
 			SAMRecordFactory samRecordFactory=new DefaultSAMRecordFactory();
 			SAMRecordIterator iter=r.iterator();

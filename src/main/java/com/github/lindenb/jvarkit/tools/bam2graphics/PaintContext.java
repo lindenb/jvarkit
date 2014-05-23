@@ -11,12 +11,8 @@ import java.io.OutputStream;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
@@ -30,7 +26,6 @@ import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -463,7 +458,7 @@ public class PaintContext extends AbstractCommandLineProgram
 
 		
 		
-		List<VariantContext> variants=new ArrayList<>();
+		List<VariantContext> variants=new ArrayList<VariantContext>();
 		if(this.tabixReader!=null)
 			{
 			for(Iterator<VariantContext> iter=tabixReader.iterator(interval.chrom, this.interval.getStart(), this.interval.getEnd());
@@ -970,7 +965,6 @@ public class PaintContext extends AbstractCommandLineProgram
 		{
 		Interval userInterval=null;
 		String vcfFile=null;
-		SAMFileReader.setDefaultValidationStringency(ValidationStringency.SILENT);
 		File faidx=null;
 		String knownGeneUri=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
@@ -1039,6 +1033,7 @@ public class PaintContext extends AbstractCommandLineProgram
 				{
 				info("Opening "+input.file);
 				input.sfr=new SAMFileReader(input.file);
+				input.sfr.setValidationStringency(htsjdk.samtools.ValidationStringency.LENIENT);
 				if(dict!=null && !SequenceUtil.areSequenceDictionariesEqual(
 						input.sfr.getFileHeader().getSequenceDictionary(),
 						dict))

@@ -8,8 +8,7 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
@@ -21,6 +20,7 @@ import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class BamLiftOver extends AbstractCommandLineProgram
 	{
@@ -97,20 +97,18 @@ public class BamLiftOver extends AbstractCommandLineProgram
 			return -1;
 			}
 		SAMRecordIterator iter=null;
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
 			if(opt.getOptInd()==args.length)
 				{
-				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				File filein=new File(args[opt.getOptInd()]);
-				info("Reading from "+filein);
-				sfr=new SAMFileReader(filein);
+				sfr=SamFileReaderFactory.mewInstance().open(filein);
 				}
 			else
 				{
@@ -121,8 +119,6 @@ public class BamLiftOver extends AbstractCommandLineProgram
 			LiftOver liftOver=new LiftOver(liftOverFile);
 			liftOver.setLiftOverMinMatch(minMatch);
 
-			
-			sfr.setValidationStringency(ValidationStringency.LENIENT);
 			SAMFileHeader headerIn=sfr.getFileHeader();
 			
 			SAMFileHeader headerOut=headerIn.clone();
@@ -167,7 +163,12 @@ public class BamLiftOver extends AbstractCommandLineProgram
 						{
 						sb.append(chrom+":"+pos+":"+(rec.getReadNegativeStrandFlag()?"-":"+"));
 						SAMSequenceRecord ssr=newDict.getSequence(interval.getSequence());
-						if(ssr==null) throw new SAMException("the chromosome "+interval.getSequence()+" is undefined in the sequence dict.");
+						if(ssr==null)
+							{
+							sfr.close();
+							sfr=null;
+							throw new SAMException("the chromosome "+interval.getSequence()+" is undefined in the sequence dict.");
+							}
 						copy.setReferenceName(ssr.getSequenceName());
 						copy.setReferenceIndex(ssr.getSequenceIndex());
 						copy.setAlignmentStart(interval.getStart());
@@ -202,7 +203,12 @@ public class BamLiftOver extends AbstractCommandLineProgram
 						{
 						sb.append(chrom+":"+pos+":"+(rec.getMateNegativeStrandFlag()?"-":"+"));
 						SAMSequenceRecord ssr=newDict.getSequence(interval.getSequence());
-						if(ssr==null) throw new SAMException("the chromosome "+interval.getSequence()+" is undefined in the sequence dict.");
+						if(ssr==null)
+							{
+							sfr.close();
+							sfr=null;
+							throw new SAMException("the chromosome "+interval.getSequence()+" is undefined in the sequence dict.");
+							}
 						copy.setMateReferenceName(ssr.getSequenceName());
 						copy.setMateReferenceIndex(ssr.getSequenceIndex());
 						copy.setMateAlignmentStart(interval.getStart());

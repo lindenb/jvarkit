@@ -13,14 +13,14 @@ import java.util.Set;
 import java.util.logging.Level;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class HowManyBamDict extends AbstractCommandLineProgram {
 	private MessageDigest md5;
@@ -114,11 +114,10 @@ public class HowManyBamDict extends AbstractCommandLineProgram {
  	
  	private void handle(File f) throws IOException
  		{
- 		SAMFileReader sfr=null;
+ 		SamReader sfr=null;
  		try {
  			info(f);
-			sfr=new SAMFileReader(f);
-			sfr.setValidationStringency(ValidationStringency.SILENT);
+			sfr=SamFileReaderFactory.mewInstance().open(f);
 			SAMFileHeader header=sfr.getFileHeader();
 			if(header==null || header.getSequenceDictionary()==null)
 				{

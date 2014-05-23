@@ -11,7 +11,7 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMFileReader.ValidationStringency;
+import htsjdk.samtools.ValidationStringency;
 
 public class SplitRead {
 	private static final Logger LOG=Logger.getLogger(SplitRead.class.getSimpleName());

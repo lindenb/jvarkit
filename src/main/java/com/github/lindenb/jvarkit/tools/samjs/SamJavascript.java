@@ -22,10 +22,10 @@ import com.github.lindenb.jvarkit.util.picard.AbstractBamFilterProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
 
@@ -76,7 +76,7 @@ public class SamJavascript
 		}
 	
 	@Override
-	protected int doWork(SAMFileReader samFileReader, SAMFileWriter sw)
+	protected int doWork(SamReader samFileReader, SAMFileWriter sw)
 		{
 		try
 			{

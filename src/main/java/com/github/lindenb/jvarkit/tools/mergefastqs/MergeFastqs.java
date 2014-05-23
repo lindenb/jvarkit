@@ -2,7 +2,6 @@ package com.github.lindenb.jvarkit.tools.mergefastqs;
 
 import java.awt.Point;
 import java.io.File;
-import java.io.PrintWriter;
 import java.util.Arrays;
 
 import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
@@ -13,6 +12,7 @@ import htsjdk.samtools.util.Log;
 
 public class MergeFastqs extends CommandLineProgram
 	{
+	@SuppressWarnings("unused")
 	private Log LOG=Log.getInstance(MergeFastqs.class);
 	public File IN1=null;
 	public File IN2=null;
