@@ -1,19 +1,22 @@
 package com.github.lindenb.jvarkit.tools.vcf2rdf;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.zip.GZIPOutputStream;
+import java.net.URI;
 
 
 
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.VariantContext;
 
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.rdf.RDFVcfWriter;
 
-public class VcfToRdf extends AbstractVCFFilter2
+public class VcfToRdf extends AbstractCommandLineProgram
 	{
 	private VcfToRdf()
 		{
@@ -36,36 +39,19 @@ public class VcfToRdf extends AbstractVCFFilter2
 		}
 	
 
-	@Override
-	protected VariantContextWriter createVariantContextWriter(File OUT) throws IOException
-		{
-		if(OUT==null)
-			{
-			info("writing to stdout");
-			return new RDFVcfWriter(System.out);
-			}
-		else if(OUT.getName().endsWith(".gz"))
-			{
-			info("writing to "+OUT+" + gzip");
-			GZIPOutputStream zout=new GZIPOutputStream(new FileOutputStream(OUT));
-			return new RDFVcfWriter(zout);
-			}
-		else
-			{
-			info("writing to "+OUT);
-			return new RDFVcfWriter(new FileOutputStream(OUT));
-			}
-		}
 
-	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
+	protected void doWork(VcfIterator in, RDFVcfWriter out,URI src)
 		throws IOException
 		{
-		out.writeHeader(in.getHeader());
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(in.getHeader().getSequenceDictionary());
+		out.writeHeader(in.getHeader(),src);
 		while(in.hasNext())
 			{
-			out.add(in.next());
+			VariantContext ctx=in.next();
+			progress.watch(ctx.getChr(), ctx.getStart());
+			out.add(ctx);
 			}
+		progress.finish();
 		}
 
 	
@@ -89,8 +75,53 @@ public class VcfToRdf extends AbstractVCFFilter2
 					}
 				}
 			}
+		VcfIterator in=null;
+		RDFVcfWriter w=null;
+		try
+			{
 		
-		return doWork(opt.getOptInd(), args);
+			if(opt.getOptInd()==args.length)
+				{
+				w=new RDFVcfWriter(System.out);
+				in= VCFUtils.createVcfIteratorStdin();
+				doWork(in,w,null);
+				in.close();
+				w.close();
+				}
+			else
+				{
+				w=new RDFVcfWriter(System.out);
+				w.writeStartDocument();
+				for(int i=opt.getOptInd();i< args.length;++i )
+					{
+					URI source=null;
+					in=VCFUtils.createVcfIterator(args[i]);
+					if(IOUtils.isRemoteURI(args[i]))
+						{
+						source=URI.create(args[i]);
+						}
+					else
+						{
+						source=new File(args[i]).toURI();
+						}
+					doWork(in,w,source);
+					in.close();
+					}
+				w.close();
+				}
+			return 0;
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(in);
+			CloserUtil.close(w);
+			}
+		
 		}
 	public static void main(String[] args)
 		{

@@ -2,17 +2,20 @@ package com.github.lindenb.jvarkit.util.vcf.rdf;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import javax.xml.XMLConstants;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.github.lindenb.jvarkit.tools.vcfannot.VCFAnnotator;
 import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -26,6 +29,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
+import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.Prediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
@@ -39,6 +43,8 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 public class RDFVcfWriter
 	implements VariantContextWriter
 	{
+	private static final Logger LOG=Logger.getLogger("jvarkit");
+
 	private static final String XSD="http://www.w3.org/2001/XMLSchema#";
 	private static final String RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 	private static final String DC="http://purl.org/dc/elements/1.1/";
@@ -49,9 +55,9 @@ public class RDFVcfWriter
 	private long id_generator=0L;
 	private OutputStream delegateOut;
 	private Map<String,RDFVcfInfoHandler> key2infoHandler=new HashMap<String,RDFVcfInfoHandler>();
-	
-	
-	
+	private URI source=null;
+	private boolean _xmlHeaderPrinted=false;
+
 	
 	public RDFVcfWriter(XMLStreamWriter writer)
 		{
@@ -90,19 +96,42 @@ public class RDFVcfWriter
 		return new DefaultInfoHandler(h);
 		}
 	
+	public void writeStartDocument() throws XMLStreamException
+		{
+		if(_xmlHeaderPrinted) return;
+		w.writeStartDocument("UTF-8","1.0");
+		this.w.writeStartElement("rdf", "RDF", RDF);
+		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "rdf",RDF);
+		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "dc", DC);
+		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI,  PFX, NS);
+		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI,  "xsd", XSD);
+		_xmlHeaderPrinted=true;
+		}
+	
+	
 	@Override
 	public void writeHeader(VCFHeader  header)
 		{
+		this.writeHeader(header, null);
+		}
+	public void writeHeader(VCFHeader  header,URI source)
+		{
 		if(this.header!=null) throw new PicardException("Header was already written");
 		this.header=header;
-		try {
-			w.writeStartDocument("UTF-8","1.0");
-			this.w.writeStartElement("rdf", "RDF", RDF);
-			w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "rdf",RDF);
-			w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "dc", DC);
-			w.writeAttribute("xmlns", XMLConstants.XML_NS_URI,  PFX, NS);
-			w.writeAttribute("xmlns", XMLConstants.XML_NS_URI,  "xsd", XSD);
+		this.source=source;
+		if(this.source==null) this.source=URI.create("urn:source/id"+(++id_generator));
 
+		
+		try {
+			writeStartDocument();
+			
+			this.w.writeStartElement(PFX, "Source", NS);
+			this.w.writeAttribute("rdf",RDF,"about",this.source.toString());
+				this.w.writeStartElement("dc","title",DC);
+				this.w.writeCharacters(this.source.toString());
+				this.w.writeEndElement();//dc:title
+			this.w.writeEndElement();
+			
 			
 			SAMSequenceDictionary dict=header.getSequenceDictionary();
 			if(dict!=null)
@@ -127,17 +156,18 @@ public class RDFVcfWriter
 					this.w.writeEndElement();//length
 	
 					
-					this.w.writeEndElement();//rdf:RDF
+					this.w.writeEndElement();//Chromosome
 					}
 				}
 			key2infoHandler.put(SnpEffPredictionParser.getDefaultTag(), new SnpEffHandler());
 			key2infoHandler.put(VepPredictionParser.getDefaultTag(), new VepHandler());
+			key2infoHandler.put(VCFAnnotator.TAG, new MyPredictionHandler());
 			for(VCFInfoHeaderLine h:header.getInfoHeaderLines())
 				{
 				RDFVcfInfoHandler handler= key2infoHandler.get(h.getID());
 				if(handler==null)
 					{
-					
+					LOG.info("creating default handler for INFO:"+h.getID());
 					handler=createDefaultRdfVcfInfoHandlerFor(h);
 					key2infoHandler.put(handler.getKey(), handler);
 					}
@@ -191,7 +221,9 @@ public class RDFVcfWriter
 			long variant_id=++id_generator;
 			this.w.writeStartElement(PFX, "Variant", NS);
 			this.w.writeAttribute("rdf",RDF,"about","urn:variant/"+variant_id);
-
+			
+			this.w.writeEmptyElement(PFX, "source",NS);
+			this.w.writeAttribute("rdf",RDF,"resource",this.source.toString());
 			
 			this.w.writeEmptyElement(PFX, "chromosome",NS);
 			this.w.writeAttribute("rdf",RDF,"resource","urn:chromosome/"+ctx.getChr());
@@ -398,6 +430,8 @@ public class RDFVcfWriter
 			throw new PicardException("close failed",e);
 			}
 		}
+	
+	
 
 		public interface RDFVcfInfoHandler
 			{
@@ -423,7 +457,27 @@ public class RDFVcfWriter
 			public void init(VCFInfoHeaderLine line)
 					throws XMLStreamException
 				{
+				w.writeStartElement(PFX,"InfoHeader",NS);
+				w.writeAttribute("rdf", RDF, "about", "urn:info/"+line.getID());
 				
+				w.writeStartElement(PFX,"id",NS);
+				w.writeCharacters(line.getID());
+				w.writeEndElement();
+				
+				w.writeStartElement(PFX,"description",NS);
+				w.writeCharacters(line.getDescription());
+				w.writeEndElement();
+				
+				w.writeStartElement(PFX,"countType",NS);
+				w.writeCharacters(line.getCountType().name());
+				w.writeEndElement();
+				
+				w.writeStartElement(PFX,"type",NS);
+				w.writeCharacters(line.getType().name());
+				w.writeEndElement();
+				
+				
+				w.writeEndElement();
 				}
 			
 			protected abstract void handleObject(Object o)
@@ -599,6 +653,32 @@ public class RDFVcfWriter
 			}
 		}
 	
+	private class MyPredictionHandler
+	extends AbstractPredHandler
+		{	
+		private MyPredictionParser predFactory;
+		public MyPredictionHandler()
+			{
+			this.predFactory=new MyPredictionParser(RDFVcfWriter.this.header);
+			}
+		
+		@Override
+		PredictionParser getPredictionParser()
+			{
+			return predFactory;
+			}
+		
+		@Override
+		public String getKey()
+			{
+			return predFactory.getTag();
+			}
+		@Override
+		String getLocalName()
+			{
+			return "myprediction";
+			}
+		}
 	
   private class DefaultInfoHandler
   		extends AbstractInfoHandler

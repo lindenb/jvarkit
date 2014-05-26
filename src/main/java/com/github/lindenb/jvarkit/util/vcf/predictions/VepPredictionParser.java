@@ -198,6 +198,7 @@ public class VepPredictionParser implements PredictionParser
 		@Override
 		public String getEnsemblGene() {
 			String s=getByCol(COLS.Gene);
+			if(s==null) return null;
 			if(s.startsWith("ENSG")) return s;
 			return s;
 			}
@@ -210,6 +211,7 @@ public class VepPredictionParser implements PredictionParser
 		@Override
 		public String getEnsemblTranscript() {
 			String s=getByCol(COLS.Feature);
+			if(s==null) return null;
 			if(s.startsWith("ENST")) return s;
 			return null;
 			}

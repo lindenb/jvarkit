@@ -614,7 +614,7 @@ public static class DefaultXMLFormatHandler extends AbstractXMLFormatHandler
 			}
 		@Override
 		protected void handleArray(VCFHeader header, XMLStreamWriter w,
-					Collection array) throws XMLStreamException {
+					@SuppressWarnings("rawtypes") Collection array) throws XMLStreamException {
 			if(array.size()!=4) return;
 			w.writeStartElement(getKey());
 			int i=0;

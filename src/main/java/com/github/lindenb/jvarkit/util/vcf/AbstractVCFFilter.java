@@ -8,16 +8,12 @@ package com.github.lindenb.jvarkit.util.vcf;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.EnumSet;
 
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import htsjdk.samtools.util.Log;
-import htsjdk.samtools.util.BlockCompressedOutputStream;
 
-import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
