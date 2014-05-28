@@ -1084,6 +1084,14 @@ or
 		/>
 </target>
 
+<target name="sigframe" >
+	<compile-picard-cmd 
+		java="**/SigFrame.java"
+		main="com.github.lindenb.jvarkit.tools.sigframe.SigFrame"
+		name="sigframe"
+		/>
+</target>
+
 <target name="vcfin" >
 	<compile-picard-cmd 
 		java="**/VcfIn.java"

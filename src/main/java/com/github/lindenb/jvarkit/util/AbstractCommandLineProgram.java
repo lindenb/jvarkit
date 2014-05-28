@@ -293,8 +293,8 @@ public abstract class AbstractCommandLineProgram
 		{
 		return "hvL:";
 		}
-	
-	protected enum GetOptStatus {OK,EXIT_FAILURE,EXIT_SUCCESS};
+	/* changed to public after I got that error: http://stackoverflow.com/questions/15722184 */
+	public enum GetOptStatus {OK,EXIT_FAILURE,EXIT_SUCCESS};
 	
 	private boolean isGalaxyTool()
 		{
