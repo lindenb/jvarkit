@@ -78,6 +78,7 @@ import javax.swing.filechooser.FileFilter;
 
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
@@ -99,6 +100,9 @@ public class SigFrame
 	private ActionMap actionMap=new ActionMap();
 	/** reference genome */
 	private SAMSequenceDictionary genome=null;
+	/** about message */
+	private String aboutMessage="<h2 align='center'>Pierre Lindenbaum PhD @yokofakun</h2>";
+	
 	
 	/** tool */
 	private enum Tool
@@ -108,31 +112,66 @@ public class SigFrame
 		CHANGE_HEIGHT
 		};
 	
-	class SigData
+	/** a chrom/start/end/value */
+	static private class SigData
 		{
 		String name;
 		double value=0;
 		String chrom;
-		int start;int end;
+		int start;
+		int end;
+		String color_string;
+		private Color _color;
+		
 		public int getStart() { return start;}
 		public int getEnd() { return end;}
 		public String getChromosome() { return chrom;}
 		public String getName() {return name;}
 		public double getValue() { return value;}
-		public Color getColor() { return Color.BLACK;}
+		public Color getColor()
+			{
+			if(_color==null)
+				{
+				_color=Color.BLACK;
+				if(color_string!=null)
+					{
+					String tokens[]=color_string.split("[,]");
+					_color=new Color(
+							Integer.parseInt(tokens[0]),
+							Integer.parseInt(tokens[1]),
+							Integer.parseInt(tokens[2])
+							);
+					
+					}
+				}
+			return _color;
+			}
 		
 		}
-		
-	class SigFiles extends Vector<SigFile>
+	
+	/** a vector of signalfiles */
+	class SigFiles extends Vector<SigDataFileTabixReader>
 		{
 		
 		}
 	
-	class SigFile extends AbstractTabixObjectReader<SigData>
+	/** A wrapper around a file indexed with tabix */
+	class SigDataFileTabixReader extends AbstractTabixObjectReader<SigData>
 		{
-		SigFile(String uri ) throws IOException
+		private File file;
+		SigDataFileTabixReader(File file ) throws IOException
 			{
-			super(uri);
+			super(file.getPath());
+			this.file=file;
+			}
+		
+		public File getFile()
+			{
+			return file;
+			}
+		public boolean hasDataForChrom(SAMSequenceRecord rec)
+			{
+			return iterator(rec.getSequenceName(), 1, 1+rec.getSequenceLength()).hasNext();
 			}
 		
 		@Override
@@ -141,6 +180,7 @@ public class SigFrame
 			return new MyIterator(delegate);
 			}
 		
+		/** convert line to  SigData */
 	    private class MyIterator
     	extends AbstractMyIterator
 	    	{
@@ -160,84 +200,14 @@ public class SigFrame
 	    		d.start=Integer.parseInt(tokens[1]);
 	    		d.end=Integer.parseInt(tokens[2]);
 	    		d.value=Double.parseDouble(tokens[3]);
+	    		if(tokens.length>4) d.color_string=tokens[4];
 	    		return d;
 	    		}
 	    	}
 
 		
 		}
-		
-	/**
-	 * SigFileLoader
-	 *
-	 */
-	private class SigFileLoader
-		extends Thread
-		{
-		/** genome for this load */
-		private SAMSequenceDictionary genome;
-		/** error at end if any */
-		private Throwable error=null;
-		/** storage returned */
-		private SigFiles storage=new SigFiles();
-		/** files as input */
-		private List<File> inputs=new Vector<File>(); 
-		
-		/**
-		 * SigFileLoader
-		 */
-		SigFileLoader()
-			{
-			}
-		
-		@Override
-		public void run()
-			{
-			try {
-				
-				for(File f:inputs)
-					{
-					LOG.info("reading "+f);
-					storage.add(new SigFile(f.getPath()));
-					}
-				} 
-			catch (Throwable e)
-				{
-				e.printStackTrace();
-				storage=null;
-				System.gc();
-				error=e;
-				}
-			finally
-				{
-				try {
-					SwingUtilities.invokeAndWait(new Runnable() {
-						@Override
-						public void run() {
-						executeAtEnd();
-						}
-					});
-					} catch (Exception e2) {
-					e2.printStackTrace();
-					}
-				}
-			}
-		public void executeAtEnd()
-			{
-			if(error!=null)
-				{
-				SigFrame.this.showError( error);
-				error=null;
-				}
-			else
-				{
-				LOG.info("opening new Browser");
-				Browser browser=new Browser(this.genome,this.storage);
-				SigFrame.this.desktop.add(browser);
-				browser.setVisible(true);
-				}
-			}
-		}
+	
 	
 	/**
 	 * LoadAtStartup
@@ -299,7 +269,8 @@ public class SigFrame
 		}
 	
 	/**
-	 * Browser
+	 * Browser: a browser is an iframe containing 
+	 * multiple chromView, each chromView contains a file(tabix) view
 	 *
 	 */
 	private class Browser extends IFrame
@@ -325,8 +296,10 @@ public class SigFrame
 		private ChromView selectedChromView=null;
 		private ChromView.FileView selectedFileFiew=null;
 		private SAMSequenceDictionary samSequenceDictionary;
+		/** all tabix files associated to this reader */
+		private SigFiles sigilesList;
 		
-		
+		/** select tool */
 		private class SelectToolAction
 			extends AbstractAction
 			{
@@ -342,6 +315,7 @@ public class SigFrame
 				}
 			}
 		
+		/** browser history */
 		private class History
 			{
 			int view_start=0;
@@ -361,6 +335,7 @@ public class SigFrame
 			int top_y;
 			int width;
 			int height;
+			
 			GC()
 				{
 				top_y=vScrollBar.getValue();
@@ -369,6 +344,7 @@ public class SigFrame
 				}
 			}
 		
+		/** abstract view: offsets Y for the view */
 		private abstract class View
 			{
 			int y_pixels=0;
@@ -398,203 +374,225 @@ public class SigFrame
 		private class ChromView
 			extends View
 			{
+			/** background color for this view */
 			private Color background=Color.WHITE;
+			/** chromosome for this view */
 			private SAMSequenceRecord chrom;
+			/** one file view for each tabix */
 			private List<FileView> fileViews=new ArrayList<FileView>();
 			
 			
 			
 				
-				/** inside a chromosome view: one view per BED file */
-				class FileView
+			/** inside a chromosome view: one view per BED file */
+			class FileView
 					extends View
-					{
-					SigFile storage;
-					double min_value;
-					double max_value;
-					
-					
-					public FileView(SigFile sigFile)
-						{
-						this.storage=sigFile;
-						this.height_pixels=DEFAULT_FILE_VIEW_HEIGHT;
-						this.min_value=-1.0;//sigChrom.getMinValue();
-						this.max_value=1.0;//sigChrom.getMaxValue();
-						}
-					
-					public SAMSequenceRecord getChromosome()
-						{
-						return ChromView.this.getChromosome();
-						}
-					
-					public boolean contains(GC gc,int x,int y)
-						{
-						int left= leftMargin();
-						if(y<topMargin()) return false;
-						if(getTopY(gc)> gc.height) return false;
-						if(x <left) return false;
-						return new Rectangle(left, getTopY(gc), gc.width-left, getHeight()).contains(x,y);
-						}
+				{
+				/** associated tabix file */
+				SigDataFileTabixReader tabixFile;
+				/** min value Y */
+				double min_value;
+				/** max value Y */
+				double max_value;
 				
-					public void fillPopup(JPopupMenu popup)
+				
+				public FileView(SigDataFileTabixReader sigFile)
+					{
+					this.tabixFile=sigFile;
+					this.height_pixels=DEFAULT_FILE_VIEW_HEIGHT;
+					this.min_value=-1.0;//sigChrom.getMinValue();
+					this.max_value=1.0;//sigChrom.getMaxValue();
+					}
+				
+				/** return owner */
+				public ChromView getChromView()
+					{
+					return ChromView.this;
+					}
+				
+				
+				/** return owner */
+				public Browser getBrowser()
+					{
+					return getChromView().getBrowser();
+					}
+				
+				/** return associated chromosome */
+				public SAMSequenceRecord getChromosome()
+					{
+					return getChromView().getChromosome();
+					}
+				
+				/** returns wether that fileview contains x,y */
+				public boolean contains(GC gc,int x,int y)
+					{
+					int left= leftMargin();
+					if(y<topMargin()) return false;
+					if(getTopY(gc)> gc.height) return false;
+					if(x <left) return false;
+					return new Rectangle(left, getTopY(gc), gc.width-left, getHeight()).contains(x,y);
+					}
+				
+				/** fills a popup menu invoked in that menu */
+				public void fillPopup(JPopupMenu popup)
+					{
+					popup.add(new JSeparator());
+					popup.add(new AbstractAction("Adjust File Height....")
 						{
-						popup.add(new JSeparator());
-						popup.add(new AbstractAction("Adjust File Height....")
+						@Override
+						public void actionPerformed(ActionEvent e)
 							{
-							@Override
-							public void actionPerformed(ActionEvent e)
-								{
-								Integer h=Browser.this.askHeight();
-								if(h==null) return;
-								FileView.this.height_pixels=h;
-								recalcSize();
-								}});
-						popup.add(new AbstractAction("File Min/Max value....")
+							Integer h=getBrowser().askHeight();
+							if(h==null) return;
+							FileView.this.height_pixels=h;
+							getBrowser().recalcSize();
+							}});
+					popup.add(new AbstractAction("File Min/Max value....")
 						{
 						@Override
 						public void actionPerformed(ActionEvent e)
 							{
 							double values[]=askMinValue(min_value,max_value);
 							if(values==null) return;
-							min_value=values[0];
-							max_value=values[1];
-							offscreen=null;
-							drawingArea.repaint();
+							FileView.this.min_value=values[0];
+							FileView.this.max_value=values[1];
+							getBrowser().offscreen=null;
+							getBrowser().drawingArea.repaint();
 							}});
 						}
+				
+				/** paint that file view */
+				private void paint(GC gc)
+					{
+					if(this.getMaxY()< gc.top_y) return;
+					if(this.getTopY()>= (gc.top_y+(gc.height-topMargin()))) return;
+					Graphics2D g=gc.g;
+					Hershey hershey=new Hershey();
+					Shape clip=g.getClip();
+					//g.setClip(new Rectangle(leftMargin()/2,getTopY()-topMargin(),leftMargin()/2,getHeight()));
+					g.setFont(new Font("Courier",Font.PLAIN,9));
+					g.setColor(Color.BLACK);
+	        		AffineTransform old=g.getTransform();
+	        		AffineTransform tr= AffineTransform.getTranslateInstance(leftMargin()/2, getTopY()-gc.top_y+topMargin());
+	        		tr.rotate(Math.PI/2);
+	        		g.setTransform(tr);
+	        		hershey.paint(g, this.tabixFile.getFile().getName(), 0,0,this.getHeight(), leftMargin()/2);
+	        		//g.drawString(this.tabixFile.getFile().getName(),0,0);
+	        		g.setTransform(old);
+					g.setClip(clip);
 					
-					private void paint(GC gc)
+					
+					g.setColor(Color.WHITE);
+					g.fillRect(
+							leftMargin(),
+							getTopY(),
+							gc.width-leftMargin(),
+							getHeight());
+					
+					/* paint gradient */
+					for(int side=0;side<2;++side)
 						{
-						if(this.getMaxY()< gc.top_y) return;
-						if(this.getTopY()>= (gc.top_y+(gc.height-topMargin()))) return;
-						Graphics2D g=gc.g;
+						float y_0=value2pixel(0f);
+						float y_value2=value2pixel(2.0*(side==0?1.0:-1.0));
+						float fractions[]=new float[]{0.0f,1.0f};
+						if(y_value2==y_0) continue;
+						Color colors[]=new Color[]{Color.WHITE,new Color(255,210,210)};
+						LinearGradientPaint grad=new LinearGradientPaint(0,y_0,0,y_value2,fractions,colors);
+						Paint oldp= g.getPaint();
+						g.setPaint(grad);
+						Rectangle r=new Rectangle();
+						r.x=leftMargin();
+						r.width=gc.width-leftMargin();
 						
-						Shape clip=g.getClip();
-						//g.setClip(new Rectangle(leftMargin()/2,getTopY()-topMargin(),leftMargin()/2,getHeight()));
-						g.setFont(new Font("Courier",Font.PLAIN,9));
-						g.setColor(Color.BLACK);
-		        		AffineTransform old=g.getTransform();
-		        		AffineTransform tr= AffineTransform.getTranslateInstance(leftMargin()/2, getTopY()-gc.top_y+topMargin());
-		        		tr.rotate(Math.PI/2);
-		        		g.setTransform(tr);
-		        		g.drawString(this.storage.getURI(),0,0);
-		        		g.setTransform(old);
-						g.setClip(clip);
+						if(side==0)
+							{
+							r.y=getTopY();
+							r.height=(int)(y_0-getTopY());
+							if(r.height<=0) continue;
+							}
+						else
+							{
+							r.y=(int)y_0;
+							r.height=(int)(getMaxY()-y_0);
+							if(r.y>= getMaxY() || r.height<=0) continue;
+							}
 						
+						g.fill(r);
+						g.setPaint(oldp);
+						}
 						
-						g.setColor(Color.WHITE);
+					/* paint y axis */
+					if(this.min_value<=0 && this.max_value>=0)
+						{
+						g.setColor(Color.RED);
+						int y_axis=value2pixel(0);
+						g.drawLine(
+								leftMargin(),
+								y_axis,
+								gc.width,
+								y_axis);
+						}
+					/* paint data */
+					Iterator<SigData> iter=this.tabixFile.iterator(
+							ChromView.this.getChromosome().getSequenceName(),
+							(Browser.this.view_start+1),
+							1+Math.min(getChromosome().getSequenceLength(),Browser.this.view_start+Browser.this.view_length)
+							);
+					/* loop over data */
+					while(iter.hasNext())
+						{
+						SigData data=iter.next();
+						if(data.getEnd()< Browser.this.view_start) continue;
+						if(data.getStart()>(Browser.this.view_start+Browser.this.view_length)) continue;//break ?
+						if(data.getValue()< this.min_value || data.getValue()> this.max_value) continue;
+						g.setColor(data.getColor());
+						int x0= getBrowser().base2pixel(data.getStart(), gc);
+						int x1= getBrowser().base2pixel(data.getEnd(), gc);
+						if(x1==x0) x1++;
 						g.fillRect(
-								leftMargin(),
-								getTopY(),
-								gc.width-leftMargin(),
-								getHeight());
+								x0,
+								this.value2pixel(data.getValue()),
+								(x1-x0),
+								5);
 						
-						for(int side=0;side<2;++side)
-							{
-							float y_0=value2pixel(0f);
-							float y_value2=value2pixel(2.0*(side==0?1.0:-1.0));
-							float fractions[]=new float[]{0.0f,1.0f};
-							if(y_value2==y_0) continue;
-							Color colors[]=new Color[]{Color.WHITE,new Color(255,210,210)};
-							LinearGradientPaint grad=new LinearGradientPaint(0,y_0,0,y_value2,fractions,colors);
-							Paint oldp= g.getPaint();
-							g.setPaint(grad);
-							Rectangle r=new Rectangle();
-							r.x=leftMargin();
-							r.width=gc.width-leftMargin();
-							
-							if(side==0)
-								{
-								r.y=getTopY();
-								r.height=(int)(y_0-getTopY());
-								if(r.height<=0) continue;
-								}
-							else
-								{
-								r.y=(int)y_0;
-								r.height=(int)(getMaxY()-y_0);
-								if(r.y>= getMaxY() || r.height<=0) continue;
-								}
-							
-							g.fill(r);
-							g.setPaint(oldp);
-							}
-							
-						
-						if(this.min_value<=0 && this.max_value>=0)
-							{
-							g.setColor(Color.RED);
-							int y_axis=value2pixel(0);
-							g.drawLine(
-									leftMargin(),
-									y_axis,
-									gc.width,
-									y_axis);
-							}
-						String range=ChromView.this.getChromosome().getSequenceName()+":"+Browser.this.view_start+"-"+(Browser.this.view_start+Browser.this.view_length);
-						LOG.info(range);
-						Iterator<SigData> iter=this.storage.iterator(
-								ChromView.this.getChromosome().getSequenceName(),
-								(Browser.this.view_start+1),
-								(Browser.this.view_start+1+Browser.this.view_length)
-								);
-						
-						while(iter.hasNext())
-							{
-							SigData data=iter.next();
-							if(data.getEnd()< Browser.this.view_start) continue;
-							if(data.getStart()>(Browser.this.view_start+Browser.this.view_length)) break;
-							if(data.getValue()< this.min_value || data.getValue()> this.max_value) continue;
-							g.setColor(data.getColor());
-							int x0=base2pixel(data.getStart(), gc);
-							int x1=base2pixel(data.getEnd(), gc);
-							if(x1==x0) x1++;
-							g.fillRect(
-									x0,
-									value2pixel(data.getValue()),
-									(x1-x0),
-									5);
-							
-							}
-						//iter.close();
-						
-						g.setColor(Color.GRAY);
-						g.drawRect(
-								leftMargin(),
-								getTopY(),
-								gc.width-leftMargin(),
-								getHeight());
 						}
-					
-					int value2pixel(double value)
-						{
-						return this.getTopY()+
-								(int)(((this.max_value-value)/(this.max_value-this.min_value))*this.getHeight());
-						}
-					}			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			ChromView(SAMSequenceRecord chrom)
+					//iter.close();
+					/* draw frame */
+					g.setColor(Color.GRAY);
+					g.drawRect(
+							leftMargin(),
+							getTopY(),
+							gc.width-leftMargin(),
+							getHeight());
+					}
+				
+				/** convert value to Y -pixel*/
+				private int value2pixel(double value)
+					{
+					return this.getTopY()+
+							(int)(((this.max_value-value)/(this.max_value-this.min_value))*this.getHeight());
+					}
+				}			
+
+			/** constructor for this chromosome */
+			ChromView(SAMSequenceRecord chrom )
 				{
 				this.chrom=chrom;
 				}
+			
+			/** get associated browser */
+			public Browser getBrowser()
+				{
+				return Browser.this;
+				}
+			
+			/** get chromosome */
 			public SAMSequenceRecord getChromosome()
 				{
 				return chrom;
 				}
 			
+			/** return true wether this chromosome contains (x,y) */
 			public boolean contains(GC gc,int x,int y)
 				{
 				if(y< topMargin()) return false;
@@ -602,6 +600,7 @@ public class SigFrame
 				return new Rectangle(0, getTopY(gc), gc.width, getHeight()).contains(x,y);
 				}
 			
+			/** fills a popup for this chromosome */
 			public void fillPopup(JPopupMenu popup)
 				{
 				popup.add(new JSeparator());
@@ -610,17 +609,18 @@ public class SigFrame
 					@Override
 					public void actionPerformed(ActionEvent e)
 						{
-						Integer h=Browser.this.askHeight();
+						Integer h=getBrowser().askHeight();
 						if(h==null) return;
 						for(FileView fv:fileViews)
 							{
 							fv.height_pixels=h;
 							}
-						recalcSize();
+						getBrowser().recalcSize();
 						}});
 				
 				}
 			
+			/** paint this chrom view */
 			private void paint(GC gc)
 				{
 				if(this.getMaxY()< gc.top_y) return;
@@ -630,20 +630,25 @@ public class SigFrame
 				g.translate(0, -gc.top_y);
 				g.setColor(background);
 				g.fillRect(0, getTopY(), gc.width, this.getHeight());
-				
+				Hershey hershey=new Hershey();
 				Shape clip=g.getClip();
 				//g.setClip(new Rectangle(0,getTopY()-topMargin(),leftMargin()/2,getHeight()));
-				g.setFont(new Font("Courier",Font.BOLD,14));
+				//g.setFont(new Font("Courier",Font.BOLD,14));
 				g.setColor(Color.BLACK);
         		AffineTransform old=g.getTransform();
-        		AffineTransform tr= AffineTransform.getTranslateInstance(0, getTopY()-gc.top_y+topMargin());
+        		AffineTransform tr= AffineTransform.getTranslateInstance(
+        				leftMargin(),
+        				getTopY()-gc.top_y+topMargin()
+        				);
         		tr.rotate(Math.PI/2);
         		g.setTransform(tr);
-        		g.drawString(getChromosome().getSequenceName(),0,0);
+        		//hershey.paint(g, getChromosome().getSequenceName(),0,0,this.getHeight()+100,100+leftMargin()/2);
+        		//g.drawString(getChromosome().getSequenceName(),0,0);
+        		hershey.paint(g, getChromosome().getSequenceName(),0,0,this.getHeight(),leftMargin()/2);
         		g.setTransform(old);
 				g.setClip(clip);
 				
-				
+				// paint all file views
 				for(FileView fv:this.fileViews)
 					{
 					fv.paint(gc);
@@ -658,23 +663,25 @@ public class SigFrame
 			{
 			super();
 			this.samSequenceDictionary=dict;
-			this.setTitle("Browser :"+sigilesList.size()+" file(s)");
-			setMinimumSize(new Dimension(leftMargin()+10,topMargin()+10));
+			this.sigilesList=sigilesList;
+			this.setTitle("Browser :"+this.sigilesList.size()+" file(s)");
+			this.setMinimumSize(new Dimension(leftMargin()+10,topMargin()+10));
 			JToolBar toolbar=new JToolBar();
-			getContentPane().add(toolbar,BorderLayout.NORTH);
+			this.getContentPane().add(toolbar,BorderLayout.NORTH);
 			JPanel pane=new JPanel(new BorderLayout());
-			getContentPane().add(pane,BorderLayout.CENTER);
+			this.getContentPane().add(pane,BorderLayout.CENTER);
 			
-			addInternalFrameListener(new InternalFrameAdapter()
+			this.addInternalFrameListener(new InternalFrameAdapter()
 				{
 				@Override
 				public void internalFrameClosed(InternalFrameEvent e)
 					{
-					doMenuClose();
+					for(SigDataFileTabixReader f: Browser.this.sigilesList) f.close();
+					Browser.this.doMenuClose();
 					}
 				});
 			
-			addComponentListener(new ComponentAdapter()
+			this.addComponentListener(new ComponentAdapter()
 				{
 				@Override
 				public void componentResized(ComponentEvent e)
@@ -688,11 +695,15 @@ public class SigFrame
 			pane.add(this.vScrollBar,BorderLayout.EAST);
 			this.hScrollBar=new JScrollBar(JScrollBar.HORIZONTAL);
 			pane.add(this.hScrollBar,BorderLayout.SOUTH);
+			
+			/* create drawing area */
 			this.drawingArea=new JPanel(null,true)
 				{
+				/* create a tooltip text */
 				@Override
 				public String getToolTipText(MouseEvent event)
 					{
+					/* create genome-position */
 					GC gc=new GC();
 					StringBuilder b=new StringBuilder();
 					int b1= pixel2base(event.getX(), gc);
@@ -705,6 +716,7 @@ public class SigFrame
 							b.append("-").append(niceNumber(b2));
 							}
 						}
+					/* find chromview at this location */
 					ChromView cv=findChromView(event.getX(), event.getY());
 					if(cv!=null)
 						{
@@ -712,11 +724,12 @@ public class SigFrame
 						ChromView.FileView fv=findFileView(event.getX(), event.getY());
 						if( fv!=null)
 							{
-							b.insert(0,fv.storage.getURI()+" ");
+							b.insert(0,fv.tabixFile.getURI()+" ");
 							}
 						}
 					return b.length()==0?null:b.toString();
 					}
+				/* paint component */
 				@Override
 				protected void paintComponent(Graphics g1)
 					{
@@ -746,11 +759,13 @@ public class SigFrame
 			this.drawingArea.setBackground(Color.WHITE);
 			pane.add(this.drawingArea,BorderLayout.CENTER);
 			
+			/* create chrom-views */
 			for(SAMSequenceRecord chrom: this.samSequenceDictionary.getSequences())
 				{
 				ChromView cv=new ChromView(chrom);
-				for(SigFile sf: sigilesList)
+				for(SigDataFileTabixReader sf: sigilesList)
 					{
+					if(!sf.hasDataForChrom(chrom)) continue;
 					this.max_chrom_length = Math.max(this.max_chrom_length,chrom.getSequenceLength()+1);
 				
 					cv.fileViews.add(cv.new FileView(sf));
@@ -759,7 +774,7 @@ public class SigFrame
 				chromViews.add(cv);
 				}
 			this.view_length=this.max_chrom_length;
-			recalcSize();
+			this.recalcSize();
 			
 			AdjustmentListener al=new AdjustmentListener()
 				{
@@ -786,6 +801,7 @@ public class SigFrame
 			this.history.add(new History(this.view_start,this.view_length));
 			this.position_in_history=0;
 			
+			/* create history buttons */
 			AbstractAction action=new AbstractAction("Prev")
 				{	
 				@Override
@@ -810,6 +826,7 @@ public class SigFrame
 			this.getActionMap().put("ACTION.NEXT.HISTORY", action);
 			toolbar.add(new JButton(action));
 			
+			/* create tools buttons */
 			ButtonGroup butGroup=new ButtonGroup();
 			for(Tool tool: Tool.values())
 				{
@@ -871,7 +888,8 @@ public class SigFrame
 		
 		void doMenuClose()
 			{
-			
+			//this.setVisible(false);
+			//this.dispose();
 			}
 		
 		int leftMargin()
@@ -1214,7 +1232,7 @@ public class SigFrame
 							GC gc=new GC();
 							int chromStart=pixel2base(Math.max(leftMargin(),Math.min(mouseStart.x, mousePrev.x)), gc);
 							int chromEnd=pixel2base(Math.min(drawingArea.getWidth(),Math.max(mouseStart.x, mousePrev.x)), gc);
-							Iterator<SigData> iter=selectedFileFiew.storage.iterator(
+							Iterator<SigData> iter=selectedFileFiew.tabixFile.iterator(
 									selectedFileFiew.getChromosome().getSequenceName(),
 									chromStart,
 									chromEnd
@@ -1242,6 +1260,7 @@ public class SigFrame
 				
 				}
 			
+			/** find chrom view at given location */
 			private ChromView findChromView(int x,int y)
 				{
 				GC gc=new GC();
@@ -1252,6 +1271,7 @@ public class SigFrame
 				return null;
 				}
 			
+			/** find file-view at given location */
 			private ChromView.FileView findFileView(int x,int y)
 				{
 				GC gc=new GC();
@@ -1363,7 +1383,7 @@ public class SigFrame
 					case 2: return d.getEnd();
 					case 3: return d.getName();
 					case 4: return d.getValue();
-					case 5: return "color-name";
+					case 5: return d.color_string;
 					}
 				return null;
 				}
@@ -1485,7 +1505,7 @@ public class SigFrame
 				 SigFrame.this,
                   "<html><body><h1 align='center'>"+
                   "SigFrame"+
-                  "</h1><h2 align='center'>Pierre Lindenbaum PhD @yokofakun</h2></body></html>",
+                  "</h1>"+aboutMessage+"</body></html>",
                   "About...",JOptionPane.PLAIN_MESSAGE);
 				}
 			});
@@ -1578,13 +1598,26 @@ public class SigFrame
 		}
 	
 	
-	private void openTabixFiles(Collection<File> files)
+	private void openTabixFiles(Collection<File> inputs)
 		{
-		SigFileLoader loader=new SigFileLoader();
-		loader.inputs.addAll(files);
-		loader.genome=genome;
-		LOG.info("starting thread");
-		loader.start();
+		SigFiles storage=new SigFiles();
+		try
+			{
+			for(File f:inputs) 
+				{
+				LOG.info("opening "+f);
+				storage.add(new SigDataFileTabixReader(f));
+				}
+			Browser browser=new Browser(this.genome,storage);
+			SigFrame.this.desktop.add(browser);
+			browser.setVisible(true);
+			}
+		catch(Exception err)
+			{
+			err.printStackTrace();
+			showError(err);
+			return;
+			}
 		}
 	
 	private void showError(Object o)
@@ -1605,9 +1638,14 @@ public class SigFrame
 			}
 		
 		@Override
+		protected String getOnlineDocUrl() {
+			return "https://github.com/lindenb/jvarkit/wiki/SigFrame";
+			}
+		
+		@Override
 		public void printOptions(PrintStream out)
 			{
-			out.println(" -R (fasta) indexed reference. Optional. The order of this reference will be used for sorting");
+			out.println(" -R "+getMessageBundle("reference.faidx")+" (Required)");
 			super.printOptions(out);
 			}
 		
@@ -1633,7 +1671,10 @@ public class SigFrame
 							}
 						}
 					}
-				
+				app.aboutMessage="Author:"+getAuthorName()+
+						"<br>Mail:"+getAuthorMail()+
+						"<br>Version:"+getVersion()+
+						"<br>"+getOnlineDocUrl();
 				
 				JFrame.setDefaultLookAndFeelDecorated(true);
 				JDialog.setDefaultLookAndFeelDecorated(true);
