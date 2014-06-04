@@ -8,6 +8,7 @@ import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.fastq.FastqConstants;
+import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
 
 import htsjdk.tribble.readers.LineReader;
@@ -17,8 +18,10 @@ import htsjdk.tribble.readers.LineReaderUtil;
 import com.github.lindenb.jvarkit.io.IOUtils;
 
 /**
- * the original picard FastqReader doesn't allow empty lines...
+ * the original picard FastqReader didn't allow empty lines... I created that file.
+ * Use the new htjk {@link FastqReader}
  */
+@Deprecated
 public class FourLinesFastqReader
 	extends AbstractFastqReader
 	{
