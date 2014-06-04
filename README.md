@@ -9,6 +9,11 @@ http://plindenbaum.blogspot.com
 
 [@yokofakun](https://twitter.com/yokofakun)
 
+## Announce
+
+**Important**: June 2014 : I've moved the whole code from **picard** to **htsjdk** .  See [[Htsjdk]].
+
+
 ## Download and install
 
 see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
