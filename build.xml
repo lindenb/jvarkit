@@ -5,6 +5,15 @@
 <property name="http.proxy" value="localhost:80"/>
 <property name="generated.dir" value="src/main/generated-sources/java"/>
 
+<!--define htsjdk.home if is not defined in the file "build.properties" -->
+<property name="htsjdk.home" value="htsjdk"/>
+
+<!-- properties below are optional, just used for a few targets -->
+<property name="common.math.jar" value="/fix/path/to/common/math.jar"/>
+<property name="berkeleydb.jar" value="/fix/path/to/berkeleydb/je.jar"/>
+<property name="bigwig.dir" value="/fix/path/to/bigwig_directory"/>
+
+
 <condition property="has.mysql.driver">
  <isset property="mysql.jar"/>
 </condition>	
@@ -29,10 +38,11 @@
 </path>
 
 
-<path id="picard.lib">
+<path id="htsjdk.lib">
 	 <fileset dir="${htsjdk.home}/dist">
-    	<include name="htsjdk-*.jar"/>
-    	<include name="apache-ant-*-bzip2.jar"/>
+	    	<include name="htsjdk-*.jar"/>
+	    	<include name="apache-ant-*-bzip2.jar"/>
+	    	<include name="snappy-java-*.jar"/>
  	 </fileset>
      <path refid="jexl.lib"/>
 </path>
@@ -51,34 +61,34 @@
 	
 	
 <path id="common.libs">
-     <path refid="picard.lib"/>
+     <path refid="htsjdk.lib"/>
      <path refid="bigwig.lib"/>
      <path refid="bdb.lib"/>
      <path refid="math.lib"/>
 </path>
 
-<path id="picard.and.bdb.jars">
+<path id="htsjdk.and.bdb.jars">
      <path refid="bdb.lib"/>
-     <path refid="picard.lib"/>
+     <path refid="htsjdk.lib"/>
 </path>
 
-<path id="picard.and.bigwig.jars">
+<path id="htsjdk.and.bigwig.jars">
      <path refid="bigwig.lib"/>
-     <path refid="picard.lib"/>
+     <path refid="htsjdk.lib"/>
 </path>
 
-<path id="picard.and.mysql.jars">
+<path id="htsjdk.and.mysql.jars">
      <path refid="mysql.lib"/>
-     <path refid="picard.lib"/>
+     <path refid="htsjdk.lib"/>
 </path>
 
-<path id="picard.and.math.jars">
-     <path refid="picard.lib"/>
+<path id="htsjdk.and.math.jars">
+     <path refid="htsjdk.lib"/>
      <path refid="math.lib"/>
 </path>
 
-<path id="picard.and.bdb.jars">
-     <path refid="picard.lib"/>
+<path id="htsjdk.and.bdb.jars">
+     <path refid="htsjdk.lib"/>
      <path refid="bdb.lib"/>
 </path>
 
@@ -97,7 +107,7 @@
 	   		<src path="src/main/java"/>
    			<src path="${generated.dir}"/>
 
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="@{java}"/>
 	   		<include name="**/package-info.java"/>
 	   </javac>
@@ -113,7 +123,7 @@
 	    </loadfile>
 		
 	   <pathconvert property="manifest_@{name}" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 	   </pathconvert>  
 	   
 	<tstamp>
@@ -164,7 +174,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	<attribute name="name"/>
 	<attribute name="java"/>
 	<attribute name="main"/>
-	<attribute name="libraryid" default="picard.lib"/>
+	<attribute name="libraryid" default="htsjdk.lib"/>
 	<sequential>
 
 	   <antcall target="htsjdk"/>	  
@@ -247,7 +257,7 @@ java -Xmx500m -cp ${manifest_@{name}_for_exe}:$PREFIX/@{name}.jar @{main} $*
 
 <macrodef name="compile-biostar-cmd">
 	<attribute name="post"/>
-	<attribute name="libraryid" default="picard.lib"/>
+	<attribute name="libraryid" default="htsjdk.lib"/>
 	<sequential>
 		<compile-picard-cmd 
 		java="**/Biostar@{post}.java"
@@ -307,7 +317,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 			>
 			<classpath>
 				 <pathelement location="@{jar}"/>
-				 <path refid="picard.lib"/>
+				 <path refid="htsjdk.lib"/>
 			</classpath>
 				
 			<arg value="@{mainclass}"/>
@@ -406,11 +416,11 @@ or
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.and.bigwig.jars"/>
+	   		<classpath refid="htsjdk.and.bigwig.jars"/>
 	   		<include name="**/VCFBigWig.java"/>
 	   </javac>
 	   
-	   <pathconvert property="manifest_cp1" pathsep=" " refid="picard.and.bigwig.jars"/>
+	   <pathconvert property="manifest_cp1" pathsep=" " refid="htsjdk.and.bigwig.jars"/>
 
 	   <jar jarfile="dist/vcfbigwig.jar">
 		     <fileset dir="tmp" />
@@ -473,12 +483,12 @@ or
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/SplitRead.java"/>
 	   </javac>
 	   
 	   <pathconvert property="manifest_splitread" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 	   </pathconvert>  
 	   
 	   <jar jarfile="dist/splitread.jar">
@@ -499,12 +509,12 @@ or
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/SplitByTile.java"/>
 	   </javac>
 	   
 	   <pathconvert property="manifest_splitbytile" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 	   </pathconvert>  
 	   
 	   <jar jarfile="dist/splitbytile.jar">
@@ -792,12 +802,12 @@ or
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/VCFBed.java"/>
 	   </javac>
 	   
 	   <pathconvert property="manifest_cp7" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 	   </pathconvert>  
 	   
 	   <jar jarfile="dist/vcfbedjs.jar">
@@ -821,13 +831,13 @@ or
 	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/Cluster20120920.java"/>
 	   		
 	   </javac>
 	   
 		<pathconvert property="manifest_cp" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 		</pathconvert>  
 	   
 	   <jar jarfile="dist/cluster20120920.jar">
@@ -1172,7 +1182,7 @@ or
 		java="**/NgsFilesScanner.java"
 		main="com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesScanner"
 		name="ngsfilesscanner"
-		libraryid="picard.and.bdb.jars"
+		libraryid="htsjdk.and.bdb.jars"
 		/>
 </target>	
 
@@ -1535,7 +1545,7 @@ or
 		java="**/VcfUcsc.java"
 		main="com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcsc"
 		name="vcfucsc"
-		libraryid="picard.and.mysql.jars"
+		libraryid="htsjdk.and.mysql.jars"
 		/>
 </target>
 	
@@ -1596,7 +1606,7 @@ or
 	<compile-picard-cmd 
 		java="**/CopyNumber01.java"
 		main="com.github.lindenb.jvarkit.tools.redon.CopyNumber01"
-		libraryid="picard.and.math.jars"
+		libraryid="htsjdk.and.math.jars"
 		name="cnv01"
 		/>
 </target>	
@@ -1677,7 +1687,7 @@ or
 <target name="biostar86480"><compile-biostar-cmd post="86480"/></target>
 <target name="biostar84452"><compile-biostar-cmd post="84452"/></target>
 <target name="biostar90204"><compile-biostar-cmd post="90204"/></target>
-<target name="biostar92368"><compile-biostar-cmd post="92368" libraryid="picard.and.bdb.jars"/></target>
+<target name="biostar92368"><compile-biostar-cmd post="92368" libraryid="htsjdk.and.bdb.jars"/></target>
 <target name="biostar94573"><compile-biostar-cmd post="94573"/></target>
 <target name="biostar95652" depends="api.ncbi.gb"><compile-biostar-cmd post="95652"/></target>
 
@@ -1771,10 +1781,10 @@ or
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<src path="${generated.dir}"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/NGSServiceImpl.java"/>
 	   </javac>
-	<pathconvert  property="wscp" refid="picard.lib"/>
+	<pathconvert  property="wscp" refid="htsjdk.lib"/>
 
 	<exec executable="wsgen">
 	    <arg value="-cp"/> <arg value="tmp:${wscp}"/>
@@ -1811,7 +1821,7 @@ or
 
    <javac destdir="dist/rmi4ngs.dir/" includeAntRuntime="false" debug="true">
    		<src path="src/main/java"/>
-   		<classpath refid="picard.lib"/>
+   		<classpath refid="htsjdk.lib"/>
    		<include name="**/rmi/server/NGSServiceImpl.java"/>
    </javac>	
 	
@@ -1833,7 +1843,7 @@ or
 		<jvmarg value="-Dsun.rmi.server.exceptionTrace=true"/>
 		<jvmarg value="-Dsun.rmi.server.logLevel=DEBUG"/>
 		<classpath>
-			<path refid="picard.lib"/>
+			<path refid="htsjdk.lib"/>
 			<pathelement location="dist/rmi4ngs.dir/"/>
 		</classpath>
 		<arg value="CONFIG=/home/lindenb/jeter.xml"/>
