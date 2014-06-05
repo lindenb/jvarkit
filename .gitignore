@@ -14,5 +14,4 @@ src/main/java/com/github/lindenb/jvarkit/tools/ws/server/VcfHeader.java
 src/main/java/com/github/lindenb/jvarkit/tools/ws/server/VcfVar.java
 src/main/java/com/github/lindenb/jvarkit/tools/ws/server/package-info.java
 src/main/generated-sources/
-tests
 bin
