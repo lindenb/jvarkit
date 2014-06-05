@@ -294,7 +294,8 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			SAMSequenceDictionary dict= indexedFastaSequenceFile.getSequenceDictionary();
 			if(dict==null)
 				{
-				error("Cannot get sequence dictionary for "+refFile);
+				error("Cannot get sequence dictionary for "+refFile+". "+
+						this.getMessageBundle("picard.dictionary.needed"));
 				return -1;
 				}
 			/* load chrom aliases */

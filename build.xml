@@ -4,7 +4,9 @@
 <property file="build.properties"/>
 <property name="http.proxy" value="localhost:80"/>
 <property name="generated.dir" value="src/main/generated-sources/java"/>
-
+<property name="test.output" value="tests"/>
+	
+	
 <!--define htsjdk.home if is not defined in the file "build.properties" -->
 <property name="htsjdk.home" value="htsjdk"/>
 
@@ -366,7 +368,43 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </macrodef>
 
 
+<target name="tests" depends="test"  description="Run unit tests"/>
+<target name="test" depends="test1"  description="Run unit tests"/>
+	   
+<target name="test1">
+	 <path id="classpath4test">
+		        <fileset dir="${htsjdk.home}/lib">
+		            <include name="**/*.jar"/>
+		        </fileset>
+			 	<fileset dir="${htsjdk.home}/dist">
+			 		 <include name="*.jar"/>
+			 	</fileset>
+	  </path>
+	  <taskdef resource="testngtasks" classpathref="classpath4test"/>
+	  <mkdir dir="tmp"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+   			<src path="src/main/java"/>
+   			<src path="src/tests/java"/>
+	   		<classpath refid="classpath4test"/>
+	   		<include name="**/*Test.java"/>
+	   </javac>
+	 	
+		
+		<testng outputdir="${test.output}"  haltOnFailure="false" verbose="2" >
+			<classpath>
+				<path refid="classpath4test"/>
+				<pathelement path="tmp"/>
+			</classpath>
+			<classfileset dir="tmp">
+			     <include name="**/*Test.class"/>
+			 </classfileset>
+		</testng>
+		
+	   <delete dir="tmp"/>
+</target>
 
+	
 
 <target name="htsjdk">
 <!--

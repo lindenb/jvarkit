@@ -32,7 +32,7 @@ public  SAMSequenceDictionary load(File file) throws IOException
 	if(dictionary==null)
 		{
 		final File dict2=findSequenceFaidx(file);
-		if(dict2==null) throw new FileNotFoundException("Cannot find dict file for "+file+". Was the reference sequence indexed with Picard ?");
+		if(dict2==null) throw new FileNotFoundException("Cannot find dict file for "+file+". Was the reference sequence indexed with Picard http://picard.sourceforge.net/command-line-overview.shtml#CreateSequenceDictionary ?");
 		return loadFaidxSequenceDict(dict2);
 		}
 	IOUtil.assertFileIsReadable(dictionary);
