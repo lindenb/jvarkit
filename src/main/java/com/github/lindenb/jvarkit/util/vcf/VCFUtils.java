@@ -1,8 +1,10 @@
 package com.github.lindenb.jvarkit.util.vcf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -110,9 +112,28 @@ public class VCFUtils
 	public static CodecAndHeader parseHeader(List<String> list)
 		{
 		CodecAndHeader vh=new CodecAndHeader();
-		vh.codec=new VCFCodec();
+		vh.codec=createDefaultVCFCodec();
 		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(new LinkedList<String>(list)));
 		return vh;
+		}
+	
+	/** convert a VCF header to line iterator. Created for serialization */
+	public static LineIterator convertVCFHeaderToLineIterator(VCFHeader header)
+		{	
+		ByteArrayOutputStream baos=new ByteArrayOutputStream(1000);
+		VariantContextWriter vcw=createVariantContextWriterToOutputStream(baos);
+		vcw.writeHeader(header);
+		vcw.close();
+		return new LIT(new LinkedList<String>(
+				Arrays.asList(
+						new String(baos.toByteArray()).split("\n")
+				)));
+		}
+	
+	/** create a default VCF codec */
+	public static VCFCodec createDefaultVCFCodec()
+		{
+		return new VCFCodec();
 		}
 	
 	/** create a VCF iterator

@@ -1895,8 +1895,8 @@ or
 
 <target name="jeter" >
 	<compile-picard-cmd
-		java="**/BlatFastq.java"
-		main="com.github.lindenb.jvarkit.tools.blat.BlatFastq"
+		java="**/TEST.java"
+		main="com.github.lindenb.jvarkit.tools.misc.TEST"
 		name="jeter"
 		/>
 </target>
