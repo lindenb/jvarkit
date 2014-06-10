@@ -15,6 +15,7 @@ import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 
