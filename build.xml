@@ -627,7 +627,7 @@ or
 
 	
 <target name="sam4weblogo" >
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/SAM4WebLogo.java"
 		main="com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo"
 		name="sam4weblogo"
