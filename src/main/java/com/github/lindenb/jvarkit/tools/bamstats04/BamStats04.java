@@ -14,7 +14,6 @@ import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.Cigar;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -34,7 +33,7 @@ public class BamStats04 extends AbstractCommandLineProgram
 	public File BEDILE=null;
 
     @Option(shortName= "NODUP", doc="discard duplicates", optional=false)
-	public boolean NO_DUP=true;
+    public boolean NO_DUP=true;
     
     @Option(shortName= "NOORPHAN", doc="discard not properly paired", optional=false)
 	public boolean NO_ORPHAN=true;
@@ -97,7 +96,10 @@ public class BamStats04 extends AbstractCommandLineProgram
 					if(rec.getReadUnmappedFlag()) continue;
 					if(NO_VENDOR && rec.getReadFailsVendorQualityCheckFlag()) continue;
 					if(NO_DUP && rec.getDuplicateReadFlag() ) continue;
-					if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
+					if(rec.getReadPairedFlag())
+						{
+						if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
+						}
 					if(!rec.getReferenceName().equals(chrom)) continue;
 					if(rec.getMappingQuality()==255 && rec.getMappingQuality()< this.MMQ)
 						{
