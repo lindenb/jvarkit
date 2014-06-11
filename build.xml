@@ -23,8 +23,18 @@
 <condition property="has.bigwig.lib">
  <isset property="bigwig.dir"/>
 </condition>	
+
+<!-- WEB server stuff -->
+
+<path id="jetty.lib" description="Jars for Jetty http://www.eclipse.org/jetty/ " >
+	<fileset dir="${jetty.home}">
+	           <include name="**/lib/*.jar"/>
+	</fileset>
+</path>
+
+
+<!-- ============================-->	
 	
-		
 	
 <path id="bigwig.lib">
   <fileset dir="${bigwig.dir}">
@@ -94,6 +104,10 @@
      <path refid="bdb.lib"/>
 </path>
 
+<path id="htsjdk.and.jetty.jars">
+     <path refid="htsjdk.lib"/>
+     <path refid="jetty.lib"/>
+</path>
 
 <macrodef name="compile-with-picard" >
 	<attribute name="name"/>
@@ -1020,7 +1034,16 @@ or
 		name="vcf2rdf"
 		/>
 </target>
+
 	
+<target name="vcfdas" if="jetty.home" >
+	<compile-picard-cmd 
+		java="**/VcfDistributedAnnotationSystem.java"
+		main="com.github.lindenb.jvarkit.tools.vcfdas.VcfDistributedAnnotationSystem"
+		name="vcfdas"
+		libraryid="htsjdk.and.jetty.jars"
+		/>
+</target>
 	
 <target name="groupbygene">
 	<compile-picard-cmd
