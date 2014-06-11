@@ -1,95 +1,225 @@
 package com.github.lindenb.jvarkit.tools.sam4weblogo;
 
-import java.io.File;
+import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalList;
-import htsjdk.samtools.util.Log;
-import htsjdk.samtools.util.SamLocusIterator;
-import htsjdk.samtools.util.SamLocusIterator.RecordAndOffset;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamReader;
 
-public class SAM4WebLogo extends CommandLineProgram
+public class SAM4WebLogo extends AbstractCommandLineProgram
 	{
-	@SuppressWarnings("unused")
-	private static final Log log = Log.getInstance(SAM4WebLogo.class);
-    @Usage
-    public String USAGE = getStandardUsagePreamble() + "Sequence logo for different alleles or generated from SAM/BAM http://www.biostars.org/p/73021";
-	
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="A BAM file to process.")
-    public File INPUT=null;
-    @Option(shortName= "R", doc="Region to observe: chrom:start-end",optional=false)
-    public String REGION="";
-    
-    
-    
+    private SAM4WebLogo()
+    	{
+    	
+    	}
     @Override
-	protected int doWork()
+    protected String getOnlineDocUrl()
+    	{
+    	return "https://github.com/lindenb/jvarkit/wiki/SAM4WebLogo";
+    	}
+    @Override
+    public String getProgramDescription()
+    	{
+    	return "Sequence logo for different alleles or generated from SAM/BAM http://www.biostars.org/p/73021";
+    	}
+    
+    
+	@Override
+	public void printOptions(PrintStream out)
 		{
+		out.println(" -R Region to observe: chrom:start-end . REQUIRED.");
+		out.println(" -c use clipped bases.");
+		super.printOptions(out);
+		}
+    @Override
+    public int doWork(String[] args)
+    	{
+    	boolean useClip=false;
+    	Interval interval=null;
+		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=getopt.getopt(args,getGetOptDefault()+ "r:c"))!=-1)
+			{
+			switch(c)
+				{
+				case 'c': useClip=true;break;
+				case 'r':
+					{
+					interval=parseInterval(getopt.getOptArg());
+					if(interval==null)
+						{
+						error("Bad interval "+getopt.getOptArg());
+						return -1;
+						}
+					break;
+					}
+				default: 
+					{
+					switch(handleOtherOptions(c, getopt, args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default: break;
+						}
+					}
+				}
+			}
+
+		if(interval==null)
+			{
+			error("Undefined interval.");
+			return -1;
+			}
+		
 		PrintWriter out=new PrintWriter(System.out);
-		SAMFileReader samReader=null;
-		SamLocusIterator slit=null;
-		Iterator<SamLocusIterator.LocusInfo> iter=null;
+		SamReader samReader=null;
+		SAMRecordIterator iter=null;
+		boolean warningInsertion=false;
 		try {
-			Interval interval=parseInterval(REGION);
-			if(interval==null) return -1;
-	        samReader=new SAMFileReader(INPUT);
-	        samReader.setValidationStringency(super.VALIDATION_STRINGENCY);
-	        Map<SAMRecord, StringBuilder> record2seq =new LinkedHashMap<SAMRecord, StringBuilder>();
-            IntervalList  iL=new  IntervalList(samReader.getFileHeader());
-            iL.add(interval);
-	        slit=new  SamLocusIterator(samReader,iL,true);
-	        slit.setEmitUncoveredLoci(true);
-	        int length=0;
-	        for(iter=slit.iterator();
-                    iter.hasNext();
-                    )
+			if(getopt.getOptInd()==args.length)
+				{
+				info("Reading from stdin");
+				samReader=SamFileReaderFactory.mewInstance().openStdin();
+				}
+			else if(getopt.getOptInd()+1==args.length)
+				{
+				samReader=SamFileReaderFactory.mewInstance().open(args[getopt.getOptInd()]);
+				}
+			else
+				{
+				error(getMessageBundle("illegal.number.of.arguments"));
+				return -1;
+				}
+		
+			if(samReader.hasIndex())
+					{
+					iter=samReader.queryOverlapping(
+							interval.getSequence(),
+							interval.getStart(),
+							interval.getEnd()
+							);
+					}
+			else
+					{
+					iter=samReader.iterator();
+					}
+			
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader().getSequenceDictionary());
+	       while(iter.hasNext())
                 {
-                SamLocusIterator.LocusInfo  locusInfo=iter.next();
-                if(locusInfo.getPosition() < interval.getStart() ) continue;
-                if(locusInfo.getPosition() > interval.getEnd() ) continue;
-                for(RecordAndOffset rao: locusInfo.getRecordAndPositions())
+                SAMRecord rec=iter.next();
+                progress.watch(rec);
+                if(rec.getReadUnmappedFlag()) continue;
+                if(!rec.getReferenceName().equals(interval.getSequence())) continue;
+                if(rec.getAlignmentEnd() < interval.getStart() ) continue;
+                if(rec.getAlignmentStart() > interval.getEnd() ) continue;
+                Cigar cigar=rec.getCigar();
+                if(cigar==null) continue;
+                byte bases[]=rec.getReadBases();
+                
+                StringBuilder seq=new StringBuilder(interval.length());
+                int readPos=0;
+                int refPos=rec.getUnclippedStart();
+                for(int i=0;i< cigar.numCigarElements();++i)
                 	{
-                	SAMRecord rec=rao.getRecord();
-                	StringBuilder b=record2seq.get(rec);
-                	if(b==null)
+                	CigarElement ce=cigar.getCigarElement(i);
+            		CigarOperator op=ce.getOperator();
+                	switch(op)
                 		{
-                		b=new StringBuilder();
-                		while(b.length()<length) b.append("-");
-                		record2seq.put(rec,b);
-                		}
-                	char c=(char)rao.getReadBase();
-                	b.append(c);
+                		case P:break;
+                		case I:
+                			{
+                			warningInsertion=true;
+                			break;
+                			}
+                		case D: case N:
+                			{
+		        			for(int j=0;j< ce.getLength() && refPos <=interval.getEnd()  ;++j)
+		        				{
+		        				if(refPos>= interval.getStart())
+		        					{
+		        					seq.append('-');
+		        					}
+		        				refPos++;
+		        				}
+		        			break;
+                			}
+                		case H:
+		        			{
+		        			for(int j=0;j< ce.getLength() && refPos <=interval.getEnd()  ;++j)
+		        				{
+		        				if(refPos>= interval.getStart() && useClip)
+		        					{
+		        					seq.append('N');
+		        					}
+		        				refPos++;
+		        				}
+		        			break;
+		        			}
+                		case S:
+                			{
+                			for(int j=0;j< ce.getLength() && refPos <=interval.getEnd()  ;++j)
+                				{
+                				if(refPos>= interval.getStart() && useClip)
+                					{
+                					seq.append((char)bases[readPos]);
+                					}
+                				readPos++;
+                				refPos++;
+                				}
+                			break;
+                			}
+                		case M:case X: case EQ:
+                			{
+                			for(int j=0;j< ce.getLength() && refPos <=interval.getEnd() ;++j)
+                				{
+                				if(refPos>= interval.getStart())
+                					{
+                					seq.append((char)bases[readPos]);
+                					}
+                				readPos++;
+                				refPos++;
+                				}
+                			break;
+                			}
+                		default:throw new IllegalStateException("Not handled. op:"+op);
+                		}	
                 	}
-                ++length;
-                for(SAMRecord rec: record2seq.keySet())
+                if(seq.length()==0) continue;
+                for(int i= interval.getStart();
+                	i< (useClip?rec.getUnclippedStart():rec.getAlignmentStart());
+                	++i)
                 	{
-                	StringBuilder b=record2seq.get(rec);
-                	while(b.length()<length) b.append("-");
+                	seq.insert(0, '-');
                 	}
-               
+                while(seq.length()< interval.length())
+	            	{
+	            	seq.append('-');
+	            	}
+            	out.print(">"+rec.getReadName());
+            	if(rec.getReadPairedFlag())
+	            	{
+	            	if(rec.getFirstOfPairFlag()) out.print("/1");
+	            	if(rec.getSecondOfPairFlag()) out.print("/2");
+	            	}
+            	out.println();
+            	out.println(seq);
                 }
-	        for(SAMRecord rec: record2seq.keySet())
+	       progress.finish();
+	        if(warningInsertion)
 	        	{
-	        	StringBuilder b=record2seq.get(rec);
-	        	out.print(">"+rec.getReadName());
-	        	if(rec.getReadPairedFlag())
-	        		{
-	        		if(rec.getFirstOfPairFlag()) out.print("/1");
-	        		if(rec.getSecondOfPairFlag()) out.print("/2");
-	        		}
-	        	out.println();
-	        	out.println(b);
+	        	warning("Some reads contained insertions.");
 	        	}
 	        
 			} 
@@ -99,8 +229,8 @@ public class SAM4WebLogo extends CommandLineProgram
 			}
 		finally
 			{
-			if(slit!=null) slit.close();
-			if(samReader!=null) samReader.close();
+			CloserUtil.close(iter);
+			CloserUtil.close(samReader);
 			out.flush();
 			}
 		return 0;
