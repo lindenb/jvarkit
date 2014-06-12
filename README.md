@@ -131,6 +131,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqEntropy">FastqEntropy<a></th><td>Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence)))</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/NgsFilesScanner">NgsFilesScanner<a></th><td>Build a persistent database of NGS file. Dump as XML.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SigFrame">SigFrame<a></th><td>GUI displaying CGH data</td></tr>
-
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar103303">Biostar103303<a></th><td>Calculate Percent Spliced In (PSI)</td></tr>
 </table>
 
