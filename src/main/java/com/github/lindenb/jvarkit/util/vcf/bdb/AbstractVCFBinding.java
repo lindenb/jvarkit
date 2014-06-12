@@ -33,10 +33,10 @@ import com.sleepycat.bind.tuple.TupleOutput;
 public abstract class AbstractVCFBinding<T> extends TupleBinding<T>
 	{
 	/** array of tuple com.sleepycat.bind.tuple.*Binding to serialize some simple objects */
-	private static List<TupleBinding> INDEX_TO_BINDING=new ArrayList<TupleBinding>();
+	private static final List<TupleBinding> INDEX_TO_BINDING=new ArrayList<TupleBinding>();
 
 	/** map java.langClass to an index in INDEX_TO_BINDING */
-	private static Map<Class,Integer> CLASS_TO_BINDING_INDEX=new HashMap<Class, Integer>();
+	private static final Map<Class,Integer> CLASS_TO_BINDING_INDEX=new HashMap<Class, Integer>();
 	static 
 		{
 		addClassBinding(Byte.class,Byte.TYPE,new ByteBinding());
