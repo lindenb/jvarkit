@@ -1751,6 +1751,7 @@ or
 <target name="biostar92368"><compile-biostar-cmd post="92368" libraryid="htsjdk.and.bdb.jars"/></target>
 <target name="biostar94573"><compile-biostar-cmd post="94573"/></target>
 <target name="biostar95652" depends="api.ncbi.gb"><compile-biostar-cmd post="95652"/></target>
+<target name="biostar103303"><compile-biostar-cmd post="103303"/></target>
 
 
 <target name="mapuniprot" depends="api.uniprot">
