@@ -35,7 +35,7 @@ import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class Biostar103303 extends AbstractCommandLineProgram
 	{
-	private IntervalTreeMap<GTFGene.Exon> exonMap=new IntervalTreeMap<GTFGene.Exon>();
+	private IntervalTreeMap<List<GTFGene.Exon>> exonMap=new IntervalTreeMap<List<GTFGene.Exon>>();
 	
 	private static class GTFGene
 		{
@@ -101,6 +101,7 @@ public class Biostar103303 extends AbstractCommandLineProgram
 		}
 	private void readGTF(String uri ,SAMSequenceDictionary dict) throws IOException
 		{
+		int count_exons=0;
 		Set<String> unknown=new HashSet<String>();
 		info("Reading "+uri);
 		Pattern tab=Pattern.compile("[\t]");
@@ -211,10 +212,17 @@ public class Biostar103303 extends AbstractCommandLineProgram
 						exon.start,
 						exon.end
 						);
-				exonMap.put(interval,exon);
+				List<GTFGene.Exon> L=exonMap.get(interval);
+				if(L==null)
+					{
+					L=new ArrayList<GTFGene.Exon>(1);
+					exonMap.put(interval,L);
+					}
+				L.add(exon);
+				++count_exons;
 				}
 			}
-		info("End Reading "+uri+" exons:"+this.exonMap.size());
+		info("End Reading "+uri+ " N="+count_exons);
 		}
 	private static Object notnull(Object o)
 		{
@@ -299,7 +307,6 @@ public class Biostar103303 extends AbstractCommandLineProgram
 				error("no exon found");
 				return -1;
 				}
-			
 			iter=samReader.iterator();
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader().getSequenceDictionary());
 			while(iter.hasNext())
@@ -314,25 +321,15 @@ public class Biostar103303 extends AbstractCommandLineProgram
 				
 				
 				
-				for(GTFGene.Exon exon:this.exonMap.getOverlapping(new Interval(
+				
+				for(List<GTFGene.Exon> L:this.exonMap.getOverlapping(new Interval(
 						rec.getReferenceName(),
 						rec.getAlignmentStart(),
 						rec.getAlignmentEnd()
 						)))
 					{
-					/*
-					boolean x=false;
-					for(int i=rec.getAlignmentStart();i<=rec.getAlignmentEnd();++i)
-						{
-						if(exon.contains(i)) x=true;
-						}
-					if(x==false)
-						{
-						System.err.println(rec.getAlignmentStart()+"-"+rec.getAlignmentEnd());
-						System.err.println(exon.start+"-"+exon.end);
-						System.exit(-1);
-						}*/
-					
+					for(GTFGene.Exon exon:L)
+					{
 					
 					boolean found_in_prev=false;
 					boolean found_in_next=false;
@@ -373,10 +370,11 @@ public class Biostar103303 extends AbstractCommandLineProgram
 								}
 							default:
 								{
-								if(!ce.getOperator().consumesReferenceBases())
+								if(ce.getOperator().consumesReferenceBases())
 									{
 									refPos+=ce.getLength();
 									}
+								break;
 								}
 							}
 						}
@@ -404,7 +402,7 @@ public class Biostar103303 extends AbstractCommandLineProgram
 						{
 						exon.count_others++;
 						}
-					
+					}
 					}
 				}
 			progress.finish();
@@ -435,7 +433,8 @@ public class Biostar103303 extends AbstractCommandLineProgram
 			out.print("exon.count_others");
 			out.println();
 
-			for(GTFGene.Exon exon:exonMap.values())
+			for(List<GTFGene.Exon> L:exonMap.values()) {
+			for(GTFGene.Exon exon:L)
 				{
 				out.print(exon.getGene().chrom);
 				out.print("\t");
@@ -463,6 +462,7 @@ public class Biostar103303 extends AbstractCommandLineProgram
 				out.print("\t");
 				out.print(exon.count_others);
 				out.println();
+				}
 				}
 			out.flush();
 			}
