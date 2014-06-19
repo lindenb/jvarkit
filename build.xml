@@ -1155,6 +1155,15 @@ or
 		/>
 </target>
 
+<target name="vcfcmppred" >
+	<compile-picard-cmd 
+		java="**/VCFComparePredictions.java"
+		main="com.github.lindenb.jvarkit.tools.vcfcmp.VCFComparePredictions"
+		name="vcfcmppred"
+		/>
+</target>
+	
+	
 <target name="sigframe" >
 	<compile-picard-cmd 
 		java="**/SigFrame.java"
