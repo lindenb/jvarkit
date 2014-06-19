@@ -5,12 +5,14 @@ import java.io.OutputStream;
 import java.util.logging.Logger;
 import java.util.zip.Deflater;
 
-import net.sf.samtools.BAMFileWriter;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMTextWriter;
-import net.sf.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMTextWriter;
+import htsjdk.samtools.util.BlockCompressedOutputStream;
 
+/** should replace with htsjk now */
+@Deprecated
 public abstract class SamWriterFactory
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
@@ -80,10 +82,9 @@ public abstract class SamWriterFactory
         	}
         else
         	{
+        	SAMFileWriterFactory swf=new SAMFileWriterFactory();
         	LOG.info("opening BAM file to stream");
-        	BAMFileWriter w= new BAMFileWriter(os,null);
-        	w.setHeader(header);
-        	return w;
+        	return swf.makeBAMWriter(header, false, os);
         	}
         	
 		}
@@ -114,10 +115,11 @@ public abstract class SamWriterFactory
         	}
         else
         	{
+        	SAMFileWriterFactory swf=new SAMFileWriterFactory();
+        	swf.setCreateIndex(false);
+        	swf.setCreateMd5File(false);
         	LOG.info("opening BAM file to "+outputFile);
-        	BAMFileWriter w= new BAMFileWriter(outputFile,getCompressionLevel());
-        	w.setHeader(header);
-        	return w;
+        	return swf.makeBAMWriter(header, false,outputFile, getCompressionLevel());
         	}
 		}
 	

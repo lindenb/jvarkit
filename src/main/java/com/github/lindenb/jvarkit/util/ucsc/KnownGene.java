@@ -6,8 +6,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.broad.tribble.Feature;
-import org.broad.tribble.annotation.Strand;
+import htsjdk.tribble.Feature;
+import htsjdk.tribble.annotation.Strand;
 
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;

@@ -5,11 +5,11 @@ import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeader;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.doid.DiseaseOntoglogyTree;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;

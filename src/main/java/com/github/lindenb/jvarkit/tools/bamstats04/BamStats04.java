@@ -9,15 +9,15 @@ import java.util.regex.Pattern;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Log;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import htsjdk.samtools.util.Log;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
 
 public class BamStats04 extends AbstractCommandLineProgram
 	{
@@ -34,7 +34,7 @@ public class BamStats04 extends AbstractCommandLineProgram
 	public File BEDILE=null;
 
     @Option(shortName= "NODUP", doc="discard duplicates", optional=false)
-	public boolean NO_DUP=true;
+    public boolean NO_DUP=true;
     
     @Option(shortName= "NOORPHAN", doc="discard not properly paired", optional=false)
 	public boolean NO_ORPHAN=true;
@@ -97,7 +97,10 @@ public class BamStats04 extends AbstractCommandLineProgram
 					if(rec.getReadUnmappedFlag()) continue;
 					if(NO_VENDOR && rec.getReadFailsVendorQualityCheckFlag()) continue;
 					if(NO_DUP && rec.getDuplicateReadFlag() ) continue;
-					if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
+					if(rec.getReadPairedFlag())
+						{
+						if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
+						}
 					if(!rec.getReferenceName().equals(chrom)) continue;
 					if(rec.getMappingQuality()==255 && rec.getMappingQuality()< this.MMQ)
 						{

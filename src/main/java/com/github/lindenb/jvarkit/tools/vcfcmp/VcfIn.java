@@ -1,19 +1,18 @@
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.broadinstitute.variant.variantcontext.writer.Options;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.SortingCollection;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SortingCollection;
 
 
 public class VcfIn extends AbstractVCFCompare
@@ -109,7 +108,7 @@ public class VcfIn extends AbstractVCFCompare
 				return -1;
 				}
 			VCFHeader header=super.inputs.get(1).header;
-			vcw = VariantContextWriterFactory.create(System.out, header.getSequenceDictionary(), EnumSet.noneOf(Options.class));
+			vcw = VCFUtils.createVariantContextWriterToStdout();
 			
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));

@@ -1,15 +1,16 @@
 package com.github.lindenb.jvarkit.util.tabix;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import net.sf.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 
-import org.broad.tribble.readers.TabixReader;
+import htsjdk.tribble.readers.TabixReader;
 
 /**
  * Safe wrapper around org.broad.tribble.readers.TabixReader (won't return a null iterator )
@@ -22,6 +23,15 @@ public class TabixFileReader implements Closeable
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 	private TabixReader tabix=null;
     private String uri;
+    
+    /** return true if 'f' is a file, path ends with '.gz' and there is an associated .tbi file */
+    public static final boolean isValidTabixFile(File f)
+    	{
+    	if(f==null || !f.exists() || !f.isFile()) return false;
+    	if(!f.getName().endsWith(".gz")) return false;
+    	File tbiFile= new File(f.getParentFile(),f.getName()+".tbi");
+    	return tbiFile.exists() && tbiFile.isFile();
+    	}
     
     public TabixFileReader(String uri) throws IOException
     	{
@@ -136,7 +146,9 @@ public class TabixFileReader implements Closeable
     		}
     	@Override
     	public String next() {
-    		if(!hasNext()) throw new IllegalStateException();
+    		if(!hasNext()) throw new IllegalStateException(
+    				"no next iterator: closed:"+isClosed()+ " delegate.null:"+(delegate==null) 
+    				);
     		String s=_next;
     		_next=null;
     		return s;

@@ -1,9 +1,10 @@
 package com.github.lindenb.jvarkit.util.picard;
 
-import net.sf.picard.PicardException;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.StringUtil;
-import net.sf.picard.fastq.FastqRecord;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
+
+import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.samtools.fastq.FastqRecord;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 import java.io.*;

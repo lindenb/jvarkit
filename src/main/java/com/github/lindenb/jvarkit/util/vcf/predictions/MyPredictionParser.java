@@ -12,9 +12,9 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFAnnotator;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;

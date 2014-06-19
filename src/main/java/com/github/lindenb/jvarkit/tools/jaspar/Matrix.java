@@ -3,9 +3,9 @@ package com.github.lindenb.jvarkit.tools.jaspar;
 import java.util.Iterator;
 import java.util.regex.Pattern;
 
-import net.sf.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 
-import org.broad.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIterator;
 
 
 public class Matrix

@@ -2,23 +2,23 @@ package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.File;
 
-import net.sf.picard.fastq.BasicFastqWriter;
-import net.sf.picard.fastq.FastqRecord;
-import net.sf.picard.fastq.FastqWriter;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMProgramRecord;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.fastq.BasicFastqWriter;
+import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.fastq.FastqWriter;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class SamExtractClip extends AbstractCommandLineProgram
 	{
@@ -72,7 +72,7 @@ public class SamExtractClip extends AbstractCommandLineProgram
 				}
 			}
 	
-		SAMFileReader r=null;
+		SamReader r=null;
 		BasicFastqWriter out=null;
 		try
 				{
@@ -89,7 +89,7 @@ public class SamExtractClip extends AbstractCommandLineProgram
 				if(opt.getOptInd()==args.length)
 					{
 					info("Reading from stdin");
-					r=new SAMFileReader(System.in);
+					r=SamFileReaderFactory.mewInstance().openStdin();
 					run(r,out);
 					r.close();
 					}
@@ -99,7 +99,7 @@ public class SamExtractClip extends AbstractCommandLineProgram
 						{
 						String filename=args[optind];
 						info("Reading from "+filename);
-						r=new SAMFileReader(new File(filename));
+						r=SamFileReaderFactory.mewInstance().open(filename);
 						run(r,out);
 						r.close();
 						}
@@ -119,10 +119,9 @@ public class SamExtractClip extends AbstractCommandLineProgram
 				}
 		}
 		
-		private void run(SAMFileReader r,FastqWriter out)
+		private void run(SamReader r,FastqWriter out)
 			{
 			int startend[]=new int[2];
-			r.setValidationStringency(ValidationStringency.SILENT);
 			SAMFileHeader header=r.getFileHeader();
 			SAMProgramRecord spr=header.createProgramRecord();
 			spr.setProgramName(getProgramName());

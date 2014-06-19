@@ -1,7 +1,9 @@
 package com.github.lindenb.jvarkit.util;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.URL;
@@ -291,10 +293,13 @@ public abstract class AbstractCommandLineProgram
 		{
 		return "hvL:";
 		}
+	/* changed to public after I got that error: http://stackoverflow.com/questions/15722184 */
+	public enum GetOptStatus {OK,EXIT_FAILURE,EXIT_SUCCESS};
 	
-	protected enum GetOptStatus {OK,EXIT_FAILURE,EXIT_SUCCESS};
-	
-	
+	private boolean isGalaxyTool()
+		{
+		return true;
+		}
 
 	public void printOptions(PrintStream out)
 		{
@@ -302,6 +307,10 @@ public abstract class AbstractCommandLineProgram
 		out.println(" -v print version and exit.");
 		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
 		out.println(" --doap prints a XML description of the program and exit.");
+		if(isGalaxyTool())
+			{
+			out.println(" --galaxy  prints a draft 'tool.xml' wrapper for galaxy and exits. See https://wiki.galaxyproject.org/Admin/Tools/AddToolTutorial");
+			}
 		}
 	
 	protected GetOptStatus handleOtherOptions(
@@ -336,6 +345,20 @@ public abstract class AbstractCommandLineProgram
 					try
 						{
 						printDoap();
+						return GetOptStatus.EXIT_SUCCESS;
+						}
+					catch(Exception err)
+						{
+						System.err.println("Error "+err.getMessage()+"");
+						return GetOptStatus.EXIT_FAILURE;
+						}
+					
+					}
+				if("galaxy".equals(opt.getLongOpt()))
+					{
+					try
+						{
+						getGalaxyToolDefinitionMaker().print(System.out);
 						return GetOptStatus.EXIT_SUCCESS;
 						}
 					catch(Exception err)
@@ -447,6 +470,14 @@ public abstract class AbstractCommandLineProgram
         System.exit(instanceMain(argv));
     }
     
+    protected GalaxyToolDefinitionMaker getGalaxyToolDefinitionMaker()
+    	{
+    	return new GalaxyToolDefinitionMaker();
+    	}
+    
+    
+   
+    
     private void printDoap() throws XMLStreamException
     	{
     	final String RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
@@ -508,5 +539,68 @@ public abstract class AbstractCommandLineProgram
     	w.flush();
     	}
     
-    
+    protected class GalaxyToolDefinitionMaker
+		{
+		AbstractCommandLineProgram owner()
+			{
+			return AbstractCommandLineProgram.this;
+			}
+		
+		public void writeCommand(XMLStreamWriter w)throws XMLStreamException
+			{
+	 		w.writeStartElement("command");
+	 		w.writeComment("__TODO__");
+	 		w.writeEndElement();//command
+			}
+		
+		public void writeInputs(XMLStreamWriter w)throws XMLStreamException
+			{
+			w.writeComment("TODO");
+			}
+
+		public void writeOutputs(XMLStreamWriter w)throws XMLStreamException
+			{
+			w.writeComment("TODO");
+			}
+
+		
+		public void print(OutputStream out)  throws XMLStreamException,IOException
+	     	{
+	     	XMLOutputFactory xof=XMLOutputFactory.newFactory();
+	 		XMLStreamWriter w=xof.createXMLStreamWriter(out,"UTF-8");
+	 		w.writeStartDocument("UTF-8", "1.0");
+	 		w.writeStartElement("tool");
+	 		w.writeAttribute("id", owner().getClass().getName().replaceAll("[\\._$]+","_"));
+	 		w.writeAttribute("name",owner().getProgramName());
+	 		w.writeAttribute("version",owner().getVersion());
+	 		w.writeAttribute("hidden","false");
+	 		
+	 		w.writeStartElement("description");
+	 		w.writeCharacters(getProgramDescription());
+	 		w.writeEndElement();//description
+	 		
+	 		writeCommand(w);
+	 		
+	 		w.writeStartElement("inputs");
+	 		writeInputs(w);
+	 		w.writeEndElement();
+	 		
+	 		w.writeStartElement("outputs");
+	 		writeOutputs(w);
+	 		w.writeEndElement();
+	 		
+	 		w.writeStartElement("help");
+	 		w.writeCharacters("see "+getOnlineDocUrl());
+	 		w.writeEndElement();
+	 		
+	 		
+	 		
+	 		w.writeEndElement();
+	 		w.writeEndDocument();
+	     	w.flush();
+	     	w.close();
+	     	out.flush();
+	     	}
+		}
+
 }

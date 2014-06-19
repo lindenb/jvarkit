@@ -3,7 +3,7 @@ package com.github.lindenb.jvarkit.util.picard;
 import java.util.HashSet;
 import java.util.Set;
 
-import net.sf.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecord;
 
 import com.github.lindenb.jvarkit.lang.Predicate;
 

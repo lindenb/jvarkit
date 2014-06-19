@@ -5,14 +5,14 @@ import java.io.PrintStream;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.broad.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
-import net.sf.picard.liftover.LiftOver;
-import net.sf.picard.util.Interval;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.liftover.LiftOver;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.CloserUtil;
 
 
 

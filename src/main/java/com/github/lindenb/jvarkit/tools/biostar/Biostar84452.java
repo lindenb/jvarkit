@@ -5,20 +5,21 @@ import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
 
-import net.sf.picard.PicardException;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMProgramRecord;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.util.CloserUtil;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
+
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 
 public class Biostar84452 extends AbstractCommandLineProgram
 	{
@@ -42,7 +43,6 @@ public class Biostar84452 extends AbstractCommandLineProgram
 	public void printOptions(PrintStream out)
 		{
 		out.println(" -o (filename) output file. default: stdout.");
-		out.println(" -c (int) compression level");
 		out.println(" -b force binary");
 		out.println(" -t (tag) tag to flag samrecord as processed. default:XS");
 		super.printOptions(out);
@@ -51,18 +51,18 @@ public class Biostar84452 extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
+		boolean binary=false;
 		String tag="XS";
-		SamWriterFactory swf=SamWriterFactory.newInstance();
+		SAMFileWriterFactory swf=new SAMFileWriterFactory();
 		File fileout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:bc:t:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:bt:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': fileout=new File(opt.getOptArg());break;
-				case 'b': swf.setBinary(true);break;
-				case 'c': swf.setCompressionLevel(Integer.parseInt(opt.getOptArg()));break;
+				case 'b': binary=true;break;
 				case 't':
 					{	
 					tag=opt.getOptArg();
@@ -85,27 +85,23 @@ public class Biostar84452 extends AbstractCommandLineProgram
 				}
 			}
 		SAMFileWriter sfw=null;
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		try
 			{
 			
 			if(opt.getOptInd()==args.length)
 				{
-				info("Reading sfomr stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
-				File filename=new File(args[opt.getOptInd()]);
-				info("Reading from "+filename);
-				sfr=new SAMFileReader(filename);
+				sfr=SamFileReaderFactory.mewInstance().open(args[opt.getOptInd()]);
 				}
 			else
 				{
 				error("Illegal number of arguments.");
 				return -1;
 				}
-			sfr.setValidationStringency(ValidationStringency.LENIENT);
 			SAMFileHeader header=sfr.getFileHeader();
 			SAMProgramRecord prg=header.createProgramRecord();
 			prg.setProgramName(getProgramName());
@@ -115,11 +111,15 @@ public class Biostar84452 extends AbstractCommandLineProgram
 			
 			if(fileout==null)
 				{
-				sfw=swf.make(header);
+				sfw=(binary?
+						swf.makeBAMWriter(header, true, System.out)
+						:swf.makeSAMWriter(header, true, System.out));
 				}
 			else
 				{
-				sfw=swf.make(header,fileout);
+				sfw=(binary?
+						swf.makeBAMWriter(header, true,fileout)
+						:swf.makeSAMWriter(header, true,fileout));
 				}
 			long nChanged=0L;
 			SAMRecordIterator iter=sfr.iterator();

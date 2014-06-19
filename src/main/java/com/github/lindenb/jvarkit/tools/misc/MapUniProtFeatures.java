@@ -26,15 +26,14 @@ import org.uniprot.Entry;
 import org.uniprot.FeatureType;
 import org.uniprot.LocationType;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.illumina.parser.Range;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.picard.util.Log;
-import net.sf.picard.util.ProgressLogger;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.util.CloserUtil;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.util.Log;
+import htsjdk.samtools.util.ProgressLogger;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
@@ -68,7 +67,16 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 	
     @Option(shortName="UP",doc="Uniprot URL/File",optional=true)
 	public String UNIPROT="ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz";
-
+    private static class Range
+    	{
+    	Range(int start,int end)
+    		{
+    		this.start=start;
+    		this.end=end;
+    		}
+    	int start;
+    	int end;
+    	}
 	private  class UBed
 		{
 		int tid;
@@ -258,7 +266,7 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 					
 					if(sameSequenceLength!=pep.length())
 						{
-						if(super.VALIDATION_STRINGENCY!=SAMFileReader.ValidationStringency.SILENT )
+						if(super.VALIDATION_STRINGENCY!=htsjdk.samtools.ValidationStringency.SILENT )
 							{
 							System.err.println("Not Same sequence "+kg.getName()+" strand "+kg.getStrand() +" ok-up-to-"+sameSequenceLength);
 							System.err.println("P:"+pep.toString()+" "+pep.length());

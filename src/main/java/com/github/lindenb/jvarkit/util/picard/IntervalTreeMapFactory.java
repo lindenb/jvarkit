@@ -2,9 +2,9 @@ package com.github.lindenb.jvarkit.util.picard;
 
 import java.io.IOException;
 import java.util.regex.Pattern;
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalTreeMap;
-import org.broad.tribble.readers.LineReader;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.tribble.readers.LineReader;
 
 
 public class IntervalTreeMapFactory<T>

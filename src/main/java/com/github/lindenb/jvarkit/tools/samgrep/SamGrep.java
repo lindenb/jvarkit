@@ -10,17 +10,17 @@ import java.util.Map;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMProgramRecord;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 public class SamGrep extends AbstractCommandLineProgram
 	{
@@ -51,7 +51,6 @@ public class SamGrep extends AbstractCommandLineProgram
 
 		out.println(" -o (filename) output file. default: stdout.");
 		out.println(" -X if -o used, continue to output original input to stdout.");
-		out.println(" -c (int) compression level");
 		out.println(" -b force binary");
 		super.printOptions(out);
 		}
@@ -61,15 +60,16 @@ public class SamGrep extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
+		boolean binary=false;
 		boolean divertToStdout=false;
 		int n_before_remove=-1;
 		Map<String,Integer> readNames=new HashMap<String,Integer>(); 
-		SamWriterFactory swf=SamWriterFactory.newInstance();
+		SAMFileWriterFactory swf=new SAMFileWriterFactory();
 		File fileout=null;
 		boolean inverse=false;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:bc:f:R:n:X"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:bf:R:n:X"))!=-1)
 			{
 			switch(c)
 				{
@@ -103,8 +103,7 @@ public class SamGrep extends AbstractCommandLineProgram
 					break;
 					}
 				case 'o': fileout=new File(opt.getOptArg());break;
-				case 'b': swf.setBinary(true);break;
-				case 'c': swf.setCompressionLevel(Integer.parseInt(opt.getOptArg()));break;
+				case 'b': binary=true;break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt, null))
@@ -124,27 +123,26 @@ public class SamGrep extends AbstractCommandLineProgram
 		
 		SAMFileWriter sfw=null;
 		SAMFileWriter samStdout=null;
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		try
 			{
 			
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading sfomr stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				File filename=new File(args[opt.getOptInd()]);
 				info("Reading from "+filename);
-				sfr=new SAMFileReader(filename);
+				sfr=SamFileReaderFactory.mewInstance().open(filename);
 				}
 			else
 				{
 				error("Illegal number of arguments.");
 				return -1;
 				}
-			sfr.setValidationStringency(ValidationStringency.LENIENT);
 			SAMFileHeader header=sfr.getFileHeader().clone();
 			SAMProgramRecord prg=header.createProgramRecord();
 			prg.setProgramName(getProgramName());
@@ -154,12 +152,18 @@ public class SamGrep extends AbstractCommandLineProgram
 			
 			if(fileout==null)
 				{
-				sfw=swf.make(header);
+				sfw=(binary?
+						swf.makeBAMWriter(header, true, System.out)
+						:swf.makeSAMWriter(header, true, System.out));
 				}
 			else
 				{
-				if(divertToStdout) samStdout=swf.make(sfr.getFileHeader());
-				sfw=swf.make(header,fileout);
+				if(divertToStdout) samStdout=(binary?
+						swf.makeBAMWriter(header, true, System.out)
+						:swf.makeSAMWriter(header, true, System.out));
+				sfw=(binary?
+						swf.makeBAMWriter(header, true,fileout)
+						:swf.makeSAMWriter(header, true,fileout));
 				}
 			SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())

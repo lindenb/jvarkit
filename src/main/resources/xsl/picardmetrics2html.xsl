@@ -88,24 +88,16 @@
 </xsl:template>
 
 <xsl:template match="p:histogram" mode="google">
- google.load("visualization", "1", {packages:["corechart"]});
-      google.setOnLoadCallback(<xsl:value-of select="concat('drawChart',generate-id(.))"/>);
-      function <xsl:value-of select="concat('drawChart',generate-id(.))"/>() {
-        var <xsl:value-of select="concat('data',generate-id(.))"/> = google.visualization.arrayToDataTable([
-          <xsl:text>[</xsl:text><xsl:for-each select="p:thead/p:th"><xsl:if test="position()&gt;1">,</xsl:if>'<xsl:value-of select="."/>'</xsl:for-each><xsl:text>]</xsl:text>
-          <xsl:for-each select="p:tbody/p:tr">
-          <xsl:text>,</xsl:text>
-          <xsl:text>[</xsl:text><xsl:for-each select="p:td"><xsl:if test="position()&gt;1">,</xsl:if><xsl:value-of select="."/></xsl:for-each><xsl:text>]</xsl:text>
-          </xsl:for-each>
-        ]);
-
-        var <xsl:value-of select="concat('opt',generate-id(.))"/> = {
-          title: '<xsl:value-of select="../@file"/>'
-        };
-
-        var <xsl:value-of select="concat('chart',generate-id(.))"/> = new google.visualization.LineChart(document.getElementById('<xsl:value-of select="generate-id(.)"/>'));
-        <xsl:value-of select="concat('chart',generate-id(.))"/>.draw(<xsl:value-of select="concat('data',generate-id(.))"/>, <xsl:value-of select="concat('opt',generate-id(.))"/>);
-        }
+function drawVisualization() {
+  var wrapper = new google.visualization.ChartWrapper({
+    chartType: 'ColumnChart',
+    dataTable: [['', 'Germany', 'USA', 'Brazil', 'Canada', 'France', 'RU'],
+                ['', 700, 300, 400, 500, 600, 800]],
+    options: {'title': 'Countries'},
+    containerId: 'visualization'
+  });
+  wrapper.draw();
+}
 </xsl:template>
 
 </xsl:stylesheet>

@@ -5,22 +5,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.Deflater;
 
-import net.sf.picard.PicardException;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileHeader.SortOrder;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMFileWriterFactory;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.TextCigarCodec;
-import net.sf.samtools.util.BlockCompressedOutputStream;
-import net.sf.samtools.util.CloserUtil;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
+
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.TextCigarCodec;
+import htsjdk.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -87,7 +88,7 @@ public class SamFixCigar extends AbstractCommandLineProgram
 			}
 		long nReads=0L;
 		long nX=0L;
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		SAMFileHeader header;
 		try
@@ -98,20 +99,19 @@ public class SamFixCigar extends AbstractCommandLineProgram
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				File fin=new File(args[opt.getOptInd()]);
 				info("Reading "+fin);
-				sfr=new SAMFileReader(fin);
+				sfr=SamFileReaderFactory.mewInstance().open(fin);
 				}
 			else
 				{
 				error("Illegal number of arguments");
 				return -1;
 				}
-			sfr.setValidationStringency(ValidationStringency.LENIENT);
 			header=sfr.getFileHeader();
 			
 			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();

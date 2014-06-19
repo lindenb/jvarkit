@@ -1,8 +1,8 @@
 package com.github.lindenb.jvarkit.util.picard;
 
 import java.util.List;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
 
 /**  canonical alignments in a chimeric alignment */
 public interface OtherCanonicalAlign  extends Comparable<OtherCanonicalAlign>

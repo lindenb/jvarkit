@@ -1,20 +1,18 @@
 package com.github.lindenb.jvarkit.tools.treepack;
 
-import java.io.File;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMReadGroupRecord;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 
 public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
@@ -356,9 +354,8 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 		}
 	
 	
-	 private void scan(SAMFileReader sfr)
+	 private void scan(SamReader sfr)
 		 {
-		 sfr.setValidationStringency(ValidationStringency.SILENT);
 		 SAMRecordIterator iter=sfr.iterator();
 		 SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader().getSequenceDictionary());
 		 while(iter.hasNext())
@@ -432,13 +429,13 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 			return -1;
 			}
 		
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		try
 			{
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				scan(sfr);
 				CloserUtil.close(sfr);
 				info("Done stdin");
@@ -450,15 +447,7 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 					InputStream in=null;
 					String filename= args[optind];
 					info("Reading "+filename);
-					if(IOUtils.isRemoteURI(filename))
-						{
-						in=IOUtils.openURIForReading(filename);
-						sfr=new SAMFileReader(in);
-						}
-					else
-						{
-						sfr=new SAMFileReader(new File(filename));
-						}
+					sfr=SamFileReaderFactory.mewInstance().open(filename);
 					scan(sfr);
 					info("Done "+filename);
 					CloserUtil.close(sfr);

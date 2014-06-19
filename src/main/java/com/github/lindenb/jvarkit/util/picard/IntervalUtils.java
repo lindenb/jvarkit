@@ -1,9 +1,9 @@
 package com.github.lindenb.jvarkit.util.picard;
 
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalUtil;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalUtil;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 
 public class IntervalUtils extends IntervalUtil
 	{

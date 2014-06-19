@@ -14,15 +14,17 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.SequenceUtil;
+
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SequenceUtil;
 
 /**
  * GenScan
@@ -30,7 +32,7 @@ import net.sf.samtools.util.SequenceUtil;
  */
 public class BamGenScan extends AbstractGeneScan
 	{
-	private List<Input> inputs=new ArrayList<>();
+	private List<Input> inputs=new ArrayList<Input>();
 	
 	private class Input
 		{
@@ -44,13 +46,12 @@ public class BamGenScan extends AbstractGeneScan
 		for(int input_id=0;input_id<this.inputs.size();++input_id)
 			{		
 			Input input=this.inputs.get(input_id);
-			List<SAMFileReader> readers=new ArrayList<SAMFileReader>();
+			List<SamReader> readers=new ArrayList<SamReader>();
 			for(String filename:input.filenames.split("[\\:]+"))
 				{
 				if(filename.isEmpty()) continue;
 				info("Reading header for "+filename);
-				SAMFileReader sfr=new SAMFileReader(new File(filename));
-				sfr.setValidationStringency(ValidationStringency.SILENT);
+				SamReader sfr=SamFileReaderFactory.mewInstance().open(new File(filename));
 				readers.add(sfr);
 				
 				}
@@ -69,7 +70,7 @@ public class BamGenScan extends AbstractGeneScan
 						ci.width,input.sample.height
 						));
 				
-				for(SAMFileReader sfr:readers) 
+				for(SamReader sfr:readers) 
 					{
 					SAMRecordIterator sli=sfr.query(ci.getSequenceName(), 0, 0,true);
 					
@@ -139,7 +140,7 @@ public class BamGenScan extends AbstractGeneScan
 					}	
 				g.setClip(clip);
 				} //end for ci
-			for(SAMFileReader sfr:readers) sfr.close();
+			for(SamReader sfr:readers) CloserUtil.close(sfr);
 			}//end for input
 		}
 	
@@ -176,8 +177,7 @@ public class BamGenScan extends AbstractGeneScan
 	@Override
 	public int doWork(String[] args)
 		{
-		SAMFileReader.setDefaultValidationStringency(ValidationStringency.SILENT);
-
+		
 		File filout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
@@ -223,8 +223,7 @@ public class BamGenScan extends AbstractGeneScan
 					{
 					if(filename.isEmpty()) continue;
 					info("["+inputs.size()+"]Reading header for "+filename);
-					SAMFileReader sfr=new SAMFileReader(new File(filename));
-					sfr.setValidationStringency(ValidationStringency.SILENT);
+					SamReader sfr=SamFileReaderFactory.mewInstance().open(new File(filename));
 					SAMFileHeader h=sfr.getFileHeader();
 					sfr.close();
 					SAMSequenceDictionary d=h.getSequenceDictionary();

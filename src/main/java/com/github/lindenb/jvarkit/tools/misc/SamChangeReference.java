@@ -2,21 +2,21 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 
-import net.sf.picard.PicardException;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMFileWriterFactory;
-import net.sf.samtools.SAMProgramRecord;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.CloserUtil;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class SamChangeReference extends AbstractCommandLineProgram
 	{
@@ -108,7 +108,7 @@ public class SamChangeReference extends AbstractCommandLineProgram
 			return -1;
 			}
 		
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
@@ -118,14 +118,12 @@ public class SamChangeReference extends AbstractCommandLineProgram
 			
 			if(opt.getOptInd()==args.length)
 				{
-				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				File fin=new File(args[opt.getOptInd()]);
-				info("Reading from "+fin);
-				sfr=new SAMFileReader(fin);
+				sfr=SamFileReaderFactory.mewInstance().open(fin);
 				}
 			else
 				{
@@ -133,7 +131,6 @@ public class SamChangeReference extends AbstractCommandLineProgram
 				return -1;
 				}
 			
-			sfr.setValidationStringency(ValidationStringency.LENIENT);
 			SAMFileHeader header1=sfr.getFileHeader();
 			SAMFileHeader header2=header1.clone();
 			header2.setSequenceDictionary(this.dict);			

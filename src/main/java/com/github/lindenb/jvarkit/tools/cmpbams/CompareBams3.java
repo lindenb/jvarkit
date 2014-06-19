@@ -21,16 +21,18 @@ import com.github.lindenb.jvarkit.tools.cmpbams.entities.Records;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Interval;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.SortingCollection;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SortingCollection;
 
 
 public class CompareBams3  extends AbstractCommandLineProgram
@@ -132,7 +134,7 @@ public class CompareBams3  extends AbstractCommandLineProgram
 	@Override
 	protected int doWork()
 		{
-		SAMFileReader samFileReader=null;
+		SamReader samFileReader=null;
 		try
 			{
 			if(this.IN.size() <2)
@@ -160,8 +162,7 @@ public class CompareBams3  extends AbstractCommandLineProgram
 				long nReads=0L;
 				File samFile=this.IN.get(currentSamFileIndex);
 				LOG.info("Opening "+samFile);
-				samFileReader=new SAMFileReader(samFile);
-				samFileReader.setValidationStringency(super.VALIDATION_STRINGENCY);
+				samFileReader=SamFileReaderFactory.mewInstance().open(samFile);
 				SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
 				sequenceDictionaries.add(dict);
 				
@@ -343,7 +344,7 @@ public class CompareBams3  extends AbstractCommandLineProgram
 			}
 		finally
 			{
-			if(samFileReader!=null) samFileReader.close();
+			CloserUtil.close(samFileReader);
 			}
 		return 0;
 		}

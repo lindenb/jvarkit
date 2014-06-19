@@ -16,15 +16,16 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.zip.GZIPInputStream;
 
-import org.broad.tribble.readers.LineIterator;
-import org.broad.tribble.readers.LineIteratorImpl;
-import org.broad.tribble.readers.LineReader;
-import org.broad.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIteratorImpl;
+import htsjdk.tribble.readers.LineReader;
+import htsjdk.tribble.readers.LineReaderUtil;
 
 
-import net.sf.samtools.Defaults;
-import net.sf.samtools.util.BlockCompressedInputStream;
-import net.sf.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.Defaults;
+import htsjdk.samtools.util.BlockCompressedInputStream;
+import htsjdk.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.util.IOUtil;
 
 public class IOUtils {
 	
@@ -108,7 +109,7 @@ public class IOUtils {
 	@SuppressWarnings("resource")
 	public static InputStream openFileForReading(File file) throws IOException
 		{
-		net.sf.picard.io.IoUtil.assertFileIsReadable(file);
+		IOUtil.assertFileIsReadable(file);
 		InputStream in= new FileInputStream(file);
 		if(file.getName().endsWith(".gz"))
 			{

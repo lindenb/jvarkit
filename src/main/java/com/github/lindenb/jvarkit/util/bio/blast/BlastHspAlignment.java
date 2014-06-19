@@ -1,6 +1,5 @@
 package com.github.lindenb.jvarkit.util.bio.blast;
 
-import java.lang.reflect.Method;
 import java.util.Iterator;
 
 import gov.nih.nlm.ncbi.blast.Hsp;

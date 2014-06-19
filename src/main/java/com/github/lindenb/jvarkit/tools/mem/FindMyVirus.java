@@ -7,22 +7,23 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import net.sf.picard.PicardException;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMProgramRecord;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMSequenceRecord;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.SAMFileWriter;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.ProgressLoggerInterface;
+import htsjdk.samtools.SAMFileWriter;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.SamFlag;
-import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
@@ -148,8 +149,7 @@ public class FindMyVirus extends AbstractCommandLineProgram
 		{
 		Set<String> virusNames=new HashSet<String>();
 		File bamOut=null;
-		SamWriterFactory sfwf= SamWriterFactory.newInstance();
-		sfwf.setBinary(true);
+		SAMFileWriterFactory sfwf= new SAMFileWriterFactory();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
 		while((c=opt.getopt(args,getGetOptDefault()+"o:V:"))!=-1)
@@ -182,25 +182,24 @@ public class FindMyVirus extends AbstractCommandLineProgram
 		
 		
 		
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		SAMFileWriter sfwArray[]=new SAMFileWriter[CAT.values().length];
 		try
 			{
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
-				sfr=new SAMFileReader(new File(args[opt.getOptInd()]));
+				sfr=SamFileReaderFactory.mewInstance().open(new File(args[opt.getOptInd()]));
 				}
 			else
 				{
 				error("Illegal number of arguments.");
 				return -1;
 				}
-			sfr.setValidationStringency(ValidationStringency.SILENT);
 			SAMFileHeader header=sfr.getFileHeader();
 			for(CAT category:CAT.values())
 				{
@@ -216,7 +215,7 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				File outputFile=new File(bamOut.getParentFile(),bamOut.getName()+"."+category.name()+".bam");
 				info("Opening "+outputFile);
 				File countFile=new File(bamOut.getParentFile(),bamOut.getName()+"."+category.name()+".count.txt");
-				SAMFileWriter sfw=sfwf.make(header2, outputFile);
+				SAMFileWriter sfw=sfwf.makeBAMWriter(header2, true,outputFile);
 				sfw=new SAMFileWriterCount(sfw, countFile,category);
 				sfwArray[category.ordinal()]=sfw;
 				}
@@ -264,7 +263,7 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				boolean xp_containsChrom=false;
 				for(OtherCanonicalAlign xpa:xpList)
 					{
-					if(virusNames.contains(xpa.getChrom()))
+					if(virusNames.contains(xpa.getReferenceName()))
 						{
 						xp_containsVirus=true;
 						}
@@ -404,6 +403,9 @@ public class FindMyVirus extends AbstractCommandLineProgram
 		private File countFile;
 		private Counter<String> chrom=new Counter<String>();
 		private Counter<Integer> flags=new Counter<Integer>();
+		@SuppressWarnings("unused")
+		private ProgressLoggerInterface progressLogger;
+		
 		SAMFileWriterCount(SAMFileWriter delegate,File countFile,CAT category)
 			{
 			this.category=category;
@@ -414,6 +416,10 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				chrom.initializeIfNotExists(rec.getSequenceName());
 				}
 			chrom.initializeIfNotExists(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
+			}
+		@Override
+		public void setProgressLogger(ProgressLoggerInterface progressLogger) {
+			this.progressLogger=progressLogger;
 			}
 		@Override
 		public void addAlignment(SAMRecord alignment) {

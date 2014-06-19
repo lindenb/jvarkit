@@ -11,33 +11,30 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import net.sf.picard.io.IoUtil;
-import net.sf.samtools.util.BlockCompressedOutputStream;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 
-import org.broad.tribble.readers.LineIterator;
-import org.broad.tribble.readers.LineIteratorImpl;
-import org.broad.tribble.readers.LineReaderUtil;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.writer.Options;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
-import org.broadinstitute.variant.vcf.VCFCodec;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
-import org.broadinstitute.variant.vcf.VCFHeaderLineType;
-import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIteratorImpl;
+import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class FixVCF
@@ -97,18 +94,12 @@ public class FixVCF
 			if(fileout==null)
 				{
 				this.info("writing to stdout");
-				w= VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
-				}
-			else if(fileout.getName().endsWith(".gz"))
-				{
-				this.info("writing to "+fileout+" as bgz file.");
-				BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(fileout);
-				w= VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
+				w= VCFUtils.createVariantContextWriterToStdout();
 				}
 			else
 				{
 				this.info("writing to "+fileout);
-				w=  VariantContextWriterFactory.create(fileout,null,EnumSet.noneOf(Options.class));
+				w= VCFUtils.createVariantContextWriter(fileout);
 				}
 			
 
@@ -179,7 +170,7 @@ public class FixVCF
 				sampleNamesInSameOrder
 				);
 		
-		File tmp=IoUtil.newTempFile("tmp", ".vcf.gz",new File[]{tmpDir});
+		File tmp=IOUtil.newTempFile("tmp", ".vcf.gz",new File[]{tmpDir});
 		tmp.deleteOnExit();
 		
 		
@@ -230,7 +221,7 @@ public class FixVCF
 		
 		//save header in memory
 		ByteArrayOutputStream baos=new ByteArrayOutputStream();
-		VariantContextWriter w2= VariantContextWriterFactory.create(baos,null,EnumSet.noneOf(Options.class));
+		VariantContextWriter w2= VCFUtils.createVariantContextWriterToOutputStream(baos);
 		w2.writeHeader(h2);
 		w2.close();
 		baos.close();

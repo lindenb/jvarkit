@@ -4,6 +4,17 @@
 <property file="build.properties"/>
 <property name="http.proxy" value="localhost:80"/>
 <property name="generated.dir" value="src/main/generated-sources/java"/>
+<property name="test.output" value="tests"/>
+	
+	
+<!--define htsjdk.home if is not defined in the file "build.properties" -->
+<property name="htsjdk.home" value="htsjdk"/>
+
+<!-- properties below are optional, just used for a few targets -->
+<property name="common.math.jar" value="/fix/path/to/common/math.jar"/>
+<property name="berkeleydb.jar" value="/fix/path/to/berkeleydb/je.jar"/>
+<property name="bigwig.dir" value="/fix/path/to/bigwig_directory"/>
+
 
 <condition property="has.mysql.driver">
  <isset property="mysql.jar"/>
@@ -12,8 +23,18 @@
 <condition property="has.bigwig.lib">
  <isset property="bigwig.dir"/>
 </condition>	
+
+<!-- WEB server stuff -->
+
+<path id="jetty.lib" description="Jars for Jetty http://www.eclipse.org/jetty/ " >
+	<fileset dir="${jetty.home}">
+	           <include name="**/lib/*.jar"/>
+	</fileset>
+</path>
+
+
+<!-- ============================-->	
 	
-		
 	
 <path id="bigwig.lib">
   <fileset dir="${bigwig.dir}">
@@ -22,19 +43,18 @@
 </path>
 
 <path id="jexl.lib">
- <fileset dir="${picard.dir}">
+ <fileset dir="${htsjdk.home}/dist">
     <include name="commons-jexl-*.jar"/>
     <include name="commons-logging-*.jar"/>
   </fileset>
 </path>
 
 
-<path id="picard.lib">
-	 <fileset dir="${picard.dir}">
-    	<include name="picard-*.jar"/>
-   	 	<include name="sam-*.jar"/>
-   	 	<include name="tribble-*.jar"/>
-    	<include name="variant-*.jar"/>
+<path id="htsjdk.lib">
+	 <fileset dir="${htsjdk.home}/dist">
+	    	<include name="htsjdk-*.jar"/>
+	    	<include name="apache-ant-*-bzip2.jar"/>
+	    	<include name="snappy-java-*.jar"/>
  	 </fileset>
      <path refid="jexl.lib"/>
 </path>
@@ -53,43 +73,48 @@
 	
 	
 <path id="common.libs">
-     <path refid="picard.lib"/>
+     <path refid="htsjdk.lib"/>
      <path refid="bigwig.lib"/>
      <path refid="bdb.lib"/>
      <path refid="math.lib"/>
 </path>
 
-<path id="picard.and.bdb.jars">
+<path id="htsjdk.and.bdb.jars">
      <path refid="bdb.lib"/>
-     <path refid="picard.lib"/>
+     <path refid="htsjdk.lib"/>
 </path>
 
-<path id="picard.and.bigwig.jars">
+<path id="htsjdk.and.bigwig.jars">
      <path refid="bigwig.lib"/>
-     <path refid="picard.lib"/>
+     <path refid="htsjdk.lib"/>
 </path>
 
-<path id="picard.and.mysql.jars">
+<path id="htsjdk.and.mysql.jars">
      <path refid="mysql.lib"/>
-     <path refid="picard.lib"/>
+     <path refid="htsjdk.lib"/>
 </path>
 
-<path id="picard.and.math.jars">
-     <path refid="picard.lib"/>
+<path id="htsjdk.and.math.jars">
+     <path refid="htsjdk.lib"/>
      <path refid="math.lib"/>
 </path>
 
-<path id="picard.and.bdb.jars">
-     <path refid="picard.lib"/>
+<path id="htsjdk.and.bdb.jars">
+     <path refid="htsjdk.lib"/>
      <path refid="bdb.lib"/>
 </path>
 
+<path id="htsjdk.and.jetty.jars">
+     <path refid="htsjdk.lib"/>
+     <path refid="jetty.lib"/>
+</path>
 
 <macrodef name="compile-with-picard" >
 	<attribute name="name"/>
 	<attribute name="java"/>
 	<attribute name="main"/>
 	<sequential>
+	   <antcall target="htsjdk"/>
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
@@ -98,7 +123,7 @@
 	   		<src path="src/main/java"/>
    			<src path="${generated.dir}"/>
 
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="@{java}"/>
 	   		<include name="**/package-info.java"/>
 	   </javac>
@@ -114,7 +139,7 @@
 	    </loadfile>
 		
 	   <pathconvert property="manifest_@{name}" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 	   </pathconvert>  
 	   
 	<tstamp>
@@ -165,9 +190,10 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	<attribute name="name"/>
 	<attribute name="java"/>
 	<attribute name="main"/>
-	<attribute name="libraryid" default="picard.lib"/>
+	<attribute name="libraryid" default="htsjdk.lib"/>
 	<sequential>
-	  
+
+	   <antcall target="htsjdk"/>	  
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
@@ -247,7 +273,7 @@ java -Xmx500m -cp ${manifest_@{name}_for_exe}:$PREFIX/@{name}.jar @{main} $*
 
 <macrodef name="compile-biostar-cmd">
 	<attribute name="post"/>
-	<attribute name="libraryid" default="picard.lib"/>
+	<attribute name="libraryid" default="htsjdk.lib"/>
 	<sequential>
 		<compile-picard-cmd 
 		java="**/Biostar@{post}.java"
@@ -300,14 +326,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	<attribute name="mainclass"/>
 	<sequential>
 		<java
-			classname="net.sf.picard.cmdline.CreateHtmlDocForProgram"
+			classname="com.github.lindenb.jvarkit.util.picard.cmdline.CreateHtmlDocForProgram"
 			failonerror="false"	
 			fork="false"
 			
 			>
 			<classpath>
 				 <pathelement location="@{jar}"/>
-				 <path refid="picard.lib"/>
+				 <path refid="htsjdk.lib"/>
 			</classpath>
 				
 			<arg value="@{mainclass}"/>
@@ -356,7 +382,58 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 </macrodef>
 
 
+<target name="tests" depends="test"  description="Run unit tests"/>
+<target name="test" depends="test1"  description="Run unit tests"/>
+	   
+<target name="test1">
+	 <path id="classpath4test">
+		        <fileset dir="${htsjdk.home}/lib">
+		            <include name="**/*.jar"/>
+		        </fileset>
+			 	<fileset dir="${htsjdk.home}/dist">
+			 		 <include name="*.jar"/>
+			 	</fileset>
+	  </path>
+	  <taskdef resource="testngtasks" classpathref="classpath4test"/>
+	  <mkdir dir="tmp"/>
+	   	   
+	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+   			<src path="src/main/java"/>
+   			<src path="src/tests/java"/>
+	   		<classpath refid="classpath4test"/>
+	   		<include name="**/*Test.java"/>
+	   </javac>
+	 	
+		
+		<testng outputdir="${test.output}"  haltOnFailure="false" verbose="2" >
+			<classpath>
+				<path refid="classpath4test"/>
+				<pathelement path="tmp"/>
+			</classpath>
+			<classfileset dir="tmp">
+			     <include name="**/*Test.class"/>
+			 </classfileset>
+		</testng>
+		
+	   <delete dir="tmp"/>
+</target>
 
+	
+
+<target name="htsjdk">
+<!--
+	<echo>If the next statement fails, check that JAVA6_HOME is set. For example :
+
+   JAVA6_HOME=/path/to/jdk6 ant splitbam
+or
+   
+   export JAVA6_HOME=/path/to/jdk6
+   ant splitbam
+
+</echo>
+	<ant antfile="${htsjdk.home}/build.xml" target="all" inheritAll="false"/>
+-->
+</target>
 
 
 <target name="all">
@@ -391,11 +468,11 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.and.bigwig.jars"/>
+	   		<classpath refid="htsjdk.and.bigwig.jars"/>
 	   		<include name="**/VCFBigWig.java"/>
 	   </javac>
 	   
-	   <pathconvert property="manifest_cp1" pathsep=" " refid="picard.and.bigwig.jars"/>
+	   <pathconvert property="manifest_cp1" pathsep=" " refid="htsjdk.and.bigwig.jars"/>
 
 	   <jar jarfile="dist/vcfbigwig.jar">
 		     <fileset dir="tmp" />
@@ -458,12 +535,12 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/SplitRead.java"/>
 	   </javac>
 	   
 	   <pathconvert property="manifest_splitread" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 	   </pathconvert>  
 	   
 	   <jar jarfile="dist/splitread.jar">
@@ -484,12 +561,12 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/SplitByTile.java"/>
 	   </javac>
 	   
 	   <pathconvert property="manifest_splitbytile" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 	   </pathconvert>  
 	   
 	   <jar jarfile="dist/splitbytile.jar">
@@ -564,7 +641,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 
 	
 <target name="sam4weblogo" >
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/SAM4WebLogo.java"
 		main="com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo"
 		name="sam4weblogo"
@@ -777,12 +854,12 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	   	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/VCFBed.java"/>
 	   </javac>
 	   
 	   <pathconvert property="manifest_cp7" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 	   </pathconvert>  
 	   
 	   <jar jarfile="dist/vcfbedjs.jar">
@@ -806,13 +883,13 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	   
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/Cluster20120920.java"/>
 	   		
 	   </javac>
 	   
 		<pathconvert property="manifest_cp" pathsep=" " >
-			 <path refid="picard.lib"/>
+			 <path refid="htsjdk.lib"/>
 		</pathconvert>  
 	   
 	   <jar jarfile="dist/cluster20120920.jar">
@@ -957,7 +1034,16 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		name="vcf2rdf"
 		/>
 </target>
+
 	
+<target name="vcfdas" if="jetty.home" >
+	<compile-picard-cmd 
+		java="**/VcfDistributedAnnotationSystem.java"
+		main="com.github.lindenb.jvarkit.tools.vcfdas.VcfDistributedAnnotationSystem"
+		name="vcfdas"
+		libraryid="htsjdk.and.jetty.jars"
+		/>
+</target>
 	
 <target name="groupbygene">
 	<compile-picard-cmd
@@ -1069,6 +1155,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		/>
 </target>
 
+<target name="sigframe" >
+	<compile-picard-cmd 
+		java="**/SigFrame.java"
+		main="com.github.lindenb.jvarkit.tools.sigframe.SigFrame"
+		name="sigframe"
+		/>
+</target>
+
 <target name="vcfin" >
 	<compile-picard-cmd 
 		java="**/VcfIn.java"
@@ -1149,7 +1243,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		java="**/NgsFilesScanner.java"
 		main="com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesScanner"
 		name="ngsfilesscanner"
-		libraryid="picard.and.bdb.jars"
+		libraryid="htsjdk.and.bdb.jars"
 		/>
 </target>	
 
@@ -1512,7 +1606,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		java="**/VcfUcsc.java"
 		main="com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcsc"
 		name="vcfucsc"
-		libraryid="picard.and.mysql.jars"
+		libraryid="htsjdk.and.mysql.jars"
 		/>
 </target>
 	
@@ -1573,7 +1667,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	<compile-picard-cmd 
 		java="**/CopyNumber01.java"
 		main="com.github.lindenb.jvarkit.tools.redon.CopyNumber01"
-		libraryid="picard.and.math.jars"
+		libraryid="htsjdk.and.math.jars"
 		name="cnv01"
 		/>
 </target>	
@@ -1654,9 +1748,10 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 <target name="biostar86480"><compile-biostar-cmd post="86480"/></target>
 <target name="biostar84452"><compile-biostar-cmd post="84452"/></target>
 <target name="biostar90204"><compile-biostar-cmd post="90204"/></target>
-<target name="biostar92368"><compile-biostar-cmd post="92368" libraryid="picard.and.bdb.jars"/></target>
+<target name="biostar92368"><compile-biostar-cmd post="92368" libraryid="htsjdk.and.bdb.jars"/></target>
 <target name="biostar94573"><compile-biostar-cmd post="94573"/></target>
 <target name="biostar95652" depends="api.ncbi.gb"><compile-biostar-cmd post="95652"/></target>
+<target name="biostar103303"><compile-biostar-cmd post="103303"/></target>
 
 
 <target name="mapuniprot" depends="api.uniprot">
@@ -1748,10 +1843,10 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<src path="${generated.dir}"/>
-	   		<classpath refid="picard.lib"/>
+	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/NGSServiceImpl.java"/>
 	   </javac>
-	<pathconvert  property="wscp" refid="picard.lib"/>
+	<pathconvert  property="wscp" refid="htsjdk.lib"/>
 
 	<exec executable="wsgen">
 	    <arg value="-cp"/> <arg value="tmp:${wscp}"/>
@@ -1788,7 +1883,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 
    <javac destdir="dist/rmi4ngs.dir/" includeAntRuntime="false" debug="true">
    		<src path="src/main/java"/>
-   		<classpath refid="picard.lib"/>
+   		<classpath refid="htsjdk.lib"/>
    		<include name="**/rmi/server/NGSServiceImpl.java"/>
    </javac>	
 	
@@ -1810,7 +1905,7 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		<jvmarg value="-Dsun.rmi.server.exceptionTrace=true"/>
 		<jvmarg value="-Dsun.rmi.server.logLevel=DEBUG"/>
 		<classpath>
-			<path refid="picard.lib"/>
+			<path refid="htsjdk.lib"/>
 			<pathelement location="dist/rmi4ngs.dir/"/>
 		</classpath>
 		<arg value="CONFIG=/home/lindenb/jeter.xml"/>
@@ -1824,8 +1919,8 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 
 <target name="jeter" >
 	<compile-picard-cmd
-		java="**/BlatFastq.java"
-		main="com.github.lindenb.jvarkit.tools.blat.BlatFastq"
+		java="**/TEST.java"
+		main="com.github.lindenb.jvarkit.tools.misc.TEST"
 		name="jeter"
 		/>
 </target>

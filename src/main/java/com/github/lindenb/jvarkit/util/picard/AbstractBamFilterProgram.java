@@ -7,14 +7,16 @@ import java.util.Arrays;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 
 
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMFileWriterFactory;
-import net.sf.samtools.SAMFileHeader.SortOrder;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMProgramRecord;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.CloserUtil;
 
 
 public abstract class AbstractBamFilterProgram
@@ -33,7 +35,7 @@ public abstract class AbstractBamFilterProgram
 		protected boolean create_index=false;
 		protected int max_records_in_ram=50000;
 
-		protected abstract int doWork(SAMFileReader in,SAMFileWriter out);
+		protected abstract int doWork(SamReader in,SAMFileWriter out);
 		
 		
 		protected boolean verifySortOrder(SortOrder sortOrder)
@@ -154,7 +156,7 @@ public abstract class AbstractBamFilterProgram
 		protected int doWork(File fileIn,File fileOut)
 			throws Exception
 			{
-			SAMFileReader sfr=null;
+			SamReader sfr=null;
 			SAMFileWriter sfw=null;
 			SAMFileHeader header;
 			try
@@ -164,15 +166,14 @@ public abstract class AbstractBamFilterProgram
 				if( fileIn==null)
 					{
 					info("Reading stdin");
-					sfr=new SAMFileReader(System.in);
+					sfr=SamReaderFactory.makeDefault().validationStringency(this.validationStringency).open(SamInputResource.of(System.in));
 					}
 				else 
 					{
 					info("Reading "+fileIn);					
-					sfr=new SAMFileReader(fileIn);
+					sfr=SamReaderFactory.makeDefault().validationStringency(this.validationStringency).open(SamInputResource.of(fileIn));
 					}
 				
-				sfr.setValidationStringency(this.validationStringency);
 				header=sfr.getFileHeader();
 				if(!verifySortOrder(header.getSortOrder()))
 					{

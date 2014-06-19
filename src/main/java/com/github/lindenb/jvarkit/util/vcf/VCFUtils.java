@@ -1,8 +1,10 @@
 package com.github.lindenb.jvarkit.util.vcf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.util.EnumSet;
+import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -11,19 +13,17 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Logger;
 
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
-import net.sf.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 
-import org.broad.tribble.readers.LineIterator;
-import org.broad.tribble.readers.LineReader;
-import org.broadinstitute.variant.variantcontext.writer.Options;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
-import org.broadinstitute.variant.vcf.VCFCodec;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeader;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineReader;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFContigHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
@@ -112,9 +112,28 @@ public class VCFUtils
 	public static CodecAndHeader parseHeader(List<String> list)
 		{
 		CodecAndHeader vh=new CodecAndHeader();
-		vh.codec=new VCFCodec();
+		vh.codec=createDefaultVCFCodec();
 		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(new LinkedList<String>(list)));
 		return vh;
+		}
+	
+	/** convert a VCF header to line iterator. Created for serialization */
+	public static LineIterator convertVCFHeaderToLineIterator(VCFHeader header)
+		{	
+		ByteArrayOutputStream baos=new ByteArrayOutputStream(1000);
+		VariantContextWriter vcw=createVariantContextWriterToOutputStream(baos);
+		vcw.writeHeader(header);
+		vcw.close();
+		return new LIT(new LinkedList<String>(
+				Arrays.asList(
+						new String(baos.toByteArray()).split("\n")
+				)));
+		}
+	
+	/** create a default VCF codec */
+	public static VCFCodec createDefaultVCFCodec()
+		{
+		return new VCFCodec();
 		}
 	
 	/** create a VCF iterator
@@ -155,8 +174,20 @@ public class VCFUtils
 	
 	public static  VariantContextWriter createVariantContextWriterToStdout()
 		{
-		return VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+		return createVariantContextWriterToOutputStream(System.out);
 		}
+	
+	public static  VariantContextWriter createVariantContextWriterToOutputStream(OutputStream ostream)
+		{
+		VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+		vcwb.setCreateMD5(false);
+		vcwb.setOutputStream(ostream);
+		vcwb.setReferenceDictionary(null);
+		vcwb.clearOptions();
+		return vcwb.build();
+		}
+
+	
 	/**
 	 * create a VariantContextWriter
 	 * @param OUT output file or null to stdout
@@ -165,21 +196,20 @@ public class VCFUtils
 	 */
 	public static  VariantContextWriter createVariantContextWriter(File OUT) throws IOException
 		{
+		VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+		vcwb.setCreateMD5(false);
+		vcwb.setReferenceDictionary(null);
+		vcwb.clearOptions();
+		
 		if(OUT==null)
 			{
 			LOG.info("writing to stdout");
 			return createVariantContextWriterToStdout();
 			}
-		else if(OUT.getName().endsWith(".gz"))
-			{
-			LOG.info("writing to "+OUT+" as bgz file.");
-			BlockCompressedOutputStream bcos=new BlockCompressedOutputStream(OUT);
-			return VariantContextWriterFactory.create(bcos,null,EnumSet.noneOf(Options.class));
-			}
 		else
 			{
-			LOG.info("writing to "+OUT);
-			return  VariantContextWriterFactory.create(OUT,null,EnumSet.noneOf(Options.class));
+			vcwb.setOutputFile(OUT);
+			return vcwb.build();
 			}
 		}
 	

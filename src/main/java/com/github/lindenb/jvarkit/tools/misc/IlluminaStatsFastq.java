@@ -14,9 +14,9 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 
-import net.sf.picard.fastq.FastqRecord;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMUtils;
+import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.SAMUtils;
 
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;

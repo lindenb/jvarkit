@@ -2,8 +2,8 @@ package com.github.lindenb.jvarkit.util.picard;
 
 import javax.swing.table.AbstractTableModel;
 
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 
 @SuppressWarnings("serial")
 public class SAMSequenceDictionaryTableModel extends AbstractTableModel

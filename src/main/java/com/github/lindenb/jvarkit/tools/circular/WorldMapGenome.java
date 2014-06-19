@@ -42,12 +42,12 @@ import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 
-import org.broad.tribble.readers.LineIterator;
-import org.broad.tribble.readers.LineIteratorImpl;
-import org.broad.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIteratorImpl;
+import htsjdk.tribble.readers.LineReaderUtil;
 
-import net.sf.samtools.SAMSequenceRecord;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
@@ -390,7 +390,7 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 	
 	private void scan(Graphics2D g,InputStream input) throws IOException
 		{
-		Set<String> unknownC=new HashSet<>();
+		Set<String> unknownC=new HashSet<String>();
 		Pattern tab=Pattern.compile("[\t]");
 		LineIterator in=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(input));
 		while(in.hasNext())

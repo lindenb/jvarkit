@@ -10,7 +10,7 @@ import java.util.logging.Logger;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-import net.sf.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;

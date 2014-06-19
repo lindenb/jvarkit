@@ -11,14 +11,14 @@ import java.util.regex.Pattern;
 
 import javax.xml.stream.XMLStreamException;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalTreeMap;
-import net.sf.picard.util.Log;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Log;
 
-import org.broad.tribble.readers.LineReader;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import htsjdk.tribble.readers.LineReader;
+import htsjdk.variant.variantcontext.VariantContext;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.Function;

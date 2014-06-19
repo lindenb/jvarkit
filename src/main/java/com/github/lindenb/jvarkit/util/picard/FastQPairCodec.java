@@ -5,8 +5,8 @@ import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import net.sf.picard.fastq.FastqRecord;
-import net.sf.samtools.util.SortingCollection.Codec;
+import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.util.SortingCollection.Codec;
 
 public class FastQPairCodec
 implements Codec<FastQPairCodec.PairedFastq>

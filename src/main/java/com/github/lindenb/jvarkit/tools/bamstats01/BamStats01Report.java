@@ -1,12 +1,12 @@
 package com.github.lindenb.jvarkit.tools.bamstats01;
 
 
-import net.sf.picard.util.Histogram;
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalTreeMap;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMRecord;
+import htsjdk.samtools.util.Histogram;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMRecord;
 
 public class BamStats01Report implements SAMFileWriter
 	{

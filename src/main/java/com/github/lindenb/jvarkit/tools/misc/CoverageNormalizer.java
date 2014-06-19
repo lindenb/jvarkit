@@ -11,20 +11,20 @@ import java.util.Comparator;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.SortingCollection;
-import net.sf.samtools.SAMFileHeader.SortOrder;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SortingCollection;
+import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class CoverageNormalizer extends AbstractCommandLineProgram
 	{
@@ -72,9 +72,8 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 		return "normalize BAM coverage";
 		}
 	
-	private int run(SAMFileReader sfr) throws IOException
+	private int run(SamReader sfr) throws IOException
 		{
-		sfr.setValidationStringency(ValidationStringency.LENIENT);
 		SAMSequenceDictionary dictionary=sfr.getFileHeader().getSequenceDictionary();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dictionary);
 		File tmpFile1=File.createTempFile("cov_", ".dat.gz", this.tmpDir);
@@ -304,13 +303,13 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 				}
 			}
 		
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		try
 			{
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
@@ -318,7 +317,7 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 				info("Reading from "+filename);
 				File f=new File(filename);
 				if(tmpDir==null) tmpDir=f.getParentFile();
-				sfr=new SAMFileReader(f);
+				sfr=SamFileReaderFactory.mewInstance().open(f);
 				}
 			else
 				{
@@ -345,7 +344,7 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 			}
 		finally
 			{
-			if(sfr!=null) sfr.close();
+			CloserUtil.close(sfr);
 			}
 
 		}

@@ -1,8 +1,8 @@
 package com.github.lindenb.jvarkit.tools.tview;
 
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.picard.reference.ReferenceSequence;
-import net.sf.samtools.SAMRecord;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequence;
+import htsjdk.samtools.SAMRecord;
 
 public abstract class AbstractHandler implements TViewHandler
 	{

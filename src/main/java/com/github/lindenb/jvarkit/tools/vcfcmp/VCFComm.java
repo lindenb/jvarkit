@@ -4,30 +4,29 @@
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.SortingCollection;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
-import org.broadinstitute.variant.variantcontext.GenotypeType;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
-import org.broadinstitute.variant.variantcontext.writer.Options;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
-import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeaderLineType;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.SortingCollection;
+
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.GenotypeType;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 
 
 /**
@@ -101,7 +100,7 @@ public class VCFComm extends AbstractVCFCompare {
 			variants=this.factory.make();
 			variants.setDestructiveIteration(true);
 			
-			List<String> newSampleNames=new ArrayList<>();
+			List<String> newSampleNames=new ArrayList<String>();
 			Set<String> sampleSet=new HashSet<String>();
 			for(int i=opt.getOptInd();i< args.length;++i)
 				{
@@ -144,7 +143,7 @@ public class VCFComm extends AbstractVCFCompare {
 					);
 
 			
-			VariantContextWriter w= VariantContextWriterFactory.create(System.out,null,EnumSet.noneOf(Options.class));
+			VariantContextWriter w= VCFUtils.createVariantContextWriterToStdout();
 			w.writeHeader(header);
 			List<LineAndFile> row=new ArrayList<LineAndFile>(super.inputs.size());
 			

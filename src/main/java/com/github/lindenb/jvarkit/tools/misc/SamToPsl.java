@@ -1,20 +1,20 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.awt.Color;
-import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.picard.PicardException;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
-import net.sf.samtools.util.CloserUtil;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
+
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -236,9 +236,8 @@ public class SamToPsl extends AbstractCommandLineProgram
 		return aligns;
 		}
 	
-	private void scan(SAMFileReader in) 
+	private void scan(SamReader in) 
 		{
-		in.setValidationStringency(ValidationStringency.LENIENT);
 		SAMSequenceDictionary dict=in.getFileHeader().getSequenceDictionary();
 		if(dict==null) throw new PicardException("Sequence dictionary missing...");
 		SAMRecordIterator iter=in.iterator();
@@ -362,13 +361,12 @@ public class SamToPsl extends AbstractCommandLineProgram
 				}
 			}
 		
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		try
 			{
 			if(opt.getOptInd()==args.length)
 				{
-				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				scan(sfr);
 				sfr.close();
 				}
@@ -377,8 +375,7 @@ public class SamToPsl extends AbstractCommandLineProgram
 				for(int i=opt.getOptInd();i< args.length;++i)
 					{
 					String filename=args[i];
-					info("Reading from "+filename);
-					sfr=new SAMFileReader(new File(filename));
+					sfr=SamFileReaderFactory.mewInstance().open(filename);
 					scan(sfr);
 					sfr.close();
 					}

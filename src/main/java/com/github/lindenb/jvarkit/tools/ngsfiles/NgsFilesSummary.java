@@ -7,16 +7,16 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Date;
 
-import org.broadinstitute.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeader;
 
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMReadGroupRecord;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class NgsFilesSummary extends AbstractScanNgsFilesProgram
@@ -58,10 +58,9 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     protected void readBam(File f)
     	{
     	if(!f.canRead()) return;
-    	SAMFileReader r=null;
+    	SamReader r=null;
     	try {
-			r=new SAMFileReader(f);
-			r.setValidationStringency(ValidationStringency.LENIENT);
+			r=SamFileReaderFactory.mewInstance().open(f);
 			SAMFileHeader h=r.getFileHeader();
 			if(h!=null && h.getReadGroups()!=null)
 				{
@@ -79,7 +78,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 			}
     	finally
     		{
-    		if(r!=null) r.close();
+    		CloserUtil.close(r);
     		}
     	}
    

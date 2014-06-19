@@ -1,14 +1,13 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.PrintWriter;
 
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.SamJsonWriter;
 
 public class SamToJson extends AbstractCommandLineProgram
@@ -53,27 +52,24 @@ public class SamToJson extends AbstractCommandLineProgram
 				}
 			}
 		
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		SamJsonWriter swf=null;
 		try
 			{
 			if(opt.getOptInd()==args.length)
 				{
-				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{	
 				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				sfr=new SAMFileReader(new File(filename));	
+				sfr=SamFileReaderFactory.mewInstance().open(filename);	
 				}
 			else
 				{
 				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
-			sfr.setValidationStringency(ValidationStringency.SILENT);
 			swf=new SamJsonWriter(out, sfr.getFileHeader());
 			swf.setAddCarriageReturn(crlf);
 			swf.setPrintHeader(print_header);

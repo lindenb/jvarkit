@@ -20,7 +20,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Vector;
 import java.util.regex.Pattern;
@@ -53,22 +52,22 @@ import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
 
 
-import org.broad.tribble.readers.TabixReader;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.writer.Options;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriterFactory;
-import org.broadinstitute.variant.vcf.VCFCodec;
-import org.broadinstitute.variant.vcf.VCFHeader;
+import htsjdk.tribble.readers.TabixReader;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
-import net.sf.picard.cmdline.CommandLineProgram;
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.util.Log;
+import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import htsjdk.samtools.util.Log;
+
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 class VCFFileRef
 	{
@@ -151,7 +150,7 @@ class VCFInternalFrame extends JInternalFrame
 		pane=new JPanel(new BorderLayout(5,5));
 		
 		ByteArrayOutputStream baos=new ByteArrayOutputStream();
-		VariantContextWriter w=VariantContextWriterFactory.create(baos, null, EnumSet.noneOf(Options.class));
+		VariantContextWriter w=VCFUtils.createVariantContextWriterToOutputStream(baos);
 		w.writeHeader(ref.header);
 		
 		tabbedPane.addTab("Header", pane);
@@ -794,6 +793,7 @@ public class VcfViewGui
     	InputStream in=IOUtils.openFileForReading(vcfFile);
     	r=new VcfIterator(in);
     	vfr.header=r.getHeader();
+    	r.close();
     	in.close();
     	return vfr;
     	}

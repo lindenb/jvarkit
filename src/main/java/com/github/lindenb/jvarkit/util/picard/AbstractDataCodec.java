@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import net.sf.samtools.util.SortingCollection;
+import htsjdk.samtools.util.SortingCollection;
 
 public abstract class AbstractDataCodec<T>
 	implements SortingCollection.Codec<T>

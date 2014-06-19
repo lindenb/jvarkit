@@ -14,25 +14,25 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
 
-import org.broad.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIterator;
 
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMReadGroupRecord;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
-import net.sf.samtools.util.CloserUtil;
-import net.sf.samtools.util.SequenceUtil;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SequenceUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 
 /**
@@ -282,7 +282,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			return -1;
 			}
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-		List<SAMFileReader> readers=new ArrayList<SAMFileReader>();
+		List<SamReader> readers=new ArrayList<SamReader>();
 
 		PrintStream out=System.out;
 		try
@@ -294,7 +294,8 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			SAMSequenceDictionary dict= indexedFastaSequenceFile.getSequenceDictionary();
 			if(dict==null)
 				{
-				error("Cannot get sequence dictionary for "+refFile);
+				error("Cannot get sequence dictionary for "+refFile+". "+
+						this.getMessageBundle("picard.dictionary.needed"));
 				return -1;
 				}
 			/* load chrom aliases */
@@ -328,9 +329,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 				{
 				File bamFile=new File(args[optind]);
 				info("Opening "+bamFile);
-				SAMFileReader samFileReaderScan=new SAMFileReader(bamFile);
-				
-				samFileReaderScan.setValidationStringency(ValidationStringency.SILENT);
+				SamReader samFileReaderScan=SamFileReaderFactory.mewInstance().open(bamFile);
 				readers.add(samFileReaderScan);
 				
 				SAMFileHeader header= samFileReaderScan.getFileHeader();
@@ -373,7 +372,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			out.println();
 			
 			
-			List<RegionCaptured> regionsCaptured=new ArrayList<>();
+			List<RegionCaptured> regionsCaptured=new ArrayList<RegionCaptured>();
 			if(bedFile!=null)
 				{
 				int N=0;
@@ -475,7 +474,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 					sample2depth.put(sample, depth);
 					}
 				List<SAMRecordIterator> iterators=new ArrayList<SAMRecordIterator>();
-				for(SAMFileReader r:readers)
+				for(SamReader r:readers)
 					{
 					iterators.add(r.query(roi.getChromosome(), roi.getStart()+1, roi.getEnd(), false));
 					}
@@ -585,7 +584,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			}
 		finally
 			{
-			for(SAMFileReader r:readers) CloserUtil.close(r);
+			for(SamReader r:readers) CloserUtil.close(r);
 			CloserUtil.close(indexedFastaSequenceFile);
 			}	
 		}

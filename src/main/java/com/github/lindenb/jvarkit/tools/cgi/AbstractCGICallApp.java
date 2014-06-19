@@ -3,7 +3,7 @@ package com.github.lindenb.jvarkit.tools.cgi;
 import java.io.IOException;
 import java.io.InputStream;
 
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloserUtil;
 
 public abstract class AbstractCGICallApp extends AbstractCGI
 	{

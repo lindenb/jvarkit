@@ -11,21 +11,21 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import net.sf.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
 
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFContigHeaderLine;
-import org.broadinstitute.variant.vcf.VCFFilterHeaderLine;
-import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
-import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFContigHeaderLine;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 
 /**
@@ -574,6 +574,7 @@ public static class DefaultXMLFormatHandler extends AbstractXMLFormatHandler
 					XMLStreamWriter w, int index, Object o)
 					throws XMLStreamException {
 			}
+		@SuppressWarnings("rawtypes")
 		@Override
 		protected void handleArray(VCFHeader header, XMLStreamWriter w,
 					Collection array) throws XMLStreamException {
@@ -613,7 +614,7 @@ public static class DefaultXMLFormatHandler extends AbstractXMLFormatHandler
 			}
 		@Override
 		protected void handleArray(VCFHeader header, XMLStreamWriter w,
-					Collection array) throws XMLStreamException {
+					@SuppressWarnings("rawtypes") Collection array) throws XMLStreamException {
 			if(array.size()!=4) return;
 			w.writeStartElement(getKey());
 			int i=0;

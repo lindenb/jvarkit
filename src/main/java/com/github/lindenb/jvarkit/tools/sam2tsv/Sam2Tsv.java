@@ -7,16 +7,16 @@ import java.io.PrintWriter;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-import net.sf.picard.PicardException;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.CloserUtil;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 /**
  * https://github.com/lindenb/jvarkit/wiki/SAM2Tsv
@@ -247,9 +247,8 @@ public class Sam2Tsv
 	
 	
 	
-	private void scan(SAMFileReader r) 
+	private void scan(SamReader r) 
 		{
-		r.setValidationStringency(ValidationStringency.LENIENT);
 		SAMRecordIterator iter=null;
 		try{
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(r.getFileHeader().getSequenceDictionary());
@@ -330,7 +329,7 @@ public class Sam2Tsv
 			L3=new StringBuilder();
 			}
 		
-		SAMFileReader samFileReader=null;
+		SamReader samFileReader=null;
 		try
 			{
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
@@ -338,7 +337,7 @@ public class Sam2Tsv
 			if(getopt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				samFileReader=new SAMFileReader(System.in);
+				samFileReader=SamFileReaderFactory.mewInstance().openStdin();
 				scan(samFileReader);
 				samFileReader.close();
 				}
@@ -348,7 +347,7 @@ public class Sam2Tsv
 					{
 					File bamFile=new File(args[optind]);
 					info("Reading "+bamFile);
-					samFileReader=new SAMFileReader(bamFile);
+					samFileReader=SamFileReaderFactory.mewInstance().open(bamFile);
 					scan(samFileReader);
 					samFileReader.close();
 					}

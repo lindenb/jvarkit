@@ -1,7 +1,7 @@
 package com.github.lindenb.jvarkit.util.picard;
 
-import net.sf.picard.util.Interval;
-import net.sf.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.SAMSequenceDictionary;
 
 import com.github.lindenb.jvarkit.lang.Function;
 

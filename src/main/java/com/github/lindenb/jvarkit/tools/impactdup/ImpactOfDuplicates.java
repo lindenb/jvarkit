@@ -12,22 +12,24 @@ import java.util.Comparator;
 import java.util.List;
 
 
-import net.sf.picard.cmdline.CommandLineProgram;
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.cmdline.Usage;
-import net.sf.picard.io.IoUtil;
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalList;
-import net.sf.picard.util.Log;
-import net.sf.picard.util.SamRecordIntervalIteratorFactory;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.util.BinaryCodec;
-import net.sf.samtools.util.CloseableIterator;
-import net.sf.samtools.util.SortingCollection;
+import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalList;
+import htsjdk.samtools.util.Log;
+import htsjdk.samtools.util.RuntimeEOFException;
+import htsjdk.samtools.util.SamRecordIntervalIteratorFactory;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.BinaryCodec;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.SortingCollection;
 
 public class ImpactOfDuplicates extends CommandLineProgram
     {
@@ -143,7 +145,7 @@ public class ImpactOfDuplicates extends CommandLineProgram
 	        	{
 	            d.tid=this.readInt();
 	        	}
-        	catch(net.sf.samtools.util.RuntimeEOFException err)
+        	catch(RuntimeEOFException err)
         		{
         		return null;
         		}
@@ -239,7 +241,7 @@ public class ImpactOfDuplicates extends CommandLineProgram
             	long nLines=0L;
             	File inFile=this.INPUT.get(this.bamIndex);
             	log.info("Processing "+inFile);
-                IoUtil.assertFileIsReadable(inFile);
+                IOUtil.assertFileIsReadable(inFile);
                 SAMFileReader samReader=null;
                 CloseableIterator<SAMRecord> iter=null;
                 try
@@ -266,8 +268,8 @@ public class ImpactOfDuplicates extends CommandLineProgram
 		    	     	    	intervalList.add(interval);
 		    	     	    	}
 		    	     	    in.close();
-		    	        intervalList.sort();
-	                    List<Interval> uniqueIntervals=intervalList.getUniqueIntervals(false);
+		    	        intervalList=intervalList.sorted();
+	                    List<Interval> uniqueIntervals=IntervalList.getUniqueIntervals(intervalList,false);
 
 	             	   SamRecordIntervalIteratorFactory sriif=new  SamRecordIntervalIteratorFactory();
 	            	    iter=sriif.makeSamRecordIntervalIterator(samReader, uniqueIntervals, false);

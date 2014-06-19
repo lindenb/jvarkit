@@ -6,7 +6,7 @@ import java.io.PrintStream;
 import java.util.zip.Deflater;
 import java.util.zip.GZIPOutputStream;
 
-import net.sf.picard.fastq.FastqRecord;
+import htsjdk.samtools.fastq.FastqRecord;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;

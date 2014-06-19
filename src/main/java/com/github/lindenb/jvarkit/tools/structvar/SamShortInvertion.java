@@ -6,16 +6,16 @@ import java.util.Arrays;
 
 import java.util.List;
 
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 //import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
@@ -67,7 +67,7 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 				}
 			}
 	
-		SAMFileReader r=null;
+		SamReader r=null;
 		PrintStream out=System.out;
 		//SAMFileWriter w=null;
 		try
@@ -75,20 +75,19 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				r=new SAMFileReader(System.in);
+				r=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				String filename=args[opt.getOptInd()];
 				info("Reading from "+filename);
-				r=new SAMFileReader(new File(filename));
+				r=SamFileReaderFactory.mewInstance().open(new File(filename));
 				}
 			else
 				{
 				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
-			r.setValidationStringency(ValidationStringency.SILENT);
 			SAMFileHeader header=r.getFileHeader();
 			OtherCanonicalAlignFactory xpalignFactory=new OtherCanonicalAlignFactory(header);
 			int prev_tid=-1;
@@ -172,11 +171,11 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 				if(saList.isEmpty()) continue;
 				for(OtherCanonicalAlign xp:saList)
 					{
-					if(!xp.getChrom().equals(rec.getReferenceName())) continue;
+					if(!xp.getReferenceName().equals(rec.getReferenceName())) continue;
 					
 					if(!rec.getReadNegativeStrandFlag()) //read is plus
 						{
-						if(xp.getStrand()=='+')
+						if(!xp.getReadNegativeStrandFlag())
 							{
 							//info(xp+" vs strand "+rec.getReadNegativeStrandFlag());
 							continue;//ignore both same strand
@@ -184,19 +183,19 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 						}
 					else //read.strand=='-'
 						{
-						if(xp.getStrand()=='-')
+						if(xp.getReadNegativeStrandFlag())
 							{
 							//info(xp+" vs strand "+rec.getReadNegativeStrandFlag());
 							continue;//ignore both same strand
 							}
 						}
-					if(Math.abs(rec.getUnclippedStart() - xp.getPos()) > max_size_inversion) 
+					if(Math.abs(rec.getUnclippedStart() - xp.getAlignmentStart()) > max_size_inversion) 
 						{
 						//info(xp+" vs pos "+rec.getUnclippedStart());
 						continue;
 						}
-					int chromStart=Math.min(rec.getUnclippedStart(), xp.getPos())-1;
-					int chromEnd=Math.max(rec.getUnclippedEnd(), xp.getPos())-1;
+					int chromStart=Math.min(rec.getUnclippedStart(), xp.getAlignmentStart())-1;
+					int chromEnd=Math.max(rec.getUnclippedEnd(), xp.getAlignmentStart())-1;
 					for(int x=chromStart;x<=chromEnd && x< coverage.length;++x )
 						{
 						if(coverage[x]<Short.MAX_VALUE) coverage[x]++;

@@ -8,18 +8,18 @@ import java.util.List;
 import java.util.Map;
 
 
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalList;
-//import net.sf.picard.util.Log;
-import net.sf.picard.util.SamLocusIterator;
-import net.sf.picard.util.SamLocusIterator.RecordAndOffset;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMSequenceRecord;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalList;
+//import htsjdk.samtools.util.Log;
+import htsjdk.samtools.util.SamLocusIterator;
+import htsjdk.samtools.util.SamLocusIterator.RecordAndOffset;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceRecord;
 
 
 public class TView

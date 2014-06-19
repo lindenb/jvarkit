@@ -1,34 +1,34 @@
 package com.github.lindenb.jvarkit.tools.rnaseq;
 
-import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import org.broad.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIterator;
 
-import net.sf.picard.PicardException;
-import net.sf.picard.util.Interval;
-import net.sf.picard.util.IntervalTreeMap;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMProgramRecord;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.util.CloserUtil;
+import com.github.lindenb.jvarkit.util.picard.PicardException;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
+
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene.Exon;
 
@@ -160,9 +160,8 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 		return false;
 		}
 	
-	private void scan(SAMFileReader in) 
+	private void scan(SamReader in) 
 		{
-		in.setValidationStringency(ValidationStringency.LENIENT);
 		SAMSequenceDictionary dict=in.getFileHeader().getSequenceDictionary();
 		if(dict==null) throw new PicardException("Sequence dictionary missing");
 		SAMRecordIterator iter=in.iterator();
@@ -215,7 +214,7 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
-		SamWriterFactory swf=SamWriterFactory.newInstance();
+		SAMFileWriterFactory swf=new SAMFileWriterFactory();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
 		Set<String> kgUris=new HashSet<String>();
@@ -243,7 +242,7 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 			return -1;
 			}
 		
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		try
 			{
 
@@ -262,34 +261,31 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 				}
 			if(opt.getOptInd()==args.length)
 				{
-				info("Reading from stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				sfr=new SAMFileReader(new File(filename));
+				sfr=SamFileReaderFactory.mewInstance().open(filename);
 				}
 			else
 				{
 				error("Illegal number of args");
 				return -1;
 				}
-			sfr.setValidationStringency(ValidationStringency.SILENT);
 			SAMFileHeader header=sfr.getFileHeader().clone();
 			SAMProgramRecord p=header.createProgramRecord();
 			p.setCommandLine(getProgramCommandLine());
 			p.setProgramVersion(getVersion());
 			p.setProgramName(getProgramName());
-			this.sfw=swf.make(header, System.out);
+			this.sfw=swf.makeSAMWriter(header, true,System.out);
 			
 			header=sfr.getFileHeader().clone();
 			p=header.createProgramRecord();
 			p.setCommandLine(getProgramCommandLine());
 			p.setProgramVersion(getVersion());
 			p.setProgramName(getProgramName());
-			this.weird=swf.make(header, new NullOuputStream());
+			this.weird=swf.makeSAMWriter(header,true, new NullOuputStream());
 			
 			scan(sfr);
 			sfr.close();

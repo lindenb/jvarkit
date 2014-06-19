@@ -18,10 +18,10 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
-import net.sf.picard.metrics.Header;
-import net.sf.picard.metrics.MetricBase;
-import net.sf.picard.metrics.MetricsFile;
-import net.sf.picard.util.Histogram;
+import htsjdk.samtools.metrics.Header;
+import htsjdk.samtools.metrics.MetricBase;
+import htsjdk.samtools.metrics.MetricsFile;
+import htsjdk.samtools.util.Histogram;
 
 public class PicardMetricsToXML
 	extends AbstractCommandLineProgram

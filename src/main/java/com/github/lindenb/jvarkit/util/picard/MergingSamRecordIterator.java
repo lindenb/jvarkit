@@ -5,18 +5,18 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import net.sf.picard.util.PeekableIterator;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordComparator;
-import net.sf.samtools.SAMRecordCoordinateComparator;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.PeekableIterator;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordComparator;
+import htsjdk.samtools.SAMRecordCoordinateComparator;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloseableIterator;
 
 /** a fast version of merging samrecorditerator, no merging of read groups
  * assuming sam sequence dictionaries are the same */
 public class MergingSamRecordIterator implements Iterator<SAMRecord>,CloseableIterator<SAMRecord>
 	{
-	private List<PeekableIterator<SAMRecord>> iterators=new ArrayList<>();
+	private List<PeekableIterator<SAMRecord>> iterators=new ArrayList<PeekableIterator<SAMRecord>>();
 	private SAMRecord _next=null;
 	private SAMRecordComparator comparator=new SAMRecordCoordinateComparator();
 	public MergingSamRecordIterator(List<SAMRecordIterator> iterators)

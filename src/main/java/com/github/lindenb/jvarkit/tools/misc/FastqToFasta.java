@@ -3,9 +3,9 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.File;
 import java.io.PrintStream;
 
-import net.sf.picard.fastq.FastqRecord;
-import net.sf.samtools.SAMFileReader.ValidationStringency;
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;

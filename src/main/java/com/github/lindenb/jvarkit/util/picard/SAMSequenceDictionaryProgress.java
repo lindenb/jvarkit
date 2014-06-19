@@ -3,9 +3,9 @@ package com.github.lindenb.jvarkit.util.picard;
 import java.util.logging.Logger;
 
 
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 
 public class SAMSequenceDictionaryProgress
 	{

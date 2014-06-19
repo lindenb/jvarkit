@@ -3,9 +3,9 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.PrintStream;
 import java.util.regex.Pattern;
 
-import net.sf.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloserUtil;
 
-import org.broad.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;

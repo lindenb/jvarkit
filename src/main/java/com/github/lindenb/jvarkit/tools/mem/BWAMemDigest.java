@@ -9,19 +9,20 @@ import java.io.PrintWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
-import net.sf.picard.cmdline.Option;
-import net.sf.picard.cmdline.StandardOptionDefinitions;
-import net.sf.picard.util.Log;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordIterator;
-import net.sf.samtools.util.CloserUtil;
+import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
+import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+import htsjdk.samtools.util.Log;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 /**
  * : ant  bwamemdigest && ~/package/bwa/bwa-0.7.4/bwa mem \
@@ -72,9 +73,9 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 					"\t"+readNum+
 					"\tXP"+
 				    "\t"+record.getCigarString()+
-				    "\t"+xp.getChrom()+
-				    "\t"+xp.getPos()+
-				    "\t"+xp.getStrand()+
+				    "\t"+xp.getReferenceName()+
+				    "\t"+xp.getAlignmentStart()+
+				    "\t"+(xp.getReadNegativeStrandFlag()?"-":"+")+
 				    "\t"+xp.getCigarString()
 					);
     		}
@@ -141,19 +142,18 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 		DefaultMemOuput output=new DefaultMemOuput();
 		
 		final float limitcigar=0.15f;
-		SAMFileReader r=null;
+		SamReader r=null;
 		try {
 			
 			
 			if(IN==null)
 				{
-				r=new SAMFileReader(System.in);
+				r=SamFileReaderFactory.mewInstance().openStdin();
 				}
 			else
 				{
-				r=new SAMFileReader(IN);
+				r=SamFileReaderFactory.mewInstance().open(IN);
 				}
-		r.setValidationStringency(super.VALIDATION_STRINGENCY);
 		SAMFileHeader header=r.getFileHeader();
 		
 		if(IGNORE_BED!=null)
@@ -222,9 +222,9 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 				{
 				if(ignore!=null &&
 						ignore.containsOverlapping(
-						xp.getChrom(),
-						xp.getPos(),
-						xp.getPos()
+						xp.getReferenceName(),
+						xp.getAlignmentStart(),
+						xp.getAlignmentStart()
 						))
 					{
 					LOG.info("ignore "+record);
@@ -273,7 +273,7 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 			}
 		finally
 			{
-			if(r!=null) r.close();
+			CloserUtil.close(r);
 			CloserUtil.close(output);
 			}
 		return 0;
