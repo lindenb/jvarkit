@@ -15,38 +15,22 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
-
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-
-import com.github.lindenb.jvarkit.tools.misc.ExtendBed;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
 
 public class DumpExomeVariantServerData
 	extends AbstractCommandLineProgram
 	{
-	private static Log LOG=Log.getInstance(ExtendBed.class);
-    @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + " Download data from EVS. ";
-
-	
-    @Option(shortName="N",doc=" (int) download using a step of  'S' bases..",optional=true)
-	public int STEP_SIZE=15000;
-    
-    @Option(shortName="L",doc=" limit to L records (for debugging)",optional=true)
-	public long LIMIT=-1L;
-   
-    
+	private int STEP_SIZE=25000;
+    private long LIMIT=-1L;
 	private long count_records=0L;
 	public static final String EVS_NS="http://webservice.evs.gs.washington.edu/";
 	private DocumentBuilder documentBuilder;
 	private Transformer transformer;
-	public DumpExomeVariantServerData()
+	private DumpExomeVariantServerData()
 		{
 		}
 	
@@ -63,16 +47,30 @@ public class DumpExomeVariantServerData
 			}
 		return null;
 		}
-	
+	private final int MAX_TRY=10; 
 	private Element fetchEvsData(String chrom,int start,int end)
 		{
-		LOG.info(chrom+":"+start+"-"+end+ " N="+count_records);
+		info(chrom+":"+start+"-"+end+ " N="+count_records);
 		try
 			{
 		    URL url = new URL("http://gvs-1.gs.washington.edu/wsEVS/EVSDataQueryService");
 	
 		    // Send data
-		    URLConnection conn = url.openConnection();
+		    URLConnection conn = null;
+		    for(int n_try=0;n_try<MAX_TRY;++n_try)
+			    {
+		    	try
+		    		{
+		    		conn=url.openConnection();
+		    		}
+		    	catch(java.net.ConnectException err)
+		    		{
+		    		if(n_try+1==MAX_TRY) throw err;
+		    		System.err.println(
+		    			"Error: trying "+(n_try)+"/"+MAX_TRY+" "+url
+		    			);
+		    		}	
+			    }
 		    conn.setDoOutput(true);
 		    PrintStream wr=new PrintStream(conn.getOutputStream());
 		    wr.print("<?xml version='1.0' ?>"+
@@ -165,8 +163,8 @@ public class DumpExomeVariantServerData
 	
 	
 	
-	@Override
-	protected int doWork()
+
+	private int doWork()
 		{
 		try {
 			DocumentBuilderFactory f=DocumentBuilderFactory.newInstance();
@@ -217,6 +215,67 @@ public class DumpExomeVariantServerData
 		return 0;
 		}
 	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/EVS2Bed";
+		}
+	
+	@Override
+	public String getProgramName() {
+		return "EVS2Bed";
+		}
+	
+	@Override
+	public String getProgramDescription() {
+		return "Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.";
+		}
+	
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		out.println("-N (integer) download using a step of  'N' bases. Optional. Default:"+STEP_SIZE);
+		out.println("-L (integer) limit to L records (for debugging). Optional. ");
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+"N:L:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'N': this.STEP_SIZE=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
+				case 'L': this.LIMIT=  Integer.parseInt(opt.getOptArg()); break;
+				default:
+					{
+					switch(handleOtherOptions(c, opt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		
+		
+		try
+			{
+			return doWork();
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			
+			}
+		}
 	public static void main(String[] args)
 		{
 		new DumpExomeVariantServerData().instanceMainWithExit(args);

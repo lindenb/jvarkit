@@ -92,6 +92,41 @@ public class VCFComparePredictions extends AbstractVCFCompare {
 			}
 		return so_terms;
 		}
+	private static void printSOSet(PrintWriter out,
+		Set<SequenceOntologyTree.Term> set)
+		{
+		for(SequenceOntologyTree.Term t:set)
+			{
+			out.print(" ");
+			out.print(t.getAcn()+"["+t.getLabel()+"]");
+			}
+		}
+	private static void printDiscordantSO(
+		PrintWriter out,
+		Input input1,
+		Set<SequenceOntologyTree.Term> so1,
+		Input input2,
+		Set<SequenceOntologyTree.Term> so2
+		)
+		{
+		out.print("\t");
+		Set<SequenceOntologyTree.Term> set=new HashSet<>(so1);
+		set.removeAll(so2);
+		if(!set.isEmpty())
+			{
+			out.print("only in "+input1.filename+":");
+			printSOSet(out,set);
+			}
+		out.print("\t");
+		set=new HashSet<>(so2);
+		set.removeAll(so1);
+		if(!set.isEmpty())
+			{
+			out.print("only in "+input2.filename+":");
+			printSOSet(out,set);
+			}
+		out.println();
+		}
 	
 	private static Set<SequenceOntologyTree.Term> getSnpEffSoTerms(SnpEffPredictionParser parser,VariantContext ctx)
 		{
@@ -191,42 +226,67 @@ public class VCFComparePredictions extends AbstractVCFCompare {
 						
 						for(int i=0;i+1< row.size();++i)
 							{
+							Input input1=this.inputs.get(row.get(i).fileIdx);
 							VariantContext ctx1=row.get(i).getContext();
 							PredictionTuple predtuple1=predictionTuples.get(row.get(i).fileIdx);
+							List<VepPrediction> vepPredictions1= predtuple1.vepPredictionParser.getPredictions(ctx1);
+							List<SnpEffPrediction> snpEffPredictions1= predtuple1.snpEffPredictionParser.getPredictions(ctx1);
 							Set<SequenceOntologyTree.Term> so_vep_1= getVepSoTerms(predtuple1.vepPredictionParser,ctx1);
 							Set<SequenceOntologyTree.Term> so_snpeff_1= getSnpEffSoTerms(predtuple1.snpEffPredictionParser,ctx1);
 							for(int j=i+1;j< row.size();++j)
 								{
+								Input input2=this.inputs.get(row.get(j).fileIdx);
 								VariantContext ctx2=row.get(j).getContext();
 								PredictionTuple predtuple2=predictionTuples.get(row.get(j).fileIdx);
+								List<VepPrediction> vepPredictions2= predtuple2.vepPredictionParser.getPredictions(ctx2);
+								List<SnpEffPrediction> snpEffPredictions2= predtuple2.snpEffPredictionParser.getPredictions(ctx2);
+
 								Set<SequenceOntologyTree.Term> so_vep_2= getVepSoTerms(predtuple2.vepPredictionParser,ctx2);
 								Set<SequenceOntologyTree.Term> so_snpeff_2= getSnpEffSoTerms(predtuple2.snpEffPredictionParser,ctx2);
-
-								Set<SequenceOntologyTree.Term> discordant_so= unshared(so_vep_1, so_vep_2);
-								if(!discordant_so.isEmpty())
+								
+								if(vepPredictions1.size()!=vepPredictions2.size())
 									{
 									startLine(out,ctx);
-									out.print("\tVEP discordant SO:terms between ");
-									out.print(this.inputs.get(row.get(i).fileIdx).filename);
-									out.print(" and ");
-									out.print(this.inputs.get(row.get(j).fileIdx).filename);
-									out.print("\t");
-									out.print(discordant_so);
+									out.print("\tVEP discordant transcripts count");
+									out.print("\t"+input1.filename+":"+vepPredictions1.size());
+									out.print("\t"+input2.filename+":"+vepPredictions2.size());
 									out.println();
 									printed=true;
 									}
-								
-								discordant_so= unshared(so_snpeff_1, so_snpeff_2);
-								if(!discordant_so.isEmpty())
+								if(snpEffPredictions1.size()!=snpEffPredictions2.size())
 									{
 									startLine(out,ctx);
-									out.print("\tSNPEff discordant SO:terms between ");
-									out.print(this.inputs.get(row.get(i).fileIdx).filename);
-									out.print(" and ");
-									out.print(this.inputs.get(row.get(j).fileIdx).filename);
-									out.print("\t");
-									out.print(discordant_so);
+									out.print("\tSNPEFF discordant transcripts count");
+									out.print("\t"+input1.filename+":"+snpEffPredictions1.size());
+									out.print("\t"+input2.filename+":"+snpEffPredictions2.size());
 									out.println();
+									printed=true;
+									}
+
+								
+								if(!unshared(so_vep_1, so_vep_2).isEmpty())
+									{
+									startLine(out,ctx);
+									out.print("\tVEP discordant SO:terms");
+									printDiscordantSO(out,
+											input1,
+											so_vep_1,
+											input2,
+											so_vep_2
+											);
+									printed=true;
+									}
+								
+								if(!unshared(so_snpeff_1, so_snpeff_2).isEmpty())
+									{
+									startLine(out,ctx);
+									out.print("\tSNPEFF discordant SO:terms");
+									printDiscordantSO(out,
+										input1,
+										so_snpeff_1,
+										input2,
+										so_snpeff_2
+										);
 									printed=true;
 									}
 								

@@ -839,7 +839,7 @@ or
 </target>		
 	
 <target name="evs2bed" >
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/DumpExomeVariantServerData.java"
 		main="com.github.lindenb.jvarkit.tools.evs2bed.DumpExomeVariantServerData"
 		name="evs2bed"
