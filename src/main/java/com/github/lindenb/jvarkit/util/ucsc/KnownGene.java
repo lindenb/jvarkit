@@ -1,5 +1,7 @@
 package com.github.lindenb.jvarkit.util.ucsc;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -299,7 +301,43 @@ public class KnownGene implements Iterable<Integer>,Feature
 			this.exonStarts=new int[]{0};
 			this.exonEnds=new int[]{0};
 			}
-	
+		/** column to be retrieved in sql query */
+		public static final String SQL_COLUMNS[]={
+			"name","chrom","strand",
+			"txStart","txEnd",
+			"cdsStart","cdsEnd",
+			"exonCount",
+			"exonStarts",
+			"exonEnds"
+			};
+		
+		public KnownGene(ResultSet row) throws SQLException
+			{
+			this.name = row.getString( SQL_COLUMNS[0]);
+			this.chrom= row.getString(SQL_COLUMNS[1]);
+	        this.strand = row.getString(SQL_COLUMNS[2]).charAt(0);
+	        this.txStart = row.getInt(SQL_COLUMNS[3]);
+	        this.txEnd = row.getInt(SQL_COLUMNS[4]);
+	        this.cdsStart= row.getInt(SQL_COLUMNS[5]);
+	        this.cdsEnd= row.getInt(SQL_COLUMNS[6]);
+	        int exonCount=row.getInt(SQL_COLUMNS[7]);
+	        this.exonStarts = new int[exonCount];
+	        this.exonEnds = new int[exonCount];
+	        
+            int index=0;
+            for(String s:row.getString(SQL_COLUMNS[8]).split("[,]"))
+            	{
+            	this.exonStarts[index++]=Integer.parseInt(s);
+            	}
+            index=0;
+            for(String s:row.getString(SQL_COLUMNS[9]).split("[,]"))
+            	{
+            	this.exonEnds[index++]=Integer.parseInt(s);
+            	}
+
+			}
+		
+		
 		public KnownGene(String tokens[])
 			{
 			this.name = tokens[0];
