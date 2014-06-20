@@ -7,17 +7,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.util.logging.Level;
 import java.util.zip.GZIPInputStream;
 
 import htsjdk.tribble.TribbleException;
-
+import htsjdk.tribble.readers.LineIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
@@ -79,7 +79,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 			} 
     	catch (Exception e)
     		{
-    		getLogger().warning( "Error in "+f);
+    		warning( "Error in "+f);
     		System.out.println(f);
 			}
     	finally
@@ -88,6 +88,91 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     		CloserUtil.close(r);
     		}
     	}
+    
+    private void testBed(File f)
+		{
+    	LineIterator iter=null;
+    	try
+	    	{
+    		java.util.regex.Pattern tab=java.util.regex.Pattern.compile("[\t]");
+			long n=0;
+		
+			iter=IOUtils.openFileForLineIterator(f);
+			while(iter.hasNext() && (NUM<0 || n<NUM))
+				{
+				String line=iter.next();
+				String tokens[]=tab.split(line);
+				if(tokens.length<3)
+					{
+					warning( "BED error. Line "+(n+1)+" not enough columns in "+f);
+					System.out.println(f);
+					break;
+					}
+				if(tokens[0].trim().isEmpty())
+					{
+					warning( "BED error. Line "+(n+1)+" Bad chrom in "+f);
+					System.out.println(f);
+					break;
+					}
+				int start=0;
+				int end=0;
+				
+				try
+					{
+					start=Integer.parseInt(tokens[1]);
+					}
+				catch(NumberFormatException err)
+					{
+					warning( "BED error. Line "+(n+1)+" Bad start in "+f);
+					System.out.println(f);
+					break;
+					}
+				
+				if(start<0)
+					{
+					warning( "BED error. Line "+(n+1)+" Bad start in "+f);
+					System.out.println(f);
+					break;
+					}
+				
+				try
+					{
+					end=Integer.parseInt(tokens[2]);
+					}
+				catch(NumberFormatException err)
+					{
+					warning( "BED error. Line "+(n+1)+" Bad end in "+f);
+					System.out.println(f);
+					break;
+					}
+				if(end<start)
+					{
+					warning( "BED error. Line "+(n+1)+" end<start in "+f);
+					System.out.println(f);
+					break;
+					}
+
+
+				++n;
+				}
+			if(n==0)
+				{
+				warning("No row in "+f);
+				}
+	    	}
+    	catch (Exception e)
+			{
+			warning( "Error in "+f);
+			System.out.println(f);
+			}
+		finally
+			{
+			CloserUtil.close(iter);
+			}
+		}
+
+
+    
     private void testVcf(File f,InputStream in) throws IOException,TribbleException
     	{
     	long n=0;
@@ -199,7 +284,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 		getLogger().fine("Scanning "+f);
 		if(f.isDirectory())
 			{
-			getLogger().info("skipping "+f+" (directory)");
+			info("skipping "+f+" (directory)");
 			}
 		else
 			{	
@@ -216,12 +301,16 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 				{
 				testFastq(f);
 				}
+			else if(name.endsWith(".bed") || name.endsWith(".bed.gz"))
+				{
+				testBed(f);
+				}
 			}
 		}
 	
 	@Override
 	public String getProgramDescription() {
-		return "Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ)";
+		return "Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED)";
 		}
 	
 	@Override
@@ -232,15 +321,11 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
 		
 		out.println(" -V (validation stringency). Optional");
 		out.println(" -N (number). Number of records to test in each file (BAM, FASTQ, VCF...). ptional");
 
 		
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
-		out.println(" -r (file)  fasta sequence file indexed with picard. Required.");
 		}
 
 	
@@ -249,20 +334,10 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 		{
 		GetOpt getopt=new GetOpt();
 		int c;
-		while((c=getopt.getopt(args, "vhN:V:N:L:"))!=-1)
+		while((c=getopt.getopt(args,super.getGetOptDefault()+ "N:V:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'v':
-					{
-					System.out.println(getVersion());
-					return 0;
-					}
-				case 'h':
-					{
-					printUsage();
-					return 0;
-					}
 				case 'N':
 					{
 					this.NUM=Integer.parseInt(getopt.getOptArg());
@@ -274,15 +349,14 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 					getLogger().info("setting validation stringency to "+this.validationStringency);
 					break;
 					}
-				case 'L':
-					{
-					getLogger().setLevel(Level.parse(getopt.getOptArg()));
-					break;
-					}
 				default:
 					{
-					System.err.println("Unknown Option:"+getopt.getOptOpt()+" or missing argument");
-					return -1;
+					switch(handleOtherOptions(c, getopt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
 					}
 				}
 			}
