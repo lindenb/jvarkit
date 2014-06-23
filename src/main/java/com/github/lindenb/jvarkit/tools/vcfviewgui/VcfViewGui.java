@@ -13,7 +13,6 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
@@ -51,6 +50,7 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
 
+import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -59,15 +59,12 @@ import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Log;
 
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 class VCFFileRef
 	{
@@ -771,44 +768,85 @@ class VCFFrame extends JDialog
  *
  */
 public class VcfViewGui
-	extends CommandLineProgram
+	extends AbstractCommandLineProgram
 	{
-	private static Log LOG=Log.getInstance(VcfViewGui.class);
-	
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"Simple java-Swing-based VCF viewer. ";
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="VCF files to process.",minElements=0)
-	public List<File> IN=new ArrayList<File>();
-    
-    @Option(shortName="HOST", doc="IGV host. example: '127.0.0.1' ",optional=true)
-    public String IGV_HOST=null;
-    @Option(shortName="PORT", doc="IGV IP. example: '60151' ",optional=true)
-    public Integer IGV_PORT=null;
+    private String IGV_HOST=null;
+    private Integer IGV_PORT=null;
 
     private VCFFileRef create(File vcfFile) throws IOException
     	{
     	VCFFileRef vfr=new VCFFileRef();
     	vfr.vcfFile=vcfFile;
-    	VcfIterator r=null;
-    	InputStream in=IOUtils.openFileForReading(vcfFile);
-    	r=new VcfIterator(in);
-    	vfr.header=r.getHeader();
-    	r.close();
-    	in.close();
+    	LineIterator r=IOUtils.openFileForLineIterator(vcfFile);
+    	VCFUtils.CodecAndHeader cah=VCFUtils.parseHeader(r);
+    	CloserUtil.close(r);
+    	vfr.header=cah.header;
+    	vfr.codec=cah.codec;
     	return vfr;
     	}
     
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/VcfViewGui";
+    	}
+    
+    @Override
+	public String getProgramDescription() {
+		return "Simple java-Swing-based VCF viewer.";
+		}
+	
 	@Override
-	protected int doWork()
+	public void printOptions(java.io.PrintStream out)
 		{
+		out.println(" -O IGV Host. example: '127.0.0.1'");
+		out.println(" -P IGV Port. example: '60151'");
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+"O:P:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'O': IGV_HOST=opt.getOptArg();break;
+				case 'P': IGV_PORT=Integer.parseInt(opt.getOptArg());break;
+				default:
+					{
+					switch(handleOtherOptions(c, opt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		
+		
+		
 		try
 			{
+			List<File> IN=new ArrayList<File>();
 			JFrame.setDefaultLookAndFeelDecorated(true);
 			JDialog.setDefaultLookAndFeelDecorated(true);
 			List<VCFFileRef> vfrs=new ArrayList<VCFFileRef>();
+			
+			
+			for(int i=opt.getOptInd();i< args.length;++i)
+				{
+				String filename=args[i];
+				IN.add(new File(filename));
+				}
+				
+			
+			
 			if(IN.isEmpty())
 				{
-				LOG.info("NO VCF provided; Opening dialog");
+				info("NO VCF provided; Opening dialog");
 				JFileChooser chooser=new JFileChooser();
 				chooser.setFileFilter(new FileFilter() {
 					@Override
@@ -832,7 +870,7 @@ public class VcfViewGui
 				chooser.setMultiSelectionEnabled(true);
 				if(chooser.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION)
 					{
-					LOG.info("user pressed cancel");
+					info("user pressed cancel");
 					return -1;
 					}
 				File fs[]=chooser.getSelectedFiles();
@@ -848,7 +886,7 @@ public class VcfViewGui
 				{
 				return -1;
 				}
-			LOG.info("showing VCF frame");
+			info("showing VCF frame");
 			Dimension screen=Toolkit.getDefaultToolkit().getScreenSize();
 			VCFFrame f=new VCFFrame(vfrs);
 			f.igvIP=IGV_HOST;
@@ -858,7 +896,7 @@ public class VcfViewGui
 			}
 		catch(Exception err)
 			{
-			LOG.error(err);
+			error(err);
 			return -1;
 			}
 		return 0;

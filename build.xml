@@ -978,7 +978,7 @@ or
 </target>
 	
 <target name="vcfviewgui">
-	<compile-with-picard 
+	<compile-picard-cmd
 		java="**/VcfViewGui.java"
 		main="com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui"
 		name="vcfviewgui"
@@ -1885,17 +1885,49 @@ or
 	
 
  </target>
+<!-- experimental JNLP part -->
+<target name="vcfviewgui-jnlp" depends="vcfviewgui">
+ <mkdir dir="tmp"/>
+  <copy file="dist/vcfviewgui.jar" todir="tmp"/>
+  <copy todir="tmp">
+  	<fileset dir="htsjdk/dist">
+  	      <include name="*.jar"/>
+  	    </fileset>
+  </copy>
+  <signjar verbose="true" keypass="${keytool.keypass}" alias="secret" keystore=".secret.keystore" storepass="${keytool.storepass}">
+  	 <path>
+  	    <fileset dir="tmp">
+    	      <include name="*.jar"/>
+  	    </fileset>
+  	  </path>
+  </signjar>
+	<copy file="./src/main/resources/jnlp/generic.jnlp" toFile="tmp/vcfviewgui.jnlp">
+		<filterchain>
+		        <tokenfilter>
+		    <replacestring from="__MAIN_JAR__" to="vcfviewgui"/>
+		    <replacestring from="__TITLE__" to="VcfViewGui"/>
+		    <replacestring from="__MAIN_CLASS__" to="com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui"/>
+		  </tokenfilter>
+			  </filterchain>
+	</copy>
+</target>
+
+<target name="generate-keypair">
+	 <exec executable="${java.home}/bin/keytool" failonerror="no">
+	 	<arg value="-genkeypair"/>
+	 	<arg value="-keystore"/>
+	 	<arg value=".secret.keystore"/>
+	 	<arg value="-alias"/>
+	 	<arg value="secret"/>
+	 	<arg value="-keypass"/>
+	 	<arg value="${keytool.keypass}"/>
+	 	<arg value="-storepass"/>
+	 	<arg value="${keytool.storepass}"/>
+	 	<arg value="-dname"/>
+	 	<arg value="CN=Pierre Lindenbaum, OU=INSERM, O=INSERM, L=Nantes, ST=Nantes, C=Fr"/>
+	 </exec>
+</target>
 	
-
-<target name="ant.git">
-		   <mkdir dir="tmp"/>
-		   <mkdir dir="dist"/>		   	   
-		   <javac destdir="tmp" includeAntRuntime="true" debug="true">
-		   		<src path="src/main/java"/>
-		   		<include name="**/GitTask.java"/>
-		   </javac>
-
-</target>	
 
 <!-- experimental RMI part -->
 <target name="rmi4ngs">
@@ -1943,6 +1975,16 @@ or
 </target>
 
 
+
+<target name="ant.git">
+		   <mkdir dir="tmp"/>
+		   <mkdir dir="dist"/>		   	   
+		   <javac destdir="tmp" includeAntRuntime="true" debug="true">
+		   		<src path="src/main/java"/>
+		   		<include name="**/GitTask.java"/>
+		   </javac>
+
+</target>	
 
 <target name="jeter" >
 	<compile-picard-cmd

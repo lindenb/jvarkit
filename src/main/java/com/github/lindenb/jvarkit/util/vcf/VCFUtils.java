@@ -110,7 +110,6 @@ public class VCFUtils
 			if(line.startsWith("#CHROM\t")) break;
 			}
 		vh.codec = findCodecFromLines(stack);
-		LOG.info("codec is "+vh.codec.getName()+" "+vh.codec.getClass());
 		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(stack));
     	return vh;
 		}
@@ -138,7 +137,6 @@ public class VCFUtils
 		{
 		CodecAndHeader vh=new CodecAndHeader();
 		vh.codec=findCodecFromLines(list);
-		LOG.info("codec is "+vh.codec.getClass());
 		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(new LinkedList<String>(list)));
 		return vh;
 		}
@@ -309,7 +307,7 @@ public class VCFUtils
 		File index=new File(f.getParentFile(),
 				filename+ TabixUtils.STANDARD_INDEX_EXTENSION
 				);
-		return index.exists();
+		return index.exists() &&  index.isFile();
 		}
 	
 	public static String findChromNameEquivalent(String chromName,VCFHeader h)

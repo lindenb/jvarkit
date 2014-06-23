@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.tribble.readers.TabixReader;
 
@@ -27,10 +28,7 @@ public class TabixFileReader implements Closeable
     /** return true if 'f' is a file, path ends with '.gz' and there is an associated .tbi file */
     public static final boolean isValidTabixFile(File f)
     	{
-    	if(f==null || !f.exists() || !f.isFile()) return false;
-    	if(!f.getName().endsWith(".gz")) return false;
-    	File tbiFile= new File(f.getParentFile(),f.getName()+".tbi");
-    	return tbiFile.exists() && tbiFile.isFile();
+    	return VCFUtils.isTabixVcfFile(f);
     	}
     
     public TabixFileReader(String uri) throws IOException
@@ -66,7 +64,10 @@ public class TabixFileReader implements Closeable
     	if(parseReg==null || parseReg.length!=3 ||
 				parseReg[0]==-1 || parseReg[1]>parseReg[2])
 			{
-    		if(parseReg[0]==-1) LOG.warning("unknown chromosome in \""+rgn+"\"");
+    		if(parseReg[0]==-1)
+    			{
+    			LOG.warning("unknown chromosome in \""+rgn+"\". Available are: "+getChromosomes());
+    			}
     		LOG.warning("cannot parse region "+rgn);
 			return null;
 			}

@@ -55,6 +55,10 @@ public class FindAVariation extends AbstractCommandLineProgram
 			return true;
 		}
 		
+		@Override
+		public String toString() {
+			return chrom+":"+pos;
+			}
 		
 		}
 	private Set<Mutation> mutations=new HashSet<Mutation>();
@@ -127,7 +131,7 @@ public class FindAVariation extends AbstractCommandLineProgram
     		String s=VCFUtils.findChromNameEquivalent(m.chrom,h);
     		if(s==null)
     			{
-    			info("Cannot convert chrom "+s+" in "+f);
+    			warning("Cannot convert chrom "+s+" in "+f);
     			continue;
     			}
     		copy.add(new Mutation(s, m.pos));
@@ -157,7 +161,8 @@ public class FindAVariation extends AbstractCommandLineProgram
 							r=new TabixVcfFileReader(f.getPath());
 							for(Mutation m:convertFromVcfHeader(f,r.getHeader()))
 								{
-								Iterator<VariantContext> iter2=r.iterator(m.chrom, m.pos, m.pos);
+								Iterator<VariantContext> iter2=r.iterator(
+										m.chrom, m.pos, m.pos);
 								while(iter2.hasNext())
 									{
 									report(f,iter2.next());
@@ -243,7 +248,9 @@ public class FindAVariation extends AbstractCommandLineProgram
 						error("Bad chrom:pos "+s);
 						return -1;
 						}
-					this.mutations.add(new Mutation(chrom, Integer.parseInt(s.substring(colon+1))));
+					Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
+					info("adding "+m);
+					this.mutations.add(m);
 					break;
 					}
 				default:
