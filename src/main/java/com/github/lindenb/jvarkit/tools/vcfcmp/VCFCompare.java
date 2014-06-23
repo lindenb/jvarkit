@@ -21,7 +21,6 @@ import javax.xml.stream.XMLStreamWriter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
-
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
@@ -29,6 +28,7 @@ import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -40,6 +40,7 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -273,7 +274,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 		{
 		String filename;
 		VCFHeader header;
-		VCFCodec codec;
+		AbstractVCFCodec codec;
 		SnpEffPredictionParser snpEffPredictionParser=null;
 		VepPredictionParser vepPredictionParser=null;
 		MyPredictionParser myPredictionParser=null;
@@ -425,7 +426,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 			for(int i=0;i< 2;++i)
 				{
 				this.inputs[i]= new Input();
-				this.inputs[i].codec=new VCFCodec();
+				this.inputs[i].codec=VCFUtils.createDefaultVCFCodec();
 				this.inputs[i].filename= args[getopt.getOptInd()+i];
 				info("Opening "+this.inputs[i].filename);
 				in=IOUtils.openURIForReading(this.inputs[i].filename);

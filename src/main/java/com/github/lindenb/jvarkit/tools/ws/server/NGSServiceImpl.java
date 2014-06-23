@@ -13,15 +13,16 @@ import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 
 @WebService(
 		endpointInterface="com.github.lindenb.jvarkit.tools.ws.server.NGSService"
@@ -115,7 +116,7 @@ public class NGSServiceImpl
 			File f=this.vcfs.get(filename);
 			if(f==null) return null;
 			Vcf vcf=new Vcf();
-			VCFCodec codec=new VCFCodec();
+			AbstractVCFCodec codec=VCFUtils.createDefaultVCFCodec();
 			tbx=new TabixReader(filename);
 			TabixReader.Iterator r=tbx.query(chrom+":"+start+"-"+end);
 			String line;

@@ -23,12 +23,13 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
+
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -64,7 +65,7 @@ public class VCFMerge2
 	
 	private static class VCFHandler
 		{
-		VCFCodec vcfCodec = new VCFCodec();
+		AbstractVCFCodec vcfCodec = VCFUtils.createDefaultVCFCodec();
 		VCFHeader header=null;
 		
 

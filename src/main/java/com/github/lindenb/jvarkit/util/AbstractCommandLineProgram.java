@@ -539,6 +539,92 @@ public abstract class AbstractCommandLineProgram
     	w.flush();
     	}
     
+    
+    /** create a JNLP config file */
+    protected void printJnlp() throws XMLStreamException
+		{
+    	XMLOutputFactory factory= XMLOutputFactory.newInstance();
+    	XMLStreamWriter w= factory.createXMLStreamWriter(System.out);
+    	w.writeStartDocument("UTF-8","1.0");
+    	w.writeStartElement("jnlp");
+    	w.writeAttribute("spec","6.0+");
+    	w.writeAttribute("codebase","__CODEBASE__");
+    	w.writeAttribute("href","__CODEBASE__/igv.jnlp");
+
+    	w.writeStartElement("information");
+    	w.writeStartElement("title");
+    	w.writeCharacters(getProgramName());
+    	w.writeEndElement();//title
+    	w.writeStartElement("vendor");
+    	w.writeCharacters(getAuthorName());
+    	w.writeEndElement();//vendor
+    	w.writeEmptyElement("homepage");
+    	w.writeAttribute("href",getOnlineDocUrl());
+
+    	w.writeStartElement("description");
+    	w.writeCharacters(getProgramDescription());
+    	w.writeEndElement();//description
+    	w.writeStartElement("description");
+    	w.writeAttribute("kind","short");
+
+    	w.writeCharacters(getProgramDescription());
+    	w.writeEndElement();//description
+
+    	w.writeEmptyElement("offline-allowed");
+    	w.writeStartElement("shortcut");
+    	w.writeAttribute("online","true");
+
+    	w.writeEmptyElement("desktop");
+    	w.writeEmptyElement("menu");
+    	w.writeAttribute("submenu",getProgramName());
+
+    	w.writeEndElement();//shortcut
+    	w.writeEndElement();//information
+    	w.writeStartElement("security");
+    	w.writeEmptyElement("all-permissions");
+    	w.writeEndElement();//security
+    	w.writeEmptyElement("update");
+    	w.writeAttribute("check","background");
+
+    	w.writeStartElement("resources");
+    	w.writeEmptyElement("java");
+    	w.writeAttribute("version","1.7+");
+    	w.writeAttribute("initial-heap-size","256m");
+    	w.writeAttribute("max-heap-size","750m");
+
+    	w.writeEmptyElement("jar");
+    	w.writeAttribute("href","PROGRAM_NAME.jar");
+
+    	w.writeAttribute("download","eager");
+
+    	w.writeAttribute("main","true");
+
+
+    	w.writeEmptyElement("jar");
+    	w.writeAttribute("href","htsjdk.jar");
+    	w.writeAttribute("download","eager");
+
+    	
+    	w.writeEmptyElement("property");
+    	w.writeAttribute("name","java.net.preferIPv4Stack");
+    	w.writeAttribute("value","true");
+
+
+    	w.writeEmptyElement("property");
+    	w.writeAttribute("name","http.agent");
+    	w.writeAttribute("value","IGV");
+
+
+    	w.writeEndElement();//resources
+    	w.writeEmptyElement("application-desc");
+    	w.writeAttribute("main-class",String.valueOf(getClass().getName()));
+
+    	w.writeEndElement();//jnlp
+
+    	w.writeEndDocument();
+    	w.flush();
+		}
+    
     protected class GalaxyToolDefinitionMaker
 		{
 		AbstractCommandLineProgram owner()

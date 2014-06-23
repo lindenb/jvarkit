@@ -12,11 +12,10 @@ import java.util.List;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
@@ -24,6 +23,7 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
@@ -36,7 +36,7 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 	{
     private String infoField=null;
     private  VCFInfoHeaderLine infoDecl;
-    private VCFCodec codec;
+    private AbstractVCFCodec codec;
     private SortingCollectionFactory<VcfLine> sortingCollectionFactory=new SortingCollectionFactory<VcfLine>();
     
     @Override

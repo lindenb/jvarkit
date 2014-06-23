@@ -11,17 +11,18 @@ import java.util.Random;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
-
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
@@ -167,7 +168,7 @@ public class VCFShuffle extends AbstractVCFFilter2
 			info("Writing to stdout");
 			out=createVariantContextWriter(null);
 			
-			VCFCodec vcfCodec = new VCFCodec();
+			AbstractVCFCodec vcfCodec = VCFUtils.createDefaultVCFCodec();
 			Random random=new Random(seed);
 			
 			VCFHeader header=(VCFHeader)vcfCodec.readActualHeader(lineIter);

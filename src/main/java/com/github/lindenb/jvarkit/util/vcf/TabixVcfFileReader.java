@@ -6,15 +6,16 @@ import java.util.Iterator;
 import java.util.List;
 
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
+
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 
 
 public class TabixVcfFileReader extends AbstractTabixObjectReader<VariantContext>
 	//,Iterable<VariantContext> NO, not a true iterator
 	{
-    private VCFCodec vcfCodec;
+    private AbstractVCFCodec vcfCodec;
     private VCFHeader vcfHeader;
    
     
@@ -35,7 +36,7 @@ public class TabixVcfFileReader extends AbstractTabixObjectReader<VariantContext
     	}
     
     
-	public VCFCodec getCodec()
+	public AbstractVCFCodec getCodec()
 		{
 		return this.vcfCodec;
 		}

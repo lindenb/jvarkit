@@ -10,12 +10,15 @@ import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
 import htsjdk.samtools.util.Log;
+
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -23,6 +26,8 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
+
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReaderUtil;
@@ -61,7 +66,7 @@ public class VcfVcf extends AbstractVCFFilter
 	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
-		VCFCodec codeIn3=new VCFCodec();	
+		AbstractVCFCodec codeIn3=VCFUtils.createDefaultVCFCodec();
 		String line;
 		
 		StringWriter sw=new StringWriter();

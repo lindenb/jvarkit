@@ -15,15 +15,18 @@ import java.util.logging.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineReader;
+import htsjdk.tribble.util.TabixUtils;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.vcf.AbstractVCFCodec;
+import htsjdk.variant.vcf.VCF3Codec;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFContigHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderVersion;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
@@ -33,7 +36,7 @@ public class VCFUtils
 	
 	public static class CodecAndHeader
 		{
-		public VCFCodec codec;
+		public AbstractVCFCodec codec;
 		public VCFHeader header;
 		}
 	/*
@@ -81,7 +84,7 @@ public class VCFUtils
 	public static CodecAndHeader parseHeader(LineReader r) throws IOException
 		{
 		CodecAndHeader vh=new CodecAndHeader();
-		vh.codec=new VCFCodec();
+		vh.codec=null;
 		LinkedList<String> stack=new LinkedList<String>();
     	String line;
     	while((line=r.readLine())!=null && line.startsWith("#"))
@@ -89,14 +92,15 @@ public class VCFUtils
     		stack.add(line);
     		if(line.startsWith("#CHROM\t")) break;
     		}
-    	vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(stack));
+		vh.codec = findCodecFromLines(stack);
+    	vh.header =  (VCFHeader)vh.codec.readActualHeader(new LIT(stack));
     	return vh;
 		}
 	
 	public static CodecAndHeader parseHeader(LineIterator r)
 		{
 		CodecAndHeader vh=new CodecAndHeader();
-		vh.codec=new VCFCodec();
+		vh.codec=null;
 		LinkedList<String> stack=new LinkedList<String>();
 		while(r.hasNext())
 			{
@@ -105,14 +109,36 @@ public class VCFUtils
 			stack.add(r.next());
 			if(line.startsWith("#CHROM\t")) break;
 			}
+		vh.codec = findCodecFromLines(stack);
+		LOG.info("codec is "+vh.codec.getName()+" "+vh.codec.getClass());
 		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(stack));
     	return vh;
 		}
-
+	/** find a codec from the lines header. if not found, return default codec */
+	public static AbstractVCFCodec findCodecFromLines(final List<String> list)
+		{
+		for(String line: list)
+			{
+			if(!VCFHeaderVersion.isFormatString(line)) continue;
+			VCFHeaderVersion version=VCFHeaderVersion.getHeaderVersion(line	);
+			if(version==null) continue;
+			switch(version)
+				{
+				case VCF3_2: 
+				case VCF3_3: return new VCF3Codec();
+				case VCF4_0:
+				case VCF4_1:
+				case VCF4_2: return new VCFCodec();
+				}
+			}
+		return createDefaultVCFCodec();
+		}
+	
 	public static CodecAndHeader parseHeader(List<String> list)
 		{
 		CodecAndHeader vh=new CodecAndHeader();
-		vh.codec=createDefaultVCFCodec();
+		vh.codec=findCodecFromLines(list);
+		LOG.info("codec is "+vh.codec.getClass());
 		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(new LinkedList<String>(list)));
 		return vh;
 		}
@@ -131,7 +157,7 @@ public class VCFUtils
 		}
 	
 	/** create a default VCF codec */
-	public static VCFCodec createDefaultVCFCodec()
+	public static AbstractVCFCodec createDefaultVCFCodec()
 		{
 		return new VCFCodec();
 		}
@@ -266,7 +292,46 @@ public class VCFUtils
 			}
 		return meta2;
 		}
+	public static boolean isVcfFile(File f)
+		{
+		if(f==null || !f.isFile()) return false;
+		String s=f.getName();
+		return s.endsWith(".vcf") || s.endsWith(".vcf.gz");
+		}
 	
+	
+	
+	public static boolean isTabixVcfFile(File f)
+		{
+		if(!isVcfFile(f)) return false;
+		String filename=f.getName();
+		if(!filename.endsWith(".gz")) return false;
+		File index=new File(f.getParentFile(),
+				filename+ TabixUtils.STANDARD_INDEX_EXTENSION
+				);
+		return index.exists();
+		}
+	
+	public static String findChromNameEquivalent(String chromName,VCFHeader h)
+		{
+		SAMSequenceDictionary dict=h.getSequenceDictionary();
+		if(dict==null || dict.getSequence(chromName)!=null) return chromName;
+		if(chromName.startsWith("chr"))
+			{
+			SAMSequenceRecord ssr=dict.getSequence(chromName.substring(3));
+			if(ssr!=null) return ssr.getSequenceName();
+			}
+		else
+			{
+			SAMSequenceRecord ssr=dict.getSequence("chr"+chromName);
+			if(ssr!=null) return ssr.getSequenceName();
+			}
+		
+		if(chromName.equals("MT") &&  dict.getSequence("chrM")!=null) return "chrM";
+		if(chromName.equals("chrM") &&  dict.getSequence("MT")!=null) return "MT";
+		return null;
+		}
+
 	/*
 	private Pattern semicolon=Pattern.compile("[;]");
 	public VCFUtils()

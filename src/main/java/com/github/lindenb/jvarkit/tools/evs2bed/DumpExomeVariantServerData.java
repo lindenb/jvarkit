@@ -5,6 +5,8 @@ import java.io.PrintStream;
 import java.io.StringWriter;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -18,6 +20,7 @@ import javax.xml.transform.stream.StreamResult;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
+
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
 
@@ -27,6 +30,9 @@ public class DumpExomeVariantServerData
 	private int STEP_SIZE=25000;
     private long LIMIT=-1L;
 	private long count_records=0L;
+	private long genome_total_size=0L;
+	private long genome_curr_size=0L;
+	
 	public static final String EVS_NS="http://webservice.evs.gs.washington.edu/";
 	private DocumentBuilder documentBuilder;
 	private Transformer transformer;
@@ -50,7 +56,9 @@ public class DumpExomeVariantServerData
 	private final int MAX_TRY=10; 
 	private Element fetchEvsData(String chrom,int start,int end)
 		{
-		info(chrom+":"+start+"-"+end+ " N="+count_records);
+		double ratio=100.0*(this.genome_curr_size+start)/(double)this.genome_total_size;
+		
+		info(chrom+":"+start+"-"+end+ " N="+count_records+" "+(int)ratio+"%");
 		try
 			{
 		    URL url = new URL("http://gvs-1.gs.washington.edu/wsEVS/EVSDataQueryService");
@@ -107,58 +115,75 @@ public class DumpExomeVariantServerData
 			}
 		}
 	
-	private void fetch(String chrom,int length)
+	private class Fetcher
+		{
+		String chrom;
+		int length;
+		Fetcher(String chrom,int length)
+			{
+			this.chrom=chrom;
+			this.length=length;
+			}
+		
+		public void run() throws Exception
+			{
+			if(DumpExomeVariantServerData.this.LIMIT>0 && DumpExomeVariantServerData.this.count_records>=DumpExomeVariantServerData.this.LIMIT) return;
+			final int step=DumpExomeVariantServerData.this.STEP_SIZE;
+			int start=1;
+			do
+				{
+				
+				Element root=fetchEvsData(chrom,start,start+step+10);
+				for(Node n=(root==null?null:root.getFirstChild());n!=null;n=n.getNextSibling())
+					{
+					if(n.getNodeType()!=Node.ELEMENT_NODE) continue;
+					if(!n.getNodeName().equals("snpList")) continue;
+					String chromosome=null;
+					String chrPosition=null;
+					for(Node n2=n.getFirstChild();n2!=null;n2=n2.getNextSibling())
+						{
+						if(n2.getNodeType()!=Node.ELEMENT_NODE) continue;
+						if(n2.getNodeName().equals("chromosome"))
+							{
+							chromosome=n2.getTextContent();
+							}
+						else if(n2.getNodeName().equals("chrPosition"))
+							{
+							chrPosition=n2.getTextContent();
+							}
+						}
+					count_records++;
+					if(LIMIT>0 && count_records>=LIMIT) break;
+					
+					StringWriter sw=new StringWriter();
+					transformer.transform(
+							new DOMSource(n),
+							new StreamResult(sw)
+							);
+					sw.flush();
+					String xml=sw.toString().replace("\n", "");
+					
+					System.out.print(chromosome);
+					System.out.print('\t');
+					System.out.print(Integer.parseInt(chrPosition)-1);
+					System.out.print('\t');
+					System.out.print(chrPosition);
+					System.out.print('\t');
+					System.out.println(xml);
+					}
+				
+				
+				start+=step;
+				if(LIMIT>0 && count_records>=LIMIT) break;
+				} while(start<=length);
+			
+			}
+		}
+	
+	private Fetcher fetch(String chrom,int length)
 		throws Exception
 		{
-		if(LIMIT>0 && count_records>=LIMIT) return;
-		final int step=this.STEP_SIZE;
-		int start=1;
-		do
-			{
-			
-			Element root=fetchEvsData(chrom,start,start+step+10);
-			for(Node n=(root==null?null:root.getFirstChild());n!=null;n=n.getNextSibling())
-				{
-				if(n.getNodeType()!=Node.ELEMENT_NODE) continue;
-				if(!n.getNodeName().equals("snpList")) continue;
-				String chromosome=null;
-				String chrPosition=null;
-				for(Node n2=n.getFirstChild();n2!=null;n2=n2.getNextSibling())
-					{
-					if(n2.getNodeType()!=Node.ELEMENT_NODE) continue;
-					if(n2.getNodeName().equals("chromosome"))
-						{
-						chromosome=n2.getTextContent();
-						}
-					else if(n2.getNodeName().equals("chrPosition"))
-						{
-						chrPosition=n2.getTextContent();
-						}
-					}
-				count_records++;
-				if(LIMIT>0 && count_records>=LIMIT) break;
-				
-				StringWriter sw=new StringWriter();
-				transformer.transform(
-						new DOMSource(n),
-						new StreamResult(sw)
-						);
-				sw.flush();
-				String xml=sw.toString().replace("\n", "");
-				
-				System.out.print(chromosome);
-				System.out.print('\t');
-				System.out.print(Integer.parseInt(chrPosition)-1);
-				System.out.print('\t');
-				System.out.print(chrPosition);
-				System.out.print('\t');
-				System.out.println(xml);
-				}
-			
-			
-			start+=step;
-			if(LIMIT>0 && count_records>=LIMIT) break;
-			} while(start<=length);
+		return new Fetcher(chrom, length);
 		}
 	
 	
@@ -179,32 +204,46 @@ public class DumpExomeVariantServerData
 			this.transformer=factory.newTransformer();
 			this.transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
 			
-			fetch("1",249250621);
-			fetch("2",243199373);
-			fetch("3",198022430);
-			fetch("4",191154276);
-			fetch("5",180915260);
-			fetch("6",171115067);
-			fetch("7",159138663);		
-			fetch("8",146364022);
-			fetch("9",141213431);
-			fetch("10",135534747);
-			fetch("11",135006516);
-			fetch("12",133851895);
-			fetch("13",115169878);
-			fetch("14",107349540);
-			fetch("15",102531392);
-			fetch("16",90354753);
-			fetch("17",81195210);
-			fetch("18",78077248);
-			fetch("19",59128983);
-			fetch("20",63025520);
-			fetch("21",48129895);
-			fetch("22",51304566);
-			fetch("X",155270560);
+			List<Fetcher> fetchers=new ArrayList<Fetcher>(24);
+			
+			fetchers.add( fetch("1",249250621) );
+			fetchers.add( fetch("2",243199373) );
+			fetchers.add( fetch("3",198022430) );
+			fetchers.add( fetch("4",191154276) );
+			fetchers.add( fetch("5",180915260) );
+			fetchers.add( fetch("6",171115067) );
+			fetchers.add( fetch("7",159138663 ));		
+			fetchers.add( fetch("8",146364022) );
+			fetchers.add( fetch("9",141213431) );
+			fetchers.add( fetch("10",135534747) );
+			fetchers.add( fetch("11",135006516) );
+			fetchers.add( fetch("12",133851895) );
+			fetchers.add( fetch("13",115169878) );
+			fetchers.add( fetch("14",107349540) );
+			fetchers.add( fetch("15",102531392) );
+			fetchers.add( fetch("16",90354753) );
+			fetchers.add( fetch("17",81195210) );
+			fetchers.add( fetch("18",78077248) );
+			fetchers.add( fetch("19",59128983) );
+			fetchers.add( fetch("20",63025520) );
+			fetchers.add( fetch("21",48129895) );
+			fetchers.add( fetch("22",51304566) );
+			fetchers.add( fetch("X",155270560) );
 			//fetch("Y",59373566); not in evs
 			//fetch("M",16571);
 
+			this.genome_total_size=0L;
+			this.genome_curr_size=0L;
+			for(Fetcher fetcher: fetchers)
+				{
+				this.genome_total_size += fetcher.length; 
+				}
+			
+			for(Fetcher fetcher: fetchers)
+				{
+				fetcher.run();
+				this.genome_curr_size += fetcher.length; 
+				}
 			
 			} 
 		catch (Exception e)

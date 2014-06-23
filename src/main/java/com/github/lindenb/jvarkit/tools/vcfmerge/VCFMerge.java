@@ -25,7 +25,7 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -36,6 +36,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -75,7 +76,7 @@ public class VCFMerge extends AbstractCommandLineProgram
 	
 	private static class VCFHandler
 		{
-		VCFCodec vcfCodec = new VCFCodec();
+		AbstractVCFCodec vcfCodec = VCFUtils.createDefaultVCFCodec();
 		VCFHeader header=null;
 		
 		
@@ -181,7 +182,7 @@ public class VCFMerge extends AbstractCommandLineProgram
 			}
 		}
 
-	private VariantContext buildContext(VCFCodec codec,VCFHeader header,List<VariantOfFile> row)
+	private VariantContext buildContext(AbstractVCFCodec codec,VCFHeader header,List<VariantOfFile> row)
 		{
 		Double qual=null;
 		Set<String> filters=new HashSet<String>();
@@ -288,7 +289,7 @@ public class VCFMerge extends AbstractCommandLineProgram
 			LOG.info("merging..."+vcfHandlers.size()+" vcfs");
 			
 			/* CREATE THE NEW VCH Header */
-			VCFCodec mergeCodec=new VCFCodec();
+			AbstractVCFCodec mergeCodec = VCFUtils.createDefaultVCFCodec();
 			VCFHeader mergeHeader=null;
 				{
 				/* create the meta data */

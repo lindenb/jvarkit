@@ -134,5 +134,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar103303">Biostar103303<a></th><td>Calculate Percent Spliced In (PSI)</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFComparePredictions">VCFComparePredictions<a></th><td>Compare the variant predictions of VCFs</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BackLocate">BackLocate<a></th><td>Map a  position in a protein back to the genomic coordinates.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FindAVariation">FindAVariation<a></th><td>Search for variations in a set of VCF files.</td></tr>
 </table>
 

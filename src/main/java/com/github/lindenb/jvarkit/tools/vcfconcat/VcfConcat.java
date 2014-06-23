@@ -3,12 +3,12 @@ package com.github.lindenb.jvarkit.tools.vcfconcat;
 import java.io.InputStream;
 
 import htsjdk.samtools.util.CloserUtil;
-
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -60,7 +60,7 @@ public class VcfConcat extends AbstractCommandLineProgram
 			InputStream in=null;
 			try
 				{
-				VCFCodec codec=new VCFCodec();
+				AbstractVCFCodec codec=VCFUtils.createDefaultVCFCodec();
 				info("Opening "+args[i]);
 				in=IOUtils.openURIForReading(args[i]);
 				LineReader lr=LineReaderUtil.fromBufferedStream(in);
@@ -96,7 +96,7 @@ public class VcfConcat extends AbstractCommandLineProgram
 		}
 	private int fromStdin(VariantContextWriter w)
 		{
-		VCFCodec codec=new VCFCodec();
+		AbstractVCFCodec codec=VCFUtils.createDefaultVCFCodec();
 		LineReader lr=LineReaderUtil.fromBufferedStream(System.in);
 		LineIterator li=new LineIteratorImpl(lr);
 		final VCFHeader header0=(VCFHeader)codec.readActualHeader(li);
@@ -110,7 +110,7 @@ public class VcfConcat extends AbstractCommandLineProgram
 			if(line.startsWith("#"))
 				{
 				info("Found a new header");
-				codec=new VCFCodec();
+				codec=VCFUtils.createDefaultVCFCodec();
 				VCFHeader header1=(VCFHeader)codec.readActualHeader(li);
 				if(compareHeader(header0,header1)!=0)
 					{

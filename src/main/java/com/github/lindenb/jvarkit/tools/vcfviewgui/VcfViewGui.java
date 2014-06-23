@@ -51,28 +51,28 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
 
-
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-
 import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
 import htsjdk.samtools.util.Log;
 
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
 class VCFFileRef
 	{
 	File vcfFile;
-	VCFCodec codec=new VCFCodec();
+	AbstractVCFCodec codec=VCFUtils.createDefaultVCFCodec();
 	VCFHeader header;
 	}
 

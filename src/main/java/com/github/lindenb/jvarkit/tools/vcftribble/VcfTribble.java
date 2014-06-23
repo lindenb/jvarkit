@@ -13,24 +13,23 @@ import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 
 import htsjdk.samtools.util.LocationAware;
 import htsjdk.samtools.util.Log;
+
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
 import htsjdk.tribble.AbstractFeatureCodec;
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.Feature;
-import htsjdk.tribble.FeatureCodec;
 import htsjdk.tribble.FeatureCodecHeader;
 import htsjdk.tribble.Tribble;
 import htsjdk.tribble.TribbleIndexedFeatureReader;
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.IndexFactory;
-import htsjdk.tribble.readers.AsciiLineReader;
-import htsjdk.tribble.readers.AsciiLineReaderIterator;
-import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -289,7 +288,7 @@ public class VcfTribble extends AbstractVCFFilter
 	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
-		VCFCodec codeIn1=new VCFCodec();	
+		AbstractVCFCodec codeIn1=VCFUtils.createDefaultVCFCodec();
 		String line;
 		Chunk parsedFormat=parseFormat(this.FORMAT);
 		if(parsedFormat==null)parsedFormat=new PlainChunk("");

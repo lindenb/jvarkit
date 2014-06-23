@@ -12,12 +12,12 @@ import java.util.List;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
-
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -38,7 +38,7 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 		{
 		String filename;
 		VCFHeader header;
-		VCFCodec codec;
+		AbstractVCFCodec codec;
 		int file_id=-1;
 		long count=0L;
 		}

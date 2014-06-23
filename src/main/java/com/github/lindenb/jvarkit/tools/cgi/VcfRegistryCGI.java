@@ -19,13 +19,14 @@ import javax.xml.stream.XMLStreamWriter;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReaderUtil;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.CloserUtil;
-
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -344,7 +345,7 @@ public class VcfRegistryCGI extends AbstractCGI {
     			TabixReader.Iterator iter=null;
     			BlockCompressedInputStream bgzin=null;
     			VCFHeader header=null;
-    		    VCFCodec vcfCodec = new VCFCodec();
+    		    AbstractVCFCodec vcfCodec = VCFUtils.createDefaultVCFCodec();
     		   LineIterator lineIterator=null;
     		   for(int i=0;i< 2;i++)
 	    		   {

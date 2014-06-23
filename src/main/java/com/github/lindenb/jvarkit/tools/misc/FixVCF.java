@@ -17,13 +17,12 @@ import java.util.zip.GZIPOutputStream;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
-
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -31,7 +30,6 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -141,7 +139,7 @@ public class FixVCF
 			throws IOException
 		{
 		
-		VCFCodec vcfCodec = new VCFCodec();
+		AbstractVCFCodec vcfCodec = VCFUtils.createDefaultVCFCodec();
 		
 		LineIterator r= new LineIteratorImpl(LineReaderUtil.fromBufferedStream(vcfStream));
 		VCFHeader header=(VCFHeader) vcfCodec.readActualHeader(r);

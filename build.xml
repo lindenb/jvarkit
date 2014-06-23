@@ -689,6 +689,16 @@ or
 		name="gcanddepth"
 		/>
 </target>
+	
+<target name="findavariation" >
+	<compile-picard-cmd
+		java="**/FindAVariation.java"
+		main="com.github.lindenb.jvarkit.tools.misc.FindAVariation"
+		name="findavariation"
+		/>
+</target>
+	
+	
 <target name="kg2bed" >
 	<compile-picard-cmd
 		java="**/KnownGenesToBed.java"
