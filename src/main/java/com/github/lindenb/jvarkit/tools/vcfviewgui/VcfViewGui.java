@@ -1058,10 +1058,18 @@ public class VcfViewGui
 			
 			info("showing VCF frame");
 			Dimension screen=Toolkit.getDefaultToolkit().getScreenSize();
-			VCFFrame f=new VCFFrame(vfrs);
+			final VCFFrame f=new VCFFrame(vfrs);
 			f.igvSocket=igvSocket;
 			f.setBounds(50, 50, screen.width-100, screen.height-100);
-			f.setVisible(true);
+			SwingUtilities.invokeAndWait(new Runnable()
+				{
+				
+				@Override
+				public void run() {
+					f.setVisible(true);
+					}
+				});
+			
 			}
 		catch(Exception err)
 			{
