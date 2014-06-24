@@ -17,6 +17,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Vector;
 import java.util.prefs.BackingStoreException;
@@ -42,6 +43,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JTree;
 import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
@@ -51,14 +53,16 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
@@ -69,13 +73,18 @@ import htsjdk.samtools.util.Log;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
+/**
+ * VCF header, codec and header
+ */
 class VCFFileRef
 	{
 	File vcfFile;
-	AbstractVCFCodec codec=VCFUtils.createDefaultVCFCodec();
-	VCFHeader header;
+	VCFUtils.CodecAndHeader codhead;
 	}
 
+/**
+ * Main FRAME
+ */
 class VCFInternalFrame extends JInternalFrame
 	{
 	private static final long serialVersionUID = 1L;
@@ -83,7 +92,8 @@ class VCFInternalFrame extends JInternalFrame
 	JTable jTable;
 	VCFTableModel tableModel;
 	VCFFileRef ref;
-	InfoTableModel infoTableModel;
+	InfoTreeModel infoTreeModel;
+	private JTree infoTree;
 	GenotypeTableModel genotypeTableModel;
 	private ListSelectionListener selList;
 	VCFInternalFrame(VCFFileRef ref)
@@ -108,8 +118,8 @@ class VCFInternalFrame extends JInternalFrame
 		
 		JScrollPane scroll1=new JScrollPane(this.jTable);
 		
-		this.infoTableModel=new InfoTableModel();
-		JTable tInfo=new JTable(this.infoTableModel);
+		this.infoTreeModel=new InfoTreeModel();
+		this.infoTree=new JTree(this.infoTreeModel);
 		
 		
 		this.genotypeTableModel=new GenotypeTableModel();
@@ -117,7 +127,7 @@ class VCFInternalFrame extends JInternalFrame
 		
 		
 		JSplitPane splitH=new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-				new JScrollPane(tInfo),
+				new JScrollPane(this.infoTree),
 				new JScrollPane(tGen)
 				);
 	
@@ -133,12 +143,12 @@ class VCFInternalFrame extends JInternalFrame
 		        VariantContext ctx;
 				if(row==-1 || (ctx=tableModel.getVariantContext(row))==null)
 					{
-					infoTableModel.setContext(null);
+					infoTreeModel.setContext(null,VCFInternalFrame.this.ref.codhead.header);
 					genotypeTableModel.setContext(null);
 					}
 				else
 					{
-					infoTableModel.setContext(ctx);
+					infoTreeModel.setContext(ctx,VCFInternalFrame.this.ref.codhead.header);
 					genotypeTableModel.setContext(ctx);
 					}
 				
@@ -151,7 +161,7 @@ class VCFInternalFrame extends JInternalFrame
 		
 		ByteArrayOutputStream baos=new ByteArrayOutputStream();
 		VariantContextWriter w=VCFUtils.createVariantContextWriterToOutputStream(baos);
-		w.writeHeader(ref.header);
+		w.writeHeader(ref.codhead.header);
 		
 		tabbedPane.addTab("Header", pane);
 		JTextArea area=new JTextArea(new String(baos.toByteArray()));
@@ -222,24 +232,29 @@ class VCFInternalFrame extends JInternalFrame
 	
 	}
 
-class InfoTableModel
-	extends AbstractTableModel
+class InfoTreeModel
+	extends DefaultTreeModel
 	{
+	private static Log LOG=Log.getInstance(VcfViewGui.class);
+	private Pattern pipeVep=Pattern.compile("[\\|]");
+	private Pattern pipeSnpEff=Pattern.compile("[\\|\\(\\)]");
+
 	private static final long serialVersionUID = 1L;
-	List<String[]> rows=new Vector<String[]>();
-	public InfoTableModel()
+	public InfoTreeModel()
 		{
+		super(new DefaultMutableTreeNode("INFO",true));
 		}
 	
-	public void setContext(VariantContext ctx)
+	private DefaultMutableTreeNode getTreeNodeRoot()
 		{
-		if(ctx==null)
+		return DefaultMutableTreeNode.class.cast(getRoot());
+		}	
+	
+	public void setContext(VariantContext ctx,VCFHeader header)
+		{
+		getTreeNodeRoot().removeAllChildren();
+		if(ctx!=null)
 			{
-			rows.clear();
-			}
-		else
-			{
-			List<String[]> rows=new Vector<String[]>();
 			for(String key:ctx.getAttributes().keySet())
 				{
 				Object v=ctx.getAttribute(key);
@@ -260,41 +275,138 @@ class InfoTableModel
 					{
 					o=new Object[]{v};
 					}
-				for(Object v2:o)
+				if(o.length==0)
 					{
-					rows.add(new String[]{key,String.valueOf(v2)});
+					
 					}
+				else if(o.length==1)
+					{
+					if(key.equals("CSQ") || key.equals("EFF"))
+						{
+						List<String> columns= key.equals("CSQ")?getCSQCols(header):getEFFCols(header);
+						DefaultMutableTreeNode n1=new DefaultMutableTreeNode(
+								"<html><b>"+key+"</html>"
+								,true);
+						getTreeNodeRoot().add(n1);
+						String tokens[]=(key.equals("CSQ")?pipeVep:pipeSnpEff).split(String.valueOf(o));
+						for(int i=0;i< tokens.length && i< columns.size();++i)
+							{
+							DefaultMutableTreeNode n2=new DefaultMutableTreeNode(
+									"<html><b>"+columns.get(i)+"</b>:"+tokens[i]+"</html>"
+									,false);
+							n1.add(n2);
+							}
+						}
+					else
+						{
+						DefaultMutableTreeNode n=new DefaultMutableTreeNode(
+								"<html><b>"+key+"</b>:"+o[0]+"</html>"
+								,false);
+						getTreeNodeRoot().add(n);
+						}
+					}
+				else 
+					{
+					if(key.equals("CSQ") || key.equals("EFF"))
+						{
+					
+						List<String> columns= key.equals("CSQ")?getCSQCols(header):getEFFCols(header);
+						DefaultMutableTreeNode n1=new DefaultMutableTreeNode(
+								"<html><b>"+key+"</html>"
+								,true);
+						getTreeNodeRoot().add(n1);
+						int index=0;
+						for(Object v2:o)
+							{
+							DefaultMutableTreeNode n2=new DefaultMutableTreeNode(
+									String.valueOf(++index),
+									true
+									);
+							n1.add(n2);
+							String tokens[]= (key.equals("CSQ")?pipeVep:pipeSnpEff).split(String.valueOf(v2));
+							for(int i=0;i< tokens.length && i< columns.size();++i)
+								{
+								System.err.println(""+i+")  "+columns.get(i)+"\t"+v2+"  ## "+tokens[i]);
+								DefaultMutableTreeNode n3=new DefaultMutableTreeNode(
+										"<html><b>"+columns.get(i)+"</b>:"+tokens[i]+"</html>"
+										,false);
+								n2.add(n3);
+								}
+							}
+						}
+					else
+						{
+						DefaultMutableTreeNode n1=new DefaultMutableTreeNode(
+								"<html><b>"+key+"</b></html>"
+								,true);
+						getTreeNodeRoot().add(n1);
+						for(Object v2:o)
+							{
+							DefaultMutableTreeNode n2=new DefaultMutableTreeNode(
+									String.valueOf(v2),
+									false
+									);
+	
+							n1.add(n2);
+							}
+						}
+					}
+				
 				}
-			this.rows=rows;
 			}
-		this.fireTableDataChanged();
+		this.fireTreeStructureChanged();
 		}
-	@Override
-	public boolean isCellEditable(int rowIndex, int columnIndex) {
-		return false;
-		}
-	@Override
-	public Class<?> getColumnClass(int columnIndex) {
-		return String.class;
-		}
-	@Override
-	public String getColumnName(int column)
+	private List<String> getCSQCols(VCFHeader header)
+			{
+			VCFInfoHeaderLine ihl=header.getInfoHeaderLine("CSQ");
+			if(ihl==null) return Collections.emptyList();
+			String description=ihl.getDescription();
+			String chunck=" Format:";
+			int i=description.indexOf(chunck);
+			if(i==-1)
+				{
+				LOG.warn("Cannot find "+chunck+ " in "+description);
+				return Collections.emptyList();
+				}
+			description=description.substring(i+chunck.length()).replaceAll("[ \'\\.\\(\\)]+","").trim();
+			String tokens[]=pipeVep.split(description);
+			ArrayList<String> L=new ArrayList<String>(tokens.length);
+			for(String s:tokens)
+				{
+				if(s.trim().isEmpty()) continue;
+				L.add(s);
+				}
+			return L;
+			}
+	private List<String> getEFFCols(VCFHeader header)
 		{
-		return column==0?"KEY":"VALUE";
+		VCFInfoHeaderLine ihl=header.getInfoHeaderLine("EFF");
+		if(ihl==null) return Collections.emptyList();
+		String description=ihl.getDescription();
+		String chunck="Format:";
+		int i=description.indexOf(chunck);
+		if(i==-1)
+			{
+			LOG.warn("Cannot find "+chunck+ " in "+description);
+			return Collections.emptyList();
+			}
+		description=description.substring(i+chunck.length()).replace('(','|').replaceAll("[ \'\\.)\\[\\]]+","").trim();
+		System.err.println("EFF "+description);
+		String tokens[]=pipeSnpEff.split(description);
+		ArrayList<String> L=new ArrayList<String>(tokens.length);
+		for(String s:tokens)
+			{
+			if(s.trim().isEmpty()) continue;
+			L.add(s);
+			}
+		return L;
 		}
-	@Override
-	public Object getValueAt(int rowIndex, int columnIndex)
+	
+	
+	public void fireTreeStructureChanged()
 		{
-		return rows.get(rowIndex)[columnIndex];
-		}
-	@Override
-	public int getRowCount() {
-		return rows.size();
-		}
-	@Override
-	public int getColumnCount() {
-		return 2;
-		}
+		fireTreeStructureChanged(this, new Object[]{getRoot()}, null, null);
+		}	
 	}
 
 class GenotypeTableModel
@@ -398,7 +510,7 @@ class VCFTableModel
 	VariantContext getVariantContext(int rowIndex)
 		{
 		String s=this.rows.get(rowIndex);
-		return this.ref.codec.decode(s);
+		return this.ref.codhead.codec.decode(s);
 		}
 	
 	@Override
@@ -422,18 +534,18 @@ class VCFTableModel
 			return "FORMAT";
 			}
 		column-=(headers.length+1);
-		return ref.header.getSampleNamesInOrder().get(column);
+		return ref.codhead.header.getSampleNamesInOrder().get(column);
 		}
 	
 	@Override
 	public int getColumnCount()
 		{
 		int n=VCFHeader.HEADER_FIELDS.values().length;
-		if(this.ref.header.getSampleNamesInOrder().isEmpty())
+		if(this.ref.codhead.header.getSampleNamesInOrder().isEmpty())
 			{
 			return n;
 			}
-		return n+1+ref.header.getSampleNamesInOrder().size();
+		return n+1+ref.codhead.header.getSampleNamesInOrder().size();
 		}
 	
 	synchronized void updateRow(List<String> L)
@@ -661,6 +773,17 @@ class VCFFrame extends JDialog
 			};
 		//top.add(new JButton(""));
 		menu.add(action);
+		
+		action=new AbstractAction("Quit")
+			{
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				setVisible(false);
+				dispose();
+				}
+			};
+		menu.add(action);
 		}
 	
 	private void addVCFFile(Dimension d,VCFFileRef vfr)
@@ -718,10 +841,8 @@ class VCFFrame extends JDialog
 		VCFFileRef vfr=new VCFFileRef();
 		vfr.vcfFile=vcfFile;
 		LineIterator r=IOUtils.openFileForLineIterator(vcfFile);
-		VCFUtils.CodecAndHeader cah=VCFUtils.parseHeader(r);
+		vfr.codhead=VCFUtils.parseHeader(r);
 		CloserUtil.close(r);
-		vfr.header=cah.header;
-		vfr.codec=cah.codec;
 		return vfr;
 		}
 
