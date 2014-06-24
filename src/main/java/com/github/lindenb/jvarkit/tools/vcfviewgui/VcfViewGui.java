@@ -1,6 +1,7 @@
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Toolkit;
@@ -9,18 +10,17 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Vector;
+import java.util.prefs.BackingStoreException;
+import java.util.prefs.Preferences;
 import java.util.regex.Pattern;
 
 import javax.swing.AbstractAction;
@@ -31,7 +31,9 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
 import javax.swing.JMenuBar;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
@@ -64,6 +66,7 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Log;
 
+import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 class VCFFileRef
@@ -557,6 +560,7 @@ class VCFFrame extends JDialog
 		}
 	
 	
+	@SuppressWarnings("serial")
 	VCFFrame(List<VCFFileRef> vcfFileRefs)
 		{
 		super((JFrame)null,"VCF View ("+vcfFileRefs.size()+" files)",ModalityType.APPLICATION_MODAL);
@@ -568,41 +572,15 @@ class VCFFrame extends JDialog
 		
 		addWindowListener(new WindowAdapter()
 			{
-			
 			@Override
 			public void windowOpened(WindowEvent e)
 				{
 				removeWindowListener(this);
-				Dimension d=Toolkit.getDefaultToolkit().getScreenSize();
-				d.width-=150;
-				d.height-=150;
-				LOG.info(d);
 				for(VCFFileRef vfr:VCFFrame.this.vcfFileRefs)
 					{
-					LOG.info("Reading "+vfr.vcfFile);
-					int w=(int)(d.width*0.8);
-					int h=(int)(d.height*0.8);
-					VCFInternalFrame iFrame=new VCFInternalFrame(vfr);
-					iFrame.setBounds(
-							Math.max((int)((d.width-w)*Math.random()),0),
-							Math.max((int)((d.height-h)*Math.random()),0),
-							w, h);
-					desktopPane.add(iFrame);
-					vcfInternalFrames.add(iFrame);
-					iFrame.setVisible(true);
-					iFrame.jTable.addMouseListener(new MouseAdapter(){
-						@Override
-						public void mouseClicked(MouseEvent e) {
-						      if (e.getClickCount() == 2) {
-						         JTable t = (JTable)e.getSource();
-						         int row = t.getSelectedRow();
-						         if(row==-1) return;
-						         VCFTableModel tm=(VCFTableModel)t.getModel();
-						         showIgv(tm.getValueAt(row, 0),tm.getValueAt(row, 1));
-								}
-							}
-					});
-					LOG.info(iFrame.getBounds());
+					addVCFFile(
+							Toolkit.getDefaultToolkit().getScreenSize(),
+							vfr);
 					}
 				reloadFrameContent();
 				}
@@ -671,9 +649,122 @@ class VCFFrame extends JDialog
 		top.add(selectRgnField);
 		top.add(new JButton(action));
 		
-		
+		JMenu menu=new JMenu("File");
+		getJMenuBar().add(menu);
+		action=new AbstractAction("Load VCF")
+			{
 			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				doMenuLoadVCF();
+				}
+			};
+		//top.add(new JButton(""));
+		menu.add(action);
 		}
+	
+	private void addVCFFile(Dimension d,VCFFileRef vfr)
+		{
+		LOG.info("Reading "+vfr.vcfFile);
+		int w=(int)(d.width*0.8);
+		int h=(int)(d.height*0.8);
+		VCFInternalFrame iFrame=new VCFInternalFrame(vfr);
+		iFrame.setBounds(
+				Math.max((int)((d.width-w)*Math.random()),0),
+				Math.max((int)((d.height-h)*Math.random()),0),
+				w, h);
+		desktopPane.add(iFrame);
+		vcfInternalFrames.add(iFrame);
+		iFrame.setVisible(true);
+		iFrame.jTable.addMouseListener(new MouseAdapter(){
+			@Override
+			public void mouseClicked(MouseEvent e) {
+			      if (e.getClickCount() == 2) {
+			         JTable t = (JTable)e.getSource();
+			         int row = t.getSelectedRow();
+			         if(row==-1) return;
+			         VCFTableModel tm=(VCFTableModel)t.getModel();
+			         showIgv(tm.getValueAt(row, 0),tm.getValueAt(row, 1));
+					}
+				}
+		});
+		LOG.info(iFrame.getBounds());
+		}
+	
+	private void doMenuLoadVCF()
+		{
+		Dimension d=this.desktopPane.getSize();
+		File vcf[]=VCFFrame.selectVcfFiles(this);
+		if(vcf==null || vcf.length==0) return;
+		try
+			{
+			for(File f:vcf)
+				{
+				VCFFileRef ref=create(f);
+				this.vcfFileRefs.add(ref);
+				addVCFFile(d,ref);
+				}
+			}
+		catch(Exception err)
+			{
+			err.printStackTrace();
+			JOptionPane.showMessageDialog(this, "Error:"+err.getMessage());
+			}
+		reloadFrameContent();
+		}
+	
+    static VCFFileRef create(File vcfFile) throws IOException
+		{
+		VCFFileRef vfr=new VCFFileRef();
+		vfr.vcfFile=vcfFile;
+		LineIterator r=IOUtils.openFileForLineIterator(vcfFile);
+		VCFUtils.CodecAndHeader cah=VCFUtils.parseHeader(r);
+		CloserUtil.close(r);
+		vfr.header=cah.header;
+		vfr.codec=cah.codec;
+		return vfr;
+		}
+
+	
+	
+	static File[] selectVcfFiles(Component owner)
+		{
+		Preferences prefs=Preferences.userNodeForPackage(VcfViewGui.class);
+		String dirStr=prefs.get("last.directory", null);
+		File lastDir=null;
+		if(dirStr!=null) lastDir=new File(dirStr);
+		JFileChooser chooser=new JFileChooser(lastDir);
+		chooser.setFileFilter(new FileFilter() {
+			@Override
+			public String getDescription() {
+				return "VCF indexed with tabix";
+			}
+			
+			@Override
+			public boolean accept(File f) {
+				if(f.isDirectory()) return true;
+				return VCFUtils.isTabixVcfFile(f);
+				};
+			});
+		chooser.setMultiSelectionEnabled(true);
+		if(chooser.showOpenDialog(owner)!=JFileChooser.APPROVE_OPTION)
+			{
+			LOG.info("user pressed cancel");
+			return new File[0];
+			}
+		File fs[]=chooser.getSelectedFiles();
+		if(fs!=null)
+			{
+			if(fs.length>0 && fs[0].getParentFile()!=null)
+				{
+				prefs.put("last.directory", fs[0].getParentFile().getPath());
+				try { prefs.sync();}catch(BackingStoreException err){}
+				}
+			return fs;
+			}
+		return new File[0];
+		}
+	
 	private synchronized void reloadFrameContent()
 		{
 		if(dataLoaderThread!=null)
@@ -692,27 +783,22 @@ class VCFFrame extends JDialog
 		this.dispose();
 		}
 	
-	String igvIP=null;//"127.0.0.1"
-	Integer igvPort=null;
+	IgvSocket igvSocket=null;
 	
 	//http://plindenbaum.blogspot.fr/2011/07/controlling-igv-through-port-my.html
 	private void showIgv(final Object chrom,final Object pos)
 		{
-		if(igvIP==null || igvPort==null) return;
+		if(igvSocket==null || igvSocket.getPort()<0) return;
 		Thread thread=new Thread()
 			{	
 			@Override
 			public void run()
 				{
 				PrintWriter out=null;
-				BufferedReader in=null;
-				Socket socket=null;
-
 				try
 					{
-					socket = new Socket(igvIP, igvPort);
-					out = new PrintWriter(socket.getOutputStream(), true);
-					in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+					out = igvSocket.getWriter();
+					igvSocket.getReader();
 					out.println("goto "+chrom+":"+pos);
 					try{ Thread.sleep(5*1000);}
 					catch(InterruptedException err2) {}
@@ -723,9 +809,7 @@ class VCFFrame extends JDialog
 					}
 				finally
 					{
-					if(in!=null) try {in.close();} catch(Exception err){}
-					if(out!=null) try {out.close();} catch(Exception err){}
-					if(socket!=null) try {socket.close();} catch(Exception err){}
+					CloserUtil.close(igvSocket);
 					}
 				}
 			};
@@ -770,20 +854,7 @@ class VCFFrame extends JDialog
 public class VcfViewGui
 	extends AbstractCommandLineProgram
 	{
-    private String IGV_HOST=null;
-    private Integer IGV_PORT=null;
 
-    private VCFFileRef create(File vcfFile) throws IOException
-    	{
-    	VCFFileRef vfr=new VCFFileRef();
-    	vfr.vcfFile=vcfFile;
-    	LineIterator r=IOUtils.openFileForLineIterator(vcfFile);
-    	VCFUtils.CodecAndHeader cah=VCFUtils.parseHeader(r);
-    	CloserUtil.close(r);
-    	vfr.header=cah.header;
-    	vfr.codec=cah.codec;
-    	return vfr;
-    	}
     
     @Override
     protected String getOnlineDocUrl() {
@@ -798,22 +869,24 @@ public class VcfViewGui
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println(" -O IGV Host. example: '127.0.0.1'");
-		out.println(" -P IGV Port. example: '60151'");
+		out.println(" -O IGV Host. default:"+IgvSocket.DEFAULT_HOST);
+		out.println(" -P IGV Port. default:"+IgvSocket.DEFAULT_PORT+" negative number to disable.");
 		super.printOptions(out);
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
+		@SuppressWarnings("resource")
+		IgvSocket igvSocket=new IgvSocket();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
 		while((c=opt.getopt(args,getGetOptDefault()+"O:P:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'O': IGV_HOST=opt.getOptArg();break;
-				case 'P': IGV_PORT=Integer.parseInt(opt.getOptArg());break;
+				case 'O': igvSocket.setHost(opt.getOptArg());break;
+				case 'P': igvSocket.setPort(Integer.parseInt(opt.getOptArg()));break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -847,50 +920,25 @@ public class VcfViewGui
 			if(IN.isEmpty())
 				{
 				info("NO VCF provided; Opening dialog");
-				JFileChooser chooser=new JFileChooser();
-				chooser.setFileFilter(new FileFilter() {
-					@Override
-					public String getDescription() {
-						return "VCF indexed with tabix";
-					}
-					
-					@Override
-					public boolean accept(File f) {
-						if(f.isDirectory()) return true;
-						if(f.isFile() && f.canRead() && f.getName().endsWith(".vcf.gz"))
-							{
-							File tabix=new File(f.getParentFile(),f.getName()+".tbi");
-							if(!tabix.exists()) return false;
-							if(!tabix.canRead() || tabix.lastModified()< f.lastModified()) return false;
-							return true;
-							}
-						return false;
-						};
-					});
-				chooser.setMultiSelectionEnabled(true);
-				if(chooser.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION)
+				
+				File fs[]=VCFFrame.selectVcfFiles(null);
+				if(fs!=null)
 					{
-					info("user pressed cancel");
-					return -1;
+					IN.addAll(Arrays.asList(fs));
 					}
-				File fs[]=chooser.getSelectedFiles();
-				if(fs!=null) IN.addAll(Arrays.asList(chooser.getSelectedFiles()));
+				
 				}
 			
 			
 			for(File in:IN)
 				{
-				vfrs.add(create(in));
+				vfrs.add(VCFFrame.create(in));
 				}
-			if(vfrs.isEmpty())
-				{
-				return -1;
-				}
+			
 			info("showing VCF frame");
 			Dimension screen=Toolkit.getDefaultToolkit().getScreenSize();
 			VCFFrame f=new VCFFrame(vfrs);
-			f.igvIP=IGV_HOST;
-			f.igvPort=IGV_PORT;
+			f.igvSocket=igvSocket;
 			f.setBounds(50, 50, screen.width-100, screen.height-100);
 			f.setVisible(true);
 			}
