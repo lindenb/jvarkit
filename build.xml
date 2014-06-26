@@ -697,7 +697,15 @@ or
 		name="findavariation"
 		/>
 </target>
-	
+
+<target name="allelefreqcalc" >
+	<compile-picard-cmd
+		java="**/AlleleFrequencyCalculator.java"
+		main="com.github.lindenb.jvarkit.tools.misc.AlleleFrequencyCalculator"
+		name="allelefreqcalc"
+		/>
+</target>
+
 	
 <target name="kg2bed" >
 	<compile-picard-cmd
@@ -1725,6 +1733,15 @@ or
 		/>
 </target>
 
+<target name="buildwpontology" >
+	<compile-picard-cmd
+		java="**/BuildWikipediaOntology.java"
+		main="com.github.lindenb.jvarkit.tools.misc.BuildWikipediaOntology"
+		name="buildwpontology"
+		/>
+</target>
+	
+	
 <target name="findnewsplicesites" >
 	<compile-picard-cmd
 		java="**/FindNewSpliceSites.java"
@@ -1886,7 +1903,7 @@ or
 
  </target>
 <!-- experimental JNLP part -->
-<target name="vcfviewgui-jnlp" depends="vcfviewgui">
+<target name="all-jnlp" depends="vcfviewgui,buildwpontology">
  <mkdir dir="tmp"/>
   <copy file="dist/vcfviewgui.jar" todir="tmp"/>
   <copy todir="tmp">
@@ -1909,6 +1926,15 @@ or
 		    <replacestring from="__MAIN_CLASS__" to="com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui"/>
 		  </tokenfilter>
 			  </filterchain>
+	</copy>
+	<copy file="./src/main/resources/jnlp/generic.jnlp" toFile="tmp/buildwpontology.jnlp">
+		<filterchain>
+		        <tokenfilter>
+		    <replacestring from="__MAIN_JAR__" to="buildwpontology"/>
+		    <replacestring from="__TITLE__" to="BuildWikipediaOntology"/>
+		    <replacestring from="__MAIN_CLASS__" to="com.github.lindenb.jvarkit.tools.misc.BuildWikipediaOntology"/>
+		  </tokenfilter>
+		</filterchain>
 	</copy>
 </target>
 
