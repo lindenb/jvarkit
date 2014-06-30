@@ -97,19 +97,17 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 				
 				private void expand()
 					{
-					for(String term:getSubCategories(CatNode.this.catName))
+					Set<String> terms=getSubCategories(CatNode.this.catName);
+					for(int i=0;i< CatNode.this.getChildCount();++i)
 						{
-						int i=0;
-						for(i=0;i< CatNode.this.getChildCount();++i)
-							{
-							CatNode c=CatNode.class.cast( CatNode.this.getChildAt(i));
-							if(c.catName.equals(term)) break;
-							}
-						if(i==CatNode.this.getChildCount())
-							{
-							CatNode newnode=new CatNode(term);
-							CatNode.this.add(newnode);
-							}
+						CatNode c=CatNode.class.cast( CatNode.this.getChildAt(i));
+						terms.remove(c.catName);
+						}
+					
+					for(String term:terms)
+						{
+						CatNode newnode=new CatNode(term);
+						CatNode.this.add(newnode);
 						}
 					DefaultTreeModel model=(DefaultTreeModel)jtree.getModel();
 					model.nodeStructureChanged(CatNode.this);
@@ -151,10 +149,13 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 					{
 					@Override
 						public void actionPerformed(ActionEvent e) {
-						TreePath selPath=jtree.getSelectionPath();
-						if(selPath==null)return;
-						CatNode node=(CatNode)selPath.getLastPathComponent();
-						node.expand();
+						TreePath selPaths[]=jtree.getSelectionPaths();
+						if(selPaths==null || selPaths.length==0)return;
+						for(TreePath selPath:selPaths)
+							{
+							CatNode node=(CatNode)selPath.getLastPathComponent();
+							node.expand();
+							}
 						}
 					};
 				toolBar.add(new JButton(action));
@@ -165,10 +166,13 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 					{
 					@Override
 						public void actionPerformed(ActionEvent e) {
-						TreePath selPath=jtree.getSelectionPath();
-						if(selPath==null)return;
-						CatNode node=(CatNode)selPath.getLastPathComponent();
-						node.delete();
+						TreePath selPaths[]=jtree.getSelectionPaths();
+						if(selPaths==null || selPaths.length==0)return;
+						for(TreePath selPath:selPaths)
+							{
+							CatNode node=(CatNode)selPath.getLastPathComponent();
+							node.delete();
+							}
 						}
 					};
 				toolBar.add(new JButton(action));
