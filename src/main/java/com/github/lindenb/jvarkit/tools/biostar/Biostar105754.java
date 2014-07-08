@@ -61,7 +61,7 @@ public class Biostar105754 extends AbstractCommandLineProgram
 		throws IOException
 		{
 		Pattern tab=Pattern.compile("[\t]");
-		while(r.hasNext())
+		while(r.hasNext() && !this.out.checkError())
 			{
 			String line=r.next();
 			if(line.startsWith("#"))
