@@ -689,6 +689,15 @@ or
 		name="gcanddepth"
 		/>
 </target>
+<target name="vcfregulomedb" >
+	<compile-picard-cmd
+		java="**/VcfRegulomeDB.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfRegulomeDB"
+		name="vcfregulomedb"
+		/>
+</target>
+
+	
 	
 <target name="findavariation" >
 	<compile-picard-cmd

@@ -139,5 +139,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BuildWikipediaOntology">BuildWikipediaOntology<a></th><td>Build a simple RDFS/XML ontology from Wikipedia Categories.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/AlmostSortedVcf">AlmostSortedVcf<a></th><td>Sort an 'almost' sorted VCF using an in-memory buffer.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar105754">Biostar105754<a></th><td>bigwig: peak distance from specific genomic BED region</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRegulomeDB">VcfRegulomeDB<a></th><td>Annotate a VCF with the RegulomeDB data (http://regulome.stanford.edu/)</td></tr>
 </table>
 
