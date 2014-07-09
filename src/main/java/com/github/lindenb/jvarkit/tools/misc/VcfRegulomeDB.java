@@ -100,8 +100,8 @@ public class VcfRegulomeDB extends AbstractVCFFilter2
 		{
 		VCFHeader header=in.getHeader();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+" CmdLine",String.valueOf(getProgramCommandLine())));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+" Version",String.valueOf(getVersion())));
+		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 		header.addMetaDataLine(new VCFInfoHeaderLine(
 				this.infoTag,
 				VCFHeaderLineCount.UNBOUNDED,
