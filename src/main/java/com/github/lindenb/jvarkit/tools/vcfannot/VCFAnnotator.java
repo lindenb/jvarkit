@@ -171,6 +171,10 @@ public class VCFAnnotator extends AbstractVCFFilter2
 	
 	private void loadKnownGenesFromUri() throws IOException
 		{
+		if(this.indexedFastaSequenceFile.getSequenceDictionary()==null)
+			{
+			throw new IOException("Cannot get sequence dictionary for REF : "+getMessageBundle("picard.dictionary.needed"));
+			}
 		int n_genes=0;
 		this.knownGenes=new SamSequenceRecordTreeMap<KnownGene>(
 				this.indexedFastaSequenceFile.getSequenceDictionary()
