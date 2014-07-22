@@ -5,7 +5,7 @@
 <property name="http.proxy" value="localhost:80"/>
 <property name="generated.dir" value="src/main/generated-sources/java"/>
 <property name="test.output" value="tests"/>
-	
+<property file="${htsjdk.home}/htsjdk.version.property.xml"/>
 	
 <!--define htsjdk.home if is not defined in the file "build.properties" -->
 <property name="htsjdk.home" value="htsjdk"/>
@@ -115,6 +115,8 @@
 	<attribute name="main"/>
 	<sequential>
 	   <antcall target="htsjdk"/>
+		
+		
 	   <mkdir dir="tmp"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
@@ -199,8 +201,37 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   <mkdir dir="${generated.dir}"/>
 	   <mkdir dir="tmp/META-INF"/>
 	   
+		<tstamp>
+	    	<format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss" />
+		</tstamp>
+
+		
 	   <copy file="src/main/resources/messages/messages.properties" todir="tmp"/>
-	   
+		
+		 <loadfile
+		      property="git.master.hash"
+		      srcFile=".git/refs/heads/master"
+		 	  failonerror="false"
+		 	  >
+		 	  	<filterchain>
+		 	        <striplinebreaks/>
+				</filterchain>
+		 </loadfile>
+		
+		   <!-- generate version -->
+		   <mkdir dir="${generated.dir}/com/github/lindenb/jvarkit/util/htsjdk"/>
+		   <echo file="${generated.dir}/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java">
+		   package com.github.lindenb.jvarkit.util.htsjdk;
+		   @javax.annotation.Generated("jvarkit")
+		   public class HtsjdkVersion{ private HtsjdkVersion(){}
+		   	public static String getVersion() {return "${htsjdk-version}";}
+		   	public static String getHome() {return "${htsjdk.home}";}
+		   	}
+		   </echo>
+			
+
+		
+		
 	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured. See https://github.com/lindenb/jvarkit/wiki/Compilation</echo>
 	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
 	   		
@@ -212,15 +243,6 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   		<include name="**/package-info.java"/>
 	   </javac>
 	   
-	 <loadfile
-	      property="git.master.hash"
-	      srcFile=".git/refs/heads/master"
-	 	  failonerror="false"
-	 	  >
-	 	  	<filterchain>
-	 	        <striplinebreaks/>
-			</filterchain>
-	    </loadfile>
 		
 	   <pathconvert property="manifest_@{name}" pathsep=" " >
 			 <path refid="@{libraryid}"/>
@@ -231,9 +253,6 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   </pathconvert>  
 
 	   
-	<tstamp>
-    	<format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss" />
-	</tstamp>
 	   
 	   <jar jarfile="dist/@{name}.jar">
 		     <fileset dir="tmp" />
@@ -1855,6 +1874,31 @@ or
 	    <arg value="http://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd"/>
 	  </exec>
 </target>	
+
+<target name="api.ncbi.taxonomy">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
+	    <arg value="-p"/> <arg value="gov.nih.nlm.ncbi.taxonomy"/>
+	 	&xjcproxyarg;
+	    <arg value="-dtd"/>
+	    <arg value="http://www.ncbi.nlm.nih.gov/entrez/query/DTD/taxon.dtd"/>
+	  </exec>
+</target>	
+
+	
+<target name="api.ncbi.tseq">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
+	    <arg value="-p"/> <arg value="gov.nih.nlm.ncbi.tseq"/>
+	 	&xjcproxyarg;
+	    <arg value="-dtd"/>
+	    <arg value="http://www.ncbi.nlm.nih.gov/dtd/NCBI_TSeq.dtd"/>
+	  </exec>
+</target>	
+	
+	
 	
 <target name="api.uniprot">
 	 <mkdir dir="${generated.dir}"/>

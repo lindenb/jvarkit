@@ -9,15 +9,16 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.tribble.readers.TabixReader;
+import htsjdk.tribble.util.TabixUtils;
 
 /**
  * Safe wrapper around org.broad.tribble.readers.TabixReader (won't return a null iterator )
  * @author lindenb
  *
  */
+@Deprecated //new version of htsjdk.TabixReader should be used in the future.
 public class TabixFileReader implements Closeable
 	//,Iterable<VariantContext> NO, not a true iterator
 	{
@@ -27,9 +28,15 @@ public class TabixFileReader implements Closeable
     
     /** return true if 'f' is a file, path ends with '.gz' and there is an associated .tbi file */
     public static final boolean isValidTabixFile(File f)
-    	{
-    	return VCFUtils.isTabixVcfFile(f);
-    	}
+		 	{
+			if (!f.isFile())
+				return false;
+			String filename = f.getName();
+			if (!filename.endsWith(".gz"))
+				return false;
+			File index = new File(f.getParentFile(), filename +TabixUtils.STANDARD_INDEX_EXTENSION);
+			return index.exists() && index.isFile();
+			}
     
     public TabixFileReader(String uri) throws IOException
     	{
@@ -43,7 +50,7 @@ public class TabixFileReader implements Closeable
     
     public Set<String> getChromosomes()
     	{
-    	return Collections.unmodifiableSet(getTabix().mChr2tid.keySet());
+    	return getTabix().getChromosomes();
     	}
     
     public String getURI()

@@ -1,5 +1,7 @@
 package com.github.lindenb.jvarkit.util;
 
+
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,6 +27,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 
 public abstract class AbstractCommandLineProgram
 	{
@@ -150,13 +153,20 @@ public abstract class AbstractCommandLineProgram
 	
 	protected void printStandardPreamble(PrintStream out)
 		{
-		out.println(getProgramName());
+		String prg=getProgramName();
+		out.println(prg);
+		for(int i=0;i< prg.length();++i) out.print('=');
+		out.println();
+		out.print("\nDescription: ");
 		out.println(getProgramDescription());
-		out.println("Author      : "+getAuthorName());
-		out.println("Mail        : "+getAuthorMail());
-		out.println("WWW         : "+getOnlineDocUrl());
-		out.println("Compilation : "+getCompileDate());
-		out.println("Version     : "+getVersion());
+		out.println();
+		out.println("Author         : "+getAuthorName());
+		out.println("Mail           : "+getAuthorMail());
+		out.println("WWW            : "+getOnlineDocUrl());
+		out.println("Compilation    : "+getCompileDate());
+		out.println("Git-Hash       : "+getVersion());
+		out.println("Htsjdk-version : "+HtsjdkVersion.getVersion());
+		out.println("Htsjdk-home    : "+HtsjdkVersion.getHome());
 		}
 	
 	
@@ -192,9 +202,12 @@ public abstract class AbstractCommandLineProgram
 		}
 	public void printUsage(PrintStream out)
 		{
+		out.println();
 		printStandardPreamble(out);
+		out.println();
 		out.println("Usage:");
 		printSynopsis(out);
+		out.println();
 		out.println("Options:");
 		printOptions(out);
 		out.println();
@@ -688,5 +701,7 @@ public abstract class AbstractCommandLineProgram
 	     	out.flush();
 	     	}
 		}
-
+    
+    
+    
 }

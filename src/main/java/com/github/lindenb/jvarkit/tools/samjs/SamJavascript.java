@@ -141,8 +141,8 @@ public class SamJavascript
 	@Override
 	public String getProgramDescription() {
 		return "Filters a BAM using javascript( java rhino engine)." +
-				"The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/net/sf/samtools/SAMRecord.html)  " +
-				" and 'header' ( http://picard.sourceforge.net/javadoc/net/sf/samtools/SAMFileHeader.html) in the script context .";
+				"The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  " +
+				" and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .";
 		}
 	
 	@Override
