@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum PhD.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
@@ -16,6 +40,7 @@ import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 public class FastqRevComp extends AbstractCommandLineProgram
 	{
+	private boolean interleaced=false;
 
 	private FastqRevComp()
 		{
@@ -38,6 +63,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 	public void printOptions(PrintStream out)
 		{
 		out.println(" -o (fileout) Filename output . Optional ");
+		out.println(" -i interleaced input : reverse complement one read/ two. Optional ");
 		super.printOptions(out);
 		}
 	
@@ -45,6 +71,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 	
 	private void run(FastqReader r,PrintStream out)
 		{
+		String s;
 		long nRec=0L;
 		r.setValidationStringency(ValidationStringency.LENIENT);
 		while(r.hasNext())
@@ -55,12 +82,21 @@ public class FastqRevComp extends AbstractCommandLineProgram
 				}
 			FastqRecord fastq=r.next();
 			
+			
 			out.print(FastqConstants.SEQUENCE_HEADER);
 			out.println(fastq.getReadHeader());
-			String s=fastq.getReadString();
-			for(int i=s.length()-1;i>=0;i--)
+			s=fastq.getReadString();
+
+			if(this.interleaced && nRec%2==1) //interleaced, we ignore first
 				{
-				out.print(AcidNucleics.complement(s.charAt(i)));
+				out.print(s);
+				}
+			else
+				{
+				for(int i=s.length()-1;i>=0;i--)
+					{
+					out.print(AcidNucleics.complement(s.charAt(i)));
+					}
 				}
 			out.println();
 			
@@ -70,10 +106,16 @@ public class FastqRevComp extends AbstractCommandLineProgram
 			out.println();
 			
 			s=fastq.getBaseQualityString();
-			
-			for(int i=s.length()-1;i>=0;i--)
+			if(this.interleaced && nRec%2==1) //interleaced, we ignore first
 				{
-				out.print(s.charAt(i));
+				out.print(s);
+				}
+			else
+				{
+				for(int i=s.length()-1;i>=0;i--)
+					{
+					out.print(s.charAt(i));
+					}
 				}
 			out.println();
 			if(out.checkError()) break;
@@ -88,11 +130,12 @@ public class FastqRevComp extends AbstractCommandLineProgram
 		File fileout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=getopt.getopt(args, getGetOptDefault()+"o:"))!=-1)
+		while((c=getopt.getopt(args, getGetOptDefault()+"o:i"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': fileout=new File(getopt.getOptArg());break;
+				case 'i': interleaced=true; break;
 				default: 
 					{
 					switch(handleOtherOptions(c, getopt, null))
