@@ -141,5 +141,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar105754">Biostar105754<a></th><td>bigwig: peak distance from specific genomic BED region</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRegulomeDB">VcfRegulomeDB<a></th><td>Annotate a VCF with the RegulomeDB data (http://regulome.stanford.edu/)</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar106668">Biostar106668<a></th><td>unmark duplicates</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BatchIGVPictures">BatchIGVPictures<a></th><td>GUI: Batch pictures with IGV</td></tr>
 </table>
 
