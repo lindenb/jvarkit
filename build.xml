@@ -1591,6 +1591,15 @@ or
 		/>
 </target>
 
+	<target name="batchigvpictures">
+		<compile-picard-cmd 
+			java="**/BatchIGVPictures.java"
+			main="com.github.lindenb.jvarkit.tools.batchpicts.BatchIGVPictures"
+			name="batchigvpictures"
+			/>
+	</target>
+	
+	
 <target name="vcfrenamesamples">
 	<compile-picard-cmd 
 		java="**/VcfRenameSamples.java"
@@ -1968,10 +1977,11 @@ or
 
  </target>
 <!-- experimental JNLP part -->
-<target name="all-jnlp" depends="vcfviewgui,buildwpontology">
+<target name="all-jnlp" depends="vcfviewgui,buildwpontology,batchigvpictures">
  <mkdir dir="tmp"/>
 	  <copy file="dist/vcfviewgui.jar" todir="tmp"/>
 	  <copy file="dist/buildwpontology.jar" todir="tmp"/>
+	  <copy file="dist/batchigvpictures.jar" todir="tmp"/>
   <copy todir="tmp">
   	<fileset dir="htsjdk/dist">
   	      <include name="*.jar"/>
@@ -2002,6 +2012,16 @@ or
 		  </tokenfilter>
 		</filterchain>
 	</copy>
+	<copy file="./src/main/resources/jnlp/generic.jnlp" toFile="tmp/batchigvpictures.jnlp">
+		<filterchain>
+		        <tokenfilter>
+		    <replacestring from="__MAIN_JAR__" to="batchigvpictures"/>
+		    <replacestring from="__TITLE__" to="BatchIGVPictures"/>
+		    <replacestring from="__MAIN_CLASS__" to="com.github.lindenb.jvarkit.tools.batchpicts.BatchIGVPictures"/>
+		  </tokenfilter>
+		</filterchain>
+	</copy>
+
 </target>
 
 <target name="generate-keypair">

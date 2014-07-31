@@ -20,7 +20,7 @@
 	<jar href="apache-ant-1.8.2-bzip2.jar" download="eager"/>
 	<jar href="commons-jexl-2.1.1.jar" download="eager"/>
 	<jar href="commons-logging-1.1.1.jar" download="eager"/>
-	<jar href="htsjdk-1.112.jar" download="eager"/>
+	<jar href="htsjdk-1.117.jar" download="eager"/>
 	<jar href="snappy-java-1.0.3-rc3.jar" download="eager"/>
 	<jar href="__MAIN_JAR__.jar" download="eager" main="true"/>
 	<property name="java.net.preferIPv4Stack" value="true"/>
