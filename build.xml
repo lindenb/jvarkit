@@ -1591,14 +1591,29 @@ or
 		/>
 </target>
 
-	<target name="batchigvpictures">
-		<compile-picard-cmd 
-			java="**/BatchIGVPictures.java"
-			main="com.github.lindenb.jvarkit.tools.batchpicts.BatchIGVPictures"
-			name="batchigvpictures"
-			/>
-	</target>
-	
+<target name="batchigvpictures" depends="copy-opendoc-odp-resources">
+	<compile-picard-cmd 
+		java="**/BatchIGVPictures.java"
+		main="com.github.lindenb.jvarkit.tools.batchpicts.BatchIGVPictures"
+		name="batchigvpictures"
+		/>
+</target>
+
+<target name="copy-opendoc-odp-resources" >
+	<mkdir dir="tmp/META-INF/opendocument/odp" />
+	<copy todir="tmp/META-INF/opendocument/odp">
+		<fileset dir="src/main/resources/opendocument">
+			<include name="thumbnail.png"/>
+		</fileset>
+		<fileset dir="src/main/resources/opendocument/odp">
+			<include name="meta.xml"/>
+			<include name="content.xml"/>
+			<include name="settings.xml"/>
+			<include name="styles.xml"/>
+			<include name="mimetype"/>
+		</fileset>
+	</copy>
+</target>
 	
 <target name="vcfrenamesamples">
 	<compile-picard-cmd 
