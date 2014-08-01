@@ -1,3 +1,30 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+*/
 package com.github.lindenb.jvarkit.tools.genscan;
 
 import java.awt.AlphaComposite;
@@ -31,6 +58,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 	{
 	protected Dimension screenSize=new Dimension(1000,300);
 	protected boolean DISCARD_UNSEEN_CHROM=false;
+	/** use min/max rather than 0->sequence length */
 	protected boolean DISCARD_BOUNDS=false;
     private Hershey hershey=new Hershey();
     protected Insets insets=new Insets(20,150, 30, 30);
@@ -110,7 +138,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 			return "["+getMin()+" - "+ getMax()+"]";
 			}
 		}
-	
+	/** sample contains sample_id, name,min/max, y and height */
 	protected class Sample
 		{
 		int sample_id=-1;
@@ -444,7 +472,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(PrintStream out) {
 		out.println( " --min-y (double) min y value. Optional.");
-		out.println( " --max-y (double) min y value. Optional.");
+		out.println( " --max-y (double) max y value. Optional.");
 		out.println( " --image-size (int)x(int) image width x height . Default:"+screenSize+". Optional.");
 		super.printOptions(out);
 		}

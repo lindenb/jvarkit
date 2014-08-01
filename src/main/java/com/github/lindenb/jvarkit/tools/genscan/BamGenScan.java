@@ -1,3 +1,32 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+* July 2014: using a cigar string, remove bad quality cigars, secondaries
+
+*/
 package com.github.lindenb.jvarkit.tools.genscan;
 
 import java.awt.Color;
@@ -16,7 +45,8 @@ import javax.imageio.ImageIO;
 
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
@@ -27,25 +57,29 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
 /**
- * GenScan
+ * BamGenScan
  *
  */
 public class BamGenScan extends AbstractGeneScan
 	{
 	private List<Input> inputs=new ArrayList<Input>();
 	
-	private class Input
+	/** a sample name and a filename */
+	private static class Input
 		{
 		Sample sample;
+		/** filename can contain more than one filename, can be colon-separated */
 		String filenames;
 		}
 	
-	
+	@Override
 	protected void drawPoints(Graphics2D g)
 		{
+		//loop over each input
 		for(int input_id=0;input_id<this.inputs.size();++input_id)
 			{		
 			Input input=this.inputs.get(input_id);
+			/** all readers for this sample */
 			List<SamReader> readers=new ArrayList<SamReader>();
 			for(String filename:input.filenames.split("[\\:]+"))
 				{
@@ -55,7 +89,7 @@ public class BamGenScan extends AbstractGeneScan
 				readers.add(sfr);
 				
 				}
-			
+			/* loop over each chromosome */
 			for(ChromInfo ci:this.chromInfos)
 				{
 				if(!ci.visible) continue;
@@ -80,13 +114,29 @@ public class BamGenScan extends AbstractGeneScan
 						SAMRecord rec=sli.next();
 						if(rec.getReadUnmappedFlag()) continue;
 						if(rec.getDuplicateReadFlag()) continue;
-						
-						for(int pos1=rec.getAlignmentStart();pos1<= rec.getAlignmentEnd();++pos1)
+						if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+						if(rec.isSecondaryOrSupplementary()) continue;
+						Cigar cigar=rec.getCigar();
+						if(cigar==null) continue;
+						int pos0=rec.getAlignmentStart() - 1;
+						for(CigarElement ce:cigar.getCigarElements())
 							{
-							int pos0=pos1-1;
-							if(pos0<0 || pos0>=count.length) continue;
-							count[pos0]++;
-							}
+							htsjdk.samtools.CigarOperator op=ce.getOperator();
+							if(!op.consumesReferenceBases()) continue;
+							if(op.consumesReadBases())
+								{
+								for(int L=0;L< ce.getLength();++L)
+									{
+									if(pos0<0 || pos0>=count.length) continue;
+									count[pos0]++;
+									++pos0;
+									}
+								}
+							else
+								{
+								pos0+=ce.getLength();
+								}
+							}						
 						}
 					sli.close();
 					}
@@ -227,6 +277,11 @@ public class BamGenScan extends AbstractGeneScan
 					SAMFileHeader h=sfr.getFileHeader();
 					sfr.close();
 					SAMSequenceDictionary d=h.getSequenceDictionary();
+					if(d==null)
+						{
+						error("Cannot get sequence dictionary for "+filename);
+						return -1;
+						}
 					if(dict==null)
 						{
 						dict=d;
