@@ -37,6 +37,7 @@ public abstract class AbstractCommandLineProgram
 	private String compileDate;
 	private List<File> tmpDirs=null;
 	private ResourceBundle messagesBundle=null;
+	protected static final String DEFAULT_WIKI_PREFIX="https://github.com/lindenb/jvarkit/wiki/";
 	
 	protected AbstractCommandLineProgram()
 		{

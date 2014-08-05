@@ -142,5 +142,8 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRegulomeDB">VcfRegulomeDB<a></th><td>Annotate a VCF with the RegulomeDB data (http://regulome.stanford.edu/)</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar106668">Biostar106668<a></th><td>unmark duplicates</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BatchIGVPictures">BatchIGVPictures<a></th><td>GUI: Batch pictures with IGV</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PubmedDump">PubmedDump<a></th><td>Dump pubmed data as XML.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamIndexReadNames">BamIndexReadNames<a></th><td>Build a dictionary of read names to be searched with BamQueryReadNames.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamQueryReadNames">BamQueryReadNames<a></th><td>Query a Bam file indexed with BamIndexReadNames.</td></tr>
 </table>
 

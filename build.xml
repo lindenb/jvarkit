@@ -1599,6 +1599,23 @@ or
 		/>
 </target>
 
+	
+<target name="bamindexreadnames">
+	<compile-picard-cmd 
+		java="**/BamIndexReadNames.java"
+		main="com.github.lindenb.jvarkit.tools.bamindexnames.BamIndexReadNames"
+		name="bamindexreadnames"
+		/>
+</target>
+	<target name="bamqueryreadnames">
+		<compile-picard-cmd 
+			java="**/BamQueryReadNames.java"
+			main="com.github.lindenb.jvarkit.tools.bamindexnames.BamQueryReadNames"
+			name="bamqueryreadnames"
+			/>
+	</target>	
+
+	
 <target name="copy-opendoc-odp-resources" >
 	<mkdir dir="tmp/META-INF/opendocument/odp" />
 	<copy todir="tmp/META-INF/opendocument/odp">
@@ -1870,6 +1887,13 @@ or
 		/>
 </target>
 
+<target name="pubmeddump">
+	<compile-picard-cmd
+		java="**/PubmedDump.java"
+		main="com.github.lindenb.jvarkit.tools.pubmed.PubmedDump"
+		name="pubmeddump"
+		/>
+</target>
 
 	
 <target name="x2" if="has.mysql.driver">
@@ -1919,6 +1943,18 @@ or
 	 	&xjcproxyarg;
 	    <arg value="-dtd"/>
 	    <arg value="http://www.ncbi.nlm.nih.gov/dtd/NCBI_TSeq.dtd"/>
+	  </exec>
+</target>	
+
+	
+<target name="api.ncbi.esearch">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
+	    <arg value="-p"/> <arg value="gov.nih.nlm.ncbi.esearch"/>
+	 	&xjcproxyarg;
+	    <arg value="-dtd"/>
+	    <arg value="http://eutils.ncbi.nlm.nih.gov/eutils/dtd/20060628/esearch.dtd"/>
 	  </exec>
 </target>	
 	
