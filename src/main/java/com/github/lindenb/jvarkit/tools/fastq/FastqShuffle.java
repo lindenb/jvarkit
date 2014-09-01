@@ -162,12 +162,17 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		return new FastqRecord(seqHeader, seqLine, qualHeader, qualLine);
 		}
 	
+	private static String notNull(String s)
+		{
+		return s==null?"":s;
+		}	
+	
 	private static void writeFastqRecord(DataOutputStream dos,final FastqRecord r)  throws IOException
 		{
-		dos.writeUTF(r.getReadHeader());
-		dos.writeUTF(r.getReadString());
-		dos.writeUTF(r.getBaseQualityHeader());
-		dos.writeUTF(r.getBaseQualityString());
+		dos.writeUTF(notNull(r.getReadHeader()));
+		dos.writeUTF(notNull(r.getReadString()));
+		dos.writeUTF(notNull(r.getBaseQualityHeader()));
+		dos.writeUTF(notNull(r.getBaseQualityString()));
 		}
 
 	
