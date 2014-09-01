@@ -202,20 +202,20 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		sorting.setDestructiveIteration(true);
 		while(r1.hasNext())
 			{
-			if(r2!=null)
-				{
-				if(!r2.hasNext()) throw new IOException(getMessageBundle("fastq.paired.read.missing"));
-				}
-			else
-				{
-				if(!r1.hasNext()) throw new IOException(getMessageBundle("fastq.paired.read.missing"));
-				}
 			TwoReads p=new TwoReads();
 			p.random=this.random.nextLong();
 			p.index=nReads;
 			p.first=r1.next();
-			p.second=(r2==null?r1.next():r2.next());
-			
+			if(r2!=null)
+				{
+				if(!r2.hasNext())  throw new IOException(getMessageBundle("fastq.paired.read.missing"));
+				p.second=r2.next();
+				}
+			else
+				{
+				if(!r1.hasNext())  throw new IOException(getMessageBundle("fastq.paired.read.missing"));
+				p.second=r1.next();
+				}
 			
 			if((++nReads)%this.maxRecordsInRAM==0)
 				{
@@ -269,6 +269,8 @@ public class FastqShuffle extends AbstractCommandLineProgram
 			
 			sorting.add(r);
 			}
+		sorting.doneAdding();
+		
 		CloseableIterator<OneRead> iter=sorting.iterator();
 		while(iter.hasNext())
 			{

@@ -43,7 +43,7 @@ import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 /**
- * FastqShuffle
+ * FastqSplitInterleaved
  * @author lindenb
  *
  */
@@ -108,6 +108,12 @@ public class FastqSplitInterleaved extends AbstractCommandLineProgram
 			else
 				{
 				error(getMessageBundle("illegal.number.of.arguments"));
+				return -1;
+				}
+			
+			if(fileout[0]==null && fileout[1]==null)
+				{
+				error("Both outputs are undefined.");
 				return -1;
 				}
 			

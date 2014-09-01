@@ -1911,6 +1911,14 @@ or
 		name="pubmeddump"
 		/>
 </target>
+	
+<target name="pubmedfilterjs" depends="api.ncbi.pubmed">
+	<compile-picard-cmd
+		java="**/PubmedFilterJS.java"
+		main="com.github.lindenb.jvarkit.tools.pubmed.PubmedFilterJS"
+		name="pubmedfilterjs"
+		/>
+</target>
 
 	
 <target name="x2" if="has.mysql.driver">
@@ -1975,7 +1983,16 @@ or
 	  </exec>
 </target>	
 	
-	
+<target name="api.ncbi.pubmed">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
+	    <arg value="-p"/> <arg value="gov.nih.nlm.ncbi.pubmed"/>
+	 	&xjcproxyarg;
+	    <arg value="-dtd"/>
+	    <arg value="http://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_140101.dtd"/>
+	  </exec>
+</target>		
 	
 <target name="api.uniprot">
 	 <mkdir dir="${generated.dir}"/>
