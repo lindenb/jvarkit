@@ -1803,6 +1803,15 @@ or
 		name="fastqphred64to33"
 		/>
 </target>
+	
+<target name="fastqshuffle" >
+	<compile-picard-cmd
+		java="**/FastqShuffle.java"
+		main="com.github.lindenb.jvarkit.tools.fastq.FastqShuffle"
+		name="fastqshuffle"
+		/>
+</target>
+
 
 <target name="sam2psl" >
 	<compile-picard-cmd
