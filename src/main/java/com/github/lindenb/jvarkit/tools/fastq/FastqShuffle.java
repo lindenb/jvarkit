@@ -61,7 +61,8 @@ public class FastqShuffle extends AbstractCommandLineProgram
 	
 	private static class OneRead
 		{
-		int random;
+		long random;
+		long index;
 		FastqRecord first;
 		}
 
@@ -76,7 +77,9 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		{
 		@Override
 		public int compare(final OneRead o1, final OneRead o2) {
-			return o1.random - o2.random;
+			int i= o1.random < o2.random ? -1:  o1.random > o2.random ? 1: 0;
+			if(i!=0) return i;
+			return  o1.index < o2.index ? -1:  o1.index > o2.index ? 1: 0;
 			}
 		}
 	private static class TwoReadsCompare
@@ -84,7 +87,9 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		{
 		@Override
 		public int compare(final TwoReads o1, final TwoReads o2) {
-			return o1.random - o2.random;
+			int i= o1.random < o2.random ? -1:  o1.random > o2.random ? 1: 0;
+			if(i!=0) return i;
+			return  o1.index < o2.index ? -1:  o1.index > o2.index ? 1: 0;
 			}
 		}
 
@@ -96,17 +101,19 @@ public class FastqShuffle extends AbstractCommandLineProgram
 			{
 			OneRead r=new OneRead();
 			try {
-				r.random = dis.readInt();
+				r.random = dis.readLong();
 			} catch (IOException e) {
 				return null;
 				}
+			r.index = dis.readLong();
 			r.first=readFastqRecord(dis);
 			return r;
 			}
 		@Override
 		public void encode(DataOutputStream dos, OneRead r)
 				throws IOException {
-			dos.writeInt(r.random);
+			dos.writeLong(r.random);
+			dos.writeLong(r.index);
 			writeFastqRecord(dos,r.first);
 			}
 		@Override
@@ -122,10 +129,11 @@ public class FastqShuffle extends AbstractCommandLineProgram
 			{
 			TwoReads r=new TwoReads();
 			try {
-				r.random = dis.readInt();
+				r.random = dis.readLong();
 			} catch (IOException e) {
 				return null;
 				}
+			r.index = dis.readLong();
 			r.first=readFastqRecord(dis);
 			r.second=readFastqRecord(dis);
 			return r;
@@ -133,7 +141,8 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		@Override
 		public void encode(DataOutputStream dos, TwoReads r)
 				throws IOException {
-			dos.writeInt(r.random);
+			dos.writeLong(r.random);
+			dos.writeLong(r.index);
 			writeFastqRecord(dos,r.first);
 			writeFastqRecord(dos,r.second);
 			}
@@ -199,7 +208,8 @@ public class FastqShuffle extends AbstractCommandLineProgram
 				if(!r1.hasNext()) throw new IOException("Read missing in  interleaved fastq file");
 				}
 			TwoReads p=new TwoReads();
-			p.random=this.random.nextInt();
+			p.random=this.random.nextLong();
+			p.index=nReads;
 			p.first=r1.next();
 			p.second=(r2==null?r1.next():r2.next());
 			
@@ -268,7 +278,8 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		while(r1.hasNext())
 			{
 			OneRead r=new OneRead();
-			r.random=this.random.nextInt();
+			r.random=this.random.nextLong();
+			r.index=nReads;
 			r.first=r1.next();
 			
 			if((++nReads)%this.maxRecordsInRAM==0)
