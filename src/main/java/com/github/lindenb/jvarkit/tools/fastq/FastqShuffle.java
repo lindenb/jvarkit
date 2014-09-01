@@ -210,7 +210,7 @@ public class FastqShuffle extends AbstractCommandLineProgram
 				}
 			else
 				{
-				if(!r1.hasNext()) throw new IOException("Read missing in  interleaved fastq file");
+				if(!r1.hasNext()) throw new IOException(getMessageBundle("fastq.paired.read.missing"));
 				}
 			TwoReads p=new TwoReads();
 			p.random=this.random.nextLong();

@@ -1812,6 +1812,14 @@ or
 		/>
 </target>
 
+<target name="fastqsplitinterleaved" >
+	<compile-picard-cmd
+		java="**/FastqSplitInterleaved.java"
+		main="com.github.lindenb.jvarkit.tools.fastq.FastqSplitInterleaved"
+		name="fastqsplitinterleaved"
+		/>
+</target>
+
 
 <target name="sam2psl" >
 	<compile-picard-cmd
