@@ -54,8 +54,6 @@ import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
  */
 public class FastqShuffle extends AbstractCommandLineProgram
 	{
-	private File fileout1=null;
-	private File fileout2=null;
 	private Random random=new Random();
 	private int maxRecordsInRAM=500000;
 	
@@ -191,7 +189,7 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		}
 	
 	
-	private void runPaired(FastqReader r1, FastqReader r2) throws IOException
+	private void runPaired(FastqReader r1, FastqReader r2,FastqWriter w1) throws IOException
 		{
 		long nReads=0;
 		SortingCollection<TwoReads> sorting= SortingCollection.newInstance(
@@ -230,46 +228,22 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		if(r2!=null && r2.hasNext()) throw new IOException(getMessageBundle("fastq.paired.read.missing"));
 		sorting.doneAdding();
 		CloseableIterator<TwoReads> iter=sorting.iterator();
-		FastqWriter fq1=null,fq2=null;
-		
-		if(fileout1==null && fileout2==null)
-			{
-			fq1=new BasicFastqWriter(System.out);
-			fq2=fq1;
-			}
-		else if(fileout1!=null && fileout2==null)
-			{
-			fq1=new BasicFastqWriter(fileout1);
-			fq2=fq1;
-			}
-		else if(fileout2!=null && fileout1==null)
-			{
-			fq1=new BasicFastqWriter(fileout2);
-			fq2=fq1;
-			}
-		else
-			{
-			fq1=new BasicFastqWriter(fileout1);
-			fq2=new BasicFastqWriter(fileout2);
-			}
 		
 		while(iter.hasNext())
 			{
 			TwoReads p=iter.next();
-			fq1.write(p.first);
-			fq2.write(p.second);
+			w1.write(p.first);
+			w1.write(p.second);
 			}
 		
 	
 		CloserUtil.close(iter);
-		CloserUtil.close(fq1);
-		CloserUtil.close(fq2);
 		sorting.cleanup();
 		}
 	
 
 	
-	private void runSingle(FastqReader r1) throws IOException
+	private void runSingle(FastqReader r1,FastqWriter w1) throws IOException
 		{
 		long nReads=0;
 		SortingCollection<OneRead> sorting= SortingCollection.newInstance(
@@ -296,34 +270,21 @@ public class FastqShuffle extends AbstractCommandLineProgram
 			sorting.add(r);
 			}
 		CloseableIterator<OneRead> iter=sorting.iterator();
-		FastqWriter fq1=null;
-		
-		if(fileout1==null )
-			{
-			fq1=new BasicFastqWriter(System.out);
-			}
-		else 
-			{
-			fq1=new BasicFastqWriter(fileout1);
-			}
-		
 		while(iter.hasNext())
 			{
 			OneRead p=iter.next();
-			fq1.write(p.first);
+			w1.write(p.first);
 			}
 		
 	
 		CloserUtil.close(iter);
-		fq1.close();
 		sorting.cleanup();
 		}
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println(" -i interleaved input of paired reads.(optional).");
-		out.println(" -a (fastq1 file) . Optional.");
-		out.println(" -b (fastq2 file) . Optional.");
+		out.println(" -i single input is paired reads interleaved.(optional).");
+		out.println(" -o fastq interleaved output. (optional).");
 		out.println(" -N (int) "+getMessageBundle("max.records.in.ram")+" default:"+maxRecordsInRAM+". Optional.");
 		out.println(" -T (dir) "+getMessageBundle("add.tmp.dir")+" Optional.");
 		super.printOptions(out);
@@ -332,16 +293,16 @@ public class FastqShuffle extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
+		File fileout=null;
 		boolean interleaved_input=false;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"a:b:N:T:i"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:N:T:i"))!=-1)
 			{
 			switch(c)
 				{
 				case 'i': interleaved_input=true;break;
-				case 'a':this.fileout1=new File(opt.getOptArg());break;
-				case 'b':this.fileout2=new File(opt.getOptArg());break;
+				case 'o': fileout=new File(opt.getOptArg());break;
 				case 'N':this.maxRecordsInRAM=Integer.parseInt(opt.getOptArg());break;
 				case 'T':this.addTmpDirectory(new File(opt.getOptArg()));break;
 				default:
@@ -357,24 +318,34 @@ public class FastqShuffle extends AbstractCommandLineProgram
 			}
 		FastqReader r1=null;
 		FastqReader r2=null;
-		if(fileout1!=null && fileout1.getParentFile()!=null && fileout1.getParentFile().exists())
-			{
-			this.addTmpDirectory( fileout1.getParentFile());
-			}
+		FastqWriter w=null;
 		
 		try
 			{
+			if(fileout==null)
+				{
+				w=	new BasicFastqWriter(System.out);
+				}
+			else
+				{
+				w=	new BasicFastqWriter(fileout);
+				if(fileout.getParentFile()!=null && fileout.getParentFile().exists())
+					{
+					this.addTmpDirectory( fileout.getParentFile());
+					}
+				}
+			
 			if(opt.getOptInd() == args.length)
 				{
 				info("Reading from stdin");
 				r1=new FourLinesFastqReader(System.in);
 				if(interleaved_input)
 					{
-					runPaired(r1, null);
+					runPaired(r1, null,w);
 					}
 				else
 					{
-					runSingle(r1);
+					runSingle(r1,w);
 					}
 				}
 			else if(opt.getOptInd()+1==args.length)
@@ -383,11 +354,11 @@ public class FastqShuffle extends AbstractCommandLineProgram
 
 				if(interleaved_input)
 					{
-					runPaired(r1, null);
+					runPaired(r1, null,w);
 					}
 				else
 					{
-					runSingle(r1);
+					runSingle(r1,w);
 					}
 				
 				}
@@ -395,7 +366,7 @@ public class FastqShuffle extends AbstractCommandLineProgram
 				{
 				r1=new FourLinesFastqReader(new File(args[opt.getOptInd()  ]));
 				r2=new FourLinesFastqReader(new File(args[opt.getOptInd()+1]));
-				runPaired(r1, r2);
+				runPaired(r1, r2,w);
 				}
 			else
 				{
@@ -413,6 +384,7 @@ public class FastqShuffle extends AbstractCommandLineProgram
 			{
 			CloserUtil.close(r1);
 			CloserUtil.close(r2);
+			CloserUtil.close(w);
 			}
 		}
 	
