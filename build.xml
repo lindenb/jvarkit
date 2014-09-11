@@ -5,7 +5,10 @@
 <property name="http.proxy" value="localhost:80"/>
 <property name="generated.dir" value="src/main/generated-sources/java"/>
 <property name="test.output" value="tests"/>
-<property file="${htsjdk.home}/htsjdk.version.property.xml"/>
+
+<!-- SAXException here ? see : https://github.com/lindenb/jvarkit/issues/11 -->
+<!-- <property file="${htsjdk.home}/htsjdk.version.property.xml"/> -->
+<property file="${htsjdk.home}/htsjdk.version.properties"/>
 	
 <!--define htsjdk.home if is not defined in the file "build.properties" -->
 <property name="htsjdk.home" value="htsjdk"/>
@@ -469,7 +472,7 @@ or
 
 
 <target name="vcffixindels" >
-	<compile-with-picard 
+	<compile-picard-cmd  
 		java="**/VCFFixIndels.java"
 		main="com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels"
 		name="vcffixindels"
@@ -713,6 +716,13 @@ or
 		java="**/VcfRegulomeDB.java"
 		main="com.github.lindenb.jvarkit.tools.misc.VcfRegulomeDB"
 		name="vcfregulomedb"
+		/>
+</target>
+<target name="referencetovcf" >
+	<compile-picard-cmd
+		java="**/ReferenceToVCF.java"
+		main="com.github.lindenb.jvarkit.tools.misc.ReferenceToVCF"
+		name="referencetovcf"
 		/>
 </target>
 

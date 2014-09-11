@@ -148,5 +148,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqShuffle">FastqShuffle<a></th><td>Shuffle Fastq files.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqSplitInterleaved">FastqSplitInterleaved<a></th><td>Split interleaved Fastq files</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PubmedFilterJS">PubmedFilterJS<a></th><td>Filters pubmed XML using javascript.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/ReferenceToVCF">ReferenceToVCF<a></th><td>Creates a VCF containing all the possible substitutions in a Reference Genome..</td></tr>
 </table>
 

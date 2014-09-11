@@ -34,7 +34,7 @@ public class VCFShuffle extends AbstractVCFFilter2
 	
 	private static class RLine
 		{
-		Integer rand;
+		long rand;
 		String line;
 		}
 	
@@ -47,20 +47,20 @@ public class VCFShuffle extends AbstractVCFFilter2
 			RLine r=new RLine();
 			try
 				{
-				r.rand=dis.readInt();
+				r.rand=dis.readLong();
 				}
 			catch(IOException err)
 				{
 				return null;
 				}
-			r.line=dis.readUTF();
+			r.line=readString(dis);
 			return r;
 			}
 		@Override
 		public void encode(DataOutputStream dos, RLine object)
 				throws IOException {
-			dos.writeInt(object.rand);
-			dos.writeBytes(object.line);
+			dos.writeLong(object.rand);
+			writeString(dos,object.line);
 			}
 		@Override
 		public AbstractDataCodec<RLine> clone() {
@@ -73,7 +73,9 @@ public class VCFShuffle extends AbstractVCFFilter2
 		{
 		@Override
 		public int compare(RLine o1, RLine o2) {
-			return o1.rand.compareTo(o2.rand);
+			int i= o1.rand<o2.rand?-1:o1.rand>o2.rand?1:0;
+			if(i!=0) return i;
+			return o1.line.compareTo(o2.line);
 			}
 		}
 
@@ -187,7 +189,7 @@ public class VCFShuffle extends AbstractVCFFilter2
 			while(lineIter.hasNext())
 				{
 				RLine rLine=new RLine();
-				rLine.rand=random.nextInt();
+				rLine.rand=random.nextLong();
 				rLine.line=lineIter.next();
 				shuffled.add(rLine);
 				}
