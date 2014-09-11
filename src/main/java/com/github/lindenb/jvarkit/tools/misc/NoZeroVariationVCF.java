@@ -14,10 +14,14 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
+
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -48,10 +52,8 @@ public class NoZeroVariationVCF extends AbstractVCFFilter2
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
-		out.println(" -r (file)  fasta sequence file indexed with picard. Required.");
+		out.println(" -r (file)  fasta sequence file. "+getMessageBundle("reference.faidx")+" . Required.");
+		super.printOptions(out);
 		}
 	@Override
 	protected void doWork(VcfIterator in, VariantContextWriter out)
@@ -72,6 +74,20 @@ public class NoZeroVariationVCF extends AbstractVCFFilter2
 			{
 			info("no a variant in VCF. Creating a fake Variant");
 			header.addMetaDataLine(new VCFFilterHeaderLine("FAKESNP", "Fake SNP created because vcf input was empty. See "+getOnlineDocUrl()));
+			
+			VCFFormatHeaderLine gtHeaderLine=header.getFormatHeaderLine(VCFConstants.GENOTYPE_KEY);
+			if(gtHeaderLine==null)
+				{
+				info("Adding GT to header");
+				header.addMetaDataLine(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_KEY, 1, VCFHeaderLineType.String, "Genotype"));
+				}
+			gtHeaderLine=header.getFormatHeaderLine(VCFConstants.GENOTYPE_QUALITY_KEY);
+			if(gtHeaderLine==null)
+				{
+				info("Adding GQ to header");
+				header.addMetaDataLine(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_QUALITY_KEY, 1, VCFHeaderLineType.Integer, "Genotype Quality"));
+				}
+			
 			out.writeHeader(header);
 			SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
 			

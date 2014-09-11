@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.splitbam;
 
 import java.io.BufferedReader;
@@ -13,15 +41,16 @@ import java.util.Set;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-
 import com.github.lindenb.jvarkit.util.picard.PicardException;
+
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 //import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
@@ -44,7 +73,7 @@ public class SplitBam2 extends AbstractCommandLineProgram
 	private String OUT_FILE_PATTERN="";
 	private String UNDERTERMINED_NAME="Unmapped";
 	
-	private SAMFileWriterFactory samFileWriterFactory = new SAMFileWriterFactory();
+	private SAMFileWriterFactory samFileWriterFactory=new SAMFileWriterFactory();
 	private long id_generator=System.currentTimeMillis();
 	
 
@@ -251,8 +280,7 @@ public class SplitBam2 extends AbstractCommandLineProgram
 				info("opening "+fileout);
 				File parent=fileout.getParentFile();
 				if(parent!=null) parent.mkdirs();
-				samFileWriterFactory.setMaxRecordsInRam( 1 + (maxRecordsInRam/many2many.group2chroms.size() ) );
-				info("Max rec in ram "+ ( 1 + (maxRecordsInRam/many2many.group2chroms.size() ) ));
+
 				writer=this.samFileWriterFactory.makeBAMWriter(
 						header,
 						false,
@@ -288,6 +316,11 @@ public class SplitBam2 extends AbstractCommandLineProgram
 		}
 	
 	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/SplitBam";
+		}
+	
+	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println("-p (file) output file pattern. MUST contain "+REPLACE_CHROM+" and end with .bam");
@@ -297,15 +330,15 @@ public class SplitBam2 extends AbstractCommandLineProgram
 		out.println("-m add mock record if no samRecord saved in bam");
 		out.println("-E generate empty bam if no samRecord found for a given group.");
 		out.println("-S sort/create index");
-		out.println("-R (int)  max records in RAM");
+		out.println("-R (int)  max records in RAM "+getMessageBundle("max.records.in.ram"));
 		super.printOptions(out);
 		}
-	private int maxRecordsInRam=100000;
 	private boolean createIndex=false;
 
 	@Override
 	public int doWork(String[] args)
 		{
+		int maxRecordsInRam=1000000;
 		File chromGroupFile=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
@@ -349,28 +382,32 @@ public class SplitBam2 extends AbstractCommandLineProgram
 				return -1;
 				}
 			
-			 samFileWriterFactory.setTempDirectory(  this.getTmpDirectories().get(0) );
+			samFileWriterFactory.setTempDirectory(  this.getTmpDirectories().get(0) );
+			samFileWriterFactory.setMaxRecordsInRam(maxRecordsInRam);
 			
+			SamReaderFactory samReaderFactory=SamReaderFactory.makeDefault().
+					validationStringency(ValidationStringency.SILENT)
+					;
+			SamInputResource samInputResource=null;	
+			 
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				sfr=SamFileReaderFactory.mewInstance().stringency(ValidationStringency.SILENT).openStdin();
+				samInputResource = SamInputResource.of(System.in);
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				String filename=args[opt.getOptInd()];
 				info("Reading from "+filename);
-				sfr=SamFileReaderFactory.mewInstance().stringency(ValidationStringency.SILENT).open(new File(filename));
+				samInputResource = SamInputResource.of(new File(filename));
 				}
 			else
 				{
-				error("Illegal number of arguments");
+				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
-			
-		
-			
-			
+			sfr=samReaderFactory.open(samInputResource);
+					
 			scan(sfr,chromGroupFile);
 			
 			info("Done");

@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
+
 import htsjdk.samtools.util.SortingCollection;
 
 public abstract class AbstractDataCodec<T>
@@ -72,6 +74,15 @@ public abstract class AbstractDataCodec<T>
 			this.dos=new DataOutputStream(out);
 			}
 		}
+    protected static String readString(DataInputStream in) throws IOException
+    	{
+    	return IOUtils.readString(in);
+    	}
+    
+    protected static void writeString(DataOutputStream os,String s) throws IOException
+		{
+		IOUtils.writeString(os,s);
+		}
+ 
 
-	
 	}

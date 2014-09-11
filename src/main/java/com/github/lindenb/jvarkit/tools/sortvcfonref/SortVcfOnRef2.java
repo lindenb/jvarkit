@@ -114,7 +114,7 @@ public class SortVcfOnRef2 extends AbstractCommandLineProgram
 				return null;
 				}
 			cpl.pos=dis.readInt();
-			cpl.line=dis.readUTF();
+			cpl.line= readString(dis);
 			return cpl;
 			}
 		@Override
@@ -122,7 +122,7 @@ public class SortVcfOnRef2 extends AbstractCommandLineProgram
 				throws IOException {
 			dos.writeInt(s.tid);
 			dos.writeInt(s.pos);
-			dos.writeUTF(s.line);
+			writeString(dos,s.line);
 			}
 		@Override
 		public VariantCodec clone() {

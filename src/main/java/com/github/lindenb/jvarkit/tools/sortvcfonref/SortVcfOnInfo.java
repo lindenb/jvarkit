@@ -139,7 +139,7 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 			VcfLine cpl=new VcfLine();
 			try
 				{
-				cpl.line=dis.readUTF();
+				cpl.line=readString(dis);
 				}
 			catch(IOException err)
 				{
@@ -150,7 +150,7 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 		@Override
 		public void encode(DataOutputStream dos, VcfLine s)
 				throws IOException {
-			dos.writeUTF(s.line);
+			writeString(dos,s.line);
 			}
 		@Override
 		public VariantCodec clone() {

@@ -120,7 +120,7 @@ public class VCFMerge2
 				{
 				VariantOfFile o=new VariantOfFile();
 				o.fileIndex=dis.readInt();
-				o.line=dis.readUTF();
+				o.line=readString(dis);
 				return o;
 				}
 			catch(IOException err)
@@ -132,7 +132,7 @@ public class VCFMerge2
 		public void encode(DataOutputStream dos, VariantOfFile s)
 				throws IOException {
 			dos.writeInt(s.fileIndex);
-			dos.writeUTF(s.line);
+			writeString(dos,s.line);
 			}
 		@Override
 		public VariantCodec clone() {

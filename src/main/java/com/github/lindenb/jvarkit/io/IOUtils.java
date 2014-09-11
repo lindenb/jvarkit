@@ -3,6 +3,8 @@ package com.github.lindenb.jvarkit.io;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -20,8 +22,6 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.LineReaderUtil;
-
-
 import htsjdk.samtools.Defaults;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
@@ -170,7 +170,34 @@ public class IOUtils {
   		{
   		return  new LineIteratorImpl(openURIForLineReader(uri));
   		}
+    
+    /** read String from DataInputStream
+     * motivation: readUTF can't print lines larger than USHORTMAX
+     *  */
+    public static String readString(DataInputStream in) throws IOException
+    	{
+    	int llength=in.readInt();
+    	if(llength==-1) return null;
+    	byte a[]=new byte[llength];
+    	in.readFully(a, 0, llength);
+    	return new String(a);
+    	}
+    
+    /** write String to DataOutputStream
+     * motivation: DataInputStream.readUTF can't print lines larger than USHORTMAX
+     *  */
+    public static void writeString(DataOutputStream os,String s) throws IOException
+		{
+		if(s==null)
+			{
+			os.writeInt(-1);
+			}
+		else
+			{
+			byte array[]=s.getBytes();
+			os.writeInt(array.length);
+			os.write(array);
+			}
+		}
 
-    
-    
 }

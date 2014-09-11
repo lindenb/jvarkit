@@ -60,7 +60,7 @@ public class VCFShuffle extends AbstractVCFFilter2
 		public void encode(DataOutputStream dos, RLine object)
 				throws IOException {
 			dos.writeInt(object.rand);
-			dos.writeUTF(object.line);
+			dos.writeBytes(object.line);
 			}
 		@Override
 		public AbstractDataCodec<RLine> clone() {

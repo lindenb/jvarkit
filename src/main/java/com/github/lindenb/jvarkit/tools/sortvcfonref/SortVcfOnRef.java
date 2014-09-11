@@ -30,6 +30,7 @@ import htsjdk.samtools.util.SortingCollection;
  * Sort a VCF on the REFERENCE
  *
  */
+@Deprecated
 public class SortVcfOnRef extends AbstractCommandLineProgram
 	{
 	
@@ -57,7 +58,7 @@ public class SortVcfOnRef extends AbstractCommandLineProgram
 			{
 			try
 				{
-				return dis.readUTF();
+				return readString(dis);
 				}
 			catch(IOException err)
 				{
@@ -67,7 +68,7 @@ public class SortVcfOnRef extends AbstractCommandLineProgram
 		@Override
 		public void encode(DataOutputStream dos, String s)
 				throws IOException {
-			dos.writeUTF(s);
+			writeString(dos,s);
 			}
 		@Override
 		public VariantCodec clone() {

@@ -5,9 +5,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
 import htsjdk.tribble.TribbleException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -17,16 +17,23 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
 
-public class VCFFixIndels extends AbstractVCFFilter
+public class VCFFixIndels extends AbstractVCFFilter2
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Fix samtools indels (for @SolenaLS).";
+	private VCFFixIndels()
+		{
+		}
 	
-	private static final Log LOG=Log.getInstance(VCFFixIndels.class);
+	@Override
+	public String getProgramDescription() {
+		return " Fix samtools indels (for @SolenaLS).";
+		}
 	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/VCFFixIndels";
+		}
 	
 	
 	@Override
@@ -158,12 +165,43 @@ public class VCFFixIndels extends AbstractVCFFilter
 				}
 			catch(TribbleException err)
 				{
-				LOG.error(err,"Cannot convert new context:"+ctx2+" old context:"+ctx);
+				error(err,"Cannot convert new context:"+ctx2+" old context:"+ctx);
 				w.add(ctx);
 				}
 			}
 		
-		LOG.info("indels changed:"+nChanged);
+		info("indels changed:"+nChanged);
+		}
+	
+
+	
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
+			{
+			switch(c)
+				{
+				default:
+					{
+					switch(handleOtherOptions(c, opt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		return super.doWork(opt.getOptInd(), args);
 		}
 	
 	public static void main(String[] args) throws IOException

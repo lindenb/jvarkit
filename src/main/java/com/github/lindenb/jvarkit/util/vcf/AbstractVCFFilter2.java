@@ -92,7 +92,7 @@ public abstract class AbstractVCFFilter2
 				}
 			else
 				{
-				error("Illegal number of arguments.");
+				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
 			}

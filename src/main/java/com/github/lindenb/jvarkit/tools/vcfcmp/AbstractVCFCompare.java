@@ -100,7 +100,7 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 			} catch (Exception e) {
 				return null;
 				}
-			v.line=dis.readUTF();
+			v.line= readString(dis);
 			return v;
 			}
 		@Override
@@ -108,7 +108,7 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 				throws IOException
 			{
 			dos.writeInt(v.fileIdx);
-			dos.writeUTF(v.line);
+			writeString(dos,v.line);
 			}
 		@Override
 		public AbstractDataCodec<LineAndFile> clone() {

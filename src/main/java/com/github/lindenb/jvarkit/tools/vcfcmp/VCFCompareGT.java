@@ -104,8 +104,8 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 			v.id=dis.readUTF();
 			v.ref=dis.readUTF();
 			v.sampleName=dis.readUTF();
-			v.a1=dis.readUTF();
-			v.a2=dis.readUTF();
+			v.a1=readString(dis);
+			v.a2=readString(dis);
 			v.file_index=dis.readInt();
 			v.dp=dis.readInt();
 			v.gq=dis.readInt();
@@ -121,8 +121,8 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 			dos.writeUTF(v.id);
 			dos.writeUTF(v.ref);
 			dos.writeUTF(v.sampleName);
-			dos.writeUTF(v.a1);
-			dos.writeUTF(v.a2);
+			writeString(dos,v.a1);
+			writeString(dos,v.a2);
 			dos.writeInt(v.file_index);
 			dos.writeInt(v.dp);
 			dos.writeInt(v.gq);
