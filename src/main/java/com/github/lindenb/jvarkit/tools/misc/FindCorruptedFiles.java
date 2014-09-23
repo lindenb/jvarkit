@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
@@ -11,6 +39,9 @@ import java.util.zip.GZIPInputStream;
 
 import htsjdk.tribble.TribbleException;
 import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.util.TabixUtils;
+import htsjdk.samtools.BAMIndex;
+import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMRecordIterator;
@@ -27,7 +58,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class FindCorruptedFiles extends AbstractCommandLineProgram
 	{
-
+	private boolean emptyIsError=false;
     //public String USAGE = " Reads filename from stdin and search for corrupted NGS files (VCF/BAM/FASTQ). Prints file with problem on stdout.";
 
 
@@ -36,6 +67,18 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     
     private ValidationStringency validationStringency=ValidationStringency.LENIENT;
     
+    
+    private void emptyFile(File f)
+    	{
+    	if(this.emptyIsError)
+    		{
+    		System.out.println(f);
+    		}
+    	else
+    		{
+    		getLogger().warning("Empty content:"+f);
+    		}
+    	}
 	
     private void testBam(File f)
     	{
@@ -74,7 +117,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 				}
 			if(n==0)
 				{
-				getLogger().warning("No SAM record in "+f);
+				emptyFile(f);
 				}
 			} 
     	catch (Exception e)
@@ -157,7 +200,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 				}
 			if(n==0)
 				{
-				warning("No row in "+f);
+				emptyFile(f);
 				}
 	    	}
     	catch (Exception e)
@@ -185,7 +228,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     		}
     	if(n==0)
 			{
-			getLogger().warning("No Variant in "+f);
+    		emptyFile(f);
 			}
     	iter.close();
     	}
@@ -203,6 +246,10 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     			{
     			r.next();
     			++n;
+    			}
+    		if(n==0)
+    			{
+    			emptyFile(f);
     			}
     		}
     	catch(Exception err)
@@ -277,7 +324,40 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     	System.out.println(f);
 		}
 
+    private void testTbi(File f)
+    	{
+		String filename=f.getName();
+		//remove .tbi suffix
+		filename=filename.substring(0,
+				filename.length()-TabixUtils.STANDARD_INDEX_EXTENSION.length());
+
+    	File baseFile=new File(f.getParentFile(),filename);
+    	if(baseFile.exists() && baseFile.isFile()) return;
+    	getLogger().fine("Missing associated file for : "+f);
+    	System.out.println(f);		
+		}
     
+    private void testBai(File f)
+		{
+		String filename=f.getName();
+		//remove .bai suffix
+		filename=filename.substring(0,
+				filename.length()-BAMIndex.BAMIndexSuffix.length());
+
+		//ends with bam.bai
+		if(filename.endsWith(BamFileIoUtils.BAM_FILE_EXTENSION))
+			{
+			//nothing
+			}
+		else // file.bai and file.bam
+			{
+			filename+=BamFileIoUtils.BAM_FILE_EXTENSION;
+			}
+    	File bam=new File(f.getParentFile(),filename);
+    	if(bam.exists() && bam.isFile()) return;
+    	getLogger().fine("Missing associated BAM file for : "+f);
+    	System.out.println(f);		
+		}
     
 	private void analyze(File f)
 		{
@@ -305,12 +385,20 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 				{
 				testBed(f);
 				}
+			else if(name.endsWith(TabixUtils.STANDARD_INDEX_EXTENSION))
+				{
+				testTbi(f);
+				}
+			else if(name.endsWith(BAMIndex.BAMIndexSuffix))
+				{
+				testBai(f);
+				}
 			}
 		}
 	
 	@Override
 	public String getProgramDescription() {
-		return "Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED)";
+		return "Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED/TBI/BAI)";
 		}
 	
 	@Override
@@ -324,6 +412,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 		
 		out.println(" -V (validation stringency). Optional");
 		out.println(" -N (number). Number of records to test in each file (BAM, FASTQ, VCF...). ptional");
+		out.println(" -E empty file is an error.");
 
 		
 		}
@@ -334,10 +423,11 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 		{
 		GetOpt getopt=new GetOpt();
 		int c;
-		while((c=getopt.getopt(args,super.getGetOptDefault()+ "N:V:"))!=-1)
+		while((c=getopt.getopt(args,super.getGetOptDefault()+ "N:V:E"))!=-1)
 			{
 			switch(c)
 				{
+				case 'E': this.emptyIsError=true;break;
 				case 'N':
 					{
 					this.NUM=Integer.parseInt(getopt.getOptArg());

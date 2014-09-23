@@ -7,7 +7,6 @@
 <property name="test.output" value="tests"/>
 
 <!-- SAXException here ? see : https://github.com/lindenb/jvarkit/issues/11 -->
-<!-- <property file="${htsjdk.home}/htsjdk.version.property.xml"/> -->
 <property file="${htsjdk.home}/htsjdk.version.properties"/>
 	
 <!--define htsjdk.home if is not defined in the file "build.properties" -->
