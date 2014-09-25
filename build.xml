@@ -1929,6 +1929,15 @@ or
 		/>
 </target>
 
+<target name="vcfensemblreg" >
+	<compile-picard-cmd
+		java="**/VcfEnsemblReg.java"
+		main="com.github.lindenb.jvarkit.tools.ensemblreg.VcfEnsemblReg"
+		name="vcfensemblreg"
+		libraryid="htsjdk.and.bigwig.jars"
+		/>
+</target>
+
 	
 <target name="x2" if="has.mysql.driver">
 	<echo>OOKKK</echo>

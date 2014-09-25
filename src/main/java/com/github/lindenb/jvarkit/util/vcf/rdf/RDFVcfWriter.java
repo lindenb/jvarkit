@@ -46,7 +46,7 @@ public class RDFVcfWriter
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 
 	private static final String XSD="http://www.w3.org/2001/XMLSchema#";
-	private static final String RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+	private static final String RDF=com.github.lindenb.jvarkit.util.ns.RDF.NS;
 	private static final String DC="http://purl.org/dc/elements/1.1/";
 	private static final String NS="http://github.com/lindenb/jvarkit/";
 	private static final String PFX="vcf";
