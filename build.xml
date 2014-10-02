@@ -534,7 +534,15 @@ or
 		main="com.github.lindenb.jvarkit.tools.samjs.SamJavascript"
 		name="samjs"
 		/>
-</target>			
+</target>
+	
+<target name="fastqjs" >
+	<compile-picard-cmd 
+		java="**/FastqJavascript.java"
+		main="com.github.lindenb.jvarkit.tools.fastq.FastqJavascript"
+		name="fastqjs"
+		/>
+</target>		
 
 
 <target name="vcftabixml" >
