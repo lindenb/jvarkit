@@ -40,7 +40,8 @@ import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 public class FastqRevComp extends AbstractCommandLineProgram
 	{
-	private boolean interleaced=false;
+	private boolean only_R1=false;
+	private boolean only_R2=false;
 
 	private FastqRevComp()
 		{
@@ -63,7 +64,8 @@ public class FastqRevComp extends AbstractCommandLineProgram
 	public void printOptions(PrintStream out)
 		{
 		out.println(" -o (fileout) Filename output . Optional ");
-		out.println(" -i interleaced input : reverse complement one read/ two. Optional ");
+		out.println(" -1 interleaced input : only reverse complement R1 . Optional ");
+		out.println(" -2 interleaced input : only reverse complement R2 . Optional ");
 		super.printOptions(out);
 		}
 	
@@ -87,7 +89,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 			out.println(fastq.getReadHeader());
 			s=fastq.getReadString();
 
-			if(this.interleaced && nRec%2==1) //interleaced, we ignore first
+			if((this.only_R2 && nRec%2==1) || (this.only_R1 && nRec%2==0) ) //interleaced
 				{
 				out.print(s);
 				}
@@ -106,7 +108,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 			out.println();
 			
 			s=fastq.getBaseQualityString();
-			if(this.interleaced && nRec%2==1) //interleaced, we ignore first
+			if((this.only_R2 && nRec%2==1) || (this.only_R1 && nRec%2==0) ) //interleaced
 				{
 				out.print(s);
 				}
@@ -130,15 +132,16 @@ public class FastqRevComp extends AbstractCommandLineProgram
 		File fileout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=getopt.getopt(args, getGetOptDefault()+"o:i"))!=-1)
+		while((c=getopt.getopt(args, getGetOptDefault()+"o:12"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': fileout=new File(getopt.getOptArg());break;
-				case 'i': interleaced=true; break;
+				case '1': only_R1=true; break;
+				case '2': only_R2=true; break;
 				default: 
 					{
-					switch(handleOtherOptions(c, getopt, null))
+					switch(handleOtherOptions(c, getopt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
@@ -147,7 +150,11 @@ public class FastqRevComp extends AbstractCommandLineProgram
 					}
 				}
 			}
-		
+		if(only_R1 && only_R2)
+			{
+			error("Both options -1 && -2 used.");
+			return -1;
+			}
 		PrintStream out=System.out;
 		try
 			{

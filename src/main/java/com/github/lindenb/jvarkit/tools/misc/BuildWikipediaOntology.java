@@ -50,11 +50,11 @@ import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.ns.RDF;
 
 @SuppressWarnings("serial")
 public class BuildWikipediaOntology extends AbstractCommandLineProgram
 	{
-	final static String RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 	final static String RDFS="http://www.w3.org/2000/01/rdf-schema#";
 
 	private static long ID_GENERATOR=0L;
@@ -235,7 +235,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 				if(root.isMainNode())
 					{
 					w.writeStartElement("rdfs", "Class", RDFS);
-					w.writeAttribute("rdf", RDF, "resource", getURL(root.catName));
+					w.writeAttribute("rdf", RDF.NS, "about", getURL(root.catName));
 					int colon=root.catName.indexOf(':');
 					
 					w.writeStartElement("rdfs", "label", RDFS);
@@ -245,7 +245,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 					for(String parent: getParentTerms(root.catName))
 						{
 						w.writeEmptyElement("rdfs", "subClassOf", RDFS);
-						w.writeAttribute("rdf", RDF, "resource",
+						w.writeAttribute("rdf", RDF.NS, "resource",
 								getURL(parent)
 								);
 						}
@@ -276,8 +276,8 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 					XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 					w= xmlfactory.createXMLStreamWriter(pw);
 					w.writeStartDocument("UTF-8","1.0");
-					w.writeStartElement("rdf", "RDF", RDF);
-					w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "rdf",RDF);
+					w.writeStartElement("rdf", "RDF", RDF.NS);
+					w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "rdf",RDF.NS);
 					w.writeAttribute("xmlns", XMLConstants.XML_NS_URI,  "rdfs", RDFS);
 					w.writeCharacters("\n");
 					visit(w,CatNode.class.cast(jtree.getModel().getRoot()));

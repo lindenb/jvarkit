@@ -1,16 +1,46 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.vcftrios;
 
-import java.io.File;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -18,25 +48,32 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
-public class VCFTrios extends AbstractVCFFilter
+public class VCFTrios extends AbstractVCFFilter2
 	{
-	private static final Log LOG = Log.getInstance(VCFTrios.class);
-    @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + "Find mendelian incompatibilitie in VCF (plink format). ";
-    @Option(shortName="PED", doc=" Pedigree file",optional=false)
-    public File PEDIGREE=null;
-    @Option(shortName="PF", doc="Set filter 'MENDEL' if incompatibilities found. ",optional=false)
-    public boolean FILTER=false;
-
+	private Pedigree pedigree=null;
+    private boolean create_filter=false;
+    private String pedigreeURI=null;
 	
+    private VCFTrios()
+    	{
+    	}
+    
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/VCFTrio";
+    }
 	
+    @Override
+    public String getProgramDescription() {
+    	return  "Find mendelian incompatibilitie in a VCF. ";
+    	}
 	
 	
 	private boolean isChilOf(
@@ -90,25 +127,30 @@ public class VCFTrios extends AbstractVCFFilter
 				parent.getAllele(0),parent.getAllele(1)
 				);
 		}
+	
+	
 	@Override
 	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
-		LOG.info("reading pedigree");
-		Pedigree pedigree=Pedigree.readPedigree(PEDIGREE);
 		int count_incompats=0;
 		
 		VCFHeader header=r.getHeader();
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-		h2.addMetaDataLine(new VCFInfoHeaderLine("MENDEL", VCFHeaderLineCount.INTEGER, VCFHeaderLineType.String, "mendelian incompatibilities. PEd file: "+PEDIGREE));
-		if( FILTER) h2.addMetaDataLine(new VCFFilterHeaderLine("MENDEL", "data filtered with "+this.getCommandLine()));
+		h2.addMetaDataLine(new VCFInfoHeaderLine("MENDEL", VCFHeaderLineCount.INTEGER, VCFHeaderLineType.String, "mendelian incompatibilities"));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+
+		if( create_filter) h2.addMetaDataLine(new VCFFilterHeaderLine("MENDEL", "data filtered with VCFTrios"));
 		w.writeHeader(h2);
 		
 		Map<String,Pedigree.Person> samplename2person=new HashMap<String,Pedigree.Person>(h2.getSampleNamesInOrder().size());
 		for(String sampleName:h2.getSampleNamesInOrder())
 			{
 			Pedigree.Person p=null;
-			for(Pedigree.Family f:pedigree.getFamilies())
+			for(Pedigree.Family f:this.pedigree.getFamilies())
 				{
 				for(Pedigree.Person child:f.getIndividuals())
 					{
@@ -124,7 +166,7 @@ public class VCFTrios extends AbstractVCFFilter
 				}
 			if(p==null)
 				{
-				LOG.info("Cannot find "+sampleName+" in "+PEDIGREE);
+				info("Cannot find "+sampleName+" in "+pedigreeURI);
 				}
 			else
 				{
@@ -132,7 +174,7 @@ public class VCFTrios extends AbstractVCFFilter
 				}
 			}
 		
-		LOG.info("persons in pedigree: "+samplename2person.size());
+		info("persons in pedigree: "+samplename2person.size());
 		while(r.hasNext())
 			{
 			VariantContext ctx=r.next();
@@ -146,7 +188,7 @@ public class VCFTrios extends AbstractVCFFilter
 				Genotype gChild=ctx.getGenotype(child.getId());
 				if(gChild==null)
 					{
-					LOG.debug("cannot get genotype for child  "+child.getId());
+					debug("cannot get genotype for child  "+child.getId());
 					continue;
 					}
 				if(!gChild.isCalled())
@@ -155,7 +197,7 @@ public class VCFTrios extends AbstractVCFFilter
 					}
 				if(gChild.getAlleles().size()!=2)
 					{
-					LOG.warn(getClass().getSimpleName()+" only handle two alleles");
+					warning(getClass().getSimpleName()+" only handle two alleles");
 					continue;
 					}
 				
@@ -163,11 +205,11 @@ public class VCFTrios extends AbstractVCFFilter
 				Genotype gFather=(parent==null?null:ctx.getGenotype(parent.getId()));
 				if(gFather==null && parent!=null)
 					{
-					LOG.debug("cannot get genotype for father  "+parent.getId());
+					debug("cannot get genotype for father  "+parent.getId());
 					}
 				if(gFather!=null && gFather.getAlleles().size()!=2)
 					{
-					LOG.warn(getClass().getSimpleName()+" only handle two alleles");
+					warning(getClass().getSimpleName()+" only handle two alleles");
 					gFather=null;
 					}
 				if(gFather!=null && !gFather.isCalled()) gFather=null;
@@ -177,13 +219,13 @@ public class VCFTrios extends AbstractVCFFilter
 				
 				if(gMother==null && parent!=null)
 					{
-					LOG.debug("cannot get genotype for mother  "+parent.getId());
+					debug("cannot get genotype for mother  "+parent.getId());
 					}
 				
 				if(gMother!=null && !gMother.isCalled()) gMother=null;
 				if(gMother!=null && gMother.getAlleles().size()!=2)
 					{
-					LOG.warn(getClass().getSimpleName()+" only handle two alleles");
+					warning(getClass().getSimpleName()+" only handle two alleles");
 					gMother=null;
 					}
 				
@@ -214,13 +256,64 @@ public class VCFTrios extends AbstractVCFFilter
 				}
 			++count_incompats;
 			VariantContextBuilder b=new VariantContextBuilder(ctx);
-			if( FILTER) b.filter("MENDEL");
+			if( create_filter) b.filter("MENDEL");
 			b.attribute("MENDEL", incompatibilities.toArray());
 			w.add(b.make());
 			}		
-		LOG.info("incompatibilities N="+count_incompats);
+		info("incompatibilities N="+count_incompats);
+		}
+	
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		out.println(" -p (file) Pedigree file");
+		out.println(" -f create a filter in the FILTER column");
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+"p:f"))!=-1)
+			{
+			switch(c)
+				{
+				case 'f': this.create_filter=true;break;
+				case 'p': this.pedigreeURI=opt.getOptArg();break;
+				default:
+					{
+					switch(handleOtherOptions(c, opt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		if(this.pedigreeURI==null)
+			{
+			error("Pedigree undefined.");
+			return -1;
+			}
+		
+		try {
+		info("reading pedigree");
+		BufferedReader in=IOUtils.openURIForBufferedReading(this.pedigreeURI);
+		this.pedigree=Pedigree.readPedigree(in);
+		in.close();
+		} catch(Exception err)
+		{
+			error(err);
+			return -1;
 		}
 
+		return super.doWork(opt.getOptInd(),args);
+		}
+	
 	public static void main(String[] args)
 		{
 		new VCFTrios().instanceMainWithExit(args);

@@ -48,6 +48,7 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
+@Deprecated
 public class VCFMerge extends AbstractCommandLineProgram
 	{
 	private static final Log LOG=Log.getInstance(VCFMerge.class);

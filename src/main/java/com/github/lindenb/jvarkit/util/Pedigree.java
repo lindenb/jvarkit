@@ -183,10 +183,15 @@ public class Pedigree
 	
 	public static Pedigree readPedigree(File f) throws IOException
 		{
-		Pedigree ped=new Pedigree();
 		BufferedReader r=new BufferedReader(new FileReader(f));
-		ped.read(r);
+		Pedigree ped=Pedigree.readPedigree(r);
 		r.close();
+		return ped;
+		}	
+	public static Pedigree readPedigree(BufferedReader r) throws IOException
+		{
+		Pedigree ped=new Pedigree();
+		ped.read(r);
 		return ped;
 		}	
 	}

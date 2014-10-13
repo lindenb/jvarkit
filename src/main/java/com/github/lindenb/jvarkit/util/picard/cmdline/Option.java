@@ -43,6 +43,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 @Documented
+@Deprecated
 public @interface Option {
 	/** The name of the option as it would appear on the command line. */
     String shortName() default "";

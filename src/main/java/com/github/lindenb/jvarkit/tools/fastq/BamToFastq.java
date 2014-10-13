@@ -45,14 +45,14 @@ public class BamToFastq
 	
 	private static class MappedFastq
 		{
-		byte side;
-		int hash;
+		byte side=0;
+		//int hash;
 		String name;
 		String seq;
 		String qual;
 		@Override
 		public String toString() {
-			return "("+name+" "+qual+")";
+			return "("+name+":"+(int)side+" "+seq+" "+qual+")";
 			}
 		}
 	
@@ -62,9 +62,16 @@ public class BamToFastq
 		@Override
 		public int compare(MappedFastq o1, MappedFastq o2)
 			{
-			int i= o1.hash - o2.hash;
+			//int i= o1.hash - o2.hash;
+			//if(i!=0) return i;
+			int i= o1.name.compareTo(o2.name);
 			if(i!=0) return i;
-			return o1.name.compareTo(o2.name);
+			i= (int)o1.side-(int)o2.side;
+			if(i==0) 
+				{
+				System.err.println(o1+" "+o2);
+				}
+			return i;
 			}
 		
 		}
@@ -75,7 +82,6 @@ public class BamToFastq
 		public void encode(DataOutputStream dos, MappedFastq o)
 				throws IOException
 			{
-			dos.writeInt(o.hash);
 			dos.writeByte(o.side);
 			dos.writeUTF(o.name);
 			dos.writeUTF(o.seq);
@@ -86,11 +92,10 @@ public class BamToFastq
 			{
 			MappedFastq m=new MappedFastq();
 			try {
-				m.hash=dis.readInt();
+				m.side=dis.readByte();
 			} catch (IOException e) {
 				return null;
 				}
-			m.side=dis.readByte();
 			m.name=dis.readUTF();
 			m.seq=dis.readUTF();
 			m.qual=dis.readUTF();
@@ -120,7 +125,7 @@ public class BamToFastq
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println(" -t (dir) "+getMessageBundle("illegal.number.of.arguments")+" . Optional.");
+		out.println(" -t (dir) "+getMessageBundle("add.tmp.dir")+" . Optional.");
 		out.println(" -F (fastq) Save fastq_R1 to file (default: stdout) . Optional.");
 		out.println(" -R (fastq) Save fastq_R2 to file (default: interlaced with forward) . Optional.");
 		out.println(" -r  repair: insert missing read");
@@ -210,7 +215,6 @@ public class BamToFastq
 				MappedFastq m=new MappedFastq();
 				m.name=rec.getReadName();
 				if(m.name==null)m.name="";
-				m.hash=m.name.hashCode();
 				m.seq=rec.getReadString();
 				
 				if(m.seq.equals(SAMRecord.NULL_SEQUENCE_STRING)) m.seq="";

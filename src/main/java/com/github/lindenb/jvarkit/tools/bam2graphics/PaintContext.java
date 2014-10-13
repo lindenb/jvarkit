@@ -41,9 +41,10 @@ import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 
+@Deprecated
 public class PaintContext extends AbstractCommandLineProgram
 	{
-	private static final String XLINK="http://www.w3.org/1999/xlink";
+	private static final String XLINK=com.github.lindenb.jvarkit.util.ns.XLINK.NS;
 	private static final String REPLACE="__REGION__";
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;

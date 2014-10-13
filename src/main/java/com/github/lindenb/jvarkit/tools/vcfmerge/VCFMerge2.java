@@ -116,17 +116,18 @@ public class VCFMerge2
 		@Override
 		public VariantOfFile decode(DataInputStream dis) throws IOException
 			{
+			VariantOfFile o=new VariantOfFile();
 			try
 				{
-				VariantOfFile o=new VariantOfFile();
 				o.fileIndex=dis.readInt();
-				o.line=readString(dis);
-				return o;
 				}
 			catch(IOException err)
 				{
 				return null;
 				}
+			o.line=readString(dis);
+			return o;
+
 			}
 		@Override
 		public void encode(DataOutputStream dos, VariantOfFile s)
@@ -229,7 +230,7 @@ public class VCFMerge2
 				case 's': filesAreSorted=true;break;
 				default: 
 					{
-					switch(handleOtherOptions(c, opt, null))
+					switch(handleOtherOptions(c, opt, args))
 						{
 						case EXIT_FAILURE:return -1;
 						case EXIT_SUCCESS: return 0;

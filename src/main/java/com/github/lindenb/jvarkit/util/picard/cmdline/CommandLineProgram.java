@@ -64,6 +64,7 @@ import htsjdk.samtools.util.zip.DeflaterFactory;
 
 
  */
+@Deprecated
 public abstract class CommandLineProgram {
 	static CreateHtmlDocForProgram _forcejavac=null;
     @Option(common=true, optional=true)

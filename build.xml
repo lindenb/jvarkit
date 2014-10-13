@@ -694,6 +694,14 @@ or
 		/>
 </target>
 
+<target name="bam2svg" >
+	<compile-picard-cmd
+		java="**/BamToSVG.java"
+		main="com.github.lindenb.jvarkit.tools.bam2svg.BamToSVG"
+		name="bam2svg"
+		/>
+</target>
+	
 <target name="paintcontext" >
 	<compile-picard-cmd
 		java="**/PaintContext.java"
@@ -1373,7 +1381,7 @@ or
 		/>
 </target>
 
-<target name="vcfmerge">
+<target name="vcfmerge.old" depends="vcfmerge">
 	<compile-with-picard 
 		java="**/VCFMerge.java"
 		main="com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge"
@@ -1381,13 +1389,13 @@ or
 		/>
 </target>
 
-	<target name="vcfmerge2">
-		<compile-picard-cmd 
-			java="**/VCFMerge2.java"
-			main="com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2"
-			name="vcfmerge2"
-			/>
-	</target>
+<target name="vcfmerge">
+	<compile-picard-cmd 
+		java="**/VCFMerge2.java"
+		main="com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2"
+		name="vcfmerge"
+		/>
+</target>
 
 	
 	
@@ -1888,7 +1896,15 @@ or
 		/>
 </target>
 
+<target name="bamsnvwig" >
+	<compile-picard-cmd
+		java="**/BWAMemScan.java"
+		main="com.github.lindenb.jvarkit.tools.mem.BWAMemScan"
+		name="bamsnvwig"
+		/>
+</target>
 
+	
 <target name="biostar" depends="biostar76892,biostar77288,biostar77828,biostar78285,biostar81455,biostar84786">
 </target>
 
