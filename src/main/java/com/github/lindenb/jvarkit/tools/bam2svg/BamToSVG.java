@@ -28,9 +28,13 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.bam2svg;
 
+import java.awt.Dimension;
+import java.awt.Insets;
+import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -54,6 +58,7 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
@@ -61,19 +66,34 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 public class BamToSVG extends AbstractCommandLineProgram
-{
+	{
+	private static final int HEIGHT_MAIN_TITLE=100;
+	private int HEIGHT_RULER=200;
+	private static final int HEIGHT_SAMPLE_NAME=50;
 	private Hershey hershey=new Hershey();
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	private GenomicSequence genomicSequence=null;
 	private Interval interval;
 	private Map<String, Sample> sampleHash=new HashMap<String, Sample>();
 	private int drawinAreaWidth=1000;
-	private boolean showClipping=false;
-	private int featureHeight = 20;
-	
-	private static class Sample
+	private boolean showClipping=true;
+	private int featureHeight =1;
+	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
+	private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
+	 
+	private class Sample
 		{
 		String name;
 		List<List<SAMRecord>> lines=new ArrayList<List<SAMRecord>>();
+		
+		public double getHeight()
+			{
+			double dim_height= HEIGHT_SAMPLE_NAME;
+			dim_height+= BamToSVG.this.featureHeight;//ref seq
+			dim_height+= BamToSVG.this.featureHeight;//consensus
+			dim_height+= this.lines.size()*BamToSVG.this.featureHeight;//consensus
+			return dim_height;
+			}
 		}
 	
 	private static class Interval
@@ -111,6 +131,28 @@ public class BamToSVG extends AbstractCommandLineProgram
 	
 	private BamToSVG()
 		{
+		}
+	
+	/** scale a rect by ratio */
+	private static Rectangle2D.Double scaleRect(final Rectangle2D.Double r,double ratio)
+		{
+		double w=r.getWidth()*ratio;
+		double h=r.getHeight()*ratio;
+		double x=r.getX()+(r.getWidth()-w)/2.0;
+		double y=r.getY()+(r.getHeight()-h)/2.0;
+		return new Rectangle2D.Double(x,y,w,h);
+		}
+	/** scale a rect by default ratio */
+	private static Rectangle2D.Double scaleRect(final Rectangle2D.Double r)
+		{
+		return scaleRect(r,0.95);
+		}
+
+	
+	/** convert double to string */
+	private String format(double v)
+		{
+		return this.decimalFormater.format(v);
 		}
 	
 	@Override
@@ -155,9 +197,10 @@ public class BamToSVG extends AbstractCommandLineProgram
 			SAMRecord rec = iter.next();
 			if(rec.getReadUnmappedFlag()) continue;
 			if( !rec.getReferenceName().equals(this.interval.getChrom())) continue;
-			if( right(rec)  < this.interval.getStart());
-			if( left(rec)  >= this.interval.getEnd());
-			String sampleName="";
+			if( right(rec)  < this.interval.getStart()) continue;
+			if( left(rec)  > this.interval.getEnd())continue;
+			
+			String sampleName="undefined sample name";
 			SAMReadGroupRecord srg = rec.getReadGroup();
 			if(srg!=null)
 				{
@@ -168,6 +211,7 @@ public class BamToSVG extends AbstractCommandLineProgram
 			if(sample==null)
 				{
 				sample = new Sample();
+				sample.name=sampleName;
 				this.sampleHash.put(sampleName,sample);
 				}
 			
@@ -216,10 +260,470 @@ public class BamToSVG extends AbstractCommandLineProgram
 		w.writeEndElement();
 		}
 	
+	private void printSample(XMLStreamWriter w,double top_y,final Sample sample)
+			throws XMLStreamException
+		{
+		w.writeComment("START SAMPLE: "+sample.name);
+		w.writeStartElement(SVG.NS,"g");
+		w.writeAttribute("transform", "translate(0,"+top_y+")");
+		double y=0;
+		
+		/* write title */
+		w.writeEmptyElement("path");
+		w.writeAttribute("class","samplename");
+		w.writeAttribute("title",sample.name);
+		w.writeAttribute("d", this.hershey.svgPath(
+				sample.name,
+				scaleRect(new Rectangle2D.Double(
+						0,
+						y,
+						this.drawinAreaWidth,
+						HEIGHT_SAMPLE_NAME
+						)))
+				);
+		y+=HEIGHT_SAMPLE_NAME;
+
+		/* write REFERENCE */
+		w.writeComment("REFERENCE");
+		for(int pos=this.interval.start;pos<=this.interval.end;++pos)
+			{
+			char c=(this.genomicSequence==null?'N':this.genomicSequence.charAt(pos-1));
+			double x0  = baseToPixel(pos);
+			w.writeEmptyElement("use");
+			w.writeAttribute("x",format(x0));
+			w.writeAttribute("y",format(y));
+			w.writeAttribute("xlink", XLINK.NS, "href", "#b"+c);
+			}
+		y+=featureHeight;
+		
+		/* skip line for later consensus */
+		double consensus_y=y;
+		y+=featureHeight;
+		Map<Integer,Counter<Character>> pos2consensus=new HashMap<Integer,Counter<Character>>();
+		
+		
+		
+		/* print all lines */
+		w.writeComment("Alignments");
+		for(int nLine=0;nLine< sample.lines.size();++nLine)
+			{
+			w.writeStartElement("g");
+			w.writeAttribute("transform", "translate(0,"+format(y+nLine*featureHeight)+")");
+			List<SAMRecord> line= sample.lines.get(nLine);
+			//loop over records on that line
+			for(SAMRecord record: line)
+				{
+				printSamRecord(w, record,pos2consensus);
+				}
+			w.writeEndElement();//g
+			}
+		
+		/* write consensus */
+		w.writeComment("Consensus");
+		for(int pos=this.interval.start;pos<=this.interval.end;++pos)
+			{
+			Counter<Character> cons = pos2consensus.get(pos);
+			if(cons==null) continue;
+			char c=cons.getMostFrequent();
+			double x0  = baseToPixel(pos);
+			w.writeEmptyElement("use");
+			w.writeAttribute("x",format(x0));
+			w.writeAttribute("y",format(consensus_y));
+			w.writeAttribute("xlink", XLINK.NS, "href", "#b"+c);
+			}
+		
+		
+		/* surrounding frame for that sample */
+		w.writeEmptyElement("rect");
+		w.writeAttribute("class","frame");
+		w.writeAttribute("x",format(0));
+		w.writeAttribute("y",format(0));
+		w.writeAttribute("width",format(drawinAreaWidth));
+		w.writeAttribute("height",format(sample.getHeight()));
+
+		w.writeEndElement();//g for sample
+		w.writeComment("END SAMPLE: "+sample.name);
+
+		}
+	
+	private void printDocument(XMLStreamWriter w,String intervalStr) 
+		throws XMLStreamException
+		{
+		Insets insets=new Insets(20, 20, 20, 20);
+		Dimension dim=new Dimension(
+				insets.left+insets.right+this.drawinAreaWidth
+				,insets.top+insets.bottom);
+		dim.height+=HEIGHT_MAIN_TITLE;
+		dim.height+=HEIGHT_RULER;
+		
+		//loop over each sample
+		for(Sample sample:this.sampleHash.values())
+			{
+			dim.height+=sample.getHeight();
+			}
+
+		dim.height+=100;
+		
+		w.writeStartElement("svg");
+		w.writeAttribute("width", format(dim.width));
+		w.writeAttribute("height", format(dim.height));
+		w.writeDefaultNamespace(SVG.NS);
+		w.writeNamespace("xlink", XLINK.NS);
+		
+
+		
+		w.writeStartElement(SVG.NS,"title");
+		w.writeCharacters(intervalStr);
+		w.writeEndElement();
+		
+		w.writeStartElement(SVG.NS,"description");
+		w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
+		w.writeCharacters("Version:"+getVersion()+"\n");
+		w.writeCharacters("Author:"+getAuthorName()+" "+getAuthorMail()+"\n");
+		w.writeCharacters("WWW:"+getOnlineDocUrl()+"\n");
+		w.writeCharacters("Htsjdk: "+HtsjdkVersion.getHome()+" "+HtsjdkVersion.getVersion()+"\n");
+		w.writeEndElement();
+		
+		
+		w.writeStartElement(SVG.NS,"style");
+		w.writeCharacters(
+				"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
+				".maintitle {stroke:blue;fill:none;}\n"+
+				".bA {stroke:green;}\n" + 
+				".bC {stroke:blue;}\n" +
+				".bG {stroke:black;}\n" +
+				".bT {stroke:red;}\n" +
+				".bN {stroke:gray;}\n" +
+				"line.insert {stroke:red;stroke-width:4px;}\n"+
+				"line.rulerline {stroke:lightgray;stroke-width:0.5px;}\n"+
+				"line.rulerlabel {stroke:gray;stroke-width:2px;}\n"+
+				"path.maintitle {stroke:blue;stroke-width:5px;}\n"+
+				"path.samplename {stroke:black;stroke-width:3px;}\n"+
+				""
+				);
+		w.writeEndElement();//style
+		
+		w.writeStartElement(SVG.NS,"defs");
+		
+		
+
+		
+		for(String base:new String[]{"a","A","t","T","g","G","c","C","n","N"})
+			{
+			double width=drawinAreaWidth/(double)this.interval.distance();
+			w.writeEmptyElement("path");
+			w.writeAttribute("id","b"+base);
+			w.writeAttribute("title",base);
+			w.writeAttribute("class","b"+base.toUpperCase());
+			w.writeAttribute("d",this.hershey.svgPath(
+					base,
+					0,
+					0,
+					width*0.95,
+					featureHeight*0.95
+					));
+			}
+		String pastels[]={"fff8dc", "cd5c5c", "708090", "ff4500", "4682b4", "ffa500", "d8bfd8", "fa8072", "00ffff", "3cb371", "000000", "1e90ff", "cd853f", "4169e1", "f0ffff", "5f9ea0", "eeeee0", "a020f0", "bc8f8f", "ff69b4", "00ff7f", "000080", "e9967a", "daa520", "32cd32", "ee82ee", "7b68ee", "ffffe0", "8b8378", "db7093", "a0522d", "ffe4b5", "9370db", "afeeee", "eee5de", "8fbc8f", "8b8682", "8470ff", "8b8b83", "ff1493", "eedfcc", "f0f8ff", "ff6347", "faebd7", "add8e6", "fffafa", "c1cdc1", "cdc0b0", "c71585", "7fffd4", "7fff00", "cdaf95", "e0eee0", "556b2f", "dcdcdc", "ffebcd", "cdc8b1", "fff0f5", "ffe4e1", "9acd32", "ffc0cb", "8b8989", "ffff00", "cdb79e", "f5f5f5", "2f4f4f", "eee9e9", "cdcdc1", "eee8aa", "bebebe", "ffffff", "2e8b57", "fffff0", "b0e0e6", "fff5ee", "778899", "fffacd", "191970", "d2691e", "eecbad", "40e0d0", "ffd700", "eed5b7", "fffaf0", "ffefd5", "98fb98", "b22222", "87ceeb", "483d8b", "adff2f", "b8860b", "66cdaa", "f5fffa", "ff8c00", "00fa9a", "f4a460", "dda0dd", "fafad2", "f5f5dc", "9400d3", "006400", "cdc5bf", "a52a2a", "8b7d6b", "0000ff", "d02090", "ffb6c1", "48d1cc", "e0ffff", "f8f8ff", "d2b48c", "00ced1", "8b8878", "0000cd", "e6e6fa", "f0e68c", "6495ed", "f0fff0", "ffe4c4", "ff7f50", "d3d3d3", "00bfff", "b03060", "6a5acd", "ffa07a", "8b7765", "20b2aa", "ff0000", "f5deb3", "eee8dc", "ba55d3", "faf0e6", "6b8e23", "8a2be2", "7cfc00", "ffdab9", "8b4513", "87cefa", "cdc9c9", "9932cc", "deb887", "eedd82", "228b22", "838b83", "b0c4de", "f08080", "696969", "ffdead", "da70d6", "bdb76b", "fdf5e6"};
+		int flags[]=new int[]{65,73,81,83,97,99,113,121,129,137,145,147,161,163,177,185,321,323,329,337,339,353,355,369,371,377,385,387,393,401,403,417,419,433,435,1089,1097,1105,1107,1121,1123,1137,1145,1153,1161,1169,1171,1185,1187,1201,1209};
+		for(int flag=0;flag< flags.length;++flag)
+			{
+			printGradientDef(w, "f"+flags[flag],
+					"stop-color:#"+pastels[flag%pastels.length]+
+					";stop-opacity:1;", "stop-color:white;stop-opacity:1;");
+			}
+		
+		w.writeEndElement();//defs
+		
+		w.writeStartElement("g");
+		w.writeAttribute("transform", "translate("+insets.left+","+insets.top+")");
+		w.writeAttribute("class","maing");
+		
+		int y=insets.top;
+		/* write title */
+		w.writeEmptyElement("path");
+		w.writeAttribute("class","maintitle");
+		w.writeAttribute("title",intervalStr);
+		w.writeAttribute("d", this.hershey.svgPath(
+				this.interval.chrom+":"+niceIntFormat.format(this.interval.end)+"-"+niceIntFormat.format(this.interval.end),
+				scaleRect(new Rectangle2D.Double(
+						0,
+						y,
+						this.drawinAreaWidth,
+						HEIGHT_MAIN_TITLE
+						)))
+				);
+		y+=HEIGHT_MAIN_TITLE;
+		
+		/* write ruler */
+		int prev_ruler_printed=-1;
+		w.writeStartElement("g");
+		for(int pos=this.interval.start; pos<=this.interval.end;++pos)
+			{
+			double x= this.baseToPixel(pos);
+			w.writeEmptyElement("line");
+			w.writeAttribute("class","rulerline");
+			w.writeAttribute("title",niceIntFormat.format(pos));
+			w.writeAttribute("x1",format(x));
+			w.writeAttribute("x2",format(x));
+			w.writeAttribute("y1",format(y+HEIGHT_RULER-5));
+			w.writeAttribute("y2",format(dim.height));
+			if(prev_ruler_printed==-1 ||  this.baseToPixel(prev_ruler_printed)+featureHeight < x )
+				{
+				x= (this.baseToPixel(pos)+this.baseToPixel(pos+1))/2.0;
+				w.writeEmptyElement("path");
+				w.writeAttribute("class","rulerlabel");
+				w.writeAttribute("title",niceIntFormat.format(pos));
+				w.writeAttribute("d",this.hershey.svgPath(niceIntFormat.format(pos),0,0,Math.min(niceIntFormat.format(pos).length()*this.featureHeight,HEIGHT_RULER)-20,featureHeight));
+				w.writeAttribute("transform","translate("+(x-featureHeight/2.0)+","+ (y+(HEIGHT_RULER-10)) +") rotate(-90) ");
+				prev_ruler_printed=pos;
+				}	
+			}
+		w.writeEndElement();//g for ruler
+		y+=HEIGHT_RULER;
+		
+		//loop over each sample
+		for(Sample sample:this.sampleHash.values())
+			{
+			printSample(w,y,sample);
+			y+=sample.getHeight();
+			}
+		
+		w.writeEndElement();//g
+		
+		w.writeEndElement();//svg
+		}
+	
+	private void printSamRecord(
+			XMLStreamWriter w,
+			final SAMRecord record,
+			final Map<Integer,Counter<Character>> consensus
+			)
+		throws XMLStreamException
+		{
+		double mid_y= this.featureHeight/2.0;
+		final double y_h95= this.featureHeight*0.90;
+		final double y_top5=(this.featureHeight-y_h95)/2.0;
+		final double y_bot5= y_top5+y_h95;
+		final double arrow_w= this.featureHeight/3.0;
+
+		w.writeStartElement(SVG.NS,"g");
+		String title=record.getReadName();
+		w.writeAttribute("title",title);
+		
+		/* print that sam record */
+		final int unclipped_start= record.getUnclippedStart();
+		Cigar cigar = record.getCigar();
+		if(cigar==null) return;
+		byte bases[]=record.getReadBases();
+		if(bases==null) return;
+		
+		
+		
+		
+		int readPos=0;
+		Map<Integer,String> pos2insertions=new HashMap<Integer,String>();
+		List<CigarElement> cigarElements= cigar.getCigarElements();
+		
+		/* find position of arrow */
+		int arrow_cigar_index=-1;
+		for(int cidx=0; cidx< cigarElements.size(); cidx++ )
+			{
+			CigarElement ce = cigarElements.get(cidx);
+			CigarOperator op=ce.getOperator();
+			switch(op)
+				{
+				case H:case S: if(!this.showClipping) break;//threw
+				case M:case EQ: case X:
+					{
+					arrow_cigar_index=cidx;
+					}
+				default:break;
+				}
+			if(record.getReadNegativeStrandFlag() && arrow_cigar_index!=-1)
+				{
+				break;
+				}
+			}
+
+		
+		int refPos=unclipped_start;
+		
+		/* loop over cigar string */
+		for(int cidx=0; cidx< cigarElements.size(); cidx++ )
+			{
+			CigarElement ce = cigarElements.get(cidx);
+			CigarOperator op=ce.getOperator();
+			boolean in_clip=false;
+			switch(ce.getOperator())
+				{
+				case D:
+				case N:
+					{
+					int c_start = trim(refPos);
+					int c_end   = trim(refPos + ce.getLength());
+					if(c_start<c_end)
+						{
+						w.writeEmptyElement("line");
+						w.writeAttribute("class","indel");
+						w.writeAttribute("title", op.name()+ce.getLength());
+						w.writeAttribute("x1", format(baseToPixel(c_start)));
+						w.writeAttribute("x2", format(baseToPixel(c_end)));
+						w.writeAttribute("y1", format(mid_y));
+						w.writeAttribute("y2", format(mid_y));
+						}
+					
+					refPos += ce.getLength();
+					break;
+					}
+				case I: 
+					{
+					StringBuilder sb=new StringBuilder();
+					for(int i=0;i< ce.getLength();++i)
+						{
+						sb.append((char)bases[readPos++]);
+						}
+					pos2insertions.put(refPos, sb.toString());
+					break;
+					}
+				case H:
+					{
+					if(!this.showClipping)
+						{
+						refPos+=ce.getLength();
+						break;
+						}
+					in_clip=true;
+					//NO break;
+					}
+				case S:
+					{
+					if(!this.showClipping)
+						{
+						readPos+=ce.getLength();
+						refPos+=ce.getLength();
+						break;
+						}
+					in_clip=true;
+					//NO break;
+					}
+				case X:
+				case EQ:
+				case M:
+					{
+					int match_start = refPos;
+					int match_end = refPos + ce.getLength();
+					
+					//print sam background
+					StringBuilder sb=new StringBuilder();
+					if(record.getReadNegativeStrandFlag() &&
+						match_start >= this.interval.start && 
+						match_start <= this.interval.end &&
+						cidx==arrow_cigar_index)
+						{
+						sb.append(" M ").append(format(baseToPixel(match_start)+arrow_w)).append(',').append(y_top5);
+						sb.append(" h ").append(format(baseToPixel(trim(match_end))-baseToPixel(match_start)-arrow_w));
+						sb.append(" v ").append(format(y_h95));
+						sb.append(" h ").append(format(-(baseToPixel(trim(match_end))-baseToPixel(match_start)-arrow_w)));
+						sb.append(" L ").append(format(baseToPixel(match_start))).append(',').append(mid_y);
+						sb.append(" Z");
+						}
+					else if(!record.getReadNegativeStrandFlag() &&
+							match_end >= this.interval.start && 
+							match_end <= this.interval.end &&
+							cidx==arrow_cigar_index
+							)
+						{
+						sb.append(" M ").append(format(baseToPixel(match_end)-arrow_w)).append(',').append(y_top5);
+						sb.append(" h ").append(format(-(baseToPixel(match_end)-baseToPixel(trim(match_start))-arrow_w)));
+						sb.append(" v ").append(format(y_h95));
+						sb.append(" h ").append(format(baseToPixel(match_end)-baseToPixel(trim(match_start))-arrow_w));
+						sb.append(" L ").append(format(baseToPixel(match_end))).append(',').append(mid_y);
+						sb.append(" Z");
+						}
+					else
+						{
+						sb.append(" M ").append(format(baseToPixel(trim(match_start)))).append(',').append(y_top5);
+						sb.append(" h ").append(format(baseToPixel(trim(match_end))-baseToPixel(trim(match_start))));
+						sb.append(" v ").append(format(y_h95));
+						sb.append(" h ").append(format(-(baseToPixel(trim(match_end))-baseToPixel(trim(match_start)))));
+						sb.append(" Z");
+						}
+					w.writeEmptyElement("path");
+					w.writeAttribute("d",sb.toString().trim());
+					if(ce.getOperator()==CigarOperator.H || ce.getOperator()==CigarOperator.S)
+						{
+						w.writeAttribute("style","fill:yellow;");
+						}
+					else
+						{
+						w.writeAttribute("style","fill:url(#f"+record.getFlags()+");");
+						}
+					
+					if(op.consumesReadBases())
+						{
+						for(int i=0;i< ce.getLength();++i)
+							{
+							char ca=(char)bases[readPos];
+							if(!in_clip)
+								{
+								Counter<Character> count= consensus.get(refPos+i) ;
+								if(count==null)
+									{
+									count=new Counter<>();
+									consensus.put(refPos+i,count) ;
+									}
+								count.incr(ca);
+								}
+							char cb='N';
+							if(genomicSequence!=null)
+								{
+								cb=genomicSequence.charAt(refPos+i-1);
+								}
+							if(this.interval.contains(refPos+i))
+								{
+								w.writeEmptyElement("use");
+								w.writeAttribute("x",format( baseToPixel(refPos+i)));
+								//w.writeAttribute("y",format(y_top));never needed
+								w.writeAttribute("xlink",XLINK.NS,"href", "#b"+ca);
+								}
+							readPos++;
+							}
+						}
+					
+
+					
+					refPos+=ce.getLength();
+					break;
+					}
+				default:
+					{
+					throw new RuntimeException("Unknown SAM op: "+ce.getOperator());
+					}
+				}
+			}
+		
+		for(Integer pos:pos2insertions.keySet())
+			{
+			if(pos < this.interval.start)  continue;
+			if(pos > this.interval.end)  continue;
+			String insertion=pos2insertions.get(pos);
+			w.writeEmptyElement("line");
+			double x= baseToPixel(pos);
+			w.writeAttribute("title","Insertion "+insertion);
+			w.writeAttribute("class","insert");
+			w.writeAttribute("x1",format(x));
+			w.writeAttribute("x2",format(x));
+			w.writeAttribute("y1",format(y_top5));
+			w.writeAttribute("y2",format(y_bot5));
+			
+			}
+		w.writeEndElement();//g
+		
+	}
+	
 	@Override
 	public int doWork(String[] args)
 		{
-		GenomicSequence genomicSequence=null;
 		String intervalStr=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
@@ -316,241 +820,17 @@ public class BamToSVG extends AbstractCommandLineProgram
 					}
 				}
 			
-			
+			this.featureHeight=Math.max(5,(int)( this.drawinAreaWidth/(double)(this.interval.end - this.interval.start))); 
+			this.HEIGHT_RULER=this.niceIntFormat.format(this.interval.end).length()*this.featureHeight+5;
+			info("Feature height:"+this.featureHeight);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			w=xof.createXMLStreamWriter(System.out, "UTF-8");
 			w.writeStartDocument("UTF-8", "1.0");
-			w.writeStartElement("svg");
-			w.writeDefaultNamespace(SVG.NS);
-			w.writeNamespace("xlink", XLINK.NS);
-			
-			
-			w.writeStartElement(SVG.NS,"title");
-			w.writeCharacters(intervalStr);
-			w.writeEndElement();
-			
-			w.writeStartElement(SVG.NS,"description");
-			w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
-			w.writeCharacters("Version:"+getVersion()+"\n");
-			w.writeCharacters("Author:"+getAuthorName()+" "+getAuthorMail()+"\n");
-			w.writeCharacters("WWW:"+getOnlineDocUrl()+"\n");
-			w.writeCharacters("Htsjdk: "+HtsjdkVersion.getHome()+" "+HtsjdkVersion.getVersion()+"\n");
-			w.writeEndElement();
-			
-			
-			w.writeStartElement(SVG.NS,"style");
-			w.writeCharacters(
-					".bA {}\n" + 
-					".bC {}\n" +
-					".bG {}\n" +
-					".bT {}\n" +
-					".bN {}\n" +
-					""
-					);
-			w.writeEndElement();//style
-			
-			w.writeStartElement(SVG.NS,"defs");
-			
-			
-			
-			
-			if(indexedFastaSequenceFile!=null)
-				{
-				for(String base:new String[]{"a","A","t","T","g","G","c","C","n","N"})
-					{
-					double width=drawinAreaWidth/(double)this.interval.distance();
-					w.writeEmptyElement("path");
-					w.writeAttribute("id","base"+base);
-					w.writeAttribute("title",base);
-					w.writeAttribute("class","b"+base.toUpperCase());
-					w.writeAttribute("d",this.hershey.svgPath(
-							base,
-							0,
-							0,
-							width*0.95,
-							featureHeight*0.95
-							));
-					}
-				}
-			
-			
-			w.writeEndElement();//defs
-			int y=0;
-			//loop over each sample
-			for(Sample sample:this.sampleHash.values())
-				{
-				w.writeStartElement(SVG.NS,"g");
-				w.writeAttribute("transform", "translate(0,"+y+")");
-				
-				/* print that line */
-				for(int nLine=0;nLine< sample.lines.size();++nLine)
-					{
-					List<SAMRecord> line= sample.lines.get(nLine);
-					double y_top= featureHeight*nLine;
-					double mid_y= y_top+this.featureHeight/2.0;
-					//loop over records on that line
-					for(SAMRecord record: line)
-						{
-						w.writeStartElement(SVG.NS,"g");
-						String title=record.getReadName();
-						w.writeAttribute("title",title);
-						
-						/* print that sam record */
-						final int unclipped_start= record.getUnclippedStart();
-						Cigar cigar = record.getCigar();
-						if(cigar==null) continue;
-						byte bases[]=record.getReadBases();
-						if(bases==null) continue;
-						
-						
-						
-						
-						int readPos=0;
-						Map<Integer,String> pos2insertions=new HashMap<Integer,String>();
-						List<CigarElement> cigarElements= cigar.getCigarElements();
-						
-
-						
-						int refPos=unclipped_start;
-						/* loop over cigar string */
-						for(int cidx=0; cidx< cigarElements.size(); cidx++ )
-							{
-							CigarElement ce = cigarElements.get(cidx);
-							CigarOperator op=ce.getOperator();
-							switch(ce.getOperator())
-								{
-								case D:
-								case N:
-									{
-									int c_start = trim(refPos);
-									int c_end   = trim(refPos + ce.getLength());
-									if(c_start<c_end)
-										{
-										w.writeEmptyElement("line");
-										w.writeEmptyElement("indel");
-										w.writeAttribute("title", op.name()+ce.getLength());
-										w.writeAttribute("x1", String.valueOf(baseToPixel(c_start)));
-										w.writeAttribute("x2", String.valueOf(baseToPixel(c_end)));
-										w.writeAttribute("y1", String.valueOf(mid_y));
-										w.writeAttribute("y2", String.valueOf(mid_y));
-										}
-									
-									refPos += ce.getLength();
-									break;
-									}
-								case I: 
-									{
-									StringBuilder sb=new StringBuilder();
-									for(int i=0;i< ce.getLength();++i)
-										{
-										sb.append((char)bases[readPos++]);
-										}
-									pos2insertions.put(refPos, sb.toString());
-									break;
-									}
-								case H:
-									{
-									if(!this.showClipping)
-										{
-										refPos+=ce.getLength();
-										break;
-										}
-									//NO break;
-									}
-								case S:
-									{
-									if(!this.showClipping)
-										{
-										readPos+=ce.getLength();
-										refPos+=ce.getLength();
-										break;
-										}
-									//NO break;
-									}
-								case X:
-								case EQ:
-								case M:
-									{
-									int match_start = refPos;
-									int match_end = refPos + ce.getLength();
-									
-									//print sam background
-									StringBuilder sb=new StringBuilder();
-									if(record.getReadNegativeStrandFlag())
-										{
-										sb.append(" M ").append(baseToPixel(match_start)).append(',').append(y_top);
-										sb.append(" h ").append(baseToPixel(match_end)-baseToPixel(match_start));
-										sb.append(" v ").append(featureHeight);
-										sb.append(" h ").append(-(baseToPixel(match_end)-baseToPixel(match_start)));
-										sb.append(" Z");
-										}
-									else 
-										{
-										sb.append(" M ").append(baseToPixel(match_start)).append(',').append(y_top);
-										sb.append(" h ").append(baseToPixel(match_end)-baseToPixel(match_start));
-										sb.append(" v ").append(featureHeight);
-										sb.append(" h ").append(-(baseToPixel(match_end)-baseToPixel(match_start)));
-										sb.append(" Z");
-										}
-									w.writeEmptyElement("path");
-									w.writeAttribute("d",sb.toString().trim());
-									w.writeAttribute("class","r"+record.getFlags());
-									
-									if(op.consumesReadBases())
-										{
-										for(int i=0;i< ce.getLength();++i)
-											{
-											char ca=(char)bases[readPos];
-											char cb='N';
-											if(genomicSequence!=null)
-												{
-												cb=genomicSequence.charAt(refPos+i-1);
-												}
-											if(this.interval.contains(refPos+i))
-												{
-												w.writeEmptyElement("use");
-												w.writeAttribute("x",String.valueOf( baseToPixel(refPos+i)));
-												w.writeAttribute("y",String.valueOf(y_top));
-												w.writeAttribute("ref", "base"+ca);
-												}
-											readPos++;
-											}
-										}
-									
-
-									
-									refPos+=ce.getLength();
-									break;
-									}
-								default:
-									{
-									throw new RuntimeException("Unknown SAM op: "+ce.getOperator());
-									}
-								}
-							}	
-						w.writeEndElement();//g
-						}
-					
-					}
-				
-				/* surrounding frame for that sample */
-				w.writeEmptyElement("rect");
-				w.writeAttribute("class","frame");
-				w.writeAttribute("x",String.valueOf(0));
-				w.writeAttribute("y",String.valueOf(0));
-				w.writeAttribute("width",String.valueOf(drawinAreaWidth));
-				w.writeAttribute("height",String.valueOf(sample.lines.size()*featureHeight));//TODO
-
-				
-				y+= sample.lines.size()*featureHeight;//todo
-				w.writeEndElement();//g for sample
-				}
-			
-			
-			w.writeEndElement();//svg
+			printDocument(w,intervalStr);
 			w.writeEndDocument();
 			w.flush();
 			w.close();
+			
 			return 0;
 			}
 		catch(Exception err)
