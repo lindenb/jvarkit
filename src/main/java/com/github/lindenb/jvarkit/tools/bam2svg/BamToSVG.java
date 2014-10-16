@@ -157,8 +157,14 @@ public class BamToSVG extends AbstractCommandLineProgram
 	
 	@Override
 	public String getProgramDescription() {
-		return "";
+		return "Convert a BAM file to SVG";
 		}
+	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/Bam2SVG";
+		}
+	
 	
 	@Override
 	public void printOptions(java.io.PrintStream out)

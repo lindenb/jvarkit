@@ -151,5 +151,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/ReferenceToVCF">ReferenceToVCF<a></th><td>Creates a VCF containing all the possible substitutions in a Reference Genome..</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfEnsemblReg">VcfEnsemblReg<a></th><td>Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqJS">FastqJS<a></th><td>Filters a FASTQ file using javascript.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2SVG">Bam2SVG<a></th><td>Convert a BAM to SVG</td></tr>
 </table>
 

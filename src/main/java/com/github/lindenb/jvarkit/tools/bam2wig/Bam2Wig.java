@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.bam2wig;
 
 import java.io.File;
@@ -5,8 +33,9 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.Arrays;
 
-
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -18,6 +47,7 @@ import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 public class Bam2Wig extends AbstractCommandLineProgram
 	{
@@ -28,7 +58,12 @@ public class Bam2Wig extends AbstractCommandLineProgram
 	private boolean cast_to_integer=false;
 	private int min_gap=200;
 	private int min_depth=0;
+	private PrintWriter pw;
 	
+	private Bam2Wig()
+		{
+		
+		}
 	
 	@Override
 	public String getProgramDescription() {
@@ -41,18 +76,16 @@ public class Bam2Wig extends AbstractCommandLineProgram
 		return "https://github.com/lindenb/jvarkit/wiki/Bam2Wig";
 		}
 	
-	private void run(SAMFileReader sfr)
+	private void run(SamReader sfr)
 		{
 		SAMSequenceRecord prev_ssr=null;
-		sfr.setValidationStringency(ValidationStringency.LENIENT);
 		SAMSequenceDictionary dict=sfr.getFileHeader().getSequenceDictionary();
-		PrintWriter w=new  PrintWriter(System.out);
 		SAMRecordIterator iter=sfr.iterator();
 		int array[]=null;
-		long nReads=0;
+		SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(dict);
 		if(custom_track)
 			{
-			w.println("track type=wiggle_0 name=\"__REPLACE_WIG_NAME__\" description=\"__REPLACE_WIG_DESC__\"");
+			pw.println("track type=wiggle_0 name=\"__REPLACE_WIG_NAME__\" description=\"__REPLACE_WIG_DESC__\"");
 			}
 		
 		for(;;)
@@ -61,10 +94,7 @@ public class Bam2Wig extends AbstractCommandLineProgram
 			if(iter.hasNext())
 				{
 				rec=iter.next();
-				if(++nReads%1E6==0)
-					{
-					info("nReads: "+nReads);
-					}
+				progess.watch(rec);
 				if(rec.getReadUnmappedFlag()) continue;
 				if(rec.getMappingQuality()< min_qual) continue;
 				}
@@ -124,7 +154,7 @@ public class Bam2Wig extends AbstractCommandLineProgram
 		 							{
 		 							for(int r=0;r < num_zero_regions_skipped;++r)
 		 								{
-		 								w.println(0);
+		 								pw.println(0);
 		 								}
 		 							}
 		 						else
@@ -139,7 +169,7 @@ public class Bam2Wig extends AbstractCommandLineProgram
 		 					if(need_print_header)
 			 					{
 		 						need_print_header=false;
-			 					w.println(
+		 						pw.println(
 				 						"fixedStep chrom="+prev_ssr.getSequenceName()+
 				 						" start="+(start0+1)+
 				 						" step="+WINDOW_SHIFT +" span="+ WINDOW_SIZE);
@@ -147,14 +177,14 @@ public class Bam2Wig extends AbstractCommandLineProgram
 		 					
 		 					if(cast_to_integer)
 		 						{
-		 						w.println((int)(sum/n));
+		 						pw.println((int)(sum/n));
 		 						}
 		 					else
 		 						{
-		 						w.println((float)(sum/n));
+		 						pw.println((float)(sum/n));
 		 						}
 		 					
-		 				if(w.checkError()) break;
+		 				if(pw.checkError()) break;
 		 				start0+=WINDOW_SHIFT;
 						}
 					array=null;
@@ -162,7 +192,7 @@ public class Bam2Wig extends AbstractCommandLineProgram
 					prev_ssr=null;
 					}
 				if(rec==null) break;
-				if(w.checkError()) break;
+				if(pw.checkError()) break;
 				}
 			if(prev_ssr==null)
 				{
@@ -217,9 +247,9 @@ public class Bam2Wig extends AbstractCommandLineProgram
 			
 			
 			}
+		progess.finish();
 		iter.close();
-		w.flush();
-		w.close();
+		pw.flush();
 		}
 	
 	@Override
@@ -238,21 +268,21 @@ public class Bam2Wig extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
-	    GetOpt getopt=new GetOpt();
+	    GetOpt opt=new GetOpt();
 		int c;
-		while((c=getopt.getopt(args,getGetOptDefault()+ "ts:w:q:g:d:i"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "ts:w:q:g:d:i"))!=-1)
 			{
 			switch(c)
 				{
 				case 'i': cast_to_integer=true;break;
 				case 't':custom_track=true;break;
-				case 's': WINDOW_SHIFT=Math.max(1, Integer.parseInt(getopt.getOptArg())); break;
-				case 'w': WINDOW_SIZE=Math.max(1, Integer.parseInt(getopt.getOptArg())); break;
-				case 'q': min_qual=Math.max(0, Integer.parseInt(getopt.getOptArg())); break;
-				case 'g': min_gap=Math.max(1, Integer.parseInt(getopt.getOptArg())); break;
-				case 'd': min_depth=Math.max(0, Integer.parseInt(getopt.getOptArg())); break;
+				case 's': WINDOW_SHIFT=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
+				case 'w': WINDOW_SIZE=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
+				case 'q': min_qual=Math.max(0, Integer.parseInt(opt.getOptArg())); break;
+				case 'g': min_gap=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
+				case 'd': min_depth=Math.max(0, Integer.parseInt(opt.getOptArg())); break;
 				default: 
-					switch(handleOtherOptions(c, getopt, args))
+					switch(handleOtherOptions(c, opt, args))
 						{
 						case EXIT_FAILURE: return -1;
 						case EXIT_SUCCESS: return 0;
@@ -264,29 +294,34 @@ public class Bam2Wig extends AbstractCommandLineProgram
 		
 		
 	    
-		SAMFileReader samFileReader=null;
+		SamReaderFactory sfrf= SamReaderFactory.makeDefault();
+		sfrf.validationStringency( ValidationStringency.SILENT);
+		SamReader in=null;
+		this.pw=new PrintWriter(System.out);
 		try
 			{
-			if(getopt.getOptInd()==args.length)
+			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				samFileReader=new SAMFileReader(System.in);
+				in=sfrf.open(SamInputResource.of(System.in));
+				run(in);
+				in.close();
 				}
-			else if(getopt.getOptInd()+1==args.length)
+			else if(opt.getOptInd()+1==args.length)
 				{
-				File bamFile=new File(args[getopt.getOptInd()]);
-				info("Reading from "+bamFile);
-				samFileReader=new SAMFileReader(bamFile);
+				String filename=args[opt.getOptInd()];
+				info("Reading from "+filename);
+				in=sfrf.open(SamInputResource.of(new File(filename)));
+				run(in);
 				}
 			else
 				{
-				System.err.println("illegal number of arguments.");
+				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
 			
-			run(samFileReader);
-			
-			
+			pw.flush();
+			return 0;
 			}
 		catch(Exception err)
 			{
@@ -295,9 +330,9 @@ public class Bam2Wig extends AbstractCommandLineProgram
 			}
 		finally
 			{
-			CloserUtil.close(samFileReader);
+			CloserUtil.close(in);
+			CloserUtil.close(pw);
 			}
-		return 0;
 		}
 	/**
 	 * @param args
