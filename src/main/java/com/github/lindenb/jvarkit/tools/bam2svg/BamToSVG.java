@@ -37,8 +37,11 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -56,6 +59,8 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -64,6 +69,7 @@ import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 
 public class BamToSVG extends AbstractCommandLineProgram
 	{
@@ -77,10 +83,11 @@ public class BamToSVG extends AbstractCommandLineProgram
 	private Map<String, Sample> sampleHash=new HashMap<String, Sample>();
 	private int drawinAreaWidth=1000;
 	private boolean showClipping=true;
-	private int featureHeight =1;
+	private double featureHeight =1;
+	private double featureWidth =1;
 	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
-	 
+	private List<VariantContext> pos2variant=new ArrayList<VariantContext>();
 	private class Sample
 		{
 		String name;
@@ -91,6 +98,7 @@ public class BamToSVG extends AbstractCommandLineProgram
 			double dim_height= HEIGHT_SAMPLE_NAME;
 			dim_height+= BamToSVG.this.featureHeight;//ref seq
 			dim_height+= BamToSVG.this.featureHeight;//consensus
+			if(!pos2variant.isEmpty())dim_height+= BamToSVG.this.featureHeight;//variants
 			dim_height+= this.lines.size()*BamToSVG.this.featureHeight;//consensus
 			return dim_height;
 			}
@@ -170,7 +178,9 @@ public class BamToSVG extends AbstractCommandLineProgram
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println("-R (file) "+getMessageBundle("reference.faidx"));
-		out.println("-L (chrom:start-end) "+getMessageBundle("bed.interval0"));
+		out.println("-S (file) add VCF indexed with tabix");
+		out.println("-L (chrom:start-end)");
+		out.println("-w (width)");
 		super.printOptions(out);
 		}
 	
@@ -194,7 +204,18 @@ public class BamToSVG extends AbstractCommandLineProgram
 		return  ((pos - this.interval.getStart())/(double)this.interval.distance())*(this.drawinAreaWidth)
 				;
 		}
-
+	private void readVariantFile(String vcf)  throws IOException
+		{
+		info("Reading "+vcf);
+		TabixVcfFileReader tfr=new TabixVcfFileReader(vcf);
+		Iterator<VariantContext> iter=tfr.iterator(this.interval.chrom, this.interval.start, this.interval.end);
+		while(iter.hasNext())
+			{
+			VariantContext ctx=iter.next();
+			this.pos2variant.add(ctx);
+			}
+		tfr.close();
+		}
 	
 	private void readBamStream(SAMRecordIterator iter) throws IOException
 		{
@@ -291,7 +312,9 @@ public class BamToSVG extends AbstractCommandLineProgram
 
 		/* write REFERENCE */
 		w.writeComment("REFERENCE");
-		for(int pos=this.interval.start;pos<=this.interval.end;++pos)
+		for(int pos=this.interval.start;
+				this.featureWidth>5 && //ignore if too small
+				pos<=this.interval.end;++pos)
 			{
 			char c=(this.genomicSequence==null?'N':this.genomicSequence.charAt(pos-1));
 			double x0  = baseToPixel(pos);
@@ -307,7 +330,32 @@ public class BamToSVG extends AbstractCommandLineProgram
 		y+=featureHeight;
 		Map<Integer,Counter<Character>> pos2consensus=new HashMap<Integer,Counter<Character>>();
 		
-		
+		/* print variants */
+		if(!pos2variant.isEmpty())
+			{
+			for(VariantContext ctx:this.pos2variant)
+				{
+				Genotype g=ctx.getGenotype(sample.name);
+				if(g==null || !g.isCalled() || g.isHomRef()) continue;
+				if(ctx.getEnd()< this.interval.start) continue;
+				if(ctx.getStart()> this.interval.end) continue;
+				double x0  = baseToPixel(ctx.getStart());
+				w.writeEmptyElement("use");
+				w.writeAttribute("x",format(x0));
+				w.writeAttribute("y",format(y));
+				w.writeAttribute("title", ctx.getAltAlleleWithHighestAlleleCount().getDisplayString());
+				
+				if(g.isHomVar())
+					{
+					w.writeAttribute("xlink", XLINK.NS, "href", "#homvar");				
+					}
+				else if (g.isHet())
+					{
+					w.writeAttribute("xlink", XLINK.NS, "href", "#het");
+					}
+				}
+			y+=featureHeight;
+			}
 		
 		/* print all lines */
 		w.writeComment("Alignments");
@@ -326,16 +374,20 @@ public class BamToSVG extends AbstractCommandLineProgram
 		
 		/* write consensus */
 		w.writeComment("Consensus");
-		for(int pos=this.interval.start;pos<=this.interval.end;++pos)
+		for(int pos=this.interval.start;
+				this.featureWidth>5 && //ignore if too small
+				pos<=this.interval.end;++pos)
 			{
 			Counter<Character> cons = pos2consensus.get(pos);
 			if(cons==null) continue;
 			char c=cons.getMostFrequent();
+			
 			double x0  = baseToPixel(pos);
 			w.writeEmptyElement("use");
 			w.writeAttribute("x",format(x0));
 			w.writeAttribute("y",format(consensus_y));
 			w.writeAttribute("xlink", XLINK.NS, "href", "#b"+c);
+				
 			}
 		
 		
@@ -400,23 +452,63 @@ public class BamToSVG extends AbstractCommandLineProgram
 				".bG {stroke:black;}\n" +
 				".bT {stroke:red;}\n" +
 				".bN {stroke:gray;}\n" +
+				".homvar {stroke:blue;fill:blue;}\n"+
+				".het {stroke:blue;fill:blue;}\n"+
 				"line.insert {stroke:red;stroke-width:4px;}\n"+
 				"line.rulerline {stroke:lightgray;stroke-width:0.5px;}\n"+
 				"line.rulerlabel {stroke:gray;stroke-width:2px;}\n"+
 				"path.maintitle {stroke:blue;stroke-width:5px;}\n"+
 				"path.samplename {stroke:black;stroke-width:3px;}\n"+
+				"circle.mutation {stroke:red;fill:none;stroke-width:"+(this.featureWidth<5?0.5:3.0)+"px;}"+
 				""
 				);
 		w.writeEndElement();//style
 		
 		w.writeStartElement(SVG.NS,"defs");
 		
+		//mutations
+		if(!pos2variant.isEmpty())
+			{
+			//hom var
+			w.writeEmptyElement("rect");
+			w.writeAttribute("id","homvar");
+			w.writeAttribute("class","homvar");
+			w.writeAttribute("x", "0");
+			w.writeAttribute("y", "0");
+			w.writeAttribute("width", format(this.featureWidth));
+			w.writeAttribute("height",  format(this.featureHeight));
+			
+			//het
+			w.writeStartElement("g");
+			w.writeAttribute("id","het");
+			w.writeAttribute("class","het");
+				
+			
+				w.writeEmptyElement("rect");
+				w.writeAttribute("x", "0");
+				w.writeAttribute("y", "0");
+				w.writeAttribute("width", format(this.featureWidth/2.0));
+				w.writeAttribute("height",  format(this.featureHeight/2.0));
+				w.writeEmptyElement("rect");
+				w.writeAttribute("x", format(this.featureWidth/2.0));
+				w.writeAttribute("y",  format(this.featureHeight/2.0));
+				w.writeAttribute("width", format(this.featureWidth/2.0));
+				w.writeAttribute("height",  format(this.featureHeight/2.0));
+				w.writeEmptyElement("rect");
+				w.writeAttribute("style", "fill:none;");
+				w.writeAttribute("x", "0");
+				w.writeAttribute("y", "0");
+				w.writeAttribute("width", format(this.featureWidth));
+				w.writeAttribute("height",  format(this.featureHeight));
+
+			w.writeEndElement();
+			}
+		
 		
 
-		
+		//base
 		for(String base:new String[]{"a","A","t","T","g","G","c","C","n","N"})
 			{
-			double width=drawinAreaWidth/(double)this.interval.distance();
 			w.writeEmptyElement("path");
 			w.writeAttribute("id","b"+base);
 			w.writeAttribute("title",base);
@@ -425,10 +517,22 @@ public class BamToSVG extends AbstractCommandLineProgram
 					base,
 					0,
 					0,
-					width*0.95,
-					featureHeight*0.95
+					this.featureWidth*0.95,
+					this.featureHeight*0.95
 					));
 			}
+		//mutation
+		w.writeEmptyElement("circle");
+		w.writeAttribute("id","mut");
+		w.writeAttribute("class","mutation");
+		w.writeAttribute("title","mutation");
+		w.writeAttribute("cx",format(this.featureWidth/2.0));
+		w.writeAttribute("cy",format(this.featureHeight/2.0));
+		w.writeAttribute("r",format(this.featureHeight/2.0));
+		
+		
+		
+		
 		String pastels[]={"fff8dc", "cd5c5c", "708090", "ff4500", "4682b4", "ffa500", "d8bfd8", "fa8072", "00ffff", "3cb371", "000000", "1e90ff", "cd853f", "4169e1", "f0ffff", "5f9ea0", "eeeee0", "a020f0", "bc8f8f", "ff69b4", "00ff7f", "000080", "e9967a", "daa520", "32cd32", "ee82ee", "7b68ee", "ffffe0", "8b8378", "db7093", "a0522d", "ffe4b5", "9370db", "afeeee", "eee5de", "8fbc8f", "8b8682", "8470ff", "8b8b83", "ff1493", "eedfcc", "f0f8ff", "ff6347", "faebd7", "add8e6", "fffafa", "c1cdc1", "cdc0b0", "c71585", "7fffd4", "7fff00", "cdaf95", "e0eee0", "556b2f", "dcdcdc", "ffebcd", "cdc8b1", "fff0f5", "ffe4e1", "9acd32", "ffc0cb", "8b8989", "ffff00", "cdb79e", "f5f5f5", "2f4f4f", "eee9e9", "cdcdc1", "eee8aa", "bebebe", "ffffff", "2e8b57", "fffff0", "b0e0e6", "fff5ee", "778899", "fffacd", "191970", "d2691e", "eecbad", "40e0d0", "ffd700", "eed5b7", "fffaf0", "ffefd5", "98fb98", "b22222", "87ceeb", "483d8b", "adff2f", "b8860b", "66cdaa", "f5fffa", "ff8c00", "00fa9a", "f4a460", "dda0dd", "fafad2", "f5f5dc", "9400d3", "006400", "cdc5bf", "a52a2a", "8b7d6b", "0000ff", "d02090", "ffb6c1", "48d1cc", "e0ffff", "f8f8ff", "d2b48c", "00ced1", "8b8878", "0000cd", "e6e6fa", "f0e68c", "6495ed", "f0fff0", "ffe4c4", "ff7f50", "d3d3d3", "00bfff", "b03060", "6a5acd", "ffa07a", "8b7765", "20b2aa", "ff0000", "f5deb3", "eee8dc", "ba55d3", "faf0e6", "6b8e23", "8a2be2", "7cfc00", "ffdab9", "8b4513", "87cefa", "cdc9c9", "9932cc", "deb887", "eedd82", "228b22", "838b83", "b0c4de", "f08080", "696969", "ffdead", "da70d6", "bdb76b", "fdf5e6"};
 		int flags[]=new int[]{65,73,81,83,97,99,113,121,129,137,145,147,161,163,177,185,321,323,329,337,339,353,355,369,371,377,385,387,393,401,403,417,419,433,435,1089,1097,1105,1107,1121,1123,1137,1145,1153,1161,1169,1171,1185,1187,1201,1209};
 		for(int flag=0;flag< flags.length;++flag)
@@ -522,7 +626,8 @@ public class BamToSVG extends AbstractCommandLineProgram
 		if(cigar==null) return;
 		byte bases[]=record.getReadBases();
 		if(bases==null) return;
-		
+		byte qualities[]=record.getBaseQualities();
+		if(qualities==null) return;
 		
 		
 		
@@ -656,7 +761,7 @@ public class BamToSVG extends AbstractCommandLineProgram
 						}
 					w.writeEmptyElement("path");
 					w.writeAttribute("d",sb.toString().trim());
-					if(ce.getOperator()==CigarOperator.H || ce.getOperator()==CigarOperator.S)
+					if( ce.getOperator()==CigarOperator.H || ce.getOperator()==CigarOperator.S)
 						{
 						w.writeAttribute("style","fill:yellow;");
 						}
@@ -683,10 +788,21 @@ public class BamToSVG extends AbstractCommandLineProgram
 							char cb='N';
 							if(genomicSequence!=null)
 								{
-								cb=genomicSequence.charAt(refPos+i-1);
+								cb=Character.toUpperCase(genomicSequence.charAt(refPos+i-1));
 								}
-							if(this.interval.contains(refPos+i))
+							
+							if(cb!='N' && ca!='N' && cb!=ca && !in_clip)
 								{
+								w.writeEmptyElement("use");
+								w.writeAttribute("x",format( baseToPixel(refPos+i)));
+								//w.writeAttribute("y",format(y_top));never needed
+								w.writeAttribute("xlink",XLINK.NS,"href", "#mut");
+								}
+							
+							if(this.interval.contains(refPos+i) && 
+								this.featureWidth >  5)
+								{
+								//int qual = qualities[readPos];
 								w.writeEmptyElement("use");
 								w.writeAttribute("x",format( baseToPixel(refPos+i)));
 								//w.writeAttribute("y",format(y_top));never needed
@@ -731,13 +847,16 @@ public class BamToSVG extends AbstractCommandLineProgram
 	public int doWork(String[] args)
 		{
 		String intervalStr=null;
+		Set<String> vcfFiles=new HashSet<String>();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:L:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"R:L:S:w:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'S': vcfFiles.add(opt.getOptArg());break;
 				case 'L': intervalStr= opt.getOptArg();break;
+				case 'w': Math.max(100,this.drawinAreaWidth = Integer.parseInt(opt.getOptArg()));break;
 				case 'R':
 					{
 					try
@@ -794,6 +913,11 @@ public class BamToSVG extends AbstractCommandLineProgram
 		XMLStreamWriter w=null;
 		try
 			{
+			for(String vcf:vcfFiles)
+				{
+				readVariantFile(vcf);
+				}
+			
 			/* read SAM data */
 			if(opt.getOptInd()==args.length)
 				{
@@ -826,8 +950,9 @@ public class BamToSVG extends AbstractCommandLineProgram
 					}
 				}
 			
-			this.featureHeight=Math.max(5,(int)( this.drawinAreaWidth/(double)(this.interval.end - this.interval.start))); 
-			this.HEIGHT_RULER=this.niceIntFormat.format(this.interval.end).length()*this.featureHeight+5;
+			this.featureWidth=  this.drawinAreaWidth/(double)((this.interval.end - this.interval.start)+1); 
+			this.featureHeight= Math.min(Math.max(5.0,this.featureWidth),30); 
+			this.HEIGHT_RULER=(int)(this.niceIntFormat.format(this.interval.end).length()*this.featureHeight+5);
 			info("Feature height:"+this.featureHeight);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			w=xof.createXMLStreamWriter(System.out, "UTF-8");
