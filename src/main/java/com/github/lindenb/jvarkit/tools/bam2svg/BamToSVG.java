@@ -179,8 +179,8 @@ public class BamToSVG extends AbstractCommandLineProgram
 		{
 		out.println("-R (file) "+getMessageBundle("reference.faidx"));
 		out.println("-S (file) add VCF indexed with tabix");
-		out.println("-L (chrom:start-end)");
-		out.println("-w (width)");
+		out.println("-i (chrom:start-end) interval. Required");
+		out.println("-w (width) image width");
 		super.printOptions(out);
 		}
 	
@@ -850,12 +850,12 @@ public class BamToSVG extends AbstractCommandLineProgram
 		Set<String> vcfFiles=new HashSet<String>();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:L:S:w:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"R:i:S:w:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'S': vcfFiles.add(opt.getOptArg());break;
-				case 'L': intervalStr= opt.getOptArg();break;
+				case 'i': intervalStr= opt.getOptArg();break;
 				case 'w': Math.max(100,this.drawinAreaWidth = Integer.parseInt(opt.getOptArg()));break;
 				case 'R':
 					{
