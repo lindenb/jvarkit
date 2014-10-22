@@ -1723,6 +1723,14 @@ or
 		/>
 </target>	
 
+<target name="liftover2svg">
+	<compile-picard-cmd 
+		java="**/LiftOverToSVG.java"
+		main="com.github.lindenb.jvarkit.tools.liftover.LiftOverToSVG"
+		name="liftover2svg"
+		/>
+</target>	
+
 	
 <target name="vcfmapuniprot" depends="api.uniprot">
 	<compile-picard-cmd 
