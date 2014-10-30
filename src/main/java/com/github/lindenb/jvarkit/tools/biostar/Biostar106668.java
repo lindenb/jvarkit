@@ -17,12 +17,13 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
+@Deprecated /* use picard/RevertSam http://broadinstitute.github.io/picard/command-line-overview.html#RevertSam */
 public class Biostar106668 extends AbstractCommandLineProgram
 	{
 	@Override
 	public String getProgramDescription()
 		{
-		return "unmark duplicates";
+		return "unmark duplicates. Deprecated: Use picard/RevertSam http://broadinstitute.github.io/picard/command-line-overview.html#RevertSam";
 		}
 	
 	@Override

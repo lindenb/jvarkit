@@ -140,7 +140,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/AlmostSortedVcf">AlmostSortedVcf<a></th><td>Sort an 'almost' sorted VCF using an in-memory buffer.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar105754">Biostar105754<a></th><td>bigwig: peak distance from specific genomic BED region</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRegulomeDB">VcfRegulomeDB<a></th><td>Annotate a VCF with the RegulomeDB data (http://regulome.stanford.edu/)</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar106668">Biostar106668<a></th><td>unmark duplicates</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar106668">Biostar106668<a></th><td>unmark duplicates (deprecated)</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BatchIGVPictures">BatchIGVPictures<a></th><td>GUI: Batch pictures with IGV</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PubmedDump">PubmedDump<a></th><td>Dump pubmed data as XML.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamIndexReadNames">BamIndexReadNames<a></th><td>Build a dictionary of read names to be searched with BamQueryReadNames.</td></tr>
@@ -152,5 +152,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfEnsemblReg">VcfEnsemblReg<a></th><td>Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqJS">FastqJS<a></th><td>Filters a FASTQ file using javascript.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2SVG">Bam2SVG<a></th><td>Convert a BAM to SVG</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/LiftOverToSVG">LiftOverToSVG</a></th><td>Convert UCSC LiftOver chain files to animated SVG</td></tr>
 </table>
 
