@@ -1579,6 +1579,8 @@ or
 		java="**/VcfToNewick.java"
 		main="com.github.lindenb.jvarkit.tools.misc.VcfToNewick"
 		name="vcf2newick"
+		libraryid="htsjdk.and.bdb.jars"
+
 		/>
 </target>
 

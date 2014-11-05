@@ -153,5 +153,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqJS">FastqJS<a></th><td>Filters a FASTQ file using javascript.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2SVG">Bam2SVG<a></th><td>Convert a BAM to SVG</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/LiftOverToSVG">LiftOverToSVG</a></th><td>Convert UCSC LiftOver chain files to animated SVG</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFMerge">VCFMerge</a></th><td>Combines VCF files.</td></tr>
 </table>
 
