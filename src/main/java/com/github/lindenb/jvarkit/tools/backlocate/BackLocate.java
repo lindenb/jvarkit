@@ -1,50 +1,73 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+* Nov 2014: removed dependencies to SQL
+
+*/
 package com.github.lindenb.jvarkit.tools.backlocate;
 
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.tribble.annotation.Strand;
 import htsjdk.tribble.readers.LineIterator;
 
-import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintStream;
-import java.io.StringReader;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
 
-import org.xml.sax.Attributes;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.xml.sax.helpers.DefaultHandler;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 public class BackLocate
 	extends AbstractCommandLineProgram
 	{
+	private static final String DEFAULT_KGXREF= "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz";
+	private static final String DEFAULT_KNOWNGENE= "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	
 	private boolean printSequences=false;
-	private String genomeVersion="hg19";
-	private Connection connection;
 	private GenomicSequence genomicSeq=null;
-	private DasSequenceProvider dasServer=new DasSequenceProvider();
-
-
+	private Map<String,Set<String>> geneSymbol2kg=new HashMap<>();
+	private Map<String,KnownGene> knwonGenes=new HashMap<>();
+	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	
 	/** get a genetic code from a chromosome name (either std or mitochondrial */
 	private static GeneticCode getGeneticCodeByChromosome(String chr)
 		{
@@ -53,55 +76,6 @@ public class BackLocate
 		}
 
 
-
-	/**
-	 * 
-	 * A GenomicSequence
-	 *
-	 */
-	static private class GenomicSequence
-		extends AbstractCharSequence
-		{
-		private String chrom;
-		private byte array[];
-		private int chromStart0;
-		
-		public GenomicSequence(byte array[],String chrom,int chromStart0)
-			{	
-			this.chrom=chrom;
-			this.array=array;
-			this.chromStart0=chromStart0;
-			}
-		
-		public String getChrom()
-			{
-			return chrom;
-			}
-		public int getChromStart()
-			{
-			return chromStart0;
-			}
-		public int getChromEnd()
-			{
-			return getChromStart()+array.length;
-			}
-		
-		@Override
-		public int length()
-			{
-			return getChromEnd();
-			}
-		
-		@Override
-		public char charAt(int index0)
-			{
-			if(index0 < getChromStart() || index0 >=getChromEnd())
-				{
-				throw new IndexOutOfBoundsException("index:"+index0);
-				}
-			return (char)(array[index0-chromStart0]);
-			}
-		}
 
 
 	
@@ -155,104 +129,6 @@ public class BackLocate
 	}
 
 
-	/**
-	 * Calls Ucsc DAS to fetch a DNA sequence using a SAX parser
-	 */
-	private class DasSequenceProvider
-		extends DefaultHandler
-		{
-		private ByteArrayOutputStream baos=null;
-		int reserve=100000;
-		private SAXParser parser;
-		public DasSequenceProvider()
-			{
-			SAXParserFactory f=SAXParserFactory.newInstance();
-			f.setSchema(null);
-			f.setNamespaceAware(false);
-			f.setValidating(false);
-			try
-				{
-				this.parser=f.newSAXParser();
-				}
-			catch(Exception err)
-				{
-				throw new RuntimeException(err);
-				}
-			}
-		
-		 @Override
-		public void startDocument() throws SAXException
-			{
-			baos=null;
-			}
-		
-		 public InputSource resolveEntity (String publicId, String systemId)
-	         {
-	         return new InputSource(new StringReader(""));
-	         }
-		
-		@Override
-	    public void startElement(String uri, String localName, String name,
-	            Attributes attributes) throws SAXException
-	        {
-	        if(name.equals("DNA"))
-	            {
-	            this.baos=new ByteArrayOutputStream(this.reserve);
-	            }
-	        }
-		
-	    @Override
-	    public void characters(char[] ch, int start, int length)
-	            throws SAXException
-	        {
-	        if(this.baos==null) return;
-	        for(int i=0;i< length;++i)
-	            {
-	            char c= Character.toUpperCase(ch[start+i]);
-	            if(Character.isWhitespace(c)) continue;
-	            this.baos.write((byte)c);
-	            }
-	        }
-	
-	
-		public GenomicSequence getSequence(String chrom, int chromStart0, int chromEnd0)
-				throws IOException
-			{
-			if(chromStart0 <0 || chromStart0 >=chromEnd0)
-				{
-				throw new IllegalArgumentException("Error in start/end");
-				}
-			this.reserve=(1+(chromEnd0-chromStart0));
-			this.baos=null;
-			try
-				{
-				String uri="http://genome.ucsc.edu/cgi-bin/das/"+
-						BackLocate.this.genomeVersion+
-						"/dna?segment="+
-						URLEncoder.encode(chrom+":"+(chromStart0+1)+","+(chromEnd0+2), "UTF-8")
-						;
-				info(uri);
-				InputStream in=new URL(uri).openStream();
-				this.parser.parse(in, this);
-				in.close();
-				GenomicSequence g= new GenomicSequence(
-					this.baos.toByteArray(),
-					chrom,
-					chromStart0
-					);
-				this.baos=null;
-				return g;
-				}
-			catch (SAXException err)
-				{
-				throw new IOException(err);
-				}
-			
-			}
-		
-		}
-
-	
 	
 
 	
@@ -266,7 +142,6 @@ public class BackLocate
 		int peptidePos1
 		) throws IOException
 		{
-		final int extra=1000;
 		
 		GeneticCode geneticCode=getGeneticCodeByChromosome(gene.getChromosome());
 		RNASequence wildRNA=null;
@@ -275,16 +150,11 @@ public class BackLocate
 	        		
 	        		
 		if(genomicSeq==null ||
-	               !gene.getChromosome().equals(genomicSeq.getChrom()) ||
-	               !(genomicSeq.getChromStart()<=gene.getTxStart() && gene.getTxEnd()<= genomicSeq.getChromEnd())
+	               !gene.getChromosome().equals(genomicSeq.getChrom()) 
 	               )
         	{
         	this.info("fetch genome");
-        	this.genomicSeq=this.dasServer.getSequence(
-    	            		gene.getChromosome(),
-    	            		Math.max(gene.getTxStart()-extra,0),
-    	            		gene.getTxEnd()+extra
-    	            		);
+        	this.genomicSeq= new GenomicSequence(this.indexedFastaSequenceFile, gene.getChr());
         	}
         	
 	        		
@@ -452,7 +322,7 @@ public class BackLocate
 			}
 		}
 	
-	private void run(LineIterator in) throws IOException,SQLException
+	private void run(LineIterator in) throws IOException
 		{
 		while(in.hasNext())
 			{
@@ -468,42 +338,20 @@ public class BackLocate
 			char aa2= mut.substring(mut.length()-1).toUpperCase().charAt(0);
 			int position1=Integer.parseInt(mut.substring(1,mut.length()-1));
 			if(position1==0) throw new IOException("Bad position  in "+line);
-			Set<String> kgIds=new HashSet<String>();
-			PreparedStatement pstmt=connection.prepareStatement("select kgID from kgXref where geneSymbol=?");
-			pstmt.setString(1, geneName);
-			ResultSet row=pstmt.executeQuery();
-			while(row.next())
-				{
-				kgIds.add(row.getString(1));
-				}
-			row.close();
-			pstmt.close();
-			if(kgIds.isEmpty())
+			Set<String> kgIds= this.geneSymbol2kg.get(geneName.toUpperCase());
+			if(kgIds==null || kgIds.isEmpty())
 				{
 				warning("No kgXref found for "+geneName);
 				continue;
 				}
-			StringBuilder sqlquery=new StringBuilder("select ");
-			for(int i=0;i< KnownGene.SQL_COLUMNS.length;++i)
-				{
-				if(i>0) sqlquery.append(",");
-				sqlquery.append(KnownGene.SQL_COLUMNS[i]);
-				}
-			sqlquery.append(" from knownGene where name=?");
 			
-			pstmt=connection.prepareStatement(sqlquery.toString());
+			
 			for(String kgId:kgIds)
 				{
-				pstmt.setString(1, kgId);
-				row=pstmt.executeQuery();
-				while(row.next())
-					{
-					KnownGene kg=new KnownGene(row);
-					backLocate(kg, geneName, aa1, aa2, position1);
-					}
-				row.close();
+				KnownGene kg=this.knwonGenes.get(kgId);
+				if(kg==null) continue;
+				backLocate(kg, geneName, aa1, aa2, position1);
 				}
-			pstmt.close();
 			}
 		}
 	
@@ -519,10 +367,72 @@ public class BackLocate
 		return "Mapping a mutation on a protein back to the genome.";
 		}
 	
+	private void loadKnownGenesFromUri(String kgURI) throws IOException
+		{
+		if(this.indexedFastaSequenceFile.getSequenceDictionary()==null)
+			{
+			throw new IOException("Cannot get sequence dictionary for REF : "+getMessageBundle("picard.dictionary.needed"));
+			}
+		
+		info("loading genes");
+		Set<String> unknown=new HashSet<String>();
+		BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
+		String line;
+		Pattern tab=Pattern.compile("[\t]");
+		while((line=in.readLine())!=null)
+			{
+			if(line.isEmpty()) continue;
+			String tokens[]=tab.split(line);
+			KnownGene g=new KnownGene(tokens);
+			Interval rgn=new Interval(g.getChr(), g.getTxStart()+1, g.getTxEnd());
+			if(this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(rgn.getSequence())==null)
+				{
+				if(!unknown.contains(g.getChr()))
+					{
+					warning("The reference doesn't contain chromosome "+g.getChr());
+					unknown.add(g.getChr());
+					}
+				continue;
+				}
+			
+			this.knwonGenes.put(g.getName(),g);
+			}
+		in.close();
+		info("genes:"+this.knwonGenes.size());
+		}
+	
+	private void loadkgXRefFromUri(String kgURI) throws IOException
+		{
+		
+		info("loading "+kgURI);
+		BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
+		String line;
+		Pattern tab=Pattern.compile("[\t]");
+		while((line=in.readLine())!=null)
+			{
+			if(line.isEmpty()) continue;
+			String tokens[]=tab.split(line);
+			String kgId=tokens[0];
+			if(!this.knwonGenes.containsKey(kgId)) continue;
+			String geneSymbol=tokens[4];
+			Set<String> kglist= geneSymbol2kg.get(geneSymbol.toUpperCase());
+			if(kglist==null)
+				{
+				kglist=new HashSet<String>();
+				geneSymbol2kg.put(geneSymbol.toUpperCase(),kglist);
+				}
+			kglist.add(kgId);//kgID
+			}
+		in.close();
+		info("kgxref:"+geneSymbol2kg.size());
+		}
+
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		System.out.println(" -b ucsc.build default:"+ this.genomeVersion);
+		System.out.println(" -R (fasta) "+getMessageBundle("reference.faidx"));
+		System.out.println(" -k (knownGene) "+getMessageBundle("known.genes.uri")+" chromosomes must be named the same way than the REF sequence. Default "+DEFAULT_KGXREF);
+		System.out.println(" -x (kgXRef uri)UCSC kgXref URI  Default:"+DEFAULT_KGXREF);
 		System.out.println(" -p print mRNA & protein sequences");
 		super.printOptions(out);
 		}
@@ -530,18 +440,23 @@ public class BackLocate
 	@Override
 	public int doWork(String[] args)
 		{
+		String knownGeneURI=null;
+		String kgXref=null;
+		
 		try {			
 			com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 			int c;
-			while((c=opt.getopt(args,getGetOptDefault()+ "b:p"))!=-1)
+			while((c=opt.getopt(args,getGetOptDefault()+ "k:x:R:p"))!=-1)
 				{
 				switch(c)
 					{
-					case 'b': this.genomeVersion=opt.getOptArg();break;
+					case 'k': knownGeneURI=opt.getOptArg();break;
+					case 'x': kgXref=opt.getOptArg();break;
+					case 'R': this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(new File(opt.getOptArg()));break;
 					case 'p': this.printSequences=true;break;
 					default: 
 						{
-						switch(handleOtherOptions(c, opt, null))
+						switch(handleOtherOptions(c, opt, args))
 							{
 							case EXIT_FAILURE: return -1;
 							case EXIT_SUCCESS: return 0;
@@ -550,23 +465,25 @@ public class BackLocate
 						}
 					}
 				}
-
-			
-			try
+			if(this.indexedFastaSequenceFile==null)
 				{
-				Class.forName("com.mysql.jdbc.Driver");
-				}
-			catch(Exception err)
-				{
-				error(err);
-				error(getMessageBundle("cannot.load.mysql.driver"));
+				error(getMessageBundle("reference.undefined"));
 				return -1;
 				}
-			this.connection=DriverManager.getConnection(
-				"jdbc:mysql://genome-mysql.cse.ucsc.edu/"+
-				this.genomeVersion+
-				"?user=genome&password="
-				);
+			if(knownGeneURI==null)
+				{
+				warning("Undefined knwonGeneURI, using "+DEFAULT_KNOWNGENE);
+				knownGeneURI=DEFAULT_KNOWNGENE;
+				}
+			
+			if(kgXref==null)
+				{
+				warning("Undefined kgXref, using "+DEFAULT_KGXREF);
+				kgXref=DEFAULT_KGXREF;
+				}
+			loadKnownGenesFromUri(knownGeneURI);
+			loadkgXRefFromUri(kgXref);
+			
 			System.out.print("#User.Gene");
         	System.out.print('\t');
         	System.out.print("AA1");
@@ -626,7 +543,6 @@ public class BackLocate
 			}
 		finally
 			{
-			CloserUtil.close(connection);
 			}	
 		}
 	public static void main(String[] args)

@@ -1902,7 +1902,6 @@ or
 		java="**/BackLocate.java"
 		main="com.github.lindenb.jvarkit.tools.backlocate.BackLocate"
 		name="backlocate"
-		libraryid="htsjdk.and.mysql.jars"
 		/>
 </target>
 
