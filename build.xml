@@ -1574,11 +1574,11 @@ or
 		/>
 </target>
 
-<target name="vcf2newick">
+<target name="vcfphylotree">
 	<compile-picard-cmd 
-		java="**/VcfToNewick.java"
-		main="com.github.lindenb.jvarkit.tools.misc.VcfToNewick"
-		name="vcf2newick"
+		java="**/VcfPhyloTree.java"
+		main="com.github.lindenb.jvarkit.tools.phylo.VcfPhyloTree"
+		name="vcfphylotree"
 		libraryid="htsjdk.and.bdb.jars"
 
 		/>
@@ -2219,7 +2219,7 @@ or
 	</java>
 </target>
 
-<target name="deprecated.all" depends="vcffixindels,vcfbigwig,vcffilterjs,vcfstripannot,samjs,vcftabixml,splitread,splitbytile,splitbam,cmpbams,cmpbamsxml,cmpbamhandler1,impactofduplicates,sam4weblogo,sam2tsv,bam2raster,fastqrevcomp,howmanybamdict,nozerovariationvcf,vcf2sql,sortvcfonref,genscan,tview,bam4deseq01,deseqcount,bamstats01,bamstats04,evs2bed,vcfbedjs,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar,blastmapannots,vcfviewgui,vcfviewgui.exe,vcfgo,vcffiltergo,vcffilterdoid,vcfvcf,vcfbed,vcf2rdf,groupbygene,fixvcf,illuminadir,vcf2xml,samgrep,fixvarscanmissingheader,noemptyvcf,vcfpolyx,ilmnfastqstats,findcorruptedfiles,vcfcomparegt,vcfrebase,metrics2xml,bam2fastq,pademptyfastq,samfixcigar,fixvcfformat,ngsfilessummary,extendbed,vcftrio,vcfpredictions,vcfannobam,vcfmerge,idea20130924,blastfastq,bwamemdigest,scanshortinvert,bam2wig,vcf2ps,blastn2snp,fastq2fasta,coveragenormalizer,vcfshuffle,downsamplevcf,vcfhead,vcftail,bamviewgui,vcf2newick,vcfcutsamples,tview.cgi,vcfstats,vcfrenamesamples,vcffilterso,biostar,biostar76892,biostar77288,biostar77828,biostar78285,biostar78400,biostar81455,biostar84786,biostar59647,biostar86363,biostar86480,mapuniprot,api.ncbi.blast,api.ncbi.gb,api.uniprot,api.cmpbams">
+<target name="deprecated.all" depends="vcffixindels,vcfbigwig,vcffilterjs,vcfstripannot,samjs,vcftabixml,splitread,splitbytile,splitbam,cmpbams,cmpbamsxml,cmpbamhandler1,impactofduplicates,sam4weblogo,sam2tsv,bam2raster,fastqrevcomp,howmanybamdict,nozerovariationvcf,vcf2sql,sortvcfonref,genscan,tview,bam4deseq01,deseqcount,bamstats01,bamstats04,evs2bed,vcfbedjs,dist/cluster20120920,dist/invert20120917,dist/cnv20120907.jar,blastmapannots,vcfviewgui,vcfviewgui.exe,vcfgo,vcffiltergo,vcffilterdoid,vcfvcf,vcfbed,vcf2rdf,groupbygene,fixvcf,illuminadir,vcf2xml,samgrep,fixvarscanmissingheader,noemptyvcf,vcfpolyx,ilmnfastqstats,findcorruptedfiles,vcfcomparegt,vcfrebase,metrics2xml,bam2fastq,pademptyfastq,samfixcigar,fixvcfformat,ngsfilessummary,extendbed,vcftrio,vcfpredictions,vcfannobam,vcfmerge,idea20130924,blastfastq,bwamemdigest,scanshortinvert,bam2wig,vcf2ps,blastn2snp,fastq2fasta,coveragenormalizer,vcfshuffle,downsamplevcf,vcfhead,vcftail,bamviewgui,vcfcutsamples,tview.cgi,vcfstats,vcfrenamesamples,vcffilterso,biostar,biostar76892,biostar77288,biostar77828,biostar78285,biostar78400,biostar81455,biostar84786,biostar59647,biostar86363,biostar86480,mapuniprot,api.ncbi.blast,api.ncbi.gb,api.uniprot,api.cmpbams">
 </target>
 
 

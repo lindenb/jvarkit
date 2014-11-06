@@ -45,10 +45,22 @@ public class Counter<T>
 		this.object2count.put(object, count+n);
 		this.total+=n;
 		}
+	
+	public void putAll(Counter<T> other)
+		{
+		if(this==other)  throw new IllegalArgumentException("cannot put to self");
+		for(T k: other.keySet())
+			{
+			this.incr(k,other.count(k));
+			}
+		}
+	
 	public long getTotal()
 		{
 		return total;
 		}
+	
+	/** count number of times object was seen. returns 0 if object never seen */
 	public long count(final T object)
 		{
 		Long count=this.object2count.get(object);
