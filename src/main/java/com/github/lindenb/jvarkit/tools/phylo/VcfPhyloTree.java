@@ -78,6 +78,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		Allele ref;
 		}
 	
+	
 	private static class AlleleBinding extends TupleBinding<Allele>
 		{
 		@Override
@@ -91,7 +92,8 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		@Override
 		public void objectToEntry(Allele a, TupleOutput w)
 			{
-			byte bases[]=a.getBases();
+			byte bases[]=a.getDisplayBases();
+			if(bases.length==0) throw new RuntimeException("n=0 for "+a);
 			w.writeInt(bases.length);
 			w.write(bases);
 			w.writeBoolean(a.isReference());
@@ -176,10 +178,24 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		@Override
 		public void objectToEntry(GenotypesContext o, TupleOutput w)
 			{
-			w.writeInt(o.size());
+			ArrayList<Genotype> genotypes=new ArrayList<Genotype>();
 			for(int i=0;i< o.size();++i)
 				{
-				this.genotypeBinding.objectToEntry(o.get(i),w);
+				Genotype g=o.get(i);
+				switch(g.getType())
+					{
+					case HET: case HOM_REF: case HOM_VAR: 
+						{
+						genotypes.add(g);
+						break;
+						}
+					default:break;
+					}
+				}
+			w.writeInt(genotypes.size());
+			for(Genotype g:genotypes)
+				{
+				this.genotypeBinding.objectToEntry(g,w);
 				}
 			}
 		}
@@ -433,14 +449,59 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 	private Set<String> samples=new HashSet<String>();
 	/** count snps */
 	private long snp_count=0L;
-	
+	/** ignore variant if genotype missing */
+	private boolean ignore_if_genotype_missing=false;
 	
 	private VcfPhyloTree()
 		{
 		
 		}
 	
-	
+	private void cleanup(Transaction txn)
+		{
+		long count_deleted=0;
+		DatabaseEntry key=new DatabaseEntry();
+		DatabaseEntry data=new DatabaseEntry();
+		Cursor cursor=null;
+		cursor=this.pos2cov.openCursor(txn, null);
+		while(cursor.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
+			{
+			GenotypesContext row = this.genotypeContextBindingInstance.entryToObject(data);
+			
+			if(this.ignore_if_genotype_missing)
+				{
+				Counter<GenotypeType> counter=new Counter<>();
+				boolean ok=true;
+				for(String sample:this.samples)
+					{
+					Genotype g=row.get(sample);
+					if(g==null) { ok=false; break;}
+					switch(g.getType())
+						{
+						case NO_CALL:
+						case UNAVAILABLE: ok=false;break;
+						default:break;
+						}
+					if(!ok) break;
+					counter.incr(g.getType());
+					}
+				
+				if(ok && counter.getCountCategories()<2)
+					{
+					ok=false;
+					}
+				
+				if(!ok)
+					{
+					++count_deleted;
+					cursor.delete();
+					continue;
+					}
+				}
+			}
+		cursor.close();
+		info("After cleanup, removed "+count_deleted+" snps.");
+		}
 	private TreeNode matrix(Transaction txn, List<TreeNode> parents)
 		{
 		long last=System.currentTimeMillis();
@@ -536,17 +597,24 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 	private TreeNode matrix(Transaction txn)
 		{
 		ArrayList<TreeNode> nodes=new ArrayList<TreeNode>();
-		List<String> sampleList=new ArrayList<>(this.samples);
-		//create all possible comparaisons
-		for(int x=0;x< sampleList.size();++x)
+		//initialize population
+		for(String sample:this.samples)
 			{
-			nodes.add(new OneSample(sampleList.get(x)));
+			nodes.add(new OneSample(sample));
 			}
 		
 		while(nodes.size()>1)
 			{
 			info("nodes.count= "+nodes.size());
-
+			if(nodes.size()==2)
+				{
+				return new MergedNodes(
+						nodes.get(0),
+						nodes.get(1)
+						);
+				}
+			
+			
 			TreeNode best = matrix(txn, nodes);
 			Set<String> bestsamples= best.getSamples();
 			
@@ -579,15 +647,16 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		while(in.hasNext())
 			{
 			VariantContext ctx = in.next();
+			
 			chromPosRef.chrom=ctx.getChr();
 			chromPosRef.pos1=ctx.getStart();
 			chromPosRef.ref=ctx.getReference();
-						
+			
 			chromPosRefBindingInstance.objectToEntry(chromPosRef, key);
 			
 			if(cursor.getSearchKey(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
 				{
-				GenotypesContext row=genotypeContextBindingInstance.entryToObject(data);
+				GenotypesContext row = genotypeContextBindingInstance.entryToObject(data);
 				
 				for(int i=0;i< ctx.getNSamples();++i)
 					{
@@ -634,6 +703,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		{
 		out.println(" -B bdb home. "+getMessageBundle("berkeley.db.home"));
 		out.println(" -f (format) one of "+Arrays.toString(OUT_FMT.values()));
+		//out.println(" -i ignore SNP if genotype missing"); TODO
 		super.printOptions(out);
 		}
 	
@@ -644,10 +714,11 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		File bdbHome=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"B:f:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"B:f:i"))!=-1)
 			{
 			switch(c)
 				{
+				case 'i': this.ignore_if_genotype_missing=true;break;
 				case 'B': bdbHome=new File(opt.getOptArg());break;
 				case 'f': outformat=OUT_FMT.valueOf(opt.getOptArg());break;
 				default:
@@ -687,6 +758,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			
 			if(opt.getOptInd()==args.length)
 				{
+				info("reading from stdin");
 				iter=VCFUtils.createVcfIteratorStdin();
 				readvcf(txn,iter);
 				iter.close();
@@ -696,6 +768,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 				for(int i=opt.getOptInd();i< args.length;++i)
 					{
 					String filename=args[i];
+					info("reading "+filename);
 					iter=VCFUtils.createVcfIterator(filename);
 					readvcf(txn,iter);
 					iter.close();
@@ -707,10 +780,20 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 				error("Not enoug samples");
 				return -1;
 				}
-			this.snp_count= this.pos2cov.count();
+			
 			info("SNPs: "+this.snp_count);
 			info("Samples: "+this.samples.size());
 			
+			
+			cleanup(txn);
+			
+			this.snp_count= this.pos2cov.count();
+			
+			if(this.snp_count==0L)
+				{
+				error("Not enough SNPS.");
+				return -1;
+				}
 			
 			TreeNode t = matrix(txn);
 			

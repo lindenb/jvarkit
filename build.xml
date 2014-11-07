@@ -819,6 +819,15 @@ or
 		name="vcf2sql"
 		/>
 </target>
+	
+<target name="fixvcfmissinggenotypes">
+	<compile-picard-cmd 
+		java="**/FixVcfMissingGenotypes.java"
+		main="com.github.lindenb.jvarkit.tools.misc.FixVcfMissingGenotypes"
+		name="fixvcfmissinggenotypes"
+		/>
+</target>
+	
 			
 <target name="sortvcfonref" >
 <fail>
