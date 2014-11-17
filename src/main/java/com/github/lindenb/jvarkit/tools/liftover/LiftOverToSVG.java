@@ -187,7 +187,7 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 	private List<List<Chain>> chains=new ArrayList<List<Chain>>();
 	private int maxLength=0;
 	private int maxCountChrom=0;
-	private int width=2000;
+	private int width=900;
 	private int featureHeight=60;
 	private int chromosomeHeigh=50;
 	private int secondsPerStep=20;
