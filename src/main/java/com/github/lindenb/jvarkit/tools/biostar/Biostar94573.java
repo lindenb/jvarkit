@@ -356,8 +356,10 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						al=Allele.create(sample2genotype.get(sample), false);
 						alleles.add(al);
 						}
-					
-					gb.alleles(Collections.singletonList(al));
+					List<Allele> sampleAlleles=new ArrayList<Allele>(2);
+					sampleAlleles.add(al);
+					sampleAlleles.add(al);
+					gb.alleles(sampleAlleles);
 					gb.DP(1);
 					
 					genotypes.add(gb.make());

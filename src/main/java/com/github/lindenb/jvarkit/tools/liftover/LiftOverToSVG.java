@@ -48,11 +48,13 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 
-
+/**
+ * Convert a chain file to animated SVG.
+ *
+ */
 public class LiftOverToSVG extends AbstractCommandLineProgram
 	{
 	private class ChromName
@@ -86,6 +88,18 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 			return rects;
 			}
 		
+		public int getMaxLength()
+			{
+			int L=0;
+			for(Build build: LiftOverToSVG.this.builds)
+				{
+				Chromosome c=build.name2chrom.get(this.name);
+				if(c==null) continue;
+				L=Math.max(L, c.length);
+				}
+			return L;
+			}
+		
 		@Override
 		public String toString()
 			{
@@ -95,6 +109,7 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 	
 	private class Chromosome implements Comparable<Chromosome>
 		{
+		@SuppressWarnings("unused")
 		Build build;
 		String name;
 		int length;
@@ -121,10 +136,21 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 	
 	private class Build
 		{
-		String name;
+		String name=null;
 		int index=-1;
 		Map<String,Chromosome> name2chrom=new HashMap<String,Chromosome>();
 		List<Chromosome> ordered=null;
+		
+		@SuppressWarnings("unused")
+		float getTimeBegin()
+			{
+			return this.index* this.getTimeDuration();
+			}
+		
+		float getTimeDuration()
+			{
+			return LiftOverToSVG.this.secondsPerStep;
+			}
 		
 		Chromosome getChromosomeByName(String name,int length)
 			{
@@ -150,6 +176,16 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 			Collections.sort(this.ordered);
 			for(int i=0;i< this.ordered.size();++i) this.ordered.get(i).index=i;
 			}
+		
+		public String getName()
+			{
+			return this.name==null?"Build "+this.index:this.name;
+			}
+		
+		@Override
+		public String toString() {
+			return getName();
+			}
 		}
 	
 	private class Segment
@@ -161,10 +197,12 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 		
 		Rectangle2D.Double getBounds()
 			{
+			double x = baseToPos(chromStart);
+			double width= baseToPos(chromEnd)-x;
 			return new Rectangle2D.Double(
-					baseToPos(chromStart),
+					x,
 					chrom.index*LiftOverToSVG.this.featureHeight+5,
-					(baseToPos(chromEnd)-baseToPos(chromStart))-2,
+					width,
 					LiftOverToSVG.this.chromosomeHeigh-10
 					);
 			}
@@ -181,16 +219,22 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 		Segment start;
 		Segment end;
 		}
-
+	
 	private Set<ChromName> chromNames=new HashSet<ChromName>();
 	private List<Build> builds=new ArrayList<Build>();
 	private List<List<Chain>> chains=new ArrayList<List<Chain>>();
+	/** max chromosome length */
 	private int maxLength=0;
+	/** max number of chromosome per build */
 	private int maxCountChrom=0;
-	private int width=900;
-	private int featureHeight=60;
-	private int chromosomeHeigh=50;
-	private int secondsPerStep=20;
+	/** svg width */
+	private int width=1000;
+	/** distance between two chroms */
+	private int featureHeight=30;
+	/** chromosome height */
+	private int chromosomeHeigh=25;
+	/** duration */
+	private float secondsPerStep=20f;
 
 	
 	
@@ -210,11 +254,12 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
     @Override
     public String getProgramDescription()
     	{
-    	return  "LiftOver to SVG ";
+    	return  "Convert LiftOver chain files to animated SVG.";
     	}
     
     private void readChain(String uri) throws IOException
     	{
+    	info("Reading chain file "+uri);
     	BufferedReader in=IOUtils.openURIForBufferedReading(uri);
     	readChain(in);
     	in.close();
@@ -233,7 +278,7 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
     		build1=this.builds.get(this.builds.size()-1);
     		}
     	Build build2=new Build();
-    	build2.index=this.builds.size()+1;
+    	build2.index=this.builds.size();
     	this.builds.add(build2);
     	List<Chain> chain=new ArrayList<Chain>();
     	this.chains.add(chain);
@@ -245,6 +290,8 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
     		if(line.isEmpty() || !line.startsWith("chain")) continue;
     		String tokens[]=tab.split(line);
     		if(!tokens[0].equals("chain")) continue;
+    		
+    		
     		long score=Long.parseLong(tokens[1]);
     		String chromName = tokens[2];
     		Chromosome chr1 = build1.getChromosomeByName(chromName,Integer.parseInt(tokens[3]));
@@ -263,6 +310,9 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
     		seg2.chromStart=Integer.parseInt(tokens[10]);
     		seg2.chromEnd=Integer.parseInt(tokens[11]);
     		
+    		
+    		
+    		
     		Chain ch=new Chain();
     		ch.score= score;
     		ch.start=seg1;
@@ -270,19 +320,23 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
     		
     		chain.add(ch);
     		}
+    	info("chain.size: "+chain.size());
     	}
     private double baseToPos(int pos)
     	{
     	return (pos/(double)this.maxLength)*this.width;
     	}
+    
     private void write(XMLStreamWriter w) throws XMLStreamException
     	{
-    	final String blues[]={"#3399FF","#3300CC"};
+    	final String repeatCount="1";
+    	final String blues[]={"#EEEEEE","#DDDDDD"};
     	w.writeStartDocument("UTF-8", "1.0");
     	w.writeStartElement("svg");
-    	w.writeAttribute("style","fill:red;stroke:black;");
+    	w.writeAttribute("style","fill:white;stroke:black;");
     	w.writeAttribute("width",String.valueOf(this.width+100));
-    	w.writeAttribute("height",String.valueOf(100+this.featureHeight*this.maxCountChrom));
+    	double svgHeight=100+this.featureHeight*this.maxCountChrom;
+    	w.writeAttribute("height",String.valueOf(svgHeight));
     	w.writeDefaultNamespace(SVG.NS);
     	
     	
@@ -301,14 +355,66 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
     	
 		w.writeStartElement("style");
 		w.writeCharacters(
-				"rect.chain {fill:red;stroke:black;fill-opacity:0.7;stroke-width:2;}\n"+
-				"text.chromName {stroke:black;}\n");
+				"rect.chain {fill:#99AAAA;stroke:blue;opacity:0;stroke-width:0.5;}\n"+
+				"text.chromName {stroke:black;}\n"+
+				"text.buildname {fill: #999999; stroke:#000000;font-size: 48px;opacity:0;text-anchor:end;}\n"
+				);
 		w.writeEndElement();
 				
     	
     	w.writeStartElement("g");
 		w.writeAttribute("transform","translate(50,50)");
     	
+		//build-names
+		w.writeStartElement("g");
+		w.writeComment("BEGIN build names");
+		for(int step=0;step+1<builds.size();++step)
+			{
+			final float opacityTimeFraction=0.1f;
+			final float invisibleDuration2 = (this.secondsPerStep*opacityTimeFraction)/2f;
+			final float visibleDuration = this.secondsPerStep - invisibleDuration2*2f;
+			final float stepTimeStart= step * this.secondsPerStep;
+			final float stepVisibleStart= stepTimeStart + invisibleDuration2 ;
+			
+			Build b= this.builds.get(step);
+			w.writeStartElement("text");
+			w.writeAttribute("x", String.valueOf(this.width));
+			w.writeAttribute("y", String.valueOf(svgHeight/4.0));
+			w.writeAttribute("class","buildname");
+			
+			
+			w.writeCharacters(b.getName()+" > " + this.builds.get(step+1).getName() );
+			
+			//show title
+			w.writeEmptyElement("animate");
+			w.writeAttribute("attributeType","CSS");
+			w.writeAttribute("attributeName","opacity");
+			w.writeAttribute("begin",String.valueOf(stepVisibleStart));
+			w.writeAttribute("dur",String.valueOf(invisibleDuration2));
+			w.writeAttribute("from","0");
+			w.writeAttribute("to","1");
+			w.writeAttribute("repeatCount",repeatCount);
+			w.writeAttribute("fill","freeze");
+				
+			//hide title
+			w.writeEmptyElement("animate");
+			w.writeAttribute("attributeType","CSS");
+			w.writeAttribute("attributeName","opacity");
+			w.writeAttribute("begin",String.valueOf(stepVisibleStart+visibleDuration-invisibleDuration2));
+			w.writeAttribute("dur",String.valueOf(invisibleDuration2));
+			w.writeAttribute("from","1");
+			w.writeAttribute("to","0");
+			w.writeAttribute("repeatCount",repeatCount);
+			w.writeAttribute("fill","freeze");
+			
+			
+			w.writeEndElement();//text
+			}
+		w.writeComment("END build names");
+		w.writeEndElement();
+		//end buidl name
+		
+		
 		w.writeStartElement("g");
     	for(ChromName c: this.chromNames)
 			{
@@ -323,9 +429,9 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 			for(int shape=0;shape<2;++shape)
 				{
 				w.writeStartElement(shape==0?"rect":"text");
-	    		w.writeAttribute("x",String.valueOf(shape==0?first_rect.x:10+first_rect.getMaxX()));
+	    		w.writeAttribute("x",String.valueOf(shape==0?first_rect.x:10+baseToPos(c.getMaxLength())));
 	    		
-	    		w.writeAttribute("y", String.valueOf(first_rect.y+(shape==0?0:this.chromosomeHeigh)));
+	    		w.writeAttribute("y", String.valueOf(first_rect.y+(shape==0?0:this.chromosomeHeigh/2f)));
 	    		w.writeAttribute("opacity",(step==0?"1":"0"));
 
 	    		if(shape==0)
@@ -351,7 +457,9 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 					w.writeAttribute("dur",String.valueOf(secondsPerStep));
 					w.writeAttribute("from",(rect==null?"0":"1"));
 					w.writeAttribute("to",(next==null?"0":"1"));
-					w.writeAttribute("repeatCount","indefinite");
+					w.writeAttribute("repeatCount",repeatCount);
+					w.writeAttribute("fill","freeze");
+
 					
 					//fill
 					if(shape==0)
@@ -363,7 +471,7 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 						w.writeAttribute("dur",String.valueOf(secondsPerStep));
 						w.writeAttribute("from",(step%2==0?blues[0]:blues[1]));
 						w.writeAttribute("to",(step%2==0?blues[1]:blues[0]));
-						w.writeAttribute("repeatCount","indefinite");
+						w.writeAttribute("repeatCount",repeatCount);
 						w.writeAttribute("fill","freeze");
 						}
 					
@@ -376,7 +484,8 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 						w.writeAttribute("dur",String.valueOf(secondsPerStep));
 						w.writeAttribute("from",String.valueOf(rect.y+(shape==0?0:this.chromosomeHeigh/2)));
 						w.writeAttribute("to",String.valueOf(next.y+(shape==0?0:this.chromosomeHeigh/2)));
-						w.writeAttribute("repeatCount","indefinite");
+						w.writeAttribute("repeatCount",repeatCount);
+						w.writeAttribute("fill","freeze");
 	
 						if(shape==0)
 							{
@@ -387,7 +496,8 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 							w.writeAttribute("dur",String.valueOf(secondsPerStep));
 							w.writeAttribute("from",String.valueOf(rect.width));
 							w.writeAttribute("to",String.valueOf(next.width));
-							w.writeAttribute("repeatCount","indefinite");
+							w.writeAttribute("repeatCount",repeatCount);
+							w.writeAttribute("fill","freeze");
 							}
 						}
 					
@@ -401,6 +511,15 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 		w.writeStartElement("g");
 		for(int step=0;step < this.chains.size();++step)
 			{
+			final float opacityTimeFraction=0.2f;
+			final float invisibleDuration2 = (this.secondsPerStep*opacityTimeFraction)/2f;
+			final float visibleDuration = this.secondsPerStep - invisibleDuration2*2f;
+			final float stepTimeStart= step * this.secondsPerStep;
+			final float stepVisibleStart= stepTimeStart + invisibleDuration2 ;
+			final String chainOpacity="0.7";
+			
+			w.writeComment("BEGIN CHAIN["+step+"]");
+
 			List<Chain> chainList = this.chains.get(step);
 			//print longest first (higher score?)
 			Collections.sort(chainList,new Comparator<Chain>()
@@ -413,11 +532,15 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 					return 0;
 					}
 				});
+			/* print all chains */
 			for(Chain chain:chainList)
 				{
+				/* starting rectangle */
 				Rectangle2D.Double rect=chain.start.getBounds();
+				/* end rectangle */
 				Rectangle2D.Double next=chain.end.getBounds();
 				
+				/* write initial rectangle */
 				w.writeStartElement("rect");
 				w.writeAttribute("x",String.valueOf(rect.x));
 				w.writeAttribute("y",String.valueOf(rect.y));
@@ -426,50 +549,83 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 				w.writeAttribute("class","chain");
 				w.writeAttribute("title","score "+chain.score+" "+chain.start+" to  "+chain.end);
 
+				/* at begin make it visible */
+				w.writeEmptyElement("animate");
+				w.writeAttribute("attributeType","CSS");
+				w.writeAttribute("attributeName","opacity");
+				w.writeAttribute("begin",String.valueOf(stepTimeStart));
+				w.writeAttribute("dur",String.valueOf(invisibleDuration2));
+				w.writeAttribute("from","0");
+				w.writeAttribute("to",chainOpacity);
+				w.writeAttribute("repeatCount",repeatCount);
+				w.writeAttribute("fill","freeze");
 				
+				
+				/* move rectangle.x  to destination.x */
 				w.writeEmptyElement("animate");
 				w.writeAttribute("attributeType","XML");
 				w.writeAttribute("attributeName","x");
-				w.writeAttribute("begin",String.valueOf(step*secondsPerStep));
-				w.writeAttribute("dur",String.valueOf(secondsPerStep));
+				w.writeAttribute("begin",String.valueOf(stepVisibleStart));
+				w.writeAttribute("dur",String.valueOf(visibleDuration));
 				w.writeAttribute("from",String.valueOf(rect.x));
 				w.writeAttribute("to",String.valueOf(next.x));
-				w.writeAttribute("repeatCount","indefinite");
+				w.writeAttribute("repeatCount",repeatCount);
+				w.writeAttribute("fill","freeze");
 				
+				/* move rectangle.y  to destination.y */
 				w.writeEmptyElement("animate");
 				w.writeAttribute("attributeType","XML");
 				w.writeAttribute("attributeName","y");
-				w.writeAttribute("begin",String.valueOf(step*secondsPerStep));
-				w.writeAttribute("dur",String.valueOf(secondsPerStep));
+				w.writeAttribute("begin",String.valueOf(stepVisibleStart));
+				w.writeAttribute("dur",String.valueOf(visibleDuration));
 				w.writeAttribute("from",String.valueOf(rect.y));
 				w.writeAttribute("to",String.valueOf(next.y));
-				w.writeAttribute("repeatCount","indefinite");
+				w.writeAttribute("repeatCount",repeatCount);
+				w.writeAttribute("fill","freeze");
 				
+				/* change rectangle.width  to destination.width */
 				w.writeEmptyElement("animate");
 				w.writeAttribute("attributeType","XML");
 				w.writeAttribute("attributeName","width");
-				w.writeAttribute("begin",String.valueOf(step*secondsPerStep));
-				w.writeAttribute("dur",String.valueOf(secondsPerStep));
+				w.writeAttribute("begin",String.valueOf(stepVisibleStart));
+				w.writeAttribute("dur",String.valueOf(visibleDuration));
 				w.writeAttribute("from",String.valueOf(rect.width));
 				w.writeAttribute("to",String.valueOf(next.width));
-				w.writeAttribute("repeatCount","indefinite");
+				w.writeAttribute("repeatCount",repeatCount);
+				w.writeAttribute("fill","freeze");
 
+				/* if !=strand rotate around center.x,center.y */
 				if(chain.start.strand!=chain.end.strand)
 					{
 					w.writeEmptyElement("animateTransform");
 					w.writeAttribute("attributeType","XML");
 					w.writeAttribute("attributeName","transform");
 					w.writeAttribute("type","rotate");
-					w.writeAttribute("begin",String.valueOf(step*secondsPerStep));
-					w.writeAttribute("dur",String.valueOf(secondsPerStep));
-					w.writeAttribute("repeatCount","indefinite");
+					w.writeAttribute("begin",String.valueOf(stepVisibleStart));
+					w.writeAttribute("dur",String.valueOf(visibleDuration));
+					w.writeAttribute("repeatCount",repeatCount);
 
 					w.writeAttribute("from","0 "+rect.getCenterX()+" "+rect.getCenterY());
 					w.writeAttribute("to","180 "+next.getCenterX()+" "+next.getCenterY());
+					w.writeAttribute("fill","freeze");
 					}
+				
+				/* at begin make it invisible  */
+				w.writeEmptyElement("animate");
+				w.writeAttribute("attributeType","CSS");
+				w.writeAttribute("attributeName","opacity");
+				w.writeAttribute("begin",String.valueOf(stepTimeStart+this.secondsPerStep-invisibleDuration2));
+				w.writeAttribute("dur",String.valueOf(invisibleDuration2));
+				w.writeAttribute("from",chainOpacity);
+				w.writeAttribute("to","0");
+				w.writeAttribute("repeatCount",repeatCount);
+				w.writeAttribute("fill","freeze");
+
+
 				
 				w.writeEndElement();//rect
 				}
+			w.writeComment("END CHAIN["+step+"]");
 			}
 		w.writeEndElement();//g
 
@@ -484,6 +640,9 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
+		out.println(" -t (float) seconds per step. Default:"+this.secondsPerStep);
+		out.println(" -w (int) width. Default:"+this.width);
+		out.println(" -b (string) add this build name. Optional , multiple");
 		super.printOptions(out);
 		}
 	
@@ -491,13 +650,16 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
+		List<String> buildNames=new ArrayList<String>();
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"t:w:b:"))!=-1)
 			{
 			switch(c)
 				{
-
+				case 'b': buildNames.add(opt.getOptArg());break;
+				case 't': this.secondsPerStep= Float.parseFloat(opt.getOptArg());break;
+				case 'w': this.width= Integer.parseInt(opt.getOptArg());break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -524,8 +686,18 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 					readChain(args[optind]);
 					}
 				}
+		
 			
-			for(Build b:this.builds) b.calcChromosomes();
+			for(Build b:this.builds)b.calcChromosomes();
+			
+			for(int i=0;i< buildNames.size() && i< this.builds.size() ;++i)
+				{
+				this.builds.get(i).name=buildNames.get(i);
+				}
+			
+			info("Max count chroms: "+this.maxCountChrom);
+			info("Max length chroms: "+this.maxLength);
+			info("Transitions: "+this.chains.size());
 			
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			XMLStreamWriter w=xof.createXMLStreamWriter(System.out, "UTF-8");

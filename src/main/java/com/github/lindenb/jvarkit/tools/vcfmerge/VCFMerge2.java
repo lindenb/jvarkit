@@ -1,5 +1,34 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfmerge;
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -20,6 +49,7 @@ import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -27,7 +57,10 @@ import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -38,6 +71,7 @@ import htsjdk.samtools.util.SortingCollection;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -61,7 +95,10 @@ public class VCFMerge2
 		return " Merge VCF Files.";
 		}
 
-    
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/VCFMerge";
+    	}
 	
 	private static class VCFHandler
 		{
@@ -164,7 +201,6 @@ public class VCFMerge2
 			List<VariantContext> row
 			)
 		{
-		if(row.size()==1) return row.get(0);
 		Double qual=null;
 		Set<String> filters=new HashSet<String>();
 		Set<Allele> alleles=new HashSet<Allele>();
@@ -176,12 +212,21 @@ public class VCFMerge2
 		vcb.start(row.get(0).getStart());
 		vcb.stop(row.get(0).getEnd());
 		
+		VCFInfoHeaderLine dpInfo= header.getInfoHeaderLine("DP");
+		int total_dp=0;
+		
 		for(VariantContext ctx:row)
 			{
 			if(ctx.hasLog10PError())
 				{
 				if(qual==null || qual<ctx.getLog10PError()) qual=ctx.getLog10PError();
 				}
+			int dp=ctx.getAttributeAsInt("DP",-1);
+			if(dp!=-1)
+				{
+				total_dp+=dp;
+				}
+			
 			filters.addAll(ctx.getFilters());
 			alleles.addAll(ctx.getAlleles());
 			if(id==null && ctx.hasID()) id=ctx.getID();
@@ -200,6 +245,22 @@ public class VCFMerge2
 					}
 				}
 			}
+		
+		// missing samples ?
+		Set<String> remainingSamples=new HashSet<String>(header.getSampleNamesInOrder());
+		remainingSamples.removeAll(sample2genotype.keySet());
+		for(String sampleName:remainingSamples)
+			{
+			sample2genotype.put(sampleName, GenotypeBuilder.createMissing(sampleName, 2));
+			}
+		
+		if( atts.containsKey("DP") &&
+			dpInfo!=null && dpInfo.getCount()==1 && dpInfo.getType()==VCFHeaderLineType.Integer)
+			{
+			atts.remove("DP");
+			atts.put("DP", total_dp);
+			}
+		
 		vcb.attributes(atts);
 		filters.remove(VCFConstants.PASSES_FILTERS_v4);
 		if(!filters.isEmpty()) vcb.filters(filters);
@@ -214,6 +275,7 @@ public class VCFMerge2
 	public void printOptions(PrintStream out)
 		{
 		out.println(" -s files are known to be sorted");		
+		out.println(" -f (list) read vcf path from file");		
 		super.printOptions(out);
 		}
 
@@ -223,11 +285,32 @@ public class VCFMerge2
 		boolean filesAreSorted=false;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "s"))!=-1)
+		Set<String> vcfFiles=null;
+		while((c=opt.getopt(args,getGetOptDefault()+ "sf:"))!=-1)
 			{
 			switch(c)
 				{
 				case 's': filesAreSorted=true;break;
+				case 'f':
+					{
+					try {
+						if(vcfFiles==null) vcfFiles=new HashSet<String>();
+						BufferedReader in=IOUtils.openURIForBufferedReading(opt.getOptArg());
+						String line;
+						while((line=in.readLine())!=null)
+							{
+							if(line.startsWith("#") || line.trim().isEmpty()) continue;
+							vcfFiles.add(line.trim());
+							}
+						in.close();
+						} 
+					catch (Exception e)
+						{
+						error(e);
+						return -1;
+						}
+					break;
+					}
 				default: 
 					{
 					switch(handleOtherOptions(c, opt, args))
@@ -243,23 +326,52 @@ public class VCFMerge2
 			{
 			if(opt.getOptInd()==args.length)
 				{
-				copyTo(System.in);
-				return 0;
+				if(vcfFiles!=null)
+					{
+					if(filesAreSorted)
+						{
+						workUsingPeekIterator(vcfFiles);
+						}
+					else
+						{
+						workUsingSortingCollection(vcfFiles);
+						}
+					}
+				else
+					{
+					copyTo(System.in);
+					}
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
+				if(vcfFiles!=null)
+					{
+					error("option -f used but filenames provided too.");
+					error(getMessageBundle("illegal.number.of.arguments"));
+					return -1;
+					}
 				String filename=args[opt.getOptInd()];
 				InputStream in=IOUtils.openURIForReading(filename);
 				copyTo(in);
 				CloserUtil.close(in);
 				}
-			else if(filesAreSorted)
-				{
-				workUsingPeekIterator(opt.getOptInd(),args);
-				}
 			else
 				{
-				workUsingSortingCollection(opt.getOptInd(),args);
+				vcfFiles  = new HashSet<>();
+				for(int i=opt.getOptInd();i< args.length;++i)
+					{
+					vcfFiles.add(args[i]);
+					}
+				
+				if(filesAreSorted)
+					{
+					workUsingPeekIterator(vcfFiles);
+					}
+				else
+					{
+					workUsingSortingCollection(vcfFiles);
+					}
+					
 				}
 			return 0;
 			}
@@ -313,17 +425,17 @@ public class VCFMerge2
 		return 0;
 		}
 	
-	protected void workUsingPeekIterator(int optind,String args[])
+	private void workUsingPeekIterator(Set<String> vcfFiles)
 		throws IOException
 		{
 		SAMSequenceDictionary dict=null;
 		Set<String> genotypeSampleNames=new HashSet<String>();
 		Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 		List<PeekVCF> input=new ArrayList<PeekVCF>();
-		for(int i=optind;i< args.length;++i)
+		for(String arg:vcfFiles)
 			{
 			PeekVCF p=new PeekVCF();
-			p.uri=args[i];
+			p.uri=arg;
 			info("Opening "+p.uri);
 			p.is=IOUtils.openURIForReading(p.uri);
 			p.iter=new VcfIterator(p.is);
@@ -333,7 +445,7 @@ public class VCFMerge2
 			if(dict1.isEmpty()) throw new PicardException("dictionary is Empty in "+p.uri);
 			genotypeSampleNames.addAll(p.iter.getHeader().getSampleNamesInOrder());
 			metaData.addAll(p.iter.getHeader().getMetaDataInInputOrder());
-			if(i==optind)
+			if(dict==null)
 				{
 				dict=dict1;
 				}
@@ -342,11 +454,19 @@ public class VCFMerge2
 				throw new PicardException("Not the same Sequence dictionaries "+input.get(0).uri+" / "+p.uri);
 				}
 			}
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 		VariantContextWriter out=VCFUtils.createVariantContextWriter(null);
-		
+		long nLines = 0L;
 		VCFHeader headerOut=new VCFHeader(
 				metaData,
 				genotypeSampleNames);
+		
+		headerOut.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+		headerOut.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		headerOut.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+		headerOut.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+
+		
 		out.writeHeader(headerOut);
 		boolean peeked[]=new boolean[input.size()];
 		List<VariantContext> row=new ArrayList<VariantContext>();
@@ -383,7 +503,8 @@ public class VCFMerge2
 			
 			VariantContext merged=buildContextFromVariantContext(headerOut, row);
 			out.add(merged);
-			
+			progress.watch(merged.getChr(), merged.getStart());
+			if((++nLines)%1000==0 &&  System.out.checkError()) break;
 			for(int i=0;i< input.size();++i)
 				{
 				if(peeked[i]) input.get(i).iter.next();
@@ -391,120 +512,123 @@ public class VCFMerge2
 			
 			}
 		CloserUtil.close(out);
-		
+		progress.finish();
 		for(PeekVCF p: input)
 			{
 			CloserUtil.close(p.iter);
 			CloserUtil.close(p.is);
 			}
+		info("Done peek sorting");
 		}
 	
 	private SAMSequenceDictionary global_dictionary=null;
-	protected int workUsingSortingCollection(int optind,String args[])
+	private int workUsingSortingCollection(Set<String> vcfFiles)
 		throws IOException
 		{
-		List<String> IN=new ArrayList<String>();
-		for(int i=optind;i< args.length;++i)
-			{
-			IN.add(args[i]);
-			}
+		List<String> IN=new ArrayList<String>(vcfFiles);
+		
 		this.sortingCollectionFactory.setComponentType(VariantOfFile.class);
 		this.sortingCollectionFactory.setCodec(new VariantCodec());
 		this.sortingCollectionFactory.setComparator(new VariantComparator());
 		this.sortingCollectionFactory.setTmpDirs(this.getTmpDirectories());
 		Set<String> genotypeSampleNames=new HashSet<String>();
 		Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
-	
-		
-		SortingCollection<VariantOfFile> array=this.sortingCollectionFactory.make();
-			array.setDestructiveIteration(true);
-			for(int fileIndex=0;fileIndex<  IN.size();++fileIndex)
-				{
-				String vcfFile= IN.get(fileIndex);
-				info("reading from "+vcfFile+" "+( fileIndex+1)+"/"+ IN.size());
-				VCFHandler handler=new VCFHandler();
-				vcfHandlers.add(handler);
-				
-				InputStream in=IOUtils.openURIForReading(vcfFile);
-				LineReader lr=LineReaderUtil.fromBufferedStream(in);
-				LineIterator lit=new LineIteratorImpl(lr);
-				handler.header=(VCFHeader)handler.vcfCodec.readActualHeader(lit);
-				
-				
-				SAMSequenceDictionary dict1=handler.header.getSequenceDictionary();
-				if(dict1==null) throw new PicardException("dictionary missing in "+vcfFile);
-				if(dict1.isEmpty()) throw new PicardException("dictionary is Empty in "+vcfFile);
-				genotypeSampleNames.addAll(handler.header.getSampleNamesInOrder());
-				metaData.addAll(handler.header.getMetaDataInInputOrder());
-				if(fileIndex==0)
-					{
-					global_dictionary=dict1;
-					}
-				else if(!SequenceUtil.areSequenceDictionariesEqual(global_dictionary, dict1))
-					{
-					throw new PicardException("Not the same Sequence dictionaries "+IN.get(0)+" / "+vcfFile);
-					}
 
-				
-				while(lit.hasNext())
-					{					
-					VariantOfFile vof=new VariantOfFile();
-					vof.fileIndex=fileIndex;
-					vof.line=lit.next();
-					array.add(vof);
-					}
-				
-				in.close();
-				}
-			array.doneAdding();
-			info("merging..."+vcfHandlers.size()+" vcfs");
-			
+		long nLines=0;
+		SortingCollection<VariantOfFile> array=this.sortingCollectionFactory.make();
+		array.setDestructiveIteration(true);
+		for(int fileIndex=0;fileIndex<  IN.size();++fileIndex)
+		{
+			String vcfFile= IN.get(fileIndex);
+			info("reading from "+vcfFile+" "+( fileIndex+1)+"/"+ IN.size());
+			VCFHandler handler=new VCFHandler();
+			vcfHandlers.add(handler);
+
+			InputStream in=IOUtils.openURIForReading(vcfFile);
+			LineReader lr=LineReaderUtil.fromBufferedStream(in);
+			LineIterator lit=new LineIteratorImpl(lr);
+			handler.header=(VCFHeader)handler.vcfCodec.readActualHeader(lit);
+
+
+			SAMSequenceDictionary dict1=handler.header.getSequenceDictionary();
+			if(dict1==null) throw new PicardException("dictionary missing in "+vcfFile);
+			if(dict1.isEmpty()) throw new PicardException("dictionary is Empty in "+vcfFile);
+			genotypeSampleNames.addAll(handler.header.getSampleNamesInOrder());
+			metaData.addAll(handler.header.getMetaDataInInputOrder());
+			if(fileIndex==0)
+			{
+				global_dictionary=dict1;
+			}
+			else if(!SequenceUtil.areSequenceDictionariesEqual(global_dictionary, dict1))
+			{
+				throw new PicardException("Not the same Sequence dictionaries "+IN.get(0)+" / "+vcfFile);
+			}
+
+
+			while(lit.hasNext())
+			{					
+				VariantOfFile vof=new VariantOfFile();
+				vof.fileIndex=fileIndex;
+				vof.line=lit.next();
+				array.add(vof);
+			}
+
+			in.close();
+		}
+		array.doneAdding();
+		info("merging..."+vcfHandlers.size()+" vcfs");
+
 		/* CREATE THE NEW VCH Header */
 		VCFHeader mergeHeader=null;
-			
+
 		mergeHeader=new VCFHeader(
 				metaData,
 				genotypeSampleNames
 				);
-				
-				
-				
-			//create the context writer
-			VariantContextWriter w= VCFUtils.createVariantContextWriter(null);
-			w.writeHeader(mergeHeader);
-			CloseableIterator<VariantOfFile> iter= array.iterator();
-			List<VariantOfFile> row=new ArrayList<VariantOfFile>();
-			for(;;)
+
+		mergeHeader.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+		mergeHeader.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		mergeHeader.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+		mergeHeader.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+
+
+		//create the context writer
+		VariantContextWriter w= VCFUtils.createVariantContextWriterToStdout();
+		w.writeHeader(mergeHeader);
+		CloseableIterator<VariantOfFile> iter= array.iterator();
+		List<VariantOfFile> row=new ArrayList<VariantOfFile>();
+		for(;;)
+		{
+			VariantOfFile var=null;
+			if(iter.hasNext())
+			{
+				var=iter.next();
+			}
+			else
+			{
+				info("end of iteration");
+				if(!row.isEmpty())
 				{
-				VariantOfFile var=null;
-				if(iter.hasNext())
-					{
-					var=iter.next();
-					}
-				else
-					{
-					info("end of iteration");
-					if(!row.isEmpty())
-						{
-						w.add( buildContextFromVariantOfFiles(mergeHeader,row));
-						}
-					
-					break;
-					}
-				
-				if(!row.isEmpty() && !row.get(0).same(var))
-					{
 					w.add( buildContextFromVariantOfFiles(mergeHeader,row));
-					row.clear();
-					}
-				
-				
-				row.add(var);
-					
 				}
-			w.close();
-			info("done");
-					
+
+				break;
+			}
+
+			if(!row.isEmpty() && !row.get(0).same(var))
+			{
+				w.add( buildContextFromVariantOfFiles(mergeHeader,row));
+				row.clear();
+				if((++nLines)%1000==0 &&  System.out.checkError()) break;
+			}
+
+
+			row.add(var);
+
+		}
+		w.close();
+		info("done");
+
 		return 0;
 		}
 
