@@ -190,13 +190,18 @@ public class Sam2Tsv
 		for (final CigarElement ce : cigar.getCigarElements())
 		 {
 		 CigarOperator op= ce.getOperator();
-		 if(!op.consumesReadBases()) continue;
+		 
 		 for(int i=0;i< ce.getLength();++i)
 			{
 			if(op.equals(CigarOperator.H))
 				{
+				
 				fixReadBases.append('*');
 				fixReadQuals.append('*');
+				}
+			else if(!op.consumesReadBases())
+				{
+				break;
 				}
 			else
 				{
@@ -231,12 +236,14 @@ public class Sam2Tsv
 				 case S :
 				 case H : //length of read has been fixed previously, so same as 'S'
 					 	{
-					 	row.refPos  = -1;
+					 	
 				 		for(int i=0;i<e.getLength();++i)
 				 			{
 				 			row.readPos=readIndex;
+				 			row.refPos  = refIndex;
 			 				writeAln(row);
 				 			readIndex++;
+				 			refIndex++;//because we used getUnclippedStart
 				 			}
 						break; 
 					 	}
@@ -303,7 +310,7 @@ public class Sam2Tsv
 				this.out.printf(":%"+len+"s %8d %s %-8d\n",
 						rec.getReferenceName(),
 						rec.getUnclippedStart(),
-						L1.toString(),
+						L3.toString(),
 						rec.getUnclippedEnd()
 						);
 				this.out.printf(":%"+len+"s %8s %s\n",
@@ -315,7 +322,7 @@ public class Sam2Tsv
 				this.out.printf(":%"+len+"s %8d %s %-8d\n",
 						rec.getReadName(),
 						1,
-						L3.toString(),
+						L1.toString(),
 						rec.getReadLength()
 						);
 
