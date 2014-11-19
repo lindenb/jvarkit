@@ -42,6 +42,7 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
@@ -49,6 +50,7 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 /**
  * https://github.com/lindenb/jvarkit/wiki/SAM2Tsv
@@ -91,7 +93,8 @@ public class Sam2Tsv
 			}
 		public char getReadQual()
 			{
-			return readPos==-1 || this.readQuals==null || this.readPos>=this.readQuals.length?'.':(char)this.readQuals[this.readPos];
+			byte c= readPos==-1 || this.readQuals==null || this.readPos>=this.readQuals.length?(byte)'.':this.readQuals[this.readPos];
+			return SAMUtils.phredToFastq(c);
 			}
 		
 		}
@@ -239,7 +242,7 @@ public class Sam2Tsv
 					 	
 				 		for(int i=0;i<e.getLength();++i)
 				 			{
-				 			row.readPos=readIndex;
+				 			row.readPos=  readIndex;
 				 			row.refPos  = refIndex;
 			 				writeAln(row);
 				 			readIndex++;
@@ -306,7 +309,7 @@ public class Sam2Tsv
 				{
 				
 				int len=Math.max(rec.getReadNameLength(), rec.getReferenceName().length())+2;
-				
+
 				this.out.printf(":%"+len+"s %8d %s %-8d\n",
 						rec.getReferenceName(),
 						rec.getUnclippedStart(),
