@@ -201,7 +201,10 @@ public class Sam2Tsv
 			else
 				{
 				fixReadBases.append((char)row.readbases[readIndex]);
-				fixReadQuals.append(row.readQuals==null?'*':(char)row.readQuals[readIndex]);
+				fixReadQuals.append(
+						row.readQuals==null ||
+						row.readQuals.length<=readIndex ?
+						'*':(char)row.readQuals[readIndex]);
 				readIndex++;
 				}
 			}
@@ -414,7 +417,10 @@ public class Sam2Tsv
 			SamReaderFactory srf =SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
 			
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
+			
 			samFileReader=null;
+			
+			out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
 			if(getopt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
@@ -433,6 +439,7 @@ public class Sam2Tsv
 					samFileReader.close();
 					}
 				}
+			this.out.flush();
 			return 0;
 			}
 		catch (Exception e)
