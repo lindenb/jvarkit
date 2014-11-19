@@ -40,8 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.math3.analysis.interpolation.LoessInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
@@ -74,8 +73,6 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	{
 	/** sample Name */
 	private String sampleName="SAMPLE";
-	/** prefix for ZIP */
-	private String zipPrefix="CNV01/";
 	/** reference */
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;	
 	/** chrom name helper */
@@ -86,8 +83,6 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	private List<GCAndDepth> interval2row=new ArrayList<GCAndDepth>(1000);
 	/** size of a window */
 	private int windowSize=100;
-	/** output file */
-	private ZipOutputStream zout=null;
 	
 	
 	
@@ -394,10 +389,10 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		}
 
 	
-	private void saveCoverage()
+	private void saveCoverage(GZIPOutputStream zout)
 		{
 		info("Dumping coverage ");
-		PrintWriter pw=new PrintWriter(this.zout);
+		PrintWriter pw=new PrintWriter(zout);
 		
 		/* header */
 		pw.println("ID\tCHROM\tSTART\tEND\tGC\t"+this.sampleName);
@@ -443,14 +438,14 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		out.println(" -b (file) BED capture file (optional)");
 		out.println(" -w (window size) default:"+this.windowSize);
 		out.println(" -N (file) chrom name helper (name1)(tab2)(name2).");
-		out.println(" -o (file.zip) output name.");
+		out.println(" -o  output base name.");
 		super.printOptions(out);
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
-		File outfile=null;
+		String outfile="output";
 		File bedFile=null;
 		File refFile=null;
 		String chromNameFile=null;
@@ -463,7 +458,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				case 'w': this.windowSize=Integer.parseInt(opt.getOptArg());break;
 				case 'b': bedFile=new File(opt.getOptArg());break;
 				case 'R': refFile=new File(opt.getOptArg());break;
-				case 'o': outfile=new File(opt.getOptArg());break;
+				case 'o': outfile = opt.getOptArg();break;
 				case 'N':
 					{
 					chromNameFile=opt.getOptArg();
@@ -494,18 +489,13 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			error("Undefined output file.");
 			return -1;
 			}
-		else if(!outfile.getName().endsWith(".zip"))
-			{
-			error("Error "+outfile+" must end with .zip");
-			return -1;
-			}
+	
 		
 
 		SamReader samReader = null;
 		
 		try
 			{
-			this.zout = new ZipOutputStream(new FileOutputStream(outfile));
 			File bamFile=null;
 			if(opt.getOptInd()+1==args.length)
 				{
@@ -567,41 +557,23 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				prefillGCPercentWithoutCapture();
 				}
 			
-			info("get Dict for "+bamFile);
 			samReader = srf.open(bamFile);
 			scanCoverage(samReader);
 			samReader.close();
 				
 			/* save raw coverage */
-			ZipEntry zipEntry=new ZipEntry(zipPrefix+"raw_coverage.tsv");
-			this.zout.putNextEntry(zipEntry);
-			saveCoverage();
-			this.zout.closeEntry();
+			GZIPOutputStream zout = new GZIPOutputStream(new FileOutputStream(outfile+"_raw.tsv.gz"));
+			saveCoverage(zout);
+			zout.finish();zout.close();
 			
 			normalizeCoverage();
 			
 			/* save normalized coverage */
-			zipEntry=new ZipEntry(zipPrefix+"normalized_coverage.tsv");
-			this.zout.putNextEntry(zipEntry);
-			saveCoverage();
-			this.zout.closeEntry();
+			zout = new GZIPOutputStream(new FileOutputStream(outfile+"_normalized.tsv.gz"));
+			saveCoverage(zout);
+			zout.finish();zout.close();
 
-			/* save Makefile */
-			zipEntry=new ZipEntry(zipPrefix+"Makefile");
-			this.zout.putNextEntry(zipEntry);
-			PrintWriter pw=new PrintWriter(this.zout);
-			pw.println(".PHONY: all");
-			pw.println("all: raw.png");
-			pw.println("raw.png : raw_coverage.tsv");
-			pw.println("\tcut -f4,5 $< > raw.tmp && rm raw.tmp");
-			
-			pw.flush();
-			this.zout.closeEntry();
-
-			
 		
-			this.zout.finish();
-			this.zout.flush();
 			return 0;
 			}
 		catch(Exception err)
@@ -612,7 +584,6 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		finally
 			{
 			CloserUtil.close(this.indexedFastaSequenceFile);
-			CloserUtil.close(this.zout);
 			}	
 		}
 	
