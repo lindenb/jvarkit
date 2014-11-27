@@ -1,10 +1,37 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -15,8 +42,10 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.LineIterator;
-
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMReadGroupRecord;
@@ -37,7 +66,7 @@ import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 /**
  * 
- * CopyNumber01
+ * GcPercentAndDepth
  *
  */
 public class GcPercentAndDepth extends AbstractCommandLineProgram
@@ -146,6 +175,18 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 				{
 				this.index_in_roi=index_in_roi;
 				}
+			
+			public long getGenomicIndex()
+				{
+				long n=0;
+				for(int t=0;t< RegionCaptured.this.tid;++t)
+					{
+					n+= firstSamDict.getSequence(t).getSequenceLength();
+					}
+				n+= this.getStart();
+				return n;
+				}
+			
 			public String getChromosome()
 				{
 				return RegionCaptured.this.getChromosome();
@@ -357,7 +398,9 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			info("NSample:"+samples.size());
 			
 			/* print header */
-			out.print("#chrom");
+			out.print("#id");
+			out.print("\t");
+			out.print("chrom");
 			out.print("\t");
 			out.print("start");
 			out.print("\t");
@@ -508,11 +551,26 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 					if(sample==null ) continue;
 					int depth[]=sample2depth.get(sample);
 					if(depth==null) continue;
-					for(int i=Math.max( roi.getStart(), rec.getAlignmentStart()-1);
-							i<Math.min( roi.getEnd(),rec.getAlignmentEnd()+1) && (i-roi.getStart())< depth.length;
-							++i) 
+					Cigar cigar=rec.getCigar();
+					if(cigar==null) continue;
+					
+					int refpos1=rec.getAlignmentStart();
+					
+					for(CigarElement ce: cigar.getCigarElements())
 						{
-						depth[i-roi.getStart()]++;
+						CigarOperator op = ce.getOperator();
+						if(!op.consumesReferenceBases() ) continue;
+						if(op.consumesReadBases())
+							{
+							for(int i=0;i< ce.getLength();++i)
+								{
+								int pos0 = (refpos1+i-1);
+								if(pos0< roi.getStart()) continue;
+								if(pos0>= roi.getEnd()) continue;
+								depth[pos0-roi.getStart()]++;
+								}
+							}
+						refpos1 += ce.getLength();
 						}
 					}
 				CloserUtil.close(merginIter);
@@ -556,7 +614,8 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 						sample2meanDepth.put(sample,mean);
 						}
 					if(max_depth_for_win< this.min_depth) continue;
-					
+					out.print(win.getGenomicIndex());
+					out.print("\t");
 					out.print(win.getChromosome());
 					out.print("\t");
 					out.print(win.getStart());

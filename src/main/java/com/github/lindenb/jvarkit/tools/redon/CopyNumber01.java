@@ -34,16 +34,26 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
+import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.interpolation.LoessInterpolator;
+import org.apache.commons.math3.analysis.interpolation.NevilleInterpolator;
+import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
+import org.apache.commons.math3.analysis.interpolation.UnivariateInterpolator;
+import org.apache.commons.math3.analysis.polynomials.PolynomialFunctionLagrangeForm;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.rank.Median;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
@@ -62,6 +72,7 @@ import htsjdk.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 
 /**
@@ -82,8 +93,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	/** map interval to depths and GC */
 	private List<GCAndDepth> interval2row=new ArrayList<GCAndDepth>(1000);
 	/** size of a window */
-	private int windowSize=100;
-	
+	private int windowSize=150;
 	
 	
 
@@ -95,11 +105,13 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		int end;
 		double depth=0;
 		double gc=0;
-
+		
+		/** GC % */
 		double getX()
 			{
 			return gc;
 			}
+		/** DEPTH */
 		double getY()
 			{
 			return depth;
@@ -115,6 +127,10 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		public String getChrom()
 			{
 			return samDictionary.getSequence(this.tid).getSequenceName();
+			}
+		@Override
+		public String toString() {
+			return getChrom()+":"+start+"-"+end+" GC%="+gc+" depth:"+depth;
 			}
 		}
 
@@ -159,11 +175,12 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	
 	private void prefillGCPercent(
 			GenomicSequence genomic,
-			int chromStart,
-			int chromEnd) throws Exception
+			final int chromStart,
+			final int chromEnd) throws Exception
 			{
-			int pos=chromStart;
-			while(pos+this.windowSize<chromEnd && pos< genomic.length())
+			int pos = chromStart;
+
+			while( pos< genomic.length())
 				{
 				char c=genomic.charAt(pos);
 				if(c=='n' || c=='N')
@@ -171,10 +188,22 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 					++pos;
 					continue;
 					}
-				int total=0;
+				
+				int pos_end = Math.min(pos + this.windowSize,chromEnd);
+				
+				if( (pos_end - pos) < this.windowSize*0.8)
+					{
+					break;
+					}
+				
+				int total_gc=0;
+				int total_bases=0;
 				int n=0;
 				boolean foundN=false;
-				for(n=0;n<this.windowSize && pos +n < genomic.length() && !foundN;++n)
+				for(n=0;pos + n < pos_end && 
+						pos + n < genomic.length() &&
+						!foundN;
+						++n)
 					{
 					switch(genomic.charAt(pos+n))
 						{
@@ -182,37 +211,40 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 						case 'g':case 'G':		
 						case 's':case 'S':
 							{
-							total++;
+								total_gc++;
 							break;
 							}
 						case 'n':case 'N':foundN=true;break;
 						default:break;
 						}
+					++total_bases;
 					}
-				if(n != this.windowSize)
+				if(foundN)
 					{
 					pos++;
 					continue;
 					}
 				GCAndDepth dataRow=new GCAndDepth();
 				dataRow.tid=genomic.getSAMSequenceRecord().getSequenceIndex();
-				dataRow.start=pos+1;
-				dataRow.end=pos+this.windowSize;
+				dataRow.start = pos+1;
+				dataRow.end = pos_end;
 				
-				dataRow.gc=total/(double)this.windowSize;
+				dataRow.gc=total_gc/(double)total_bases;
 				
 				this.interval2row.add(dataRow);
 				
-				pos+=this.windowSize;
+				pos=pos_end;
 				}
 			}
 	
 	/** get a GC% */
 	private void prefillGCPercentWithCapture(File bedFile) throws Exception
 		{
+		long start=System.currentTimeMillis();
 		Pattern tab=Pattern.compile("[\t]");
 		BufferedReader in= IOUtils.openFileForBufferedReading(bedFile);
 		String line;
+		Set<String> not_found=new HashSet<>(this.samDictionary.size());
 		while((line=in.readLine())!=null)
 			{
 			if(line.trim().isEmpty() || line.startsWith("#")) continue;
@@ -223,7 +255,11 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				chrom = this.resolveChromName.get(chrom);
 				if(chrom==null)
 					{
-					info("Cannot resolve "+chrom);
+					if(!not_found.contains(tokens[0]))
+						{
+						info("Cannot resolve chromosome "+tokens[0]+ " in "+line);
+						not_found.add(tokens[0]);
+						}
 					continue;
 					}
 				}
@@ -233,15 +269,23 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				info("Ignoring "+chrom);
 				continue;
 				}
+			String chrom_for_seq=tokens[0];//TODO
 			
 			
 			GenomicSequence genomic=new GenomicSequence(
 				this.indexedFastaSequenceFile,
-				chrom
+				chrom_for_seq
 				);
 			int bedStart=Integer.parseInt(tokens[1]);
 			int bedEnd=Integer.parseInt(tokens[2]);
 			prefillGCPercent(genomic, bedStart, bedEnd);
+			
+			long now=System.currentTimeMillis();
+			if( now - start > 10*1000)
+				{
+				info("BED:"+line+" "+this.interval2row.size());
+				start=now;
+				}
 			}
 		}
 	
@@ -281,7 +325,8 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	private void scanCoverage(SamReader sr)
 		throws IOException
 		{
-	
+		Collections.sort(this.interval2row,CopyNumber01.sortOnPosition);
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.samDictionary);
 		for(GCAndDepth row:this.interval2row)
 			{
 			double sum = 0;
@@ -297,6 +342,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				if(rec.isSecondaryOrSupplementary()) continue;
 				if(rec.getDuplicateReadFlag()) continue;
 				if(rec.getReadFailsVendorQualityCheckFlag())continue;
+				progress.watch(rec);
 				Cigar c= rec.getCigar();
 				int refStart= rec.getAlignmentStart();
 				for(CigarElement ce:c.getCigarElements())
@@ -318,6 +364,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			sri.close();
 			row.depth += sum /(double)this.windowSize;
 			}
+		progress.finish();
 		}
 	
 	private boolean isSexualChrom(String chrom)
@@ -325,9 +372,25 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		return chrom.matches("(chr?)(X|Y)");
 		}
 	
+	private UnivariateInterpolator createInterpolator()
+		{	
+		UnivariateInterpolator interpolator=null;
+		interpolator=new LoessInterpolator(0.5,4);
+		//interpolator = new NevilleInterpolator();
+		return interpolator;
+		}
 	
 	private void normalizeCoverage()
 		{
+		final Median medianOp =new Median();
+		final Mean meanOp =new Mean();
+		
+		if(medianOp.evaluate(new double[]{20,1000,19})!=20)
+			{
+			throw new RuntimeException("boum");
+			}
+		
+		
 		int autosome_count=0;
 		Collections.sort(this.interval2row,CopyNumber01.sortOnXY);
 		
@@ -352,41 +415,126 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			y[i] = r.getY();
 			++i;
 			}
-		LoessInterpolator interpolator=new LoessInterpolator();
-		PolynomialSplineFunction  spline = interpolator.interpolate(x, y);
 		
-		for(GCAndDepth gc:this.interval2row)
+		final double min_x=x[0];
+		final double max_x=x[x.length-1];
+		
+		/* merge adjacent x having same values */
+		i=0;
+		int k=0;
+		while(i  < x.length)
 			{
-			gc.depth = spline.value(gc.getX());
-			}
+			int j=i+1;
 			
-		}
-	
-	
-	private void smoothCoverage()
-		{		
-		Collections.sort(this.interval2row,CopyNumber01.sortOnPosition);
-
-		double x[]=new double[this.interval2row.size()];
-	
-		for(int j=0;j< x.length;++j)
-			{
-			x[j] = this.interval2row.get(j).getX();
-			}
-
-		
-		
-		for(int j=0;j< x.length;++j)
-			{
-			int curr_tid= this.interval2row.get(j).tid;
-			for(int y=j-SMOOTH_WINDOW;y<=j+SMOOTH_WINDOW && y< x.length;++y)
+			while(j< x.length && Double.compare(x[i],x[j])==0)
 				{
-				if(this.interval2row.get(j).tid!=curr_tid) continue;
+				++j;
 				}
-			x[j] = this.interval2row.get(j).getX();
+			x[k]=x[i];
+			y[k]= meanOp.evaluate(y, i, j-i);
+			++k;
+			i=j;
 			}
-			
+
+		/* reduce size of x et y */
+		if(k != x.length)
+			{
+			info("Compacting X from "+x.length+" to "+k);
+			x = Arrays.copyOf(x, k);
+			y  =Arrays.copyOf(y, k);
+			}
+		
+		//min depth cal
+		double min_depth=Double.MAX_VALUE;
+
+		
+		UnivariateInterpolator interpolator = createInterpolator();
+		UnivariateFunction  spline =  interpolator.interpolate(x, y);
+		int points_removed=0;
+		i=0;
+		while(i<this.interval2row.size())
+			{
+			GCAndDepth r= this.interval2row.get(i);
+			if(r.getX()< min_x || r.getX()> max_x)
+				{
+				this.interval2row.remove(i);
+				++points_removed;
+				}
+			else
+				{
+				double norm = spline.value(r.getX());
+				if(Double.isNaN(norm) || Double.isInfinite(norm)  )
+					{
+					info("NAN "+r);
+					this.interval2row.remove(i);
+					++points_removed;
+					continue;
+					}
+				r.depth -= norm; 
+				min_depth=Math.min(min_depth,r.depth);
+				++i;
+				}
+			}
+		info("Removed "+points_removed+" because GC% is too small (Sexual chrom)" );
+		spline=null;
+		
+		
+		//fit to min, fill new y for median calculation
+		info("min:"+min_depth);
+
+		y= new double[this.interval2row.size()];
+		for(i=0;i< this.interval2row.size();++i)
+			{
+			GCAndDepth gc= this.interval2row.get(i);
+			gc.depth -= min_depth;
+			y[i] = gc.depth;
+			}
+		
+		//normalize on median
+		double median_depth =  medianOp.evaluate(y, 0, y.length);
+		info("median:"+median_depth);
+		for(i=0;i< this.interval2row.size();++i)
+			{
+			GCAndDepth gc= this.interval2row.get(i);
+			gc.depth /= median_depth;
+			}
+		
+		
+		//restore genomic order
+		Collections.sort(this.interval2row,CopyNumber01.sortOnPosition);
+		
+		
+		
+		/**  smoothing values with neighbours */
+		final int SMOOTH_WINDOW=5;
+		y= new double[this.interval2row.size()];
+		for(i=0;i< this.interval2row.size();++i)
+			{
+			y[i] = this.interval2row.get(i).getY();
+			}
+		for(i=0;i< this.interval2row.size();++i)
+			{
+			GCAndDepth gc= this.interval2row.get(i);
+			int left=i;
+			int right=i;
+			while(left>0 &&
+				  i-left<SMOOTH_WINDOW && 
+				  this.interval2row.get(left-1).tid==gc.tid)
+				{
+				left--;
+				}
+			while(right+1< this.interval2row.size() &&
+				  right-i<SMOOTH_WINDOW && 
+				  this.interval2row.get(right+1).tid==gc.tid)
+				{
+				right++;
+				}
+			gc.depth= medianOp.evaluate(y, left,(right-left)+1);
+			}
+		
+		
 		}
+	
 
 	
 	private void saveCoverage(GZIPOutputStream zout)
@@ -417,8 +565,6 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		}
 	
 	
-	private static final int SMOOTH_WINDOW=5;
-	/** print smoothing values with neighbours */
 	
 	
 	@Override
@@ -519,7 +665,6 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				this.sampleName=s;
 				break;
 				}
-			samReader.close();
 			
 			
 			
@@ -547,7 +692,6 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 					}
 				CloserUtil.close(r);
 				}
-			
 			if(bedFile!=null)
 				{
 				prefillGCPercentWithCapture(bedFile);
@@ -557,10 +701,10 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				prefillGCPercentWithoutCapture();
 				}
 			
-			samReader = srf.open(bamFile);
 			scanCoverage(samReader);
 			samReader.close();
-				
+			
+			
 			/* save raw coverage */
 			GZIPOutputStream zout = new GZIPOutputStream(new FileOutputStream(outfile+"_raw.tsv.gz"));
 			saveCoverage(zout);
