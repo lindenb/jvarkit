@@ -1575,6 +1575,14 @@ or
 		name="vcftail"
 		/>
 </target>
+
+<target name="bamcmpcoverage">
+	<compile-picard-cmd 
+		java="**/BamCmpCoverage.java"
+		main="com.github.lindenb.jvarkit.tools.misc.BamCmpCoverage"
+		name="bamcmpcoverage"
+		/>
+</target>	
 	
 	<target name="vcfconcat">
 		<compile-picard-cmd 

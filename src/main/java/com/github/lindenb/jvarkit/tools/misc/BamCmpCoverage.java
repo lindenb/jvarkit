@@ -52,7 +52,6 @@ import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -92,8 +91,11 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 		int pos=0;
 		int depths[]=new int[sample2column.size()];
 		}
+	
+	private final Line2D.Double segment=new Line2D.Double();
 	private void paint(Graphics2D g,final Depth depth)
 		{
+		
 		for(int i=0;i< depth.depths.length;++i)
 			{	
 			
@@ -109,10 +111,20 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				if(depth.depths[j]> this.maxDepth) continue;
 				double y=this.marginWidth+j*sampleWidth;
 				y+=  this.sampleWidth -  this.sampleWidth*(depth.depths[j]-(double)this.minDepth)/((double)this.maxDepth-(double)this.minDepth);
-				g.draw(new Ellipse2D.Double(x-0.5,y-0.5,1, 1));
+				BamCmpCoverage.this.segment.x1= x;
+				BamCmpCoverage.this.segment.y1= y;
+				BamCmpCoverage.this.segment.x1= x+0.5;
+				BamCmpCoverage.this.segment.y1= y-0.5;
+				g.draw(BamCmpCoverage.this.segment);
+				
 				}
 			}
 		}
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/BamCmpCoverage";
+		}
+	
 	@Override
 	public String getProgramDescription() {
 		return "Creates an image for a comparative view of the depths sample vs sample.";
