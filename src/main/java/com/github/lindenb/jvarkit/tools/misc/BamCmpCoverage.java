@@ -57,7 +57,9 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
+import java.util.AbstractList;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -76,6 +78,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 public class BamCmpCoverage extends AbstractCommandLineProgram
 	{
+	private static final int BUFFERED_LIST_CAPACITY=10000;
 	private Map<String,Integer> sample2column=new HashMap<>();
 	private int imgageSize=1000;
 	private BufferedImage image=null;
@@ -84,42 +87,199 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 	private int minDepth=0;
 	private int maxDepth=1000;
 	
+	@SuppressWarnings("unchecked")
+	private static class BufferedList<T>
+		extends AbstractList<T>
+		{
+		private int start=0;
+		private int length=0;
+		private Object container[]=new Object[BUFFERED_LIST_CAPACITY*2];
+		private void resize()
+			{
+			
+			if(this.start>=BUFFERED_LIST_CAPACITY)
+				{
+				System.arraycopy(this.container, start, this.container, 0, this.length);
+				this.start=0;
+				}
+			}
+		private void debug(String msg)
+			{
+		
+			}
+		
+		@Override
+		public T remove(int index)
+			{
+			if(index==0) return removeFirst();
+			if(index+1==this.size()) return removeLast();
+			return super.remove(index);
+			}
+		
+		public T removeFirst()
+			{
+			if(isEmpty()) throw new IllegalStateException();
+			T old= (T)this.container[this.start];
+			this.container[this.start]=null;
+			this.start++;
+			this.length--;
+			resize();
+			debug("Remove "+old);
+			return old;
+			}
+		public T removeLast()
+			{
+			if(isEmpty()) throw new IllegalStateException();
+			T old= (T)this.container[this.start+this.length-1];
+			this.container[this.start+this.length-1]=null;
+			this.length--;
+			debug("Remove "+old);
+			return old;
+			}
+		
+		@Override
+		public boolean add(T e)
+			{
+			if(this.start+this.length>=this.container.length)
+				{
+				Object[] copy=new Object[this.container.length+this.container.length/2];
+				System.arraycopy(this.container,this.start,copy, 0, this.length);
+				this.start=0;
+				this.container=copy;
+				System.err.println("buff.size="+this.container.length);
+				}
+			this.container[this.start+this.length]=e;
+			this.length++;
+			debug("Add "+e);
+			return true;
+			}
+		
+		@Override
+		public T get(int index) {
+			if(index<0 || index>=size())
+				{
+				throw new IndexOutOfBoundsException("0<"+index+"<="+size());
+				}
+			return (T)this.container[this.start+index];
+			}
+
+		@Override
+		public int size() {
+			return this.length;
+			}
+		
+		}
+	
+	private class BitDepthMatrix
+		{
+		private BitSampleMatrix owner;
+		private int sample_x;
+		private int sample_y;
+		BitDepthMatrix(BitSampleMatrix owner)
+			{
+			this.owner=owner;
+			}
+		private int index_for(int depthx,int depthy)
+			{
+			int tx = sample_x*owner.sampleUnit +depthx ;
+			int ty =(sample_y*owner.sampleUnit + depthy) *(owner.n_samples*owner.sampleUnit); 
+			
+			int i= tx+ty;
+			return i;
+			}
+		public boolean get(int depthx,int depthy)
+			{
+			return this.owner.bitSet.get(index_for(depthx, depthy));
+			}
+		public void set(int depthx,int depthy)
+			{
+			this.owner.bitSet.set(index_for(depthx, depthy));
+			}
+		}
+	
+	private class BitSampleMatrix
+		{
+		private BitSet bitSet;
+		private int sampleUnit;
+		private int n_samples;
+		private BitDepthMatrix depthMatrix=null;
+		BitSampleMatrix(int n_samples)
+			{
+			this.sampleUnit= BamCmpCoverage.this.maxDepth-BamCmpCoverage.this.minDepth;
+			this.n_samples=n_samples;
+			this.bitSet=new BitSet((n_samples*n_samples)*(this.sampleUnit*this.sampleUnit));
+			this.depthMatrix=new BitDepthMatrix(this);
+			}
+		public BitDepthMatrix get(int sample_x,int sample_y)
+			{
+			this.depthMatrix.sample_x=sample_x;
+			this.depthMatrix.sample_y=sample_y;
+			return this.depthMatrix;
+			}
+		}
+
 	
 	private class Depth
 		{
 		int tid=0;
 		int pos=0;
 		int depths[]=new int[sample2column.size()];
+		public String toString()
+			{
+			return "("+(tid+1)+"):"+pos;
+			}
 		}
-	
-	private final Line2D.Double segment=new Line2D.Double();
-	private void paint(Graphics2D g,final Depth depth)
+	private void paint(Graphics2D g,BitDepthMatrix matrix)
 		{
-		
-		for(int i=0;i< depth.depths.length;++i)
+		final Line2D.Double segment=new Line2D.Double();
+		for(int i=0;i< matrix.owner.sampleUnit;++i)
 			{	
 			
-			if(depth.depths[i]< this.minDepth) continue;
-			if(depth.depths[i]> this.maxDepth) continue;
-			
-			double x=this.marginWidth+i*sampleWidth;
-			x+= this.sampleWidth*(depth.depths[i]-(double)this.minDepth)/((double)this.maxDepth-(double)this.minDepth);
-			
-			for(int j=0;j< depth.depths.length;++j)
+			for(int j=0;j<  matrix.owner.sampleUnit;++j)
 				{	
-				if(depth.depths[j]< this.minDepth) continue;
-				if(depth.depths[j]> this.maxDepth) continue;
-				double y=this.marginWidth+j*sampleWidth;
-				y+=  this.sampleWidth -  this.sampleWidth*(depth.depths[j]-(double)this.minDepth)/((double)this.maxDepth-(double)this.minDepth);
-				BamCmpCoverage.this.segment.x1= x;
-				BamCmpCoverage.this.segment.y1= y;
-				BamCmpCoverage.this.segment.x1= x+0.5;
-				BamCmpCoverage.this.segment.y1= y-0.5;
-				g.draw(BamCmpCoverage.this.segment);
+				if(!matrix.get(i, j)) continue;
+				
+				double x=this.marginWidth+matrix.sample_x*sampleWidth;
+				x+= this.sampleWidth*(i)/((double)matrix.owner.sampleUnit);
+
+				
+				double y=this.marginWidth+matrix.sample_y*sampleWidth;
+				y+=  this.sampleWidth -  this.sampleWidth*(j)/((double)matrix.owner.sampleUnit);
+				
+				
+				segment.x1= x;
+				segment.y1= y;
+				segment.x2= x+0.5;
+				segment.y2= y-0.5;
+				g.draw(segment);
 				
 				}
 			}
 		}
+	
+	private void paint(BitSampleMatrix g,final Depth depth)
+		{
+		final int sampleUnit= this.maxDepth-this.minDepth;
+		
+		for(int i=0;i< depth.depths.length;++i)
+			{		
+			int di = depth.depths[i]-this.minDepth;
+			if(di<0 || di>=sampleUnit) continue;
+			
+			
+			
+			for(int j=0;j< depth.depths.length;++j)
+				{	
+				int dj = depth.depths[j]-this.minDepth;
+				if(dj<0 || dj>=sampleUnit) continue;
+				
+				g.get(i, j).set(di, dj);
+				g.get(j, i).set(dj, di);
+				
+				}
+			}
+		}
+	
 	@Override
 	protected String getOnlineDocUrl() {
 		return "https://github.com/lindenb/jvarkit/wiki/BamCmpCoverage";
@@ -354,7 +514,9 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			
 			//create merging sam-reader
 			MergingSamRecordIterator iter=new MergingSamRecordIterator(comparator,iterators);
-
+			
+			//ceate bit-array
+			BitSampleMatrix bitMatrix=new BitSampleMatrix( samples.size());
 			
 			//create image
 			info("Creating image "+this.imgageSize+"x"+this.imgageSize);
@@ -415,7 +577,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
 			//preivous chrom
 			int prev_tid=-1;
-			ArrayList<Depth> depthList=new ArrayList<Depth>();
+			List<Depth> depthList=new BufferedList<Depth>();
 			Stroke oldStroke=g.getStroke();
 			g.setStroke(new BasicStroke(0.5f));
 			g.setColor(Color.BLACK);
@@ -433,6 +595,8 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				if(sample==null) continue;
 				int sample_id= this.sample2column.get(sample);
 				
+				
+				
 				Cigar cigar= rec.getCigar();
 				if(cigar==null) continue;
 				int refPos=rec.getAlignmentStart();
@@ -441,7 +605,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 					Depth front=depthList.get(0);
 					if(front.tid!=rec.getReferenceIndex() || front.pos < refPos )
 						{
-						paint(g,front);
+						paint(bitMatrix,front);
 						depthList.remove(0);
 						continue;
 						}
@@ -515,10 +679,22 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				}
 			while(!depthList.isEmpty())
 				{
-				paint(g,depthList.remove(0));
+				//paint(g,depthList.remove(0));
+				paint(bitMatrix,depthList.remove(0));
 				}
 			progress.finish();
 			iter.close();
+			
+			//paint bitset
+			for(int x=0;x< bitMatrix.n_samples;++x)
+				{
+				for(int y=0;y< bitMatrix.n_samples;++y)
+					{
+					info("Painting...("+x+"/"+y+")");
+					paint(g, bitMatrix.get(x, y));
+					}
+				}
+			
 			g.setStroke(oldStroke);
 			g.setComposite(oldComposite);
 			g.dispose();
