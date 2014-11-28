@@ -157,6 +157,6 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FixVcfMissingGenotypes">FixVcfMissingGenotypes</a></th><td>Use BAM to fill missing genotypes in merged VCFs</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/NcbiTaxonomyToXml">NcbiTaxonomyToXml</a></th><td> Dump NCBI taxonomy tree as a hierarchical XML document</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamCmpCoverage">BamCmpCoverage</a></th><td> Creates the figure of a comparative view of the depths sample vs sample</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FindAllCoverageAtPosition">FindAllCoverageAtPosition</a></th><td>Find depth at specific position in a list of BAM files</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FindAllCoveragesAtPosition">FindAllCoveragesAtPosition</a></th><td>Find depth at specific position in a list of BAM files</td></tr>
 </table>
 

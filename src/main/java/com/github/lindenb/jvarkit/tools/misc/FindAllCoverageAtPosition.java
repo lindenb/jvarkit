@@ -101,7 +101,7 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
     	}		
     @Override
     protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/FindAllCoverageAtPosition";
+    	return "https://github.com/lindenb/jvarkit/wiki/FindAllCoveragesAtPosition";
     	}
     
     @Override
