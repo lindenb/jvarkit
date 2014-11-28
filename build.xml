@@ -750,6 +750,14 @@ or
 		name="findavariation"
 		/>
 </target>
+	
+<target name="findallcoverageatposition" >
+	<compile-picard-cmd
+		java="**/FindAllCoverageAtPosition.java"
+		main="com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition"
+		name="findallcoverageatposition"
+		/>
+</target>
 
 <target name="allelefreqcalc" >
 	<compile-picard-cmd

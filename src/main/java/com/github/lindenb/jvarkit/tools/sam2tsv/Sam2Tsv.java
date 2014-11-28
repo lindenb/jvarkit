@@ -50,7 +50,6 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.StringUtil;
 
 /**
  * https://github.com/lindenb/jvarkit/wiki/SAM2Tsv
