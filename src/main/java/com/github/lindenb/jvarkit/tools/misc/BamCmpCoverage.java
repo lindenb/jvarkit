@@ -518,7 +518,8 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				}
 			
 			//create merging sam-reader
-			MergingSamRecordIterator iter=new MergingSamRecordIterator( comparator,iterators);
+			MergingSamRecordIterator iter=new MergingSamRecordIterator(
+					comparator,iterators);
 			
 			
 			//create image
@@ -579,8 +580,6 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 					}
 				}
 			
-			Composite oldComposite =g.getComposite();
-			g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
 			
 			//ceate bit-array
 			BitSampleMatrix bitMatrix=new BitSampleMatrix( samples.size());
@@ -611,7 +610,6 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				int refPos=rec.getAlignmentStart();
 				
 				
-				
 				/* cleanup front pos */
 				while(!depthList.isEmpty())
 					{
@@ -633,11 +631,16 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				
 				//ignore non-overlapping BED
 				if(this.intervals!=null &&
-					!this.intervals.containsOverlapping(new Interval(rec.getReferenceName(),refPos,rec.getAlignmentEnd())))
+					!this.intervals.containsOverlapping(
+					new Interval(rec.getReferenceName(),
+							refPos,
+							rec.getAlignmentEnd()))
+							)
 					{
 					continue;
 					}
 
+				
 				
 				for(CigarElement ce:cigar.getCigarElements())
 					{
@@ -677,11 +680,18 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 									}
 								depth=prev;
 								}
+							
 							else
 								{
 								int lastPos=depthList.get(depthList.size()-1).pos;
 								int distance= lastPos-pos;
-
+								int indexInList=(depthList.size()-1)-(distance);
+								if(indexInList<0)
+									{
+									//can appen when BED declared and partially overlap the read
+									continue;
+									}
+								
 								depth = depthList.get((depthList.size()-1)-(distance));
 								if(depth.pos!=pos)
 									{
@@ -716,7 +726,6 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				}
 			
 			g.setStroke(oldStroke);
-			g.setComposite(oldComposite);
 			g.dispose();
 			//close readers
 			for(SamReader r:readers) r.close();
