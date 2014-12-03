@@ -58,10 +58,7 @@ extends AbstractList<T>
 			this.start=0;
 			}
 		}
-	private void debug(String msg)
-		{
-	
-		}
+
 	
 	public BufferedList()
 		{
@@ -93,15 +90,27 @@ extends AbstractList<T>
 		}	
 	
 	@Override
+	@SuppressWarnings("unchecked")
 	public T remove(int index)
 		{
+		if(index<0 || index>=size()) throw new IndexOutOfBoundsException();
 		if(index==0) return removeFirst();
 		if(index+1==this.size()) return removeLast();
-		return super.remove(index);
+		T old= (T)this.container[this.start+index];
+		//shift left
+		System.arraycopy(this.container,
+				this.start+index+1,//Src
+				this.container,
+				this.start+index,//dest
+				(this.length-(index+1))
+				);
+		this.container[this.start+this.length-1]=null;
+		this.length--;
+		return old;
 		}
 	
 	@SuppressWarnings("unchecked")
-	public T removeFirst()
+	public final T removeFirst()
 		{
 		if(isEmpty()) throw new IllegalStateException();
 		T old= (T)this.container[this.start];
@@ -109,17 +118,15 @@ extends AbstractList<T>
 		this.start++;
 		this.length--;
 		resize();
-		debug("Remove "+old);
 		return old;
 		}
 	@SuppressWarnings("unchecked")
-	public T removeLast()
+	public final  T removeLast()
 		{
 		if(isEmpty()) throw new IllegalStateException();
 		T old= (T)this.container[this.start+this.length-1];
 		this.container[this.start+this.length-1]=null;
 		this.length--;
-		debug("Remove "+old);
 		return old;
 		}
 	
@@ -136,7 +143,6 @@ extends AbstractList<T>
 			}
 		this.container[this.start+this.length]=e;
 		this.length++;
-		debug("Add "+e);
 		return true;
 		}
 	

@@ -1160,6 +1160,14 @@ or
 		/>
 </target>
 
+	<target name="vcf2hilbert" >
+		<compile-picard-cmd
+			java="**/VcfToHilbert.java"
+			main="com.github.lindenb.jvarkit.tools.misc.VcfToHilbert"
+			name="vcf2hilbert"
+			/>
+	</target>	
+	
 <target name="illuminadir">
 	<compile-picard-cmd 
 		java="**/IlluminaDirectory.java"

@@ -33,6 +33,7 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -48,12 +49,8 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.SequenceUtil;
 
-import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Composite;
 import java.awt.Graphics2D;
-import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
@@ -63,6 +60,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -219,8 +217,8 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				
 				segment.x1= x;
 				segment.y1= y;
-				segment.x2= x+0.5;
-				segment.y2= y+0.5;
+				segment.x2= x+0.01;
+				segment.y2= y+0.01;
 				g.draw(segment);
 				}
 			}
@@ -355,6 +353,11 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			error("Bad min<max depth : "+this.minDepth+"<"+this.maxDepth);
 			return -1;
 			}
+		if(regionStr!=null && this.intervals!=null)
+			{
+			error("bed and interval both defined.");
+			return -1;
+			}
 		
 		final SamRecordFilter filter=new SamRecordFilter()
 			{
@@ -370,12 +373,25 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				if(rec.getDuplicateReadFlag())return true;
 				if(rec.getNotPrimaryAlignmentFlag()) return true;
 				if(rec.getReadFailsVendorQualityCheckFlag())return true;
+				/* ignore non-overlapping BED, already checked with QuertInterval 
+				if( intervals!=null &&
+					! intervals.containsOverlapping(
+					new Interval(rec.getReferenceName(),
+							rec.getAlignmentStart(),
+							rec.getAlignmentEnd()))
+							)
+					{
+					return true;
+					}
+					*/
+
 				return false;
 				}
 			};
 		Set<File> files=new HashSet<File>();
 		try
 			{
+		
 			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			srf.disable(SamReaderFactory.Option.EAGERLY_DECODE);
 			srf.disable(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS);
@@ -430,10 +446,13 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			List<SamReader> readers=new ArrayList<SamReader>(files.size());
 			List<CloseableIterator<SAMRecord>> iterators=new ArrayList<CloseableIterator<SAMRecord>>(files.size());
 			
-
 			
 			Set<String> samples=new TreeSet<String>();
 			SAMSequenceDictionary dict=null;
+			
+			/* will be initialized below once, if needed */
+			QueryInterval queryIntervalArray[]=null;
+			
 			//scan samples names
 			for(File bamFile:files)
 				{
@@ -456,20 +475,10 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 					error("Found more than one dictint sequence dictionary");
 					return -1;
 					}
-
 				
-				for(SAMReadGroupRecord rg:h.getReadGroups())
-					{
-					String sample=rg.getSample();
-					if(sample==null) continue;
-					samples.add(sample);
-					}
-				
-				if(regionStr==null)
-					{
-					iterators.add(new FilteringIterator(r.iterator(),filter));
-					}
-				else
+				//fill query interval once
+				List<QueryInterval> queryIntervals=new ArrayList<>();
+				if(regionStr!=null && queryIntervalArray==null)
 					{
 					int colon=regionStr.indexOf(':');
 					String chrom;
@@ -507,10 +516,52 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 						error("bad position in "+regionStr);
 						return -1;
 						}
-					iterators.add(new FilteringIterator(r.query(chrom,chromStart,chromEnd,false),filter));
 					
+					queryIntervals.add(new QueryInterval(ssr.getSequenceIndex(),chromStart,chromEnd));
 					}
+				
+				if(this.intervals!=null  && queryIntervalArray==null)
+					{
+					for(Interval interval:this.intervals.keySet())
+						{
+						SAMSequenceRecord ssr= dict.getSequence(interval.getSequence());
+						if(ssr==null)
+							{
+							error("Chromosome "+interval.getSequence()+" not present in dictionary");
+							return -1;
+							}
+						queryIntervals.add(new QueryInterval(ssr.getSequenceIndex(),interval.getStart(),interval.getEnd()));
+						}
+					}	
+				
+				if( !queryIntervals.isEmpty() && queryIntervalArray==null)
+					{
+					Collections.sort(queryIntervals);
+					queryIntervalArray = queryIntervals.toArray(new QueryInterval[queryIntervals.size()]);
+					}
+				
+				for(SAMReadGroupRecord rg:h.getReadGroups())
+					{
+					String sample=rg.getSample();
+					if(sample==null) continue;
+					samples.add(sample);
+					}
+				CloseableIterator<SAMRecord> reciterator=null;
+				if(queryIntervalArray==null)
+					{
+					reciterator=r.iterator();
+					}
+				else
+					{
+					reciterator=r.query(queryIntervalArray, false);
+					}
+					
+				reciterator = new FilteringIterator(reciterator,filter);
+				iterators.add(reciterator);
 				}
+			//free GC
+			queryIntervalArray=null;
+			
 			info("Samples:"+samples.size());
 			for(String sample:samples)
 				{
@@ -536,18 +587,21 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			Hershey hershey =new Hershey();
 			for(String sample_x:samples)
 				{
+				double labelHeight=marginWidth;
+				if(labelHeight>50) labelHeight=50;
+				
 				g.setColor(Color.BLACK);
 				hershey.paint(g,
 						sample_x,
 						marginWidth + sample2column.get(sample_x)*sampleWidth,
-						0.0,
+						marginWidth - labelHeight,
 						sampleWidth*0.9,
-						marginWidth
+						labelHeight*0.9
 						);
 				
         		AffineTransform old=g.getTransform();
         		AffineTransform tr= AffineTransform.getTranslateInstance(
-        				marginWidth,
+        				marginWidth ,
         				marginWidth + sample2column.get(sample_x)*sampleWidth
         				);
         		tr.rotate(Math.PI/2);
@@ -557,7 +611,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 						0.0,
 						0.0,
 						sampleWidth*0.9,
-						marginWidth
+						labelHeight*0.9
 						);        		//g.drawString(this.tabixFile.getFile().getName(),0,0);
         		g.setTransform(old);
 				
@@ -570,7 +624,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 							sampleWidth,
 							sampleWidth
 							);
-					g.setColor(Color.GRAY);
+					g.setColor(Color.BLUE);
 					g.draw(new Line2D.Double(
 							rect.getMinX(),rect.getMinY(),
 							rect.getMaxX(),rect.getMaxY())
@@ -588,8 +642,6 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			//preivous chrom
 			//int prev_tid=-1;
 			BufferedList<Depth> depthList=new BufferedList<Depth>();
-			Stroke oldStroke=g.getStroke();
-			g.setStroke(new BasicStroke(0.5f));
 			g.setColor(Color.BLACK);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			info("Scanning bams...");
@@ -629,17 +681,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 						}		
 					}
 				
-				//ignore non-overlapping BED
-				if(this.intervals!=null &&
-					!this.intervals.containsOverlapping(
-					new Interval(rec.getReferenceName(),
-							refPos,
-							rec.getAlignmentEnd()))
-							)
-					{
-					continue;
-					}
-
+				
 				
 				
 				for(CigarElement ce:cigar.getCigarElements())
@@ -725,12 +767,12 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 					}
 				}
 			
-			g.setStroke(oldStroke);
 			g.dispose();
 			//close readers
 			for(SamReader r:readers) r.close();
 			
 			//save file
+			info("saving "+imgOut);
 			if(imgOut.getName().toLowerCase().endsWith(".png"))
 				{
 				ImageIO.write(this.image, "PNG", imgOut);
