@@ -1383,7 +1383,7 @@ or
 
 
 <target name="vcftrio">
-	<compile-with-picard 
+	<compile-picard-cmd
 		java="**/VCFTrios.java"
 		main="com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios"
 		name="vcftrio"

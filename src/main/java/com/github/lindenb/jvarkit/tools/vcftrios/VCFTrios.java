@@ -76,6 +76,18 @@ public class VCFTrios extends AbstractVCFFilter2
     	}
 	
 	
+    private static String allelesToString(Genotype g)
+    	{
+    	if(!g.isCalled()) return g.getSampleName()+" not called";
+    	if(!g.isAvailable()) return g.getSampleName()+" not available";
+    	String s=g.getSampleName()+":";
+    	for(Allele a:g.getAlleles())
+    		{
+    		s+= " "+a.getDisplayString();
+    		}
+    	return s;
+    	}
+    
 	private boolean isChilOf(
 			Allele child1,Allele child2,
 			Allele parent1,Allele parent2)
@@ -195,9 +207,13 @@ public class VCFTrios extends AbstractVCFFilter2
 					{
 					continue;
 					}
+				if(!gChild.isAvailable())
+					{
+					continue;
+					}
 				if(gChild.getAlleles().size()!=2)
 					{
-					warning(getClass().getSimpleName()+" only handle two alleles");
+					warning(getClass().getSimpleName()+" only handle two alleles child:"+ allelesToString(gChild));
 					continue;
 					}
 				
@@ -207,12 +223,14 @@ public class VCFTrios extends AbstractVCFFilter2
 					{
 					debug("cannot get genotype for father  "+parent.getId());
 					}
+				if(gFather!=null && !gFather.isCalled()) gFather=null;
+				if(gFather!=null && !gFather.isAvailable()) gFather=null;
+
 				if(gFather!=null && gFather.getAlleles().size()!=2)
 					{
-					warning(getClass().getSimpleName()+" only handle two alleles");
+					warning(getClass().getSimpleName()+" only handle two alleles father: "+ allelesToString(gFather));
 					gFather=null;
 					}
-				if(gFather!=null && !gFather.isCalled()) gFather=null;
 				parent=child.getMother();
 				
 				Genotype gMother=(parent==null?null:ctx.getGenotype(parent.getId()));
@@ -223,9 +241,10 @@ public class VCFTrios extends AbstractVCFFilter2
 					}
 				
 				if(gMother!=null && !gMother.isCalled()) gMother=null;
+				if(gMother!=null && !gMother.isAvailable()) gMother=null;
 				if(gMother!=null && gMother.getAlleles().size()!=2)
 					{
-					warning(getClass().getSimpleName()+" only handle two alleles");
+					warning(getClass().getSimpleName()+" only handle two alleles mother:"+ allelesToString(gMother));
 					gMother=null;
 					}
 				

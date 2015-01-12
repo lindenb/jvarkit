@@ -67,19 +67,19 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 	/** dictionary */
 	private SAMSequenceDictionary dict;
     /** level of recursion */
-    private int recursionLevel=4;
+    private int recursionLevel=6;
     /** with/height of the final picture */
     private int imageWidth=1000;
     private double sampleWidth=0;
-    private long genomicSizePerCurveUnit=0L;
+    private double genomicSizePerCurveUnit=0L;
 
     
     private abstract class HilbertSegmentHandler
     	{
         /** last index of the position in the genome */
-        private double prev_base=0;
+    	double prev_base=0;
         /** size (in pb) of an edge */
-        private long d_base=0;
+        private final double d_base=VcfToHilbert.this.genomicSizePerCurveUnit;
     	/** size of an edge */
         private double dist=-1;
         /** last time we plot a segment, point at end */
@@ -93,7 +93,6 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 	            {
 	            this.dist /= 2.0;
 	            }
-        	this.d_base= VcfToHilbert.this.genomicSizePerCurveUnit;
         	this.prevPoint=new Point2D.Double(
         			this.dist/2.0,
         			this.dist/2.0
@@ -111,7 +110,6 @@ public class VcfToHilbert extends AbstractCommandLineProgram
         void run()
         	{
         	this.HilbertU(recursionLevel);
-        	System.err.println(this.prev_base);
         	}	
         
         private void lineRel(double deltaX, double deltaY)
@@ -120,8 +118,8 @@ public class VcfToHilbert extends AbstractCommandLineProgram
         		this.prevPoint.x + deltaX,
         		this.prevPoint.y + deltaY
         		);
-            long chromStart=(int)prev_base;
-            long chromEnd=chromStart+ d_base;
+            long chromStart=(long)prev_base;
+            long chromEnd=(long)(chromStart+ d_base);
             segment(prevPoint, point, chromStart, chromEnd);
             this.prevPoint= point;
             this.prev_base= chromEnd;;
@@ -169,12 +167,11 @@ public class VcfToHilbert extends AbstractCommandLineProgram
     	}	
     private class EvalCurve extends HilbertSegmentHandler
     	{
-    	double distance=0;
-    	double count=0;
+    
+    	long count=0;
     	@Override
     	void segment(Double beg, Double end, long chromStart, long chromEnd) {
-    		distance+= beg.distance(end);
-    		count+=1;
+    		count++;
     		}
     	}
     
@@ -207,7 +204,6 @@ public class VcfToHilbert extends AbstractCommandLineProgram
     		double y1= beg.y + (end.y - beg.y)*r1;
     		    		
     		g.draw(new Line2D.Double(x0,y0,x1,y1));
-
     		}
     	}
     
@@ -381,26 +377,24 @@ public class VcfToHilbert extends AbstractCommandLineProgram
     
     private void paintReference()
     	{
-    	int n_colors=2;//this.dict.getSequences().size();
+    	int n_colors=this.dict.getSequences().size();
     	ArrayList<Color> colors=new ArrayList<Color>(n_colors);
     	for(int i=0;i<n_colors;++i)
     		{
     		float gray=(i/(float)n_colors)*0.6f;
-    		Color c=new Color( gray, gray, gray);
+    		Color c=new Color( gray, gray, i%2==0?gray:1f-gray);
     		if(i%2==0)
     			{
-    			c=Color.BLUE;
     			colors.add(c);
     			}
     		else
     			{
-    			c=Color.RED;
     			colors.add(0,c);
     			}
     		}
     	Stroke oldStroke= g.getStroke();
     	Composite composite=g.getComposite();
-    	g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.8f));
+    	g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
     	long pos=0L;
     	for(int tid=0;tid<this.dict.getSequences().size();++tid)
     		{
@@ -412,6 +406,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
         	paintSeg.genomicStart = pos;
         	paintSeg.genomicEnd   = pos+ssr.getSequenceLength();
         	paintSeg.run();
+    		
     		pos+=ssr.getSequenceLength();
     		}
     	g.setComposite(composite);
@@ -500,9 +495,9 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 
 			EvalCurve evalCurve=new EvalCurve();
 			evalCurve.run();
-			this.genomicSizePerCurveUnit = (long)(dict.getReferenceLength()/(evalCurve.distance/evalCurve.count));
+			this.genomicSizePerCurveUnit = ((double)dict.getReferenceLength()/(double)(evalCurve.count));
 			if(this.genomicSizePerCurveUnit<1) this.genomicSizePerCurveUnit=1;
-			
+			info("genomicSizePerCurveUnit:"+genomicSizePerCurveUnit);
 			
 			for(int x=0;x< samples.size();++x)
 				{
@@ -549,6 +544,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 					g.translate(-tx, -ty);
 					}
 				}
+			info("genomicSizePerCurveUnit:"+(long)genomicSizePerCurveUnit*evalCurve.count+" "+dict.getReferenceLength()+" count="+evalCurve.count);
 			info("Scanning variants");
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dict);
 			while(iter.hasNext())
