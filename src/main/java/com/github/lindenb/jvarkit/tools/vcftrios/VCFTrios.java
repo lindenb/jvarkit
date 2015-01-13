@@ -149,7 +149,12 @@ public class VCFTrios extends AbstractVCFFilter2
 		
 		VCFHeader header=r.getHeader();
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-		h2.addMetaDataLine(new VCFInfoHeaderLine("MENDEL", VCFHeaderLineCount.INTEGER, VCFHeaderLineType.String, "mendelian incompatibilities"));
+		h2.addMetaDataLine(new VCFInfoHeaderLine(
+				"MENDEL",
+				VCFHeaderLineCount.UNBOUNDED,
+				VCFHeaderLineType.String,
+				"mendelian incompatibilities"
+				));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
