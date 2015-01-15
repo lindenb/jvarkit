@@ -9,13 +9,13 @@ import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.AbstractVCFCodec;
-import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 public class VcfConcat extends AbstractCommandLineProgram
@@ -102,6 +102,8 @@ public class VcfConcat extends AbstractCommandLineProgram
 		final VCFHeader header0=(VCFHeader)codec.readActualHeader(li);
 		header0.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		header0.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		header0.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+		header0.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
 		w.writeHeader(header0);
 		
 		while(li.hasNext())
@@ -109,11 +111,12 @@ public class VcfConcat extends AbstractCommandLineProgram
 			String line=li.peek();
 			if(line.startsWith("#"))
 				{
-				info("Found a new header");
+				info("Found a new header "+line);
 				codec=VCFUtils.createDefaultVCFCodec();
 				VCFHeader header1=(VCFHeader)codec.readActualHeader(li);
 				if(compareHeader(header0,header1)!=0)
 					{
+					
 					return -1;
 					}
 				}
@@ -134,7 +137,7 @@ public class VcfConcat extends AbstractCommandLineProgram
 			{
 			switch(c)
 				{
-				default: switch(super.handleOtherOptions(c, getopt, null))
+				default: switch(super.handleOtherOptions(c, getopt, args))
 					{
 					case EXIT_FAILURE: return -1;
 					case EXIT_SUCCESS: return 0;
@@ -142,6 +145,7 @@ public class VcfConcat extends AbstractCommandLineProgram
 					}
 				}
 			}
+				
 		VariantContextWriter w=null;
 		try
 			{

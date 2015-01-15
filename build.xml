@@ -1566,7 +1566,15 @@ or
 		name="vcfsimulator"
 		/>
 </target>
-	
+
+<target name="vcfhead">
+	<compile-picard-cmd 
+		java="**/VcfHead.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfHead"
+		name="vcfhead"
+		/>
+</target>
+
 	
 <target name="downsamplevcf">
 	<compile-picard-cmd 
@@ -1576,11 +1584,11 @@ or
 		/>
 </target>
 
-<target name="vcfhead">
+<target name="vcfmulti2one">
 	<compile-picard-cmd 
-		java="**/VcfHead.java"
-		main="com.github.lindenb.jvarkit.tools.misc.VcfHead"
-		name="vcfhead"
+		java="**/VcfMultiToOne.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfMultiToOne"
+		name="vcfmulti2one"
 		/>
 </target>
 
@@ -2022,6 +2030,8 @@ or
 		/>
 </target>
 
+	
+	
 	
 <target name="x2" if="has.mysql.driver">
 	<echo>OOKKK</echo>
