@@ -211,6 +211,16 @@ public class VepPredictionParser implements PredictionParser
 			return getByCol(COLS.SYMBOL);
 			}
 		
+		public String getRefSeq()
+			{
+			return getByCol(COLS.RefSeq);
+			}
+		
+		public String getGene()
+			{
+			return getByCol(COLS.Gene);
+			}
+		
 		public String getSymbolSource()
 			{
 			return getByCol(COLS.SYMBOL_SOURCE);
