@@ -159,5 +159,7 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamCmpCoverage">BamCmpCoverage</a></th><td> Creates the figure of a comparative view of the depths sample vs sample</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FindAllCoveragesAtPosition">FindAllCoveragesAtPosition</a></th><td>Find depth at specific position in a list of BAM files</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfMultiToOne">VcfMultiToOne</a></th><td>Convert VCF with multiple samples to a VCF with one SAMPLE</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Evs2Xml">Evs2Xml</a></th><td>Download data from Exome Variant Server as XML.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRemoveGenotypeIfInVcf">VcfRemoveGenotypeIfInVcf</a></th><td>Reset Genotypes in VCF if they've been found in another VCF indexed with tabix</td></tr>
 </table>
 

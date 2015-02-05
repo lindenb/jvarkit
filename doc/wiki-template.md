@@ -38,8 +38,8 @@ $  java -jar dist/__TODO__.jar < in.vcf > out.vcf
 ``
 ## Contribute
 
-- Issue Tracker: github.com/lindenb/jvarkit/issues`
-- Source Code: github.com/lindenb/jvarkit
+- Issue Tracker: http://github.com/lindenb/jvarkit/issues`
+- Source Code: http://github.com/lindenb/jvarkit
 
 ##See also
 
@@ -51,4 +51,4 @@ $  java -jar dist/__TODO__.jar < in.vcf > out.vcf
 
 ## License
 
-he project is licensed under the MIT license.
+The project is licensed under the MIT license.

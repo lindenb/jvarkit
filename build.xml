@@ -943,6 +943,27 @@ or
 		name="evs2bed"
 		/>
 </target>
+<target name="evs2xml" depends="api.evs">
+	<compile-picard-cmd 
+		java="**/EvsDumpXml.java"
+		main="com.github.lindenb.jvarkit.tools.evs2bed.EvsDumpXml"
+		name="evs2xml"
+		/>
+</target>
+<target name="evs2vcf" depends="api.evs">
+	<compile-picard-cmd 
+		java="**/EvsToVcf.java"
+		main="com.github.lindenb.jvarkit.tools.evs2bed.EvsToVcf"
+		name="evs2vcf"
+		/>
+</target>
+<target name="vcfresetvcf">
+	<compile-picard-cmd 
+		java="**/VcfRemoveGenotypeIfInVcf.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeIfInVcf"
+		name="vcfresetvcf"
+		/>
+</target>
 
 
 	
@@ -2115,6 +2136,18 @@ or
 	    <arg value="http://www.uniprot.org/support/docs/uniprot.xsd"/>
 	  </exec>
 </target>	
+
+<target name="api.evs">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
+	    <arg value="-p"/> <arg value="edu.washington.gs.evs"/>
+	    <arg value="-wsdl"/>
+	    &xjcproxyarg;
+	    <arg value="http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"/>
+	  </exec>
+</target>
+
 
 <target name="api.cmpbams">
 	 <mkdir dir="${generated.dir}"/>
