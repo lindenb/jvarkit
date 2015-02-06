@@ -269,7 +269,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   
 	   	   <echo file="dist/@{name}">#!/bin/bash
 PREFIX=$(dirname $0)
-java -Xmx500m -cp ${manifest_@{name}_for_exe}:$PREFIX/@{name}.jar @{main} $*
+java -Xmx500m -cp "${manifest_@{name}_for_exe}:$PREFIX/@{name}.jar" @{main} $*
 </echo>
 	   
 	   <chmod file="dist/@{name}" perm="ugo+rx"/>
