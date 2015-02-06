@@ -274,7 +274,7 @@ public class EvsDumpXml
 			int start=1;
 			do
 				{
-				fetchEvsData(chrom,start,start+step+1);
+				fetchEvsData(chrom,start,start+step /* may generate duplicates ? border side effect ? */);
 				
 				
 				start+=step;

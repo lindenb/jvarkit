@@ -39,8 +39,9 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
@@ -65,7 +66,7 @@ public class VcfRemoveGenotypeIfInVcf extends AbstractVCFFilter2 {
 		long genotypes_empty=0;
 		long variant_changed=0;
 		long variant_unchanged=0;
-		ArrayList<VariantContext> list=new ArrayList<VariantContext>();
+		ArrayList<VariantContext> overlappingList =new ArrayList<VariantContext>();
 		VCFHeader h2=in.getHeader();
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
@@ -75,79 +76,82 @@ public class VcfRemoveGenotypeIfInVcf extends AbstractVCFFilter2 {
 		while(in.hasNext())
 			{
 			VariantContext ctx= in.next();
-			list.clear();
+			
+			/* no genotypes */
+			if(ctx.getNSamples()==0)
+				{
+				out.add(ctx);
+				++variant_unchanged;
+				continue;
+				}
+			/* get overlapping variants */
+			overlappingList.clear();
 			Iterator<VariantContext> iter = this.tabix.iterator(
 					ctx.getChr(), ctx.getStart(), ctx.getEnd()+1);
 			while(iter.hasNext())
 				{
-				list.add(iter.next());
+				VariantContext ctx2=iter.next();
+				//check position
+				if(ctx2.getStart()!=ctx.getStart() ) continue;
+				if(!ctx2.getChr().equals(ctx.getChr()) ) continue;
+				//not ALT alleles
+				if(ctx2.getAlternateAlleles().isEmpty() ) continue;
+				//not same REF anyway
+				if(!ctx.getReference().equals(ctx2.getReference())) continue;
+				overlappingList.add(ctx2);
 				}
 			
-			if(list.isEmpty())
+			/* no overlapping variants */
+			if(overlappingList.isEmpty())
 				{
 				out.add(ctx);
 				++variant_unchanged;
 				continue;
 				}
 			
-			VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			ArrayList<Genotype> genotypes=new ArrayList<Genotype>(ctx.getGenotypes());
 			if(genotypes.size()!=h2.getNGenotypeSamples()) throw new RuntimeException();
 		
-			for(VariantContext snpData: list)
+			int genotype_index=0;
+			while(genotype_index< genotypes.size())
 				{
-				if(genotypes.isEmpty()) break;
-				if(!snpData.getChr().equals(ctx.getChr()) ) continue;
-				if(snpData.getStart()!=ctx.getStart() ) continue;
-				List<Allele> evsAlts=new ArrayList<Allele>(snpData.getAlternateAlleles());
-				if(evsAlts.isEmpty()) continue;
-				
-				int genotype_index=0;
-				while(genotype_index< genotypes.size())
+				Genotype g=genotypes.get(genotype_index);
+				if(g.isNoCall() || !g.isCalled() || g.isHomRef())
 					{
-					Genotype g=genotypes.get(genotype_index);
+					++genotype_index;
+					continue;
+					}
+				//all the alleles for this genotype
+				Set<Allele> alt_alleles = new HashSet<Allele>(g.getAlleles());
+				//remove REF allele
+				alt_alleles.remove(ctx.getReference());
+				if(alt_alleles.isEmpty()) throw new IllegalStateException("??");
+				
+				//remove all the alt alleles found in overlapping
+				for(VariantContext ctx2: overlappingList)
+					{
+					alt_alleles.removeAll(ctx2.getAlternateAlleles());
+					}
 
-					if(g.isNoCall() || !g.isCalled() || g.isHomRef())
-							{
-							++genotype_index;
-							continue;
-							}
-					boolean keep=true;
-					for(Allele a:g.getAlleles())
-						{
-						//not same REF anyway
-						if(a.isReference() && !a.equals(snpData.getReference())) break;
-						
-						for(Allele evsAlt:evsAlts)
-							{
-							//same ALT
-							if(a.isNonReference() && a.equals(evsAlt))
-								{
-								keep=false;
-								//warning("Removing Genotype for "+g.getSampleName()+" at "+ctx.getChr()+":"+ctx.getStart());
-								genotypes_reset_count++;
-								break;
-								}
-							}
-						if(!keep) break;
-						}
-					if(keep)
-						{
-						++genotype_index;
-						}
-					else
-						{
-						genotypes.remove(genotype_index);
-						}
-					}	
+				
+				if(!alt_alleles.isEmpty())/* contains at least one unknown allele */
+					{
+					++genotype_index;
+					}
+				else
+					{
+					genotypes.remove(genotype_index);
+					}
 				}
+			
+			
 			//nothing to print
 			if(genotypes.isEmpty())
 				{
 				++genotypes_empty;
-				++variant_changed;
 				if(removeVariantNoGenotype)
 					{
+					++variant_changed;
 					continue;
 					}
 				}
@@ -158,6 +162,7 @@ public class VcfRemoveGenotypeIfInVcf extends AbstractVCFFilter2 {
 				++variant_unchanged;
 				continue;
 				}
+			VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			vcb.genotypes(genotypes);
 			out.add(vcb.make());
 			++variant_changed;
@@ -169,7 +174,7 @@ public class VcfRemoveGenotypeIfInVcf extends AbstractVCFFilter2 {
 		}
 	@Override
 	public String getProgramDescription() {
-		return "Reset Genotypes in VCF if they've been found in another VCF indexed with tabix";
+		return "Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix";
 		}
 	@Override
 	protected String getOnlineDocUrl() {
