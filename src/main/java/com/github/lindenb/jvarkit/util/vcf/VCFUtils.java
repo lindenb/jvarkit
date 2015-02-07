@@ -118,7 +118,16 @@ public class VCFUtils
 		{
 		for(String line: list)
 			{
-			if(!VCFHeaderVersion.isFormatString(line)) continue;
+			String formatString = line;
+			if(formatString.startsWith("##"))
+				{
+				formatString=formatString.substring(2);
+				}
+			int eq= formatString.indexOf('=');
+			if(eq==-1) continue;
+			
+			if(!VCFHeaderVersion.isFormatString(formatString.substring(0,eq))) continue;
+			
 			VCFHeaderVersion version=VCFHeaderVersion.getHeaderVersion(line	);
 			if(version==null) continue;
 			switch(version)

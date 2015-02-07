@@ -1,3 +1,32 @@
+
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.bamstats01;
 
 import java.io.BufferedReader;
@@ -9,14 +38,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 
-
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
@@ -31,7 +60,7 @@ public class BamStats01
 	{
 	private PrintStream out=System.out;
 	private File bedFile=null;
-	private double QUAL=30.0;
+	private double minMappingQuality=30.0;
 	private int chrX_index=-1;
 	private int chrY_index=-1;
 	private SAMSequenceDictionary samSequenceDictionary=null;
@@ -91,7 +120,9 @@ public class BamStats01
 			if(rec.getReadPairedFlag() && rec.getProperPairFlag())
 				{
 				this.increment(Category.PROPER_PAIR);
-				if(rec.getMappingQuality()>=QUAL)
+				if(rec.getMappingQuality()>=minMappingQuality &&
+						rec.getMappingQuality()!=0 &&
+						rec.getMappingQuality()!=255)
 					{
 					this.increment(Category.PROPER_PAIR_HMQ);
 					}
@@ -101,7 +132,12 @@ public class BamStats01
 				ok_pe_alignment=false;	
 				}		
 			
-			
+			if(rec.getMappingQuality()==0 ||
+				rec.getMappingQuality()==255)
+				{
+				this.increment(Category.BAD_MAPQ);
+				ok_pe_alignment=false;	
+				}
 			
 			if(rec.getReadNegativeStrandFlag())
 				{
@@ -122,13 +158,14 @@ public class BamStats01
 				ok_pe_alignment=false;
 				}
 			
-			if(rec.getDuplicateReadFlag())
+			if( !rec.isSecondaryOrSupplementary() && // bwa mem -P
+				rec.getDuplicateReadFlag())
 				{
 				this.increment(Category.DUPLICATE);
 				ok_pe_alignment=false;
 				}
 			
-			if(rec.getMappingQuality()<QUAL)
+			if(rec.getMappingQuality()<minMappingQuality)
 				{
 				this.increment(Category.FAIL_MAPPING_QUALITY);
 				ok_pe_alignment=false;
@@ -192,7 +229,9 @@ public class BamStats01
 		FAIL_VENDOR_QUALITY,
 		OK_FOR_PE_CALLING,
 		SUPPLEMENTARY_ALIGNMENT,//new in samSpec 2013-12
-		X,Y;
+		X,Y,
+		BAD_MAPQ
+		;
 		};
 	
 	private BamStats01()
@@ -200,10 +239,9 @@ public class BamStats01
 		
 		}
 		
-	private void run(String filename,SAMFileReader samFileReader) throws IOException
+	private void run(String filename,SamReader samFileReader) throws IOException
 		{	
 		Map<String,Histogram> sample2hist=new HashMap<String, BamStats01.Histogram>();
-			samFileReader.setValidationStringency(ValidationStringency.SILENT);
 			
 			SAMSequenceDictionary currDict=samFileReader.getFileHeader().getSequenceDictionary();
 
@@ -350,7 +388,7 @@ public class BamStats01
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println("-o (file) output. Default: stdout");
-		out.println("-q (qual) min mapping quality: default: "+this.QUAL);
+		out.println("-q (qual) min mapping quality: default: "+this.minMappingQuality);
 		out.println("-B (file) capture bed file.  Optional");
 		super.printOptions(out);
 		}
@@ -367,7 +405,7 @@ public class BamStats01
 				{
 				case 'o': OUT=new File(opt.getOptArg());break;
 				case 'B': this.bedFile=new File(opt.getOptArg());break;
-				case 'q': QUAL=Double.parseDouble(opt.getOptArg());break;
+				case 'q': minMappingQuality=Double.parseDouble(opt.getOptArg());break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -380,7 +418,7 @@ public class BamStats01
 				}
 			}
 		
-		SAMFileReader samFileReader=null;		
+		SamReader samFileReader=null;		
 		try
 			{
 			if(OUT!=null)
@@ -401,13 +439,14 @@ public class BamStats01
 				}
 			out.println();
 			
+			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				SAMFileReader sfr=new SAMFileReader(System.in);
-				run("stdin",sfr);
-				sfr.close();
+				SamReader r= srf.open(SamInputResource.of(System.in));
+				run("stdin",r);
+				r.close();
 				}
 			else
 				{
@@ -415,7 +454,7 @@ public class BamStats01
 					{
 					String filename=args[i];
 					info("Reading from "+filename);
-					SAMFileReader sfr=new SAMFileReader(new File(filename));
+					SamReader sfr=srf.open(new File(filename));
 					run(filename,sfr);
 					sfr.close();
 					}

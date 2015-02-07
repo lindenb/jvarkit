@@ -1,3 +1,32 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014-11 : handle clipped bases
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
 import java.io.File;
@@ -7,15 +36,19 @@ import java.io.PrintWriter;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-
 import com.github.lindenb.jvarkit.util.picard.PicardException;
+
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMUtils;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
 /**
@@ -34,62 +67,85 @@ public class Sam2Tsv
 
 	private PrintWriter out=new PrintWriter(System.out);
 	
-	private void printAln(
-			final SAMRecord rec,
-			Integer readPos,
-			Character readChar,
-			int qualChar,
-			Integer refPos,
-			Character refChar,
-			CigarOperator op
-			)
+	private class Row
+		{
+		SAMRecord rec;
+		byte readbases[];
+		byte readQuals[];
+
+		int readPos;
+		int refPos;
+		CigarOperator op;
+		
+		public char getRefBase()
 			{
-			this.out.print(rec.getReadName());
+			if(refPos>=1 && refPos<= genomicSequence.length())
+ 				{
+				return genomicSequence.charAt(refPos-1);
+ 				}
+			return '.';
+			}
+		
+		public char getReadBase()
+			{
+			return readPos==-1 || this.readPos>=this.readbases.length?'.':(char)this.readbases[this.readPos];
+			}
+		public char getReadQual()
+			{
+			byte c= readPos==-1 || this.readQuals==null || this.readPos>=this.readQuals.length?(byte)0:this.readQuals[this.readPos];
+			return SAMUtils.phredToFastq(c);
+			}
+		
+		}
+	
+	private void writeAln(final Row row)
+			{
+			char c1;
+			char c3;
+			this.out.print(row.rec.getReadName());
 			this.out.print("\t");
-			this.out.print(rec.getFlags());
+			this.out.print(row.rec.getFlags());
 			this.out.print("\t");
-			this.out.print(rec.getReadUnmappedFlag()?".":rec.getReferenceName());
+			this.out.print(row.rec.getReadUnmappedFlag()?".":row.rec.getReferenceName());
 			this.out.print("\t");
-			if(readPos!=null && readChar!=null)
+			if(row.readPos!=-1)
 				{
-				this.out.print(readPos);
+				c1 =row.getReadBase();
+				this.out.print(row.readPos);
 				this.out.print("\t");
-				this.out.print(readChar);
+				this.out.print(c1);
+				this.out.print("\t");
+				this.out.print(row.getReadQual());
 				this.out.print("\t");
 				}
 			else
 				{
-				this.out.print(".\t.\t");
-				}
-			if(qualChar<0)
-				{
-				this.out.print(".");
-				}
-			else
-				{
-				this.out.print((int)qualChar);
+				c1= '-';
+				this.out.print(".\t.\t.\t");
 				}
 			
-			this.out.print("\t");
-			
-			if(refPos!=null && refChar!=null)
+			if(row.refPos != -1)
 				{
-				this.out.print(refPos);
+				c3 = row.getRefBase();
+				this.out.print(row.refPos);
 				this.out.print("\t");
-				this.out.print(refChar);
+				this.out.print(c3);
 				this.out.print("\t");
 				}
 			else
 				{
+				c3= '-';
 				this.out.print(".\t.\t");
 				}
-			this.out.print(op==null?".":op.name());
+			this.out.print(row.op==null?".":row.op.name());
 			this.out.println();
+			
 			if(this.printAlignment)
 				{
-				L1.append(readChar==null?'-':readChar);
-				L3.append(refChar==null?'-':refChar);
-				if(refChar!=null && readChar!=null && Character.toUpperCase(refChar)==Character.toUpperCase(readChar))
+				L1.append(c1);
+				L3.append(c3);
+				
+				if(Character.isLetter(c1) &&  Character.toUpperCase(c1)== Character.toUpperCase(c3))
 					{
 					L2.append('|');
 					}
@@ -100,16 +156,69 @@ public class Sam2Tsv
 				}
 			}
 	
-	private void printAln(final SAMRecord rec)
+	private void printAln(final Row row)
 		{
+		final SAMRecord rec = row.rec;
 		if(rec==null) return;
-		byte readbases[]=rec.getReadBases();
-		byte readQuals[]=rec.getBaseQualities();
-		if(readbases==null || rec.getReadUnmappedFlag())
+		Cigar cigar=rec.getCigar();
+		if(cigar==null) return;
+		
+		row.readbases = rec.getReadBases();
+		row.readQuals = rec.getBaseQualities();
+		if(row.readbases==null )
 			{
-			printAln(rec,null,null,-1,null,null,null);
+			row.op=null;
+			row.refPos=-1;
+			row.readPos=-1;
+			writeAln(row);
 			return;
 			}
+		if(rec.getReadUnmappedFlag())
+			{
+			row.op=null;
+			row.refPos=-1;
+			for(int i=0;i< row.readbases.length;++i)
+				{
+				row.readPos=i;
+				writeAln(row);
+				}
+			return;
+			}
+		
+		//fix hard clipped reads
+		StringBuilder fixReadBases=new StringBuilder(row.readbases.length);
+		StringBuilder fixReadQuals=new StringBuilder(row.readbases.length);
+		int readIndex = 0;
+		for (final CigarElement ce : cigar.getCigarElements())
+		 {
+		 CigarOperator op= ce.getOperator();
+		 
+		 for(int i=0;i< ce.getLength();++i)
+			{
+			if(op.equals(CigarOperator.H))
+				{
+				
+				fixReadBases.append('*');
+				fixReadQuals.append('*');
+				}
+			else if(!op.consumesReadBases())
+				{
+				break;
+				}
+			else
+				{
+				fixReadBases.append((char)row.readbases[readIndex]);
+				fixReadQuals.append(
+						row.readQuals==null ||
+						row.readQuals.length<=readIndex ?
+						'*':(char)row.readQuals[readIndex]);
+				readIndex++;
+				}
+			}
+		 }
+		row.readbases = fixReadBases.toString().getBytes();
+		row.readQuals = fixReadQuals.toString().getBytes();
+
 		
 		if(genomicSequence==null || !genomicSequence.getChrom().equals(rec.getReferenceName()))
 			{
@@ -117,34 +226,46 @@ public class Sam2Tsv
 			}
 		
 
-		
-		
-		
-		 int readIndex = 0;
-		 int refIndex = rec.getAlignmentStart();
+		 readIndex = 0;
+		 int refIndex = rec.getUnclippedStart();
 		 				 
-		 for (final CigarElement e : rec.getCigar().getCigarElements())
+		 for (final CigarElement e : cigar.getCigarElements())
 			 {
+			 row.op=e.getOperator();
+			 
 			 switch (e.getOperator())
 				 {
-				 case S : readIndex++; break;// ignore soft clip
-				 case H : break; // ignore hard clips
-				 case P : break; // ignore pads
-				 case I : //cont.
-				 		{
+				 case S :
+				 case H : //length of read has been fixed previously, so same as 'S'
+					 	{
+					 	
 				 		for(int i=0;i<e.getLength();++i)
 				 			{
-				 			if(readIndex>=0 && readIndex< readbases.length)
-				 				{
-				 				printAln(rec,
-				 						readIndex,
-				 						(char)(readbases[readIndex]),
-				 						(readQuals!=null && readIndex<readQuals.length?(int)(readQuals[readIndex]):-1),
-				 						null,
-				 						null,
-				 						e.getOperator()
-				 						);
-				 				}
+				 			row.readPos=  readIndex;
+				 			row.refPos  = refIndex;
+			 				writeAln(row);
+				 			readIndex++;
+				 			refIndex++;//because we used getUnclippedStart
+				 			}
+						break; 
+					 	}
+				 case P : 
+					 	{
+					 	row.refPos  = -1;
+					 	row.readPos = -1;
+				 		for(int i=0;i<e.getLength();++i)
+				 			{
+				 			writeAln(row);
+				 			}
+						break; 
+					 	}
+				 case I :
+				 		{
+				 		row.refPos  = -1;
+				 		for(int i=0;i<e.getLength();++i)
+				 			{
+				 			row.readPos=readIndex;
+				 			writeAln(row);
 				 			readIndex++;
 				 			}
 				 		break;
@@ -152,19 +273,11 @@ public class Sam2Tsv
 				 case N :  //cont. -- reference skip
 				 case D :
 				 		{
+				 		row.readPos  = -1;
 				 		for(int i=0;i<e.getLength();++i)
 				 			{
-				 			if(refIndex>=1 && refIndex<=this.genomicSequence.length())
-				 				{
-				 				printAln(rec,
-				 						null,
-				 						null,
-				 						-1,
-				 						refIndex,
-				 						genomicSequence.charAt(refIndex-1),
-				 						e.getOperator()
-				 						);
-				 				}
+				 			row.refPos = refIndex;
+				 			writeAln(row);
 				 			refIndex++;
 				 			}
 				 		break;
@@ -173,34 +286,11 @@ public class Sam2Tsv
 				 case EQ :
 				 case X :
 			 			{
-				 		final int length = e.getLength();
-				 		for(int i=0;i<length;++i)
+				 		for(int i=0;i< e.getLength();++i)
 				 			{
-				 			char baseRead='*';
-				 			char baseRef='*';
-				 			int baseQual=-1;
-				 			
-				 			if(readIndex>=0 && readIndex< readbases.length)
-				 				{
-					 			baseRead=(char)(readbases[readIndex]);
-				 				}
-				 			if(refIndex>=1 && refIndex<= genomicSequence.length())
-					 			{
-				 				baseRef=genomicSequence.charAt(refIndex-1);
-					 			}
-				 			if(readQuals!=null && (readIndex>=0 && readIndex< readQuals.length))
-				 				{
-				 				baseQual=(int)(readQuals[readIndex]);
-				 				}
-				 			printAln(rec,
-				 					readIndex,
-				 					baseRead,
-				 					baseQual,
-			 						refIndex,
-			 						baseRef,
-			 						e.getOperator()
-			 						);
-				 			
+				 			row.refPos = refIndex;
+				 			row.readPos = readIndex;
+				 			writeAln(row);
 				 			refIndex++;
 				 			readIndex++;
 				 			}
@@ -218,11 +308,11 @@ public class Sam2Tsv
 				{
 				
 				int len=Math.max(rec.getReadNameLength(), rec.getReferenceName().length())+2;
-				
+
 				this.out.printf(":%"+len+"s %8d %s %-8d\n",
 						rec.getReferenceName(),
 						rec.getUnclippedStart(),
-						L1.toString(),
+						L3.toString(),
 						rec.getUnclippedEnd()
 						);
 				this.out.printf(":%"+len+"s %8s %s\n",
@@ -234,7 +324,7 @@ public class Sam2Tsv
 				this.out.printf(":%"+len+"s %8d %s %-8d\n",
 						rec.getReadName(),
 						1,
-						L3.toString(),
+						L1.toString(),
 						rec.getReadLength()
 						);
 
@@ -249,15 +339,16 @@ public class Sam2Tsv
 	
 	private void scan(SamReader r) 
 		{
+		Row row=new Row();
 		SAMRecordIterator iter=null;
 		try{
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(r.getFileHeader().getSequenceDictionary());
 			iter=r.iterator();	
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
-				progress.watch(rec);
-				printAln(rec);
+				row.rec =iter.next();
+				progress.watch(row.rec);
+				printAln(row);
 				if(this.out.checkError()) break;
 				}
 			}
@@ -332,12 +423,17 @@ public class Sam2Tsv
 		SamReader samFileReader=null;
 		try
 			{
+			SamReaderFactory srf =SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
+			
 			samFileReader=null;
+			
+			out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
 			if(getopt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				samFileReader=SamFileReaderFactory.mewInstance().openStdin();
+				samFileReader= srf.open(SamInputResource.of(System.in));
 				scan(samFileReader);
 				samFileReader.close();
 				}
@@ -347,11 +443,12 @@ public class Sam2Tsv
 					{
 					File bamFile=new File(args[optind]);
 					info("Reading "+bamFile);
-					samFileReader=SamFileReaderFactory.mewInstance().open(bamFile);
+					samFileReader= srf.open(SamInputResource.of(bamFile));
 					scan(samFileReader);
 					samFileReader.close();
 					}
 				}
+			this.out.flush();
 			return 0;
 			}
 		catch (Exception e)

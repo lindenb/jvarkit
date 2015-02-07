@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.groupbygene;
 
 import java.io.DataInputStream;
@@ -34,7 +62,11 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
-
+/**
+ * 
+ * GroupByGene
+ *
+ */
 public class GroupByGene extends AbstractCommandLineProgram
 	{
 	private Set<String> sampleNames=new TreeSet<String>();
@@ -160,6 +192,18 @@ public class GroupByGene extends AbstractCommandLineProgram
 			if(s!=null)  set.add(new GeneName(s,"vep-gene-name"));
 			s=pred.getEnsemblGene();
 			if(s!=null)  set.add(new GeneName(s,"vep-ensembl-gene-name"));
+			s=pred.getSymbol();
+			if(s!=null)  set.add(new GeneName(s,"vep-symbol"));
+			s=pred.getHGNC();
+			if(s!=null)  set.add(new GeneName(s,"vep-hgnc"));
+			s=pred.getHgncId();
+			if(s!=null)  set.add(new GeneName(s,"vep-hgnc-id"));
+			s=pred.getGene();
+			if(s!=null)  set.add(new GeneName(s,"vep-gene"));
+			s=pred.getRefSeq();
+			if(s!=null)  set.add(new GeneName(s,"vep-refseq"));
+			
+			
 			s=pred.getEnsemblTranscript();
 			if(s!=null)
 				{

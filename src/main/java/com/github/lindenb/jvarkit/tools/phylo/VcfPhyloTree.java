@@ -34,9 +34,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -45,9 +48,6 @@ import javax.xml.stream.XMLStreamWriter;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.GenotypeBuilder;
-import htsjdk.variant.variantcontext.GenotypeType;
-import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -55,10 +55,12 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.bdb.AlleleBinding;
 import com.sleepycat.bind.tuple.TupleBinding;
 import com.sleepycat.bind.tuple.TupleInput;
 import com.sleepycat.bind.tuple.TupleOutput;
 import com.sleepycat.je.Cursor;
+import com.sleepycat.je.CursorConfig;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseConfig;
 import com.sleepycat.je.DatabaseEntry;
@@ -70,6 +72,14 @@ import com.sleepycat.je.Transaction;
 
 public class VcfPhyloTree extends AbstractCommandLineProgram
 	{
+	private enum GType
+		{
+		HOM_REF,
+		HOM_ALT,
+		HET
+		//,UNAVAILABLE
+		}
+	
 	/** position on genome */
 	private static class ChromPosRef
 		{
@@ -79,61 +89,121 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		}
 	
 	
-	private static class AlleleBinding extends TupleBinding<Allele>
+	private static class Call
 		{
+		int sample_index;
+		GType gtype;
+		int depth;
+		int qual;
+		}
+	
+	private static class CallBinding
+		extends TupleBinding<Call>
+		{
+		private final GType[] GTYPES=GType.values();
 		@Override
-		public Allele entryToObject(TupleInput in) {
-			int n= in.readInt();
-			byte bases[]=new byte[n];
-			in.read(bases);
-			boolean isRef=in.readBoolean();
-			return Allele.create(bases, isRef);
+		public Call entryToObject(TupleInput in) {
+			int sample_index= in.readInt();
+			if(sample_index==-1) return null;
+			Call call= new Call();
+			call.sample_index=sample_index;
+			call.gtype=GTYPES[(int)in.readByte()];
+			call.depth = in.readInt();
+			call.qual = in.readInt();
+			return call;
 			}
 		@Override
-		public void objectToEntry(Allele a, TupleOutput w)
+		public void objectToEntry(Call g, TupleOutput w)
 			{
-			byte bases[]=a.getDisplayBases();
-			if(bases.length==0) throw new RuntimeException("n=0 for "+a);
-			w.writeInt(bases.length);
-			w.write(bases);
-			w.writeBoolean(a.isReference());
+			if(g==null || g.sample_index==-1)
+				{	
+				w.writeInt(-1);
+				return;
+				}
+			w.writeInt(g.sample_index);
+			w.writeByte((byte)g.gtype.ordinal());
+			w.writeInt(g.depth);
+			w.writeInt(g.qual);
 			}
 		}
 
 	
-	private static class GenotypeBinding extends TupleBinding<Genotype>
+	private class Calls
 		{
-		private AlleleBinding alleleBinding=new AlleleBinding();
+		private List<Call> calls=new ArrayList<>(VcfPhyloTree.this.sampleList.size());
 		
-		@Override
-		public Genotype entryToObject(TupleInput in) {
-			String sampleName = in.readString();
-			int n=in.readInt();
-			List<Allele> alleles=new ArrayList<Allele>(n);
-			for(int i=0;i< n;++i)
-				{
-				alleles.add(this.alleleBinding.entryToObject(in));
-				}
-			GenotypeBuilder gb=new GenotypeBuilder(sampleName,alleles);
-			gb.GQ(in.readInt());
-			gb.DP(in.readInt());
-			return gb.make();
-			}
-		@Override
-		public void objectToEntry(Genotype g, TupleOutput w)
+		
+		Call get(int sampleIndex)
 			{
-			w.writeString(g.getSampleName());
-			List<Allele> alleles= g.getAlleles();
-			w.writeInt(alleles.size());
-			for(int i=0;i< alleles.size();++i)
+			return sampleIndex<calls.size()?calls.get(sampleIndex):null;
+			}
+		GType getGenotype(int sampleIndex)
+			{
+			Call c=get(sampleIndex);
+			return c==null?GType.HOM_REF:c.gtype;
+			}
+		void visit(VariantContext ctx)
+			{
+			for(int i=0;i<  VcfPhyloTree.this.sampleList.size();++i)
 				{
-				Allele a =alleles.get(i);
-				this.alleleBinding.objectToEntry(a,w);
+				String sampleName= VcfPhyloTree.this.sampleList.get(i);
+				Genotype g = ctx.getGenotype(sampleName);
+				Call newcall=new Call();
+				newcall.sample_index=i;
+				if(g.hasDP()) newcall.depth=g.getDP();
+				if(g.hasGQ()) newcall.qual=g.getGQ();
+				
+				switch(g.getType())
+					{
+					case HET: newcall.gtype =GType.HET;break;
+					case HOM_REF: newcall.gtype =GType.HOM_REF;break;
+					case HOM_VAR: newcall.gtype =GType.HOM_ALT;break;
+					default: newcall=null; break;
+					}
+				if(newcall==null) continue;
+				
+				Call old= this.get(i);
+				if( old!=null && 
+					old.qual!=-1 && newcall.qual!=-1 &&
+					old.qual > newcall.qual
+					)
+					{
+					continue;
+					}
+				while(this.calls.size()<=i) this.calls.add(null);
+				this.calls.set(i, newcall);
 				}
-			w.writeInt(g.hasGQ()?g.getGQ():-1);
-			w.writeInt(g.hasDP()?g.getDP():-1);
 			}
 		}
+
+	private class CallsBinding
+	extends TupleBinding<Calls>
+		{
+		private CallBinding callBinding=new CallBinding();
+		@Override
+		public Calls entryToObject(TupleInput in)
+			{
+			Calls calls=new Calls();
+			int n=in.readInt();
+			for(int i=0;i< n;++i)
+				{
+				calls.calls.add(this.callBinding.entryToObject(in));
+				}
+			return calls;
+			}
+		@Override
+		public void objectToEntry(Calls o, TupleOutput w)
+			{
+			w.writeInt(o.calls.size());
+			for(int i=0;i< o.calls.size();++i)
+				{
+				this.callBinding.objectToEntry(o.calls.get(i),w);
+				}
+			}
+		}
+	private  final CallsBinding callsBindingInstance=new CallsBinding();
+
+	
 
 	
 	private static class ChromPosRefBinding
@@ -156,51 +226,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			alleleBinding.objectToEntry(o.ref, out);
 			}
 		}
-	private final ChromPosRefBinding chromPosRefBindingInstance=new ChromPosRefBinding();
-	
-	
-	
-	/** class Allele
-	
-	/** coverage for position on genome */
-	private class GenotypeContextBinding
-		extends TupleBinding<GenotypesContext>
-		{
-		private GenotypeBinding genotypeBinding=new GenotypeBinding();
-		@Override
-		public GenotypesContext entryToObject(TupleInput in)
-			{
-			int n=in.readInt();
-			ArrayList<Genotype> genotypes=new ArrayList<Genotype>(n);
-			for(int i=0;i<n;++i) genotypes.add(this.genotypeBinding.entryToObject(in));
-			return GenotypesContext.create(genotypes);
-			}
-		@Override
-		public void objectToEntry(GenotypesContext o, TupleOutput w)
-			{
-			ArrayList<Genotype> genotypes=new ArrayList<Genotype>();
-			for(int i=0;i< o.size();++i)
-				{
-				Genotype g=o.get(i);
-				switch(g.getType())
-					{
-					case HET: case HOM_REF: case HOM_VAR: 
-						{
-						genotypes.add(g);
-						break;
-						}
-					default:break;
-					}
-				}
-			w.writeInt(genotypes.size());
-			for(Genotype g:genotypes)
-				{
-				this.genotypeBinding.objectToEntry(g,w);
-				}
-			}
-		}
-	
-	private  final GenotypeContextBinding genotypeContextBindingInstance=new GenotypeContextBinding();
+	private ChromPosRefBinding chromPosRefBindingInstance=new ChromPosRefBinding();
 	
 	
 	
@@ -211,65 +237,109 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 	private abstract class TreeNode
 		{
 		long nodeid=(++ID_GENERATOR);
-		long score=0L;
-		private Set<String> _cacheSamples=null;
+		double weight = 0L;
+		private Set<Integer> _cacheSamples=null;
 		
-		abstract void collectSampleIds(Set<String> set);
-		public Set<String> getSamples()
+		abstract void collectSampleIds(Set<Integer> set);
+		public Set<Integer> getSamples()
 			{
 			if(_cacheSamples==null)
 				{
-				_cacheSamples=new HashSet<String>();
+				_cacheSamples=new HashSet<Integer>();
 				collectSampleIds(_cacheSamples);
 				}
 			return _cacheSamples;
 			}
 		
-		protected abstract Counter<GenotypeType> getGenotypeTypes(final GenotypesContext ctx);
-		
-		long distance(GenotypeType t1,GenotypeType t2)
+		public Set<String> getSampleNames()
 			{
-			if(t1.equals(t2)) return 0;
-			
-			if((t1==GenotypeType.HET &&
-				(t2.equals(GenotypeType.HOM_REF) || t2.equals(GenotypeType.HOM_VAR)))
-				)
-					{
-					return 5L;
-					}
-			if(t1==GenotypeType.HOM_REF && t2==GenotypeType.HOM_VAR)
-				{
-				return 15L;
-				}
-			return distance(t2,t1);
+			Set<String> h=new TreeSet<String>();
+			for(Integer idx:this.getSamples()) h.add(VcfPhyloTree.this.sampleList.get(idx));
+			return h;
 			}
 		
-		long distance(TreeNode other,final GenotypesContext ctx)
-			{
-			Counter<GenotypeType> x1= this.getGenotypeTypes(ctx);
-			Counter<GenotypeType> x2= other.getGenotypeTypes(ctx);
-			if(x1.isEmpty() && x2.isEmpty()) return 0L;
-			if(x1.isEmpty() || x2.isEmpty()) return 1L;
-			GenotypeType t1= x1.getMostFrequent();
-			GenotypeType t2= x1.getMostFrequent();
+		protected abstract Counter<GType> getGenotypeTypes( Counter<GType> counter,final Calls ctx);
+		
+		private double distance(GType t1,GType t2)
+			{	
+			final double dAA_AA=0.0;
+			final double dAA_AB=5.0;
+			final double dAA_BB=15.0;
+
 			
+			switch(t1)
+				{
+				case HET:
+					{
+					switch(t2)
+						{
+						case HET: return dAA_AA;
+						case HOM_ALT: return dAA_AB;
+						case HOM_REF: return dAA_AB;
+						default:break;
+						}
+					break;
+					}
+				case HOM_ALT:
+					{
+					switch(t2)
+						{
+						case HET: return dAA_AB;
+						case HOM_ALT: return dAA_AA;
+						case HOM_REF: return dAA_BB;
+						default:break;
+						}
+					break;
+					}
+				case HOM_REF:
+					{
+					switch(t2)
+						{
+						case HET: return dAA_AB;
+						case HOM_ALT: return dAA_BB;
+						case HOM_REF: return dAA_AA;
+						default:break;
+						}
+					break;
+					}
+				default:break;
+				}
+			throw new RuntimeException(t1.toString()+" "+t2);
+			}
+		
+		double distance(TreeNode other,final Calls ctx)
+			{
+			Counter<GType> x1=new Counter<GType>();
+			Counter<GType> x2=new Counter<GType>();
+			x1= this.getGenotypeTypes(x1,ctx);
+			x2= other.getGenotypeTypes(x2,ctx);
+			if(x1.isEmpty() && x2.isEmpty()) return 0.0;
+			if(x1.isEmpty() || x2.isEmpty()) return 1.0;
+			double n=0;
+			long m=0;
+			for(GType t1:x1.keySet())
+				{
+				for(GType t2:x2.keySet())
+					{
+					n+=distance(t1,t2)*x1.count(t1)*x2.count(t2);
+					m++;
+					}
+				}
+			
+			return n/m;
+			/*
+			if(x1.keySet().equals(x2.keySet())) return 0L;
+			
+			GType t1= x1.getMostFrequent();
+			GType t2= x2.getMostFrequent();
 			return distance(t1,t2);
+			*/
 			}
 
 		
-		protected GenotypeType getGenotypeType(Genotype g)
+		boolean containsAnySampleIds(Set<Integer> set)
 			{
-			if(g==null ) return GenotypeType.UNAVAILABLE;
-			GenotypeType gt=g.getType();		
-			return ( gt.equals(GenotypeType.MIXED) ||
-					gt.equals(GenotypeType.NO_CALL) ?
-					GenotypeType.UNAVAILABLE:
-					gt);
-			}
-		
-		boolean containsAnySampleIds(Set<String> set)
-			{
-			for(String s: getSamples())
+			for(Integer s: getSamples())
 				{
 				if(set.contains(s)) return true;
 				}
@@ -287,48 +357,45 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			{
 			return "node"+this.nodeid;
 			}
+		abstract public String toString();
 		
 		}
 	
 	private class OneSample extends TreeNode
 		{
-		private String sample;
-		OneSample(String sample)
+		private int sample_index;
+		OneSample(int sample_index)
 			{
-			this.sample = sample;
+			this.sample_index = sample_index;
+			}
+		String getSampleName()
+			{
+			return VcfPhyloTree.this.sampleList.get(this.sample_index);
 			}
 		
 		@Override
-		protected Counter<GenotypeType> getGenotypeTypes(final GenotypesContext ctx)
+		protected Counter<GType> getGenotypeTypes(Counter<GType> c,final Calls calls)
 			{
-			Counter<GenotypeType> c=new Counter<GenotypeType>();
-			GenotypeType t = getGenotypeType(ctx.get(this.sample));
-			switch(t)
-				{
-				case HOM_REF: 
-				case HOM_VAR:
-				case HET: c.incr(t);break;
-				default:break;
-				}
+			c.incr(calls.getGenotype(this.sample_index));
 			return c;
 			}
 		
 		@Override
-		void collectSampleIds(Set<String> set)
+		void collectSampleIds(Set<Integer> set)
 			{
-			set.add(sample);
+			set.add(this.sample_index);
 			}
 		
 		@Override
 		void writeGraphizDot(PrintStream out) {
-			out.println(getNodeId()+"[label=\""+this.sample+"\"];");
+			out.println(getNodeId()+"[label=\""+this.getSampleName()+"\"];");
 			}
 		@Override
 		 void writeGexfNodes(XMLStreamWriter w) throws XMLStreamException
 			{
 			w.writeEmptyElement("node");
 				w.writeAttribute("id",getNodeId());
-				w.writeAttribute("label",this.sample);
+				w.writeAttribute("label",this.getSampleName());
 			}
 		
 		@Override
@@ -339,9 +406,12 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		@Override
 		void writeNewick(PrintStream out)
 			{
-			out.print(this.sample);
+			out.print(this.getSampleName());
 			}
-		
+		@Override
+		public String toString() {
+			return this.getSampleName()+" ("+this.weight+")";
+			}
 		}
 	
 	
@@ -358,36 +428,18 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			}
 		
 		@Override
-		void collectSampleIds(Set<String> set) {
+		void collectSampleIds(Set<Integer> set) {
 			t1.collectSampleIds(set);
 			t2.collectSampleIds(set);
 			}
 		
 		
 		@Override
-		protected Counter<GenotypeType> getGenotypeTypes(final GenotypesContext ctx)
+		protected Counter<GType> getGenotypeTypes(Counter<GType> c,final Calls ctx)
 			{
-			Counter<GenotypeType> c=new Counter<GenotypeType>();
-			c.putAll(t1.getGenotypeTypes(ctx));
-			c.putAll(t2.getGenotypeTypes(ctx));
-			/* comparing two samples but two diferent genotypes
-			 * keep the one with the highest QUAL
-			 */
-			if(c.getCountCategories()==2 && 
-				t1 instanceof OneSample &&
-				t2 instanceof OneSample )
-				{
-				Genotype g1= ctx.get(OneSample.class.cast(t1).sample);
-				Genotype g2= ctx.get(OneSample.class.cast(t2).sample);
-				if(g1.hasGQ() && g2.hasGQ())
-					{
-					c=new Counter<GenotypeType>();
-					c.incr(g1.getGQ()>g2.getGQ()?
-						getGenotypeType(g1):
-						getGenotypeType(g2)
-						);
-					}
-				}
+			t1.getGenotypeTypes(c,ctx);
+			t2.getGenotypeTypes(c,ctx);
+			
 			return c;
 			}
 
@@ -397,8 +449,9 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			t1.writeGraphizDot(out);
 			t2.writeGraphizDot(out);
 			out.println(this.getNodeId()+"[shape=point];");
-			out.println(t1.getNodeId()+" -- "+ this.getNodeId()+";");
-			out.println(t2.getNodeId()+" -- "+ this.getNodeId()+";");
+			String label="[weight="+(1+(int)this.weight)+",label=\""+(int)this.weight+"\"]";
+			out.println(t1.getNodeId()+" -- "+ this.getNodeId()+label+";");
+			out.println(t2.getNodeId()+" -- "+ this.getNodeId()+label+";");
 			
 			}
 		@Override
@@ -414,16 +467,24 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		@Override
 		void writeGexfEdges(XMLStreamWriter w) throws XMLStreamException
 			{
-			for(String nid:new String[]{
-					this.t1.getNodeId(),
-					this.t2.getNodeId()}
-					)
+			for(int i=0;i<2;++i)
 				{
-				w.writeEmptyElement("edge");
+				TreeNode c=(i==0?t1:t2);
+				String nid= c.getNodeId();
+				w.writeStartElement("edge");
 				w.writeAttribute("id","E"+this.nodeid+"_"+nid);
 				w.writeAttribute("type","directed");
 				w.writeAttribute("source",nid);
 				w.writeAttribute("target",this.getNodeId());
+				w.writeAttribute("weight",String.valueOf((int)this.weight));
+				/*
+				w.writeStartElement("attvalues");
+				w.writeEmptyElement("attvalue");
+				 w.writeAttribute("for","weight");
+				w.writeAttribute("value",String.valueOf(this.score));
+				w.writeEndElement();//attvalues
+				*/
+				w.writeEndElement();
 				}
 			this.t1.writeGexfEdges(w);
 			this.t2.writeGexfEdges(w);
@@ -437,6 +498,14 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			this.t2.writeNewick(w);
 			w.print(")");
 			}
+		
+		@Override
+		public String toString()
+			{
+			Set<String> s=getSampleNames();
+			if(s.size()>10) return ""+s.size()+" samples ("+this.weight+")";
+			return Arrays.toString(s.toArray())+"("+this.weight+")";
+			}
 		}
 	
 
@@ -446,11 +515,11 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 	/** map TidPos to CovRow */
 	private Database pos2cov;
 	/** all samples */
-	private Set<String> samples=new HashSet<String>();
+	private Map<String,Integer> sample2col=new HashMap<String,Integer>();
+	private List<String> sampleList =new ArrayList<String>();
+	
 	/** count snps */
 	private long snp_count=0L;
-	/** ignore variant if genotype missing */
-	private boolean ignore_if_genotype_missing=false;
 	
 	private VcfPhyloTree()
 		{
@@ -466,49 +535,41 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		cursor=this.pos2cov.openCursor(txn, null);
 		while(cursor.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
 			{
-			GenotypesContext row = this.genotypeContextBindingInstance.entryToObject(data);
+			/*
+			Calls row = this.callsBindingInstance.entryToObject(data);
 			
-			if(this.ignore_if_genotype_missing)
+			boolean mixed=false;
+			for(String sample:this.sampleList)
 				{
-				Counter<GenotypeType> counter=new Counter<>();
-				boolean ok=true;
-				for(String sample:this.samples)
-					{
-					Genotype g=row.get(sample);
-					if(g==null) { ok=false; break;}
-					switch(g.getType())
-						{
-						case NO_CALL:
-						case UNAVAILABLE: ok=false;break;
-						default:break;
-						}
-					if(!ok) break;
-					counter.incr(g.getType());
-					}
+				Genotype g=row.get(sample);
 				
-				if(ok && counter.getCountCategories()<2)
+				if(g!=null && g.isMixed())
 					{
-					ok=false;
-					}
-				
-				if(!ok)
-					{
-					++count_deleted;
-					cursor.delete();
-					continue;
+					mixed=true;
+					break;
 					}
 				}
+			//remove mixed calls
+			if(mixed)
+				{
+				cursor.delete();
+				++count_deleted;
+				continue;
+				}*/
 			}
 		cursor.close();
 		info("After cleanup, removed "+count_deleted+" snps.");
 		}
+	private final int MAX_NODES=2000000;
+	
 	private TreeNode matrix(Transaction txn, List<TreeNode> parents)
 		{
 		long last=System.currentTimeMillis();
 		
 		/* faster computing ? , parse BerkeleyDB one time */
-		if(Math.pow(parents.size(),2)/2.0 <500000.0)
+		if(Math.pow(parents.size(),2)/2.0 < MAX_NODES)
 			{
+			CursorConfig cursorConfig=CursorConfig.DEFAULT;
 			List<MergedNodes> nodes=new ArrayList<>();
 			for(int x=0;x< parents.size();++x)
 				{
@@ -521,10 +582,9 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 				}
 			DatabaseEntry key=new DatabaseEntry();
 			DatabaseEntry data=new DatabaseEntry();
-			Cursor cursor=null;
-			cursor=this.pos2cov.openCursor(txn, null);
+			Cursor cursor=this.pos2cov.openCursor(txn,cursorConfig);
 			long nVar=0L;
-			while(cursor.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
+			while(cursor.getNext(key, data,LockMode.DEFAULT )==OperationStatus.SUCCESS)
 				{
 				long now=System.currentTimeMillis();
 				if(now-last > 10*1000)
@@ -533,10 +593,10 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 					last=now;
 					}
 				
-				GenotypesContext row = this.genotypeContextBindingInstance.entryToObject(data);
+				Calls row = this.callsBindingInstance.entryToObject(data);
 				for(MergedNodes merged : nodes)
 					{
-					merged.score += merged.t1.distance(merged.t2,row);
+					merged.weight += merged.t1.distance(merged.t2,row);
 					}
 				++nVar;
 				}
@@ -546,15 +606,24 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 				{
 				public int compare(MergedNodes o1, MergedNodes o2)
 					{
-					if(o1.score< o2.score) return -1;
-					if(o1.score> o2.score) return 1;
+					if(o1.weight< o2.weight) return -1;
+					if(o1.weight> o2.weight) return 1;
 					return 0;
 					}
 				});
+			
+			if(nodes.size()>1 &&
+					nodes.get(0).weight == nodes.get(1).weight
+					)
+				{
+				warning("Score ambiguity for "+nodes.get(0)+" and "+nodes.get(1));
+				}
+				
 			return nodes.get(0);
 			}
 		else
 			{
+			Cursor cursor=this.pos2cov.openCursor(txn, null);;
 			MergedNodes best=null;
 			for(int x=0;x< parents.size();++x)
 				{
@@ -574,21 +643,24 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 					DatabaseEntry key=new DatabaseEntry();
 					DatabaseEntry data=new DatabaseEntry();
 					MergedNodes merged= new MergedNodes(tn1, tn2);
-					Cursor cursor=null;
-					cursor=this.pos2cov.openCursor(txn, null);
-					while(cursor.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
+					boolean first=true;
+					
+					
+					while((first?cursor.getFirst(key, data, LockMode.DEFAULT):cursor.getNext(key, data, LockMode.DEFAULT))==OperationStatus.SUCCESS)
 						{
-						GenotypesContext row = this.genotypeContextBindingInstance.entryToObject(data);
+						first=false;
+						Calls row = this.callsBindingInstance.entryToObject(data);
 						
-						merged.score += tn1.distance(tn2,row);
+						merged.weight += tn1.distance(tn2,row);
 						}
-					cursor.close();
-					if(best==null || best.score > merged.score)
+					
+					if(best==null || best.weight > merged.weight)
 						{
 						best=merged;
 						}
 					}
 				}
+			cursor.close();
 			return best;
 			}
 		
@@ -598,14 +670,17 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		{
 		ArrayList<TreeNode> nodes=new ArrayList<TreeNode>();
 		//initialize population
-		for(String sample:this.samples)
+		for(int sample_index=0; sample_index< this.sampleList.size();++sample_index)
 			{
-			nodes.add(new OneSample(sample));
+			nodes.add(new OneSample(sample_index));
 			}
 		
 		while(nodes.size()>1)
 			{
+			long now= System.currentTimeMillis();
 			info("nodes.count= "+nodes.size());
+			
+			/* no, want to get the distance between the two nodes 
 			if(nodes.size()==2)
 				{
 				return new MergedNodes(
@@ -613,10 +688,12 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 						nodes.get(1)
 						);
 				}
+			*/
 			
 			
 			TreeNode best = matrix(txn, nodes);
-			Set<String> bestsamples= best.getSamples();
+			info(best);
+			Set<Integer> bestsamples= best.getSamples();
 			
 			ArrayList<TreeNode> newnodes=new ArrayList<TreeNode>();
 
@@ -628,6 +705,8 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			newnodes.add(best);
 			
 			nodes=newnodes;
+			
+			info("That took :"+ (System.currentTimeMillis()-now)/1000f  +" seconds");
 			}
 		return nodes.get(0);
 		}
@@ -638,7 +717,14 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		Cursor cursor=null;
 		VCFHeader header = in.getHeader();
 		if(!header.hasGenotypingData()) return;
-		this.samples.addAll(header.getSampleNamesInOrder());
+		List<String> sampleNames = header.getSampleNamesInOrder();
+		for(String sample: sampleNames)
+			{
+			if(this.sample2col.containsKey(sample)) continue;
+			this.sample2col.put(sample, this.sampleList.size());
+			this.sampleList.add(sample);
+			}
+		
 		cursor= this.pos2cov.openCursor(txn, null);
 
 		DatabaseEntry key = new DatabaseEntry();
@@ -652,33 +738,21 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			chromPosRef.pos1=ctx.getStart();
 			chromPosRef.ref=ctx.getReference();
 			
+			
 			chromPosRefBindingInstance.objectToEntry(chromPosRef, key);
 			
 			if(cursor.getSearchKey(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
 				{
-				GenotypesContext row = genotypeContextBindingInstance.entryToObject(data);
-				
-				for(int i=0;i< ctx.getNSamples();++i)
-					{
-					Genotype g = ctx.getGenotype(i);
-					if(!g.isCalled()) continue;
-					Genotype old= row.get(g.getSampleName());
-					if( old!=null && 
-						old.hasGQ() && g.hasGQ() &&
-						old.getGQ() < g.getGQ() 	
-						)
-						{
-						continue;
-						}
-					
-					row.add(g);
-					}
-				genotypeContextBindingInstance.objectToEntry(row, data);
+				Calls row = this.callsBindingInstance.entryToObject(data);
+				row.visit(ctx);
+				this.callsBindingInstance.objectToEntry(row, data);
 				cursor.putCurrent(data);
 				}
 			else
 				{
-				genotypeContextBindingInstance.objectToEntry(ctx.getGenotypes(), data);
+				Calls row=new Calls();
+				row.visit(ctx);
+				this.callsBindingInstance.objectToEntry(row, data);
 				cursor.put(key,data);
 				}
 			
@@ -699,11 +773,15 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		};
 	
 	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/VcfPhyloTree";
+		}
+		
+	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println(" -B bdb home. "+getMessageBundle("berkeley.db.home"));
 		out.println(" -f (format) one of "+Arrays.toString(OUT_FMT.values()));
-		//out.println(" -i ignore SNP if genotype missing"); TODO
 		super.printOptions(out);
 		}
 	
@@ -714,11 +792,10 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		File bdbHome=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"B:f:i"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"B:f:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'i': this.ignore_if_genotype_missing=true;break;
 				case 'B': bdbHome=new File(opt.getOptArg());break;
 				case 'f': outformat=OUT_FMT.valueOf(opt.getOptArg());break;
 				default:
@@ -747,12 +824,16 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			EnvironmentConfig cfg=new EnvironmentConfig();
 			cfg.setAllowCreate(true);
 			cfg.setReadOnly(false);
+			//cfg.setTransactional(false);
+			
 			this.env= new Environment(bdbHome, cfg);
 			
 			DatabaseConfig cfg2=new DatabaseConfig();
 			cfg2.setAllowCreate(true);
 			cfg2.setTemporary(true);
 			cfg2.setReadOnly(false);
+			
+			//cfg2.setTransactional(false);
 			this.pos2cov=this.env.openDatabase(txn, "vcf", cfg2);
 			
 			
@@ -775,20 +856,20 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 					}
 				}
 			
-			if(this.samples.size()<2)
+			if(this.sampleList.size()<2)
 				{
 				error("Not enoug samples");
 				return -1;
 				}
 			
-			info("SNPs: "+this.snp_count);
-			info("Samples: "+this.samples.size());
 			
 			
 			cleanup(txn);
 			
 			this.snp_count= this.pos2cov.count();
-			
+			info("Samples: "+this.sampleList.size());
+			info("SNPs: "+this.snp_count);
+
 			if(this.snp_count==0L)
 				{
 				error("Not enough SNPS.");
@@ -828,10 +909,22 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 					  w.writeAttribute("mode", "static");
 					  w.writeAttribute("defaultedgetype", "directed");
 					  
-					  w.writeEmptyElement("attributes");
+					  w.writeStartElement("attributes");
 					  w.writeAttribute("class", "node");
 					  w.writeAttribute("mode", "static");
+					  w.writeEndElement();//attributes
+						
+					  w.writeStartElement("attributes");                                                                                     
+					  w.writeAttribute("class", "edge");
+					  w.writeAttribute("mode", "static");
+    					  /*
+                        w.writeEmptyElement("attribute");
+						w.writeAttribute("id", "weight");
+						w.writeAttribute("title", "Weight");
+						w.writeAttribute("type", "float");*/
+                      w.writeEndElement();//attributes
 					  
+
 					  
 					  w.writeStartElement("nodes");
 					  t.writeGexfNodes(w);
@@ -862,7 +955,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(Throwable err)
 			{
 			error(err);
 			return -1;

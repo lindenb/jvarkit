@@ -4,7 +4,7 @@
 <property file="build.properties"/>
 <property name="http.proxy" value="localhost:80"/>
 <property name="generated.dir" value="src/main/generated-sources/java"/>
-<property name="test.output" value="tests"/>
+<property name="tmp.dir" value="tmp_dir"/>
 
 <!-- SAXException here ? see : https://github.com/lindenb/jvarkit/issues/11 -->
 <property file="${htsjdk.home}/htsjdk.version.properties"/>
@@ -119,11 +119,11 @@
 	   <antcall target="htsjdk"/>
 		
 		
-	   <mkdir dir="tmp"/>
+	   <mkdir dir="${tmp.dir}"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
 	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured. See https://github.com/lindenb/jvarkit/wiki/Compilation </echo>
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
    			<src path="${generated.dir}"/>
 
@@ -151,7 +151,7 @@
 	</tstamp>
 	   
 	   <jar jarfile="dist/@{name}.jar">
-		     <fileset dir="tmp" />
+		     <fileset dir="${tmp.dir}" />
 		     <manifest>
 		       <attribute name="Main-Class" value="@{main}"/>
 		        <attribute name="Class-Path" value="${manifest_@{name}}"/>
@@ -184,7 +184,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 ```
 ]]></echo>		
 
-		<delete dir="tmp"/>
+		<delete dir="${tmp.dir}"/>
 	</sequential>
 </macrodef>
 
@@ -198,17 +198,17 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	<sequential>
 
 	   <antcall target="htsjdk"/>	  
-	   <mkdir dir="tmp"/>
+	   <mkdir dir="${tmp.dir}"/>
 	   <mkdir dir="dist"/>
 	   <mkdir dir="${generated.dir}"/>
-	   <mkdir dir="tmp/META-INF"/>
+	   <mkdir dir="${tmp.dir}/META-INF"/>
 	   
 		<tstamp>
 	    	<format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss" />
 		</tstamp>
 
 		
-	   <copy file="src/main/resources/messages/messages.properties" todir="tmp"/>
+	   <copy file="src/main/resources/messages/messages.properties" todir="${tmp.dir}"/>
 		
 		 <loadfile
 		      property="git.master.hash"
@@ -235,7 +235,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 		
 		
 	   <echo>if the next javac statement fails, check that the 'build.properties' has been properly configured. See https://github.com/lindenb/jvarkit/wiki/Compilation</echo>
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
 	   		
 	   		<src path="src/main/java"/>
    			<src path="${generated.dir}"/>
@@ -257,7 +257,7 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   
 	   
 	   <jar jarfile="dist/@{name}.jar">
-		     <fileset dir="tmp" />
+		     <fileset dir="${tmp.dir}" />
 		     <manifest>
 		       <attribute name="Main-Class" value="@{main}"/>
 		        <attribute name="Class-Path" value="${manifest_@{name}}"/>
@@ -269,12 +269,12 @@ java -jar dist/]]>@{name}<![CDATA[.jar [options]
 	   
 	   	   <echo file="dist/@{name}">#!/bin/bash
 PREFIX=$(dirname $0)
-java -Xmx500m -cp ${manifest_@{name}_for_exe}:$PREFIX/@{name}.jar @{main} $*
+java -Xmx500m -cp "${manifest_@{name}_for_exe}:$PREFIX/@{name}.jar" @{main} $*
 </echo>
 	   
 	   <chmod file="dist/@{name}" perm="ugo+rx"/>
 	   	   
-		<delete dir="tmp"/>
+		<delete dir="${tmp.dir}"/>
 		
 		
 	</sequential>
@@ -367,9 +367,9 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	<attribute name="name"/>
 	<attribute name="main"/>
 	<sequential>
-	   <mkdir dir="tmp"/>
+	   <mkdir dir="${tmp.dir}"/>
 	  
-	   <unzip dest="tmp" overwrite="true">
+	   <unzip dest="${tmp.dir}" overwrite="true">
 	   		<fileset dir="${picard.dir}">
     			<include name="picard-*.jar"/>
    	 			<include name="sam-*.jar"/>
@@ -377,8 +377,8 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
     			<include name="variant-*.jar"/>
     		</fileset>
 	   </unzip>
-	   <unzip src="dist/@{name}.jar" dest="tmp"  overwrite="true" />
-	   <delete file="tmp/META-INF/MANIFEST.MF"/>
+	   <unzip src="dist/@{name}.jar" dest="${tmp.dir}"  overwrite="true" />
+	   <delete file="${tmp.dir}/META-INF/MANIFEST.MF"/>
 	   <mkdir dir="dist"/>
 	 <loadfile
 	      property="git.master.hash"
@@ -391,14 +391,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 	    </loadfile>
 			   
 	   <jar jarfile="dist/@{name}-standalone.jar">
-		     <fileset dir="tmp" />
+		     <fileset dir="${tmp.dir}" />
 		     <manifest>
 		       <attribute name="Main-Class" value="@{main}"/>
 		    	<attribute name="Git-Hash" value="${git.master.hash}"/>
 		     </manifest>
 	   </jar>
 	   <echo file="dist/@{name}-standalone.bat">cmd /k java -cp @{name}-standalone.jar @{main}</echo>
-	   <delete dir="tmp"/>
+	   <delete dir="${tmp.dir}"/>
 	</sequential>
 </macrodef>
 
@@ -416,9 +416,9 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 			 	</fileset>
 	  </path>
 	  <taskdef resource="testngtasks" classpathref="classpath4test"/>
-	  <mkdir dir="tmp"/>
+	  <mkdir dir="${tmp.dir}"/>
 	   	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
    			<src path="src/main/java"/>
    			<src path="src/tests/java"/>
 	   		<classpath refid="classpath4test"/>
@@ -429,14 +429,14 @@ java -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/@{name}.j
 		<testng outputdir="${test.output}"  haltOnFailure="false" verbose="2" >
 			<classpath>
 				<path refid="classpath4test"/>
-				<pathelement path="tmp"/>
+				<pathelement path="${tmp.dir}"/>
 			</classpath>
-			<classfileset dir="tmp">
+			<classfileset dir="${tmp.dir}">
 			     <include name="**/*Test.class"/>
 			 </classfileset>
 		</testng>
 		
-	   <delete dir="tmp"/>
+	   <delete dir="${tmp.dir}"/>
 </target>
 
 	
@@ -484,10 +484,10 @@ or
 
 	
 <target name="vcfbigwig" if="has.bigwig.lib">
-	   <mkdir dir="tmp"/>
+	   <mkdir dir="${tmp.dir}"/>
 	   <mkdir dir="dist"/>
 	   	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<classpath refid="htsjdk.and.bigwig.jars"/>
 	   		<include name="**/VCFBigWig.java"/>
@@ -496,14 +496,14 @@ or
 	   <pathconvert property="manifest_cp1" pathsep=" " refid="htsjdk.and.bigwig.jars"/>
 
 	   <jar jarfile="dist/vcfbigwig.jar">
-		     <fileset dir="tmp" />
+		     <fileset dir="${tmp.dir}" />
 		     <manifest>
 		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig"/>
 		        <attribute name="Class-Path" value="${manifest_cp1}"/>
 		     </manifest>
 	 	</jar>
 	   
-    <delete dir="tmp"/>
+    <delete dir="${tmp.dir}"/>
  </target>	
 
 	
@@ -559,10 +559,10 @@ or
 
 	
 <target name="splitread" >
-	   <mkdir dir="tmp"/>
+	   <mkdir dir="${tmp.dir}"/>
 	   <mkdir dir="dist"/>
 	   	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/SplitRead.java"/>
@@ -573,22 +573,22 @@ or
 	   </pathconvert>  
 	   
 	   <jar jarfile="dist/splitread.jar">
-		     <fileset dir="tmp" />
+		     <fileset dir="${tmp.dir}" />
 		     <manifest>
 		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.splitread.SplitRead"/>
 		        <attribute name="Class-Path" value="${manifest_splitread}"/>
 		     </manifest>
 	 	</jar>
 	   
-	    <delete dir="tmp"/>
+	    <delete dir="${tmp.dir}"/>
 </target>
 	
 	
 <target name="splitbytile" >
-	   <mkdir dir="tmp"/>
-	   <mkdir dir="dist"/>
+	   <mkdir dir="${tmp.dir}"/>
+	   <mkdir dir="${tmp.dir}"/>
 	   	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/SplitByTile.java"/>
@@ -599,14 +599,14 @@ or
 	   </pathconvert>  
 	   
 	   <jar jarfile="dist/splitbytile.jar">
-		     <fileset dir="tmp" />
+		     <fileset dir="${tmp.dir}" />
 		     <manifest>
 		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.splitbytitle.SplitByTile"/>
 		        <attribute name="Class-Path" value="${manifest_splitbytile}"/>
 		     </manifest>
 	 	</jar>
 	   
-	    <delete dir="tmp"/>
+	    <delete dir="${tmp.dir}"/>
 </target>
 
 
@@ -748,6 +748,14 @@ or
 		java="**/FindAVariation.java"
 		main="com.github.lindenb.jvarkit.tools.misc.FindAVariation"
 		name="findavariation"
+		/>
+</target>
+	
+<target name="findallcoverageatposition" >
+	<compile-picard-cmd
+		java="**/FindAllCoverageAtPosition.java"
+		main="com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition"
+		name="findallcoverageatposition"
 		/>
 </target>
 
@@ -935,14 +943,35 @@ or
 		name="evs2bed"
 		/>
 </target>
+<target name="evs2xml" depends="api.evs">
+	<compile-picard-cmd 
+		java="**/EvsDumpXml.java"
+		main="com.github.lindenb.jvarkit.tools.evs2bed.EvsDumpXml"
+		name="evs2xml"
+		/>
+</target>
+<target name="evs2vcf" depends="api.evs">
+	<compile-picard-cmd 
+		java="**/EvsToVcf.java"
+		main="com.github.lindenb.jvarkit.tools.evs2bed.EvsToVcf"
+		name="evs2vcf"
+		/>
+</target>
+<target name="vcfresetvcf">
+	<compile-picard-cmd 
+		java="**/VcfRemoveGenotypeIfInVcf.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeIfInVcf"
+		name="vcfresetvcf"
+		/>
+</target>
 
 
 	
 <target name="vcfbedjs" >
-	   <mkdir dir="tmp"/>
+	   <mkdir dir="${tmp.dir}"/>
 	   <mkdir dir="dist"/>
 	   	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/VCFBed.java"/>
@@ -953,25 +982,25 @@ or
 	   </pathconvert>  
 	   
 	   <jar jarfile="dist/vcfbedjs.jar">
-		     <fileset dir="tmp" />
+		     <fileset dir="${tmp.dir}" />
 		     <manifest>
 		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.vcfbed.VCFBed"/>
 		        <attribute name="Class-Path" value="${manifest_cp7}"/>
 		     </manifest>
 	 	</jar>
 	   
-	    <delete dir="tmp"/>
+	    <delete dir="${tmp.dir}"/>
 </target>
 
 	
 	
 <target name="dist/cluster20120920" >
-	   <mkdir dir="tmp"/>
+	   <mkdir dir="${tmp.dir}"/>
 	   <mkdir dir="dist"/>
 	   
 	   
 	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<classpath refid="htsjdk.lib"/>
 	   		<include name="**/Cluster20120920.java"/>
@@ -983,23 +1012,23 @@ or
 		</pathconvert>  
 	   
 	   <jar jarfile="dist/cluster20120920.jar">
-		     <fileset dir="tmp" />
+		     <fileset dir="${tmp.dir}" />
 		     <manifest>
 		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.cluster20120920.Cluster20120920"/>
 		       <attribute name="Class-Path" value="${manifest_cp}"/>
 		     </manifest>
 	 	</jar>
 	   
-	    <delete dir="tmp"/>
+	    <delete dir="${tmp.dir}"/>
 </target>
 
 <target name="dist/invert20120917" >
-	   <mkdir dir="tmp"/>
+	   <mkdir dir="${tmp.dir}"/>
 	   <mkdir dir="dist"/>
 	   
 	   
 	   
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<classpath refid="common.libs"/>
 	   		<include name="**/Invert20120917.java"/>
@@ -1011,23 +1040,23 @@ or
 		</pathconvert>  
 	   
 	   <jar jarfile="dist/invert20120917">
-		     <fileset dir="tmp" />
+		     <fileset dir="${tmp.dir}" />
 		     <manifest>
 		       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.invert20120917.Invert20120917"/>
 		       <attribute name="Class-Path" value="${manifest_cp}"/>
 		     </manifest>
 	 	</jar>
 	   
-	    <delete dir="tmp"/>
+	    <delete dir="${tmp.dir}"/>
 </target>
 	
  <target name="dist/cnv20120907.jar" >
-   <mkdir dir="tmp"/>
+   <mkdir dir="${tmp.dir}"/>
    <mkdir dir="dist"/>
    
    
    
-   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
    		<src path="src/main/java"/>
    		<classpath refid="common.libs"/>
    		<include name="**/CNV20120927.java"/>
@@ -1039,14 +1068,14 @@ or
 	</pathconvert>  
    
    <jar jarfile="dist/cnv20120907.jar">
-	     <fileset dir="tmp" />
+	     <fileset dir="${tmp.dir}" />
 	     <manifest>
 	       <attribute name="Main-Class" value="com.github.lindenb.jvarkit.tools.cnv20120907.CNV20120927"/>
 	       <attribute name="Class-Path" value="${manifest_cp}"/>
 	     </manifest>
  	</jar>
    
-    <delete dir="tmp"/>
+    <delete dir="${tmp.dir}"/>
  </target>
 
 <target name="blastmapannots" depends="api.ncbi.blast,api.ncbi.gb,api.uniprot">
@@ -1152,6 +1181,14 @@ or
 		/>
 </target>
 
+	<target name="vcf2hilbert" >
+		<compile-picard-cmd
+			java="**/VcfToHilbert.java"
+			main="com.github.lindenb.jvarkit.tools.misc.VcfToHilbert"
+			name="vcf2hilbert"
+			/>
+	</target>	
+	
 <target name="illuminadir">
 	<compile-picard-cmd 
 		java="**/IlluminaDirectory.java"
@@ -1329,7 +1366,16 @@ or
 		/>
 </target>
 
+<target name="ncbitaxonomy2xml" >
+	<compile-picard-cmd 
+		java="**/NcbiTaxonomyToXml.java"
+		main="com.github.lindenb.jvarkit.tools.misc.NcbiTaxonomyToXml"
+		name="ncbitaxonomy2xml"
+		/>
+</target>
 
+	
+	
 <target name="ngsfilessummary" >
 	<compile-picard-cmd 
 		java="**/NgsFilesSummary.java"
@@ -1358,7 +1404,7 @@ or
 
 
 <target name="vcftrio">
-	<compile-with-picard 
+	<compile-picard-cmd
 		java="**/VCFTrios.java"
 		main="com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios"
 		name="vcftrio"
@@ -1541,7 +1587,15 @@ or
 		name="vcfsimulator"
 		/>
 </target>
-	
+
+<target name="vcfhead">
+	<compile-picard-cmd 
+		java="**/VcfHead.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfHead"
+		name="vcfhead"
+		/>
+</target>
+
 	
 <target name="downsamplevcf">
 	<compile-picard-cmd 
@@ -1551,11 +1605,11 @@ or
 		/>
 </target>
 
-<target name="vcfhead">
+<target name="vcfmulti2one">
 	<compile-picard-cmd 
-		java="**/VcfHead.java"
-		main="com.github.lindenb.jvarkit.tools.misc.VcfHead"
-		name="vcfhead"
+		java="**/VcfMultiToOne.java"
+		main="com.github.lindenb.jvarkit.tools.misc.VcfMultiToOne"
+		name="vcfmulti2one"
 		/>
 </target>
 
@@ -1566,6 +1620,14 @@ or
 		name="vcftail"
 		/>
 </target>
+
+<target name="bamcmpcoverage">
+	<compile-picard-cmd 
+		java="**/BamCmpCoverage.java"
+		main="com.github.lindenb.jvarkit.tools.misc.BamCmpCoverage"
+		name="bamcmpcoverage"
+		/>
+</target>	
 	
 	<target name="vcfconcat">
 		<compile-picard-cmd 
@@ -1653,8 +1715,8 @@ or
 
 	
 <target name="copy-opendoc-odp-resources" >
-	<mkdir dir="tmp/META-INF/opendocument/odp" />
-	<copy todir="tmp/META-INF/opendocument/odp">
+	<mkdir dir="${tmp.dir}/META-INF/opendocument/odp" />
+	<copy todir="${tmp.dir}/META-INF/opendocument/odp">
 		<fileset dir="src/main/resources/opendocument">
 			<include name="thumbnail.png"/>
 		</fileset>
@@ -1751,6 +1813,15 @@ or
 		/>
 </target>
 
+<target name="samclipindelfraction">
+	<compile-picard-cmd 
+		java="**/SamClipIndelFraction.java"
+		main="com.github.lindenb.jvarkit.tools.misc.SamClipIndelFraction"
+		name="samclipindelfraction"
+		/>
+</target>
+	
+	
 <target name="vcfucsc" depends="api.printf">
 	<compile-picard-cmd 
 		java="**/VcfUcsc.java"
@@ -1981,6 +2052,8 @@ or
 </target>
 
 	
+	
+	
 <target name="x2" if="has.mysql.driver">
 	<echo>OOKKK</echo>
 </target>
@@ -2064,6 +2137,18 @@ or
 	  </exec>
 </target>	
 
+<target name="api.evs">
+	 <mkdir dir="${generated.dir}"/>
+	 <exec executable="xjc" failonerror="true">
+	    <arg value="-d"/> <arg value="${generated.dir}"/>
+	    <arg value="-p"/> <arg value="edu.washington.gs.evs"/>
+	    <arg value="-wsdl"/>
+	    &xjcproxyarg;
+	    <arg value="http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"/>
+	  </exec>
+</target>
+
+
 <target name="api.cmpbams">
 	 <mkdir dir="${generated.dir}"/>
 	 <exec executable="xjc" failonerror="true">
@@ -2100,10 +2185,10 @@ or
 	    <arg value="src/main/resources/xsd/ngs.xsd"/>
 	  </exec>
 
-	   <mkdir dir="tmp"/>
+	   <mkdir dir="${tmp.dir}"/>
 	   <mkdir dir="dist"/>
 	      
-	   <javac destdir="tmp" includeAntRuntime="false" debug="true">
+	   <javac destdir="${tmp.dir}" includeAntRuntime="false" debug="true">
 	   		<src path="src/main/java"/>
 	   		<src path="${generated.dir}"/>
 	   		<classpath refid="htsjdk.lib"/>
@@ -2112,8 +2197,8 @@ or
 	<pathconvert  property="wscp" refid="htsjdk.lib"/>
 
 	<exec executable="wsgen">
-	    <arg value="-cp"/> <arg value="tmp:${wscp}"/>
-	    <arg value="-d"/> <arg value="tmp"/>
+	    <arg value="-cp"/> <arg value="${tmp.dir}:${wscp}"/>
+	    <arg value="-d"/> <arg value="${tmp.dir}"/>
 		<arg value="-keep"/> <arg value="-wsdl"/>
 	    <arg value="com.github.lindenb.jvarkit.tools.ws.server.NGSServiceImpl"/>
 	</exec>
@@ -2123,23 +2208,23 @@ or
  </target>
 <!-- experimental JNLP part -->
 <target name="all-jnlp" depends="vcfviewgui,buildwpontology,batchigvpictures">
- <mkdir dir="tmp"/>
-	  <copy file="dist/vcfviewgui.jar" todir="tmp"/>
-	  <copy file="dist/buildwpontology.jar" todir="tmp"/>
-	  <copy file="dist/batchigvpictures.jar" todir="tmp"/>
-  <copy todir="tmp">
+ <mkdir dir="${tmp.dir}"/>
+	  <copy file="dist/vcfviewgui.jar" todir="${tmp.dir}"/>
+	  <copy file="dist/buildwpontology.jar" todir="${tmp.dir}"/>
+	  <copy file="dist/batchigvpictures.jar" todir="${tmp.dir}"/>
+  <copy todir="${tmp.dir}">
   	<fileset dir="htsjdk/dist">
   	      <include name="*.jar"/>
   	    </fileset>
   </copy>
   <signjar verbose="true" keypass="${keytool.keypass}" alias="secret" keystore=".secret.keystore" storepass="${keytool.storepass}">
   	 <path>
-  	    <fileset dir="tmp">
+  	    <fileset dir="${tmp.dir}">
     	      <include name="*.jar"/>
   	    </fileset>
   	  </path>
   </signjar>
-	<copy file="./src/main/resources/jnlp/generic.jnlp" toFile="tmp/vcfviewgui.jnlp">
+	<copy file="./src/main/resources/jnlp/generic.jnlp" toFile="${tmp.dir}/vcfviewgui.jnlp">
 		<filterchain>
 		        <tokenfilter>
 		    <replacestring from="__MAIN_JAR__" to="vcfviewgui"/>
@@ -2148,7 +2233,7 @@ or
 		  </tokenfilter>
 		</filterchain>
 	</copy>
-	<copy file="./src/main/resources/jnlp/generic.jnlp" toFile="tmp/buildwpontology.jnlp">
+	<copy file="./src/main/resources/jnlp/generic.jnlp" toFile="${tmp.dir}/buildwpontology.jnlp">
 		<filterchain>
 		        <tokenfilter>
 		    <replacestring from="__MAIN_JAR__" to="buildwpontology"/>
@@ -2157,7 +2242,7 @@ or
 		  </tokenfilter>
 		</filterchain>
 	</copy>
-	<copy file="./src/main/resources/jnlp/generic.jnlp" toFile="tmp/batchigvpictures.jnlp">
+	<copy file="./src/main/resources/jnlp/generic.jnlp" toFile="${tmp.dir}/batchigvpictures.jnlp">
 		<filterchain>
 		        <tokenfilter>
 		    <replacestring from="__MAIN_JAR__" to="batchigvpictures"/>
@@ -2234,9 +2319,9 @@ or
 
 
 <target name="ant.git">
-		   <mkdir dir="tmp"/>
+		   <mkdir dir="${tmp.dir}"/>
 		   <mkdir dir="dist"/>		   	   
-		   <javac destdir="tmp" includeAntRuntime="true" debug="true">
+		   <javac destdir="${tmp.dir}" includeAntRuntime="true" debug="true">
 		   		<src path="src/main/java"/>
 		   		<include name="**/GitTask.java"/>
 		   </javac>

@@ -201,10 +201,11 @@ public class FixVcfMissingGenotypes extends AbstractCommandLineProgram
 				String sample= header.getSampleNamesInOrder().get(i);
 				info("Sample: "+sample);
 				Set<File> bams = this.sample2bam.get(sample);
-				if(bamFiles==null || bamFiles.isEmpty())
+				if(bams==null) bams = new HashSet<File>();
+				if(bams.isEmpty())
 					{
 					warning("No bam to fix sample "+sample);
-					//don't continue for simplicity
+					//don't 'continue' for simplicity
 					}
 				List<SamReader> samReaders= new ArrayList<>(bams.size());
 				for(File bam:bams)

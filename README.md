@@ -50,11 +50,11 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/IlluminaFastqStats">IlluminaFastqStats<a></th><td>Statistics on Illumina Fastqs</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2Raster">Bam2Raster<a></th><td>Save a BAM alignment as a PNG image.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRebase">VcfRebase<a></th><td>Finds restriction sites overlapping variants in a VCF file</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqRevComp">FastqRevComp<a></th><td>Reverse complement a FATQ file for mate-pair alignment</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqRevComp">FastqRevComp<a></th><td>Reverse complement a FASTQ file for mate-pair alignment</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PicardMetricsToXML">PicardMetricsToXML<a></th><td>Convert picards metrics file to XML.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2Wig">Bam2Wig</thd><td>Bam to Wiggle converter</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/TViewWeb">TViewWeb</thd><td>CGI/Web based version of samtools tview</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRegistryWeb">VcfRegistryWeb</thd><td>CGI/Web tool printing all the variants at a given position for a collection VCF</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRegistryWeb">VcfRegistryWeb</thd><td>CGI/Web tool printing all variants at a given position for a collection VCF</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BlastMapAnnots">BlastMapAnnots<a></th><td>Maps uniprot/genbank annotations on a blast result. See http://www.biostars.org/p/76056</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfViewGui">VcfViewGui<a></th><td>Simple java-Swing-based VCF viewer.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamViewGui">BamViewGui<a></th><td>Simple java-Swing-based BAM viewer.</td></tr>
@@ -148,12 +148,18 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqShuffle">FastqShuffle<a></th><td>Shuffle Fastq files.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqSplitInterleaved">FastqSplitInterleaved<a></th><td>Split interleaved Fastq files</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PubmedFilterJS">PubmedFilterJS<a></th><td>Filters pubmed XML using javascript.</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/ReferenceToVCF">ReferenceToVCF<a></th><td>Creates a VCF containing all the possible substitutions in a Reference Genome..</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/ReferenceToVCF">ReferenceToVCF<a></th><td>Creates a VCF containing all possible substitutions in a Reference Genome..</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfEnsemblReg">VcfEnsemblReg<a></th><td>Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FastqJS">FastqJS<a></th><td>Filters a FASTQ file using javascript.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam2SVG">Bam2SVG<a></th><td>Convert a BAM to SVG</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/LiftOverToSVG">LiftOverToSVG</a></th><td>Convert UCSC LiftOver chain files to animated SVG</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFMerge">VCFMerge</a></th><td>Combines VCF files.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FixVcfMissingGenotypes">FixVcfMissingGenotypes</a></th><td>Use BAM to fill missing genotypes in merged VCFs</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/NcbiTaxonomyToXml">NcbiTaxonomyToXml</a></th><td> Dump NCBI taxonomy tree as a hierarchical XML document</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamCmpCoverage">BamCmpCoverage</a></th><td> Creates the figure of a comparative view of the depths sample vs sample</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/FindAllCoveragesAtPosition">FindAllCoveragesAtPosition</a></th><td>Find depth at specific position in a list of BAM files</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfMultiToOne">VcfMultiToOne</a></th><td>Convert VCF with multiple samples to a VCF with one SAMPLE</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Evs2Xml">Evs2Xml</a></th><td>Download data from Exome Variant Server as XML.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRemoveGenotypeIfInVcf">VcfRemoveGenotypeIfInVcf</a></th><td>Reset Genotypes in VCF if they've been found in another VCF indexed with tabix</td></tr>
 </table>
 

@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.cmpbams;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -29,6 +57,7 @@ import htsjdk.samtools.util.SortingCollection;
 
 public class CompareBams2  extends AbstractCommandLineProgram
 	{
+	private int min_mapq=0;
 	private boolean samSequenceDictAreTheSame=true;
 	private List<SAMSequenceDictionary> sequenceDictionaries=new ArrayList<SAMSequenceDictionary>();
 
@@ -253,6 +282,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 		out.println(" -r (region) restrict to that region chr:start-end");
 		out.println(" -F use SAM Flag when comparing.");
 		out.println(" -C use CIGAR when comparing.");
+		out.println(" -Q min MAPQ: default:"+min_mapq);
 		out.println(" -n (int) "+getMessageBundle("max.records.in.ram")+" Optional.");
 		out.println(" -T (dir) "+getMessageBundle("add.tmp.dir")+" Optional.");
 		super.printOptions(out);
@@ -263,10 +293,11 @@ public class CompareBams2  extends AbstractCommandLineProgram
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"r:FCn:d:T:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"r:FCn:d:T:Q:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'Q':this.min_mapq=Integer.parseInt(opt.getOptArg());break;
 				case 'd':distance_tolerance=Integer.parseInt(opt.getOptArg());break;
 				case 'r':REGION=opt.getOptArg();break;
 				case 'F':useSamFlag=true;break;
@@ -352,9 +383,13 @@ public class CompareBams2  extends AbstractCommandLineProgram
 				if(REGION!=null)
 					{
 					interval=IntervalUtils.parseOne(dict, REGION);
+					if(interval==null && REGION.startsWith("chr"))
+						interval=IntervalUtils.parseOne(dict, REGION.substring(3));
+					if(interval==null)
+						interval=IntervalUtils.parseOne(dict, "chr"+REGION);
 					if(interval==null)
 						{
-						System.err.println("Cannot parse "+REGION+" (bad syntax or not in dictionary");
+						System.err.println("Cannot parse "+REGION+" (bad syntax or not in dictionary)");
 						return -1;
 						}
 					}
@@ -373,8 +408,11 @@ public class CompareBams2  extends AbstractCommandLineProgram
 					{
 					SAMRecord rec=iter.next();
 					progress.watch(rec);
-					if(rec.isSecondaryOrSupplementary()) continue;
-					
+					if(rec.getReadUnmappedFlag())
+						{
+						if(rec.getMappingQuality() < this.min_mapq) continue;
+						if(rec.isSecondaryOrSupplementary()) continue;
+						}
 					Match m=new Match();
 					if(rec.getReadPairedFlag())
 						{
@@ -492,6 +530,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 				currReadName=nextMatch.readName;
 				curr_num_in_pair=nextMatch.num_in_pair;
 				matches.get(nextMatch.bamIndex).add(nextMatch);
+				if(System.out.checkError()) break;
 				}
 			
 			iter.close();

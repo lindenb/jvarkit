@@ -48,7 +48,10 @@ public class VepPredictionParser implements PredictionParser
 		CELL_TYPE,
 		RefSeq,
 		EXON,
-		STRAND
+		STRAND,
+		SYMBOL,
+		SYMBOL_SOURCE,
+		HGNC_ID
 		};
 	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
 	private Pattern pipe=Pattern.compile("[\\|]");
@@ -197,6 +200,30 @@ public class VepPredictionParser implements PredictionParser
 		public String getHGNC()
 			{
 			return getByCol(COLS.HGNC);
+			}
+		public String getHgncId()
+			{
+			return getByCol(COLS.HGNC_ID);
+			}
+		
+		public String getSymbol()
+			{
+			return getByCol(COLS.SYMBOL);
+			}
+		
+		public String getRefSeq()
+			{
+			return getByCol(COLS.RefSeq);
+			}
+		
+		public String getGene()
+			{
+			return getByCol(COLS.Gene);
+			}
+		
+		public String getSymbolSource()
+			{
+			return getByCol(COLS.SYMBOL_SOURCE);
 			}
 		
 		private Map<COLS,String> getMap()
