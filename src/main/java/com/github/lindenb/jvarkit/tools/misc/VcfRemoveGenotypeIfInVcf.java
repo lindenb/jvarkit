@@ -140,6 +140,7 @@ public class VcfRemoveGenotypeIfInVcf extends AbstractVCFFilter2 {
 					}
 				else
 					{
+					genotypes_reset_count++;
 					genotypes.remove(genotype_index);
 					}
 				}
@@ -168,7 +169,7 @@ public class VcfRemoveGenotypeIfInVcf extends AbstractVCFFilter2 {
 			++variant_changed;
 			}
 		info("Number of genotype set to ./. :"+genotypes_reset_count);
-		info("Number of variants without any genotype:"+genotypes_empty);
+		info("Number of variants without any ALT genotype:"+genotypes_empty);
 		info("Number of variants changed:"+variant_changed);
 		info("Number of variants unchanged:"+variant_unchanged);
 		}
