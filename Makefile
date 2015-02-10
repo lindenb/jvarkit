@@ -25,6 +25,7 @@ src.dir=${this.dir}src/main/java
 generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.version}
 dist.dir?=${this.dir}dist-${htsjdk.version}
+biostars.id=59647 86363 86480 84452 90204 94573 103303 106668
 
 ## http://stackoverflow.com/questions/9551416
 EMPTY :=
@@ -61,15 +62,25 @@ $(1)  : ${htsjdk.jars} \
 
 endef
 
+#
+# $1 :biostar post-id
+# $2: other deps
+#
+define compile_biostar_cmd
+$(call compile-htsjdk-cmd,biostar$(1),com.github.lindenb.jvarkit.tools.biostar.Biostar$(1),$(2))
+endef
+
 APPS=vcfresetvcf sam2tsv
 
-.PHONY: all $(APPS) clean
+.PHONY: all $(APPS) clean biostars
 
 all: $(APPS)
 
+biostars: $(foreach B, ${biostars.id} , biostar$(B) )
 
 $(eval $(call compile-htsjdk-cmd,sam2tsv,com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv,${src.dir}/com/github/lindenb/jvarkit/tools/sam2tsv/Sam2Tsv.java))
 $(eval $(call compile-htsjdk-cmd,vcfresetvcf,com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeIfInVcf))
+$(eval $(foreach B, ${biostars.id} , $(call compile_biostar_cmd,$B)))
 
 $(filter-out ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar  ,${htsjdk.jars}) : ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar 
 	touch --no-create $@
