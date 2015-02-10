@@ -2016,7 +2016,7 @@ or
 <target name="biostar103303"><compile-biostar-cmd post="103303"/></target>
 <target name="biostar105754"><compile-biostar-cmd post="105754"  libraryid="htsjdk.and.bigwig.jars"/></target>
 <target name="biostar106668"><compile-biostar-cmd post="106668"/></target>
-
+<target name="biostar130456"><compile-biostar-cmd post="130456"/></target>
 
 <target name="mapuniprot" depends="api.uniprot">
 	<compile-with-picard 

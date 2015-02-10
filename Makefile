@@ -25,7 +25,7 @@ src.dir=${this.dir}src/main/java
 generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.version}
 dist.dir?=${this.dir}dist-${htsjdk.version}
-biostars.id=59647 86363 86480 84452 90204 94573 103303 106668
+biostars.id=59647 86363 86480 84452 90204 94573 103303 106668 130456
 
 ## http://stackoverflow.com/questions/9551416
 EMPTY :=
