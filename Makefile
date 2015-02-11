@@ -24,6 +24,7 @@ htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,commons-jexl-2.1.1
 src.dir=${this.dir}src/main/java
 generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.version}
+tmp.mft=${tmp.dir}//META-INF/MANIFEST.MF
 dist.dir?=${this.dir}dist-${htsjdk.version}
 biostars.id=59647 86363 86480 84452 90204 94573 103303 106668 130456
 
@@ -44,15 +45,15 @@ $(1)  : ${htsjdk.jars} \
 	cp src/main/resources/messages/messages.properties ${tmp.dir}
 	${JAVAC} -d ${tmp.dir} -g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" -sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
 	#create META-INF/MANIFEST.MF
-	echo "Manifest-Version: 1.0" > ${tmp.dir}/META-INF/MANIFEST.MF
-	echo "Main-Class: $(2)" >> ${tmp.dir}/META-INF/MANIFEST.MF
-	echo "Class-Path: $$(filter %.jar,$$^) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.dir}/META-INF/MANIFEST.MF
-	echo -n "Git-Hash: " >> ${tmp.dir}/META-INF/MANIFEST.MF
-	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.dir}/META-INF/MANIFEST.MF 
-	echo -n "Compile-Date: " >> ${tmp.dir}/META-INF/MANIFEST.MF
-	date +%Y-%m-%d:%H-%m-%S >> ${tmp.dir}/META-INF/MANIFEST.MF
+	echo "Manifest-Version: 1.0" > ${tmp.mft}
+	echo "Main-Class: $(2)" >> ${tmp.mft}
+	echo "Class-Path: $$(filter %.jar,$$^) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
+	echo -n "Git-Hash: " >> ${tmp.mft}
+	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.mft} 
+	echo -n "Compile-Date: " >> ${tmp.mft}
+	date +%Y-%m-%d:%H-%m-%S >> ${tmp.mft}
 	#create jar
-	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.dir}/META-INF/MANIFEST.MF  -C ${tmp.dir} .
+	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
 	#create bash executable
 	echo '#!/bin/bash' > ${dist.dir}/$(1)
 	echo '${JAVA} -Xmx500m -cp "$$(subst $$(SPACE),:,$$(filter %.jar,$$^)):${dist.dir}/$(1).jar" $(2) $$*' > ${dist.dir}/$(1)
@@ -70,7 +71,7 @@ define compile_biostar_cmd
 $(call compile-htsjdk-cmd,biostar$(1),com.github.lindenb.jvarkit.tools.biostar.Biostar$(1),$(2))
 endef
 
-APPS=vcfresetvcf sam2tsv
+APPS=vcfresetvcf sam2tsv vcffilterjs
 
 .PHONY: all $(APPS) clean biostars
 
@@ -113,6 +114,52 @@ src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
 	${JAVA_HOME}/bin/xjc ${xjc.proxy} -d ${generated.dir}/java \
 		-p edu.washington.gs.evs \
 		"http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
+
+ifeq($(realpath /home/lindenb/package/knime_2.11.1/plugins/org.knime.core_2.11.1.0045704/knime-core.jar),)
+
+jvarkit.knime.version=1.0.0
+## Knime plugin for jvarkit:
+${dist.dir}/knime/eclipse.jvarkit-${jvarkit.knime.version}.jar : ${dist.dir}/knime/knime.htsjdk-${htsjdk.version}.jar 
+	mkdir -p ${tmp.dir}/META-INF $(dir $@)
+	echo "Manifest-Version: 1.0" > ${tmp.mft}
+	echo "Bundle-ManifestVersion: 2" >> ${tmp.mft}
+	echo "Bundle-Name:  jvarkit for knime" >> ${tmp.mft}
+	echo "Bundle-SymbolicName:  com.github.lindenb.jvarkit" >> ${tmp.mft}
+	echo "Bundle-Version:  ${jvarkit.knime.version}" >> ${tmp.mft}	
+	echo "Bundle-ClassPath: jvarkit.jar" >>  ${tmp.mft}	
+	echo "Bundle-Vendor: Pierre Lindenbaum" >>  ${tmp.mft}	
+	echo "BRequire-Bundle: org.eclipse.core.runtime," >>  ${tmp.mft}	
+	echo " org.knime.workbench.core," >>  ${tmp.mft}	
+	echo " org.knime.workbench.repository," >>  ${tmp.mft}	
+	echo " org.knime.base," >>  ${tmp.mft}	
+	echo " htsjdk.knime;bundle-version=\"${htsjdk.version}\"" >>  ${tmp.mft}	
+	echo "Bundle-ActivationPolicy: lazy" >>  ${tmp.mft}	
+	echo "Export-Package: com.github.lindenb.jvarkit.knime4bio" >>  ${tmp.mft}	
+	echo "Bundle-RequiredExecutionEnvironment: JavaSE-1.7" >>  ${tmp.mft}	
+	echo "<?xml version='1.0'>" > ${tmp.dir}/plugin.xml
+	
+
+## Knime plugin for htsjdk
+${dist.dir}/knime/knime.htsjdk-${htsjdk.version}.jar : ${htsjdk.jars}
+	mkdir -p ${tmp.dir} $(dir ${tmp.mft}) $(dir $@)
+	cp $(filter %.jar,$^) ${tmp.dir}
+	echo "Manifest-Version: 1.0" > ${tmp.mft}
+	echo "Bundle-ManifestVersion: 2" >> ${tmp.mft}
+	echo "Bundle-Name: htsjdk  for KNIME" >> ${tmp.mft}
+	echo "Bundle-SymbolicName: htsjdk.knime" >> ${tmp.mft}
+	echo "Bundle-Version: ${htsjdk.version}" >> ${tmp.mft}
+	echo -n "Bundle-ClassPath: " > ${tmp.dir}/package.list
+	echo "$(notdir $(filter %.jar,$^))" | tr " " "," >> ${tmp.dir}/package.list
+	cat ${tmp.dir}/package.list | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$0);}' >> ${tmp.mft}
+	echo -n "Export-Package: " > ${tmp.dir}/package.list
+	$(foreach J,$(filter %.jar,$^), jar tf ${J} | grep -v '-' | grep '/$$' | sed 's%/$$%%' | tr "/" "." >> ${tmp.dir}/package.list ; )
+	cat ${tmp.dir}/package.list | tr "\n" "," | sed 's/,$$//' | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$0);}' >> ${tmp.mft}
+	rm -f ${tmp.dir}/package.list
+	echo "Bundle-RequiredExecutionEnvironment: JavaSE-1.7" >> ${tmp.mft}
+	${JAR} cfvm $@ ${tmp.mft}  -C ${tmp.dir} .
+	rm -rf ${tmp.dir}
+
+endif
 
 clean:
 	rm -rf ${dist.dir}
