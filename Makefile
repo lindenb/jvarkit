@@ -71,16 +71,21 @@ define compile_biostar_cmd
 $(call compile-htsjdk-cmd,biostar$(1),com.github.lindenb.jvarkit.tools.biostar.Biostar$(1),$(2))
 endef
 
-APPS=vcfresetvcf sam2tsv vcffilterjs
+# 
+# All executables
+#
+biostars: $(foreach B, ${biostars.id} , biostar$(B) )
+APPS=vcfresetvcf sam2tsv vcffilterjs vcfgo biostars
 
-.PHONY: all $(APPS) clean biostars
+.PHONY: all $(APPS) clean 
 
 all: $(APPS)
 
-biostars: $(foreach B, ${biostars.id} , biostar$(B) )
 
 $(eval $(call compile-htsjdk-cmd,sam2tsv,com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv,${src.dir}/com/github/lindenb/jvarkit/tools/sam2tsv/Sam2Tsv.java))
 $(eval $(call compile-htsjdk-cmd,vcfresetvcf,com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeIfInVcf))
+$(eval $(call compile-htsjdk-cmd,vcfgo,com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology))
+
 $(eval $(foreach B, ${biostars.id} , $(call compile_biostar_cmd,$B)))
 
 $(filter-out ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar  ,${htsjdk.jars}) : ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar 
@@ -115,7 +120,7 @@ src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
 		-p edu.washington.gs.evs \
 		"http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
 
-ifeq($(realpath /home/lindenb/package/knime_2.11.1/plugins/org.knime.core_2.11.1.0045704/knime-core.jar),)
+ifeq ($(realpath /home/lindenb/package/knime_2.11.1/plugins/org.knime.core_2.11.1.0045704/knime-core.jar),)
 
 jvarkit.knime.version=1.0.0
 ## Knime plugin for jvarkit:

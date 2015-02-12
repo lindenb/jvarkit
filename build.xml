@@ -1104,7 +1104,7 @@ or
 	
 
 <target name="vcfgo">
-	<compile-with-picard 
+	<compile-picard-cmd 
 		java="**/VcfGeneOntology.java"
 		main="com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology"
 		name="vcfgo"
@@ -1113,11 +1113,7 @@ or
 
 
 <target name="vcffiltergo">
-	<compile-with-picard 
-		java="**/VcfFilterGo.java"
-		main="com.github.lindenb.jvarkit.tools.vcfgo.VcfFilterGo"
-		name="vcffiltergo"
-		/>
+	<fail>vcffiltergo deprecated: use vcfgo instead</fail>
 </target>	
 
 <target name="vcffilterdoid">
