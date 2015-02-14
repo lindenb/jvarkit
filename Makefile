@@ -166,6 +166,10 @@ ${dist.dir}/knime/knime.htsjdk-${htsjdk.version}.jar : ${htsjdk.jars}
 
 endif
 
+knime: ../xslt-sandbox/stylesheets/knime/knime2java.xsl src/knime/resources/model/plugin.xml
+	xsltproc --stringparam base.dir src/knime/generated-sources/java  $^
+
+
 clean:
 	rm -rf ${dist.dir}
 

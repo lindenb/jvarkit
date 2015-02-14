@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.bamstats04;
 
 import java.io.BufferedReader;
@@ -8,16 +36,19 @@ import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 
 public class BamStats04 extends AbstractCommandLineProgram
 	{
@@ -59,7 +90,7 @@ public class BamStats04 extends AbstractCommandLineProgram
 	protected int doWork()
 		{
 		BufferedReader bedIn=null;
-		SAMFileReader samReader = null;
+		SamReader samReader = null;
 		try
 			{
 			System.out.println("#chrom\tstart\tend\tlength\tmincov\tmaxcov\tmean\tnocoveragepb\tpercentcovered");
@@ -67,8 +98,9 @@ public class BamStats04 extends AbstractCommandLineProgram
 			Pattern tab=Pattern.compile("[\t]");
 			String tokens[];
 			bedIn=IOUtils.openFileForBufferedReading(BEDILE);
-			samReader = new SAMFileReader(IN);
-			samReader.setValidationStringency(super.VALIDATION_STRINGENCY);
+			
+			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(super.VALIDATION_STRINGENCY);
+			samReader = srf.open(IN);
 			String line=null;
 			while((line=bedIn.readLine())!=null)
 				{
@@ -101,8 +133,11 @@ public class BamStats04 extends AbstractCommandLineProgram
 						{
 						if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
 						}
+					if(rec.isSecondaryOrSupplementary()) continue;
 					if(!rec.getReferenceName().equals(chrom)) continue;
-					if(rec.getMappingQuality()==255 && rec.getMappingQuality()< this.MMQ)
+					if(rec.getMappingQuality()==255 ||
+						rec.getMappingQuality()==0 ||
+						rec.getMappingQuality()< this.MMQ)
 						{
 						continue;
 						}
@@ -111,39 +146,19 @@ public class BamStats04 extends AbstractCommandLineProgram
 		    		int refpos1=rec.getAlignmentStart();
 		    		for(CigarElement ce:cigar.getCigarElements())
 		    			{
-	    				switch(ce.getOperator())
-	    					{
-	    					case H:break;
-	    					case S:break;
-	    					case I:break;
-	    					case P:break;
-	    					case N:// reference skip
-	    					case D://deletion in reference
-	    						{
-		    					refpos1+=ce.getLength();
-	    						break;
-	    						}
-	    					case M:
-	    					case EQ:
-	    					case X:
-	    						{
-	    						for(int i=0;i< ce.getLength() && refpos1<= chromEnd1;++i)
-		    		    			{
-	    							if(refpos1>= chromStart1 && refpos1<=chromEnd1)
-	    								{
-	    								counts[refpos1-chromStart1]++;
-	    								}
-		    						refpos1++;
-	    		    				}
-	    						break;
-	    						}
-	    					default: throw new IllegalStateException(
-	    							"Doesn't know how to handle cigar operator:"+ce.getOperator()+
-	    							" cigar:"+cigar
-	    							);
-
-	    					}
-		    				
+		    			CigarOperator op=ce.getOperator();
+		    			if(!op.consumesReferenceBases()) continue;
+		    			if(op.consumesReadBases())
+		    				{
+		    				for(int i=0;i< ce.getLength();++i)
+	    		    			{
+								if(refpos1+i>= chromStart1 && refpos1+i<=chromEnd1)
+									{
+									counts[refpos1+i-chromStart1]++;
+									}
+			    				}
+		    				}
+		    			refpos1+=ce.getLength();
 		    			}
 					}
 				
@@ -179,8 +194,8 @@ public class BamStats04 extends AbstractCommandLineProgram
 		}
 	finally
 		{
-		if(bedIn!=null) try {bedIn.close();}catch(IOException err) {}
-		if(samReader!=null) samReader.close();
+		CloserUtil.close(bedIn);
+		CloserUtil.close(samReader);
 		}
 	}
 	
