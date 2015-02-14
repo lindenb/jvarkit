@@ -1,0 +1,37 @@
+<plugin package="com.github.lindenb.jvarkit.knime">
+
+ <category name="linux">
+	 <node name="head" extends="com.github.lindenb.jvarkit.knime.AbstractVCFNodeModel">
+	 	<property type="int" name="count">
+	 	</property>
+	 	<property type="string" name="name">
+	 	</property>
+	 	<property type="string" name="name2">
+	 		<enum>A</enum>
+	 		<enum>B</enum>
+	 		<enum>C</enum>
+	 	</property>
+	 	<property type="double" name="floating">
+	 	</property>
+	 	<property type="long" name="mylong">
+	 	</property>
+	 	<property type="bool" name="mybool">
+	 	</property>
+	 	<property type="column" name="mycol" port="input2">
+	 	</property>
+	 	<property type="file-read" name="myfilein" >
+	 	</property>
+	 	<property type="file-save" name="myfileout" >
+	 		<extension>vcf.gz</extension>
+	 	</property>
+	 	
+	 	<inPort name="input">
+	 	</inPort>
+	 	<inPort name="input2">
+	 	</inPort>
+	 	<outPort name="output">
+	 	</outPort>
+	 </node>
+ </category>
+
+</plugin>

@@ -77,7 +77,7 @@ endef
 biostars: $(foreach B, ${biostars.id} , biostar$(B) )
 APPS=vcfresetvcf sam2tsv vcffilterjs vcfgo biostars
 
-.PHONY: all $(APPS) clean 
+.PHONY: all $(APPS) clean knime
 
 all: $(APPS)
 
@@ -123,8 +123,24 @@ src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
 ifeq ($(realpath /home/lindenb/package/knime_2.11.1/plugins/org.knime.core_2.11.1.0045704/knime-core.jar),)
 
 jvarkit.knime.version=1.0.0
+
+K:${dist.dir}/knime/eclipse.jvarkit-${jvarkit.knime.version}.jar
+
+
+${dist.dir}/knime/eclipse.jvarkit-${jvarkit.knime.version}.jar :  ${htsjdk.jars} knime \
+		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.knime.core_2.10.2.0044326/knime-core.jar \
+		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.knime.core.util_4.5.1.0043792.jar \
+		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.eclipse.osgi_3.7.2.v20120110-1415.jar \
+		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.apache.xmlbeans_2.5.0.0042431/lib/xbean.jar \
+		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.eclipse.core.runtime_3.7.0.v20110110.jar
+	mkdir -p ${tmp.dir} $(dir $@)
+	javac -d ${tmp.dir} -cp  -g -classpath "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${src.dir}:${generated.dir}/java:src/knime/java:src/knime/generated-sources/java `find ./ -name "*NodePlugin.java" -o -name "*NodeFactory.java"`
+	${JAR} cf $@ -C ${tmp.dir} .
+	#cleanup
+	rm -rf ${tmp.dir}
+
 ## Knime plugin for jvarkit:
-${dist.dir}/knime/eclipse.jvarkit-${jvarkit.knime.version}.jar : ${dist.dir}/knime/knime.htsjdk-${htsjdk.version}.jar 
+${dist.dir}/knime/eclipse.jvarkit-${jvarkit.knime.version}_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.jar : ${dist.dir}/knime/knime.htsjdk-${htsjdk.version}.jar 
 	mkdir -p ${tmp.dir}/META-INF $(dir $@)
 	echo "Manifest-Version: 1.0" > ${tmp.mft}
 	echo "Bundle-ManifestVersion: 2" >> ${tmp.mft}
