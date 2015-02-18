@@ -5,6 +5,8 @@ SHELL=/bin/bash
 this.makefile=$(lastword $(MAKEFILE_LIST))
 this.dir=$(dir $(realpath ${this.makefile}))
 
+.PHONY=library
+
 #need local settings ? create a file 'local.mk' in this directory
 ifneq ($(realpath local.mk),)
 include $(realpath local.mk)
@@ -75,7 +77,7 @@ endef
 # All executables
 #
 biostars: $(foreach B, ${biostars.id} , biostar$(B) )
-APPS=vcfresetvcf sam2tsv vcffilterjs vcfgo biostars
+APPS=vcfresetvcf sam2tsv vcffilterjs vcfgo vcffilterso biostars
 
 .PHONY: all $(APPS) clean knime
 
@@ -85,8 +87,23 @@ all: $(APPS)
 $(eval $(call compile-htsjdk-cmd,sam2tsv,com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv,${src.dir}/com/github/lindenb/jvarkit/tools/sam2tsv/Sam2Tsv.java))
 $(eval $(call compile-htsjdk-cmd,vcfresetvcf,com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeIfInVcf))
 $(eval $(call compile-htsjdk-cmd,vcfgo,com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology))
+$(eval $(call compile-htsjdk-cmd,vcffilterso,com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology))
+
 
 $(eval $(foreach B, ${biostars.id} , $(call compile_biostar_cmd,$B)))
+
+## jvarkit-library (used in knime)
+library: ${dist.dir}/jvarkit-${htsjdk.version}.jar
+${dist.dir}/jvarkit-${htsjdk.version}.jar : ${htsjdk.jars} \
+		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
+		${src.dir}/com/github/lindenb/jvarkit/util/Library.java
+	mkdir -p ${tmp.dir}/META-INF $(dir $@)
+	cp src/main/resources/messages/messages.properties ${tmp.dir}
+	${JAVAC} -d ${tmp.dir} -g -classpath "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${src.dir}:${generated.dir}/java $(filter %.java,$^)
+	${JAR} cf $@ -C ${tmp.dir} .
+	rm -rf ${tmp.dir}
+
+
 
 $(filter-out ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar  ,${htsjdk.jars}) : ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar 
 	touch --no-create $@
@@ -120,70 +137,7 @@ src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
 		-p edu.washington.gs.evs \
 		"http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
 
-ifeq ($(realpath /home/lindenb/package/knime_2.11.1/plugins/org.knime.core_2.11.1.0045704/knime-core.jar),)
 
-jvarkit.knime.version=1.0.0
-
-K:${dist.dir}/knime/eclipse.jvarkit-${jvarkit.knime.version}.jar
-
-
-${dist.dir}/knime/eclipse.jvarkit-${jvarkit.knime.version}.jar :  ${htsjdk.jars} knime \
-		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.knime.core_2.10.2.0044326/knime-core.jar \
-		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.knime.core.util_4.5.1.0043792.jar \
-		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.eclipse.osgi_3.7.2.v20120110-1415.jar \
-		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.apache.xmlbeans_2.5.0.0042431/lib/xbean.jar \
-		/commun/data/packages/eclipse_knime_2.10.2/plugins/org.eclipse.core.runtime_3.7.0.v20110110.jar
-	mkdir -p ${tmp.dir} $(dir $@)
-	javac -d ${tmp.dir} -cp  -g -classpath "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${src.dir}:${generated.dir}/java:src/knime/java:src/knime/generated-sources/java `find ./ -name "*NodePlugin.java" -o -name "*NodeFactory.java"`
-	${JAR} cf $@ -C ${tmp.dir} .
-	#cleanup
-	rm -rf ${tmp.dir}
-
-## Knime plugin for jvarkit:
-${dist.dir}/knime/eclipse.jvarkit-${jvarkit.knime.version}_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.jar : ${dist.dir}/knime/knime.htsjdk-${htsjdk.version}.jar 
-	mkdir -p ${tmp.dir}/META-INF $(dir $@)
-	echo "Manifest-Version: 1.0" > ${tmp.mft}
-	echo "Bundle-ManifestVersion: 2" >> ${tmp.mft}
-	echo "Bundle-Name:  jvarkit for knime" >> ${tmp.mft}
-	echo "Bundle-SymbolicName:  com.github.lindenb.jvarkit" >> ${tmp.mft}
-	echo "Bundle-Version:  ${jvarkit.knime.version}" >> ${tmp.mft}	
-	echo "Bundle-ClassPath: jvarkit.jar" >>  ${tmp.mft}	
-	echo "Bundle-Vendor: Pierre Lindenbaum" >>  ${tmp.mft}	
-	echo "BRequire-Bundle: org.eclipse.core.runtime," >>  ${tmp.mft}	
-	echo " org.knime.workbench.core," >>  ${tmp.mft}	
-	echo " org.knime.workbench.repository," >>  ${tmp.mft}	
-	echo " org.knime.base," >>  ${tmp.mft}	
-	echo " htsjdk.knime;bundle-version=\"${htsjdk.version}\"" >>  ${tmp.mft}	
-	echo "Bundle-ActivationPolicy: lazy" >>  ${tmp.mft}	
-	echo "Export-Package: com.github.lindenb.jvarkit.knime4bio" >>  ${tmp.mft}	
-	echo "Bundle-RequiredExecutionEnvironment: JavaSE-1.7" >>  ${tmp.mft}	
-	echo "<?xml version='1.0'>" > ${tmp.dir}/plugin.xml
-	
-
-## Knime plugin for htsjdk
-${dist.dir}/knime/knime.htsjdk-${htsjdk.version}.jar : ${htsjdk.jars}
-	mkdir -p ${tmp.dir} $(dir ${tmp.mft}) $(dir $@)
-	cp $(filter %.jar,$^) ${tmp.dir}
-	echo "Manifest-Version: 1.0" > ${tmp.mft}
-	echo "Bundle-ManifestVersion: 2" >> ${tmp.mft}
-	echo "Bundle-Name: htsjdk  for KNIME" >> ${tmp.mft}
-	echo "Bundle-SymbolicName: htsjdk.knime" >> ${tmp.mft}
-	echo "Bundle-Version: ${htsjdk.version}" >> ${tmp.mft}
-	echo -n "Bundle-ClassPath: " > ${tmp.dir}/package.list
-	echo "$(notdir $(filter %.jar,$^))" | tr " " "," >> ${tmp.dir}/package.list
-	cat ${tmp.dir}/package.list | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$0);}' >> ${tmp.mft}
-	echo -n "Export-Package: " > ${tmp.dir}/package.list
-	$(foreach J,$(filter %.jar,$^), jar tf ${J} | grep -v '-' | grep '/$$' | sed 's%/$$%%' | tr "/" "." >> ${tmp.dir}/package.list ; )
-	cat ${tmp.dir}/package.list | tr "\n" "," | sed 's/,$$//' | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$0);}' >> ${tmp.mft}
-	rm -f ${tmp.dir}/package.list
-	echo "Bundle-RequiredExecutionEnvironment: JavaSE-1.7" >> ${tmp.mft}
-	${JAR} cfvm $@ ${tmp.mft}  -C ${tmp.dir} .
-	rm -rf ${tmp.dir}
-
-endif
-
-knime: ../xslt-sandbox/stylesheets/knime/knime2java.xsl src/knime/resources/model/plugin.xml
-	xsltproc --stringparam base.dir src/knime/generated-sources/java  $^
 
 
 clean:
