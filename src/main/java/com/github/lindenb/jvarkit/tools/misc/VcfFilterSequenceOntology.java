@@ -76,6 +76,8 @@ public class VcfFilterSequenceOntology
 	private final SequenceOntologyTree sequenceOntologyTree=SequenceOntologyTree.getInstance();
 	/** output file : stdout if null */
 	private File outputFile=null;
+	/** number of variants filterer */
+	private int countFilteredVariants=0;
 	
 	
 	/* public : knime needs this*/
@@ -142,13 +144,15 @@ public class VcfFilterSequenceOntology
 	
 	private void filterVcfIterator(VcfIterator in) throws IOException
 		{
+		this.countFilteredVariants=0;
 		VariantContextWriter out = null;
 		try {
 			VCFHeader header=in.getHeader();
-			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+			VCFHeader h2=new VCFHeader(header);
+			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
 
 			
 			if(getOutputFile()==null)
@@ -160,7 +164,7 @@ public class VcfFilterSequenceOntology
 				info("opening vcf writer to "+getOutputFile());
 				out = VCFUtils.createVariantContextWriter(getOutputFile());
 				}
-			out.writeHeader(header);
+			out.writeHeader(h2);
 
 			final VepPredictionParser vepParser=new VepPredictionParser(header);
 			final SnpEffPredictionParser snpEffparser=new SnpEffPredictionParser(header);
@@ -194,7 +198,11 @@ public class VcfFilterSequenceOntology
 						}
 					}
 				if(isInverseResult() ) keep=!keep;
-				if(keep) out.add(ctx);
+				if(keep)
+					{
+					this.countFilteredVariants++;
+					out.add(ctx);
+					}
 				}
 			progress.finish();
 			}
@@ -203,6 +211,12 @@ public class VcfFilterSequenceOntology
 			CloserUtil.close(out);
 			out=null;
 			}
+		}
+	
+	/** return the number of variant kept during last invocation of this program */
+	public int geVariantCount()
+		{
+		return countFilteredVariants;
 		}
 	
 	
