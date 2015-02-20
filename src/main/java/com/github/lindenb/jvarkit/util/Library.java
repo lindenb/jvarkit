@@ -5,6 +5,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS;
 import com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology;
+import com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -28,7 +29,8 @@ private Library()
 			VcfGeneOntology.class,
 			VcfFilterSequenceOntology.class,
 			VcfHead.class,
-			VcfTail.class
+			VcfTail.class,
+			VCFMerge2.class
 			};
 	}
 }

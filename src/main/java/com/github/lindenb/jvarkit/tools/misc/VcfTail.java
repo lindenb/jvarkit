@@ -114,7 +114,7 @@ public class VcfTail
 		
 		}
 
-	public int geVariantCount()
+	public int getVariantCount()
 		{
 		return this.countFilteredVariants;
 		}

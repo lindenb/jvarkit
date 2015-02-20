@@ -111,7 +111,7 @@ public class VcfHead
 		
 		}
 
-	public int geVariantCount()
+	public int getVariantCount()
 		{
 		return this.countFilteredVariants;
 		}

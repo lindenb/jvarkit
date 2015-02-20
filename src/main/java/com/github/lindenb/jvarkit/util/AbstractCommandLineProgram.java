@@ -431,7 +431,8 @@ public abstract class AbstractCommandLineProgram
 		return this.tmpDirs==null?0:this.tmpDirs.size();
 		}
 	
-	protected void addTmpDirectory(File dirOrFile)
+	/** moved to tmp directory for knime compatibility */
+	public void addTmpDirectory(File dirOrFile)
 		{
 		if(dirOrFile==null) return;
 		if(dirOrFile.isFile())

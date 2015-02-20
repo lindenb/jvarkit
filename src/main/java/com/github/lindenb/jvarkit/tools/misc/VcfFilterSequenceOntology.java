@@ -173,12 +173,9 @@ public class VcfFilterSequenceOntology
 			while(in.hasNext() )
 				{	
 				this.checkKnimeCancelled();
-				VariantContext ctx=in.next();
+				VariantContext ctx=progress.watch(in.next());
 				boolean keep=false;
-				
-				
-				progress.watch(ctx.getChr(), ctx.getStart());
-				
+								
 				for(SnpEffPredictionParser.SnpEffPrediction pred:snpEffparser.getPredictions(ctx))
 					{
 					if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
@@ -214,7 +211,7 @@ public class VcfFilterSequenceOntology
 		}
 	
 	/** return the number of variant kept during last invocation of this program */
-	public int geVariantCount()
+	public int getVariantCount()
 		{
 		return countFilteredVariants;
 		}

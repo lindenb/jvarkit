@@ -98,7 +98,7 @@ public class VCFFilterJS
 		}
 	
 	/** for knime, return the number of variants kept after execute*/ 
-	public int geVariantCount()
+	public int getVariantCount()
 		{
 		return this.countFilteredVariants;
 		}
