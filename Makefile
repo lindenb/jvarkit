@@ -90,6 +90,7 @@ $(eval $(call compile-htsjdk-cmd,vcfhead,com.github.lindenb.jvarkit.tools.misc.V
 $(eval $(call compile-htsjdk-cmd,vcftail,com.github.lindenb.jvarkit.tools.misc.VcfTail))
 $(eval $(call compile-htsjdk-cmd,vcfgo,com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology))
 $(eval $(call compile-htsjdk-cmd,vcffilterso,com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology))
+$(eval $(call compile-htsjdk-cmd,vcffilterjs,com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS))
 
 
 $(eval $(foreach B, ${biostars.id} , $(call compile_biostar_cmd,$B)))
