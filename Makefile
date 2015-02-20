@@ -77,7 +77,7 @@ endef
 # All executables
 #
 biostars: $(foreach B, ${biostars.id} , biostar$(B) )
-APPS=vcfresetvcf sam2tsv vcffilterjs vcfgo vcffilterso biostars
+APPS=vcfresetvcf sam2tsv vcffilterjs vcfgo vcffilterso biostars vcfhead vcftail
 
 .PHONY: all $(APPS) clean knime
 
@@ -86,6 +86,8 @@ all: $(APPS)
 
 $(eval $(call compile-htsjdk-cmd,sam2tsv,com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv,${src.dir}/com/github/lindenb/jvarkit/tools/sam2tsv/Sam2Tsv.java))
 $(eval $(call compile-htsjdk-cmd,vcfresetvcf,com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeIfInVcf))
+$(eval $(call compile-htsjdk-cmd,vcfhead,com.github.lindenb.jvarkit.tools.misc.VcfHead))
+$(eval $(call compile-htsjdk-cmd,vcftail,com.github.lindenb.jvarkit.tools.misc.VcfTail))
 $(eval $(call compile-htsjdk-cmd,vcfgo,com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology))
 $(eval $(call compile-htsjdk-cmd,vcffilterso,com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology))
 

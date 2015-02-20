@@ -1,11 +1,40 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+* 2015: watch return SAMRecord and VariantContext
+
+*/
 package com.github.lindenb.jvarkit.util.picard;
 
 import java.util.logging.Logger;
 
-
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.variant.variantcontext.VariantContext;
 
 public class SAMSequenceDictionaryProgress
 	{
@@ -217,11 +246,22 @@ public class SAMSequenceDictionaryProgress
 		this.print_every_n_seconds = print_every_n_seconds;
 		}
 	
-	
-	public void watch(final SAMRecord rec)
+	public VariantContext watch(final VariantContext ctx)
 		{
-		if(rec==null) return;
-		watch(rec.getReferenceIndex(),rec.getAlignmentStart());
+		if(ctx!=null)
+			{
+			watch(ctx.getChr(),ctx.getStart());
+			}
+		return ctx;
+		}
+	
+	public SAMRecord watch(final SAMRecord rec)
+		{
+		if(rec!=null)
+			{
+			watch(rec.getReferenceIndex(),rec.getAlignmentStart());
+			}
+		return rec;
 		}
 	
 	private boolean incr()

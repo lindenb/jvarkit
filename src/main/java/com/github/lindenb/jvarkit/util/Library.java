@@ -1,6 +1,8 @@
 package com.github.lindenb.jvarkit.util;
 
 import com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology;
+import com.github.lindenb.jvarkit.tools.misc.VcfHead;
+import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS;
 import com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -24,7 +26,9 @@ private Library()
 			SnpEffPredictionParser.class,
 			VCFFilterJS.class,
 			VcfGeneOntology.class,
-			VcfFilterSequenceOntology.class
+			VcfFilterSequenceOntology.class,
+			VcfHead.class,
+			VcfTail.class
 			};
 	}
 }
