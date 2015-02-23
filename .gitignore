@@ -4,7 +4,7 @@ jeter*
 .classpath
 .project
 ./bin
-dist
+dist*
 src/main/java/com/github/lindenb/jvarkit/tools/ws/server/Bam.java
 src/main/java/com/github/lindenb/jvarkit/tools/ws/server/BamHeader.java
 src/main/java/com/github/lindenb/jvarkit/tools/ws/server/BamRecord.java
@@ -16,3 +16,5 @@ src/main/java/com/github/lindenb/jvarkit/tools/ws/server/package-info.java
 src/main/generated-sources/
 src/knime/generated-sources/
 bin
+lib
+htsjdk*

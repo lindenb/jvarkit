@@ -35,6 +35,8 @@ mysql.jar?=lib/mysql-connector-java-${mysql.version}-bin.jar
 berkeleydb.version?=6.2.31
 berkeleydb.jar?=lib/je-${berkeleydb.version}.jar
 bigwig.jar?=lib/BigWig.jar
+common.math.version?=3.4.1
+common.math.jar?=lib/commons-math3-${common.math.version}.jar
 
 
 ## http://stackoverflow.com/questions/9551416
@@ -49,7 +51,8 @@ define compile-htsjdk-cmd
 
 $(1)  : ${htsjdk.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
-		$(if $(3),$(3), $(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) )
+		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
+		$(3)
 	echo "### COMPILING $(1) ######"
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir}
 	cp src/main/resources/messages/messages.properties ${tmp.dir}
@@ -57,7 +60,7 @@ $(1)  : ${htsjdk.jars} \
 	#create META-INF/MANIFEST.MF
 	echo "Manifest-Version: 1.0" > ${tmp.mft}
 	echo "Main-Class: $(2)" >> ${tmp.mft}
-	echo "Class-Path: $$(filter %.jar,$$^) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
+	echo "Class-Path: $$(realpath $$(filter %.jar,$$^)) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
 	echo -n "Git-Hash: " >> ${tmp.mft}
 	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.mft} 
 	echo -n "Compile-Date: " >> ${tmp.mft}
@@ -66,7 +69,7 @@ $(1)  : ${htsjdk.jars} \
 	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
 	#create bash executable
 	echo '#!/bin/bash' > ${dist.dir}/$(1)
-	echo '${JAVA} -Xmx500m -cp "$$(subst $$(SPACE),:,$$(filter %.jar,$$^)):${dist.dir}/$(1).jar" $(2) $$*' > ${dist.dir}/$(1)
+	echo '${JAVA} -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$*' > ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	#cleanup
 	rm -rf ${tmp.dir}
@@ -128,26 +131,18 @@ APPS= 		addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	
 all: $(APPS)
 
 
-
-ifneq ($(realpath ${bigwig.jar}),)
+#bigwig
 $(eval $(call compile-htsjdk-cmd,vcfbigwig,		com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig,${bigwig.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfensemblreg,	com.github.lindenb.jvarkit.tools.ensemblreg.VcfEnsemblReg,${bigwig.jar}))
 $(eval $(call compile_biostar_cmd,105754,${bigwig.jar}))
-endif
-
-ifneq ($(realpath ${common.math.jar}),)
+# common math
 $(eval $(call compile-htsjdk-cmd,cnv01,com.github.lindenb.jvarkit.tools.redon.CopyNumber01,${common.math.jar}))
-endif
-
-ifneq ($(realpath ${berkeleydb.jar}),)
+#berkeley
 $(eval $(call compile-htsjdk-cmd,vcfphylotree,com.github.lindenb.jvarkit.tools.phylo.VcfPhyloTree,${berkeleydb.jar}))
 $(eval $(call compile-htsjdk-cmd,ngsfilesscanner,com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesScanner,${berkeleydb.jar}))
 $(eval $(call compile-htsjdk-cmd,92368,${berkeleydb.jar}))
-endif
-
-ifneq ($(realpath ${mysql.jar}),)
+#mysql
 $(eval $(call compile-htsjdk-cmd,vcfucsc,com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcsc,${mysql.jar}))
-endif
 
 $(eval $(call compile-htsjdk-cmd,addlinearindextobed,com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed))
 $(eval $(call compile-htsjdk-cmd,allelefreqcalc,com.github.lindenb.jvarkit.tools.misc.AlleleFrequencyCalculator))
@@ -429,7 +424,17 @@ ${bigwig.jar} :
 	(cd bigwig-read-only; ant)
 	mv bigwig-read-only/dist/BigWig.jar $@
 	rm -rf bigwig-read-only 
-	
+
+
+
+
+${common.math.jar} :
+	echo "Downloading common math"
+	mkdir -p $(dir $@)
+	curl -Lk ${curl.proxy} -o jeter.tar.gz "http://www.us.apache.org/dist/commons/math/binaries/commons-math3-${common.math.version}-bin.tar.gz"	
+	tar xvfz  jeter.tar.gz  --strip-components=1 "commons-math3-${common.math.version}/commons-math3-${common.math.version}.jar"
+	mv commons-math3-${common.math.version}.jar $@
+	rm jeter.tar.gz
 
 ##
 ## make sure jars from htslib exist
