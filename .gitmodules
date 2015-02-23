@@ -1,3 +1,0 @@
-[submodule "htsjdk"]
-	path = htsjdk
-	url = https://github.com/samtools/htsjdk.git

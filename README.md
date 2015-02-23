@@ -1,7 +1,9 @@
 JVARKIT
 =======
 
-Java utilities for Next Generation Sequencing
+Java utilities for Bioinformatics
+
+## Author
 
 Pierre Lindenbaum PhD
 
@@ -11,12 +13,11 @@ http://plindenbaum.blogspot.com
 
 ## Announce
 
-**Important**: June 2014 : I've moved the whole code from **picard** to **htsjdk** .  See [[Htsjdk]].
-
+**Important** : Feb. 2015 : Bye bye compilation with Apache ANT, I've moved to __GNU Make__ .  See [Compilation](https://github.com/lindenb/jvarkit/wiki/Compilation).
 
 ## Download and install
 
-see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
+See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 
 ##Tools
 
@@ -162,4 +163,5 @@ see [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRemoveGenotypeIfInVcf">VcfRemoveGenotypeIfInVcf</a></th><td>Reset Genotypes in VCF if they've been found in another VCF indexed with tabix</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar130456">Biostar130456</a></th><td>Generate one VCF file for each sample from a multi-samples VCF</td></tr>
 </table>
+
 
