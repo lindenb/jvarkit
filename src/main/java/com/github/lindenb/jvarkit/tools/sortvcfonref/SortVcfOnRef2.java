@@ -35,6 +35,7 @@ import htsjdk.samtools.util.SortingCollection;
  * Sort a VCF on the REFERENCE
  *
  */
+@Deprecated /** use picard */
 public class SortVcfOnRef2 extends AbstractCommandLineProgram
 	{
     private SAMSequenceDictionary dict=null;

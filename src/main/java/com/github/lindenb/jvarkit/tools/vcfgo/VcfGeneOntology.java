@@ -40,6 +40,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -53,6 +54,7 @@ import java.util.regex.Pattern;
 import javax.xml.stream.XMLStreamException;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.knime.KnimeApplication;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.go.GoTree;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
@@ -64,16 +66,31 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.Sn
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
-
-public class VcfGeneOntology extends AbstractCommandLineProgram
+/**
+ * 
+ * VcfGeneOntology
+ *
+ */
+public class VcfGeneOntology
+	extends AbstractCommandLineProgram
+	implements KnimeApplication
 	{
+	private File fileOut=null;
+	private int countVariants=0;
 	private String GO="http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz";
 	private String GOA="http://cvsweb.geneontology.org/cgi-bin/cvsweb.cgi/go/gene-associations/gene_association.goa_human.gz?rev=HEAD";
 	private GoTree goTree=null;
 	private Map<String,Set<GoTree.Term>> name2go=null;
+	private String TAG="GOA";
+	private Set<String> strGoTermToFilter=new HashSet<String>();
+	private String filterName=null;
+	private boolean inverse_filter=false;
+	private boolean removeIfNoGo=false;
+	private Set<GoTree.Term> goTermToFilter=null;
 
 
-	private VcfGeneOntology()
+	/** moved to public for knime */
+	public VcfGeneOntology()
 		{
 		
 		}
@@ -90,6 +107,36 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
     	return "Find the GO terms for VCF annotated with SNPEFF or VEP. ";
     	}
 
+    public void setGeneOntologyUrl(String gO) {
+		this.GO = gO;
+		}
+    
+    public void setGeneOntologyAnnotationUrl(String gOA)
+    	{
+    	this.GOA = gOA;
+		}
+    
+    public int getVariantCount()
+    	{
+		return countVariants;
+		}
+    
+    public void setInfoTag(String tAG) {
+		this.TAG = tAG;
+		}
+    
+    public void setRemoveIfNoGo(boolean removeIfNoGo) {
+		this.removeIfNoGo = removeIfNoGo;
+		}
+    
+    public void setInverseFilter(boolean inverse_filter) {
+		this.inverse_filter = inverse_filter;
+		}
+    
+    public void setFilterName(String filterName)
+    	{
+		this.filterName = filterName;
+		}
     
 	private void readGO() throws IOException
 		{
@@ -119,7 +166,7 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
 			String tokens[]=tab.split(line,6);
 			if(tokens.length<6) continue;
 			
-			GoTree.Term term=goTree.getTermByAccession(tokens[4]);
+			GoTree.Term term= this.goTree.getTermByAccession(tokens[4]);
 			if(term==null)
 				{
 				
@@ -127,19 +174,112 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
 				}
 			
 			
-			Set<GoTree.Term> set=name2go.get(tokens[2]);
+			Set<GoTree.Term> set= this.name2go.get(tokens[2]);
 			if(set==null)
 				{
 				set=new HashSet<GoTree.Term>();
-				name2go.put(tokens[2],set);
+				this.name2go.put(tokens[2],set);
 				}
 			set.add(term);
 			}
 		in.close();
-		this.info("GOA size:"+name2go.size());
+		this.info("GOA size:"+this.name2go.size());
 		}
-	private String TAG="GOA";
-	    
+	
+	
+	
+	
+	
+	
+	@Override
+	public int initializeKnime()
+		{
+		try
+			{
+			readGO();
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		
+		try
+			{
+			readGOA();
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		
+		
+		if(!this.strGoTermToFilter.isEmpty())
+			{
+			goTermToFilter=new HashSet<GoTree.Term>(strGoTermToFilter.size());
+			for(String acn: this.strGoTermToFilter)
+				{
+				GoTree.Term t=this.goTree.getTermByAccession(acn);
+				if(t==null)
+					{
+					error("Cannot find GO acn "+acn);
+					return -1;
+					}
+				goTermToFilter.add(t);
+				}
+			}
+		return 0;
+		}
+
+	@Override
+	public int executeKnime(List<String> args)
+		{
+		VcfIterator vcfIn=null;
+		try
+			{
+			if(args.isEmpty())
+				{
+				vcfIn = VCFUtils.createVcfIteratorStdin();
+				}
+			else if(args.size()==1)
+				{
+				vcfIn= VCFUtils.createVcfIterator(args.get(0));
+				}
+			else
+				{
+				error(getMessageBundle("illegal.number.of.arguments"));
+				return -1;
+				}
+			this.filterVcfIterator(vcfIn);
+			return 0;
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(vcfIn);
+			}
+		}
+
+	@Override
+	public void disposeKnime() {
+		
+	}
+
+	@Override
+	public void checkKnimeCancelled() {
+		
+	}
+
+	@Override
+	public void setOutputFile(File fileOut) {
+		this.fileOut=fileOut;
+	}
+	
     @Override
     public void printOptions(PrintStream out)
     	{
@@ -152,83 +292,12 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
 		out.println("-F (filter) if -C is used, don't remove the variant but set the filter");	
     	super.printOptions(out);
     	}
-
-		
-	@Override
-	public int doWork(String[] args)
+    
+	private void filterVcfIterator(VcfIterator in) throws IOException
 		{
-		String filterName=null;
-		boolean inverse_filter=false;
-		boolean removeIfNoGo=false;
-		Set<String> strGoTermToFilter=new HashSet<String>();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"A:G:rT:C:vF:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'T':this.TAG=opt.getOptArg();break;
-				case 'A':this.GOA=opt.getOptArg();break;
-				case 'G':this.GO=opt.getOptArg();break;
-				case 'r':removeIfNoGo=true;break;
-				case 'C':strGoTermToFilter.add(opt.getOptArg());break;
-				case 'v': inverse_filter=true;break;
-				case 'F':filterName=opt.getOptArg();break;
-
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		
-		
-		VariantContextWriter w=null;
-		VcfIterator in=null;
-		try
-			{
-			readGO();
-			readGOA();
-			
-			Set<GoTree.Term> goTermToFilter=null;
-			if(!strGoTermToFilter.isEmpty())
-				{
-				goTermToFilter=new HashSet<GoTree.Term>(strGoTermToFilter.size());
-				for(String acn: strGoTermToFilter)
-					{
-					GoTree.Term t=this.goTree.getTermByAccession(acn);
-					if(t==null)
-						{
-						error("Cannot find GO acn "+acn);
-						return -1;
-						}
-					goTermToFilter.add(t);
-					}
-				}
-			
-			if(opt.getOptInd()==args.length)
-				{
-				info("reading from stdin.");
-				in= VCFUtils.createVcfIteratorStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				info("reading from "+filename);
-				in= VCFUtils.createVcfIterator(filename);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			w=VCFUtils.createVariantContextWriterToStdout();
+		this.countVariants=0;
+		VariantContextWriter w = null;
+		try {
 			VCFHeader header=in.getHeader();
 			VCFHeader h2=new VCFHeader(header);
 			h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"GO terms from GO "+GO+" and GOA="+GOA));
@@ -244,6 +313,16 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
 						));
 				}
 			
+			if(this.fileOut==null)
+				{
+				w = VCFUtils.createVariantContextWriterToStdout();
+				}
+			else
+				{
+				info("opening vcf writer to "+this.fileOut);
+				w = VCFUtils.createVariantContextWriter(this.fileOut);
+				}
+
 			w.writeHeader(h2);
 			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			SnpEffPredictionParser snpEffPredictionParser= new SnpEffPredictionParser(header);
@@ -252,8 +331,8 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
 			while(in.hasNext())
 				{
 				if(System.out.checkError()) break;
-				VariantContext ctx=in.next();
-				progess.watch(ctx.getChr(),ctx.getStart());
+				VariantContext ctx=progess.watch(in.next());
+				
 				/* symbols for this variant */
 				Set<String> symbols=new HashSet<String>();
 				
@@ -305,9 +384,9 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
 					for(GoTree.Term gt:t2)
 						{
 						/* user gave terms to filter */
-						if(!found_child_of_filter && goTermToFilter!=null)
+						if(!found_child_of_filter && this.goTermToFilter!=null)
 							{
-							for(GoTree.Term userTerm :goTermToFilter)
+							for(GoTree.Term userTerm : this.goTermToFilter)
 								{
 								if(userTerm.hasDescendant(gt.getAcn()))
 									{
@@ -328,6 +407,7 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
 					{
 					if(!removeIfNoGo)
 							{
+							this.countVariants++;
 							w.add(ctx);
 							}
 					continue;
@@ -336,21 +416,18 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
 				
 				VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 				
-				
-				
-				
 				/* check children of user's terms */
-				if(goTermToFilter!=null)
+				if(this.goTermToFilter!=null)
 					{
 					/* keep if found children*/
-					if( ( inverse_filter && found_child_of_filter)||
-						(!inverse_filter && !found_child_of_filter))
+					if( ( this.inverse_filter && found_child_of_filter)||
+						(!this.inverse_filter && !found_child_of_filter))
 						{
 						/* don't remove, but set filter */
-						if(filterName!=null)
+						if(this.filterName!=null)
 							{
 							Set<String> filters=new HashSet<String>(ctx.getFilters());
-							filters.add(filterName);
+							filters.add(this.filterName);
 							vcb.filters(filters);
 							}
 						else
@@ -361,29 +438,72 @@ public class VcfGeneOntology extends AbstractCommandLineProgram
 					}
 				
 				/* add go terms */
-				vcb.attribute(TAG, atts);
-				
+				vcb.attribute(this.TAG, atts);
 				w.add(vcb.make());
+				this.countVariants++;
 				}
 			progess.finish();
 			w.close();
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
+			w=null;
 			}
 		finally
 			{
 			CloserUtil.close(w);
-			CloserUtil.close(in);
+			w=null;
 			}
 		}
+
+	public void addGoTerm(String term)
+		{
+		this.strGoTermToFilter.add(term);
+		}
+		
+	@Override
+	public int doWork(String[] args)
+			{
+			com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+			int c;
+			while((c=opt.getopt(args,getGetOptDefault()+"A:G:rT:C:vF:"))!=-1)
+				{
+				switch(c)
+					{
+					case 'T': this.setInfoTag(opt.getOptArg());break;
+					case 'A': this.setGeneOntologyAnnotationUrl(opt.getOptArg());break;
+					case 'G': this.setGeneOntologyUrl(opt.getOptArg());break;
+					case 'r': this.setRemoveIfNoGo(true);break;
+					case 'C': this.addGoTerm(opt.getOptArg());break;
+					case 'v': this.setInverseFilter(true);break;
+					case 'F': this.setFilterName(opt.getOptArg());break;
+					default:
+						{
+						switch(handleOtherOptions(c, opt, args))
+							{
+							case EXIT_FAILURE: return -1;
+							case EXIT_SUCCESS: return 0;
+							default:break;
+							}
+						}
+					}
+				}
+			
+			
+			if(this.initializeKnime()!=0)
+				{
+				return -1;
+				}
+			List<String> L=new ArrayList<String>();
+			for(int i=opt.getOptInd();i<args.length;++i)
+				{
+				L.add(args[i]);
+				}
+			return this.executeKnime(L);
+			}
 	
 		
 		public static void main(String[] args)
 			{
 			new VcfGeneOntology().instanceMainWithExit(args);
 			}
+
+
 		}
