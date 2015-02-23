@@ -413,7 +413,7 @@ ${mysql.jar} :
 ## 
 ${berkeleydb.jar}:
 	echo "Downloading berkeleydb for java version ${berkeleydb.version} from oracle"
-	mkdir -p $($@)
+	mkdir -p $(dir $@)
 	curl -Lk ${curl.proxy} -o $@ "http://download.oracle.com/maven/com/sleepycat/je/${berkeleydb.version}/je-${berkeleydb.version}.jar"
 
 ${bigwig.jar} :
