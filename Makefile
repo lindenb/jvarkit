@@ -5,7 +5,6 @@ SHELL=/bin/bash
 this.makefile=$(lastword $(MAKEFILE_LIST))
 this.dir=$(dir $(realpath ${this.makefile}))
 
-.PHONY=library
 
 #need local settings ? create a file 'local.mk' in this directory
 ifneq ($(realpath local.mk),)
@@ -17,9 +16,9 @@ curl.proxy=$(if ${http.proxy.host}${http.proxy.port},-x "${http.proxy.host}:${ht
 xjc.proxy=$(if ${http.proxy.host}${http.proxy.port}, -httpproxy "${http.proxy.host}:${http.proxy.port}" ,)
 
 ANT?=ant
-JAVAC?=${JAVA_HOME}/bin/javac
-JAVA?=${JAVA_HOME}/bin/java
-JAR?=${JAVA_HOME}/bin/jar
+JAVAC?=javac
+JAVA?=java
+JAR?=jar
 htsjdk.version?=1.128
 htsjdk.home?=${this.dir}htsjdk-${htsjdk.version}
 htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} snappy-java-1.0.3-rc3))
@@ -77,9 +76,11 @@ endef
 # All executables
 #
 biostars: $(foreach B, ${biostars.id} , biostar$(B) )
-APPS=vcfresetvcf sam2tsv vcffilterjs vcfgo vcffilterso biostars vcfhead vcftail vcfmerge
+APPS=vcfresetvcf sam2tsv vcffilterjs vcfgo vcffilterso biostars vcfhead vcftail vcfmerge vcffixindels \
+	vcfstripannot samjs fastqjs splitbam cmpbams cmpbamsandbuild sam4weblogo bam2raster bam2svg \
+	$(if $(realpath ${bigwig.jar}),vcfbigwig )
 
-.PHONY: all $(APPS) clean knime
+.PHONY: all $(APPS) clean library
 
 all: $(APPS)
 
@@ -92,6 +93,22 @@ $(eval $(call compile-htsjdk-cmd,vcfgo,			com.github.lindenb.jvarkit.tools.vcfgo
 $(eval $(call compile-htsjdk-cmd,vcffilterso,	com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology))
 $(eval $(call compile-htsjdk-cmd,vcffilterjs,	com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS))
 $(eval $(call compile-htsjdk-cmd,vcfmerge,		com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2))
+$(eval $(call compile-htsjdk-cmd,vcffixindels,	com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels))
+
+ifneq ($(realpath ${bigwig.jar}),)
+$(eval $(call compile-htsjdk-cmd,vcfbigwig,		com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig,${bigwig.jar}))
+endif
+
+$(eval $(call compile-htsjdk-cmd,vcfstripannot,	com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations))
+$(eval $(call compile-htsjdk-cmd,samjs,			com.github.lindenb.jvarkit.tools.samjs.SamJavascript))
+$(eval $(call compile-htsjdk-cmd,fastqjs,		com.github.lindenb.jvarkit.tools.fastq.FastqJavascript))
+$(eval $(call compile-htsjdk-cmd,splitbam,		com.github.lindenb.jvarkit.tools.splitbam.SplitBam2))
+$(eval $(call compile-htsjdk-cmd,cmpbams,		com.github.lindenb.jvarkit.tools.cmpbams.CompareBams2))
+$(eval $(call compile-htsjdk-cmd,cmpbamsandbuild,com.github.lindenb.jvarkit.tools.cmpbams.CompareBamAndBuild))
+$(eval $(call compile-htsjdk-cmd,sam4weblogo,	com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo))
+$(eval $(call compile-htsjdk-cmd,bam2raster,	com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster))
+$(eval $(call compile-htsjdk-cmd,bam2svg,		com.github.lindenb.jvarkit.tools.bam2svg.BamToSVG))
+
 
 $(eval $(foreach B, ${biostars.id} , $(call compile_biostar_cmd,$B)))
 
