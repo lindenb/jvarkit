@@ -131,7 +131,10 @@ APPS= 		addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	
 	vcftabixml	vcftail	vcftreepack	vcftrio	vcfvcf	vcfviewgui	worldmapgenome \
 
 
-.PHONY: all $(APPS) clean library
+.PHONY: all $(APPS) clean library top
+
+top:
+	@echo "This  is the top target. Run 'make your-target' to build the target. Run 'make all' if you're Pierre Lindenbaum" 
 
 all: $(APPS)
 
