@@ -60,7 +60,15 @@ $(1)  : ${htsjdk.jars} \
 		$(3)
 	echo "### COMPILING $(1) ######"
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir}
-	cp src/main/resources/messages/messages.properties ${tmp.dir}
+	#create doc
+	-xsltproc --output ${tmp.dir}/META-INF/galaxy.xml \
+		--stringparam name "$(1)" \
+		--stringparam class "$(2)" \
+		--stringparam version $$(if $$(realpath .git/refs/heads/master), `cat  $$(realpath .git/refs/heads/master) `, "undefined") \
+		${this.dir}src/main/resources/xsl/tools2galaxy.xsl ${this.dir}src/main/resources/xml/tools.xml || echo "XSLT failed (ignored)"
+	#copy resource
+	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
+	#compile
 	${JAVAC} -d ${tmp.dir} -g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" -sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
 	#create META-INF/MANIFEST.MF
 	echo "Manifest-Version: 1.0" > ${tmp.mft}
@@ -134,7 +142,7 @@ APPS= 		addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	
 .PHONY: all $(APPS) clean library top
 
 top:
-	@echo "This  is the top target. Run 'make your-target' to build the target. Run 'make all' if you're Pierre Lindenbaum" 
+	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
 
 all: $(APPS)
 

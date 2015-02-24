@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.util;
 
 
 
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,8 +55,11 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import htsjdk.samtools.util.CloserUtil;
+
 
 public abstract class AbstractCommandLineProgram
 	{
@@ -338,10 +342,6 @@ public abstract class AbstractCommandLineProgram
 	/* changed to public after I got that error: http://stackoverflow.com/questions/15722184 */
 	public enum GetOptStatus {OK,EXIT_FAILURE,EXIT_SUCCESS};
 	
-	private boolean isGalaxyTool()
-		{
-		return true;
-		}
 
 	public void printOptions(PrintStream out)
 		{
@@ -400,7 +400,7 @@ public abstract class AbstractCommandLineProgram
 					{
 					try
 						{
-						getGalaxyToolDefinitionMaker().print(System.out);
+						printGalaxyTool();
 						return GetOptStatus.EXIT_SUCCESS;
 						}
 					catch(Exception err)
@@ -514,223 +514,79 @@ public abstract class AbstractCommandLineProgram
         System.exit(instanceMain(argv));
     }
     
-    protected GalaxyToolDefinitionMaker getGalaxyToolDefinitionMaker()
-    	{
-    	return new GalaxyToolDefinitionMaker();
-    	}
+
     
+	private boolean isGalaxyTool()
+		{
+		InputStream in=null;
+		try
+			{
+			in=getClass().getClassLoader().getResourceAsStream("META-INF/galaxy.xml");
+			return in!=null;
+			}
+		catch (Exception e)
+			{
+			return false;
+			}
+		finally
+			{
+			CloserUtil.close(in);
+			}		
+		}
     
+	private void printGalaxyTool()
+		{
+		InputStream in=null;
+		try
+			{
+			in=getClass().getClassLoader().getResourceAsStream("META-INF/galaxy.xml");
+			if(in!=null) IOUtils.copyTo(in, System.out);
+			}
+		catch (Exception e)
+			{
+			}
+		finally
+			{
+			CloserUtil.close(in);
+			}		
+		}
+
    
     
     private void printDoap() throws XMLStreamException
     	{
-    	final String RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
-    	final String DOAP="http://usefulinc.com/ns/doap#";
-    	final String FOAF="http://xmlns.com/foaf/0.1/";
-    	XMLOutputFactory xof=XMLOutputFactory.newFactory();
-		XMLStreamWriter w=xof.createXMLStreamWriter(System.out,"UTF-8");
-		w.writeStartDocument("UTF-8", "1.0");
-		w.writeStartElement("rdf","RDF",RDF);
-		w.writeNamespace("rdf", RDF);
-		w.writeNamespace("doap", RDF);
-		w.writeNamespace("foaf", FOAF);
-		w.writeStartElement("doap","Project",DOAP);
-		
-		
-		w.writeStartElement("doap","name",DOAP);	
-		w.writeCharacters(getProgramName());
-		w.writeEndElement();
-		
-		w.writeEmptyElement("doap","homepage",DOAP);
-		w.writeAttribute("rdf", RDF, "resource", getOnlineDocUrl());
-		
-		w.writeStartElement("doap","programming-language",DOAP);	
-		w.writeCharacters("java");
-		w.writeEndElement();
-		
-		w.writeEmptyElement("doap","licence",DOAP);
-		w.writeAttribute("rdf", RDF, "resource","http://opensource.org/licenses/MIT");
-		
-		
-		w.writeStartElement("doap","shortdesc",DOAP);	
-		w.writeAttribute("xml:lang","en");
-		w.writeCharacters(getProgramDescription());
-		w.writeEndElement();
-
-		
-		w.writeStartElement("doap","release",DOAP);	
-		w.writeStartElement("doap","Version",DOAP);	
-			w.writeStartElement("doap","revision",DOAP);	
-			w.writeCharacters(getVersion());
-			w.writeEndElement();
-		w.writeEndElement();
-		w.writeEndElement();
-		
-		w.writeStartElement("doap","maintainer",DOAP);	
-		w.writeStartElement("foaf","Person",FOAF);	
-			w.writeStartElement("foaf","name",FOAF);	
-			w.writeCharacters(getAuthorName());
-			w.writeEndElement();
-			w.writeEmptyElement("foaf","mbox",FOAF);	
-			w.writeAttribute("rdf", RDF, "resource","mailto:"+getAuthorMail());
-		w.writeEndElement();
-		w.writeEndElement();
-
-		
-		
-		w.writeEndElement();
-		w.writeEndDocument();
-    	w.flush();
-    	}
+		InputStream in=null;
+		try
+			{
+			in=getClass().getClassLoader().getResourceAsStream("META-INF/doap.rdf");
+			if(in!=null) IOUtils.copyTo(in, System.out);
+			}
+		catch (Exception e)
+			{
+			}
+		finally
+			{
+			CloserUtil.close(in);
+			}		
+		}
     
     
     /** create a JNLP config file */
     protected void printJnlp() throws XMLStreamException
 		{
-    	XMLOutputFactory factory= XMLOutputFactory.newInstance();
-    	XMLStreamWriter w= factory.createXMLStreamWriter(System.out);
-    	w.writeStartDocument("UTF-8","1.0");
-    	w.writeStartElement("jnlp");
-    	w.writeAttribute("spec","6.0+");
-    	w.writeAttribute("codebase","__CODEBASE__");
-    	w.writeAttribute("href","__CODEBASE__/igv.jnlp");
-
-    	w.writeStartElement("information");
-    	w.writeStartElement("title");
-    	w.writeCharacters(getProgramName());
-    	w.writeEndElement();//title
-    	w.writeStartElement("vendor");
-    	w.writeCharacters(getAuthorName());
-    	w.writeEndElement();//vendor
-    	w.writeEmptyElement("homepage");
-    	w.writeAttribute("href",getOnlineDocUrl());
-
-    	w.writeStartElement("description");
-    	w.writeCharacters(getProgramDescription());
-    	w.writeEndElement();//description
-    	w.writeStartElement("description");
-    	w.writeAttribute("kind","short");
-
-    	w.writeCharacters(getProgramDescription());
-    	w.writeEndElement();//description
-
-    	w.writeEmptyElement("offline-allowed");
-    	w.writeStartElement("shortcut");
-    	w.writeAttribute("online","true");
-
-    	w.writeEmptyElement("desktop");
-    	w.writeEmptyElement("menu");
-    	w.writeAttribute("submenu",getProgramName());
-
-    	w.writeEndElement();//shortcut
-    	w.writeEndElement();//information
-    	w.writeStartElement("security");
-    	w.writeEmptyElement("all-permissions");
-    	w.writeEndElement();//security
-    	w.writeEmptyElement("update");
-    	w.writeAttribute("check","background");
-
-    	w.writeStartElement("resources");
-    	w.writeEmptyElement("java");
-    	w.writeAttribute("version","1.7+");
-    	w.writeAttribute("initial-heap-size","256m");
-    	w.writeAttribute("max-heap-size","750m");
-
-    	w.writeEmptyElement("jar");
-    	w.writeAttribute("href","PROGRAM_NAME.jar");
-
-    	w.writeAttribute("download","eager");
-
-    	w.writeAttribute("main","true");
-
-
-    	w.writeEmptyElement("jar");
-    	w.writeAttribute("href","htsjdk.jar");
-    	w.writeAttribute("download","eager");
-
-    	
-    	w.writeEmptyElement("property");
-    	w.writeAttribute("name","java.net.preferIPv4Stack");
-    	w.writeAttribute("value","true");
-
-
-    	w.writeEmptyElement("property");
-    	w.writeAttribute("name","http.agent");
-    	w.writeAttribute("value","IGV");
-
-
-    	w.writeEndElement();//resources
-    	w.writeEmptyElement("application-desc");
-    	w.writeAttribute("main-class",String.valueOf(getClass().getName()));
-
-    	w.writeEndElement();//jnlp
-
-    	w.writeEndDocument();
-    	w.flush();
-		}
-    
-    protected class GalaxyToolDefinitionMaker
-		{
-		AbstractCommandLineProgram owner()
+		InputStream in=null;
+		try
 			{
-			return AbstractCommandLineProgram.this;
+			in=getClass().getClassLoader().getResourceAsStream("META-INF/tool.jnlp");
+			if(in!=null) IOUtils.copyTo(in, System.out);
 			}
-		
-		public void writeCommand(XMLStreamWriter w)throws XMLStreamException
+		catch (Exception e)
 			{
-	 		w.writeStartElement("command");
-	 		w.writeComment("__TODO__");
-	 		w.writeEndElement();//command
 			}
-		
-		public void writeInputs(XMLStreamWriter w)throws XMLStreamException
+		finally
 			{
-			w.writeComment("TODO");
-			}
-
-		public void writeOutputs(XMLStreamWriter w)throws XMLStreamException
-			{
-			w.writeComment("TODO");
-			}
-
-		
-		public void print(OutputStream out)  throws XMLStreamException,IOException
-	     	{
-	     	XMLOutputFactory xof=XMLOutputFactory.newFactory();
-	 		XMLStreamWriter w=xof.createXMLStreamWriter(out,"UTF-8");
-	 		w.writeStartDocument("UTF-8", "1.0");
-	 		w.writeStartElement("tool");
-	 		w.writeAttribute("id", owner().getClass().getName().replaceAll("[\\._$]+","_"));
-	 		w.writeAttribute("name",owner().getProgramName());
-	 		w.writeAttribute("version",owner().getVersion());
-	 		w.writeAttribute("hidden","false");
-	 		
-	 		w.writeStartElement("description");
-	 		w.writeCharacters(getProgramDescription());
-	 		w.writeEndElement();//description
-	 		
-	 		writeCommand(w);
-	 		
-	 		w.writeStartElement("inputs");
-	 		writeInputs(w);
-	 		w.writeEndElement();
-	 		
-	 		w.writeStartElement("outputs");
-	 		writeOutputs(w);
-	 		w.writeEndElement();
-	 		
-	 		w.writeStartElement("help");
-	 		w.writeCharacters("see "+getOnlineDocUrl());
-	 		w.writeEndElement();
-	 		
-	 		
-	 		
-	 		w.writeEndElement();
-	 		w.writeEndDocument();
-	     	w.flush();
-	     	w.close();
-	     	out.flush();
-	     	}
+			CloserUtil.close(in);
+			}		
 		}
     
     
