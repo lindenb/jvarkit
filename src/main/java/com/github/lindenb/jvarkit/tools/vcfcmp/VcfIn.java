@@ -61,7 +61,7 @@ public class VcfIn extends AbstractCommandLineProgram
 	{
 	private File outputFile=null;
 	private boolean inverse=false;
-	private boolean databaseIsTabix=true;
+	private boolean databaseIsTabix=false;
 	private boolean userAltInDatabase=false;
 	private int count_variants=0;
 	public VcfIn()
