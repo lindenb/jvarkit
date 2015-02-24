@@ -54,9 +54,9 @@ public abstract class AbstractVCFDiseaseOntology
 	protected DiseaseOntoglogyTree diseaseOntoglogyTree;
 	protected Map<Integer,Set<DiseaseOntoglogyTree.Term>> gene2doid=new HashMap<Integer,Set<DiseaseOntoglogyTree.Term>>();
 	protected Map<String,Set<DiseaseOntoglogyTree.Term>> ensemblProtein2doid=new HashMap<String,Set<DiseaseOntoglogyTree.Term>>();
-	private SamSequenceRecordTreeMap<Integer> ncbiGeneMap=null;
+	private IntervalTreeMap<Integer> ncbiGeneMap=null;
 	@SuppressWarnings("unused")
-	private SamSequenceRecordTreeMap<String> ensemblProteinMap;
+	private IntervalTreeMap<String> ensemblProteinMap;
 	
 	
 	@Override
@@ -225,7 +225,7 @@ public abstract class AbstractVCFDiseaseOntology
 	
 	protected void loadEntrezGenes(SAMSequenceDictionary dict) throws IOException
 		{
-		this.ncbiGeneMap=new SamSequenceRecordTreeMap<Integer>(dict);
+		this.ncbiGeneMap=new IntervalTreeMap<Integer>();
 		BiomartQuery q=new BiomartQuery();
 		q.setDataSetName("hsapiens_gene_ensembl");
 		q.setAttributes(
@@ -255,7 +255,7 @@ public abstract class AbstractVCFDiseaseOntology
 				int end=Integer.parseInt(param[1]);
 				int ncbiGene=Integer.parseInt(param[3]);
 				if(!gene2doid.containsKey(ncbiGene)) continue;
-				ncbiGeneMap.put(rec.getSequenceIndex(),start,end,ncbiGene);
+				ncbiGeneMap.put(new Interval(rec.getSequenceName(),start,end),ncbiGene);
 				}
 			catch (Exception e)
 				{
@@ -270,11 +270,11 @@ public abstract class AbstractVCFDiseaseOntology
 
 	protected Set<Integer> getGeneIds(VariantContext ctx)
 		{
-		return new HashSet<Integer>(this.ncbiGeneMap.getOverlapping(
+		return new HashSet<Integer>(this.ncbiGeneMap.getOverlapping(new Interval(
 				ctx.getChr(),
 				ctx.getStart(),
 				ctx.getEnd()
-				));
+				)));
 		}
 	
 	}

@@ -120,7 +120,7 @@ public class OtherCanonicalAlignFactory {
 		@Override
 		public Cigar getCigar()
 			{
-			if(cigar==null) cigar=TextCigarCodec.getSingleton().decode(getCigarString());
+			if(cigar==null) cigar= TextCigarCodec.decode(getCigarString());
 			return cigar;
 			}
 		@Override

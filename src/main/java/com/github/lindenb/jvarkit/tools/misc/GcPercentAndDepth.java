@@ -50,9 +50,9 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
@@ -516,7 +516,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 					Arrays.fill(depth, 0);
 					sample2depth.put(sample, depth);
 					}
-				List<SAMRecordIterator> iterators=new ArrayList<SAMRecordIterator>();
+				List<CloseableIterator<SAMRecord>> iterators=new ArrayList<CloseableIterator<SAMRecord>>();
 				for(SamReader r:readers)
 					{
 					iterators.add(r.query(roi.getChromosome(), roi.getStart()+1, roi.getEnd(), false));

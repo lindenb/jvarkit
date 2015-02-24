@@ -38,12 +38,12 @@ public abstract class AbstractVCFFilter
 		if(IN==null)
 			{
 			LOG.info("reading from stdin");
-			return new VcfIterator(System.in);
+			return VCFUtils.createVcfIteratorStdin();
 			}
 		else
 			{
 			LOG.info("reading from "+IN);
-			return new VcfIterator(IOUtils.openURIForReading(IN));
+			return VCFUtils.createVcfIterator(IN);
 			}
 		}
 	

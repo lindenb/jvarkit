@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.io.DataInputStream;
@@ -5,7 +33,6 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -14,12 +41,9 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.AbstractVCFCodec;
-import htsjdk.variant.vcf.VCFCodec;
-import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
@@ -27,22 +51,24 @@ import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 	{
+	/** input files */
 	protected List<Input> inputs=new ArrayList<Input>();
 	protected SortingCollectionFactory<LineAndFile> factory=new SortingCollectionFactory<LineAndFile>();
 
+	/** filename, codec, header, file-id, count */
 	protected class Input
 		{
 		String filename;
-		VCFHeader header;
-		AbstractVCFCodec codec;
+		VCFUtils.CodecAndHeader codecAndHeader;
 		int file_id=-1;
 		long count=0L;
 		}
 	
+	/** line associated to file */
 	protected class LineAndFile
 		{
 		int fileIdx;
@@ -53,7 +79,7 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 			{
 			if(this._ctx==null)
 				{
-				this._ctx=inputs.get(this.fileIdx).codec.decode(this.line);
+				this._ctx=inputs.get(this.fileIdx).codecAndHeader.codec.decode(this.line);
 				}
 			return this._ctx;
 			}
@@ -83,9 +109,9 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 			{	
 			return Integer.parseInt(token(1));
 			}
-		public String getReference()
+		public Allele getReference()
 			{	
-			return token(3);
+			return Allele.create(token(3),true);
 			}
 		}
 	
@@ -130,7 +156,7 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 			if(i!=0) return i;
 			i=v1.getStart()-v2.getStart();
 			if(i!=0) return i;
-			i=v1.getReference().compareToIgnoreCase(v2.getReference());
+			i=v1.getReference().compareTo(v2.getReference());
 			if(i!=0) return i;
 			return 0;
 			}
@@ -166,24 +192,6 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 		return new LineAndFileComparator();
 		}
 
-	private static class ListStringLineReader implements LineReader
-		{
-		private List<String> L;
-		ListStringLineReader(List<String> L)
-			{
-			this.L=L;
-			}
-		@Override
-		public void close()
-			{
-			this.L=null;
-			}
-		@Override
-		public String readLine() throws IOException
-			{
-			return L==null || L.isEmpty()?null:L.remove(0);
-			}
-		}
 	
 	protected Input createInput()
 		{
@@ -194,13 +202,7 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 		{
 		Input input=createInput();
 		input.filename=filename;
-		StringWriter sw=new StringWriter();
-		for(String s:headerLines) sw.append(s).append("\n");
-		LineIteratorImpl li=new LineIteratorImpl(new ListStringLineReader(headerLines));
-		VcfIterator iter=new VcfIterator(li);
-		input.header=iter.getHeader();
-		input.codec=iter.getCodec();
-		CloserUtil.close(iter);
+		input.codecAndHeader = VCFUtils.parseHeader(headerLines);
 		return input;
 		}
 	
@@ -233,7 +235,7 @@ public abstract class AbstractVCFCompare extends AbstractCommandLineProgram
 		Input input=createInput(vcfUri, headerLines);
 		input.file_id=this.inputs.size();
 		this.inputs.add(input);
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(input.header.getSequenceDictionary());
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(input.codecAndHeader.header.getSequenceDictionary());
 		while(iter.hasNext())
 			{
 			String line=iter.next();

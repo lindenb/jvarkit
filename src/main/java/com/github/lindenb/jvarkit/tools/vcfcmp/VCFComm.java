@@ -1,19 +1,45 @@
-/**
- * 
- */
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
+import java.io.BufferedReader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
-
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -89,6 +115,31 @@ public class VCFComm extends AbstractVCFCompare {
 				error("Illegal number of arguments");
 				return -1;
 				}
+			
+			Set<String> filenames=new HashSet<String>();
+			for(int i=opt.getOptInd();i< args.length;++i)
+				{
+				String filename=args[i];
+				
+				if(!filename.endsWith(".list"))
+					{
+					filenames.add(filename);
+					}
+				else
+					{
+					info("Reading filenames from "+filename);
+					BufferedReader in = IOUtils.openURIForBufferedReading(filename);
+					String line;
+					while((line=in.readLine())!=null)
+						{
+						if(line.trim().isEmpty() || line.startsWith("#")) continue;
+						filenames.add(line);
+						}
+					in.close();
+					}
+				}
+
+			
 			Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 			
 			final LineAndFileComparator posCompare=new LineAndFileComparator();
@@ -102,18 +153,19 @@ public class VCFComm extends AbstractVCFCompare {
 			
 			List<String> newSampleNames=new ArrayList<String>();
 			Set<String> sampleSet=new HashSet<String>();
-			for(int i=opt.getOptInd();i< args.length;++i)
+			
+			int vcfindex=0;
+			for(String vcffilename: filenames)
 				{
-				String filename=args[i];
-				info("Reading from "+filename);
-				Input input=super.put(variants, filename);
-				String sampleName="f"+(1+i-opt.getOptInd());
+				info("Reading from "+vcffilename);
+				Input input=super.put(variants, vcffilename);
+				String sampleName="f"+(1+vcfindex-opt.getOptInd());
 				newSampleNames.add(sampleName);
-				metaData.add(new VCFHeaderLine(sampleName,filename));
+				metaData.add(new VCFHeaderLine(sampleName,vcffilename));
 				
-				sampleSet.addAll(input.header.getSampleNamesInOrder());
-					
+				sampleSet.addAll(input.codecAndHeader.header.getSampleNamesInOrder());
 				}
+			
 			variants.doneAdding();
 			
 			String theSampleName=null;

@@ -237,7 +237,7 @@ public class SamFixCigar extends AbstractCommandLineProgram
 						}
 					}
 				cigar=new Cigar(newCigar);
-				String newCigarStr=TextCigarCodec.getSingleton().encode(cigar);
+				String newCigarStr= TextCigarCodec.encode(cigar);
 				//info("changed "+rec.getCigarString()+" to "+newCigarStr+" "+rec.getReadName()+" "+rec.getReadString());
 				rec.setCigar(cigar);
 				rec.setCigarString(newCigarStr);

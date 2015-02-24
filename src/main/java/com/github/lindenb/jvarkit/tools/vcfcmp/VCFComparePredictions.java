@@ -190,8 +190,8 @@ public class VCFComparePredictions extends AbstractVCFCompare {
 			for(AbstractVCFCompare.Input input:this.inputs)
 				{
 				PredictionTuple predictionTuple=new PredictionTuple();
-				predictionTuple.snpEffPredictionParser=new SnpEffPredictionParser(input.header);
-				predictionTuple.vepPredictionParser=new VepPredictionParser(input.header);
+				predictionTuple.snpEffPredictionParser=new SnpEffPredictionParser(input.codecAndHeader.header);
+				predictionTuple.vepPredictionParser=new VepPredictionParser(input.codecAndHeader.header);
 				
 				predictionTuples.add(predictionTuple);
 				}
