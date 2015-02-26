@@ -29,6 +29,7 @@ generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.version}
 tmp.mft=${tmp.dir}/META-INF/MANIFEST.MF
 dist.dir?=${this.dir}dist-${htsjdk.version}
+galaxy.bundle.dir?=galaxy-bundle
 
 mysql.version?=5.1.34
 mysql.jar?=lib/mysql-connector-java-${mysql.version}-bin.jar
@@ -59,13 +60,17 @@ $(1)  : ${htsjdk.jars} \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
 		$(3)
 	echo "### COMPILING $(1) ######"
-	mkdir -p ${tmp.dir}/META-INF ${dist.dir}
-	#create doc
-	-xsltproc --output ${tmp.dir}/META-INF/galaxy.xml \
+	mkdir -p ${tmp.dir}/META-INF ${dist.dir} ${galaxy.bundle.dir}
+	#create galaxy
+	rm -f ${galaxy.bundle.dir}/$(1).xml
+	-xsltproc --path ${this.dir}src/main/resources/xml \
+		--output ${galaxy.bundle.dir}/$(1).xml \
 		--stringparam name "$(1)" \
 		--stringparam class "$(2)" \
+		--stringparam classpath "$$(subst $$(SPACE),:,$$(notdir $$(realpath $$(filter %.jar,$$^)))):$(1).jar" \
 		--stringparam version $$(if $$(realpath .git/refs/heads/master), `cat  $$(realpath .git/refs/heads/master) `, "undefined") \
 		${this.dir}src/main/resources/xsl/tools2galaxy.xsl ${this.dir}src/main/resources/xml/tools.xml || echo "XSLT failed (ignored)"
+	-cp ${galaxy.bundle.dir}/$(1).xml ${tmp.dir}/META-INF/galaxy.xml 
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
 	#compile
@@ -86,6 +91,7 @@ $(1)  : ${htsjdk.jars} \
 	chmod  ugo+rx ${dist.dir}/$(1)
 	#cleanup
 	rm -rf ${tmp.dir}
+
 
 endef
 
@@ -445,9 +451,9 @@ ${bigwig.jar} :
 	mv bigwig-read-only/lib/log4j-1.2.15.jar $(dir $@)/log4j-1.2.15.jar
 	rm -rf bigwig-read-only 
 
-
-
-
+##
+## Common math
+##
 ${common.math.jar} :
 	echo "Downloading common math"
 	mkdir -p $(dir $@)
@@ -491,11 +497,15 @@ src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
 		-p edu.washington.gs.evs \
 		"http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
 
-test-vcfgo: vcfgo
-	echo "" | $(JAVA) -jar ${dist.dir}/vcfgo.jar \
-		-A "http://cvsweb.geneontology.org/cgi-bin/cvsweb.cgi/go/gene-associations/gene_association.goa_human.gz?rev=HEAD" \
-		-G "http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz" \
-		 -C GO:0007283 -F GOFILTER -v
+##
+## galaxy bundle
+##
+GALAXY_TOOLS= vcffilterjs
+${galaxy.bundle.dir}.tar : ${GALAXY_TOOLS} ${htsjdk.jars} 
+	rm -f $@
+	cp  $(foreach T,${GALAXY_TOOLS}, ${dist.dir}/${T}.jar )  $(filter %.jar, $^ ) ${galaxy.bundle.dir}
+	tar cvf $@ -C ${galaxy.bundle.dir} .
+
 
 
 clean:

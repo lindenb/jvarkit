@@ -1,8 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE project SYSTEM "tools.dtd">
 <tools>
 
 <tool id="com.github.lindenb.jvarkit.tools.backlocate.BackLocate">
 
 </tool>
+
+<tool id="com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS">
+	<wiki>https://github.com/lindenb/jvarkit/wiki/VCFFilterJS</wiki>
+	<short-description>Filters a VCF with javascript ( <a href="http://en.wikipedia.org/wiki/Rhino_%28JavaScript_engine%29">java  rhino engine </a> )</short-description>
+	<description>
+<h3>Examples</h3>
+See https://github.com/lindenb/jvarkit/wiki/VCFFilterJS for some examples
+	</description>
+	<command><![CDATA[ java -cp  $__tool_directory__/commons-jexl-2.1.1.jar:$__tool_directory__/commons-logging-1.1.1.jar:$__tool_directory__/htsjdk-1.129.jar:$__tool_directory__/snappy-java-1.0.3-rc3.jar:$__tool_directory__/vcffilterjs.jar com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS -e '${expression}' -o ${output}.vcf.gz ${input} && mv  ${output}.vcf.gz ${output} ]]></command>
+
+	<inputs>
+		&input_vcf;
+		<param name="expression" type="text" label="javascript expression">
+			<sanitizer>
+					 <valid initial="string.printable">
+         				<remove value="&apos;"/>
+       			 </valid>
+			</sanitizer>
+		</param>
+	</inputs>
+	<outputs>
+		&output_vcf;
+	</outputs>
+</tool>
+
 
 </tools>

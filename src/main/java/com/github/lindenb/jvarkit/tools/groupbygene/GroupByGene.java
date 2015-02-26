@@ -30,8 +30,10 @@ package com.github.lindenb.jvarkit.tools.groupbygene;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -49,11 +51,13 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
+
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.knime.KnimeApplication;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
@@ -67,12 +71,15 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
  * GroupByGene
  *
  */
-public class GroupByGene extends AbstractCommandLineProgram
+public class GroupByGene
+	extends AbstractCommandLineProgram
+	implements KnimeApplication
 	{
-	private Set<String> sampleNames=new TreeSet<String>();
-	private Set<String> user_gene_tags=new HashSet<String>();
-	private SortingCollection<Call> sortingCollection=null;
-	private boolean xml_output=false;
+	private File outputFile=null;
+	private Set<String> sampleNames = new TreeSet<String>();
+	private Set<String> user_gene_tags = new HashSet<String>();
+	private SortingCollection<Call> sortingCollection = null;
+	private boolean xml_output = false;
 	
 	private static class GeneName
 		{
@@ -183,6 +190,10 @@ public class GroupByGene extends AbstractCommandLineProgram
 	private SnpEffPredictionParser snpEffPredictionParser=null;
 	private VepPredictionParser vepPredictionParser=null;
 	
+	public GroupByGene()
+		{
+		}
+	
 	private Set<GeneName> getGenes(VariantContext ctx)
 		{
 		HashSet<GeneName> set=new HashSet<GeneName>();
@@ -255,13 +266,29 @@ public class GroupByGene extends AbstractCommandLineProgram
 		return set;
 		}
 	
+	public void addUserGeneTag(String t) {
+		this.user_gene_tags.add(t);
+		}
+	
 	private void dump() throws IOException,XMLStreamException
 		{
+		PrintStream pw = null;
+		if(this.outputFile==null)
+			{
+			info("writing to stdout");
+			pw=System.out;
+			}
+		else
+			{
+			info("writing to "+this.outputFile);
+			pw= new PrintStream(this.outputFile);
+			}
+		
 		XMLStreamWriter w=null;
 		if(xml_output)
 			{
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			w=xof.createXMLStreamWriter(System.out, "UTF-8");
+			w= xof.createXMLStreamWriter(pw, "UTF-8");
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("genes");
 			w.writeComment("Cmd line: "+this.getProgramCommandLine());
@@ -279,25 +306,25 @@ public class GroupByGene extends AbstractCommandLineProgram
 			}
 		else
 			{
-			System.out.print("#chrom");
-			System.out.print('\t');
-			System.out.print("min.POS");
-			System.out.print('\t');
-			System.out.print("max.POS");
-			System.out.print('\t');
-			System.out.print("gene.name");
-			System.out.print('\t');
-			System.out.print("gene.type");
-			System.out.print('\t');
-			System.out.print("samples.affected");
-			System.out.print('\t');
-			System.out.print("count.variations");
+			pw.print("#chrom");
+			pw.print('\t');
+			pw.print("min.POS");
+			pw.print('\t');
+			pw.print("max.POS");
+			pw.print('\t');
+			pw.print("gene.name");
+			pw.print('\t');
+			pw.print("gene.type");
+			pw.print('\t');
+			pw.print("samples.affected");
+			pw.print('\t');
+			pw.print("count.variations");
 			for(String sample:this.sampleNames)
 				{
-				System.out.print('\t');
-				System.out.print(sample);
+				pw.print('\t');
+				pw.print(sample);
 				}
-			System.out.println();
+			pw.println();
 			}
 		
 		final CallCmp cmp=new CallCmp();
@@ -362,26 +389,26 @@ public class GroupByGene extends AbstractCommandLineProgram
 						}
 					else
 						{
-						System.out.print(first.chrom);
-						System.out.print('\t');
-						System.out.print(minPos);
-						System.out.print('\t');
-						System.out.print(maxPos);
-						System.out.print('\t');
-						System.out.print(first.gene.name);
-						System.out.print('\t');
-						System.out.print(first.gene.type);
-						System.out.print('\t');
-						System.out.print(affected.size());
-						System.out.print('\t');
-						System.out.print(distinctMut.size());
+						pw.print(first.chrom);
+						pw.print('\t');
+						pw.print(minPos);
+						pw.print('\t');
+						pw.print(maxPos);
+						pw.print('\t');
+						pw.print(first.gene.name);
+						pw.print('\t');
+						pw.print(first.gene.type);
+						pw.print('\t');
+						pw.print(affected.size());
+						pw.print('\t');
+						pw.print(distinctMut.size());
 						for(String sample:this.sampleNames)
 							{
-							System.out.print('\t');
-							System.out.print(sample2count.count(sample));
+							pw.print('\t');
+							pw.print(sample2count.count(sample));
 							}
-						System.out.println();
-						if(System.out.checkError()) break;
+						pw.println();
+						if(pw.checkError()) break;
 						}
 					}
 				if(curr==null) break;
@@ -397,6 +424,8 @@ public class GroupByGene extends AbstractCommandLineProgram
 			w.flush();
 			w.close();
 			}
+		pw.flush();
+		if(outputFile!=null) pw.close();
 		}
 	
 	private void read(InputStream in)
@@ -407,14 +436,13 @@ public class GroupByGene extends AbstractCommandLineProgram
 			{
 			this.sampleNames.addAll(header.getSampleNamesInOrder());
 			}
-		snpEffPredictionParser=new SnpEffPredictionParser(header);
-		vepPredictionParser=new VepPredictionParser(header);
+		this.snpEffPredictionParser=new SnpEffPredictionParser(header);
+		this.vepPredictionParser=new VepPredictionParser(header);
 		SAMSequenceDictionary dict=header.getSequenceDictionary();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 		while(iter.hasNext())
 			{
-			VariantContext ctx=iter.next();
-			progress.watch(ctx.getChr(),ctx.getStart());
+			VariantContext ctx= progress.watch(iter.next());
 			for(GeneName g:getGenes(ctx))
 				{
 				for(Genotype genotype:ctx.getGenotypes())
@@ -460,55 +488,17 @@ public class GroupByGene extends AbstractCommandLineProgram
 		iter.close();
 		}
 	
-	
-	
 
 	@Override
-	public String getProgramDescription() {
-		return "Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -X XML output");
-		out.println(" -T (tag) add Tag in INFO field containing the name of the genes.");
+	public int initializeKnime() {
 		
-		super.printOptions(out);
-		}
-	
-	
+		return 0;
+	}
+
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/GroupByGene";
-		}
-	
-	@Override
-	public int doWork(String[] args)
+	public int executeKnime(List<String> args)
 		{
 		int maxRecordsInRAM=10000;
-
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"T:X"))!=-1)
-			{
-			switch(c)
-				{
-				case 'X': xml_output=true;break;
-				case 'T': user_gene_tags.add(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		
 		try
 			{
 			sortingCollection=SortingCollection.newInstance(
@@ -518,16 +508,16 @@ public class GroupByGene extends AbstractCommandLineProgram
 					maxRecordsInRAM
 					);
 			sortingCollection.setDestructiveIteration(true);
-			if(opt.getOptInd()==args.length)
+			this.sampleNames.clear();
+			if(args.isEmpty())
 				{
 				info("Reading from stdin");
 				read(System.in);
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename:args)
 					{
-					String filename=args[i];
 					info("Reading from "+filename);
 					InputStream in=IOUtils.openURIForReading(filename);
 					read(in);
@@ -535,9 +525,9 @@ public class GroupByGene extends AbstractCommandLineProgram
 					}
 				}
 			sortingCollection.doneAdding();
-
+	
 			info("Done reading. Now printing results.");
-
+	
 			dump();
 			return 0;
 			}
@@ -551,7 +541,79 @@ public class GroupByGene extends AbstractCommandLineProgram
 			if(sortingCollection!=null) sortingCollection.cleanup();
 			}
 		}
-	public static void main(String[] args) {
-		new GroupByGene().instanceMainWithExit(args);
+
+	@Override
+	public void disposeKnime() {
+		
 	}
-}
+
+	@Override
+	public void checkKnimeCancelled() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void setOutputFile(File out) {
+		this.outputFile=out;
+	}
+
+	
+
+	@Override
+	public String getProgramDescription() {
+		return "Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff";
+		}
+	
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		out.println(" -X XML output");
+		out.println(" -T (tag) add Tag in INFO field containing the name of the genes.");
+		out.println(" -o (file) output file . Default stdout.");
+		
+		super.printOptions(out);
+		}
+	
+	
+	@Override
+	protected String getOnlineDocUrl() {
+		return "https://github.com/lindenb/jvarkit/wiki/GroupByGene";
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		
+
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+"T:Xo:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'X': xml_output=true;break;
+				case 'T': this.addUserGeneTag(opt.getOptArg());break;
+				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
+				default:
+					{
+					switch(handleOtherOptions(c, opt, args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		
+		List<String> L=new ArrayList<String>();
+		for(int i=opt.getOptInd();i<args.length;++i) L.add(args[i]);
+		return this.executeKnime(L);
+		}
+	
+	public static void main(String[] args)
+		{
+		new GroupByGene().instanceMainWithExit(args);
+		}
+	}

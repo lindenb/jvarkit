@@ -1,8 +1,10 @@
 package com.github.lindenb.jvarkit.util;
 
+import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
+import com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS;
 import com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology;
 import com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2;
@@ -30,7 +32,9 @@ private Library()
 			VcfFilterSequenceOntology.class,
 			VcfHead.class,
 			VcfTail.class,
-			VCFMerge2.class
+			VCFMerge2.class,
+			VcfIn.class,
+			GroupByGene.class
 			};
 	}
 }

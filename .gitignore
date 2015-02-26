@@ -18,3 +18,5 @@ src/knime/generated-sources/
 bin
 lib
 htsjdk*
+galaxy-bundle.tar
+galaxy-bundle
