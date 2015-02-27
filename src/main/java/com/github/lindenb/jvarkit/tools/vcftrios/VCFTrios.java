@@ -300,7 +300,7 @@ public class VCFTrios
 		info("incompatibilities N="+count_incompats);
 		}
 	
-	public int getCountVariants() {
+	public int getVariantCount() {
 		return count_variants;
 		}
 	
