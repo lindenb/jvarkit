@@ -69,7 +69,7 @@ $inverse $noreason -o ${output}.vcf.gz  &amp;&amp; mv  ${output}.vcf.gz ${output
 
 
 <tool main-class="com.github.lindenb.jvarkit.tools.misc.VcfTail">
-	<label>Print first variants of a VCF</label>
+	<label>Print last variants of a VCF</label>
 	<wiki>&base_wiki;VcfHead</wiki>
 	<command>&gzcat_input; | java -cp  <classpath/> <main-class/> -n '${num}' -o ${output}.vcf.gz  &amp;&amp; mv  ${output}.vcf.gz ${output}</command>
 
