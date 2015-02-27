@@ -8,6 +8,7 @@ import com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS;
 import com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology;
 import com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2;
+import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -34,7 +35,8 @@ private Library()
 			VcfTail.class,
 			VCFMerge2.class,
 			VcfIn.class,
-			GroupByGene.class
+			GroupByGene.class,
+			VCFTrios.class
 			};
 	}
 }

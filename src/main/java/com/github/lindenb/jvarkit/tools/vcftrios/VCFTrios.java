@@ -29,18 +29,23 @@ History:
 package com.github.lindenb.jvarkit.tools.vcftrios;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.knime.KnimeApplication;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
-
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -53,15 +58,21 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Pedigree;
 
-public class VCFTrios extends AbstractVCFFilter2
+
+public class VCFTrios
+	extends AbstractCommandLineProgram
+	implements KnimeApplication
 	{
+	private int count_variants=0;
+	private File fileout=null;
 	private Pedigree pedigree=null;
     private boolean create_filter=false;
     private String pedigreeURI=null;
 	
-    private VCFTrios()
+    public VCFTrios()
     	{
     	}
     
@@ -141,12 +152,11 @@ public class VCFTrios extends AbstractVCFFilter2
 		}
 	
 	
-	@Override
 	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		int count_incompats=0;
-		
+		this.count_variants=0;
 		VCFHeader header=r.getHeader();
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(
@@ -192,10 +202,12 @@ public class VCFTrios extends AbstractVCFFilter2
 			}
 		
 		info("persons in pedigree: "+samplename2person.size());
+		
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 		while(r.hasNext())
 			{
-			VariantContext ctx=r.next();
-			
+			VariantContext ctx= progress.watch(r.next());
+			this.count_variants++;
 			
 			Set<String> incompatibilities=new HashSet<String>();
 			
@@ -283,8 +295,79 @@ public class VCFTrios extends AbstractVCFFilter2
 			if( create_filter) b.filter("MENDEL");
 			b.attribute("MENDEL", incompatibilities.toArray());
 			w.add(b.make());
-			}		
+			}	
+		progress.finish();
 		info("incompatibilities N="+count_incompats);
+		}
+	
+	public int getCountVariants() {
+		return count_variants;
+		}
+	
+	public void setCreateFilter(boolean create_filter)
+		{
+		this.create_filter = create_filter;
+		}
+	
+	public void setPedigreeURI(String pedigreeURI) {
+		this.pedigreeURI = pedigreeURI;
+		}
+	
+	
+	@Override
+	public int executeKnime(List<String> args)
+		{
+		VcfIterator iter=null;
+		VariantContextWriter vcw=null;
+		try 
+			{
+			if(args.isEmpty())
+				{
+				iter= VCFUtils.createVcfIteratorStdin();
+				}
+			else if(args.size()==1)
+				{
+				iter= VCFUtils.createVcfIterator(args.get(0));
+				}
+			else
+				{	
+				error(getMessageBundle("illegal.number.of.arguments"));
+				return -1;
+				}
+			
+			vcw=(this.fileout==null?
+					VCFUtils.createVariantContextWriterToStdout():
+					VCFUtils.createVariantContextWriter(this.fileout)
+					);
+			doWork(iter, vcw);
+			return 0;
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{	
+			CloserUtil.close(iter);
+			CloserUtil.close(vcw);
+			}
+		
+		}
+
+	@Override
+	public void disposeKnime() {
+		
+	}
+
+	@Override
+	public void checkKnimeCancelled() {
+		
+	}
+
+	@Override
+	public void setOutputFile(File out) {
+		this.fileout=out;
 		}
 	
 	@Override
@@ -292,21 +375,22 @@ public class VCFTrios extends AbstractVCFFilter2
 		{
 		out.println(" -p (file) Pedigree file");
 		out.println(" -f create a filter in the FILTER column");
+		out.println(" -o (filename) output. default:stdout");
 		super.printOptions(out);
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
-
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:f"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"p:fo:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'f': this.create_filter=true;break;
-				case 'p': this.pedigreeURI=opt.getOptArg();break;
+				case 'f': this.setCreateFilter(true);break;
+				case 'p': this.setPedigreeURI(opt.getOptArg());break;
+				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -318,29 +402,46 @@ public class VCFTrios extends AbstractVCFFilter2
 					}
 				}
 			}
-		if(this.pedigreeURI==null)
+		if(initializeKnime()!=0) 
 			{
-			error("Pedigree undefined.");
 			return -1;
 			}
-		
-		try {
-		info("reading pedigree");
-		BufferedReader in=IOUtils.openURIForBufferedReading(this.pedigreeURI);
-		this.pedigree=Pedigree.readPedigree(in);
-		in.close();
-		} catch(Exception err)
-		{
-			error(err);
-			return -1;
-		}
-
-		return super.doWork(opt.getOptInd(),args);
+		List<String> L=new ArrayList<>();
+		for(int i=opt.getOptInd();i< args.length;++i)
+			{
+			L.add(args[i]);
+			}
+		return executeKnime(L);
 		}
 	
 	public static void main(String[] args)
 		{
 		new VCFTrios().instanceMainWithExit(args);
 		}
+
+	@Override
+	public int initializeKnime()
+		{
+		if(this.pedigreeURI==null)
+			{
+			error("Pedigree undefined.");
+			return -1;
+			}
+	
+		try {
+			info("reading pedigree "+this.pedigreeURI);
+			BufferedReader in=IOUtils.openURIForBufferedReading(this.pedigreeURI);
+			this.pedigree=Pedigree.readPedigree(in);
+			in.close();
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		return 0;
+	}
+
+
 
 	}

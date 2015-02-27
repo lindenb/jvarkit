@@ -13,8 +13,8 @@
 
 <xsl:template match="/">
 	<xsl:choose>
-		<xsl:when test="tools/tool[@id= $class]">
-			<xsl:apply-templates select="tools/tool[@id= $class]"/>
+		<xsl:when test="tools/tool[@main-class= $class]">
+			<xsl:apply-templates select="tools/tool[@main-class= $class]"/>
 		</xsl:when>
 		<xsl:otherwise>
 			<xsl:message terminate="yes"></xsl:message>
@@ -45,6 +45,15 @@
 <xsl:apply-templates select="description" mode="rst"/>
 <xsl:apply-templates select="inputs" mode="rst"/>
 <xsl:apply-templates select="outputs" mode="rst"/>
+
+<xsl:if test="wiki">
+<xsl:text>
+
+** Wiki **
+
+</xsl:text>
+<xsl:apply-templates select="wiki"/>
+</xsl:if>
 
 <xsl:text>
 
@@ -84,9 +93,15 @@ Version: </xsl:text>
 </xsl:template>
 
 <xsl:template match="classpath">
-<xsl:value-of select="$classpath"/>
+<xsl:call-template name="print.classpath">
+  <xsl:with-param name="cp" value="normalize-space(${classpath})"/>
+  <xsl:with-param name="index" value="number(0)"/>
+</xsl:call-template>
 </xsl:template>
 
+<xsl:template match="main-class">
+<xsl:value-of select="../@main-class"/>
+</xsl:template>
 
 <xsl:template match="command">
 <command>
@@ -110,7 +125,7 @@ Version: </xsl:text>
 
 
 
-<xsl:template match="param">
+<xsl:template match="param|repeat">
 <xsl:copy-of select="."/>
 </xsl:template>
 
@@ -216,6 +231,30 @@ Version: </xsl:text>
 <xsl:text>**
 </xsl:text>
 </xsl:template>
+
+<xsl:template name="print.classpath">
+<xsl:param name="cp"/>
+<xsl:param name="index"/>
+<xsl:choose>
+   <xsl:when test="string-length(normalize-space($cp))=0">
+  </xsl:when>
+  <xsl:when test="contains(normalize-space($cp),' ')">
+  		<xsl:if test="$index &gt;0"><xsl:text>:</xsl:text></xsl:if>
+  		<xsl:text>$__tool_directory__/</xsl:text>
+  		<xsl:value-of select="substring-before($cp,' ')"/>
+		<xsl:call-template name="print.classpath">
+		  <xsl:with-param name="cp" value="substring-after($cp,' ')"/>
+		  <xsl:with-param name="index" value="number(1)"/>
+		</xsl:call-template>
+  </xsl:when>
+  <xsl:otherwise>
+  		<xsl:if test="$index &gt;0"><xsl:text>:</xsl:text></xsl:if>
+  		<xsl:text>$__tool_directory__/</xsl:text>
+  		<xsl:value-of select="$cp"/>
+  </xsl:otherwise>
+</xsl:choose>
+</xsl:template>
+
 
 </xsl:stylesheet>
 

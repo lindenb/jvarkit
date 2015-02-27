@@ -35,6 +35,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 
 public class SAMSequenceDictionaryProgress
 	{
@@ -234,6 +235,11 @@ public class SAMSequenceDictionaryProgress
 			{
 			this.handler=new WithoutDict();
 			}
+		}
+	
+	public SAMSequenceDictionaryProgress(VCFHeader h)
+		{
+		this(h==null?null:h.getSequenceDictionary());
 		}
 	
 	public void setLogPrefix(String prefix)

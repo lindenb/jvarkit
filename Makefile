@@ -60,17 +60,17 @@ $(1)  : ${htsjdk.jars} \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
 		$(3)
 	echo "### COMPILING $(1) ######"
-	mkdir -p ${tmp.dir}/META-INF ${dist.dir} ${galaxy.bundle.dir}
+	mkdir -p ${tmp.dir}/META-INF ${dist.dir} ${galaxy.bundle.dir}/jvarkit
 	#create galaxy
 	rm -f ${galaxy.bundle.dir}/$(1).xml
 	-xsltproc --path ${this.dir}src/main/resources/xml \
-		--output ${galaxy.bundle.dir}/$(1).xml \
+		--output ${galaxy.bundle.dir}/jvarkit/$(1).xml \
 		--stringparam name "$(1)" \
 		--stringparam class "$(2)" \
-		--stringparam classpath "$$(subst $$(SPACE),:,$$(notdir $$(realpath $$(filter %.jar,$$^)))):$(1).jar" \
+		--stringparam classpath "$$(notdir $$(realpath $$(filter %.jar,$$^))) $(1).jar" \
 		--stringparam version $$(if $$(realpath .git/refs/heads/master), `cat  $$(realpath .git/refs/heads/master) `, "undefined") \
 		${this.dir}src/main/resources/xsl/tools2galaxy.xsl ${this.dir}src/main/resources/xml/tools.xml || echo "XSLT failed (ignored)"
-	-cp ${galaxy.bundle.dir}/$(1).xml ${tmp.dir}/META-INF/galaxy.xml 
+	-cp ${galaxy.bundle.dir}/jvarkit/$(1).xml ${tmp.dir}/META-INF/galaxy.xml 
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
 	#compile
@@ -119,7 +119,8 @@ endef
 # 
 # All executables
 #
-APPS= 		addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
+GALAXY_TOOLS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene
+APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
 	bam2wig	bam4deseq01	bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamtreepack	bamviewgui	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
@@ -129,7 +130,7 @@ APPS= 		addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	
 	deseqcount	downsamplevcf	evs2bed	evs2vcf	evs2xml	extendbed	fastq2fasta \
 	fastqentropy	fastqgrep	fastqjs	fastqphred64to33	fastqrecordtreepack	fastqrevcomp	fastqshuffle \
 	fastqsplitinterleaved	findallcoverageatposition	findavariation	findcorruptedfiles	findmyvirus	findnewsplicesites	fixvarscanmissingheader \
-	fixvcf	fixvcfformat	fixvcfmissinggenotypes	gcanddepth	genomicjaspar	genscan	groupbygene \
+	fixvcf	fixvcfformat	fixvcfmissinggenotypes	gcanddepth	genomicjaspar	genscan	 \
 	howmanybamdict	idea20130924	illuminadir	ilmnfastqstats	impactofduplicates	jeter	kg2bed \
 	liftover2svg	mapuniprot	mergesplittedblast	metrics2xml	ncbitaxonomy2xml	ngsfilessummary	noemptyvcf \
 	nozerovariationvcf	pademptyfastq	paintcontext	pubmeddump	pubmedfilterjs	referencetovcf	sam2json \
@@ -138,14 +139,14 @@ APPS= 		addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	
 	sortvcfonref2	splitbam	splitbam2	splitbytile	splitread	tview	tview.cgi \
 	vcf2hilbert	vcf2ps	vcf2rdf	vcf2sql	vcf2xml	vcfannobam	vcfbed \
 	vcfbedjs	vcfbiomart	vcfcadd	vcfcmppred	vcfcomm	vcfcompare	vcfcomparegt \
-	vcfconcat	vcfcutsamples	vcffilterdoid	vcffilterjs	vcffilterso	vcffixindels	vcfgo \
-	vcfhead	vcfin	vcfjaspar	vcfliftover	vcfmapuniprot	vcfmerge	vcfmulti2one \
+	vcfconcat	vcfcutsamples	vcffilterdoid		vcffixindels	vcfgo \
+	vcfin	vcfjaspar	vcfliftover	vcfmapuniprot	vcfmerge	vcfmulti2one \
 	vcfpolyx	vcfpredictions	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats	vcfstopcodon	vcfstripannot \
-	vcftabixml	vcftail	vcftreepack	vcftrio	vcfvcf	vcfviewgui	worldmapgenome \
+	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
 
 
-.PHONY: all $(APPS) clean library top
+.PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar
 
 top:
 	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
@@ -481,7 +482,7 @@ ${htsjdk.home}/build.xml :
 	find ${htsjdk.home} -exec touch '{}'  ';'
 	rm -f $(dir ${htsjdk.home})${htsjdk.version}.zip
 
-${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java : ${htsjdk.home}/build.xml
+${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java : ${htsjdk.home}/build.xml $(realpath .git/refs/heads/master)
 	mkdir -p $(dir $@)
 	echo "package ${jvarkit.package}.util.htsjdk;" > $@
 	echo '@javax.annotation.Generated("jvarkit")' >> $@
@@ -500,10 +501,10 @@ src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
 ##
 ## galaxy bundle
 ##
-GALAXY_TOOLS= vcffilterjs
+galaxy : ${galaxy.bundle.dir}.tar
 ${galaxy.bundle.dir}.tar : ${GALAXY_TOOLS} ${htsjdk.jars} 
 	rm -f $@
-	cp  $(foreach T,${GALAXY_TOOLS}, ${dist.dir}/${T}.jar )  $(filter %.jar, $^ ) ${galaxy.bundle.dir}
+	cp  $(foreach T,${GALAXY_TOOLS}, ${dist.dir}/${T}.jar )  $(filter %.jar, $^ ) ${galaxy.bundle.dir}/jvarkit
 	tar cvf $@ -C ${galaxy.bundle.dir} .
 
 
