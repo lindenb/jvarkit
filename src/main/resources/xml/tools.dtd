@@ -1,3 +1,4 @@
 <!ENTITY input_vcf	" <param format='vcf' name='input' type='data' label='VCF input'/> ">
 <!ENTITY output_vcf	" <data format='vcf' name='output' /> ">
 <!ENTITY base_wiki	"https://github.com/lindenb/jvarkit/wiki/">
+<!ENTITY gzcat_input	"(gunzip -c ${input} || cat ${input})">

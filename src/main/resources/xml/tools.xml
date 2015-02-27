@@ -5,10 +5,14 @@
 <tool main-class="com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology">
 	<label>Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology</label>
 	<wiki>&base_wiki;VcfFilterSequenceOntology</wiki>
-	<command>java -cp  <classpath/> <main-class/> #for $i, $s in enumerate( $accessions ) -A '$s' #end $inverse $noreason -o ${output}.vcf.gz ${input} &amp;&amp; mv  ${output}.vcf.gz ${output} </command>
+	<command>&gzcat_input; | java -cp  <classpath/> <main-class/> 
+#for  s in $accessions 
+ -A '$s'
+#end for
+$inverse $noreason -o ${output}.vcf.gz  &amp;&amp; mv  ${output}.vcf.gz ${output} </command>
 	<inputs>
 		&input_vcf;
-		<repeat title="accessions">
+		<repeat name="accessions" title="accessions">
 			 <param name="acn" type="text" label="SO Accession Number">
 			 	<validator type="regex" message="must match with SO:(number)">SO\:[0-9]+</validator>
 			 </param>
@@ -29,7 +33,7 @@
 <tool main-class="com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS">
 	<label>Filters a VCF with Javascript</label>
 	<wiki>&base_wiki;VCFFilterJS</wiki>
-	<command>java -cp  <classpath/> <main-class/> -e '${expression}' -o ${output}.vcf.gz ${input} &amp;&amp; mv  ${output}.vcf.gz ${output} </command>
+	<command>&gzcat_input; | java -cp  <classpath/> <main-class/> -e '${expression}' -o ${output}.vcf.gz &amp;&amp; mv  ${output}.vcf.gz ${output} </command>
 
 	<inputs>
 		&input_vcf;
@@ -51,7 +55,7 @@
 <tool main-class="com.github.lindenb.jvarkit.tools.misc.VcfHead">
 	<label>Print first variants of a VCF</label>
 	<wiki>&base_wiki;VcfHead</wiki>
-	<command>java -cp  <classpath/> <main-class/> -n '${num}' -o ${output}.vcf.gz ${input} &amp;&amp; mv  ${output}.vcf.gz ${output}</command>
+	<command>&gzcat_input; | java -cp  <classpath/> <main-class/> -n '${num}' -o ${output}.vcf.gz &amp;&amp; mv  ${output}.vcf.gz ${output}</command>
 
 	<inputs>
 		&input_vcf;
@@ -67,7 +71,7 @@
 <tool main-class="com.github.lindenb.jvarkit.tools.misc.VcfTail">
 	<label>Print first variants of a VCF</label>
 	<wiki>&base_wiki;VcfHead</wiki>
-	<command>java -cp  <classpath/> <main-class/> -n '${num}' -o ${output}.vcf.gz ${input} &amp;&amp; mv  ${output}.vcf.gz ${output}</command>
+	<command>&gzcat_input; | java -cp  <classpath/> <main-class/> -n '${num}' -o ${output}.vcf.gz  &amp;&amp; mv  ${output}.vcf.gz ${output}</command>
 
 	<inputs>
 		&input_vcf;
@@ -83,7 +87,7 @@
 <tool main-class="com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios">
 	<label>Check for mendelian incompatibilities in a VCF</label>
 	<wiki>&base_wiki;VCFTrio</wiki>
-	<command>java -cp  <classpath/> <main-class/> $filter -p $ped -o ${output}.vcf.gz ${input} &amp;&amp; mv  ${output}.vcf.gz ${output}</command>
+	<command>&gzcat_input; | java -cp  <classpath/> <main-class/> $filter -p $ped -o ${output}.vcf.gz &amp;&amp; mv  ${output}.vcf.gz ${output}</command>
 	<inputs>
 		&input_vcf;
 		<param name="filter" type="boolean" checked="false" label="Create a FILTER in the FILTER column"  truevalue="-f" falsevalue=""/>
@@ -98,7 +102,7 @@
 <tool main-class="com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene">
 	<label>Group VCF (+ VEP + SnpEff) data by gene/transcript</label>
 	<wiki>&base_wiki;GroupByGene</wiki>
-	<command>java -cp  <classpath/> <main-class/> -o ${output}.tsv ${input} &amp;&amp; mv  ${output}.tsv ${output}</command>
+	<command>&gzcat_input; | java -cp  <classpath/> <main-class/> -o ${output}.tsv &amp;&amp; mv  ${output}.tsv ${output}</command>
 	<inputs>
 		&input_vcf;
 	</inputs>

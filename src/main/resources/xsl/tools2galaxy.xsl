@@ -25,12 +25,12 @@
 
 <xsl:template match="tool">
 <tool hidden="false">
-<xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
+<xsl:attribute name="id"><xsl:value-of select="@main-class"/></xsl:attribute>
 <xsl:attribute name="version"><xsl:value-of select="$version"/></xsl:attribute>
 <xsl:attribute name="name"><xsl:value-of select="$name"/></xsl:attribute>
 
 <xsl:comment>Date: <xsl:value-of select="date:date-time()"/></xsl:comment>	
-	
+	<description><xsl:apply-templates select="." mode="description"/></description>
 	<requirements>
 		<requirement type="binary">java</requirement>
 	</requirements>
@@ -49,7 +49,7 @@
 <xsl:if test="wiki">
 <xsl:text>
 
-** Wiki **
+**Wiki**
 
 </xsl:text>
 <xsl:apply-templates select="wiki"/>
@@ -94,8 +94,8 @@ Version: </xsl:text>
 
 <xsl:template match="classpath">
 <xsl:call-template name="print.classpath">
-  <xsl:with-param name="cp" value="normalize-space(${classpath})"/>
-  <xsl:with-param name="index" value="number(0)"/>
+  <xsl:with-param name="cp" select="normalize-space($classpath)"/>
+  <xsl:with-param name="index" select="number(0)"/>
 </xsl:call-template>
 </xsl:template>
 
@@ -119,13 +119,13 @@ Version: </xsl:text>
 
 <xsl:template match="outputs">
 <outputs>
-<xsl:apply-templates />
+<xsl:apply-templates select="data"/>
 </outputs>
 </xsl:template>
 
 
 
-<xsl:template match="param|repeat">
+<xsl:template match="param|repeat|data">
 <xsl:copy-of select="."/>
 </xsl:template>
 
@@ -184,7 +184,7 @@ Version: </xsl:text>
 <xsl:template match="param|data"  mode="label.rst">
 <xsl:choose>
   <xsl:when test="label"><xsl:apply-templates select="label"/></xsl:when>
-  <xsl:when test="@label"><xsl:apply-templates select="@label"/></xsl:when>
+  <xsl:when test="@label"><xsl:value-of select="@label"/></xsl:when>
   <xsl:otherwise><xsl:value-of select="@name"/></xsl:otherwise>
 </xsl:choose>
 </xsl:template>
@@ -192,8 +192,17 @@ Version: </xsl:text>
 <xsl:template match="param|data"  mode="description.rst">
 <xsl:choose>
   <xsl:when test="description"><xsl:apply-templates select="description"/></xsl:when>
-  <xsl:when test="@description"><xsl:apply-templates select="@description"/></xsl:when>
+  <xsl:when test="@description"><xsl:value-of select="@description"/></xsl:when>
   <xsl:otherwise><xsl:apply-templates select="." mode="label.rst" /></xsl:otherwise>
+</xsl:choose>
+</xsl:template>
+
+
+<xsl:template match="tool"  mode="description">
+<xsl:choose>
+	 <xsl:when test="label"><xsl:apply-templates select="label"/></xsl:when>
+  <xsl:when test="@label"><value-of select="@label"/></xsl:when>
+  <xsl:otherwise><value-of select="@name"/></xsl:otherwise>
 </xsl:choose>
 </xsl:template>
 
@@ -243,8 +252,8 @@ Version: </xsl:text>
   		<xsl:text>$__tool_directory__/</xsl:text>
   		<xsl:value-of select="substring-before($cp,' ')"/>
 		<xsl:call-template name="print.classpath">
-		  <xsl:with-param name="cp" value="substring-after($cp,' ')"/>
-		  <xsl:with-param name="index" value="number(1)"/>
+		  <xsl:with-param name="cp" select="substring-after($cp,' ')"/>
+		  <xsl:with-param name="index" select="number(1)"/>
 		</xsl:call-template>
   </xsl:when>
   <xsl:otherwise>
