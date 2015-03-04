@@ -45,6 +45,7 @@ public class SequenceOntologyTree
 	
 	public interface Term
 		{
+		public String getUri();
 		public String getAcn();
 		public String getLabel();
 		public Set<Term> getParents();
@@ -61,7 +62,10 @@ public class SequenceOntologyTree
 		Set<String> parents=new HashSet<String>();
 		Set<String> children=new HashSet<String>();
 		
-
+		@Override
+		public String getUri() {
+			return "http://purl.obolibrary.org/obo/"+getAcn().replace(':', '_');
+			}
 		
 		public String getAcn() {
 			return accession;

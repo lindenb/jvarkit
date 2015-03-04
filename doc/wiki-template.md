@@ -7,7 +7,7 @@ __TODO__
 See also [[Compilation]].
 
 ```bash
-$  ant __TODO__
+$  make __TODO__
 ```
 
 ##Synopsis
@@ -23,7 +23,6 @@ $ java -jar dist/__TODO__.jar (stdin|file)
 <tr><th>-h</th><td>get help (this screen) and exit.</td></tr>
 <tr><th>-v</th><td>print version and exit.</td></tr>
 <tr><th>-L (level)</th><td>log level. One of java.util.logging.Level . Optional.</td></tr>
-<tr><th>--doap</th><td>prints a DOAP+XML description of the program and exit</td></tr>
 </table>
 
 ##Source Code
@@ -52,3 +51,5 @@ $  java -jar dist/__TODO__.jar < in.vcf > out.vcf
 ## License
 
 The project is licensed under the MIT license.
+
+

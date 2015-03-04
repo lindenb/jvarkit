@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -173,6 +173,12 @@ public class VepPredictionParser implements PredictionParser
 				}
 			return tokens[idx];
 			}
+		public Allele getAllele()
+			{
+			String s= getByCol(COLS.Allele);
+			return s==null?null:Allele.create(s, false);
+			}
+		
 		
 		public String getExon()
 			{

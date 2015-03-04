@@ -154,6 +154,14 @@ public class IOUtils {
 		{
 		return  LineReaderUtil.fromBufferedStream(System.in);
 		}
+    
+    public static BufferedReader openStdinForBufferedReader() throws IOException
+		{
+		return  new BufferedReader(new InputStreamReader(System.in));
+		}
+    
+
+    
     /** @return a LineIterator that should be closed with CloserUtils */
     public static LineIterator openStdinForLineIterator() throws IOException
   		{
