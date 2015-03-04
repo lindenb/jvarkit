@@ -63,6 +63,11 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 public class SkipXmlElements
 	extends AbstractCommandLineProgram
 	{
+	private static final int KEEP_ELEMENT=1;
+	private static final int SKIP_ELEMENT=0;
+	private static final int KEEP_ELEMENT_AND_DESCENDANTS=2;
+	
+	
 	public static interface Tag
 		{
 		public Tag getParent();
@@ -267,39 +272,38 @@ public class SkipXmlElements
 							curr=node;
 							}
 						
-						boolean keep=true;
+						int keep=1;
+						
 							
 						bindings.put("element", curr);
 						Object result=compiledScript.eval(bindings);
 						
 						if(result==null) 
 							{
-							warning("Script returned null");
+							throw new RuntimeException("User's Script returned null");
 							}
-						else if(result instanceof Boolean)
+						else if(!(result instanceof Number))
 							{
-							if(Boolean.FALSE.equals(result)) keep=false;
+							throw new RuntimeException("User's Script didn't return a number.");
 							}
-						else if(result instanceof Number)
+						else// if(result instanceof Number)
 							{
-							if(((Number)result).intValue()!=1)  keep=false;
-							}
-						else
-							{
-							warning("Script returned something that is not a boolean or a number:"+result.getClass());
+							keep = ((Number)result).intValue();
 							}
 						
-						if(keep)
+						
+						if(keep==KEEP_ELEMENT)
 							{
 							w.add(r.nextEvent());
 							}
-						else /* skip this element */
+						else /* skip this element or keep and descendant */
 							{
 							curr=curr.parent;
 							int depth=0;
 							while(r.hasNext())
 								{
 								evt=r.nextEvent();
+								
 								switch(evt.getEventType())
 									{
 									case XMLEvent.START_ELEMENT:
@@ -314,10 +318,19 @@ public class SkipXmlElements
 										}
 									default:break;
 									}
+								if(keep==KEEP_ELEMENT_AND_DESCENDANTS)
+									{
+									w.add(evt);
+									}
 								if(depth==0) break;
 								}
 							}
 						
+						break;
+						}
+					case XMLEvent.COMMENT:
+						{
+						r.nextEvent();//just consumme
 						break;
 						}
 					case XMLEvent.END_ELEMENT :
