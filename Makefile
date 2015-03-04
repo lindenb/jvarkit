@@ -144,7 +144,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	vcfpolyx	vcfpredictions	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats	vcfstopcodon	vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
-	uniprotfilterjs
+	uniprotfilterjs skipxmlelements
 
 
 .PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar
@@ -337,7 +337,7 @@ $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf))
 $(eval $(call compile-htsjdk-cmd,vcfviewgui,${jvarkit.package}.tools.vcfviewgui.VcfViewGui))
 $(eval $(call compile-htsjdk-cmd,worldmapgenome,${jvarkit.package}.tools.circular.WorldMapGenome))
 $(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,api.uniprot))
-
+$(eval $(call compile-htsjdk-cmd,skipxmlelements,${jvarkit.package}.tools.misc.SkipXmlElements))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
