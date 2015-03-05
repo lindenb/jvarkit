@@ -42,7 +42,6 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.SimpleBindings;
 import javax.xml.namespace.QName;
-import javax.xml.stream.XMLEventFactory;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLEventWriter;
 import javax.xml.stream.XMLInputFactory;
@@ -64,6 +63,7 @@ public class SkipXmlElements
 	extends AbstractCommandLineProgram
 	{
 	private static final int KEEP_ELEMENT=1;
+	@SuppressWarnings("unused")
 	private static final int SKIP_ELEMENT=0;
 	private static final int KEEP_ELEMENT_AND_DESCENDANTS=2;
 	
@@ -78,6 +78,7 @@ public class SkipXmlElements
 		public String getNamespaceURI();
 		public String getPrefix();
 		public List<Attribute> getAttributes();
+		public boolean localNameIn(String...list);
 		}
 	
 	private static class TagImpl
@@ -129,6 +130,16 @@ public class SkipXmlElements
 			{
 			return 1+(getParent()==null?0:getParent().getDepth());
 			}
+		@Override
+		public boolean localNameIn(String...list)
+			{
+			for(String s:list)
+				{	
+				if(s.equals(getLocalName())) return true;
+				}
+			return false;
+			}
+		
 		@Override
 		public String toString()
 			{
@@ -249,9 +260,7 @@ public class SkipXmlElements
 				return -1;
 				}
 			XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
-			
-			XMLEventFactory eventFactory=XMLEventFactory.newFactory();
-			
+						
 			SimpleBindings bindings=new SimpleBindings();
 			TagImpl curr=null;
 			while(r.hasNext())
@@ -281,6 +290,10 @@ public class SkipXmlElements
 						if(result==null) 
 							{
 							throw new RuntimeException("User's Script returned null");
+							}
+						else if(!(result instanceof Boolean))
+							{
+							keep=(Boolean.class.cast(result).booleanValue()?1:0);
 							}
 						else if(!(result instanceof Number))
 							{

@@ -93,7 +93,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 		{
 		this.w.print("@prefix ");
 		this.w.print(pfx);
-		this.w.print(" <");
+		this.w.print(": <");
 		this.w.print(uri);
 		this.w.println("> .");
 		this.suffixes.add(pfx);
@@ -177,11 +177,11 @@ public class VcfToRdf extends AbstractCommandLineProgram
 			emitObject(array[i+1]);
 			if( i+2 == array.length)
 				{
-				w.println(". ");
+				w.println(" . ");
 				}
 			else
 				{
-				w.print("; ");
+				w.print(" ; ");
 				}
 			}
 		}
@@ -236,14 +236,18 @@ public class VcfToRdf extends AbstractCommandLineProgram
 		
 		try {
 			if(filein!=null) source= filein.toURI();
-			in=VCFUtils.createVcfIteratorFromFile(filein);
+			in=(filein==null?VCFUtils.createVcfIteratorStdin():VCFUtils.createVcfIteratorFromFile(filein));
 			VCFHeader header = in.getHeader();
 			VepPredictionParser vepPredictionParser=new VepPredictionParser(header);
 			writeHeader(header,source);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			while(in.hasNext())
 				{
-				if(this.w.checkError()) break;
+				if(this.w.checkError())
+					{
+					warning("I/O interruption");
+					break;
+					}
 				VariantContext ctx = progress.watch(in.next()); 
 				
 				/* Variant */
@@ -257,7 +261,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 					"vcf:position",ctx.getStart(),
 					"vcf:ref",ctx.getReference().getBaseString(),
 					"vcf:id",(ctx.hasID()?ctx.getID():null),
-					"vcf.qual",(ctx.hasLog10PError()?ctx.getPhredScaledQual():null)
+					"vcf:qual",(ctx.hasLog10PError()?ctx.getPhredScaledQual():null)
 					);
 				
 				for(Allele alt: ctx.getAlternateAlleles())
@@ -302,7 +306,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 							emit(
 								transcriptid,
 								"uniprot:translatedTo",//used  in uniprot dump
-								URI.create("http://purl.uniprot.org/ensembl/"+prediction.getEnsemblProtein())
+								URI.create("http://www.ensembl.org/id/"+prediction.getEnsemblProtein())
 								);
 							}
 						}
@@ -377,7 +381,8 @@ public class VcfToRdf extends AbstractCommandLineProgram
 			progress.finish();
 			} 
 		catch (Exception e) {
-			
+			error(e);
+			throw new IOException(e);
 			}
 		finally
 			{

@@ -129,30 +129,30 @@ public class VepPredictionParser implements PredictionParser
 		
 		if(o.getClass().isArray())
 			{
-			for(Object o2:(Object[])o) _predictions(preds,o2);
+			for(Object o2:(Object[])o) _predictions(preds,o2,ctx);
 			}
 		else if(o instanceof Collection)
 			{
-			for(Object o2:(Collection<?>)o)  _predictions(preds,o2);
+			for(Object o2:(Collection<?>)o)  _predictions(preds,o2,ctx);
 			}
 		else
 			{
-			_predictions(preds,o);
+			_predictions(preds,o,ctx);
 			}
 		return preds;
 		}
 	
-	private void _predictions( List<VepPrediction> preds,Object o)
+	private void _predictions( List<VepPrediction> preds,Object o,VariantContext ctx)
 		{
 		if(o==null) return;
 		if(!(o instanceof String))
 			{
-			_predictions(preds, o.toString());
+			_predictions(preds, o.toString(),ctx);
 			return;
 			}
 		String s=String.class.cast(o).trim();
 		String tokens[]=pipe.split(s);
-		preds.add(new VepPrediction(tokens));
+		preds.add(new VepPrediction(tokens,ctx));
 		}
 			
 	
@@ -160,9 +160,24 @@ public class VepPredictionParser implements PredictionParser
 		implements Prediction
 		{
 		private String tokens[];
-		VepPrediction(String tokens[])
+		VepPrediction(String tokens[],VariantContext ctx)
 			{
 			this.tokens=tokens;
+			/** special case for ALT, can be '-' */
+			Integer idx_allele = col2col.get(COLS.Allele);
+			if(	idx_allele!=null && 
+				idx_allele<tokens.length &&
+				tokens[idx_allele].equals("-"))
+				{
+				if(ctx.getAlternateAlleles().size()==1)
+					{
+					this.tokens[idx_allele]=ctx.getAlternateAlleles().get(0).getDisplayString();
+					}
+				else
+					{
+					this.tokens[idx_allele]="<indel>";
+					}
+				}
 			}
 		private String getByCol(COLS col)
 			{
