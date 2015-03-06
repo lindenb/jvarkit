@@ -34,7 +34,8 @@ Main code is: https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/g
 ```bash
 $  java -jar dist/__TODO__.jar < in.vcf > out.vcf
 
-``
+```
+
 ## Contribute
 
 - Issue Tracker: http://github.com/lindenb/jvarkit/issues`
