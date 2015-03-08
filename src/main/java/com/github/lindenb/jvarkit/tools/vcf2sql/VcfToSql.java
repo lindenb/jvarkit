@@ -37,6 +37,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -79,13 +80,9 @@ public class VcfToSql extends AbstractCommandLineProgram
 			this.name=name;
 			}
     	
-    	AbstractComponent label(String s) {this.rdfsLabel=s;return this;}
-    	AbstractComponent comment(String s) {this.rdfsComment=s;return this;}
-    	AbstractComponent uriPattern(String s) {this.d2rquriPattern=s;return this;}
     	
     	public String getLabel() { return this.rdfsLabel==null?getName():this.rdfsLabel;}
     	public String getComment() { return this.rdfsComment==null?getLabel():this.rdfsComment;}
-    	public String getUriPattern() { return d2rquriPattern;}
     	public String getD2RQName()
     		{
     		return this.getName();
@@ -100,9 +97,23 @@ public class VcfToSql extends AbstractCommandLineProgram
 			return "`"+getName()+"`";
 			}
     	
-    	
+    	abstract void collectD3RQMapping(Map<String,String> map);
    	
-    	public abstract void createD3RQMapping(PrintWriter pw);
+    	public  void createD3RQMapping(PrintWriter pw)
+    		{
+    		Map<String,String> map=new LinkedHashMap<>();
+    		collectD3RQMapping(map);
+    		
+    		for(String key:map.keySet())
+    			{
+    			pw.print("map:"+getD2RQName());
+    			pw.print(" ");
+    			pw.print(key);
+    			pw.print(" ");
+    			pw.print(map.get(key));
+    			pw.println(" .");
+    			}
+    		}  
     	}
     
     private class ColumnBuilder
@@ -113,12 +124,16 @@ public class VcfToSql extends AbstractCommandLineProgram
     	private boolean _pkey=false;
     	private String _name="";
     	private Class _class=String.class;
+    	private String _d2rq_property=null;
+    	private String uri_patten=null;
     	ColumnBuilder foreignKey(Table v) { this._foreignTable=v; return this;}
     	ColumnBuilder primaryKey() { this._pkey=true; return this;}
     	ColumnBuilder name(String v) { this._name=v; return this;}
     	ColumnBuilder comment(String v) { this._comment=v; return this;}
     	ColumnBuilder label(String v) { this._label=v; return this;}
     	ColumnBuilder type(Class v) { this._class=v; return this;}
+    	ColumnBuilder d2rqProperty(String v) { this._d2rq_property=v; return this;}
+    	ColumnBuilder uriPattern(String v) { this.uri_patten=v; return this;}
     	
     	Column make()
     			{
@@ -150,17 +165,41 @@ public class VcfToSql extends AbstractCommandLineProgram
     			
     			c.rdfsLabel = (this._label==null?c.getName():this._label);
     			c.rdfsComment = (this._comment==null?c.rdfsLabel:this._label);
-    			
+    			c.d2rq_property= this._d2rq_property;
     			return c;
     			}
     	}
     
     
+    private class TableBuilder
+    	{
+    	String _name=null;
+    	String _rdfClass=null;
+    	String _d2rqUriPattern=null;
+    	List<Column> _columns=new ArrayList<>();
+    	TableBuilder name(String v) { this._name=v; return this;}
+    	TableBuilder rdfClass(String v) { this._rdfClass=v; return this;}
+    	TableBuilder d2rqUriPattern(String v) { this._d2rqUriPattern=v; return this;}
+    	TableBuilder columns(Column...cols) { this._columns.addAll(Arrays.asList(cols)); return this;}
+    	
+    	
+    	
+    	public Table make()
+    		{
+    		Table t=new Table(_name,this._columns);
+    		t.name=_name;
+    		t._rdfClass=_rdfClass;
+    		return t;
+    		}
+    	}
+    
     private abstract class Column
     	extends AbstractComponent
     	{
     	boolean nilleable=false;
+    	String uriPattern=null;
     	Table table;
+    	String d2rq_property=null;
     	Column(String name)
 			{
 			super(name);
@@ -188,19 +227,32 @@ public class VcfToSql extends AbstractCommandLineProgram
     		{
     		return table.getD2RQName()+"_"+this.getName();
     		}
-
+    	public String getXsdType() { return null;}
     	
     	@Override
-    	public void createD3RQMapping(PrintWriter pw)
+    	void collectD3RQMapping(Map<String, String> map)
     		{
-    		pw.println("map:"+getD2RQName()+" a d2rq:PropertyBridge;");
-    		pw.println("	d2rq:belongsToClassMap map:"+table.getName()+";");
-    		pw.println("	d2rq:column \""+table.getName()+"."+this.getName()+"\";");
-    		pw.println("	d2rq:property	"+this.getName()+";");
-    		pw.println("	d2rq:propertyDefinitionLabel \""+getLabel()+"\"@en ;");
-    		pw.println("	d2rq:propertyDefinitionComment \""+getComment()+"\"@en ;");
-    		pw.println("	.");
+    		map.put("a", "d2rq:PropertyBridge");
+    		map.put("d2rq:belongsToClassMap", "map:"+table.getName());
+    		if(this.uriPattern==null)
+    			{
+    			map.put("d2rq:column","\""+table.getName()+"."+this.getName()+"\"");
+    			}
+    		else
+    			{
+    			map.put("d2rq:uriPattern","\""+this.uriPattern+"\"");
+    			}
+    		map.put("d2rq:property",(this.d2rq_property==null?"vcf:"+this.getName():this.d2rq_property));
+    		map.put("d2rq:propertyDefinitionLabel","\""+getLabel()+"\"@en");
+    		map.put("d2rq:propertyDefinitionComment","\""+getComment()+"\"@en");
+    		if(getXsdType()!=null)
+    			{
+    			map.put("d2rq:datatype",getXsdType());
+    			}
+
     		}
+    	
+
 
     	
     	}
@@ -217,6 +269,8 @@ public class VcfToSql extends AbstractCommandLineProgram
 			{
 			return getAntiquote()+" INT "+(nilleable?"":" NOT ")+"NULL";
 			}
+		@Override
+		public String getXsdType() { return "xsd:long";}
 		}
 
     
@@ -239,15 +293,11 @@ public class VcfToSql extends AbstractCommandLineProgram
     		}
 
     	@Override
-       	public void createD3RQMapping(PrintWriter pw)
-       		{
-    		pw.println("map:"+getD2RQName()+"_ref a d2rq:PropertyBridge;");
-    		pw.println("	d2rq:belongsToClassMap map:"+this.table.getD2RQName()+";");
-    		pw.println("	d2rq:property vocab:"+this.references.getD2RQName()+"_id;");
-    		pw.println("	d2rq:refersToClassMap map:"+this.references.getD2RQName()+";");
-    		pw.println("	d2rq:join \""+this.table.getName()+"."+this.getName()+" => "+ references.getName() +".id\";");
-    		pw.println("	.");
-       		}
+    	void collectD3RQMapping(Map<String, String> map)
+    		{
+    		super.collectD3RQMapping(map);
+    		map.put("d2rq:join", "\""+this.table.getName()+"."+this.getName()+" => "+ references.getName() +".id\"");
+    		}
 
 		}
     
@@ -273,20 +323,18 @@ public class VcfToSql extends AbstractCommandLineProgram
     			; 
     		}
        	@Override
-       	public void createD3RQMapping(PrintWriter pw)
+       	void collectD3RQMapping(Map<String, String> map)
        		{
-       		pw.print("map:"+getD2RQName()+" a d2rq:PropertyBridge;");
-       		pw.print("	d2rq:belongsToClassMap map:"+ table.getD2RQName() +";");
-       		pw.print("	d2rq:property rdfs:label;");
+       		super.collectD3RQMapping(map);
+       		
        		if(d2rq_pattern==null)
        			{
-       			pw.print("	d2rq:pattern \""+ table.getName()+"#@@"+ table.getName()+".id@@\";");
+       			map.put("d2rq:pattern","\""+ table.getName()+"#@@"+ table.getName()+".id@@\"");
        			}
        		else
        			{
-       			pw.print("	d2rq:pattern \""+ this.d2rq_pattern +"\";");
+       			map.put("d2rq:pattern","\""+ this.d2rq_pattern +"\"");
        			}
-       		pw.print(".");
 
        		}
    		}
@@ -303,6 +351,8 @@ public class VcfToSql extends AbstractCommandLineProgram
 			{
 			return getAntiquote()+" INT "+(nilleable?"":" NOT ")+"NULL";
 			}
+		@Override
+		public String getXsdType() { return "xsd:int";}
 
 		}
     
@@ -318,6 +368,9 @@ public class VcfToSql extends AbstractCommandLineProgram
 			{
 			return getAntiquote()+" DOUBLE "+(nilleable?"":" NOT ")+"NULL";
 			}
+		@Override
+		public String getXsdType() { return "xsd:double";}
+
 		}
 
     
@@ -348,6 +401,10 @@ public class VcfToSql extends AbstractCommandLineProgram
 				}
 			}
 		@Override
+		public String getXsdType() { return "xsd:string";}
+
+    	
+		@Override
 		public String mysqlCreateStatement()
 			{
 			return getAntiquote()+" VARCHAR("+(maxLength+1)+") "+
@@ -366,12 +423,12 @@ public class VcfToSql extends AbstractCommandLineProgram
     	PrintWriter out=null;
     	List<Column> columns=new ArrayList<>();
     	Map<String,Column> name2column=new HashMap<String,Column>();
-    	String owlClass="rdfs:Class";
+    	String _rdfClass = null;
     	
-    	Table(String name,Column...columns)
+    	Table(String name,List<Column> columns)
 			{
 			super(name);
-			this.columns.addAll(Arrays.asList(columns));
+			this.columns.addAll(columns);
 			for(Column c:columns)
 				{
 				c.table=this;
@@ -380,7 +437,6 @@ public class VcfToSql extends AbstractCommandLineProgram
 			super.d2rquriPattern=NS+name+"/@@"+name+".id@@";
 			}
     	
-    	Table owlClass(String owlClass) { this.owlClass=owlClass; return this; }
     	
     	void open() throws IOException
     		{
@@ -433,18 +489,22 @@ public class VcfToSql extends AbstractCommandLineProgram
     		sw.append(") DEFAULT CHARSET=utf8 ;");
     		return sw.toString();
     		}
+    	@Override
+    	void collectD3RQMapping(Map<String, String> map)
+    		{
+    		map.put("d2rq:uriPattern","\""+this.d2rquriPattern +"\"");
+    		map.put("d2rq:class",this._rdfClass==null?"vcf:"+getName():this._rdfClass);
+    		map.put("d2rq:classDefinitionLabel","\""+getLabel()+"\"@en");
+    		map.put("d2rq:classDefinitionComment","\""+getComment()+"\"@en");
+    		map.put("d2rq:dataStorage","map:Database1");    		
+    		}
+    	
     	/* http://plindenbaum.blogspot.fr/2010/02/mapping-rdbms-to-rdf-with-d2rq-yet.html */
     	@Override
     	public void createD3RQMapping(PrintWriter pw)
     		{
     		pw.println("\n# Table "+getName());
-    		pw.println("map:"+getD2RQName()+" a d2rq:ClassMap;");
-    		pw.println("	d2rq:uriPattern	\""+this.d2rquriPattern +"\" ;");
-    		pw.println("	d2rq:class	"+this.owlClass+" ;");
-    		pw.println("	d2rq:classDefinitionLabel \""+getLabel()+"\"@en ;");
-    		pw.println("	d2rq:classDefinitionComment \""+getComment()+"\"@en ;");
-    		pw.println("	d2rq:dataStorage map:Database1;");    		
-    		pw.println("	.");
+    		super.createD3RQMapping(pw);
     		
        		pw.print("map:"+this.getD2RQName()+"__label a d2rq:PropertyBridge;");
        		pw.print("	d2rq:belongsToClassMap map:"+ this.getD2RQName() +";");
@@ -461,31 +521,31 @@ public class VcfToSql extends AbstractCommandLineProgram
     	}
     
     
-    private Table vcfFileTable = new Table("vcffile",
+    private Table vcfFileTable = new TableBuilder().name("vcffile").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().name("file").make()
-    		);
-    private Table sampleTable = new Table("sample",
+    		).make();
+    private Table sampleTable = new TableBuilder().name("sample").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vcfFileTable).make(),
     		new ColumnBuilder().name("name").make()
-    		);
+    		).rdfClass("foaf:Person").make();
     
-    private Table filterTable = new Table("filter",
+    private Table filterTable = new TableBuilder().name("filter").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vcfFileTable).make(),
     		new ColumnBuilder().name("name").make(),
     		new ColumnBuilder().name("description").make()
-    		);
+    		).rdfClass("vcf:Filter").make();
 
-    private Table chromosomeTable = new Table("chromosome",
+    private Table chromosomeTable = new TableBuilder().name("chromosome").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vcfFileTable).make(),
-    		new ColumnBuilder().name("name").make(),
+    		new ColumnBuilder().d2rqProperty("dc:title").name("name").make(),
     		new ColumnBuilder().name("chromLength").type(Integer.class).make()
-    		);
+    		).rdfClass("vcf:Chromosome").make();
     
-    private Table variantTable = new Table("variant",
+    private Table variantTable = new TableBuilder().name("variant").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vcfFileTable).make(),
     		new ColumnBuilder().name("index_in_file").type(Integer.class).make(),
@@ -493,37 +553,38 @@ public class VcfToSql extends AbstractCommandLineProgram
     		new ColumnBuilder().name("pos").type(Integer.class).make(),
     		new ColumnBuilder().name("rsid").make(),
     		new ColumnBuilder().name("ref").make(),
-    		new ColumnBuilder().name("pos").type(Double.class).make()
-    		); 
+    		new ColumnBuilder().name("qual").type(Double.class).make()
+    		).rdfClass("vcf:Variant").make(); 
     
-    private Table variant2altTable = new Table("variant2alt",
+    private Table variant2altTable = new TableBuilder().name("variant2alt").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(variantTable).make(),
     		new ColumnBuilder().name("alt").make()
-    		); 
+    		).rdfClass("vcf:AlternateAllele").make(); 
     
-    private Table variant2filters = new Table("variant2filter",
+    private Table variant2filters = new TableBuilder().name("variant2filter").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(variantTable).make(),
     		new ColumnBuilder().foreignKey(filterTable).make()
-    		); 
+    		).make(); 
 
-    private Table vepPrediction = new Table("vepPrediction",
+    private Table vepPrediction = new TableBuilder().name("vepPrediction").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(variantTable).make(),
-    		new ColumnBuilder().name("ensGene").make(),
-    		new ColumnBuilder().name("ensTranscript").make(),
+    		new ColumnBuilder().name("ensGene").uriPattern("http://purl.uniprot.org/ensembl/@@vepPrediction.ensGene@@").make(),
+    		new ColumnBuilder().name("ensTranscript").uriPattern("http://purl.uniprot.org/ensembl/@@vepPrediction.ensTranscript@@").make(),
     		new ColumnBuilder().name("ensProtein").make(),
     		new ColumnBuilder().name("geneSymbol").make()
-    		); 
-    private Table vepPrediction2so = new Table("vepPrediction2so",
+    		).rdfClass("vcf:VepPrediction").make(); 
+    
+    private Table vepPrediction2so = new TableBuilder().name("vepPrediction2so").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vepPrediction).make(),
-    		new ColumnBuilder().name("acn").make()
-    		); 
+    		new ColumnBuilder().name("acn").uriPattern("http://purl.obolibrary.org/obo/@@vepPrediction2so.acn@@").make()
+    		).make(); 
 
     
-    private Table genotypeTable = new Table("genotype",
+    private Table genotypeTable = new TableBuilder().name("genotype").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(variantTable).make(),
     		new ColumnBuilder().foreignKey(sampleTable).make(),
@@ -531,7 +592,7 @@ public class VcfToSql extends AbstractCommandLineProgram
     		new ColumnBuilder().name("a2").make(),
     		new ColumnBuilder().name("dp").type(Integer.class).make(),
     		new ColumnBuilder().name("gq").type(Double.class).make()
-    		); 
+    		).make(); 
 
     private Table all_tables[]=new Table[]{
     	   vcfFileTable,sampleTable,filterTable,chromosomeTable,
@@ -673,7 +734,7 @@ public class VcfToSql extends AbstractCommandLineProgram
 					vepPrediction2so.insert(
 						nextKey(),
 						pred_id,
-						t.getAcn()
+						t.getAcn().replace(':', '_')
 						);
 					}
 				}
@@ -805,6 +866,12 @@ public class VcfToSql extends AbstractCommandLineProgram
 
 			zout.putNextEntry(new ZipEntry(zipDir+"mapping.n3"));
 			pw=new PrintWriter(zout);
+			pw.println("#Local namespace");
+			pw.println("@prefix vcf: <https://github.com/lindenb/jvarkit/vcf2sql/1.0/> .");
+			pw.println("#Foaf namespace");
+			pw.println("@prefix foaf: <http://xmlns.com/foaf/0.1/> .");
+			pw.println("#Dublin core namespace");
+			pw.println("@prefix dc: <http://purl.org/dc/elements/1.1/> .");
 			pw.println("# D2RQ Namespace");  
 			pw.println("@prefix d2rq:        <http://www.wiwiss.fu-berlin.de/suhl/bizer/D2RQ/0.1#> .");  
 			pw.println("# Namespace of the ontology");  
