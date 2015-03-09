@@ -13,10 +13,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.PushbackInputStream;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
@@ -134,11 +136,29 @@ public class IOUtils {
         	{
             return new BlockCompressedOutputStream(file);
         	}
+        else if (file.getName().endsWith(".gz"))
+	    	{
+	        return new GZIPOutputStream(new FileOutputStream(file),true);
+	    	}
         else
         	{
             return new FileOutputStream(file);
         	}         
     	}
+    
+    /** open a printwriter, compress if it ends with *.gz  */
+    public static PrintWriter openFileForPrintWriter(final File file) throws IOException
+		{
+	    if (file.getName().endsWith(".gz"))
+	    	{
+	        return new PrintWriter(openFileForWriting(file));
+	    	}
+	    else
+	    	{
+	        return new PrintWriter(file);
+	    	}         
+		}
+
     
     public static LineReader openFileForLineReader(File file) throws IOException
 		{

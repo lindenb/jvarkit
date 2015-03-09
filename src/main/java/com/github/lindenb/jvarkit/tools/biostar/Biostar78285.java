@@ -1,212 +1,166 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
 
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+
+
+
+
+
+
+
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Log;
-import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class Biostar78285 extends AbstractCommandLineProgram
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+
-		" Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/ .";
-	private static final Log LOG=Log.getInstance(Biostar78285.class);
-
-
-
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,doc="BAM file (sorted on coordinate). Default:stdin",optional=true)
-    public File IN=null;
-    @Option(shortName="CIGAR",doc="scan the CIGAR string & detect the gaps in the reads. Slower & takes more memory",optional=true)
-    public boolean USECIGAR=false;
     
-    @Override
-    protected int doWork()
+    private  int scan(SamReader samFileReader) throws IOException
     	{
-    	SamReader samFileReader=null;
     	SAMRecordIterator iter=null;
-    	SamLocusIterator sli=null;
     	try
 	    	{
 	    	
-	    	
-	    	if(IN==null)
-	    		{
-	    		samFileReader=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).openStdin();
-	    		}
-	    	else
-	    		{
-	    		samFileReader=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).open(IN);
-	    		}
 	    	SAMFileHeader header=samFileReader.getFileHeader();
 	    	if(header.getSortOrder()!=SortOrder.coordinate)
 	    		{
-	    		switch(super.VALIDATION_STRINGENCY)
-	    			{
-	    			case STRICT:LOG.error("SORT ORDER IS NOT 'coordinate':"+header.getSortOrder()+" (VALIDATION_STRINGENCY is STRICT)");return -1;
-	    			case SILENT:break;
-	    			default:LOG.warn("SORT ORDER IS NOT 'coordinate':"+header.getSortOrder());break;
-	    			}
+	    		error("Sam file is not sorted on coordinate :"+header.getSortOrder());
+	    		return -1;
 	    		}
 	    	SAMSequenceDictionary dict=header.getSequenceDictionary();
 	    	if(dict==null)
 	    		{
-	    		System.err.println("SamFile doesn't contain a SAMSequenceDictionary.");
+	    		error("SamFile doesn't contain a SAMSequenceDictionary.");
 	    		return -1;
 	    		}
-	    	
+	    	/* flag, do we saw all chromosomes in dictionary ? */
 	    	boolean seen_tid[]=new boolean[dict.getSequences().size()];
 	    	Arrays.fill(seen_tid, false);
 	    	
 	    	
-	    	
-	    	
-	    	if(USECIGAR)
+    		BitSet mapped=null;
+    		SAMSequenceRecord ssr=null;
+    		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
+    		iter=samFileReader.iterator();
+	    	while(iter.hasNext())
 	    		{
-	    		BitSet mapped=null;
-	    		SAMSequenceRecord ssr=null;
-	    		iter=samFileReader.iterator();
-		    	while(iter.hasNext())
-		    		{
-		    		SAMRecord rec=iter.next();
-		    		if(rec.getReadUnmappedFlag()) continue;
-		    		Cigar cigar=rec.getCigar();
-		    		if(cigar==null) continue;
-		    		if(ssr==null || ssr.getSequenceIndex()!=rec.getReferenceIndex())
-		    			{
-		    			if(ssr!=null && mapped!=null)
-		    				{
-			    			dump(ssr,mapped);
-			    			}
-		    			ssr=dict.getSequence(rec.getReferenceIndex());
-		    			LOG.info("allocating bitset for "+ssr.getSequenceName()+" LENGTH="+ssr.getSequenceLength());
-		    			mapped=new BitSet(ssr.getSequenceLength());
-		    			seen_tid[rec.getReferenceIndex()]=true;
+	    		SAMRecord rec=progress.watch(iter.next());
+	    		if(rec.getReadUnmappedFlag()) continue;
+	    		if(rec.isSecondaryOrSupplementary()) continue;
+	    		if(rec.getDuplicateReadFlag()) continue;
+	    		if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+	    		if(rec.getMappingQuality()==0) continue;
+	    		Cigar cigar=rec.getCigar();
+	    		if(cigar==null) continue;
+	    		if(ssr==null || ssr.getSequenceIndex()!=rec.getReferenceIndex())
+	    			{
+	    			if(ssr!=null && mapped!=null)
+	    				{
+		    			dump(ssr,mapped);
 		    			}
-		    		int refpos0=rec.getAlignmentStart()-1;
-		    		for(CigarElement ce:cigar.getCigarElements())
-		    			{
-	    				switch(ce.getOperator())
+	    			ssr=dict.getSequence(rec.getReferenceIndex());
+	    			if(ssr==null)
+	    				{
+	    				error("Sequence not in dict :"+rec);
+	    				}
+	    			info("allocating bitset for "+ssr.getSequenceName()+" LENGTH="+ssr.getSequenceLength());
+	    			mapped=new BitSet(ssr.getSequenceLength());
+	    			seen_tid[rec.getReferenceIndex()]=true;
+	    			}
+	    		int refpos0=rec.getAlignmentStart()-1;
+	    		for(CigarElement ce:cigar.getCigarElements())
+	    			{
+	    			CigarOperator op=ce.getOperator();
+	    			if(op.consumesReferenceBases())
+	    				{	
+	    				if(op.consumesReadBases())
 	    					{
-	    					case H:break;
-	    					case S:break;
-	    					case I:break;
-	    					case P:break;
-	    					case N:// reference skip
-	    					case D://deletion in reference
-	    						{
-	    						for(int i=0;i< ce.getLength() ;++i)
-		    		    			{
-		    						refpos0++;
-	    		    				}
-	    						break;
-	    						}
-	    					case M:
-	    					case EQ:
-	    					case X:
-	    						{
-	    						for(int i=0;i< ce.getLength() && refpos0< ssr.getSequenceLength();++i)
-		    		    			{
-		    						mapped.set(refpos0,true);
-		    						refpos0++;
-	    		    				}
-	    						break;
-	    						}
-	    					default: throw new IllegalStateException(
-	    							"Doesn't know how to handle cigar operator:"+ce.getOperator()+
-	    							" cigar:"+cigar
-	    							);
-
+	    					for(int i=0;i< ce.getLength() && refpos0 +i < ssr.getSequenceLength();++i)
+	    		    			{
+	    						mapped.set(refpos0+i,true);
+    		    				}
 	    					}
-		    				
-		    			}
-		    		}
-		    	if(ssr!=null && mapped!=null)
-    				{
-	    			dump(ssr,mapped);
+	    				refpos0 += ce.getLength();
+	    				}		    				
 	    			}
 	    		}
-	    	else
-		    	{
-	    		int prev_tid=-1;
-		    	int prev_pos1=1;
-		    	
-		    	iter=samFileReader.iterator();
-		    	while(iter.hasNext())
-		    		{
-		    		SAMRecord rec=iter.next();
-		    		if(rec.getReadUnmappedFlag()) continue;
-		    		int tid=rec.getReferenceIndex();
-		    		if(prev_tid!=-1 && prev_tid!=tid) /* chromosome has changed */
-		    			{
-		    			SAMSequenceRecord ssr=dict.getSequence(prev_tid);
-		    			if(prev_pos1-1 < ssr.getSequenceLength())
-							{
-			    			System.out.println(ssr.getSequenceName()+"\t"+(prev_pos1-1)+"\t"+ssr.getSequenceLength());
-			    			}
-		    			prev_pos1=1;
-		    			}
-		    		if(prev_pos1< rec.getAlignmentStart()) /* there is a gap */
-						{
-		    			System.out.println(rec.getReferenceName()+"\t"+(prev_pos1-1)+"\t"+rec.getAlignmentStart());
-						}
-		    		seen_tid[tid]=true;
-		    		prev_tid=tid;
-		    		prev_pos1=Math.max(prev_pos1,rec.getAlignmentEnd()+1);
-		    		}
-		    	
-		    	/* last reference */
-				if(prev_tid!=-1 )
-					{
-					SAMSequenceRecord ssr=dict.getSequence(prev_tid);
-					if(prev_pos1-1 < ssr.getSequenceLength())
-						{
-		    			System.out.println(ssr.getSequenceName()+"\t"+(prev_pos1-1)+"\t"+ssr.getSequenceLength());
-						}
-					}
-		    	
-		    	}
 	    	
+	    	
+	    	if(ssr!=null && mapped!=null)
+				{
+    			dump(ssr,mapped);
+    			}
+	    		
 				
 				
 	    	/* unseen chromosomes */
 	    	for(int i=0;i< seen_tid.length;++i)
 	    		{
 	    		if(seen_tid[i]) continue;
-	    		SAMSequenceRecord ssr=dict.getSequence(i);
+	    		ssr=dict.getSequence(i);
     			System.out.println(ssr.getSequenceName()+"\t0\t"+ssr.getSequenceLength());
 	    		}
 	    	
+	    	progress.finish();
 	    	return 0;
 	    	}
     	catch(Exception err)
     		{
-    		LOG.error(err);
+    		error(err);
     		return -1;
     		}
     	finally
     		{
     		CloserUtil.close(iter);
-    		CloserUtil.close(sli);
     		CloserUtil.close(samFileReader);
     		}
     	
@@ -230,6 +184,72 @@ public class Biostar78285 extends AbstractCommandLineProgram
     		i=j;
     		}
     	}
+    @Override
+	public String getProgramDescription() {
+		return "Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/";
+		}
+	
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		super.printOptions(out);
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
+			{
+			switch(c)
+				{
+				default:
+					{
+					switch(handleOtherOptions(c, opt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		
+		SamReader samReader=null;
+		try
+			{
+			SamReaderFactory srf= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			
+			if(opt.getOptInd()==args.length)
+				{
+				info("Reading from stdin");
+				samReader = srf.open(SamInputResource.of(System.in));
+				}
+			else if(opt.getOptInd()+1==args.length)
+				{
+				samReader = srf.open(new File(args[opt.getOptInd()]));
+				}
+			else
+				{
+				error(getMessageBundle("illegal.number.of.arguments"));
+				return -1;
+				}
+			int err=scan(samReader);
+			samReader.close();
+			samReader=null;
+			return err;
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(samReader);
+			}
+		}
 	/**
 	 * @param args
 	 */
