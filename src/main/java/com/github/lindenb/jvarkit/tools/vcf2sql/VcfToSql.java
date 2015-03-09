@@ -58,7 +58,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPr
 public class VcfToSql extends AbstractCommandLineProgram
 	{
     private PrintWriter outputWriter =null;
-    private boolean drop_tables=true;
+    private boolean drop_tables=false;
     
     private class SelectStmt
     	{
@@ -508,10 +508,17 @@ public class VcfToSql extends AbstractCommandLineProgram
     		new ColumnBuilder().name("geneSymbol").nilleable().length(20).make()
     		).make(); 
     
+    private Table soTermTable = new TableBuilder().name("soTerm").columns(
+    		new ColumnBuilder().primaryKey().make(),
+    		new ColumnBuilder().name("acn").uniq().length(11).make(),
+    		new ColumnBuilder().name("description").length(255).make()
+    		).insertIgnore().make(); 
+
+    
     private Table vepPrediction2so = new TableBuilder().name("vepPrediction2so").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vepPrediction).make(),
-    		new ColumnBuilder().name("acn").length(11).make()
+    		new ColumnBuilder().foreignKey(soTermTable).make()
     		).make(); 
 
     
@@ -519,8 +526,8 @@ public class VcfToSql extends AbstractCommandLineProgram
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(variantTable).make(),
     		new ColumnBuilder().foreignKey(sampleTable).make(),
-    		new ColumnBuilder().foreignKey(alleleTable,"a1").nilleable().make(),
-    		new ColumnBuilder().foreignKey(alleleTable,"a2").nilleable().make(),
+    		new ColumnBuilder().foreignKey(alleleTable,"a1_id").nilleable().make(),
+    		new ColumnBuilder().foreignKey(alleleTable,"a2_id").nilleable().make(),
     		new ColumnBuilder().name("dp").nilleable().type(Integer.class).make(),
     		new ColumnBuilder().name("gq").nilleable().type(Double.class).make()
     		).make(); 
@@ -530,6 +537,7 @@ public class VcfToSql extends AbstractCommandLineProgram
     	   alleleTable,filterTable,chromosomeTable,
     	   variantTable,variant2altTable,variant2filters,
     	   vepPrediction,
+    	   soTermTable,
     	   vepPrediction2so,
     	   genotypeTable
     	};
@@ -540,13 +548,6 @@ public class VcfToSql extends AbstractCommandLineProgram
     	
     	}
     
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (file) filename out.");
-		super.printOptions(out);
-		}
-
 	
 	private void read(File filename)
 		throws IOException
@@ -683,11 +684,20 @@ public class VcfToSql extends AbstractCommandLineProgram
 		
 				for(SequenceOntologyTree.Term t: pred.getSOTerms())
 					{
+					String term=t.getAcn().replace(':', '_');
+					soTermTable.insert(
+							outputWriter,
+							null,
+							term,
+							t.getAcn()
+							);//for bioportal compatibility
+					SelectStmt term_id = new SelectStmt(soTermTable,"acn",term);
+					
 					vepPrediction2so.insert(
 						outputWriter,
 						null,
 						pred_id,
-						t.getAcn().replace(':', '_')
+						term_id
 						);
 					}
 				}
@@ -714,17 +724,41 @@ public class VcfToSql extends AbstractCommandLineProgram
 		r.close();
 		}
 	
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/VCF2SQL";
+    	}
+    
+    @Override
+	public String getProgramDescription() {
+		return "Generate the SQL code to insert a VCF into mysql.";
+		}
+	
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		out.println(" -G dump schema as DOT");
+		out.println(" -d drop file on startup");
+		out.println(" -o (file) filename out.");
+		super.printOptions(out);
+		}
+
+
+	
 
 	@Override
 	public int doWork(String[] args)
 		{
+		boolean print_schema=false;
 		File outFile=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:dG"))!=-1)
 			{
 			switch(c)
 				{
+				case 'G': print_schema=true; break;
+				case 'd': drop_tables=true; break;
 				case 'o':outFile=new File(opt.getOptArg()); break;
 				default:
 					{
@@ -741,6 +775,42 @@ public class VcfToSql extends AbstractCommandLineProgram
 		
 		try
 			{
+			
+			if(print_schema)
+				{
+				if(outFile==null)
+					{
+					this.outputWriter=new PrintWriter(System.out);
+					}
+				else
+					{
+					this.outputWriter = IOUtils.openFileForPrintWriter(outFile);
+					}
+				this.outputWriter.println("digraph G{");
+				for(int i=0;i< this.all_tables.length;++i)
+					{
+					this.outputWriter.println(this.all_tables[i].getName()+";");
+					}
+				for(int i=0;i< this.all_tables.length;++i)
+					{
+					for(Column c2:this.all_tables[i].columns)
+						{
+						if(!(c2 instanceof ForeignKey)) continue;
+						ForeignKey fk=ForeignKey.class.cast(c2);
+						this.outputWriter.println(
+								this.all_tables[i].getName()+
+								" -> "+
+								fk.referencesTable.getName()+
+								"[label="+fk.name+"];"
+								);
+						}
+					}
+				this.outputWriter.println("}");
+				this.outputWriter.flush();
+				this.outputWriter.close();
+				return 0;
+				}
+			
 			if(opt.getOptInd()+1!=args.length)
 				{
 				info("Illegal number of arguments");

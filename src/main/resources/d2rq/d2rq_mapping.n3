@@ -1,0 +1,529 @@
+@prefix map: <#> .
+@prefix db: <> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix vcf: <https://github.com/lindenb/jvarkit/vcf2sql/1.0/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix d2rq: <http://www.wiwiss.fu-berlin.de/suhl/bizer/D2RQ/0.1#> .
+@prefix jdbc: <http://d2rq.org/terms/jdbc/> .
+@prefix uniprot: <http://purl.uniprot.org/core/> .
+@prefix dcterms: <http://purl.org/dc/terms/> . 
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix bibo: <http://purl.org/ontology/bibo/> .
+@prefix obo: <http://purl.obolibrary.org/obo/> .
+@prefix obo2: <http://data.bioontology.org/metadata/obo/> .
+@prefix metadata: <http://data.bioontology.org/metadata/> .
+
+map:Configuration a d2rq:Configuration;
+    d2rq:serveVocabulary true;
+    .
+
+
+map:database a d2rq:Database;
+	d2rq:jdbcDriver "com.mysql.jdbc.Driver";
+	d2rq:jdbcDSN "jdbc:mysql://localhost/user_lindenb";
+	d2rq:username "anonymous";
+	jdbc:autoReconnect "true";
+	jdbc:zeroDateTimeBehavior "convertToNull";
+	.
+
+# Table allele
+map:allele a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "allele/@@allele.id@@";
+	d2rq:class vcf:Allele;
+	d2rq:classDefinitionLabel "allele";
+	.
+map:allele__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:allele;
+	d2rq:property rdfs:label;
+	d2rq:pattern "allele #@@allele.id@@";
+	.
+map:allele_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:allele;
+	d2rq:property vcf:allele_id;
+	d2rq:propertyDefinitionLabel "allele id";
+	d2rq:column "allele.id";
+	d2rq:datatype xsd:integer;
+	.
+map:allele_bases a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:allele;
+	d2rq:property vcf:allele_bases;
+	d2rq:propertyDefinitionLabel "allele bases";
+	d2rq:column "allele.bases";
+	d2rq:datatype xsd:token;
+	.
+
+# Table chromosome
+map:chromosome a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "chromosome/@@chromosome.id@@";
+	d2rq:class vcf:Chromosome;
+	d2rq:classDefinitionLabel "chromosome";
+	.
+map:chromosome__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:chromosome;
+	d2rq:property rdfs:label;
+	d2rq:pattern "chromosome #@@chromosome.id@@";
+	.
+map:chromosome_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:chromosome;
+	d2rq:property vcf:chromosome_id;
+	d2rq:propertyDefinitionLabel "chromosome id";
+	d2rq:column "chromosome.id";
+	d2rq:datatype xsd:integer;
+	.
+map:chromosome_name a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:chromosome;
+	d2rq:property vcf:chromosome_name;
+	d2rq:propertyDefinitionLabel "chromosome name";
+	d2rq:datatype xsd:token;
+	d2rq:column "chromosome.name";
+	.
+map:chromosome_chromLength a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:chromosome;
+	d2rq:property vcf:chromosome_chromLength;
+	d2rq:propertyDefinitionLabel "chromosome chromLength";
+	d2rq:column "chromosome.chromLength";
+	d2rq:datatype xsd:integer;
+	.
+map:chromosome_vcffile_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:chromosome;
+	d2rq:property vcf:chromosome_vcffile_id;
+	d2rq:refersToClassMap map:vcffile;
+	d2rq:join "chromosome.vcffile_id => vcffile.id";
+	.
+
+# Table filter
+map:filter a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "filter/@@filter.id@@";
+	d2rq:class vcf:filter;
+	d2rq:classDefinitionLabel "filter";
+	.
+map:filter__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:filter;
+	d2rq:property rdfs:label;
+	d2rq:pattern "filter #@@filter.id@@";
+	.
+map:filter_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:filter;
+	d2rq:property vcf:filter_id;
+	d2rq:propertyDefinitionLabel "filter id";
+	d2rq:column "filter.id";
+	d2rq:datatype xsd:integer;
+	.
+map:filter_name a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:filter;
+	d2rq:property vcf:filter_name;
+	d2rq:propertyDefinitionLabel "filter name";
+	d2rq:column "filter.name";
+	.
+map:filter_description a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:filter;
+	d2rq:property vcf:filter_description;
+	d2rq:propertyDefinitionLabel "filter description";
+	d2rq:column "filter.description";
+	.
+map:filter_vcffile_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:filter;
+	d2rq:property vcf:filter_vcffile_id;
+	d2rq:refersToClassMap map:vcffile;
+	d2rq:join "filter.vcffile_id => vcffile.id";
+	.
+
+# Table genotype
+map:genotype a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "genotype/@@genotype.id@@";
+	d2rq:class vcf:genotype;
+	d2rq:classDefinitionLabel "genotype";
+	.
+map:genotype__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:genotype;
+	d2rq:property rdfs:label;
+	d2rq:pattern "genotype #@@genotype.id@@";
+	.
+map:genotype_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:genotype;
+	d2rq:property vcf:genotype_id;
+	d2rq:propertyDefinitionLabel "genotype id";
+	d2rq:column "genotype.id";
+	d2rq:datatype xsd:integer;
+	.
+map:genotype_dp a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:genotype;
+	d2rq:property vcf:genotype_dp;
+	d2rq:propertyDefinitionLabel "genotype dp";
+	d2rq:column "genotype.dp";
+	d2rq:datatype xsd:integer;
+	.
+map:genotype_gq a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:genotype;
+	d2rq:property vcf:genotype_gq;
+	d2rq:propertyDefinitionLabel "genotype gq";
+	d2rq:column "genotype.gq";
+	d2rq:datatype xsd:double;
+	.
+map:genotype_a2_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:genotype;
+	d2rq:property vcf:genotype_a2_id;
+	d2rq:refersToClassMap map:allele;
+	d2rq:join "genotype.a2_id => allele.id";
+	.
+map:genotype_a1_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:genotype;
+	d2rq:property vcf:genotype_a1_id;
+	d2rq:refersToClassMap map:allele;
+	d2rq:join "genotype.a1_id => allele.id";
+	.
+	
+map:genotype_sample_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:genotype;
+	d2rq:property vcf:genotype_sample_id;
+	d2rq:refersToClassMap map:sample;
+	d2rq:join "genotype.sample_id => sample.id";
+	.
+map:genotype_variant_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:genotype;
+	d2rq:property vcf:genotype_variant_id;
+	d2rq:refersToClassMap map:variant;
+	d2rq:join "genotype.variant_id => variant.id";
+	.
+
+# Table sample
+map:sample a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "sample/@@sample.id@@";
+	d2rq:class vcf:sample;
+	d2rq:classDefinitionLabel "sample";
+	.
+map:sample__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:sample;
+	d2rq:property rdfs:label;
+	d2rq:pattern "sample #@@sample.id@@";
+	.
+map:sample_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:sample;
+	d2rq:property vcf:sample_id;
+	d2rq:propertyDefinitionLabel "sample id";
+	d2rq:column "sample.id";
+	d2rq:datatype xsd:integer;
+	.
+map:sample_name a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:sample;
+	d2rq:property vcf:sample_name;
+	d2rq:propertyDefinitionLabel "sample name";
+	d2rq:column "sample.name";
+	.
+
+# Table sample2file
+map:sample2file a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "sample2file/@@sample2file.id@@";
+	d2rq:class vcf:sample2file;
+	d2rq:classDefinitionLabel "sample2file";
+	.
+map:sample2file__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:sample2file;
+	d2rq:property rdfs:label;
+	d2rq:pattern "sample2file #@@sample2file.id@@";
+	.
+map:sample2file_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:sample2file;
+	d2rq:property vcf:sample2file_id;
+	d2rq:propertyDefinitionLabel "sample2file id";
+	d2rq:column "sample2file.id";
+	d2rq:datatype xsd:integer;
+	.
+map:sample2file_vcffile_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:sample2file;
+	d2rq:property vcf:sample2file_vcffile_id;
+	d2rq:refersToClassMap map:vcffile;
+	d2rq:join "sample2file.vcffile_id => vcffile.id";
+	.
+map:sample2file_sample_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:sample2file;
+	d2rq:property vcf:sample2file_sample_id;
+	d2rq:refersToClassMap map:sample;
+	d2rq:join "sample2file.sample_id => sample.id";
+	.
+
+# Table variant
+map:variant a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "variant/@@variant.id@@";
+	d2rq:class vcf:Variant;
+	d2rq:classDefinitionLabel "Variation";
+	.
+map:variant__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant;
+	d2rq:property rdfs:label;
+	d2rq:pattern "variant #@@variant.id@@";
+	.
+map:variant_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant;
+	d2rq:property vcf:variant_id;
+	d2rq:propertyDefinitionLabel "variant id";
+	d2rq:column "variant.id";
+	d2rq:datatype xsd:integer;
+	.
+map:variant_index_in_file a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant;
+	d2rq:property vcf:variant_index_in_file;
+	d2rq:propertyDefinitionLabel "variant index_in_file";
+	d2rq:column "variant.index_in_file";
+	d2rq:datatype xsd:integer;
+	.
+map:variant_pos a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant;
+	d2rq:property vcf:variant_pos;
+	d2rq:propertyDefinitionLabel "variant pos";
+	d2rq:column "variant.pos";
+	d2rq:datatype xsd:integer;
+	.
+map:variant_rsid a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant;
+	d2rq:property vcf:variant_rsid;
+	d2rq:propertyDefinitionLabel "variant rsid";
+	d2rq:column "variant.rsid";
+	.
+map:variant_qual a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant;
+	d2rq:property vcf:variant_qual;
+	d2rq:propertyDefinitionLabel "variant qual";
+	d2rq:column "variant.qual";
+	d2rq:datatype xsd:double;
+	.
+map:variant_ref_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant;
+	d2rq:property vcf:variant_ref_id;
+	d2rq:refersToClassMap map:allele;
+	d2rq:join "variant.ref_id => allele.id";
+	.
+map:variant_vcffile_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant;
+	d2rq:property vcf:variant_vcffile_id;
+	d2rq:refersToClassMap map:vcffile;
+	d2rq:join "variant.vcffile_id => vcffile.id";
+	.
+map:variant_chromosome_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant;
+	d2rq:property vcf:variant_chromosome_id;
+	d2rq:refersToClassMap map:chromosome;
+	d2rq:join "variant.chromosome_id => chromosome.id";
+	.
+
+# Table variant2alt
+map:variant2alt a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "variant2alt/@@variant2alt.id@@";
+	d2rq:class vcf:variant2alt;
+	d2rq:classDefinitionLabel "variant2alt";
+	.
+map:variant2alt__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant2alt;
+	d2rq:property rdfs:label;
+	d2rq:pattern "variant2alt #@@variant2alt.id@@";
+	.
+map:variant2alt_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant2alt;
+	d2rq:property vcf:variant2alt_id;
+	d2rq:propertyDefinitionLabel "variant2alt id";
+	d2rq:column "variant2alt.id";
+	d2rq:datatype xsd:integer;
+	.
+map:variant2alt_alt_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant2alt;
+	d2rq:property vcf:variant2alt_alt_id;
+	d2rq:refersToClassMap map:allele;
+	d2rq:join "variant2alt.alt_id => allele.id";
+	.
+map:variant2alt_variant_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant2alt;
+	d2rq:property vcf:variant2alt_variant_id;
+	d2rq:refersToClassMap map:variant;
+	d2rq:join "variant2alt.variant_id => variant.id";
+	.
+
+# Table variant2filter
+map:variant2filter a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "variant2filter/@@variant2filter.id@@";
+	d2rq:class vcf:variant2filter;
+	d2rq:classDefinitionLabel "variant2filter";
+	.
+map:variant2filter__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant2filter;
+	d2rq:property rdfs:label;
+	d2rq:pattern "variant2filter #@@variant2filter.id@@";
+	.
+map:variant2filter_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant2filter;
+	d2rq:property vcf:variant2filter_id;
+	d2rq:propertyDefinitionLabel "variant2filter id";
+	d2rq:column "variant2filter.id";
+	d2rq:datatype xsd:integer;
+	.
+map:variant2filter_variant_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant2filter;
+	d2rq:property vcf:variant2filter_variant_id;
+	d2rq:refersToClassMap map:variant;
+	d2rq:join "variant2filter.variant_id => variant.id";
+	.
+map:variant2filter_filter_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:variant2filter;
+	d2rq:property vcf:variant2filter_filter_id;
+	d2rq:refersToClassMap map:filter;
+	d2rq:join "variant2filter.filter_id => filter.id";
+	.
+
+# Table vcffile
+map:vcffile a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "vcffile/@@vcffile.id@@";
+	d2rq:class vcf:vcffile;
+	d2rq:classDefinitionLabel "vcffile";
+	.
+map:vcffile__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vcffile;
+	d2rq:property rdfs:label;
+	d2rq:pattern "vcffile #@@vcffile.id@@";
+	.
+map:vcffile_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vcffile;
+	d2rq:property vcf:vcffile_id;
+	d2rq:propertyDefinitionLabel "vcffile id";
+	d2rq:column "vcffile.id";
+	d2rq:datatype xsd:integer;
+	.
+map:vcffile_file a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vcffile;
+	d2rq:property vcf:vcffile_file;
+	d2rq:propertyDefinitionLabel "vcffile file";
+	d2rq:column "vcffile.file";
+	.
+
+
+
+
+# Table soTerm
+map:soTerm a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "SequenceOntology/id/@@soTerm.id@@";
+	d2rq:class owl:Class;
+	d2rq:classDefinitionLabel "SequenceOntology Term";
+	.
+map:soTerm__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:soTerm;
+	d2rq:property rdfs:label;
+	d2rq:column "soTerm.acn";
+	.
+map:soTerm_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:soTerm;
+	d2rq:property vcf:soTerm_id;
+	d2rq:propertyDefinitionLabel "SequenceOntology Term id";
+	d2rq:column "soTerm.id";
+	d2rq:datatype xsd:integer;
+	.
+map:soTerm_acn a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:soTerm;
+	d2rq:property vcf:soTerm_acn;
+	d2rq:propertyDefinitionLabel "soTerm acn";
+	d2rq:uriPattern "http://purl.obolibrary.org/obo/@@soTerm.acn@@";
+	.
+map:soTerm_description a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:soTerm;
+	d2rq:property vcf:soTerm_description;
+	d2rq:propertyDefinitionLabel "soTerm description";
+	d2rq:column "soTerm.description";
+	.
+
+
+# Table vepPrediction2so
+map:vepPrediction2so a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "vepPrediction2so/@@vepPrediction2so.id@@";
+	d2rq:class vcf:vepPrediction2so;
+	d2rq:classDefinitionLabel "vepPrediction2so";
+	.
+map:vepPrediction2so__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction2so;
+	d2rq:property rdfs:label;
+	d2rq:pattern "vepPrediction2so #@@vepPrediction2so.id@@";
+	.
+map:vepPrediction2so_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction2so;
+	d2rq:property vcf:vepPrediction2so_id;
+	d2rq:propertyDefinitionLabel "vepPrediction2so id";
+	d2rq:column "vepPrediction2so.id";
+	d2rq:datatype xsd:integer;
+	.
+map:vepPrediction2so_soTerm_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction2so;
+	d2rq:property vcf:vepPrediction2so_soTerm_id;
+	d2rq:refersToClassMap map:soTerm;
+	d2rq:join "vepPrediction2so.soTerm_id => soTerm.id";
+	.
+map:vepPrediction2so_vepPrediction_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction2so;
+	d2rq:property vcf:vepPrediction2so_vepPrediction_id;
+	d2rq:refersToClassMap map:vepPrediction;
+	d2rq:join "vepPrediction2so.vepPrediction_id => vepPrediction.id";
+	.
+
+
+
+
+# Table vepPrediction
+map:vepPrediction a d2rq:ClassMap;
+	d2rq:dataStorage map:database;
+	d2rq:uriPattern "vepPrediction/@@vepPrediction.id@@";
+	d2rq:class vcf:VepPrediction;
+	d2rq:classDefinitionLabel "vepPrediction";
+	.
+map:vepPrediction__label a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction;
+	d2rq:property rdfs:label;
+	d2rq:pattern "vepPrediction #@@vepPrediction.id@@";
+	.
+map:vepPrediction_id a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction;
+	d2rq:property vcf:vepPrediction_id;
+	d2rq:propertyDefinitionLabel "vepPrediction id";
+	d2rq:column "vepPrediction.id";
+	d2rq:datatype xsd:integer;
+	.
+map:vepPrediction_ensGene a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction;
+	d2rq:property vcf:vepPrediction_ensGene;
+	d2rq:propertyDefinitionLabel "vepPrediction ensGene";
+	d2rq:uriPattern "http://purl.uniprot.org/ensembl/@@vepPrediction.ensGene@@";
+	.
+map:vepPrediction_ensTranscript a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction;
+	d2rq:property vcf:vepPrediction_ensTranscript;
+	d2rq:propertyDefinitionLabel "vepPrediction ensTranscript";
+	d2rq:uriPattern "http://purl.uniprot.org/ensembl/@@vepPrediction.ensTranscript@@";
+	.
+map:vepPrediction_ensProtein a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction;
+	d2rq:property vcf:vepPrediction_ensProtein;
+	d2rq:propertyDefinitionLabel "vepPrediction ensProtein";
+	d2rq:uriPattern "http://purl.uniprot.org/ensembl/@@vepPrediction.ensProtein@@";
+	.
+map:vepPrediction_geneSymbol a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction;
+	d2rq:property skos:prefLabel;
+	d2rq:propertyDefinitionLabel "Gene Symbol";
+	d2rq:column "vepPrediction.geneSymbol";
+	.
+map:vepPrediction_variant_id__ref a d2rq:PropertyBridge;
+	d2rq:belongsToClassMap map:vepPrediction;
+	d2rq:property vcf:vepPrediction_variant_id;
+	d2rq:refersToClassMap map:variant;
+	d2rq:join "vepPrediction.variant_id => variant.id";
+	.
+
