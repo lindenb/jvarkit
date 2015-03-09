@@ -33,15 +33,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
 
-
-
-
-
-
-
-
-
-
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -184,6 +175,12 @@ public class Biostar78285 extends AbstractCommandLineProgram
     		i=j;
     		}
     	}
+    
+    @Override
+    protected String getOnlineDocUrl() {
+    	return "https://github.com/lindenb/jvarkit/wiki/Biostar78285";
+    	}
+    
     @Override
 	public String getProgramDescription() {
 		return "Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/";
