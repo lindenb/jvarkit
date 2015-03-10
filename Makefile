@@ -339,6 +339,8 @@ $(eval $(call compile-htsjdk-cmd,worldmapgenome,${jvarkit.package}.tools.circula
 $(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,api.uniprot))
 $(eval $(call compile-htsjdk-cmd,skipxmlelements,${jvarkit.package}.tools.misc.SkipXmlElements))
 $(eval $(call compile-htsjdk-cmd,minicaller,${jvarkit.package}.tools.calling.MiniCaller))
+$(eval $(call compile-htsjdk-cmd,samretrieveseqandqual,${jvarkit.package}.tools.misc.SamRetrieveSeqAndQual))
+
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
 	 ./src/main/resources/jnlp/generic.jnlp .secret.keystore 
@@ -448,6 +450,7 @@ ${bigwig.jar} :
 	mkdir -p $(dir $@)
 	rm -rf bigwig-read-only 
 	svn checkout "http://bigwig.googlecode.com/svn/trunk/" bigwig-read-only
+	echo "Compiling bigwig library for java. Requires  apache ANT"
 	(cd bigwig-read-only; ant)
 	mv bigwig-read-only/dist/BigWig.jar $@
 	mv bigwig-read-only/lib/log4j-1.2.15.jar $(dir $@)/log4j-1.2.15.jar
@@ -472,6 +475,7 @@ $(filter-out ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar  ,${htsjdk.jars}) 
 
 ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar : ${htsjdk.home}/build.xml
 	echo "Compiling htsjdk with $${JAVA_HOME} = ${JAVA_HOME}"
+	echo "Compiling htsjdk library for java. Requires  apache ANT. If it fails here, it's a not a problem with jvarkit."
 	(cd ${htsjdk.home} && ${ANT} )
 
 ${htsjdk.home}/build.xml : 
