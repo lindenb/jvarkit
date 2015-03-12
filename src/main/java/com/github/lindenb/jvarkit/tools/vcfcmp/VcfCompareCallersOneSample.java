@@ -32,6 +32,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -56,7 +57,7 @@ public class VcfCompareCallersOneSample
 	private Set<File> challengerVcf=new HashSet<File>();
 	private int minCountInclusive=0;
 	private int maxCountInclusive=Integer.MAX_VALUE-1;
-	
+	private boolean ignoreAlternate=false;
 	
 	public VcfCompareCallersOneSample()
 		{
@@ -85,6 +86,10 @@ public class VcfCompareCallersOneSample
 		this.maxCountInclusive = maxCountInclusive;
 		}
 	
+	public void setIgnoreAlternate(boolean ignoreAlternate) {
+		this.ignoreAlternate = ignoreAlternate;
+		}
+	
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
@@ -94,6 +99,7 @@ public class VcfCompareCallersOneSample
 				+ "Only VCF containing the same sample will be considered.");
 		out.println(" -m (int) min number of challengers found, inclusive. default:0");
 		out.println(" -M (int) max number of challengers found, inclusive. default:unbounded");
+		out.println(" -a ignore ALT allele.");
 		super.printOptions(out);
 		}
 	
@@ -118,7 +124,6 @@ public class VcfCompareCallersOneSample
 				}
 			else
 				{
-				System.err.println("#####");
 				error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
@@ -216,8 +221,20 @@ public class VcfCompareCallersOneSample
 							}
 						else if(diff==0)
 							{
-							foundInThatFile=true;
-							ctxChallenging.add(citer.next());
+							VariantContext ctx2= citer.next();
+							boolean ok=true;
+							if(!this.ignoreAlternate)
+								{
+								Set<Allele> myAlt=new HashSet<Allele>(ctx.getAlternateAlleles());
+								myAlt.removeAll(ctx2.getAlternateAlleles());
+								if(!myAlt.isEmpty()) ok=false;
+								}
+							
+							if(ok)
+								{
+								foundInThatFile=true;
+								ctxChallenging.add(ctx2);
+								}
 							}
 						else
 							{
@@ -260,10 +277,11 @@ public class VcfCompareCallersOneSample
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"f:o:m:M:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"af:o:m:M:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'a': setIgnoreAlternate(true); break;
 				case 'm': setMinCountInclusive(Integer.parseInt(opt.getOptArg()));break;
 				case 'M': setMaxCountInclusive(Integer.parseInt(opt.getOptArg()));break;
 				case 'f':

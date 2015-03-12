@@ -5,6 +5,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfCutSamples;
 import com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
+import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallersOneSample;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS;
 import com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology;
@@ -38,7 +39,8 @@ private Library()
 			VcfIn.class,
 			GroupByGene.class,
 			VCFTrios.class,
-			VcfCutSamples.class
+			VcfCutSamples.class,
+			VcfCompareCallersOneSample.class
 			};
 	}
 }
