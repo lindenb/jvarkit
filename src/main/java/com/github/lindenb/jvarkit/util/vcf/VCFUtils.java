@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.util.vcf;
 
 import java.io.ByteArrayOutputStream;
@@ -5,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -15,9 +44,11 @@ import java.util.logging.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.util.TabixUtils;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.AbstractVCFCodec;
@@ -241,6 +272,7 @@ public class VCFUtils
 			}
 		else
 			{
+			IOUtil.assertFileIsWritable(OUT);
 			vcwb.setOutputFile(OUT);
 			return vcwb.build();
 			}
@@ -307,7 +339,6 @@ public class VCFUtils
 		}
 	
 	
-	
 	public static boolean isTabixVcfFile(File f)
 		{
 		if(!isVcfFile(f)) return false;
@@ -338,7 +369,86 @@ public class VCFUtils
 		if(chromName.equals("chrM") &&  dict.getSequence("MT")!=null) return "MT";
 		return null;
 		}
+	
+	/** escape String for a VALUE in the INFO column 
+	 * From the spec : no white-space, semi-colons, or equals-signs permitted; 
+	 * commas are permitted only as delimiters for lists of values.
+	 * INFO Fields are encoded as a semicolon-separated series of short keys with optional values in the format:
+	 */
+	public static String escapeInfoField(String infoValue)
+		{
+		return infoValue.replaceAll("[ \t\n;=,_]+", "_");
+		}
+	
+	/**
+	 * Creates a comparator based on CHROM/POS/REF
+	 * @return
+	 */
+	public static Comparator<VariantContext> createChromPosRefComparator()
+		{
+		return new Comparator<VariantContext>()
+			{
+			@Override
+			public int compare(final VariantContext ctx1, final VariantContext ctx2)
+				{
+				int i = ctx1.getChr().compareTo(ctx2.getChr());
+				if(i!=0) return i;
+				int i0 = ctx1.getStart();
+				int i1 = ctx2.getStart();
+				if(i0 != i1) return i0-i1;
+				
+				i = ctx1.getReference().compareTo(
+					ctx2.getReference()); 
+				if(i!=0) return i;
+				return 0;
+				}
+			};
+		}
+	/**
+	 * Creates a comparator based on dict(CHROM)/POS/REF
+	 * @return
+	 */
+	public static Comparator<VariantContext> createTidPosRefComparator(SAMSequenceDictionary dict)
+		{
+		return new _DictCompareCtx(dict);
+		}
 
+	
+	private static class _DictCompareCtx
+		implements Comparator<VariantContext>
+		{
+		SAMSequenceDictionary dict;
+		_DictCompareCtx(SAMSequenceDictionary dict) {this.dict=dict;}
+		
+		private int tid(String chrom)
+			{
+			int t= dict.getSequenceIndex(chrom);
+			if(t==-1) throw new IllegalArgumentException("chromosome \""+chrom+"\" is missing in dictionary");
+			return t;
+			}
+		@Override
+		public int compare(
+				final VariantContext ctx1,
+				final VariantContext ctx2
+				)
+			{			
+			int i0 = tid(ctx1.getChr());
+			int i1 = tid(ctx2.getChr());
+			if(i0 != i1) return i0-i1;
+				
+			i0 = ctx1.getStart();
+			i1 = ctx2.getStart();
+			if(i0 != i1) return i0-i1;
+			
+			int i = ctx1.getReference().compareTo(ctx2.getReference()); 
+			if(i!=0) return i;
+			return 0;
+			}
+
+		}
+	
+
+	
 	/*
 	private Pattern semicolon=Pattern.compile("[;]");
 	public VCFUtils()

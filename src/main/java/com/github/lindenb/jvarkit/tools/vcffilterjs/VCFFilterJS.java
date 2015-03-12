@@ -31,12 +31,9 @@ History:
 package com.github.lindenb.jvarkit.tools.vcffilterjs;
 
 
-
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.script.Bindings;
 import javax.script.Compilable;
@@ -45,16 +42,13 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
-import com.github.lindenb.jvarkit.knime.KnimeApplication;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -67,15 +61,11 @@ import htsjdk.variant.vcf.VCFHeaderLine;
  * Motivation http://www.biostars.org/p/66319/ 
  */
 public class VCFFilterJS
-	extends AbstractCommandLineProgram
-	implements KnimeApplication
+	extends AbstractVCFFilter3
 	{
 	private CompiledScript  script=null;
 	private ScriptEngine engine=null;
-	/** output file : stdout if null */
-	private File outputFile=null;
-	/** number of variants filterer */
-	private int countFilteredVariants=0;
+
 	/** expression in file */
 	private File SCRIPT_FILE=null;
 	/** expression in string */
@@ -97,16 +87,13 @@ public class VCFFilterJS
 		SCRIPT_FILE = src;
 		}
 	
-	/** for knime, return the number of variants kept after execute*/ 
-	public int getVariantCount()
+	@Override
+	protected void doWork(
+			String inpuSource,
+			VcfIterator r,
+			VariantContextWriter w
+			) throws IOException
 		{
-		return this.countFilteredVariants;
-		}
-
-	private void filterVcfIterator(VcfIterator r) throws IOException
-		{
-		this.countFilteredVariants=0;
-		VariantContextWriter w = null;
 		try
 			{
 			VCFHeader header=r.getHeader();
@@ -121,24 +108,12 @@ public class VCFFilterJS
 			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
 	
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-	
-			
-			if(getOutputFile()==null)
-				{
-				w = VCFUtils.createVariantContextWriterToStdout();
-				}
-			else
-				{
-				info("opening vcf writer to "+getOutputFile());
-				w = VCFUtils.createVariantContextWriter(getOutputFile());
-				}
-	
-			
+				
 			Bindings bindings = this.engine.createBindings();
 	        bindings.put("header", header);
        
 	        w.writeHeader(h2);
-	        while(r.hasNext())
+	        while(r.hasNext() && !this.checkOutputError())
 	        	{
 	        	VariantContext variation=progress.watch(r.next());
 	        	
@@ -163,7 +138,7 @@ public class VCFFilterJS
 					warning("Script returned something that is not a boolean or a number:"+result.getClass());
 					continue;
 					}
-				this.countFilteredVariants++;
+				this.incrVariantCount();
 				w.add(variation);
 				}
 	        }
@@ -174,13 +149,13 @@ public class VCFFilterJS
         	}
 		finally
 			{
-			CloserUtil.close(w);
+
 			}
 		}
 	
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VCFFilterJS";
+		return DEFAULT_WIKI_PREFIX+"VCFFilterJS";
 		}
 	
 	@Override
@@ -199,7 +174,6 @@ public class VCFFilterJS
 		{
 		out.println(" -e (script) javascript expression.");
 		out.println(" -f (script) javascript file.");
-		out.println(" -o (file) output file. default: stdout");
 		super.printOptions(out);
 		}
 	
@@ -227,24 +201,7 @@ public class VCFFilterJS
 				}
 			}
 		
-		try
-			{
-			if(this.initializeKnime()!=0)
-				{
-				return -1;
-				}
-			List<String> L=new ArrayList<String>();
-			for(int i=opt.getOptInd();i<args.length;++i)
-				{
-				L.add(args[i]);
-				}
-			return this.executeKnime(L);
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
+		return mainWork(opt.getOptInd(), args);
 		}
 		
 
@@ -296,38 +253,6 @@ public class VCFFilterJS
 		}
 
 
-	@Override
-	public int executeKnime(List<String> args)
-		{
-		VcfIterator vcfIn=null;
-		try
-			{
-			if(args.isEmpty())
-				{
-				vcfIn = VCFUtils.createVcfIteratorStdin();
-				}
-			else if(args.size()==1)
-				{
-				vcfIn= VCFUtils.createVcfIterator(args.get(0));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			this.filterVcfIterator(vcfIn);
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(vcfIn);
-			}
-		}
 
 
 	@Override
@@ -335,23 +260,14 @@ public class VCFFilterJS
 		this.engine=null;
 		this.SCRIPT_EXPRESSION=null;
 		this.SCRIPT_FILE=null;
-		
-	}
+		super.disposeKnime();
+		}
 
 
 	@Override
 	public void checkKnimeCancelled() {
 		}
 
-
-	@Override
-	public void setOutputFile(File out) {
-		this.outputFile=out;
-		}
-
-	public File getOutputFile() {
-		return outputFile;
-		}
 	
 	public static void main(String[] args) throws Exception
 		{

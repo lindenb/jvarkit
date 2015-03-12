@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -36,10 +35,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.knime.KnimeApplication;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -56,20 +54,13 @@ import htsjdk.samtools.util.CloserUtil;
  * VcfIn
  *
  */
-public class VcfIn extends AbstractCommandLineProgram
-	implements KnimeApplication
+public class VcfIn extends AbstractVCFFilter3
 	{
-	private File outputFile=null;
 	private boolean inverse=false;
 	private boolean databaseIsTabix=false;
 	private boolean userAltInDatabase=false;
-	private int count_variants=0;
 	public VcfIn()
 		{
-		}
-	
-	public int getCountCariant() {
-		return count_variants;
 		}
 	
 	/**
@@ -101,7 +92,7 @@ public class VcfIn extends AbstractCommandLineProgram
 	
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfIn";
+		return DEFAULT_WIKI_PREFIX+"VcfIn";
 		}
 
 		@Override
@@ -120,10 +111,6 @@ public class VcfIn extends AbstractCommandLineProgram
 		super.printOptions(out);
 		}
 	
-	@Override
-	public void setOutputFile(File out) {
-		this.outputFile=out;
-		}
 	
 	private boolean sameChromPosRef(VariantContext ctx1,VariantContext ctx2)
 		{
@@ -147,15 +134,7 @@ public class VcfIn extends AbstractCommandLineProgram
 	private VariantContextWriter openWriter(VCFHeader header)
 		throws IOException
 		{
-		VariantContextWriter w;
-		if(this.outputFile==null)
-			{
-			w = VCFUtils.createVariantContextWriterToStdout();
-			}
-		else
-			{
-			w = VCFUtils.createVariantContextWriter(this.outputFile);
-			}
+		VariantContextWriter w = super.createVariantContextWriter();
 		VCFHeader h2= new VCFHeader(header);
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
@@ -238,13 +217,13 @@ public class VcfIn extends AbstractCommandLineProgram
 						for(VariantContext ctx:userContext)
 							{
 							vcw.add(ctx);
-							++count_variants;
+							incrVariantCount();
 							}
 						//flush stream
 						while(userVcfIn.hasNext())
 							{
 							vcw.add(progress.watch(userVcfIn.next()));
-							++count_variants;
+							incrVariantCount();
 							}
 						
 						}
@@ -277,7 +256,7 @@ public class VcfIn extends AbstractCommandLineProgram
 						for(VariantContext ctx:userContext)
 							{
 							vcw.add(ctx);
-							++count_variants;
+							incrVariantCount();
 							}
 						}
 					userContext.clear();
@@ -297,7 +276,7 @@ public class VcfIn extends AbstractCommandLineProgram
 					if(keep)
 						{
 						vcw.add(userCtx);
-						++count_variants;
+						incrVariantCount();
 						}
 					}
 				userContext.clear();
@@ -325,7 +304,7 @@ public class VcfIn extends AbstractCommandLineProgram
 		VcfIterator in2=null;
 		try
 			{
-			this.count_variants=0;
+			setVariantCount(0);
 			info("opening "+databaseVcfUri+" as tabix");
 			tabix =  new TabixVcfFileReader(databaseVcfUri);
 			in2 = (userVcfUri==null?VCFUtils.createVcfIteratorStdin():
@@ -334,7 +313,7 @@ public class VcfIn extends AbstractCommandLineProgram
 			vcw = this.openWriter(header1);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1.getSequenceDictionary());
 			
-			while(in2.hasNext())
+			while(in2.hasNext() && !this.checkOutputError())
 				{
 				final VariantContext userCtx= progress.watch(in2.next());
 				checkKnimeCancelled();
@@ -353,7 +332,7 @@ public class VcfIn extends AbstractCommandLineProgram
 				if(this.isInverse()) keep=!keep;
 				if(!keep) continue;
 				vcw.add(userCtx);
-				++count_variants;
+				incrVariantCount();
 				}
 			progress.finish();
 			return 0;
@@ -373,16 +352,6 @@ public class VcfIn extends AbstractCommandLineProgram
 	
 	
 	@Override
-	public void checkKnimeCancelled() {
-		
-		}
-	
-	@Override
-	public int initializeKnime() {
-		return 0;
-		}
-	
-	@Override
 	public int executeKnime(List<String> args)
 		{
 		String databaseVcfUri = null;
@@ -400,7 +369,7 @@ public class VcfIn extends AbstractCommandLineProgram
 			}
 		else
 			{
-			error("Illegal number of arguments.");
+			error(getMessageBundle("illegal.number.of.arguments"));
 			return -1;
 			}
 
@@ -414,11 +383,6 @@ public class VcfIn extends AbstractCommandLineProgram
 			}
 		}
 	
-	@Override
-	public void disposeKnime() {
-		
-		}
-	
 	
 	
 	@Override
@@ -426,13 +390,14 @@ public class VcfIn extends AbstractCommandLineProgram
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"itA"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"itAo:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'i': this.setInverse(true);break;
 				case 't': this.setDatabaseIsTabix(true);break;
 				case 'A': this.setUserAltInDatabase(true);break;
+				case 'o': this.setOutputFile(opt.getOptArg()); break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -444,10 +409,7 @@ public class VcfIn extends AbstractCommandLineProgram
 					}
 				}
 			}
-		List<String> L=new ArrayList<String>();
-		for(int i=opt.getOptInd(); i< args.length;++i)
-			L.add(args[i]);
-		return executeKnime(L);
+		return mainWork(opt.getOptInd(), args);
 		}
 	public static void main(String[] args) {
 		new VcfIn().instanceMainWithExit(args);

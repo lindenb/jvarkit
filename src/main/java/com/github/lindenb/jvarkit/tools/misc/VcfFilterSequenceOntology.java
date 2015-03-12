@@ -33,24 +33,19 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.KnimeApplication;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
@@ -63,8 +58,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
  *
  */
 public class VcfFilterSequenceOntology
-	extends AbstractCommandLineProgram
-	implements KnimeApplication
+	extends AbstractVCFFilter3
 	{
 	private Set<String> userTermsAsString=new HashSet<String>();
 	/* enable reasoning */
@@ -74,10 +68,6 @@ public class VcfFilterSequenceOntology
 	/* inverse result */
 	private boolean inverse_result=false;
 	private final SequenceOntologyTree sequenceOntologyTree=SequenceOntologyTree.getInstance();
-	/** output file : stdout if null */
-	private File outputFile=null;
-	/** number of variants filterer */
-	private int countFilteredVariants=0;
 	
 	
 	/* public : knime needs this*/
@@ -93,7 +83,7 @@ public class VcfFilterSequenceOntology
 		}
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfFilterSequenceOntology";
+		return DEFAULT_WIKI_PREFIX+"VcfFilterSequenceOntology";
 		}
 	
 	private boolean hasUserTem(Set<SequenceOntologyTree.Term> ctxTerms)
@@ -109,43 +99,8 @@ public class VcfFilterSequenceOntology
 		}
 	
 	@Override
-	public int executeKnime(List<String> args)
+	protected void doWork(String source,VcfIterator in,VariantContextWriter out) throws IOException
 		{
-		VcfIterator vcfIn=null;
-		try
-			{
-			if(args.isEmpty())
-				{
-				vcfIn = VCFUtils.createVcfIteratorStdin();
-				}
-			else if(args.size()==1)
-				{
-				vcfIn= VCFUtils.createVcfIterator(args.get(0));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			this.filterVcfIterator(vcfIn);
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(vcfIn);
-			}
-		
-		}
-	
-	private void filterVcfIterator(VcfIterator in) throws IOException
-		{
-		this.countFilteredVariants=0;
-		VariantContextWriter out = null;
 		try {
 			VCFHeader header=in.getHeader();
 			VCFHeader h2=new VCFHeader(header);
@@ -155,15 +110,6 @@ public class VcfFilterSequenceOntology
 			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
 
 			
-			if(getOutputFile()==null)
-				{
-				out = VCFUtils.createVariantContextWriterToStdout();
-				}
-			else
-				{
-				info("opening vcf writer to "+getOutputFile());
-				out = VCFUtils.createVariantContextWriter(getOutputFile());
-				}
 			out.writeHeader(h2);
 
 			final VepPredictionParser vepParser=new VepPredictionParser(header);
@@ -197,7 +143,7 @@ public class VcfFilterSequenceOntology
 				if(isInverseResult() ) keep=!keep;
 				if(keep)
 					{
-					this.countFilteredVariants++;
+					incrVariantCount();
 					out.add(ctx);
 					}
 				}
@@ -205,15 +151,7 @@ public class VcfFilterSequenceOntology
 			}
 		finally
 			{
-			CloserUtil.close(out);
-			out=null;
 			}
-		}
-	
-	/** return the number of variant kept during last invocation of this program */
-	public int getVariantCount()
-		{
-		return countFilteredVariants;
 		}
 	
 	
@@ -225,7 +163,6 @@ public class VcfFilterSequenceOntology
 		out.println(" -S list the available SO accession and exit.");
 		out.println(" -v invert selection.");
 		out.println(" -d disable reasoning, don't use term's children.");
-		out.println(" -o (output-file) out (default: stdout).");
 		super.printOptions(out);
 		}
 	
@@ -243,15 +180,7 @@ public class VcfFilterSequenceOntology
 		in.close();
 		}
 	
-	@Override
-	public void checkKnimeCancelled() {
-		
-		}
 	
-	@Override
-	public void disposeKnime() {
-		
-		}
 	@Override
 	public int initializeKnime()
 		{
@@ -275,7 +204,7 @@ public class VcfFilterSequenceOntology
 		info("Will be using :"+this.user_terms.toString());
 		
 		this.userTermsAsString=null;//we don't need this anymore
-		return 0;
+		return super.initializeKnime();
 		}
 	
 	public void addTerm(String acn)
@@ -299,14 +228,6 @@ public class VcfFilterSequenceOntology
 		this.inverse_result = inverse_result;
 		}
 	
-	@Override
-	public void setOutputFile(File outputFile) {
-		this.outputFile = outputFile;
-		}
-	
-	public File getOutputFile() {
-		return outputFile;
-		}
 	
 	
 	@Override
@@ -359,13 +280,7 @@ public class VcfFilterSequenceOntology
 				}
 			}
 		
-		this.initializeKnime();
-		List<String> L=new ArrayList<String>();
-		for(int i=opt.getOptInd();i<args.length;++i)
-			{
-			L.add(args[i]);
-			}
-		return this.executeKnime(L);
+		return mainWork(opt.getOptInd(), args);
 		}
 
 	public static void main(String[] args)
