@@ -32,32 +32,22 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.List;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
-import com.github.lindenb.jvarkit.knime.KnimeApplication;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 public class VcfHead
-	extends AbstractCommandLineProgram
-	implements KnimeApplication
+	extends AbstractVCFFilter3
 	{
-	/* number of row to limit */
+	/** number of row to limit */
 	private int count=10;
-	/** output file : stdout if null */
-	private File outputFile=null;
-	/** number of variants filterer */
-	private int countFilteredVariants=0;
 
 	
 	 public VcfHead()
@@ -73,147 +63,66 @@ public class VcfHead
 		}
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfHead";
+		return DEFAULT_WIKI_PREFIX+"VcfHead";
 		}
 	
 	
 	@Override
-	public int executeKnime(List<String> args)
-		{
-		VcfIterator vcfIn=null;
-		try
+	protected void doWork(
+				String inpuSource,
+				VcfIterator in,
+				VariantContextWriter out
+				)
+			throws IOException {
+		VCFHeader header=in.getHeader();
+		VCFHeader h2=new VCFHeader(header);
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+		SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+		out.writeHeader(h2);
+		while(in.hasNext() && this.getVariantCount()< this.count  && !checkOutputError())
 			{
-			if(args.isEmpty())
-				{
-				vcfIn = VCFUtils.createVcfIteratorStdin();
-				}
-			else if(args.size()==1)
-				{
-				vcfIn= VCFUtils.createVcfIterator(args.get(0));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			this.filterVcfIterator(vcfIn);
-			return 0;
+			out.add(progess.watch(in.next()));
+			incrVariantCount();
 			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(vcfIn);
-			}
-		
+		progess.finish();
 		}
 
-	public int getVariantCount()
-		{
-		return this.countFilteredVariants;
-		}
-	
+		
 	@Override
-	public void setOutputFile(File out) {
-		this.outputFile=out;
-		}
-
-	public File getOutputFile() {
-		return outputFile;
-		}
-
-	private void filterVcfIterator(VcfIterator in) throws IOException
+	public void printOptions(PrintStream out)
 		{
-		this.countFilteredVariants=0;
-		VariantContextWriter out = null;
-		try {
-			VCFHeader header=in.getHeader();
-			VCFHeader h2=new VCFHeader(header);
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-			
-			if(getOutputFile()==null)
-				{
-				out = VCFUtils.createVariantContextWriterToStdout();
-				}
-			else
-				{
-				info("opening vcf writer to "+getOutputFile());
-				out = VCFUtils.createVariantContextWriter(getOutputFile());
-				}
-			out.writeHeader(h2);
-			while(in.hasNext() && this.countFilteredVariants< this.count)
-				{
-				out.add(progess.watch(in.next()));
-				++this.countFilteredVariants;
-				}
-			progess.finish();
-			}
-		finally
-			{
-			CloserUtil.close(out);
-			out=null;
-			}
+		out.println(" -n (int) output size. Optional. Default:"+this.count);
+		super.printOptions(out);
 		}
 		
-		@Override
-		public void printOptions(PrintStream out)
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+ "n:o:"))!=-1)
 			{
-			out.println(" -n (int) output size. Optional. Default:"+this.count);
-			out.println(" -o (fileout). Optional. Default: stdout");
-			super.printOptions(out);
-			}
-		
-		@Override
-		public int doWork(String[] args)
-			{
-			
-			com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-			int c;
-			while((c=opt.getopt(args,getGetOptDefault()+ "n:o:"))!=-1)
+			switch(c)
 				{
-				switch(c)
+				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
+				case 'n': this.setCount(Integer.parseInt(opt.getOptArg())); break;
+				default: 
 					{
-					case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-					case 'n': this.setCount(Integer.parseInt(opt.getOptArg())); break;
-					default: 
+					switch(handleOtherOptions(c, opt, null))
 						{
-						switch(handleOtherOptions(c, opt, null))
-							{
-							case EXIT_FAILURE:return -1;
-							case EXIT_SUCCESS: return 0;
-							default:break;
-							}
+						case EXIT_FAILURE:return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
 						}
 					}
 				}
-			
-			this.initializeKnime();
-			List<String> L=new ArrayList<String>();
-			for(int i=opt.getOptInd();i<args.length;++i)
-				{
-				L.add(args[i]);
-				}
-			return this.executeKnime(L);
-			}
-		@Override
-		public int initializeKnime() {
-			return 0;
-			}
-		@Override
-		public void disposeKnime() {
 			}
 		
-		@Override
-		public void checkKnimeCancelled() {
-			
-			}
+		return mainWork(opt.getOptInd(), args);
+		}
 	
 	
 	public static void main(String[] args)

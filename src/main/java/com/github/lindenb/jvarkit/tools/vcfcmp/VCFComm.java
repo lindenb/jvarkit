@@ -60,8 +60,9 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
  *
  */
 public class VCFComm extends AbstractVCFCompare {
-	public VCFComm() {
-	}
+	public VCFComm() 
+		{
+		}
 
 	
 	@Override
@@ -71,7 +72,7 @@ public class VCFComm extends AbstractVCFCompare {
 	
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VCFComm";
+		return DEFAULT_WIKI_PREFIX+"VCFComm";
 		}
 	
 	@Override

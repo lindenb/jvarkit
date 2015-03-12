@@ -165,6 +165,7 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/UniprotFilterJS">UniprotFilterJS</a></th><td>Filter Uniprot XML with a javascript expression.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SkipXmlElements">SkipXmlElements</a></th><td>Filter XML elements with a javascript expression.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MiniCaller">MiniCaller</a></th><td>Simple and Stupid Variant Caller designed for @AdrienLeger2</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCompareCallersOneSample">VcfCompareCallersOneSample</a></th><td>For my colleague Julien. Compare VCF allers with VCF with one sample.</td></tr>
 </table>
 
 
