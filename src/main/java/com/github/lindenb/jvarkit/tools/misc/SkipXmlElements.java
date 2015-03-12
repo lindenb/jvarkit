@@ -291,7 +291,7 @@ public class SkipXmlElements
 							{
 							throw new RuntimeException("User's Script returned null");
 							}
-						else if(!(result instanceof Boolean))
+						else if((result instanceof Boolean))
 							{
 							keep=(Boolean.class.cast(result).booleanValue()?1:0);
 							}

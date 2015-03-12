@@ -373,7 +373,7 @@ api.uniprot :
 
 api.ncbi.pubmed : 
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} http://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_140101.dtd
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} http://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_150101.dtd
 
 
 api.evs:
