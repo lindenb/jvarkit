@@ -1,4 +1,33 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
+
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,19 +45,25 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.picard.PicardException;
-
-
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
-public class IlluminaDirectory extends AbstractCommandLineProgram
+public class IlluminaDirectory
+	extends AbstractKnimeApplication
 	{
 	private int ID_GENERATOR=0;
-	
-    
+	private boolean JSON=false;
     private MessageDigest md5;
 
+    
+    public void setJSON(boolean jSON) {
+		JSON = jSON;
+		}
+    
+    public boolean isJSON() {
+		return JSON;
+		}
     
     private  String md5(String in)
     	{
@@ -113,13 +148,16 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     	
     	void write(XMLStreamWriter w) throws XMLStreamException
     		{
-    		w.writeStartElement("directory");
-    		w.writeStartElement("samples");
+    		w.writeStartElement("project");
+    		w.writeAttribute("name", "Project1");
+    		w.writeAttribute("center", "CENTER");
+    		w.writeAttribute("haloplex", "false");
+    		w.writeAttribute("wgs", "false");
+
     		for(Sample S:this.sampleMap.values())
     			{
     			S.write(w);
     			}
-    		w.writeEndElement();
     		w.writeStartElement("undetermined");
     		for(Pair p:undtermined)
     			{
@@ -131,6 +169,9 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     	
     	}
     
+    /** 
+     * A pair of fastq , Forward, reverse
+     */
     private class Pair
     	{
     	int id;
@@ -144,7 +185,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     			{
     			case Forward:forward=fq; break;
     			case Reverse:reverse=fq; break;
-    			default:throw new PicardException("bad side "+fq);
+    			default:throw new RuntimeException("bad side "+fq);
     			}
     		}
     	
@@ -216,53 +257,36 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
     			}
 			}
     	
+    	void write(XMLStreamWriter w,String tagName,FastQName fastqFile) throws XMLStreamException
+    		{
+			w.writeStartElement(tagName);
+			w.writeAttribute("md5filename",md5(fastqFile.getFile().getPath()));
+			w.writeAttribute("file-size",String.valueOf( fastqFile.getFile().length()));
+			w.writeCharacters(fastqFile.getFile().getPath());
+			w.writeEndElement();
+    		}
+    	
     	void write(XMLStreamWriter w) throws XMLStreamException
     		{
-    		if(forward!=null && reverse!=null)
+			w.writeStartElement("fastq");
+			w.writeAttribute("id","p"+this.id);
+			w.writeAttribute("md5",md5(forward.getFile().getPath()+reverse.getFile().getPath()));
+			w.writeAttribute("lane", String.valueOf(forward.getLane()));
+			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(forward.getSeqIndex()));
+			w.writeAttribute("split", String.valueOf(forward.getSplit()));
+			
+			if(forward!=null && reverse!=null)
     			{
-    			w.writeStartElement("pair");
-    			w.writeAttribute("id","p"+this.id);
-    			w.writeAttribute("md5",md5(forward.getFile().getPath()+reverse.getFile().getPath()));
-    			w.writeAttribute("lane", String.valueOf(forward.getLane()));
-    			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(forward.getSeqIndex()));
-    			w.writeAttribute("split", String.valueOf(forward.getSplit()));
-    			
-    			w.writeStartElement("fastq");
-    			w.writeAttribute("md5filename",md5(forward.getFile().getPath()));
-    			w.writeAttribute("side", String.valueOf(forward.getSide().ordinal()));
-    			w.writeAttribute("path", forward.getFile().getPath());
-    			w.writeAttribute("file-size",String.valueOf( forward.getFile().length()));
-    			w.writeEndElement();
-    			
-    			
-    			w.writeStartElement("fastq");
-    			w.writeAttribute("md5filename",md5(reverse.getFile().getPath()));
-    			w.writeAttribute("side", String.valueOf(reverse.getSide().ordinal()));
-    			w.writeAttribute("path", reverse.getFile().getPath());
-    			w.writeAttribute("file-size",String.valueOf( reverse.getFile().length()));
-    			w.writeEndElement();
-   			
-    			w.writeEndElement();
+    			write(w,"for",forward);
+    			write(w,"rev",reverse);
     			}
-    		else
-    			{
-    			FastQName F=(forward==null?reverse:forward);
-    			
-    			w.writeStartElement("single");
-    			w.writeAttribute("id","p"+this.id);
-    			w.writeAttribute("md5filename",md5(F.getFile().getPath()));
-    			w.writeAttribute("lane", String.valueOf(F.getLane()));
-    			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(F.getSeqIndex()));
-    			w.writeAttribute("split", String.valueOf(F.getSplit()));
-    			
-    			w.writeStartElement("fastq");
-    			w.writeAttribute("side", String.valueOf(F.getSide().ordinal()));
-    			w.writeAttribute("path", F.getFile().getPath());
-    			w.writeAttribute("file-size",String.valueOf( F.getFile().length()));
-    			w.writeEndElement();
-   			
-    			w.writeEndElement();
-    			}
+			else
+				{
+				write(w,"single",forward==null?reverse:forward);
+				}
+			
+		
+			w.writeEndElement();
     		}
     	}
     
@@ -285,6 +309,10 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
 			{
 			w.writeStartElement("sample");
 			w.writeAttribute("name",this.name);
+			w.writeAttribute("father","undefined");
+			w.writeAttribute("mother","undefined");
+			w.writeAttribute("sex","undefined");
+			
 			for(Pair p:this.pairs)
 				{
 				p.write(w);
@@ -315,7 +343,7 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
 		}
     @Override
     protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/Illuminadir";
+    	return DEFAULT_WIKI_PREFIX+"Illuminadir";
     	}
 	
 	@Override
@@ -328,96 +356,112 @@ public class IlluminaDirectory extends AbstractCommandLineProgram
 
 	@Override
 	public int doWork(String[] args)
-		{
-		 boolean JSON=false;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args, super.getGetOptDefault()+"J"+args))!=-1)
 			{
-			switch(c)
+			com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+			int c;
+			while((c=opt.getopt(args, super.getGetOptDefault()+"Jo:"))!=-1)
 				{
-				case 'J': JSON=true;break;
-				default:
+				switch(c)
 					{
-					switch(super.handleOtherOptions(c, getopt, args))
+					case 'o': setOutputFile(opt.getOptArg()); break;
+					case 'J': setJSON(true);break;
+					default:
 						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS:return 0;
-						case OK:break;
+						switch(super.handleOtherOptions(c, opt, args))
+							{
+							case EXIT_FAILURE:return -1;
+							case EXIT_SUCCESS:return 0;
+							case OK:break;
+							}
 						}
 					}
 				}
+			return mainWork(opt.getOptInd(), args);
 			}
-		
-		
-		if(getopt.getOptInd()!=args.length)
+	
+	
+		@Override
+		public int executeKnime(List<String> args)
 			{
-			error("Expected to read filenames on stdin.");
-			return -1;
-			}
-				
-		
-		
-		
-		try
-			{
-			List<Folder> folders=new ArrayList<Folder>();
-			Folder folder=new Folder();
-			folders.add(folder);
-			String line;
-			BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
-			while((line=in.readLine())!=null)
+			if(!args.isEmpty())
 				{
-				if(line.isEmpty() || line.startsWith("#")) continue;
-				if(!line.endsWith(".fastq.gz"))
-					{
-					warning("ignoring "+line);
-					continue;
-					}
-				File f=new File(line);
-				if(!f.exists()) throw new PicardException("Doesn't exist:"+f);
-				if(!f.isFile()) throw new PicardException("Not a file:"+f);
-				folder.scan(f);
+				error("Expected to read filenames on stdin.");
+				return -1;
 				}
-			in.close();
-	    	
-	    	if(JSON)
-	    		{
-	    		System.out.print("[");
-	    		for(int i=0;i< folders.size();++i)
-	    			{
-	    			if(i>0) System.out.print(",");
-	    			folders.get(i).json(System.out);
-	    			}
-	    		
-	    		System.out.println("]");
-	    		}
-	    	else
-	    		{
-    			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-    			XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
-    			w.writeStartDocument("UTF-8","1.0");
-    			w.writeStartElement("illumina");
-    			w.writeComment(this.getProgramCommandLine());
-    			for(Folder f:folders) f.write(w);
-    			w.writeEndElement();
-    			w.writeEndDocument();
-    			w.flush();
-    			w.close();
-	    		}
 			
+			try
+				{
+				List<Folder> folders=new ArrayList<Folder>();
+				Folder folder=new Folder();
+				folders.add(folder);
+				String line;
+				BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
+				while((line=in.readLine())!=null)
+					{
+					if(line.isEmpty() || line.startsWith("#")) continue;
+					if(!line.endsWith(".fastq.gz"))
+						{
+						warning("ignoring "+line);
+						continue;
+						}
+					File f=new File(line);
+					if(!f.exists())
+						{
+						error("Doesn't exist:"+f);
+						return -1;
+						}
+					if(!f.isFile())
+						{
+						error("Not a file:"+f);
+						return -1;
+						}
+					folder.scan(f);
+					}
+				in.close();
+		    	
+				PrintStream pw = getOutputFile()==null?System.out:new PrintStream(getOutputFile());
+
+		    	if(this.isJSON())
+		    		{
+		    		pw.print("[");
+		    		for(int i=0;i< folders.size();++i)
+		    			{
+		    			if(i>0) pw.print(",");
+		    			folders.get(i).json(pw);
+		    			}
+		    		
+		    		pw.println("]");
+		    		pw.flush();
+		    		int ret = pw.checkError()?-1:0;
+		    		pw.close();
+		    		return ret;
+		    		}
+		    	else
+		    		{
+	    			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
+	    			XMLStreamWriter w= xmlfactory.createXMLStreamWriter(pw);
+	    			w.writeStartDocument("UTF-8","1.0");
+	    			w.writeStartElement("model");
+	    			w.writeComment(this.getProgramCommandLine());
+	    			for(Folder f:folders) f.write(w);
+	    			w.writeEndElement();
+	    			w.writeEndDocument();
+	    			w.flush();
+	    			w.close();
+		    		}
+				pw.close();
+				}
+			catch(Exception err)
+				{
+				error(err);
+				return -1;
+				}
+			finally
+				{
+				
+				}
+			return 0;
 			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			
-			}
-		return 0;
-		}
    
 
 	/**
