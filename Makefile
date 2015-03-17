@@ -73,6 +73,8 @@ $(1)  : ${htsjdk.jars} \
 	-cp ${galaxy.bundle.dir}/jvarkit/$(1).xml ${tmp.dir}/META-INF/galaxy.xml 
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
+	echo '### Printing javac version : it should be 1.7. if Not, check your $$$${PATH}.'
+	${JAVAC} -version
 	#compile
 	${JAVAC} -d ${tmp.dir} -g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" -sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
 	#create META-INF/MANIFEST.MF
@@ -87,7 +89,7 @@ $(1)  : ${htsjdk.jars} \
 	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
 	#create bash executable
 	echo '#!/bin/bash' > ${dist.dir}/$(1)
-	echo '${JAVA} -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$*' > ${dist.dir}/$(1)
+	echo '${JAVA} -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$*' > ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	#cleanup
 	rm -rf ${tmp.dir}
@@ -104,7 +106,7 @@ define compile-cgi-cmd
 ${dist.dir}/$(1).cgi : $(1)
 	echo "#!/bin/bash" > $$@
 	echo "PREFIX=$$(dirname $$0)" >> $$@
-	echo "${JAVA} -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/$(1).jar $$*" >> $$@
+	echo "${JAVA} -Dfile.encoding=UTF8 -Xmx500m -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml -jar $PREFIX/$(1).jar $$*" >> $$@
 
 endef
 
@@ -136,7 +138,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	nozerovariationvcf	pademptyfastq	paintcontext	pubmeddump	pubmedfilterjs	referencetovcf	sam2json \
 	sam2psl	sam2tsv	sam4weblogo	samclipindelfraction	samextractclip	samfindclippedregions	samfixcigar \
 	samgrep	samjs	samshortinvert	samstats01	scanshortinvert	sigframe	sortvcfoninfo \
-	sortvcfonref2	splitbam	splitbam2	splitbytile	splitread	tview	tview.cgi \
+	sortvcfonref2	splitbam3	splitbytile	splitread	tview	tview.cgi \
 	vcf2hilbert	vcf2ps	vcf2rdf	vcf2sql	vcf2xml	vcfannobam	vcfbed \
 	vcfbedjs	vcfbiomart	vcfcadd	vcfcmppred	vcfcomm	vcfcompare	vcfcomparegt \
 	vcfconcat	vcfcutsamples	vcffilterdoid		vcffixindels	vcfgo \
@@ -280,8 +282,7 @@ $(eval $(call compile-htsjdk-cmd,scanshortinvert,${jvarkit.package}.tools.mem.Sc
 $(eval $(call compile-htsjdk-cmd,sigframe,${jvarkit.package}.tools.sigframe.SigFrame))
 $(eval $(call compile-htsjdk-cmd,sortvcfoninfo,${jvarkit.package}.tools.sortvcfonref.SortVcfOnInfo))
 $(eval $(call compile-htsjdk-cmd,sortvcfonref2,${jvarkit.package}.tools.sortvcfonref.SortVcfOnRef2))
-$(eval $(call compile-htsjdk-cmd,splitbam,${jvarkit.package}.tools.splitbam.SplitBam))
-$(eval $(call compile-htsjdk-cmd,splitbam2,${jvarkit.package}.tools.splitbam.SplitBam2))
+$(eval $(call compile-htsjdk-cmd,splitbam3,${jvarkit.package}.tools.splitbam.SplitBam3))
 $(eval $(call compile-htsjdk-cmd,splitbytile,${jvarkit.package}.tools.splitbytitle.SplitByTile))
 $(eval $(call compile-htsjdk-cmd,splitread,${jvarkit.package}.tools.splitread.SplitRead))
 #$(eval $(call compile-htsjdk-cmd,tview,${jvarkit.package}.tools.tview.TViewCmd))

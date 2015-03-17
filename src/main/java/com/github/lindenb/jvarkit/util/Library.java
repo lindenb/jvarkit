@@ -7,13 +7,17 @@ import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallersOneSample;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn;
+import com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS;
 import com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology;
 import com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.swing.DefaultVcfTable;
+import com.github.lindenb.jvarkit.util.vcf.swing.InfoTreeModel;
 
 /**
  * because I'm lazy: just a central point of compilation when
@@ -40,7 +44,11 @@ private Library()
 			GroupByGene.class,
 			VCFTrios.class,
 			VcfCutSamples.class,
-			VcfCompareCallersOneSample.class
+			VcfCompareCallersOneSample.class,
+			VcfViewGui.class,
+			VcfConcat.class,
+			InfoTreeModel.class,
+			DefaultVcfTable.class
 			};
 	}
 }

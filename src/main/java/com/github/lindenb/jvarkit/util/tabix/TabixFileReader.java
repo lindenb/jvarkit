@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import com.github.lindenb.jvarkit.util.picard.PicardException;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.tribble.util.TabixUtils;
@@ -29,13 +30,7 @@ public class TabixFileReader implements Closeable
     /** return true if 'f' is a file, path ends with '.gz' and there is an associated .tbi file */
     public static final boolean isValidTabixFile(File f)
 		 	{
-			if (!f.isFile())
-				return false;
-			String filename = f.getName();
-			if (!filename.endsWith(".gz"))
-				return false;
-			File index = new File(f.getParentFile(), filename +TabixUtils.STANDARD_INDEX_EXTENSION);
-			return index.exists() && index.isFile();
+			return VCFUtils.isTabixVcfFile(f);
 			}
     
     public TabixFileReader(String uri) throws IOException
