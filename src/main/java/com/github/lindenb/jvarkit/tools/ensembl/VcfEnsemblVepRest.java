@@ -55,18 +55,23 @@ import javax.xml.transform.stream.StreamSource;
 
 import org.ensembl.vep.*;
 
-import com.github.lindenb.jvarkit.io.TeeInputStream;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfEnsemblVepRest extends AbstractVCFFilter3
+/**
+ * 
+ * VcfEnsemblVepRest
+ *
+ */
+public class VcfEnsemblVepRest 
+	extends AbstractVCFFilter3
 	{
 	@SuppressWarnings("unused")
 	private static final ObjectFactory _fool_javac=null;
-	
+	private int bastchSize = 100;
 	private String server = "http://grch37.rest.ensembl.org";
 	private String extension = "/vep/homo_sapiens/region";
 
@@ -74,7 +79,12 @@ public class VcfEnsemblVepRest extends AbstractVCFFilter3
 	
 	@Override
 	public String getProgramDescription() {
-		return "";
+		return "Annotate a VCF with ensembl REST API";
+		}
+	
+	@Override
+	protected String getOnlineDocUrl() {
+		return DEFAULT_WIKI_PREFIX+"VcfEnsemblVepRest";
 		}
 	
 	public void setServer(String server) {
@@ -85,12 +95,17 @@ public class VcfEnsemblVepRest extends AbstractVCFFilter3
 		this.extension = extension;
 		}
 	
+	public void setBastchSize(int bastchSize) {
+		this.bastchSize = bastchSize;
+		}
+	
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println(" -o (fileout) output. Default: stdout");
 		out.println(" -s (server) REST server . Default: "+this.server);
 		out.println(" -e (path extension)  Default: stdout"+this.extension);
+		out.println(" -n (batch size)  Default: "+this.bastchSize);
 		super.printOptions(out);
 		}
 	
@@ -155,7 +170,6 @@ public class VcfEnsemblVepRest extends AbstractVCFFilter3
 			 	}
 			 queryb.append("}");
 			 byte postBody[] = queryb.toString().getBytes();
-			 System.err.println(queryb);
 			 urlConnection = url.openConnection();
 			 httpConnection = (HttpURLConnection)urlConnection;
 			 httpConnection.setRequestMethod("POST");
@@ -172,7 +186,8 @@ public class VcfEnsemblVepRest extends AbstractVCFFilter3
 			 wr.close();
 			 wr=null;
 			  
-			 response = new TeeInputStream( httpConnection.getInputStream(),System.err,false);
+			 //response = new TeeInputStream( httpConnection.getInputStream(),System.err,false);
+			 response =httpConnection.getInputStream();
 			 int responseCode = httpConnection.getResponseCode();
 			  
 			 if(responseCode != 200)
@@ -208,10 +223,9 @@ public class VcfEnsemblVepRest extends AbstractVCFFilter3
 	protected void doWork(String inputSource, VcfIterator vcfIn,
 			VariantContextWriter out) throws IOException
 		{
-		final int BUFFER_MAX_SIZE=10;
 		final SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
 		VCFHeader header=vcfIn.getHeader();
-		List<VariantContext> buffer=new ArrayList<>(BUFFER_MAX_SIZE);
+		List<VariantContext> buffer=new ArrayList<>(this.bastchSize+1);
 		VCFHeader h2= new VCFHeader(header);
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
@@ -234,7 +248,7 @@ public class VcfEnsemblVepRest extends AbstractVCFFilter3
 				{
 				buffer.add((ctx=progress.watch(vcfIn.next())));
 				}
-			if(ctx==null || buffer.size()>=BUFFER_MAX_SIZE)
+			if(ctx==null || buffer.size()>=this.bastchSize)
 				{
 				if(!buffer.isEmpty())
 					{
@@ -331,13 +345,14 @@ public class VcfEnsemblVepRest extends AbstractVCFFilter3
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:s:e:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:s:e:n:"))!=-1)
 			{
 			switch(c)
 				{
 				case 's': setServer(opt.getOptArg()); break;
 				case 'e': setExtension(opt.getOptArg()); break;
 				case 'o': setOutputFile(opt.getOptArg());break;
+				case 'n': setBastchSize(Integer.parseInt(opt.getOptArg()));break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))

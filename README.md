@@ -167,6 +167,7 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MiniCaller">MiniCaller</a></th><td>Simple and Stupid Variant Caller designed for @AdrienLeger2</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCompareCallersOneSample">VcfCompareCallersOneSample</a></th><td>For my colleague Julien. Compare VCF allers with VCF with one sample.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MiniCaller">SamRetrieveSeqAndQual</a></th><td> Is there a tool to add seq and qual to BAM? for @sjackman </td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfEnsemblVepRest">VcfEnsemblVepRest</a></th><td>Annotate a VCF with Ensembl REST API.</td></tr>
 </table>
 
 
