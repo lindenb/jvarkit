@@ -55,6 +55,7 @@ import javax.xml.transform.stream.StreamSource;
 
 import org.ensembl.vep.*;
 
+import com.github.lindenb.jvarkit.io.TeeInputStream;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -71,10 +72,10 @@ public class VcfEnsemblVepRest
 	{
 	@SuppressWarnings("unused")
 	private static final ObjectFactory _fool_javac=null;
-	private int bastchSize = 100;
+	private int batchSize = 100;
 	private String server = "http://grch37.rest.ensembl.org";
 	private String extension = "/vep/homo_sapiens/region";
-
+	private boolean teeResponse=false;
 	private Unmarshaller unmarshaller=null;
 	
 	@Override
@@ -95,8 +96,13 @@ public class VcfEnsemblVepRest
 		this.extension = extension;
 		}
 	
-	public void setBastchSize(int bastchSize) {
-		this.bastchSize = bastchSize;
+	public void setBatchSize(int bastchSize) {
+		this.batchSize = bastchSize;
+		}
+	
+	public void setTeeResponse(boolean teeResponse)
+		{
+		this.teeResponse = teeResponse;
 		}
 	
 	@Override
@@ -105,7 +111,8 @@ public class VcfEnsemblVepRest
 		out.println(" -o (fileout) output. Default: stdout");
 		out.println(" -s (server) REST server . Default: "+this.server);
 		out.println(" -e (path extension)  Default: stdout"+this.extension);
-		out.println(" -n (batch size)  Default: "+this.bastchSize);
+		out.println(" -n (batch size)  Default: "+this.batchSize);
+		out.println(" -T . 'Tee' xml response to stderr ");
 		super.printOptions(out);
 		}
 	
@@ -143,6 +150,7 @@ public class VcfEnsemblVepRest
 		return s==null || String.valueOf(s).trim().isEmpty()?"":String.valueOf(s);
 		}
 	
+	private long lastMillisec=-1L;
 	private Opt vep(List<VariantContext> contexts) throws IOException
 		{
 		info("Running VEP "+contexts.size());
@@ -152,6 +160,11 @@ public class VcfEnsemblVepRest
 		InputStream response =null;
 		javax.xml.transform.Source inputSource=null;
 		try {
+		    if ( this.lastMillisec!=-1L && this.lastMillisec+ 5000<  System.currentTimeMillis())
+		    	{
+		    	try {Thread.sleep(1000);} catch(Exception err){}
+		    	}
+		
 			 URL url = new URL(this.server + this.extension);
 			 StringBuilder queryb=new StringBuilder();
 			 queryb.append("{ \"variants\" : [");
@@ -188,6 +201,11 @@ public class VcfEnsemblVepRest
 			  
 			 //response = new TeeInputStream( httpConnection.getInputStream(),System.err,false);
 			 response =httpConnection.getInputStream();
+			 if(this.teeResponse)
+				 {
+				 response = new TeeInputStream(response,System.err,false);
+				 }
+			 
 			 int responseCode = httpConnection.getResponseCode();
 			  
 			 if(responseCode != 200)
@@ -205,6 +223,8 @@ public class VcfEnsemblVepRest
 			httpConnection.disconnect();
 			httpConnection=null;
 			
+			
+			this.lastMillisec = System.currentTimeMillis(); 
 			return opt;
 			} 
 		catch (JAXBException e)
@@ -225,7 +245,7 @@ public class VcfEnsemblVepRest
 		{
 		final SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
 		VCFHeader header=vcfIn.getHeader();
-		List<VariantContext> buffer=new ArrayList<>(this.bastchSize+1);
+		List<VariantContext> buffer=new ArrayList<>(this.batchSize+1);
 		VCFHeader h2= new VCFHeader(header);
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
@@ -248,7 +268,7 @@ public class VcfEnsemblVepRest
 				{
 				buffer.add((ctx=progress.watch(vcfIn.next())));
 				}
-			if(ctx==null || buffer.size()>=this.bastchSize)
+			if(ctx==null || buffer.size()>=this.batchSize)
 				{
 				if(!buffer.isEmpty())
 					{
@@ -345,14 +365,15 @@ public class VcfEnsemblVepRest
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:s:e:n:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:s:e:n:T"))!=-1)
 			{
 			switch(c)
 				{
 				case 's': setServer(opt.getOptArg()); break;
 				case 'e': setExtension(opt.getOptArg()); break;
 				case 'o': setOutputFile(opt.getOptArg());break;
-				case 'n': setBastchSize(Integer.parseInt(opt.getOptArg()));break;
+				case 'n': setBatchSize(Integer.parseInt(opt.getOptArg()));break;
+				case 'T': setTeeResponse(true);break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
