@@ -888,6 +888,7 @@ class BamFrame extends JDialog
 		dataLoaderThread.reg=parseOne(this.selectRgnField.getText());
 		dataLoaderThread.start();
 		}
+
 	private void doMenuClose()
 		{
 		this.setVisible(false);
@@ -973,6 +974,7 @@ class BamFrame extends JDialog
  * BamViewGui
  *
  */
+@Deprecated
 public class BamViewGui
 	extends AbstractCommandLineProgram
 	{

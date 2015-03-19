@@ -89,7 +89,7 @@ $(1)  : ${htsjdk.jars} \
 	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
 	#create bash executable
 	echo '#!/bin/bash' > ${dist.dir}/$(1)
-	echo '${JAVA} -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$*' > ${dist.dir}/$(1)
+	echo '${JAVA} -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$$$*' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	#cleanup
 	rm -rf ${tmp.dir}
@@ -146,7 +146,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	vcfpolyx	vcfpredictions	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats	vcfstopcodon	vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
-	uniprotfilterjs skipxmlelements
+	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop
 
 
 .PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar
@@ -342,6 +342,10 @@ $(eval $(call compile-htsjdk-cmd,skipxmlelements,${jvarkit.package}.tools.misc.S
 $(eval $(call compile-htsjdk-cmd,minicaller,${jvarkit.package}.tools.calling.MiniCaller))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallersonesample,${jvarkit.package}.tools.vcfcmp.VcfCompareCallersOneSample))
 $(eval $(call compile-htsjdk-cmd,samretrieveseqandqual,${jvarkit.package}.tools.misc.SamRetrieveSeqAndQual))
+$(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.VcfEnsemblVepRest,api.ensembl.vep))
+$(eval $(call compile-htsjdk-cmd,vcfgroupbypop,${jvarkit.package}.tools.misc.VcfGroupByPopulation))
+
+
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
@@ -402,6 +406,12 @@ api.ncbi.tseq:
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.tseq -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/NCBI_TSeq.dtd"
 	
+
+## API Ensembl
+api.ensembl.vep :
+	mkdir -p ${generated.dir}/java
+	${XJC} -d ${generated.dir}/java  -p org.ensembl.vep  ./src/main/resources/xsd/ensembl/vep.xsd
+
 	
 api.printf:
 	mkdir -p ${generated.dir}/java/com/github/lindenb/jvarkit/util/printf
@@ -504,6 +514,7 @@ src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
 	${JAVA_HOME}/bin/xjc ${xjc.proxy} -d ${generated.dir}/java \
 		-p edu.washington.gs.evs \
 		"http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
+
 
 ##
 ## galaxy bundle

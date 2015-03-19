@@ -104,7 +104,7 @@ public class VcfSimulator extends AbstractCommandLineProgram
 			metaData.add(new VCFFormatHeaderLine(
 					"DP",
 					VCFHeaderLineCount.INTEGER,
-					VCFHeaderLineType.String,
+					VCFHeaderLineType.Integer,
 					"Depth"));
 			
 			VCFHeader header=new VCFHeader(

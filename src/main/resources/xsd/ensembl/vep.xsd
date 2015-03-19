@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" elementFormDefault="unqualified" attributeFormDefault="unqualified">
+  <xsd:annotation>
+    <xsd:documentation>
+
+= XML-schema for Ensembl VEP+REST =
+
+This schema has been created from the XML output of VEP.
+
+**This schema shouldn't be considered normative**
+
+# Example
+
+## Validating
+
+```bash
+xmllint --schema vep.xsd "http://grch37.rest.ensembl.org/vep/human/region/3:38674586-38674587:1/TAG?content-type=text/xml"
+```
+
+
+## Generating JAVA code with XML Binding Binding Compiler  ( XJC )
+
+```bash
+$ xjc vep.xsd
+
+parsing a schema...
+compiling a schema...
+generated/AbstractConsequences.java
+generated/Data.java
+generated/IntergenicConsequences.java
+generated/MotifFeatureConsequences.java
+generated/ObjectFactory.java
+generated/Opt.java
+generated/RegulatoryFeatureConsequences.java
+generated/TranscriptConsequences.java
+
+```      
+
+## History
+
+* Creation Pierre Lindenbaum Sept-2014
+* 15 Sept 2014 changed cdna_start and cds_start to xsd:positiveInteger as https://github.com/Ensembl/ensembl-variation/commit/62e76085b7b80b85ddddc5fc63a9227347b9e090
+
+      </xsd:documentation>
+  </xsd:annotation>
+  <xsd:simpleType name="consequence">
+    <xsd:restriction base="xsd:token">
+      <xsd:enumeration value="2KB_upstream_variant"/>
+      <xsd:enumeration value="3D_polypeptide_structure_variant"/>
+      <xsd:enumeration value="3_prime_UTR_variant"/>
+      <xsd:enumeration value="500B_downstream_variant"/>
+      <xsd:enumeration value="5KB_downstream_variant"/>
+      <xsd:enumeration value="5KB_upstream_variant"/>
+      <xsd:enumeration value="5_prime_UTR_variant"/>
+      <xsd:enumeration value="amino_acid_deletion"/>
+      <xsd:enumeration value="amino_acid_insertion"/>
+      <xsd:enumeration value="amino_acid_substitution"/>
+      <xsd:enumeration value="coding_sequence_variant"/>
+      <xsd:enumeration value="compensatory_transcript_secondary_structure_variant"/>
+      <xsd:enumeration value="complex_3D_structural_variant"/>
+      <xsd:enumeration value="complex_change_of_translational_product_variant"/>
+      <xsd:enumeration value="complex_transcript_variant"/>
+      <xsd:enumeration value="conformational_change_variant"/>
+      <xsd:enumeration value="conservative_amino_acid_substitution"/>
+      <xsd:enumeration value="conservative_inframe_deletion"/>
+      <xsd:enumeration value="conservative_inframe_insertion"/>
+      <xsd:enumeration value="conservative_missense_variant"/>
+      <xsd:enumeration value="copy_number_change"/>
+      <xsd:enumeration value="copy_number_decrease"/>
+      <xsd:enumeration value="copy_number_increase"/>
+      <xsd:enumeration value="cryptic_splice_acceptor"/>
+      <xsd:enumeration value="cryptic_splice_donor"/>
+      <xsd:enumeration value="cryptic_splice_site_variant"/>
+      <xsd:enumeration value="decreased_polyadenylation_variant"/>
+      <xsd:enumeration value="decreased_transcription_rate_variant"/>
+      <xsd:enumeration value="decreased_transcript_level_variant"/>
+      <xsd:enumeration value="decreased_transcript_stability_variant"/>
+      <xsd:enumeration value="decreased_translational_product_level"/>
+      <xsd:enumeration value="disruptive_inframe_deletion"/>
+      <xsd:enumeration value="disruptive_inframe_insertion"/>
+      <xsd:enumeration value="downstream_gene_variant"/>
+      <xsd:enumeration value="editing_variant"/>
+      <xsd:enumeration value="elongated_in_frame_polypeptide_C_terminal"/>
+      <xsd:enumeration value="elongated_in_frame_polypeptide_N_terminal_elongation"/>
+      <xsd:enumeration value="elongated_out_of_frame_polypeptide_C_terminal"/>
+      <xsd:enumeration value="elongated_out_of_frame_polypeptide_N_terminal"/>
+      <xsd:enumeration value="elongated_polypeptide"/>
+      <xsd:enumeration value="elongated_polypeptide_C_terminal"/>
+      <xsd:enumeration value="elongated_polypeptide_N_terminal"/>
+      <xsd:enumeration value="exon_loss"/>
+      <xsd:enumeration value="exon_variant"/>
+      <xsd:enumeration value="feature_ablation"/>
+      <xsd:enumeration value="feature_amplification"/>
+      <xsd:enumeration value="feature_elongation"/>
+      <xsd:enumeration value="feature_fusion"/>
+      <xsd:enumeration value="feature_translocation"/>
+      <xsd:enumeration value="feature_truncation"/>
+      <xsd:enumeration value="feature_variant"/>
+      <xsd:enumeration value="frame_restoring_variant"/>
+      <xsd:enumeration value="frameshift_elongation"/>
+      <xsd:enumeration value="frameshift_truncation"/>
+      <xsd:enumeration value="frameshift_variant"/>
+      <xsd:enumeration value="functional_variant"/>
+      <xsd:enumeration value="gene_fusion"/>
+      <xsd:enumeration value="gene_variant"/>
+      <xsd:enumeration value="inactive_catalytic_site"/>
+      <xsd:enumeration value="inactive_ligand_binding_site"/>
+      <xsd:enumeration value="incomplete_terminal_codon_variant"/>
+      <xsd:enumeration value="increased_polyadenylation_variant"/>
+      <xsd:enumeration value="increased_transcription_rate_variant"/>
+      <xsd:enumeration value="increased_transcript_level_variant"/>
+      <xsd:enumeration value="increased_transcript_stability_variant"/>
+      <xsd:enumeration value="increased_translational_product_level"/>
+      <xsd:enumeration value="inframe_deletion"/>
+      <xsd:enumeration value="inframe_indel"/>
+      <xsd:enumeration value="inframe_insertion"/>
+      <xsd:enumeration value="inframe_variant"/>
+      <xsd:enumeration value="initiator_codon_variant"/>
+      <xsd:enumeration value="intergenic_variant"/>
+      <xsd:enumeration value="internal_feature_elongation"/>
+      <xsd:enumeration value="intron_gain"/>
+      <xsd:enumeration value="intron_variant"/>
+      <xsd:enumeration value="level_of_transcript_variant"/>
+      <xsd:enumeration value="loss_of_heterozygosity"/>
+      <xsd:enumeration value="mature_miRNA_variant"/>
+      <xsd:enumeration value="minus_1_frameshift_variant"/>
+      <xsd:enumeration value="minus_2_frameshift_variant"/>
+      <xsd:enumeration value="missense_variant"/>
+      <xsd:enumeration value="Name"/>
+      <xsd:enumeration value="nc_transcript_variant"/>
+      <xsd:enumeration value="NMD_transcript_variant"/>
+      <xsd:enumeration value="non_coding_exon_variant"/>
+      <xsd:enumeration value="non_coding_transcript_variant"/>
+      <xsd:enumeration value="non_coding_transcript_exon_variant"/>
+      <xsd:enumeration value="non_conservative_amino_acid_substitution"/>
+      <xsd:enumeration value="non_conservative_missense_variant"/>
+      <xsd:enumeration value="plus_1_frameshift_variant"/>
+      <xsd:enumeration value="plus_2_frameshift_variant"/>
+      <xsd:enumeration value="polyadenylation_variant"/>
+      <xsd:enumeration value="polypeptide_function_variant"/>
+      <xsd:enumeration value="polypeptide_fusion"/>
+      <xsd:enumeration value="polypeptide_gain_of_function_variant"/>
+      <xsd:enumeration value="polypeptide_localization_variant"/>
+      <xsd:enumeration value="polypeptide_loss_of_function_variant"/>
+      <xsd:enumeration value="polypeptide_partial_loss_of_function"/>
+      <xsd:enumeration value="polypeptide_post_translational_processing_variant"/>
+      <xsd:enumeration value="polypeptide_sequence_variant"/>
+      <xsd:enumeration value="polypeptide_truncation"/>
+      <xsd:enumeration value="protein_altering_variant"/>
+      <xsd:enumeration value="rate_of_transcription_variant"/>
+      <xsd:enumeration value="regulatory_region_ablation"/>
+      <xsd:enumeration value="regulatory_region_amplification"/>
+      <xsd:enumeration value="regulatory_region_fusion"/>
+      <xsd:enumeration value="regulatory_region_translocation"/>
+      <xsd:enumeration value="regulatory_region_variant"/>
+      <xsd:enumeration value="sequence_variant"/>
+      <xsd:enumeration value="silent_mutation"/>
+      <xsd:enumeration value="splice_acceptor_variant"/>
+      <xsd:enumeration value="splice_donor_5th_base_variant"/>
+      <xsd:enumeration value="splice_donor_variant"/>
+      <xsd:enumeration value="splice_region_variant"/>
+      <xsd:enumeration value="splice_site_variant"/>
+      <xsd:enumeration value="splicing_variant"/>
+      <xsd:enumeration value="stop_gained"/>
+      <xsd:enumeration value="stop_lost"/>
+      <xsd:enumeration value="stop_retained_variant"/>
+      <xsd:enumeration value="structural_variant"/>
+      <xsd:enumeration value="synonymous_variant"/>
+      <xsd:enumeration value="terminator_codon_variant"/>
+      <xsd:enumeration value="TF_binding_site_variant"/>
+      <xsd:enumeration value="TFBS_ablation"/>
+      <xsd:enumeration value="TFBS_amplification"/>
+      <xsd:enumeration value="TFBS_fusion"/>
+      <xsd:enumeration value="TFBS_translocation"/>
+      <xsd:enumeration value="transcript_ablation"/>
+      <xsd:enumeration value="transcript_amplification"/>
+      <xsd:enumeration value="transcript_function_variant"/>
+      <xsd:enumeration value="transcript_fusion"/>
+      <xsd:enumeration value="transcription_variant"/>
+      <xsd:enumeration value="transcript_processing_variant"/>
+      <xsd:enumeration value="transcript_regulatory_region_fusion"/>
+      <xsd:enumeration value="transcript_secondary_structure_variant"/>
+      <xsd:enumeration value="transcript_stability_variant"/>
+      <xsd:enumeration value="transcript_translocation"/>
+      <xsd:enumeration value="transcript_variant"/>
+      <xsd:enumeration value="translational_product_function_variant"/>
+      <xsd:enumeration value="translational_product_level_variant"/>
+      <xsd:enumeration value="translational_product_structure_variant"/>
+      <xsd:enumeration value="upstream_gene_variant"/>
+      <xsd:enumeration value="UTR_variant"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  <xsd:complexType name="opt">
+    <xsd:sequence>
+      <xsd:element name="data" type="data" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+  <xsd:complexType name="data">
+    <xsd:sequence>
+      <xsd:element name="motif_feature_consequences" type="motif_feature_consequences" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="regulatory_feature_consequences" type="regulatory_feature_consequences" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="intergenic_consequences" type="intergenic_consequences" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="transcript_consequences" type="transcript_consequences" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="id" type="xsd:token"/>
+    <xsd:attribute name="input" type="xsd:string"/>
+    <xsd:attribute name="allele_string" type="xsd:token"/>
+    <xsd:attribute name="assembly_name" type="xsd:token"/>
+    <xsd:attribute name="end" type="xsd:positiveInteger"/>
+    <xsd:attribute name="most_severe_consequence" type="consequence"/>
+    <xsd:attribute name="seq_region_name" type="xsd:token"/>
+    <xsd:attribute name="start" type="xsd:positiveInteger"/>
+    <xsd:attribute name="strand" type="xsd:int"/>
+    <xsd:attribute name="error" type="xsd:string"/>
+  </xsd:complexType>
+  <xsd:complexType name="abstract_consequences" abstract="true">
+    <xsd:sequence>
+      <xsd:element name="consequence_terms" type="consequence_terms" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="variant_allele" type="xsd:token"/>
+  </xsd:complexType>
+  <xsd:complexType name="motif_feature_consequences">
+    <xsd:complexContent>
+      <xsd:extension base="abstract_consequences">
+        <xsd:attribute name="high_inf_pos" type="xsd:token"/>
+        <xsd:attribute name="motif_feature_id" type="xsd:normalizedString"/>
+        <xsd:attribute name="motif_name" type="xsd:normalizedString"/>
+        <xsd:attribute name="strand" type="xsd:int"/>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  <xsd:complexType name="regulatory_feature_consequences">
+    <xsd:complexContent>
+      <xsd:extension base="abstract_consequences">
+        <xsd:attribute name="regulatory_feature_id" type="xsd:normalizedString"/>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  <xsd:complexType name="transcript_consequences">
+    <xsd:complexContent>
+      <xsd:extension base="abstract_consequences">
+        <xsd:sequence>
+          <xsd:element name="refseq_transcript_ids" type="xsd:normalizedString" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="amino_acids" type="xsd:normalizedString"/>
+        <xsd:attribute name="biotype" type="xsd:token"/>
+        <xsd:attribute name="canonical" type="xsd:positiveInteger"/>
+        <xsd:attribute name="ccds" type="xsd:normalizedString"/>
+        <xsd:attribute name="cds_end" type="xsd:positiveInteger"/>
+        <xsd:attribute name="cds_start" type="xsd:positiveInteger"/>
+        <xsd:attribute name="cdna_end" type="xsd:positiveInteger"/>
+        <xsd:attribute name="cdna_start" type="xsd:positiveInteger"/>
+        <xsd:attribute name="codons" type="xsd:normalizedString"/>
+        <xsd:attribute name="distance" type="xsd:int"/>
+        <xsd:attribute name="exon" type="xsd:normalizedString"/>
+        <xsd:attribute name="gene_id" type="xsd:token"/>
+        <xsd:attribute name="gene_symbol" type="xsd:normalizedString"/>
+        <xsd:attribute name="gene_symbol_source" type="xsd:normalizedString"/>
+        <xsd:attribute name="hgvsc" type="xsd:normalizedString"/>
+        <xsd:attribute name="hgvsp" type="xsd:normalizedString"/>
+        <xsd:attribute name="hgnc_id" type="xsd:normalizedString"/>
+        <xsd:attribute name="intron" type="xsd:normalizedString"/>
+        <xsd:attribute name="polyphen_score" type="xsd:double"/>
+        <xsd:attribute name="polyphen_prediction" type="xsd:token"/>
+        <xsd:attribute name="protein" type="xsd:normalizedString"/>
+        <xsd:attribute name="protein_id" type="xsd:token"/>
+        <xsd:attribute name="protein_end" type="xsd:positiveInteger"/>
+        <xsd:attribute name="protein_start" type="xsd:positiveInteger"/>
+        <xsd:attribute name="sift_score" type="xsd:double"/>
+        <xsd:attribute name="sift_prediction" type="xsd:token"/>
+        <xsd:attribute name="strand" type="xsd:int" default="0"/>
+        <xsd:attribute name="transcript_id" type="xsd:token"/>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  <xsd:complexType name="intergenic_consequences">
+    <xsd:complexContent>
+      <xsd:extension base="abstract_consequences">
+        </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  <xsd:simpleType name="consequence_terms">
+    <xsd:restriction base="consequence"/>
+  </xsd:simpleType>
+  <xsd:element name="opt" type="opt"/>
+</xsd:schema>
+

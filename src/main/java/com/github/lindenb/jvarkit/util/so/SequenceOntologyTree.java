@@ -166,6 +166,24 @@ public class SequenceOntologyTree
 		return this.uri2term.get(s);
 		}
 	
+	private static String normalizeName(String s)
+		{
+		return s.toLowerCase().
+				replaceAll("'", "prime").
+				replaceAll(" ", "_");
+		}
+	
+	/** loop over terms and find a term.label==user.label */ 
+	public Term getTermByLabel(String s)
+		{
+		String sn=normalizeName(s);
+		for(Term t:uri2term.values())
+			{
+			if(normalizeName(t.getLabel()).equals(sn)) return t;
+			}
+		return null;
+		}
+	
 	private SequenceOntologyTree()
 		{
 		
