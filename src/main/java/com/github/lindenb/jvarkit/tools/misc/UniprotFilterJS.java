@@ -154,25 +154,27 @@ public class UniprotFilterJS
 			
 			
 			JAXBContext jc = JAXBContext.newInstance("org.uniprot");
+			
 			unmarshaller =jc.createUnmarshaller();
 			marshaller =jc.createMarshaller();
-			
+			final String UNIPROTNS="http://uniprot.org/uniprot";
 
 			
 			XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
-			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
+			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
 			marshaller.setProperty(Marshaller.JAXB_FRAGMENT, true);
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-
+			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://uniprot.org/uniprot http://www.uniprot.org/support/docs/uniprot.xsd");
 			
 			PrintWriter pw=new PrintWriter(System.out);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			xof.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.TRUE);
+			xof.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.FALSE);
 			XMLEventWriter w=xof.createXMLEventWriter(pw);
-			w.setDefaultNamespace("http://uniprot.org/uniprot");
+			
+			
 			
 			StreamSource src=null;
 			if(opt.getOptInd()==args.length)
@@ -204,12 +206,12 @@ public class UniprotFilterJS
 					case XMLEvent.START_ELEMENT:
 						{
 						StartElement sE= evt.asStartElement();
-						Object entry=null;
-						JAXBElement<?> jaxbElement=null;
+						Entry entry=null;
+						JAXBElement<Entry> jaxbElement=null;
 						if(sE.getName().getLocalPart().equals("entry") )
 							{
 							jaxbElement= unmarshaller.unmarshal(r,Entry.class);
-							entry=jaxbElement.getValue();
+							entry= jaxbElement.getValue();
 							}
 						else
 							{
@@ -224,21 +226,37 @@ public class UniprotFilterJS
 							bindings.put("index", nArticles++);
 							Object result=compiledScript.eval(bindings);
 							
+							String entryName="undefined";
+							if(!entry.getAccession().isEmpty()) entryName=entry.getAccession().get(0);
+							
 							if(result==null) break;
 							if(result instanceof Boolean)
 								{
-								if(Boolean.FALSE.equals(result)) break;
+								if(Boolean.FALSE.equals(result))
+									{
+									w.add(eventFactory.createComment(" "+entryName+" "));
+									w.add(eventFactory.createCharacters("\n"));
+									break;
+									}
 								}
 							else if(result instanceof Number)
 								{
-								if(((Number)result).intValue()!=1) break;
+								if(((Number)result).intValue()!=1) 
+									{
+									w.add(eventFactory.createComment(" "+entryName+" "));
+									w.add(eventFactory.createCharacters("\n"));
+									break;
+									}
 								}
 							else
 								{
 								warning("Script returned something that is not a boolean or a number:"+result.getClass());
 								break;
 								}
-							marshaller.marshal(jaxbElement, w);
+							
+							marshaller.marshal(
+									jaxbElement,
+									w);
 							w.add(eventFactory.createCharacters("\n"));
 							}
 						
