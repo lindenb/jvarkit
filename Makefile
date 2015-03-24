@@ -344,7 +344,7 @@ $(eval $(call compile-htsjdk-cmd,vcfcomparecallersonesample,${jvarkit.package}.t
 $(eval $(call compile-htsjdk-cmd,samretrieveseqandqual,${jvarkit.package}.tools.misc.SamRetrieveSeqAndQual))
 $(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.VcfEnsemblVepRest,api.ensembl.vep))
 $(eval $(call compile-htsjdk-cmd,vcfgroupbypop,${jvarkit.package}.tools.misc.VcfGroupByPopulation))
-
+$(eval $(call compile-htsjdk-cmd,vcfcomparecallers,${jvarkit.package}.tools.vcfcmp.VcfCompareCallers))
 
 
 
