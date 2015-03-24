@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfstripannot;
 
 import java.io.IOException;
@@ -19,22 +47,26 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
-public class VCFStripAnnotations extends AbstractVCFFilter2
+public class VCFStripAnnotations extends AbstractVCFFilter3
 	{
 	private Set<String> KEY=new HashSet<String>();
 	private Set<String> FORMAT=new HashSet<String>();
 	private Set<String> FILTER=new HashSet<String>();
 	private boolean inverse=false;
 	
+	public VCFStripAnnotations()
+		{
+		}
+	
 	@Override
 	protected String getOnlineDocUrl()
 		{
-		return "https://github.com/lindenb/jvarkit/wiki/VCFStripAnnotations";
+		return DEFAULT_WIKI_PREFIX+"VCFStripAnnotations";
 		}
 	
 	@Override
@@ -50,6 +82,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 		out.println(" -f (format) remove this FORMAT attribute. '*'= all keys BUT GT/DP/AD/GQ/PL");
 		out.println(" -F (filter) remove this FILTER. '*'= all keys.");
 		out.println(" -v inverse selection.");
+		out.println(" -o (file) output file. Default stdout.");
 		super.printOptions(out);
 		}
 	
@@ -66,7 +99,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 		}
 	
 	@Override
-	protected void doWork(VcfIterator r, VariantContextWriter w)
+	protected void doWork(String source,VcfIterator r, VariantContextWriter w)
 			throws IOException
 			{
 			VCFHeader header=r.getHeader();
@@ -85,11 +118,16 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 				}
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			
+			
+			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(h2);
+
+			
 			w.writeHeader(h2);
 			
 			while(r.hasNext())
 				{
-				VariantContext ctx=r.next();
+				VariantContext ctx=progress.watch(r.next());
 				VariantContextBuilder b=new VariantContextBuilder(ctx);
 				/* INFO */
 				if(remove_all_info)
@@ -156,7 +194,10 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 						}
 					}
 				w.add(b.make());
-				}		
+				this.incrVariantCount();
+				if(this.checkOutputError()) break;
+				}	
+			progress.finish();
 			}
 	
 	
@@ -165,7 +206,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "k:F:f:v"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:k:F:f:v"))!=-1)
 			{
 			switch(c)
 				{
@@ -173,6 +214,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 				case 'k': this.KEY.add(opt.getOptArg()); break;
 				case 'f': this.FORMAT.add(opt.getOptArg()); break;
 				case 'F': this.FILTER.add(opt.getOptArg()); break;
+				case 'o': this.setOutputFile(opt.getOptArg());break;
 				default: 
 					{
 					switch(handleOtherOptions(c, opt, args))
@@ -185,7 +227,7 @@ public class VCFStripAnnotations extends AbstractVCFFilter2
 				}
 			}
 		
-		return doWork(opt.getOptInd(), args);
+		return mainWork(opt.getOptInd(), args);
 		}
 
 	

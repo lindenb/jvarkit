@@ -1,27 +1,66 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.vcffixindels;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Map;
+import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-import htsjdk.tribble.TribbleException;
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 
-
-public class VCFFixIndels extends AbstractVCFFilter2
+/**
+ * 
+ * VCFFixIndels
+ *
+ */
+public class VCFFixIndels extends AbstractVCFFilter3
 	{
-	private VCFFixIndels()
+	public VCFFixIndels()
 		{
 		}
 	
@@ -32,144 +71,187 @@ public class VCFFixIndels extends AbstractVCFFilter2
 	
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VCFFixIndels";
+		return DEFAULT_WIKI_PREFIX+"VCFFixIndels";
 		}
 	
 	
 	@Override
-	protected void doWork(VcfIterator r, VariantContextWriter w)
+	protected void doWork(
+			String source,
+			VcfIterator r,
+			VariantContextWriter w
+			)
 			throws IOException
 		{
 		long nChanged=0L;
 		final String TAG="INDELFIXED";
 		VCFHeader header=r.getHeader();
 		
-		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String,"Fix Indels for @SolenaLS."));
-		
+		VCFHeader h2=new VCFHeader(header);
+		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String,"Fix Indels for @SolenaLS (position|alleles...)"));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+
 		w.writeHeader(h2);
-	
-		final Pattern dna=Pattern.compile("[ATGCatgc]+");
+		SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
+		
 		while(r.hasNext())
 			{
-			VariantContext ctx=r.next();
-			VariantContextBuilder b=new VariantContextBuilder(ctx);
-			List<Allele> alleles=ctx.getAlternateAlleles();
-			if(alleles.size()!=1 || 
-				!dna.matcher(ctx.getReference().getBaseString()).matches() ||
-				!dna.matcher(alleles.get(0).getBaseString()).matches()
+			boolean somethingChanged=false;
+			VariantContext ctx=progress.watch(r.next());
+			/* map old allele to new allele */
+			Map<Allele, Allele> original2modified=new HashMap<Allele, Allele>();
+			/* did we found a strange allele (symbolic, etc ) */
+			boolean strange_allele_flag=false;
+			for(Allele a:ctx.getAlleles())
+				{
+				original2modified.put(a, a);
+				if(a.isSymbolic() || a.isNoCall())
+					{
+					strange_allele_flag=true;
+					break;
+					}
+				}
+			
+			if(strange_allele_flag ||
+				original2modified.size()<2 /* at least 2 alleles: REF+ ALT */
 				)
 				{
-				w.add(ctx);
-				continue;
-				}
-			StringBuffer ref=new StringBuffer(ctx.getReference().getBaseString().toUpperCase());
-			StringBuffer alt=new StringBuffer(alleles.get(0).getBaseString().toUpperCase());
-			int start=ctx.getStart();
-			int end=ctx.getEnd();
-			
-			boolean changed=false;
-			
-			/**** we trim on the right side ****/
-			//REF=TGCTGCGGGGGCCGCTGCGGGGG 	ALT=TGCTGCGGGGG
-			while(	alt.length()>1 &&
-					alt.length() < ref.length() &&
-					ref.charAt(ref.length()-1)==alt.charAt(alt.length()-1)
-					)
-				{
-				changed=true;
-				ref.setLength(ref.length()-1);
-				alt.deleteCharAt(alt.length()-1);
-				end--;
-				}
-			
-			//REF=TGCTGCGGGGG 	ALT= TGCTGCGGGGGCCGCTGCGGGGG
-			while(	ref.length()>1 &&
-					alt.length() > ref.length() &&
-					ref.charAt(ref.length()-1)==alt.charAt(alt.length()-1)
-					)
-				{
-				changed=true;
-				ref.setLength(ref.length()-1);
-				alt.deleteCharAt(alt.length()-1);
-				end--;
-				}
-			
-			
-			
-			/**** we trim on the left side ****/
-
-			//REF=TGCTGCGGGGGCCGCTGCGGGGG 	ALT=TGCTGCGGGGG
-			while(	alt.length()>1 &&
-					alt.length() < ref.length() &&
-					ref.charAt(0)==alt.charAt(0)
-					)
-				{
-				changed=true;
-				ref.deleteCharAt(0);
-				alt.deleteCharAt(0);
-				start++;
-				}
-			
-			//REF=TGCTGCGGGGG 	ALT= TGCTGCGGGGGCCGCTGCGGGGG
-			while(	ref.length()>1 &&
-					alt.length() > ref.length() &&
-					ref.charAt(0)==alt.charAt(0)
-					)
-				{
-				changed=true;
-				ref.deleteCharAt(0);
-				alt.deleteCharAt(0);
-				start++;
-				}
-			
-			
-			if(!changed)
-				{
+				incrVariantCount();
 				w.add(ctx);
 				continue;
 				}
 			
+			/* record chromStart if we need to shift to the right */
+			int chromStart= ctx.getStart();
 			
-			/*
-			LOG.info(line);
-			LOG.info("ctx.getStart() "+ctx.getStart());
-			LOG.info("ctx.getEnd() "+ ctx.getEnd());
-
-			
-
-			LOG.info("start " + start);
-			LOG.info("end "+end);
-			LOG.info("ref " + ref.toString());
-			LOG.info("alt "+alt.toString());
-			*/
-
-			Allele newRef=Allele.create(ref.toString(),true);
-			Allele newAlt=Allele.create(alt.toString(),false);
-			
-			
-			Allele newalleles[]=new Allele[]{newRef,newAlt};
-		
-			b.attribute(TAG, ctx.getReference().getBaseString()+"|"+alleles.get(0).getBaseString()+"|"+ctx.getStart());
-			b.start(start);
-			b.stop(end);
-			b.alleles(Arrays.asList(newalleles));
-			
-			nChanged++;
-			
-			
-			
-			VariantContext ctx2=b.make();
-			try {
-				w.add(ctx2);
-				}
-			catch(TribbleException err)
+			/* trim right then left  */
+			for(int side=0;side<2;++side)
 				{
-				error(err,"Cannot convert new context:"+ctx2+" old context:"+ctx);
+				boolean done=false;
+				while(!done)
+					{
+					boolean ok_side=true;
+					/* common nucleotide at end/start */
+					Character targetChar = null;
+					done=true;
+					//scan side
+					Set<Allele> keys = new HashSet<>(original2modified.keySet());  
+					for(Allele k:keys)
+						{
+						Allele newAllele = original2modified.get(k);
+						if(newAllele.isSymbolic()) 
+							{
+							ok_side = false;
+							break;
+							}
+						String baseString = newAllele.getBaseString().trim().toUpperCase();
+						if(baseString.length()<2)
+							{
+							ok_side = false;
+							break;
+							}
+						/* first or last char or all sequences
+						 * side==0 : right
+						 * side==1 : left
+						 * */
+						Character baseChar=
+							(side==0?
+							baseString.charAt(baseString.length()-1):
+							baseString.charAt(0)
+							);
+						if(targetChar==null)
+							{
+							targetChar = baseChar;
+							}
+						else if(!targetChar.equals(baseChar))
+							{
+							/* doesn't end with same nucleotide */
+							ok_side = false;
+							break;
+							}
+						}
+					/* ok we can shift all alleles */
+					if(ok_side && targetChar!=null)
+						{
+						done=false;
+						somethingChanged=true;
+						for(Allele k:keys)
+							{
+							Allele newAllele = original2modified.get(k);
+							String baseString = newAllele.getBaseString().trim().toUpperCase();
+							if(side==0)//remove last nucleotide
+								{
+								newAllele = Allele.create(
+									baseString.substring(0,baseString.length()-1),
+									newAllele.isReference());
+								}
+							else
+								{
+								newAllele = Allele.create(
+										baseString.substring(1),
+										newAllele.isReference());
+								
+								}
+							original2modified.put(k, newAllele);
+							}
+						if(side==1) chromStart++;
+						}
+					}/* end of while done */
+				
+				}/* end side */
+			
+			if(!somethingChanged)
+				{
 				w.add(ctx);
+				incrVariantCount();
+				continue;
 				}
+			
+			VariantContextBuilder b=new VariantContextBuilder(ctx);
+			b.start(chromStart);
+			Allele newRef=original2modified.get(ctx.getReference());
+			b.stop(chromStart+newRef.getBaseString().length()-1);
+			b.alleles(original2modified.values());
+			List<Genotype> genotypes=new ArrayList<>();
+			for(String sample:header.getSampleNamesInOrder())
+				{
+				Genotype g = ctx.getGenotype(sample);
+				if(g.isNoCall()) 
+					{
+					genotypes.add(g);
+					continue;
+					}
+				GenotypeBuilder gb=new GenotypeBuilder(g);
+				List<Allele> aL=new ArrayList<>();
+				for(Allele a:g.getAlleles())
+					{
+					aL.add(original2modified.get(a));
+					}
+				gb.alleles(aL);
+				genotypes.add(gb.make());
+				}
+			
+			StringBuilder tagContent=new StringBuilder();
+			tagContent.append(String.valueOf(ctx.getStart()));
+			for(Allele a:ctx.getAlleles())
+				{
+				tagContent.append("|");
+				tagContent.append(a.toString());
+				}
+			
+			
+			b.attribute(TAG,tagContent.toString());
+			b.genotypes(genotypes);
+			
+			incrVariantCount();
+			w.add( b.make());
+			
+			if(this.checkOutputError()) break;
 			}
-		
+		progress.finish();
 		info("indels changed:"+nChanged);
 		}
 	
@@ -178,6 +260,7 @@ public class VCFFixIndels extends AbstractVCFFilter2
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
+		out.println("-o (filename) file out. default:stdout");
 		super.printOptions(out);
 		}
 	
@@ -186,10 +269,11 @@ public class VCFFixIndels extends AbstractVCFFilter2
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'o': this.setOutputFile(opt.getOptArg());break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -201,7 +285,7 @@ public class VCFFixIndels extends AbstractVCFFilter2
 					}
 				}
 			}
-		return super.doWork(opt.getOptInd(), args);
+		return super.mainWork(opt.getOptInd(), args);
 		}
 	
 	public static void main(String[] args) throws IOException
