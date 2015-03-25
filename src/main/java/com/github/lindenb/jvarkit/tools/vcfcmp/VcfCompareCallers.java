@@ -61,11 +61,20 @@ public class VcfCompareCallers
 		unique_to_file_2,
 		unique_to_file_2_snp,
 		unique_to_file_2_indel,
-		common,
-		common_snp,
-		common_indel,
+		common_context,
+		common_context_snp,
+		common_context_indel,
+		common_context_discordant_id,
 		called_and_same,
-		called_but_discordant
+		called_and_same_hom_ref,
+		called_and_same_hom_var,
+		called_and_same_het,
+		called_but_discordant,
+		called_but_discordant_hom1_het2,
+		called_but_discordant_het1_hom2,
+		called_but_discordant_hom1_hom2,
+		called_but_discordant_het1_het2,
+		
 		}
 	
 	public VcfCompareCallers()
@@ -152,8 +161,7 @@ public class VcfCompareCallers
 			
 			if(samples.size()!=samples0.size() || samples.size()!=samples1.size())
 				{
-				warning("Not the same samples");
-				return -1;
+				warning("Warning: Not the same samples set. Using intersection of both lists.");
 				}
 			Map<String, Counter<Category>> sample2info=new HashMap<String, Counter<Category>>(samples.size());
 			for(String sampleName:samples)
@@ -163,6 +171,7 @@ public class VcfCompareCallers
 			
 			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(dict0);
 			VariantContext buffer[]=new VariantContext[vcfInputs.length];
+			VariantContext prev[]=new VariantContext[vcfInputs.length];
 			for(;;)
 				{
 				VariantContext smallest=null;
@@ -174,6 +183,16 @@ public class VcfCompareCallers
 						if(vcfInputs[i].hasNext())
 							{
 							buffer[i]=vcfInputs[i].peek();
+							/* check data are sorted */
+							if(prev[i]!=null && ctxComparator.compare(prev[i], buffer[i])>0)
+								{
+								error("Input "+(i+1)+"/2 is not sorted"+(
+									((i==0 && dict0==null) ||(i==1 && dict1==null))?
+									"on chrom/pos/ref":
+									"on sequence dictionary"
+									)+". got\n"+buffer[i]+"\nafter\n"+prev[i]);
+								return -1;
+								}
 							}
 						else
 							{
@@ -198,12 +217,14 @@ public class VcfCompareCallers
 				
 				if(buffer[0]!=null && ctxComparator.compare(buffer[0],smallest)==0)
 					{
-					ctx0= progress.watch(vcfInputs[0].next());
+					prev[0] = progress.watch(vcfInputs[0].next());
+					ctx0= prev[0];
 					buffer[0]=null;
 					}
 				if(buffer[1]!=null && ctxComparator.compare(buffer[1],smallest)==0)
 					{
-					ctx1= progress.watch(vcfInputs[1].next());
+					prev[1]= progress.watch(vcfInputs[1].next());
+					ctx1= prev[1];
 					buffer[1]=null;
 					}
 	
@@ -245,24 +266,61 @@ public class VcfCompareCallers
 						}
 					else
 						{	
-						sampleInfo.incr(Category.common);
+						sampleInfo.incr(Category.common_context);
 						if(ctx0.isIndel() && ctx1.isIndel())
 							{
-							sampleInfo.incr(Category.common_indel);
+							sampleInfo.incr(Category.common_context_indel);
 							}
 						else if(ctx0.isSNP() && ctx1.isSNP())
 							{
-							sampleInfo.incr(Category.common_snp);
+							sampleInfo.incr(Category.common_context_snp);
+							}
+						
+						if( (ctx0.hasID() && !ctx1.hasID()) ||
+							(!ctx0.hasID() && ctx1.hasID()) ||
+							(ctx0.hasID() && ctx1.hasID() && !ctx0.getID().equals(ctx1.getID()))
+							)
+							{
+							sampleInfo.incr(Category.common_context_discordant_id);
 							}
 						
 						
 						if(g0.sameGenotype(g1))
 							{
 							sampleInfo.incr(Category.called_and_same);
+							if(g0.isHomRef())
+								{
+								sampleInfo.incr(Category.called_and_same_hom_ref);
+								}
+							if(g0.isHomVar())
+								{
+								sampleInfo.incr(Category.called_and_same_hom_var);
+								}
+							else if(g0.isHet())
+								{	
+								sampleInfo.incr(Category.called_and_same_het);
+								}
+							
 							}
 						else
 							{
 							sampleInfo.incr(Category.called_but_discordant);
+							if(g0.isHom() && g1.isHet())
+								{
+								sampleInfo.incr(Category.called_but_discordant_hom1_het2);
+								}
+							else if(g0.isHet() && g1.isHom())
+								{
+								sampleInfo.incr(Category.called_but_discordant_het1_hom2);
+								}
+							else if(g0.isHom() && g1.isHom())
+								{
+								sampleInfo.incr(Category.called_but_discordant_hom1_hom2);
+								}
+							else if(g0.isHet() && g1.isHet())
+								{
+								sampleInfo.incr(Category.called_but_discordant_het1_het2);
+								}
 							}
 						
 						}
@@ -302,8 +360,7 @@ public class VcfCompareCallers
 			}
 		finally
 			{
-			if(getOutputFile()!=null) pw.close();
-			CloserUtil.close(pw);
+			if(getOutputFile()!=null)  CloserUtil.close(pw);
 			}
 		
 		}
