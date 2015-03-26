@@ -32,18 +32,23 @@ public class Counter<T>
 			}
 		}
 	
-	public void incr(final T object)
+	/** increase by 1 returns the new count */
+	public long incr(final T object)
 		{
-		incr(object,1L);
+		return incr(object,1L);
 		}
-	public void incr(final T object,long n)
+	/**  increase by n, returns the new count */
+	public long incr(final T object,long n)
 		{
 		if(n<=0) throw new IllegalArgumentException("n<=0 :"+n);
 		if(object==null) throw new IllegalArgumentException("null argument in "+getClass());
 		Long count=this.object2count.get(object);
 		if(count==null) count=0L;
-		this.object2count.put(object, count+n);
+		//increase
+		count+=n;
+		this.object2count.put(object,count);
 		this.total+=n;
+		return count;
 		}
 	
 	public void putAll(Counter<T> other)

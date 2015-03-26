@@ -31,11 +31,14 @@ package com.github.lindenb.jvarkit.tools.vcfcmp;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
+import java.io.File;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,6 +46,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -61,6 +68,7 @@ public class VcfCompareCallers
 		unique_to_file_2,
 		unique_to_file_2_snp,
 		unique_to_file_2_indel,
+		both_missing,
 		common_context,
 		common_context_snp,
 		common_context_indel,
@@ -74,13 +82,25 @@ public class VcfCompareCallers
 		called_but_discordant_het1_hom2,
 		called_but_discordant_hom1_hom2,
 		called_but_discordant_het1_het2,
+		called_but_discordant_others,
 		
 		}
+	private int numberOfExampleVariants=10;
+	private File exampleFile=null;
+	
 	
 	public VcfCompareCallers()
 		{
 		}
 	
+	
+	public void setExampleFile(File exampleFile) {
+		this.exampleFile = exampleFile;
+		}
+	
+	public void setNumberOfExampleVariants(int numberOfExampleVariants) {
+		this.numberOfExampleVariants = numberOfExampleVariants;
+		}
 	
 	@Override
 	protected String getOnlineDocUrl() {
@@ -97,7 +117,88 @@ public class VcfCompareCallers
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println(" -o (filename) output. Default:stdout.");
+		out.println(" -n number of variants to dump in the example file. Default: "+numberOfExampleVariants);
+		out.println(" -e (example file.xml). Print a few representative Variants in this XML file. Optional.");
 		super.printOptions(out);
+		}
+	
+	private void watch(
+			XMLStreamWriter out,
+			VariantContext ctx0,
+			VariantContext ctx1,
+			Genotype g0,
+			Genotype g1,
+			String sampleName,Counter<Category> count,Category cat
+			) throws XMLStreamException
+		{
+		long n=count.incr(cat);
+		if(out==null || n> this.numberOfExampleVariants) return;
+		VariantContext variants[]=new VariantContext[]{ctx0,ctx1};
+		Genotype gts[]=new Genotype[]{g0,g1};
+		out.writeStartElement("diff");
+		out.writeAttribute("type", cat.name());
+		out.writeAttribute("sample",sampleName);
+		for(int i=0;i< 2;++i)
+			{
+			if(variants[i]==null) continue;
+			out.writeStartElement("variant");
+			out.writeAttribute("file",String.valueOf(i+1));
+			out.writeAttribute("type",String.valueOf(variants[i].getType()));
+
+			
+			
+			out.writeStartElement("chrom");
+			out.writeCharacters(variants[i].getChr());
+			out.writeEndElement();
+
+			out.writeStartElement("pos");
+			out.writeCharacters(String.valueOf(variants[i].getStart()));
+			out.writeEndElement();
+
+			
+			
+			out.writeStartElement("id");
+			out.writeCharacters(variants[i].hasID()?variants[i].getID():".");
+			out.writeEndElement();
+				
+			
+			out.writeStartElement("ref");
+			out.writeCharacters(String.valueOf(variants[i].getReference()));
+			out.writeEndElement();
+			
+			out.writeStartElement("alts");
+			out.writeCharacters(String.valueOf(variants[i].getAlternateAlleles()));
+			out.writeEndElement();
+
+			
+			
+			if(gts[i]!=null)
+				{
+				out.writeStartElement("genotype");
+				out.writeAttribute("type",String.valueOf(gts[i].getType()));
+
+				for(Allele a:gts[i].getAlleles())
+					{
+					out.writeStartElement("allele");
+					out.writeCharacters(a.toString());
+					out.writeEndElement();
+					}
+				if(gts[i].hasDP())
+					{
+					out.writeStartElement("dp");
+					out.writeCharacters(String.valueOf(gts[i].getDP()));
+					out.writeEndElement();
+					}
+				out.writeEndElement();
+				}
+			
+			out.writeEndElement();
+			}
+		
+	
+		
+		out.writeEndElement();
+		out.writeCharacters("\n");
 		}
 	
 
@@ -105,6 +206,8 @@ public class VcfCompareCallers
 	@Override
 	public int executeKnime(List<String> args)
 		{
+		PrintWriter exampleWriter=null;
+		XMLStreamWriter  exampleOut=null;
 		PrintStream pw=null;
 		VcfIterator vcfInputs[]=new VcfIterator[]{null,null};
 		VCFHeader headers[]=new VCFHeader[]{null,null};
@@ -163,10 +266,25 @@ public class VcfCompareCallers
 				{
 				warning("Warning: Not the same samples set. Using intersection of both lists.");
 				}
+			if(samples.isEmpty())
+				{	
+				error("No common samples");
+				return -1;
+				}
+			
 			Map<String, Counter<Category>> sample2info=new HashMap<String, Counter<Category>>(samples.size());
 			for(String sampleName:samples)
 				{
 				sample2info.put(sampleName, new  Counter<Category>());
+				}
+			
+			if(this.exampleFile!=null)
+				{
+				exampleWriter=new PrintWriter(exampleFile,"UTF-8");
+				XMLOutputFactory xof=XMLOutputFactory.newFactory();
+				exampleOut=xof.createXMLStreamWriter(exampleWriter);
+				exampleOut.writeStartDocument("UTF-8", "1.0");
+				exampleOut.writeStartElement("compare-callers");
 				}
 			
 			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(dict0);
@@ -237,43 +355,48 @@ public class VcfCompareCallers
 					if(g0!=null && (g0.isNoCall() || !g0.isAvailable())) g0=null;
 					if(g1!=null && (g1.isNoCall() || !g1.isAvailable())) g1=null;
 					
-					if(g0==null && g1==null) continue;
-					if(g0!=null && g1==null)
+					if(g0==null && g1==null)
 						{
-						sampleInfo.incr(Category.unique_to_file_1);
+						watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.both_missing);
+						continue;
+						}
+					else if(g0!=null && g1==null)
+						{
+						watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.unique_to_file_1);
+						
 						if(ctx0.isIndel())
 							{
-							sampleInfo.incr(Category.unique_to_file_1_indel);
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.unique_to_file_1_indel);
 							}
 						else if(ctx0.isSNP())
 							{
-							sampleInfo.incr(Category.unique_to_file_1_snp);
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.unique_to_file_1_snp);
 							}
 						continue;
 						}
 					else if(g0==null && g1!=null)
 						{
-						sampleInfo.incr(Category.unique_to_file_2);
+						
 						if(ctx1.isIndel())
 							{
-							sampleInfo.incr(Category.unique_to_file_2_indel);
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.unique_to_file_2_indel);
 							}
 						else if(ctx1.isSNP())
 							{
-							sampleInfo.incr(Category.unique_to_file_2_snp);
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.unique_to_file_2_snp);
 							}
 						continue;
 						}
 					else
 						{	
-						sampleInfo.incr(Category.common_context);
+						watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.common_context);
 						if(ctx0.isIndel() && ctx1.isIndel())
 							{
-							sampleInfo.incr(Category.common_context_indel);
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.common_context_indel);
 							}
 						else if(ctx0.isSNP() && ctx1.isSNP())
 							{
-							sampleInfo.incr(Category.common_context_snp);
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.common_context_snp);
 							}
 						
 						if( (ctx0.hasID() && !ctx1.hasID()) ||
@@ -281,45 +404,50 @@ public class VcfCompareCallers
 							(ctx0.hasID() && ctx1.hasID() && !ctx0.getID().equals(ctx1.getID()))
 							)
 							{
-							sampleInfo.incr(Category.common_context_discordant_id);
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.common_context_discordant_id);
 							}
 						
 						
 						if(g0.sameGenotype(g1))
 							{
-							sampleInfo.incr(Category.called_and_same);
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_and_same);
+
 							if(g0.isHomRef())
 								{
-								sampleInfo.incr(Category.called_and_same_hom_ref);
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_and_same);
 								}
 							if(g0.isHomVar())
 								{
-								sampleInfo.incr(Category.called_and_same_hom_var);
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_and_same_hom_var);
 								}
 							else if(g0.isHet())
 								{	
-								sampleInfo.incr(Category.called_and_same_het);
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_and_same_het);
 								}
-							
 							}
 						else
 							{
-							sampleInfo.incr(Category.called_but_discordant);
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_but_discordant);
+
 							if(g0.isHom() && g1.isHet())
 								{
-								sampleInfo.incr(Category.called_but_discordant_hom1_het2);
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_but_discordant_hom1_het2);
 								}
 							else if(g0.isHet() && g1.isHom())
 								{
-								sampleInfo.incr(Category.called_but_discordant_het1_hom2);
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_but_discordant_het1_hom2);
 								}
 							else if(g0.isHom() && g1.isHom())
 								{
-								sampleInfo.incr(Category.called_but_discordant_hom1_hom2);
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_but_discordant_hom1_hom2);
 								}
 							else if(g0.isHet() && g1.isHet())
 								{
-								sampleInfo.incr(Category.called_but_discordant_het1_het2);
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_but_discordant_het1_het2);
+								}
+							else 
+								{
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_but_discordant_others);
 								}
 							}
 						
@@ -350,7 +478,13 @@ public class VcfCompareCallers
 				}
 			pw.flush();
 			
-			
+			if(exampleOut!=null)
+				{
+				exampleOut.writeEndElement();
+				exampleOut.writeEndDocument();
+				exampleOut.flush();
+				exampleOut.close();
+				}
 			return 0;
 			} 
 		catch (Exception err)
@@ -361,6 +495,7 @@ public class VcfCompareCallers
 		finally
 			{
 			if(getOutputFile()!=null)  CloserUtil.close(pw);
+			CloserUtil.close(exampleWriter);
 			}
 		
 		}
@@ -372,11 +507,13 @@ public class VcfCompareCallers
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:n:e:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': this.setOutputFile(opt.getOptArg()); break;
+				case 'n': this.setNumberOfExampleVariants(Integer.parseInt(opt.getOptArg())); break;
+				case 'e': this.setExampleFile(new File(opt.getOptArg())); break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
