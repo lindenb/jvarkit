@@ -42,7 +42,6 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
@@ -69,10 +68,9 @@ public class SplitBam3 extends AbstractCommandLineProgram
 	{
 	private int maxRecordsInRam=1000000;
 	private boolean ADD_MOCK_RECORD=false;
-	private final static String REPLACE_CHROM="__CHROM__";
+	private final static String REPLACE_GROUPID="__GROUPID__";
 	private String OUT_FILE_PATTERN="";
 	private String UNDERTERMINED_NAME="Unmapped";
-	private boolean assumeSorted =false;
 	
 	private long id_generator=System.currentTimeMillis();
 	private java.util.Map<String,SplitGroup> name2group=new java.util.HashMap<String,SplitGroup>();
@@ -84,7 +82,7 @@ public class SplitBam3 extends AbstractCommandLineProgram
 		{
 		String groupName;
 		SAMFileHeader header=null;
-		SAMFileWriter writer;
+		SAMFileWriter _writer;
 		long count=0L;
 		@SuppressWarnings("unused")
 		ProgressLoggerInterface progress;
@@ -102,7 +100,10 @@ public class SplitBam3 extends AbstractCommandLineProgram
 		public File getFile()
 			{
 			return new File(
-					SplitBam3.this.OUT_FILE_PATTERN.replaceAll(SplitBam3.REPLACE_CHROM, this.groupName));
+					SplitBam3.this.OUT_FILE_PATTERN.replaceAll(
+							SplitBam3.REPLACE_GROUPID,
+							this.groupName
+							));
 			}
 		
 		public void open(SAMFileHeader src)
@@ -120,24 +121,21 @@ public class SplitBam3 extends AbstractCommandLineProgram
 
 			
 			this.header=src.clone();
-			/* problem of parsing with GATK 2.6  */
-			SAMProgramRecord sp=new SAMProgramRecord(getClass().getSimpleName());
-			sp.setProgramName(getClass().getSimpleName());
-			sp.setProgramVersion(String.valueOf(SplitBam3.this.getVersion()));
-			sp.setPreviousProgramGroupId(getClass().getSimpleName());
-			sp.setCommandLine(SplitBam3.this.getProgramCommandLine().replaceAll("[ \\s]+"," "));
-			this.header.addProgramRecord(sp);
+			this.header.addComment(
+					"Processed with "+getProgramName()+
+					" version:"+getVersion()+
+					"CommandLine:"+getProgramCommandLine()
+					);
 			
 			
-			if(SplitBam3.this.createIndex)
-				{
-				header.setSortOrder(SortOrder.coordinate);
-				samFileWriterFactory.setCreateIndex(true);
-				}
 			
-			this.writer = samFileWriterFactory.makeBAMWriter(
+			this.header.setSortOrder(SortOrder.coordinate);
+			samFileWriterFactory.setCreateIndex(true);
+				
+			
+			this._writer = samFileWriterFactory.makeBAMWriter(
 				this.header,
-				SplitBam3.this.assumeSorted,
+				true,
 				fileout
 				);
 			}
@@ -145,7 +143,7 @@ public class SplitBam3 extends AbstractCommandLineProgram
 		@Override
 		public void addAlignment(SAMRecord rec)
 			{
-			this.writer.addAlignment(rec);
+			this._writer.addAlignment(rec);
 			++this.count;
 			}
 		
@@ -157,6 +155,7 @@ public class SplitBam3 extends AbstractCommandLineProgram
 		@Override
 		public void close()
 			{
+			info("CLOSING "+this.groupName+" N="+this.count);
 			if(count==0L && SplitBam3.this.ADD_MOCK_RECORD)
 				{
 				List<SAMReadGroupRecord> G=getFileHeader().getReadGroups();
@@ -185,8 +184,8 @@ public class SplitBam3 extends AbstractCommandLineProgram
 					this.addAlignment(rec);
 					}
 				}
-			CloserUtil.close(writer);
-			writer=null;
+			CloserUtil.close(this._writer);
+			this._writer=null;
 			}
 		}
 	
@@ -210,6 +209,8 @@ public class SplitBam3 extends AbstractCommandLineProgram
 			{
 			throw new IllegalArgumentException("chrom "+interval+" already used in "+splitgroup.groupName);
 			}
+		splitgroup = name2group.get(groupName);
+				
 		if(splitgroup==null)
 			{
 			splitgroup = new SplitGroup(groupName);
@@ -225,137 +226,163 @@ public class SplitBam3 extends AbstractCommandLineProgram
 	@SuppressWarnings("resource")
 	private void scan(SamReader samFileReader,File chromGroupFile) throws Exception
 		{
-		final SAMFileHeader srcHeader= samFileReader.getFileHeader();
-		SAMSequenceDictionary samSequenceDictionary=samFileReader.getFileHeader().getSequenceDictionary();
-		if(samSequenceDictionary==null || samSequenceDictionary.isEmpty())
+		try
 			{
-			throw new IOException(getMessageBundle("file.is.missing.dict"));
-			}
-		this.underminedGroup = new SplitGroup(UNDERTERMINED_NAME);
-		this.name2group.put(UNDERTERMINED_NAME,this.underminedGroup);
-
-		
-		
-		if(chromGroupFile!=null)
-			{
-			
-			
-			BufferedReader r=IOUtils.openFileForBufferedReading(chromGroupFile);
-			String line;
-			while((line=r.readLine())!=null)
+			final SAMFileHeader srcHeader= samFileReader.getFileHeader();
+			SAMSequenceDictionary samSequenceDictionary=samFileReader.getFileHeader().getSequenceDictionary();
+			if(samSequenceDictionary==null || samSequenceDictionary.isEmpty())
 				{
-				if(line.isEmpty() || line.startsWith("#")) continue;
-				String tokens[] =line.split("[ \t,]+");
-				String groupName=tokens[0].trim();
-				if(groupName.isEmpty()) throw new IOException("Empty group name in "+line);
-				if(this.UNDERTERMINED_NAME.equals(groupName))  throw new IOException("Group cannot be named "+UNDERTERMINED_NAME);
-				if(this.name2group.containsKey(groupName))  throw new IOException("Group defined twice "+groupName);
-				for(int i=1;i< tokens.length;i++)
-					{
-					String sequence;
-					int start;
-					int end;
-					String segment = tokens[i].trim();
-					
-					if(segment.isEmpty()) continue;
-					
-					int colon= segment.indexOf(':');
-					if(colon==-1)
-						{
-						SAMSequenceRecord ssr=samSequenceDictionary.getSequence(segment);
-						if(ssr==null)
-							{
-							throw new IOException("Unknown chromosome , not in dict");
-							}
-						sequence = segment;
-						start = 1;
-						end = ssr.getSequenceLength();
-						}
-					else
-						{
-						int hyphen  = segment.indexOf('-',colon);
-						if(hyphen==-1)  throw new IOException("Bad segment:"+segment);
-						sequence = segment.substring(0,colon);
-						if(samSequenceDictionary.getSequence(sequence)==null)
-							 throw new IOException("Unknown chromosome , not in dict "+segment);
-						
-						start = Integer.parseInt(segment.substring(colon+1,hyphen));
-						end = Integer.parseInt(segment.substring(hyphen+1));
-						}
-					
-					Interval interval=new Interval(sequence, start, end);
-					this.put(groupName,interval);
-					}
+				throw new IOException(getMessageBundle("file.is.missing.dict"));
 				}
-			r.close();
-			}
-		else
-			{
-			for(SAMSequenceRecord seq:samSequenceDictionary.getSequences())
+			if(!SAMFileHeader.SortOrder.coordinate.equals(srcHeader.getSortOrder()))
 				{
-				String groupName=seq.getSequenceName();
-				Interval interval= new Interval(groupName, 1, seq.getSequenceLength());
-				this.put(groupName,interval);
+				throw new IOException(getMessageBundle("Input file Bad sort-order: "
+						+ srcHeader.getSortOrder()+" exepected coordinate."
+						));
 				}
-			}
-		
+			
+			this.underminedGroup = new SplitGroup(UNDERTERMINED_NAME);
+			this.name2group.put(UNDERTERMINED_NAME,this.underminedGroup);
 	
-		/* open all output bams */
-		for(SplitGroup g:this.name2group.values())
-			{
-			g.open(srcHeader);
-			}
-		
-        
-       SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samFileReader.getFileHeader()==null?null:samFileReader.getFileHeader().getSequenceDictionary());
-        
-		for(Iterator<SAMRecord> iter=samFileReader.iterator();
-				iter.hasNext(); )
-			{
-			SAMRecord record = progress.watch(iter.next());
-		
-			Interval interval=null;
-			if( record.getReadUnmappedFlag() )
+			
+			
+			if(chromGroupFile!=null)
 				{
-				if(record.getReadPairedFlag() && !record.getMateUnmappedFlag())
+				
+				
+				BufferedReader r=IOUtils.openFileForBufferedReading(chromGroupFile);
+				String line;
+				while((line=r.readLine())!=null)
 					{
-					interval= new Interval(
-							record.getMateReferenceName(),
-							record.getMateAlignmentStart(),
-							record.getMateAlignmentStart()
-							);
+					if(line.isEmpty() || line.startsWith("#")) continue;
+					String tokens[] =line.split("[ \t,]+");
+					String groupName=tokens[0].trim();
+					if(groupName.isEmpty()) throw new IOException("Empty group name in "+line);
+					if(this.UNDERTERMINED_NAME.equals(groupName))  throw new IOException("Group cannot be named "+UNDERTERMINED_NAME);
+					if(this.name2group.containsKey(groupName))  throw new IOException("Group defined twice "+groupName);
+					for(int i=1;i< tokens.length;i++)
+						{
+						String sequence;
+						int start;
+						int end;
+						String segment = tokens[i].trim();
+						
+						if(segment.isEmpty()) continue;
+						
+						int colon= segment.indexOf(':');
+						if(colon==-1)
+							{
+							SAMSequenceRecord ssr=samSequenceDictionary.getSequence(segment);
+							if(ssr==null)
+								{
+								throw new IOException("Unknown chromosome , not in dict");
+								}
+							sequence = segment;
+							start = 1;
+							end = ssr.getSequenceLength();
+							}
+						else
+							{
+							int hyphen  = segment.indexOf('-',colon);
+							if(hyphen==-1)  throw new IOException("Bad segment:"+segment);
+							sequence = segment.substring(0,colon);
+							if(samSequenceDictionary.getSequence(sequence)==null)
+								 throw new IOException("Unknown chromosome , not in dict "+
+										 segment);
+							
+							//+1 because interval are 1-based
+							start = 1+Integer.parseInt(segment.substring(colon+1,hyphen));
+							end = Integer.parseInt(segment.substring(hyphen+1));
+							}
+						
+						Interval interval=new Interval(sequence, start, end);
+						this.put(groupName,interval);
+						}
 					}
+				r.close();
 				}
 			else
 				{
-				interval= new Interval(
-						record.getReferenceName(),
-						record.getAlignmentStart(),
-						record.getAlignmentStart()
+				for(SAMSequenceRecord seq:samSequenceDictionary.getSequences())
+					{
+					String groupName=seq.getSequenceName();
+					Interval interval= new Interval(groupName, 1, seq.getSequenceLength());
+					this.put(groupName,interval);
+					}
+				}
+			
+		
+			/* open all output bams */
+			for(SplitGroup g:this.name2group.values())
+				{
+				g.open(srcHeader);
+				}
+			
+	        
+	       SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samFileReader.getFileHeader()==null?null:samFileReader.getFileHeader().getSequenceDictionary());
+	        
+			for(Iterator<SAMRecord> iter=samFileReader.iterator();
+					iter.hasNext(); )
+				{
+				SAMRecord record = progress.watch(iter.next());
+			
+				Interval interval=null;
+				if( record.getReadUnmappedFlag() )
+					{
+					if(record.getReadPairedFlag() && !record.getMateUnmappedFlag())
+						{
+						interval= new Interval(
+								record.getMateReferenceName(),
+								record.getMateAlignmentStart(),
+								record.getMateAlignmentStart()
+								);
+						}
+					}
+				else
+					{
+					interval= new Interval(
+							record.getReferenceName(),
+							record.getAlignmentStart(),
+							record.getAlignmentStart()
+							);
+					
+					}
+				SplitGroup splitGroup = 
+						(
+						interval == null ?
+						null :
+						this.getGroupFromInterval(interval)
 						);
 				
+				if(splitGroup==null) splitGroup=this.underminedGroup;
+				
+				splitGroup.addAlignment(record);
 				}
-			SplitGroup splitGroup = 
-					(
-					interval == null ?
-					null :
-					this.getGroupFromInterval(interval)
-					);
 			
-			if(splitGroup==null) splitGroup=this.underminedGroup;
+			samFileReader.close();
 			
-			splitGroup.addAlignment(record);
+			/* copenlose all */
+			for(SplitGroup g:this.name2group.values())
+				{
+				g.close();
+				}
+			
+			progress.finish();
 			}
-		
-		samFileReader.close();
-		
-		/* open all */
-		for(SplitGroup g:this.name2group.values())
+		catch(Exception error)
 			{
-			g.close();
+			for(SplitGroup g:this.name2group.values())
+				{
+				g.close();
+				File f=g.getFile();
+				if(f.exists())
+					{
+					info("Delete "+f);
+					f.delete();
+					}
+				}
+			throw error;
 			}
-		
-		progress.finish();
 		}
 	
 	@Override
@@ -371,17 +398,13 @@ public class SplitBam3 extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println("-p (file) output file pattern. MUST contain "+REPLACE_CHROM+" and end with .bam");
+		out.println("-p (file) output file pattern. MUST contain "+REPLACE_GROUPID+" and end with .bam");
 		out.println("-g (file) Chromosome group file. Optional");
-		out.println("-T (dir) add tmp directory. Optional");
 		out.println("-u (name) unmapped chromosome name. Optional. Default "+UNDERTERMINED_NAME);
 		out.println("-m add mock record if no samRecord saved in bam");
-		out.println("-S sort/create index");
 		out.println("-R (int)  max records in RAM "+getMessageBundle("max.records.in.ram"));
-		out.println("-a assume input sorted.");
 		super.printOptions(out);
 		}
-	private boolean createIndex=false;
 
 	@Override
 	public int doWork(String[] args)
@@ -390,18 +413,15 @@ public class SplitBam3 extends AbstractCommandLineProgram
 		File chromGroupFile=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"u:g:p:mET:SR:a"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"u:g:p:mR:"))!=-1)
 			{
 			switch(c)
 				{	
-				case 'a': this.assumeSorted=true; break;
 				case 'R': maxRecordsInRam= Integer.parseInt(opt.getOptArg());break;
 				case 'u': UNDERTERMINED_NAME= opt.getOptArg();break;
 				case 'p': OUT_FILE_PATTERN= opt.getOptArg();break;
 				case 'g': chromGroupFile=new File(opt.getOptArg());break;
-				case 'T': addTmpDirectory(new File(opt.getOptArg()));break;
 				case 'm': ADD_MOCK_RECORD=true;break;
-				case 'S': createIndex=true;break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt, args))
@@ -418,9 +438,9 @@ public class SplitBam3 extends AbstractCommandLineProgram
 			{
 			
 			
-			if(!OUT_FILE_PATTERN.contains(REPLACE_CHROM))
+			if(!OUT_FILE_PATTERN.contains(REPLACE_GROUPID))
 				{
-				error("output file pattern undefined or doesn't contain "+REPLACE_CHROM);
+				error("output file pattern undefined or doesn't contain "+REPLACE_GROUPID+" : "+this.OUT_FILE_PATTERN);
 				return -1;
 				}
 			if(!OUT_FILE_PATTERN.endsWith(".bam"))

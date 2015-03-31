@@ -186,6 +186,7 @@ $(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.B
 $(eval $(call compile-htsjdk-cmd,bamqueryreadnames,${jvarkit.package}.tools.bamindexnames.BamQueryReadNames))
 $(eval $(call compile-htsjdk-cmd,bamrenamechr,${jvarkit.package}.tools.misc.ConvertBamChromosomes))
 $(eval $(call compile-htsjdk-cmd,bamsnvwig,${jvarkit.package}.tools.mem.BWAMemScan))
+$(eval $(call compile-htsjdk-cmd,bamstats02,${jvarkit.package}.tools.bamstats01.BamStats02))
 $(eval $(call compile-htsjdk-cmd,bamstats04,${jvarkit.package}.tools.bamstats04.BamStats04))
 $(eval $(call compile-htsjdk-cmd,bamtreepack,${jvarkit.package}.tools.treepack.BamTreePack))
 $(eval $(call compile-htsjdk-cmd,bamviewgui,${jvarkit.package}.tools.bamviewgui.BamViewGui))
