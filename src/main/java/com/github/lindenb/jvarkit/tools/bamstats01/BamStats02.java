@@ -30,31 +30,44 @@ History:
 package com.github.lindenb.jvarkit.tools.bamstats01;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.geom.Rectangle2D;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.tools.treepack.TreePack;
+import com.github.lindenb.jvarkit.tools.treepack.TreePacker;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFlag;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
@@ -76,34 +89,144 @@ public class BamStats02
 	private File bedFile=null;
 	private IntervalTreeMap<Boolean> intervals=null;
     private Counter<Category> counter=new Counter<>();
+   
 	
-    private class DefaultTreePack implements TreePack
+    private interface NodeFactory
+		{
+		public String toString();
+		String label(CategoryAndCount cac);
+		}
+    private static class SamFlagNodeFactory
+    	implements NodeFactory
+		{
+		SamFlag flg;
+		SamFlagNodeFactory(SamFlag flg)
+			{
+			this.flg=flg;
+			}
+		@Override
+		public String toString()
+			{
+			return "SAM Flag: "+flg.getLabel();
+			}
+		@Override
+		public String label(CategoryAndCount cac)
+			{
+			return (this.flg.isSet(cac.flag)?this.flg.getLabel():"UNSET");
+			}
+		}
+    
+    private static abstract class AbstractTreePack implements TreePack
+		{
+		String label=null;
+		AbstractTreePack parent=null;
+		abstract List<CategoryAndCount> getCategoryAndCountList();
+		boolean containsSelection=false;
+		
+		void paint(Graphics2D g,Rectangle2D area,CategoryAndCount selected,List<NodeFactory> factories,int factoryIndex)
+			{
+			System.err.println("Repainting");
+			
+			Hershey hershey=new Hershey();
+			g.setColor(this.containsSelection?Color.ORANGE:Color.WHITE);
+			g.fill(area);
+			g.setColor(Color.BLACK);
+			g.draw(area);
+			
+			double dw=area.getWidth()*0.05;
+			double dh=area.getHeight()*0.05;
+			//shrink
+			area=new Rectangle2D.Double(
+					area.getX()+dw,
+					area.getY()+dh,
+					area.getWidth()-dw*2.0,
+					area.getHeight()-dh*2.0
+					);
+			
+			if(label!=null && !label.trim().isEmpty())
+				{
+				
+				double labelH=area.getHeight()*0.1;
+				hershey.paint(g, this.label,
+						new Rectangle2D.Double(
+								area.getX(),
+								area.getY()+labelH*0.05,
+								area.getWidth(),
+								labelH-(labelH*0.05)*2
+								) 
+						);
+				
+				area =new Rectangle2D.Double(
+						area.getX(),
+						area.getY()+labelH,
+						area.getWidth(),
+						area.getHeight()-labelH*2
+						);
+				}
+			
+			if(factoryIndex<factories.size() && !this.getCategoryAndCountList().isEmpty())
+				{
+				NodeFactory f=factories.get(factoryIndex);
+				Map<String,TreePack> label2node=new HashMap<>();
+				for(CategoryAndCount cac:this.getCategoryAndCountList())
+					{
+					String label=f.label(cac);
+					if(label==null || label.isEmpty()) continue;
+					DefaultTreePack dtp= (DefaultTreePack)label2node.get(label);
+					if(dtp==null) 
+						{
+						dtp =new DefaultTreePack();
+						dtp.label=label;
+						dtp.categoriesAndCount=new ArrayList<>();
+						dtp.parent=this;
+						label2node.put(label,dtp);
+						}
+					if(cac==selected) dtp.containsSelection=true;
+					dtp.categoriesAndCount.add(cac);
+					dtp.weight+=cac.count;
+					}
+				List<TreePack> children= new ArrayList<>(label2node.values());
+				TreePacker packer=new TreePacker();
+				packer.layout(children, area);
+				for(TreePack tp:children)
+					{
+					DefaultTreePack.class.cast(tp).paint(g, tp.getBounds(),selected, factories,factoryIndex+1);
+					}
+				}
+			else
+				{
+				hershey.paint(g, String.valueOf(getWeight()), area);
+				}
+			}
+		}
+    
+    private static class DefaultTreePack extends AbstractTreePack
     	{
-    	String label;
     	List<CategoryAndCount> categoriesAndCount;
-    	Rectangle2D.Double rec=new Rectangle2D.Double();
+    	Rectangle2D rec=new Rectangle2D.Double();
     	double weight=0.0;
     	@Override
     	public Rectangle2D getBounds() {
-    		return null;
+    		return rec;
     		}
     	@Override
     	public double getWeight() {
-    		return 0;
+    		return weight;
     		}
     	@Override
     	public void setBounds(Rectangle2D bounds) {
-    		
+    		this.rec=bounds;
+    		}
+    	@Override
+    	List<CategoryAndCount> getCategoryAndCountList()
+    		{
+    		return categoriesAndCount;
     		}
     	}
     
-    private abstract class AbstractCategoryFilter
-    	{
-    	abstract List<DefaultTreePack> filter(List<CategoryAndCount> cats);
-    	}
     
     private abstract class SampleNameCategoryFilter
-    	extends AbstractCategoryFilter
+    	implements NodeFactory
 		{
     	List<DefaultTreePack> filter(List<CategoryAndCount> cats)
 	    	{
@@ -116,7 +239,7 @@ public class BamStats02
 	    		dtp.label=label;
 	    		for(CategoryAndCount c:cats)
 	    			{
-	    			if(c.sampleName.equals(label))
+	    			if(c.sampleName.equals(label));
 	    			}
 	    		}
 	    	return array;
@@ -130,7 +253,7 @@ public class BamStats02
     	String sampleName=".";
     	String chromosome=".";
     	int mapq;
-    	short inTarget;
+    	int inTarget;
     	int flag;
     	
     	private void print(PrintWriter pw)
@@ -210,6 +333,40 @@ public class BamStats02
     private static class ViewDialog extends JFrame
     	{
     	private CatTableModel catTableModel=null;
+    	private List<JComboBox<NodeFactory>> comboBoxes=new ArrayList<JComboBox<NodeFactory>>();
+    	private JPanel drawingArea=null;
+    	private JTable catTable;
+    	
+    	private class RootTreePack
+    		extends AbstractTreePack
+    		{
+    		@Override
+    		List<CategoryAndCount> getCategoryAndCountList()
+    			{
+    			return catTableModel.getRows();
+    			}
+    		@Override
+    		public Rectangle2D getBounds()
+    			{
+    			return new Rectangle2D.Double(0,0,drawingArea.getWidth()+1,drawingArea.getHeight()+1);
+    			}
+    		@Override
+    		public double getWeight()
+    			{
+    			double n=0;
+    			for(CategoryAndCount cac:catTableModel.getRows())
+    				{
+    				n+=cac.count;
+    				}
+    			return n;
+    			}
+    		@Override
+    		public void setBounds(Rectangle2D bounds)
+    			{
+    			throw new IllegalStateException();
+    			}
+    		
+    		}
     	
     	private class CatTableModel extends AbstractGenericTable<CategoryAndCount>
     		{
@@ -253,7 +410,7 @@ public class BamStats02
     				case 1: return o.sampleName;
     				case 2: return o.chromosome;
     				case 3: return o.mapq;
-    				case 4: return ((int)o.inTarget==1?Boolean.TRUE:(int)o.inTarget==0?Boolean.FALSE:null);
+    				case 4: return (o.inTarget==1?Boolean.TRUE:(int)o.inTarget==0?Boolean.FALSE:null);
     				default:
     					columnIndex-=5;
     					if(columnIndex< SamFlag.values().length)
@@ -290,18 +447,160 @@ public class BamStats02
     		super("BamStats02");
     		this.catTableModel=new CatTableModel(categories);
     		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-    		JTable jtable=new JTable(this.catTableModel);
-    		jtable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-    		JScrollPane scroll=new JScrollPane(jtable);
+    		this.catTable=new JTable(this.catTableModel);
+    		this.catTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+    		JScrollPane scroll=new JScrollPane(this.catTable);
     		
-    		JPanel twocols=new JPanel(new GridLayout(1, 0,5,5));
+    		JPanel topPane=new JPanel(new GridLayout(1,0,1,1));
+    		
+    	
     		JPanel contentPane=new JPanel(new BorderLayout(5, 5));
-    		contentPane.add(twocols);
-    		contentPane.add(scroll);
+    		
+    		contentPane.add(topPane,BorderLayout.NORTH);
+    		
+    		this.drawingArea=new JPanel(null,true)
+    			{
+    			protected void paintComponent(java.awt.Graphics c)
+					{
+					paintDrawingArea(Graphics2D.class.cast(c));
+					}
+    			};
+        	this.drawingArea.setOpaque(true);
+        	this.drawingArea.setBackground(Color.WHITE);
+        	JSplitPane split=new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,scroll, this.drawingArea);
+        	contentPane.add(split, BorderLayout.CENTER);
+    		
     		setContentPane(contentPane);
     		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+    		
+    		List<NodeFactory> nodeFactories=new ArrayList<NodeFactory>();
+    		nodeFactories.add(null);
+    		nodeFactories.add(new NodeFactory()
+				{
+				@Override
+				public String toString()
+					{
+					return "Filename";
+					}
+				@Override
+				public String label(CategoryAndCount cac)
+					{
+					return cac.filename;
+					}
+				});
+    		
+    		nodeFactories.add(new NodeFactory()
+				{
+				@Override
+				public String toString()
+					{
+					return "Sample Name";
+					}
+				@Override
+				public String label(CategoryAndCount cac)
+					{
+					return cac.sampleName;
+					}
+				});
+   		
+    		nodeFactories.add(new NodeFactory()
+				{
+				@Override
+				public String toString()
+					{
+					return "Chromosome";
+					}
+				@Override
+				public String label(CategoryAndCount cac)
+					{
+					if(cac.chromosome==null || cac.chromosome.isEmpty() || cac.chromosome.equals(".")) return null;
+					return cac.chromosome;
+					}
+				});
+    		
+    		nodeFactories.add(new NodeFactory()
+				{
+				@Override
+				public String toString()
+					{
+					return "MAPQ";
+					}
+				@Override
+				public String label(CategoryAndCount cac)
+					{
+					if(cac.chromosome==null || cac.chromosome.isEmpty() || cac.chromosome.equals(".")) return null;
+					return String.valueOf(cac.mapq);
+					}
+				});
+    		
+    		nodeFactories.add(new NodeFactory()
+				{
+				@Override
+				public String toString()
+					{
+					return "IN/OFF target";
+					}
+				@Override
+				public String label(CategoryAndCount cac)
+					{
+					if(cac.chromosome==null || cac.chromosome.isEmpty() || cac.chromosome.equals(".")) return null;
+					if(cac.inTarget==1) return "IN_TARGET";
+					if(cac.inTarget==0) return "OFF_TARGET";
+					return null;
+					}
+				});
+    		
+    		for(SamFlag sf:SamFlag.values())
+    			{
+    			nodeFactories.add(new SamFlagNodeFactory(sf));
+    			}
+    		
+    		ActionListener repainAction=new ActionListener()
+				{
+				@Override
+				public void actionPerformed(ActionEvent arg0)
+					{
+					drawingArea.repaint();
+					}
+				};
+    		for(int i=0;i<5;++i)
+    			{
+    			JComboBox<NodeFactory> combox=new JComboBox<NodeFactory>(
+    					nodeFactories.toArray(new NodeFactory[nodeFactories.size()])
+    					);
+    			combox.setFont(new Font("Dialog",Font.PLAIN,9));
+    			combox.addActionListener(repainAction);
+    			this.comboBoxes.add(combox);
+    			topPane.add(combox);
+    			}
+    		this.catTable.getSelectionModel().addListSelectionListener(new ListSelectionListener()
+				{
+				@Override
+				public void valueChanged(ListSelectionEvent arg0)
+					{
+					drawingArea.repaint();
+					}
+				});
     		}
     	
+    	void paintDrawingArea(Graphics2D g)
+    		{
+    		List<NodeFactory> nodeFactories=new ArrayList<NodeFactory>();
+    		for(JComboBox<NodeFactory> combox:this.comboBoxes)
+    			{
+    			int selIndex= combox.getSelectedIndex();
+    			if(selIndex==-1) continue;
+    			NodeFactory nodeFactory = combox.getItemAt(selIndex);
+    			if(nodeFactory==null) continue;
+    			nodeFactories.add(nodeFactory);
+    			}
+    		RootTreePack rt=new RootTreePack();
+    		Rectangle2D.Double area=new Rectangle2D.Double(0, 0, this.drawingArea.getWidth(), this.drawingArea.getHeight());
+    		
+    		int r=this.catTable.getSelectedRow();
+    		if(r!=-1) r=this.catTable.convertRowIndexToModel(r);    		
+    		rt.paint(g, area, (r==-1?null:this.catTableModel.getElementAt(r)),nodeFactories,0);
+    		}
     	}
     
 	public BamStats02()
@@ -530,7 +829,7 @@ public class BamStats02
 					cat.sampleName=tokens[col++];
 					cat.chromosome=tokens[col++];
 					cat.mapq=Integer.parseInt(tokens[col++]);
-					cat.inTarget=Short.parseShort(tokens[col++]);
+					cat.inTarget=Integer.parseInt(tokens[col++]);
 					cat.flag=0;
 					for(SamFlag sf:SamFlag.values())
 						{
