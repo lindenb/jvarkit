@@ -38,29 +38,29 @@ import java.awt.GridLayout;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Rectangle2D;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JSplitPane;
-import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
@@ -70,7 +70,6 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFlag;
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
@@ -83,6 +82,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
+@SuppressWarnings("serial")
 public class BamStats02
 	extends AbstractKnimeApplication
 	{
@@ -96,6 +96,7 @@ public class BamStats02
 		public String toString();
 		String label(CategoryAndCount cac);
 		}
+    
     private static class SamFlagNodeFactory
     	implements NodeFactory
 		{
@@ -112,140 +113,25 @@ public class BamStats02
 		@Override
 		public String label(CategoryAndCount cac)
 			{
-			return (this.flg.isSet(cac.flag)?this.flg.getLabel():"UNSET");
+			boolean is_set=this.flg.isSet(cac.flag);
+			switch(this.flg)
+				{
+				case FIRST_IN_PAIR: return (is_set?"R1":"R2");
+				case READ_IS_DUPLICATE: return (is_set?"DUPLICATE":"UNSET");
+				case READ_PAIRED: return (is_set?"PAIRED":"NORMAL");
+				case READ_UNMAPPED: return (is_set?"UNMAPPED":"MAPPED");
+				case READ_REVERSE_STRAND: return (is_set?"MINUS":"PLUS");
+				case MATE_REVERSE_STRAND: return (is_set?"MINUS":"PLUS");
+				default: return (this.flg.isSet(cac.flag)?this.flg.getLabel():"UNSET");
+				}
+			
 			}
 		}
     
-    private static abstract class AbstractTreePack implements TreePack
-		{
-		String label=null;
-		AbstractTreePack parent=null;
-		abstract List<CategoryAndCount> getCategoryAndCountList();
-		boolean containsSelection=false;
-		
-		void paint(Graphics2D g,Rectangle2D area,CategoryAndCount selected,List<NodeFactory> factories,int factoryIndex)
-			{
-			System.err.println("Repainting");
-			
-			Hershey hershey=new Hershey();
-			g.setColor(this.containsSelection?Color.ORANGE:Color.WHITE);
-			g.fill(area);
-			g.setColor(Color.BLACK);
-			g.draw(area);
-			
-			double dw=area.getWidth()*0.05;
-			double dh=area.getHeight()*0.05;
-			//shrink
-			area=new Rectangle2D.Double(
-					area.getX()+dw,
-					area.getY()+dh,
-					area.getWidth()-dw*2.0,
-					area.getHeight()-dh*2.0
-					);
-			
-			if(label!=null && !label.trim().isEmpty())
-				{
-				
-				double labelH=area.getHeight()*0.1;
-				hershey.paint(g, this.label,
-						new Rectangle2D.Double(
-								area.getX(),
-								area.getY()+labelH*0.05,
-								area.getWidth(),
-								labelH-(labelH*0.05)*2
-								) 
-						);
-				
-				area =new Rectangle2D.Double(
-						area.getX(),
-						area.getY()+labelH,
-						area.getWidth(),
-						area.getHeight()-labelH*2
-						);
-				}
-			
-			if(factoryIndex<factories.size() && !this.getCategoryAndCountList().isEmpty())
-				{
-				NodeFactory f=factories.get(factoryIndex);
-				Map<String,TreePack> label2node=new HashMap<>();
-				for(CategoryAndCount cac:this.getCategoryAndCountList())
-					{
-					String label=f.label(cac);
-					if(label==null || label.isEmpty()) continue;
-					DefaultTreePack dtp= (DefaultTreePack)label2node.get(label);
-					if(dtp==null) 
-						{
-						dtp =new DefaultTreePack();
-						dtp.label=label;
-						dtp.categoriesAndCount=new ArrayList<>();
-						dtp.parent=this;
-						label2node.put(label,dtp);
-						}
-					if(cac==selected) dtp.containsSelection=true;
-					dtp.categoriesAndCount.add(cac);
-					dtp.weight+=cac.count;
-					}
-				List<TreePack> children= new ArrayList<>(label2node.values());
-				TreePacker packer=new TreePacker();
-				packer.layout(children, area);
-				for(TreePack tp:children)
-					{
-					DefaultTreePack.class.cast(tp).paint(g, tp.getBounds(),selected, factories,factoryIndex+1);
-					}
-				}
-			else
-				{
-				hershey.paint(g, String.valueOf(getWeight()), area);
-				}
-			}
-		}
     
-    private static class DefaultTreePack extends AbstractTreePack
-    	{
-    	List<CategoryAndCount> categoriesAndCount;
-    	Rectangle2D rec=new Rectangle2D.Double();
-    	double weight=0.0;
-    	@Override
-    	public Rectangle2D getBounds() {
-    		return rec;
-    		}
-    	@Override
-    	public double getWeight() {
-    		return weight;
-    		}
-    	@Override
-    	public void setBounds(Rectangle2D bounds) {
-    		this.rec=bounds;
-    		}
-    	@Override
-    	List<CategoryAndCount> getCategoryAndCountList()
-    		{
-    		return categoriesAndCount;
-    		}
-    	}
+   
     
     
-    private abstract class SampleNameCategoryFilter
-    	implements NodeFactory
-		{
-    	List<DefaultTreePack> filter(List<CategoryAndCount> cats)
-	    	{
-	    	Set<String> labels=new HashSet<>();
-	    	for(CategoryAndCount c:cats) labels.add(c.sampleName);
-	    	List<DefaultTreePack> array=new ArrayList<>(labels.size());
-	    	for(String label:labels)
-	    		{
-	    		DefaultTreePack dtp=new DefaultTreePack();
-	    		dtp.label=label;
-	    		for(CategoryAndCount c:cats)
-	    			{
-	    			if(c.sampleName.equals(label));
-	    			}
-	    		}
-	    	return array;
-	    	}
-		}
-
     
     private static class Category
     	{
@@ -324,42 +210,100 @@ public class BamStats02
     	
     	}
 
-    
+    /** used in GUI, Category+final count */
     private static class CategoryAndCount extends Category
     	{
     	long count=0;
     	}
     
-    private static class ViewDialog extends JFrame
+    /** GUI window */
+   
+	private static class ViewDialog extends JFrame
     	{
-    	private CatTableModel catTableModel=null;
     	private List<JComboBox<NodeFactory>> comboBoxes=new ArrayList<JComboBox<NodeFactory>>();
     	private JPanel drawingArea=null;
-    	private JTable catTable;
+    	private List<CategoryAndCount> categoryAndCounts=null;
+    	private AbstractTreePack root=null;
+    	private final NumberFormat fmt = new DecimalFormat("#,###");
+    	
+    	/** abstract implementation of TreePack */
+        private abstract class AbstractTreePack implements TreePack
+    		{
+        	long weight=0L;
+    		String label=null;
+    		AbstractTreePack parent=null;
+    		List<DefaultTreePack> childNodes=new ArrayList<>();
+    		
+    		
+    		AbstractTreePack findTreePackAt(int x,int y)
+    			{	
+    			for(DefaultTreePack c:this.childNodes)
+    				{
+    				if(!c.getBounds().contains(x, y)) continue;
+    				
+    				return c.findTreePackAt(x,y);
+    				}
+    			return this;
+    			}
+    		
+    		@Override
+    		public double getWeight() {
+    			return weight;
+    			}
+    		
+    		public Rectangle2D getInsetArea()
+    			{
+    			Rectangle2D area=getBounds();
+    			if(parent==null) return area;
+    			double dw=area.getWidth()*0.05;
+    			double dh=area.getHeight()*0.05;
+    			return new Rectangle2D.Double(
+    					area.getX()+dw,
+    					area.getY()+dh,
+    					area.getWidth()-dw*2.0,
+    					area.getHeight()-dh*2.0
+    					);
+    			}
+    		
+    		public Rectangle2D getLabelArea()
+    			{
+    			Rectangle2D area=getInsetArea();
+    			double labelH=area.getHeight()*0.1;
+    			return new Rectangle2D.Double(
+    					area.getX(),
+    					area.getY()+labelH*0.05,
+    					area.getWidth(),
+    					labelH-(labelH*0.05)*2
+    					);
+    			}
+    		
+    		public Rectangle2D getChildrenArea()
+    			{
+    			Rectangle2D area=getInsetArea();
+    			if(this.label==null || this.label.trim().isEmpty())
+    				{
+    				return area;
+    				}
+    			double labelH=area.getHeight()*0.1;
+    			return new Rectangle2D.Double(
+    					area.getX(),
+    					area.getY()+labelH,
+    					area.getWidth(),
+    					area.getHeight()-labelH*2
+    					);
+    			}
+    		}
+
     	
     	private class RootTreePack
     		extends AbstractTreePack
     		{
     		@Override
-    		List<CategoryAndCount> getCategoryAndCountList()
-    			{
-    			return catTableModel.getRows();
-    			}
-    		@Override
     		public Rectangle2D getBounds()
     			{
     			return new Rectangle2D.Double(0,0,drawingArea.getWidth()+1,drawingArea.getHeight()+1);
     			}
-    		@Override
-    		public double getWeight()
-    			{
-    			double n=0;
-    			for(CategoryAndCount cac:catTableModel.getRows())
-    				{
-    				n+=cac.count;
-    				}
-    			return n;
-    			}
+    		
     		@Override
     		public void setBounds(Rectangle2D bounds)
     			{
@@ -368,88 +312,26 @@ public class BamStats02
     		
     		}
     	
-    	private class CatTableModel extends AbstractGenericTable<CategoryAndCount>
-    		{
-    		CatTableModel(List<CategoryAndCount> rows)
-    			{
-    			super(rows);
-    			}
-    		
-    		@Override
-    		public int getColumnCount()
-    			{
-    			return 6+SamFlag.values().length;
-    			}
-    		
-    		@Override
-    		public Class<?> getColumnClass(int columnIndex) {
-
-    			switch(columnIndex)
-    				{
-    				case 0: return String.class;
-    				case 1: return String.class;
-    				case 2: return String.class;
-    				case 3: return Integer.class;
-    				case 4: return Boolean.class;
-    				default:
-    					columnIndex-=5;
-    					if(columnIndex< SamFlag.values().length)
-    						{
-    						return Boolean.class;
-    						}
-    					return Long.class;
-    				}
-    			  }
-    		
-    		@Override
-    		public Object getValueOf(CategoryAndCount o, int columnIndex)
-    			{
-    			switch(columnIndex)
-    				{
-    				case 0: return o.filename;
-    				case 1: return o.sampleName;
-    				case 2: return o.chromosome;
-    				case 3: return o.mapq;
-    				case 4: return (o.inTarget==1?Boolean.TRUE:(int)o.inTarget==0?Boolean.FALSE:null);
-    				default:
-    					columnIndex-=5;
-    					if(columnIndex< SamFlag.values().length)
-    						{
-    						return SamFlag.values()[columnIndex].isSet(o.flag);
-    						}
-    					return o.count;
-    				}
-    			}
-    		
-    		public String getColumnName(int column)
-    			{
-    			switch(column)
-					{
-					case 0: return "File";
-					case 1: return "Sample";
-					case 2: return "Chrom";
-					case 3: return "Mapq";
-					case 4: return "In/Off target";
-					default:
-						column-=5;
-						if(column< SamFlag.values().length)
-							{
-							return SamFlag.values()[column].name();
-							}
-						return "Count";
-					}
-    			}
-    		
-    		}
+    	 private class DefaultTreePack
+    	 	extends AbstractTreePack
+	     	{
+	     	Rectangle2D rec=new Rectangle2D.Double();
+	     		     	
+	     	@Override
+	     	public Rectangle2D getBounds() {
+	     		return rec;
+	     		}
+	     	@Override
+	     	public void setBounds(Rectangle2D bounds) {
+	     		this.rec=bounds;
+	     		}
+	     	}
     	
     	ViewDialog(List<CategoryAndCount> categories )
     		{
     		super("BamStats02");
-    		this.catTableModel=new CatTableModel(categories);
+    		this.categoryAndCounts= Collections.unmodifiableList(categories);
     		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-    		this.catTable=new JTable(this.catTableModel);
-    		this.catTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-    		JScrollPane scroll=new JScrollPane(this.catTable);
     		
     		JPanel topPane=new JPanel(new GridLayout(1,0,1,1));
     		
@@ -464,11 +346,62 @@ public class BamStats02
 					{
 					paintDrawingArea(Graphics2D.class.cast(c));
 					}
+    			@Override
+    			public String getToolTipText(MouseEvent event)
+    				{
+    				if(ViewDialog.this.root==null) return null;
+    				AbstractTreePack p = ViewDialog.this.root.findTreePackAt(event.getX(),event.getY());
+    				if(p==null) return null;
+    				return p.label+" ("+p.weight+")";
+    				}
     			};
+    		this.drawingArea.setToolTipText("");
+    		this.drawingArea.addComponentListener(new ComponentAdapter()
+    				{
+	    			@Override
+	    			public void componentResized(ComponentEvent e) {
+	    				ViewDialog.this.root=null;
+	    				ViewDialog.this.drawingArea.repaint();
+	    				}
+    				});
+    		this.drawingArea.addMouseListener(new MouseAdapter() 
+    			{
+    			@Override
+    			public void mousePressed(MouseEvent event) {
+    				if(!event.isPopupTrigger()) return;
+    				if(ViewDialog.this.root==null) return;
+    				final AbstractTreePack focused = ViewDialog.this.root.findTreePackAt(event.getX(),event.getY());
+    				if(focused==null) return;
+    				/*
+    				JPopupMenu popup=new JPopupMenu(focused.label+" ("+focused.weight+")");
+    				popup.add(new JMenuItem(new AbstractAction("Focus on this category")
+    					{
+						@Override
+						public void actionPerformed(ActionEvent e)
+							{
+							ViewDialog.this.root=focused;
+							
+							
+							
+							drawingArea.repaint();
+							}
+    					}));
+    				popup.add(new JMenuItem(new AbstractAction("Show All")
+						{
+						@Override
+						public void actionPerformed(ActionEvent e)
+							{
+							ViewDialog.this.root=null;
+							drawingArea.repaint();
+							}
+						}));
+    				popup.show(drawingArea, event.getX(),event.getY());
+					*/
+    				}
+    			});
         	this.drawingArea.setOpaque(true);
         	this.drawingArea.setBackground(Color.WHITE);
-        	JSplitPane split=new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,scroll, this.drawingArea);
-        	contentPane.add(split, BorderLayout.CENTER);
+        	contentPane.add(this.drawingArea, BorderLayout.CENTER);
     		
     		setContentPane(contentPane);
     		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -560,6 +493,7 @@ public class BamStats02
 				@Override
 				public void actionPerformed(ActionEvent arg0)
 					{
+					ViewDialog.this.root=null;
 					drawingArea.repaint();
 					}
 				};
@@ -573,17 +507,11 @@ public class BamStats02
     			this.comboBoxes.add(combox);
     			topPane.add(combox);
     			}
-    		this.catTable.getSelectionModel().addListSelectionListener(new ListSelectionListener()
-				{
-				@Override
-				public void valueChanged(ListSelectionEvent arg0)
-					{
-					drawingArea.repaint();
-					}
-				});
+    		
     		}
     	
-    	void paintDrawingArea(Graphics2D g)
+    	
+    	private List<NodeFactory> getSelectedNodeFactories()
     		{
     		List<NodeFactory> nodeFactories=new ArrayList<NodeFactory>();
     		for(JComboBox<NodeFactory> combox:this.comboBoxes)
@@ -594,13 +522,129 @@ public class BamStats02
     			if(nodeFactory==null) continue;
     			nodeFactories.add(nodeFactory);
     			}
-    		RootTreePack rt=new RootTreePack();
-    		Rectangle2D.Double area=new Rectangle2D.Double(0, 0, this.drawingArea.getWidth(), this.drawingArea.getHeight());
-    		
-    		int r=this.catTable.getSelectedRow();
-    		if(r!=-1) r=this.catTable.convertRowIndexToModel(r);    		
-    		rt.paint(g, area, (r==-1?null:this.catTableModel.getElementAt(r)),nodeFactories,0);
+    		return nodeFactories;
     		}
+    	
+    	private void paintDrawingArea(Graphics2D g)
+    		{
+    		
+    		if(this.root==null)
+    			{
+    			this.root=new RootTreePack();
+    			List<NodeFactory> nodeFactories=getSelectedNodeFactories();
+        		Rectangle2D.Double area=new Rectangle2D.Double(0, 0, this.drawingArea.getWidth(), this.drawingArea.getHeight());
+        		
+        		layoutPack(this.root,area,this.categoryAndCounts,nodeFactories,0);
+    			}
+    		
+    		
+    		paintPack(this.root,g);
+    		}
+    	
+    	private void paintPack(AbstractTreePack root,Graphics2D g)
+    		{
+    		Rectangle2D area=(Rectangle2D)root.getBounds().clone();
+			Hershey hershey=new Hershey();
+			g.setColor(Color.LIGHT_GRAY);
+			g.fill(area);
+			g.setColor(Color.WHITE);
+			g.fill(new Rectangle2D.Double(
+					area.getX(),area.getY(),
+					(area.getWidth()>5?area.getWidth()-2:area.getWidth()),
+					(area.getHeight()>5?area.getHeight()-2:area.getHeight())
+					));
+			g.setColor(Color.BLACK);
+			g.draw(area);
+			
+			
+			if(root.label!=null && !root.label.trim().isEmpty())
+				{
+				Rectangle2D lblArea=root.getLabelArea();
+				double w= lblArea.getHeight()*root.label.length();
+				if(lblArea.getWidth()> w)
+					{
+					
+					lblArea=new Rectangle2D.Double(
+							lblArea.getCenterX()-w/2.0,
+							lblArea.getY(),
+							w,
+							lblArea.getHeight()
+							);
+					}
+				
+				hershey.paint(g,
+						root.label,
+						lblArea
+						);
+				}
+			
+			area = root.getChildrenArea();
+			if(!root.childNodes.isEmpty())
+				{
+				for(DefaultTreePack tp:root.childNodes)
+					{
+					paintPack(DefaultTreePack.class.cast(tp),g);
+					}
+				}
+			else
+				{
+				hershey.paint(g, fmt.format((long)root.getWeight()), area);
+				}
+    		}
+    	
+    	private void layoutPack(
+    			AbstractTreePack root,
+    			Rectangle2D area,
+    			List<CategoryAndCount> categoryAndCounts,
+    			List<NodeFactory> factories,
+    			int factoryIndex
+    			)
+	    	{
+    		if(root==null || factoryIndex>=factories.size()) return;
+    		if(categoryAndCounts.isEmpty()) return;
+    		NodeFactory nodeFactory=factories.get(factoryIndex);
+			Map<String,TreePack> label2node=new HashMap<>();
+			Map<String,List<CategoryAndCount>> label2treepackList=new HashMap<>();
+			for(CategoryAndCount cac:categoryAndCounts)
+				{
+				String label=nodeFactory.label(cac);
+				if(label==null || label.isEmpty()) continue;
+				DefaultTreePack dtp= (DefaultTreePack)label2node.get(label);
+				
+				List<CategoryAndCount> cacL= (List<CategoryAndCount>)label2treepackList.get(label);
+				if(dtp==null) 
+					{
+					dtp =new DefaultTreePack();
+					root.childNodes.add(dtp);
+					dtp.label=label;
+					dtp.parent=root;
+					label2node.put(label,dtp);
+					
+					cacL = new ArrayList<>();
+					label2treepackList.put(label, cacL);
+					}
+				cacL.add(cac);
+				dtp.weight+=cac.count;
+				}
+			List<TreePack> children= new ArrayList<>(label2node.values());
+			TreePacker packer=new TreePacker();
+			
+			area= root.getChildrenArea();
+			packer.layout(children, area);
+			
+			for(DefaultTreePack tp:root.childNodes)
+				{
+				layoutPack(
+						DefaultTreePack.class.cast(tp),
+						tp.getBounds(),
+						label2treepackList.get(tp.label),
+						factories,
+						factoryIndex+1
+						);
+				label2treepackList.remove(tp.label);
+				}
+	    	}
+    	
     	}
     
 	public BamStats02()
@@ -627,6 +671,7 @@ public class BamStats02
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println("-o (file) output. Default: stdout");
+		out.println("-B (bed) Optional capture.bed");
 		super.printOptions(out);
 		}
 	
