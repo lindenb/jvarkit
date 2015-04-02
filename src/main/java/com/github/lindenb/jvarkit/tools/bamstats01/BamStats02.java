@@ -50,15 +50,20 @@ import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 import java.util.regex.Pattern;
 
+import javax.swing.AbstractAction;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
@@ -68,6 +73,7 @@ import com.github.lindenb.jvarkit.tools.treepack.TreePack;
 import com.github.lindenb.jvarkit.tools.treepack.TreePacker;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFlag;
 
@@ -88,14 +94,57 @@ public class BamStats02
 	{
 	private File bedFile=null;
 	private IntervalTreeMap<Boolean> intervals=null;
-    private Counter<Category> counter=new Counter<>();
+    
    
+	private static boolean isEmpty(String s)
+		{
+		return s==null || s.trim().isEmpty() || s.equals(".");
+		}
 	
     private interface NodeFactory
 		{
 		public String toString();
 		String label(CategoryAndCount cac);
 		}
+    
+    private static class StringPropNodeFactory
+		implements NodeFactory
+		{
+    	STRING_PROPS prop;
+    	StringPropNodeFactory(STRING_PROPS prop)
+    		{
+    		this.prop=prop;
+    		}
+    	@Override
+    	public String label(CategoryAndCount cac) {
+    		String s= cac._strings[this.prop.ordinal()];
+    		return isEmpty(s)?null:s;
+    		}
+    	@Override
+    	public String toString() {
+    		return this.prop.toString();
+    		}
+		}
+    private static class IntPropNodeFactory
+		implements NodeFactory
+		{
+    	INT_PROPS prop;
+    	IntPropNodeFactory(INT_PROPS prop)
+    		{
+    		this.prop=prop;
+    		}
+    	@Override
+    	public String label(CategoryAndCount cac) {
+    		int s= cac._ints[this.prop.ordinal()];
+    		return s<0?null:String.valueOf(s);
+    		}
+    	@Override
+    	public String toString() {
+    		return this.prop.toString();
+    		}
+    	
+		}
+
     
     private static class SamFlagNodeFactory
     	implements NodeFactory
@@ -114,14 +163,29 @@ public class BamStats02
 		public String label(CategoryAndCount cac)
 			{
 			boolean is_set=this.flg.isSet(cac.flag);
+			//no chromosome, we should not consider this
+			if(isEmpty(cac._strings[STRING_PROPS.chromosome.ordinal()]))
+				{
+				switch(this.flg)
+					{
+					case READ_IS_DUPLICATE: 
+					case READ_REVERSE_STRAND: 
+					case SUPPLEMENTARY_ALIGNMENT:
+					case NOT_PRIMARY_ALIGNMENT:
+						return null;
+					default:break;
+					}
+				}
+			
 			switch(this.flg)
 				{
 				case FIRST_IN_PAIR: return (is_set?"R1":"R2");
 				case READ_IS_DUPLICATE: return (is_set?"DUPLICATE":"UNSET");
 				case READ_PAIRED: return (is_set?"PAIRED":"NORMAL");
-				case READ_UNMAPPED: return (is_set?"UNMAPPED":"MAPPED");
-				case READ_REVERSE_STRAND: return (is_set?"MINUS":"PLUS");
-				case MATE_REVERSE_STRAND: return (is_set?"MINUS":"PLUS");
+				case READ_UNMAPPED: return (is_set?"READ UNMAPPED":"READ MAPPED");
+				case MATE_UNMAPPED: return (is_set?"MATE UNMAPPED":"MATE MAPPED");
+				case READ_REVERSE_STRAND: return (is_set?"READ MINUS":"READ PLUS");
+				case MATE_REVERSE_STRAND: return (is_set?"MATE MINUS":"MATE PLUS");
 				default: return (this.flg.isSet(cac.flag)?this.flg.getLabel():"UNSET");
 				}
 			
@@ -129,30 +193,45 @@ public class BamStats02
 		}
     
     
-   
     
     
+    private static enum STRING_PROPS {
+    	filename,samplename,
+    	chromosome,mate_chromosome,
+    	platform,platformUnit,
+    	instrument,flowcell,
+    	library
+    	};
+    private static enum INT_PROPS {lane,run,mapq,inTarget};
     
+    /** tuple of properties */
     private static class Category
     	{
-    	String filename=".";
-    	String sampleName=".";
-    	String chromosome=".";
-    	int mapq;
-    	int inTarget;
-    	int flag;
+    	String _strings[]=new String[STRING_PROPS.values().length];
+    	int _ints[]=new int[INT_PROPS.values().length];
+    	int flag=-1;
+    	
+    	Category()
+    		{	
+    		Arrays.fill(_strings, ".");
+    		Arrays.fill(_ints, -1);
+    		}
     	
     	private void print(PrintWriter pw)
     		{
-    		pw.print(filename);
-    		pw.print("\t");
-    		pw.print(sampleName);
-    		pw.print("\t");
-    		pw.print(chromosome);
-    		pw.print("\t");
-    		pw.print(mapq);
-    		pw.print("\t");
-    		pw.print(inTarget);
+    		boolean first=true;
+    		for(String s:_strings)
+    			{
+    			if(!first) pw.print("\t");
+    			first=false;
+    			pw.print(s);
+    			}
+    		for(int s:_ints)
+				{
+    			pw.print("\t");
+				pw.print(s);
+				}
+    		
     		for(SamFlag flg:SamFlag.values())
     			{
     			pw.print("\t");
@@ -165,16 +244,14 @@ public class BamStats02
 			final int prime = 31;
 			int result = 1;
 			result = prime * result
-					+ ((chromosome == null) ? 0 : chromosome.hashCode());
+					+ Arrays.hashCode(_strings);
 			result = prime * result
-					+ ((filename == null) ? 0 : filename.hashCode());
+					+ Arrays.hashCode(_ints);
 			result = prime * result + flag;
-			result = prime * result + inTarget;
-			result = prime * result + mapq;
-			result = prime * result
-					+ ((sampleName == null) ? 0 : sampleName.hashCode());
 			return result;
-		}
+			}
+		
+		
 		@Override
 		public boolean equals(Object obj) {
 			if (this == obj)
@@ -184,30 +261,28 @@ public class BamStats02
 			if (getClass() != obj.getClass())
 				return false;
 			Category other = (Category) obj;
-			if (chromosome == null) {
-				if (other.chromosome != null)
-					return false;
-			} else if (!chromosome.equals(other.chromosome))
-				return false;
-			if (filename == null) {
-				if (other.filename != null)
-					return false;
-			} else if (!filename.equals(other.filename))
-				return false;
+			
 			if (flag != other.flag)
-				return false;
-			if (inTarget != other.inTarget)
-				return false;
-			if (mapq != other.mapq)
-				return false;
-			if (sampleName == null) {
-				if (other.sampleName != null)
-					return false;
-			} else if (!sampleName.equals(other.sampleName))
-				return false;
+			if(!Arrays.equals(this._ints, other._ints)) return false;
+			if(!Arrays.equals(this._strings, other._strings)) return false;			
 			return true;
-		}
+			}
+    	public String getChrom()
+    		{
+    		String s= _strings[STRING_PROPS.chromosome.ordinal()];
+    		return isEmpty(s)?null:s;
+    		}
     	
+    	void set(STRING_PROPS p,String s)
+			{
+			this._strings[p.ordinal()]=isEmpty(s)?".":s;
+			}
+    	
+    	void set(INT_PROPS p,int v)
+			{
+			this._ints[p.ordinal()]=v<0?-1:v;
+			}
+
     	}
 
     /** used in GUI, Category+final count */
@@ -222,15 +297,40 @@ public class BamStats02
     	{
     	private List<JComboBox<NodeFactory>> comboBoxes=new ArrayList<JComboBox<NodeFactory>>();
     	private JPanel drawingArea=null;
-    	private List<CategoryAndCount> categoryAndCounts=null;
+    	private List<CategoryAndCount> _categoryAndCounts=null;
+    	private List<CategoryAndCount> _filteredCategoryAndCounts=null;
     	private AbstractTreePack root=null;
     	private final NumberFormat fmt = new DecimalFormat("#,###");
+    	/** http://www.perbang.dk/rgbgradient/ */
+    	private Color papers[]=new Color[]{
+    	      new Color(135, 152, 222),  
+    	      new Color(135, 152, 222),
+    	      new Color(165, 189, 232),
+    	      new Color(180, 207, 237),
+    	      new Color(195, 226, 242),
+    	      new Color(211, 245, 248)
+    			}; 
+    	
+    	private class NodeFilter
+    		{
+    		NodeFactory nodeFactory;
+    		String label;
+    		NodeFilter _next=null;
+    		boolean accept(CategoryAndCount cac)
+    			{
+    			if(cac==null) return false;
+    			String s= this.nodeFactory.label(cac);
+    			if(s==null || !s.equals(this.label)) return false;
+    			return _next!=null?_next.accept(cac):true;
+    			}
+    		}
     	
     	/** abstract implementation of TreePack */
         private abstract class AbstractTreePack implements TreePack
     		{
-        	long weight=0L;
+        	
     		String label=null;
+    		NodeFactory nodeFactory=null;
     		AbstractTreePack parent=null;
     		List<DefaultTreePack> childNodes=new ArrayList<>();
     		
@@ -246,10 +346,47 @@ public class BamStats02
     			return this;
     			}
     		
-    		@Override
-    		public double getWeight() {
-    			return weight;
+    		public int getDepth()
+    			{
+    			return parent==null?0:1+parent.getDepth();
     			}
+    		
+    		public NodeFilter getNodeFilter()
+				{
+				if(this.nodeFactory==null) return null;//e.g: root node
+				NodeFilter filter=new NodeFilter();
+				filter.label=this.label;
+				filter.nodeFactory=this.nodeFactory;
+				filter._next=null;
+				return filter;
+				}
+    		
+    		public NodeFilter getNodeFilters()
+    			{
+    			NodeFilter filter=null;
+    			AbstractTreePack curr=this;
+    			while(curr!=null)
+    				{
+    				NodeFilter filter2= curr.getNodeFilter();//e.g: root node
+    				if(filter2!=null)
+    					{
+    					if(filter==null)
+    						{
+    						filter=filter2;
+    						}
+    					else
+    						{
+    						filter2._next=filter;
+    						filter=filter2;
+    						}
+    					}
+    				curr=curr.parent;
+    				}
+    			
+    			return filter;
+    			}
+    		
+    		
     		
     		public Rectangle2D getInsetArea()
     			{
@@ -289,7 +426,7 @@ public class BamStats02
     					area.getX(),
     					area.getY()+labelH,
     					area.getWidth(),
-    					area.getHeight()-labelH*2
+    					area.getHeight()-labelH
     					);
     			}
     		}
@@ -309,12 +446,23 @@ public class BamStats02
     			{
     			throw new IllegalStateException();
     			}
+    		@Override
+    		public double getWeight()
+    			{
+    			long weight=0L;
+    			for(CategoryAndCount cac: ViewDialog.this._filteredCategoryAndCounts)
+    				{
+    				weight+=cac.count;
+    				}
+    			return weight;
+    			}
     		
     		}
     	
     	 private class DefaultTreePack
     	 	extends AbstractTreePack
 	     	{
+    		 long weight=0L;
 	     	Rectangle2D rec=new Rectangle2D.Double();
 	     		     	
 	     	@Override
@@ -325,12 +473,17 @@ public class BamStats02
 	     	public void setBounds(Rectangle2D bounds) {
 	     		this.rec=bounds;
 	     		}
+	     	@Override
+	     	public double getWeight() {
+	     		return weight;
+	     		}
 	     	}
     	
     	ViewDialog(List<CategoryAndCount> categories )
     		{
     		super("BamStats02");
-    		this.categoryAndCounts= Collections.unmodifiableList(categories);
+    		this._categoryAndCounts= Collections.unmodifiableList(categories);
+    		this._filteredCategoryAndCounts= this._categoryAndCounts;
     		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
     		
     		JPanel topPane=new JPanel(new GridLayout(1,0,1,1));
@@ -352,7 +505,7 @@ public class BamStats02
     				if(ViewDialog.this.root==null) return null;
     				AbstractTreePack p = ViewDialog.this.root.findTreePackAt(event.getX(),event.getY());
     				if(p==null) return null;
-    				return p.label+" ("+p.weight+")";
+    				return p.label+" ("+(long)p.getWeight()+")";
     				}
     			};
     		this.drawingArea.setToolTipText("");
@@ -372,31 +525,73 @@ public class BamStats02
     				if(ViewDialog.this.root==null) return;
     				final AbstractTreePack focused = ViewDialog.this.root.findTreePackAt(event.getX(),event.getY());
     				if(focused==null) return;
-    				/*
-    				JPopupMenu popup=new JPopupMenu(focused.label+" ("+focused.weight+")");
-    				popup.add(new JMenuItem(new AbstractAction("Focus on this category")
-    					{
-						@Override
-						public void actionPerformed(ActionEvent e)
-							{
-							ViewDialog.this.root=focused;
-							
-							
-							
-							drawingArea.repaint();
-							}
-    					}));
-    				popup.add(new JMenuItem(new AbstractAction("Show All")
+					final NodeFilter nodeFilters=focused.getNodeFilters();
+					final NodeFilter thisNodeFilter =focused.getNodeFilter();
+
+    				JPopupMenu popup=new JPopupMenu(focused.label+" ("+(long)focused.getWeight()+")");
+    				AbstractAction action=new AbstractAction("Focus on this category")
 						{
 						@Override
 						public void actionPerformed(ActionEvent e)
 							{
+							
+							if(nodeFilters==null) return;
+							List<CategoryAndCount> L=new Vector<>();
+							//create a new list of variant, set as the main filtered list
+							for(CategoryAndCount cac: ViewDialog.this._categoryAndCounts)
+								{
+								if(nodeFilters.accept(cac))
+									{
+									L.add(cac);
+									}
+								}
+							ViewDialog.this._filteredCategoryAndCounts=L;
 							ViewDialog.this.root=null;
-							drawingArea.repaint();
+							ViewDialog.this.drawingArea.repaint();
 							}
-						}));
+						};
+    				action.setEnabled(nodeFilters!=null);
+    				popup.add(new JMenuItem(action));
+    				
+    				
+    				action=new AbstractAction("Hide this category")
+						{
+						@Override
+						public void actionPerformed(ActionEvent e)
+							{
+							
+							if(thisNodeFilter==null) return;
+							List<CategoryAndCount> L=new Vector<>();
+							//filter the existing a new list of variant, set as the main filtered list
+							for(CategoryAndCount cac: ViewDialog.this._filteredCategoryAndCounts)
+								{
+								if(!thisNodeFilter.accept(cac))
+									{
+									L.add(cac);
+									}
+								}
+							ViewDialog.this._filteredCategoryAndCounts=L;
+							ViewDialog.this.root=null;
+							ViewDialog.this.drawingArea.repaint();
+							}
+						};
+					action.setEnabled(thisNodeFilter!=null);
+	 				popup.add(new JMenuItem(action));
+    				
+    				action=new AbstractAction("Show All")
+						{
+						@Override
+						public void actionPerformed(ActionEvent e)
+							{
+							//restore original list of variants
+							ViewDialog.this.root=null;
+							ViewDialog.this._filteredCategoryAndCounts=ViewDialog.this._categoryAndCounts;
+							ViewDialog.this.drawingArea.repaint();
+							}
+						};
+    				
+    				popup.add(new JMenuItem(action));
     				popup.show(drawingArea, event.getX(),event.getY());
-					*/
     				}
     			});
         	this.drawingArea.setOpaque(true);
@@ -407,64 +602,16 @@ public class BamStats02
     		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
     		
     		List<NodeFactory> nodeFactories=new ArrayList<NodeFactory>();
-    		nodeFactories.add(null);
-    		nodeFactories.add(new NodeFactory()
+    		nodeFactories.add(null);//mean: remove this factory
+    		for(STRING_PROPS p: STRING_PROPS.values())
+    			{
+    			nodeFactories.add(new StringPropNodeFactory(p));
+    			}
+    		for(INT_PROPS p: INT_PROPS.values())
 				{
-				@Override
-				public String toString()
-					{
-					return "Filename";
-					}
-				@Override
-				public String label(CategoryAndCount cac)
-					{
-					return cac.filename;
-					}
-				});
-    		
-    		nodeFactories.add(new NodeFactory()
-				{
-				@Override
-				public String toString()
-					{
-					return "Sample Name";
-					}
-				@Override
-				public String label(CategoryAndCount cac)
-					{
-					return cac.sampleName;
-					}
-				});
-   		
-    		nodeFactories.add(new NodeFactory()
-				{
-				@Override
-				public String toString()
-					{
-					return "Chromosome";
-					}
-				@Override
-				public String label(CategoryAndCount cac)
-					{
-					if(cac.chromosome==null || cac.chromosome.isEmpty() || cac.chromosome.equals(".")) return null;
-					return cac.chromosome;
-					}
-				});
-    		
-    		nodeFactories.add(new NodeFactory()
-				{
-				@Override
-				public String toString()
-					{
-					return "MAPQ";
-					}
-				@Override
-				public String label(CategoryAndCount cac)
-					{
-					if(cac.chromosome==null || cac.chromosome.isEmpty() || cac.chromosome.equals(".")) return null;
-					return String.valueOf(cac.mapq);
-					}
-				});
+    			if(p==INT_PROPS.inTarget) continue;//special, see below
+				nodeFactories.add(new IntPropNodeFactory(p));
+				}
     		
     		nodeFactories.add(new NodeFactory()
 				{
@@ -476,12 +623,43 @@ public class BamStats02
 				@Override
 				public String label(CategoryAndCount cac)
 					{
-					if(cac.chromosome==null || cac.chromosome.isEmpty() || cac.chromosome.equals(".")) return null;
-					if(cac.inTarget==1) return "IN_TARGET";
-					if(cac.inTarget==0) return "OFF_TARGET";
+					if(cac.getChrom()==null) return null;
+					int v= cac._ints[INT_PROPS.inTarget.ordinal()];
+					if(v==1) return "IN_TARGET";
+					if(v==0) return "OFF_TARGET";
 					return null;
 					}
 				});
+    		
+    		nodeFactories.add(new NodeFactory()
+				{
+				@Override
+				public String toString()
+					{
+					return "Disjoint Chromosomes";
+					}
+				@Override
+				public String label(CategoryAndCount cac)
+					{
+					String c1= cac._strings[STRING_PROPS.chromosome.ordinal()];
+					String c2= cac._strings[STRING_PROPS.mate_chromosome.ordinal()];
+					if(isEmpty(c1)) return null;
+					if(isEmpty(c2)) return null;
+					 if(c1.equals(c2))
+						{
+						return null;
+						}
+					else if(c1.compareTo(c2)<=0)
+						{
+						return c1+":"+c2;
+						}
+					else
+						{
+						return c2+":"+c1;
+						}
+					}
+				});
+    		
     		
     		for(SamFlag sf:SamFlag.values())
     			{
@@ -497,7 +675,7 @@ public class BamStats02
 					drawingArea.repaint();
 					}
 				};
-    		for(int i=0;i<5;++i)
+    		for(int i=0;i<6;++i)
     			{
     			JComboBox<NodeFactory> combox=new JComboBox<NodeFactory>(
     					nodeFactories.toArray(new NodeFactory[nodeFactories.size()])
@@ -534,20 +712,23 @@ public class BamStats02
     			List<NodeFactory> nodeFactories=getSelectedNodeFactories();
         		Rectangle2D.Double area=new Rectangle2D.Double(0, 0, this.drawingArea.getWidth(), this.drawingArea.getHeight());
         		
-        		layoutPack(this.root,area,this.categoryAndCounts,nodeFactories,0);
+        		layoutPack(this.root,area,this._filteredCategoryAndCounts,nodeFactories,0);
     			}
     		
     		
     		paintPack(this.root,g);
     		}
     	
+    	/** recursively paint each tree pack */
     	private void paintPack(AbstractTreePack root,Graphics2D g)
     		{
     		Rectangle2D area=(Rectangle2D)root.getBounds().clone();
 			Hershey hershey=new Hershey();
+			
+			/* paint background */
 			g.setColor(Color.LIGHT_GRAY);
 			g.fill(area);
-			g.setColor(Color.WHITE);
+			g.setColor(papers[root.getDepth()%papers.length]);
 			g.fill(new Rectangle2D.Double(
 					area.getX(),area.getY(),
 					(area.getWidth()>5?area.getWidth()-2:area.getWidth()),
@@ -556,7 +737,7 @@ public class BamStats02
 			g.setColor(Color.BLACK);
 			g.draw(area);
 			
-			
+			/* paint label */
 			if(root.label!=null && !root.label.trim().isEmpty())
 				{
 				Rectangle2D lblArea=root.getLabelArea();
@@ -571,13 +752,14 @@ public class BamStats02
 							lblArea.getHeight()
 							);
 					}
-				
+				g.setColor(root.getDepth()<=1?Color.WHITE:Color.BLACK);
 				hershey.paint(g,
 						root.label,
 						lblArea
 						);
 				}
 			
+			/* paint children */
 			area = root.getChildrenArea();
 			if(!root.childNodes.isEmpty())
 				{
@@ -588,10 +770,12 @@ public class BamStats02
 				}
 			else
 				{
+				g.setColor(root.getDepth()<=1?Color.WHITE:Color.BLACK);
 				hershey.paint(g, fmt.format((long)root.getWeight()), area);
 				}
     		}
     	
+    	/** layout tree pack */
     	private void layoutPack(
     			AbstractTreePack root,
     			Rectangle2D area,
@@ -618,6 +802,7 @@ public class BamStats02
 					root.childNodes.add(dtp);
 					dtp.label=label;
 					dtp.parent=root;
+					dtp.nodeFactory=nodeFactory;
 					label2node.put(label,dtp);
 					
 					cacL = new ArrayList<>();
@@ -677,8 +862,9 @@ public class BamStats02
 	
 	
 	
-	private void run(String filename,SamReader r)
+	private void run(String filename,SamReader r,PrintWriter out)
 		{
+		Counter<Category> counter=new Counter<>();
 		SAMRecordIterator iter=null;
 		try
 			{
@@ -688,35 +874,66 @@ public class BamStats02
 				{
 				SAMRecord record=progress.watch(iter.next());
 				Category cat=new Category();
-				cat.filename=filename;
+				cat.set(STRING_PROPS.filename,filename);
 				cat.flag = record.getFlags();
-				cat.inTarget = -1;
-				cat.mapq=0;
+				cat.set(INT_PROPS.inTarget,-1);
+				
 				SAMReadGroupRecord g=record.getReadGroup();
-				String sampleName=(g!=null?g.getSample():null);
-				cat.sampleName=(sampleName==null?".":sampleName);
+				cat.set(STRING_PROPS.samplename,g.getSample());
+				cat.set(STRING_PROPS.platform,g.getPlatform());
+				cat.set(STRING_PROPS.platformUnit,g.getPlatformUnit());
+				cat.set(STRING_PROPS.library,g.getLibrary());
+				
+				
+				ShortReadName readName=ShortReadName.parse(record);
+				if(readName.isValid())
+					{
+					cat.set(STRING_PROPS.instrument,readName.getInstrumentName());
+					cat.set(STRING_PROPS.flowcell,readName.getFlowCellId());
+					cat.set(INT_PROPS.lane,readName.getFlowCellLane());
+					cat.set(INT_PROPS.run,readName.getRunId());
+					}
+				
+				
+				if(record.getReadPairedFlag() && !record.getMateUnmappedFlag())
+					{
+					cat.set(STRING_PROPS.mate_chromosome,record.getMateReferenceName());
+					}
+				
 				if(!record.getReadUnmappedFlag())
 					{
-					cat.mapq=(int)(Math.ceil(record.getMappingQuality()/10.0)*10);
-					cat.chromosome=record.getReferenceName();
+					cat.set(INT_PROPS.mapq,(int)(Math.ceil(record.getMappingQuality()/10.0)*10));
+					cat.set(STRING_PROPS.chromosome,record.getReferenceName());
+					
 					if(this.intervals!=null)
 						{
 						if(this.intervals.containsOverlapping(
 								new Interval(record.getReferenceName(), record.getAlignmentStart(), record.getAlignmentEnd())
 								))
 								{
-								cat.inTarget=1;
+
+								cat.set(INT_PROPS.inTarget,1);
 								}
 						else
 								{
-								cat.inTarget=0;
+								cat.set(INT_PROPS.inTarget,0);
 								}
 						}
 					
 					}
-				this.counter.incr(cat);
+				counter.incr(cat);
 				}
 			progress.finish();
+			
+			for(Category cat:counter.keySetDecreasing())
+				{
+				cat.print(out);
+	    		out.print("\t");
+	    		out.print(counter.count(cat));
+				out.println();
+				}
+		
+			out.flush();
 			}
 		finally
 			{
@@ -751,7 +968,33 @@ public class BamStats02
 					}
 				bedIn.close();
 				}
-			
+			out = 	(
+					getOutputFile()==null ?
+					new PrintWriter(System.out) :
+					new PrintWriter(getOutputFile())
+					);
+			boolean first=true;
+			out.print("#");
+			for(STRING_PROPS p:STRING_PROPS.values())
+				{
+				if(!first) out.print("\t");
+				first=false;
+				out.print(p.name());
+				
+				}
+			for(INT_PROPS p:INT_PROPS.values())
+				{
+				out.print("\t");
+				out.print(p.name());
+				}
+    		for(SamFlag flg:SamFlag.values())
+    			{
+    			out.print("\t");
+    			out.print(flg.name());
+    			}
+    		out.print("\t");
+    		out.print("count");
+			out.println();
 
 			
 			SamReaderFactory srf=SamReaderFactory.makeDefault().
@@ -761,7 +1004,7 @@ public class BamStats02
 				{
 				info("Reading from stdin");
 				samFileReader= srf.open(SamInputResource.of(System.in));
-				run("stdin",samFileReader);
+				run("stdin",samFileReader,out);
 				samFileReader.close();
 				samFileReader=null;
 				}
@@ -771,42 +1014,10 @@ public class BamStats02
 					{
 					info("Reading from "+filename);
 					samFileReader=srf.open(new File(filename));
-					run(filename,samFileReader);
+					run(filename,samFileReader,out);
 					samFileReader.close();
 					samFileReader=null;
 					}
-				}
-			
-			
-			out = 	(
-					getOutputFile()==null ?
-					new PrintWriter(System.out) :
-					new PrintWriter(getOutputFile())
-					);
-			out.print("#filename");
-    		out.print("\t");
-    		out.print("sampleName");
-    		out.print("\t");
-    		out.print("chromosome");
-    		out.print("\t");
-    		out.print("mapq");
-    		out.print("\t");
-    		out.print("inTarget");
-    		for(SamFlag flg:SamFlag.values())
-    			{
-    			out.print("\t");
-    			out.print(flg.name());
-    			}
-    		out.print("\t");
-    		out.print("count");
-			out.println();
-			
-			for(Category cat:this.counter.keySetDecreasing())
-				{
-				cat.print(out);
-	    		out.print("\t");
-	    		out.print(this.counter.count(cat));
-				out.println();
 				}
 			
 			out.flush();
@@ -861,6 +1072,7 @@ public class BamStats02
 			BufferedReader in=null;
 			try {
 				Pattern tab=Pattern.compile("[\t]");
+				System.err.println("[LOG] Reading "+args[1]);
 				in=IOUtils.openURIForBufferedReading(args[1]);
 				String line;
 				while((line=in.readLine())!=null)
@@ -870,14 +1082,22 @@ public class BamStats02
 					CategoryAndCount cat=new CategoryAndCount();
 					String tokens[]=tab.split(line);
 					int col=0;
-					cat.filename  =tokens[col++];
-					cat.sampleName=tokens[col++];
-					cat.chromosome=tokens[col++];
-					cat.mapq=Integer.parseInt(tokens[col++]);
-					cat.inTarget=Integer.parseInt(tokens[col++]);
+					for(STRING_PROPS p:STRING_PROPS.values())
+						{
+						if(col>=tokens.length) throw new IOException("Not enough columns in "+line);
+						cat.set(p, tokens[col++]);
+						}
+					for(INT_PROPS p:INT_PROPS.values())
+						{
+						if(col>=tokens.length) throw new IOException("Not enough columns in "+line);
+						String s= tokens[col++];
+						cat.set(p,isEmpty(s)?-1:Integer.parseInt(s));
+						}
+					
 					cat.flag=0;
 					for(SamFlag sf:SamFlag.values())
 						{
+						if(col>=tokens.length) throw new IOException("Not enough columns in "+line);
 						String ok=tokens[col++];
 						if(ok.equals("0"))
 							{
@@ -893,9 +1113,11 @@ public class BamStats02
 							System.exit(-1);
 							}
 						}
+					if(col>=tokens.length) throw new IOException("Not enough columns in "+line);
 					cat.count=Long.parseLong(tokens[col++]);
 					categories.add(cat);
 					}
+				System.err.println("[LOG] Down reading "+args[1]+" N="+categories.size());
 				final ViewDialog f=new ViewDialog(categories);
 				Dimension screen=Toolkit.getDefaultToolkit().getScreenSize();
 				f.setBounds(50, 50, screen.width-100, screen.height-100);
