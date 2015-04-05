@@ -166,10 +166,11 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SkipXmlElements">SkipXmlElements</a></th><td>Filter XML elements with a javascript expression.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MiniCaller">MiniCaller</a></th><td>Simple and Stupid Variant Caller designed for @AdrienLeger2</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCompareCallersOneSample">VcfCompareCallersOneSample</a></th><td>For my colleague Julien. Compare VCF allers with VCF with one sample.</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MiniCaller">SamRetrieveSeqAndQual</a></th><td> Is there a tool to add seq and qual to BAM? for @sjackman </td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamRetrieveSeqAndQual">SamRetrieveSeqAndQual</a></th><td> Is there a tool to add seq and qual to BAM? for @sjackman </td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfEnsemblVepRest">VcfEnsemblVepRest</a></th><td>Annotate a VCF with Ensembl REST API.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCompareCallers">VcfCompareCallers</a></th><td>Compare two VCFs and print common/exclusive information for each sample/genotype</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamStats02">BamStats02</a></th><td>Generate and explore statistics about the reads in a BAM (Sample/File/Flags/chroms/MAPQ)</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamTile">BamTile</a></th><td>Bam tiling Path.</td></tr>
 </table>
 
 

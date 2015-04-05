@@ -146,7 +146,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	vcfpolyx	vcfpredictions	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats	vcfstopcodon	vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
-	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop
+	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile
 
 
 .PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar
@@ -346,7 +346,7 @@ $(eval $(call compile-htsjdk-cmd,samretrieveseqandqual,${jvarkit.package}.tools.
 $(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.VcfEnsemblVepRest,api.ensembl.vep))
 $(eval $(call compile-htsjdk-cmd,vcfgroupbypop,${jvarkit.package}.tools.misc.VcfGroupByPopulation))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallers,${jvarkit.package}.tools.vcfcmp.VcfCompareCallers))
-
+$(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \

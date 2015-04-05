@@ -31,6 +31,7 @@ package com.github.lindenb.jvarkit.util.picard;
 
 import java.util.logging.Logger;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -238,6 +239,11 @@ public class SAMSequenceDictionaryProgress
 		}
 	
 	public SAMSequenceDictionaryProgress(VCFHeader h)
+		{
+		this(h==null?null:h.getSequenceDictionary());
+		}
+	
+	public SAMSequenceDictionaryProgress(SAMFileHeader h)
 		{
 		this(h==null?null:h.getSequenceDictionary());
 		}
