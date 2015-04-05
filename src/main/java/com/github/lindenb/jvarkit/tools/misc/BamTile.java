@@ -196,6 +196,12 @@ public class BamTile
 						{
 						buffer.remove(index-2);
 						}
+					else if(curr.getAlignmentStart() == prev.getAlignmentStart() &&
+							curr.getAlignmentEnd() > prev.getAlignmentEnd()
+							)
+						{
+						buffer.remove(index-3);
+						}
 					
 					}
 				while(buffer.size()>3)
