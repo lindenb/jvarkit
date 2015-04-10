@@ -485,7 +485,7 @@ ${common.math.jar} :
 ## make sure jars from htslib exist
 ##
 $(filter-out ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar  ,${htsjdk.jars}) : ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar 
-	touch --no-create $@
+	touch -c $@
 
 ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar : ${htsjdk.home}/build.xml
 	echo "Compiling htsjdk with $${JAVA_HOME} = ${JAVA_HOME}"
