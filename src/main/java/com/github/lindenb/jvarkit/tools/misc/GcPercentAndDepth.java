@@ -362,7 +362,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			
 			
 			
-			Set<String> samples=new TreeSet<String>();
+			Set<String> all_samples=new TreeSet<String>();
 			/* create input, collect sample names */
 			for(int optind=opt.getOptInd();
 					optind< args.length;
@@ -391,11 +391,11 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 						warning("Read group "+g.getId()+" has no sample in merged dictionary");
 						continue;
 						}
-					samples.add(g.getSample());
+					all_samples.add(g.getSample());
 					}
 				}
 			
-			info("NSample:"+samples.size());
+			info("NSample:"+all_samples.size());
 			
 			/* print header */
 			out.print("#id");
@@ -407,7 +407,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			out.print("end");
 			out.print("\t");
 			out.print("GCPercent");
-			for(String sample:samples)
+			for(String sample:all_samples)
 				{
 				out.print("\t");
 				out.print(sample);
@@ -510,13 +510,13 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 					}
 				Map<String,int[]> sample2depth=new HashMap<String,int[]>();
 				Map<String,Double> sample2meanDepth=new HashMap<String,Double>();
-				for(String sample:samples)
+				for(String sample:all_samples)
 					{
 					int depth[]=new int[roi.length()];
 					Arrays.fill(depth, 0);
 					sample2depth.put(sample, depth);
 					}
-				List<CloseableIterator<SAMRecord>> iterators=new ArrayList<CloseableIterator<SAMRecord>>();
+				List<CloseableIterator<SAMRecord>> iterators = new ArrayList<CloseableIterator<SAMRecord>>();
 				for(SamReader r:readers)
 					{
 					iterators.add(r.query(roi.getChromosome(), roi.getStart()+1, roi.getEnd(), false));
@@ -544,6 +544,8 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 					if(rec.isSecondaryOrSupplementary()) continue;
 					if(rec.getDuplicateReadFlag()) continue;
 					if(rec.getReadFailsVendorQualityCheckFlag())  continue;
+					if(rec.getMappingQuality()==0 || rec.getMappingQuality()==255) continue;
+					
 					SAMReadGroupRecord g=rec.getReadGroup();
 					if(g==null) continue;
 					progress.watch(rec);
@@ -599,7 +601,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 					
 					int max_depth_for_win=0;
 					sample2meanDepth.clear();
-					for(String sample:samples)
+					for(String sample:all_samples)
 						{
 						int depth[]=sample2depth.get(sample);
 						double sum=0;
@@ -623,7 +625,8 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 					out.print(win.getEnd());
 					out.print("\t");
 					out.printf("%.2f",GCPercent);
-					for(String sample:samples)
+					
+					for(String sample:all_samples)
 						{
 						out.print("\t");
 						out.printf("%.2f",(double)sample2meanDepth.get(sample));

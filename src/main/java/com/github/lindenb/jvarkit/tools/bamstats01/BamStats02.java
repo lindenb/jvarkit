@@ -1079,6 +1079,7 @@ public class BamStats02
 					{
 					if(line.startsWith("#")) continue;
 					if(line.isEmpty()) continue;
+					if(categories.size()%100000==0) System.err.println("[LOG] Reading N="+categories.size());
 					CategoryAndCount cat=new CategoryAndCount();
 					String tokens[]=tab.split(line);
 					int col=0;

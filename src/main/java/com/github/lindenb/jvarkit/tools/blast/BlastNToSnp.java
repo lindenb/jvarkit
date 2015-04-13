@@ -1,9 +1,39 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.blast;
+
+import java.io.PrintWriter;
+import java.util.List;
 
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
-
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
@@ -16,18 +46,19 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
+
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 
 
 
-public class BlastNToSnp extends AbstractCommandLineProgram {
+public class BlastNToSnp extends AbstractKnimeApplication {
 	private Unmarshaller unmarshaller;
 	private Marshaller marshaller;
-	
+	private int minGapSize=3;
 	/* force javac to compile */
 	@SuppressWarnings("unused")
 	private gov.nih.nlm.ncbi.blast.ObjectFactory _ignore_for_javac=null;
@@ -82,6 +113,7 @@ public class BlastNToSnp extends AbstractCommandLineProgram {
 	
 	
 private void run(
+		PrintWriter pw,
 		XMLEventReader r
 		)
 		throws XMLStreamException,JAXBException
@@ -89,37 +121,37 @@ private void run(
 	 long numIterations=0L;
 	 long numPerfectMath=0L;
 	 long numNoHit=0L;
-
+	 
 	
-	System.out.print("#query");
-	System.out.print('\t');
-	System.out.print("hit");
-	System.out.print('\t');
-	System.out.print(("hit-index"));
-	System.out.print('\t');
-	System.out.print("hsp-index");
+	pw.print("#query");
+	pw.print('\t');
+	pw.print("hit");
+	pw.print('\t');
+	pw.print(("hit-index"));
+	pw.print('\t');
+	pw.print("hsp-index");
 	
-	System.out.print('\t');
-	System.out.print("query-POS");
-	System.out.print('\t');
-	System.out.print("hit-POS");
-	System.out.print('\t');
-	System.out.print("STRAND");
+	pw.print('\t');
+	pw.print("query-POS");
+	pw.print('\t');
+	pw.print("hit-POS");
+	pw.print('\t');
+	pw.print("STRAND");
 	
-	System.out.print('\t');
-	System.out.print("REF(hit)");
-	System.out.print('\t');
-	System.out.print("ALT(query)");
-	System.out.print('\t');
-	System.out.print("blast.align_length");
-	System.out.print('\t');
-	System.out.print("blast.hit.var");
-	System.out.print('\t');
-	System.out.print("blast.query.var");
-	System.out.print('\t');
-	System.out.print("blast.mid.var");
+	pw.print('\t');
+	pw.print("REF(hit)");
+	pw.print('\t');
+	pw.print("ALT(query)");
+	pw.print('\t');
+	pw.print("blast.align_length");
+	pw.print('\t');
+	pw.print("blast.hit.var");
+	pw.print('\t');
+	pw.print("blast.query.var");
+	pw.print('\t');
+	pw.print("blast.mid.var");
 	
-	System.out.println();
+	pw.println();
 	for(;;)
 		{
 
@@ -172,7 +204,7 @@ private void run(
 					for(;;)
 						{
 						int k=hspMid.indexOf(' ', j);
-						if(k==-1 || k-j>3) break;
+						if(k==-1 || k-j> minGapSize) break;
 						j=k+1;
 						}
 					
@@ -201,41 +233,41 @@ private void run(
 						
 						}
 						
-					System.out.print(iter1.getIterationQueryDef());
-					System.out.print('\t');
-					System.out.print(hit.getHitDef());
-					System.out.print('\t');
-					System.out.print((1+hit_loop));
-					System.out.print('\t');
-					System.out.print((1+hsp_loop));
+					pw.print(iter1.getIterationQueryDef());
+					pw.print('\t');
+					pw.print(hit.getHitDef());
+					pw.print('\t');
+					pw.print((1+hit_loop));
+					pw.print('\t');
+					pw.print((1+hsp_loop));
 					
-					System.out.print('\t');
-					System.out.print(query_index);
-					System.out.print('\t');
-					System.out.print(hit_index);
-					System.out.print('\t');
-					System.out.print(hit_shift==1?'+':'-');
+					pw.print('\t');
+					pw.print(query_index);
+					pw.print('\t');
+					pw.print(hit_index);
+					pw.print('\t');
+					pw.print(hit_shift==1?'+':'-');
 					
-					System.out.print('\t');
-					System.out.print(ref);
-					System.out.print('\t');
-					System.out.print(alt);
+					pw.print('\t');
+					pw.print(ref);
+					pw.print('\t');
+					pw.print(alt);
 					
 					
-					System.out.print('\t');
-					System.out.print(align_length);
-					System.out.print('\t');
-					System.out.print(hspHSeq.substring(i, j).replace(' ', '.'));
-					System.out.print('\t');
-					System.out.print(hspQseq.substring(i, j).replace(' ', '.'));
-					System.out.print('\t');
-					System.out.print(hspMid.substring(i, j).replace(' ', '.'));
+					pw.print('\t');
+					pw.print(align_length);
+					pw.print('\t');
+					pw.print(hspHSeq.substring(i, j).replace(' ', '.'));
+					pw.print('\t');
+					pw.print(hspQseq.substring(i, j).replace(' ', '.'));
+					pw.print('\t');
+					pw.print(hspMid.substring(i, j).replace(' ', '.'));
 
 					
-					System.out.println();
+					pw.println();
 					
 					//marshaller.marshal(new JAXBElement<Hsp>(new QName("Hsp"), Hsp.class, hsp), System.out);
-					//System.out.println();
+					//pw.println();
 					
 					while(i<j)
 						{
@@ -262,7 +294,7 @@ private void run(
 					{
 					throw new IllegalStateException("boum "+query_index+" vs "+hsp_query_to);
 					}
-				if(System.out.checkError()) break;
+				if(pw.checkError()) break;
 				}
 			
 			}//end loop Hit
@@ -283,19 +315,23 @@ private void run(
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
+		out.print(" -o (file) output file. (default: stdout)"); 
+		out.print(" -n min gap size (default :"+this.minGapSize+")"); 
 		super.printOptions(out);
 		}
+	
 	
 	@Override
 	public int doWork(String[] args)
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:n:"))!=-1)
 			{
 			switch(c)
 				{
-			
+				case 'n': this.minGapSize=Integer.parseInt(opt.getOptArg());break;
+				case 'o': setOutputFile(opt.getOptArg());break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt, null))
@@ -307,61 +343,75 @@ private void run(
 					}
 				}
 			}
-		
-		
-		XMLEventReader rx=null;
-		try
+		return mainWork(opt.getOptInd(), args);
+		}
+	
+		@Override
+		public int executeKnime(List<String> args)
 			{
-			
-			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
-			this.unmarshaller=jc.createUnmarshaller();
-			this.marshaller=jc.createMarshaller();
-			this.marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT,true);
-			this.marshaller.setProperty(Marshaller.JAXB_FRAGMENT,true);
-			XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
-			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
-			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
-			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
-			xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
-			xmlInputFactory.setXMLResolver(new XMLResolver()
+			PrintWriter pw=null;
+			XMLEventReader rx=null;
+			try
 				{
-				@Override
-				public Object resolveEntity(String arg0, String arg1, String arg2,
-						String arg3) throws XMLStreamException
+				
+				JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
+				this.unmarshaller=jc.createUnmarshaller();
+				this.marshaller=jc.createMarshaller();
+				this.marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT,true);
+				this.marshaller.setProperty(Marshaller.JAXB_FRAGMENT,true);
+				XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
+				xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
+				xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
+				xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
+				xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
+				xmlInputFactory.setXMLResolver(new XMLResolver()
 					{
-					info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
-					return null;
+					@Override
+					public Object resolveEntity(String arg0, String arg1, String arg2,
+							String arg3) throws XMLStreamException
+						{
+						info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
+						return null;
+						}
+					});
+				if(args.isEmpty())
+					{
+					info("Reading from stdin");
+					rx=xmlInputFactory.createXMLEventReader(System.in);
 					}
-				});
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				rx=xmlInputFactory.createXMLEventReader(System.in);
+				else if(args.size()==1)
+					{
+					info("Reading from "+args.get(0));
+					rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(args.get(0)));
+					}
+				else
+					{
+					error("Illegal number of args");
+					return -1;
+					}
+				if(getOutputFile()==null)
+					{
+					pw= new PrintWriter(System.out);
+					}
+				else
+					{
+					pw= new PrintWriter(getOutputFile());
+					}
+				run(pw,rx);
+				pw.flush();
+				return 0;
 				}
-			else if(opt.getOptInd()+1==args.length)
+			catch(Exception err)
 				{
-				info("Reading from "+args[opt.getOptInd()]);
-				rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error("Illegal number of args");
+				error(err);
 				return -1;
 				}
-			run(rx);
-			
-			return 0;
+			finally
+				{
+				CloserUtil.close(rx);
+				CloserUtil.close(pw);
+				}
 			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(rx);
-			}
-		}
 
 	/**
 	 * @param args
