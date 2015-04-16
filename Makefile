@@ -146,7 +146,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	vcfpolyx	vcfpredictions	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats	vcfstopcodon	vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
-	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile
+	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations
 
 
 .PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar
@@ -347,6 +347,7 @@ $(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.
 $(eval $(call compile-htsjdk-cmd,vcfgroupbypop,${jvarkit.package}.tools.misc.VcfGroupByPopulation))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallers,${jvarkit.package}.tools.vcfcmp.VcfCompareCallers))
 $(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile))
+$(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xcontamination.XContaminations))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
@@ -490,6 +491,7 @@ $(filter-out ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar  ,${htsjdk.jars}) 
 ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar : ${htsjdk.home}/build.xml
 	echo "Compiling htsjdk with $${JAVA_HOME} = ${JAVA_HOME}"
 	echo "Compiling htsjdk library for java. Requires  apache ANT. If it fails here, it's a not a problem with jvarkit."
+	echo "And $${JAVA_HOME}/bin/javac should be >=1.7"
 	(cd ${htsjdk.home} && ${ANT} )
 
 ${htsjdk.home}/build.xml : 
