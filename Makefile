@@ -146,7 +146,8 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	vcfpolyx	vcfpredictions	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats	vcfstopcodon	vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
-	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations
+	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
+	biostar3654
 
 
 .PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar
@@ -210,6 +211,7 @@ $(eval $(call compile_biostar_cmd,86480))
 $(eval $(call compile_biostar_cmd,90204))
 $(eval $(call compile_biostar_cmd,94573))
 $(eval $(call compile_biostar_cmd,95652,api.ncbi.gb))
+$(eval $(call compile_biostar_cmd,3654,api.ncbi.insdseq api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,blastmapannots, ${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations, api.ncbi.blast,api.ncbi.gb api.uniprot))
@@ -408,7 +410,11 @@ api.ncbi.taxonomy:
 api.ncbi.tseq:
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.tseq -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/NCBI_TSeq.dtd"
-	
+
+api.ncbi.insdseq:
+	mkdir -p ${generated.dir}/java
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.insdseq -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/INSD_INSDSeq.dtd"
+
 
 ## API Ensembl
 api.ensembl.vep :
