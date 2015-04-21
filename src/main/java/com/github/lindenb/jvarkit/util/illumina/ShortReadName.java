@@ -30,6 +30,7 @@ History:
 package com.github.lindenb.jvarkit.util.illumina;
 
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 import htsjdk.samtools.SAMRecord;
 
@@ -38,8 +39,9 @@ import htsjdk.samtools.SAMRecord;
  */
 public class ShortReadName
 	{
-	private boolean valid=false;
-	private String tokens[]=new String[7];
+	private enum Type {INVALID,SEVEN_COLS,SIX_COLS};
+	private Type type = Type.INVALID;
+	private String tokens[];
 	private ShortReadName()
 		{
 		
@@ -56,49 +58,92 @@ public class ShortReadName
 			}
 		}
 	
+	
 	public boolean isValid()
 		{
-		return valid;
+		return this.type.equals(Type.INVALID);
 		}
 	
 	public String getInstrumentName()
 		{
-		return (valid?tokens[0]:null);
+		switch(type)
+			{
+			case INVALID : return null;
+			case SEVEN_COLS : return tokens[0];
+			case SIX_COLS: return tokens[0];
+			default: throw new IllegalStateException();
+			}
 		}
 	
 	public int getRunId()
 		{
-		return (valid?Integer.parseInt(tokens[1]):-1);
+		switch(type)
+			{
+			case INVALID : return -1;
+			case SEVEN_COLS : Integer.parseInt(tokens[1]);
+			case SIX_COLS : return -1;
+			default: throw new IllegalStateException();
+			}
 		}
 	
 	public String getFlowCellId()
 		{
-		return (valid?tokens[2]:null);
+		switch(type)
+			{
+			case INVALID : return null;
+			case SEVEN_COLS : return tokens[2];
+			case SIX_COLS : return tokens[1];
+			default: throw new IllegalStateException();
+			}
 		}
 	
 	public int getFlowCellLane()
 		{
-		return (valid?Integer.parseInt(tokens[3]):-1);
+		switch(type)
+			{
+			case INVALID : return -1;
+			case SEVEN_COLS : Integer.parseInt(tokens[3]);
+			case SIX_COLS : Integer.parseInt(tokens[2]);
+			default: throw new IllegalStateException();
+			}
 		}
 	
 	public int getTile()
 		{
-		return (valid?Integer.parseInt(tokens[4]):-1);
+		switch(type)
+			{
+			case INVALID : return -1;
+			case SEVEN_COLS : Integer.parseInt(tokens[4]);
+			case SIX_COLS :  Integer.parseInt(tokens[3]);
+			default: throw new IllegalStateException();
+			}
 		}
 	
 	public int getX()
 		{
-		return (valid?Integer.parseInt(tokens[5]):-1);
+		switch(type)
+			{
+			case INVALID : return -1;
+			case SEVEN_COLS : Integer.parseInt(tokens[5]);
+			case SIX_COLS : Integer.parseInt(tokens[4]);
+			default: throw new IllegalStateException();
+			}
 		}
 	public int getY()
 		{
-		return (valid?Integer.parseInt(tokens[6]):-1);
+		switch(type)
+			{
+			case INVALID : return -1;
+			case SEVEN_COLS : Integer.parseInt(tokens[6]);
+			case SIX_COLS : Integer.parseInt(tokens[5]);
+			default: throw new IllegalStateException();
+			}
 		}
 
 	@Override
 	public int hashCode()
 		{
-		if(valid)
+		if(isValid())
 			{
 			return 31 + Arrays.hashCode(tokens);
 			}
@@ -117,15 +162,14 @@ public class ShortReadName
 		if (getClass() != obj.getClass())
 			return false;
 		ShortReadName other = (ShortReadName) obj;
-		if (valid != other.valid)
+		if (isValid() != other.isValid())
 			return false;
 		if (!Arrays.equals(tokens, other.tokens))
 			return false;
 		return true;
 		}
-
-	@Override
-	public String toString()
+	
+	public String getName()
 		{
 		StringBuilder b=new StringBuilder();
 		for(int i=0;i< tokens.length;++i)
@@ -135,6 +179,15 @@ public class ShortReadName
 			}
 		return b.toString();
 		}
+
+	
+	@Override
+	public String toString()
+		{
+		return this.getName();
+		}
+	
+	private static final Pattern COLON=Pattern.compile("[\\:]");
 	
 	/** Parse a Read name. For now only  Casava 1.8 */
 	public static ShortReadName parse(String readName)
@@ -150,26 +203,27 @@ public class ShortReadName
 		if(ws!=-1) ws= readName.indexOf('\t');
 		if(ws!=-1)  readName=readName.substring(0,ws);
 		
-		int col=0;
-		int prev=-1;
-		while(col < r.tokens.length)
-			{
-			int colon=readName.indexOf(':', prev+1);
-			r.tokens[col] =(colon==-1?
-					readName.substring(prev+1):
-					readName.substring(prev+1,colon)
-					);
-			col++;
-			if(colon==-1) break;
-			prev=colon;
-			}
-		r.valid=(col==r.tokens.length &&
+		r.tokens = COLON.split(readName);
+		if(	r.tokens.length == 7  &&
 				positiveInt(r.tokens[1]) &&
 				positiveInt(r.tokens[3]) &&
 				positiveInt(r.tokens[4]) &&
 				positiveInt(r.tokens[5]) &&
 				positiveInt(r.tokens[6])
-				);
+				)
+			{
+			r.type = Type.SEVEN_COLS;
+			}
+		else if(	r.tokens.length == 6  &&
+				positiveInt(r.tokens[1]) &&
+				positiveInt(r.tokens[2]) &&
+				positiveInt(r.tokens[3]) &&
+				positiveInt(r.tokens[4]) &&
+				positiveInt(r.tokens[5])
+				)
+			{
+			r.type = Type.SIX_COLS;
+			}
 		return r;
 		}
 	
