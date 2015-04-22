@@ -28,33 +28,32 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import gov.nih.nlm.ncbi.blast.BlastOutput;
-import gov.nih.nlm.ncbi.blast.BlastOutputIterations;
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
 import gov.nih.nlm.ncbi.insdseq.INSDFeature;
+import gov.nih.nlm.ncbi.insdseq.INSDFeatureIntervals;
 import gov.nih.nlm.ncbi.insdseq.INSDInterval;
 import gov.nih.nlm.ncbi.insdseq.INSDQualifier;
-import gov.nih.nlm.ncbi.insdseq.INSDSeq;
-import gov.nih.nlm.ncbi.insdseq.INSDSeqFeatureTable;
-import gov.nih.nlm.ncbi.insdseq.INSDSet;
+import htsjdk.samtools.util.CloserUtil;
 
 import java.io.PrintStream;
 import java.util.List;
-import java.io.File;
+import java.io.ByteArrayInputStream;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.StringReader;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.net.URL;
 import java.util.ArrayList;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
-import org.xml.sax.EntityResolver;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
+import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLResolver;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 
@@ -65,14 +64,20 @@ public class Biostar3654 extends AbstractKnimeApplication
 	@SuppressWarnings("unused")
 	private static final gov.nih.nlm.ncbi.insdseq.ObjectFactory _fool_javac2=null;
 	
+	
+	private PrintWriter pw=null;
 	/** left margin */
 	private int margin=9;
 	/** length of a fasta line */
 	private int fastaLineLength=50;
-	/** xml parser */
-	private DocumentBuilder docBuilder;
+	
+	/** XML input factory */
+	private XMLInputFactory xif;
 	/** transforms XML/DOM to GBC entry */
-	private Unmarshaller gbcUnmarshaller;
+	private Unmarshaller unmarshaller;
+	
+	
+	
 	
 	/** abstract class writing the line of an alignment */
 	private abstract class AbstractHspPrinter
@@ -143,13 +148,10 @@ public class Biostar3654 extends AbstractKnimeApplication
 					int intervalTo=0;
 					//is it an interval ?
 					if( interval.getINSDIntervalFrom()!=null &&
-						interval.getINSDIntervalTo()!=null &&
-						!(
-						  (intervalFrom=Integer.parseInt(interval.getINSDIntervalFrom()))>=this.seqEnd ||
-						  (intervalTo=Integer.parseInt(interval.getINSDIntervalTo()))<this.seqStart
-						))
+						interval.getINSDIntervalTo()!=null )
 						{
-						intervalTo++;
+						intervalFrom = Integer.parseInt(interval.getINSDIntervalFrom());
+						intervalTo   = Integer.parseInt(interval.getINSDIntervalTo());
 						}
 					//is it a single point ?
 					else if(interval.getINSDIntervalPoint()!=null &&
@@ -157,7 +159,8 @@ public class Biostar3654 extends AbstractKnimeApplication
 						intervalFrom< this.seqEnd
 						)
 						{
-						intervalTo=intervalFrom+1;
+						intervalFrom = Integer.parseInt(interval.getINSDIntervalPoint());
+						intervalTo   = intervalFrom;
 						}
 					else
 						{
@@ -165,11 +168,19 @@ public class Biostar3654 extends AbstractKnimeApplication
 						}
 					if(intervalFrom> intervalTo)
 						{
-						//uhh ???
-						continue;
+						int tmp=intervalFrom;
+						intervalFrom=intervalTo;
+						intervalTo=tmp;
 						}
+					intervalTo++;
+					
+					
+					if(intervalFrom>this.seqEnd) continue;
+					if(intervalTo<this.seqStart) continue;
+					
+					
 					//margin left
-					System.out.printf("      %"+margin+"s ","");
+					Biostar3654.this.pw.printf("      %"+margin+"s ","");
 					//trim the positions
 					intervalFrom=Math.max(this.seqStart,intervalFrom);
 					intervalTo=Math.min(this.seqEnd,intervalTo);
@@ -185,11 +196,11 @@ public class Biostar3654 extends AbstractKnimeApplication
 						//in the feature
 						if(intervalFrom<=genome && genome< intervalTo)
 							{
-							System.out.print(isSeq?(isGap?":":"#"):"-");
+							Biostar3654.this.pw.print(isSeq?(isGap?":":"#"):"-");
 							}
 						else //not in the feature
 							{
-							System.out.print(" ");
+							Biostar3654.this.pw.print(" ");
 							}
 						//extends the current position if current char is a base/aminoacid
 						if(Character.isLetter(getSequence().charAt(this.stringStart+i)))
@@ -197,20 +208,20 @@ public class Biostar3654 extends AbstractKnimeApplication
 							genome+=this.sign;
 							}
 						}
-					System.out.print(" ");
-					System.out.print(feature.getINSDFeatureKey());
-					System.out.print(" ");
-					System.out.print(feature.getINSDFeatureLocation());
+					Biostar3654.this.pw.print(" ");
+					Biostar3654.this.pw.print(feature.getINSDFeatureKey());
+					//Biostar3654.this.pw.print(" ");
+					//Biostar3654.this.pw.print(feature.getINSDFeatureLocation());//no because using seq_start & seq_stop with efetch change this
 					//print the infos
 					for(INSDQualifier qual:feature.getINSDFeatureQuals().getINSDQualifier())
 						{
-						System.out.print(" ");
-						System.out.print(qual.getINSDQualifierName());
-						System.out.print(":");
-						System.out.print(qual.getINSDQualifierValue());
+						Biostar3654.this.pw.print(" ");
+						Biostar3654.this.pw.print(qual.getINSDQualifierName());
+						Biostar3654.this.pw.print(":");
+						Biostar3654.this.pw.print(qual.getINSDQualifierValue());
 						}
 					
-					System.out.println();
+					Biostar3654.this.pw.println();
 					}
 				}
 			}
@@ -270,74 +281,158 @@ public class Biostar3654 extends AbstractKnimeApplication
 	
 	
 	/** fetches the annotation for a given entry if the name starts with gi|.... */
-	private List<INSDFeature> fetchAnnotations(String name)
+	private List<INSDFeature> fetchAnnotations(String database,String name,int start,int end)
 		throws Exception
 		{
 		int pipe;
+		if(start>end) return fetchAnnotations(database,name,end,start);
+		
+		List<INSDFeature> L=new ArrayList<INSDFeature>();
+		
 		if(name!=null &&
 		name.startsWith("gi|") &&
 		(pipe=name.indexOf('|',3))!=-1)
 			{
 			String gi=name.substring(3,pipe);
-			String uri="http://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=protein&id="+gi+"&rettype=gbc&retmode=xml";
-			INSDSet set=INSDSet.class.cast(this.gbcUnmarshaller.unmarshal(this.docBuilder.parse(uri)));
-			if(!set.getINSDSeq().isEmpty())
+			String uri="http://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db="+database+
+					"&id="+gi+
+					"&rettype=gbc&retmode=xml&seq_start="+start+"&seq_stop="+end;
+			info(uri);
+			InputStream in= new URL(uri).openStream();
+			XMLEventReader r=this.xif.createXMLEventReader(in);
+			while(r.hasNext())
 				{
-				INSDSeq seq= set.getINSDSeq().get(0);
-				INSDSeqFeatureTable table=seq.getINSDSeqFeatureTable();
-				return table.getINSDFeature();
+				XMLEvent  evt=r.peek();
+				if(evt.isStartElement() &&
+						evt.asStartElement().getName().getLocalPart().equals("INSDFeature"))
+						{
+						INSDFeature feature = this.unmarshaller.unmarshal(r,
+								INSDFeature.class).getValue();
+						INSDFeatureIntervals its = feature.getINSDFeatureIntervals();
+						if(its==null || its.getINSDInterval().isEmpty()) continue;
+						for(INSDInterval interval:its.getINSDInterval())
+							{
+							//when using seq_start and seq_stop , the NCBI shifts the data...
+							if( interval.getINSDIntervalFrom()!=null &&
+								interval.getINSDIntervalTo()!=null)
+								{
+								interval.setINSDIntervalFrom(String.valueOf(Integer.parseInt(interval.getINSDIntervalFrom())+start-1));
+								interval.setINSDIntervalTo(String.valueOf(Integer.parseInt(interval.getINSDIntervalTo())+start-1));
+								}
+							else if( interval.getINSDIntervalPoint()!=null)
+								{
+								interval.setINSDIntervalPoint(String.valueOf(Integer.parseInt(interval.getINSDIntervalPoint())+start-1));
+								}
+							}
+						L.add(feature);
+						}
+					else
+						{
+						r.next();//consumme
+						}			
 				}
+			CloserUtil.close(r);
+			CloserUtil.close(in);
 			}
+		info("N(INSDFeature)="+L.size());
 		//not found, return empty table
-		return new ArrayList<INSDFeature>();
+		return L;
 		}
 	
 	/** parses BLAST output */
-	private void parseBlast(BlastOutput blast)  throws Exception
+	private void parseBlast(XMLEventReader r)  throws Exception
 		{
-		System.out.println("QUERY: "+blast.getBlastOutputQueryDef());
-		System.out.println("       ID:"+blast.getBlastOutputQueryID()+" Len:"+blast.getBlastOutputQueryLen());
-		List<INSDFeature> qFeatures= fetchAnnotations(blast.getBlastOutputQueryID());
-		BlastOutputIterations iterations=blast.getBlastOutputIterations();
-		for(Iteration iteration:iterations.getIteration())
+		String database="nucleotide";
+		while(r.hasNext())
 			{
-			for(Hit hit:iteration.getIterationHits().getHit())
+			XMLEvent evt=r.peek();
+			if(evt.isStartElement() &&
+					evt.asStartElement().getName().getLocalPart().equals("BlastOutput_program"))
 				{
-				System.out.println(">"+hit.getHitDef());
-				System.out.println(" "+hit.getHitAccession());
-				System.out.println(" id:"+hit.getHitId()+" len:"+hit.getHitLen());
-				List<INSDFeature> hFeatures= fetchAnnotations(hit.getHitId());
-				for(Hsp hsp :hit.getHitHsps().getHsp())
+				r.next();
+				String BlastOutput_program = r.getElementText();
+				if("blastn".equals(BlastOutput_program))
 					{
-					System.out.println();
-					System.out.println("   e-value:"+hsp.getHspEvalue()+" gap:"+hsp.getHspGaps()+" bitScore:"+hsp.getHspBitScore());
-					System.out.println();
-					//create the Printer for the Query and the Hit
-					QPrinter qPrinter=new QPrinter(hsp,qFeatures);
-					HPrinter hPrinter=new HPrinter(hsp,hFeatures);
-					
-					//loop over the lines
-					while(qPrinter.next() && hPrinter.next())
-						{
-						qPrinter.print();
-						System.out.printf("QUERY %0"+margin+"d ",qPrinter.seqStart);
-						System.out.print(hsp.getHspQseq().substring(qPrinter.stringStart,qPrinter.stringEnd));
-						System.out.printf(" %0"+margin+"d",qPrinter.seqEnd-(qPrinter.sign));
-						System.out.println();
-						System.out.printf("      %"+margin+"s ","");
-						System.out.print(hsp.getHspMidline().substring(qPrinter.stringStart,qPrinter.stringEnd));
-						System.out.println();
-						System.out.printf("HIT   %0"+margin+"d ",hPrinter.seqStart);
-						System.out.print(hsp.getHspHseq().substring(hPrinter.stringStart,hPrinter.stringEnd));
-						System.out.printf(" %0"+margin+"d",hPrinter.seqEnd-(hPrinter.sign));
-						System.out.println();
-						hPrinter.print();
-						System.out.println();
-						}
+					database="nucleotide";
 					}
-				
+				else if("blastp".equals(BlastOutput_program) )
+					{
+					database="protein";
+					}
+				else
+					{
+					throw new IOException("only blastn && blastn are supported: "+database);
+					}
+				}
+			else if(evt.isStartElement() &&
+				evt.asStartElement().getName().getLocalPart().equals("Iteration"))
+				{
+				Iteration iteration= this.unmarshaller.unmarshal(r, Iteration.class).getValue();
+				parseIteration(database,iteration);
+				}
+			else
+				{
+				r.next();//consumme
 				}
 			}
+		}
+	
+	private void parseIteration(String database,Iteration iteration) throws Exception
+		{
+		this.pw.println("QUERY: "+iteration.getIterationQueryDef());
+		this.pw.println("       ID:"+iteration.getIterationQueryID()+" Len:"+iteration.getIterationQueryLen());
+		
+		for(Hit hit:iteration.getIterationHits().getHit())
+			{
+			
+			this.pw.println(">"+hit.getHitDef());
+			this.pw.println(" "+hit.getHitAccession());
+			this.pw.println(" id:"+hit.getHitId()+" len:"+hit.getHitLen());
+			for(Hsp hsp :hit.getHitHsps().getHsp())
+				{
+				List<INSDFeature> qFeatures= fetchAnnotations(
+						database,
+						iteration.getIterationQueryID(),
+						Integer.parseInt(hsp.getHspQueryFrom()),
+						Integer.parseInt(hsp.getHspQueryTo())
+						);
+				List<INSDFeature> hFeatures= fetchAnnotations(
+						database,
+						hit.getHitId(),
+						Integer.parseInt(hsp.getHspHitFrom()),
+						Integer.parseInt(hsp.getHspHitTo())
+						);
+
+				this.pw.println();
+				this.pw.println("   e-value:"+hsp.getHspEvalue()+" gap:"+hsp.getHspGaps()+" bitScore:"+hsp.getHspBitScore());
+				this.pw.println();
+				//create the Printer for the Query and the Hit
+				QPrinter qPrinter=new QPrinter(hsp,qFeatures);
+				HPrinter hPrinter=new HPrinter(hsp,hFeatures);
+				
+				//loop over the lines
+				while(qPrinter.next() && hPrinter.next())
+					{
+					qPrinter.print();
+					this.pw.printf("QUERY %0"+margin+"d ",qPrinter.seqStart);
+					this.pw.print(hsp.getHspQseq().substring(qPrinter.stringStart,qPrinter.stringEnd));
+					this.pw.printf(" %0"+margin+"d",qPrinter.seqEnd-(qPrinter.sign));
+					this.pw.println();
+					this.pw.printf("      %"+margin+"s ","");
+					this.pw.print(hsp.getHspMidline().substring(qPrinter.stringStart,qPrinter.stringEnd));
+					this.pw.println();
+					this.pw.printf("HIT   %0"+margin+"d ",hPrinter.seqStart);
+					this.pw.print(hsp.getHspHseq().substring(hPrinter.stringStart,hPrinter.stringEnd));
+					this.pw.printf(" %0"+margin+"d",hPrinter.seqEnd-(hPrinter.sign));
+					this.pw.println();
+					hPrinter.print();
+					this.pw.println();
+					}
+				this.pw.flush();
+				}
+			
+			
+		}
 		
 		
 		//System.err.println("OK");
@@ -348,50 +443,61 @@ public class Biostar3654 extends AbstractKnimeApplication
 		{
 		try
 			{
-			//create a DOM parser
-			DocumentBuilderFactory f=DocumentBuilderFactory.newInstance();
-			f.setCoalescing(true);
-			f.setNamespaceAware(true);
-			f.setValidating(false);
-			f.setExpandEntityReferences(true);
-			f.setIgnoringComments(false);
-			f.setIgnoringElementContentWhitespace(true);
-			this.docBuilder= f.newDocumentBuilder();
-			this.docBuilder.setEntityResolver(new EntityResolver()
+			
+			//create a Unmarshaller for genbank
+			JAXBContext jc = JAXBContext.newInstance(
+					"gov.nih.nlm.ncbi.insdseq:gov.nih.nlm.ncbi.blast");
+			this.unmarshaller=jc.createUnmarshaller();
+	
+			this.xif=XMLInputFactory.newFactory();
+			this.xif.setXMLResolver(new XMLResolver()
 				{
 				@Override
-				public InputSource resolveEntity(String publicId, String systemId)
-						throws SAXException, IOException
-					{
-					return new InputSource(new StringReader(""));
-					}
+				public Object resolveEntity(String publicID,
+						String systemID, String baseURI, String namespace)
+						throws XMLStreamException {
+							return new ByteArrayInputStream(new byte[0]);
+						}
 				});
-			//create a Unmarshaller for genbank
-			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.insdseq");
-			this.gbcUnmarshaller=jc.createUnmarshaller();
-	
-			
-			jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
-			Unmarshaller unmarshaller=jc.createUnmarshaller();
+			if(getOutputFile()!=null)
+				{
+				this.pw = new PrintWriter(getOutputFile()); 
+				}
+			else
+				{
+				this.pw = new PrintWriter(System.out); 
+				}
 			//read from stdin
 			if(args.isEmpty())
 				{
-				this.parseBlast(BlastOutput.class.cast(unmarshaller.unmarshal(this.docBuilder.parse(System.in))));
+				XMLEventReader r=this.xif.createXMLEventReader(System.in, "UTF-8");
+				this.parseBlast(r);
+				r.close();
 				}
 			else
 				{
 				//loop over the files
 				for(String inputName:args)
 					{
-					this.parseBlast(BlastOutput.class.cast(unmarshaller.unmarshal(this.docBuilder.parse(new File(inputName)))));
+					info("Reading "+inputName);
+					FileReader fr=new java.io.FileReader(inputName);
+					XMLEventReader r=this.xif.createXMLEventReader(fr);
+					this.parseBlast(r);
+					r.close();
+					fr.close();
 					}
 				}
+			pw.flush();
 			return 0;
 			}
 		catch(Throwable err)
 			{
 			error(err);
 			return -1;
+			}
+		finally
+			{
+			if(getOutputFile()!=null) CloserUtil.close(this.pw);
 			}
 		}
 	

@@ -45,6 +45,8 @@ import java.util.logging.Logger;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.tribble.AsciiFeatureCodec;
+import htsjdk.tribble.FeatureCodec;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.util.TabixUtils;
@@ -458,7 +460,34 @@ public class VCFUtils
 			File index = new File(f.getParentFile(), filename +TabixUtils.STANDARD_INDEX_EXTENSION);
 			return index.exists() && index.isFile();
 			}
-
+    
+    public static FeatureCodec<VariantContext, LineIterator> createAsciiFeatureCodec()
+    	{
+    	return new VariantContextCodec();
+    	}
+    
+    /** variant feature codec for tribble index */
+    private static class VariantContextCodec
+		extends AsciiFeatureCodec<VariantContext>
+		{
+		private VCFUtils.CodecAndHeader codecHeader;
+		VariantContextCodec()
+			{
+			super(VariantContext.class);
+			}
+	
+		@Override
+		public VariantContext decode(String line)
+			{
+			return this.codecHeader.codec.decode(line);
+			}
+		
+		@Override
+		public VCFHeader readActualHeader(LineIterator reader) {
+			VCFUtils.CodecAndHeader codecHeader=VCFUtils.parseHeader(reader);
+			return codecHeader.header;
+			}
+		}
 
 	
 	/*

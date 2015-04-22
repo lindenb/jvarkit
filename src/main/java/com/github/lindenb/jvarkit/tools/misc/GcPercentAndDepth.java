@@ -29,7 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -57,7 +57,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -69,13 +69,17 @@ import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
  * GcPercentAndDepth
  *
  */
-public class GcPercentAndDepth extends AbstractCommandLineProgram
+public class GcPercentAndDepth extends AbstractKnimeApplication
 	{
 	private int windowSize=100;
 	private int windowStep=50;
 	private int min_depth=0;
 	private SAMSequenceDictionary firstSamDict=null;
-	
+	private File refFile=null;
+	private File bedFile=null;
+	private boolean skip_if_contains_N=false;
+	private String chromNameFile=null;
+	private boolean print_genomic_index=true;
 
 	
 	/** A bed segment from the catpure */
@@ -237,9 +241,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 		{
 		}
 	
-	
-
-	
+		
 	@Override
 	public String getProgramDescription() {
 		return "Extracts GC% and depth for multiple bam using a sliding window";
@@ -247,7 +249,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 	
 	 @Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/GCAndDepth";
+		return DEFAULT_WIKI_PREFIX+"GCAndDepth";
 	 	}
 	
 	@Override
@@ -260,33 +262,32 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 		out.println(" -N (file) ."+getMessageBundle("chrom.name.helper")+" Optional.");
 		out.println(" -m min depth :" +min_depth);
 		out.println(" -n skip window if Reference contains one 'N'.");
+		out.println(" -o (output file) . default stdout.");
+		out.println(" -x don't print genomic index.");
+		
+		
+		
 		super.printOptions(out);
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
-		boolean skip_if_contains_N=false;
-		File bedFile=null;
-		File refFile=null;
-		String chromNameFile=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:w:s:B:N:m:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"R:w:s:B:N:m:o:x"))!=-1)
 			{
 			switch(c)
 				{
 				case 'w': this.windowSize=Integer.parseInt(opt.getOptArg());break;
-				case 'B': bedFile=new File(opt.getOptArg());break;
+				case 'B': this.bedFile=new File(opt.getOptArg());break;
 				case 's': this.windowStep=Integer.parseInt(opt.getOptArg());break;
-				case 'R': refFile=new File(opt.getOptArg());break;
+				case 'R': this.refFile=new File(opt.getOptArg());break;
 				case 'm': this.min_depth=Integer.parseInt(opt.getOptArg());break;
-				case 'n': skip_if_contains_N=true;break;
-				case 'N':
-					{
-					chromNameFile=opt.getOptArg();
-					break;
-					}
+				case 'n': this.skip_if_contains_N=true;break;
+				case 'N': this.chromNameFile=opt.getOptArg(); break;
+				case 'o': setOutputFile(opt.getOptArg()); break;
+				case 'x': this.print_genomic_index=false;break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt, args))
@@ -315,9 +316,13 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			error("Undefined REF file");
 			return -1;
 			}
-		
-		
-		if(opt.getOptInd()==args.length)
+		return mainWork(opt.getOptInd(), args);
+		}
+	
+	@Override
+	public int executeKnime(List<String> args)
+		{
+		if(args.isEmpty())
 			{
 			error("Illegal Number of arguments.");
 			return -1;
@@ -325,7 +330,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 		List<SamReader> readers=new ArrayList<SamReader>();
 
-		PrintStream out=System.out;
+		PrintWriter out=null;
 		try
 			{
 			Map<String,String> resolveChromName=new HashMap<String, String>();
@@ -360,15 +365,22 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 				CloserUtil.close(r);
 				}
 			
-			
+			if(getOutputFile()==null)
+				{
+				out=new PrintWriter(System.out);
+				}
+			else
+				{	
+				out=new PrintWriter(getOutputFile());
+				}
 			
 			Set<String> all_samples=new TreeSet<String>();
 			/* create input, collect sample names */
-			for(int optind=opt.getOptInd();
-					optind< args.length;
+			for(int optind=0;
+					optind< args.size();
 					++optind)
 				{
-				File bamFile=new File(args[optind]);
+				File bamFile=new File(args.get(optind));
 				info("Opening "+bamFile);
 				SamReader samFileReaderScan=SamFileReaderFactory.mewInstance().open(bamFile);
 				readers.add(samFileReaderScan);
@@ -398,8 +410,12 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			info("NSample:"+all_samples.size());
 			
 			/* print header */
-			out.print("#id");
-			out.print("\t");
+			out.print("#");
+			if( this.print_genomic_index)
+				{
+				out.print("id");
+				out.print("\t");
+				}
 			out.print("chrom");
 			out.print("\t");
 			out.print("start");
@@ -503,7 +519,8 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 						{
 						
 						error(
-								"when looking for genomic sequence "+getMessageBundle("chrom.missing.in.sequence.dictionary")+" "+chromName+
+								"when looking for genomic sequence "+getMessageBundle("chrom.missing.in.sequence.dictionary")+" "+
+										chromName+
 								" conversions available:"+resolveChromName);
 						return -1;
 						}
@@ -616,8 +633,11 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 						sample2meanDepth.put(sample,mean);
 						}
 					if(max_depth_for_win< this.min_depth) continue;
-					out.print(win.getGenomicIndex());
-					out.print("\t");
+					if( this.print_genomic_index)
+						{
+						out.print(win.getGenomicIndex());
+						out.print("\t");
+						}
 					out.print(win.getChromosome());
 					out.print("\t");
 					out.print(win.getStart());
@@ -636,7 +656,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 				}
 				
 			progress.finish();
-		
+			out.flush();
 			return 0;
 			}
 		catch(Exception err)
@@ -648,6 +668,7 @@ public class GcPercentAndDepth extends AbstractCommandLineProgram
 			{
 			for(SamReader r:readers) CloserUtil.close(r);
 			CloserUtil.close(indexedFastaSequenceFile);
+			CloserUtil.close(out);
 			}	
 		}
 	

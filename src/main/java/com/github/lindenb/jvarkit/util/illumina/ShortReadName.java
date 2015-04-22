@@ -61,7 +61,7 @@ public class ShortReadName
 	
 	public boolean isValid()
 		{
-		return this.type.equals(Type.INVALID);
+		return !this.type.equals(Type.INVALID);
 		}
 	
 	public String getInstrumentName()
@@ -80,7 +80,7 @@ public class ShortReadName
 		switch(type)
 			{
 			case INVALID : return -1;
-			case SEVEN_COLS : Integer.parseInt(tokens[1]);
+			case SEVEN_COLS : return Integer.parseInt(tokens[1]);
 			case SIX_COLS : return -1;
 			default: throw new IllegalStateException();
 			}
@@ -102,8 +102,8 @@ public class ShortReadName
 		switch(type)
 			{
 			case INVALID : return -1;
-			case SEVEN_COLS : Integer.parseInt(tokens[3]);
-			case SIX_COLS : Integer.parseInt(tokens[2]);
+			case SEVEN_COLS : return Integer.parseInt(tokens[3]);
+			case SIX_COLS :return  Integer.parseInt(tokens[2]);
 			default: throw new IllegalStateException();
 			}
 		}
@@ -113,8 +113,8 @@ public class ShortReadName
 		switch(type)
 			{
 			case INVALID : return -1;
-			case SEVEN_COLS : Integer.parseInt(tokens[4]);
-			case SIX_COLS :  Integer.parseInt(tokens[3]);
+			case SEVEN_COLS : return Integer.parseInt(tokens[4]);
+			case SIX_COLS :  return Integer.parseInt(tokens[3]);
 			default: throw new IllegalStateException();
 			}
 		}
@@ -124,8 +124,8 @@ public class ShortReadName
 		switch(type)
 			{
 			case INVALID : return -1;
-			case SEVEN_COLS : Integer.parseInt(tokens[5]);
-			case SIX_COLS : Integer.parseInt(tokens[4]);
+			case SEVEN_COLS : return Integer.parseInt(tokens[5]);
+			case SIX_COLS : return Integer.parseInt(tokens[4]);
 			default: throw new IllegalStateException();
 			}
 		}
@@ -134,8 +134,8 @@ public class ShortReadName
 		switch(type)
 			{
 			case INVALID : return -1;
-			case SEVEN_COLS : Integer.parseInt(tokens[6]);
-			case SIX_COLS : Integer.parseInt(tokens[5]);
+			case SEVEN_COLS : return Integer.parseInt(tokens[6]);
+			case SIX_COLS : return Integer.parseInt(tokens[5]);
 			default: throw new IllegalStateException();
 			}
 		}
@@ -215,7 +215,6 @@ public class ShortReadName
 			r.type = Type.SEVEN_COLS;
 			}
 		else if(	r.tokens.length == 6  &&
-				positiveInt(r.tokens[1]) &&
 				positiveInt(r.tokens[2]) &&
 				positiveInt(r.tokens[3]) &&
 				positiveInt(r.tokens[4]) &&

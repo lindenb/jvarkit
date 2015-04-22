@@ -102,7 +102,7 @@ public class XContaminations extends AbstractKnimeApplication
 			{
 			this.machine=name.getInstrumentName();
 			this.flowCell=name.getFlowCellId();
-			this.run=name.getRunId();
+			this.run=Math.max(name.getRunId(),0);
 			this.lane=name.getFlowCellLane();
 			this.sampleName=sampleName;
 			}
@@ -311,7 +311,7 @@ public class XContaminations extends AbstractKnimeApplication
 					}
 				
 				if(!isWorthScanning) continue;
-				
+
 				//Set<SequencerFlowCellRunLane> sequencerFlowCellRunLaneInThisContext=new HashSet<>();
 				Map<SequencerFlowCellRunLaneSample,Counter<Allele>> sample2allelesCount=new HashMap<>();
 				
@@ -354,7 +354,11 @@ public class XContaminations extends AbstractKnimeApplication
 						if(!sampleName.equals(srgr.getSample())) continue;
 						
 						ShortReadName readName = ShortReadName.parse(record);
-						if(!readName.isValid()) continue;
+						if(!readName.isValid())
+							{
+							info("No a valid read name "+record.getReadName());
+							continue;
+							}
 						
 						
 						SequencerFlowCellRunLaneSample sequencerFlowCellRunLaneSample=
@@ -395,6 +399,7 @@ public class XContaminations extends AbstractKnimeApplication
 													{
 													sampleAlleles=new Counter<Allele>();
 													sample2allelesCount.put(sequencerFlowCellRunLaneSample, sampleAlleles);
+
 													}
 
 												sampleAlleles.incr(
@@ -451,6 +456,7 @@ public class XContaminations extends AbstractKnimeApplication
 									{
 									sampleAlleles=new SampleAlleles();
 									contaminationTable.put(samplePair,sampleAlleles);
+									if( contaminationTable.size()%10000==0) info("n(pairs)=" + contaminationTable.size() ); 
 									}
 								
 								for(Allele allele: counter1.keySet())
