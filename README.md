@@ -171,6 +171,7 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCompareCallers">VcfCompareCallers</a></th><td>Compare two VCFs and print common/exclusive information for each sample/genotype</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamStats02">BamStats02</a></th><td>Generate and explore statistics about the reads in a BAM (Sample/File/Flags/chroms/MAPQ)</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamTile">BamTile</a></th><td>Bam tiling Path.</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/XContaminations">XContaminations</a></th><td>for @AdrienLeger2 : test for cross contamination between samples in same flowcell/runlane.</td></tr>
 </table>
 
 

@@ -80,7 +80,7 @@ public class Biostar86363 extends AbstractVCFFilter2
 	@Override
 	protected String getOnlineDocUrl()
 		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar86363";
+		return DEFAULT_WIKI_PREFIX+"Biostar86363";
 		}
 	
 	@Override
