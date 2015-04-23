@@ -484,8 +484,8 @@ public class VCFUtils
 		
 		@Override
 		public VCFHeader readActualHeader(LineIterator reader) {
-			VCFUtils.CodecAndHeader codecHeader=VCFUtils.parseHeader(reader);
-			return codecHeader.header;
+			this.codecHeader=VCFUtils.parseHeader(reader);
+			return this.codecHeader.header;
 			}
 		}
 
