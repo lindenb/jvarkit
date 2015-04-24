@@ -5,6 +5,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfCutSamples;
 import com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
+import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallersOneSample;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn;
 import com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat;
@@ -48,7 +49,8 @@ private Library()
 			VcfViewGui.class,
 			VcfConcat.class,
 			InfoTreeModel.class,
-			DefaultVcfTable.class
+			DefaultVcfTable.class,
+			VCFBigWig.class
 			};
 	}
 }

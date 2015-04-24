@@ -78,7 +78,7 @@ public class VCFTrios
     
     @Override
     protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/VCFTrio";
+    	return DEFAULT_WIKI_PREFIX+"VCFTrio";
     }
 	
     @Override
