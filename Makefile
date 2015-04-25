@@ -351,7 +351,7 @@ $(eval $(call compile-htsjdk-cmd,vcfcomparecallers,${jvarkit.package}.tools.vcfc
 $(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile))
 $(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xcontamination.XContaminations))
 $(eval $(call compile-htsjdk-cmd,vcfjoinvcfjs,${jvarkit.package}.tools.vcffilterjs.VCFJoinVCFJS))
-
+$(eval $(call compile_biostar_cmd,139647))
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
 	 ./src/main/resources/jnlp/generic.jnlp .secret.keystore 

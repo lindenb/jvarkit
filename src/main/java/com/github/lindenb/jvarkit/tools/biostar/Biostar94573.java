@@ -180,7 +180,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				{
 				String line=r.peek();
 				if( line.trim().isEmpty()) { r.next(); continue;}
-				if(line.startsWith("CLUSTAL W") || line.startsWith("CLUSTAL 2"))
+				if(line.startsWith("CLUSTAL"))
 					{
 					format=Format.Clustal;
 					r.next();//consume
