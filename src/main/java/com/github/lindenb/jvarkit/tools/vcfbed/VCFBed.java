@@ -1,26 +1,56 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfbed;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
-
-
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
@@ -29,21 +59,13 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  * VCFBed
  *
  */
-public class VCFBed extends AbstractVCFFilter
+public class VCFBed extends AbstractVCFFilter3
 	{
-	 private static Log LOG=Log.getInstance(VCFBed.class);
-	
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Cross information between a VCF and a BED .";
-
-	@Option(shortName="FMT",doc="format. Field with ${number} will be replaced with the column of the BED.",optional=true)
-	public String FORMAT="${1}:${2}-${3}";
-	
-	@Option(shortName="TBX",doc="BED file indexed with tabix",optional=false)
-	public String TABIX;
-	
-	@Option(shortName="T",doc="Key for the INFO field",optional=true)
-	public String TAG="TAG";
+	private TabixReader tabix=null;
+	private Chunk parsedFormat=null;
+	private String FORMAT="${1}:${2}-${3}";
+	private String TABIX;
+	private String TAG="TAG";
 	
 	
 	private static abstract class Chunk
@@ -118,38 +140,45 @@ public class VCFBed extends AbstractVCFFilter
 		}
 	
 	@Override
-	public String getVersion()
-		{
-		return "1.0";
+	protected String getOnlineDocUrl() {
+		return DEFAULT_WIKI_PREFIX+"VCFBed";
 		}
 	
 	@Override
-	protected void doWork(VcfIterator r, VariantContextWriter w)
+	public String getProgramDescription() {
+		return " Cross information between a VCF and a BED .";
+		}
+	
+	
+	
+	
+	@Override
+	protected void doWork(String inputSource,VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		Pattern tab=Pattern.compile("[\t]");
-		LOG.info("parsing "+this.FORMAT);
-		Chunk parsedFormat=parseFormat(this.FORMAT);
-		if(parsedFormat==null)parsedFormat=new PlainChunk("");
-		
-		LOG.info("opening TABIX "+this.TABIX);
-		TabixReader tabix= new TabixReader(this.TABIX);
-		
 		VCFHeader header=r.getHeader();
 
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "metadata added from "+TABIX+" . Format was "+FORMAT));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+
+		
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 		w.writeHeader(h2);
 		while(r.hasNext())
 			{
-			VariantContext ctx=r.next();
+			VariantContext ctx= progress.watch(r.next());
 			Set<String> annotations=new HashSet<String>();
 			String line2;
 			
 			
 			
 			String q=ctx.getChr()+":"+ctx.getStart()+"-"+(ctx.getEnd());
-			int reg[]=tabix.parseReg(q);
+			int reg[]=this.tabix.parseReg(q);
 			if(reg[0]==-1)
 				{
 				w.add(ctx);
@@ -159,9 +188,9 @@ public class VCFBed extends AbstractVCFFilter
 			while(iter!=null && (line2=iter.next())!=null)
 				{
 				String tokens[]=tab.split(line2);
-				String newannot=parsedFormat.toString(tokens);
+				String newannot=this.parsedFormat.toString(tokens);
 				if(!newannot.isEmpty())
-					annotations.add(newannot.replaceAll("[ , ;=]+","_"));
+					annotations.add(VCFUtils.escapeInfoField(newannot));
 				}
 			if(annotations.isEmpty())
 				{
@@ -171,9 +200,94 @@ public class VCFBed extends AbstractVCFFilter
 			VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			vcb.attribute(TAG, annotations.toArray());
 			w.add(vcb.make());
+			
+			if(checkOutputError()) break;
 			}
-		tabix.close();
+		progress.finish();
 		}
+	
+	public void setFormat(String fORMAT) {
+		FORMAT = fORMAT;
+		}
+	
+	public void setTag(String tAG) {
+		TAG = tAG;
+		}
+	
+	public void setBedFile(String tABIX) {
+		TABIX = tABIX;
+		}
+	
+	public void printOptions(PrintStream out) {
+		out.println(" -f (format). Field with ${number} will be replaced with the column of the BED. default:"+FORMAT);
+		out.println(" -T (INFO). Key for the INFO field. default:"+TAG);
+		out.println(" -B (path). BED file indexed with tribble/tabix");
+		super.printOptions(out);
+		}
+
+	
+	@Override
+	public int initializeKnime() {
+		try
+			{
+			this.info("parsing "+this.FORMAT);
+			this.parsedFormat=parseFormat(this.FORMAT);
+			if(this.parsedFormat==null) this.parsedFormat=new PlainChunk("");
+			
+			if(this.TABIX==null)
+				{
+				error("Undefined tabix file");
+				return -1;
+				}
+			
+			this.info("opening TABIX "+this.TABIX);
+			this.tabix= new TabixReader(this.TABIX);
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		return super.initializeKnime();
+		}
+	
+	@Override
+	public void disposeKnime()
+		{
+		CloserUtil.close(this.tabix);
+		this.tabix=null;
+		this.parsedFormat=null;
+		super.disposeKnime();
+		}
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+"o:f:T:B:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'f': this.setFormat(opt.getOptArg());break;
+				case 'T': this.setTag(opt.getOptArg());break;
+				case 'B': this.setBedFile(opt.getOptArg());break;
+				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
+				default:
+					{
+					switch(handleOtherOptions(c, opt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		return mainWork(opt.getOptInd(), args);
+		}
+
+	
 	
 	public static void main(String[] args) throws Exception
 		{

@@ -65,6 +65,7 @@ public class IndexedVcfFileReader
     		this.type=Type.Tribble;
     		this.reader=new TribbleVcfFileReader(vcf);
     		}
+    	this.source=vcf;
 		}
 	private void checkOpen()
 		{

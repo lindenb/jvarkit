@@ -41,6 +41,8 @@ import org.broad.igv.bbfile.WigItem;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -112,6 +114,7 @@ public class VCFBigWig extends AbstractVCFFilter3
 	public void disposeKnime() {
 		try
 			{
+			CloserUtil.close(this.bbFileReader);
 			this.bbFileReader=null;
 			}
 		catch(Exception err)
