@@ -33,13 +33,13 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -61,16 +61,15 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  */
 public class VCFBed extends AbstractVCFFilter3
 	{
-	private TabixReader tabix=null;
+	private IndexedBedReader bedReader =null;
 	private Chunk parsedFormat=null;
 	private String FORMAT="${1}:${2}-${3}";
-	private String TABIX;
+	private File TABIX;
 	private String TAG="TAG";
-	
 	
 	private static abstract class Chunk
 		{
-		public abstract String toString(String tokens[]);
+		public abstract String toString(IndexedBedReader.BedLine tokens);
 		public Chunk next=null;
 		}
 	
@@ -78,7 +77,7 @@ public class VCFBed extends AbstractVCFFilter3
 		{
 		String s;
 		PlainChunk(String s){this.s=s;}
-		public String toString(String tokens[])
+		public String toString(IndexedBedReader.BedLine tokens)
 			{
 			return s+(next==null?"":next.toString(tokens));
 			}
@@ -87,9 +86,11 @@ public class VCFBed extends AbstractVCFFilter3
 		{
 		int index;
 		ColChunk(int index){ this.index=index;}
-		public String toString(String tokens[])
+		public String toString(IndexedBedReader.BedLine tokens)
 			{
-			return tokens[index]+(next==null?"":next.toString(tokens));
+			String s= tokens.get(index);
+			if(s==null) s="";
+			return s+(next==null?"":next.toString(tokens));
 			}
 		}
 
@@ -149,14 +150,11 @@ public class VCFBed extends AbstractVCFFilter3
 		return " Cross information between a VCF and a BED .";
 		}
 	
-	
-	
-	
+
 	@Override
 	protected void doWork(String inputSource,VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
-		Pattern tab=Pattern.compile("[\t]");
 		VCFHeader header=r.getHeader();
 
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
@@ -173,25 +171,21 @@ public class VCFBed extends AbstractVCFFilter3
 			{
 			VariantContext ctx= progress.watch(r.next());
 			Set<String> annotations=new HashSet<String>();
-			String line2;
 			
-			
-			
-			String q=ctx.getChr()+":"+ctx.getStart()+"-"+(ctx.getEnd());
-			int reg[]=this.tabix.parseReg(q);
-			if(reg[0]==-1)
+			CloseableIterator<IndexedBedReader.BedLine> iter = this.bedReader.iterator(
+					ctx.getChr(),
+					ctx.getStart()-1,
+					ctx.getEnd()+1
+					);
+			while(iter.hasNext())
 				{
-				w.add(ctx);
-				continue;
-				}
-			TabixReader.Iterator iter=tabix.query(reg[0],reg[1],reg[2]);
-			while(iter!=null && (line2=iter.next())!=null)
-				{
-				String tokens[]=tab.split(line2);
-				String newannot=this.parsedFormat.toString(tokens);
+				IndexedBedReader.BedLine bedLine = iter.next();
+				String newannot=this.parsedFormat.toString(bedLine);
 				if(!newannot.isEmpty())
 					annotations.add(VCFUtils.escapeInfoField(newannot));
 				}
+			CloserUtil.close(iter);
+			
 			if(annotations.isEmpty())
 				{
 				w.add(ctx);
@@ -214,7 +208,7 @@ public class VCFBed extends AbstractVCFFilter3
 		TAG = tAG;
 		}
 	
-	public void setBedFile(String tABIX) {
+	public void setBedFile(File tABIX) {
 		TABIX = tABIX;
 		}
 	
@@ -240,8 +234,8 @@ public class VCFBed extends AbstractVCFFilter3
 				return -1;
 				}
 			
-			this.info("opening TABIX "+this.TABIX);
-			this.tabix= new TabixReader(this.TABIX);
+			this.info("opening Bed "+this.TABIX);
+			this.bedReader= new IndexedBedReader(this.TABIX);
 			}
 		catch(Exception err)
 			{
@@ -254,9 +248,9 @@ public class VCFBed extends AbstractVCFFilter3
 	@Override
 	public void disposeKnime()
 		{
-		CloserUtil.close(this.tabix);
-		this.tabix=null;
-		this.parsedFormat=null;
+		CloserUtil.close(this.bedReader);
+		this.bedReader = null;
+		this.parsedFormat = null;
 		super.disposeKnime();
 		}
 	
@@ -271,7 +265,7 @@ public class VCFBed extends AbstractVCFFilter3
 				{
 				case 'f': this.setFormat(opt.getOptArg());break;
 				case 'T': this.setTag(opt.getOptArg());break;
-				case 'B': this.setBedFile(opt.getOptArg());break;
+				case 'B': this.setBedFile(new File(opt.getOptArg()));break;
 				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
 				default:
 					{

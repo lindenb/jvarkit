@@ -1,10 +1,12 @@
 package com.github.lindenb.jvarkit.util;
 
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
+import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCutSamples;
 import com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
+import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallersOneSample;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn;
@@ -50,7 +52,9 @@ private Library()
 			VcfConcat.class,
 			InfoTreeModel.class,
 			DefaultVcfTable.class,
-			VCFBigWig.class
+			VCFBigWig.class,
+			VCFBed.class,
+			VCFPolyX.class
 			};
 	}
 }

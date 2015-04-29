@@ -68,13 +68,13 @@ public class TribbleVcfFileReader
     	
     	if(indexFile.exists() && indexFile.lastModified()> vcf.lastModified())
 		 	{
-			LOG.info("loading index in memory for "+this.source);
-			this.tribbleIndex=IndexFactory.createLinearIndex(vcf, tribbleCodec);
+			LOG.info("loading index in memory for "+this.source+" index="+indexFile);
+			this.tribbleIndex=IndexFactory.loadIndex(indexFile.getPath());
 		 	}
     	else
 		 	{
-			LOG.info("loading index from file "+this.source);
-			this.tribbleIndex=IndexFactory.loadIndex(indexFile.getPath());
+			LOG.info("create index from file "+this.source);
+			this.tribbleIndex=IndexFactory.createLinearIndex(vcf, tribbleCodec);
 		 	}
     	this.reader =
     			AbstractFeatureReader.getFeatureReader(

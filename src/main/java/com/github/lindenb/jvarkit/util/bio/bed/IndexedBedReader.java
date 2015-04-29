@@ -33,6 +33,9 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.Feature;
+import htsjdk.tribble.Tribble;
+import htsjdk.tribble.index.Index;
+import htsjdk.tribble.index.IndexFactory;
 import htsjdk.tribble.readers.LineIterator;
 
 import java.io.Closeable;
@@ -40,6 +43,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
@@ -49,6 +53,9 @@ import java.util.regex.Pattern;
 public class IndexedBedReader
 	implements Closeable
 	{
+	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private Index tribbleIndex=null;
+
 	private static class BedLineCodec
 		extends AsciiFeatureCodec<BedLine>
 		{
@@ -59,6 +66,7 @@ public class IndexedBedReader
 		
 		@Override
 		public BedLine decode(String line) {
+			
 			if (line.trim().isEmpty()) {
 	            return null;
 	        	}
@@ -69,6 +77,7 @@ public class IndexedBedReader
 
 	        String[] tokens = tab.split(line);
 	        if(tokens.length<2) return null;
+	       
 	        return new BedLine(tokens);
 	        }
 		
@@ -116,35 +125,46 @@ public class IndexedBedReader
 	
 	private BedLineCodec bedCodec=null;
     private AbstractFeatureReader<BedLine, LineIterator> reader;
-	private Object source;
-	
-	private IndexedBedReader(Object bedFile,int ignore) throws IOException
-		{
-		this.source=bedFile;
-		this.bedCodec=new BedLineCodec();
-		}
+	private File source;
 	
 	public IndexedBedReader(File bedFile) throws IOException
 		{
-		this(bedFile,0);
+		this.source=bedFile;
+		this.bedCodec=new BedLineCodec();
     	if(bedFile==null) throw new NullPointerException("bed file==null");
     	if(!bedFile.isFile())  throw new IOException("bed is not a file "+bedFile);
     	if(!bedFile.canRead())  throw new IOException("cannot read "+bedFile);
     	this.reader=AbstractFeatureReader.getFeatureReader(bedFile.getPath(), bedCodec,false);
- 
+    	
+    	File indexFile=Tribble.indexFile(this.source);
+    	
+    	if(indexFile.exists() && indexFile.lastModified()> bedFile.lastModified())
+		 	{
+			LOG.info("loading index in memory for "+this.source);
+			this.tribbleIndex=IndexFactory.loadIndex(indexFile.getPath());
+		 	}
+    	else
+		 	{
+			LOG.info("creating index from file "+this.source);
+			this.tribbleIndex=IndexFactory.createLinearIndex(bedFile, this.bedCodec);
+
+		 	}
+    	this.reader =
+    			AbstractFeatureReader.getFeatureReader(
+    					bedFile.getPath(),
+    					this.bedCodec,
+    					this.tribbleIndex
+    					);
+
 		}
-	public IndexedBedReader(String path) throws IOException
-		{
-		this(path,0);
-    	this.reader=AbstractFeatureReader.getFeatureReader(path, bedCodec,false);
-		}
+	
 	private void checkOpen()
 		{
 		if(this.reader==null)
 				throw new IllegalStateException("bed reader is closed "+getSource());
 		}
 	
-	public Object getSource()
+	public File getSource()
 		{
 		return this.source;
 		}
@@ -183,7 +203,8 @@ public class IndexedBedReader
 	public void close() throws IOException
 		{
 		CloserUtil.close(reader);
-		reader=null;
+		this.reader=null;
+		this.tribbleIndex=null;
 		}
 	
 
