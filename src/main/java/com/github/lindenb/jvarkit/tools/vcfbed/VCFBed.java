@@ -194,7 +194,7 @@ public class VCFBed extends AbstractVCFFilter3
 			VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			vcb.attribute(TAG, annotations.toArray());
 			w.add(vcb.make());
-			
+			incrVariantCount();
 			if(checkOutputError()) break;
 			}
 		progress.finish();

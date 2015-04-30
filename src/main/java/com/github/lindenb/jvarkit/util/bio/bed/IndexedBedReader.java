@@ -138,14 +138,14 @@ public class IndexedBedReader
     	
     	File indexFile=Tribble.indexFile(this.source);
     	
-    	if(indexFile.exists() && indexFile.lastModified()> bedFile.lastModified())
+    	if(indexFile.exists() && indexFile.lastModified()< bedFile.lastModified())
 		 	{
 			LOG.info("loading index in memory for "+this.source);
 			this.tribbleIndex=IndexFactory.loadIndex(indexFile.getPath());
 		 	}
     	else
 		 	{
-			LOG.info("creating index from file "+this.source);
+			LOG.info("creating index from file "+this.source+" indexFile:"+indexFile);
 			this.tribbleIndex=IndexFactory.createLinearIndex(bedFile, this.bedCodec);
 
 		 	}

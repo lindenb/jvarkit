@@ -53,6 +53,9 @@ public class VCFPolyX extends AbstractVCFFilter3
     private File REF=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
+	public VCFPolyX()
+		{
+		}
 	
 	public void setReference(File fasta)
 		{
@@ -112,7 +115,7 @@ public class VCFPolyX extends AbstractVCFFilter3
 				}
 			b.attribute(TAG,count);
 			w.add(b.make());
-			
+			incrVariantCount();
 			if(this.checkOutputError()) break;
 			}		
 		progress.finish();

@@ -35,6 +35,7 @@ mysql.version?=5.1.34
 mysql.jar?=lib/mysql-connector-java-${mysql.version}-bin.jar
 berkeleydb.version?=6.2.31
 berkeleydb.jar?=lib/je-${berkeleydb.version}.jar
+bigwig.version=20150429
 bigwig.jar?=lib/BigWig.jar
 bigwig.log4j.jar=$(dir ${bigwig.jar})/log4j-1.2.15.jar
 bigwig.jars=${bigwig.jar} ${bigwig.log4j.jar}
@@ -150,7 +151,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	biostar3654 vcfjoinvcfjs
 
 
-.PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar
+.PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar ${dist.dir}/jvarkit-${htsjdk.version}.jar
 
 top:
 	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
@@ -436,7 +437,7 @@ copy.opendoc.odp.resources :
 
 ## jvarkit-library (used in knime)
 library: ${dist.dir}/jvarkit-${htsjdk.version}.jar
-${dist.dir}/jvarkit-${htsjdk.version}.jar : ${htsjdk.jars} \
+${dist.dir}/jvarkit-${htsjdk.version}.jar : ${htsjdk.jars} ${bigwig.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		${src.dir}/com/github/lindenb/jvarkit/util/Library.java
 	mkdir -p ${tmp.dir}/META-INF $(dir $@)
@@ -457,26 +458,33 @@ ${mysql.jar} :
 	rm jeter.tar.gz
 
 ##
-## Broad BigWig
+## BerkeleyDB
 ## 
 ${berkeleydb.jar}:
 	echo "Downloading berkeleydb for java version ${berkeleydb.version} from oracle"
 	mkdir -p $(dir $@)
 	curl -Lk ${curl.proxy} -o $@ "http://download.oracle.com/maven/com/sleepycat/je/${berkeleydb.version}/je-${berkeleydb.version}.jar"
 
+##
+## Broad BigWig
+## 
 ${bigwig.log4j.jar} : ${bigwig.jar}
 	touch -c $@
 
-${bigwig.jar} :
-	echo "Downloading bigwig library for java. Requires subversion (SVN) and apache ANT"
-	mkdir -p $(dir $@)
-	rm -rf bigwig-read-only 
-	svn checkout "http://bigwig.googlecode.com/svn/trunk/" bigwig-read-only
-	echo "Compiling bigwig library for java. Requires  apache ANT"
-	(cd bigwig-read-only; ant)
-	mv bigwig-read-only/dist/BigWig.jar $@
-	mv bigwig-read-only/lib/log4j-1.2.15.jar $(dir $@)/log4j-1.2.15.jar
-	rm -rf bigwig-read-only 
+${bigwig.jar} xx :
+	echo "Downloading bigwig library for java."
+	mkdir -p lib
+	rm -rf bigwig.zip bigwig-${bigwig.version}
+	curl -k ${curl.proxy} -o bigwig.zip -L "https://github.com/lindenb/bigwig/archive/${bigwig.version}.zip"
+	unzip bigwig.zip
+	rm -rf bigwig.zip 
+	echo "Compiling, using apache ant"
+	(cd  bigwig-${bigwig.version} && ${ANT} )
+	mv bigwig-${bigwig.version}/lib/$(notdir ${bigwig.log4j.jar}) ${bigwig.log4j.jar}
+	mv bigwig-${bigwig.version}/dist/BigWig.jar ${bigwig.jar}
+	rm -rf bigwig-${bigwig.version}
+	
+
 
 ##
 ## Common math

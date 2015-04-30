@@ -114,6 +114,10 @@ public class VCFBigWig extends AbstractVCFFilter3
 	public void disposeKnime() {
 		try
 			{
+			if(this.bbFileReader!=null)
+				{
+				CloserUtil.close(this.bbFileReader.getBBFis());
+				}
 			CloserUtil.close(this.bbFileReader);
 			this.bbFileReader=null;
 			}
@@ -174,6 +178,7 @@ public class VCFBigWig extends AbstractVCFFilter3
 				}
 			if(values.isEmpty())
 				{
+				incrVariantCount();
 				w.add(ctx);
 				continue;
 				}
@@ -183,6 +188,7 @@ public class VCFBigWig extends AbstractVCFFilter3
 			VariantContextBuilder b=new VariantContextBuilder(ctx);
 			b.attribute(this.TAG,(float)(total/values.size()));
 			w.add(b.make());
+			incrVariantCount();
 			}
 		progress.finish();
 		}
