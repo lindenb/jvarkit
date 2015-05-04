@@ -42,9 +42,13 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
+import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
+
 
 /**
  * @author lindenb
@@ -54,39 +58,7 @@ public class IndexedBedReader
 	implements Closeable
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
-	private Index tribbleIndex=null;
 
-	private static class BedLineCodec
-		extends AsciiFeatureCodec<BedLine>
-		{
-		private Pattern tab=Pattern.compile("[\t]");
-		public BedLineCodec() {
-			super(BedLine.class);
-			}
-		
-		@Override
-		public BedLine decode(String line) {
-			
-			if (line.trim().isEmpty()) {
-	            return null;
-	        	}
-
-	        if (line.startsWith("#") || line.startsWith("track") || line.startsWith("browser")) {
-	            return null;
-	        	}
-
-	        String[] tokens = tab.split(line);
-	        if(tokens.length<2) return null;
-	       
-	        return new BedLine(tokens);
-	        }
-		
-		@Override
-		public Object readActualHeader(LineIterator reader) {
-			return null;
-			}
-		
-		}
 	
 	public static class BedLine
 		implements Feature
@@ -123,39 +95,23 @@ public class IndexedBedReader
 		
 		}
 	
-	private BedLineCodec bedCodec=null;
-    private AbstractFeatureReader<BedLine, LineIterator> reader;
 	private File source;
+	private AbstractIndexReader reader;
 	
 	public IndexedBedReader(File bedFile) throws IOException
 		{
 		this.source=bedFile;
-		this.bedCodec=new BedLineCodec();
     	if(bedFile==null) throw new NullPointerException("bed file==null");
     	if(!bedFile.isFile())  throw new IOException("bed is not a file "+bedFile);
     	if(!bedFile.canRead())  throw new IOException("cannot read "+bedFile);
-    	this.reader=AbstractFeatureReader.getFeatureReader(bedFile.getPath(), bedCodec,false);
-    	
-    	File indexFile=Tribble.indexFile(this.source);
-    	
-    	if(indexFile.exists() && indexFile.lastModified()< bedFile.lastModified())
-		 	{
-			LOG.info("loading index in memory for "+this.source);
-			this.tribbleIndex=IndexFactory.loadIndex(indexFile.getPath());
-		 	}
+    	if(bedFile.getName().endsWith(".gz"))
+    		{
+    		this.reader = new TabixReader(bedFile);
+    		}
     	else
-		 	{
-			LOG.info("creating index from file "+this.source+" indexFile:"+indexFile);
-			this.tribbleIndex=IndexFactory.createLinearIndex(bedFile, this.bedCodec);
-
-		 	}
-    	this.reader =
-    			AbstractFeatureReader.getFeatureReader(
-    					bedFile.getPath(),
-    					this.bedCodec,
-    					this.tribbleIndex
-    					);
-
+    		{
+    		this.reader = new TribbleReader(bedFile);
+    		}
 		}
 	
 	private void checkOpen()
@@ -204,9 +160,123 @@ public class IndexedBedReader
 		{
 		CloserUtil.close(reader);
 		this.reader=null;
-		this.tribbleIndex=null;
 		}
 	
-
+	private interface AbstractIndexReader
+		{
+		public abstract CloseableIterator<BedLine> query(String chrom,int start,int end) throws IOException;
+		public abstract void close();
+		}
 	
+	private class TribbleReader
+		implements AbstractIndexReader
+		{
+		private Index tribbleIndex=null;
+	    private AbstractFeatureReader<BedLine, LineIterator> reader;
+	    private BedLineCodec bedCodec =new BedLineCodec();
+
+		TribbleReader(File bedFile)  throws IOException
+			{
+			File indexFile=Tribble.indexFile(bedFile);
+			if(indexFile.exists())
+	    		{
+				LOG.info("loading tribble index in memory for "+ bedFile);
+				this.tribbleIndex=IndexFactory.loadIndex(indexFile.getPath());
+	    		}
+			else
+			 	{
+				LOG.info("creating index from file "+bedFile+" indexFile:"+indexFile);
+				this.tribbleIndex=IndexFactory.createLinearIndex(bedFile, this.bedCodec);
+			 	}
+			this.reader = AbstractFeatureReader.getFeatureReader(
+				bedFile.getPath(),
+				this.bedCodec,
+				this.tribbleIndex
+				);
+			}
+		@Override
+		public CloseableIterator<BedLine> query(String chrom, int start,
+				int end) throws IOException {
+			return this.reader.query(chrom, start, end);
+			}
+		@Override
+		public void close() {
+			CloserUtil.close(reader);
+			this.reader=null;
+			this.tribbleIndex=null;
+			}
+		}
+	private class TabixReader
+		extends AbstractTabixObjectReader<BedLine>
+		implements AbstractIndexReader
+		{
+		TabixReader(File bedFile) throws IOException
+			{
+			super(bedFile.getPath());
+			}
+		
+		@Override
+		public CloseableIterator<BedLine> query(String chrom, int start, int end)
+				throws IOException {
+			return (CloseableIterator<BedLine>)this.iterator(chrom, start, end);
+			}
+		
+		@Override
+		protected CloseableIterator<BedLine> iterator(Iterator<String> delegate) {
+			return new MyIterator(delegate);
+			}
+		
+	    private class MyIterator
+    	extends AbstractMyIterator
+    	implements CloseableIterator<BedLine>
+	    	{
+	    	private Pattern tab=Pattern.compile("[\t]");
+	    	MyIterator(Iterator<String> delegate)
+	    		{
+	    		super(delegate);
+	    		}
+	    	
+	    	@Override
+	    	public BedLine next() {
+	    		String tokens[]=this.tab.split(delegate.next());
+	    		return new BedLine(tokens);
+	    		}
+	    	@Override
+	    	public void close() {
+	    		//nothing to do
+	    		}
+	    	}
+		}
+	private static class BedLineCodec
+	extends AsciiFeatureCodec<BedLine>
+		{
+		private Pattern tab=Pattern.compile("[\t]");
+		public BedLineCodec() {
+			super(BedLine.class);
+			}
+		
+		@Override
+		public BedLine decode(String line) {
+			
+			if (line.trim().isEmpty()) {
+	            return null;
+	        	}
+
+	        if (line.startsWith("#") || line.startsWith("track") || line.startsWith("browser")) {
+	            return null;
+	        	}
+
+	        String[] tokens = tab.split(line);
+	        if(tokens.length<2) return null;
+	       
+	        return new BedLine(tokens);
+	        }
+		
+		@Override
+		public Object readActualHeader(LineIterator reader) {
+			return null;
+			}
+		
+		}
+
 }
