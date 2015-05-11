@@ -61,15 +61,16 @@ public class VcfCadd extends AbstractVCFFilter3
 	public static final String DEFAULT_URI="http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz";
 	private TabixFileReader tabix=null;
 	private String ccaduri=DEFAULT_URI;
+	private Pattern TAB=Pattern.compile("[\t]");
+	private static final String CADD_FLAG="CADD";
+	private int buffer_distance=1000;
 	
 	private static class Record
 		{
 		int pos;
 		Allele ref;
 		Allele alt;
-		@SuppressWarnings("unused")
 		float score;
-		@SuppressWarnings("unused")
 		float phred;
 		}
 	
@@ -81,6 +82,10 @@ public class VcfCadd extends AbstractVCFFilter3
 		this.ccaduri = ccaduri;
 	}
 
+	public void setBufferDistance(int buffer_distance) {
+		this.buffer_distance = buffer_distance;
+		}
+	
 	@Override
 	public String getProgramDescription() {
 		return "Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. "+
@@ -93,6 +98,70 @@ public class VcfCadd extends AbstractVCFFilter3
 		return "https://github.com/lindenb/jvarkit/wiki/VcfCadd";
 		}
 	
+	
+	private void runTabix(List<VariantContext> buffer)
+			throws IOException
+		{
+		if(buffer.isEmpty()) return;
+		String chrom=buffer.get(0).getChr();
+		int start=Integer.MAX_VALUE;
+		int end=0;
+		for(VariantContext ctx:buffer)
+			{
+			start= Math.min(start, ctx.getStart());
+			end= Math.max(end, ctx.getEnd());
+			}
+		info(chrom+":"+start+"-"+end);
+		List<Record> caddList=new ArrayList<Record>(buffer.size());
+		
+		Iterator<String> iter = tabix.iterator(
+				chrom,
+				(int)Math.max(1,start),
+				(int)Math.min(Integer.MAX_VALUE,end)
+				);
+		while(iter.hasNext() )
+			{
+			String line=iter.next();
+			String tokens[]=TAB.split(line);
+			if(tokens.length!=6) throw new IOException("Bad CADD line . Expected 6 fields:"+line);
+			Record rec=new Record();
+			rec.pos= Integer.parseInt(tokens[1]);
+			rec.ref=Allele.create(tokens[2],true);
+			rec.alt=Allele.create(tokens[3],false);
+			rec.score = Float.parseFloat(tokens[4]);
+			rec.phred = Float.parseFloat(tokens[5]);
+			caddList.add(rec);
+			}
+		CloserUtil.close(iter);
+		
+		
+		for(int i=0;i< buffer.size();++i)
+			{
+			List<String> cadd_array=new ArrayList<>();
+			VariantContext ctx=buffer.get(i);
+			for(Record rec:caddList)
+				{
+				if(rec.pos!=ctx.getStart()) continue;
+				if(!ctx.getReference().equals(rec.ref)) continue;
+
+				
+				for(Allele alt:ctx.getAlternateAlleles())
+					{
+					if(alt.isSymbolic() || !alt.equals(rec.alt)) continue;
+					cadd_array.add(alt.getDisplayString()+"|"+rec.score+"|"+rec.phred);
+					}
+				}
+			
+			if(!cadd_array.isEmpty())
+				{
+				VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.attribute(CADD_FLAG, cadd_array);
+				buffer.set(i, vcb.make());
+				}
+			}
+
+		
+		}
 	
 
 	@Override
@@ -114,57 +183,42 @@ public class VcfCadd extends AbstractVCFFilter3
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		final String CADD_FLAG="CADD";
+		
 		header.addMetaDataLine(new VCFInfoHeaderLine(CADD_FLAG,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
 				"(Allele|Score|Phred) Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive values)."+
 				"However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more likely to have deleterious effects."
 				+ "PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc"
 						));
-		final Record rec=new Record();
-		Pattern tab=Pattern.compile("[\t]");
+		 
+		
 		out.writeHeader(header);
-		List<String> cadd_array=new ArrayList<>();
-		while(in.hasNext() )
+		List<VariantContext> buffer= new ArrayList<>();
+		for(;;)
 			{	
-			VariantContext ctx=progress.watch(in.next());
-			cadd_array.clear();
-			
-			Iterator<String> iter = tabix.iterator(ctx.getChr(),
-					(int)Math.max(1,ctx.getStart()),
-					(int)Math.min(Integer.MAX_VALUE,ctx.getEnd())
-					);
-			while(iter.hasNext() )
+			VariantContext ctx=null;
+			if(in.hasNext())
 				{
-				String line=iter.next();
-				String tokens[]=tab.split(line);
-				if(tokens.length!=6) throw new IOException("Bad CADD line . Expected 6 fields:"+line);
-				rec.pos= Integer.parseInt(tokens[1]);
-				if(rec.pos!=ctx.getStart()) continue;
-				rec.ref=Allele.create(tokens[2],true);
-				if(!ctx.getReference().equals(rec.ref)) continue;
-				
-				rec.alt=Allele.create(tokens[3],false);
-				for(Allele alt:ctx.getAlternateAlleles())
+				ctx=progress.watch(in.next());
+				}
+			if( ctx==null ||
+				(!buffer.isEmpty() &&
+				(buffer.get(0).getChr().equals(ctx.getChr())) && (ctx.getEnd()-buffer.get(0).getStart())>buffer_distance))
+				{
+				if(!buffer.isEmpty())
 					{
-					if(alt.isSymbolic() || !alt.equals(rec.alt)) continue;
-					cadd_array.add(tokens[3]+"|"+tokens[4]+"|"+tokens[5]);
+					runTabix(buffer);
+					for(VariantContext c:buffer)
+						{
+						out.add(c);
+						incrVariantCount();
+						}
 					}
-				}
-			CloserUtil.close(iter);
 			
-			incrVariantCount();
-			
-			if(cadd_array.isEmpty())
-				{
-				//if(ctx.isSNP()) info("Nothing foud for "+ctx);
-				out.add(ctx);
+				if(ctx==null) break;
+				buffer.clear();
 				}
-			else
-				{
-				VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.attribute(CADD_FLAG, cadd_array);
-				out.add(vcb.make());
-				}
+		
+			buffer.add(ctx);
 			}
 		progress.finish();
 		}
@@ -175,6 +229,7 @@ public class VcfCadd extends AbstractVCFFilter3
 		{
 		out.println(" -u (uri) Combined Annotation Dependent Depletion (CADD) Tabix file URI . Default:"+DEFAULT_URI);
 		out.println(" -o (file) output file. Default:stdout");
+		out.println(" -d (int) processing window size. Default:"+this.buffer_distance);
 		super.printOptions(out);
 		}
 	
@@ -214,12 +269,13 @@ public class VcfCadd extends AbstractVCFFilter3
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "u:o:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "u:o:d:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': setOutputFile(opt.getOptArg()); break;
 				case 'u': setCcaduri(opt.getOptArg()); break;
+				case 'd': setBufferDistance(Integer.parseInt(opt.getOptArg())); break;
 				default: 
 					{
 					switch(handleOtherOptions(c, opt, args))
