@@ -8,18 +8,16 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.tribble.readers.TabixReader;
-import htsjdk.tribble.util.TabixUtils;
 
 /**
  * Safe wrapper around org.broad.tribble.readers.TabixReader (won't return a null iterator )
  * @author lindenb
  *
  */
-@Deprecated //new version of htsjdk.TabixReader should be used in the future.
 public class TabixFileReader implements Closeable
 	//,Iterable<VariantContext> NO, not a true iterator
 	{
@@ -120,45 +118,28 @@ public class TabixFileReader implements Closeable
     	}
     
     private class MyIterator
-    	implements Iterator<String>
+    	extends AbstractIterator<String>
     	{
     	TabixReader.Iterator delegate;
-    	String _next=null;
     	MyIterator(TabixReader.Iterator delegate)
     		{
     		this.delegate=delegate;
     		}
+    	
     	@Override
-    	public boolean hasNext()
+    	protected String advance()
     		{
-    		if(isClosed()) return false;
-    		if(delegate==null) return false;
-    		if(_next==null)
+    		try
     			{
-    			try
-    				{
-    				_next=delegate.next();
-    				}
-    			catch(IOException err)
-    				{
-    				throw new PicardException("Tabix",err);
-    				}
-    			if(_next==null) delegate=null;
+    			if(isClosed() || delegate==null ) return null;
+    			String s= delegate.next();
+    			if(s==null ) delegate=null;
+    			return s;
     			}
-    		return _next!=null;
-    		}
-    	@Override
-    	public String next() {
-    		if(!hasNext()) throw new IllegalStateException(
-    				"no next iterator: closed:"+isClosed()+ " delegate.null:"+(delegate==null) 
-    				);
-    		String s=_next;
-    		_next=null;
-    		return s;
-    		}
-    	@Override
-    	public void remove() {
-    		throw new UnsupportedOperationException();
+    		catch(IOException err)
+    			{
+    			throw new RuntimeException(err);
+    			}	
     		}
     	}	
     
