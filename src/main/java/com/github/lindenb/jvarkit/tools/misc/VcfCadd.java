@@ -107,7 +107,7 @@ public class VcfCadd extends AbstractVCFFilter3
 			for(SAMSequenceRecord ssr:dict.getSequences()) vcfchr.add(ssr.getSequenceName());
 			if(!vcfchr.retainAll(this.tabix.getChromosomes()))//nothing changed
 				{
-				warning("#### !!!! NO common chromosomes between tabix and vcf file. Check chromosome 'chr' prefix ?");
+				warning("#### !!!! NO common chromosomes between tabix and vcf file. Check chromosome 'chr' prefix ? tabix chroms:"+this.tabix.getChromosomes());
 				}
 			}
 		
