@@ -37,6 +37,13 @@ public class TabixFileReader implements Closeable
     	this.tabix=new TabixReader(uri);
     	}
     
+    public TabixFileReader(String uri,String idxFn) throws IOException
+		{
+		this.uri=uri;
+		this.tabix=new TabixReader(uri,idxFn);
+		}
+
+    
     public TabixReader getTabix() {
 		return tabix;
 		}

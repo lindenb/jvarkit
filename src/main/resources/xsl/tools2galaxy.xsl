@@ -129,9 +129,7 @@ Version: </xsl:text>
 <xsl:copy-of select="."/>
 </xsl:template>
 
-<xsl:template match="main-class">
-<xsl:value-of select="$class"/>
-</xsl:template>
+
 
 
 <!-- restructuredtext  http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html -->
