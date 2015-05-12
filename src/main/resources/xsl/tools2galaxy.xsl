@@ -100,7 +100,7 @@ Version: </xsl:text>
 </xsl:template>
 
 <xsl:template match="main-class">
-<xsl:value-of select="../@main-class"/>
+<xsl:value-of select="$class"/>
 </xsl:template>
 
 <xsl:template match="command">
