@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.util.vcf;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -114,21 +115,42 @@ public class VCFUtils
 			}
 		}
 	
+	public static List<String> parseHeaderLines(LineReader r) throws IOException
+		{
+		LinkedList<String> stack=new LinkedList<String>();
+		String line;
+		while((line=r.readLine())!=null && line.startsWith("#"))
+			{
+			stack.add(line);
+			if(line.startsWith("#CHROM\t")) break;
+			}
+		return stack;
+		}
+
+	
 	public static CodecAndHeader parseHeader(LineReader r) throws IOException
 		{
-		CodecAndHeader vh=new CodecAndHeader();
-		vh.codec=null;
-		LinkedList<String> stack=new LinkedList<String>();
-    	String line;
-    	while((line=r.readLine())!=null && line.startsWith("#"))
-    		{
-    		stack.add(line);
-    		if(line.startsWith("#CHROM\t")) break;
-    		}
-		vh.codec = findCodecFromLines(stack);
-    	vh.header =  (VCFHeader)vh.codec.readActualHeader(new LIT(stack));
-    	return vh;
+		return parseHeader(parseHeaderLines(r));
 		}
+	
+	public static List<String> parseHeaderLines(BufferedReader r) throws IOException
+		{
+		LinkedList<String> stack=new LinkedList<String>();
+		String line;
+		while((line=r.readLine())!=null && line.startsWith("#"))
+			{
+			stack.add(line);
+			if(line.startsWith("#CHROM\t")) break;
+			}
+		return stack;
+		}
+
+	
+	public static CodecAndHeader parseHeader(BufferedReader r) throws IOException
+		{
+		return parseHeader(parseHeaderLines(r));
+		}
+		
 	
 	public static CodecAndHeader parseHeader(LineIterator r)
 		{

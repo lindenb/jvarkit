@@ -21,7 +21,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
  * the original picard FastqReader didn't allow empty lines... I created that file.
  * Use the new htjk {@link FastqReader}
  */
-@Deprecated
 public class FourLinesFastqReader
 	extends AbstractFastqReader
 	{

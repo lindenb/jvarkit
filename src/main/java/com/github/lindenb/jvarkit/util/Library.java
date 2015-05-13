@@ -1,7 +1,9 @@
 package com.github.lindenb.jvarkit.util;
 
+import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidae;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
+import com.github.lindenb.jvarkit.tools.misc.VCFShuffle;
 import com.github.lindenb.jvarkit.tools.misc.VcfCadd;
 import com.github.lindenb.jvarkit.tools.misc.VcfCutSamples;
 import com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology;
@@ -56,7 +58,9 @@ private Library()
 			VCFBigWig.class,
 			VCFBed.class,
 			VCFPolyX.class,
-			VcfCadd.class
+			VcfCadd.class,
+			VCFShuffle.class,
+			BioAlcidae.class
 			};
 	}
 }

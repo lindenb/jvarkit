@@ -1,11 +1,41 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Random;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -13,24 +43,21 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-
-import htsjdk.tribble.readers.LineIterator;
-import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.readers.LineReaderUtil;
 
 
-public class VCFShuffle extends AbstractVCFFilter2
+
+public class VCFShuffle extends AbstractKnimeApplication
 	{
+	private int maxRecordsInRAM=50000;
+	private long seed=System.currentTimeMillis();
+	private int variantCount=0;
 	
 	private static class RLine
 		{
@@ -80,7 +107,7 @@ public class VCFShuffle extends AbstractVCFFilter2
 		}
 
 	
-	private VCFShuffle()
+	public VCFShuffle()
 		{
 		}
 	
@@ -91,89 +118,62 @@ public class VCFShuffle extends AbstractVCFFilter2
 		}
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfShuffle";
+		return DEFAULT_WIKI_PREFIX+"VcfShuffle";
 		}
 	
-	
+	@Override
+	public int initializeKnime() {
+		return super.initializeKnime();
+		}
 
 	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException {
-		throw new IllegalStateException("Should never happen");//because I'm using a LineIterator below
+	public void disposeKnime() {
+		super.disposeKnime();
 		}
 	
+	public int getVariantCount() {
+		return variantCount;
+	}
 	
 	@Override
-	public void printOptions(PrintStream out)
+	public int executeKnime(List<String> args)
 		{
-		out.println(" -T (dir) tmp directory. Optional.");
-		out.println(" -N (long) random seed. Optional.");
-		out.println(" -m (int) max records in ram. Optional");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		int maxRecordsInRAM=50000;
-		File tmpFile=null;
-		long seed=System.currentTimeMillis();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "T:N:m:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'T': tmpFile=new File(opt.getOptArg()); break;
-				case 'N': seed=Long.parseLong(opt.getOptArg()); break;
-				case 'm': maxRecordsInRAM=Math.max(10, Integer.parseInt(opt.getOptArg())); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(tmpFile==null)
-			{
-			tmpFile=new File(System.getProperty("java.io.tmpdir"));
-			}
-		
-		VariantContextWriter out=null;
-		LineIterator lineIter=null;
-		LineReader lr=null;
 		SortingCollection<RLine> shuffled=null;
-
+		VariantContextWriter out=null;
+		BufferedReader lr=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
 				info("reading from stdin.");
-				lr=LineReaderUtil.fromBufferedStream(System.in);
+				lr=IOUtils.openStdinForBufferedReader();
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				String filename=args[opt.getOptInd()];
+				String filename=args.get(0);
 				info("reading from "+filename);
-				lr=LineReaderUtil.fromBufferedStream(IOUtils.openURIForReading(filename));
+				lr=IOUtils.openURIForBufferedReading(filename);
 				}
 			else
 				{
 				error("Illegal number of arguments.");
 				return -1;
 				}
-			lineIter=new LineIteratorImpl(lr);
-			info("Writing to stdout");
-			out=createVariantContextWriter(null);
+			if(getOutputFile()==null)
+				{
+				out = VCFUtils.createVariantContextWriterToStdout();
+				}
+			else
+				{
+				out = VCFUtils.createVariantContextWriter(getOutputFile());
+				}
 			
-			AbstractVCFCodec vcfCodec = VCFUtils.createDefaultVCFCodec();
-			Random random=new Random(seed);
+			File tmpFile = super.getTmpDirectories().get(0);
+			Random random=new Random(this.seed);
 			
-			VCFHeader header=(VCFHeader)vcfCodec.readActualHeader(lineIter);
+			VCFUtils.CodecAndHeader cah=VCFUtils.parseHeader(lr);
+			VCFHeader header=cah.header;
+			
 			header.addMetaDataLine(new VCFHeaderLine("VCFShuffle.Version",String.valueOf(getVersion())));
 			out.writeHeader(header);
 			info("shuffling");
@@ -186,40 +186,89 @@ public class VCFShuffle extends AbstractVCFFilter2
 					tmpFile
 					);
 			shuffled.setDestructiveIteration(true);
-			while(lineIter.hasNext())
+			String line;
+			while((line= lr.readLine())!=null)
 				{
 				RLine rLine=new RLine();
 				rLine.rand=random.nextLong();
-				rLine.line=lineIter.next();
+				rLine.line=line;
 				shuffled.add(rLine);
 				}
 			shuffled.doneAdding();
 			info("done shuffling");
 			
+			this.variantCount=0;
 			CloseableIterator<RLine> iter=shuffled.iterator();
 			while(iter.hasNext())
 				{
-				VariantContext ctx=vcfCodec.decode(iter.next().line);
+				VariantContext ctx=cah.codec.decode(iter.next().line);
 				out.add(ctx);
+				++variantCount;
+				if(checkOutputError()) break;
 				}
-
+			info("Done N="+variantCount);
 			
 			return 0;
 			}
-		catch(Exception err)
+	catch(Exception err)
+		{
+		error(err);
+		return -1;
+		}
+	finally
+		{
+		if(shuffled!=null) shuffled.cleanup();
+		CloserUtil.close(shuffled);
+		CloserUtil.close(lr);
+		CloserUtil.close(out);
+		}
+		}
+	
+	@Override
+	public void printOptions(PrintStream out)
+		{
+		out.println(" -T (dir) tmp directory. Optional.");
+		out.println(" -N (long) random seed. Optional.");
+		out.println(" -m (int) max records in ram. Optional");
+		out.println(" -o (file) output file (default stdout)");
+		super.printOptions(out);
+		}
+	
+	public void setSeed(long seed) {
+		this.seed = seed;
+	}
+	
+	public void setMaxRecordsInRAM(int maxRecordsInRAM) {
+		this.maxRecordsInRAM = maxRecordsInRAM;
+	}
+	
+
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+ "T:N:m:o:"))!=-1)
 			{
-			error(err);
-			return -1;
+			switch(c)
+				{
+				case 'o': setOutputFile(opt.getOptArg()); break;
+				case 'T': addTmpDirectory(new File(opt.getOptArg())); break;
+				case 'N': setSeed(Long.parseLong(opt.getOptArg())); break;
+				case 'm': setMaxRecordsInRAM(Math.max(10, Integer.parseInt(opt.getOptArg()))); break;
+				default: 
+					{
+					switch(handleOtherOptions(c, opt, null))
+						{
+						case EXIT_FAILURE:return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
 			}
-		finally
-			{
-			if(shuffled!=null) shuffled.cleanup();
-			CloserUtil.close(lineIter);
-			CloserUtil.close(lr);
-			CloserUtil.close(out);
-			}
-		
-			
+		return mainWork(opt.getOptInd(), args);
 		}
 
 	public static void main(String[] args)

@@ -119,6 +119,8 @@ public class VcfFilterSequenceOntology
 			while(in.hasNext() )
 				{	
 				this.checkKnimeCancelled();
+				
+				
 				VariantContext ctx=progress.watch(in.next());
 				boolean keep=false;
 								
@@ -146,6 +148,7 @@ public class VcfFilterSequenceOntology
 					incrVariantCount();
 					out.add(ctx);
 					}
+				if(checkOutputError()) break;
 				}
 			progress.finish();
 			}
@@ -241,7 +244,7 @@ public class VcfFilterSequenceOntology
 				{
 				case 'o': this.setOutputFile( new File(opt.getOptArg())); break;
 				case 'd': this.setReasoning(false); break;
-				case 'v': this.inverse_result=true; break;
+				case 'v': this.setInverseResult(true); break;
 				case 'S': 
 					{
 					for(SequenceOntologyTree.Term t:sequenceOntologyTree.getTerms())

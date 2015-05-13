@@ -174,5 +174,6 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/XContaminations">XContaminations</a></th><td>for @AdrienLeger2 : test for cross contamination between samples in same flowcell/runlane.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFJoinVcfJS">VCFJoinVcfJS</a></th><td>Join two VCF files using javascript.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar139647">Biostar139647</a></th><td>Convert Clustal/Fasta alignment to SAM/BAM</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BioAlcidae">BioAlcidae</a></th><td>Reformat bioinformatics files using javascript/rhino (~ awk)</td></tr>
 </table>
 
