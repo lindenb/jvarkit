@@ -37,7 +37,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -52,8 +51,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.KnimeApplication;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
@@ -63,8 +61,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  *
  */
 public class VcfCutSamples
-	extends AbstractCommandLineProgram
-	implements KnimeApplication
+	extends AbstractVCFFilter3
 	{
 	/** output file */
 	private File outputFile=null;
@@ -76,8 +73,6 @@ public class VcfCutSamples
 	private boolean removeCtxIfNoCall=false;
 	/** a missing sample is an error */
 	private boolean missing_sample_is_error=true;
-	/** count filtered variants */
-	private int countFilteredVariants=0;
 	
 	
 	public VcfCutSamples()
@@ -103,7 +98,7 @@ public class VcfCutSamples
 		}
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfCutSamples";
+		return DEFAULT_WIKI_PREFIX+ "VcfCutSamples";
 		}
 	
 	
@@ -122,10 +117,6 @@ public class VcfCutSamples
 		return 0;
 		}
 	
-	public int getVariantCount()
-		{
-		return this.countFilteredVariants;
-		}
 
 	@Override
 	public void setOutputFile(File out) {
@@ -140,12 +131,12 @@ public class VcfCutSamples
 		this.removeCtxIfNoCall = removeCtxIfNoCall;
 		}
 
-	
-	private void filterVcfIterator(VcfIterator in, VariantContextWriter out)
+
+	@Override
+	protected void doWork( String inputSource,VcfIterator in,VariantContextWriter out )
 			throws IOException
 		{
 		VCFHeader header=in.getHeader();
-		this.countFilteredVariants=0;
 		final Set<String> samples1=new HashSet<String>(header.getSampleNamesInOrder());
 		
 		for(String my:this.getUserSamples())
@@ -220,7 +211,7 @@ public class VcfCutSamples
 			vb.alleles(alleles);
 			vb.genotypes(genotypes);
 			out.add(vb.make());
-			++countFilteredVariants;
+			incrVariantCount();
 			}
 		progress.finish();
 		}
@@ -287,59 +278,10 @@ public class VcfCutSamples
 				}
 			}
 		
-		this.initializeKnime();
-		List<String> L=new ArrayList<String>();
-		for(int i=opt.getOptInd();i<args.length;++i)
-			{
-			L.add(args[i]);
-			}
-		return this.executeKnime(L);
+		return this.mainWork(opt.getOptInd(), args);
 		}
 
-	@Override
-	public int executeKnime(List<String> args)
-		{
-		VariantContextWriter vcw=null;
-		VcfIterator vcfIn=null;
-		try
-			{
-			if(args.isEmpty())
-				{
-				vcfIn = VCFUtils.createVcfIteratorStdin();
-				}
-			else if(args.size()==1)
-				{
-				vcfIn= VCFUtils.createVcfIterator(args.get(0));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			if(getOutputFile()==null)
-				{
-				vcw = VCFUtils.createVariantContextWriterToStdout();
-				}
-			else
-				{
-				vcw = VCFUtils.createVariantContextWriter(getOutputFile());
-				}
-			this.filterVcfIterator(vcfIn,vcw);
-			vcw.close(); vcw=null;
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(vcfIn);
-			CloserUtil.close(vcw);
-			}
-		
-		}
+
 
 	
 	public static void main(String[] args)
