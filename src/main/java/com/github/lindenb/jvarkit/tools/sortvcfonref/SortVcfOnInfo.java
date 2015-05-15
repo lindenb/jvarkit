@@ -1,3 +1,32 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
+
 package com.github.lindenb.jvarkit.tools.sortvcfonref;
 
 import java.io.DataInputStream;
@@ -18,10 +47,10 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -32,22 +61,36 @@ import htsjdk.samtools.util.SortingCollection;
  * Sort a VCF on the INFO field
  *
  */
-public class SortVcfOnInfo extends AbstractCommandLineProgram
+public class SortVcfOnInfo extends AbstractKnimeApplication
 	{
     private String infoField=null;
     private  VCFInfoHeaderLine infoDecl;
     private AbstractVCFCodec codec;
-    private SortingCollectionFactory<VcfLine> sortingCollectionFactory=new SortingCollectionFactory<VcfLine>();
+    private int maxRecordsInRam=5000;
+    private int countFilteredVariants=0;
+    
+    public SortVcfOnInfo()
+    {	
+    	
+    }
     
     @Override
     protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/SortVCFOnInfo";
+    	return DEFAULT_WIKI_PREFIX +"SortVCFOnInfo";
     	}
 	    
     @Override
     public String getProgramDescription() {
     	return "Sort a VCF a field in the INFO column";
     	}
+    
+    public void setMaxRecordsInRam(int maxRecordsInRam) {
+		this.maxRecordsInRam = maxRecordsInRam;
+		}
+    public void setInfoField(String infoField) {
+		this.infoField = infoField;
+		}
+    
     private class VcfLine
     	implements Comparable<VcfLine>
     	{
@@ -173,35 +216,54 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 		VCFHeader header=ch.header;
 		this.codec=ch.codec;
 		this.infoDecl=header.getInfoHeaderLine(this.infoField);
-		if(infoDecl==null)
+		if(this.infoDecl==null)
 			{
 			StringBuilder msg=new StringBuilder("VCF doesn't contain the INFO field :"+infoField+". Available:");
 			for(VCFInfoHeaderLine vil:header.getInfoHeaderLines()) msg.append(" ").append(vil.getID());
 			throw new IOException(msg.toString());
 			}
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(
-				header.getSequenceDictionary()
-				);
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 
 		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		VariantContextWriter w=VCFUtils.createVariantContextWriterToStdout();
+		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+
+		VariantContextWriter w=null;
+		if(getOutputFile()==null)
+			{
+			w=VCFUtils.createVariantContextWriterToStdout();
+			}
+		else
+			{
+			w=VCFUtils.createVariantContextWriter(getOutputFile());
+			}
 		w.writeHeader(header);
-		SortingCollection<VcfLine> sorted=sortingCollectionFactory.make();
+		
+		
+		SortingCollection<VcfLine> sorted=SortingCollection.newInstance(
+				VcfLine.class,
+				new VariantCodec(),
+				new VariantComparator(),
+				maxRecordsInRam,
+				getTmpDirectories().get(0)
+				);
 		sorted.setDestructiveIteration(true);
 		while(r.hasNext())
 			{
 			VcfLine vc=new VcfLine(r.next());
-			progress.watch(vc.getContext().getChr(), vc.getContext().getStart());
+			progress.watch(vc.getContext());
 			sorted.add(vc);
 			}
 		sorted.doneAdding();
 		progress.finish();
 		
+		countFilteredVariants=0;
 		CloseableIterator<VcfLine> iter=sorted.iterator();
 		while(iter.hasNext())
 			{
 			w.add(iter.next().getContext());
+			countFilteredVariants++;
 			}
 		iter.close();
 		w.close();
@@ -212,26 +274,47 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 		{
 		out.println(" -F (field) INFO field for sorting. REQUIRED.");
 		out.println(" -T (dir) "+getMessageBundle("add.tmp.dir")+" (optional)");
-		out.println(" -N (int) "+getMessageBundle("max.records.in.ram")+" default: "+sortingCollectionFactory.getMaxRecordsInRAM());
+		out.println(" -N (int) "+getMessageBundle("max.records.in.ram")+" default: "+maxRecordsInRam);
 		super.printOptions(out);
 		}
     
+	@Override
+	public int initializeKnime() {
+    	if(infoField==null || infoField.trim().isEmpty())
+			{
+			error("undefined or empty INFO field.");
+			return -1;
+			}
+
+		return super.initializeKnime();
+		}
+	
+	@Override
+	public void disposeKnime() {
+		
+		super.disposeKnime();
+		}
+	
+	
+	public int getVariantCount()
+		{
+		return this.countFilteredVariants;
+		}
+
+	
     @Override
     public int doWork(String[] args)
     	{
-    	sortingCollectionFactory.setMaxRecordsInRAM(50000);
-    	sortingCollectionFactory.setCodec(new VariantCodec());
-    	sortingCollectionFactory.setComparator(new VariantComparator());
-    	sortingCollectionFactory.setComponentType(VcfLine.class);
     
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"F:T:N:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"F:T:N:o:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'o': setOutputFile(opt.getOptArg());break;
 				case 'F': infoField=opt.getOptArg();break;
-				case 'N': sortingCollectionFactory.setMaxRecordsInRAM(Integer.parseInt(opt.getOptArg()));break;
+				case 'N': setMaxRecordsInRam(Integer.parseInt(opt.getOptArg()));break;
 				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;
 				default:
 					{
@@ -244,24 +327,24 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 					}
 				}
 			}
-    	if(infoField==null || infoField.trim().isEmpty())
-    		{
-    		error("undefined or empty INFO field.");
-    		return -1;
-    		}
-		sortingCollectionFactory.setTmpDirs(this.getTmpDirectories());
-		LineIterator r=null;
+		return mainWork(opt.getOptInd(), args);
+    	}
+		
+    @Override
+    public int executeKnime(List<String> args)
+    	{
+    	LineIterator r=null;
 		try
 			{
 			int ret=0;
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
 				info("reading from stdin");
 				r=IOUtils.openStdinForLineIterator();
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				String filename=args[opt.getOptInd()];
+				String filename=args.get(0);
 				info("Reading "+filename);
 				r=IOUtils.openURIForLineIterator(filename);
 				}
@@ -288,8 +371,7 @@ public class SortVcfOnInfo extends AbstractCommandLineProgram
 	 * @param args
 	 */
 	public static void main(String[] args) {
-	new SortVcfOnInfo().instanceMainWithExit(args);
-
+		new SortVcfOnInfo().instanceMainWithExit(args);
 	}
 
 }

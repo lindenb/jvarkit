@@ -9,7 +9,9 @@ import com.github.lindenb.jvarkit.tools.misc.VcfCutSamples;
 import com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
+import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
+import com.github.lindenb.jvarkit.tools.vcfbed.VCFBedSetFilter;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallersOneSample;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn;
@@ -60,7 +62,9 @@ private Library()
 			VCFPolyX.class,
 			VcfCadd.class,
 			VCFShuffle.class,
-			BioAlcidae.class
+			BioAlcidae.class,
+			SortVcfOnInfo.class,
+			VCFBedSetFilter.class
 			};
 	}
 }

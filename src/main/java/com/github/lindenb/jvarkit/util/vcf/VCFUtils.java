@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -402,6 +403,19 @@ public class VCFUtils
 	public static String escapeInfoField(String infoValue)
 		{
 		return infoValue.replaceAll("[ \t\n;=,_]+", "_");
+		}
+	
+	/** used to return any VCF Attribute as a java.util.List */
+	@SuppressWarnings("unchecked")
+	public static List<? extends Object> attributeAsList(Object o)
+		{
+		if(o==null) return Collections.emptyList();
+		if(o instanceof List) return ((List<Object>)o);
+		if(o.getClass().isArray())
+			{	
+			return Arrays.asList((Object[])o);
+			}
+		return Collections.singletonList(o);
 		}
 	
 	/**

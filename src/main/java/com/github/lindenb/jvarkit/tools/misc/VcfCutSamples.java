@@ -212,6 +212,8 @@ public class VcfCutSamples
 			vb.genotypes(genotypes);
 			out.add(vb.make());
 			incrVariantCount();
+			
+			if(checkOutputError()) break;
 			}
 		progress.finish();
 		}
