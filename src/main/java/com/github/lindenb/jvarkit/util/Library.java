@@ -8,6 +8,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfCadd;
 import com.github.lindenb.jvarkit.tools.misc.VcfCutSamples;
 import com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
+import com.github.lindenb.jvarkit.tools.misc.VcfIndexTabix;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
@@ -19,8 +20,10 @@ import com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS;
 import com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology;
 import com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2;
+import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFReplaceTag;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui;
+import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -64,7 +67,9 @@ private Library()
 			VCFShuffle.class,
 			BioAlcidae.class,
 			SortVcfOnInfo.class,
-			VCFBedSetFilter.class
+			VCFBedSetFilter.class,
+			VCFReplaceTag.class,
+			VcfIndexTabix.class,IndexedVcfFileReader.class
 			};
 	}
 }

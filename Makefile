@@ -148,7 +148,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats	vcfstopcodon	vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
-	biostar3654 vcfjoinvcfjs bioalcidae solenavcf2raw vcfbedsetfilter
+	biostar3654 vcfjoinvcfjs bioalcidae solenavcf2raw vcfbedsetfilter vcfreplacetag 
 
 
 .PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -356,7 +356,8 @@ $(eval $(call compile_biostar_cmd,139647))
 $(eval $(call compile-htsjdk-cmd,solenavcf2raw,${jvarkit.package}.tools.misc.SolenaVcfToRaw))
 $(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae))
 $(eval $(call compile-htsjdk-cmd,vcfbedsetfilter,${jvarkit.package}.tools.vcfbed.VCFBedSetFilter))
-
+$(eval $(call compile-htsjdk-cmd,vcfreplacetag,${jvarkit.package}.tools.vcfstripannot.VCFReplaceTag))
+$(eval $(call compile-htsjdk-cmd,vcfindextabix,${jvarkit.package}.tools.misc.VcfIndexTabix))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \

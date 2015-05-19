@@ -32,6 +32,7 @@ package com.github.lindenb.jvarkit.util.vcf;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -49,8 +50,13 @@ public class IndexedVcfFileReader
 	private enum Type {Tabix,Tribble};
 	private Closeable reader;
 	private Type type;
-	private File source;
+	private Object source;
 	public IndexedVcfFileReader(File vcf) throws IOException
+		{
+		init(vcf);
+		}
+	
+	private void init(File vcf)  throws IOException
 		{
     	if(vcf==null) throw new NullPointerException("vcf file==null");
     	if(!vcf.isFile())  throw new IOException("vcf is not a file "+vcf);
@@ -67,13 +73,32 @@ public class IndexedVcfFileReader
     		}
     	this.source=vcf;
 		}
+	
+	public IndexedVcfFileReader(String onlyTabixOrLocal) throws IOException
+		{
+		if(onlyTabixOrLocal==null) throw new NullPointerException("vcf file==null");
+		
+		if(IOUtil.isUrl(onlyTabixOrLocal))
+			{
+			this.type=Type.Tabix;
+			this.reader=new TabixVcfFileReader(onlyTabixOrLocal);
+			this.source=onlyTabixOrLocal;
+			}
+		else
+			{
+			init(new File(onlyTabixOrLocal));
+			}
+		}
+
+	
 	private void checkOpen()
 		{
 		if(this.reader==null)
 				throw new IllegalStateException("vcf reader is closed "+getSource());
 		}
 	
-	public File getSource()
+	/* File or String */
+	public Object getSource()
 		{
 		return this.source;
 		}

@@ -176,5 +176,8 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar139647">Biostar139647</a></th><td>Convert Clustal/Fasta alignment to SAM/BAM</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BioAlcidae">BioAlcidae</a></th><td>Reformat bioinformatics files using javascript/rhino (~ awk)</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFBedSetFilter">VCFBedSetFilter</a></th><td>Set FILTER for VCF having intersection with BED</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFReplaceTag">VCFReplaceTag</a></th><td>Replace the key in INFO/FORMAT/FILTER</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfIndexTabix">VcfIndexTabix</a></th><td>sort, Compress (bgz) a VCF and create tabix index on the fly.</td></tr>
+
 </table>
 
