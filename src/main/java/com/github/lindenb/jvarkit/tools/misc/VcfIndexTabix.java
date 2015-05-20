@@ -37,6 +37,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
+import htsjdk.tribble.util.TabixUtils;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -183,7 +184,15 @@ public class VcfIndexTabix
 			w.close();
 			w=null;
 			} 
-		catch (Exception e) {
+		catch (Exception e)
+			{
+			if(getOutputFile().exists() && getOutputFile().isFile())
+				{
+				warning("Deleting "+getOutputFile());
+				getOutputFile().delete();
+				File tbi = new File(getOutputFile().getPath()+TabixUtils.STANDARD_INDEX_EXTENSION);
+				if(tbi.exists() && tbi.isFile()) tbi.delete();
+				}
 			throw new IOException(e);
 			}
 		finally
