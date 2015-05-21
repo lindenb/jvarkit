@@ -1,39 +1,26 @@
 package com.github.lindenb.jvarkit.tools.vcfvcf;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Log;
-
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 
-
-
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-
-import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReaderUtil;
-import htsjdk.tribble.readers.TabixReader;
-
-
+@Deprecated
 public class VcfVcf extends AbstractVCFFilter
 	{
 	 private static Log LOG=Log.getInstance(VcfVcf.class); 
@@ -66,22 +53,10 @@ public class VcfVcf extends AbstractVCFFilter
 	protected void doWork(VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
-		AbstractVCFCodec codeIn3=VCFUtils.createDefaultVCFCodec();
-		String line;
-		
-		StringWriter sw=new StringWriter();
-		LOG.info("opening tabix file: "+this.TABIX);
-	    TabixReader tabix= new TabixReader(this.TABIX);
-	   
-		while((line=tabix.readLine())!=null)
-			{
-			if(!line.startsWith(VCFHeader.HEADER_INDICATOR))
-				{
-				break;
-				}
-			sw.append(line).append("\n");
-			}
-		VCFHeader header3=(VCFHeader)codeIn3.readActualHeader(new LineIteratorImpl(LineReaderUtil.fromBufferedStream(new ByteArrayInputStream(sw.toString().getBytes()))));
+		CloseableIterator<VariantContext> iter=null;
+		LOG.info("opening file: "+this.TABIX);
+	    IndexedVcfFileReader tabix= new IndexedVcfFileReader(this.TABIX);
+		VCFHeader header3=tabix.getHeader();
 		VCFHeader header1=r.getHeader();
 		
 		VCFHeader h2=new VCFHeader(header1.getMetaDataInInputOrder(),header1.getSampleNamesInOrder());
@@ -111,31 +86,21 @@ public class VcfVcf extends AbstractVCFFilter
 			VariantContext ctx1=r.next();
 			
 			VariantContextBuilder  vcb=new VariantContextBuilder(ctx1);
-			String line2;
 			String BEST_ID=null;
 			boolean best_id_match_alt=false;
 
 			List<VariantContext> variantsList=new ArrayList<VariantContext>();
 			
+		
+			iter=tabix.iterator(ctx1.getChr(),
+					Math.max(0,ctx1.getStart()-1),
+					(ctx1.getEnd()+1)
+					);
 			
-			
-			int[] array = tabix.parseReg(ctx1.getChr()+":"+(ctx1.getStart())+"-"+(ctx1.getEnd()));
-			TabixReader.Iterator iter=null;
-			
-			if(array!=null && array.length==3 && array[0]!=-1 && array[1]>=0 && array[2]>=0)
+			while(iter.hasNext())
 				{
-				iter=tabix.query(array[0],array[1],array[2]);
-				}
-			else
-				{
-				LOG.info("Cannot get "+ctx1.getChr()+":"+(ctx1.getStart())+"-"+(ctx1.getEnd()));
-				}
-
-			
-			
-			while(iter!=null && (line2=iter.next())!=null)
-				{
-				VariantContext ctx3=codeIn3.decode(line2);
+				VariantContext ctx3=iter.next();
+				if(!ctx3.getChr().equals(ctx1.getStart())) continue;
 				if(ctx3.getStart()!=ctx1.getStart()) continue;
 				if(ctx3.getEnd()!=ctx1.getEnd()) continue;
 				
@@ -152,7 +117,7 @@ public class VcfVcf extends AbstractVCFFilter
 					variantsList.add(ctx3);
 					}
 				}
-			
+			CloserUtil.close(iter);iter=null;
 			
 			for(VariantContext ctx3:variantsList)
 				{

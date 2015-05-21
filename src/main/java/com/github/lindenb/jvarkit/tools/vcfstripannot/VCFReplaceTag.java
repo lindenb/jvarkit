@@ -46,12 +46,12 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
@@ -105,25 +105,7 @@ public class VCFReplaceTag extends AbstractVCFFilter3
 						if(info!=null)
 							{
 							copyMeta.remove(info);
-							
-							if(info.getCountType()==VCFHeaderLineCount.INTEGER)
-								{
-								copyMeta.add(new VCFInfoHeaderLine(
-										this.transformMap.get(key),
-										info.getCount(),
-										info.getType(),
-										info.getDescription()
-										));
-								}
-							else
-								{
-								copyMeta.add(new VCFInfoHeaderLine(
-										this.transformMap.get(key),
-										info.getCountType(),
-										info.getType(),
-										info.getDescription()
-										));
-								}
+							copyMeta.add(VCFUtils.renameVCFInfoHeaderLine(info, this.transformMap.get(key)));
 							}
 						break;
 						}
@@ -133,24 +115,7 @@ public class VCFReplaceTag extends AbstractVCFFilter3
 						if(fmt!=null)
 							{
 							copyMeta.remove(fmt);
-							if(fmt.getCountType()==VCFHeaderLineCount.INTEGER)
-								{
-								copyMeta.add(new VCFFormatHeaderLine(
-										this.transformMap.get(key),
-										fmt.getCount(),
-										fmt.getType(),
-										fmt.getDescription()
-										));
-								}
-							else
-								{
-								copyMeta.add(new VCFFormatHeaderLine(
-										this.transformMap.get(key),
-										fmt.getCountType(),
-										fmt.getType(),
-										fmt.getDescription()
-										));
-								}
+							copyMeta.add(VCFUtils.renameVCFFormatHeaderLine(fmt, this.transformMap.get(key)));
 							}
 						break;
 						}
@@ -160,10 +125,7 @@ public class VCFReplaceTag extends AbstractVCFFilter3
 						if(filter!=null)
 							{
 							copyMeta.remove(filter);
-							copyMeta.add(new VCFFilterHeaderLine(
-									this.transformMap.get(key),
-									filter.getValue()
-									));
+							copyMeta.add(VCFUtils.renameVCFFilterHeaderLine(filter, this.transformMap.get(key)));
 							}
 						break;
 						}

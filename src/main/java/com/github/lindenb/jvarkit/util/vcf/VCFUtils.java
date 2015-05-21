@@ -60,8 +60,12 @@ import htsjdk.variant.vcf.VCF3Codec;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFContigHeaderLine;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderVersion;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
@@ -525,7 +529,59 @@ public class VCFUtils
 			}
 		}
 
+    
+    public static VCFInfoHeaderLine renameVCFInfoHeaderLine(VCFInfoHeaderLine h,String name)
+    	{
+    	if(h.getCountType()==VCFHeaderLineCount.INTEGER)
+			{
+			return new VCFInfoHeaderLine(
+					name,
+					h.getCount(),
+					h.getType(),
+					h.getDescription()
+					);
+			}
+		else
+			{
+			return new VCFInfoHeaderLine(
+					name,
+					h.getCountType(),
+					h.getType(),
+					h.getDescription()
+					);
+			}
+    	}
 	
+    public static VCFFormatHeaderLine renameVCFFormatHeaderLine(VCFFormatHeaderLine h,String name)
+		{
+		if(h.getCountType()==VCFHeaderLineCount.INTEGER)
+			{
+			return new VCFFormatHeaderLine(
+					name,
+					h.getCount(),
+					h.getType(),
+					h.getDescription()
+					);
+			}
+		else
+			{
+			return new VCFFormatHeaderLine(
+					name,
+					h.getCountType(),
+					h.getType(),
+					h.getDescription()
+					);
+			}
+		}
+
+    public static VCFFilterHeaderLine  renameVCFFilterHeaderLine(VCFFilterHeaderLine h,String name)
+		{
+    	return new VCFFilterHeaderLine(
+				name,
+				h.getValue()
+				);
+		}
+    
 	/*
 	private Pattern semicolon=Pattern.compile("[;]");
 	public VCFUtils()
