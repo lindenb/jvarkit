@@ -79,7 +79,7 @@ public class FixVcfMissingGenotypes extends AbstractCommandLineProgram
 	@Override
 	protected String getOnlineDocUrl()
 		{
-		return "https://github.com/lindenb/jvarkit/wiki/FixVcfMissingGenotypes";	
+		return DEFAULT_WIKI_PREFIX +"FixVcfMissingGenotypes";	
 		}
 
 	@Override
@@ -241,6 +241,9 @@ public class FixVcfMissingGenotypes extends AbstractCommandLineProgram
 							if(rec.getReadUnmappedFlag()) continue;
 							if(rec.getDuplicateReadFlag()) continue;
 							if(rec.isSecondaryOrSupplementary()) continue;
+							if(rec.getMappingQuality()==0 ) continue;
+							if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+							
 							SAMReadGroupRecord rg=rec.getReadGroup();
 							if(!sample.equals(rg.getSample())) continue;
 							Cigar cigar=rec.getCigar();

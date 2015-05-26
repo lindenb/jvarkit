@@ -11,9 +11,9 @@ http://plindenbaum.blogspot.com
 
 [@yokofakun](https://twitter.com/yokofakun)
 
-## Announce
+## Cite
 
-**Important** : Feb. 2015 : Bye bye compilation with Apache ANT, I've moved to __GNU Make__ .  See [Compilation](https://github.com/lindenb/jvarkit/wiki/Compilation).
+see [Cite](https://github.com/lindenb/jvarkit/wiki/Citing)
 
 ## Download and install
 

@@ -31,21 +31,16 @@ package com.github.lindenb.jvarkit.tools.vcftrios;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.KnimeApplication;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -57,17 +52,12 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Pedigree;
 
 
 public class VCFTrios
-	extends AbstractCommandLineProgram
-	implements KnimeApplication
+	extends AbstractVCFFilter3
 	{
-	private int count_variants=0;
-	private File fileout=null;
 	private Pedigree pedigree=null;
     private boolean create_filter=false;
     private String pedigreeURI=null;
@@ -150,13 +140,13 @@ public class VCFTrios
 				parent.getAllele(0),parent.getAllele(1)
 				);
 		}
-	
-	
-	protected void doWork(VcfIterator r, VariantContextWriter w)
+	@Override
+	protected void doWork(
+			String source,
+			VcfIterator r, VariantContextWriter w)
 			throws IOException
 		{
 		int count_incompats=0;
-		this.count_variants=0;
 		VCFHeader header=r.getHeader();
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(
@@ -207,7 +197,7 @@ public class VCFTrios
 		while(r.hasNext())
 			{
 			VariantContext ctx= progress.watch(r.next());
-			this.count_variants++;
+			incrVariantCount();
 			
 			Set<String> incompatibilities=new HashSet<String>();
 			
@@ -295,14 +285,13 @@ public class VCFTrios
 			if( create_filter) b.filter("MENDEL");
 			b.attribute("MENDEL", incompatibilities.toArray());
 			w.add(b.make());
+			
+			if(checkOutputError()) break;
 			}	
 		progress.finish();
 		info("incompatibilities N="+count_incompats);
 		}
 	
-	public int getVariantCount() {
-		return count_variants;
-		}
 	
 	public void setCreateFilter(boolean create_filter)
 		{
@@ -315,60 +304,10 @@ public class VCFTrios
 	
 	
 	@Override
-	public int executeKnime(List<String> args)
-		{
-		VcfIterator iter=null;
-		VariantContextWriter vcw=null;
-		try 
-			{
-			if(args.isEmpty())
-				{
-				iter= VCFUtils.createVcfIteratorStdin();
-				}
-			else if(args.size()==1)
-				{
-				iter= VCFUtils.createVcfIterator(args.get(0));
-				}
-			else
-				{	
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			
-			vcw=(this.fileout==null?
-					VCFUtils.createVariantContextWriterToStdout():
-					VCFUtils.createVariantContextWriter(this.fileout)
-					);
-			doWork(iter, vcw);
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{	
-			CloserUtil.close(iter);
-			CloserUtil.close(vcw);
-			}
-		
-		}
-
-	@Override
 	public void disposeKnime() {
 		
 	}
 
-	@Override
-	public void checkKnimeCancelled() {
-		
-	}
-
-	@Override
-	public void setOutputFile(File out) {
-		this.fileout=out;
-		}
 	
 	@Override
 	public void printOptions(java.io.PrintStream out)
@@ -402,16 +341,7 @@ public class VCFTrios
 					}
 				}
 			}
-		if(initializeKnime()!=0) 
-			{
-			return -1;
-			}
-		List<String> L=new ArrayList<>();
-		for(int i=opt.getOptInd();i< args.length;++i)
-			{
-			L.add(args[i]);
-			}
-		return executeKnime(L);
+		return mainWork(opt.getOptInd(), args);
 		}
 	
 	public static void main(String[] args)

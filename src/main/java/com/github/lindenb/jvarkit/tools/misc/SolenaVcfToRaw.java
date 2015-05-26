@@ -28,16 +28,29 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
+
 import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
 
 
@@ -72,7 +85,8 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 	@Override
 	public int executeKnime(List<String> args)
 		{
-		PrintWriter pw=null;
+		ZipOutputStream zout=null;
+		FileOutputStream fout=null;
 		VcfIterator in=null;
 		try
 			{
@@ -94,64 +108,131 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 				}
 			if(getOutputFile()==null)
 				{
-				pw = new PrintWriter(System.out);
+				error("undefined output");
+				return -1;
+				}
+			else if(!getOutputFile().getName().endsWith(".zip"))
+				{
+				error("output "+getOutputFile()+" should end with .zip");
+				return -1;
 				}
 			else
 				{
-				pw = new PrintWriter(getOutputFile());
+				fout = new FileOutputStream(getOutputFile());
+				zout = new ZipOutputStream(fout);
 				}
 			List<String> samples= in.getHeader().getSampleNamesInOrder();
-			pw.print("CHROM\tPOS\tREF\tALT");
-			for(String sample:samples)
+			VCFHeader header=in.getHeader();
+			String prev_chrom = null;
+			VepPredictionParser vepPredParser=new VepPredictionParser(header);
+			Map<String,List<VariantContext>> gene2variants=new HashMap<>();
+			SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
+			Set<SequenceOntologyTree.Term> acn=new HashSet<>();
+			for(String acns:new String[]{"SO:0001589", "SO:0001587", "SO:0001582", "SO:0001583", "SO:0001575", "SO:0001578", "SO:0001574", "SO:0001889", "SO:0001821", "SO:0001822", "SO:0001893"})
 				{
-				pw.print("\t");
-				pw.print(sample);
+				acn.addAll(soTree.getTermByAcn(acns).getAllDescendants());
 				}
-			pw.println();
+			
+		
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(in.getHeader());
-			while(in.hasNext())
+			for(;;)
 				{
-				VariantContext ctx= progress.watch(in.next());
-				if(ctx.getAlternateAlleles().size()!=1)
+				VariantContext ctx1=null;
+				if(in.hasNext())
 					{
-					info("count(ALT)!=1 in "+ctx.getChr()+":"+ctx.getStart());
-					continue;
-					}
-				pw.print(ctx.getChr());
-				pw.print("\t");
-				pw.print(ctx.getStart());
-				pw.print("\t");
-				pw.print(ctx.getReference().getDisplayString());
-				pw.print("\t");
-				pw.print(ctx.getAlternateAlleles().get(0).getDisplayString());
-				for(String sample:samples)
-					{
-					Genotype g=ctx.getGenotype(sample);
-					pw.print("\t");
-					if(g.isHomRef())
+					ctx1= progress.watch(in.next());
+					if(ctx1.getAlternateAlleles().size()!=1)
 						{
-						pw.print("0");
-						}
-					else if(g.isHomVar())
-						{
-						pw.print("2");
-						}
-					else if(g.isHet())
-						{
-						pw.print("1");
-						}
-					else
-						{
-						pw.print("-9");
+						//info("count(ALT)!=1 in "+ctx1.getChr()+":"+ctx1.getStart());
+						continue;
 						}
 					}
-				pw.println();
-				if(checkOutputError()) break;
+				
+				if(ctx1==null || !ctx1.getChr().equals(prev_chrom))
+					{
+					info("DUMP to zip n="+gene2variants.size());
+					for(String gene:gene2variants.keySet() )
+						{
+						ZipEntry ze = new ZipEntry("burden/"+gene+".txt");
+						zout.putNextEntry(ze);
+						PrintWriter pw = new PrintWriter(zout);
+						pw.print("CHROM\tPOS\tREF\tALT");
+						for(String sample:samples)
+							{
+							pw.print("\t");
+							pw.print(sample);
+							}
+						pw.println();
+						for(VariantContext ctx:gene2variants.get(gene))
+							{
+							pw.print(ctx.getChr());
+							pw.print("\t");
+							pw.print(ctx.getStart());
+							pw.print("\t");
+							pw.print(ctx.getReference().getDisplayString());
+							pw.print("\t");
+							pw.print(ctx.getAlternateAlleles().get(0).getDisplayString());
+							for(String sample:samples)
+								{
+								Genotype g=ctx.getGenotype(sample);
+								pw.print("\t");
+								if(g.isHomRef())
+									{
+									pw.print("0");
+									}
+								else if(g.isHomVar())
+									{
+									pw.print("2");
+									}
+								else if(g.isHet())
+									{
+									pw.print("1");
+									}
+								else
+									{
+									pw.print("-9");
+									}
+								}
+							pw.println();
+							}
+						pw.flush();
+						zout.closeEntry();
+						}
+					
+					if(ctx1==null) break;
+					gene2variants.clear();
+					prev_chrom = ctx1.getChr();
+					}
+				
+				for(VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))
+					{
+					String gene= pred.getEnsemblGene();
+					if(gene==null || gene.trim().isEmpty()) continue;
+					boolean ok=false;
+					for(SequenceOntologyTree.Term so:pred.getSOTerms())
+						{
+						if(acn.contains(so))
+							{
+							ok=true;
+							}
+						}
+					if(!ok) continue;
+					
+					List<VariantContext> L = gene2variants.get(gene);
+					if(L==null)
+						{
+						L=new ArrayList<>();
+						gene2variants.put(gene,L);
+						}
+					L.add(ctx1);
+					}
 				}
 			progress.finish();
 			
+			zout.finish();
+			fout.flush();
+			zout.flush();
 			
-			pw.flush();
 			return 0;
 			}
 		catch(Exception err)
@@ -162,7 +243,8 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 		finally
 			{
 			CloserUtil.close(in);
-			CloserUtil.close(pw);
+			CloserUtil.close(zout);
+			CloserUtil.close(fout);
 			}
 		}
 	
