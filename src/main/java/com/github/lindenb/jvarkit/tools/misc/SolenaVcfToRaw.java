@@ -153,7 +153,7 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 					info("DUMP to zip n="+gene2variants.size());
 					for(String gene:gene2variants.keySet() )
 						{
-						ZipEntry ze = new ZipEntry("burden/"+gene+".txt");
+						ZipEntry ze = new ZipEntry("burden/chr"+prev_chrom+"_"+gene+".txt");
 						zout.putNextEntry(ze);
 						PrintWriter pw = new PrintWriter(zout);
 						pw.print("CHROM\tPOS\tREF\tALT");
@@ -203,11 +203,12 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 					gene2variants.clear();
 					prev_chrom = ctx1.getChr();
 					}
-				
+				Set<String> seen_names=new HashSet<>();
 				for(VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))
 					{
-					String gene= pred.getEnsemblGene();
+					String gene= pred.getSymbol();
 					if(gene==null || gene.trim().isEmpty()) continue;
+					if(seen_names.contains(gene)) continue;
 					boolean ok=false;
 					for(SequenceOntologyTree.Term so:pred.getSOTerms())
 						{
@@ -225,6 +226,7 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 						gene2variants.put(gene,L);
 						}
 					L.add(ctx1);
+					seen_names.add(gene);
 					}
 				}
 			progress.finish();

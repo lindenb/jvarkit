@@ -1,7 +1,36 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.util.ArrayList;
@@ -26,9 +55,8 @@ import org.uniprot.Entry;
 import org.uniprot.FeatureType;
 import org.uniprot.LocationType;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.ProgressLogger;
@@ -36,9 +64,9 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+
 import org.uniprot.*;
 
 @SuppressWarnings("unused")
@@ -47,26 +75,8 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 	private static final String UNIPROT_NS="http://uniprot.org/uniprot";
 	private org.uniprot.ObjectFactory forceJavacCompiler=null;
 	private static Log LOG=Log.getInstance(MapUniProtFeatures.class);
-	
-    @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + " map uniprot features on reference genome. ";
-
-	
-    @Option(shortName=StandardOptionDefinitions.REFERENCE_SHORT_NAME,doc="Reference",optional=false)
-    public File REF;
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
-    @Option(shortName=StandardOptionDefinitions.OUTPUT_SHORT_NAME,doc="output name (default: stdout)",optional=false)
-    public File OUT=null;
-
-	
-	
-    @Option(shortName="KG",doc="KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.",optional=false)
-	public String kgUri="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
-	
+	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private Map<String,List<KnownGene>> prot2genes=new HashMap<String,List<KnownGene>>();
-	
-    @Option(shortName="UP",doc="Uniprot URL/File",optional=true)
-	public String UNIPROT="ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz";
     private static class Range
     	{
     	Range(int start,int end)
@@ -133,9 +143,59 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 		}
     
 	@Override
-	protected int doWork()
+	public String getProgramDescription() {
+		return "map uniprot features on reference genome. ";
+		}
+	
+	@Override
+    protected String getOnlineDocUrl() {
+    	return DEFAULT_WIKI_PREFIX+"MapUniProtFeatures";
+    }
+	private String kgUri="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	private String UNIPROT="ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz";
+	
+	@Override
+	public void printOptions(PrintStream  out)
 		{
-		PrintWriter pw=new PrintWriter(System.out);
+		out.println(" -u (uri) Uniprot.xml.gz URL/File. default:"+UNIPROT);
+		out.println(" -k (uri) UCSC KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE. default:"+kgUri);
+		out.println(" -R (fasta) Reference file");
+		out.println(" -o output file");
+		
+		super.printOptions(out);
+		}
+
+	
+	@Override
+	public int doWork(String[] args)
+		{
+
+
+		File REF=null;
+		File OUT=null;
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+"R:o:k:u:"))!=-1)
+			{
+			switch(c)
+				{
+				case 'k': kgUri=opt.getOptArg();break;
+				case 'u': UNIPROT=opt.getOptArg();break;
+				case 'R':REF=new File(opt.getOptArg())  ;break;
+				case 'o':OUT=new File(opt.getOptArg())  ;break;
+				default:
+					{
+					switch(handleOtherOptions(c, opt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		
+		PrintWriter pw=null;
 		try
 			{
 			JAXBContext jc = JAXBContext.newInstance("org.uniprot");
@@ -143,12 +203,13 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 			Marshaller uniprotMarshaller=jc.createMarshaller();
 
 			
+			pw=(OUT==null?new PrintWriter(System.out):new PrintWriter(OUT));
 			LOG.info("read "+REF);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
 			LOG.info("readubf "+kgUri);
 			String line;
 			Pattern tab=Pattern.compile("[\t]");
-			BufferedReader r=IOUtils.openURIForBufferedReading(this.kgUri);
+			BufferedReader r=IOUtils.openURIForBufferedReading(kgUri);
 			while((line=r.readLine())!=null)
 				{
 				String tokens[]=tab.split(line);
@@ -266,18 +327,15 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 					
 					if(sameSequenceLength!=pep.length())
 						{
-						if(super.VALIDATION_STRINGENCY!=htsjdk.samtools.ValidationStringency.SILENT )
+						System.err.println("Not Same sequence "+kg.getName()+" strand "+kg.getStrand() +" ok-up-to-"+sameSequenceLength);
+						System.err.println("P:"+pep.toString()+" "+pep.length());
+						System.err.println("Q:"+entry.getSequence().getValue()+" "+entry.getSequence().getLength());
+						if(pep.toString().contains("?"))
 							{
-							System.err.println("Not Same sequence "+kg.getName()+" strand "+kg.getStrand() +" ok-up-to-"+sameSequenceLength);
-							System.err.println("P:"+pep.toString()+" "+pep.length());
-							System.err.println("Q:"+entry.getSequence().getValue()+" "+entry.getSequence().getLength());
-							if(pep.toString().contains("?"))
-								{
-								System.err.println("RNA:"+pep.getCodingRNA().toString());
-								System.exit(-1);
-								}
+							System.err.println("RNA:"+pep.getCodingRNA().toString());
 							
 							}
+							
 						}
 					if(sameSequenceLength==0) continue;
 					

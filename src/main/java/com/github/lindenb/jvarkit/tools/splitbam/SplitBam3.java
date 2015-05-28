@@ -275,7 +275,7 @@ public class SplitBam3 extends AbstractCommandLineProgram
 							SAMSequenceRecord ssr=samSequenceDictionary.getSequence(segment);
 							if(ssr==null)
 								{
-								throw new IOException("Unknown chromosome , not in dict");
+								throw new IOException("Unknown chromosome , not in dict \""+segment+"\"");
 								}
 							sequence = segment;
 							start = 1;
@@ -371,6 +371,7 @@ public class SplitBam3 extends AbstractCommandLineProgram
 			}
 		catch(Exception error)
 			{
+			error(error);
 			for(SplitGroup g:this.name2group.values())
 				{
 				g.close();

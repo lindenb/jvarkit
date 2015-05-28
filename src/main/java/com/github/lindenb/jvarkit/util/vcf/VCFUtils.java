@@ -49,6 +49,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.FeatureCodec;
+import htsjdk.tribble.Tribble;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.util.TabixUtils;
@@ -378,6 +379,20 @@ public class VCFUtils
 				);
 		return index.exists() &&  index.isFile();
 		}
+	
+	/** returns true if file ends with .vcf and a .idx file is associated */
+	public static boolean isTribbleVcfFile(File f)
+		{
+		if(!isVcfFile(f)) return false;
+		String filename=f.getName();
+		if(!filename.endsWith(".vcf")) return false;
+		File index=new File(f.getParentFile(),
+				filename+ Tribble.STANDARD_INDEX_EXTENSION
+				);
+		return index.exists() &&  index.isFile();
+		}
+
+	
 	
 	public static String findChromNameEquivalent(String chromName,VCFHeader h)
 		{
