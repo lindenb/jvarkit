@@ -179,5 +179,8 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFReplaceTag">VCFReplaceTag</a></th><td>Replace the key in INFO/FORMAT/FILTER</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfIndexTabix">VcfIndexTabix</a></th><td>sort, Compress (bgz) a VCF and create tabix index on the fly.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfPeekVcf">VcfPeekVcf</a></th><td>Peek INFO Tag and ID from another VCF</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfGetVariantByIndex">VcfGetVariantByIndex</a></th><td>Access a (plain or tabix-indexed) VCF file by the i-th index.</td></tr>
+
+
 </table>
 
