@@ -159,6 +159,7 @@ public class VcfPeekVcf extends AbstractVCFFilter3
 					}
 				for(String key: this.peek_info_tags)
 					{
+					if(!ctx2.hasAttribute(key)) continue;
 					Object o = ctx2.getAttribute(key);
 					vcb.attribute(this.peekTagPrefix+key, o);
 					}
@@ -166,6 +167,7 @@ public class VcfPeekVcf extends AbstractVCFFilter3
 			iter.close(); iter=null;
 			
 			out.add(vcb.make());
+				
 			incrVariantCount();
 			if(checkOutputError()) break;
 			}

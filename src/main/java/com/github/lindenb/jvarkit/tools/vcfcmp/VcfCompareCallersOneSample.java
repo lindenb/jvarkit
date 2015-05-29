@@ -75,7 +75,7 @@ public class VcfCompareCallersOneSample
 		@Override
 	public String getProgramDescription() {
 		return "For my colleague Julien: VCF with one sample called using different callers. *"
-				+ "Only keep variant if it was found in min<x=other-files<max";
+				+ "Only keep variant if it was found in min<x=other-files<=max";
 		}
 	
 	public void setMinCountInclusive(int minCountInclusive) {
