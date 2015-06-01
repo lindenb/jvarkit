@@ -21,7 +21,7 @@ JAVA?=java
 JAR?=jar
 XJC?=xjc
 
-htsjdk.version?=1.128
+htsjdk.version?=1.131
 htsjdk.home?=${this.dir}htsjdk-${htsjdk.version}
 htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} snappy-java-1.0.3-rc3))
 src.dir=${this.dir}src/main/java

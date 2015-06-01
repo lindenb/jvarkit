@@ -23,6 +23,7 @@ import com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2;
 import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFReplaceTag;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui;
+import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
@@ -69,7 +70,8 @@ private Library()
 			SortVcfOnInfo.class,
 			VCFBedSetFilter.class,
 			VCFReplaceTag.class,
-			VcfIndexTabix.class,IndexedVcfFileReader.class
+			VcfIndexTabix.class,IndexedVcfFileReader.class,
+			IgvSocket.class
 			};
 	}
 }

@@ -1,6 +1,7 @@
 package com.github.lindenb.jvarkit.util.igv;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.VariantContext;
 
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -31,6 +32,11 @@ public class IgvSocket
 	public IgvSocket()
 		{
 		
+		}
+	private IgvSocket(IgvSocket src)
+		{
+		this.host = src.host;
+		this.port = src.port;
 		}
 	
 	public String getHost() {
@@ -72,7 +78,7 @@ public class IgvSocket
 			}
 		return _in;
 		}
-
+	
 	
 	@Override
 	public void close() {
@@ -83,4 +89,53 @@ public class IgvSocket
 		CloserUtil.close(_socket);
 		_socket=null;
 		}
+	
+	public void show(final VariantContext ctx)
+		{
+		if( ctx ==null ) return ;
+		show(ctx.getChr(),ctx.getStart());
+		}	
+	
+	public void show(final String chrom,int chromStart)
+		{
+		if(chrom==null || chrom.trim().isEmpty() || chromStart<0) return;
+		ShowRunner run=new ShowRunner();
+		run.copy = new IgvSocket(this);//create a copy
+		run.chrom = chrom;
+		run.start = chromStart;
+		Thread thread=new Thread(run);
+		thread.start();
+		}
+	
+	
+	private static class ShowRunner implements Runnable
+		{
+		IgvSocket copy;
+		String chrom;
+		int start;
+
+		@Override
+		public void run() {
+
+			PrintWriter out=null;
+			try
+				{
+				out = this.copy.getWriter();
+				this.copy.getReader();
+				out.println("goto "+this.chrom+":"+this.start);
+				try{ Thread.sleep(5*1000);}
+				catch(InterruptedException err2) {}
+				 }
+			catch(Exception err)
+				{
+				err.printStackTrace();
+				}
+			finally
+				{
+				CloserUtil.close(this.copy);
+				}			
+			}
+		};
+	
+
 	}

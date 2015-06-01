@@ -70,7 +70,13 @@ public class IndexedBedReader
 			this.tokens=tokens;
 			}
 		@Override
+		@Deprecated
 		public String getChr() {
+			return tokens[0];
+			}
+		
+		@Override
+		public String getContig() {
 			return tokens[0];
 			}
 		@Override

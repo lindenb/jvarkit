@@ -42,7 +42,13 @@ implements Feature
 		}
 	
 	@Override
+	@Deprecated
 	public String getChr() {
+		return getContig();
+		}
+	
+	@Override
+	public String getContig() {
 		return getSnpData().getChromosome();
 		}
 	
