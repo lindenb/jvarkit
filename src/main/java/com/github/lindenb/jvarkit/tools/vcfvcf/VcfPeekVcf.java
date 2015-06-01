@@ -129,14 +129,14 @@ public class VcfPeekVcf extends AbstractVCFFilter3
 						
 			VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			CloseableIterator<VariantContext> iter= this.indexedVcfFileReader.iterator(
-					ctx.getChr(),
+					ctx.getContig(),
 					Math.max(0,ctx.getStart()-1),
 					(ctx.getEnd()+1)
 					);
 			while(iter.hasNext())
 				{
 				VariantContext ctx2=iter.next();
-				if(!ctx.getChr().equals(ctx2.getChr())) continue;
+				if(!ctx.getContig().equals(ctx2.getContig())) continue;
 				if(ctx.getStart()!=ctx2.getStart()) continue;
 				if(!ctx.getReference().equals(ctx2.getReference())) continue;
 				

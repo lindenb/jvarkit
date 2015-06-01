@@ -448,7 +448,7 @@ public class VCFUtils
 			@Override
 			public int compare(final VariantContext ctx1, final VariantContext ctx2)
 				{
-				int i = ctx1.getChr().compareTo(ctx2.getChr());
+				int i = ctx1.getContig().compareTo(ctx2.getContig());
 				if(i!=0) return i;
 				int i0 = ctx1.getStart();
 				int i1 = ctx2.getStart();
@@ -489,8 +489,8 @@ public class VCFUtils
 				final VariantContext ctx2
 				)
 			{			
-			int i0 = tid(ctx1.getChr());
-			int i1 = tid(ctx2.getChr());
+			int i0 = tid(ctx1.getContig());
+			int i1 = tid(ctx2.getContig());
 			if(i0 != i1) return i0-i1;
 				
 			i0 = ctx1.getStart();

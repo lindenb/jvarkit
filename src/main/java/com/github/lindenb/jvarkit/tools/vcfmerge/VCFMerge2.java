@@ -243,7 +243,7 @@ public class VCFMerge2
 		VariantContextBuilder vcb=new VariantContextBuilder();
 		Map<String,Object> atts=new HashMap<String,Object>();
 		String id=null;
-		vcb.chr(row.get(0).getChr());
+		vcb.chr(row.get(0).getContig());
 		vcb.start(row.get(0).getStart());
 		vcb.stop(row.get(0).getEnd());
 		
@@ -451,10 +451,10 @@ public class VCFMerge2
 			VariantContext me,
 			VariantContext other)
 		{
-		int ref0=dict.getSequenceIndex(me.getChr());
-		if(ref0<0) throw new IllegalArgumentException("unknown chromosome not in sequence dictionary: "+me.getChr());
-		int ref1=dict.getSequenceIndex(other.getChr());
-		if(ref1<0) throw new IllegalArgumentException("unknown chromosome not in sequence dictionary: "+other.getChr());
+		int ref0=dict.getSequenceIndex(me.getContig());
+		if(ref0<0) throw new IllegalArgumentException("unknown chromosome not in sequence dictionary: "+me.getContig());
+		int ref1=dict.getSequenceIndex(other.getContig());
+		if(ref1<0) throw new IllegalArgumentException("unknown chromosome not in sequence dictionary: "+other.getContig());
 		
 		int i=ref0-ref1;
 		if(i!=0) return i;

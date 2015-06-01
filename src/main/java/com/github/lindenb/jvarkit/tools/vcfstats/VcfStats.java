@@ -659,15 +659,15 @@ public class VcfStats extends AbstractCommandLineProgram
 			
 			while(iter.hasNext())
 				{
-				VariantContext ctx=iter.next();
+				VariantContext ctx=progress.watch(iter.next());
 				
-				progress.watch(ctx.getChr(), ctx.getStart());
 				
-				Stats k_stats=stats_per_chr.get(ctx.getChr());
+				
+				Stats k_stats=stats_per_chr.get(ctx.getContig());
 				if(k_stats==null)
 					{
 					k_stats=new Stats();
-					stats_per_chr.put(ctx.getChr(), k_stats);
+					stats_per_chr.put(ctx.getContig(), k_stats);
 					}
 				g_stats.watch(null,ctx);
 				k_stats.watch(null,ctx);

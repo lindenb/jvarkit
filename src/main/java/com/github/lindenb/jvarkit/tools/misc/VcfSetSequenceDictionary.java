@@ -73,17 +73,17 @@ public class VcfSetSequenceDictionary extends AbstractVCFFilter2
 		while(in.hasNext())
 			{
 			VariantContext ctx=in.next();
-			if(dict!=null && dict.getSequenceIndex(ctx.getChr())==-1)
+			if(dict!=null && dict.getSequenceIndex(ctx.getContig())==-1)
 				{
-				warning("Unknown chromosome "+ctx.getChr());
+				warning("Unknown chromosome "+ctx.getContig());
 				}
 			if(newdict!=null)
 				{
-				Integer length=this.newdict.get(ctx.getChr());
+				Integer length=this.newdict.get(ctx.getContig());
 				if(length==null) length=0;
 				if(ctx.getEnd()>length)
 					{
-					this.newdict.put(ctx.getChr(),ctx.getEnd());
+					this.newdict.put(ctx.getContig(),ctx.getEnd());
 					}
 				}
 			

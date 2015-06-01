@@ -148,7 +148,7 @@ public class VcfCompareCallers
 			
 			
 			out.writeStartElement("chrom");
-			out.writeCharacters(variants[i].getChr());
+			out.writeCharacters(variants[i].getContig());
 			out.writeEndElement();
 
 			out.writeStartElement("pos");

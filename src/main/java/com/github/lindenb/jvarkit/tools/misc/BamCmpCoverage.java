@@ -524,10 +524,10 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 					{
 					for(Interval interval:this.intervals.keySet())
 						{
-						SAMSequenceRecord ssr= dict.getSequence(interval.getSequence());
+						SAMSequenceRecord ssr= dict.getSequence(interval.getContig());
 						if(ssr==null)
 							{
-							error("Chromosome "+interval.getSequence()+" not present in dictionary");
+							error("Chromosome "+interval.getContig()+" not present in dictionary");
 							return -1;
 							}
 						queryIntervals.add(new QueryInterval(ssr.getSequenceIndex(),interval.getStart(),interval.getEnd()));

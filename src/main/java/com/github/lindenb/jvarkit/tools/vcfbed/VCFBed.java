@@ -173,7 +173,7 @@ public class VCFBed extends AbstractVCFFilter3
 			Set<String> annotations=new HashSet<String>();
 			
 			CloseableIterator<IndexedBedReader.BedLine> iter = this.bedReader.iterator(
-					ctx.getChr(),
+					ctx.getContig(),
 					ctx.getStart()-1,
 					ctx.getEnd()+1
 					);
@@ -181,7 +181,7 @@ public class VCFBed extends AbstractVCFFilter3
 				{
 				IndexedBedReader.BedLine bedLine = iter.next();
 				
-				if(!ctx.getChr().equals(bedLine.getChr())) continue;
+				if(!ctx.getContig().equals(bedLine.getContig())) continue;
 				if(ctx.getStart()-1 >= bedLine.getEnd() ) continue;
 				if(ctx.getEnd()-1 < bedLine.getStart() ) continue;
 

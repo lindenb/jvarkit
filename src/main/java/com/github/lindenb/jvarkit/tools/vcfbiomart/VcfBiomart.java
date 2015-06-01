@@ -144,7 +144,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 					for(VariantContext ctx:buffer)
 						{
 						locations.add(
-							ctx.getChr()+":"+ctx.getStart()+":"+ctx.getEnd()+":1"	
+							ctx.getContig()+":"+ctx.getStart()+":"+ctx.getEnd()+":1"	
 							);
 						}
 					StringBuilder sb=new StringBuilder();
@@ -226,7 +226,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 					
 					for(VariantContext ctx:buffer)
 						{
-						List<String> array=new ArrayList<String>(new HashSet<String>(treemap.getOverlapping(new Interval(ctx.getChr(),ctx.getStart(),ctx.getEnd()))));
+						List<String> array=new ArrayList<String>(new HashSet<String>(treemap.getOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd()))));
 						if(!array.isEmpty())
 							{
 							VariantContextBuilder vcb=new VariantContextBuilder(ctx);

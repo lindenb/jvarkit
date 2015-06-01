@@ -220,7 +220,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			this.sample_y=sample_y;
 			for(SAMSequenceRecord ssr:VcfToHilbert.this.dict.getSequences())
 				{
-				if(ssr.getSequenceName().equals(ctx.getChr()))
+				if(ssr.getSequenceName().equals(ctx.getContig()))
 					{
 					genomic_index+=ctx.getStart();
 					break;

@@ -226,7 +226,7 @@ public class RDFVcfWriter
 			this.w.writeAttribute("rdf",RDF,"resource",this.source.toString());
 			
 			this.w.writeEmptyElement(PFX, "chromosome",NS);
-			this.w.writeAttribute("rdf",RDF,"resource","urn:chromosome/"+ctx.getChr());
+			this.w.writeAttribute("rdf",RDF,"resource","urn:chromosome/"+ctx.getContig());
 			
 			this.w.writeStartElement(PFX,"start",NS);
 			datatype("int");

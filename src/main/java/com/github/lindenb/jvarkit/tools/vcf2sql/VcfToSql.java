@@ -633,7 +633,7 @@ public class VcfToSql extends AbstractCommandLineProgram
 				null,
 				vcffile_id,
 				nVariants,
-				chrom2chromId.get(var.getChr()),
+				chrom2chromId.get(var.getContig()),
 				var.getStart(),
 				(var.hasID()?var.getID():null),
 				new SelectStmt(this.alleleTable, "bases", var.getReference().getBaseString()),

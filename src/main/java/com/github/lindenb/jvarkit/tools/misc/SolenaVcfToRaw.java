@@ -148,7 +148,7 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 						}
 					}
 				
-				if(ctx1==null || !ctx1.getChr().equals(prev_chrom))
+				if(ctx1==null || !ctx1.getContig().equals(prev_chrom))
 					{
 					info("DUMP to zip n="+gene2variants.size());
 					for(String gene:gene2variants.keySet() )
@@ -165,7 +165,7 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 						pw.println();
 						for(VariantContext ctx:gene2variants.get(gene))
 							{
-							pw.print(ctx.getChr());
+							pw.print(ctx.getContig());
 							pw.print("\t");
 							pw.print(ctx.getStart());
 							pw.print("\t");
@@ -201,7 +201,7 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 					
 					if(ctx1==null) break;
 					gene2variants.clear();
-					prev_chrom = ctx1.getChr();
+					prev_chrom = ctx1.getContig();
 					}
 				Set<String> seen_names=new HashSet<>();
 				for(VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))

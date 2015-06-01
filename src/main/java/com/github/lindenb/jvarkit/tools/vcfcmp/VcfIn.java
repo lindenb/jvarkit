@@ -114,7 +114,7 @@ public class VcfIn extends AbstractVCFFilter3
 	
 	private boolean sameChromPosRef(VariantContext ctx1,VariantContext ctx2)
 		{
-		if(!ctx1.getChr().equals(ctx2.getChr())) return false;
+		if(!ctx1.getContig().equals(ctx2.getContig())) return false;
 		if(ctx1.getStart()!=ctx2.getStart())return false;
 		if(!ctx1.getReference().equals(ctx2.getReference()))return false;
 		return true;
@@ -176,7 +176,7 @@ public class VcfIn extends AbstractVCFFilter3
 					{
 					VariantContext ctx= databaseIn.next();
 					//not in user dict anyway
-					if( userVcfDict.getSequence(ctx.getChr())==null)
+					if( userVcfDict.getSequence(ctx.getContig())==null)
 						{
 						dbContext.clear();
 						continue;
@@ -231,8 +231,8 @@ public class VcfIn extends AbstractVCFFilter3
 					break;
 					}
 				
-				int i = userVcfDict.getSequence(  dbContext.get(0).getChr()).getSequenceIndex() -
-						userVcfDict.getSequence(userContext.get(0).getChr()).getSequenceIndex()
+				int i = userVcfDict.getSequence(  dbContext.get(0).getContig()).getSequenceIndex() -
+						userVcfDict.getSequence(userContext.get(0).getContig()).getSequenceIndex()
 						;
 				if(i==0)
 					{
@@ -317,7 +317,7 @@ public class VcfIn extends AbstractVCFFilter3
 				{
 				final VariantContext userCtx= progress.watch(in2.next());
 				checkKnimeCancelled();
-				Iterator<VariantContext> iter= tabix.iterator(userCtx.getChr(),
+				Iterator<VariantContext> iter= tabix.iterator(userCtx.getContig(),
 						Math.max(1,userCtx.getStart()-1),
 						userCtx.getEnd()+1);
 				boolean keep=false;

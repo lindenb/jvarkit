@@ -105,7 +105,7 @@ public class SAM4WebLogo extends AbstractCommandLineProgram
 			if(samReader.hasIndex())
 					{
 					iter=samReader.queryOverlapping(
-							interval.getSequence(),
+							interval.getContig(),
 							interval.getStart(),
 							interval.getEnd()
 							);
@@ -121,7 +121,7 @@ public class SAM4WebLogo extends AbstractCommandLineProgram
                 SAMRecord rec=iter.next();
                 progress.watch(rec);
                 if(rec.getReadUnmappedFlag()) continue;
-                if(!rec.getReferenceName().equals(interval.getSequence())) continue;
+                if(!rec.getReferenceName().equals(interval.getContig())) continue;
                 if(rec.getAlignmentEnd() < interval.getStart() ) continue;
                 if(rec.getAlignmentStart() > interval.getEnd() ) continue;
                 Cigar cigar=rec.getCigar();

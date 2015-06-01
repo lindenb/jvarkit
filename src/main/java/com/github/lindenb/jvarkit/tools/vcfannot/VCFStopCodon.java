@@ -141,13 +141,13 @@ public class VCFStopCodon extends AbstractVCFFilter2
 			KnownGene g=new KnownGene(tokens);
 			if(g.isNonCoding()) continue;
 
-			List<KnownGene> L=this.knownGenes.get(g.getChr());
+			List<KnownGene> L=this.knownGenes.get(g.getContig());
 			if(L==null)
 				{
-				if(!unknown.contains(g.getChr()))
+				if(!unknown.contains(g.getContig()))
 					{
-					warning("The reference "+REF+" doesn't contain chromosome "+g.getChr());
-					unknown.add(g.getChr());
+					warning("The reference "+REF+" doesn't contain chromosome "+g.getContig());
+					unknown.add(g.getContig());
 					}
 				continue;
 				}
@@ -179,7 +179,7 @@ public class VCFStopCodon extends AbstractVCFFilter2
 		Set<String> set=new HashSet<String>();
 		@Override
 		public String toString() {
-			return ctx.getChr()+":"+ctx.getStart()+" "+ctx.getReference()+"/"+ctx.getAlternateAllele(0);
+			return ctx.getContig()+":"+ctx.getStart()+" "+ctx.getReference()+"/"+ctx.getAlternateAllele(0);
 			}
 		}
 	static final String TAG="STREAMCODON";
@@ -228,7 +228,7 @@ public class VCFStopCodon extends AbstractVCFFilter2
 		while(r.hasNext())
 			{
 			VariantContext ctx=r.next();
-			progress.watch(ctx.getChr(), ctx.getStart());
+			progress.watch(ctx.getContig(), ctx.getStart());
 			
 			if(n_variants++%1000==0)
 				{
@@ -244,25 +244,25 @@ public class VCFStopCodon extends AbstractVCFFilter2
 
 			
 			//unknown chromosome
-			if(!this.knownGenes.containsKey(ctx.getChr()))
+			if(!this.knownGenes.containsKey(ctx.getContig()))
 				{
 				while(!variantStack.isEmpty())
 					{
 					dump(w,variantStack.removeFirst());
 					}
-				warning("unknown chrom "+ctx.getChr());
+				warning("unknown chrom "+ctx.getContig());
 				currChrom=null;
 				continue;
 				}
 			
 			//not same chromosome
-			if(!ctx.getChr().equals(currChrom))
+			if(!ctx.getContig().equals(currChrom))
 				{
 				while(!variantStack.isEmpty())
 					{
 					dump(w,variantStack.removeFirst());
 					}
-				currChrom=ctx.getChr();
+				currChrom=ctx.getContig();
 				currListOfGenes=new ArrayList<KnownGene>(this.knownGenes.get(currChrom));
 				}
 			
@@ -327,7 +327,7 @@ public class VCFStopCodon extends AbstractVCFFilter2
 			{
 			VariantContext ctx1=variants.get(i-1).ctx;
 			VariantContext ctx2=variants.get(i).ctx;
-			if(!ctx1.getChr().equals(ctx2.getChr())) throw new IllegalStateException();
+			if(!ctx1.getContig().equals(ctx2.getContig())) throw new IllegalStateException();
 			if(ctx1.getStart()> ctx2.getStart())
 				{
 				error("Data are not sorted");
@@ -339,15 +339,15 @@ public class VCFStopCodon extends AbstractVCFFilter2
 			{
 			if(genomicposzero2var.put(var.ctx.getStart()-1, var)!=null)
 				{
-				warning("duplicate variant at position "+gene.getChr()+":"+var.ctx.getStart());
+				warning("duplicate variant at position "+gene.getContig()+":"+var.ctx.getStart());
 				}
 			}
 		
 			
-		if(genomicSequence==null || !genomicSequence.getChrom().equals(gene.getChr()))
+		if(genomicSequence==null || !genomicSequence.getChrom().equals(gene.getContig()))
 			{
-			info("getting genomic Sequence for "+gene.getChr());
-			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, gene.getChr());
+			info("getting genomic Sequence for "+gene.getContig());
+			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, gene.getContig());
 			}
 				
 			

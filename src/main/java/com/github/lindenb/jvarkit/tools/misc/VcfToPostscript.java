@@ -68,7 +68,7 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 			
 	private void addVariant(final VariantContext ctx)
 		{
-		if(!ctx.getChr().equals(genes.get(0).getChromosome())) return;
+		if(!ctx.getContig().equals(genes.get(0).getChromosome())) return;
 		if(ctx.getStart()>=chromEnd) return;
 		if(ctx.getStart()<chromStart) return;
 		positions.add(ctx.getStart());
@@ -272,7 +272,7 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 		    	
 		    	if(ctx==null ||
 		    			this.genes.isEmpty() ||
-		    			(!this.genes.isEmpty() && !this.genes.get(0).getChr().equals(ctx.getChr())) || 
+		    			(!this.genes.isEmpty() && !this.genes.get(0).getContig().equals(ctx.getContig())) || 
 		    			(!this.genes.isEmpty() && this.chromEnd<=ctx.getStart())
 		    			)
 		    		{
@@ -281,9 +281,9 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 		    		if(ctx==null) return;
 		    		this.clear();
 
-		    		if(chrom2knownGenes.containsKey(ctx.getChr()))
+		    		if(chrom2knownGenes.containsKey(ctx.getContig()))
 		    			{
-		    			for(KnownGene g:chrom2knownGenes.get(ctx.getChr()))
+		    			for(KnownGene g:chrom2knownGenes.get(ctx.getContig()))
 							{
 							if(this.genes.isEmpty())
 								{
@@ -304,12 +304,12 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 							}
 		    			if(genes.isEmpty())
 		    				{
-		    				debug("no gene for "+ctx.getChr()+":"+ctx.getStart());
+		    				debug("no gene for "+ctx.getContig()+":"+ctx.getStart());
 		    				}
 		    			}
 		    		else
 		    			{
-		    			debug("not any gene for "+ctx.getChr());
+		    			debug("not any gene for "+ctx.getContig());
 		    			}
 		    		}
 		    	
@@ -393,13 +393,13 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 				{
 				String tokens[]=tab.split(line);
 				KnownGene g=new KnownGene(tokens);
-				if(dict!=null && dict.getSequence(g.getChr())==null) continue;
+				if(dict!=null && dict.getSequence(g.getContig())==null) continue;
 				
-				List<KnownGene> kg=this.chrom2knownGenes.get(g.getChr());
+				List<KnownGene> kg=this.chrom2knownGenes.get(g.getContig());
 				if(kg==null)
 					{
 					kg=new ArrayList<KnownGene>();
-					this.chrom2knownGenes.put(g.getChr(),kg);
+					this.chrom2knownGenes.put(g.getContig(),kg);
 					}
 				kg.add(g);
 				++nKG;

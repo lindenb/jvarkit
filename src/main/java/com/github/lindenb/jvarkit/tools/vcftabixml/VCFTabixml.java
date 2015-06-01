@@ -208,7 +208,7 @@ public class VCFTabixml extends AbstractVCFFilter
 					if(ctx.getStart()-1!=chromStart) continue;
 
 					
-					transformer.setParameter("vcfchrom",ctx.getChr());
+					transformer.setParameter("vcfchrom",ctx.getContig());
 					transformer.setParameter("vcfpos",ctx.getStart());
 					transformer.setParameter("vcfref",ctx.getReference().getBaseString());
 					transformer.setParameter("vcfalt",ctx.getAltAlleleWithHighestAlleleCount().getBaseString());

@@ -99,7 +99,7 @@ public class ConvertVcfChromosomes extends AbstractVCFFilter2 {
 			{
 			VariantContext ctx=in.next();
 			VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-			String newName=convertName(ctx.getChr());
+			String newName=convertName(ctx.getContig());
 			if(newName==null)
 				{
 				//skip unknown chromosomes

@@ -93,7 +93,7 @@ public class IgvSocket
 	public void show(final VariantContext ctx)
 		{
 		if( ctx ==null ) return ;
-		show(ctx.getChr(),ctx.getStart());
+		show(ctx.getContig(),ctx.getStart());
 		}	
 	
 	public void show(final String chrom,int chromStart)

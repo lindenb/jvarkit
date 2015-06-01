@@ -251,13 +251,13 @@ public class VcfToRdf extends AbstractCommandLineProgram
 				VariantContext ctx = progress.watch(in.next()); 
 				
 				/* Variant */
-				URI variant = URI.create("urn:variant/"+ctx.getChr()+":"+ctx.getStart()+":"+ctx.getReference().getBaseString());
+				URI variant = URI.create("urn:variant/"+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getBaseString());
 				
 				
 				
 				emit(variant,
 					"rdf:type","vcf:Variant",
-					"vcf:chrom",URI.create("urn:chrom/"+ctx.getChr()),
+					"vcf:chrom",URI.create("urn:chrom/"+ctx.getContig()),
 					"vcf:position",ctx.getStart(),
 					"vcf:ref",ctx.getReference().getBaseString(),
 					"vcf:id",(ctx.hasID()?ctx.getID():null),
@@ -370,7 +370,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 						}
 					
 					emit(
-						URI.create("urn:gt/"+ctx.getChr()+":"+ctx.getStart()+":"+ctx.getReference().getBaseString()+":"+sample),
+						URI.create("urn:gt/"+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getBaseString()+":"+sample),
 						L.toArray()
 						);
 					}

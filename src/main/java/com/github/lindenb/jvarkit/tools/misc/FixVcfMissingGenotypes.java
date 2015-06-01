@@ -234,7 +234,7 @@ public class FixVcfMissingGenotypes extends AbstractCommandLineProgram
 					//get depth for this position
 					for(SamReader sr: samReaders)
 						{
-						SAMRecordIterator iter=sr.query(ctx.getChr(), ctx.getStart(), ctx.getEnd(), false);
+						SAMRecordIterator iter=sr.query(ctx.getContig(), ctx.getStart(), ctx.getEnd(), false);
 						while(iter.hasNext())
 							{
 							SAMRecord rec=iter.next();

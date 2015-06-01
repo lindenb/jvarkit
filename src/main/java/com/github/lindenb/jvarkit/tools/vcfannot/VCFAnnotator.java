@@ -190,12 +190,12 @@ public class VCFAnnotator extends AbstractVCFFilter2
 			String tokens[]=tab.split(line);
 			KnownGene g=new KnownGene(tokens);
 
-			if(!this.knownGenes.put(g.getChr(), g.getTxStart()+1, g.getTxEnd(),g))
+			if(!this.knownGenes.put(g.getContig(), g.getTxStart()+1, g.getTxEnd(),g))
 				{
-				if(!unknown.contains(g.getChr()))
+				if(!unknown.contains(g.getContig()))
 					{
-					warning("The reference "+REF+" doesn't contain chromosome "+g.getChr());
-					unknown.add(g.getChr());
+					warning("The reference "+REF+" doesn't contain chromosome "+g.getContig());
+					unknown.add(g.getContig());
 					}
 				}
 			else
@@ -280,10 +280,10 @@ public class VCFAnnotator extends AbstractVCFFilter2
 			{
 			VariantContext ctx=r.next();
 			
-			progress.watch(ctx.getChr(), ctx.getStart());
+			progress.watch(ctx.getContig(), ctx.getStart());
 			
 			List<KnownGene> genes=this.knownGenes.getOverlapping(
-					ctx.getChr(), ctx.getStart(), ctx.getEnd() //1-based
+					ctx.getContig(), ctx.getStart(), ctx.getEnd() //1-based
 					);
 			List<Annotation> ctx_annotations=new ArrayList<Annotation>();
 			if(genes==null || genes.isEmpty())
@@ -295,10 +295,10 @@ public class VCFAnnotator extends AbstractVCFFilter2
 				}
 			else
 				{
-				if(genomicSequence==null || !genomicSequence.getChrom().equals(ctx.getChr()))
+				if(genomicSequence==null || !genomicSequence.getChrom().equals(ctx.getContig()))
 					{
-					info("getting genomic Sequence for "+ctx.getChr());
-					genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getChr());
+					info("getting genomic Sequence for "+ctx.getContig());
+					genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getContig());
 					}
 				
 				for(KnownGene gene:genes)

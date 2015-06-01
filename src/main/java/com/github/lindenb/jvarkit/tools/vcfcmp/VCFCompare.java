@@ -29,7 +29,6 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.AbstractVCFCodec;
-import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -335,7 +334,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 			{
 			VariantContext ctx1=v1.getContext();
 			VariantContext ctx2=v2.getContext();
-			int i=ctx1.getChr().compareTo(ctx2.getChr());
+			int i=ctx1.getContig().compareTo(ctx2.getContig());
 			if(i!=0) return i;
 			i=ctx1.getStart()-ctx2.getStart();
 			if(i!=0) return i;

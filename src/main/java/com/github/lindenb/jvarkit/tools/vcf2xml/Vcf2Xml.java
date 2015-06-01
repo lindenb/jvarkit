@@ -10,7 +10,6 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.XMLVcfWriterFactory;
 /**

@@ -117,12 +117,12 @@ public class VcfRegulomeDB extends AbstractVCFFilter2
 			List<String>  regDataList=new ArrayList<String>();
 			VariantContext ctx=in.next();
 			
-			progress.watch(ctx.getChr(),ctx.getStart());
+			progress.watch(ctx.getContig(),ctx.getStart());
 			
 			int start=Math.max(0,ctx.getStart()-this.extend);
 			int end=ctx.getEnd()+this.extend;
 			
-			for(Iterator<RegData> iter=this.regDataTabixFileReader.iterator(ctx.getChr(), start, end);
+			for(Iterator<RegData> iter=this.regDataTabixFileReader.iterator(ctx.getContig(), start, end);
 					iter.hasNext();
 					)
 				{

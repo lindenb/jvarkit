@@ -110,7 +110,7 @@ public class FindAVariation extends AbstractCommandLineProgram
 		{
 		out.print(f);
 		out.print('\t');
-		out.print(ctx.getChr());
+		out.print(ctx.getContig());
 		out.print('\t');
 		out.print(ctx.getStart());
 		out.print('\t');
@@ -220,7 +220,7 @@ public class FindAVariation extends AbstractCommandLineProgram
 	    					while(iter.hasNext())
 	    						{
 	    						VariantContext ctx=iter.next();
-	    						Mutation m=new Mutation(ctx.getChr(), ctx.getStart());
+	    						Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
 	    						if(mutlist.contains(m))
 	    							{
 	    							report(f,ctx);

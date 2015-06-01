@@ -163,9 +163,9 @@ public class VCFBigWig extends AbstractVCFFilter3
 			values.clear();
 			
 			BigWigIterator iter=this.bbFileReader.getBigWigIterator(
-					ctx.getChr(),
+					ctx.getContig(),
 					ctx.getStart()-1,
-					ctx.getChr(),
+					ctx.getContig(),
 					ctx.getEnd(),
 					isContained()
 					);

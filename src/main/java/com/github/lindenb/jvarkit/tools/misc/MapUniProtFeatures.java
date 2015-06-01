@@ -230,7 +230,7 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 					prot2genes.put(tokens[10], L);
 					}
 				
-				if(indexedFastaSequenceFile.getSequenceDictionary().getSequence(kg.getChr())==null)
+				if(indexedFastaSequenceFile.getSequenceDictionary().getSequence(kg.getContig())==null)
 					{
 					LOG.info("ignoring "+line);
 					continue;

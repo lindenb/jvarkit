@@ -110,14 +110,14 @@ public class VCFBedSetFilter extends AbstractVCFFilter3
 			boolean set_filter=false;
 			
 			CloseableIterator<IndexedBedReader.BedLine> iter = this.bedReader.iterator(
-					ctx.getChr(),
+					ctx.getContig(),
 					ctx.getStart()-1,
 					ctx.getEnd()+1
 					);
 			while(iter.hasNext())
 				{
 				IndexedBedReader.BedLine bed=iter.next();
-				if(!ctx.getChr().equals(bed.getChr())) continue;
+				if(!ctx.getContig().equals(bed.getContig())) continue;
 				if(ctx.getStart()-1 >= bed.getEnd() ) continue;
 				if(ctx.getEnd()-1 < bed.getStart() ) continue;
 				set_filter=true;

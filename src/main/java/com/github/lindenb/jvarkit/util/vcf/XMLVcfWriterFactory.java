@@ -238,7 +238,7 @@ public class XMLVcfWriterFactory
 					 variant = new VariantContextBuilder(variant).noGenotypes().make();
 							 
 				start("variation");
-				element("chrom",variant.getChr());
+				element("chrom",variant.getContig());
 				element("start",variant.getStart());
 				element("end",variant.getEnd());
 				if(variant.hasID())

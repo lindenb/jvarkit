@@ -262,7 +262,7 @@ public class SAMSequenceDictionaryProgress
 		{
 		if(ctx!=null)
 			{
-			watch(ctx.getChr(),ctx.getStart());
+			watch(ctx.getContig(),ctx.getStart());
 			}
 		return ctx;
 		}

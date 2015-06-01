@@ -298,7 +298,7 @@ public abstract class AbstractVCFDiseaseOntology
 	protected Set<Integer> getGeneIds(VariantContext ctx)
 		{
 		return new HashSet<Integer>(this.ncbiGeneMap.getOverlapping(new Interval(
-				ctx.getChr(),
+				ctx.getContig(),
 				ctx.getStart(),
 				ctx.getEnd()
 				)));

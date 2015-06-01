@@ -133,14 +133,14 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 			 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
 			*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
 			 */
-			SAMRecordIterator r=samReader.queryOverlapping(rgn.interval.getSequence(), chromStart1, chromEnd1);
+			SAMRecordIterator r=samReader.queryOverlapping(rgn.interval.getContig(), chromStart1, chromEnd1);
 			while(r.hasNext())
 				{
 				SAMRecord rec=r.next();
 				if(rec.getReadUnmappedFlag()) continue;
 				if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 				if(rec.getDuplicateReadFlag()) continue;
-				if(!rec.getReferenceName().equals(rgn.interval.getSequence())) continue;
+				if(!rec.getReferenceName().equals(rgn.interval.getContig())) continue;
 				if(rec.getMappingQuality()==255 && rec.getMappingQuality()< this.MMQ)
 					{
 					continue;

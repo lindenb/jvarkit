@@ -228,7 +228,7 @@ public class VCFComm extends AbstractVCFCompare {
 						
 						VariantContextBuilder b=new VariantContextBuilder(
 								getClass().getName(),
-								first.getChr(),
+								first.getContig(),
 								first.getStart(),
 								first.getEnd(),
 								alleles

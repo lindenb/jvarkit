@@ -134,7 +134,7 @@ public class AlleleFrequencyCalculator extends AbstractCommandLineProgram
 					}
 				
 				
-				out.print(ctx.getChr());
+				out.print(ctx.getContig());
 				out.print("\t");
 				out.print(ctx.getStart());
 				out.print("\t");

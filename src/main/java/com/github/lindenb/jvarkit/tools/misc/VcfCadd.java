@@ -103,7 +103,7 @@ public class VcfCadd extends AbstractVCFFilter3
 			throws IOException
 		{
 		if(buffer.isEmpty()) return;
-		String chrom=buffer.get(0).getChr();
+		String chrom=buffer.get(0).getContig();
 		int start=Integer.MAX_VALUE;
 		int end=0;
 		for(VariantContext ctx:buffer)
@@ -202,7 +202,7 @@ public class VcfCadd extends AbstractVCFFilter3
 				}
 			if( ctx==null ||
 				(!buffer.isEmpty() &&
-				(buffer.get(0).getChr().equals(ctx.getChr())) && (ctx.getEnd()-buffer.get(0).getStart())>buffer_distance))
+				(buffer.get(0).getContig().equals(ctx.getContig())) && (ctx.getEnd()-buffer.get(0).getStart())>buffer_distance))
 				{
 				if(!buffer.isEmpty())
 					{

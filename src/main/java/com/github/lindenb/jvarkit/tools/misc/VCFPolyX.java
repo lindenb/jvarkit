@@ -88,10 +88,10 @@ public class VCFPolyX extends AbstractVCFFilter3
 			{
 			VariantContext ctx=progress.watch(r.next());
 			VariantContextBuilder b=new VariantContextBuilder(ctx);
-			if(genomicSequence==null || !ctx.getChr().equals(genomicSequence.getChrom()))
+			if(genomicSequence==null || !ctx.getContig().equals(genomicSequence.getChrom()))
 				{
-				this.info("loading chromosome "+ctx.getChr());
-				genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getChr());
+				this.info("loading chromosome "+ctx.getContig());
+				genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getContig());
 				}
 			int pos0=ctx.getStart()-1;
 			int count=1;

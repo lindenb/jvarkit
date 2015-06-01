@@ -87,13 +87,13 @@ public class VcfRemoveGenotypeIfInVcf extends AbstractVCFFilter2 {
 			/* get overlapping variants */
 			overlappingList.clear();
 			Iterator<VariantContext> iter = this.tabix.iterator(
-					ctx.getChr(), ctx.getStart(), ctx.getEnd()+1);
+					ctx.getContig(), ctx.getStart(), ctx.getEnd()+1);
 			while(iter.hasNext())
 				{
 				VariantContext ctx2=iter.next();
 				//check position
 				if(ctx2.getStart()!=ctx.getStart() ) continue;
-				if(!ctx2.getChr().equals(ctx.getChr()) ) continue;
+				if(!ctx2.getContig().equals(ctx.getContig()) ) continue;
 				//not ALT alleles
 				if(ctx2.getAlternateAlleles().isEmpty() ) continue;
 				//not same REF anyway

@@ -251,7 +251,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 						
 						rec.file_index=(i-getopt.getOptInd())+1;
 						rec.sampleName=genotype.getSampleName();
-						rec.chrom=var.getChr();
+						rec.chrom=var.getContig();
 						rec.start=var.getStart();
 						rec.end=var.getEnd();
 						

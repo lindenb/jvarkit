@@ -54,7 +54,7 @@ public class VCFComparePredictions extends AbstractVCFCompare {
 	
 	private static void startLine(PrintWriter out,VariantContext ctx)
 		{
-		out.print(ctx.getChr());
+		out.print(ctx.getContig());
 		out.print("\t");
 		out.print(ctx.getStart());
 		out.print("\t");

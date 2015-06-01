@@ -224,7 +224,7 @@ public class VcfGroupByPopulation extends AbstractVCFFilter3
 			VariantContext ctx=progress.watch(vcfIn.next());
 			VariantContextBuilder vcb=new VariantContextBuilder(
 					inputSource,
-					ctx.getChr(),
+					ctx.getContig(),
 					ctx.getStart(),
 					ctx.getEnd(),
 					ctx.getAlleles()

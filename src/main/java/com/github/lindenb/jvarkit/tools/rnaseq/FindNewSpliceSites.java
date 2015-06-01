@@ -255,7 +255,7 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 					{
 					KnownGene g=new KnownGene(tab.split(r.next()));
 					if(g.getExonCount()==1) continue;//need spliced one
-					this.knownGenesMap.put(new Interval(g.getChr(), g.getTxStart()+1, g.getTxEnd()), g);
+					this.knownGenesMap.put(new Interval(g.getContig(), g.getTxStart()+1, g.getTxEnd()), g);
 					}
 				info("Done reading: "+kgUri);
 				}

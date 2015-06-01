@@ -29,7 +29,7 @@ public class VcfTreePack extends AbstractTreePackCommandLine<VariantContext>
 			@Override
 			public void watch(VariantContext ctx)
 				{
-				this.get(ctx.getChr()).watch(ctx);
+				this.get(ctx.getContig()).watch(ctx);
 				}
 			}
 		@Override
