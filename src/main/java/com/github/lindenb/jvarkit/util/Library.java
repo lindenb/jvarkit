@@ -9,6 +9,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfCutSamples;
 import com.github.lindenb.jvarkit.tools.misc.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfIndexTabix;
+import com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
@@ -71,7 +72,8 @@ private Library()
 			VCFBedSetFilter.class,
 			VCFReplaceTag.class,
 			VcfIndexTabix.class,IndexedVcfFileReader.class,
-			IgvSocket.class
+			IgvSocket.class,
+			VcfMultiToOneAllele.class
 			};
 	}
 }

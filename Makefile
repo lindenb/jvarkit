@@ -50,6 +50,8 @@ jvarkit.package=com.github.lindenb.jvarkit
 EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
 
+
+
 define compile-htsjdk-cmd
 
 ## 1 : target name
@@ -72,6 +74,14 @@ $(1)  : ${htsjdk.jars} \
 		--stringparam version $$(if $$(realpath .git/refs/heads/master), `cat  $$(realpath .git/refs/heads/master) `, "undefined") \
 		${this.dir}src/main/resources/xsl/tools2galaxy.xsl ${this.dir}src/main/resources/xml/tools.xml || echo "XSLT failed (ignored)"
 	-cp ${galaxy.bundle.dir}/jvarkit/$(1).xml ${tmp.dir}/META-INF/galaxy.xml 
+	#generate java code if needed = a file with .xml exists, requires xsltproc
+	if [ -f "$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" ] ; then \
+				mkdir -p ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
+				xsltproc \
+						-o ${generated.dir}/java/$(dir $(subst .,/,$(2)))Abstract$(notdir $(subst .,/,$(2))).java \
+						${this.dir}src/main/resources/xsl/command2java.xsl \
+						"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"  ;\
+	fi
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
 	echo '### Printing javac version : it should be 1.7. if Not, check your $$$${PATH}.'
@@ -149,7 +159,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
 	biostar3654 vcfjoinvcfjs bioalcidae solenavcf2raw vcfbedsetfilter vcfreplacetag vcfindextabix \
-	vcfpeekvcf vcfgetvariantbyindex
+	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele
 
 
 .PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -361,7 +371,7 @@ $(eval $(call compile-htsjdk-cmd,vcfreplacetag,${jvarkit.package}.tools.vcfstrip
 $(eval $(call compile-htsjdk-cmd,vcfindextabix,${jvarkit.package}.tools.misc.VcfIndexTabix))
 $(eval $(call compile-htsjdk-cmd,vcfpeekvcf,${jvarkit.package}.tools.vcfvcf.VcfPeekVcf))
 $(eval $(call compile-htsjdk-cmd,vcfgetvariantbyindex,${jvarkit.package}.tools.misc.VcfGetVariantByIndex))
-
+$(eval $(call compile-htsjdk-cmd,vcfmulti2oneallele,${jvarkit.package}.tools.misc.VcfMultiToOneAllele))
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
 	 ./src/main/resources/jnlp/generic.jnlp .secret.keystore 
