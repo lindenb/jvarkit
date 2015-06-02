@@ -29,7 +29,6 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -83,7 +82,6 @@ public class VcfMultiToOneAllele
 			throws IOException {
 		final String TAG="VCF_MULTIALLELIC_SRC";
 		final List<String> noSamples=Collections.emptyList();
-		final List<Genotype> noGenotypes=Collections.emptyList();
 		VCFHeader header=in.getHeader();
 		Set<VCFHeaderLine> metaData=new HashSet<>(header.getMetaDataInInputOrder());
 		
@@ -113,7 +111,7 @@ public class VcfMultiToOneAllele
 			else if(alleles.size()==1)
 				{
 				VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.genotypes(noGenotypes);
+				vcb.noGenotypes();
 				out.add(vcb.make());
 				incrVariantCount();
 				}
@@ -133,6 +131,7 @@ public class VcfMultiToOneAllele
 					Allele a=alleles.get(i);
 					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					vcb.alleles(Arrays.asList(ctx.getReference(),a));
+					vcb.noGenotypes();
 					for(String attid:attributes.keySet())
 						{
 						VCFInfoHeaderLine info = header.getInfoHeaderLine(attid);
