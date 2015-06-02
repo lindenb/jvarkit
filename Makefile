@@ -517,6 +517,14 @@ ${common.math.jar} :
 	rm jeter.tar.gz
 
 ##
+## Apache Stuf
+##
+$(addprefix lib/, commons-validator/commons-validator/1.4.0/commons-validator-1.4.0.jar commons-beanutils/commons-beanutils/1.8.3/commons-beanutils-1.8.3.jar ):
+	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o $@ "http://central.maven.org/maven2/$(patsubst lib/%,%,$@)"
+	
+
+
+##
 ## make sure jars from htslib exist
 ##
 $(filter-out ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar  ,${htsjdk.jars}) : ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar 
