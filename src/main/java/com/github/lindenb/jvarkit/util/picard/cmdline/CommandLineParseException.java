@@ -23,10 +23,9 @@
  */
 package com.github.lindenb.jvarkit.util.picard.cmdline;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 
-public class CommandLineParseException extends PicardException {
+public class CommandLineParseException extends RuntimeException {
 
 	private static final long serialVersionUID = 1L;
 

@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.jar.Manifest;
 import java.util.logging.Handler;
@@ -54,6 +55,7 @@ import javax.xml.stream.XMLStreamException;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+
 import htsjdk.samtools.util.CloserUtil;
 
 
@@ -105,6 +107,8 @@ public abstract class AbstractCommandLineProgram
 			{
 			LOG.warning("Cannot get messages bundle "+e);
 			}
+		/** set locale http://seqanswers.com/forums/showthread.php?p=174020#post174020 */
+		Locale.setDefault(Locale.US);
 		}
 	
 	protected String getMessageBundle(String key)

@@ -46,7 +46,6 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 
 public class IlluminaDirectory
@@ -72,7 +71,7 @@ public class IlluminaDirectory
 	    	  try {
 	              md5 = MessageDigest.getInstance("MD5");
 	          } catch (NoSuchAlgorithmException e) {
-	              throw new PicardException("MD5 algorithm not found", e);
+	              throw new RuntimeException("MD5 algorithm not found", e);
 	          }
 	    	}
     	 md5.reset();

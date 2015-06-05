@@ -7,7 +7,6 @@ import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.LineIterator;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.util.Interval;
@@ -163,7 +162,7 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 	private void scan(SamReader in) 
 		{
 		SAMSequenceDictionary dict=in.getFileHeader().getSequenceDictionary();
-		if(dict==null) throw new PicardException("Sequence dictionary missing");
+		if(dict==null) throw new RuntimeException("Sequence dictionary missing");
 		SAMRecordIterator iter=in.iterator();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 		

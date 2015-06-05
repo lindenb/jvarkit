@@ -23,10 +23,6 @@
  */
 package com.github.lindenb.jvarkit.util.picard.cmdline;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Print out the usage for one or more CommandLinePrograms in a form close to what is used in the Sourceforge Picard website.

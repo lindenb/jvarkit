@@ -3,7 +3,6 @@ package com.github.lindenb.jvarkit.tools.jaspar;
 import java.util.Iterator;
 import java.util.regex.Pattern;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import htsjdk.tribble.readers.LineIterator;
 
@@ -171,7 +170,7 @@ public class Matrix
 					}
 				if(!line.startsWith(">"))
 					{
-					throw new PicardException("Expected line to start with '>' but got "+line);
+					throw new RuntimeException("Expected line to start with '>' but got "+line);
 					}
 				return true;
 				}
@@ -194,7 +193,7 @@ public class Matrix
 					}
 				else
 					{
-					if(tokens.length*4!=data.length) throw new PicardException("Bad matrix in "+header);
+					if(tokens.length*4!=data.length) throw new RuntimeException("Bad matrix in "+header);
 					}
 				for(int j=0;j< tokens.length;++j) data[i*tokens.length+j]=Integer.parseInt(tokens[j]);
 				}

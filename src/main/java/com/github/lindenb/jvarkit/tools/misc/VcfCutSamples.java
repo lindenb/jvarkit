@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -146,7 +145,7 @@ public class VcfCutSamples
 				String msg="user sample "+my+" is not present in VCF Header : "+samples1;
 				if(this.missing_sample_is_error)
 					{
-					throw new PicardException(msg);
+					throw new RuntimeException(msg);
 					}
 				else
 					{

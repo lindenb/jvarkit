@@ -7,7 +7,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.SAMFileWriterImpl;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.SortingCollection.Codec;
@@ -69,9 +68,9 @@ public class SortingCollectionFactory<T>
 	
 	public SortingCollection<T> make()
 		{
-		if(componentType==null) throw new PicardException("componentType is undefined ");
-		if(codec==null) throw new PicardException("codec is undefined ");
-		if(comparator==null) throw new PicardException("comparator is undefined ");
+		if(componentType==null) throw new RuntimeException("componentType is undefined ");
+		if(codec==null) throw new RuntimeException("codec is undefined ");
+		if(comparator==null) throw new RuntimeException("comparator is undefined ");
 		List<File> dirs=new ArrayList<File>(getTmpDirs());
 		if(dirs.isEmpty())
 			{

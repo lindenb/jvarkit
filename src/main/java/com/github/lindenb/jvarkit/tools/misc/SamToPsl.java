@@ -5,7 +5,6 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.SamReader;
@@ -101,7 +100,7 @@ public class SamToPsl extends AbstractCommandLineProgram
 		SAMSequenceRecord ssr=dict.getSequence(rec.getReferenceIndex());
 		if(ssr==null)
 			{
-			throw new PicardException("Cannot get SAMSequenceRecord dict for "+rec.getReferenceName());
+			throw new RuntimeException("Cannot get SAMSequenceRecord dict for "+rec.getReferenceName());
 			}
 		a.setTSize( ssr.getSequenceLength());
 		
@@ -239,7 +238,7 @@ public class SamToPsl extends AbstractCommandLineProgram
 	private void scan(SamReader in) 
 		{
 		SAMSequenceDictionary dict=in.getFileHeader().getSequenceDictionary();
-		if(dict==null) throw new PicardException("Sequence dictionary missing...");
+		if(dict==null) throw new RuntimeException("Sequence dictionary missing...");
 		SAMRecordIterator iter=in.iterator();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);		
 		while(iter.hasNext() && !this.out.checkError())

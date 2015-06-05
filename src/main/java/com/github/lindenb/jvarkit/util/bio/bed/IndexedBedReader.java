@@ -31,8 +31,6 @@ package com.github.lindenb.jvarkit.util.bio.bed;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.AbstractFeatureReader;
-import htsjdk.tribble.AsciiFeatureCodec;
-import htsjdk.tribble.Feature;
 import htsjdk.tribble.Tribble;
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.IndexFactory;
@@ -59,48 +57,7 @@ public class IndexedBedReader
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 
-	
-	public static class BedLine
-		implements Feature
-		{
-		private String tokens[];
 		
-		BedLine(String tokens[])
-			{
-			this.tokens=tokens;
-			}
-		@Override
-		@Deprecated
-		public String getChr() {
-			return tokens[0];
-			}
-		
-		@Override
-		public String getContig() {
-			return tokens[0];
-			}
-		@Override
-		public int getStart() {
-			return Integer.parseInt(tokens[1]);
-			}
-		
-		@Override
-		public int getEnd() {
-			return (tokens.length<3 ?getStart(): Integer.parseInt(tokens[2]));
-			}
-
-		public String get(int index)
-			{
-			return (index<tokens.length?tokens[index]:null);
-			}
-		
-		public int getColumnCount()
-			{
-			return tokens.length;
-			}
-		
-		}
-	
 	private File source;
 	private AbstractIndexReader reader;
 	
@@ -253,36 +210,4 @@ public class IndexedBedReader
 	    		}
 	    	}
 		}
-	private static class BedLineCodec
-	extends AsciiFeatureCodec<BedLine>
-		{
-		private Pattern tab=Pattern.compile("[\t]");
-		public BedLineCodec() {
-			super(BedLine.class);
-			}
-		
-		@Override
-		public BedLine decode(String line) {
-			
-			if (line.trim().isEmpty()) {
-	            return null;
-	        	}
-
-	        if (line.startsWith("#") || line.startsWith("track") || line.startsWith("browser")) {
-	            return null;
-	        	}
-
-	        String[] tokens = tab.split(line);
-	        if(tokens.length<2) return null;
-	       
-	        return new BedLine(tokens);
-	        }
-		
-		@Override
-		public Object readActualHeader(LineIterator reader) {
-			return null;
-			}
-		
-		}
-
-}
+	}

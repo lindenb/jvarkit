@@ -21,7 +21,7 @@ public class IntervalTreeMapFactory<T>
              Interval interval=getKeyFunction().apply(tokens);
              if(interval==null) continue;
              if(getSamSequenceDictionary()!=null &&
-            		getSamSequenceDictionary().getSequence(interval.getSequence())==null 
+            		getSamSequenceDictionary().getSequence(interval.getContig())==null 
             		) continue;
              T value=getValueFunction().apply(tokens);
              if(value==null) continue;

@@ -550,7 +550,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			while(iter.hasNext())
 				{
 				VariantContext var=iter.next();
-				progress.watch(var.getChr(), var.getStart());
+				progress.watch(var.getContig(), var.getStart());
 				for(int x=0;x< samples.size();++x)
 					{
 					String samplex =  samples.get(x);

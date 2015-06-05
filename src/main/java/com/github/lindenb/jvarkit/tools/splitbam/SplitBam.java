@@ -18,7 +18,6 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
@@ -235,7 +234,7 @@ public class SplitBam extends AbstractCommandLineProgram
 				)
 			{
 			samFileReader.close();
-			throw new PicardException("Not the same sequence dictionary BAM vs "+REF);
+			throw new RuntimeException("Not the same sequence dictionary BAM vs "+REF);
 			}
 		/*
 		 problem of parsing with GATK 2.6 : ignore this for the moment.

@@ -85,7 +85,7 @@ public abstract class AbstractIntervalMapFactory<T>
 	
 	protected int compareIntervals(Interval i1,Interval i2)
 		{
-		int i=compareChromosomes(i1.getSequence(),i2.getSequence());
+		int i=compareChromosomes(i1.getContig(),i2.getContig());
 		if(i!=0) return i;
 		i=i1.getStart()-i2.getStart();
 		if(i!=0) return i;

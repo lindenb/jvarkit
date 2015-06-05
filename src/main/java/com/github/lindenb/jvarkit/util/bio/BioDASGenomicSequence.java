@@ -9,9 +9,6 @@ import java.util.logging.Logger;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
-
-import com.github.lindenb.jvarkit.util.picard.PicardException;
-
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -44,7 +41,7 @@ public class BioDASGenomicSequence extends AbstractCharSequence implements
 			}
 		catch(Exception err)
 			{
-			throw new PicardException(err.getMessage());
+			throw new RuntimeException(err.getMessage());
 			}
 	
 		}
@@ -78,7 +75,7 @@ public class BioDASGenomicSequence extends AbstractCharSequence implements
 			}
 		catch (Exception err)
 			{
-			throw new PicardException("BioDas::get",err);
+			throw new RuntimeException("BioDas::get",err);
 			}
 		return (char)buffer[index0-minStart];
 		}
@@ -103,7 +100,7 @@ public class BioDASGenomicSequence extends AbstractCharSequence implements
 				}
 			catch (Exception err)
 				{
-				throw new PicardException("BioDas::length",err);
+				throw new RuntimeException("BioDas::length",err);
 				}
 			
 			}

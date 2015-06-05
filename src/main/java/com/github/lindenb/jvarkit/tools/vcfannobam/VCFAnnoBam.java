@@ -14,7 +14,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
@@ -230,7 +229,7 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 						samHeader.getSequenceDictionary())
 						)
 					{
-					throw new PicardException("some same seq dir are incompatibles");
+					throw new RuntimeException("some same seq dir are incompatibles");
 					}
 				}		
 			IntervalList intervalList=new IntervalList(firstHeader);

@@ -36,7 +36,6 @@ import java.io.PrintWriter;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
@@ -355,7 +354,7 @@ public class Sam2Tsv
 		catch(Exception err)
 			{
 			error(err);
-			throw new PicardException(String.valueOf(err.getMessage()),err);
+			throw new RuntimeException(String.valueOf(err.getMessage()),err);
 			}
 		finally
 			{

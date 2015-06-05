@@ -23,10 +23,9 @@
  */
 package com.github.lindenb.jvarkit.util.picard.cmdline;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 
-public class CommandLineParserDefinitionException extends PicardException {
+public class CommandLineParserDefinitionException extends RuntimeException {
     /**
 	 * 
 	 */

@@ -55,9 +55,6 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFSimpleHeaderLine;
-
-import com.github.lindenb.jvarkit.util.picard.PicardException;
-
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -166,13 +163,13 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 					}
 				if(sampleName!=null && !sampleName.equals(g.getSample()))
 					{	
-					throw new PicardException("Sorry one bam can only contain one sample and I got "+sampleName+" and "+g.getSample()+" in "+bamFile);
+					throw new RuntimeException("Sorry one bam can only contain one sample and I got "+sampleName+" and "+g.getSample()+" in "+bamFile);
 					}
 				sampleName=g.getSample();
 				}
 			if(sampleName==null)
 				{
-				throw new PicardException("Bam "+this.bamFile+" doesn't contain a sample defined in header/read-group");
+				throw new RuntimeException("Bam "+this.bamFile+" doesn't contain a sample defined in header/read-group");
 				}
 			info("In "+bamFile+" Sample is "+sampleName);
 			}

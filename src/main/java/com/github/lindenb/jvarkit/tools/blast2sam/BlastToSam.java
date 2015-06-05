@@ -19,7 +19,6 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
@@ -462,7 +461,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 			}
 		catch (Exception e)
 			{
-			throw new PicardException("Cannot clone a SAMRecord ?",e);
+			throw new RuntimeException("Cannot clone a SAMRecord ?",e);
 			}
 		}
 	
@@ -574,7 +573,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 				iter=peekIteration(r);
 				if(iter==null)
 					{
-					throw new PicardException("Illegal number of read forward/reverse");
+					throw new RuntimeException("Illegal number of read forward/reverse");
 					}
 				else if(iter.getIterationQueryDef().equals(prev_name))
 					{

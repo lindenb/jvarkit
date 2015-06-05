@@ -80,7 +80,7 @@ public class VariantContextBinding extends AbstractVCFBinding<VariantContext>
 	@Override
 	public void objectToEntry(VariantContext ctx, TupleOutput out)
 		{
-		out.writeString(ctx.getChr());
+		out.writeString(ctx.getContig());
 		out.writeInt(ctx.getStart());
 		out.writeInt(ctx.getEnd());
 		if(ctx.hasID())

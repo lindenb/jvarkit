@@ -31,8 +31,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
-
 import htsjdk.samtools.util.CollectionUtil.MultiMap;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.util.CloserUtil;
@@ -284,7 +282,7 @@ public class CommandLineParser {
             try {
                 fileField = getClass().getField("IGNORE_THIS_PROPERTY");
             } catch (NoSuchFieldException e) {
-                throw new PicardException("Should never happen", e);
+                throw new RuntimeException("Should never happen", e);
             }
             final OptionDefinition optionsFileOptionDefinition =
               new OptionDefinition(fileField, OPTIONS_FILE, "",
@@ -686,7 +684,7 @@ public class CommandLineParser {
             return true;
 
         } catch (IOException e) {
-            throw new PicardException("I/O error loading OPTIONS_FILE=" + optionsFile, e);
+            throw new RuntimeException("I/O error loading OPTIONS_FILE=" + optionsFile, e);
         } finally {
             CloserUtil.close(reader);
         }
@@ -801,7 +799,7 @@ public class CommandLineParser {
                 final OptionDefinition mutextOptionDefinition = optionMap.get(option);
 
                 if(mutextOptionDefinition == null) {
-                    throw new PicardException("Invalid option definition in source code.  " + option +
+                    throw new RuntimeException("Invalid option definition in source code.  " + option +
                             " doesn't match any known option.");
                 }
 

@@ -12,7 +12,6 @@ import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.LineIterator;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -140,7 +139,7 @@ public class Biostar92368 extends AbstractCommandLineProgram
 					}
 				if(status!=OperationStatus.SUCCESS)
 					{
-					throw new PicardException("Cannot insert data in bdb "+a+"/"+b);
+					throw new RuntimeException("Cannot insert data in bdb "+a+"/"+b);
 					}
 				if(a.equals(b)) break;//self-self
 				}

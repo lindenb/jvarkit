@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.fastq.BasicFastqWriter;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.fastq.FastqWriter;
@@ -243,7 +242,7 @@ public class BamToFastq
 					if(found_single )
 						{
 						sfr.close();
-						throw new PicardException("input is a mix of paired/singled reads");
+						throw new RuntimeException("input is a mix of paired/singled reads");
 						}
 					m.side=(byte)(rec.getSecondOfPairFlag()?2:1);
 					}
@@ -253,7 +252,7 @@ public class BamToFastq
 					if(found_paired )
 						{
 						sfr.close();
-						throw new PicardException("input is a mix of paired/singled reads");
+						throw new RuntimeException("input is a mix of paired/singled reads");
 						}
 					m.side=(byte)0;
 					}
@@ -312,12 +311,12 @@ public class BamToFastq
 								switch((int)m.side)
 									{
 									case 1:
-										if(found_F) throw new PicardException("two forward reads found for "+row.get(0).name);
+										if(found_F) throw new RuntimeException("two forward reads found for "+row.get(0).name);
 										found_F=true;
 										echo(fqw1,m);
 										break;
 									case 2:
-										if(found_R) throw new PicardException("two reverse reads found for "+row.get(0).name);
+										if(found_R) throw new RuntimeException("two reverse reads found for "+row.get(0).name);
 										found_R=true;
 										echo(fqw2,m);
 										break;
@@ -339,7 +338,7 @@ public class BamToFastq
 									}
 								else
 									{
-									throw new PicardException("forward not found for "+row);
+									throw new RuntimeException("forward not found for "+row);
 									}
 								}
 							if(!found_R)
@@ -356,7 +355,7 @@ public class BamToFastq
 									}
 								else
 									{
-									throw new PicardException("reverse not found for "+row);
+									throw new RuntimeException("reverse not found for "+row);
 									}
 								}
 							}

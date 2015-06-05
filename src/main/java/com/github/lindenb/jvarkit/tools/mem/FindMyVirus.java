@@ -7,7 +7,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
@@ -475,7 +474,7 @@ public class FindMyVirus extends AbstractCommandLineProgram
 			catch(Exception err)
 				{
 				error(err);
-				throw new PicardException("Boum:"+countFile,err);
+				throw new RuntimeException("Boum:"+countFile,err);
 				}
 			finally
 				{

@@ -28,7 +28,6 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 import htsjdk.samtools.util.Log;
@@ -138,11 +137,11 @@ public class VCFTabixml extends AbstractVCFFilter
 				{
 				if(!line.startsWith(VCFHeader.METADATA_INDICATOR))
 					{
-					throw new PicardException("should start with "+ VCFHeader.METADATA_INDICATOR +":"+line);
+					throw new RuntimeException("should start with "+ VCFHeader.METADATA_INDICATOR +":"+line);
 					}
 				 if (!line.startsWith(VCFConstants.INFO_HEADER_START) )
 				 	{
-					throw new PicardException("should start with "+ VCFConstants.INFO_HEADER_START +":"+line);
+					throw new RuntimeException("should start with "+ VCFConstants.INFO_HEADER_START +":"+line);
 				 	}
 				VCFInfoHeaderLine hi=new VCFInfoHeaderLine(line.substring(7), VCFHeaderVersion.VCF4_1);
 				if(hi.getCount()!=1)
@@ -244,7 +243,7 @@ public class VCFTabixml extends AbstractVCFFilter
 					catch (Exception e)
 						{
 						e.printStackTrace();
-						throw new PicardException("error",e);
+						throw new RuntimeException("error",e);
 						}
 					
 					}

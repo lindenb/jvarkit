@@ -16,10 +16,9 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFAnnotator;
-import com.github.lindenb.jvarkit.util.picard.PicardException;
+
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -116,7 +115,7 @@ public class RDFVcfWriter
 		}
 	public void writeHeader(VCFHeader  header,URI source)
 		{
-		if(this.header!=null) throw new PicardException("Header was already written");
+		if(this.header!=null) throw new RuntimeException("Header was already written");
 		this.header=header;
 		this.source=source;
 		if(this.source==null) this.source=URI.create("urn:source/id"+(++id_generator));
@@ -209,14 +208,14 @@ public class RDFVcfWriter
 			
 			}
 		catch(Exception e) {
-			throw new PicardException("close failed",e);
+			throw new RuntimeException("close failed",e);
 			}
 		}
 	
 	@Override
 	public void add(VariantContext ctx)
 		{
-		if(this.header==null) throw new PicardException("No header was written.");
+		if(this.header==null) throw new RuntimeException("No header was written.");
 		try {
 			long variant_id=++id_generator;
 			this.w.writeStartElement(PFX, "Variant", NS);
@@ -408,14 +407,14 @@ public class RDFVcfWriter
 			
 			}
 		catch(XMLStreamException e) {
-			throw new PicardException("add failed",e);
+			throw new RuntimeException("add failed",e);
 			}
 		}
 	@Override
 	public void close()
 		{
 		if(this.w==null) return;
-		if(this.header==null) throw new PicardException("No header was written.");
+		if(this.header==null) throw new RuntimeException("No header was written.");
 		try {
 			this.w.writeEndElement();//rdf:RDF
 			this.w.writeEndDocument();
@@ -427,7 +426,7 @@ public class RDFVcfWriter
 		catch (Exception e)
 			{
 			e.printStackTrace();
-			throw new PicardException("close failed",e);
+			throw new RuntimeException("close failed",e);
 			}
 		}
 	

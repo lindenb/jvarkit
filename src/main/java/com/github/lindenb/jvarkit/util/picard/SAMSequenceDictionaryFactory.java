@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -47,11 +46,11 @@ public  SAMSequenceDictionary load(File file) throws IOException
         	}
         else
         	{
-        	 throw new PicardException("no sequence dictionary file in  " + dictionary);
+        	 throw new IOException("no sequence dictionary file in  " + dictionary);
         	}
     	}
     catch (Exception e) {
-        throw new PicardException("Could not open sequence dictionary file: " + dictionary, e);
+        throw new IOException("Could not open sequence dictionary file: " + dictionary, e);
     }
     finally
     	{
@@ -113,12 +112,12 @@ private SAMSequenceDictionary loadFaidxSequenceDict(File faidx)
 			String tokens[]=tab.split(line);
 			if(tokens.length<5 || tokens[0].isEmpty() || tokens[1].isEmpty()) 
 				{
-				throw new PicardException("Bad line in  file: " + faidx+ " "+line.replaceAll("\t", "\\t"));
+				throw new IOException("Bad line in  file: " + faidx+ " "+line.replaceAll("\t", "\\t"));
 				}
 			
 			if(seen.contains(tokens[0])) 
 				{
-				throw new PicardException("Duplicate sequence name in  file: " + faidx+ " "+line.replaceAll("\t", "\\t"));
+				throw new IOException("Duplicate sequence name in  file: " + faidx+ " "+line.replaceAll("\t", "\\t"));
 				}
 			seen.add(tokens[0]);
 			SAMSequenceRecord ssr=new SAMSequenceRecord(tokens[0], Integer.parseInt(tokens[1]));
@@ -128,7 +127,7 @@ private SAMSequenceDictionary loadFaidxSequenceDict(File faidx)
 		}
 	catch(Exception err)
 		{
-		throw new PicardException("Could not read sequence dictionary file: " + faidx, err);
+		throw new IOException("Could not read sequence dictionary file: " + faidx, err);
 		}
 	finally
 		{
@@ -140,7 +139,7 @@ private SAMSequenceDictionary loadFaidxSequenceDict(File faidx)
 	  	}
 	  else
 	  	{
-	  	throw new PicardException("no sequence dictionary file in  " + faidx);
+	  	throw new IOException("no sequence dictionary file in  " + faidx);
 	  	}
 	}
 }

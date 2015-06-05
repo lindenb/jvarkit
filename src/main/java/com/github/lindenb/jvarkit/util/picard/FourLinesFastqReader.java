@@ -4,16 +4,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
+
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
-
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.LineReaderUtil;
-
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
@@ -59,12 +57,12 @@ public class FourLinesFastqReader
             
             if (StringUtil.isBlank(this.seqHeader))
             	{
-                throw new PicardException(error("Missing sequence header"));
+                throw new RuntimeException(error("Missing sequence header"));
             	}
             
             if (!this.seqHeader.startsWith(FastqConstants.SEQUENCE_HEADER))
             	{
-                throw new PicardException(error("Sequence header must start with "+ FastqConstants.SEQUENCE_HEADER));
+                throw new RuntimeException(error("Sequence header must start with "+ FastqConstants.SEQUENCE_HEADER));
             	}
 
             // Read sequence line
@@ -79,7 +77,7 @@ public class FourLinesFastqReader
             checkLine(qualHeader,"quality header");
             if (!qualHeader.startsWith(FastqConstants.QUALITY_HEADER))
             	{
-                throw new PicardException(error("Quality header must start with "+ FastqConstants.QUALITY_HEADER+": "+qualHeader));
+                throw new RuntimeException(error("Quality header must start with "+ FastqConstants.QUALITY_HEADER+": "+qualHeader));
             	}
 
             // Read quality line
@@ -89,7 +87,7 @@ public class FourLinesFastqReader
 
             // Check sequence and quality lines are same length
             if (seqLine.length() != qualLine.length()) {
-                throw new PicardException(error("Sequence and quality line must be the same length"));
+                throw new RuntimeException(error("Sequence and quality line must be the same length"));
             }
 
             final FastqRecord frec = new FastqRecord(seqHeader.substring(1, seqHeader.length()), seqLine,
@@ -98,7 +96,7 @@ public class FourLinesFastqReader
             return frec ;
 
         } catch (IOException e) {
-            throw new PicardException(String.format("Error reading fastq '%s'", getAbsolutePath()), e);
+            throw new RuntimeException(String.format("Error reading fastq '%s'", getAbsolutePath()), e);
         }
     }
     

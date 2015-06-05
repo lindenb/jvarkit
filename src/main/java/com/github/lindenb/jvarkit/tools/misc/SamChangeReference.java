@@ -2,7 +2,6 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
@@ -54,7 +53,7 @@ public class SamChangeReference extends AbstractCommandLineProgram
 			}
 		if(dict.getSequence(r.ref)==null)
 			{
-			throw new PicardException("The reference sequence '"+r.ref+"' is not declared in the dictionary");
+			throw new RuntimeException("The reference sequence '"+r.ref+"' is not declared in the dictionary");
 			}
 		return r;
 		}

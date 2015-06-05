@@ -10,7 +10,6 @@ import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.variant.variantcontext.VariantContext;
@@ -85,7 +84,7 @@ public class VcfUcsc extends AbstractVCFFilter2
 				{
 				VariantContext ctx=in.next();
 				Set<String> atts=new HashSet<String>();
-				pstmt.setString(1, ctx.getChr());
+				pstmt.setString(1, ctx.getContig());
 				pstmt.setInt(2, ctx.getStart());
 				pstmt.setInt(3, ctx.getEnd());
 				if(this.has_bin_column)
@@ -114,7 +113,7 @@ public class VcfUcsc extends AbstractVCFFilter2
 			}
 		catch(SQLException err)
 			{
-			throw new PicardException("SQLError", err);
+			throw new RuntimeException("SQLError", err);
 			}
 		finally
 			{

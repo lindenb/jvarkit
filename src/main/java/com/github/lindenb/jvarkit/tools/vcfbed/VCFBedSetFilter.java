@@ -31,6 +31,8 @@ package com.github.lindenb.jvarkit.tools.vcfbed;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -43,6 +45,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -109,14 +112,14 @@ public class VCFBedSetFilter extends AbstractVCFFilter3
 			VariantContext ctx= progress.watch(r.next());
 			boolean set_filter=false;
 			
-			CloseableIterator<IndexedBedReader.BedLine> iter = this.bedReader.iterator(
+			CloseableIterator<BedLine> iter = this.bedReader.iterator(
 					ctx.getContig(),
 					ctx.getStart()-1,
 					ctx.getEnd()+1
 					);
 			while(iter.hasNext())
 				{
-				IndexedBedReader.BedLine bed=iter.next();
+				BedLine bed=iter.next();
 				if(!ctx.getContig().equals(bed.getContig())) continue;
 				if(ctx.getStart()-1 >= bed.getEnd() ) continue;
 				if(ctx.getEnd()-1 < bed.getStart() ) continue;

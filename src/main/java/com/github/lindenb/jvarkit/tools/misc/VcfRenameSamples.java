@@ -42,7 +42,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.variant.variantcontext.Genotype;
@@ -98,7 +97,7 @@ public class VcfRenameSamples extends AbstractVCFFilter3
 			}
 		if(newHeader.size()!= new HashSet<String>(newHeader).size())
 			{
-			throw new PicardException(
+			throw new RuntimeException(
 					"Error in input : there are some diplicates in the resulting new VCF header: "+newHeader);
 			}
 				

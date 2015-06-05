@@ -3,7 +3,6 @@ package com.github.lindenb.jvarkit.tools.treepack;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.variant.variantcontext.Genotype;
@@ -116,7 +115,7 @@ public class VcfTreePack extends AbstractTreePackCommandLine<VariantContext>
 					me=parent;
 					parent=parent.getParent();
 					}
-				throw new PicardException("Bad path: you MUST use a 'sample' before using a "+getName());
+				throw new RuntimeException("Bad path: you MUST use a 'sample' before using a "+getName());
 				}
 			public abstract void watch(Genotype g,VariantContext ctx);
 			@Override
@@ -216,7 +215,7 @@ public class VcfTreePack extends AbstractTreePackCommandLine<VariantContext>
 		 while(iter.hasNext())
 			 {
 			 VariantContext rec=iter.next();
-			 progress.watch(rec.getChr(),rec.getStart());
+			 progress.watch(rec.getContig(),rec.getStart());
 			 root.watch(rec);
 			 }
 		 progress.finish();

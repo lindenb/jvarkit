@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.Cigar;
@@ -178,14 +177,14 @@ public class Biostar84452 extends AbstractCommandLineProgram
 							}
 						default:
 							{
-							throw new PicardException("Unsupported Cigar opertator:"+ce.getOperator());
+							throw new RuntimeException("Unsupported Cigar opertator:"+ce.getOperator());
 							}
 						}
 					
 					}
 				if(indexBases!=bases.length)
 					{
-					throw new PicardException("ERRROR "+rec.getCigarString());
+					throw new RuntimeException("ERRROR "+rec.getCigarString());
 					}
 				if(L.size()==cigar.numCigarElements())
 					{

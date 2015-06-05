@@ -11,7 +11,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
@@ -51,7 +50,7 @@ public class ExtendBed extends AbstractCommandLineProgram
     		{
     		case SILENT:return;
     		case LENIENT: LOG.warn(s);break;
-    		default: LOG.error(s); throw new PicardException(s);
+    		default: LOG.error(s); throw new RuntimeException(s);
     		}
     	}
     

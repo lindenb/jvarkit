@@ -1,5 +1,6 @@
 package com.github.lindenb.jvarkit.util.picard;
 
+@Deprecated
 public class PicardException extends RuntimeException
 {
 	private static final long serialVersionUID = 1L;

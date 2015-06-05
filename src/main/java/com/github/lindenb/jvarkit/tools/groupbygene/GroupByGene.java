@@ -50,7 +50,6 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -454,12 +453,12 @@ public class GroupByGene
 					List<Allele> L=genotype.getAlleles();
 					if(L==null || L.isEmpty()) continue;
 					Call c=new Call();
-					c.chrom=ctx.getChr();
+					c.chrom=ctx.getContig();
 					c.pos=ctx.getStart();
 					c.ref=ctx.getReference().getDisplayString();
 					c.gene=g;
 					c.sample=genotype.getSampleName();
-					c.posId=(ctx.getChr()+":"+ctx.getStart()+":"+ctx.getReference().getDisplayString()).toLowerCase();
+					c.posId=(ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getDisplayString()).toLowerCase();
 					if(L.size()==1)
 						{
 						c.a1=genotype.getAllele(0).getDisplayString().toUpperCase();
@@ -479,7 +478,7 @@ public class GroupByGene
 					else
 						{
 						iter.close();
-						throw new PicardException("cannot handle multi-ploidy "+ctx);
+						throw new RuntimeException("cannot handle multi-ploidy "+ctx);
 						}
 					this.sortingCollection.add(c);
 					}

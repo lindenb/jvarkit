@@ -50,12 +50,12 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.variant.variantcontext.VariantContext;
-
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+
 
 
 
@@ -267,6 +267,7 @@ public abstract class AbstractVCFDiseaseOntology
 		
 		this.info("invoking biomart "+q);
 		LineReader r=q.execute();
+		@SuppressWarnings("resource")
 		LineIterator lr=new LineIteratorImpl(r);
 		Pattern pattern=Pattern.compile("[\t]");
 		while(lr.hasNext())

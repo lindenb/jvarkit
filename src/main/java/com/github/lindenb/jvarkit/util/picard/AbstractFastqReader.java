@@ -1,6 +1,5 @@
 package com.github.lindenb.jvarkit.util.picard;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.StringUtil;
@@ -45,7 +44,7 @@ public abstract class AbstractFastqReader
     	switch(getValidationStringency())
     		{
     		case LENIENT: LOG.warning(msg);break;
-    		case STRICT: throw new PicardException(msg);
+    		case STRICT: throw new RuntimeException(msg);
     	    default:break;
     		}
     	}
@@ -93,7 +92,7 @@ public abstract class AbstractFastqReader
     	{
         if (line == null)
         	{
-            throw new PicardException(error("File is too short - missing "+kind+" line"));
+            throw new RuntimeException(error("File is too short - missing "+kind+" line"));
         	}
         if (StringUtil.isBlank(line))
         	{

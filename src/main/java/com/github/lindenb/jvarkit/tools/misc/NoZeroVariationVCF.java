@@ -20,7 +20,6 @@ import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -128,7 +127,7 @@ public class NoZeroVariationVCF extends AbstractVCFFilter2
 				if(alt=='N') continue;
 				break;
 				}
-			if(alt=='N') throw new PicardException("found only N");
+			if(alt=='N') throw new RuntimeException("found only N");
 			VariantContextBuilder vcb=new VariantContextBuilder();
 			
 			Allele a1=Allele.create((byte)ref,true);

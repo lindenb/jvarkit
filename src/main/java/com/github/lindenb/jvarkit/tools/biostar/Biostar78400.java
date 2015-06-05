@@ -18,7 +18,6 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.transform.stream.StreamSource;
 
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
@@ -129,7 +128,7 @@ public class Biostar78400 extends CommandLineProgram
 			ReadGroupList rgl=unmarshaller.unmarshal(new StreamSource(XML),ReadGroupList.class).getValue();
 			if(rgl.flowcells.isEmpty())
 				{
-				throw new PicardException("empty XML "+XML);
+				throw new RuntimeException("empty XML "+XML);
 				}
 			
 			
@@ -171,7 +170,7 @@ public class Biostar78400 extends CommandLineProgram
 						{
 						if(seenids.contains(rg.id))
 							{
-							throw new PicardException("Group id "+rg.id +" defined twice");
+							throw new RuntimeException("Group id "+rg.id +" defined twice");
 							}
 						seenids.add(rg.id);
 						 // create the read group we'll be using
@@ -220,23 +219,23 @@ public class Biostar78400 extends CommandLineProgram
 				String tokens[]=colon.split(rec.getReadName(),3);
 				if(tokens.length!=3)
 					{
-					throw new PicardException("Cannot split "+rec.getReadName());
+					throw new RuntimeException("Cannot split "+rec.getReadName());
 					}
 				
 				Map<Integer,String> lane2id=flowcell2lane2id.get(tokens[0]);
-				if(lane2id==null) throw new PicardException("Cannot get flowcell/readgroup for "+rec.getReadName());
+				if(lane2id==null) throw new RuntimeException("Cannot get flowcell/readgroup for "+rec.getReadName());
 				try
 					{
 					RGID=lane2id.get(Integer.parseInt(tokens[1]));
 					}
 				catch (Exception e)
 					{
-					throw new PicardException("bad lane-Id in "+rec.getReadName());
+					throw new RuntimeException("bad lane-Id in "+rec.getReadName());
 					}
 				
 				if(RGID==null) 
 					{
-					throw new PicardException("Cannot get RGID for "+rec.getReadName());
+					throw new RuntimeException("Cannot get RGID for "+rec.getReadName());
 					}
 				rec.setAttribute(SAMTag.RG.name(), RGID);
 				sfw.addAlignment(rec);

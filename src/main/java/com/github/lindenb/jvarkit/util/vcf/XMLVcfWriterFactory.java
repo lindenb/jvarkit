@@ -13,7 +13,6 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -55,6 +54,7 @@ public class XMLVcfWriterFactory
 			}
 		
 				
+		@SuppressWarnings("unused")
 		public void putInfoHandler(XMLInfoHandler handler)
 			{
 			this.info2handler.put(handler.getKey(), handler);
@@ -98,7 +98,7 @@ public class XMLVcfWriterFactory
 		@Override
 		public void writeHeader(VCFHeader header)
 			{
-			if(this.header!=null) throw new PicardException("Header was already written");
+			if(this.header!=null) throw new RuntimeException("Header was already written");
 			this.header=header;
 	
 			try
@@ -220,7 +220,7 @@ public class XMLVcfWriterFactory
 			catch (XMLStreamException e)
 				{
 				e.printStackTrace();
-				throw new PicardException(String.valueOf(e.getMessage()),e);
+				throw new RuntimeException(String.valueOf(e.getMessage()),e);
 				}
 			}
 		
@@ -230,7 +230,7 @@ public class XMLVcfWriterFactory
 		@Override
 		public void add(VariantContext variant)
 			{
-			if(this.header==null) throw new PicardException("No header was written.");
+			if(this.header==null) throw new RuntimeException("No header was written.");
 	
 			try
 				{
@@ -389,7 +389,7 @@ public class XMLVcfWriterFactory
 		public void close()
 			{
 			if(this.writer==null) return;
-			if(this.header==null) throw new PicardException("No header was written.");
+			if(this.header==null) throw new RuntimeException("No header was written.");
 			try {
 				end();//variations
 				end();//vcf
@@ -400,7 +400,7 @@ public class XMLVcfWriterFactory
 			catch (Exception e)
 				{
 				e.printStackTrace();
-				throw new PicardException("close failed",e);
+				throw new RuntimeException("close failed",e);
 				}
 			}
 	

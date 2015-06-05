@@ -65,7 +65,7 @@ public class SamFileReaderFactory
 				}
 			catch(IOException err)
 				{
-				throw new PicardException("Cannot open URL \""+s+"\"", err);
+				throw new RuntimeException("Cannot open URL \""+s+"\"", err);
 				}
 			}
 		else

@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -69,7 +70,7 @@ public class VCFBed extends AbstractVCFFilter3
 	
 	private static abstract class Chunk
 		{
-		public abstract String toString(IndexedBedReader.BedLine tokens);
+		public abstract String toString(BedLine tokens);
 		public Chunk next=null;
 		}
 	
@@ -77,7 +78,7 @@ public class VCFBed extends AbstractVCFFilter3
 		{
 		String s;
 		PlainChunk(String s){this.s=s;}
-		public String toString(IndexedBedReader.BedLine tokens)
+		public String toString(BedLine tokens)
 			{
 			return s+(next==null?"":next.toString(tokens));
 			}
@@ -86,7 +87,7 @@ public class VCFBed extends AbstractVCFFilter3
 		{
 		int index;
 		ColChunk(int index){ this.index=index;}
-		public String toString(IndexedBedReader.BedLine tokens)
+		public String toString(BedLine tokens)
 			{
 			String s= tokens.get(index);
 			if(s==null) s="";
@@ -172,14 +173,14 @@ public class VCFBed extends AbstractVCFFilter3
 			VariantContext ctx= progress.watch(r.next());
 			Set<String> annotations=new HashSet<String>();
 			
-			CloseableIterator<IndexedBedReader.BedLine> iter = this.bedReader.iterator(
+			CloseableIterator<BedLine> iter = this.bedReader.iterator(
 					ctx.getContig(),
 					ctx.getStart()-1,
 					ctx.getEnd()+1
 					);
 			while(iter.hasNext())
 				{
-				IndexedBedReader.BedLine bedLine = iter.next();
+				BedLine bedLine = iter.next();
 				
 				if(!ctx.getContig().equals(bedLine.getContig())) continue;
 				if(ctx.getStart()-1 >= bedLine.getEnd() ) continue;

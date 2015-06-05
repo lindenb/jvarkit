@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -53,7 +52,7 @@ public class OtherCanonicalAlignFactory {
 			XPAlignImpl f2=new XPAlignImpl();
 			
 			f2.tid= this.header.getSequenceIndex(tokens[0]);
-			if(f2.tid==-1) throw new PicardException("Unknown chromosome in "+s);
+			if(f2.tid==-1) throw new RuntimeException("Unknown chromosome in "+s);
 			f2.pos=Integer.parseInt(tokens[1]);
 			f2.strand=tokens[2].charAt(0);
 			f2.cigarStr=tokens[3];

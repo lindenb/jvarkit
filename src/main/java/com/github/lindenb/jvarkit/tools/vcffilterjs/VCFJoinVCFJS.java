@@ -157,7 +157,7 @@ public class VCFJoinVCFJS
 	        	VariantContext variation=progress.watch(r.next());
 	        	
 	        	List<VariantContext> joinVariant = indexedVcfFileReader.getVariants(
-	        			variation.getChr(),
+	        			variation.getContig(),
 	        			variation.getStart(),
 	        			variation.getEnd()
 	        			);

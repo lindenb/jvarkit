@@ -63,7 +63,6 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
-import com.github.lindenb.jvarkit.util.picard.PicardException;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -486,8 +485,8 @@ public class VCFMerge2
 			p.iter=VCFUtils.createVcfIterator(p.uri);
 			input.add(p);
 			SAMSequenceDictionary dict1=p.iter.getHeader().getSequenceDictionary();
-			if(dict1==null) throw new PicardException("dictionary missing in "+p.uri);
-			if(dict1.isEmpty()) throw new PicardException("dictionary is Empty in "+p.uri);
+			if(dict1==null) throw new RuntimeException("dictionary missing in "+p.uri);
+			if(dict1.isEmpty()) throw new RuntimeException("dictionary is Empty in "+p.uri);
 			genotypeSampleNames.addAll(p.iter.getHeader().getSampleNamesInOrder());
 			metaData.addAll(p.iter.getHeader().getMetaDataInInputOrder());
 			if(dict==null)
@@ -496,7 +495,7 @@ public class VCFMerge2
 				}
 			else if(!SequenceUtil.areSequenceDictionariesEqual(dict, dict1))
 				{
-				throw new PicardException("Not the same Sequence dictionaries "+input.get(0).uri+" / "+p.uri);
+				throw new RuntimeException("Not the same Sequence dictionaries "+input.get(0).uri+" / "+p.uri);
 				}
 			}
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
@@ -596,8 +595,8 @@ public class VCFMerge2
 
 
 			SAMSequenceDictionary dict1=handler.header.getSequenceDictionary();
-			if(dict1==null) throw new PicardException("dictionary missing in "+vcfFile);
-			if(dict1.isEmpty()) throw new PicardException("dictionary is Empty in "+vcfFile);
+			if(dict1==null) throw new RuntimeException("dictionary missing in "+vcfFile);
+			if(dict1.isEmpty()) throw new RuntimeException("dictionary is Empty in "+vcfFile);
 			genotypeSampleNames.addAll(handler.header.getSampleNamesInOrder());
 			metaData.addAll(handler.header.getMetaDataInInputOrder());
 			if(fileIndex==0)
@@ -606,7 +605,7 @@ public class VCFMerge2
 				}
 			else if(!SequenceUtil.areSequenceDictionariesEqual(global_dictionary, dict1))
 				{
-				throw new PicardException("Not the same Sequence dictionaries "+IN.get(0)+" / "+vcfFile);
+				throw new RuntimeException("Not the same Sequence dictionaries "+IN.get(0)+" / "+vcfFile);
 				}
 
 
