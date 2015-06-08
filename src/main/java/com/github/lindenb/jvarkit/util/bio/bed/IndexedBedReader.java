@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.util.bio.bed;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.Tribble;
 import htsjdk.tribble.index.Index;
@@ -58,10 +59,15 @@ public class IndexedBedReader
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 
 		
-	private File source;
+	private Object source;
 	private AbstractIndexReader reader;
 	
 	public IndexedBedReader(File bedFile) throws IOException
+		{
+		init(bedFile);
+		}
+	
+	private void init(File bedFile) throws IOException
 		{
 		this.source=bedFile;
     	if(bedFile==null) throw new NullPointerException("bed file==null");
@@ -69,7 +75,7 @@ public class IndexedBedReader
     	if(!bedFile.canRead())  throw new IOException("cannot read "+bedFile);
     	if(bedFile.getName().endsWith(".gz"))
     		{
-    		this.reader = new TabixReader(bedFile);
+    		this.reader = new TabixReader(bedFile.getPath());
     		}
     	else
     		{
@@ -77,13 +83,31 @@ public class IndexedBedReader
     		}
 		}
 	
+	public IndexedBedReader(String onlyTabixOrLocal) throws IOException
+		{
+		if(onlyTabixOrLocal==null) throw new NullPointerException("bed file==null");
+		
+		if(IOUtil.isUrl(onlyTabixOrLocal))
+			{
+			this.reader = new TabixReader(onlyTabixOrLocal);
+			this.source=onlyTabixOrLocal;
+			}
+		else
+			{
+			init(new File(onlyTabixOrLocal));
+			}
+		
+		}
+
+	
 	private void checkOpen()
 		{
 		if(this.reader==null)
 				throw new IllegalStateException("bed reader is closed "+getSource());
 		}
 	
-	public File getSource()
+	/** string of File */
+	public Object getSource()
 		{
 		return this.source;
 		}
@@ -173,9 +197,9 @@ public class IndexedBedReader
 		extends AbstractTabixObjectReader<BedLine>
 		implements AbstractIndexReader
 		{
-		TabixReader(File bedFile) throws IOException
+		TabixReader(String bedFile) throws IOException
 			{
-			super(bedFile.getPath());
+			super(bedFile);
 			}
 		
 		@Override

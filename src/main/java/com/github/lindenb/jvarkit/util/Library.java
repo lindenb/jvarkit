@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.util;
 
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidae;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
+import com.github.lindenb.jvarkit.tools.misc.BedIndexTabix;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VCFShuffle;
 import com.github.lindenb.jvarkit.tools.misc.VcfCadd;
@@ -11,6 +12,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfIndexTabix;
 import com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
+import com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBedSetFilter;
@@ -73,7 +75,9 @@ private Library()
 			VCFReplaceTag.class,
 			VcfIndexTabix.class,IndexedVcfFileReader.class,
 			IgvSocket.class,
-			VcfMultiToOneAllele.class
+			VcfMultiToOneAllele.class,
+			BedIndexTabix.class,
+			VcfMultiToOne.class
 			};
 	}
 }

@@ -121,7 +121,7 @@ public class VCFMerge2
 
     @Override
     protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/VCFMerge";
+    	return DEFAULT_WIKI_PREFIX+"VCFMerge";
     	}
     
     public int getCountMergedVariants() {

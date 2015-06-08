@@ -358,7 +358,7 @@ public class XContaminations extends AbstractKnimeApplication
 					Genotype genotype = ctx.getGenotype(sampleName);
 					if(genotype==null || !genotype.isHom()) continue;
 					iter = samReader.query(
-							ctx.getChr(),
+							ctx.getContig(),
 							ctx.getStart(),
 							ctx.getEnd(),
 							false

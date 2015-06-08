@@ -171,8 +171,7 @@ public class Biostar130456 extends AbstractCommandLineProgram
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			while(in.hasNext())
 				{
-				VariantContext ctx=in.next();
-				progress.watch(ctx.getChr(),ctx.getStart());
+				VariantContext ctx= progress.watch(in.next());
 				for(String sample: samples)
 					{
 					Genotype g= ctx.getGenotype(sample);

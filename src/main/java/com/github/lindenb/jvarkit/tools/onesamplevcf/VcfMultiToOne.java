@@ -339,7 +339,7 @@ public class VcfMultiToOne extends AbstractKnimeApplication
 			{
 			switch(c)
 				{
-				case 'o': setOutputFile(args[opt.getOptInd()]);
+				case 'o': this.setOutputFile(args[opt.getOptInd()]);
 				case 'c': this.setKeepNoCall(false); break;
 				case 'r': this.setKeepHomRef(false); break;
 				case 'a': this.setKeepNonAvailable(false); break;

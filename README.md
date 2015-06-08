@@ -181,6 +181,6 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfPeekVcf">VcfPeekVcf</a></th><td>Peek INFO Tag and ID from another VCF</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfGetVariantByIndex">VcfGetVariantByIndex</a></th><td>Access a (plain or tabix-indexed) VCF file by the i-th index.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele">VcfMultiToOneAllele</a></th><td>VCF: "one variant with N ALT alleles" to "N variants with one ALT"</td></tr>
-
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BedIndexTabix">BedIndexTabix</a></th><td>Index and sort a BED on the fly with Tabix</td></tr>
 </table>
 

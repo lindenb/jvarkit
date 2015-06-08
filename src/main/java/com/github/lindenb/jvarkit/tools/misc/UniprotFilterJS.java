@@ -157,7 +157,6 @@ public class UniprotFilterJS
 			
 			unmarshaller =jc.createUnmarshaller();
 			marshaller =jc.createMarshaller();
-			final String UNIPROTNS="http://uniprot.org/uniprot";
 
 			
 			XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
