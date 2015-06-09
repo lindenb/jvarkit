@@ -107,7 +107,7 @@ public class Biostar86363 extends AbstractVCFFilter2
 		while(in.hasNext())
 			{
 			VariantContext ctx=in.next();
-			ChromAndPos cap=new ChromAndPos(ctx.getChr(), ctx.getStart());
+			ChromAndPos cap=new ChromAndPos(ctx.getContig(), ctx.getStart());
 			Set<String> samplesToReset=this.pos2sample.get(cap);
 			if(samplesToReset!=null)
 				{

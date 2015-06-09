@@ -154,7 +154,7 @@ public class BackLocate
 	               )
         	{
         	this.info("fetch genome");
-        	this.genomicSeq= new GenomicSequence(this.indexedFastaSequenceFile, gene.getChr());
+        	this.genomicSeq= new GenomicSequence(this.indexedFastaSequenceFile, gene.getContig());
         	}
         	
 	        		
@@ -384,13 +384,13 @@ public class BackLocate
 			if(line.isEmpty()) continue;
 			String tokens[]=tab.split(line);
 			KnownGene g=new KnownGene(tokens);
-			Interval rgn=new Interval(g.getChr(), g.getTxStart()+1, g.getTxEnd());
-			if(this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(rgn.getSequence())==null)
+			Interval rgn=new Interval(g.getContig(), g.getTxStart()+1, g.getTxEnd());
+			if(this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(rgn.getContig())==null)
 				{
-				if(!unknown.contains(g.getChr()))
+				if(!unknown.contains(g.getContig()))
 					{
-					warning("The reference doesn't contain chromosome "+g.getChr());
-					unknown.add(g.getChr());
+					warning("The reference doesn't contain chromosome "+g.getContig());
+					unknown.add(g.getContig());
 					}
 				continue;
 				}

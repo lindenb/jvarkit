@@ -72,6 +72,8 @@ public class VcfToHilbert extends AbstractCommandLineProgram
     private int imageWidth=1000;
     private double sampleWidth=0;
     private double genomicSizePerCurveUnit=0L;
+    /** radius of a point */
+    private float radiusSize =3.0f;
 
     
     private abstract class HilbertSegmentHandler
@@ -84,6 +86,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
         private double dist=-1;
         /** last time we plot a segment, point at end */
         private Point2D.Double prevPoint;
+        
         
         
         protected HilbertSegmentHandler()
@@ -233,17 +236,17 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			}
 		private void mul(double x,double y)
 			{
-			g.draw(new Line2D.Double(x-5, y-5, x+5, y+5));
-			g.draw(new Line2D.Double(x+5, y-5, x-5, y+5));
+			g.draw(new Line2D.Double(x-radiusSize, y-radiusSize, x+(radiusSize*2.0), y+(radiusSize*2.0)));
+			g.draw(new Line2D.Double(x+radiusSize, y-radiusSize, x-(radiusSize*2.0), y+(radiusSize*2.0)));
 			}
 		private void cross(double x,double y)
 			{
-			g.draw(new Line2D.Double(x-5, y, x+5, y));
-			g.draw(new Line2D.Double(x, y-5, x, y+5));
+			g.draw(new Line2D.Double(x-radiusSize, y, x+radiusSize, y));
+			g.draw(new Line2D.Double(x, y-radiusSize, x, y+radiusSize));
 			}
 		private void circle(double x,double y)
 			{
-			g.fill(new Ellipse2D.Double(x-3, y-3, 6, 6));
+			g.fill(new Ellipse2D.Double(x-radiusSize, y-radiusSize,(radiusSize*2.0), (radiusSize*2.0)));
 			}
 		
 		@Override
@@ -359,6 +362,11 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			}
 		}
     
+    @Override
+    protected String getOnlineDocUrl() {
+    	return DEFAULT_WIKI_PREFIX+"VcfToHilbert";
+    	}
+    
 	@Override
 	public String getProgramDescription() {
 		return "Plot a Hilbert Curve from a VCF file.";
@@ -369,6 +377,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 		{
 		out.println(" -o (file.png) output image name . Required");
 		out.println(" -w (int) image width . Default: "+this.imageWidth);
+		out.println(" -r (float) radius width . Default: "+this.radiusSize);
 		super.printOptions(out);
 		}
 	
@@ -419,10 +428,11 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 		File imgOut=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:w:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:w:r:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'r': this.radiusSize = Float.parseFloat(opt.getOptArg());break;
 				case 'o': imgOut=new File(opt.getOptArg());break;
 				case 'w': this.imageWidth = Integer.parseInt(opt.getOptArg());break;
 

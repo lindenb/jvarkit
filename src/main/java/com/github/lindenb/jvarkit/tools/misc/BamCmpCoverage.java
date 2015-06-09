@@ -249,7 +249,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 	
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BamCmpCoverage";
+		return DEFAULT_WIKI_PREFIX+"BamCmpCoverage";
 		}
 	
 	@Override
@@ -373,6 +373,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				if(rec.getDuplicateReadFlag())return true;
 				if(rec.getNotPrimaryAlignmentFlag()) return true;
 				if(rec.getReadFailsVendorQualityCheckFlag())return true;
+				if(rec.getMappingQuality()==0) return true;
 				/* ignore non-overlapping BED, already checked with QuertInterval 
 				if( intervals!=null &&
 					! intervals.containsOverlapping(
