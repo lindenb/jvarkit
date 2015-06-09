@@ -138,7 +138,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	bamrenamechr	bamsnvwig	bamstats04	bamtreepack	bamviewgui	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
-	biostar86480	biostar90204	biostar94573	biostar95652 biostar139647	blast2sam	blastfastq	blastmapannots \
+	biostar86480	biostar90204	biostar94573	biostar95652 biostar139647	biostar145820 blast2sam	blastfastq	blastmapannots \
 	blastn2snp	buildwpontology	bwamemdigest	bwamemnop	cmpbams	cmpbamsandbuild	coveragenormalizer \
 	deseqcount	downsamplevcf	evs2bed	evs2vcf	evs2xml	extendbed	fastq2fasta \
 	fastqentropy	fastqgrep	fastqjs	fastqphred64to33	fastqrecordtreepack	fastqrevcomp	fastqshuffle \
@@ -209,6 +209,7 @@ $(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.Conv
 $(eval $(call compile_biostar_cmd,103303))
 $(eval $(call compile_biostar_cmd,106668))
 $(eval $(call compile_biostar_cmd,130456))
+$(eval $(call compile_biostar_cmd,145820))
 $(eval $(call compile_biostar_cmd,59647))
 $(eval $(call compile_biostar_cmd,76892))
 $(eval $(call compile_biostar_cmd,77288))
