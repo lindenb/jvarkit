@@ -44,7 +44,7 @@ public class VcfToBam extends AbstractCommandLineProgram
 	private void run(VcfIterator vcfIterator) throws IOException
 		{
 		 long id_generator=0L;
-		LinkedList<VariantContext> variantBuffer = new LinkedList<>();
+		
 		
 		VCFHeader header = vcfIterator.getHeader();
 		SAMSequenceDictionary dict = header.getSequenceDictionary();
@@ -75,11 +75,9 @@ public class VcfToBam extends AbstractCommandLineProgram
 		/* looping over sequences */
 		for(SAMSequenceRecord ssr: dict.getSequences())
 			{
-			variantBuffer.clear();
+			LinkedList<VariantContext> variantBuffer = new LinkedList<>();
 			GenomicSequence genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ssr.getSequenceName());
 			int x=1;
-			
-			
 			while(x+this.fragmentSize <= ssr.getSequenceLength())
 				{
 				// pop on left
@@ -98,6 +96,13 @@ public class VcfToBam extends AbstractCommandLineProgram
 					
 					VariantContext ctx = vcfIterator.peek();
 					if(ctx==null) break;
+					if(ctx.isIndel() || !ctx.isVariant())
+						{
+						warning("Cannot handle "+ctx.getReference()+"/"+ctx.getAlternateAlleles());
+						vcfIterator.next();//consumme
+						continue;
+						}
+					
 					SAMSequenceRecord variantContig = dict.getSequence( ctx.getContig());
 					if(variantContig == null) throw new IOException("Unknown contig "+ctx.getContig());
 					if(variantContig.getSequenceIndex()< ssr.getSequenceIndex())
@@ -116,6 +121,7 @@ public class VcfToBam extends AbstractCommandLineProgram
 				
 				if(variantBuffer.isEmpty())
 					{
+					info("no variant ?");
 					//no variant on this chromosome
 					break;
 					}
@@ -123,146 +129,153 @@ public class VcfToBam extends AbstractCommandLineProgram
 					{
 					x= variantBuffer.getFirst().getStart()-2*fragmentSize;
 					}
+				
 				for(int depth =0;depth<1;++depth)
 					{
 					for(String sample:header.getSampleNamesInOrder())
 						{
-						SAMRecord records[]={
-								new SAMRecord(samHeader),	
-								new SAMRecord(samHeader)
-								};
-						String readName=String.format("%010d",++id_generator);
-						for(int R=0;R<2;++R)
+						//loop over genomic strand
+						for(int g_strand=0;g_strand<2;++g_strand)
 							{
-							records[R].setReferenceName(ssr.getSequenceName());
-							records[R].setReadPairedFlag(true);
-							records[R].setReadName(readName);
-							records[R].setMappingQuality(60);
-							records[R].setProperPairFlag(true);
-							records[R].setMateReferenceName(ssr.getSequenceName());
-							records[R].setMateUnmappedFlag(false);
-							records[R].setReadUnmappedFlag(false);
-							records[R].setAttribute("RG", sample);
-							records[R].setReadNegativeStrandFlag(R==1);
 							
-						
-						 
-							StringBuilder sequence = new StringBuilder( this.readSize);
-							int readLen=0;
-							int refPos1=(R==0?x:x+this.fragmentSize-this.readSize);
-							records[R].setAlignmentStart(refPos1);
-							
-							List<CigarElement> cigarElements = new ArrayList<>( this.readSize);
-							
-							while(readLen< this.readSize)
+							SAMRecord records[]={
+									new SAMRecord(samHeader),	
+									new SAMRecord(samHeader)
+									};
+							String readName=String.format("%010d",++id_generator);
+							for(int R=0;R<2;++R)
 								{
-								String base=null;
-								VariantContext overlap=null;
-								for(VariantContext vc:variantBuffer)
-									{
-									int d= vc.getStart() - refPos1 ;
-									if( d==0)
-										{
-										overlap=vc;
-										break;
-										}
-									if( d> 0) break;
-									}
+								records[R].setReferenceName(ssr.getSequenceName());
+								records[R].setReadPairedFlag(true);
+								records[R].setReadName(readName);
+								records[R].setMappingQuality(60);
+								records[R].setProperPairFlag(true);
+								records[R].setMateReferenceName(ssr.getSequenceName());
+								records[R].setMateUnmappedFlag(false);
+								records[R].setReadUnmappedFlag(false);
+								records[R].setAttribute("RG", sample);
+								records[R].setReadNegativeStrandFlag(R==1);
 								
-								if(overlap!=null)
+							
+							 
+								StringBuilder sequence = new StringBuilder( this.readSize);
+								int readLen=0;
+								int refPos1=(R==0?x:x+this.fragmentSize-this.readSize);
+								records[R].setAlignmentStart(refPos1);
+								
+								List<CigarElement> cigarElements = new ArrayList<>( this.readSize);
+								
+								while(readLen< this.readSize)
 									{
-									Genotype genotype = overlap.getGenotype(sample);
-									if(genotype.isCalled() && !genotype.isMixed())
+									String base=null;
+									VariantContext overlap=null;
+									for(VariantContext vc:variantBuffer)
 										{
-										List<Allele> alleles = genotype.getAlleles();
-										if(alleles.size()!=2) throw new RuntimeException("Not a diploid organism.");
-										Allele allele=null;
-										if(genotype.isPhased())
+										int d= vc.getStart() - ( refPos1 + readLen) ;
+										if( d==0)
 											{
-											allele =alleles.get(R);
+											overlap=vc;
+											break;
 											}
-										else
+										if( d> 0) break;
+										}
+									
+									if(overlap!=null)
+										{
+										Genotype genotype = overlap.getGenotype(sample);
+										if(genotype.isCalled() && !genotype.isMixed())
 											{
-											allele = alleles.get(Math.random()< 0.5?0:1);
+											List<Allele> alleles = genotype.getAlleles();
+											if(alleles.size()!=2) throw new RuntimeException("Not a diploid organism.");
+											Allele allele=null;
+											if(genotype.isPhased())
+												{
+												allele =alleles.get(g_strand);
+												}
+											else
+												{
+												allele = alleles.get(Math.random()< 0.5?0:1);
+												}
+											if(allele.isSymbolic()) throw new  RuntimeException("Cannot handle symbolic alleles");
+											if(allele.isReference())
+												{
+												cigarElements.add(new CigarElement(allele.getBaseString().length(), CigarOperator.EQ));
+												}
+											else if(allele.getBaseString().length() < overlap.getReference().getBaseString().length())
+												{
+												cigarElements.add(new CigarElement(allele.getBaseString().length(), CigarOperator.D));
+												}
+											else if(allele.getBaseString().length() > overlap.getReference().getBaseString().length())
+												{
+												cigarElements.add(new CigarElement(allele.getBaseString().length(), CigarOperator.I));
+												}
+											else //same size
+												{
+												cigarElements.add(new CigarElement(allele.getBaseString().length(), CigarOperator.X));
+												}
+											base=allele.getBaseString().toLowerCase();
 											}
-										if(allele.isSymbolic()) throw new  RuntimeException("Cannot handle symbolic alleles");
-										if(allele.isReference())
-											{
-											cigarElements.add(new CigarElement(allele.getBaseString().length(), CigarOperator.EQ));
-											}
-										else if(allele.getBaseString().length() < overlap.getReference().getBaseString().length())
-											{
-											cigarElements.add(new CigarElement(allele.getBaseString().length(), CigarOperator.D));
-											}
-										else if(allele.getBaseString().length() > overlap.getReference().getBaseString().length())
-											{
-											cigarElements.add(new CigarElement(allele.getBaseString().length(), CigarOperator.I));
-											}
-										else //same size
-											{
-											cigarElements.add(new CigarElement(allele.getBaseString().length(), CigarOperator.X));
-											}
-										base=allele.getBaseString();
+										}
+									
+									if(base==null)
+										{
+										base=String.valueOf(genomicSequence.charAt(refPos1-1+readLen));
+										cigarElements.add(new CigarElement(1, CigarOperator.EQ));
+										}
+									sequence.append(base);
+									readLen+=base.length();
+									}//end loop over read-leng
+								
+								while(sequence.length()> this.readSize)
+									sequence.deleteCharAt(sequence.length()-1);
+								records[R].setReadString(sequence.toString());
+								
+								
+								StringBuilder qual=new StringBuilder(sequence.length());
+								for(int i=0;i< sequence.length();++i) qual.append("I");
+								records[R].setBaseQualityString(qual.toString());
+								
+								//cigar
+								int c=0;
+								while(c+1< cigarElements.size())
+									{
+									CigarElement c0=cigarElements.get(c);
+									CigarElement c1=cigarElements.get(c+1);
+									if(c0.getOperator().equals(c1.getOperator()))
+										{
+										cigarElements.set(c, new CigarElement(c0.getLength()+c1.getLength(), c0.getOperator()));
+										cigarElements.remove(c+1);
+										}
+									else
+										{
+										++c;
 										}
 									}
+								records[R].setCigar(new Cigar(cigarElements));
 								
-								if(base==null)
-									{
-									base=String.valueOf(genomicSequence.charAt(refPos1-1+readLen));
-									cigarElements.add(new CigarElement(1, CigarOperator.EQ));
-									}
-								sequence.append(base);
-								readLen+=base.length();
-								}//end loop over read-leng
-							while(sequence.length()> this.readSize)
-								sequence.deleteCharAt(sequence.length()-1);
-							records[R].setReadString(sequence.toString());
+								}//end loop over R1/R2
 							
-							
-							StringBuilder qual=new StringBuilder(sequence.length());
-							for(int i=0;i< sequence.length();++i) qual.append("I");
-							records[R].setBaseQualityString(qual.toString());
-							
-							//cigar
-							int c=0;
-							while(c+1< cigarElements.size())
-								{
-								CigarElement c0=cigarElements.get(c);
-								CigarElement c1=cigarElements.get(c+1);
-								if(c0.getOperator().equals(c1.getOperator()))
-									{
-									cigarElements.set(c, new CigarElement(c0.getLength()+c1.getLength(), c0.getOperator()));
-									cigarElements.remove(c+1);
-									}
-								else
-									{
-									++c;
-									}
+							if(Math.random()<0.5)
+								{	 
+								records[0].setFirstOfPairFlag(true);records[0].setSecondOfPairFlag(false);
+								records[1].setFirstOfPairFlag(false);records[1].setSecondOfPairFlag(true);
 								}
-							records[R].setCigar(new Cigar(cigarElements));
+							else
+								{
+								records[0].setFirstOfPairFlag(false);records[0].setSecondOfPairFlag(true);
+								records[1].setFirstOfPairFlag(true);records[1].setSecondOfPairFlag(false);
+								}
 							
-							}//end loop over R1/R2
-								
-						if(Math.random()<0.5)
-							{	 
-							records[0].setFirstOfPairFlag(true);records[0].setSecondOfPairFlag(false);
-							records[1].setFirstOfPairFlag(false);records[1].setSecondOfPairFlag(true);
+							records[0].setMateAlignmentStart( records[1].getAlignmentStart() );
+							records[1].setMateAlignmentStart( records[0].getAlignmentStart() );
+							
+							records[0].setInferredInsertSize(records[1].getAlignmentStart() - records[0].getAlignmentStart());
+							records[1].setInferredInsertSize(records[0].getAlignmentStart() - records[1].getAlignmentStart());
+		
+							
+							samFileWriter.addAlignment(records[0]);
+							samFileWriter.addAlignment(records[1]);
 							}
-						else
-							{
-							records[0].setFirstOfPairFlag(false);records[0].setSecondOfPairFlag(true);
-							records[1].setFirstOfPairFlag(true);records[1].setSecondOfPairFlag(false);
-							}
-						
-						records[0].setMateAlignmentStart( records[1].getAlignmentStart() );
-						records[1].setMateAlignmentStart( records[0].getAlignmentStart() );
-						
-						records[0].setInferredInsertSize(records[1].getAlignmentStart() - records[0].getAlignmentStart());
-						records[1].setInferredInsertSize(records[0].getAlignmentStart() - records[1].getAlignmentStart());
-	
-						
-						samFileWriter.addAlignment(records[0]);
-						samFileWriter.addAlignment(records[1]);
 						}
 					}
 				
@@ -271,7 +284,7 @@ public class VcfToBam extends AbstractCommandLineProgram
 			
 			}
 		
-		
+		samFileWriter.close();
 		}
 	
 	@Override
