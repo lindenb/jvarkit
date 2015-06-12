@@ -38,7 +38,7 @@ $  java -jar dist/__TODO__.jar < in.vcf > out.vcf
 
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues`
+- Issue Tracker: http://github.com/lindenb/jvarkit/issues
 - Source Code: http://github.com/lindenb/jvarkit
 
 ##See also
