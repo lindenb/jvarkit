@@ -97,9 +97,11 @@ public class VcfFilterXPath
 				{
 				warning("No INFO header line for "+this.infoTag+" in "+inpuSource);
 				}
-			else if(!(infoHeader.getCountType()==VCFHeaderLineCount.INTEGER && infoHeader.getCount()==1 && infoHeader.getType()!=VCFHeaderLineType.String))
+			else if(!(infoHeader.getCountType()==VCFHeaderLineCount.INTEGER &&
+					 infoHeader.getCount()==1 &&
+					 infoHeader.getType()==VCFHeaderLineType.String))
 				{
-				warning("Bad definition of INFO header line for "+this.infoTag+" in "+inpuSource+" expected one 'string'");
+				warning("Bad definition of INFO header line for "+this.infoTag+" in "+inpuSource+" expected one 'string' got "+infoHeader);
 				infoHeader=null;
 				}
 			
