@@ -1,5 +1,5 @@
 #
-# Starting moving from ANT to make
+# Makefile for jvarkit
 #
 SHELL=/bin/bash
 this.makefile=$(lastword $(MAKEFILE_LIST))
@@ -10,6 +10,11 @@ this.dir=$(dir $(realpath ${this.makefile}))
 ifneq ($(realpath local.mk),)
 include $(realpath local.mk)
 endif
+
+#
+# include java libraries from Maven
+#
+include maven.mk
 
 # proxy for curl, etc...
 curl.proxy=$(if ${http.proxy.host}${http.proxy.port},-x "${http.proxy.host}:${http.proxy.port}",)
@@ -375,6 +380,7 @@ $(eval $(call compile-htsjdk-cmd,vcfgetvariantbyindex,${jvarkit.package}.tools.m
 $(eval $(call compile-htsjdk-cmd,vcfmulti2oneallele,${jvarkit.package}.tools.misc.VcfMultiToOneAllele))
 $(eval $(call compile-htsjdk-cmd,bedindextabix,${jvarkit.package}.tools.misc.BedIndexTabix))
 $(eval $(call compile-htsjdk-cmd,vcf2bam,${jvarkit.package}.tools.misc.VcfToBam))
+$(eval $(call compile-htsjdk-cmd,vcffilterxpath,${jvarkit.package}.tools.misc.VcfFilterXPath))
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
 	 ./src/main/resources/jnlp/generic.jnlp .secret.keystore 

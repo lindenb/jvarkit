@@ -206,7 +206,7 @@ public class CompareBamAndBuild  extends AbstractCommandLineProgram
 				}
 			else
 				{
-				System.out.print(String.valueOf(interval.getSequence()+":"+interval.getStart()));
+				System.out.print(String.valueOf(interval.getContig()+":"+interval.getStart()));
 				}
 			}
 		if(first) System.out.print("(empty)");
@@ -225,7 +225,7 @@ public class CompareBamAndBuild  extends AbstractCommandLineProgram
     	for(Match m0:set1)
     		{
     		Interval i0=m0.getLiftOver();
-    		if(i0==null || i0.getSequence()==null) continue;
+    		if(i0==null || i0.getContig()==null) continue;
     		for(Match m1:set2)
 	    		{
     			int i=m0.readName.compareTo(m1.readName);
@@ -235,9 +235,9 @@ public class CompareBamAndBuild  extends AbstractCommandLineProgram
     			//i= m0.bamIndex - m1.bamIndex;//NO ! (when comparing two Set<Match>)
     			//if(i!=0) return i;
     			Interval i1=m1.getLiftOver();
-        		if(i1==null || i1.getSequence()==null) continue;
+        		if(i1==null || i1.getContig()==null) continue;
     			
-    			i= compareStrings(i0.getSequence(),i1.getSequence());
+    			i= compareStrings(i0.getContig(),i1.getContig());
     			if(i!=0) continue;
     			i= Math.abs(i0.getStart() -i1.getStart());
     			if(i>this.distance_tolerance) continue;
@@ -354,7 +354,7 @@ public class CompareBamAndBuild  extends AbstractCommandLineProgram
 					}
 				else
 					{
-					iter=samFileReader.queryOverlapping(interval.getSequence(), interval.getStart(), interval.getEnd());
+					iter=samFileReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd());
 					}
 				SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 				while(iter.hasNext() )

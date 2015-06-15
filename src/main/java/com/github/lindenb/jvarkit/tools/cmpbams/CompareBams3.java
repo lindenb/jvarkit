@@ -184,7 +184,7 @@ public class CompareBams3  extends AbstractCommandLineProgram
 					}
 				else
 					{
-					iter=samFileReader.queryOverlapping(interval.getSequence(), interval.getStart(), interval.getEnd());
+					iter=samFileReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd());
 					}
 				
 				while(iter.hasNext() )

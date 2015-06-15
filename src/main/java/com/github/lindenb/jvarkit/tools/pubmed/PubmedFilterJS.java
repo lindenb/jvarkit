@@ -82,7 +82,7 @@ public class PubmedFilterJS
 	
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/PubmedFilterJS";
+		return DEFAULT_WIKI_PREFIX+"PubmedFilterJS";
 		}
 	
 	

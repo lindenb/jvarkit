@@ -114,10 +114,10 @@ public class VcfLiftOver extends AbstractVCFFilter2
 		while(in.hasNext())
 			{
 			VariantContext ctx=in.next();
-			progress.watch(ctx.getChr(),ctx.getStart());
+			progress.watch(ctx.getContig(),ctx.getStart());
 			
 			Interval lifted=liftOver.liftOver(
-					new Interval(ctx.getChr(),ctx.getStart(),ctx.getEnd(),
+					new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd(),
 					false,//negative strand
 					""));
 			if(lifted==null )
@@ -127,10 +127,10 @@ public class VcfLiftOver extends AbstractVCFFilter2
 			else
 				{
 				VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.chr(lifted.getSequence());
+				vcb.chr(lifted.getContig());
 				vcb.start(lifted.getStart());
 				vcb.stop(lifted.getEnd());
-				vcb.attribute(TAG,ctx.getChr()+"|"+ctx.getStart() );
+				vcb.attribute(TAG,ctx.getContig()+"|"+ctx.getStart() );
 				
 				if(lifted.isNegativeStrand())//strandess has changed
 					{

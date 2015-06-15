@@ -401,7 +401,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 					}
 				else
 					{
-					iter=samFileReader.queryOverlapping(interval.getSequence(), interval.getStart(), interval.getEnd());
+					iter=samFileReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd());
 					}
 				SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 				while(iter.hasNext() )

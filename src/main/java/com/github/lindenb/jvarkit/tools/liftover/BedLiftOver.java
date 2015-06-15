@@ -45,7 +45,7 @@ public class BedLiftOver extends AbstractCommandLineProgram
 			Interval dest=this.liftOver.liftOver(srcInterval);
 			if(dest!=null)
 				{
-				System.out.print(dest.getSequence());
+				System.out.print(dest.getContig());
 				System.out.print('\t');
 				System.out.print(dest.getStart()-1);
 				System.out.print('\t');

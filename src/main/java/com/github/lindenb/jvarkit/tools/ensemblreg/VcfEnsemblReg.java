@@ -184,7 +184,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		while(in.hasNext())
 			{
 			VariantContext ctx=in.next();
-			String chrom=ctx.getChr();
+			String chrom=ctx.getContig();
 			if(!chrom.startsWith("chr")) chrom="chr"+chrom;
 			if(!chrom.matches("(chrX|chrY|chr[0-9]|chr1[0-9]|chr2[12])"))
 				{

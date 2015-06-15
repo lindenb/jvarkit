@@ -12,15 +12,14 @@ import java.util.regex.Pattern;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
-
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.IndexFactory;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.tribble.util.LittleEndianOutputStream;
-
 import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.Feature;
+import htsjdk.tribble.FeatureCodec;
 import htsjdk.tribble.FeatureCodecHeader;
 import htsjdk.tribble.Tribble;
 
@@ -43,6 +42,10 @@ public class TribbleFactory<T>
 			return interval.getSequence();
 			}
 		@Override
+		public String getContig() {
+			return interval.getSequence();
+		}
+		@Override
 		public int getStart() {
 			return interval.getStart();
 			}
@@ -58,7 +61,7 @@ public class TribbleFactory<T>
 	
 	@SuppressWarnings("rawtypes")
 	private class MyCodec
-		implements org.broad.tribble.FeatureCodec<MyFeature>
+		implements FeatureCodec<MyFeature,SRC>
 			{
 			private Pattern tab=Pattern.compile("[\t]");
 			@Override

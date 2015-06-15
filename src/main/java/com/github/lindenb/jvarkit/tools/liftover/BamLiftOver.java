@@ -162,12 +162,12 @@ public class BamLiftOver extends AbstractCommandLineProgram
 					if(interval!=null)
 						{
 						sb.append(chrom+":"+pos+":"+(rec.getReadNegativeStrandFlag()?"-":"+"));
-						SAMSequenceRecord ssr=newDict.getSequence(interval.getSequence());
+						SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
 						if(ssr==null)
 							{
 							sfr.close();
 							sfr=null;
-							throw new SAMException("the chromosome "+interval.getSequence()+" is undefined in the sequence dict.");
+							throw new SAMException("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
 							}
 						copy.setReferenceName(ssr.getSequenceName());
 						copy.setReferenceIndex(ssr.getSequenceIndex());
@@ -202,12 +202,12 @@ public class BamLiftOver extends AbstractCommandLineProgram
 					if(interval!=null)
 						{
 						sb.append(chrom+":"+pos+":"+(rec.getMateNegativeStrandFlag()?"-":"+"));
-						SAMSequenceRecord ssr=newDict.getSequence(interval.getSequence());
+						SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
 						if(ssr==null)
 							{
 							sfr.close();
 							sfr=null;
-							throw new SAMException("the chromosome "+interval.getSequence()+" is undefined in the sequence dict.");
+							throw new SAMException("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
 							}
 						copy.setMateReferenceName(ssr.getSequenceName());
 						copy.setMateReferenceIndex(ssr.getSequenceIndex());
