@@ -23,8 +23,7 @@ SOFTWARE.
 
 
 History:
-* 2015 : moving to knime
-* 2014 : creation
+* 2015 : creation
 
 */
 package com.github.lindenb.jvarkit.tools.misc;
@@ -33,12 +32,20 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
+import javax.xml.namespace.NamespaceContext;
+import javax.xml.namespace.QName;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathException;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
+import javax.xml.xpath.XPathVariableResolver;
 
 import org.xml.sax.InputSource;
 
@@ -59,9 +66,16 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VcfFilterXPath
 	extends AbstractVCFFilter3
 	{
+	/** the INFO tag to use in the VCF input */
 	private String infoTag=null;
+	/** user xpath expression */
 	private String xpathExpression=null;
+	/** compiled XPath expression */
 	private XPathExpression xpathExpr=null;
+	/** namespace mapping for xpath object */
+	private final Map<String, String> prefix2uri = new HashMap<String, String>();
+	/** variable mapping for xpath object */
+	private final Map<QName,Object> xpathVariableMap = new HashMap<QName, Object>();
 	
 	public VcfFilterXPath()
 		{
@@ -130,10 +144,14 @@ public class VcfFilterXPath
 					out.add(ctx);
 					continue;
 					}
-				String base64=o.toString();
-				while(base64.length()%4!=0) base64+="=";
-				ByteArrayInputStream xmlBytes =  new ByteArrayInputStream(base64Decoder.decodeBuffer(base64));
+				StringBuilder base64=new StringBuilder(o.toString());
+				while(base64.length()%4!=0) base64.append('=');
+				ByteArrayInputStream xmlBytes =  new ByteArrayInputStream(base64Decoder.decodeBuffer(base64.toString()));
 				InputSource inputSource=new InputSource(xmlBytes);
+				xpathVariableMap.put(new QName("chrom"), ctx.getContig());
+				xpathVariableMap.put(new QName("start"), ctx.getStart());
+				xpathVariableMap.put(new QName("end"), ctx.getEnd());
+				xpathVariableMap.put(new QName("id"), ctx.hasID()?ctx.getID():".");
 				boolean accept=(Boolean)xpathExpr.evaluate(inputSource, XPathConstants.BOOLEAN);
 				if(accept)
 					{
@@ -151,7 +169,7 @@ public class VcfFilterXPath
 			}
 		finally
 			{
-			
+			xpathVariableMap.clear();
 			}
 		}
 		
@@ -161,6 +179,7 @@ public class VcfFilterXPath
 		out.println(" -T (info tag) INFO tag containing a base64-encoded XML document.");
 		out.println(" -x (xpath) XPath expression.");
 		out.println(" -o (file) filename out . Default: stdout ");
+		out.println(" -n prefix=uri (add this namespace mapping to xpath context) ");
 		super.printOptions(out);
 		}
 		
@@ -179,6 +198,50 @@ public class VcfFilterXPath
 		try {
 			XPathFactory xpf = XPathFactory.newInstance();
 			XPath xpath= xpf.newXPath();
+			xpath.setXPathVariableResolver(new XPathVariableResolver()
+				{
+				@Override
+				public Object resolveVariable(QName qname)
+					{
+					return xpathVariableMap.get(qname);
+					}
+				});
+			xpath.setNamespaceContext(new NamespaceContext()
+				{
+				@Override
+				public Iterator<? extends Object> getPrefixes(String namespaceURI)
+					{
+					List<String> L=new ArrayList<>();
+					for(String pfx:prefix2uri.keySet())
+						{
+						if(prefix2uri.get(pfx).equals(namespaceURI))
+							{
+							L.add(pfx);
+							}
+						}
+
+					return L.iterator();
+					}
+				
+				@Override
+				public String getPrefix(String namespaceURI)
+					{
+					for(String pfx:prefix2uri.keySet())
+						{
+						if(prefix2uri.get(pfx).equals(namespaceURI))
+							{
+							return pfx;
+							}
+						}
+					return null;
+					}
+				
+				@Override
+				public String getNamespaceURI(String prefix)
+					{
+					return prefix2uri.get(prefix);
+					}
+				});
 			this.xpathExpr=xpath.compile(this.xpathExpression);
 		} catch (Exception e) {
 			error(e);
@@ -192,13 +255,24 @@ public class VcfFilterXPath
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "T:x:o:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "T:x:o:n:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
 				case 'x': this.setXpathExpression(opt.getOptArg()); break;
 				case 'T': this.setInfoTag(opt.getOptArg()); break;
+				case 'n': 
+					{
+					String s= opt.getOptArg();
+					int eq=s.indexOf('=');
+					if(eq<=0)
+						{
+						error("'=' missing in "+s);
+						}
+					this.prefix2uri.put(s.substring(0,eq),s.substring(eq+1));
+					break;
+					}
 				default: 
 					{
 					switch(handleOtherOptions(c, opt, null))
