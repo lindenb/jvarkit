@@ -19,10 +19,11 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
 /**
- * Extends a BED by 'X' bases.
+ * Extends a BED by 'X' bases. Deprecated: use bedtools slop
  * @author lindenb
  *
  */
+@Deprecated()/** use bedtools slop */
 public class ExtendBed extends AbstractCommandLineProgram
 	{
 	private static Log LOG=Log.getInstance(ExtendBed.class);

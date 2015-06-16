@@ -26,7 +26,6 @@ import javax.xml.transform.stream.StreamResult;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.CloserUtil;
-
 import htsjdk.tribble.readers.AsciiLineReader;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
@@ -39,6 +38,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -195,6 +195,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 				     	}
 				    InputStream response = connection.getInputStream();
 				    LineReader r=new AsciiLineReader(response);
+					@SuppressWarnings("resource")
 					LineIterator li=new  LineIteratorImpl(r);
 					while(li.hasNext())
 						{
