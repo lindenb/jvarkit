@@ -554,7 +554,7 @@ public class BamToSVG extends AbstractCommandLineProgram
 		w.writeAttribute("class","maintitle");
 		w.writeAttribute("title",intervalStr);
 		w.writeAttribute("d", this.hershey.svgPath(
-				this.interval.chrom+":"+niceIntFormat.format(this.interval.end)+"-"+niceIntFormat.format(this.interval.end),
+				this.interval.chrom+":"+niceIntFormat.format(this.interval.start)+"-"+niceIntFormat.format(this.interval.end),
 				scaleRect(new Rectangle2D.Double(
 						0,
 						y,
