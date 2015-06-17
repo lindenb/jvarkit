@@ -164,7 +164,8 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
 	biostar3654 vcfjoinvcfjs bioalcidae solenavcf2raw vcfbedsetfilter vcfreplacetag vcfindextabix \
-	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele bedindextabix vcf2bam vcffilterxpath
+	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele bedindextabix vcf2bam vcffilterxpath \
+	biostar140111
 
 
 .PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -230,6 +231,7 @@ $(eval $(call compile_biostar_cmd,90204))
 $(eval $(call compile_biostar_cmd,94573))
 $(eval $(call compile_biostar_cmd,95652,api.ncbi.gb))
 $(eval $(call compile_biostar_cmd,3654,api.ncbi.insdseq api.ncbi.blast))
+$(eval $(call compile_biostar_cmd,140111,api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,blastmapannots, ${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations, api.ncbi.blast,api.ncbi.gb api.uniprot))
@@ -450,6 +452,11 @@ api.ncbi.tseq:
 api.ncbi.insdseq:
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.insdseq -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/INSD_INSDSeq.dtd"
+
+api.ncbi.dbsnp.gt:
+	mkdir -p ${generated.dir}/java
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp.gt ${xjc.proxy} "http://ftp.ncbi.nlm.nih.gov/snp/specs/genoex_1_5.xsd"
+	
 
 
 ## API Ensembl
