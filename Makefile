@@ -11,10 +11,6 @@ ifneq ($(realpath local.mk),)
 include $(realpath local.mk)
 endif
 
-#
-# include java libraries from Maven
-#
-include maven.mk
 
 # proxy for curl, etc...
 curl.proxy=$(if ${http.proxy.host}${http.proxy.port},-x "${http.proxy.host}:${http.proxy.port}",)
@@ -172,6 +168,12 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 
 top:
 	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
+
+
+#
+# include java libraries from Maven
+#
+include maven.mk
 
 all: $(APPS)
 
@@ -594,7 +596,39 @@ ${galaxy.bundle.dir}.tar : ${GALAXY_TOOLS} ${htsjdk.jars}
 	cp  $(foreach T,${GALAXY_TOOLS}, ${dist.dir}/${T}.jar )  $(filter %.jar, $^ ) ${galaxy.bundle.dir}/jvarkit
 	tar cvf $@ -C ${galaxy.bundle.dir} .
 
+#
+# ga4gh schema, see 
+# http://plindenbaum.blogspot.fr/2015/06/playing-with-ga4gh-schemas-and-avro-my.html
+#
+ga4gh.schemas.version ?= 0.5.1
+ga4gh.schemas.avpr =  $(addsuffix .avpr,$(addprefix ${generated.dir}/resources/avro/ga4gh/schemas-${ga4gh.schemas.version}/src/main/resources/avro/,beacon common readmethods reads referencemethods references variantmethods variants wip/metadata wip/metadatamethods wip/variationReference ))
 
+ga4gh.schemas.sources : lib/org/ga4gh/ga4gh-${ga4gh.schemas.version}.jar
+lib/org/ga4gh/ga4gh-${ga4gh.schemas.version}.jar: ${avro.libs} ${ga4gh.schemas.avpr} 
+	mkdir -p ${generated.dir}/java _tmp.avro${ga4gh.schemas.version} lib/org/ga4gh
+	java -jar $< compile protocol \
+		${generated.dir}/resources/avro/ga4gh/schemas-${ga4gh.schemas.version}/src/main/resources/avro \
+		${generated.dir}/resources/avro/ga4gh/schemas-${ga4gh.schemas.version}/src/main/resources/avro/wip \
+		${generated.dir}/java
+	javac -d _tmp.avro${ga4gh.schemas.version} -cp ${avro.libs} -sourcepath ${generated.dir}/java ${generated.dir}/java/org/ga4gh/*.java
+	jar cvf lib/org/ga4gh/ga4gh-${ga4gh.schemas.version}.jar -C _tmp.avro${ga4gh.schemas.version} .
+	rm -rf _tmp.avro${ga4gh.schemas.version}
+	 
+	
+$(filter-out $(word 1,${ga4gh.schemas.avpr}),${ga4gh.schemas.avpr}) : $(word 1,${ga4gh.schemas.avpr})
+$(word 1,${ga4gh.schemas.avpr}) : ${avro.libs}
+	rm -rf ${generated.dir}/resources/avro/ga4gh/schemas-${ga4gh.schemas.version}
+	mkdir -p $(dir $@) 
+	curl -Lk ${curl.proxy} -o schema.zip "https://github.com/ga4gh/schemas/archive/v${ga4gh.schemas.version}.zip"
+	unzip schema.zip -d ${generated.dir}/resources/avro/ga4gh
+	rm schema.zip	
+	$(foreach P,${ga4gh.schemas.avpr}, java -jar ${avro.libs}  idl $(patsubst %.avpr,%.avdl,${P}) ${P} ; )
+	touch $@
+
+#
+# end of ga4gh schema
+#
+#
 
 clean:
 	rm -rf ${dist.dir}
