@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2015 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.io.BufferedReader;
@@ -25,15 +53,10 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.tribble.bed.BEDCodec;
-import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.picard.CigarIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 public class PcrClipReads extends AbstractCommandLineProgram
@@ -98,7 +121,6 @@ public class PcrClipReads extends AbstractCommandLineProgram
 				{
 				sw = sfw.makeSAMOrBAMWriter(header2, false, this.fileout);
 				}
-			
 			SAMSequenceDictionaryProgress progress =new SAMSequenceDictionaryProgress(header1);
 			iter =  reader.iterator();
 			while(iter.hasNext())
@@ -112,9 +134,40 @@ public class PcrClipReads extends AbstractCommandLineProgram
 				Interval fragment = findInterval(rec);
 				if(fragment==null)
 					{
+					rec.setMappingQuality(0);
 					sw.addAlignment(rec);
 					continue;
 					}
+				// strand is '-' and overap in 5' of PCR fragment
+				if( rec.getReadNegativeStrandFlag() &&
+					fragment.getStart()< rec.getAlignmentStart() &&
+					rec.getAlignmentStart()< fragment.getEnd())
+					{
+					rec.setMappingQuality(0);
+					sw.addAlignment(rec);
+					continue;
+					}
+				// strand is '+' and overap in 3' of PCR fragment
+				if( !rec.getReadNegativeStrandFlag() &&
+					fragment.getStart()< rec.getAlignmentEnd() &&
+					rec.getAlignmentEnd()< fragment.getEnd())
+					{
+					rec.setMappingQuality(0);
+					sw.addAlignment(rec);
+					
+					continue;
+					}
+				
+				// contained int PCR fragment
+				if(rec.getAlignmentStart()>= fragment.getStart() && rec.getAlignmentEnd()<=fragment.getEnd())
+					{
+					sw.addAlignment(rec);
+					
+					continue;
+					}
+				
+				int newStart = rec.getAlignmentStart();
+				
 				Cigar cigar = rec.getCigar();
 				if(cigar==null)
 					{
@@ -122,39 +175,165 @@ public class PcrClipReads extends AbstractCommandLineProgram
 					sw.addAlignment(rec);
 					continue;
 					}
-
-				List<CigarElement> cigarlist = new ArrayList<>();
+				
+				List<CigarOperator> operators = new ArrayList<>();
 				//expand cigar	
 				for(CigarElement ce:cigar.getCigarElements())
 					{
 					CigarOperator op = ce.getOperator();
 					for(int x=0;x < ce.getLength();++x)
 						{
-						cigarlist.add(new CigarElement(1, op));
+						operators.add(op);
 						}
 					}
-				if(rec.getAlignmentStart()< fragment.getStart())
+				
+				/* 5' side */				
+				if(rec.getAlignmentStart() < fragment.getStart())
 					{
-					int i=0;
+					int operator_index =0;
+					newStart = fragment.getStart();
 					int refPos1 = rec.getUnclippedStart();
-					while(i< cigarlist.size() && refPos1< fragment.getStart())
-						{
-						CigarElement ce = cigarlist.get(i);
-						if(!ce.getOperator().consumesReadBases())
-							{
-							cigarlist.remove(i);
-							continue;
-							}
-
-						
-						++i;
-						}
-					}
-				int read5 =0;
-				
-				
-						
 					
+					while(	operator_index < operators.size() &&
+							refPos1< fragment.getStart())
+						{
+						CigarOperator op = operators.get(operator_index);
+						if(op.consumesReferenceBases() )
+							{
+							refPos1++;
+							}
+						if(op.consumesReadBases())
+							{
+							operators.set(operator_index, CigarOperator.S);
+							}
+						operator_index++;
+						}
+					//shouln't start with a problem
+					while(operator_index < operators.size())
+						{
+						CigarOperator op = operators.get(operator_index);
+						if(op.equals(CigarOperator.M) || op.equals(CigarOperator.EQ))
+							{
+							break;
+							}
+						if(op.consumesReadBases())//insertion...
+							{
+							operators.set(operator_index, CigarOperator.S);
+							newStart++;
+							}
+						operator_index++;
+						}
+					int x=0;
+					int y=0;
+					for(x=0;x< operator_index;++x)
+						{
+						CigarOperator op = operators.get(y);
+						if(!(op.equals(CigarOperator.S) || op.equals(CigarOperator.H)))
+							{
+							operators.remove(y);
+							}
+						else
+							{
+							++y;
+							}
+						}
+					
+					}
+
+				
+				/* 3' side */				
+				if(rec.getAlignmentEnd() > fragment.getEnd())
+					{
+					int operator_index = operators.size()-1;
+					int refPos1 = rec.getUnclippedEnd();
+
+					while(operator_index >=0 &&
+						refPos1 > fragment.getEnd())
+						{
+						CigarOperator op = operators.get(operator_index);
+						if(op.consumesReferenceBases() )
+							{
+							refPos1--;
+							}
+						if(op.consumesReadBases())
+							{
+							operators.set(operator_index, CigarOperator.S);
+							}
+						operator_index--;
+						}
+					
+					//shouln't end with a problem
+					while(operator_index >=0 )
+						{
+						CigarOperator op = operators.get(operator_index);
+						if(op.equals(CigarOperator.M) || op.equals(CigarOperator.EQ))
+							{
+							break;
+							}
+						if(op.consumesReadBases())//insertion...
+							{
+							operators.set(operator_index, CigarOperator.S);
+							}
+						operator_index--;
+						}
+					int y=operators.size()-1;
+					int len = (operators.size()-1)-operator_index;
+					for(int x=0;x< len;++x)
+						{
+						CigarOperator op = operators.get(y);
+						if(!(op.equals(CigarOperator.S) || op.equals(CigarOperator.H)))
+							{
+							operators.remove(y);
+							}
+						else
+							{
+							--y;
+							}
+						}
+					
+					}
+				
+				
+				
+				//build new cigar
+				boolean found_M=false;
+				List<CigarElement> newcigarlist=new ArrayList<>();
+				int c1 = 0;
+				while(c1 < operators.size())
+					{
+					CigarOperator op =  operators.get(c1);
+					if(op.equals(CigarOperator.M) || op.equals(CigarOperator.EQ))
+						{
+						found_M=true;
+						}
+					int c2=c1;
+					while(c2< operators.size() && op.equals(operators.get(c2)))
+						{
+						++c2;
+						}
+					newcigarlist.add(new CigarElement(c2-c1,op));
+					c1=c2;
+					}
+				
+				if(!found_M)
+					{
+					
+					rec.setReadUnmappedFlag(true);
+					rec.setAlignmentStart(SAMRecord.NO_ALIGNMENT_START);
+					rec.setReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
+					rec.setMappingQuality(0);
+					//rec.setCigar(null);
+					//rec.setCigarString(null);
+					sw.addAlignment(rec);
+					continue;
+					}
+				cigar = new Cigar(newcigarlist);				
+				rec.setCigar(cigar);
+				rec.setAlignmentStart(newStart);
+			
+				sw.addAlignment(rec);
+				
+			
 				
 				}
 			progress.finish();
@@ -177,6 +356,7 @@ public class PcrClipReads extends AbstractCommandLineProgram
 		{
 		out.println(" -o (file) output file (default stdout)"); 
 		out.println(" -b force binary for stdout (optional)"); 
+		out.println(" -B (file) bed file containing non-overlapping PCR fragments."); 
 		super.printOptions(out);
 		}
 
@@ -213,7 +393,7 @@ public class PcrClipReads extends AbstractCommandLineProgram
 		BufferedReader r=null;
 		SamReader samReader=null;
 		try {
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			if(opt.getOptInd()==args.length)
 				{
 				samReader = srf.open(SamInputResource.of(System.in));

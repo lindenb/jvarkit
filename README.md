@@ -184,5 +184,6 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BedIndexTabix">BedIndexTabix</a></th><td>Index and sort a BED on the fly with Tabix</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfToHilbert">VcfToHilbert</a></th><td>Plot a Hilbert Curve from a VCF file.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar145820">Biostar145820</a></th><td>Subsample BAM to fixed number of alignments</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PcrClipReads">PcrClipReads</a></th><td>Soft clip BAM files based on PCR target regions https://www.biostars.org/p/147136/</td></tr>
 </table>
 
