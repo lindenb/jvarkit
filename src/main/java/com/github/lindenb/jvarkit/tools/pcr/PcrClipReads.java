@@ -360,6 +360,7 @@ public class PcrClipReads extends AbstractCommandLineProgram
 		}
 
 	
+	@SuppressWarnings("resource")
 	@Override
 	public int doWork(String[] args)
 		{
@@ -445,7 +446,6 @@ public class PcrClipReads extends AbstractCommandLineProgram
 	
 	public static void main(String[] args) {
 		new PcrClipReads().instanceMain(args);
-
-	}
+		}
 
 }

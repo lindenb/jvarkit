@@ -67,9 +67,8 @@ public class VcfRebase extends AbstractVCFFilter2 {
 		}
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfRebase";
+		return DEFAULT_WIKI_PREFIX+"VcfRebase";
 		}
-	
 	
 	@Override
 	protected void doWork(VcfIterator in, VariantContextWriter out)

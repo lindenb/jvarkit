@@ -29,8 +29,10 @@ History:
 package com.github.lindenb.jvarkit.util.bio;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Restriction Enzyme Database
@@ -155,6 +157,27 @@ public class Rebase
 		{
 		this.enzymes.add(new EnzymeImpl(name, decl));
 		}
+	
+	/** Neoschizomers are restriction enzymes that recognize the same nucleotide sequence as their prototype but cleave at a different site. */
+	public Rebase removeNeoschizomers()
+		{
+		Set<String> seen = new HashSet<>();
+		int i=0;
+		while(i< this.enzymes.size())
+			{
+			Enzyme e = this.enzymes.get(i);
+			if(!seen.add(e.getBases()))
+				{
+				this.enzymes.remove(i);
+				}
+			else
+				{
+				i++;
+				}
+			}
+		return this;
+		}
+	
 	public static Rebase createDefaultRebase()
 		{
 		Rebase rebase=new Rebase();
