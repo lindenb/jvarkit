@@ -300,7 +300,7 @@ public class VcfToBam extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -o (out)  output file. default stdout");
+		out.println(" -R (ref) reference fasta file");
 		super.printOptions(out);
 		}
 
