@@ -164,7 +164,6 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 						CigarOperator op= ce.getOperator();
 						for(int L=0;L<ce.getLength();++L)
 							{
-							
 							if(op.consumesReadBases())
 								{
 								Counter<Byte> count= pos2bases.get(refPos1-1);
@@ -177,7 +176,10 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 								readpos++;
 								}
 			
-							if(op.consumesReferenceBases()) refPos1++;
+							if(op.consumesReferenceBases())
+								{
+								refPos1++;
+								}
 							}
 						}
 					}
@@ -318,7 +320,7 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 								if(pos<ssr.getSequenceLength()) continue;
 								newend=Math.max(newend, pos+1);
 								}
-							for(int i=ssr.getSequenceLength();i< newend;)
+							for(int i=ssr.getSequenceLength();i< newend;i++)
 								{
 								Counter<Byte> count = pos2bases.get(i); 
 								if(nPrinted%60==0) out.println();
