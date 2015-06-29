@@ -29,6 +29,8 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -41,6 +43,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -56,7 +59,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VcfMultiToOneAllele
 	extends AbstractVCFFilter3
 	{
-
+	private boolean print_samples=false;
 	
 	 public VcfMultiToOneAllele()
 		{
@@ -82,7 +85,9 @@ public class VcfMultiToOneAllele
 			throws IOException {
 		final String TAG="VCF_MULTIALLELIC_SRC";
 		final List<String> noSamples=Collections.emptyList();
+	
 		VCFHeader header=in.getHeader();
+		final List<String> sample_names=header.getSampleNamesInOrder();
 		Set<VCFHeaderLine> metaData=new HashSet<>(header.getMetaDataInInputOrder());
 		
 		
@@ -90,14 +95,26 @@ public class VcfMultiToOneAllele
 		metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 		metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
 		metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+		
 		metaData.add(new VCFInfoHeaderLine(TAG, 1, VCFHeaderLineType.String, "The variant was processed with VcfMultiAlleleToOneAllele and contained the following alleles."));
 		
-		VCFHeader h2=new VCFHeader(
-				metaData,
-				noSamples
-				);
+		VCFHeader h2;
 		
-		SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+		if(!print_samples)
+			{
+			h2 = new VCFHeader(
+					metaData,
+					noSamples
+					);
+			}
+		else
+			{
+			h2 = new VCFHeader(
+					metaData,
+					sample_names
+					);
+			}
+		SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header);
 		out.writeHeader(h2);
 		while(in.hasNext())
 			{
@@ -110,10 +127,18 @@ public class VcfMultiToOneAllele
 				}
 			else if(alleles.size()==1)
 				{
-				VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.noGenotypes();
-				out.add(vcb.make());
-				incrVariantCount();
+				if(!print_samples)
+					{
+					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+					vcb.noGenotypes();
+					out.add(vcb.make());
+					incrVariantCount();
+					}
+				else
+					{
+					out.add(ctx);
+					incrVariantCount();
+					}
 				}
 			else
 				{
@@ -128,10 +153,10 @@ public class VcfMultiToOneAllele
 				
 				for(int i=0;i< alleles.size();++i)
 					{
-					Allele a=alleles.get(i);
+					Allele the_allele=alleles.get(i);
 					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-					vcb.alleles(Arrays.asList(ctx.getReference(),a));
-					vcb.noGenotypes();
+					vcb.alleles(Arrays.asList(ctx.getReference(),the_allele));
+					
 					for(String attid:attributes.keySet())
 						{
 						VCFInfoHeaderLine info = header.getInfoHeaderLine(attid);
@@ -143,9 +168,47 @@ public class VcfMultiToOneAllele
 						List list = (List)o;
 						if(i>=list.size()) throw new IOException("For INFO tag="+alleles.size()+" got "+alleles.size()+" ALT, incompatible with "+list.toString());
 						vcb.attribute(attid, list.get(i));
-						vcb.attribute(TAG,altAsString);
-						incrVariantCount();
 						}
+					vcb.attribute(TAG,altAsString);
+					
+					if(!print_samples)
+						{
+						vcb.noGenotypes();
+						}
+					else
+						{
+						List<Genotype> genotypes=new ArrayList<>(sample_names.size());
+						
+						for(String sampleName: sample_names)
+							{							
+							Genotype g= ctx.getGenotype(sampleName);
+							GenotypeBuilder gb =new GenotypeBuilder(g);
+							List<Allele> galist = g.getAlleles();
+							if(galist.size()>0)
+								{
+								boolean ok=true;
+								for(Allele ga:galist)
+									{
+									if(!(ga.isNoCall() || 
+										 ga.equals(ctx.getReference()) ||
+										 ga.equals(the_allele)))
+										{
+										ok=false;
+										break;
+										}
+									}
+								if(!ok)
+									{
+									gb.reset(true);/* keep sample name */
+									gb.alleles(Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+									}
+								}
+							genotypes.add(gb.make());
+							}
+						System.err.println(genotypes);
+						vcb.genotypes(genotypes);
+						}
+					incrVariantCount();
 					out.add(vcb.make());
 					}
 				}
@@ -157,6 +220,8 @@ public class VcfMultiToOneAllele
 	@Override
 	public void printOptions(PrintStream out)
 		{
+		out.println("-o (file) output file. default stdout");
+		out.println("-p print sample name. set genotype to ./. if both allele of the genotype are in 'ALT'.");
 		super.printOptions(out);
 		}
 		
@@ -165,11 +230,12 @@ public class VcfMultiToOneAllele
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:p"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
+				case 'p': this.print_samples=true;break;
 				default: 
 					{
 					switch(handleOtherOptions(c, opt, null))
