@@ -163,7 +163,7 @@ public class VcfMultiToOneAllele
 						if(info==null) throw new IOException("Cannot get header INFO tag="+attid);
 						if(info.getCountType()!=VCFHeaderLineCount.A) continue;
 						Object o = 	attributes.get(attid);
-						if(!(o instanceof List)) throw new IOException("For INFO tag="+attid+" got "+o.getClass()+" instead of List");
+						if(!(o instanceof List)) throw new IOException("For INFO tag="+attid+" got "+o.getClass()+" instead of List in "+ctx);
 						@SuppressWarnings("rawtypes")
 						List list = (List)o;
 						if(i>=list.size()) throw new IOException("For INFO tag="+alleles.size()+" got "+alleles.size()+" ALT, incompatible with "+list.toString());
@@ -186,28 +186,31 @@ public class VcfMultiToOneAllele
 							List<Allele> galist = g.getAlleles();
 							if(galist.size()>0)
 								{
-								boolean ok=true;
-								for(Allele ga:galist)
+								boolean replace=false;
+								for(int y=0;y< galist.size();++y)
 									{
+									Allele ga=galist.get(y);
+									if(ga.isSymbolic()) throw new RuntimeException("How should I handle "+ga);
 									if(!(ga.isNoCall() || 
 										 ga.equals(ctx.getReference()) ||
 										 ga.equals(the_allele)))
 										{
-										ok=false;
-										break;
+										replace=true;
+										galist.set(y, ctx.getReference());
 										}
 									}
-								if(!ok)
+								if(replace)
 									{
 									gb.reset(true);/* keep sample name */
-									gb.alleles(Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+									gb.alleles(galist);
 									}
 								}
 							genotypes.add(gb.make());
 							}
-						System.err.println(genotypes);
+						
 						vcb.genotypes(genotypes);
 						}
+					
 					incrVariantCount();
 					out.add(vcb.make());
 					}

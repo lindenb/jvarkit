@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -45,6 +46,7 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -54,10 +56,11 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
 
 
-public class SolenaVcfToRaw extends AbstractKnimeApplication
+public class VcfBurden extends AbstractKnimeApplication
 	{
-	
-	public SolenaVcfToRaw()
+	private Map<String,Boolean> gene2seen=null;
+	private String dirName="burden";
+	public VcfBurden()
 		{
 		}
 	
@@ -153,7 +156,7 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 					info("DUMP to zip n="+gene2variants.size());
 					for(String gene:gene2variants.keySet() )
 						{
-						ZipEntry ze = new ZipEntry("burden/chr"+prev_chrom+"_"+gene+".txt");
+						ZipEntry ze = new ZipEntry(this.dirName+"/"+gene+".txt");
 						zout.putNextEntry(ze);
 						PrintWriter pw = new PrintWriter(zout);
 						pw.print("CHROM\tPOS\tREF\tALT");
@@ -208,6 +211,13 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 					{
 					String gene= pred.getSymbol();
 					if(gene==null || gene.trim().isEmpty()) continue;
+					
+					if(this.gene2seen!=null)
+						{
+						if(!this.gene2seen.containsKey(gene)) continue;
+						this.gene2seen.put(gene, Boolean.TRUE);
+						}
+					
 					if(seen_names.contains(gene)) continue;
 					boolean ok=false;
 					for(SequenceOntologyTree.Term so:pred.getSOTerms())
@@ -229,6 +239,27 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 					seen_names.add(gene);
 					}
 				}
+			
+			if(this.gene2seen!=null)
+				{
+				for(String gene:this.gene2seen.keySet())
+					{
+					if(this.gene2seen.get(gene).equals(Boolean.TRUE)) continue;
+					ZipEntry ze = new ZipEntry(this.dirName+"/"+gene+".txt");
+					zout.putNextEntry(ze);
+					PrintWriter pw = new PrintWriter(zout);
+					pw.print("CHROM\tPOS\tREF\tALT");
+					for(String sample:samples)
+						{
+						pw.print("\t");
+						pw.print(sample);
+						}
+					pw.println();
+					pw.flush();
+					zout.closeEntry();
+					}
+				}
+			
 			progress.finish();
 			
 			zout.finish();
@@ -254,6 +285,8 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 	public void printOptions(PrintStream out)
 		{
 		out.println(" -o (file) output file (default stdout)");
+		out.println(" -g (file) optional list of gene names (restrict genes, print genes without data)");
+		out.println(" -d (dir) base zip dir default:"+this.dirName);
 		super.printOptions(out);
 		}
 	
@@ -263,11 +296,37 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:d:g:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'o': setOutputFile(opt.getOptArg()); break;
+				case 'd': this.dirName=opt.getOptArg();break;
+				case 'g': 
+					{
+						BufferedReader in=null;
+					try {
+						if(this.gene2seen==null) this.gene2seen=new HashMap<>();
+						in = IOUtils.openURIForBufferedReading(opt.getOptArg());
+						String line;
+						while((line=in.readLine())!=null)
+							{
+							line=line.trim();
+							if(line.isEmpty()||line.startsWith("#")) continue;
+							this.gene2seen.put(line, Boolean.FALSE);
+							}
+						}
+					catch (Exception e) {
+						error(e);
+						return -1;
+						}
+					finally
+						{
+						CloserUtil.close(in);
+						}
+					break;
+					}
+					
 				default: 
 					{
 					switch(handleOtherOptions(c, opt, null))
@@ -284,6 +343,6 @@ public class SolenaVcfToRaw extends AbstractKnimeApplication
 
 	public static void main(String[] args)
 		{
-		new SolenaVcfToRaw().instanceMainWithExit(args);
+		new VcfBurden().instanceMainWithExit(args);
 		}
 	}
