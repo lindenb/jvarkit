@@ -119,7 +119,7 @@ public class VcfMultiToOneAllele
 		while(in.hasNext())
 			{
 			VariantContext ctx=progess.watch(in.next());
-			List<Allele> alleles = ctx.getAlternateAlleles();
+			List<Allele> alleles = new ArrayList<>(ctx.getAlternateAlleles());
 			if(alleles.isEmpty())
 				{
 				warning("Remove no ALT variant:"+ctx);
@@ -142,6 +142,7 @@ public class VcfMultiToOneAllele
 				}
 			else
 				{
+				Collections.sort(alleles);
 				final Map<String,Object> attributes = ctx.getAttributes();
 				StringBuilder sb=new StringBuilder();
 				for(int i=0;i< alleles.size();++i)
@@ -153,7 +154,7 @@ public class VcfMultiToOneAllele
 				
 				for(int i=0;i< alleles.size();++i)
 					{
-					Allele the_allele=alleles.get(i);
+					final Allele the_allele=alleles.get(i);
 					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					vcb.alleles(Arrays.asList(ctx.getReference(),the_allele));
 					
@@ -182,30 +183,33 @@ public class VcfMultiToOneAllele
 						for(String sampleName: sample_names)
 							{							
 							Genotype g= ctx.getGenotype(sampleName);
+							if(!g.isCalled() || g.isNoCall() )
+								{
+								genotypes.add(g);
+								continue;
+								}
+							
+							
 							GenotypeBuilder gb =new GenotypeBuilder(g);
-							List<Allele> galist = g.getAlleles();
-							boolean debug="rs7895850".equals(ctx.getID());
-							if(debug) System.out.println("### the allele :"+the_allele+" galist:"+galist);
+							List<Allele> galist = new ArrayList<>(g.getAlleles());
+							
 							if(galist.size()>0)
 								{
 								boolean replace=false;
 								for(int y=0;y< galist.size();++y)
 									{
-									Allele ga=galist.get(y);
-									if(debug) System.out.println("### GA1 : "+ga+" "+ctx.getAlternateAlleles());
+									Allele ga = galist.get(y);
 									if(ga.isSymbolic()) throw new RuntimeException("How should I handle "+ga);
 									if(!(ga.isNoCall() || 
 										 ga.equals(ctx.getReference()) ||
 										 ga.equals(the_allele)))
 										{
-										if(debug) System.out.println("### GA2 : "+ga+" "+ctx.getAlternateAlleles());
 										replace=true;
 										galist.set(y, ctx.getReference());
 										}
 									}
 								if(replace)
 									{
-									if(debug) System.out.println("### alleles : "+galist);
 									gb.reset(true);/* keep sample name */
 									gb.alleles(galist);
 									}

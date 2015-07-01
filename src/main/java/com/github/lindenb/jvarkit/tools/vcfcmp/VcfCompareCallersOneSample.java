@@ -39,6 +39,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -190,9 +191,18 @@ public class VcfCompareCallersOneSample
 			
 			Comparator<VariantContext> ctxComparator = VCFUtils.createTidPosRefComparator(dict);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
+			VariantContext prev_ctx=null;
 			while(in.hasNext() && !checkOutputError())
 				{
 				VariantContext ctx = progress.watch(in.next());
+				
+				//check input order
+				if(prev_ctx!=null && ctxComparator.compare(prev_ctx,ctx)>=0)
+					{
+					throw new IOException("bad sort order : got\n\t"+prev_ctx+"\nbefore\n\t"+ctx);
+					}
+				prev_ctx=ctx;
+				
 				List<VariantContext> ctxChallenging= new ArrayList<>();
 				
 				int countInOtherFiles=0;
