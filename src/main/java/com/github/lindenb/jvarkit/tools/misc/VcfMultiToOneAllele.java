@@ -184,23 +184,28 @@ public class VcfMultiToOneAllele
 							Genotype g= ctx.getGenotype(sampleName);
 							GenotypeBuilder gb =new GenotypeBuilder(g);
 							List<Allele> galist = g.getAlleles();
+							boolean debug="rs7895850".equals(ctx.getID());
+							if(debug) System.out.println("### the allele :"+the_allele+" galist:"+galist);
 							if(galist.size()>0)
 								{
 								boolean replace=false;
 								for(int y=0;y< galist.size();++y)
 									{
 									Allele ga=galist.get(y);
+									if(debug) System.out.println("### GA1 : "+ga+" "+ctx.getAlternateAlleles());
 									if(ga.isSymbolic()) throw new RuntimeException("How should I handle "+ga);
 									if(!(ga.isNoCall() || 
 										 ga.equals(ctx.getReference()) ||
 										 ga.equals(the_allele)))
 										{
+										if(debug) System.out.println("### GA2 : "+ga+" "+ctx.getAlternateAlleles());
 										replace=true;
 										galist.set(y, ctx.getReference());
 										}
 									}
 								if(replace)
 									{
+									if(debug) System.out.println("### alleles : "+galist);
 									gb.reset(true);/* keep sample name */
 									gb.alleles(galist);
 									}

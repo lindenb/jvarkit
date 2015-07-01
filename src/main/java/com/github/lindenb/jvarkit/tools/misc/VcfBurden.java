@@ -215,7 +215,7 @@ public class VcfBurden extends AbstractKnimeApplication
 					if(this.gene2seen!=null)
 						{
 						if(!this.gene2seen.containsKey(gene)) continue;
-						this.gene2seen.put(gene, Boolean.TRUE);
+						
 						}
 					
 					if(seen_names.contains(gene)) continue;
@@ -237,6 +237,10 @@ public class VcfBurden extends AbstractKnimeApplication
 						}
 					L.add(ctx1);
 					seen_names.add(gene);
+					if(this.gene2seen!=null)
+						{
+						this.gene2seen.put(gene, Boolean.TRUE);
+						}
 					}
 				}
 			
@@ -245,6 +249,7 @@ public class VcfBurden extends AbstractKnimeApplication
 				for(String gene:this.gene2seen.keySet())
 					{
 					if(this.gene2seen.get(gene).equals(Boolean.TRUE)) continue;
+					warning("Gene not found : "+gene);
 					ZipEntry ze = new ZipEntry(this.dirName+"/"+gene+".txt");
 					zout.putNextEntry(ze);
 					PrintWriter pw = new PrintWriter(zout);
