@@ -212,11 +212,23 @@ public class VcfBurden extends AbstractKnimeApplication
 					String gene= pred.getSymbol();
 					if(gene==null || gene.trim().isEmpty()) continue;
 					
+					
 					if(this.gene2seen!=null)
 						{
 						if(!this.gene2seen.containsKey(gene)) continue;
 						
 						}
+					
+					String refseq = pred.getRefSeq();
+					if(refseq==null || !refseq.startsWith("NM") || !refseq.startsWith("XM"))
+						{
+						refseq = pred.getFeature();
+						if(refseq==null || !refseq.startsWith("NM") || !refseq.startsWith("XM"))
+							{
+							continue;
+							}
+						}
+					
 					
 					if(seen_names.contains(gene)) continue;
 					boolean ok=false;

@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -112,13 +113,6 @@ public class VcfIn extends AbstractVCFFilter3
 		}
 	
 	
-	private boolean sameChromPosRef(VariantContext ctx1,VariantContext ctx2)
-		{
-		if(!ctx1.getContig().equals(ctx2.getContig())) return false;
-		if(ctx1.getStart()!=ctx2.getStart())return false;
-		if(!ctx1.getReference().equals(ctx2.getReference()))return false;
-		return true;
-		}
 	
 	private boolean allUserAltFoundInDatabase(
 			VariantContext userVariants,
@@ -147,11 +141,10 @@ public class VcfIn extends AbstractVCFFilter3
 	private int scanFileSorted(String databaseVcfUri,String userVcfUri)
 		{
 		VariantContextWriter vcw=null;
-		VcfIterator databaseIn=null;
 		VcfIterator userVcfIn=null;
+		EqualRangeVcfIterator equalRangeDbIter=null;
 		try
 			{
-			databaseIn = VCFUtils.createVcfIterator(databaseVcfUri);
 			userVcfIn = (userVcfUri==null?VCFUtils.createVcfIteratorStdin():
 				VCFUtils.createVcfIterator(userVcfUri));
 			VCFHeader header = userVcfIn.getHeader();
@@ -162,125 +155,46 @@ public class VcfIn extends AbstractVCFFilter3
 				error("NO SAM sequence Dict in user VCF "+(userVcfUri==null?"stdin":userVcfUri));
 				return -1;
 				}
-			
+			Comparator<VariantContext> vcfComparator =
+					VCFUtils.createTidPosComparator(userVcfDict)
+					;
+			equalRangeDbIter = new EqualRangeVcfIterator(
+					VCFUtils.createVcfIterator(databaseVcfUri),vcfComparator);
+
 			vcw = this.openWriter(header);
 			SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(userVcfDict);
 			
-			List<VariantContext> userContext = new ArrayList<VariantContext>();
-			List<VariantContext> dbContext = new ArrayList<VariantContext>();
+			
+			
 			while(userVcfIn.hasNext())
 				{
+				VariantContext ctx = progress.watch(userVcfIn.next());
 				//fill both contextes
+				List<VariantContext> dbContexes = new ArrayList<VariantContext>(equalRangeDbIter.next(ctx));
 				
-				if(dbContext.isEmpty() && databaseIn.hasNext())
+				int i=0;
+				while(i< dbContexes.size())
 					{
-					VariantContext ctx= databaseIn.next();
-					//not in user dict anyway
-					if( userVcfDict.getSequence(ctx.getContig())==null)
+					if( dbContexes.get(i).getReference().equals(ctx.getReference()) &&
+						allUserAltFoundInDatabase(ctx, dbContexes.get(i)))
 						{
-						dbContext.clear();
-						continue;
+						++i;
 						}
+					else
+						{
+						dbContexes.remove(i);
+						}
+					}
+				
+				boolean keep=!dbContexes.isEmpty();
+				
+				if(isInverse()) keep=!keep;
+				if(keep)
+					{
+					vcw.add(ctx);
+					incrVariantCount();
+					}
 					
-					dbContext.add(ctx);
-					while(databaseIn.hasNext())
-						{
-						ctx = databaseIn.peek();
-						if(!sameChromPosRef(ctx, dbContext.get(0)))
-							{
-							break;
-							}
-						dbContext.add(databaseIn.next());
-						}
-					}
-				
-				if(userContext.isEmpty() && userVcfIn.hasNext())
-					{
-					userContext.add(progress.watch(userVcfIn.next()));
-					while(userVcfIn.hasNext())
-						{
-						VariantContext ctx = userVcfIn.peek();
-						if(!sameChromPosRef(ctx, userContext.get(0)))
-							{
-							break;
-							}
-						userContext.add(progress.watch(userVcfIn.next()));
-						}
-					}
-				
-				if(userContext.isEmpty()) break;
-				if(dbContext.isEmpty())
-					{
-					if(isInverse())
-						{
-						//flush buffer
-						for(VariantContext ctx:userContext)
-							{
-							vcw.add(ctx);
-							incrVariantCount();
-							}
-						//flush stream
-						while(userVcfIn.hasNext())
-							{
-							vcw.add(progress.watch(userVcfIn.next()));
-							incrVariantCount();
-							}
-						
-						}
-					//we're done
-					break;
-					}
-				
-				int i = userVcfDict.getSequence(  dbContext.get(0).getContig()).getSequenceIndex() -
-						userVcfDict.getSequence(userContext.get(0).getContig()).getSequenceIndex()
-						;
-				if(i==0)
-					{
-					i = dbContext.get(0).getStart() - userContext.get(0).getStart();
-					}
-				if(i==0)
-					{
-					i = dbContext.get(0).getReference().compareTo(userContext.get(0).getReference());
-					}
-				//database before user
-				if(i<0)
-					{
-					dbContext.clear();
-					continue;
-					}
-				//database AFTER user
-				if(i>0)
-					{
-					if(isInverse())
-						{
-						for(VariantContext ctx:userContext)
-							{
-							vcw.add(ctx);
-							incrVariantCount();
-							}
-						}
-					userContext.clear();
-					continue;
-					}
-				
-				for(VariantContext userCtx :userContext)
-					{
-					boolean keep=false;
-					for(VariantContext dbCtx :dbContext)
-						{
-						if(!allUserAltFoundInDatabase(userCtx, dbCtx)) continue;
-						keep=true;
-						break;
-						}
-					if(isInverse()) keep=!keep;
-					if(keep)
-						{
-						vcw.add(userCtx);
-						incrVariantCount();
-						}
-					}
-				userContext.clear();
-				dbContext.clear();
 				}
 			return 0;
 			}
@@ -291,7 +205,7 @@ public class VcfIn extends AbstractVCFFilter3
 			}
 		finally
 			{
-			CloserUtil.close(databaseIn);
+			CloserUtil.close(equalRangeDbIter);
 			CloserUtil.close(userVcfIn);
 			CloserUtil.close(vcw);
 			}
@@ -324,7 +238,9 @@ public class VcfIn extends AbstractVCFFilter3
 				while(iter.hasNext())
 					{
 					VariantContext dbctx= iter.next();
-					if(!sameChromPosRef(userCtx,dbctx)) continue;
+					if(! dbctx.getContig().equals(userCtx.getContig())) continue;
+					if(dbctx.getStart()!=userCtx.getStart()) continue;
+					if(! dbctx.getReference().equals(userCtx.getReference())) continue;
 					if(!allUserAltFoundInDatabase(userCtx, dbctx)) continue;
 					keep=true;
 					break;

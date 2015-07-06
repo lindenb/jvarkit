@@ -142,7 +142,7 @@ public class VcfMultiToOneAllele
 				}
 			else
 				{
-				Collections.sort(alleles);
+				//Collections.sort(alleles); don't sort , for VCFHeaderLineCount.A
 				final Map<String,Object> attributes = ctx.getAttributes();
 				StringBuilder sb=new StringBuilder();
 				for(int i=0;i< alleles.size();++i)

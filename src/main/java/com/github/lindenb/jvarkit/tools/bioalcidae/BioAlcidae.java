@@ -195,6 +195,7 @@ public class BioAlcidae
 	
 	private int execute_vcf(String source) throws IOException
 		{
+		info("source: "+source);
 		VcfIterator in=null;
 		try {
 			in = VCFUtils.createVcfIterator(source);
@@ -455,7 +456,8 @@ public class BioAlcidae
 					}
 				}
 				
-			this.writer.flush();
+			
+			System.out.flush();
 			return 0;
 			}
 		catch(Exception err)
@@ -465,6 +467,7 @@ public class BioAlcidae
 			}
 		finally
 			{
+			if(this.writer!=null) this.writer.flush();
 			if(getOutputFile()!=null)
 				{
 				CloserUtil.close(this.writer);

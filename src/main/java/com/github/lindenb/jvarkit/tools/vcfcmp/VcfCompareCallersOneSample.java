@@ -60,6 +60,7 @@ public class VcfCompareCallersOneSample
 	private int maxCountInclusive=Integer.MAX_VALUE-1;
 	private boolean ignoreAlternate=false;
 	
+	
 	public VcfCompareCallersOneSample()
 		{
 		}
@@ -106,11 +107,12 @@ public class VcfCompareCallersOneSample
 	
 	
 
+	@SuppressWarnings("resource")
 	@Override
 	public int executeKnime(List<String> args)
 		{
 		File inputFile=null;
-		List<VcfIterator> listChallengers = new ArrayList<>();
+		List<EqualRangeVcfIterator> listChallengers = new ArrayList<>();
 		VariantContextWriter vcw=null;
 		VcfIterator in=null;
 		try {
@@ -151,7 +153,8 @@ public class VcfCompareCallersOneSample
 				error(getMessageBundle("no.dict.in.vcf"));
 				return -1;
 				}
-			
+			Comparator<VariantContext> ctxComparator = VCFUtils.createTidPosComparator(dict);
+
 			/* load files to be challenged */
 			for(File cf :this.challengerVcf)
 				{
@@ -183,13 +186,12 @@ public class VcfCompareCallersOneSample
 					error(getMessageBundle("not.the.same.sequence.dictionaries"));
 					return -1;
 					}
-				listChallengers.add(cin);
+				listChallengers.add(new EqualRangeVcfIterator(cin,ctxComparator));
 				}
 			
 			vcw= super.createVariantContextWriter();
 			vcw.writeHeader(h2);
 			
-			Comparator<VariantContext> ctxComparator = VCFUtils.createTidPosRefComparator(dict);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			VariantContext prev_ctx=null;
 			while(in.hasNext() && !checkOutputError())
@@ -197,62 +199,38 @@ public class VcfCompareCallersOneSample
 				VariantContext ctx = progress.watch(in.next());
 				
 				//check input order
-				if(prev_ctx!=null && ctxComparator.compare(prev_ctx,ctx)>=0)
+				if(prev_ctx!=null && ctxComparator.compare(prev_ctx,ctx)>0)
 					{
-					throw new IOException("bad sort order : got\n\t"+prev_ctx+"\nbefore\n\t"+ctx);
+					throw new IOException("bad sort order : got\n\t"+
+							prev_ctx+"\nbefore\n\t"+
+							ctx+"\n");
 					}
 				prev_ctx=ctx;
 				
-				List<VariantContext> ctxChallenging= new ArrayList<>();
 				
 				int countInOtherFiles=0;
-				int idx=0;
-				while( idx < listChallengers.size())
+				for(EqualRangeVcfIterator citer:listChallengers)
 					{
-					VcfIterator citer = listChallengers.get(idx);
-					if(!citer.hasNext())
-						{
-						citer.close();
-						listChallengers.remove(idx);
-						continue;
-						}
 					boolean foundInThatFile=false;
-					int diff = 0;
-					while(diff<=0 && citer.hasNext())
+					List<VariantContext> ctxChallenging = citer.next(ctx);
+					for(VariantContext ctx2:ctxChallenging)
 						{
-						diff=ctxComparator.compare(
-							citer.peek(),
-							ctx
-							);
-						if(diff < 0)
+						if(!ctx2.getReference().equals(ctx.getReference())) continue;
+						boolean ok=true;
+						if(!this.ignoreAlternate)
 							{
-							//consumme & ignore
-							citer.next(); 
+							Set<Allele> myAlt=new HashSet<Allele>(ctx.getAlternateAlleles());
+							myAlt.removeAll(ctx2.getAlternateAlleles());
+							if(!myAlt.isEmpty()) ok=false;
 							}
-						else if(diff==0)
+						
+						if(ok)
 							{
-							VariantContext ctx2= citer.next();
-							boolean ok=true;
-							if(!this.ignoreAlternate)
-								{
-								Set<Allele> myAlt=new HashSet<Allele>(ctx.getAlternateAlleles());
-								myAlt.removeAll(ctx2.getAlternateAlleles());
-								if(!myAlt.isEmpty()) ok=false;
-								}
-							
-							if(ok)
-								{
-								foundInThatFile=true;
-								ctxChallenging.add(ctx2);
-								}
-							}
-						else
-							{
+							foundInThatFile=true;
 							break;
 							}
 						}
 					countInOtherFiles+=(foundInThatFile?1:0);
-					++idx;
 					}
 				
 				if(countInOtherFiles >= minCountInclusive &&

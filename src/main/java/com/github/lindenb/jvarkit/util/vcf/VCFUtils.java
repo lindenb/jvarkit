@@ -504,6 +504,48 @@ public class VCFUtils
 
 		}
 	
+	/**
+	 * Creates a comparator based on dict(CHROM)/POS/REF
+	 * @return
+	 */
+	public static Comparator<VariantContext> createTidPosComparator(SAMSequenceDictionary dict)
+		{
+		return new _DictCompareCtxTidPos(dict);
+		}
+
+	
+	private static class _DictCompareCtxTidPos
+		implements Comparator<VariantContext>
+		{
+		SAMSequenceDictionary dict;
+		_DictCompareCtxTidPos(SAMSequenceDictionary dict) {this.dict=dict;}
+		
+		private int tid(String chrom)
+			{
+			int t= dict.getSequenceIndex(chrom);
+			if(t==-1) throw new IllegalArgumentException("chromosome \""+chrom+"\" is missing in dictionary");
+			return t;
+			}
+		@Override
+		public int compare(
+				final VariantContext ctx1,
+				final VariantContext ctx2
+				)
+			{			
+			int i0 = tid(ctx1.getContig());
+			int i1 = tid(ctx2.getContig());
+			if(i0 != i1) return i0-i1;
+				
+			i0 = ctx1.getStart();
+			i1 = ctx2.getStart();
+			if(i0 != i1) return i0-i1;
+			return 0;
+			}
+
+		}
+
+	
+	
 	/** return true if 'f' is a file, path ends with '.gz' and there is an associated .tbi file */
     public static final boolean isValidTabixFile(File f)
 		 	{

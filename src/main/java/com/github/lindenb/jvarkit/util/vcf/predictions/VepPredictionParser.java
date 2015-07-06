@@ -255,6 +255,15 @@ public class VepPredictionParser implements PredictionParser
 			return getByCol(COLS.RefSeq);
 			}
 		
+		public String getFeature()
+			{
+			return getByCol(COLS.Feature);
+			}
+		public String getFeatureType()
+			{
+			return getByCol(COLS.Feature_type);
+			}
+
 		public String getGene()
 			{
 			return getByCol(COLS.Gene);
