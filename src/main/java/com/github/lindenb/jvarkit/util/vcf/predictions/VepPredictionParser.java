@@ -342,10 +342,7 @@ public class VepPredictionParser implements PredictionParser
 		
 		@Override
 		public String getEnsemblTranscript() {
-			String s=getByCol(COLS.Feature);
-			if(s==null) return null;
-			if(s.startsWith("ENST")) return s;
-			return null;
+			return getFeature();
 			}
 		
 		@Override

@@ -30,15 +30,18 @@ package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
@@ -53,47 +56,52 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class PcrClipReads extends AbstractCommandLineProgram
+public class PcrSliceReads extends AbstractCommandLineProgram
 	{
+	private boolean clip_reads=false;
 	private IntervalTreeMap<Interval> bedIntervals=new IntervalTreeMap<Interval>();
 	private File fileout = null;
 	private boolean binary=false;
+	private enum AmbiguityStrategy {zero,random,closer};
+	private AmbiguityStrategy ambiguityStrategy= AmbiguityStrategy.closer; 
+	private Random random=new Random(0L);//0L for reproductive calculations
 	@Override
 	public String getProgramDescription() {
-		return "Soft clip bam files based on PCR target regions https://www.biostars.org/p/147136/";
+		return "Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/";
 		}
 	
 	@Override
     protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"PcrClipReads";
+    	return DEFAULT_WIKI_PREFIX+"PcrSliceReads";
     	}
 	
-	private Interval findInterval(final SAMRecord rec)
-		{
-		if(rec.getReadUnmappedFlag()) return null;
-		return findInterval(rec.getContig(), rec.getAlignmentStart(), rec.getAlignmentEnd());
-		}
-	private Interval findInterval(String chrom,int start,int end)
+	private List<Interval> findIntervals(String chrom,int start,int end)
 		{
 		Interval i= new Interval(chrom,start,end);
-		Collection<Interval> L=this.bedIntervals.getOverlapping(i);
-		Iterator<Interval> iter = L.iterator();
-		if(iter.hasNext())
-			{
-			Interval j = iter.next();
-			if(iter.hasNext()  ) throw new IllegalStateException("Overlapping PCR intervals : "+j+" "+iter.next());
-			return j;
-			}
-		return null;
+		return  new ArrayList<Interval>(this.bedIntervals.getOverlapping(i));
 		}
 	
 	
+	@SuppressWarnings("resource")
 	private int run(SamReader reader)
 		{
+		ReadClipper readClipper = new ReadClipper();
 		SAMFileHeader header1= reader.getFileHeader();
 		SAMFileHeader header2 = header1.clone();
 		header2.addComment(getProgramName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
 		header2.setSortOrder(SortOrder.unsorted);
+		
+		for(SAMReadGroupRecord srg:header1.getReadGroups())
+			{
+			
+			for(Interval i:this.bedIntervals.keySet())
+				{
+				//create new read group for this interval
+				SAMReadGroupRecord rg=new SAMReadGroupRecord(srg.getId()+"_"+this.bedIntervals.get(i).getName(), srg);
+				header2.addReadGroup(rg);
+				}
+			}
+		
 		SAMFileWriter sw=null;
 		SAMRecordIterator iter = null;
 		try
@@ -125,42 +133,141 @@ public class PcrClipReads extends AbstractCommandLineProgram
 					sw.addAlignment(rec);
 					continue;
 					}
-				Interval fragment = findInterval(rec);
-				if(fragment==null)
+				
+				if(!rec.getReadPairedFlag())
 					{
+					//@doc if the read is not a paired-end read ,  then the quality of the read is set to zero
 					rec.setMappingQuality(0);
 					sw.addAlignment(rec);
-					continue;
-					}
-				// strand is '-' and overap in 5' of PCR fragment
-				if( rec.getReadNegativeStrandFlag() &&
-					fragment.getStart()< rec.getAlignmentStart() &&
-					rec.getAlignmentStart()< fragment.getEnd())
-					{
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				// strand is '+' and overap in 3' of PCR fragment
-				if( !rec.getReadNegativeStrandFlag() &&
-					fragment.getStart()< rec.getAlignmentEnd() &&
-					rec.getAlignmentEnd()< fragment.getEnd())
-					{
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					
 					continue;
 					}
 				
-				// contained int PCR fragment
-				if(rec.getAlignmentStart()>= fragment.getStart() && rec.getAlignmentEnd()<=fragment.getEnd())
+				if(rec.getMateUnmappedFlag())
 					{
+					//@doc if the MATE is not mapped ,  then the quality of the current read is set to zero
+					rec.setMappingQuality(0);
 					sw.addAlignment(rec);
-					
 					continue;
 					}
-				ReadClipper readClipper = new ReadClipper();
-				rec = readClipper.clip(rec, fragment);		
+				if(!rec.getProperPairFlag())
+					{
+					//@doc if the properly-paired flag is not set,  then the quality of the current read is set to zero
+					rec.setMappingQuality(0);
+					sw.addAlignment(rec);
+					continue;
+					}
+				
+				if(rec.getMateReferenceIndex()!=rec.getReferenceIndex())
+					{
+					//@doc if the read and the mate are not mapped on the same chromosome,  then the quality of the current read is set to zero
+					rec.setMappingQuality(0);
+					sw.addAlignment(rec);
+					continue;
+					}
+				
+				if(rec.getReadNegativeStrandFlag()==rec.getMateNegativeStrandFlag())
+					{
+					//@doc if the read and the mate are mapped on the same strand,  then the quality of the current read is set to zero
+					rec.setMappingQuality(0);
+					sw.addAlignment(rec);
+					continue;
+					}
+				int chromStart;
+				int chromEnd;
+				if(rec.getAlignmentStart() < rec.getMateAlignmentStart())
+					{
+					if(rec.getReadNegativeStrandFlag())
+						{
+						//@doc if the read(POS) < mate(POS) and read is mapped on the negative strand, then the quality of the current read is set to zero
+						rec.setMappingQuality(0);
+						sw.addAlignment(rec);
+						continue;
+						}
+					else
+						{
+						chromStart = rec.getAlignmentStart();
+						chromEnd = rec.getMateAlignmentStart();
+						}
+					}
+				else 
+					{
+					if(!rec.getReadNegativeStrandFlag())
+						{
+						//@doc if the read(POS) > mate(POS) and read is mapped on the positive strand, then the quality of the current read is set to zero
+						rec.setMappingQuality(0);
+						sw.addAlignment(rec);
+						continue;
+						}
+					else
+						{
+						chromStart = rec.getMateAlignmentStart();
+						chromEnd = rec.getAlignmentStart();//don't use getAlignmentEnd, to be consistent with mate data
+						}
+					}
+				
+				
+				
+				
+				List<Interval> fragments = findIntervals(rec.getContig(),chromStart,chromEnd);
+				if(fragments.isEmpty())
+					{
+					//@doc if no BED fragment is found overlapping the read, then the quality of the read is set to zero
+					rec.setMappingQuality(0);
+					sw.addAlignment(rec);
+					continue;
+					}
+				Interval best=null;
+				if(fragments.size()==1)
+					{
+					best = fragments.get(0);
+					}
+				else switch(this.ambiguityStrategy)
+					{
+					case random:
+						{
+						best = fragments.get(this.random.nextInt(fragments.size()));
+						break;
+						}
+					case zero:
+						{
+						rec.setMappingQuality(0);
+						sw.addAlignment(rec);
+						continue;
+						}
+					case closer:
+						{
+						int best_distance=Integer.MAX_VALUE;
+						for(Interval frag : fragments)
+							{
+							int distance= Math.abs(chromStart-frag.getStart()) + Math.abs(frag.getEnd() - chromEnd);
+							if(best==null || distance < best_distance)
+								{
+								best = frag;
+								best_distance = distance;
+								}
+							}
+						break;
+						}
+					default: throw new IllegalStateException();
+					}
+				
+				
+				
+				if(clip_reads)
+					{
+					rec = readClipper.clip(rec, best);
+					if(rec.getMappingQuality()==0)
+						{
+						sw.addAlignment(rec);
+						continue;
+						}
+					}
+				SAMReadGroupRecord rg = rec.getReadGroup();
+				if(rg == null )
+					{
+					throw new IOException("Read "+rec+" is missing a Read-Group ID . See http://broadinstitute.github.io/picard/ http://broadinstitute.github.io/picard/command-line-overview.html#AddOrReplaceReadGroups");
+					}
+				rec.setAttribute("RG",rg.getId()+"_"+best.getName());
 				sw.addAlignment(rec);
 				}
 			progress.finish();
@@ -181,9 +288,14 @@ public class PcrClipReads extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(PrintStream out)
 		{
+		out.println(" -a (strategy) if a read is mapped on multiple PCR fragments, how to resolve ambiguity ? default:"+this.ambiguityStrategy.name()+" . Where strategy is"); 
+		out.println("     "+AmbiguityStrategy.random.name() + " : choose a random fragment"); 
+		out.println("     "+AmbiguityStrategy.zero.name() + " : set MAPQ to zero and ignore."); 
+		out.println("     "+AmbiguityStrategy.closer.name() + " : choose PCR fragment closest to NGS-fragment boundaries."); 
 		out.println(" -o (file) output file (default stdout)"); 
 		out.println(" -b force binary for stdout (optional)"); 
-		out.println(" -B (file) bed file containing non-overlapping PCR fragments."); 
+		out.println(" -B (file) bed file containing non-overlapping PCR fragments. Column name is required."); 
+		out.println(" -c clip read to their PCR fragments. see https://github.com/lindenb/jvarkit/wiki/PcrClipReads"); 
 		super.printOptions(out);
 		}
 
@@ -195,10 +307,12 @@ public class PcrClipReads extends AbstractCommandLineProgram
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
 		File bedFile=null;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:bB:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"o:bB:ca:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'a': this.ambiguityStrategy = AmbiguityStrategy.valueOf(opt.getOptArg());break;
+				case 'c': this.clip_reads=true; break;
 				case 'B': bedFile =new File(opt.getOptArg());break;
 				case 'b': binary=true;break;
 				case 'o': fileout = new File(opt.getOptArg());break;				
@@ -242,7 +356,7 @@ public class PcrClipReads extends AbstractCommandLineProgram
 			while((line=r.readLine())!=null)
 				{
 				String tokens[]=tab.split(line);
-				if(tokens.length<3)
+				if(tokens.length<4)
 					{
 					error("Bad bed line "+line);
 					return -1;
@@ -255,7 +369,13 @@ public class PcrClipReads extends AbstractCommandLineProgram
 					error("Bad bed line "+line);
 					return -1;
 					}
-				Interval i =new Interval(chrom, chromStart1, chromEnd1);
+				String name = tokens[3].trim();
+				if(name.isEmpty())
+					{
+					error("Bad bed line (name missing) in  "+line);
+					return -1;
+					}
+				Interval i =new Interval(chrom, chromStart1, chromEnd1,false,name);
 				this.bedIntervals.put(i, i);
 				}
 			return run(samReader);
@@ -273,7 +393,7 @@ public class PcrClipReads extends AbstractCommandLineProgram
 
 	
 	public static void main(String[] args) {
-		new PcrClipReads().instanceMain(args);
+		new PcrSliceReads().instanceMain(args);
 		}
 
 }

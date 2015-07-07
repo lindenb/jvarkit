@@ -64,6 +64,46 @@ public class VcfBurden extends AbstractKnimeApplication
 		{
 		}
 	
+	
+	private static class GeneTranscript
+		{
+		String geneName;
+		String transcriptName;
+		GeneTranscript(String geneName,String transcriptName)
+			{
+			this.geneName = geneName;
+			this.transcriptName = transcriptName;
+			}
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result
+					+ ((geneName == null) ? 0 : geneName.hashCode());
+			result = prime * result
+					+ ((transcriptName == null) ? 0 : transcriptName.hashCode());
+			return result;
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) return true;
+			if (obj == null) return false;
+			if (getClass() != obj.getClass()) return false;
+			GeneTranscript other = (GeneTranscript) obj;
+			if (geneName == null) {
+				if (other.geneName != null)
+					return false;
+			} else if (!geneName.equals(other.geneName))
+				return false;
+			if (transcriptName == null) {
+				if (other.transcriptName != null)
+					return false;
+			} else if (!transcriptName.equals(other.transcriptName))
+				return false;
+			return true;
+			}
+		
+		}
 
 	@Override
 	public String getProgramDescription() {
@@ -128,10 +168,14 @@ public class VcfBurden extends AbstractKnimeApplication
 			VCFHeader header=in.getHeader();
 			String prev_chrom = null;
 			VepPredictionParser vepPredParser=new VepPredictionParser(header);
-			Map<String,List<VariantContext>> gene2variants=new HashMap<>();
+			Map<GeneTranscript,List<VariantContext>> gene2variants=new HashMap<>();
 			SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
 			Set<SequenceOntologyTree.Term> acn=new HashSet<>();
-			for(String acns:new String[]{"SO:0001589", "SO:0001587", "SO:0001582", "SO:0001583", "SO:0001575", "SO:0001578", "SO:0001574", "SO:0001889", "SO:0001821", "SO:0001822", "SO:0001893"})
+			for(String acns:new String[]{
+					"SO:0001589", "SO:0001587", "SO:0001582", "SO:0001583",
+					"SO:0001575", "SO:0001578", "SO:0001574", "SO:0001889",
+					"SO:0001821", "SO:0001822", "SO:0001893"
+					})
 				{
 				acn.addAll(soTree.getTermByAcn(acns).getAllDescendants());
 				}
@@ -154,9 +198,9 @@ public class VcfBurden extends AbstractKnimeApplication
 				if(ctx1==null || !ctx1.getContig().equals(prev_chrom))
 					{
 					info("DUMP to zip n="+gene2variants.size());
-					for(String gene:gene2variants.keySet() )
+					for(GeneTranscript gene_transcript:gene2variants.keySet() )
 						{
-						ZipEntry ze = new ZipEntry(this.dirName+"/"+gene+".txt");
+						ZipEntry ze = new ZipEntry(this.dirName+"/"+gene_transcript.geneName+"_"+gene_transcript.transcriptName+".txt");
 						zout.putNextEntry(ze);
 						PrintWriter pw = new PrintWriter(zout);
 						pw.print("CHROM\tPOS\tREF\tALT");
@@ -166,7 +210,7 @@ public class VcfBurden extends AbstractKnimeApplication
 							pw.print(sample);
 							}
 						pw.println();
-						for(VariantContext ctx:gene2variants.get(gene))
+						for(VariantContext ctx:gene2variants.get(gene_transcript))
 							{
 							pw.print(ctx.getContig());
 							pw.print("\t");
@@ -206,31 +250,30 @@ public class VcfBurden extends AbstractKnimeApplication
 					gene2variants.clear();
 					prev_chrom = ctx1.getContig();
 					}
-				Set<String> seen_names=new HashSet<>();
+				Set<GeneTranscript> seen_names=new HashSet<>();
 				for(VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))
 					{
-					String gene= pred.getSymbol();
-					if(gene==null || gene.trim().isEmpty()) continue;
+					String geneName= pred.getSymbol();
+					if(geneName==null || geneName.trim().isEmpty()) continue;
 					
 					
 					if(this.gene2seen!=null)
 						{
-						if(!this.gene2seen.containsKey(gene)) continue;
+						if(!this.gene2seen.containsKey(geneName)) continue;
 						
 						}
 					
-					String refseq = pred.getRefSeq();
-					if(refseq==null || !refseq.startsWith("NM") || !refseq.startsWith("XM"))
+					
+					String transcriptName = pred.getFeature();
+					if(transcriptName==null || transcriptName.trim().isEmpty())
 						{
-						refseq = pred.getFeature();
-						if(refseq==null || !refseq.startsWith("NM") || !refseq.startsWith("XM"))
-							{
-							continue;
-							}
+						info("No transcript in "+ctx1);
+						continue;
 						}
 					
+					GeneTranscript geneTranscript = new GeneTranscript(geneName, transcriptName);
 					
-					if(seen_names.contains(gene)) continue;
+					if(seen_names.contains(geneTranscript)) continue;
 					boolean ok=false;
 					for(SequenceOntologyTree.Term so:pred.getSOTerms())
 						{
@@ -241,17 +284,17 @@ public class VcfBurden extends AbstractKnimeApplication
 						}
 					if(!ok) continue;
 					
-					List<VariantContext> L = gene2variants.get(gene);
+					List<VariantContext> L = gene2variants.get(geneTranscript);
 					if(L==null)
 						{
 						L=new ArrayList<>();
-						gene2variants.put(gene,L);
+						gene2variants.put(geneTranscript,L);
 						}
 					L.add(ctx1);
-					seen_names.add(gene);
+					seen_names.add(geneTranscript);
 					if(this.gene2seen!=null)
 						{
-						this.gene2seen.put(gene, Boolean.TRUE);
+						this.gene2seen.put(geneTranscript.geneName, Boolean.TRUE);
 						}
 					}
 				}
@@ -262,7 +305,7 @@ public class VcfBurden extends AbstractKnimeApplication
 					{
 					if(this.gene2seen.get(gene).equals(Boolean.TRUE)) continue;
 					warning("Gene not found : "+gene);
-					ZipEntry ze = new ZipEntry(this.dirName+"/"+gene+".txt");
+					ZipEntry ze = new ZipEntry(this.dirName+"/"+gene+"_000000000000000.txt");
 					zout.putNextEntry(ze);
 					PrintWriter pw = new PrintWriter(zout);
 					pw.print("CHROM\tPOS\tREF\tALT");
