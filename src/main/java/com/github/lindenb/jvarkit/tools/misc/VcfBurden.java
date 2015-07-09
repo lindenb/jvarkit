@@ -30,14 +30,19 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -125,6 +130,60 @@ public class VcfBurden extends AbstractKnimeApplication
 		}
 	
 	
+	private void dump(
+			ZipOutputStream zout,
+			String filename,
+			List<String> samples,
+			List<VariantContext> variants
+			) throws IOException
+		{
+
+		ZipEntry ze = new ZipEntry(this.dirName+"/"+filename+".txt");
+		zout.putNextEntry(ze);
+		PrintWriter pw = new PrintWriter(zout);
+		pw.print("CHROM\tPOS\tREF\tALT");
+		for(String sample:samples)
+			{
+			pw.print("\t");
+			pw.print(sample);
+			}
+		pw.println();
+		for(VariantContext ctx:variants)
+			{
+			pw.print(ctx.getContig());
+			pw.print("\t");
+			pw.print(ctx.getStart());
+			pw.print("\t");
+			pw.print(ctx.getReference().getDisplayString());
+			pw.print("\t");
+			pw.print(ctx.getAlternateAlleles().get(0).getDisplayString());
+			for(String sample:samples)
+				{
+				Genotype g=ctx.getGenotype(sample);
+				pw.print("\t");
+				if(g.isHomRef())
+					{
+					pw.print("0");
+					}
+				else if(g.isHomVar())
+					{
+					pw.print("2");
+					}
+				else if(g.isHet())
+					{
+					pw.print("1");
+					}
+				else
+					{
+					pw.print("-9");
+					}
+				}
+			pw.println();
+			}
+		pw.flush();
+		zout.closeEntry();
+		}
+	
 	@Override
 	public int executeKnime(List<String> args)
 		{
@@ -198,52 +257,77 @@ public class VcfBurden extends AbstractKnimeApplication
 				if(ctx1==null || !ctx1.getContig().equals(prev_chrom))
 					{
 					info("DUMP to zip n="+gene2variants.size());
+					Set<String> geneNames= new HashSet<>();
 					for(GeneTranscript gene_transcript:gene2variants.keySet() )
 						{
-						ZipEntry ze = new ZipEntry(this.dirName+"/"+gene_transcript.geneName+"_"+gene_transcript.transcriptName+".txt");
-						zout.putNextEntry(ze);
-						PrintWriter pw = new PrintWriter(zout);
-						pw.print("CHROM\tPOS\tREF\tALT");
-						for(String sample:samples)
+						geneNames.add(gene_transcript.geneName);
+						dump(zout,
+								gene_transcript.geneName+"_"+gene_transcript.transcriptName,
+								samples,
+								gene2variants.get(gene_transcript)
+								);
+						}
+					
+					for(String geneName : geneNames)
+						{
+						Comparator<VariantContext> cmp = new Comparator<VariantContext>()
+									{
+									@Override
+									public int compare(VariantContext o1,
+											VariantContext o2) {
+										int i = o1.getContig().compareTo(o2.getContig());
+										if(i!=0) return i;
+										i = o1.getStart() - o2.getStart();
+										if(i!=0) return i;
+										i = o1.getReference().compareTo(o2.getReference());
+										if(i!=0) return i;
+										i = o1.getAlternateAllele(0).compareTo(o2.getAlternateAllele(0));
+										if(i!=0) return i;
+										return 0;
+										}
+									};
+						SortedSet<VariantContext> lis_nm = new TreeSet<>(cmp);
+						SortedSet<VariantContext> lis_all = new TreeSet<>(cmp);
+						SortedSet<VariantContext> lis_refseq = new TreeSet<>(cmp);
+						SortedSet<VariantContext> lis_enst = new TreeSet<>(cmp);
+						
+						for(GeneTranscript gene_transcript:gene2variants.keySet() )
 							{
-							pw.print("\t");
-							pw.print(sample);
-							}
-						pw.println();
-						for(VariantContext ctx:gene2variants.get(gene_transcript))
-							{
-							pw.print(ctx.getContig());
-							pw.print("\t");
-							pw.print(ctx.getStart());
-							pw.print("\t");
-							pw.print(ctx.getReference().getDisplayString());
-							pw.print("\t");
-							pw.print(ctx.getAlternateAlleles().get(0).getDisplayString());
-							for(String sample:samples)
+							if(!geneName.equals(gene_transcript.geneName)) continue;
+							lis_all.addAll(gene2variants.get(gene_transcript));
+							if(gene_transcript.transcriptName.startsWith("NM_"))
 								{
-								Genotype g=ctx.getGenotype(sample);
-								pw.print("\t");
-								if(g.isHomRef())
-									{
-									pw.print("0");
-									}
-								else if(g.isHomVar())
-									{
-									pw.print("2");
-									}
-								else if(g.isHet())
-									{
-									pw.print("1");
-									}
-								else
-									{
-									pw.print("-9");
-									}
+								lis_nm.addAll(gene2variants.get(gene_transcript));
 								}
-							pw.println();
+							if(! gene_transcript.transcriptName.startsWith("ENST"))
+								{
+								lis_refseq.addAll(gene2variants.get(gene_transcript));
+								}
+							if( gene_transcript.transcriptName.startsWith("ENST"))
+								{
+								lis_enst.addAll(gene2variants.get(gene_transcript));
+								}
 							}
-						pw.flush();
-						zout.closeEntry();
+						dump(zout,
+								geneName+"_ALL_TRANSCRIPTS",
+								samples,
+								new ArrayList<VariantContext>(lis_all)
+								);
+						dump(zout,
+								geneName+"_ALL_NM",
+								samples,
+								new ArrayList<VariantContext>(lis_nm)
+								);
+						dump(zout,
+								geneName+"_ALL_REFSEQ",
+								samples,
+								new ArrayList<VariantContext>(lis_refseq)
+								);
+						dump(zout,
+								geneName+"_ALL_ENST",
+								samples,
+								new ArrayList<VariantContext>(lis_enst)
+								);
 						}
 					
 					if(ctx1==null) break;
@@ -301,22 +385,16 @@ public class VcfBurden extends AbstractKnimeApplication
 			
 			if(this.gene2seen!=null)
 				{
+				final List<VariantContext> emptylist = Collections.emptyList();
 				for(String gene:this.gene2seen.keySet())
 					{
 					if(this.gene2seen.get(gene).equals(Boolean.TRUE)) continue;
 					warning("Gene not found : "+gene);
-					ZipEntry ze = new ZipEntry(this.dirName+"/"+gene+"_000000000000000.txt");
-					zout.putNextEntry(ze);
-					PrintWriter pw = new PrintWriter(zout);
-					pw.print("CHROM\tPOS\tREF\tALT");
-					for(String sample:samples)
-						{
-						pw.print("\t");
-						pw.print(sample);
-						}
-					pw.println();
-					pw.flush();
-					zout.closeEntry();
+					dump(zout,
+							gene+"_000000000000000.txt",
+							samples,
+							emptylist
+							);
 					}
 				}
 			
