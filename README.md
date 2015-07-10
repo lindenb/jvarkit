@@ -187,5 +187,7 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PcrClipReads">PcrClipReads</a></th><td>Soft clip BAM files based on PCR target regions https://www.biostars.org/p/147136/</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/ExtendReferenceWithReads">ExtendReferenceWithReads</a></th><td>Extending ends of REF sequence with the help of reads in BAM https://www.biostars.org/p/148089/</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PcrSliceReads">PcrSliceReads</a></th><td>Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/"</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamJmx">SamJmx</a></th><td>Monitor/interrupt/break a BAM/SAM stream with java JMX</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfJmx">VcfJmx</a></th><td>Monitor/interrupt/break a VcfJmx stream with java JMX</td></tr>
 </table>
 

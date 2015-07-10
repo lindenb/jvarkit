@@ -348,7 +348,7 @@ public abstract class AbstractCommandLineProgram
 		out.println(" -h get help (this screen)");
 		out.println(" -v print version and exit.");
 		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
-		out.println(" --doap prints a XML description of the program and exit.");
+		//out.println(" --doap prints a XML description of the program and exit.");
 		if(isGalaxyTool())
 			{
 			out.println(" --galaxy  prints a draft 'tool.xml' wrapper for galaxy and exits. See https://wiki.galaxyproject.org/Admin/Tools/AddToolTutorial");
