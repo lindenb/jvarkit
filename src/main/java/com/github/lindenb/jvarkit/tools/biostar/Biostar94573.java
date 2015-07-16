@@ -366,7 +366,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				
 				if(countAlleles.isEmpty()) continue;
 				String refAllStr=countAlleles.getMostFrequent();
-				Allele refAllele=Allele.create(refAllStr, true);
+				Allele refAllele=Allele.create(refAllStr.replaceAll("[^ATGCatgc]","N"), true);
 				alleles.add(refAllele);
 				
 				
@@ -380,7 +380,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						}
 					else
 						{
-						al=Allele.create(sample2genotype.get(sample), false);
+						al=Allele.create(sample2genotype.get(sample).replaceAll("[^ATGCatgc]","N"), false);
 						alleles.add(al);
 						}
 					List<Allele> sampleAlleles=new ArrayList<Allele>(2);
