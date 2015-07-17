@@ -109,6 +109,7 @@ public class SamJmx extends AbstractBamWriterProgram
 				if(getOutputFile()!=null)
 					{
 					CloserUtil.close(out);
+					out=null;
 					getOutputFile().delete();
 					}
 				System.exit(-1);
@@ -123,6 +124,7 @@ public class SamJmx extends AbstractBamWriterProgram
 		finally
 			{
 			CloserUtil.close(iter);
+			CloserUtil.close(out);
 			if(objectMBean!=null)
 				{
 				try { mbeanServer.unregisterMBean(objectMBean);}

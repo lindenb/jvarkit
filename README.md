@@ -183,7 +183,7 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele">VcfMultiToOneAllele</a></th><td>VCF: "one variant with N ALT alleles" to "N variants with one ALT"</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BedIndexTabix">BedIndexTabix</a></th><td>Index and sort a BED on the fly with Tabix</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfToHilbert">VcfToHilbert</a></th><td>Plot a Hilbert Curve from a VCF file.</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar145820">Biostar145820</a></th><td>Subsample BAM to fixed number of alignments</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar145820">Biostar145820</a></th><td>Shuffl Bam/Subsample BAM to fixed number of alignments</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PcrClipReads">PcrClipReads</a></th><td>Soft clip BAM files based on PCR target regions https://www.biostars.org/p/147136/</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/ExtendReferenceWithReads">ExtendReferenceWithReads</a></th><td>Extending ends of REF sequence with the help of reads in BAM https://www.biostars.org/p/148089/</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/PcrSliceReads">PcrSliceReads</a></th><td>Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/"</td></tr>

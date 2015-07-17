@@ -141,7 +141,7 @@ public class Biostar145820 extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(PrintStream out)
 		{
-		out.println(" -n (int) number of reads"); 
+		out.println(" -n (int) number of reads. -1: all reads"); 
 		out.println(" -o (file) output file (default stdout)"); 
 		out.println(" -N (int) max records in ram (optional)"); 
 		out.println(" -b force binary for stdout (optional)"); 
@@ -154,7 +154,7 @@ public class Biostar145820 extends AbstractCommandLineProgram
 		{
 		boolean compressed=false;
 		int maxRecordsInRAM=100000;
-		long count=10L;
+		long count=-1L;
 		File fileout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
@@ -178,9 +178,9 @@ public class Biostar145820 extends AbstractCommandLineProgram
 					}
 				}
 			}
-		if(count<=0L)
+		if(count<-1L) // -1 == infinite
 			{
-			error("Bad count");
+			error("Bad count:"+count);
 			return -1;
 			}
 		SamReader samReader=null;
@@ -211,6 +211,7 @@ public class Biostar145820 extends AbstractCommandLineProgram
 						
 			header=header.clone();
 			header.setSortOrder(SortOrder.unsorted);
+			header.addComment("Processed with "+getProgramName()+" : "+getProgramCommandLine());
 			SAMFileWriterFactory sfw=new SAMFileWriterFactory();
 			sfw.setCreateIndex(false);
 			sfw.setCreateMd5File(false);
@@ -253,10 +254,20 @@ public class Biostar145820 extends AbstractCommandLineProgram
 			
 			sorter.doneAdding();
 			iter2=sorter.iterator();
-			while(iter2.hasNext() && count>0)
+			if(count==-1)
 				{
-				samWriter.addAlignment(iter2.next().samRecord);
-				count--;
+				while(iter2.hasNext())
+					{
+					samWriter.addAlignment(iter2.next().samRecord);
+					}
+				}
+			else
+				{
+				while(iter2.hasNext() && count>0)
+					{
+					samWriter.addAlignment(iter2.next().samRecord);
+					count--;
+					}
 				}
 			iter2.close();iter2=null;
 			sorter.cleanup();
