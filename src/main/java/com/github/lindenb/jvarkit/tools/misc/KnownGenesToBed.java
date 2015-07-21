@@ -78,7 +78,6 @@ public class KnownGenesToBed extends AbstractCommandLineProgram
 							"CDS",exon.getName()
 							);
 					}
-				if(print_exons) print(kg,exon.getStart(),exon.getEnd(),"EXON",exon.getName());
 				
 				KnownGene.Intron intron=exon.getNextIntron();
 				if(print_introns && intron!=null)
