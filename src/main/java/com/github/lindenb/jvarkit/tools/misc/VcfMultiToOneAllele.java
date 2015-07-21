@@ -142,7 +142,7 @@ public class VcfMultiToOneAllele
 				}
 			else
 				{
-				//Collections.sort(alleles); don't sort , for VCFHeaderLineCount.A
+				//Collections.sort(aioulleles); don't sort , for VCFHeaderLineCount.A
 				final Map<String,Object> attributes = ctx.getAttributes();
 				StringBuilder sb=new StringBuilder();
 				for(int i=0;i< alleles.size();++i)
@@ -155,6 +155,8 @@ public class VcfMultiToOneAllele
 				for(int i=0;i< alleles.size();++i)
 					{
 					final Allele the_allele=alleles.get(i);
+					
+
 					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					vcb.alleles(Arrays.asList(ctx.getReference(),the_allele));
 					
@@ -169,6 +171,8 @@ public class VcfMultiToOneAllele
 						List list = (List)o;
 						if(i>=list.size()) throw new IOException("For INFO tag="+alleles.size()+" got "+alleles.size()+" ALT, incompatible with "+list.toString());
 						vcb.attribute(attid, list.get(i));
+						
+						
 						}
 					vcb.attribute(TAG,altAsString);
 					

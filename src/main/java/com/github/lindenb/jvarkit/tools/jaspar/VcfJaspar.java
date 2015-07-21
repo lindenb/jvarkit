@@ -76,10 +76,10 @@ public class VcfJaspar extends AbstractVCFFilter2
 			{
 			VariantContext var=in.next();
 
-			if(genomicSequence==null || !genomicSequence.getChrom().equals(var.getChr()))
+			if(genomicSequence==null || !genomicSequence.getChrom().equals(var.getContig()))
 				{
-				info("Loading sequence "+var.getChr());
-				genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile,var.getChr());
+				info("Loading sequence "+var.getContig());
+				genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile,var.getContig());
 				}
 			
 			Set<String> hits=new HashSet<String>();
