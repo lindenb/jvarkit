@@ -1,32 +1,23 @@
 package com.github.lindenb.jvarkit.tools.bam2xml;
 
-import java.io.File;
-import java.io.FileInputStream;
-
+import java.io.PrintStream;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-
-import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
-
-
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import htsjdk.samtools.util.Log;
+import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 
 
-public class Bam2Xml extends CommandLineProgram
+public class Bam2Xml extends AbstractCommandLineProgram
 	{
-		
-	private static final Log log = Log.getInstance(Bam2Xml.class);
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="A BAM file to process.")
-    public File INPUT=null;
-    
-    public boolean verboseflag=false;
+	private boolean verboseflag=true;
     
     private void writeCharacters(XMLStreamWriter w,String tag,Object value)
     	throws XMLStreamException
@@ -37,10 +28,8 @@ public class Bam2Xml extends CommandLineProgram
     	w.writeEndElement();
     	}
     
-	@Override
-	protected int doWork()
+	private int run(SamReader samReader)
 		{    	
-        SAMFileReader samReader = null;
         SAMRecordIterator iter=null;
         try
 	        {
@@ -48,15 +37,11 @@ public class Bam2Xml extends CommandLineProgram
 	        XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
 	        w.writeStartDocument("UTF-8","1.0");
 	        w.writeStartElement("bam");
-	        samReader=new SAMFileReader(INPUT==null?System.in:new FileInputStream(INPUT));
 	        final SAMFileHeader header=samReader.getFileHeader();
 	        w.writeStartElement("header");
 	        
 	        w.writeAttribute("version",header.getVersion());
-	        
-	        
 	        w.writeEndElement();
-	        samReader.setValidationStringency(super.VALIDATION_STRINGENCY);
 			iter=samReader.iterator();
 			while(iter.hasNext())
 				{
@@ -84,16 +69,87 @@ public class Bam2Xml extends CommandLineProgram
 			w.close();
 			} 
     	catch (Exception e) {
-    		log.error(e);
+    		error(e);
     		return -1;
 			}
         finally
 	    	{
-	    	if(iter!=null) iter.close();
-	    	if(samReader!=null) samReader.close();
+	    	CloserUtil.close(iter);
 	    	}
     	return 0;
     	}
+	
+	@Override
+	public String getProgramDescription() {
+		return "convert bam to xml";
+		}
+	
+	@Override
+    protected String getOnlineDocUrl() {
+    	return DEFAULT_WIKI_PREFIX+"Bam2Xml";
+    }
+	
+	@Override
+	public void printOptions(PrintStream out)
+		{
+		super.printOptions(out);
+		}
+
+	
+	
+	@Override
+	public int doWork(String[] args)
+		{
+		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
+		int c;
+		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
+			{
+			switch(c)
+				{
+				default:
+					{
+					switch(handleOtherOptions(c, opt,args))
+						{
+						case EXIT_FAILURE: return -1;
+						case EXIT_SUCCESS: return 0;
+						default:break;
+						}
+					}
+				}
+			}
+		SamReader r=null;
+		try
+			{
+			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			if(opt.getOptInd()==args.length)
+				{
+				r = srf.open(SamInputResource.of(System.in));
+				}
+			else if(opt.getOptInd()+1==args.length)
+				{
+				r = srf.open(SamInputResource.of(args[opt.getOptInd()]));
+				}
+			else
+				{	
+				error("Illegal number of arguments.");
+				return -1;
+				}
+			run(r);
+			return 0;
+			}
+		catch(Exception err)
+			{
+			error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(r);
+			}
+		}
+
+	
+	
     public static void main(final String[] argv)
 		{
 	    new Bam2Xml().instanceMainWithExit(argv);

@@ -31,6 +31,7 @@ package com.github.lindenb.jvarkit.io;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
+import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -55,8 +56,10 @@ import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.samtools.Defaults;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 
 public class IOUtils {
@@ -295,5 +298,32 @@ public class IOUtils {
 			}
 		return vcfFiles;
 		}
-
-}
+	/** converts a BufferedReader to a line Iterator */
+	public static  LineIterator toLineIterator(BufferedReader r)
+		{
+		return new BuffReadIter(r);
+		}
+	private static class BuffReadIter 
+		extends AbstractIterator<String>
+		implements LineIterator
+		{
+		private BufferedReader in;
+		BuffReadIter(BufferedReader in)
+			{
+			this.in=in;
+			}
+		@Override
+		protected String advance()
+			{
+			if(in==null) return null;
+			String s;
+			try {
+				s = in.readLine();
+				if(s==null) {CloserUtil.close(this.in);this.in=null;}
+				return s;
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+				}
+			}
+		}
+	}
