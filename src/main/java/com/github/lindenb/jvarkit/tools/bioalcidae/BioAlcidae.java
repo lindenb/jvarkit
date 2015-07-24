@@ -237,7 +237,7 @@ public class BioAlcidae
 				}
 			iter = in.iterator();
 			bindings.put("header",in.getFileHeader());
-			bindings.put("iter",in);
+			bindings.put("iter",iter);
 			bindings.put("format","sam");
 			this.script.eval(bindings);
 			return 0;
