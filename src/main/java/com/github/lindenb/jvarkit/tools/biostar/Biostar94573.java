@@ -35,7 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-
+import java.io.File;
+import java.io.PrintWriter;
 import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.tribble.readers.LineIterator;
@@ -66,6 +67,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 	private Map<String, AlignSequence> sample2sequence=new HashMap<String, AlignSequence>();
 	private AbstractSequence consensus=null;
 	private enum Format{None,Clustal,Fasta};
+	private File outFasta=null;
 	
 	private abstract class AbstractSequence
 		{
@@ -128,20 +130,25 @@ public class Biostar94573 extends AbstractCommandLineProgram
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println("-R (name) reference name. Optional");
+		out.println("-f (fasta) save computed fasta sequence in this file. Optional");
+		out.println("-m haploid outpout. Optional");
 		super.printOptions(out);
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
+		boolean haploid=false;
 		String REF="chrUn";
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"R:f:m"))!=-1)
 			{
 			switch(c)
 				{
+				case 'm': haploid=true;break;
 				case 'R': REF=opt.getOptArg();break;
+				case 'f': outFasta = new File(opt.getOptArg());break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -245,6 +252,11 @@ public class Biostar94573 extends AbstractCommandLineProgram
 							error("illegal consensus line for "+line);
 							return -1;
 							}	
+						/* if consensus doesn't exist in the first rows */
+						while(clustalconsensus.seq.length() < (this.align_length-(line.length()-columnStart) ))
+							{
+							clustalconsensus.seq.append(" ");
+							}
 						clustalconsensus.seq.append(line.substring(columnStart));
 						}
 					else
@@ -270,7 +282,13 @@ public class Biostar94573 extends AbstractCommandLineProgram
 							curr.name=seqname;
 							this.sample2sequence.put(curr.name, curr);
 							}
-						curr.seq.append(line.substring(columnStart));
+						int columnEnd=line.length();
+						//remove blanks and digit at the end
+						while(columnEnd-1>columnStart && (line.charAt(columnEnd-1)==' ' || Character.isDigit(line.charAt(columnEnd-1))))
+								{
+								columnEnd--;
+								}
+						curr.seq.append(line.substring(columnStart,columnEnd));
 						this.align_length=Math.max(align_length, curr.seq.length());
 						}
 					}
@@ -299,7 +317,6 @@ public class Biostar94573 extends AbstractCommandLineProgram
 			
 			w=VCFUtils.createVariantContextWriterToStdout();
 			w.writeHeader(vcfHeader);
-			
 			
 			
 			int pos1=0;
@@ -385,7 +402,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						}
 					List<Allele> sampleAlleles=new ArrayList<Allele>(2);
 					sampleAlleles.add(al);
-					sampleAlleles.add(al);
+					if(!haploid) sampleAlleles.add(al);
 					gb.alleles(sampleAlleles);
 					gb.DP(1);
 					
@@ -404,7 +421,33 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				pos1=pos2;
 				}
 			w.close();
+			if(outFasta!=null)
+				{
+				PrintWriter fasta=new PrintWriter(outFasta);
+				for(String sample:samples)
+					{
+					fasta.println(">"+sample);
+					Sequence seq=this.sample2sequence.get(sample);
+					for(int i=0;i< align_length;++i)
+						{
+						fasta.print(seq.at(i));
+						}
+					fasta.println();
+					}	
+				fasta.println(">CONSENSUS");
+				for(int i=0;i< align_length;++i)
+						{
+						fasta.print(consensus.at(i));
+						}
+				fasta.println();
+				fasta.flush();
+				fasta.close();
+				}
+			
 			info("Done");
+			
+			
+			
 			return 0;
 			}
 		catch(Exception err)
