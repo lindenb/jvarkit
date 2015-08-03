@@ -46,7 +46,6 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.TextCigarCodec;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -169,7 +168,6 @@ public class SamFixCigar extends AbstractBamWriterProgram
 				int refPos1=rec.getAlignmentStart();
 				int readPos0=0;
 				
-				
 				for(CigarElement ce:cigar.getCigarElements())
 					{
 					switch(ce.getOperator())
@@ -248,10 +246,8 @@ public class SamFixCigar extends AbstractBamWriterProgram
 						}
 					}
 				cigar=new Cigar(newCigar);
-				String newCigarStr= TextCigarCodec.encode(cigar);
 				//info("changed "+rec.getCigarString()+" to "+newCigarStr+" "+rec.getReadName()+" "+rec.getReadString());
 				rec.setCigar(cigar);
-				rec.setCigarString(newCigarStr);
 				
 				sfw.addAlignment(rec);
 				}
