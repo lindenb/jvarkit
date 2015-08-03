@@ -33,27 +33,26 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.Deflater;
 
+import com.github.lindenb.jvarkit.util.picard.AbstractBamWriterProgram;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.TextCigarCodec;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
-public class SamFixCigar extends AbstractCommandLineProgram
+public class SamFixCigar extends AbstractBamWriterProgram
 	{
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
@@ -71,7 +70,6 @@ public class SamFixCigar extends AbstractCommandLineProgram
 	public void printOptions(java.io.PrintStream out)
 		{
 		out.println(" -r (file) reference indexed with samtools faidx . Required.");
-		out.println(" -o (file) BAM/SAM fileout. default:stdout.");
 		out.println(" -C (int) set zip compression level.");
 
 		super.printOptions(out);
@@ -81,17 +79,14 @@ public class SamFixCigar extends AbstractCommandLineProgram
 	public int doWork(String[] args)
 		{
 		GenomicSequence genomicSequence=null;
-		int maxRecordsInRam=10000;
 		File faidx=null;
-		File fout=null;
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args, getGetOptDefault()+"r:o:C:"))!=-1)
+		while((c=opt.getopt(args, getGetOptDefault()+"r:C:"))!=-1)
 			{
 			switch(c)
 				{
 				case 'r': faidx=new File(opt.getOptArg());break;
-				case 'o': fout=new File(opt.getOptArg());break;
 				case 'C': 
 					{
 					BlockCompressedOutputStream.setDefaultCompressionLevel(
@@ -99,7 +94,7 @@ public class SamFixCigar extends AbstractCommandLineProgram
 							);
 					break;
 					}
-				default: switch(handleOtherOptions(c, opt, null))
+				default: switch(handleOtherOptions(c, opt, args))
 					{
 					case EXIT_FAILURE: return -1;
 					case EXIT_SUCCESS: return 0;
@@ -141,19 +136,8 @@ public class SamFixCigar extends AbstractCommandLineProgram
 				}
 			header=sfr.getFileHeader();
 			
-			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
-			sfwf.setCreateIndex(false);
-			sfwf.setCreateMd5File(false);
-			sfwf.setMaxRecordsInRam(maxRecordsInRam);
-			
-			if(fout==null)
-				{
-				sfw=sfwf.makeSAMWriter(header, header.getSortOrder()==SortOrder.coordinate,System.out);
-				}
-			else
-				{
-				sfw=sfwf.makeSAMOrBAMWriter(header, header.getSortOrder()==SortOrder.coordinate,fout);
-				}
+			sfw = openSAMFileWriter(header,true);
+			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
 			List<CigarElement> newCigar=new ArrayList<CigarElement>();
 			SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
@@ -163,7 +147,7 @@ public class SamFixCigar extends AbstractCommandLineProgram
 					{
 					info("Reads "+nReads+" operator:X="+nX);
 					}
-				SAMRecord rec=iter.next();
+				SAMRecord rec=progress.watch(iter.next());
 				Cigar cigar=rec.getCigar();
 				byte bases[]=rec.getReadBases();
 				if( rec.getReadUnmappedFlag() ||
@@ -193,7 +177,7 @@ public class SamFixCigar extends AbstractCommandLineProgram
     					case H:break;
 
     					
-    					case P://cont
+    					case P:break;
 						case N://cont
 						case D:
 							{
@@ -271,6 +255,7 @@ public class SamFixCigar extends AbstractCommandLineProgram
 				
 				sfw.addAlignment(rec);
 				}
+			progress.finish();
 			return 0;
 			}
 		catch(Exception err)
