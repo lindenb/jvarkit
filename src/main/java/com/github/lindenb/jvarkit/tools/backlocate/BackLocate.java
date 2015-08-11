@@ -143,7 +143,7 @@ public class BackLocate
 		) throws IOException
 		{
 		
-		GeneticCode geneticCode=getGeneticCodeByChromosome(gene.getChromosome());
+		final GeneticCode geneticCode=getGeneticCodeByChromosome(gene.getChromosome());
 		RNASequence wildRNA=null;
 		ProteinCharSequence wildProt=null;
 		
@@ -250,12 +250,27 @@ public class BackLocate
         	1+ peptideIndex0*3,
         	2+ peptideIndex0*3
         	};
-        String codon=""
+        final String wildCodon=""
         		+ wildRNA.charAt(indexesInRNA[0])
         		+ wildRNA.charAt(indexesInRNA[1])
         		+ wildRNA.charAt(indexesInRNA[2])
         		;
-        		
+        /* 2015 : adding possible mut codons */
+        final Set<String> possibleAltCodons = new HashSet<>();
+        final char bases[]=new char[]{'A','C','G','T'};
+        for(int codon_pos=0;codon_pos<3;++codon_pos)
+        	{
+        	StringBuilder sb=new StringBuilder(wildCodon);
+        	for(char mutBase:bases)
+        		{
+        		sb.setCharAt(codon_pos, mutBase);
+        		if(geneticCode.translate(sb.charAt(0), sb.charAt(1), sb.charAt(2))==Character.toUpperCase(aa2))
+        			{
+        			possibleAltCodons.add(sb.toString());
+        			}
+        		}
+        	}
+        
         for(int indexInRna: indexesInRNA)
         	{
         	System.out.print(geneName);
@@ -274,7 +289,22 @@ public class BackLocate
         	System.out.print('\t');
         	System.out.print(indexInRna);
         	System.out.print('\t');
-        	System.out.print(codon);
+        	System.out.print(wildCodon);
+        	System.out.print('\t');
+        	if(possibleAltCodons.isEmpty())
+        		{
+        		System.out.print('.');
+        		}
+        	else
+        		{
+        		boolean first=true;
+        		for(String mutCodon:possibleAltCodons)
+        			{
+        			if(!first) System.out.print('|');
+        			first=false;
+        			System.out.print(mutCodon);
+        			}
+        		}
         	System.out.print('\t');
         	System.out.print(wildRNA.charAt(indexInRna));
         	System.out.print('\t');
@@ -358,7 +388,7 @@ public class BackLocate
 	@Override
 	protected String getOnlineDocUrl()
 		{
-		return "https://github.com/lindenb/jvarkit/wiki/BackLocate";
+		return DEFAULT_WIKI_PREFIX+"BackLocate";
 		}
 	
 	@Override
@@ -500,7 +530,9 @@ public class BackLocate
         	System.out.print('\t');
         	System.out.print("index0.in.rna");
         	System.out.print('\t');
-        	System.out.print("codon");
+        	System.out.print("wild.codon");
+        	System.out.print('\t');
+        	System.out.print("potential.var.codons");
         	System.out.print('\t');
         	System.out.print("base.in.rna");
         	System.out.print('\t');

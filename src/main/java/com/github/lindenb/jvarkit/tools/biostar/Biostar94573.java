@@ -119,7 +119,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 	
 	@Override
 	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar94573";
+		return DEFAULT_WIKI_PREFIX+"Biostar94573";
 		}
 	@Override
 	public String getProgramDescription() {
