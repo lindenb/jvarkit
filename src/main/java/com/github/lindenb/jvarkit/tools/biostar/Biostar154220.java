@@ -134,11 +134,11 @@ public class Biostar154220 extends AbstractBamWriterProgram
 					buffer.get(0).getReferenceIndex().equals(rec.getReferenceIndex())
 					)
 					{
-					buffer.add(progress.watch(iter.next()));
+					buffer.add(progress.watch(rec));
 					}
 				else if(buffer.isEmpty() && rec!=null)
 					{
-					buffer.add(progress.watch(iter.next()));
+					buffer.add(progress.watch(rec));
 					}
 				else //dump buffer
 					{
