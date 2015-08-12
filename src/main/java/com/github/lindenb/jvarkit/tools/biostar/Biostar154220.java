@@ -153,6 +153,7 @@ public class Biostar154220 extends AbstractBamWriterProgram
 							depth_array=new int[ssr.getSequenceLength()+1];//use a +1 pos
 							Arrays.fill(depth_array, 0);
 							}
+						//position->coverage for this set of reads
 						Counter<Integer> readposition2coverage=new Counter<Integer>();
 						
 						boolean dump_this_buffer=true;
@@ -161,6 +162,7 @@ public class Biostar154220 extends AbstractBamWriterProgram
 							if(!dump_this_buffer) break;
 							if(sr.isSecondaryOrSupplementary()) continue;
 							if(sr.getDuplicateReadFlag()) continue;
+							if(sr.getMappingQuality()==0) continue;
 							
 							
 							Cigar cigar=sr.getCigar();
@@ -191,6 +193,7 @@ public class Biostar154220 extends AbstractBamWriterProgram
 							}
 						if(dump_this_buffer)
 							{
+							//consumme this coverage
 							for(Integer pos:readposition2coverage.keySet())
 								{
 								depth_array[pos]+= (int)readposition2coverage.count(pos);

@@ -132,7 +132,6 @@ public class SortSamRefName extends AbstractBamWriterProgram
 					);
 			sorter.setDestructiveIteration(true);
 			
-			
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			iter = in.iterator();
 			while(iter.hasNext())
@@ -151,6 +150,7 @@ public class SortSamRefName extends AbstractBamWriterProgram
 				out.addAlignment(iter2.next());
 				}
 			out.close();out=null;
+			sorter.cleanup();
 			progress.finish();
 			return 0;
 			}
@@ -161,6 +161,7 @@ public class SortSamRefName extends AbstractBamWriterProgram
 			}
 		finally
 			{
+			
 			CloserUtil.close(iter2);
 			CloserUtil.close(iter);
 			CloserUtil.close(out);
