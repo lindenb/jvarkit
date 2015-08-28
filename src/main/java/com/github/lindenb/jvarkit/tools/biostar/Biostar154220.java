@@ -149,6 +149,8 @@ public class Biostar154220 extends AbstractBamWriterProgram
 							{
 							SAMSequenceRecord ssr=dict.getSequence(tid);
 							prev_tid=tid;
+							depth_array=null;
+							System.gc();
 							info("Alloc memory for contig "+ssr.getSequenceName()+" N="+ssr.getSequenceLength()+"*sizeof(int)");
 							depth_array=new int[ssr.getSequenceLength()+1];//use a +1 pos
 							Arrays.fill(depth_array, 0);
