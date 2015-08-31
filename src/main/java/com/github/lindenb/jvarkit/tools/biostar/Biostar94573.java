@@ -68,6 +68,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 	private AbstractSequence consensus=null;
 	private enum Format{None,Clustal,Fasta};
 	private File outFasta=null;
+	private boolean printAllSites=false;
 	
 	private abstract class AbstractSequence
 		{
@@ -129,9 +130,10 @@ public class Biostar94573 extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(java.io.PrintStream out)
 		{
-		out.println("-R (name) reference name. Optional");
+		out.println("-R (name) reference name used for the CHROM column. Optional");
 		out.println("-f (fasta) save computed fasta sequence in this file. Optional");
 		out.println("-m haploid outpout. Optional");
+		out.println("-a generate variant for all sites");
 		super.printOptions(out);
 		}
 	
@@ -142,13 +144,14 @@ public class Biostar94573 extends AbstractCommandLineProgram
 		String REF="chrUn";
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:f:m"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"R:f:ma"))!=-1)
 			{
 			switch(c)
 				{
-				case 'm': haploid=true;break;
-				case 'R': REF=opt.getOptArg();break;
-				case 'f': outFasta = new File(opt.getOptArg());break;
+				case 'a': this.printAllSites=true; break;
+				case 'm': haploid=true; break;
+				case 'R': REF=opt.getOptArg(); break;
+				case 'f': this.outFasta = new File(opt.getOptArg());break;
 				default:
 					{
 					switch(handleOtherOptions(c, opt,args))
@@ -182,7 +185,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				}
 			Format format=Format.None;
 
-			
+			/** try to guess format */
 			while(r.hasNext() && format==Format.None)
 				{
 				String line=r.peek();
@@ -205,6 +208,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 					}
 				}
 			info("format : "+format);
+			/** parse lines as FASTA */
 			if(Format.Fasta.equals(format))
 				{
 				this.consensus=new FastaConsensus();
@@ -230,6 +234,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						}
 					}
 				}
+			/** parse lines as CLUSTAL */
 			else if(Format.Clustal.equals(format))
 				{
 				ClustalConsensus clustalconsensus=new ClustalConsensus();
@@ -300,6 +305,10 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				}
 			CloserUtil.close(r);
 			
+			
+			/** we're done, print VCF */
+			
+			/** first, print header */
 			Set<VCFHeaderLine> vcfHeaderLines=new HashSet<VCFHeaderLine>();
 
 			vcfHeaderLines.add(new VCFInfoHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth."));
@@ -318,22 +327,41 @@ public class Biostar94573 extends AbstractCommandLineProgram
 			w=VCFUtils.createVariantContextWriterToStdout();
 			w.writeHeader(vcfHeader);
 			
-			
+			/** loop over data, print header */
 			int pos1=0;
 			while(pos1< align_length)
 				{
-				if(consensus.at(pos1)==MATCH) {++pos1;continue;}
+				boolean is_variation;//is it a real variation or print all sites
+				if(consensus.at(pos1)==MATCH)
+					{
+					if(this.printAllSites)
+						{
+						is_variation=false;
+						}
+					else
+						{
+						++pos1;
+						continue;
+						}
+					}
+				else
+					{
+					is_variation=true;
+					}
 				int pos2=pos1+1;
-				while(pos2<align_length && consensus.at(pos2)!='*')
+				
+				// don't extend if no variation and printAllSites
+				while(is_variation && pos2<align_length && consensus.at(pos2)!=MATCH)
 					{
 					++pos2;
 					}
+					
 				boolean is_subsitution=(pos1+1==pos2);
-				if(is_subsitution && pos1!=0)//need pos1>0 because ALT contains prev base.
+				if(is_subsitution && pos1!=0 && is_variation)//need pos1>0 because ALT contains prev base.
 					{
 					for(Sequence seq: this.sample2sequence.values())
 						{
-						if(seq.at(pos1)=='-')
+						if(seq.at(pos1)==DELETION)
 							{
 							is_subsitution=false;
 							break;
@@ -346,9 +374,11 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				VariantContextBuilder vcb=new VariantContextBuilder();
 				List<Genotype> genotypes=new ArrayList<Genotype>(samples.size());
 				
+				/* longest variant */
 				String longest=null;
 				Counter<String> countAlleles=new Counter<String>();
 				Map<String,String> sample2genotype=new HashMap<String,String>(samples.size());
+				/* loop over the sequences of each seample */
 				for(String sample:samples)
 					{
 					Sequence seq=this.sample2sequence.get(sample);
@@ -361,7 +391,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 					else
 						{
 						StringBuilder sb=new StringBuilder(pos2-pos1);
-						for(int i=pos1-1;//yes -1
+						for(int i=Math.max(0,pos1-1);//yes -1
 								i<pos2;
 								++i)
 							{
@@ -372,6 +402,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						if(sb.length()==0) continue;
 						al=sb.toString();
 						}
+					/* did we find the longest allele ?*/
 					if(longest==null || longest.length()< al.length())
 						{
 						countAlleles=new Counter<String>();//reset count of most frequent, we'll use the longest indel or subst
@@ -381,17 +412,30 @@ public class Biostar94573 extends AbstractCommandLineProgram
 					sample2genotype.put(sample,al);
 					}
 				
-				if(countAlleles.isEmpty()) continue;
-				String refAllStr=countAlleles.getMostFrequent();
-				Allele refAllele=Allele.create(refAllStr.replaceAll("[^ATGCatgc]","N"), true);
+				if(countAlleles.isEmpty())
+					{
+					if(printAllSites==false)//printAllSites=false
+						{
+						continue;
+						}
+					/* no a real variation, just add a dummy 'N' */
+					countAlleles.incr("N");
+					}
+				final String refAllStr=countAlleles.getMostFrequent();
+				final Allele refAllele=Allele.create(refAllStr.replaceAll("[^ATGCatgc]","N"), true);
 				alleles.add(refAllele);
 				
-				
+				/* loop over samples, , build each genotype */
 				for(String sample:sample2genotype.keySet())
 					{
-					GenotypeBuilder gb=new GenotypeBuilder(sample);
+					
 					Allele al=null;
-					if( sample2genotype.get(sample).equals(refAllStr))
+					
+					if(!sample2genotype.containsKey(sample))
+						{
+						//nothing
+						}
+					else if( sample2genotype.get(sample).equals(refAllStr))
 						{
 						al=refAllele;
 						}
@@ -400,15 +444,25 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						al=Allele.create(sample2genotype.get(sample).replaceAll("[^ATGCatgc]","N"), false);
 						alleles.add(al);
 						}
-					List<Allele> sampleAlleles=new ArrayList<Allele>(2);
-					sampleAlleles.add(al);
-					if(!haploid) sampleAlleles.add(al);
-					gb.alleles(sampleAlleles);
-					gb.DP(1);
 					
-					genotypes.add(gb.make());
+					if(al!=null)
+						{
+						final GenotypeBuilder gb=new GenotypeBuilder(sample);
+						final List<Allele> sampleAlleles=new ArrayList<Allele>(2);
+						sampleAlleles.add(al);
+						if(!haploid) sampleAlleles.add(al);
+						gb.alleles(sampleAlleles);
+						gb.DP(1);
+						genotypes.add(gb.make());
+						}
+					else
+						{
+						genotypes.add(GenotypeBuilder.createMissing(sample, haploid?1:2));
+						}
+					
+					
 					}
-				int start=pos1+(is_subsitution?1:0);//got to 1-based ref if subst, for indel with use pos(base)-1
+				final int start=pos1+(is_subsitution?1:0);//got to 1-based ref if subst, for indel with use pos(base)-1
 				vcb.start(start);
 				vcb.stop(start+(refAllStr.length()-1));
 				vcb.chr(REF);
