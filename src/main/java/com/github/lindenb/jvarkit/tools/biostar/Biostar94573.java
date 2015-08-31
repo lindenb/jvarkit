@@ -98,12 +98,17 @@ public class Biostar94573 extends AbstractCommandLineProgram
 		String name;
 		}
 	
-	private class ClustalConsensus extends Sequence
+	private interface Consensus
+		{
+		
+		}
+	
+	private class ClustalConsensus extends Sequence implements Consensus
 		{
 		}
 	
 
-	private class FastaConsensus extends AbstractSequence
+	private class FastaConsensus extends AbstractSequence implements Consensus
 		{
 		@Override
 		char at(int index)
@@ -115,6 +120,24 @@ public class Biostar94573 extends AbstractCommandLineProgram
 			}
 		}
 		
+	private class NamedConsensus extends AbstractSequence implements Consensus
+		{
+		private AlignSequence namedConsensus;
+		NamedConsensus(AlignSequence namedConsensus)
+			{
+			this.namedConsensus=namedConsensus;
+			}
+		@Override
+		char at(int index)
+			{
+			for(AlignSequence a:sample2sequence.values())
+				{
+				if(a==this.namedConsensus) continue;
+				if( a.at(index)!=this.namedConsensus.at(index)) return ' ';
+				}
+			return MATCH;
+			}
+		}
 	
 	
 	
@@ -134,20 +157,23 @@ public class Biostar94573 extends AbstractCommandLineProgram
 		out.println("-f (fasta) save computed fasta sequence in this file. Optional");
 		out.println("-m haploid outpout. Optional");
 		out.println("-a generate variant for all sites");
+		out.println("-c (name) use this sequence as CONSENSUS.");
 		super.printOptions(out);
 		}
 	
 	@Override
 	public int doWork(String[] args)
 		{
+		String consensusRefName=null;
 		boolean haploid=false;
 		String REF="chrUn";
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:f:ma"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"R:f:mac:"))!=-1)
 			{
 			switch(c)
 				{
+				case 'c': consensusRefName = opt.getOptArg();break;
 				case 'a': this.printAllSites=true; break;
 				case 'm': haploid=true; break;
 				case 'R': REF=opt.getOptArg(); break;
@@ -305,6 +331,17 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				}
 			CloserUtil.close(r);
 			
+			/* sequence consensus was set*/
+			if( consensusRefName!=null)
+				{	
+				AlignSequence namedSequence=null;
+				if((namedSequence=sample2sequence.get(consensusRefName))==null)
+					{
+					error("Cannot find consensus sequence \""+consensusRefName+"\" in list of sequences: "+this.sample2sequence.keySet().toString());
+					return -1;
+					}
+				this.consensus = new NamedConsensus(namedSequence);
+				}
 			
 			/** we're done, print VCF */
 			
@@ -378,6 +415,9 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				String longest=null;
 				Counter<String> countAlleles=new Counter<String>();
 				Map<String,String> sample2genotype=new HashMap<String,String>(samples.size());
+				
+				String namedConsensusRefAllele="N";
+				
 				/* loop over the sequences of each seample */
 				for(String sample:samples)
 					{
@@ -410,6 +450,13 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						}
 					countAlleles.incr(al);
 					sample2genotype.put(sample,al);
+					
+					/* if consensus sequence name was defined , record this allele for future use */
+					if(consensusRefName!=null && sample.equals(consensusRefName))
+						{
+						namedConsensusRefAllele = al;
+						}
+					
 					}
 				
 				if(countAlleles.isEmpty())
@@ -421,7 +468,15 @@ public class Biostar94573 extends AbstractCommandLineProgram
 					/* no a real variation, just add a dummy 'N' */
 					countAlleles.incr("N");
 					}
-				final String refAllStr=countAlleles.getMostFrequent();
+				String refAllStr;
+				if( consensusRefName == null)
+					{
+					refAllStr = countAlleles.getMostFrequent();
+					}
+				else
+					{
+					refAllStr = namedConsensusRefAllele;
+					}
 				final Allele refAllele=Allele.create(refAllStr.replaceAll("[^ATGCatgc]","N"), true);
 				alleles.add(refAllele);
 				
