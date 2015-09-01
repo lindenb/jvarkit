@@ -642,4 +642,3 @@ $(word 1,${ga4gh.schemas.avpr}) : ${avro.libs}
 clean:
 	rm -rf ${dist.dir}
 
-
