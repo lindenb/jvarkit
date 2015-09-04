@@ -79,6 +79,9 @@ $(1)  : ${htsjdk.jars} \
 	if [ -f "$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" ] ; then \
 				mkdir -p ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
 				xsltproc \
+						--xinclude \
+						--stringparam githash $$(if $$(realpath ${this.dir}.git/refs/heads/master), `cat  $$(realpath ${this.dir}.git/refs/heads/master) `, "undefined") \
+						--path "${this.dir}src/main/resources/xml" \
 						-o ${generated.dir}/java/$(dir $(subst .,/,$(2)))Abstract$(notdir $(subst .,/,$(2))).java \
 						${this.dir}src/main/resources/xsl/command2java.xsl \
 						"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"  ;\
@@ -161,7 +164,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
 	biostar3654 vcfjoinvcfjs bioalcidae vcfburden vcfbedsetfilter vcfreplacetag vcfindextabix \
 	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele bedindextabix vcf2bam vcffilterxpath \
-	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220
+	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 
 
 
 .PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -394,6 +397,9 @@ $(eval $(call compile-htsjdk-cmd,samjmx,${jvarkit.package}.tools.jmx.SamJmx))
 $(eval $(call compile-htsjdk-cmd,vcfjmx,${jvarkit.package}.tools.jmx.VcfJmx))
 $(eval $(call compile-htsjdk-cmd,gtf2xml,${jvarkit.package}.tools.misc.Gtf2Xml))
 $(eval $(call compile-htsjdk-cmd,sortsamrefname,${jvarkit.package}.tools.misc.SortSamRefName))
+
+
+
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \

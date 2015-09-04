@@ -12,8 +12,13 @@ httpclient.libs  = \
 	$(lib.dir)/commons-codec/commons-codec/1.10/commons-codec-1.10.jar \
 	$(lib.dir)/commons-logging/commons-logging/1.2/commons-logging-1.2.jar
 
-all_maven_jars = $(sort  ${httpclient.libs} ${avro.libs})
+common.math3.libs  =  \
+	$(lib.dir)/org/apache/commons/commons-math3/3.5/commons-math3-3.5.jar
+
+
+
+all_maven_jars = $(sort  ${httpclient.libs} ${avro.libs} ${common.math3.libs} )
 
 ${all_maven_jars}  : 
-	mkdir -p $(dir $@) && wget -O "$@" "http://central.maven.org/maven2/$(patsubst ${lib.dir}/%,%,$@)"
+	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o "$@" "http://central.maven.org/maven2/$(patsubst ${lib.dir}/%,%,$@)"
 

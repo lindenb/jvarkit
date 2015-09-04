@@ -1,19 +1,21 @@
 <?xml version='1.0'  encoding="UTF-8" ?>
 <xsl:stylesheet
 	version='1.0'
-	xmlns:c="https://github.com/lindenb/jvarkit/"
+	xmlns:c="http://github.com/lindenb/jvarkit/"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 	>
 <xsl:output method="text"/>
+<xsl:param name="githash">undefined</xsl:param>
 
 <xsl:template match="/">
- <xsl:apply-templates select="c:command"/>
+
+ <xsl:apply-templates select="c:app"/>
 </xsl:template>
 
-<xsl:template match="c:command">/*
+<xsl:template match="c:app">/*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2015 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,8 +36,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
+<xsl:apply-templates select="history"/>
 
 */
 package <xsl:apply-templates select="." mode="package"/>;
@@ -47,73 +48,212 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		<xsl:otherwise>com.github.lindenb.jvarkit.util.AbstractCommandLineProgram</xsl:otherwise>
 	</xsl:choose>
 	{
+	/** error stream */
+	protected java.io.PrintStream _errStream = System.err;
+	/** stdout stream */
+	protected java.io.PrintStream _outStream = System.out;	
+	/** stdin stream */
+	protected java.io.InputStream _inStream  = System.in;	
+	
+	
+	<xsl:if test="not(@generate-constructor='false')">
+	/** Constructor */
 	protected <xsl:apply-templates select="." mode="abstract-class-name"/>()
 		{
 		}
+	</xsl:if>
+	
+	
+	public java.io.PrintStream getStderr()
+		{
+		return this._errStream;
+		}
+	
+	public void setStderr(final java.io.PrintStream stream)
+		{
+		this._errStream = stream;
+		}
+	
+	public java.io.PrintStream getStdout()
+		{
+		return this._outStream;
+		}
+	
+	public void setStdout(final java.io.PrintStream stream)
+		{
+		this._outStream = stream;
+		}
+		
+
+	public java.io.InputStream getStdin()
+		{
+		return this._inStream;
+		}
+	
+	public void setStdin(final java.io.InputStream stream)
+		{
+		this._inStream = stream;
+		}	
+	
+	
+	/** return application Name */
 	public String getName()
 		{
 		return "<xsl:apply-templates select="." mode="class-name"/>";
 		}
 	
-	@Override
+	/** return application Description */
+	public String getDescription()
+		{
+		return "<xsl:apply-templates select="description"/>";
+		}
+	
+	
 	protected String getOnlineDocUrl() {
 		return DEFAULT_WIKI_PREFIX+"<xsl:apply-templates select="." mode="class-name"/>";
 		}
 	
-	<xsl:apply-templates select="c:option" />
+	<xsl:apply-templates select="c:options" />
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		<xsl:apply-templates select="c:option" mode="print.options"/>
-		}
 	
-	protected int parseOptions(String args[])
+	
+	protected int parseOptions(final java.util.List&lt;String&gt; args)
 		{
 		int optind=0;
-		while(optind &lt; args.length)
+		while(optind &lt; args.size() )
 			{
-			<xsl:for-each select="c:option" >
-			<xsl:if test="position()&gt;1"> else </xsl:if> if(args[optind].equals("-c"))
-				{
-				
-				}
+			<xsl:for-each select="c:options/c:option" >
+			<xsl:if test="position()&gt;1"> else </xsl:if>
+				<xsl:apply-templates select="." mode="parse"/>
 			</xsl:for-each>
 			}
-		return optind;
+		return 0;
 		}
 	
 	}
 </xsl:template>
 
-<xsl:template match="c:command" mode="package">
+<xsl:template match="c:app" mode="package">
 <xsl:value-of select="@package"/>
 </xsl:template>
 
-<xsl:template match="c:command" mode="class-name">
-<xsl:value-of select="@class"/>
+<xsl:template match="c:app" mode="class-name">
+<xsl:value-of select="@app"/>
 </xsl:template>
 
-<xsl:template match="c:command" mode="abstract-class-name">
+<xsl:template match="c:app" mode="abstract-class-name">
 <xsl:text>Abstract</xsl:text>
 <xsl:apply-templates select="." mode="class-name"/>
 </xsl:template>
 
-<xsl:template match="c:option">
-/** */
-private <xsl:apply-templates select="." mode="type"/><xsl:text> </xsl:text><xsl:apply-templates select="." mode="name"/> = <xsl:apply-templates select="." mode="default-value"/>;
+<xsl:template match="c:options">
+	public void printOptions(PrintStream out)
+		{
+		<xsl:apply-templates select="c:options/c:optio" mode="print.options"/>
+		}
+</xsl:template>
 
+<xsl:template match="c:option[@type='int']">
+/** option <xsl:apply-templates select="." mode="name"/> */
+protected int <xsl:apply-templates select="." mode="name"/> = <xsl:choose>
+		<xsl:when test="@default"><xsl:value-of select="@default"/></xsl:when>
+		<xsl:otherwise>0</xsl:otherwise>
+	</xsl:choose>;
 
-
-public <xsl:apply-templates select="." mode="type"/><xsl:text> </xsl:text><xsl:apply-templates select="." mode="getter"/>()
+public int <xsl:text> </xsl:text><xsl:apply-templates select="." mode="getter"/>()
 	{
 	return this.<xsl:apply-templates select="." mode="name"/>;
 	}
 
-public <xsl:apply-templates select="." mode="setter"/>( <xsl:apply-templates select="." mode="type"/><xsl:text> </xsl:text><xsl:apply-templates select="." mode="name"/>)
+public <xsl:apply-templates select="." mode="setter"/>( final int <xsl:apply-templates select="." mode="name"/>)
 	{
 	this.<xsl:apply-templates select="." mode="name"/> = <xsl:apply-templates select="." mode="name"/>;
 	}
+</xsl:template>
+
+
+<xsl:template match="c:option[@type='version']" mode="parse">
+<xsl:apply-templates select="." mode="parsearg"/>
+	{
+	
+	return 0;
+	}
+</xsl:template>
+
+<xsl:template match="c:option[@type='help']" mode="parse">
+<xsl:apply-templates select="." mode="parsearg"/>
+	{
+	
+	return 0;
+	}
+</xsl:template>
+
+<xsl:template match="c:option[@type='int']" mode="parse">
+
+<xsl:apply-templates select="." mode="parsearg"/>
+	{
+	if( optind+1 &gt;= args.size())
+		{
+		error("Option \"<xsl:value-of select="@name"/>\" : argument missing.");
+		return -1;
+		}
+	final String _v = args.get(optind + 1);
+	try
+		{
+		final int _i = Integer.parseInt(_v);
+		<xsl:if test="@min-inclusive">
+		if( _i &lt; <xsl:value-of select="@min-inclusive"/>)
+			{
+			error("<xsl:value-of select="@name"/> should be greater of equal to <xsl:value-of select="@min-inclusive"/>");
+			return -1; 
+			}
+		</xsl:if>
+		<xsl:if test="@max-inclusive">
+		if( _i &gt; <xsl:value-of select="@max-inclusive"/>)
+			{
+			error("<xsl:value-of select="@name"/> should be lower of equal to <xsl:value-of select="@max-inclusive"/>");
+			return -1; 
+			}
+		</xsl:if>
+		<xsl:if test="@min-exclusive">
+		if( _i &lt;= <xsl:value-of select="@min-exclusive"/>)
+			{
+			error("<xsl:value-of select="@name"/> should be greater than <xsl:value-of select="@min-exclusive"/>");
+			return -1; 
+			}
+		</xsl:if>
+		<xsl:if test="@max-exclusive">
+		if( _i &gt;= <xsl:value-of select="@max-exclusive"/>)
+			{
+			error("<xsl:value-of select="@name"/> should be lower than <xsl:value-of select="@max-exclusive"/>");
+			return -1; 
+			}
+		</xsl:if>
+		
+		args.remove(optind+1);
+		args.remove(optind);
+		this.<xsl:apply-templates select="." mode="setter"/>(_i);
+		}
+	catch(NumberFormatException err)
+		{
+		error("Option \"\" : Cannot convert "+_v+" to an integer");
+		return -1;
+		}
+	}
+</xsl:template>
+
+
+<xsl:template match="c:option" mode="parsearg">
+<xsl:text>if ( </xsl:text>
+<xsl:if test="@opt">args.get(optind).equals("-<xsl:value-of select="@opt"/>")</xsl:if>
+<xsl:if test="@longopt"><xsl:if test="@opt"> || </xsl:if> args.get(optind).equals("--<xsl:value-of select="@longopt"/>") </xsl:if>
+<xsl:text>)
+	</xsl:text>
+</xsl:template>
+
+<!-- option type not handled -->
+<xsl:template match="c:option">
+<xsl:message terminate="yes"><xsl:apply-templates select="." mode="name"/> : Unknown Option type</xsl:message>
 </xsl:template>
 
 
@@ -146,8 +286,17 @@ public <xsl:apply-templates select="." mode="setter"/>( <xsl:apply-templates sel
 </xsl:template>
 
 <xsl:template match="c:option" mode="print.options">
-out.println("-<xsl:value-of select="@optopt">");
+out.println("-<xsl:value-of select="@optopt"/>");
 </xsl:template>
+
+<xsl:template match="c:history" >
+<xsl:text>
+History:
+</xsl:text>
+<xsl:apply-templates/>
+</xsl:template>
+
+
 
 </xsl:stylesheet>
 
