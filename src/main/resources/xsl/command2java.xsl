@@ -105,7 +105,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	/** return application Description */
 	public String getDescription()
 		{
-		return "<xsl:apply-templates select="description"/>";
+		return "<xsl:apply-templates select="c:description"/>";
 		}
 	
 	
@@ -126,6 +126,21 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			<xsl:if test="position()&gt;1"> else </xsl:if>
 				<xsl:apply-templates select="." mode="parse"/>
 			</xsl:for-each>
+			else if(args.get(optind).equals("--"))
+				{
+				args.remove(optind);
+				break;
+				}
+			else if(args.get(optind).startsWith("-"))
+				{
+				error("Unknown Option "+args.get(optind));
+				return -1;
+				}
+			else
+				{
+				++optind;
+				continue;	
+				}
 			}
 		return 0;
 		}
@@ -153,7 +168,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		}
 </xsl:template>
 
-<xsl:template match="c:option[@type='int']">
+<xsl:template match="c:option[@type='int' and not(@multiple='true')]">
 /** option <xsl:apply-templates select="." mode="name"/> */
 protected int <xsl:apply-templates select="." mode="name"/> = <xsl:choose>
 		<xsl:when test="@default"><xsl:value-of select="@default"/></xsl:when>
@@ -166,6 +181,24 @@ public int <xsl:text> </xsl:text><xsl:apply-templates select="." mode="getter"/>
 	}
 
 public <xsl:apply-templates select="." mode="setter"/>( final int <xsl:apply-templates select="." mode="name"/>)
+	{
+	this.<xsl:apply-templates select="." mode="name"/> = <xsl:apply-templates select="." mode="name"/>;
+	}
+</xsl:template>
+
+<xsl:template match="c:option[@type='outFile' and not(@multiple='true')]">
+/** option <xsl:apply-templates select="." mode="name"/> */
+protected java.io.File <xsl:apply-templates select="." mode="name"/> = <xsl:choose>
+		<xsl:when test="@default">new java.io.File("<xsl:value-of select="@default"/>");</xsl:when>
+		<xsl:otherwise>null</xsl:otherwise>
+	</xsl:choose>;
+
+public java.io.File <xsl:text> </xsl:text><xsl:apply-templates select="." mode="getter"/>()
+	{
+	return this.<xsl:apply-templates select="." mode="name"/>;
+	}
+
+public <xsl:apply-templates select="." mode="setter"/>( final java.io.File <xsl:apply-templates select="." mode="name"/>)
 	{
 	this.<xsl:apply-templates select="." mode="name"/> = <xsl:apply-templates select="." mode="name"/>;
 	}
@@ -188,8 +221,7 @@ public <xsl:apply-templates select="." mode="setter"/>( final int <xsl:apply-tem
 	}
 </xsl:template>
 
-<xsl:template match="c:option[@type='int']" mode="parse">
-
+<xsl:template match="c:option[@type='int' and not(@multiple='true')]" mode="parse">
 <xsl:apply-templates select="." mode="parsearg"/>
 	{
 	if( optind+1 &gt;= args.size())
@@ -239,8 +271,85 @@ public <xsl:apply-templates select="." mode="setter"/>( final int <xsl:apply-tem
 		error("Option \"\" : Cannot convert "+_v+" to an integer");
 		return -1;
 		}
+	continue;
 	}
 </xsl:template>
+
+
+<xsl:template match="c:option[@type='string' and not(@multiple='true')]" mode="parse">
+<xsl:apply-templates select="." mode="parsearg"/>
+	{
+	if( optind+1 &gt;= args.size())
+		{
+		error("Option \"<xsl:value-of select="@name"/>\" : argument missing.");
+		return -1;
+		}
+	final String s = args.get(optind + 1);
+	try
+		{
+		<xsl:if test="@length">
+		
+		if( s.length() != <xsl:value-of select="@length"/>)
+			{
+			error("<xsl:value-of select="@name"/> should contain <xsl:value-of select="@length"/> characters");
+			return -1; 
+			}
+		</xsl:if>
+		
+		if( s.length() &lt; <xsl:value-of select="@min-length"/>)
+			{
+			error("<xsl:value-of select="@name"/> should longer than <xsl:value-of select="@min-length"/> characters");
+			return -1; 
+			}
+		</xsl:if>
+		
+		<xsl:if test="@max-length">
+		if( s.length() &gt; <xsl:value-of select="@max-length"/>)
+			{
+			error("<xsl:value-of select="@name"/> should longer than <xsl:value-of select="@max-length"/> characters");
+			return -1; 
+			}
+		</xsl:if>
+		
+		args.remove(optind+1);
+		args.remove(optind);
+		this.<xsl:apply-templates select="." mode="setter"/>(_i);
+		}
+	catch(Exception err)
+		{
+		error("Option \"<xsl:value-of select="@name"/>\" : Error");
+		return -1;
+		}
+	continue;
+	}
+</xsl:template>
+
+
+<xsl:template match="c:option[@type='outFile' and not(@multiple='true')]" mode="parse">
+<xsl:apply-templates select="." mode="parsearg"/>
+	{
+	if( optind+1 &gt;= args.size())
+		{
+		error("Option \"<xsl:value-of select="@name"/>\" : argument missing.");
+		return -1;
+		}
+	final String _v = args.get(optind + 1);
+	try
+		{
+		final java.io.File _f = new java.io.File(_v);
+		args.remove(optind+1);
+		args.remove(optind);
+		this.<xsl:apply-templates select="." mode="setter"/>(_f);
+		}
+	catch(Exception err)
+		{
+		error("Option \"\" : Cannot convert "+_v+" to an file");
+		return -1;
+		}
+	continue;
+	}
+</xsl:template>
+
 
 
 <xsl:template match="c:option" mode="parsearg">
@@ -252,8 +361,8 @@ public <xsl:apply-templates select="." mode="setter"/>( final int <xsl:apply-tem
 </xsl:template>
 
 <!-- option type not handled -->
-<xsl:template match="c:option">
-<xsl:message terminate="yes"><xsl:apply-templates select="." mode="name"/> : Unknown Option type</xsl:message>
+<xsl:template match="c:option"  mode="parse">
+<xsl:message terminate="yes"><xsl:apply-templates select="." mode="name"/> : Unknown Option type '<xsl:value-of select="@type"/>'</xsl:message>
 </xsl:template>
 
 
