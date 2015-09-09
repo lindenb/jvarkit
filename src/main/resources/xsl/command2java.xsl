@@ -296,6 +296,7 @@ public <xsl:apply-templates select="." mode="setter"/>( final java.io.File <xsl:
 			}
 		</xsl:if>
 		
+		<xsl:if test="@min-length">
 		if( s.length() &lt; <xsl:value-of select="@min-length"/>)
 			{
 			error("<xsl:value-of select="@name"/> should longer than <xsl:value-of select="@min-length"/> characters");
