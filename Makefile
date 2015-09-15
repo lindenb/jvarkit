@@ -22,7 +22,7 @@ JAVA?=java
 JAR?=jar
 XJC?=xjc
 
-htsjdk.version?=1.133
+htsjdk.version?=1.139
 htsjdk.home?=${this.dir}htsjdk-${htsjdk.version}
 htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} snappy-java-1.0.3-rc3))
 src.dir=${this.dir}src/main/java
@@ -62,7 +62,7 @@ define compile-htsjdk-cmd
 $(1)  : ${htsjdk.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
-		$(3)
+		$(3) ${apache.commons.cli.jars}
 	echo "### COMPILING $(1) ######"
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} ${galaxy.bundle.dir}/jvarkit
 	#create galaxy
@@ -209,7 +209,6 @@ $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bami
 $(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver))
 $(eval $(call compile-htsjdk-cmd,bamqueryreadnames,${jvarkit.package}.tools.bamindexnames.BamQueryReadNames))
 $(eval $(call compile-htsjdk-cmd,bamrenamechr,${jvarkit.package}.tools.misc.ConvertBamChromosomes))
-$(eval $(call compile-htsjdk-cmd,bamsnvwig,${jvarkit.package}.tools.mem.BWAMemScan))
 $(eval $(call compile-htsjdk-cmd,bamstats02,${jvarkit.package}.tools.bamstats01.BamStats02))
 $(eval $(call compile-htsjdk-cmd,bamstats04,${jvarkit.package}.tools.bamstats04.BamStats04))
 $(eval $(call compile-htsjdk-cmd,bamtreepack,${jvarkit.package}.tools.treepack.BamTreePack))
@@ -456,7 +455,7 @@ api.ncbi.elink:
 
 api.ncbi.gb:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.esearch -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.gb -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd"
 
 api.ncbi.taxonomy:
 	mkdir -p ${generated.dir}/java

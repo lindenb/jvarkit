@@ -61,6 +61,10 @@ public class BedLineCodec
 		return null;
 		}
 	
-	
+    @Override
+    public boolean canDecode(final String path) {
+        return path.toLowerCase().endsWith(".bed");
+    }
+
 
 }

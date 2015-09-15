@@ -15,9 +15,12 @@ httpclient.libs  = \
 common.math3.libs  =  \
 	$(lib.dir)/org/apache/commons/commons-math3/3.5/commons-math3-3.5.jar
 
+apache.commons.cli.jars  = \
+	$(lib.dir)/commons-cli/commons-cli/1.3.1/commons-cli-1.3.1.jar
 
 
-all_maven_jars = $(sort  ${httpclient.libs} ${avro.libs} ${common.math3.libs} )
+
+all_maven_jars = $(sort  ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars})
 
 ${all_maven_jars}  : 
 	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o "$@" "http://central.maven.org/maven2/$(patsubst ${lib.dir}/%,%,$@)"
