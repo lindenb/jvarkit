@@ -64,6 +64,14 @@ public class VcfIndexTabix
 			{
 			this.delegate=delegate;
 			}
+		
+		@Override
+		public boolean checkError()
+			{
+			return  delegate.checkError();
+			}
+
+		
 		@Override
 		public void writeHeader(VCFHeader header) {
 			this.delegate.writeHeader(header);			

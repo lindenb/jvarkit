@@ -46,6 +46,15 @@ public class XMLVcfWriterFactory
 		private Map<String,XMLInfoHandler> info2handler= new HashMap<String,XMLInfoHandler>();
 		private Map<String,XMLFormatHandler> format2handler= new HashMap<String,XMLFormatHandler>();
 
+
+		@Override
+		public boolean checkError()
+			{
+			if( delegateOut==null) return false;
+			if( !(delegateOut instanceof java.io.PrintStream) ) return false;
+			return  java.io.PrintStream.class.cast(delegateOut).checkError();
+			}
+
 		
 		private XMLVcfWriter()
 			{
