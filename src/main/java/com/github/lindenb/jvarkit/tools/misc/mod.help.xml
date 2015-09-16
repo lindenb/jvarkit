@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?> <option
+	xmlns="http://github.com/lindenb/jvarkit/" xmlns:xi="http://www.w3.org/2001/XInclude"
+	name="help" type="help" longopt="help" opt="h"
+	>
+ <description>Get Help</description>
+</option>

@@ -24,7 +24,7 @@ XJC?=xjc
 
 htsjdk.version?=1.139
 htsjdk.home?=${this.dir}htsjdk-${htsjdk.version}
-htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} snappy-java-1.0.3-rc3))
+htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} snappy-java-1.0.3-rc3 commons-compress-1.4.1 apache-ant-1.8.2-bzip2 xz-1.5))
 src.dir=${this.dir}src/main/java
 generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.version}

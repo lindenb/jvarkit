@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?> <options xmlns="http://github.com/lindenb/jvarkit/" xmlns:xi="http://www.w3.org/2001/XInclude">
+ <xi:include href="mod.help.xml" parse="xml" />
+</options>
