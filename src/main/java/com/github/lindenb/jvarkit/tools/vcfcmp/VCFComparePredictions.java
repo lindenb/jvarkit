@@ -25,7 +25,7 @@ import htsjdk.variant.variantcontext.VariantContext;
  * @author lindenb
  *
  */
-public class VCFComparePredictions extends AbstractVCFCompare {
+public class VCFComparePredictions extends AbstractVCFCompareBase {
 	private VCFComparePredictions() {
 	}
 	static private class PredictionTuple
@@ -169,12 +169,12 @@ public class VCFComparePredictions extends AbstractVCFCompare {
 				return -1;
 				}
 			
-			final AbstractVCFCompare.LineAndFileComparator posCompare=new AbstractVCFCompare.LineAndFileComparator();
+			final AbstractVCFCompareBase.LineAndFileComparator posCompare=new AbstractVCFCompareBase.LineAndFileComparator();
 
-			factory.setComponentType(AbstractVCFCompare.LineAndFile.class);
+			factory.setComponentType(AbstractVCFCompareBase.LineAndFile.class);
 			factory.setComparator(posCompare);
 			factory.setTmpDirs(this.getTmpDirectories());
-			factory.setCodec(new AbstractVCFCompare.LineAndFileCodec());
+			factory.setCodec(new AbstractVCFCompareBase.LineAndFileCodec());
 			variants=this.factory.make();
 			variants.setDestructiveIteration(true);
 			
@@ -187,7 +187,7 @@ public class VCFComparePredictions extends AbstractVCFCompare {
 				info("end reading "+input.filename);
 				}
 			List<PredictionTuple> predictionTuples=new ArrayList<PredictionTuple>(super.inputs.size());
-			for(AbstractVCFCompare.Input input:this.inputs)
+			for(AbstractVCFCompareBase.Input input:this.inputs)
 				{
 				PredictionTuple predictionTuple=new PredictionTuple();
 				predictionTuple.snpEffPredictionParser=new SnpEffPredictionParser(input.codecAndHeader.header);
@@ -198,7 +198,7 @@ public class VCFComparePredictions extends AbstractVCFCompare {
 
 
 			
-			List<AbstractVCFCompare.LineAndFile> row=new ArrayList<LineAndFile>(super.inputs.size());
+			List<AbstractVCFCompareBase.LineAndFile> row=new ArrayList<LineAndFile>(super.inputs.size());
 			
 			
 			CloseableIterator<LineAndFile> iter=variants.iterator();

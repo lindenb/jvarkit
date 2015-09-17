@@ -59,7 +59,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
  * @author lindenb
  *
  */
-public class VCFComm extends AbstractVCFCompare {
+public class VCFComm extends AbstractVCFCompareBase {
 	public VCFComm() 
 		{
 		}
