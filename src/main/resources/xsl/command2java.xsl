@@ -41,6 +41,8 @@ SOFTWARE.
 */
 package <xsl:apply-templates select="." mode="package"/>;
 
+
+
 @Generated("xslt")
 public abstract class <xsl:apply-templates select="." mode="abstract-class-name"/>
 	extends <xsl:choose>
@@ -54,7 +56,14 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	protected java.io.PrintStream _outStream = System.out;	
 	/** stdin stream */
 	protected java.io.InputStream _inStream  = System.in;	
-	
+	/** options */
+	protected org.apache.commons.cli.Options options = new org.apache.commons.cli.Options();
+	<xsl:for-each select="c:options/c:option" >
+	/** option <xsl:apply-templates select="." mode="name"/> */
+	protected org.apache.commons.cli.Option Option = org.apache.commons.cli.Option.Builder("<xsl:apply-templates select="." mode="name"/>")
+		.desc("<xsl:apply-templates select="." mode="description"/>")
+		.build();
+	</xsl:for-each>
 	
 	<xsl:if test="not(@generate-constructor='false')">
 	/** Constructor */
@@ -62,6 +71,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		{
 		}
 	</xsl:if>
+	
 	
 	
 	public java.io.PrintStream getStderr()
