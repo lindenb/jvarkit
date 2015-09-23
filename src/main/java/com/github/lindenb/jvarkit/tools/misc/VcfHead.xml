@@ -21,9 +21,6 @@
 	<option name="count" type="int" opt="n" longopt="count" min-inclusive="0" default="10">
 		<description>number of variants to be printed</description>
 	</option>
-	<option name="outputFile" type="output-file" longopt="output" opt="o" optional="true" override='true'>
- 		<description>Output VCF File</description>
-	</option>
 </options>
 
 <documentation>

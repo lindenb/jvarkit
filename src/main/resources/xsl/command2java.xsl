@@ -27,6 +27,22 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	{
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(<xsl:apply-templates select="." mode="abstract-class-name"/>.class);
 	<xsl:apply-templates select=".//c:option"/>
+	<xsl:if test="not(@generate-output-option='false')">
+		/** option outputFile */
+		protected java.io.File outputFile = null;
+		
+		/** getter for outputFile */
+		public java.io.File getOutputFile()
+			{
+			return this.outputFile;
+			}
+		
+		/** setter for outputFile */
+		public  void  setOutputFile( final java.io.File outputFile)
+			{
+			this.outputFile = outputFile;
+			}
+		</xsl:if>
 	
 	<xsl:if test="not(@generate-constructor='false')">
 	/** Constructor */
@@ -81,6 +97,18 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	protected void fillOptions(final org.apache.commons.cli.Options options)
 		{
 		<xsl:apply-templates select=".//c:option|.//c:options-group" mode="cli"/>
+		
+		<xsl:if test="not(@generate-output-option='false')">
+		options.addOption(org.apache.commons.cli.Option
+			.builder("o")
+			.longOpt("output")
+			.desc("output file. Default: stdout")
+			.argName("FILENAME")
+			.hasArg(true)
+			.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
+			.build() );	
+		</xsl:if>
+		
 		super.fillOptions(options);
 		}
 	
@@ -88,6 +116,16 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	protected  com.github.lindenb.jvarkit.util.command.CommandFactory.Status visit(final org.apache.commons.cli.Option opt)
 		{
 		<xsl:apply-templates select=".//c:option" mode="visit"/>
+		<xsl:if test="not(@generate-output-option='false')">
+		if(opt.getOpt().equals("o"))
+			{
+			java.io.File tmpf =  null;
+			try { tmpf = new java.io.File(opt.getValue());}
+			catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to output File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+			this.setOutputFile(tmpf);
+			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
+			}
+		</xsl:if>
 		return super.visit(opt);
 		}
 		
@@ -115,11 +153,68 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			<xsl:apply-templates select="." mode="abstract-class-name"/> factory = <xsl:apply-templates select="." mode="abstract-class-name"/>.class.cast(f);
 			super.copyFrom(f);
 			<xsl:apply-templates select=".//c:option" mode="copy"/>
+			
+			<xsl:if test="not(@generate-output-option='false')">
+			this.setOutputFile(factory.getOutputFile());
+			</xsl:if>
+			
 			}
 			
 			
 		<xsl:apply-templates select=".//c:option"/>
+		
+		
+		<xsl:if test="not(@generate-output-option='false')">
+		/** option outputFile */
+		protected java.io.File outputFile = null;
+		
+		/** getter for outputFile */
+		public java.io.File getOutputFile()
+			{
+			return this.outputFile;
+			}
+		
+		/** setter for outputFile */
+		public  void  setOutputFile( final java.io.File outputFile)
+			{
+			this.outputFile = outputFile;
+			}
+		
+		protected java.io.PrintStream openFileOrStdoutAsPrintStream() throws java.io.IOException
+			{
+			if(getOutputFile()!=null)
+				{
+				return new java.io.PrintStream(getOutputFile());
+				}
+			else
+				{
+				return stdout();
+				}
+			}
+		protected java.io.OutputStream openFileOrStdoutAsStream() throws java.io.IOException
+			{
+			if(getOutputFile()!=null)
+				{
+				return com.github.lindenb.jvarkit.io.IOUtils.openFileForWriting(getOutputFile());
+				}
+			else
+				{
+				return stdout();
+				}
+			}
+		</xsl:if>
+		
+		@Override
+		public void cleanup()
+			{
+			super.cleanup();
+			}
+		
 		}
+	
+	
+	
+	
 	}
 </xsl:template>
 

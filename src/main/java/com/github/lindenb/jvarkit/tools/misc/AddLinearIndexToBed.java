@@ -21,7 +21,7 @@ public class AddLinearIndexToBed extends AbstractAddLinearIndexToBed
 	{
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(AddLinearIndexToBed.class);
 
-	private AddLinearIndexToBed()
+	public AddLinearIndexToBed()
 		{
 		
 		}
@@ -74,7 +74,8 @@ public class AddLinearIndexToBed extends AbstractAddLinearIndexToBed
 					}
 				return 0;
 				}
-
+			
+				
 			
 			@Override
 			public Collection<Throwable> call() throws Exception
@@ -83,8 +84,10 @@ public class AddLinearIndexToBed extends AbstractAddLinearIndexToBed
 					{
 					return wrapException("Reference file undefined");
 					}
+				PrintStream out = null;
 				try
 					{
+					
 					final List<String> args = this.getInputFiles();
 					this.dictionary=new SAMSequenceDictionaryFactory().load(refFile);
 					this.tid2offset=new long[this.dictionary.size()];
@@ -94,12 +97,12 @@ public class AddLinearIndexToBed extends AbstractAddLinearIndexToBed
 						this.tid2offset[i] = this.tid2offset[i-1]+
 									this.dictionary.getSequence(i-1).getSequenceLength();
 						}
-					
+					out = openFileOrStdoutAsPrintStream();
 					
 					if(args.isEmpty())
 						{
 						info("reading stdin");
-						doWork(stdin(),stdout());
+						doWork(stdin(),out);
 						}
 					else
 						{
@@ -108,7 +111,7 @@ public class AddLinearIndexToBed extends AbstractAddLinearIndexToBed
 							info("opening "+arg);
 							InputStream in=IOUtils.openURIForReading(arg);
 							doWork(in, stdout());
-							CloserUtil.close(in);
+							CloserUtil.close(out);
 							}
 						}
 					
@@ -120,6 +123,7 @@ public class AddLinearIndexToBed extends AbstractAddLinearIndexToBed
 				}
 			finally
 				{
+				CloserUtil.close(out);
 				dictionary=null;
 				tid2offset=null;
 				}
