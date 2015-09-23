@@ -3,9 +3,17 @@
  <!ENTITY name "VcfHead">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
-extends="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3"
->
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 xmlns:h="http://www.w3.org/1999/xhtml"
+	 xmlns:svg="http://www.w3.org/2000/svg"
+	 app="&name;"
+	 package="&package;"
+	 __placeholder__="1"
+	 extends="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3"
+	 extends-command="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3.AbstractVCFCommand"
+	>
 
 <description>Print the first variants of a VCF.</description>
 
@@ -13,9 +21,9 @@ extends="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3"
 	<option name="count" type="int" opt="n" longopt="count" min-inclusive="0" default="10">
 		<description>number of variants to be printed</description>
 	</option>
-	<xi:include href="mod.vcf-output.xml" parse="xml" />
-	<xi:include href="mod.common-options.xml" xpointer="xmlns(ns=http://github.com/lindenb/jvarkit/)xpointer(ns:options/ns:option)" parse="xml" />
-	
+	<option name="outputFile" type="output-file" longopt="output" opt="o" optional="true" override='true'>
+ 		<description>Output VCF File</description>
+	</option>
 </options>
 
 <documentation>

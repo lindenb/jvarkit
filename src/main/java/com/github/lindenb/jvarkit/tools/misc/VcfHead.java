@@ -37,6 +37,8 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
+import com.github.lindenb.jvarkit.util.command.Command;
+import com.github.lindenb.jvarkit.util.command.CommandFactory;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
@@ -44,86 +46,49 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 public class VcfHead
-	extends AbstractVCFFilter3
+	extends AbstractVcfHead
 	{
-	/** number of row to limit */
-	private int count=10;
 
-	
 	 public VcfHead()
 		{
 		}
 	 
-	 public void setCount(int count) {
-		this.count = Math.max(0,count);
-		}
-	@Override
-	public String getProgramDescription() {
-		return "Print First lines of a VCF";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfHead";
-		}
-	
-	
-	@Override
-	protected void doWork(
-				String inpuSource,
-				VcfIterator in,
-				VariantContextWriter out
-				)
-			throws IOException {
-		VCFHeader header=in.getHeader();
-		VCFHeader h2=new VCFHeader(header);
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-		SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-		out.writeHeader(h2);
-		while(in.hasNext() && this.getVariantCount()< this.count  && !checkOutputError())
+	 
+	 @Override
+	public  Command createCommand() {
+		return new MyCommand();
+	}
+	 
+	 private static class MyCommand extends AbstractVcfHead.AbstractVcfHeadCommand
+	 	{
+		@Override
+		protected void doWork(
+					String inpuSource,
+					VcfIterator in,
+					VariantContextWriter out
+					)
+				throws IOException
 			{
-			out.add(progess.watch(in.next()));
-			incrVariantCount();
+			VCFHeader header=in.getHeader();
+			VCFHeader h2=new VCFHeader(header);
+			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			out.writeHeader(h2);
+			while(in.hasNext() && this.getVariantCount()< this.count  && !checkError())
+				{
+				out.add(progess.watch(in.next()));
+				incrVariantCount();
+				}
+			progess.finish();
 			}
-		progess.finish();
-		}
+	 	}
+	 
 
 		
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -n (int) output size. Optional. Default:"+this.count);
-		super.printOptions(out);
-		}
 		
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "n:o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				case 'n': this.setCount(Integer.parseInt(opt.getOptArg())); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		return mainWork(opt.getOptInd(), args);
-		}
-	
 	
 	public static void main(String[] args)
 		{

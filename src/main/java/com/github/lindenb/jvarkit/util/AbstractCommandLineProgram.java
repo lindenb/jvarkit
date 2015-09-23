@@ -59,6 +59,7 @@ import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import htsjdk.samtools.util.CloserUtil;
 
 
+@Deprecated
 public abstract class AbstractCommandLineProgram
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");

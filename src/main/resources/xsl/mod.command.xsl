@@ -53,6 +53,14 @@ SOFTWARE.
 <xsl:text>Factory</xsl:text>
 </xsl:template>
 
+<xsl:template match="c:app" mode="abstract-command-name">
+<xsl:text>Abstract</xsl:text>
+<xsl:apply-templates select="." mode="class-name"/>
+<xsl:text>Command</xsl:text>
+</xsl:template>
+
+
+
 <xsl:template match="c:option-group" mode="cli">
 final OptionGroup <xsl:value-of select="generate-id()"/> = new OptionGroup();
 <xsl:apply-templates select="c:option" mode="cli"/>
@@ -78,14 +86,25 @@ options.addOption(org.apache.commons.cli.Option
 	<xsl:if test="@longOpt">
 	.longOpt("<xsl:value-of select="@longOpt"/>")
 	</xsl:if>
+	<xsl:if test="@longopt">
+	.longOpt("<xsl:value-of select="@longopt"/>")
+	</xsl:if>
 	<xsl:if test="@value-separator">
 	.valueSeparator('<xsl:value-of select="@value-separator"/>')
 	</xsl:if>
 	<xsl:if test="@description">
-	.desc("<xsl:value-of select="@description"/>").
+	.desc("<xsl:value-of select="@description"/>"
+		<xsl:if test="@default">
+		+ ". default: <xsl:value-of select="@default"/>"
+		</xsl:if>
+		)
 	</xsl:if>
 	<xsl:if test="c:description">
-	.desc("<xsl:value-of select="c:description"/>").
+	.desc("<xsl:value-of select="c:description"/>"
+		<xsl:if test="@default">
+		+ ". default: <xsl:value-of select="@default"/>"
+		</xsl:if>	
+		)
 	</xsl:if>
 		<xsl:choose>
 		<xsl:when test="@arg-name">
@@ -97,25 +116,25 @@ options.addOption(org.apache.commons.cli.Option
 	</xsl:choose>
 	<xsl:choose>
 		<xsl:when test="@type='int' or @type='long' or @type='short' or @type='double' or @type='float'  or @type='number'">
-		.type(PatternOptionBuilder.NUMBER_VALUE)
+		.type(org.apache.commons.cli.PatternOptionBuilder.NUMBER_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='url'">
-		.type(PatternOptionBuilder.STRING_VALUE)
+		.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='object'">
-		.type(PatternOptionBuilder.OBJECT_VALUE)
+		.type(org.apache.commons.cli.PatternOptionBuilder.OBJECT_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='date'">
-		.type(PatternOptionBuilder.DATE_VALUE)
+		.type(org.apache.commons.cli.PatternOptionBuilder.DATE_VALUE)
 		</xsl:when>
-		<xsl:when test="@type='file'">
-		.type(PatternOptionBuilder.FILE_VALUE)
+		<xsl:when test="@type='file' or @type='output-file'">
+		.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='existing-file'">
-		.type(PatternOptionBuilder.EXISTING_FILE_VALUE)
+		.type(org.apache.commons.cli.PatternOptionBuilder.EXISTING_FILE_VALUE)
 		</xsl:when>
 		<xsl:otherwise>
-			<xsl:message terminate="yes">unknown type <xsl:value-of select="@type"/></xsl:message>
+			<xsl:message terminate="yes">option:cli unknown type <xsl:value-of select="@type"/></xsl:message>
 		</xsl:otherwise>
 		
 	</xsl:choose>
@@ -137,28 +156,38 @@ LongValidator <xsl:apply-templates select="@name"/>
 <xsl:variable name="cloneable">
 	<xsl:apply-templates select="." mode="cloneable"/>
 </xsl:variable>
+<xsl:variable name="nilleable">
+	<xsl:apply-templates select="." mode="nilleable"/>
+</xsl:variable>
 
 /** option <xsl:apply-templates select="." mode="name"/> */
-private <xsl:value-of select="@type"/><xsl:text> </xsl:text> <xsl:apply-templates select="." mode="name"/> = <xsl:choose>
+protected <xsl:apply-templates select="." mode="java-type"/><xsl:text> </xsl:text> <xsl:apply-templates select="." mode="name"/> = <xsl:choose>
 		<xsl:when test="@default"><xsl:value-of select="@default"/></xsl:when>
+		<xsl:when test="$nilleable = 'true'">null</xsl:when>
 		<xsl:otherwise>0</xsl:otherwise>
 	</xsl:choose>;
 
 /** getter for <xsl:value-of select="@name"/> */
-public <xsl:value-of select="@type"/> <xsl:text> </xsl:text><xsl:apply-templates select="." mode="getter"/>()
+public <xsl:apply-templates select="." mode="java-type"/>
+		<xsl:text> </xsl:text>
+		<xsl:apply-templates select="." mode="getter"/>()
 	{
 	return this.<xsl:apply-templates select="." mode="name"/>;
 	}
 
 /** setter for <xsl:value-of select="@name"/> */
-public <xsl:apply-templates select="." mode="setter"/>( final <xsl:value-of select="@type"/><xsl:text> </xsl:text><xsl:apply-templates select="." mode="name"/>)
+public  void  <xsl:apply-templates select="." mode="setter"/>( final <xsl:apply-templates select="." mode="java-type"/><xsl:text> </xsl:text><xsl:apply-templates select="." mode="name"/>)
 	{
 	this.<xsl:apply-templates select="." mode="name"/> = <xsl:choose>
-		<xsl:when test="$cloneable = 'true'">(<xsl:value-of select="@type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null:<xsl:apply-templates select="." mode="name"/>.clone())</xsl:when>
+		<xsl:when test="$cloneable = 'true'">(<xsl:apply-templates select="." mode="java-type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null:<xsl:apply-templates select="." mode="name"/>.clone())</xsl:when>
 		<xsl:otherwise><xsl:apply-templates select="." mode="name"/></xsl:otherwise>
 		</xsl:choose>;
 	}
 
+</xsl:template>
+
+<xsl:template match="c:option" mode="copy">
+this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-templates select="." mode="getter"/>());
 </xsl:template>
 
 <xsl:template match="c:option" mode="cloneable">
@@ -167,18 +196,81 @@ public <xsl:apply-templates select="." mode="setter"/>( final <xsl:value-of sele
 </xsl:variable>
 <xsl:choose>
 	<xsl:when test="@type='java.net.URL'">false</xsl:when>
+	<xsl:when test="@type='output-file'">false</xsl:when>
 	<xsl:when test="starts-with(@type,'java.lang')">false</xsl:when>
 	<xsl:when test="$nilleable = 'true'">true</xsl:when>
+		<xsl:message terminate='yes'>cloneable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 </xsl:choose>
 </xsl:template>
 
 <xsl:template match="c:option" mode="nilleable">
 <xsl:choose>
 	<xsl:when test="@type='java.net.URL'">true</xsl:when>
+	<xsl:when test="@type='output-file'">true</xsl:when>
+	<xsl:when test="@type='java.net.URL'">true</xsl:when>
     <xsl:when test="starts-with(@type,'java.lang')">true</xsl:when>
 	<xsl:when test="@type='int' or @type='double'">false</xsl:when>
-	<xsl:otherwise>true</xsl:otherwise>
+	<xsl:message terminate='yes'>nilleable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 </xsl:choose>
+</xsl:template>
+
+<xsl:template match="c:option" mode="setter">
+<xsl:variable name="s">
+<xsl:call-template name="titleize">
+	<xsl:with-param name="s" select="@name"/>
+</xsl:call-template>
+</xsl:variable>
+<xsl:value-of select="concat('set',$s)"/>
+</xsl:template>
+
+<xsl:template match="c:option" mode="getter">
+<xsl:variable name="s">
+<xsl:call-template name="titleize">
+	<xsl:with-param name="s" select="@name"/>
+</xsl:call-template>
+</xsl:variable>
+<xsl:value-of select="concat('get',$s)"/>
+</xsl:template>
+
+<xsl:template match="c:option" mode="java-type">
+<xsl:choose>
+	<xsl:when test="@type='output-file'">java.io.File</xsl:when>
+	<xsl:when test="@type='int'">int</xsl:when>
+	<xsl:message terminate='yes'>unknown type <xsl:value-of select="@type"/>.</xsl:message>
+</xsl:choose>
+</xsl:template>
+
+<xsl:template match="c:option" mode="visit">if(opt.getOpt().equals("<xsl:value-of select="@opt"/>"))
+	{
+	<xsl:choose>
+		<xsl:when test="@type='int'">
+		int <xsl:value-of select="generate-id()"/> = 0;
+		try { <xsl:value-of select="generate-id()"/> = Integer.parseInt(opt.getValue());}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to integer",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+		
+		</xsl:when>
+		<xsl:when test="@type='output-file'">
+		java.io.File <xsl:value-of select="generate-id()"/> =  null;
+		try { <xsl:value-of select="generate-id()"/> = new java.io.File(opt.getValue());}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+		</xsl:when>
+		<xsl:message terminate='yes'>visit: unknown type <xsl:value-of select="@type"/>.</xsl:message>
+	</xsl:choose>
+	this.<xsl:apply-templates select="." mode="setter"/>(<xsl:value-of select="generate-id()"/>);
+	return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
+	}
+</xsl:template>
+
+
+<xsl:template name="titleize">
+<xsl:param name="s"/>
+<xsl:value-of select="concat(translate(substring($s,1,1),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),substring($s,2))"/>
+</xsl:template>
+
+
+
+<xsl:template match="c:history">
+* xsl TODO
 </xsl:template>
 
 

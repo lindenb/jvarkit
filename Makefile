@@ -76,16 +76,14 @@ $(1)  : ${htsjdk.jars} \
 		${this.dir}src/main/resources/xsl/tools2galaxy.xsl ${this.dir}src/main/resources/xml/tools.xml || echo "XSLT failed (ignored)"
 	-cp ${galaxy.bundle.dir}/jvarkit/$(1).xml ${tmp.dir}/META-INF/galaxy.xml 
 	#generate java code if needed = a file with .xml exists, requires xsltproc
-	if [ -f "$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" ] ; then \
-				mkdir -p ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
-				xsltproc \
-						--xinclude \
-						--stringparam githash $$(if $$(realpath ${this.dir}.git/refs/heads/master), `cat  $$(realpath ${this.dir}.git/refs/heads/master) `, "undefined") \
-						--path "${this.dir}src/main/resources/xml" \
-						-o ${generated.dir}/java/$(dir $(subst .,/,$(2)))Abstract$(notdir $(subst .,/,$(2))).java \
-						${this.dir}src/main/resources/xsl/command2java.xsl \
-						"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"  ;\
-	fi
+	mkdir -p ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
+	xsltproc \
+		--xinclude \
+		--stringparam githash $$(if $$(realpath ${this.dir}.git/refs/heads/master), `cat  $$(realpath ${this.dir}.git/refs/heads/master) `, "undefined") \
+		--path "${this.dir}src/main/resources/xml" \
+		-o ${generated.dir}/java/$(dir $(subst .,/,$(2)))Abstract$(notdir $(subst .,/,$(2))).java \
+		${this.dir}src/main/resources/xsl/command2java.xsl \
+		"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"  
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
 	echo '### Printing javac version : it should be 1.7. if Not, check your $$$${PATH}.'

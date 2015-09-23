@@ -19,7 +19,7 @@ package <xsl:apply-templates select="." mode="package"/>;
 import com.github.lindenb.jvarkit.util.command.Command;
 
 
-@Generated("xslt")	
+@javax.annotation.Generated("xslt")	
 public class <xsl:apply-templates select="." mode="factory-class-name"/> extends
 	<xsl:choose>
 	<xsl:when test="@extends-factory"><xsl:value-of select="@extends-factory"/></xsl:when>
