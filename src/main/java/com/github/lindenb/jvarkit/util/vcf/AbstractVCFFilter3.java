@@ -38,9 +38,12 @@ import java.util.List;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 
 
 /**
@@ -72,6 +75,14 @@ public abstract class AbstractVCFFilter3
 			this.countFilteredVariants = countFilteredVariants;
 			}
 		
+		protected VCFHeader addMetaData(final VCFHeader header)
+			{
+			header.addMetaDataLine(new VCFHeaderLine(getName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+			header.addMetaDataLine(new VCFHeaderLine(getName()+"Version",String.valueOf(getVersion())));
+			header.addMetaDataLine(new VCFHeaderLine(getName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+			header.addMetaDataLine(new VCFHeaderLine(getName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+			return header;
+			}
 
 		
 		/** increase the number of variants count produced at the end */
@@ -141,12 +152,22 @@ public abstract class AbstractVCFFilter3
 			return IOUtils.unrollFiles(args); 
 			}
 		
+		protected Throwable validateOptions()
+			{
+			return null;
+			}
+		
 		@Override
 		public Collection<Throwable> call() throws Exception {
 			List<String> args = this.getInputFiles();
 			VcfIterator vcfIn=null;
 			try
 				{
+				Throwable errValidation = validateOptions();
+				if(errValidation!=null)
+					{
+					return wrapException(errValidation);
+					}
 				LinkedHashSet<String> unrolledVcfFiles = unrollInputFiles(args); 
 				if(unrolledVcfFiles.isEmpty() && args.isEmpty())
 					{

@@ -29,116 +29,72 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
-import java.io.PrintStream;
 import java.util.LinkedList;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 public class VcfTail
-	extends AbstractVCFFilter3
+	extends AbstractVcfTail
 	{
-	/* number of row to limit */
-	private int count=10;
-
-	
 	public VcfTail()
 		{
 		}
 	
-	public void setCount(int count) {
-		this.count = Math.max(0,count);
-		}	
+	 @Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	 private static class MyCommand extends AbstractVcfTail.AbstractVcfTailCommand
+	 	{
+		@Override
+		protected Throwable validateOptions()
+		 	{
+			if(this.count<0) return new IllegalArgumentException("bad value for count "+this.count);
+			return super.validateOptions();
+		 	}
 
-	@Override
-	public String getProgramDescription() {
-		return "Print last lines of a VCF";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfTail";
-		}
-	
-	@Override
-	protected void doWork(String inpuSource,VcfIterator in, VariantContextWriter out)
-		{
-		setVariantCount(0);
-		try {
-			VCFHeader header=in.getHeader();
-			VCFHeader h2=new VCFHeader(header);
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-			
-			out.writeHeader(h2);
-			LinkedList<VariantContext> L=new LinkedList<VariantContext>();
-			while(in.hasNext() && L.size()< this.count && !checkOutputError())
-				{	
-				L.add(progess.watch(in.next()));
-				}
-			while(in.hasNext())
-				{
-				L.add(progess.watch(in.next()));
-				L.removeFirst();
-				}
-			for(VariantContext ctx:L)
-				{
-				out.add(ctx);
-				}
-			progess.finish();
-			setVariantCount(L.size());
-			}
-		finally
+		@Override
+		protected void doWork(String inpuSource,VcfIterator in, VariantContextWriter out)
 			{
-			CloserUtil.close(out);
-			out=null;
-			}
-		}
-		
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -n (int) output size. Optional. Default:"+this.count);
-		super.printOptions(out);
-		}
-		
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "n:o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				case 'n': this.setCount(Integer.parseInt(opt.getOptArg())); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
+			setVariantCount(0);
+			try {
+				final VCFHeader header=in.getHeader();
+				final VCFHeader h2= addMetaData(new VCFHeader(header));
+				final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header);
+				out.writeHeader(h2);
+				final LinkedList<VariantContext> L=new LinkedList<VariantContext>();
+				while(in.hasNext() && L.size()< this.count && !checkError())
+					{	
+					L.add(progess.watch(in.next()));
 					}
+				while(in.hasNext())
+					{
+					L.add(progess.watch(in.next()));
+					L.removeFirst();
+					}
+				for(VariantContext ctx:L)
+					{
+					out.add(ctx);
+					}
+				progess.finish();
+				setVariantCount(L.size());
+				}
+			finally
+				{
+				CloserUtil.close(out);
+				out=null;
 				}
 			}
-		return mainWork(opt.getOptInd(), args);
-		}
-		
+	 	}
 		
 		
 	public static void main(String[] args)

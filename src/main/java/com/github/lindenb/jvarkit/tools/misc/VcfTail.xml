@@ -3,5 +3,41 @@
  <!ENTITY name "VcfTail">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 xmlns:h="http://www.w3.org/1999/xhtml"
+	 xmlns:svg="http://www.w3.org/2000/svg"
+	 app="&name;"
+	 package="&package;"
+	 __placeholder__="1"
+	 extends="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3"
+	 extends-command="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3.AbstractVCFCommand"
+	>
+
+<description>Print the last variants of a VCF.</description>
+
+<options>
+	<option name="count" type="int" opt="n" longopt="count" min-inclusive="0" default="10">
+		<description>number of variants to be printed</description>
+	</option>
+	<option name="outputFile" type="output-file" longopt="output" opt="o" optional="true" override='true'>
+ 		<description>Output VCF File</description>
+	</option>
+</options>
+
+<documentation>
+<h:h3>Example</h:h3>
+<h:pre class="bash">$  curl -s "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
+java -jar dist/vcftail.jar -n2 |\
+grep -v "##"| cut -f 1,2,4,5
+
+#CHROM  POS REF ALT
+chr1    935492  G   T
+chr1    1334052 CTAGAG  C
+</h:pre>
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+
+</app>

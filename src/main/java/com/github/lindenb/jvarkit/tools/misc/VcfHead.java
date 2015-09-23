@@ -29,19 +29,12 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
-
 import com.github.lindenb.jvarkit.util.command.Command;
-import com.github.lindenb.jvarkit.util.command.CommandFactory;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
@@ -62,6 +55,13 @@ public class VcfHead
 	 private static class MyCommand extends AbstractVcfHead.AbstractVcfHeadCommand
 	 	{
 		@Override
+		protected Throwable validateOptions()
+		 	{
+			if(this.count<0) return new IllegalArgumentException("bad value found count "+this.count);
+			return super.validateOptions();
+		 	}
+		
+		@Override
 		protected void doWork(
 					String inpuSource,
 					VcfIterator in,
@@ -70,11 +70,7 @@ public class VcfHead
 				throws IOException
 			{
 			VCFHeader header=in.getHeader();
-			VCFHeader h2=new VCFHeader(header);
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+			VCFHeader h2=addMetaData(new VCFHeader(header));
 			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
 			while(in.hasNext() && this.getVariantCount()< this.count  && !checkError())

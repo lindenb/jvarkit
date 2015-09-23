@@ -151,6 +151,9 @@ public abstract class CommandFactory
 		final OptionGroup g = new OptionGroup();
 		g.addOption(createHelpOption());
 		g.addOption(createVersionOption());
+		g.addOption(Option.builder("proxy").required(false).longOpt("proxy").hasArg(true).
+				argName("HOST:PORT").
+				desc("set the http and the https proxy.").build());
 		opts.addOptionGroup(g);
 		}
 	
@@ -169,6 +172,22 @@ public abstract class CommandFactory
 			{
 			usage(stdout());
 			return Status.EXIT_SUCCESS;
+			}
+		else if(opt.getOpt().equals("proxy"))
+			{
+			String proxy = opt.getValue();
+			int colon =proxy.lastIndexOf(':');
+			if(colon==-1)
+				{
+				LOG.error("bad proxy \""+proxy+"\"");
+				return Status.EXIT_FAILURE;
+				}
+			LOG.debug("setting proxy "+proxy);
+			System.setProperty("http.proxyHost", proxy.substring(0,colon));
+			System.setProperty("http.proxyPort", proxy.substring(colon+1));
+			System.setProperty("https.proxyHost", proxy.substring(0,colon));
+			System.setProperty("https.proxyPort", proxy.substring(colon+1));
+			return Status.OK;
 			}
 		LOG.fatal("Unknown option "+opt.getOpt());
 		return Status.EXIT_FAILURE;
@@ -272,7 +291,7 @@ public String getVersion()
 
 protected String getOnlineDocUrl()
 	{
-	return "https://github.com/lindenb/jvarkit";
+	return "https://github.com/lindenb/jvarkit/wiki/"+getName();
 	}
 
 protected String getAuthorName()
@@ -355,6 +374,7 @@ public void usage(PrintStream out)
 				LOG.fatal("Command failed ");
 				return -1;
 				}
+			LOG.debug("success "+cmd);
 			return 0;
 			}
 		catch(org.apache.commons.cli.UnrecognizedOptionException err)
@@ -373,6 +393,8 @@ public void usage(PrintStream out)
 			}
 		}
 
+	
+	
 	public void instanceMainWithExit(final String args[])
 		{
 		int ret = instanceMain(args);
