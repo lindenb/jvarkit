@@ -116,21 +116,27 @@ options.addOption(org.apache.commons.cli.Option
 	</xsl:choose>
 	<xsl:choose>
 		<xsl:when test="@type='int' or @type='long' or @type='short' or @type='double' or @type='float'  or @type='number'">
+		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.NUMBER_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='url'">
+		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='object'">
+		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.OBJECT_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='date'">
+		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.DATE_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='file' or @type='output-file'">
+		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='existing-file'">
+		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.EXISTING_FILE_VALUE)
 		</xsl:when>
 		<xsl:otherwise>

@@ -22,14 +22,14 @@ JAVA?=java
 JAR?=jar
 XJC?=xjc
 
-htsjdk.version?=1.139
-htsjdk.home?=${this.dir}htsjdk-${htsjdk.version}
+export htsjdk.version?=1.139
+export htsjdk.home?=${this.dir}htsjdk-${htsjdk.version}
 htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} snappy-java-1.0.3-rc3 commons-compress-1.4.1 apache-ant-1.8.2-bzip2 xz-1.5))
 src.dir=${this.dir}src/main/java
 generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.version}
 tmp.mft=${tmp.dir}/META-INF/MANIFEST.MF
-dist.dir?=${this.dir}dist-${htsjdk.version}
+export dist.dir?=${this.dir}dist-${htsjdk.version}
 galaxy.bundle.dir?=galaxy-bundle
 
 mysql.version?=5.1.34
@@ -165,7 +165,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 
 
 
-.PHONY: all $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar ${dist.dir}/jvarkit-${htsjdk.version}.jar
+.PHONY: all tests $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar ${dist.dir}/jvarkit-${htsjdk.version}.jar
 
 top:
 	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
@@ -178,6 +178,8 @@ include maven.mk
 
 all: $(APPS)
 
+tests: 
+	(cd ${this.dir}tests && $(MAKE))
 
 #bigwig
 $(eval $(call compile-htsjdk-cmd,vcfbigwig,		${jvarkit.package}.tools.vcfbigwig.VCFBigWig,${bigwig.jars}))

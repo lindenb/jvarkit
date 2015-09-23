@@ -25,9 +25,13 @@ package com.github.lindenb.jvarkit.util.command;
 
 import java.awt.Image;
 import java.awt.image.BufferedImage;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.util.Collection;
+import java.util.Enumeration;
+import java.util.jar.Manifest;
 
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -42,11 +46,16 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+
 public abstract class CommandFactory 
 	{
 	protected enum Status {OK,EXIT_SUCCESS,EXIT_FAILURE};
 	private static final Log LOG=LogFactory.getLog(CommandFactory.class);
-	
+	private String commandLine="";
+	private String version=null;
+	private String compileDate;
+
 	/** error stream */
 	private java.io.PrintStream _errStream = System.err;
 	/** stdout stream */
@@ -118,10 +127,6 @@ public abstract class CommandFactory
 		return getClass().getName();
 		}
 	
-	public String getVersion()
-		{
-		return "undefined";
-		}
 	
 	public String getLabel() {
 		return getName();
@@ -169,7 +174,7 @@ public abstract class CommandFactory
 		return Status.EXIT_FAILURE;
 		}	
 		
-	protected void usage(final PrintStream out)
+	protected void printOptions(final PrintStream out)
 		{
 		final Options opts =new Options();
 		fillOptions(opts);
@@ -179,6 +184,134 @@ public abstract class CommandFactory
 		fmt.printOptions(w, 80, opts, 4,5);
 		w.flush();
 		}
+	
+	protected void printStandardPreamble(PrintStream out)
+	{
+	String prg=getName();
+	out.println(prg);
+	for(int i=0;i< prg.length();++i) out.print('=');
+	out.println();
+	out.print("\nDescription: ");
+	out.println(getDescription());
+	out.println();
+	out.println("Author         : "+getAuthorName());
+	out.println("Mail           : "+getAuthorMail());
+	out.println("WWW            : "+getOnlineDocUrl());
+	out.println("Compilation    : "+getCompileDate());
+	out.println("Git-Hash       : "+getVersion());
+	out.println("Htsjdk-version : "+HtsjdkVersion.getVersion());
+	out.println("Htsjdk-home    : "+HtsjdkVersion.getHome());
+	}
+
+	private void loadManifest()
+	{
+	try
+		{
+		
+			Enumeration<URL> resources = getClass().getClassLoader()
+					  .getResources("META-INF/MANIFEST.MF");//not '/META-INF'
+			while (resources.hasMoreElements())
+				{
+				URL url=resources.nextElement();
+				InputStream in=url.openStream();
+				if(in==null)
+					{
+					continue;
+					}
+				
+				Manifest m=new Manifest(in);
+				in.close();
+				in=null;
+				java.util.jar.Attributes attrs=m.getMainAttributes();
+				if(attrs==null)
+					{
+					continue;
+					}
+				String s =attrs.getValue("Git-Hash");
+				if(s!=null && !s.isEmpty() && !s.contains("$")) //ant failed
+					{
+					this.version=s;
+					}
+				
+				s =attrs.getValue("Compile-Date");
+				if(s!=null && !s.isEmpty()) //ant failed
+					{
+					this.compileDate=s;
+					}
+				}
+		}	
+	catch(Exception err)
+		{
+		
+		}
+	
+	}
+
+public String getCompileDate()
+	{
+	if(this.compileDate==null)
+		{
+		this.compileDate="undefined";
+		loadManifest();
+		}
+	return compileDate;
+	}
+
+
+
+public String getVersion()
+	{
+	if(this.version==null)
+		{
+		this.version="1.0";
+		loadManifest();
+		}
+	return version;
+	}
+
+
+protected String getOnlineDocUrl()
+	{
+	return "https://github.com/lindenb/jvarkit";
+	}
+
+protected String getAuthorName()
+	{
+	return "Pierre Lindenbaum PhD.";
+	}
+protected String getAuthorMail()
+	{
+	return "plinden"+"baum"+
+			'@'+
+			"yahoo"+
+			'.'+
+			"fr";
+	}
+
+
+protected String getProgramCommandLine()
+	{
+	return commandLine;
+	}
+
+
+protected void printSynopsis(PrintStream out)
+	{
+	out.println("\tjava -cp jar1.jar:jar2.jar:jar3.jar "+getClass().getName()+" [options] (files)");
+	}
+public void usage(PrintStream out)
+	{
+	out.println();
+	printStandardPreamble(out);
+	out.println();
+	out.println("Usage:");
+	printSynopsis(out);
+	out.println();
+	out.println("Options:");
+	printOptions(out);
+	out.println();
+	}
+
 	
 	public <X extends CommandFactory> int instanceMain(final String args[])
 		{
@@ -196,6 +329,10 @@ public abstract class CommandFactory
 			/* loop over the processed options */
 			for(final Option opt: cli.getOptions())
 				{
+				if(opt.hasArg() && !opt.hasOptionalArg() && opt.getValue()==null)
+					{
+					LOG.warn("OPTION ####"+opt);
+					}
 				final Status status = visit(opt);
 				switch(status)
 					{
