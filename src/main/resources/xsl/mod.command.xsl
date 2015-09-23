@@ -119,7 +119,7 @@ options.addOption(org.apache.commons.cli.Option
 		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.NUMBER_VALUE)
 		</xsl:when>
-		<xsl:when test="@type='url'">
+		<xsl:when test="@type='url' or @type='string' or @type='String'">
 		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
 		</xsl:when>
@@ -202,6 +202,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 </xsl:variable>
 <xsl:choose>
 	<xsl:when test="@type='java.net.URL'">false</xsl:when>
+	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">false</xsl:when>
 	<xsl:when test="@type='output-file'">false</xsl:when>
 	<xsl:when test="@type='input-file'">false</xsl:when>
 	<xsl:when test="starts-with(@type,'java.lang')">false</xsl:when>
@@ -216,6 +217,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='output-file'">true</xsl:when>
 	<xsl:when test="@type='input-file'">true</xsl:when>
 	<xsl:when test="@type='java.net.URL'">true</xsl:when>
+	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">true</xsl:when>
     <xsl:when test="starts-with(@type,'java.lang')">true</xsl:when>
 	<xsl:when test="@type='int' or @type='double'">false</xsl:when>
 	<xsl:message terminate='yes'>nilleable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
@@ -245,6 +247,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='output-file'">java.io.File</xsl:when>
 	<xsl:when test="@type='input-file'">java.io.File</xsl:when>
 	<xsl:when test="@type='int'">int</xsl:when>
+	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">java.lang.String</xsl:when>
 	<xsl:message terminate='yes'>unknown type <xsl:value-of select="@type"/>.</xsl:message>
 </xsl:choose>
 </xsl:template>
@@ -252,6 +255,10 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 <xsl:template match="c:option" mode="visit">if(opt.getOpt().equals("<xsl:value-of select="@opt"/>"))
 	{
 	<xsl:choose>
+		<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">
+		java.lang.String <xsl:value-of select="generate-id()"/> = opt.getValue();
+		</xsl:when>
+	
 		<xsl:when test="@type='int'">
 		int <xsl:value-of select="generate-id()"/> = 0;
 		try { <xsl:value-of select="generate-id()"/> = Integer.parseInt(opt.getValue());}

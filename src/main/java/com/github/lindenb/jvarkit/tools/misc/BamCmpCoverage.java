@@ -60,6 +60,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -73,24 +74,31 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.BufferedList;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class BamCmpCoverage extends AbstractCommandLineProgram
+public class BamCmpCoverage extends AbstractBamCmpCoverage
 	{
-	private Map<String,Integer> sample2column=new HashMap<>();
-	private int imgageSize=1000;
-	private BufferedImage image=null;
-	private double marginWidth=0;
-	private double sampleWidth=0;
-	private int minDepth=0;
-	private int maxDepth=1000;
-	/** restrict to BED */
-	IntervalTreeMap<Boolean> intervals=null;
-	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamCmpCoverage.class);
+
+	 @Override
+		public  Command createCommand() {
+				return new MyCommand();
+			}
+			 
+		private static class MyCommand extends AbstractBamCmpCoverage.AbstractBamCmpCoverageCommand
+			 	{
+				private double sampleWidth=0;
+				private double marginWidth=0;
+				private BufferedImage image=null;
+				private Map<String,Integer> sample2column=new HashMap<>();
+				/** restrict to BED */
+				private IntervalTreeMap<Boolean> intervals=null;
+
+		
 	
 	/** delegate  bitmap for a matrix comparing two samples */
 	private class BitDepthMatrix
@@ -156,20 +164,20 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 		BitSampleMatrix(int n_samples)
 			{
 			/* max-min coverage */
-			int diffDepth=  BamCmpCoverage.this.maxDepth-BamCmpCoverage.this.minDepth;
-			info("diffDepth:"+diffDepth);
+			int diffDepth=  MyCommand.this.maxDepth-MyCommand.this.minDepth;
+			LOG.info("diffDepth:"+diffDepth);
 			
 			/* square size according to final image size */
-			int squarePixel = (int)Math.ceil(BamCmpCoverage.this.sampleWidth);
-			info("squarePixel:"+squarePixel+" ("+BamCmpCoverage.this.sampleWidth+")");
+			int squarePixel = (int)Math.ceil(MyCommand.this.sampleWidth);
+			LOG.info("squarePixel:"+squarePixel+" ("+MyCommand.this.sampleWidth+")");
 			
 			/* we use the minimal size */
 			this.bitSize= Math.min(diffDepth,squarePixel);
 			if(this.bitSize <1) this.bitSize=1;
-			info("bitSize:"+bitSize);
+			LOG.info("bitSize:"+bitSize);
 			this.n_samples=n_samples;
 			int matrix_size =(n_samples*n_samples)*(this.bitSize*this.bitSize); 
-			info("Alloc memory for biset size:"+matrix_size);
+			LOG.info("Alloc memory for biset size:"+matrix_size);
 			this.bitSet = new BitSet(matrix_size);
 			this.depthMatrix=new BitDepthMatrix(this);
 			}
@@ -247,29 +255,8 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			}
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"BamCmpCoverage";
-		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "Creates an image for a comparative view of the depths sample vs sample.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (file.png) output image name . Required");
-		out.println(" -w (int) image width . Default: "+this.imgageSize);
-		out.println(" -m (int) min depth . Default: "+this.minDepth);
-		out.println(" -M (int) max depth . Default: "+this.maxDepth);
-		out.println(" -r (chrom:start-end) region . Optional.");
-		out.println(" -b (file) restrict to BED file . Optional.");
-		super.printOptions(out);
-		}
-	
-	private void readBedFile(String bedFile)
+	private void readBedFile(File bedFile)
 		{
 		if(this.intervals==null)
 			{
@@ -277,8 +264,8 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			}
 		try
 			{
-			info("Reading "+bedFile);
-			BufferedReader r=IOUtils.openURIForBufferedReading(bedFile);
+			LOG.info("Reading "+bedFile);
+			BufferedReader r=IOUtils.openFileForBufferedReading(bedFile);
 			String line;
 			Pattern tab=Pattern.compile("[\t]");
 			while((line=r.readLine())!=null)
@@ -304,59 +291,36 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public int doWork(String[] args)
+	public Collection<Throwable> call() throws Exception
 		{
-		String regionStr=null;
-		File imgOut=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"b:o:w:m:M:r:"))!=-1)
+		
+		if(getOutputFile()==null)
 			{
-			switch(c)
-				{
-				case 'b': readBedFile(opt.getOptArg());break;
-				case 'o': imgOut=new File(opt.getOptArg());break;
-				case 'w': this.imgageSize=Integer.parseInt(opt.getOptArg());break;
-				case 'm': this.minDepth=Integer.parseInt(opt.getOptArg());break;
-				case 'M': this.maxDepth=Integer.parseInt(opt.getOptArg());break;
-				case 'r': regionStr=opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(imgOut==null)
-			{
-			error("output image file not defined");
-			return -1;
+			return wrapException("output image file not defined");
 			}
 		
 		if(this.imgageSize<1)
 			{
-			error("Bad image size:" +this.imgageSize);
-			return -1;
+			return wrapException("Bad image size:" +this.imgageSize);
 			}
 		
 		if(this.minDepth<0)
 			{
-			error("Bad min depth : "+this.minDepth);
-			return -1;
+			return wrapException("Bad min depth : "+this.minDepth);
 			}
 		if(this.minDepth>=this.maxDepth)
 			{
-			error("Bad min<max depth : "+this.minDepth+"<"+this.maxDepth);
-			return -1;
+			return wrapException("Bad min<max depth : "+this.minDepth+"<"+this.maxDepth);
 			}
+		
+		if(this.getBedFile()!=null)
+			{
+			readBedFile(this.getBedFile());
+			}
+		
 		if(regionStr!=null && this.intervals!=null)
 			{
-			error("bed and interval both defined.");
-			return -1;
+			return wrapException("bed and interval both defined.");
 			}
 		
 		final SamRecordFilter filter=new SamRecordFilter()
@@ -397,13 +361,13 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			srf.disable(SamReaderFactory.Option.EAGERLY_DECODE);
 			srf.disable(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS);
 			srf.disable(SamReaderFactory.Option.VALIDATE_CRC_CHECKSUMS);
-			
-			for(int i=opt.getOptInd();i< args.length;++i)
+			final List<String> args = this.getInputFiles();
+			for(String arg: args)
 				{
-				File f=new File(args[i]);
+				File f=new File(arg);
 				if(f.getName().endsWith(".list"))
 					{
-					info("Reading BAM list from "+f);
+					LOG.info("Reading BAM list from "+f);
 					BufferedReader in=IOUtils.openFileForBufferedReading(f);
 					String line;
 					while((line=in.readLine())!=null)
@@ -420,8 +384,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				}
 			if(files.isEmpty())
 				{
-				error("No BAM defined");
-				return -1;
+				return wrapException("No BAM defined");
 				}
 			
 			Comparator<SAMRecord> comparator=new Comparator<SAMRecord>()
@@ -464,8 +427,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				if(h.getSortOrder()!=SortOrder.coordinate)
 					{
 					r.close();
-					error("file "+bamFile+" not sorted on coordinate");
-					return -1;
+					return wrapException("file "+bamFile+" not sorted on coordinate");
 					}
 				if(dict==null)
 					{
@@ -473,8 +435,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 					}
 				else if(!SequenceUtil.areSequenceDictionariesEqual(dict,h.getSequenceDictionary()))
 					{
-					error("Found more than one dictint sequence dictionary");
-					return -1;
+					return wrapException("Found more than one dictint sequence dictionary");
 					}
 				
 				//fill query interval once
@@ -498,8 +459,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 					SAMSequenceRecord ssr= dict.getSequence(chrom);
 					if(ssr==null)
 						{
-						error("Chromosome "+chrom+" not present in dictionary");
-						return -1;
+						return wrapException("Chromosome "+chrom+" not present in dictionary");
 						}
 					int hyphen=regionStr.indexOf('-', colon+1);
 					if(hyphen!=-1)
@@ -514,8 +474,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 						}
 					if(chromStart<0 || chromEnd<chromStart)
 						{
-						error("bad position in "+regionStr);
-						return -1;
+						return wrapException("bad position in "+regionStr);
 						}
 					
 					queryIntervals.add(new QueryInterval(ssr.getSequenceIndex(),chromStart,chromEnd));
@@ -528,8 +487,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 						SAMSequenceRecord ssr= dict.getSequence(interval.getContig());
 						if(ssr==null)
 							{
-							error("Chromosome "+interval.getContig()+" not present in dictionary");
-							return -1;
+							return wrapException("Chromosome "+interval.getContig()+" not present in dictionary");
 							}
 						queryIntervals.add(new QueryInterval(ssr.getSequenceIndex(),interval.getStart(),interval.getEnd()));
 						}
@@ -563,7 +521,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			//free GC
 			queryIntervalArray=null;
 			
-			info("Samples:"+samples.size());
+			LOG.info("Samples:"+samples.size());
 			for(String sample:samples)
 				{
 				this.sample2column.put(sample, this.sample2column.size());
@@ -575,7 +533,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			
 			
 			//create image
-			info("Creating image "+this.imgageSize+"x"+this.imgageSize);
+			LOG.info("Creating image "+this.imgageSize+"x"+this.imgageSize);
 			this.image=new BufferedImage(this.imgageSize, this.imgageSize, BufferedImage.TYPE_INT_RGB);
 			Graphics2D g=this.image.createGraphics();
 			this.marginWidth=this.imgageSize*0.05;
@@ -645,7 +603,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			BufferedList<Depth> depthList=new BufferedList<Depth>();
 			g.setColor(Color.BLACK);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-			info("Scanning bams...");
+			LOG.info("Scanning bams...");
 			while(iter.hasNext())
 				{
 				SAMRecord rec=iter.next();
@@ -738,8 +696,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 								depth = depthList.get((depthList.size()-1)-(distance));
 								if(depth.pos!=pos)
 									{
-									error(" "+pos+" vs "+depth.pos+" "+lastPos);
-									System.exit(-1);
+									return wrapException(" "+pos+" vs "+depth.pos+" "+lastPos);
 									}
 								}
 							depth.depths[sample_id]++;
@@ -763,7 +720,7 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 				{
 				for(int y=0;y< bitMatrix.n_samples;++y)
 					{
-					info("Painting...("+x+"/"+y+")");
+					LOG.info("Painting...("+x+"/"+y+")");
 					paint(g, bitMatrix.get(x, y));
 					}
 				}
@@ -773,29 +730,29 @@ public class BamCmpCoverage extends AbstractCommandLineProgram
 			for(SamReader r:readers) r.close();
 			
 			//save file
-			info("saving "+imgOut);
-			if(imgOut.getName().toLowerCase().endsWith(".png"))
+			LOG.info("saving "+getOutputFile());
+			if(getOutputFile().getName().toLowerCase().endsWith(".png"))
 				{
-				ImageIO.write(this.image, "PNG", imgOut);
+				ImageIO.write(this.image, "PNG", getOutputFile());
 				}
 			else
 				{
-				ImageIO.write(this.image, "JPG", imgOut);
+				ImageIO.write(this.image, "JPG", getOutputFile());
 				}
 			
-			return 0;
+			return Collections.emptyList();
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			
 			}
 		}
+			 	}
 	public static void main(String[] args) {
 		new BamCmpCoverage().instanceMainWithExit(args);
-	}
+		}
 	}

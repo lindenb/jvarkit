@@ -4,4 +4,31 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Calculate Allele Frequency from a VCF file. The most frequent ALT allele is used. This software is deprecated see 'BioAlcidae'.</description>
+<arguments> </arguments>
+
+<documentation>
+<h:pre class="bash">
+ curl -s  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/integrated_call_sets/ALL.chr22.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.vcf.gz" | gunzip -c | \
+java -jar dist/allelefreqcalc.jar | head
+
+CHR	POS	ID	REF	ALT	TOTAL_CNT	ALT_CNT	FRQ
+22	16050408	rs149201999	T	C	2184	134	0.06135531
+22	16050612	rs146752890	C	G	2184	184	0.08424909
+22	16050678	rs139377059	C	T	2184	113	0.051739927
+22	16050984	rs188945759	C	G	2184	5	0.0022893774
+22	16051107	rs6518357	C	A	2184	127	0.058150183
+22	16051249	rs62224609	T	C	2184	157	0.07188645
+22	16051347	rs62224610	G	C	2184	650	0.29761904
+22	16051453	rs143503259	A	C	2184	160	0.07326008
+22	16051477	rs192339082	C	A	2184	2	9.157509E-4
+</h:pre>
+</documentation>
+
+
+<seealso command="VcfCutSamples"/>
+<seealso command="BioAlcidae"/>
+<!-- __PLACEHOLDER__ -->
+
+
+</app>

@@ -28,142 +28,141 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Pattern;
 
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.command.Command;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class AlleleFrequencyCalculator extends AbstractCommandLineProgram
+public class AlleleFrequencyCalculator extends AbstractAlleleFrequencyCalculator
 	{
-	private AlleleFrequencyCalculator()
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(AlleleFrequencyCalculator.class);
+
+	public AlleleFrequencyCalculator()
 		{
 		
 		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/AlleleFrequencyCalculator";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Allele Frequency Calculator";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
+	 @Override
+		public  Command createCommand() {
+				return new MyCommand();
+			}
+			 
+		private static class MyCommand extends AbstractAlleleFrequencyCalculator.AbstractAlleleFrequencyCalculatorCommand
+			 	{
+				@Override
+				public Collection<Throwable> call() throws Exception
 					{
-					switch(handleOtherOptions(c, opt,args))
+					PrintStream out = null;
+					VcfIterator in = null;
+					try
 						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
+						final List<String> args = this.getInputFiles();
+						if(args.isEmpty())
+							{
+							LOG.info("reading stdin");
+							in=new VcfIterator(stdin());
+							}
+						else if(args.size()==1)
+							{
+							LOG.info("reading "+args.get(0));
+							in=VCFUtils.createVcfIterator(args.get(0));
+							}
+						else
+							{
+							return wrapException(super.getMessageBundle("illegal.number.of.arguments"));
+							}
+						out = openFileOrStdoutAsPrintStream();
+						
+						
+						out.println("CHR\tPOS\tID\tREF\tALT\tTOTAL_CNT\tALT_CNT\tFRQ");
+						while(in.hasNext() && !out.checkError())
+							{
+							
+							VariantContext ctx=in.next();
+							Allele ref=ctx.getReference();
+							if(ref==null) continue;
+							if(ctx.getNSamples()==0 || ctx.getAlternateAlleles().isEmpty()) continue;
+							Allele alt=ctx.getAltAlleleWithHighestAlleleCount();
+							if(alt==null) continue;
+							
+							GenotypesContext genotypes=ctx.getGenotypes();
+							if(genotypes==null) continue;
+							int total_ctn=0;
+							int alt_ctn=0;
+							for(int i=0;i< genotypes.size();++i)
+								{
+								Genotype g=genotypes.get(i);
+								for(Allele allele: g.getAlleles())
+									{
+									if(allele.equals(ref))
+										{
+										total_ctn++;
+										}
+									else if (allele.equals(alt))
+										{
+										total_ctn++;
+										alt_ctn++;
+										}
+									}
+								
+								}
+							
+							
+							out.print(ctx.getContig());
+							out.print("\t");
+							out.print(ctx.getStart());
+							out.print("\t");
+							out.print(ctx.hasID()?ctx.getID():".");
+							out.print("\t");
+							out.print(ref.getBaseString());
+							out.print("\t");
+							out.print(alt.getBaseString());
+							out.print("\t");
+							out.print(total_ctn);
+							out.print("\t");
+							out.print(alt_ctn);
+							out.print("\t");
+							out.print(alt_ctn/(float)total_ctn);
+							out.println();
+							}
+						out.flush();
+						
+						
+					return Collections.emptyList();
+					}
+				catch(Exception err)
+					{
+					return wrapException(err);
+					}
+				finally
+					{
+					CloserUtil.close(out);
+					CloserUtil.close(in);
 					}
 				}
-			}
-		
-		VcfIterator in=null;
-		PrintWriter out=new PrintWriter(System.out);
-		try
-			{
-			if(opt.getOptInd()==args.length)
-				{
-				in=VCFUtils.createVcfIteratorStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				in=VCFUtils.createVcfIterator(args[opt.getOptInd()]);
-				}
-			else
-				{
-				error(super.getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			out.println("CHR\tPOS\tID\tREF\tALT\tTOTAL_CNT\tALT_CNT\tFRQ");
-			while(in.hasNext() && !out.checkError())
-				{
-				
-				VariantContext ctx=in.next();
-				Allele ref=ctx.getReference();
-				if(ref==null) continue;
-				if(ctx.getNSamples()==0 || ctx.getAlternateAlleles().isEmpty()) continue;
-				Allele alt=ctx.getAltAlleleWithHighestAlleleCount();
-				if(alt==null) continue;
-				
-				GenotypesContext genotypes=ctx.getGenotypes();
-				if(genotypes==null) continue;
-				int total_ctn=0;
-				int alt_ctn=0;
-				for(int i=0;i< genotypes.size();++i)
-					{
-					Genotype g=genotypes.get(i);
-					for(Allele allele: g.getAlleles())
-						{
-						if(allele.equals(ref))
-							{
-							total_ctn++;
-							}
-						else if (allele.equals(alt))
-							{
-							total_ctn++;
-							alt_ctn++;
-							}
-						}
-					
-					}
-				
-				
-				out.print(ctx.getContig());
-				out.print("\t");
-				out.print(ctx.getStart());
-				out.print("\t");
-				out.print(ctx.hasID()?ctx.getID():".");
-				out.print("\t");
-				out.print(ref.getBaseString());
-				out.print("\t");
-				out.print(alt.getBaseString());
-				out.print("\t");
-				out.print(total_ctn);
-				out.print("\t");
-				out.print(alt_ctn);
-				out.print("\t");
-				out.print(alt_ctn/(float)total_ctn);
-				out.println();
-				}
-			out.flush();
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(in);
-			}
-		}
+	 	
+
+			 }
 	
 	public static void main(String[] args) {
 		new AlleleFrequencyCalculator().instanceMainWithExit(args);

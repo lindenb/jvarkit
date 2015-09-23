@@ -6,20 +6,29 @@ define compile
 endef
 
 
-TEST_APPS = addlinearindextobed vcfhead vcftail
+TEST_APPS = bamtile addlinearindextobed bamcmpcoverage allelefreqcalc vcfhead vcftail
 
 all:tests
 
 tests: ${TEST_APPS}
-	
-addlinearindextobed:	
-	$(call compile,$@) && java -jar ${dist.dir}/$@.jar -R ${REF}  ${htsjdk.home}/testdata/htsjdk/tribble/sites.bed > /dev/null && echo "OK: $@" > $(addsuffix .ok,$@)
+
+
+allelefreqcalc: 
+	$(call compile,$@) && java -jar ${dist.dir}/$@.jar ${htsjdk.home}/testdata/htsjdk/variant/ILLUMINA.wex.broad_phase2_baseline.20111114.both.exome.genotypes.1000.vcf > /dev/null && echo "OK: $@" > $(addsuffix .ok,$@)
+
+addlinearindextobed bamcmpcoverage:	
+	$(call compile,$@) && java -jar ${dist.dir}/$@.jar -h > /dev/null && echo "OK: $@" > $(addsuffix .ok,$@)
+
+bamtile:
+	$(call compile,$@) && java -jar ${dist.dir}/$@.jar ${htsjdk.home}/testdata/htsjdk/samtools/compressed.bam  && echo "OK: $@" > $(addsuffix .ok,$@)
 
 vcfhead:
 	$(call compile,$@) && java -jar ${dist.dir}/$@.jar -n 2 ${htsjdk.home}/testdata/htsjdk/variant/ILLUMINA.wex.broad_phase2_baseline.20111114.both.exome.genotypes.1000.vcf > /dev/null && echo "OK: $@" > $(addsuffix .ok,$@)
 
 vcftail:
 	$(call compile,$@) && java -jar ${dist.dir}/$@.jar -n 2 ${htsjdk.home}/testdata/htsjdk/variant/ILLUMINA.wex.broad_phase2_baseline.20111114.both.exome.genotypes.1000.vcf > /dev/null && echo "OK: $@" > $(addsuffix .ok,$@)
+
+
 
 
 vcftreepack:

@@ -119,11 +119,17 @@ public abstract class Command
 		{
 		return new ArrayList<>(Collections.singletonList(err));
 		}
+	@Deprecated
 	public void info(final Object o) { getLog().info(o);}
+	@Deprecated
 	public void info(final Object o,final  Throwable err) { getLog().info(o,err);}
+	@Deprecated
 	public void warning(final Object o) { getLog().warn(o);}
+	@Deprecated
 	public void warning(final Object o,final  Throwable err) { getLog().warn(o,err);}
+	@Deprecated
 	public void error(final Object o) { getLog().error(o);}
+	@Deprecated
 	public void error(final Object o,final  Throwable err) { getLog().error(o,err);}
 	public String getMessageBundle(String s) { return getFactory().getMessageBundle(s);}
 	public boolean checkError() { return stdout().checkError();}
