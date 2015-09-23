@@ -36,10 +36,11 @@ import htsjdk.tribble.annotation.Strand;
 import htsjdk.tribble.readers.LineIterator;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,29 +52,40 @@ import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 public class BackLocate
-	extends AbstractCommandLineProgram
+	extends AbstractBackLocate
 	{
-	private static final String DEFAULT_KGXREF= "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz";
-	private static final String DEFAULT_KNOWNGENE= "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BackLocate.class);
+
 	
-	private boolean printSequences=false;
-	private GenomicSequence genomicSeq=null;
-	private Map<String,Set<String>> geneSymbol2kg=new HashMap<>();
-	private Map<String,KnownGene> knwonGenes=new HashMap<>();
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
-	
-	/** get a genetic code from a chromosome name (either std or mitochondrial */
-	private static GeneticCode getGeneticCodeByChromosome(String chr)
+	@Override
+	public Command createCommand()
 		{
-		if(chr.equalsIgnoreCase("chrM") || chr.equalsIgnoreCase("MT")) return GeneticCode.getMitochondrial();
-		return GeneticCode.getStandard();
+		return new MyCommand();
 		}
+	
+	static private class MyCommand extends AbstractBackLocate.AbstractBackLocateCommand
+		{
+		private boolean printSequences=false;
+		private GenomicSequence genomicSeq=null;
+		private Map<String,Set<String>> geneSymbol2kg=new HashMap<>();
+		private Map<String,KnownGene> knwonGenes=new HashMap<>();
+		private IndexedFastaSequenceFile indexedFastaSequenceFile;
+		/** get a genetic code from a chromosome name (either std or mitochondrial */
+		private static GeneticCode getGeneticCodeByChromosome(String chr)
+			{
+			if(chr.equalsIgnoreCase("chrM") || chr.equalsIgnoreCase("MT")) return GeneticCode.getMitochondrial();
+			return GeneticCode.getStandard();
+			}
+		
+		
+	
+	
 
 
 
@@ -136,6 +148,7 @@ public class BackLocate
 		
 
 	private void backLocate(
+		PrintStream out,
 		KnownGene gene,
 		String geneName,
 		char aa1,char aa2,
@@ -153,7 +166,7 @@ public class BackLocate
 	               !gene.getChromosome().equals(genomicSeq.getChrom()) 
 	               )
         	{
-        	this.info("fetch genome");
+        	LOG.info("fetch genome");
         	this.genomicSeq= new GenomicSequence(this.indexedFastaSequenceFile, gene.getContig());
         	}
         	
@@ -227,23 +240,22 @@ public class BackLocate
 	        		
 	     if(wildProt==null)
 	    	 {
-	    	 System.err.println("#no protein found for transcript:"+gene.getName());
+	    	 stderr().println("#no protein found for transcript:"+gene.getName());
 	    	 return;
 	    	 }
 	    int peptideIndex0= peptidePos1-1;
         if(peptideIndex0 >=wildProt.length())
         	{
-        	System.err.println("#index out of range for :"+gene.getName()+" petide length="+wildProt.length());
-	    	return;
+        	wrapException("#index out of range for :"+gene.getName()+" petide length="+wildProt.length());
         	}
     
         if(wildProt.charAt(peptideIndex0)!=aa1)
         	{
-        	System.out.println("##Warning ref aminod acid for "+gene.getName() +"  ["+peptidePos1+"] is not the same ("+wildProt.charAt(peptideIndex0)+"/"+aa1+")");
+        	out.println("##Warning ref aminod acid for "+gene.getName() +"  ["+peptidePos1+"] is not the same ("+wildProt.charAt(peptideIndex0)+"/"+aa1+")");
         	}
         else
         	{
-        	System.out.println("##"+gene.getName());
+        	out.println("##"+gene.getName());
         	}
         int indexesInRNA[]=new int[]{
         	0+ peptideIndex0*3,
@@ -273,45 +285,45 @@ public class BackLocate
         
         for(int indexInRna: indexesInRNA)
         	{
-        	System.out.print(geneName);
-        	System.out.print('\t');
-        	System.out.print(aa1);
-        	System.out.print('\t');
-        	System.out.print(peptidePos1);
-        	System.out.print('\t');
-        	System.out.print(aa2);
-        	System.out.print('\t');
-        	System.out.print(gene.getName());
-        	System.out.print('\t');
-        	System.out.print(gene.getStrand()==Strand.NEGATIVE?"-":"+");
-        	System.out.print('\t');
-        	System.out.print(wildProt.charAt(peptideIndex0));
-        	System.out.print('\t');
-        	System.out.print(indexInRna);
-        	System.out.print('\t');
-        	System.out.print(wildCodon);
-        	System.out.print('\t');
+        	out.print(geneName);
+        	out.print('\t');
+        	out.print(aa1);
+        	out.print('\t');
+        	out.print(peptidePos1);
+        	out.print('\t');
+        	out.print(aa2);
+        	out.print('\t');
+        	out.print(gene.getName());
+        	out.print('\t');
+        	out.print(gene.getStrand()==Strand.NEGATIVE?"-":"+");
+        	out.print('\t');
+        	out.print(wildProt.charAt(peptideIndex0));
+        	out.print('\t');
+        	out.print(indexInRna);
+        	out.print('\t');
+        	out.print(wildCodon);
+        	out.print('\t');
         	if(possibleAltCodons.isEmpty())
         		{
-        		System.out.print('.');
+        		out.print('.');
         		}
         	else
         		{
         		boolean first=true;
         		for(String mutCodon:possibleAltCodons)
         			{
-        			if(!first) System.out.print('|');
+        			if(!first) out.print('|');
         			first=false;
-        			System.out.print(mutCodon);
+        			out.print(mutCodon);
         			}
         		}
-        	System.out.print('\t');
-        	System.out.print(wildRNA.charAt(indexInRna));
-        	System.out.print('\t');
-        	System.out.print(gene.getChromosome());
-        	System.out.print('\t');
-        	System.out.print(wildRNA.genomicPositions.get(indexInRna));
-        	System.out.print('\t');
+        	out.print('\t');
+        	out.print(wildRNA.charAt(indexInRna));
+        	out.print('\t');
+        	out.print(gene.getChromosome());
+        	out.print('\t');
+        	out.print(wildRNA.genomicPositions.get(indexInRna));
+        	out.print('\t');
         	String exonName=null;
         	for(KnownGene.Exon exon : gene.getExons())
 				{
@@ -322,23 +334,20 @@ public class BackLocate
 					break;
 					}
 				}
-        	System.out.print(exonName);
+        	out.print(exonName);
         	if(this.printSequences)
         		{
         		String s=wildRNA.toString();
-        		System.out.print('\t');
-            	System.out.print(s.substring(0,indexInRna)+"["+s.charAt(indexInRna)+"]"+(indexInRna+1<s.length()?s.substring(indexInRna+1):""));
+        		out.print('\t');
+            	out.print(s.substring(0,indexInRna)+"["+s.charAt(indexInRna)+"]"+(indexInRna+1<s.length()?s.substring(indexInRna+1):""));
             	s=wildProt.toString();
-            	System.out.print('\t');
-            	System.out.print(s.substring(0,peptideIndex0)+"["+aa1+"/"+aa2+"/"+wildProt.charAt(peptideIndex0)+"]"+(peptideIndex0+1<s.length()?s.substring(peptideIndex0+1):""));
+            	out.print('\t');
+            	out.print(s.substring(0,peptideIndex0)+"["+aa1+"/"+aa2+"/"+wildProt.charAt(peptideIndex0)+"]"+(peptideIndex0+1<s.length()?s.substring(peptideIndex0+1):""));
         		}
-        	System.out.println();
+        	out.println();
         	}
 		}
 
-	private BackLocate() 
-		{
-		}
 	
 	private static char complement(char c)
 		{
@@ -352,7 +361,7 @@ public class BackLocate
 			}
 		}
 	
-	private void run(LineIterator in) throws IOException
+	private void run(PrintStream out,LineIterator in) throws IOException
 		{
 		while(in.hasNext())
 			{
@@ -371,7 +380,7 @@ public class BackLocate
 			Set<String> kgIds= this.geneSymbol2kg.get(geneName.toUpperCase());
 			if(kgIds==null || kgIds.isEmpty())
 				{
-				warning("No kgXref found for "+geneName);
+				LOG.warn("No kgXref found for "+geneName);
 				continue;
 				}
 			
@@ -380,22 +389,11 @@ public class BackLocate
 				{
 				KnownGene kg=this.knwonGenes.get(kgId);
 				if(kg==null) continue;
-				backLocate(kg, geneName, aa1, aa2, position1);
+				backLocate(out,kg, geneName, aa1, aa2, position1);
 				}
 			}
 		}
 	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return DEFAULT_WIKI_PREFIX+"BackLocate";
-		}
-	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Mapping a mutation on a protein back to the genome.";
-		}
 	
 	private void loadKnownGenesFromUri(String kgURI) throws IOException
 		{
@@ -404,7 +402,7 @@ public class BackLocate
 			throw new IOException("Cannot get sequence dictionary for REF : "+getMessageBundle("picard.dictionary.needed"));
 			}
 		
-		info("loading genes");
+		LOG.info("loading genes");
 		Set<String> unknown=new HashSet<String>();
 		BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
 		String line;
@@ -419,7 +417,7 @@ public class BackLocate
 				{
 				if(!unknown.contains(g.getContig()))
 					{
-					warning("The reference doesn't contain chromosome "+g.getContig());
+					LOG.warn("The reference doesn't contain chromosome "+g.getContig());
 					unknown.add(g.getContig());
 					}
 				continue;
@@ -428,13 +426,13 @@ public class BackLocate
 			this.knwonGenes.put(g.getName(),g);
 			}
 		in.close();
-		info("genes:"+this.knwonGenes.size());
+		LOG.info("genes:"+this.knwonGenes.size());
 		}
 	
 	private void loadkgXRefFromUri(String kgURI) throws IOException
 		{
 		
-		info("loading "+kgURI);
+		LOG.info("loading "+kgURI);
 		BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
 		String line;
 		Pattern tab=Pattern.compile("[\t]");
@@ -454,128 +452,123 @@ public class BackLocate
 			kglist.add(kgId);//kgID
 			}
 		in.close();
-		info("kgxref:"+geneSymbol2kg.size());
+		LOG.info("kgxref:"+geneSymbol2kg.size());
 		}
 
+	
 	@Override
-	public void printOptions(PrintStream out)
+	public Collection<Throwable> initializeKnime()
 		{
-		System.out.println(" -R (fasta) "+getMessageBundle("reference.faidx"));
-		System.out.println(" -k (knownGene) "+getMessageBundle("known.genes.uri")+" chromosomes must be named the same way than the REF sequence. Default "+DEFAULT_KGXREF);
-		System.out.println(" -x (kgXRef uri)UCSC kgXref URI  Default:"+DEFAULT_KGXREF);
-		System.out.println(" -p print mRNA & protein sequences");
-		super.printOptions(out);
+		try
+			{
+			if(getReferenceFile()==null)
+				{
+				return wrapException(getMessageBundle("reference.undefined"));
+				}
+			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(getReferenceFile());
+			
+			if(knownGeneURI==null)
+				{
+				return wrapException("Undefined knwonGeneURI");
+				}
+			
+			if(kgXRef==null)
+				{
+				return wrapException("Undefined kgXref");
+				}
+			this.loadKnownGenesFromUri(knownGeneURI);
+			this.loadkgXRefFromUri(kgXRef);
+			
+			return super.initializeKnime();
+			}
+		catch (Exception e)
+			{
+			return wrapException(e);
+			}
+		
 		}
 	
 	@Override
-	public int doWork(String[] args)
+	public Collection<Throwable> call() throws Exception
 		{
-		String knownGeneURI=null;
-		String kgXref=null;
-		
+		final List<String> args = this.getInputFiles();
+		PrintStream out=null;
 		try {			
-			com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-			int c;
-			while((c=opt.getopt(args,getGetOptDefault()+ "k:x:R:p"))!=-1)
-				{
-				switch(c)
-					{
-					case 'k': knownGeneURI=opt.getOptArg();break;
-					case 'x': kgXref=opt.getOptArg();break;
-					case 'R': this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(new File(opt.getOptArg()));break;
-					case 'p': this.printSequences=true;break;
-					default: 
-						{
-						switch(handleOtherOptions(c, opt, args))
-							{
-							case EXIT_FAILURE: return -1;
-							case EXIT_SUCCESS: return 0;
-							default: break;
-							}
-						}
-					}
-				}
-			if(this.indexedFastaSequenceFile==null)
-				{
-				error(getMessageBundle("reference.undefined"));
-				return -1;
-				}
-			if(knownGeneURI==null)
-				{
-				warning("Undefined knwonGeneURI, using "+DEFAULT_KNOWNGENE);
-				knownGeneURI=DEFAULT_KNOWNGENE;
-				}
 			
-			if(kgXref==null)
-				{
-				warning("Undefined kgXref, using "+DEFAULT_KGXREF);
-				kgXref=DEFAULT_KGXREF;
-				}
-			loadKnownGenesFromUri(knownGeneURI);
-			loadkgXRefFromUri(kgXref);
 			
-			System.out.print("#User.Gene");
-        	System.out.print('\t');
-        	System.out.print("AA1");
-        	System.out.print('\t');
-        	System.out.print("petide.pos.1");
-        	System.out.print('\t');
-        	System.out.print("AA2");
-        	System.out.print('\t');
-        	System.out.print("knownGene.name");
-        	System.out.print('\t');
-        	System.out.print("knownGene.strand");
-        	System.out.print('\t');
-        	System.out.print("knownGene.AA");
-        	System.out.print('\t');
-        	System.out.print("index0.in.rna");
-        	System.out.print('\t');
-        	System.out.print("wild.codon");
-        	System.out.print('\t');
-        	System.out.print("potential.var.codons");
-        	System.out.print('\t');
-        	System.out.print("base.in.rna");
-        	System.out.print('\t');
-        	System.out.print("chromosome");
-        	System.out.print('\t');
-        	System.out.print("index0.in.genomic");
-        	System.out.print('\t');
-        	System.out.print("exon");
+			out = this.openFileOrStdoutAsPrintStream();
+			
+			out.print("#User.Gene");
+        	out.print('\t');
+        	out.print("AA1");
+        	out.print('\t');
+        	out.print("petide.pos.1");
+        	out.print('\t');
+        	out.print("AA2");
+        	out.print('\t');
+        	out.print("knownGene.name");
+        	out.print('\t');
+        	out.print("knownGene.strand");
+        	out.print('\t');
+        	out.print("knownGene.AA");
+        	out.print('\t');
+        	out.print("index0.in.rna");
+        	out.print('\t');
+        	out.print("wild.codon");
+        	out.print('\t');
+        	out.print("potential.var.codons");
+        	out.print('\t');
+        	out.print("base.in.rna");
+        	out.print('\t');
+        	out.print("chromosome");
+        	out.print('\t');
+        	out.print("index0.in.genomic");
+        	out.print('\t');
+        	out.print("exon");
         	if(this.printSequences)
         		{
-        		System.out.print('\t');
-            	System.out.print("mRNA");
-            	System.out.print('\t');
-            	System.out.print("protein");
+        		out.print('\t');
+            	out.print("mRNA");
+            	out.print('\t');
+            	out.print("protein");
         		}
-        	System.out.println();
-			if(opt.getOptInd()==args.length)
+        	out.println();
+			if(args.isEmpty())
 				{
-				info("reading from stdin");
+				LOG.info("reading from stdin");
 				LineIterator in=IOUtils.openStdinForLineIterator();
-				this.run(in);
+				this.run(out,in);
 				CloserUtil.close(in);
 				}
 			else
 				{
-				for(int optind=opt.getOptInd();optind<args.length;++optind)
+				for(String filename:args)
 					{
-					String filename=args[optind++];
-					info("reading from "+filename);
+					LOG.info("reading from "+filename);
 					LineIterator in=IOUtils.openURIForLineIterator(filename);
-					this.run(in);
+					this.run(out,in);
 					CloserUtil.close(in);
 					}
 				}
-			return 0;
+			return Collections.emptyList();
 			}
 		catch (Exception e) {
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{
+			CloserUtil.close(out);
 			}	
+		}
+		
+		@Override
+		public void disposeKnime()
+			{
+			CloserUtil.close(this.indexedFastaSequenceFile);
+			this.indexedFastaSequenceFile=null;
+			super.disposeKnime();
+			}
+		
 		}
 	public static void main(String[] args)
 		{

@@ -28,13 +28,18 @@ import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.net.InetAddress;
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.jar.Manifest;
 
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -52,7 +57,6 @@ public abstract class CommandFactory
 	{
 	protected enum Status {OK,EXIT_SUCCESS,EXIT_FAILURE};
 	private static final Log LOG=LogFactory.getLog(CommandFactory.class);
-	private String commandLine="";
 	private String version=null;
 	private String compileDate;
 
@@ -308,10 +312,6 @@ protected String getAuthorMail()
 	}
 
 
-protected String getProgramCommandLine()
-	{
-	return commandLine;
-	}
 
 
 protected void printSynopsis(PrintStream out)
@@ -331,20 +331,35 @@ public void usage(PrintStream out)
 	out.println();
 	}
 
+	protected void writeHtmlDoc(final XMLStreamWriter w)
+		throws XMLStreamException
+		{
+		w.writeStartElement("div");
+		w.writeComment("no doc available for "+getName());
+		w.writeEndElement();
+		}
 	
-	public <X extends CommandFactory> int instanceMain(final String args[])
+	public  int instanceMain(final String args[])
 		{
 		/* create a new  empty Command  */
 		Command cmd = null;
 		
 		try{
+			/* cmd line */
+			final StringBuilder sb=new StringBuilder();
+			for(String s:args)
+				{
+				if(sb.length()!=0) sb.append(" ");
+				sb.append(s);
+				}
 			/* create new options  */
 			final Options options = new Options();
 			/* get all options and add it to options  */
 			fillOptions(options);
 			/* create a new CLI parser */
 			final CommandLineParser parser = new DefaultParser();
-			CommandLine cli= parser.parse(options, args);
+			final CommandLine cli= parser.parse(options, args);
+			
 			/* loop over the processed options */
 			for(final Option opt: cli.getOptions())
 				{
@@ -361,8 +376,49 @@ public void usage(PrintStream out)
 					}
 				}
 			cmd = createCommand();
+			cmd.setProgramCommandLine(sb.toString().
+					replace('\n', ' ').
+					replace('\t', ' ').
+					replace('\"', ' ').
+					replace('\'', ' '));
 			cmd.copyFrom(this);
+			
 			cmd.setInputFiles(cli.getArgList());
+			
+			final Date startDate=new Date();
+			LOG.info("Starting JOB at "+startDate+" "+getClass().getName()+
+					" version="+getVersion()+" "+
+					" built="+getCompileDate());
+			LOG.info("Command Line args : "+(cmd.getProgramCommandLine().isEmpty()?"(EMPTY/NO-ARGS)":cmd.getProgramCommandLine()));
+			String hostname="";
+			try
+				{
+				hostname= InetAddress.getLocalHost().getHostName();
+				}
+			catch(Exception err)
+				{
+				hostname="host";
+				}
+			LOG.info("Executing as " +
+	                System.getProperty("user.name") + "@" + hostname +
+	                " on " + System.getProperty("os.name") + " " + System.getProperty("os.version") +
+	                " " + System.getProperty("os.arch") + "; " + System.getProperty("java.vm.name") +
+	                " " + System.getProperty("java.runtime.version") 
+	                );
+
+			LOG.debug("initialize "+cmd);
+			final Collection<Throwable> initErrors = cmd.initializeKnime(); 
+			if(!(initErrors==null || initErrors.isEmpty()))
+				{
+				for(Throwable err:initErrors)
+					{
+					LOG.error(err);
+					}
+				LOG.fatal("Command initialization failed ");
+				return -1;
+				}
+			
+			
 			LOG.debug("calling "+cmd);
 			final Collection<Throwable> errors = cmd.call(); 
 			if(!(errors==null || errors.isEmpty()))
@@ -375,6 +431,11 @@ public void usage(PrintStream out)
 				return -1;
 				}
 			LOG.debug("success "+cmd);
+			cmd.disposeKnime();
+			final Date endDate = new Date();
+			final double elapsedMinutes = (endDate.getTime() - startDate.getTime()) / (1000d * 60d);
+	        final String elapsedString  = new DecimalFormat("#,##0.00").format(elapsedMinutes);
+	    	LOG.info("End JOB  [" + endDate + "] " + getName() + " done. Elapsed time: " + elapsedString + " minutes.");
 			return 0;
 			}
 		catch(org.apache.commons.cli.UnrecognizedOptionException err)

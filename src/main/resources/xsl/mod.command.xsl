@@ -59,7 +59,25 @@ SOFTWARE.
 <xsl:text>Command</xsl:text>
 </xsl:template>
 
-
+<xsl:template match="c:app" mode="html">
+<xsl:if test="c:documentation">
+	@Override
+	protected void writeHtmlDoc(final javax.xml.stream.XMLStreamWriter w)
+		throws javax.xml.stream.XMLStreamException
+	{
+	w.writeStartElement("div");
+	
+	w.writeStartElement("h3");
+	w.writeCharacters("Description");
+	w.writeEndElement();
+	w.writeStartElement("div");
+	w.writeEndElement();
+	
+	
+	w.writeEndElement();
+	}
+</xsl:if>
+</xsl:template>
 
 <xsl:template match="c:option-group" mode="cli">
 final OptionGroup <xsl:value-of select="generate-id()"/> = new OptionGroup();
@@ -115,6 +133,9 @@ options.addOption(org.apache.commons.cli.Option
 		</xsl:otherwise>
 	</xsl:choose>
 	<xsl:choose>
+		<xsl:when test="@type='bool' or @type='boolean' or @type='Boolean' or @type='java.lang.Boolean'">
+		.hasArg(false)
+		</xsl:when>
 		<xsl:when test="@type='int' or @type='long' or @type='short' or @type='double' or @type='float'  or @type='number'">
 		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.NUMBER_VALUE)
@@ -168,6 +189,7 @@ LongValidator <xsl:apply-templates select="@name"/>
 
 /** option <xsl:apply-templates select="." mode="name"/> */
 protected <xsl:apply-templates select="." mode="java-type"/><xsl:text> </xsl:text> <xsl:apply-templates select="." mode="name"/> = <xsl:choose>
+		<xsl:when test="@default and (not(@type) or @type='string' or @type='String' or @type='java.lang.String')">"<xsl:value-of select="@default"/>"</xsl:when>
 		<xsl:when test="@default"><xsl:value-of select="@default"/></xsl:when>
 		<xsl:when test="$nilleable = 'true'">null</xsl:when>
 		<xsl:otherwise>0</xsl:otherwise>
@@ -206,6 +228,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='output-file'">false</xsl:when>
 	<xsl:when test="@type='input-file'">false</xsl:when>
 	<xsl:when test="starts-with(@type,'java.lang')">false</xsl:when>
+	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
 	<xsl:when test="$nilleable = 'true'">true</xsl:when>
 		<xsl:message terminate='yes'>cloneable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 </xsl:choose>
@@ -217,6 +240,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='output-file'">true</xsl:when>
 	<xsl:when test="@type='input-file'">true</xsl:when>
 	<xsl:when test="@type='java.net.URL'">true</xsl:when>
+	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">true</xsl:when>
     <xsl:when test="starts-with(@type,'java.lang')">true</xsl:when>
 	<xsl:when test="@type='int' or @type='double'">false</xsl:when>
@@ -247,6 +271,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='output-file'">java.io.File</xsl:when>
 	<xsl:when test="@type='input-file'">java.io.File</xsl:when>
 	<xsl:when test="@type='int'">int</xsl:when>
+	<xsl:when test="@type='bool' or @type='boolean'">boolean</xsl:when>
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">java.lang.String</xsl:when>
 	<xsl:message terminate='yes'>unknown type <xsl:value-of select="@type"/>.</xsl:message>
 </xsl:choose>
@@ -254,8 +279,27 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 
 <xsl:template match="c:option" mode="visit">if(opt.getOpt().equals("<xsl:value-of select="@opt"/>"))
 	{
+	/* <xsl:value-of select="@name"/> : <xsl:value-of select="@type"/> */
 	<xsl:choose>
-		<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">
+		<xsl:when test="@type='bool' or @type='boolean' or @type='Boolean' or @type='java.lang.Boolean' ">
+		boolean <xsl:value-of select="generate-id()"/>;
+		if( opt.getValue().toLowerCase().equals("t") || opt.getValue().toLowerCase().equals("true") || opt.getValue().toLowerCase().equals("yes") || opt.getValue().toLowerCase().equals("1"))
+			{
+			<xsl:value-of select="generate-id()"/> = true;
+			}
+		else if( opt.getValue().toLowerCase().equals("f") || opt.getValue().toLowerCase().equals("false") || opt.getValue().toLowerCase().equals("no") || opt.getValue().toLowerCase().equals("0"))
+			{
+			<xsl:value-of select="generate-id()"/> = false;
+			}
+		else
+			{
+			LOG.error("<xsl:value-of select="@name"/> : Cannot cast "+opt.getValue()+" to a boolean value");
+			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+			}
+		</xsl:when>
+	
+	
+		<xsl:when test="not(@type) or @type='string' or @type='String' or @type='java.lang.String'">
 		java.lang.String <xsl:value-of select="generate-id()"/> = opt.getValue();
 		</xsl:when>
 	
@@ -308,6 +352,8 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 <xsl:template match="c:history">
 * xsl TODO
 </xsl:template>
+
+
 
 
 </xsl:stylesheet>

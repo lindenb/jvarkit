@@ -33,6 +33,16 @@ public abstract class Command
 		{
 		}
 	
+	public Collection<Throwable> initializeKnime()	
+		{
+		return Collections.emptyList();
+		}
+	
+	public void disposeKnime()	
+		{
+		
+		}
+	
 	public void copyFrom(final CommandFactory factory)
 		{
 		if(this.factory!=null) LOG.warn("copyFrom called twice ?");
@@ -133,7 +143,13 @@ public abstract class Command
 	public void error(final Object o,final  Throwable err) { getLog().error(o,err);}
 	public String getMessageBundle(String s) { return getFactory().getMessageBundle(s);}
 	public boolean checkError() { return stdout().checkError();}
-	public String getProgramCommandLine() {return "";}
+	
+	private String programCommandLine=null;
+	public void setProgramCommandLine(final String programCommandLine)
+		{
+		this.programCommandLine = programCommandLine;
+		}
+	public String getProgramCommandLine() {return this.programCommandLine==null?"":programCommandLine;}
 	public String getVersion() { return getFactory().getVersion();}
 	@Override
 	public String toString() {
