@@ -4,4 +4,42 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.bam2graphics">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>BAM to raster graphics</description>
+<options>
+	<option name="printBases" type="bool" opt="b" longopt="bases" default="false">
+		<description>print bases</description>
+	</option>
+	<option name="region" type="string" opt="r" longopt="region" argname="CHR:START-END">
+		<description>restrict to that region. REQUIRED</description>
+	</option>
+	<option name="referenceFile" type="input-file" opt="R" longopt="reference" argname="file.fa">
+		<description> indexed fasta reference</description>
+	</option>
+	<option name="WIDTH" type="int" opt="w" longopt="width" argname="IMAGE-WIDTH">
+		<description> indexed fasta reference</description>
+	</option>
+	<option name="printName" type="bool" opt="N" longopt="name" default="false">
+		<description>print read name</description>
+	</option>
+</options>
+
+
+<documentation>
+
+<h:h3>Example</h:h3>
+
+<h:pre class="code">
+java -jar dist/bam2raster.jar \
+	-o ~/jeter.png \
+        -r 2:17379500-17379550 \
+        -R  human_g1k_v37.fasta \
+        sample.bam
+</h:pre>
+
+<h:img src="https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png"/>
+
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>

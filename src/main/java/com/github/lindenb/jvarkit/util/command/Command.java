@@ -15,7 +15,7 @@ public abstract class Command
 	implements Callable<Collection<Throwable>>
 	{
 	private static final Log LOG=LogFactory.getLog(Command.class);
-
+	
 	/** error stream */
 	private java.io.PrintStream _errStream = System.err;
 	/** stdout stream */

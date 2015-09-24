@@ -211,7 +211,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		
 		}
-	
+	<xsl:apply-templates select="." mode="jfx"/>
 	
 	
 	

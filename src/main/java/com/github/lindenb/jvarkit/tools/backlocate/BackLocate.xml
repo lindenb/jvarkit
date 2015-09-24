@@ -15,10 +15,10 @@
 		<description>indexed Fasta sequence</description>
 	</option>
 	<option name="knownGeneURI" type="string" opt="k" longopt="kg" default="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" argname="FILE-OR-URL">
-		<description>indexed Fasta sequence</description>
+		<description>UCSC knownGene URI</description>
 	</option>
 	<option name="kgXRef" type="string" opt="x" longopt="kgxref" default="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz" argname="FILE-OR-URL">
-		<description>indexed Fasta sequence</description>
+		<description>UCSC kgXRef URI</description>
 	</option>
 </options>
 

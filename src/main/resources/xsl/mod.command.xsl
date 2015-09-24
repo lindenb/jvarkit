@@ -59,6 +59,26 @@ SOFTWARE.
 <xsl:text>Command</xsl:text>
 </xsl:template>
 
+<xsl:template match="c:app" mode="jfx">
+public static class <xsl:apply-templates select="." mode="class-name"/>Application extends javafx.application.Application
+	{
+    public void start(javafx.stage.Stage stage)
+    	{
+    	stage.setTitle("<xsl:apply-templates select="." mode="class-name"/>");
+    	javafx.scene.layout.VBox parent = new javafx.scene.layout.VBox();
+    	<xsl:apply-templates select=".//c:option" mode="jfx-ctrl"/>
+    	javafx.scene.Scene scene = new javafx.scene.Scene(parent);
+    	stage.setScene(scene);
+        stage.show();
+    	}
+    public static void main(String args[])
+    	{
+    	javafx.application.Application.launch(<xsl:apply-templates select="." mode="class-name"/>Application.class,args);
+    	}
+    }
+</xsl:template>
+
+
 <xsl:template match="c:app" mode="html">
 <xsl:if test="c:documentation">
 	@Override
@@ -84,6 +104,23 @@ final OptionGroup <xsl:value-of select="generate-id()"/> = new OptionGroup();
 <xsl:apply-templates select="c:option" mode="cli"/>
 options.addOptionGroup(<xsl:value-of select="generate-id()"/>);
 </xsl:template>
+
+<xsl:template match="c:option" mode="label">
+<xsl:choose>
+	<xsl:when test="c:label"><xsl:value-of select="c:label"/></xsl:when>
+	<xsl:when test="@label"><xsl:value-of select="@label"/></xsl:when>
+	<xsl:otherwise><xsl:value-of select="@name"/></xsl:otherwise>
+</xsl:choose>
+</xsl:template>
+
+<xsl:template match="c:option" mode="description">
+<xsl:choose>
+	<xsl:when test="c:description"><xsl:value-of select="c:description"/></xsl:when>
+	<xsl:when test="@description"><xsl:value-of select="@description"/></xsl:when>
+	<xsl:otherwise><xsl:apply-templates select="." mode="label"/></xsl:otherwise>
+</xsl:choose>
+</xsl:template>
+
 
 <xsl:template match="c:option" mode="cli">
 options.addOption(org.apache.commons.cli.Option
@@ -248,6 +285,8 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 </xsl:choose>
 </xsl:template>
 
+
+
 <xsl:template match="c:option" mode="setter">
 <xsl:variable name="s">
 <xsl:call-template name="titleize">
@@ -263,7 +302,11 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:with-param name="s" select="@name"/>
 </xsl:call-template>
 </xsl:variable>
-<xsl:value-of select="concat('get',$s)"/>
+<xsl:choose>
+		<xsl:when test="@type='bool' or @type='boolean'  or @type='Boolean'  or @type='java.lang.Boolean'"><xsl:value-of select="concat('is',$s)"/></xsl:when>
+		<xsl:otherwise><xsl:value-of select="concat('get',$s)"/></xsl:otherwise>
+</xsl:choose>
+
 </xsl:template>
 
 <xsl:template match="c:option" mode="java-type">
@@ -276,6 +319,53 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:message terminate='yes'>unknown type <xsl:value-of select="@type"/>.</xsl:message>
 </xsl:choose>
 </xsl:template>
+
+<xsl:template match="c:option" mode="jfx-ctrl">
+/* begin : javafx control for <xsl:value-of select="@name"/> */
+final javafx.scene.control.Tooltip <xsl:value-of select="concat('tooltip',generate-id())"/> = new javafx.scene.control.Tooltip("<xsl:apply-templates select="." mode="description"/>");
+final javafx.scene.layout.HBox  <xsl:value-of select="concat('hbox',generate-id())"/> = new javafx.scene.layout.HBox();
+parent.getChildren().add( <xsl:value-of select="concat('hbox',generate-id())"/>);
+final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id())"/> = new javafx.scene.control.Label("<xsl:apply-templates select="." mode="label"/>");
+<xsl:value-of select="concat('hbox',generate-id())"/>.getChildren().add(<xsl:value-of select="concat('lbl',generate-id())"/>);
+<xsl:choose>
+	<xsl:when test="@type='input-file'">
+	final javafx.scene.control.Button <xsl:value-of select="generate-id()"/> = new javafx.scene.control.Button();
+	<xsl:value-of select="concat('hbox',generate-id())"/>.getChildren().add(<xsl:value-of select="generate-id()"/>);
+	<xsl:value-of select="concat('lbl',generate-id())"/>.setLabelFor(<xsl:value-of select="generate-id()"/>);
+	<xsl:value-of select="generate-id()"/>.setTooltip(<xsl:value-of select="concat('tooltip',generate-id())"/>);
+	<xsl:value-of select="generate-id()"/>.setOnAction(new javafx.event.EventHandler&lt;javafx.event.ActionEvent&gt;() {
+	    @Override public void handle(final javafx.event.ActionEvent evt)
+	    	{
+	        javafx.stage.FileChooser <xsl:value-of select="concat('fc',generate-id())"/> = new javafx.stage.FileChooser();
+			<xsl:value-of select="concat('fc',generate-id())"/>.setTitle("<xsl:apply-templates select="." mode="label"/>");
+			java.io.File selectedFile = <xsl:value-of select="concat('fc',generate-id())"/>.showOpenDialog(<xsl:value-of select="generate-id()"/>.getScene().getWindow());
+			if( selectedFile == null ) return;
+			<xsl:value-of select="generate-id()"/>.getProperties().put("file",selectedFile);
+			<xsl:value-of select="generate-id()"/>.setText(selectedFile.getName());
+	    	}
+		});
+	
+	</xsl:when>
+	<xsl:when test="@type='bool' or @type='boolean' or @type='java.lang.Boolean' or @type='Boolean'">
+		final javafx.scene.control.CheckBox <xsl:value-of select="generate-id()"/> = new javafx.scene.control.CheckBox("<xsl:apply-templates select="." mode="label"/>");
+		<xsl:value-of select="generate-id()"/>.setTooltip(<xsl:value-of select="concat('tooltip',generate-id())"/>);
+		<xsl:value-of select="concat('hbox',generate-id())"/>.getChildren().remove(<xsl:value-of select="concat('lbl',generate-id())"/>);
+		<xsl:value-of select="concat('hbox',generate-id())"/>.getChildren().add(<xsl:value-of select="generate-id()"/>);
+	</xsl:when>
+	
+	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">
+		final javafx.scene.control.TextField <xsl:value-of select="generate-id()"/> = new javafx.scene.control.TextField();
+		<xsl:value-of select="generate-id()"/>.setTooltip(<xsl:value-of select="concat('tooltip',generate-id())"/>);
+		<xsl:value-of select="concat('hbox',generate-id())"/>.getChildren().add(<xsl:value-of select="generate-id()"/>);
+		<xsl:if test="@default">
+		<xsl:value-of select="generate-id()"/>.setText("<xsl:value-of select="@default"/>");
+		</xsl:if>
+	</xsl:when>
+	<xsl:message terminate='yes'>jfx-ctrl:unknown type <xsl:value-of select="@type"/>.</xsl:message>
+</xsl:choose>
+/* end : javafx control for <xsl:value-of select="@name"/> */
+</xsl:template>
+
 
 <xsl:template match="c:option" mode="visit">if(opt.getOpt().equals("<xsl:value-of select="@opt"/>"))
 	{

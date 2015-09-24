@@ -1,3 +1,30 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+
+*/
 package com.github.lindenb.jvarkit.tools.bam2graphics;
 
 import java.awt.BasicStroke;
@@ -15,8 +42,9 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,10 +52,9 @@ import java.util.Map;
 import javax.imageio.ImageIO;
 
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 
@@ -37,29 +64,32 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-public class Bam2Raster extends AbstractCommandLineProgram
+public class Bam2Raster extends AbstractBam2Raster
 	{
-    private Bam2Raster()
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Bam2Raster.class);
+
+    public Bam2Raster()
     	{
     	}
-    
+  
     @Override
-    public String getProgramDescription() {
-    	return "BAM to raster graphics.";
-    	}
-    
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/Bam2Raster";
-    	}
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
 	
-   private interface Colorizer
+	static private class MyCommand extends AbstractBam2Raster.AbstractBam2RasterCommand
+		{
+		
+   private static interface Colorizer
     	{
     	public Color getColor(SAMRecord rec);
     	}
@@ -74,7 +104,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 			}
 		}*/
    
-   private class FlagColorizer implements Colorizer
+   private static class FlagColorizer implements Colorizer
 		{
 	   public Color getColor(SAMRecord rec)
 			{
@@ -124,7 +154,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 			}
 		}
 	
-	private BufferedImage build(SAMFileReader r)
+	private BufferedImage build(final SamReader r)
 		{
 		List<List<SAMRecord>> rows=new ArrayList<List<SAMRecord>>();
 		SAMRecordIterator iter=null;
@@ -181,10 +211,10 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		
 	
 		
-		info("Reads:"+countReads);
+		LOG.info("Reads:"+countReads);
 		final int ruler_height=String.valueOf(this.interval.getEnd()).length()*20;
 		final int refw=(int)Math.max(1.0, WIDTH/(double)(1+interval.getEnd()-interval.getStart()));
-		info("refw:"+refw+" "+WIDTH+" "+(1+interval.getEnd()-interval.getStart()));
+		LOG.info("refw:"+refw+" "+WIDTH+" "+(1+interval.getEnd()-interval.getStart()));
 		final int margin_top=10+(refw*2)+ruler_height;
 		Dimension imageSize=new Dimension(WIDTH,
 				margin_top+ rows.size()*(this.spaceYbetweenFeatures+this.featureHeight)+this.spaceYbetweenFeatures
@@ -223,7 +253,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		Graphics2D g=img.createGraphics();
 		g.setColor(Color.WHITE);
 		g.fillRect(0, 0, imageSize.width, imageSize.height);
-		info("image : "+imageSize.width+"x"+imageSize.height);
+		LOG.info("image : "+imageSize.width+"x"+imageSize.height);
 		Map<Integer, Counter<Character>> ref2consensus=new HashMap<Integer,  Counter<Character>>();
 		//draw bases positions
 		
@@ -410,7 +440,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 										}
 									
 									//print read name instead of base
-									if(printName)
+									if(isPrintName())
 										{
 										
 										if(readpos<rec.getReadName().length())
@@ -431,7 +461,7 @@ public class Bam2Raster extends AbstractCommandLineProgram
 									}
 								break;
 								}
-							default: error("cigar element not handled:"+ce.getOperator());break;
+							default: LOG.error("cigar element not handled:"+ce.getOperator());break;
 							}
 						}
 					}
@@ -483,139 +513,102 @@ public class Bam2Raster extends AbstractCommandLineProgram
 		g.dispose();
 		return img;
 		}
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -b print bases . Optional. currently:"+printBases);
-		out.println(" -r (chr:start-end) restrict to that region. REQUIRED.");
-		out.println(" -R (path to fasta) indexed fasta reference. Optional.");
-		out.println(" -w (int) image width. Optional. " +WIDTH);
-		out.println(" -N print Read name.");
-		out.println(" -o (filename) output name. Optional. Default: stdout.");
-		super.printOptions(out);
-		}
-		
-	private boolean printBases=false;
-	private boolean printName=false;
-	private int WIDTH=1000;
-	
 
+		
+	
 	
 	@Override
-	public int doWork(String args[])
-		{
-		File fileOut=null;
-		File referenceFile=null;
-		String region=null;
-	    GetOpt getopt=new GetOpt();
-		int c;
-		while((c=getopt.getopt(args,getGetOptDefault()+ "o:R:r:w:Nb"))!=-1)
+	public Collection<Throwable> call() throws Exception
 			{
-			switch(c)
+			final List<String> args = getInputFiles();
+			
+			if(getRegion()==null)
 				{
-				case 'b': printBases=true;break;
-				case 'o': fileOut=new File(getopt.getOptArg());break;
-				case 'R': referenceFile=new File(getopt.getOptArg());break;
-				case 'r': region=getopt.getOptArg();break;
-				case 'N': printName=!printName;break;
-				case 'w': this.WIDTH=Math.max(100,Integer.parseInt(getopt.getOptArg()));break;
-				default: 
-					switch(handleOtherOptions(c, getopt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-				}
-			}
-		
-		if(region==null)
-			{
-			error("Region was not defined.");
-			return -1;
-			}
-		
-		if(getopt.getOptInd()==args.length)
-			{
-			//stdin
-			this.bamFile=null;
-			}
-		else if(getopt.getOptInd()+1==args.length)
-			{
-			this.bamFile=new File(args[getopt.getOptInd()]);
-			}
-		else
-			{
-			System.err.println("illegal number of arguments.");
-			return -1;
-			}
-	    
-		SAMFileReader samFileReader=null;
-		try
-			{
-			if(referenceFile!=null)
-				{
-				info("loading reference");
-				this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(referenceFile);
+				return wrapException("Region was not defined.");
 				}
 			
-			if(this.bamFile==null)
+			if(args.isEmpty())
 				{
-				warning("READING from stdin");
-				samFileReader=new SAMFileReader(System.in);
+				//stdin
+				this.bamFile=null;
+				}
+			else if(args.size()==1)
+				{
+				this.bamFile=new File(args.get(0));
 				}
 			else
 				{
-				info("opening:"+this.bamFile);
-				samFileReader=new SAMFileReader(this.bamFile);
+				return wrapException("illegal number of arguments.");
 				}
+		    if(getWIDTH()<100)
+		    	{
+		    	LOG.info("adjusting WIDTH to 100");
+		    	setWIDTH(100);
+		    	}
 			
-			SAMFileHeader header=samFileReader.getFileHeader();
-			this.interval=IntervalUtils.parseOne(
-					header.getSequenceDictionary(),
-					region);
-			if(this.interval==null)
+			SamReader samFileReader=null;
+			try
 				{
-				System.err.println(
-						"Cannot parse interval "+region+" or chrom doesn't exists in sam dictionary.");
-				return -1;
+				if(getReferenceFile()!=null)
+					{
+					LOG.info("loading reference");
+					this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(getReferenceFile());
+					}
+				SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+				if(this.bamFile==null)
+					{
+					LOG.warn("READING from stdin");
+					samFileReader=srf.open(SamInputResource.of(stdin()));
+					}
+				else
+					{
+					LOG.info("opening:"+this.bamFile);
+					samFileReader=srf.open(this.bamFile);
+					}
+				
+				final SAMFileHeader header=samFileReader.getFileHeader();
+				this.interval=IntervalUtils.parseOne(
+						header.getSequenceDictionary(),
+						region);
+				if(this.interval==null)
+					{
+					return wrapException("Cannot parse interval "+region+" or chrom doesn't exists in sam dictionary.");
+					}
+				
+		
+				BufferedImage img=build(samFileReader);
+				
+				
+				samFileReader.close();
+				samFileReader=null;
+				if(img==null)
+					{
+					return wrapException("No image was generated.");
+					}
+				if(getOutputFile()==null)
+					{
+					ImageIO.write(img, "PNG", stdout());
+					}
+				else
+					{
+					LOG.info("saving to "+getOutputFile());
+					ImageIO.write(img, "PNG", getOutputFile());
+					}
+				return Collections.emptyList();
 				}
-			
+			catch(IOException err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				CloserUtil.close(indexedFastaSequenceFile);
+				CloserUtil.close(samFileReader);
+				indexedFastaSequenceFile=null;			
+				}
 	
-			samFileReader.setValidationStringency(ValidationStringency.SILENT);
-			BufferedImage img=build(samFileReader);
-			
-			
-			
-			samFileReader.close();
-			samFileReader=null;
-			if(img==null)
-				{
-				error("No image was generated.");
-				return -1;
-				}
-			if(fileOut==null)
-				{
-				ImageIO.write(img, "PNG", System.out);
-				}
-			else
-				{
-				info("saving to "+fileOut);
-				ImageIO.write(img, "PNG", fileOut);
-				}
 			}
-		catch(IOException err)
-			{
-			error(err, err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(indexedFastaSequenceFile);
-			CloserUtil.close(samFileReader);
-			}
-		return 0;
 		}
-	
 	public static void main(String[] args)
 		{
 		new Bam2Raster().instanceMainWithExit(args);
