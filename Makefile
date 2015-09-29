@@ -30,7 +30,7 @@ generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.version}
 tmp.mft=${tmp.dir}/META-INF/MANIFEST.MF
 export dist.dir?=${this.dir}dist-${htsjdk.version}
-galaxy.bundle.dir?=galaxy-bundle
+
 
 mysql.version?=5.1.34
 mysql.jar?=lib/mysql-connector-java-${mysql.version}-bin.jar
@@ -53,6 +53,53 @@ SPACE := $(EMPTY) $(EMPTY)
 
 
 
+define compile-cmd
+
+## 1 : target name
+## 2 : qualified main class name
+## 3 : other deps
+
+$(1)  : ${htsjdk.jars} \
+		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
+		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
+		$(3) ${apache.commons.cli.jars}
+	echo "### COMPILING $(1) ######"
+	#generate java code if needed = a file with .xml exists, requires xsltproc
+	mkdir -p ${tmp.dir}/META-INF ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
+	xsltproc \
+		--xinclude \
+		--stringparam githash $$(if $$(realpath ${this.dir}.git/refs/heads/master), `cat  $$(realpath ${this.dir}.git/refs/heads/master) `, "undefined") \
+		--path "${this.dir}src/main/resources/xml" \
+		-o ${generated.dir}/java/$(dir $(subst .,/,$(2)))Abstract$(notdir $(subst .,/,$(2))).java \
+		${this.dir}src/main/resources/xsl/command2java.xsl \
+		"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"  
+	#copy resource
+	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
+	echo '### Printing javac version : it should be 1.7. if Not, check your $$$${PATH}.'
+	${JAVAC} -version
+	#compile
+	${JAVAC} -d ${tmp.dir} -g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" -sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
+	#create META-INF/MANIFEST.MF
+	echo "Manifest-Version: 1.0" > ${tmp.mft}
+	echo "Main-Class: $(2)" >> ${tmp.mft}
+	echo "Class-Path: $$(realpath $$(filter %.jar,$$^)) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
+	echo -n "Git-Hash: " >> ${tmp.mft}
+	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.mft} 
+	echo -n "Compile-Date: " >> ${tmp.mft}
+	date +%Y-%m-%d:%H-%m-%S >> ${tmp.mft}
+	#create jar
+	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
+	#create bash executable
+	echo '#!/bin/bash' > ${dist.dir}/$(1)
+	echo '${JAVA} -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$$$*' >> ${dist.dir}/$(1)
+	chmod  ugo+rx ${dist.dir}/$(1)
+	#cleanup
+	rm -rf ${tmp.dir}
+
+
+endef
+
+
 define compile-htsjdk-cmd
 
 ## 1 : target name
@@ -64,17 +111,7 @@ $(1)  : ${htsjdk.jars} \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
 		$(3) ${apache.commons.cli.jars}
 	echo "### COMPILING $(1) ######"
-	mkdir -p ${tmp.dir}/META-INF ${dist.dir} ${galaxy.bundle.dir}/jvarkit 
-	#create galaxy
-	rm -f ${galaxy.bundle.dir}/$(1).xml
-	-xsltproc --path ${this.dir}src/main/resources/xml \
-		--output ${galaxy.bundle.dir}/jvarkit/$(1).xml \
-		--stringparam name "$(1)" \
-		--stringparam class "$(2)" \
-		--stringparam classpath "$$(notdir $$(realpath $$(filter %.jar,$$^))) $(1).jar" \
-		--stringparam version $$(if $$(realpath .git/refs/heads/master), `cat  $$(realpath .git/refs/heads/master) `, "undefined") \
-		${this.dir}src/main/resources/xsl/tools2galaxy.xsl ${this.dir}src/main/resources/xml/tools.xml || echo "XSLT failed (ignored)"
-	-cp ${galaxy.bundle.dir}/jvarkit/$(1).xml ${tmp.dir}/META-INF/galaxy.xml 
+	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
 	#generate java code if needed = a file with .xml exists, requires xsltproc
 	mkdir -p ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
 	xsltproc \
@@ -134,8 +171,8 @@ endef
 # 
 # All executables
 #
-GALAXY_TOOLS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene
-APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
+APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
+	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
 	bam2wig	bam4deseq01	bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamtreepack	bamviewgui	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
@@ -165,7 +202,7 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 
 
 
-.PHONY: all tests $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar ${dist.dir}/jvarkit-${htsjdk.version}.jar
+.PHONY: all tests $(APPS) clean library top ${dist.dir}/jvarkit-${htsjdk.version}.jar
 
 top:
 	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
@@ -194,8 +231,8 @@ $(eval $(call compile-htsjdk-cmd,92368,${berkeleydb.jar}))
 #mysql
 $(eval $(call compile-htsjdk-cmd,vcfucsc,${jvarkit.package}.tools.vcfucsc.VcfUcsc,${mysql.jar}))
 
-$(eval $(call compile-htsjdk-cmd,addlinearindextobed,${jvarkit.package}.tools.misc.AddLinearIndexToBed))
-$(eval $(call compile-htsjdk-cmd,allelefreqcalc,${jvarkit.package}.tools.misc.AlleleFrequencyCalculator))
+$(eval $(call compile-cmd,addlinearindextobed,${jvarkit.package}.tools.misc.AddLinearIndexToBed))
+$(eval $(call compile-cmd,allelefreqcalc,${jvarkit.package}.tools.misc.AlleleFrequencyCalculator))
 $(eval $(call compile-htsjdk-cmd,almostsortedvcf,${jvarkit.package}.tools.sortvcfonref.AlmostSortedVcf))
 $(eval $(call compile-htsjdk-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate))
 $(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToFastq))
@@ -203,7 +240,7 @@ $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphic
 $(eval $(call compile-htsjdk-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
 $(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig))
 $(eval $(call compile-htsjdk-cmd,bam4deseq01,${jvarkit.package}.tools.bam4deseq.Bam4DeseqIntervals))
-$(eval $(call compile-htsjdk-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage))
+$(eval $(call compile-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage))
 $(eval $(call compile-htsjdk-cmd,bamgenscan,${jvarkit.package}.tools.genscan.BamGenScan))
 $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bamindexnames.BamIndexReadNames))
 $(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver))
@@ -338,7 +375,7 @@ $(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterj
 $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.misc.VcfFilterSequenceOntology))
 $(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology))
-$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead))
+$(eval $(call compile-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead))
 $(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn))
 $(eval $(call compile-htsjdk-cmd,vcfjaspar,${jvarkit.package}.tools.jaspar.VcfJaspar))
 $(eval $(call compile-htsjdk-cmd,vcfliftover,${jvarkit.package}.tools.liftover.VcfLiftOver))
@@ -360,7 +397,7 @@ $(eval $(call compile-htsjdk-cmd,vcfstats,${jvarkit.package}.tools.vcfstats.VcfS
 $(eval $(call compile-htsjdk-cmd,vcfstopcodon,${jvarkit.package}.tools.vcfannot.VCFStopCodon))
 $(eval $(call compile-htsjdk-cmd,vcfstripannot,${jvarkit.package}.tools.vcfstripannot.VCFStripAnnotations))
 $(eval $(call compile-htsjdk-cmd,vcftabixml,${jvarkit.package}.tools.vcftabixml.VCFTabixml))
-$(eval $(call compile-htsjdk-cmd,vcftail,${jvarkit.package}.tools.misc.VcfTail))
+$(eval $(call compile-cmd,vcftail,${jvarkit.package}.tools.misc.VcfTail))
 $(eval $(call compile-htsjdk-cmd,vcftreepack,${jvarkit.package}.tools.treepack.VcfTreePack))
 $(eval $(call compile-htsjdk-cmd,vcftrio,${jvarkit.package}.tools.vcftrios.VCFTrios))
 $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf))
@@ -374,7 +411,7 @@ $(eval $(call compile-htsjdk-cmd,samretrieveseqandqual,${jvarkit.package}.tools.
 $(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.VcfEnsemblVepRest,api.ensembl.vep))
 $(eval $(call compile-htsjdk-cmd,vcfgroupbypop,${jvarkit.package}.tools.misc.VcfGroupByPopulation))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallers,${jvarkit.package}.tools.vcfcmp.VcfCompareCallers))
-$(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile))
+$(eval $(call compile-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile))
 $(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xcontamination.XContaminations))
 $(eval $(call compile-htsjdk-cmd,vcfjoinvcfjs,${jvarkit.package}.tools.vcffilterjs.VCFJoinVCFJS))
 $(eval $(call compile_biostar_cmd,139647))
@@ -601,14 +638,7 @@ src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
 		"http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
 
 
-##
-## galaxy bundle
-##
-galaxy : ${galaxy.bundle.dir}.tar
-${galaxy.bundle.dir}.tar : ${GALAXY_TOOLS} ${htsjdk.jars} 
-	rm -f $@
-	cp  $(foreach T,${GALAXY_TOOLS}, ${dist.dir}/${T}.jar )  $(filter %.jar, $^ ) ${galaxy.bundle.dir}/jvarkit
-	tar cvf $@ -C ${galaxy.bundle.dir} .
+
 
 #
 # ga4gh schema, see 

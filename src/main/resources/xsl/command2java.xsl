@@ -7,7 +7,7 @@
 <xsl:import href="mod.command.xsl"/>
 <xsl:output method="text"/>
 <xsl:param name="githash">undefined</xsl:param>
-
+<xsl:param name="javaversion">7</xsl:param>
 
 <xsl:template match="/">
  <xsl:apply-templates select="c:app"/>
@@ -211,8 +211,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		
 		}
+	<xsl:if test="number($javaversion) &gt;= 8">
 	<xsl:apply-templates select="." mode="jfx"/>
-	
+	</xsl:if>
 	
 	
 	}
