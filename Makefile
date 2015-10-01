@@ -237,7 +237,7 @@ $(eval $(call compile-htsjdk-cmd,almostsortedvcf,${jvarkit.package}.tools.sortvc
 $(eval $(call compile-htsjdk-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate))
 $(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToFastq))
 $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster))
-$(eval $(call compile-htsjdk-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
+$(eval $(call compile-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
 $(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig))
 $(eval $(call compile-htsjdk-cmd,bam4deseq01,${jvarkit.package}.tools.bam4deseq.Bam4DeseqIntervals))
 $(eval $(call compile-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage))
