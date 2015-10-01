@@ -63,7 +63,7 @@ $(1)  : ${htsjdk.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
 		$(3) ${apache.commons.cli.jars}
-	echo "### COMPILING $(1) ######"
+	echo "### COMPILING $(1) requirements : $$^ ######"
 	#generate java code if needed = a file with .xml exists, requires xsltproc
 	mkdir -p ${tmp.dir}/META-INF ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
 	xsltproc \
@@ -238,7 +238,7 @@ $(eval $(call compile-htsjdk-cmd,backlocate,${jvarkit.package}.tools.backlocate.
 $(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToFastq))
 $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster))
 $(eval $(call compile-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
-$(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig))
+$(eval $(call compile-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig))
 $(eval $(call compile-htsjdk-cmd,bam4deseq01,${jvarkit.package}.tools.bam4deseq.Bam4DeseqIntervals))
 $(eval $(call compile-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage))
 $(eval $(call compile-htsjdk-cmd,bamgenscan,${jvarkit.package}.tools.genscan.BamGenScan))

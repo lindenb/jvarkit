@@ -29,10 +29,13 @@ History:
 package com.github.lindenb.jvarkit.tools.bam2wig;
 
 import java.io.File;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -45,38 +48,32 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class Bam2Wig extends AbstractCommandLineProgram
+public class Bam2Wig extends AbstractBam2Wig
 	{
-	private int WINDOW_SIZE=100;
-	private int WINDOW_SHIFT=25;
-	private int min_qual=0;
-	private boolean custom_track=false;
-	private boolean cast_to_integer=false;
-	private int min_gap=200;
-	private int min_depth=0;
-	private PrintWriter pw;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Bam2Wig.class);
+
+
 	
-	private Bam2Wig()
+	public Bam2Wig()
 		{
 		
 		}
 	
+
 	@Override
-	public String getProgramDescription() {
-		return "Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth."+
-				"Memory intensive: must alloc sizeof(int)*size(chrom)";
+	public Command createCommand()
+		{
+		return new MyCommand();
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/Bam2Wig";
-		}
+	static private class MyCommand extends AbstractBam2Wig.AbstractBam2WigCommand
+		{
+		private PrintWriter pw = null;
 	
-	private void run(SamReader sfr)
+	private void run(final SamReader sfr)
 		{
 		SAMSequenceRecord prev_ssr=null;
 		SAMSequenceDictionary dict=sfr.getFileHeader().getSequenceDictionary();
@@ -96,6 +93,7 @@ public class Bam2Wig extends AbstractCommandLineProgram
 				rec=iter.next();
 				progess.watch(rec);
 				if(rec.getReadUnmappedFlag()) continue;
+				if(rec.getMappingQuality()==0) continue;
 				if(rec.getMappingQuality()< min_qual) continue;
 				}
 			
@@ -197,141 +195,95 @@ public class Bam2Wig extends AbstractCommandLineProgram
 			if(prev_ssr==null)
 				{
 				prev_ssr=dict.getSequence(rec.getReferenceIndex());
-				info("Allocating int["+prev_ssr.getSequenceLength()+"]");
+				LOG.info("Allocating int["+prev_ssr.getSequenceLength()+"]");
 				array=new int[prev_ssr.getSequenceLength()];
-				info("Allocating : Done.");
+				LOG.info("Allocating : Done.");
 				Arrays.fill(array, 0);
 				}
 			
-			Cigar cigar=rec.getCigar();
+			final Cigar cigar=rec.getCigar();
 			if(cigar==null) continue;
     		int refpos1=rec.getAlignmentStart();
     		for(CigarElement ce:cigar.getCigarElements())
     			{
-				switch(ce.getOperator())
-					{
-					case H:break;
-					case S:break;
-					case I:break;
-					case P:break;
-					case N:// reference skip
-					case D://deletion in reference
-						{
-    					refpos1+=ce.getLength();
-						break;
-						}
-					case M:
-					case EQ:
-					case X:
-						{
-						for(int i=0;i< ce.getLength() && refpos1<= array.length;++i)
-    		    			{
+    			final CigarOperator op = ce.getOperator();
+    			if(op.consumesReferenceBases())
+    				{
+    				if(op.consumesReadBases())
+    					{
+    					for(int i=0;i< ce.getLength() && refpos1<= array.length;++i)
+			    			{
 							if(refpos1>= 1 && refpos1<=array.length)
 								{
 								array[refpos1-1]++;
 								}
-    						refpos1++;
+							refpos1++;
 		    				}
-						break;
-						}
-					default: throw new IllegalStateException(
-							"Doesn't know how to handle cigar operator:"+ce.getOperator()+
-							" cigar:"+cigar
-							);
-
-					}
-    				
+    					}
+    				else
+    					{
+    					refpos1+=ce.getLength();
+    					}
+    				}    				
     			}
-			
-
-			
-			
 			}
 		progess.finish();
 		iter.close();
 		pw.flush();
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -t print a UCSC custom track header.");
-		out.println(" -s (int) window shift . Default:"+WINDOW_SHIFT);
-		out.println(" -w (int) window size . Default:"+WINDOW_SIZE);
-		out.println(" -q (int) min qual . Default:"+min_qual);
-		out.println(" -i cast to integer.");
-		out.println(" -g (int) minimal zero-coverage length before writing a new header. Default:"+min_gap);
-		out.println(" -d (int) minimal depth before setting depth to zero . Default:"+min_depth);
-		super.printOptions(out);	
-		}
+
 	
-	@Override
-	public int doWork(String[] args)
-		{
-	    GetOpt opt=new GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "ts:w:q:g:d:i"))!=-1)
+		@Override
+		public Collection<Throwable> call() throws Exception 
 			{
-			switch(c)
+			final SamReaderFactory sfrf= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+			SamReader in=null;
+			final List<String> args = getInputFiles();
+			if(getOutputFile()==null)
 				{
-				case 'i': cast_to_integer=true;break;
-				case 't':custom_track=true;break;
-				case 's': WINDOW_SHIFT=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
-				case 'w': WINDOW_SIZE=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
-				case 'q': min_qual=Math.max(0, Integer.parseInt(opt.getOptArg())); break;
-				case 'g': min_gap=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
-				case 'd': min_depth=Math.max(0, Integer.parseInt(opt.getOptArg())); break;
-				default: 
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-				}
-			}
-		
-		
-		
-	    
-		SamReaderFactory sfrf= SamReaderFactory.makeDefault();
-		sfrf.validationStringency( ValidationStringency.SILENT);
-		SamReader in=null;
-		this.pw=new PrintWriter(System.out);
-		try
-			{
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				in=sfrf.open(SamInputResource.of(System.in));
-				run(in);
-				in.close();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				in=sfrf.open(SamInputResource.of(new File(filename)));
-				run(in);
+				this.pw=new PrintWriter(stdout());
 				}
 			else
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
+				this.pw=new PrintWriter(getOutputFile());
 				}
-			
-			pw.flush();
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(in);
-			CloserUtil.close(pw);
+			try
+				{
+				if(args.isEmpty())
+					{
+					LOG.info("Reading from stdin");
+					in=sfrf.open(SamInputResource.of(System.in));
+					run(in);
+					in.close();
+					}
+				else if(args.size()==1)
+					{
+					String filename=args.get(0);
+					LOG.info("Reading from "+filename);
+					in=sfrf.open(SamInputResource.of(new File(filename)));
+					run(in);
+					}
+				else
+					{
+					return wrapException(getMessageBundle("illegal.number.of.arguments"));
+					}
+				
+				pw.flush();
+				return Collections.emptyList();
+				}
+			catch(Exception err)
+				{
+				LOG.error(err);
+				return wrapException(err);
+				}
+			finally
+				{
+				CloserUtil.close(in);
+				CloserUtil.close(pw);
+				pw=null;
+				in=null;
+				}
 			}
 		}
 	/**

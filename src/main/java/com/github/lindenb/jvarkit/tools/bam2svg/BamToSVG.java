@@ -32,6 +32,7 @@ import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -90,9 +91,9 @@ public class BamToSVG extends AbstractBamToSVG
 	
 		private int HEIGHT_RULER=200;
 		private Hershey hershey=new Hershey();
-		private IndexedFastaSequenceFile indexedFastaSequenceFile;
+		private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 		private GenomicSequence genomicSequence=null;
-		private Interval interval;
+		private Interval interval=null;
 		private Map<String, Sample> sampleHash=new HashMap<String, Sample>();
 		private double featureHeight =1;
 		private double featureWidth =1;
@@ -868,6 +869,7 @@ public class BamToSVG extends AbstractBamToSVG
 			SamReaderFactory sfrf= SamReaderFactory.makeDefault();
 			sfrf.validationStringency( ValidationStringency.SILENT);
 			XMLStreamWriter w=null;
+			FileOutputStream fout=null;
 			try
 				{
 				for(String vcf:getVcfFileSet())
@@ -879,7 +881,7 @@ public class BamToSVG extends AbstractBamToSVG
 				if(args.isEmpty())
 					{
 					LOG.info("Reading from stdin");
-					in = sfrf.open(SamInputResource.of(System.in));
+					in = sfrf.open(SamInputResource.of(stdin()));
 					iter=in.iterator();
 					readBamStream(iter);
 					iter.close();
@@ -912,7 +914,15 @@ public class BamToSVG extends AbstractBamToSVG
 				this.HEIGHT_RULER=(int)(this.niceIntFormat.format(this.interval.end).length()*this.featureHeight+5);
 				LOG.info("Feature height:"+this.featureHeight);
 				XMLOutputFactory xof=XMLOutputFactory.newFactory();
-				w=xof.createXMLStreamWriter(System.out, "UTF-8");
+				if(getOutputFile()==null)
+					{
+					w=xof.createXMLStreamWriter(stdout(), "UTF-8");
+					}
+				else
+					{
+					fout = new FileOutputStream(getOutputFile());
+					w=xof.createXMLStreamWriter(fout, "UTF-8");
+					}
 				w.writeStartDocument("UTF-8", "1.0");
 				printDocument(w,intervalStr);
 				w.writeEndDocument();
@@ -929,9 +939,11 @@ public class BamToSVG extends AbstractBamToSVG
 			finally
 				{
 				CloserUtil.close(iter);
+				CloserUtil.close(fout);
 				CloserUtil.close(in);
 				CloserUtil.close(this.indexedFastaSequenceFile);
 				this.indexedFastaSequenceFile=null;
+				this.interval=null;
 				}
 			}
 		}
