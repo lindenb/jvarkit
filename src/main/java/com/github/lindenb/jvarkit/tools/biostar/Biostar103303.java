@@ -33,7 +33,9 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -42,11 +44,11 @@ import htsjdk.tribble.readers.LineIterator;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StreamTokenizer;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -57,14 +59,13 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.tools.biostar.AbstractBiostar103303;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-public class Biostar103303 extends AbstractCommandLineProgram
+public class Biostar103303 extends AbstractBiostar103303
 	{
-	private IntervalTreeMap<List<GTFGene.Exon>> exonMap=new IntervalTreeMap<List<GTFGene.Exon>>();
-	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar103303.class);
 	private static class GTFGene
 		{
 		 class Exon
@@ -127,13 +128,26 @@ public class Biostar103303 extends AbstractCommandLineProgram
 			}
 		
 		}
+
+	
+	@Override
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractBiostar103303.AbstractBiostar103303Command
+		{
+		
+	private IntervalTreeMap<List<GTFGene.Exon>> exonMap=new IntervalTreeMap<List<GTFGene.Exon>>();
+	
 	private void readGTF(String uri ,SAMSequenceDictionary dict) throws IOException
 		{
 		int count_exons=0;
-		Set<String> unknown=new HashSet<String>();
-		info("Reading "+uri);
-		Pattern tab=Pattern.compile("[\t]");
-		Map<String,GTFGene> transcript2gene=new HashMap<String, GTFGene>();
+		final Set<String> unknown=new HashSet<String>();
+		LOG.info("Reading "+uri);
+		final Pattern tab=Pattern.compile("[\t]");
+		final Map<String,GTFGene> transcript2gene=new HashMap<String, GTFGene>();
 		LineIterator iter=IOUtils.openURIForLineIterator(uri);
 		while(iter.hasNext())
 			{
@@ -146,7 +160,7 @@ public class Biostar103303 extends AbstractCommandLineProgram
 				{
 				if(!unknown.contains(tokens[0]))
 					{
-					warning("chromosome in "+line+" not in SAMSequenceDictionary ");
+					LOG.warn("chromosome in "+line+" not in SAMSequenceDictionary ");
 					unknown.add(tokens[0]);
 					}
 				continue;
@@ -250,7 +264,7 @@ public class Biostar103303 extends AbstractCommandLineProgram
 				++count_exons;
 				}
 			}
-		info("End Reading "+uri+ " N="+count_exons);
+		LOG.info("End Reading "+uri+ " N="+count_exons);
 		}
 	private static Object notnull(Object o)
 		{
@@ -259,81 +273,52 @@ public class Biostar103303 extends AbstractCommandLineProgram
 		}
 	
 	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Calculate Percent Spliced In (PSI). See also https://www.biostars.org/p/103303/";
-		}
 	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar103303";
-		}
 
 	@Override
-	public void printOptions(PrintStream out)
+	public Collection<Throwable> call() throws Exception
 		{
-		out.println(" -g (uri) GTF file. required.");
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		String gtfuri=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "g:"))!=-1)
+		
+		if(super.gtfuri==null)
 			{
-			switch(c)
-				{
-				case 'g': gtfuri= opt.getOptArg();break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
-		if(gtfuri==null)
-			{
-			error("GTF input misssing");
-			return -1;
+			return wrapException("GTF input misssing");
 			}
 		SamReader samReader=null;
 		SAMRecordIterator iter=null;
-		PrintWriter out=new PrintWriter(System.out);
+		PrintWriter out=null;
+		if(getOutputFile()==null)
+			{
+			out=new PrintWriter(stdout());
+			}
+		else
+			{
+			out=new PrintWriter(getOutputFile());
+			}
+		final List<String> args= getInputFiles();
 		try
 			{
-			SamFileReaderFactory.setDefaultValidationStringency(ValidationStringency.SILENT);
-			if(opt.getOptInd()==args.length)
+			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			if(args.isEmpty())
 				{
-				info("Reading sfomr stdin");
-				samReader=SamFileReaderFactory.mewInstance().openStdin();
+				LOG.info("Reading sfomr stdin");
+				samReader=srf.open(SamInputResource.of(stdin()));
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.isEmpty())
 				{
-				File filename=new File(args[opt.getOptInd()]);
-				info("Reading from "+filename);
-				samReader=SamFileReaderFactory.mewInstance().open(filename);
+				File filename=new File(args.get(0));
+				LOG.info("Reading from "+filename);
+				samReader=srf.open(filename);
 				}
 			else
 				{
-				error("Illegal number of arguments.");
-				return -1;
+				return wrapException("Illegal number of arguments.");
 				}
 			
 			this.readGTF(gtfuri,samReader.getFileHeader().getSequenceDictionary());
 			
 			if(this.exonMap.isEmpty())
 				{
-				error("no exon found");
-				return -1;
+				return wrapException("no exon found");
 				}
 			iter=samReader.iterator();
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader().getSequenceDictionary());
@@ -496,8 +481,7 @@ public class Biostar103303 extends AbstractCommandLineProgram
 			}
 		catch (Exception e)
 			{
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{
@@ -505,9 +489,9 @@ public class Biostar103303 extends AbstractCommandLineProgram
 			CloserUtil.close(samReader);
 			CloserUtil.close(out);
 			}
-		return 0;
+		return Collections.emptyList();
 		}
-
+		}
 	
 	
 	/**

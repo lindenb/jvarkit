@@ -165,7 +165,7 @@ endef
 # $2: other deps
 #
 define compile_biostar_cmd
-$(call compile-htsjdk-cmd,biostar$(1),${jvarkit.package}.tools.biostar.Biostar$(1),$(2))
+$(call compile-cmd,biostar$(1),${jvarkit.package}.tools.biostar.Biostar$(1),$(2))
 endef
 
 # 
