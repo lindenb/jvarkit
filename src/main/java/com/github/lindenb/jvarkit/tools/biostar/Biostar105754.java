@@ -1,10 +1,14 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.tribble.readers.LineIterator;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import org.broad.igv.bbfile.BBFileReader;
@@ -12,33 +16,12 @@ import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 
-public class Biostar105754 extends AbstractCommandLineProgram
+public class Biostar105754 extends AbstractBiostar105754
 	{
-	private PrintWriter out;
-	private org.broad.igv.bbfile.BBFileReader bbFileReader;
-	private final long EXTEND_SHIFT=1000000;//
-	private final long MAX_CHROM_END=Integer.MAX_VALUE-EXTEND_SHIFT;
-	private Biostar105754()
-		{
-		}
-	@Override
-	public String getProgramDescription() {
-		return "bigwig : peak distance from specific genomic region";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar105754";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -B (bigwig file) Required.");
-		super.printOptions(out);
-		}
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar105754.class);
+
 	
 	private static int distance(int start1,int end1, int start2,int end2)
 		{
@@ -57,165 +40,162 @@ public class Biostar105754 extends AbstractCommandLineProgram
 		return d;
 		}
 	
-	private void run(LineIterator r)
-		throws IOException
+	@Override
+	public Command createCommand()
 		{
-		Pattern tab=Pattern.compile("[\t]");
-		while(r.hasNext() && !this.out.checkError())
-			{
-			String line=r.next();
-			if(line.startsWith("#"))
-				{
-				continue;
-				}
-			String tokens[]=tab.split(line,4);
-			if(tokens.length<3)
-				{
-				System.err.println("Bad BED line: "+line);
-				continue;
-				}
-			String chrom=tokens[0];
-			int chromStart0=Integer.parseInt(tokens[1]);
-			int chromEnd0=Integer.parseInt(tokens[2]);
-			if(chrom.isEmpty() || chromStart0<0L || chromEnd0<chromStart0)
-				{
-				System.err.println("Bad BED line: "+line);
-				continue;
-				}
-			
-			//extends bed area until something was found
-			int chromStart=chromStart0;
-			int chromEnd=chromEnd0;
-			
-			for(;;)
-				{
-				BigWigIterator iter=this.bbFileReader.getBigWigIterator(
-						chrom,
-						chromStart,
-						chrom,
-						chromEnd,
-						false);
-				if(iter!=null)
-					{
-					WigItem best=null;
-					while(iter.hasNext())
-						{
-						WigItem wigItem=iter.next();
-						if(best==null || 
-								distance(chromStart,chromEnd,best.getStartBase(),best.getEndBase()) >
-								distance(chromStart,chromEnd,wigItem.getStartBase(),wigItem.getEndBase())
-								)
-							{
-							best=wigItem;
-							}
-						}
-					if(best!=null)
-						{
-						this.out.print(best.getChromosome());
-						this.out.print("\t");
-						this.out.print(best.getStartBase());
-						this.out.print("\t");
-						this.out.print(best.getEndBase());
-						this.out.print("\t");
-						this.out.print(best.getWigValue());
-						this.out.print("\t");
-						this.out.print(line);
-						this.out.println();
-						break;
-						}
-					}
-				//extend bed area
-				long start2=chromStart-EXTEND_SHIFT;
-				long end2=chromEnd+EXTEND_SHIFT;
-				if(start2<0) start2=0;
-				if(end2>MAX_CHROM_END) end2=MAX_CHROM_END;
-				//too wide, break loop
-				if(start2==0 && end2==MAX_CHROM_END)
-					{
-					System.err.println("no data found for\t"+line);
-					break;
-					}
-				chromStart=(int)start2;
-				chromEnd=(int)end2;
-				}
-			}
+		return new MyCommand();
 		}
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		String bigWigFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"B:"))!=-1)
+	static private class MyCommand extends AbstractBiostar105754.AbstractBiostar105754Command
 			{
-			switch(c)
+			private PrintWriter out=null;
+			private org.broad.igv.bbfile.BBFileReader bbFileReader=null;
+			private final long EXTEND_SHIFT=1000000;//
+			private final long MAX_CHROM_END=Integer.MAX_VALUE-EXTEND_SHIFT;
+	
+		
+		private void run(BufferedReader r)
+			throws IOException
+			{
+			String line;
+			Pattern tab=Pattern.compile("[\t]");
+			while((line=r.readLine())!=null && !this.out.checkError())
 				{
-				case 'B': bigWigFile= opt.getOptArg();break;
-				default:
+				if(line.startsWith("#"))
 					{
-					switch(handleOtherOptions(c, opt,args))
+					continue;
+					}
+				String tokens[]=tab.split(line,4);
+				if(tokens.length<3)
+					{
+					System.err.println("Bad BED line: "+line);
+					continue;
+					}
+				String chrom=tokens[0];
+				int chromStart0=Integer.parseInt(tokens[1]);
+				int chromEnd0=Integer.parseInt(tokens[2]);
+				if(chrom.isEmpty() || chromStart0<0L || chromEnd0<chromStart0)
+					{
+					System.err.println("Bad BED line: "+line);
+					continue;
+					}
+				
+				//extends bed area until something was found
+				int chromStart=chromStart0;
+				int chromEnd=chromEnd0;
+				
+				for(;;)
+					{
+					BigWigIterator iter=this.bbFileReader.getBigWigIterator(
+							chrom,
+							chromStart,
+							chrom,
+							chromEnd,
+							false);
+					if(iter!=null)
 						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+						WigItem best=null;
+						while(iter.hasNext())
+							{
+							WigItem wigItem=iter.next();
+							if(best==null || 
+									distance(chromStart,chromEnd,best.getStartBase(),best.getEndBase()) >
+									distance(chromStart,chromEnd,wigItem.getStartBase(),wigItem.getEndBase())
+									)
+								{
+								best=wigItem;
+								}
+							}
+						if(best!=null)
+							{
+							this.out.print(best.getChromosome());
+							this.out.print("\t");
+							this.out.print(best.getStartBase());
+							this.out.print("\t");
+							this.out.print(best.getEndBase());
+							this.out.print("\t");
+							this.out.print(best.getWigValue());
+							this.out.print("\t");
+							this.out.print(line);
+							this.out.println();
+							break;
+							}
 						}
+					//extend bed area
+					long start2=chromStart-EXTEND_SHIFT;
+					long end2=chromEnd+EXTEND_SHIFT;
+					if(start2<0) start2=0;
+					if(end2>MAX_CHROM_END) end2=MAX_CHROM_END;
+					//too wide, break loop
+					if(start2==0 && end2==MAX_CHROM_END)
+						{
+						LOG.warn("no data found for\t"+line);
+						break;
+						}
+					chromStart=(int)start2;
+					chromEnd=(int)end2;
 					}
 				}
-			}
-		if(bigWigFile==null)
-			{
-			error("Big wig file undefined");
-			return -1;
 			}
 		
-		try
-			{
-			info("Opening "+bbFileReader);
-			this.bbFileReader=new BBFileReader(bigWigFile);
-			if(!this.bbFileReader.isBigWigFile())
+		@Override
+		public Collection<Throwable> call() throws Exception
 				{
-				error("File "+bigWigFile+" is not a bigwig file");
-				return -1;
-				}
-			this.out=new PrintWriter(System.out);
-			
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading BED from stdin");
-				LineIterator r=IOUtils.openStdinForLineIterator();
-				run(r);
-				CloserUtil.close(r);
-				}
-			else
-				{
-				for(int i=opt.getOptInd();
-						i< args.length && !out.checkError()
-						;++i)
+				if(super.bigWigFile==null)
 					{
-					String filename=args[i];
-					info("Reading BED from "+filename);
-					LineIterator r=IOUtils.openURIForLineIterator(filename);
-					run(r);
-					CloserUtil.close(r);
-
+					return wrapException("Big wig file undefined");
+					}
+				
+				try
+					{
+					LOG.info("Opening "+super.bigWigFile);
+					this.bbFileReader=new BBFileReader(super.bigWigFile);
+					if(!this.bbFileReader.isBigWigFile())
+						{
+						return wrapException("File "+super.bigWigFile+" is not a bigwig file");
+						}
+					if(getOutputFile()==null)
+						{
+						this.out=new PrintWriter(System.out);
+						}
+					else
+						{
+						this.out = new PrintWriter(stdout());
+						}
+					List<String> args = this.getInputFiles();
+					if(args.isEmpty())
+						{
+						BufferedReader r= new BufferedReader(new InputStreamReader(stdin()));
+						run(r);
+						CloserUtil.close(r);
+						}
+					else
+						{
+						for(String filename : args)
+							{
+							LOG.info("Reading BED from "+filename);
+							BufferedReader r= IOUtils.openURIForBufferedReading(filename);
+							run(r);
+							CloserUtil.close(r);
+							}
+						}
+					this.out.flush();
+					this.out.close();
+					return Collections.emptyList();
+					}
+				catch(Exception err)
+					{
+					LOG.error(err);
+					return wrapException(err);
+					}
+				finally
+					{
+					CloserUtil.close(bbFileReader);
+					CloserUtil.close(this.out);
+					bbFileReader=null;
 					}
 				}
-			this.out.flush();
-			this.out.close();
-			return 0;
 			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(bbFileReader);
-			CloserUtil.close(this.out);
-			}
-		}
 	public static void main(String[] args) {
 		new Biostar105754().instanceMainWithExit(args);
 	}
