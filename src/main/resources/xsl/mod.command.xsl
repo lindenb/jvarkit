@@ -173,7 +173,7 @@ options.addOption(org.apache.commons.cli.Option
 		<xsl:when test="@type='bool' or @type='boolean' or @type='Boolean' or @type='java.lang.Boolean'">
 		.hasArg(false)
 		</xsl:when>
-		<xsl:when test="@type='int' or @type='long' or @type='short' or @type='double' or @type='float'  or @type='number'">
+		<xsl:when test="@type='int' or @type='java.lang.Integer' or @type='long' or @type='short' or @type='double' or @type='float'  or @type='number'">
 		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.NUMBER_VALUE)
 		</xsl:when>
@@ -337,6 +337,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='int'">int</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">boolean</xsl:when>
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">java.lang.String</xsl:when>
+	<xsl:when test="@type='Integer' or @type='java.lang.Integer'">java.lang.Integer</xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate='yes'>java-type: unknown type "<xsl:value-of select="@type"/>".</xsl:message>
 	</xsl:otherwise>
@@ -422,6 +423,14 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to integer",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
 		
 		</xsl:when>
+		
+		<xsl:when test="@type='java.lang.Integer'">
+		java.lang.Integer <xsl:value-of select="generate-id()"/> = null;
+		try { <xsl:value-of select="generate-id()"/> =new Integer(opt.getValue());}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to integer",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+		
+		</xsl:when>
+		
 		<xsl:when test="@type='output-file'">
 		java.io.File <xsl:value-of select="generate-id()"/> =  null;
 		try { <xsl:value-of select="generate-id()"/> = new java.io.File(opt.getValue());}

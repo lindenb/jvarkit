@@ -27,6 +27,8 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Set;
@@ -73,12 +75,12 @@ import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
 @SuppressWarnings("serial")
-public class BatchIGVPictures extends JFrame
+class BatchIGVPicturesFrame extends JFrame
 	{
 	private static final String PREF_EXTEND="snp.extend";
 	private static final String PREF_IGV_PORT="igv.port";
@@ -91,7 +93,7 @@ public class BatchIGVPictures extends JFrame
 	private static final int FORMAT_HTML=0;
 	private static final int FORMAT_PPT=1;
 	
-	private String about="";
+	String about="";
 	private Preferences preferences;
 	private AbstractSlave currentSlave=null;
 	private JTextArea snpArea;
@@ -228,7 +230,7 @@ public class BatchIGVPictures extends JFrame
 				int index=0;
 				for(Mutation m:this.mutations)
 					{
-					if(this!=BatchIGVPictures.this.currentSlave) break;
+					if(this!=BatchIGVPicturesFrame.this.currentSlave) break;
 					log("Drawing "+(++index)+"/"+this.mutations.size()+" "+m);
 				
 					int chromStart= Math.max(1,m.position - extend);
@@ -383,7 +385,7 @@ public class BatchIGVPictures extends JFrame
 				int index=0;
 				for(Mutation m:this.mutations)
 					{
-					if(this!=BatchIGVPictures.this.currentSlave) break;
+					if(this!=BatchIGVPicturesFrame.this.currentSlave) break;
 					log("Drawing "+(++index)+"/"+this.mutations.size()+" "+m);
 					
 					int chromStart= Math.max(1,m.position - extend);
@@ -597,7 +599,7 @@ public class BatchIGVPictures extends JFrame
 
 	
 	
-	private BatchIGVPictures()
+	BatchIGVPicturesFrame()
 		{
 		setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 		try {
@@ -629,7 +631,7 @@ public class BatchIGVPictures extends JFrame
 			{
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				JOptionPane.showMessageDialog(BatchIGVPictures.this, about);
+				JOptionPane.showMessageDialog(BatchIGVPicturesFrame.this, about);
 				}
 			});
 		JPanel contentPane=new JPanel(new BorderLayout(5, 5));
@@ -1011,55 +1013,30 @@ public class BatchIGVPictures extends JFrame
 		}
 
 	
-	private static class Main extends AbstractCommandLineProgram
+	}
+
+public class BatchIGVPictures extends AbstractBatchIGVPictures
+	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BatchIGVPictures.class);
+	@Override
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractBatchIGVPictures.AbstractBatchIGVPicturesCommand
 		{
 		@Override
-		public String getProgramName()
+		public Collection<Throwable> call() throws Exception
 			{
-			return BatchIGVPictures.class.getSimpleName();
-			}
-		@Override
-		public String getProgramDescription() {
-			return "Batch IGV pictures.";
-			}
-		@Override
-		protected String getOnlineDocUrl() {
-			return "https://github.com/lindenb/jvarkit/wiki/BatchIGVPictures";
-			}
-		
-		@Override
-		public void printOptions(java.io.PrintStream out)
-			{
-			super.printOptions(out);
-			}
-		
-		@Override
-		public int doWork(String[] args)
-			{
-			final BatchIGVPictures app=new BatchIGVPictures();
-			com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-			int c;
-			while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-				{
-				switch(c)
-					{
-					default:
-						{
-						switch(handleOtherOptions(c, opt,args))
-							{
-							case EXIT_FAILURE: return -1;
-							case EXIT_SUCCESS: return 0;
-							default:break;
-							}
-						}
-					}
-				}
+
+			final BatchIGVPicturesFrame app=new BatchIGVPicturesFrame();
 			
-			app.about=" Author:"+getAuthorName()+
+			app.about=" Author:"+getFactory().getAuthorName()+
 						" Version:"+getVersion()+
 						" Htsjdk.version:"+HtsjdkVersion.getVersion()+
-						" WWW:"+getOnlineDocUrl()+
-						" Date:"+getCompileDate()
+						" WWW:"+getFactory().getOnlineDocUrl()+
+						" Date:"+getFactory().getCompileDate()
 						;
 			try
 				{
@@ -1068,7 +1045,7 @@ public class BatchIGVPictures extends JFrame
 					public void run()
 						{
 						Dimension win=Toolkit.getDefaultToolkit().getScreenSize();
-						app.setTitle(Main.this.getProgramName());
+						app.setTitle(getName());
 						app.pack();
 						Dimension ps=app.getPreferredSize();
 						app.setLocation(
@@ -1078,29 +1055,20 @@ public class BatchIGVPictures extends JFrame
 						app.setVisible(true);
 						}
 					});
-				return 0;
+				return Collections.emptyList();
 				}
 			catch(Exception err)
 				{
-				error(err);
-				System.exit(-1);
-				return-1;
+				LOG.error(err);
+				return wrapException(err);
 				}
 			finally
 				{
-				
 				}
-		
-			}
-		
-		
-		public static void main(String[] args) {
-			new Main().instanceMain(args);
 			}
 		}
 	
 	public static void main(String[] args) {
-		Main.main(args);
+		new BatchIGVPictures().instanceMain(args);
 		}
-	
 	}

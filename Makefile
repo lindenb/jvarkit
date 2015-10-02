@@ -173,7 +173,7 @@ endef
 #
 APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
-	bam2xml bam2wig	bam4deseq01	bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
+	bam2xml bam2wig		bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamtreepack	bamviewgui	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
@@ -235,12 +235,11 @@ $(eval $(call compile-cmd,addlinearindextobed,${jvarkit.package}.tools.misc.AddL
 $(eval $(call compile-cmd,allelefreqcalc,${jvarkit.package}.tools.misc.AlleleFrequencyCalculator))
 $(eval $(call compile-cmd,bam2xml,${jvarkit.package}.tools.bam2xml.Bam2Xml))
 $(eval $(call compile-htsjdk-cmd,almostsortedvcf,${jvarkit.package}.tools.sortvcfonref.AlmostSortedVcf))
-$(eval $(call compile-htsjdk-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate))
+$(eval $(call compile-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate))
 $(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToFastq))
 $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster))
 $(eval $(call compile-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
 $(eval $(call compile-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig))
-$(eval $(call compile-htsjdk-cmd,bam4deseq01,${jvarkit.package}.tools.bam4deseq.Bam4DeseqIntervals))
 $(eval $(call compile-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage))
 $(eval $(call compile-htsjdk-cmd,bamgenscan,${jvarkit.package}.tools.genscan.BamGenScan))
 $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bamindexnames.BamIndexReadNames))
@@ -250,8 +249,8 @@ $(eval $(call compile-htsjdk-cmd,bamrenamechr,${jvarkit.package}.tools.misc.Conv
 $(eval $(call compile-htsjdk-cmd,bamstats02,${jvarkit.package}.tools.bamstats01.BamStats02))
 $(eval $(call compile-htsjdk-cmd,bamstats04,${jvarkit.package}.tools.bamstats04.BamStats04))
 $(eval $(call compile-htsjdk-cmd,bamtreepack,${jvarkit.package}.tools.treepack.BamTreePack))
-$(eval $(call compile-htsjdk-cmd,bamviewgui,${jvarkit.package}.tools.bamviewgui.BamViewGui))
-$(eval $(call compile-htsjdk-cmd,batchigvpictures,${jvarkit.package}.tools.batchpicts.BatchIGVPictures,copy.opendoc.odp.resources))
+$(eval $(call compile-cmd,bamviewgui,${jvarkit.package}.tools.bamviewgui.BamViewGui))
+$(eval $(call compile-cmd,batchigvpictures,${jvarkit.package}.tools.batchpicts.BatchIGVPictures,copy.opendoc.odp.resources))
 $(eval $(call compile-htsjdk-cmd,bedliftover,${jvarkit.package}.tools.liftover.BedLiftOver))
 $(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.ConvertBedChromosomes))
 $(eval $(call compile_biostar_cmd,103303))
@@ -417,7 +416,7 @@ $(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xconta
 $(eval $(call compile-htsjdk-cmd,vcfjoinvcfjs,${jvarkit.package}.tools.vcffilterjs.VCFJoinVCFJS))
 $(eval $(call compile_biostar_cmd,139647))
 $(eval $(call compile-htsjdk-cmd,vcfburden,${jvarkit.package}.tools.misc.VcfBurden))
-$(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae))
+$(eval $(call compile-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae))
 $(eval $(call compile-htsjdk-cmd,vcfbedsetfilter,${jvarkit.package}.tools.vcfbed.VCFBedSetFilter))
 $(eval $(call compile-htsjdk-cmd,vcfreplacetag,${jvarkit.package}.tools.vcfstripannot.VCFReplaceTag))
 $(eval $(call compile-htsjdk-cmd,vcfindextabix,${jvarkit.package}.tools.misc.VcfIndexTabix))
