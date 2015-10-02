@@ -192,5 +192,6 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Gtf2Xml">Gtf2Xml</a></th><td>convert gff to XML  in order to be processed with XSLT</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SortSamRefName">SortSamRefName</a></th><td>Sort a SAM/BAM on REF/contig and then on read/query name</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar154220">Biostar154220</a></th><td>Cap BAM to a given coverage. see https://www.biostars.org/p/154220</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfToBam">VcfToBam</a></th><td>create a BAM from a VCF.</td></tr>
 </table>
 
