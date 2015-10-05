@@ -5,7 +5,7 @@ package com.github.lindenb.jvarkit.util.cli;
  * Simple and Stupid implementation of C:getopt
  *
  */
-@Deprecated
+
 public class GetOpt
 	{	
 
