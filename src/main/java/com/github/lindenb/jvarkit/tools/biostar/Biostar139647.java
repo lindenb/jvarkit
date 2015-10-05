@@ -108,7 +108,6 @@ public class Biostar139647 extends AbstractBiostar139647
 			{
 			SAMFileWriter w=null;
 			LineIterator r=null;
-			SAMFileWriterFactory sfwf=null;
 			try
 				{
 				if(filename==null)
@@ -238,15 +237,7 @@ public class Biostar139647 extends AbstractBiostar139647
 					pgr.setCommandLine(getProgramCommandLine());
 					}
 				
-				sfwf = new SAMFileWriterFactory();
-				if(getOutputFile()==null)
-					{
-					w = sfwf.makeSAMWriter(header, false, System.out);
-					}
-				else
-					{
-					w = sfwf.makeSAMOrBAMWriter(header, false, getOutputFile());
-					}
+				w = openSAMFileWriter(header, false);
 				DefaultSAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
 				for(String seqName: this.sample2sequence.keySet())
 					{

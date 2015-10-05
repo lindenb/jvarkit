@@ -27,6 +27,11 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	{
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(<xsl:apply-templates select="." mode="abstract-class-name"/>.class);
 	<xsl:apply-templates select=".//c:option"/>
+	
+	<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
+	private htsjdk.samtools.SamReader.Type outputformat= htsjdk.samtools.SamReader.Type.SAM_TYPE;
+	</xsl:if>
+	
 	<xsl:if test="not(@generate-output-option='false')">
 		/** option outputFile */
 		protected java.io.File outputFile = null;
@@ -102,12 +107,24 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		options.addOption(org.apache.commons.cli.Option
 			.builder("o")
 			.longOpt("output")
-			.desc("output file. Default: stdout")
+			.desc("output file. <xsl:if test="c:output/@type='sam' or c:output/@type='bam'"> extension should be .sam or .bam </xsl:if> Default: stdout")
 			.argName("FILENAME")
 			.hasArg(true)
 			.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
 			.build() );	
 		</xsl:if>
+		
+		<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
+		options.addOption(org.apache.commons.cli.Option
+			.builder("formatout")
+			.longOpt("formatout")
+			.desc("output format : sam or bam if stdout")
+			.argName("FORMAT")
+			.hasArg(true)
+			.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
+			.build() );	
+		</xsl:if>
+		
 		
 		super.fillOptions(options);
 		}
@@ -123,6 +140,27 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			try { tmpf = new java.io.File(opt.getValue());}
 			catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to output File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
 			this.setOutputFile(tmpf);
+			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
+			}
+		</xsl:if>
+		<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
+		if(opt.getOpt().equals("formatout"))
+			{
+			String formatout= opt.getValue().toLowerCase();
+			if(!formatout.startsWith(".")) formatout="."+formatout;
+			if( formatout.equals(".bam"))
+				{
+				this.outputformat = htsjdk.samtools.SamReader.Type.BAM_TYPE;
+				}
+			else if( formatout.equals(".sam"))
+				{
+				this.outputformat = htsjdk.samtools.SamReader.Type.SAM_TYPE;
+				}
+			else
+				{
+				LOG.error(formatout+" is not a valid extension.");
+				return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+				}
 			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
 			}
 		</xsl:if>
@@ -157,12 +195,46 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			<xsl:if test="not(@generate-output-option='false')">
 			this.setOutputFile(factory.getOutputFile());
 			</xsl:if>
-			
+			<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
+			this.outputformat = factory.outputformat;
+			</xsl:if>
 			}
 			
 			
 		<xsl:apply-templates select=".//c:option"/>
 		
+		<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
+		private htsjdk.samtools.SamReader.Type outputformat= htsjdk.samtools.SamReader.Type.SAM_TYPE;
+		
+				protected htsjdk.samtools.SAMFileWriter openSAMFileWriter(final htsjdk.samtools.SAMFileHeader header,final boolean presorted)
+			{
+			final htsjdk.samtools.SAMFileWriterFactory sfw= new htsjdk.samtools.SAMFileWriterFactory();
+			if(getOutputFile()==null)
+				{
+				if(this.outputformat==null || this.outputformat.equals(htsjdk.samtools.SamReader.Type.SAM_TYPE))
+					{
+					LOG.info("Saving as SAM");
+					return sfw.makeSAMWriter(header, presorted, stdout());
+					}
+				else if( this.outputformat.equals(htsjdk.samtools.SamReader.Type.BAM_TYPE))
+					{
+					LOG.info("Saving as BAM");
+					return sfw.makeBAMWriter(header, presorted, stdout());
+					}
+				else
+					{
+					throw new IllegalStateException("Bad output format");
+					}
+				}
+			else
+				{
+				LOG.info("Saving as "+ getOutputFile());
+				return sfw.makeSAMOrBAMWriter(header, presorted, getOutputFile());
+				}
+			}
+
+		
+		</xsl:if>
 		
 		<xsl:if test="not(@generate-output-option='false')">
 		/** option outputFile */
