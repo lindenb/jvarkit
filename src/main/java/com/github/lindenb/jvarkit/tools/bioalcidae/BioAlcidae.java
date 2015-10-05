@@ -38,12 +38,12 @@ import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.readers.LineIterator;
 
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import javax.script.Bindings;
@@ -53,20 +53,20 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-
-
 
 /**
  * BioAlcidae
  *
  */
 public class BioAlcidae
-	extends AbstractKnimeApplication
+	extends AbstractBioAlcidae
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BioAlcidae.class);
+	
 	private enum FORMAT {
 		VCF{
 			@Override
@@ -102,100 +102,29 @@ public class BioAlcidae
 			;
 		abstract boolean canAs(String src);
 		};
-	private Bindings bindings=null;
-	private CompiledScript  script=null;
-	private ScriptEngine engine=null;
-	private FORMAT format= null;
-	private PrintWriter writer=null;
-
-	/** expression in file */
-	private File SCRIPT_FILE=null;
-	/** expression in string */
-	private String SCRIPT_EXPRESSION=null;	
+		
+	@Override
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
 	
-	
-	public BioAlcidae()
+	static private class MyCommand extends AbstractBioAlcidae.AbstractBioAlcidaeCommand
 		{
 		
-		}
-	@Override
-	public String getProgramDescription() {
-		return "javascript version of awk";
-		}			
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"BioAlcidae";
-		}
-	
-	
-	public void setScriptExpression(String expression) {
-		SCRIPT_EXPRESSION = expression;
-		}
-	
-	public void setScriptFile(File src)
-		{
-		SCRIPT_FILE = src;
-		}
-	
-	public void setFormat(String fmt )
-		{
-		try {
-			this.format=FORMAT.valueOf(fmt.toUpperCase());
-		} catch (Exception e) {
-			this.format=null;
-			}
-		}
+		private Bindings bindings=null;
+		private CompiledScript  script=null;
+		private ScriptEngine engine=null;
+		private FORMAT format= null;
+		private PrintWriter writer=null;
 
-	@Override
-	public int initializeKnime()
-		{
-		if(SCRIPT_EXPRESSION==null && SCRIPT_FILE==null)
-			{
-			error("undefined script");
-			return -1;
-			}
-		if(SCRIPT_EXPRESSION!=null && SCRIPT_FILE!=null)
-			{
-			error("both javascript file/expr are set");
-			return -1;
-			}
-		ScriptEngineManager manager = new ScriptEngineManager();
-		this.engine = manager.getEngineByName("js");
-		if(this.engine==null)
-			{
-			error("The embedded 'javascript' engine is not available in java. Do you use the SUN/Oracle Java Runtime ?");
-			return -1;
-			}
+
 		
-		try
-			{
-			Compilable compilingEngine = (Compilable)this.engine;
-			this.script = null;
-			if(SCRIPT_FILE!=null)
-				{
-				info("Compiling "+SCRIPT_FILE);
-				FileReader r=new FileReader(SCRIPT_FILE);
-				this.script=compilingEngine.compile(r);
-				r.close();
-				}
-			else
-				{
-				info("Compiling "+SCRIPT_EXPRESSION);
-				this.script=compilingEngine.compile(SCRIPT_EXPRESSION);
-				}
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		return 0;
-		}
+
 	
-	private int execute_vcf(String source) throws IOException
+	private  Collection<Throwable> execute_vcf(String source) throws IOException
 		{
-		info("source: "+source);
+		LOG.info("source: "+source);
 		VcfIterator in=null;
 		try {
 			in = VCFUtils.createVcfIterator(source);
@@ -204,12 +133,11 @@ public class BioAlcidae
 			bindings.put("iter",in);
 			bindings.put("format","vcf");
 			this.script.eval(bindings);
-			return 0;
+			return Collections.emptyList();
 			} 
 		catch (Exception e)
 			{
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{
@@ -221,7 +149,7 @@ public class BioAlcidae
 			}
 		}
 	
-	private int execute_bam(String source) throws IOException
+	private  Collection<Throwable> execute_bam(String source) throws IOException
 		{
 		SamReader in=null;
 		SAMRecordIterator iter=null;
@@ -240,12 +168,12 @@ public class BioAlcidae
 			bindings.put("iter",iter);
 			bindings.put("format","sam");
 			this.script.eval(bindings);
-			return 0;
+			return Collections.emptyList();
 			} 
 		catch (Exception e)
 			{
-			error(e);
-			return -1;
+			LOG.error(e);
+			return wrapException(e);
 			}
 		finally
 			{
@@ -269,14 +197,14 @@ public class BioAlcidae
 			}
 		public void print()
 			{
-			BioAlcidae.this.writer.print(">");
-			BioAlcidae.this.writer.print(name);
+			MyCommand.this.writer.print(">");
+			MyCommand.this.writer.print(name);
 			for(int i=0;i< sequence.length();++i)
 				{
-				if(i%60==0) BioAlcidae.this.writer.println();
-				BioAlcidae.this.writer.print(this.charAt(i));
+				if(i%60==0) MyCommand.this.writer.println();
+				MyCommand.this.writer.print(this.charAt(i));
 				}
-			BioAlcidae.this.writer.println();
+			MyCommand.this.writer.println();
 			}
 		public int length()
 			{
@@ -334,7 +262,7 @@ public class BioAlcidae
 			}
 		}
 	
-	private int execute_fasta(String source) throws IOException
+	private  Collection<Throwable> execute_fasta(String source) throws IOException
 		{
 		FastaIterator iter=new FastaIterator();
 		try {
@@ -342,12 +270,12 @@ public class BioAlcidae
 			bindings.put("iter",iter);
 			bindings.put("format","fasta");
 			this.script.eval(bindings);
-			return 0;
+			return Collections.emptyList();
 			} 
 		catch (Exception e)
 			{
-			error(e);
-			return -1;
+			LOG.error(e);
+			return wrapException(e);
 			}
 		finally
 			{
@@ -357,7 +285,7 @@ public class BioAlcidae
 			}
 		}
 	
-	private int execute_fastq(String source) throws IOException
+	private  Collection<Throwable> execute_fastq(String source) throws IOException
 		{
 		InputStream in=null;
 		FourLinesFastqReader iter=null;
@@ -374,12 +302,12 @@ public class BioAlcidae
 			bindings.put("iter",in);
 			bindings.put("format","fastq");
 			this.script.eval(bindings);
-			return 0;
+			return Collections.emptyList();
 			} 
 		catch (Exception e)
 			{
-			error(e);
-			return -1;
+			LOG.error(e);
+			return wrapException(e);
 			}
 		finally
 			{
@@ -392,7 +320,7 @@ public class BioAlcidae
 		}
 	
 	
-	private int execute(FORMAT fmt,String source) throws IOException
+	private  Collection<Throwable> execute(FORMAT fmt,String source) throws IOException
 		{
 		switch(fmt)
 			{
@@ -400,19 +328,73 @@ public class BioAlcidae
 			case BAM: case SAM: return execute_bam(source);
 			case FASTQ: return execute_fastq(source);
 			case FASTA: return execute_fasta(source);
-			default: throw new IllegalStateException();
+			default: return wrapException(new IllegalStateException());
 			}
 		}
 	
+	
 	@Override
-	public int executeKnime(List<String> args)
+	public Collection<Throwable> call() throws Exception
 		{
+		
+
+		if(this.formatString!=null)
+			{
+			try {
+				this.format=FORMAT.valueOf(this.formatString.toUpperCase());
+			} catch (Exception e) {
+				return wrapException(e);
+				}
+			}
+		if(super.scriptExpression==null && super.scripFile==null)
+			{
+			return wrapException("undefined script");
+			}
+		if(super.scriptExpression!=null && super.scripFile!=null)
+			{
+			return wrapException("both javascript file/expr are set");
+			}
+		ScriptEngineManager manager = new ScriptEngineManager();
+		this.engine = manager.getEngineByName("js");
+		if(this.engine==null)
+			{
+			return wrapException("The embedded 'javascript' engine is not available in java. Do you use the SUN/Oracle Java Runtime ?");
+			}
+		
+		try
+			{
+			Compilable compilingEngine = (Compilable)this.engine;
+			this.script = null;
+			if(super.scripFile!=null)
+				{
+				LOG.info("Compiling "+super.scripFile);
+				FileReader r=new FileReader(super.scripFile);
+				this.script=compilingEngine.compile(r);
+				r.close();
+				}
+			else
+				{
+				LOG.info("Compiling "+super.scriptExpression);
+				this.script=compilingEngine.compile(super.scriptExpression);
+				}
+			}
+		catch(Exception err)
+			{
+			return wrapException(err);
+			}
+		
+		
+		final List<String> args = getInputFiles();
+		
+		
+		
+		
 		try
 			{
 			this.bindings = this.engine.createBindings();
 			if(getOutputFile()==null)
 				{
-				this.writer = new PrintWriter(System.out);
+				this.writer = new PrintWriter(stdout());
 				}
 			else
 				{
@@ -424,8 +406,7 @@ public class BioAlcidae
 				{
 				if(this.format==null)
 					{
-					error("Format must be specified when reading from stdin");
-					return -1;
+					return wrapException("Format must be specified when reading from stdin");
 					}
 				return execute(this.format,null);
 				}
@@ -446,24 +427,22 @@ public class BioAlcidae
 					}
 				if(fmt==null)
 					{
-					error("Cannot get file format for "+filename);
-					return -1;
+					return wrapException("Cannot get file format for "+filename);
 					}
-				if( execute(fmt,filename) !=0 )
+				Collection<Throwable> errors= execute(fmt,filename);
+				if(!errors.isEmpty())
 					{
-					error("Failure for "+filename);
-					return -1;
+					return errors;
 					}
 				}
 				
 			
-			System.out.flush();
-			return 0;
+			this.writer.flush();
+			return Collections.emptyList();
 			}
 		catch(Exception err)
 			{
-			error(err);	
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -474,45 +453,17 @@ public class BioAlcidae
 				}
 			this.writer=null;
 			bindings=null;
+			this.engine=null;
+			this.bindings=null;
+			this.format=null;
 			}
 		}
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -e (js expression). Optional.");
-		out.println(" -f (js file). Optional.");
-		out.println(" -F (format) force format: one of "+Arrays.asList(FORMAT.values()));
-		super.printOptions(out);
-		}
 	
 	
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:e:f:F:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'F':this.setFormat(opt.getOptArg());break;
-				case 'o':this.setOutputFile(new File(opt.getOptArg()));break;
-				case 'e':this.setScriptExpression(opt.getOptArg());break;
-				case 'f':this.setScriptFile(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
+	
+	
+	}
 	
 	public static void main(String[] args) {
 		new BioAlcidae().instanceMainWithExit(args);

@@ -73,7 +73,6 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SAM2Tsv">SAM2Tsv<a></th><td>Tabular view of each base of the reads vs the reference.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar84786">Biostar84786<a></th><td>Table transposition</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCF2SQL">VCF2SQL<a></th><td>Generate the SQL code to insert a VCF into a database</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Bam4DeseqIntervals">Bam4DeseqIntervals<a></th><td>creates a table for DESEQ with the number of reads within a sliding window for multiple BAMS</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFStripAnnotations">VCFStripAnnotations<a></th><td>Removes one or more field from the INFO column from a VCF.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VCFGeneOntology">VCFGeneOntology<a></th><td>Finds and filters the GO terms for VCF annotated with SNPEFF or VEP</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar86480">Biostar86480<a></th><td>Genomic restriction finder See http://www.biostars.org/p/86480/</td></tr>

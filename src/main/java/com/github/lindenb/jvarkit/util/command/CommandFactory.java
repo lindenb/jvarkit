@@ -293,16 +293,16 @@ public String getVersion()
 	}
 
 
-protected String getOnlineDocUrl()
+public String getOnlineDocUrl()
 	{
 	return "https://github.com/lindenb/jvarkit/wiki/"+getName();
 	}
 
-protected String getAuthorName()
+public String getAuthorName()
 	{
 	return "Pierre Lindenbaum PhD.";
 	}
-protected String getAuthorMail()
+public String getAuthorMail()
 	{
 	return "plinden"+"baum"+
 			'@'+

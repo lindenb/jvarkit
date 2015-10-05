@@ -4,4 +4,78 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.bam2wig">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)</description>
+
+<!--  
+
+		out.println(" -g (int) . Default:"+min_gap);
+		out.println(" -d (int) . Default:"+min_depth);
+
+
+ -->
+<options>
+	<option name="custom_track" type="boolean" opt="t" longopt="header"  default="false">
+		<description>print a UCSC custom track header</description>
+	</option>
+	<option name="WINDOW_SHIFT" type="int" opt="s" longopt="windowShift"  argname="BASES" default="25">
+		<description>window shift</description>
+	</option>
+	<option name="WINDOW_SIZE" type="int" opt="w" longopt="windowSize"  argname="BASES" default="100">
+		<description>window size</description>
+	</option>
+	<option name="min_qual" type="int" opt="q" longopt="mapq"  argname="QUAL" default="0">
+		<description>min MAPQ</description>
+	</option>
+	<option name="cast_to_integer" type="boolean" opt="i" longopt="integer" default="false">
+		<description>cast to integer</description>
+	</option>
+	<option name="min_gap" type="int" opt="g" longopt="zerolength"  argname="LENGTH" default="200">
+		<description>minimal zero-coverage length before writing a new header</description>
+	</option>
+	<option name="min_depth" type="int" opt="d" longopt="zerolength"  argname="DEPTH" default="0">
+		<description> minimal depth before setting depth to zero</description>
+	</option>
+</options>
+
+<documentation>
+
+<h:h3>Example</h:h3>
+the input file
+<h:pre class="bash">bash
+java -jar dist/bam2wig.jar -w 1 -s 3 -i -t -L OFF examples/toy.bam
+</h:pre>
+
+<h:pre>track type=wiggle_0 name="__REPLACE_WIG_NAME__" description="__REPLACE_WIG_DESC__"
+fixedStep chrom=ref start=7 step=3 span=1
+1
+3
+3
+3
+1
+1
+0
+0
+1
+0
+2
+2
+1
+fixedStep chrom=ref2 start=1 step=3 span=1
+1
+2
+3
+4
+5
+6
+6
+5
+4
+3
+3
+3</h:pre>
+
+</documentation>
+
+			
+<!-- __PLACEHOLDER__ -->
+</app>

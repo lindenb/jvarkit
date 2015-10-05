@@ -1,3 +1,30 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
 package com.github.lindenb.jvarkit.tools.bamviewgui;
 
 import java.awt.BorderLayout;
@@ -16,12 +43,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -64,7 +92,8 @@ import javax.swing.table.TableModel;
 
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
@@ -72,7 +101,7 @@ import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.util.picard.SamFlag;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
@@ -640,10 +669,11 @@ class BamFrame extends JDialog
 		@Override
 		public void run()
 			{
-			SAMFileReader tabixReader=null;
+			SamReader tabixReader=null;
 			SAMRecordIterator iter=null;
 			try
 				{
+				SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 				
 				for(int i=0;i< BamInternalFrames.size() && dataLoaderThread==this;++i)
 					{
@@ -652,11 +682,11 @@ class BamFrame extends JDialog
 					try
 						{
 						LOG.info("reading "+bamintf.ref.bamFile.getPath()+" region \""+reg+"\"");
-						tabixReader=new SAMFileReader(bamintf.ref.bamFile);
+						tabixReader=srf.open(bamintf.ref.bamFile);
 						if(reg!=null)
 							{
 							iter=tabixReader.queryOverlapping(
-									reg.getSequence(),
+									reg.getContig(),
 									reg.getStart(),
 									reg.getEnd()
 									);
@@ -709,7 +739,7 @@ class BamFrame extends JDialog
 				}
 			finally
 				{
-				if(tabixReader!=null) tabixReader.close();
+				CloserUtil.close(tabixReader);
 				rows.clear();
 				}
 			}
@@ -976,184 +1006,153 @@ class BamFrame extends JDialog
  */
 @Deprecated
 public class BamViewGui
-	extends AbstractCommandLineProgram
+	extends AbstractBamViewGui
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamViewGui.class);
 
-    
-    @Override
-    public String getProgramDescription() {
-    	return "Simple java-Swing-based BAM viewer.";
-    	}
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/BamViewGui";
-    	}
-    
-    private BamFileRef create(File bamFile) throws IOException
-    	{
-    	BamFileRef vfr=new BamFileRef();
-    	vfr.bamFile=bamFile;
-    	SAMFileReader r=null;
-    	try
-    		{
-    		r=new SAMFileReader(bamFile);
-    		vfr.header=r.getFileHeader();
-    		}
-    	catch(Exception err)
-    		{
-    		vfr.header=new SAMFileHeader();
-    		}
-    	finally
-    		{	
-    		CloserUtil.close(r);
-    		}
-    	return vfr;
-    	}
-    
-    private static boolean acceptBam(final File f)
-		{
-		if(f==null) return false;
-		String name=f.getName();
-		if(!name.endsWith(".bam")) return false;
-		if(new File(f.getParentFile(),name+".bai").exists()) return true;
-		return new File(
-				f.getParentFile(),
-				name.substring(0,name.length()-4)+".bai"
-				).exists();
-		}
-    
-    @Override
-    public void printOptions(PrintStream out) {
-    	out.println(" -H (host) IGV host example: '127.0.0.1' .Optional.");
-    	out.println(" -P (port:integer) IGV port example: '60151' .Optional.");
-    	super.printOptions(out);
-    	}
-    
-    
+	
 	@Override
-	public int doWork(String args[])
+	public Command createCommand()
 		{
-		SAMFileReader.setDefaultValidationStringency(ValidationStringency.SILENT);
-		JFrame.setDefaultLookAndFeelDecorated(true);
-		JDialog.setDefaultLookAndFeelDecorated(true);
-		List<BamFileRef> bams=new ArrayList<BamFileRef>();
-	     String IGV_HOST=null;
-	     Integer IGV_PORT=null;
-
-		
-
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"H:P:"))!=-1)
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractBamViewGui.AbstractBamViewGuiCommand
+		{
+	
+	   
+	    
+	    private BamFileRef create(File bamFile) throws IOException
+	    	{
+			SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+	    	BamFileRef vfr=new BamFileRef();
+	    	vfr.bamFile=bamFile;
+	    	SamReader r=null;
+	    	try
+	    		{
+	    		r= srf.open(bamFile);
+	    		vfr.header=r.getFileHeader();
+	    		}
+	    	catch(Exception err)
+	    		{
+	    		vfr.header=new SAMFileHeader();
+	    		}
+	    	finally
+	    		{	
+	    		CloserUtil.close(r);
+	    		}
+	    	return vfr;
+	    	}
+	    
+	    private static boolean acceptBam(final File f)
 			{
-			switch(c)
+			if(f==null) return false;
+			String name=f.getName();
+			if(!name.endsWith(".bam")) return false;
+			if(new File(f.getParentFile(),name+".bai").exists()) return true;
+			return new File(
+					f.getParentFile(),
+					name.substring(0,name.length()-4)+".bai"
+					).exists();
+			}
+	    
+	    
+	    @Override
+	    public Collection<Throwable> call() throws Exception
+	    	{
+			JFrame.setDefaultLookAndFeelDecorated(true);
+			JDialog.setDefaultLookAndFeelDecorated(true);
+			List<BamFileRef> bams=new ArrayList<BamFileRef>();
+	
+			final List<String> args= getInputFiles();
+			List<File> IN=new ArrayList<File>();
+			
+			if(args.isEmpty())
 				{
-				case 'H': IGV_HOST=opt.getOptArg();break;
-				case 'P': IGV_PORT=Integer.parseInt(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+				LOG.info("NO BAM provided; Opening dialog");
+				JFileChooser chooser=new JFileChooser();
+				chooser.setFileFilter(new FileFilter() {
+					@Override
+					public String getDescription() {
+						return "Indexed BAM files.";
 						}
-					}
-				}
-			}
-		
-		List<File> IN=new ArrayList<File>();
-		
-		if(opt.getOptInd()==args.length)
-			{
-			info("NO BAM provided; Opening dialog");
-			JFileChooser chooser=new JFileChooser();
-			chooser.setFileFilter(new FileFilter() {
-				@Override
-				public String getDescription() {
-					return "Indexed BAM files.";
-					}
-				
-				@Override
-				public boolean accept(File f)
+					
+					@Override
+					public boolean accept(File f)
+						{
+						if(f.isDirectory()) return true;
+						return acceptBam(f);
+						};
+					});
+				chooser.setMultiSelectionEnabled(true);
+				if(chooser.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION)
 					{
-					if(f.isDirectory()) return true;
-					return acceptBam(f);
-					};
-				});
-			chooser.setMultiSelectionEnabled(true);
-			if(chooser.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION)
-				{
-				info("user pressed cancel");
-				return -1;
-				}
-			File fs[]=chooser.getSelectedFiles();
-			if(fs!=null) IN.addAll(Arrays.asList(chooser.getSelectedFiles()));
-			}
-		else
-			{
-			for(int i=opt.getOptInd();i< args.length;++i)
-				{
-				File filename=new File(args[i]);
-				if(!acceptBam(filename))
-					{
-					error("Cannot use "+filename+" as input Bam. bad extenstion ? index missing ?");
-					return -1;
+					return wrapException("user pressed cancel");
 					}
-				IN.add(filename);
+				File fs[]=chooser.getSelectedFiles();
+				if(fs!=null) IN.addAll(Arrays.asList(chooser.getSelectedFiles()));
 				}
-			}
-
-		
-		for(File in:IN)
-			{
+			else
+				{
+				for(String arg:args)
+					{
+					File filename=new File(arg);
+					if(!acceptBam(filename))
+						{
+						return wrapException("Cannot use "+filename+" as input Bam. bad extenstion ? index missing ?");
+						}
+					IN.add(filename);
+					}
+				}
+	
+			
+			for(File in:IN)
+				{
+				try
+					{
+					bams.add(create(in));
+					}
+				catch(Exception err)
+					{
+					return wrapException(err);
+					}
+				}
+			if(bams.isEmpty())
+				{
+				return wrapException("No Bam file");
+				}
+			LOG.info("showing BAM frame");
+			final BamFrame frame=new BamFrame(bams);
+			frame.igvIP=super.IGV_HOST;
+			frame.igvPort=super.IGV_PORT;
 			try
 				{
-				bams.add(create(in));
+				SwingUtilities.invokeAndWait(new Runnable()
+					{
+					@Override
+					public void run()
+						{
+						Dimension screen=Toolkit.getDefaultToolkit().getScreenSize();
+						frame.setBounds(50, 50, screen.width-100, screen.height-100);
+						frame.setVisible(true);
+						}
+					});
 				}
 			catch(Exception err)
 				{
-				error(err);
-				return -1;
+				err.printStackTrace();
+				System.exit(-1);
 				}
+			
+			return Collections.emptyList();
 			}
-		if(bams.isEmpty())
-			{
-			error("No Bam file");
-			return -1;
-			}
-		info("showing BAM frame");
-		final BamFrame frame=new BamFrame(bams);
-		frame.igvIP=IGV_HOST;
-		frame.igvPort=IGV_PORT;
-		try
-			{
-			SwingUtilities.invokeAndWait(new Runnable()
-				{
-				@Override
-				public void run()
-					{
-					Dimension screen=Toolkit.getDefaultToolkit().getScreenSize();
-					frame.setBounds(50, 50, screen.width-100, screen.height-100);
-					frame.setVisible(true);
-					}
-				});
-			}
-		catch(Exception err)
-			{
-			err.printStackTrace();
-			System.exit(-1);
-			}
-		
-		return 0;
 		}
-
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args)
 		{
-		new BamViewGui().instanceMainWithExit(args);
+		new BamViewGui().instanceMain(args);
 		}
 
 	}
