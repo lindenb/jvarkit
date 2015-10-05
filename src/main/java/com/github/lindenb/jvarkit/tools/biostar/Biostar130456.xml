@@ -4,4 +4,18 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.biostar">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Individual VCF files from main VCF file. See   https://www.biostars.org/p/13045</description>
+
+<options>
+	<option name="filepattern" type="string" opt="p" longopt="pattern" argname="FILEPATTERN">
+		<description>output file pattern. Must contain the word __SAMPLE__</description>
+	</option>
+	<option name="remove_uncalled" type="boolean" opt="x" longopt="uncalled" default="false">
+		<description>remove uncalled genotypes</description>
+	</option>
+	<option name="remove_homref" type="boolean" opt="z" longopt="homref" default="false">
+		<description>remove homzygote REF/REF</description>
+	</option>
+</options>
+<!-- __PLACEHOLDER__ -->
+</app>

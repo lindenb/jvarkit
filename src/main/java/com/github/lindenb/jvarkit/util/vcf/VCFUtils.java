@@ -32,6 +32,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
@@ -239,6 +240,17 @@ public class VCFUtils
 		LOG.info("reading vcf from "+f);
 		return new VcfIterator(IOUtils.openFileForReading(f));	
 		}
+	
+	/** create a VCF iterator
+	 * 
+	 * @param IN input vcf file
+	 * */
+	public static  VcfIterator createVcfIteratorFromInputStream(InputStream in) throws IOException
+		{
+		LOG.info("reading vcf from stream");
+		return new VcfIterator(in);	
+		}
+
 	
 	/** create a VCF iterator
 	 * 

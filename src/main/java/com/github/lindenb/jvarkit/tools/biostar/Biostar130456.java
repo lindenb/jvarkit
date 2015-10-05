@@ -29,10 +29,11 @@ History:
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
-import java.io.PrintStream;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,167 +46,120 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class Biostar130456 extends AbstractCommandLineProgram
+public class Biostar130456 extends AbstractBiostar130456
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar130456.class);
+
 	private final static String SAMPLE_TAG="__SAMPLE__";
-
-	private Biostar130456()
-		{
-		}
-	@Override
-	public String getProgramDescription()
-		{
-		return " Individual VCF files from main VCF file. See   https://www.biostars.org/p/130456";
-		}
 	
 	@Override
-	public String getProgramName()
-		{
-		return "Biostar130456";
-		}
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar130456";
+	public Command createCommand() {
+		return new MyCommand();
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
+	static private class MyCommand extends AbstractBiostar130456.AbstractBiostar130456Command
 		{
-		out.println(" -p (pattern) output file pattern. Must contain the word "+SAMPLE_TAG);
-		out.println(" -x remove uncalled genotypes");
-		out.println(" -z remove homzygote REF/REF");
-		super.printOptions(out);
-		}
-	
-
-	
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean remove_uncalled =false;
-		boolean remove_homref =false;
-		String filepattern=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:xz"))!=-1)
+		@Override
+		public Collection<Throwable> call() throws Exception
 			{
-			switch(c)
+			final List<String> args =  getInputFiles();
+			
+			if(super.filepattern==null || !filepattern.contains(SAMPLE_TAG))
 				{
-				case 'p': filepattern=opt.getOptArg();break;
-				case 'x': remove_uncalled=true;break;
-				case 'z': remove_homref=true;break;
-				default:
+				return wrapException("File pattern is missing "+SAMPLE_TAG);
+				}
+			
+			VcfIterator in=null;
+			try
+				{
+				if(args.isEmpty())
 					{
-					switch(handleOtherOptions(c, opt,args))
+					LOG.info("Reading from <stdin>");
+					in = VCFUtils.createVcfIteratorFromInputStream(stdin());
+					}
+				else if(args.size()==1)
+					{
+					String filename=args.get(0);
+					LOG.info("Reading from "+filename);
+					in = VCFUtils.createVcfIterator(filename);
+					}
+				else
+					{
+					return wrapException(getMessageBundle("illegal.number.of.arguments"));
+					}
+				VCFHeader header=in.getHeader();
+				Set<String> samples = new HashSet<String>(header.getSampleNamesInOrder());
+				Map<String,VariantContextWriter> sample2writer=new HashMap<String,VariantContextWriter>(samples.size());
+	
+				if(samples.isEmpty())
+					{
+					return wrapException("VCF doesn't contain any sample");
+					}
+				LOG.info("N sample:"+samples.size());
+				for(String sample:samples)
+					{
+					
+					VCFHeader h2=new VCFHeader(
+							header.getMetaDataInInputOrder(),
+							Collections.singleton(sample)
+							);
+					h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+					h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+					h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+					h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+					String sampleFile= filepattern.replaceAll(SAMPLE_TAG,sample);
+					stdout().println(sampleFile);
+					File fout = new File(sampleFile);
+					if(fout.getParentFile()!=null) fout.getParentFile().mkdirs();
+					VariantContextWriter w= VCFUtils.createVariantContextWriter(fout);
+					w.writeHeader(h2);
+					sample2writer.put(sample, w);
+					}
+				SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+				while(in.hasNext())
+					{
+					VariantContext ctx= progress.watch(in.next());
+					for(String sample: samples)
 						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+						Genotype g= ctx.getGenotype(sample);
+						if(g==null) continue;
+						if(remove_uncalled && (!g.isAvailable() || !g.isCalled() || g.isNoCall()))
+							{
+							continue;
+							}
+						if(remove_homref && g.isHomRef()) continue;
+						VariantContextWriter w= sample2writer.get(sample);
+						VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+						GenotypeBuilder gb=new GenotypeBuilder(g);
+						vcb.genotypes(Collections.singletonList(gb.make()));
+						VariantContext ctx2= vcb.make();
+						w.add(ctx2);
 						}
 					}
-				}
-			}
-		if(filepattern==null || !filepattern.contains(SAMPLE_TAG))
-			{
-			error("File pattern is missing "+SAMPLE_TAG);
-			return -1;
-			}
-		
-		VcfIterator in=null;
-		try
-			{
-			if(args.length==opt.getOptInd())
-				{
-				info("Reading from <stdin>");
-				in = VCFUtils.createVcfIteratorStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				in = VCFUtils.createVcfIterator(filename);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			VCFHeader header=in.getHeader();
-			Set<String> samples = new HashSet<String>(header.getSampleNamesInOrder());
-			Map<String,VariantContextWriter> sample2writer=new HashMap<String,VariantContextWriter>(samples.size());
-
-			if(samples.isEmpty())
-				{
-				info("VCF doesn't contain any sample");
-				return -1;
-				}
-			info("N sample:"+samples.size());
-			for(String sample:samples)
-				{
-				
-				VCFHeader h2=new VCFHeader(
-						header.getMetaDataInInputOrder(),
-						Collections.singleton(sample)
-						);
-				h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-				h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-				h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-				h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-				String sampleFile= filepattern.replaceAll(SAMPLE_TAG,sample);
-				System.out.println(sampleFile);
-				File fout = new File(sampleFile);
-				if(fout.getParentFile()!=null) fout.getParentFile().mkdirs();
-				VariantContextWriter w= VCFUtils.createVariantContextWriter(fout);
-				w.writeHeader(h2);
-				sample2writer.put(sample, w);
-				}
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-			while(in.hasNext())
-				{
-				VariantContext ctx= progress.watch(in.next());
-				for(String sample: samples)
+				for(String sample:samples)
 					{
-					Genotype g= ctx.getGenotype(sample);
-					if(g==null) continue;
-					if(remove_uncalled && (!g.isAvailable() || !g.isCalled() || g.isNoCall()))
-						{
-						continue;
-						}
-					if(remove_homref && g.isHomRef()) continue;
+					LOG.info("Closing for sample "+sample);
 					VariantContextWriter w= sample2writer.get(sample);
-					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-					GenotypeBuilder gb=new GenotypeBuilder(g);
-					vcb.genotypes(Collections.singletonList(gb.make()));
-					VariantContext ctx2= vcb.make();
-					w.add(ctx2);
+					w.close();
 					}
+				progress.finish();
+				return Collections.emptyList();
 				}
-			for(String sample:samples)
+			catch (Exception e)
 				{
-				info("Closing for sample "+sample);
-				VariantContextWriter w= sample2writer.get(sample);
-				w.close();
+				return wrapException(e);
 				}
-			progress.finish();
-			return 0;
-			}
-		catch (Exception e)
-			{
-			error(e);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(in);
+			finally
+				{
+				CloserUtil.close(in);
+				}
 			}
 		}
 

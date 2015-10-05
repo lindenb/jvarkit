@@ -3,7 +3,6 @@ package com.github.lindenb.jvarkit.tools.biostar;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
@@ -12,128 +11,108 @@ import htsjdk.samtools.util.CloserUtil;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 @Deprecated /* use picard/RevertSam http://broadinstitute.github.io/picard/command-line-overview.html#RevertSam */
-public class Biostar106668 extends AbstractCommandLineProgram
+public class Biostar106668 extends AbstractBiostar106668
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar106668.class);
+
+	
+	
+	
+
 	@Override
-	public String getProgramDescription()
+	public Command createCommand()
 		{
-		return "unmark duplicates. Deprecated: Use picard/RevertSam http://broadinstitute.github.io/picard/command-line-overview.html#RevertSam";
+		return new MyCommand();
 		}
 	
-	@Override
-	protected String getOnlineDocUrl()
+	static private class MyCommand extends AbstractBiostar106668.AbstractBiostar106668Command
 		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar106668";
-		}
-
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.print(" -b generates binary bam output "); 
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean binary=false;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "b"))!=-1)
+		@Override
+		public Collection<Throwable> call() throws Exception
 			{
-			switch(c)
+			
+			final List<String> args= getInputFiles();
+			SamReader samReader=null;
+			SAMRecordIterator iter=null;
+			SAMFileWriter samWriter=null;
+			long nConvert=0;
+			try
 				{
-				case 'b': binary= true;break;				
-				default: 
+				SamFileReaderFactory.setDefaultValidationStringency(ValidationStringency.SILENT);
+				if(args.isEmpty())
 					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
+					LOG.info("Reading sfomr stdin");
+					samReader=SamFileReaderFactory.mewInstance().openStdin();
 					}
+				else if(args.size()==1)
+					{
+					File filename=new File(args.get(0));
+					LOG.info("Reading from "+filename);
+					samReader=SamFileReaderFactory.mewInstance().open(filename);
+					}
+				else
+					{
+					return wrapException("Illegal number of arguments.");
+					}
+				SAMFileHeader header=samReader.getFileHeader();
+				header.addComment(getProgramCommandLine());
+							
+				SAMFileWriterFactory sfw=new SAMFileWriterFactory();
+				sfw.setCreateIndex(false);
+				sfw.setCreateMd5File(false);
+				if(getOutputFile()!=null)
+					{
+					samWriter=sfw.makeSAMOrBAMWriter(header, true, getOutputFile());
+					}
+				else if(super.binary)
+					{
+					samWriter=sfw.makeBAMWriter(header,true, stdout());
+					}
+				else
+					{
+					samWriter=sfw.makeSAMWriter(header,true,stdout());
+					}
+				
+				iter=samReader.iterator();
+				SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+				while(iter.hasNext())
+					{
+					SAMRecord rec=progress.watch(iter.next());
+					if(rec.getDuplicateReadFlag())
+						{
+						rec.setDuplicateReadFlag(false);
+						++nConvert;
+						}
+					samWriter.addAlignment(rec);
+					}
+				progress.finish();
+				LOG.info("Convert :"+nConvert);
+				return Collections.emptyList();
 				}
-			}
-		
-		SamReader samReader=null;
-		SAMRecordIterator iter=null;
-		SAMFileWriter samWriter=null;
-		long nConvert=0;
-		try
-			{
-			SamFileReaderFactory.setDefaultValidationStringency(ValidationStringency.SILENT);
-			if(opt.getOptInd()==args.length)
+			catch (Exception e)
 				{
-				info("Reading sfomr stdin");
-				samReader=SamFileReaderFactory.mewInstance().openStdin();
+				LOG.error(e);
+				return wrapException(e);
 				}
-			else if(opt.getOptInd()+1==args.length)
+			finally
 				{
-				File filename=new File(args[opt.getOptInd()]);
-				info("Reading from "+filename);
-				samReader=SamFileReaderFactory.mewInstance().open(filename);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
-			SAMFileHeader header=samReader.getFileHeader();
-			SAMProgramRecord prg=header.createProgramRecord();
-			prg.setCommandLine(this.getProgramCommandLine());
-			prg.setProgramName(this.getProgramName());
-			prg.setProgramVersion(this.getVersion());
-						
-			SAMFileWriterFactory sfw=new SAMFileWriterFactory();
-			sfw.setCreateIndex(false);
-			sfw.setCreateMd5File(false);
-			if(binary)
-				{
-				samWriter=sfw.makeBAMWriter(header,true, System.out);
-				}
-			else
-				{
-				samWriter=sfw.makeSAMWriter(header,true, System.out);
+				CloserUtil.close(iter);
+				CloserUtil.close(samReader);
+				CloserUtil.close(samWriter);
 				}
 			
-			iter=samReader.iterator();
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader().getSequenceDictionary());
-			while(iter.hasNext())
-				{
-				SAMRecord rec=iter.next();
-				progress.watch(rec);
-				if(rec.getDuplicateReadFlag())
-					{
-					rec.setDuplicateReadFlag(false);
-					++nConvert;
-					}
-				samWriter.addAlignment(rec);
-				}
-			progress.finish();
-			info("Convert :"+nConvert);
 			}
-		catch (Exception e)
-			{
-			error(e);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(iter);
-			CloserUtil.close(samReader);
-			CloserUtil.close(samWriter);
-			}
-		return 0;
-		}
 
-	
+		}
 	
 	/**
 	 * @param args
