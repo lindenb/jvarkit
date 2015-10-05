@@ -204,7 +204,12 @@ public class IOUtils {
     
     public static LineReader openStdinForLineReader() throws IOException
 		{
-		return  LineReaderUtil.fromBufferedStream(System.in);
+		return  openStreamForLineReader(System.in);
+		}
+    
+    public static LineReader openStreamForLineReader(final InputStream in) throws IOException
+		{
+		return  LineReaderUtil.fromBufferedStream(in);
 		}
     
     public static BufferedReader openStdinForBufferedReader() throws IOException
@@ -213,6 +218,13 @@ public class IOUtils {
 		}
     
 
+    /** @return a LineIterator that should be closed with CloserUtils */
+    public static LineIterator openStreamForLineIterator(final InputStream in) throws IOException
+  		{
+  		return  new LineIteratorImpl(openStreamForLineReader(in));
+  		}
+
+    
     
     /** @return a LineIterator that should be closed with CloserUtils */
     public static LineIterator openStdinForLineIterator() throws IOException

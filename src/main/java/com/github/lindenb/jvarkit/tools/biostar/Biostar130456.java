@@ -132,7 +132,7 @@ public class Biostar130456 extends AbstractBiostar130456
 				w.writeHeader(h2);
 				sample2writer.put(sample, w);
 				}
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			while(in.hasNext())
 				{
 				VariantContext ctx= progress.watch(in.next());

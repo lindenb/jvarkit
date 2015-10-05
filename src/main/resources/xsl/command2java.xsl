@@ -210,6 +210,40 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			super.cleanup();
 			}
 		
+		<xsl:choose>
+		<xsl:when test="not(c:input/@type)">
+			<xsl:message terminate="no">input type undefined</xsl:message>
+		</xsl:when>
+		<xsl:when test="c:input/@type='stdin-or-one'">
+		
+		/** program should process this file or stdin() if inputName is null */ 
+		protected abstract java.util.Collection&lt;Throwable&gt; call(final String inputName) throws Exception;
+		
+		@Override
+		public  java.util.Collection&lt;Throwable&gt; call() throws Exception
+			{
+			final java.util.List&lt;String&gt; args= getInputFiles();
+			if(args.isEmpty())
+				{
+				return call(null);
+				}
+			else if(args.size()==1)
+				{
+				final String filename = args.get(0);
+				return call(filename);
+				}
+			else
+				{
+				return wrapException("Illegal number of arguments.");
+				}
+			}
+		</xsl:when>
+		<xsl:otherwise>
+		<xsl:message terminate="yes">undefined input/@type </xsl:message>
+		</xsl:otherwise>
+		</xsl:choose>
+		
+		
 		}
 	<xsl:if test="number($javaversion) &gt;= 8">
 	<xsl:apply-templates select="." mode="jfx"/>

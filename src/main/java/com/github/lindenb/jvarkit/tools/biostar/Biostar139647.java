@@ -29,6 +29,8 @@ History:
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,328 +52,283 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.util.command.Command;
 
-public class Biostar139647 extends AbstractKnimeApplication
+public class Biostar139647 extends AbstractBiostar139647
 	{
-	private static final char CLIPPING=' ';
-	private String REF="chrUn";
-	private int align_length=0;
-	private Map<String, AlignSequence> sample2sequence=new HashMap<String, AlignSequence>();
-	//private AbstractSequence consensus=null;
-	private enum Format{None,Clustal,Fasta};
-	
-	private abstract class AbstractSequence
-		{
-		abstract char at(int index);
-		@Override
-		public String toString()
-			{
-			StringBuilder b=new StringBuilder(align_length);
-			for(int i=0;i< align_length;++i) b.append(at(i));
-			return b.toString();
-			}
-		}
-	
-	
-	
-	private abstract class Sequence extends AbstractSequence
-		{
-		StringBuilder seq=new StringBuilder();
-		char at(int index)
-			{
-			return(index< 0 || index >=seq.length()?CLIPPING:Character.toUpperCase(seq.charAt(index)));
-			}
-		}
-	
-	private class AlignSequence extends Sequence
-		{
-		String name;
-		}
-	
-	
-	
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+ "Biostar139647";
-		}
-	@Override
-	public String getProgramDescription() {
-		return "Convert alignment in Fasta/Clustal format to SAM/BAM file see https://www.biostars.org/p/139647/";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-R (name) reference name. Optional");
-		out.println("-o (file) output file. default: stdout");
-		super.printOptions(out);
-		}
-	
-	
-	@Override
-	public int executeKnime(List<String> args)
-		{
-		SAMFileWriter w=null;
-		LineIterator r=null;
-		SAMFileWriterFactory sfwf=null;
-		try
-			{
-			if(args.isEmpty())
-				{
-				info("Reading from stdin");
-				r=IOUtils.openStdinForLineIterator();
-				}
-			else if(args.size()==0)
-				{
-				String filename=args.get(0);
-				info("Reading from "+filename);
-				r=IOUtils.openURIForLineIterator(filename);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			Format format=Format.None;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar139647.class);
 
-			
-			while(r.hasNext() && format==Format.None)
+	
+	private static final char CLIPPING=' ';
+	@Override
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractBiostar139647.AbstractBiostar139647Command
 				{
-				String line=r.peek();
-				if( line.trim().isEmpty()) { r.next(); continue;}
-				if(line.startsWith("CLUSTAL"))
+		private int align_length=0;
+		private Map<String, AlignSequence> sample2sequence=new HashMap<String, AlignSequence>();
+		//private AbstractSequence consensus=null;
+		private enum Format{None,Clustal,Fasta};
+		
+		private abstract class AbstractSequence
+			{
+			abstract char at(int index);
+			@Override
+			public String toString()
+				{
+				StringBuilder b=new StringBuilder(align_length);
+				for(int i=0;i< align_length;++i) b.append(at(i));
+				return b.toString();
+				}
+			}
+		
+		
+		
+		private abstract class Sequence extends AbstractSequence
+			{
+			StringBuilder seq=new StringBuilder();
+			char at(int index)
+				{
+				return(index< 0 || index >=seq.length()?CLIPPING:Character.toUpperCase(seq.charAt(index)));
+				}
+			}
+		
+		private class AlignSequence extends Sequence
+			{
+			String name;
+			}
+		
+		
+		
+		@Override
+		protected Collection<Throwable> call(final String filename) throws Exception
+			{
+			SAMFileWriter w=null;
+			LineIterator r=null;
+			SAMFileWriterFactory sfwf=null;
+			try
+				{
+				if(filename==null)
 					{
-					format=Format.Clustal;
-					r.next();//consume
-					break;
-					}
-				else if(line.startsWith(">"))
-					{
-					format=Format.Fasta;
-					break;
+					LOG.info("Reading from stdin");
+					r=IOUtils.openStreamForLineIterator(stdin());
 					}
 				else
 					{
-					error("MSA format not recognized in "+line);
-					return -1;
+					LOG.info("Reading from "+filename);
+					r=IOUtils.openURIForLineIterator(filename);
 					}
-				}
-			info("format : "+format);
-			if(Format.Fasta.equals(format))
-				{
-				//this.consensus=new FastaConsensus();
-				AlignSequence curr=null;
-				while(r.hasNext())
+				
+				Format format=Format.None;
+	
+				
+				while(r.hasNext() && format==Format.None)
 					{
-					String line=r.next();
-					if(line.startsWith(">"))
+					String line=r.peek();
+					if( line.trim().isEmpty()) { r.next(); continue;}
+					if(line.startsWith("CLUSTAL"))
 						{
-						curr=new AlignSequence();
-						curr.name=line.substring(1).trim();
-						if(sample2sequence.containsKey(curr.name))
-							{
-							error("Sequence ID "+curr.name +" defined twice");
-							return -1;
-							}
-						sample2sequence.put(curr.name, curr);
+						format=Format.Clustal;
+						r.next();//consume
+						break;
 						}
-					else if(curr!=null)
+					else if(line.startsWith(">"))
 						{
-						curr.seq.append(line.trim());
-						this.align_length=Math.max(this.align_length, curr.seq.length());
-						}
-					}
-				}
-			else if(Format.Clustal.equals(format))
-				{
-				AlignSequence curr=null;
-				int columnStart=-1;
-				while(r.hasNext())
-					{
-					String line=r.next();
-					
-					if( line.trim().isEmpty() || line.startsWith("CLUSTAL W"))
-						{
-						columnStart=-1;
-						continue;
-						}
-					if(line.charAt(0)==' ')
-						{
-						if(columnStart==-1)
-							{
-							error("illegal consensus line for "+line);
-							return -1;
-							}	
+						format=Format.Fasta;
+						break;
 						}
 					else
 						{
-						 if(columnStart==-1)
-							 {
-							columnStart=line.indexOf(' ');
-							if(columnStart==-1)
-								{
-								error("no whithespace in "+line);
-								return -1;
-								}
-							while(columnStart< line.length() && line.charAt(columnStart)==' ')
-								{
-								columnStart++;
-								}
-							}
-						String seqname=line.substring(0, columnStart).trim();
-						curr=this.sample2sequence.get(seqname);
-						if(curr==null)
+						return wrapException("MSA format not recognized in "+line);
+						}
+					}
+				LOG.info("format : "+format);
+				if(Format.Fasta.equals(format))
+					{
+					//this.consensus=new FastaConsensus();
+					AlignSequence curr=null;
+					while(r.hasNext())
+						{
+						String line=r.next();
+						if(line.startsWith(">"))
 							{
 							curr=new AlignSequence();
-							curr.name=seqname;
-							this.sample2sequence.put(curr.name, curr);
+							curr.name=line.substring(1).trim();
+							if(sample2sequence.containsKey(curr.name))
+								{
+								return wrapException("Sequence ID "+curr.name +" defined twice");
+								}
+							sample2sequence.put(curr.name, curr);
 							}
-						curr.seq.append(line.substring(columnStart));
-						this.align_length=Math.max(align_length, curr.seq.length());
+						else if(curr!=null)
+							{
+							curr.seq.append(line.trim());
+							this.align_length=Math.max(this.align_length, curr.seq.length());
+							}
 						}
 					}
-				}
-			else
-				{
-				error("Undefined input format");
-				return -1;
-				}
-			SAMFileHeader header=new SAMFileHeader();
-			SAMSequenceDictionary dict=new SAMSequenceDictionary();
-			dict.addSequence(new SAMSequenceRecord(REF,this.align_length));
-			header.setSortOrder(SortOrder.unsorted);
-			header.setSequenceDictionary(dict);
-			SAMProgramRecord pgr=header.createProgramRecord();
-			pgr.setProgramName(getProgramName());
-			pgr.setProgramVersion(getVersion());
-			if(getProgramCommandLine().trim().isEmpty())
-				{
-				pgr.setCommandLine("(empty)");
-				}
-			else
-				{
-				pgr.setCommandLine(getProgramCommandLine());
-				}
-			
-			sfwf = new SAMFileWriterFactory();
-			if(getOutputFile()==null)
-				{
-				w = sfwf.makeSAMWriter(header, false, System.out);
-				}
-			else
-				{
-				w = sfwf.makeSAMOrBAMWriter(header, false, getOutputFile());
-				}
-			DefaultSAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
-			for(String seqName: this.sample2sequence.keySet())
-				{
-				AlignSequence shortRead = this.sample2sequence.get(seqName);
-				SAMRecord rec = samRecordFactory.createSAMRecord(header);
-				
-				
-				rec.setReadName(seqName);
-				rec.setReadString(shortRead.seq.toString().replaceAll("[\\*\\- ]+", ""));
-				int start=0;
-				while(start< shortRead.seq.length() && !Character.isLetter(shortRead.at(start)))
+				else if(Format.Clustal.equals(format))
 					{
-					start++;
-					}
-				rec.setAlignmentStart(start+1);
-				
-				int end=shortRead.seq.length()-1;
-				while(end>0 && !Character.isLetter(shortRead.at(end)))
-					{
-					--end;
-					}
-				//rec.setAlignmentEnd(end+1); not supported
-				
-				
-				int n=start;
-				StringBuilder dna=new StringBuilder();
-				List<CigarElement> cigars =new ArrayList<>();
-				while(n<=end )
-					{
-					if( !Character.isLetter(shortRead.at(n)))
+					AlignSequence curr=null;
+					int columnStart=-1;
+					while(r.hasNext())
 						{
-						cigars.add(new CigarElement(1,CigarOperator.D));
+						String line=r.next();
+						
+						if( line.trim().isEmpty() || line.startsWith("CLUSTAL W"))
+							{
+							columnStart=-1;
+							continue;
+							}
+						if(line.charAt(0)==' ')
+							{
+							if(columnStart==-1)
+								{
+								return wrapException("illegal consensus line for "+line);
+								}	
+							}
+						else
+							{
+							 if(columnStart==-1)
+								 {
+								columnStart=line.indexOf(' ');
+								if(columnStart==-1)
+									{
+									return wrapException("no whithespace in "+line);
+									}
+								while(columnStart< line.length() && line.charAt(columnStart)==' ')
+									{
+									columnStart++;
+									}
+								}
+							String seqname=line.substring(0, columnStart).trim();
+							curr=this.sample2sequence.get(seqname);
+							if(curr==null)
+								{
+								curr=new AlignSequence();
+								curr.name=seqname;
+								this.sample2sequence.put(curr.name, curr);
+								}
+							curr.seq.append(line.substring(columnStart));
+							this.align_length=Math.max(align_length, curr.seq.length());
+							}
 						}
-					else
-						{
-						cigars.add(new CigarElement(1,CigarOperator.M));
-						dna.append(shortRead.at(n));
-						}
-					n++;
+					}
+				else
+					{
+					return wrapException("Undefined input format");
+					}
+				SAMFileHeader header=new SAMFileHeader();
+				SAMSequenceDictionary dict=new SAMSequenceDictionary();
+				dict.addSequence(new SAMSequenceRecord(super.REF,this.align_length));
+				header.setSortOrder(SortOrder.unsorted);
+				header.setSequenceDictionary(dict);
+				SAMProgramRecord pgr=header.createProgramRecord();
+				pgr.setProgramName(getName());
+				pgr.setProgramVersion(getVersion());
+				if(getProgramCommandLine().trim().isEmpty())
+					{
+					pgr.setCommandLine("(empty)");
+					}
+				else
+					{
+					pgr.setCommandLine(getProgramCommandLine());
 					}
 				
-				//simplify cigar string
-				n=0;
-				while(n+1< cigars.size())
+				sfwf = new SAMFileWriterFactory();
+				if(getOutputFile()==null)
 					{
-					CigarElement c1= cigars.get(n);
-					CigarElement c2= cigars.get(n+1);
+					w = sfwf.makeSAMWriter(header, false, System.out);
+					}
+				else
+					{
+					w = sfwf.makeSAMOrBAMWriter(header, false, getOutputFile());
+					}
+				DefaultSAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
+				for(String seqName: this.sample2sequence.keySet())
+					{
+					AlignSequence shortRead = this.sample2sequence.get(seqName);
+					SAMRecord rec = samRecordFactory.createSAMRecord(header);
 					
-					if(c1.getOperator().equals(c2.getOperator()))
+					
+					rec.setReadName(seqName);
+					rec.setReadString(shortRead.seq.toString().replaceAll("[\\*\\- ]+", ""));
+					int start=0;
+					while(start< shortRead.seq.length() && !Character.isLetter(shortRead.at(start)))
 						{
-						cigars.set(n, new CigarElement(c1.getLength()+c2.getLength(), c1.getOperator()));
-						cigars.remove(n+1);
+						start++;
 						}
-					else
+					rec.setAlignmentStart(start+1);
+					
+					int end=shortRead.seq.length()-1;
+					while(end>0 && !Character.isLetter(shortRead.at(end)))
 						{
-						++n;
+						--end;
 						}
+					//rec.setAlignmentEnd(end+1); not supported
+					
+					
+					int n=start;
+					StringBuilder dna=new StringBuilder();
+					List<CigarElement> cigars =new ArrayList<>();
+					while(n<=end )
+						{
+						if( !Character.isLetter(shortRead.at(n)))
+							{
+							cigars.add(new CigarElement(1,CigarOperator.D));
+							}
+						else
+							{
+							cigars.add(new CigarElement(1,CigarOperator.M));
+							dna.append(shortRead.at(n));
+							}
+						n++;
+						}
+					
+					//simplify cigar string
+					n=0;
+					while(n+1< cigars.size())
+						{
+						CigarElement c1= cigars.get(n);
+						CigarElement c2= cigars.get(n+1);
+						
+						if(c1.getOperator().equals(c2.getOperator()))
+							{
+							cigars.set(n, new CigarElement(c1.getLength()+c2.getLength(), c1.getOperator()));
+							cigars.remove(n+1);
+							}
+						else
+							{
+							++n;
+							}
+						}
+					
+					rec.setReadPairedFlag(false);
+					rec.setMappingQuality(60);
+					rec.setReferenceName(REF);
+					rec.setReadString(dna.toString());
+					rec.setCigar(new Cigar(cigars));
+					
+					w.addAlignment(rec);
 					}
 				
-				rec.setReadPairedFlag(false);
-				rec.setMappingQuality(60);
-				rec.setReferenceName(REF);
-				rec.setReadString(dna.toString());
-				rec.setCigar(new Cigar(cigars));
-				
-				w.addAlignment(rec);
+				LOG.info("Done");
+				return Collections.emptyList();
 				}
-			
-			info("Done");
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(r);
-			CloserUtil.close(w);
-			}	
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:o:"))!=-1)
-			{
-			switch(c)
+			catch(Exception err)
 				{
-				case 'R': REF=opt.getOptArg();break;
-				case 'o': setOutputFile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				return wrapException(err);
 				}
+			finally
+				{
+				CloserUtil.close(r);
+				CloserUtil.close(w);
+				}	
 			}
-		return mainWork(opt.getOptInd(), args);
 		}
-	
 	public static void main(String[] args) {
 		new Biostar139647().instanceMainWithExit(args);
 	}
