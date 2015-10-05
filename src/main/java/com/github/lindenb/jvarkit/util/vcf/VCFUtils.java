@@ -32,6 +32,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.logging.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -72,7 +72,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 
 public class VCFUtils
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VCFUtils.class);
 	
 	public static class CodecAndHeader
 		{
@@ -228,6 +228,16 @@ public class VCFUtils
 	public static AbstractVCFCodec createDefaultVCFCodec()
 		{
 		return new VCFCodec();
+		}
+	
+	/** create a VCF iterator
+	 * 
+	 * @param IN input stream
+	 * */
+	public static  VcfIterator createVcfIteratorFromStream(InputStream in) throws IOException
+		{
+		LOG.info("reading vcf from stream");
+		return new VcfIterator(in);	
 		}
 	
 	/** create a VCF iterator

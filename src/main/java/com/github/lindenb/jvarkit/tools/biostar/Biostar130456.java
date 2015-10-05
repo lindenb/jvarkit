@@ -29,10 +29,12 @@ History:
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
-import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,99 +47,62 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class Biostar130456 extends AbstractCommandLineProgram
+public class Biostar130456 extends AbstractBiostar130456
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar130456.class);
+
 	private final static String SAMPLE_TAG="__SAMPLE__";
 
-	private Biostar130456()
+	public Biostar130456()
 		{
-		}
-	@Override
-	public String getProgramDescription()
-		{
-		return " Individual VCF files from main VCF file. See   https://www.biostars.org/p/130456";
 		}
 	
 	@Override
-	public String getProgramName()
-		{
-		return "Biostar130456";
-		}
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar130456";
+	public Command createCommand() {
+		return new MyCommand();
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
+	private static class MyCommand extends AbstractBiostar130456.AbstractBiostar130456Command
 		{
-		out.println(" -p (pattern) output file pattern. Must contain the word "+SAMPLE_TAG);
-		out.println(" -x remove uncalled genotypes");
-		out.println(" -z remove homzygote REF/REF");
-		super.printOptions(out);
-		}
-	
-
-	
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean remove_uncalled =false;
-		boolean remove_homref =false;
-		String filepattern=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:xz"))!=-1)
+		@Override
+		public Collection<Throwable> call() throws Exception {
+		final List<String> args=this.getInputFiles();
+		if(super.filepattern==null || !super.filepattern.contains(SAMPLE_TAG))
 			{
-			switch(c)
-				{
-				case 'p': filepattern=opt.getOptArg();break;
-				case 'x': remove_uncalled=true;break;
-				case 'z': remove_homref=true;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			return wrapException("File pattern is missing "+SAMPLE_TAG);
 			}
-		if(filepattern==null || !filepattern.contains(SAMPLE_TAG))
-			{
-			error("File pattern is missing "+SAMPLE_TAG);
-			return -1;
-			}
-		
+		PrintWriter pw=null;
 		VcfIterator in=null;
 		try
 			{
-			if(args.length==opt.getOptInd())
+			if(args.isEmpty())
 				{
-				info("Reading from <stdin>");
-				in = VCFUtils.createVcfIteratorStdin();
+				LOG.info("Reading from <stdin>");
+				in = VCFUtils.createVcfIteratorFromStream(stdin());
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
+				String filename=args.get(0);
+				LOG.info("Reading from "+filename);
 				in = VCFUtils.createVcfIterator(filename);
 				}
 			else
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
+				return wrapException(getMessageBundle("illegal.number.of.arguments"));
+				}
+			if(getOutputFile()==null)
+				{
+				pw=new PrintWriter(stdout());
+				}
+			else
+				{
+				pw = new PrintWriter(getOutputFile());
 				}
 			VCFHeader header=in.getHeader();
 			Set<String> samples = new HashSet<String>(header.getSampleNamesInOrder());
@@ -145,10 +110,9 @@ public class Biostar130456 extends AbstractCommandLineProgram
 
 			if(samples.isEmpty())
 				{
-				info("VCF doesn't contain any sample");
-				return -1;
+				return wrapException("VCF doesn't contain any sample");
 				}
-			info("N sample:"+samples.size());
+			LOG.info("N sample:"+samples.size());
 			for(String sample:samples)
 				{
 				
@@ -161,7 +125,7 @@ public class Biostar130456 extends AbstractCommandLineProgram
 				h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
 				h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
 				String sampleFile= filepattern.replaceAll(SAMPLE_TAG,sample);
-				System.out.println(sampleFile);
+				pw.println(sampleFile);
 				File fout = new File(sampleFile);
 				if(fout.getParentFile()!=null) fout.getParentFile().mkdirs();
 				VariantContextWriter w= VCFUtils.createVariantContextWriter(fout);
@@ -176,11 +140,11 @@ public class Biostar130456 extends AbstractCommandLineProgram
 					{
 					Genotype g= ctx.getGenotype(sample);
 					if(g==null) continue;
-					if(remove_uncalled && (!g.isAvailable() || !g.isCalled() || g.isNoCall()))
+					if(super.remove_uncalled && (!g.isAvailable() || !g.isCalled() || g.isNoCall()))
 						{
 						continue;
 						}
-					if(remove_homref && g.isHomRef()) continue;
+					if(super.remove_homref && g.isHomRef()) continue;
 					VariantContextWriter w= sample2writer.get(sample);
 					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					GenotypeBuilder gb=new GenotypeBuilder(g);
@@ -191,23 +155,27 @@ public class Biostar130456 extends AbstractCommandLineProgram
 				}
 			for(String sample:samples)
 				{
-				info("Closing for sample "+sample);
+				LOG.info("Closing for sample "+sample);
 				VariantContextWriter w= sample2writer.get(sample);
 				w.close();
 				}
+			pw.flush();
+			pw.close();
 			progress.finish();
-			return 0;
+			return Collections.emptyList();
 			}
 		catch (Exception e)
 			{
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{
 			CloserUtil.close(in);
+			CloserUtil.close(pw);
 			}
 		}
+	
+	}
 
 	/**
 	 * @param args
