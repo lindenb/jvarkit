@@ -11,8 +11,8 @@
 	 app="&name;"
 	 package="&package;"
 	 __placeholder__="1"
-	 extends="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3"
-	 extends-command="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3.AbstractVCFCommand"
+	 extends="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter4"
+	 extends-command="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter4.AbstractVCFCommand"
 	>
 
 <description>Print the first variants of a VCF.</description>
