@@ -12,7 +12,7 @@
 	 package="&package;"
 	 __placeholder__="1"
 	 extends="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3"
-	 extends-command="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3.AbstractVCFCommand"
+	 extends-command="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter4.AbstractVCFCommand"
 	>
 
 <description>Print the last variants of a VCF.</description>
