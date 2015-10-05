@@ -23,7 +23,10 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.command;
 
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.Image;
+import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -36,8 +39,12 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.jar.Manifest;
 
+import javax.swing.AbstractAction;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
@@ -453,7 +460,94 @@ public void usage(PrintStream out)
 			if(cmd!=null) cmd.cleanup();
 			}
 		}
-
+	
+	protected  class CommandPane extends JPanel
+		{
+		protected class CommandThread extends Thread
+			{
+			Command command;
+			CommandThread(Command command)
+				{
+				this.command=command;
+				}
+			@Override
+			public void run()
+				{
+				try
+					{
+					java.util.Collection<Throwable> errors = command.call();
+					}
+				catch (Exception e)
+					{
+					LOG.error(e);
+					}
+				finally
+					{
+					
+					}
+				}
+			}
+		
+		protected CommandThread thread=null;
+		protected AbstractAction stopAction;
+		protected AbstractAction startAction;
+		public CommandPane()
+			{
+			super(new BorderLayout(5, 5));
+			final JPanel topPane= new JPanel(new BorderLayout(5,5));
+			this.add(topPane,BorderLayout.NORTH);
+			topPane.add(new JLabel(CommandFactory.this.getName(),CommandFactory.this.getIcon(),JLabel.BOTTOM));
+			final JPanel bottomPane= new JPanel(new FlowLayout());
+			this.add(bottomPane,BorderLayout.SOUTH);
+			
+			this.stopAction = new AbstractAction("Stop")
+				{
+				@Override
+				public void actionPerformed(ActionEvent ae)
+					{
+					stopCommand();
+					}
+				};
+			
+			JButton stopButton=new JButton(stopAction);
+			bottomPane.add(stopButton);
+			this.stopAction.setEnabled(false);
+			
+			this.startAction = new AbstractAction("Run")
+				{
+				@Override
+				public void actionPerformed(ActionEvent ae)
+					{
+					startCommand();
+					}
+				};
+			JButton startButton=new JButton(startAction);
+			this.startAction.setEnabled(true);
+			bottomPane.add(startButton);	
+			}
+		
+		protected synchronized void stopCommand()
+			{
+			if(this.thread!=null)
+				{
+				try { this.thread.interrupt();}
+				catch(Exception err) {LOG.warn(err);}
+				this.thread=null;
+				}
+			this.stopAction.setEnabled(false);
+			this.startAction.setEnabled(true);
+			}
+		protected synchronized void startCommand()
+			{
+			if(this.thread!=null)
+				{
+				LOG.info("command already running");
+				return;
+				}
+			this.stopAction.setEnabled(true);
+			this.startAction.setEnabled(false);
+			}
+		}	
 	
 	
 	public void instanceMainWithExit(final String args[])
