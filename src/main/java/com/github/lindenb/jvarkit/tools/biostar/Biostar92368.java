@@ -3,9 +3,10 @@
  */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
-import java.io.PrintStream;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 import java.util.regex.Pattern;
@@ -15,7 +16,7 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.sleepycat.bind.tuple.StringBinding;
 import com.sleepycat.bind.tuple.TupleBinding;
 import com.sleepycat.bind.tuple.TupleInput;
@@ -34,8 +35,19 @@ import com.sleepycat.je.Transaction;
  * @author lindenb
  *
  */
-public class Biostar92368 extends AbstractCommandLineProgram
+public class Biostar92368 extends AbstractBiostar92368
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar95652.class);
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractBiostar92368.AbstractBiostar92368Command
+		{    
+
+	
 	private Environment environment=null;
 	private Database database=null;
 	
@@ -106,7 +118,7 @@ public class Biostar92368 extends AbstractCommandLineProgram
 			{
 			if(nLines++ % 10000 ==0)
 				{
-				info("Lines : "+nLines);
+				LOG.info("Lines : "+nLines);
 				}
 			String line=r.next();
 			if(line.isEmpty() || line.startsWith("#")) continue;
@@ -147,139 +159,98 @@ public class Biostar92368 extends AbstractCommandLineProgram
 		CloserUtil.close(c);
 		}
 	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar92368";
-		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "Binary interactions depth See also http://www.biostars.org/p/92368/";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -D (dir) berkeleydb home. REQUIRED.");
-		out.println(" -M (max depth) default:3");
-		super.printOptions(out);
-		}
 
-	@Override
-	public int doWork(String[] args)
-		{
-		int maxDepth=3;
-		File dbHome=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "D:M:"))!=-1)
+	
+	
+		@Override
+		public Collection<Throwable> call() throws Exception
 			{
-			switch(c)
+			
+			if(dbHome==null)
 				{
-				case 'D':
-					{
-					dbHome=new File(opt.getOptArg());
-					break;
-					}
-				case 'M':
-					{
-					maxDepth=Integer.parseInt(opt.getOptArg());
-					break;
-					}
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
+				return wrapException("Undefined DB-Home");
 				}
-			}
-		if(dbHome==null)
-			{
-			error("Undefined DB-Home");
-			}
-		environment=null;
-		EnvironmentConfig envCfg=new EnvironmentConfig();
-		this.database=null;
-		Transaction txn=null;
-		try
-			{
-			envCfg.setAllowCreate(true);
-			this.environment=new Environment(dbHome, envCfg);
-			DatabaseConfig cfg=new DatabaseConfig();
-			cfg.setAllowCreate(true);
-			cfg.setTemporary(true);
-			this.database=environment.openDatabase(txn, "interactions", cfg);
-			if(opt.getOptInd()==args.length)
+			environment=null;
+			EnvironmentConfig envCfg=new EnvironmentConfig();
+			this.database=null;
+			Transaction txn=null;
+			try
 				{
-				info("reading stdin");
-				LineIterator r=IOUtils.openStdinForLineIterator();
-				load(txn,r);
-				CloserUtil.close(r);
-				}
-			else
-				{
-				for(int optind=opt.getOptInd();optind< args.length;++optind)
+				envCfg.setAllowCreate(true);
+				this.environment=new Environment(dbHome, envCfg);
+				DatabaseConfig cfg=new DatabaseConfig();
+				cfg.setAllowCreate(true);
+				cfg.setTemporary(true);
+				this.database=environment.openDatabase(txn, "interactions", cfg);
+				List<String> args=getInputFiles();
+				if(args.isEmpty())
 					{
-					String filename=args[optind];
-					info("reading "+filename);
-					LineIterator r=IOUtils.openURIForLineIterator(filename);
+					LOG.info("reading stdin");
+					LineIterator r=IOUtils.openStdinForLineIterator();
 					load(txn,r);
 					CloserUtil.close(r);
 					}
-				}
-			DatabaseEntry key1=new DatabaseEntry();
-			DatabaseEntry data1=new DatabaseEntry();
-			DatabaseEntry key2=new DatabaseEntry();
-			DatabaseEntry data2=new DatabaseEntry();
-
-			Cursor c1=this.database.openCursor(txn, null);
-			Cursor c2=this.database.openCursor(txn, null);
-			while(c1.getNext(key1, data1, LockMode.DEFAULT)==OperationStatus.SUCCESS)
-				{
-				
-				String prot1=StringBinding.entryToString(key1);
-				
-				boolean first=true;
-				
-				while((first?c2.getFirst(key2, data2, LockMode.DEFAULT):c2.getNext(key2, data2, LockMode.DEFAULT))==OperationStatus.SUCCESS)
+				else
 					{
-					first=false;
-					String prot2=StringBinding.entryToString(key2);
-					if(prot2.compareTo(prot1)<=0) continue;
-					
-					Stack<String> path=new Stack<String>();
-					path.push(prot1);
-					int depth=recursive(txn,prot2,path,-1,maxDepth);
-					if(depth!=-1)
+					for(String filename : args)
 						{
-						System.out.println(prot1+"\t"+prot2+"\t"+depth);
+						LOG.info("reading "+filename);
+						LineIterator r=IOUtils.openURIForLineIterator(filename);
+						load(txn,r);
+						CloserUtil.close(r);
 						}
-					else
-						{
-						//System.out.println(prot1+"\t"+prot2+"\t"+depth);
-						}
-					if(System.out.checkError()) break;
 					}
-				
+				DatabaseEntry key1=new DatabaseEntry();
+				DatabaseEntry data1=new DatabaseEntry();
+				DatabaseEntry key2=new DatabaseEntry();
+				DatabaseEntry data2=new DatabaseEntry();
+	
+				Cursor c1=this.database.openCursor(txn, null);
+				Cursor c2=this.database.openCursor(txn, null);
+				while(c1.getNext(key1, data1, LockMode.DEFAULT)==OperationStatus.SUCCESS)
+					{
+					
+					String prot1=StringBinding.entryToString(key1);
+					
+					boolean first=true;
+					
+					while((first?c2.getFirst(key2, data2, LockMode.DEFAULT):c2.getNext(key2, data2, LockMode.DEFAULT))==OperationStatus.SUCCESS)
+						{
+						first=false;
+						String prot2=StringBinding.entryToString(key2);
+						if(prot2.compareTo(prot1)<=0) continue;
+						
+						Stack<String> path=new Stack<String>();
+						path.push(prot1);
+						int depth=recursive(txn,prot2,path,-1,maxDepth);
+						if(depth!=-1)
+							{
+							System.out.println(prot1+"\t"+prot2+"\t"+depth);
+							}
+						else
+							{
+							//System.out.println(prot1+"\t"+prot2+"\t"+depth);
+							}
+						if(System.out.checkError()) break;
+						}
+					
+					}
+				CloserUtil.close(c2);
+				CloserUtil.close(c1);
+				return Collections.emptyList();
 				}
-			CloserUtil.close(c2);
-			CloserUtil.close(c1);
+			catch (Exception err)
+				{
+				LOG.error(err);
+				return wrapException(err);
+				}
+			finally
+				{
+				CloserUtil.close(this.database);
+				CloserUtil.close(this.environment);
+				}
 			}
-		catch (Exception err)
-			{
-			error(err);
-			}
-		finally
-			{
-			CloserUtil.close(this.database);
-			CloserUtil.close(this.environment);
-			}
-		return 0;
 		}
 	/**
 	 * @param args

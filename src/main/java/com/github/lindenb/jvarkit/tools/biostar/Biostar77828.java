@@ -1,47 +1,59 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Pattern;
+import com.github.lindenb.jvarkit.util.command.Command;
+import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
 
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-
-public class Biostar77828 extends AbstractCommandLineProgram
+public class Biostar77828 extends AbstractBiostar77828
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+
-		" Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ .";
-	private static final Log LOG=Log.getInstance(Biostar77828.class);
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar76892.class);
 
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
 
-
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,doc="Bed file input (default stdin)",optional=true)
-    public File IN=null;
-    
-    @Option(shortName="MINC",doc="min_core",optional=true)
-    public int MIN_CORE=20;
-    @Option(shortName="MAXC",doc="max_core",optional=true)
-    public int MAX_CORE=30;
-
-    @Option(shortName="ITER",doc="number of iterations",optional=true)
-    public long N_ITERATIONS=1000000;
-
-    
-    
+	
+	static private class MyCommand extends AbstractBiostar77828.AbstractBiostar77828Command
+		{    
     private List<Segment> all_segments=new ArrayList<Segment>();
     private final Random random=new Random(System.currentTimeMillis());
     private long effective_genome_size=0L;
@@ -262,14 +274,15 @@ public class Biostar77828 extends AbstractCommandLineProgram
     	}
     
     
-    
-    @Override
-    protected int doWork()
+    	@Override
+    protected Collection<Throwable> call(String IN) throws Exception
     	{
+    	BufferedReader in=null;
+    	PrintStream out=null;
     	try
 	    	{
 	    	LOG.info("load BED");
-	    	BufferedReader in=null;
+	    	
 	    	if(IN==null)
 	    		{
 	    		LOG.info("read stdin");
@@ -280,13 +293,23 @@ public class Biostar77828 extends AbstractCommandLineProgram
 	    		LOG.info("read "+IN);
 	    		in=new BufferedReader(new FileReader(IN));
 	    		}
-	    	Pattern tab=Pattern.compile("[\t]");
+	    	
+	    	if(getOutputFile()==null)
+	    		{
+	    		out=stdout();
+	    		}
+	    	else
+	    		{
+	    		out=new PrintStream(getOutputFile());
+	    		}
+	    	
+	    	final Pattern tab=Pattern.compile("[\t]");
 	    	String line;
 	    	while((line=in.readLine())!=null)
 				{		
 	    		if(line.isEmpty() || line.startsWith("#")) continue;
 	    		String tokens[]=tab.split(line,5);
-    			if(tokens.length<3) throw new IOException("bad BED input "+Arrays.asList(tokens));
+    			if(tokens.length<3) return wrapException("bad BED input "+Arrays.asList(tokens));
     			Segment seg=new Segment(
     					tokens[0],
     					Integer.parseInt(tokens[1]),
@@ -306,26 +329,31 @@ public class Biostar77828 extends AbstractCommandLineProgram
 	    		if(best==null || sol.compareTo(best)<0)
 	    			{
 	    			best=sol;
-	    			if(super.VERBOSITY==Log.LogLevel.DEBUG)
+	    			if(LOG.isDebugEnabled())
 	    				{
-	    				System.err.println("%%generation:"+generation);
-	    				best.print(System.err);
+	    				LOG.debug("%%generation:"+generation);
+	    				best.print(stderr());
 	    				}
 	    			}
 	    		}
 	    	if(best!=null)
 	    		{
-	    		best.print(System.out);
+	    		best.print(out);
 	    		}
-	    	
+	    	return Collections.emptyList();
 	    	}
     	catch(Exception err)
     		{
     		LOG.error(err);
-    		return -1;
+    		return wrapException(err);
     		}
-    	return 0;
+    	finally
+    		{
+    		CloserUtil.close(in);
+    		CloserUtil.close(out);
+    		}
     	}
+		}
 
 	/**
 	 * @param args

@@ -193,7 +193,7 @@ options.addOption(org.apache.commons.cli.Option
 		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
 		</xsl:when>
-		<xsl:when test="@type='existing-file' or @type='input-file'">
+		<xsl:when test="@type='existing-file' or @type='input-file' or @type='input-directory'">
 		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.EXISTING_FILE_VALUE)
 		</xsl:when>
@@ -276,6 +276,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">false</xsl:when>
 	<xsl:when test="@type='output-file'">false</xsl:when>
 	<xsl:when test="@type='input-file'">false</xsl:when>
+	<xsl:when test="@type='input-directory'">false</xsl:when>
 	<xsl:when test="@type='input-file-set' or @type='string-set'">true</xsl:when>
 	<xsl:when test="starts-with(@type,'java.lang')">false</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
@@ -293,6 +294,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='java.net.URL'">true</xsl:when>
 	<xsl:when test="@type='output-file'">true</xsl:when>
 	<xsl:when test="@type='input-file'">true</xsl:when>
+	<xsl:when test="@type='input-directory'">true</xsl:when>
 	<xsl:when test="@type='input-file-set' or @type='string-set'">true</xsl:when>
 	<xsl:when test="@type='java.net.URL'">true</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
@@ -333,6 +335,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 <xsl:choose>
 	<xsl:when test="@type='output-file'">java.io.File</xsl:when>
 	<xsl:when test="@type='input-file'">java.io.File</xsl:when>
+	<xsl:when test="@type='input-directory'">java.io.File</xsl:when>
 	<xsl:when test="@type='input-file-set'">java.util.Set&lt;java.io.File&gt;</xsl:when>
 	<xsl:when test="@type='string-set'">java.util.Set&lt;java.lang.String&gt;</xsl:when>
 	<xsl:when test="@type='int'">int</xsl:when>
@@ -444,7 +447,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		try { <xsl:value-of select="generate-id()"/> = new java.io.File(opt.getValue());}
 		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
 		</xsl:when>
-		<xsl:when test="@type='input-file'">
+		<xsl:when test="@type='input-file' or @type='input-directory'">
 		java.io.File <xsl:value-of select="generate-id()"/> =  null;
 		try { <xsl:value-of select="generate-id()"/> = new java.io.File(opt.getValue());}
 		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
@@ -453,16 +456,27 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 			LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" doesn't exists");
 			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
 			}
-		if(!<xsl:value-of select="generate-id()"/>.isFile())
-			{
-			LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not a file.");
-			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
-			}
-		if(!<xsl:value-of select="generate-id()"/>.canRead())
-			{
-			LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not readeable.");
-			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
-			}
+		<xsl:choose>
+			<xsl:when test="@type='input-directory'">
+			if(!<xsl:value-of select="generate-id()"/>.isDirectory())
+				{
+				LOG.error("option -"+opt.getOpt()+": path "+<xsl:value-of select="generate-id()"/>+" is not a directory.");
+				return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+				}
+			</xsl:when>
+			<xsl:otherwise>
+			if(!<xsl:value-of select="generate-id()"/>.isFile())
+				{
+				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not a file.");
+				return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+				}
+			if(!<xsl:value-of select="generate-id()"/>.canRead())
+				{
+				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not readeable.");
+				return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+				}
+			</xsl:otherwise>
+		</xsl:choose>
 		</xsl:when>
 		<xsl:when test="@type='input-file-set'">
 		final <xsl:apply-templates select="." mode="java-type"/> <xsl:text> </xsl:text> <xsl:value-of select="generate-id()"/> = new java.util.HashSet&lt;java.io.File&gt;();

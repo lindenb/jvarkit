@@ -28,11 +28,15 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
+import htsjdk.samtools.util.CloserUtil;
+
 import java.awt.Insets;
 import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -41,18 +45,23 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 
-public class Biostar77288 extends AbstractCommandLineProgram
+public class Biostar77288 extends AbstractBiostar77288
     {
-    private boolean SEQLOGO=false;
-    private int ALN_WIDTH=1000;
-    private boolean use_rect=false;
-    
-    
-   
+	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar76892.class);
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	
+	static private class MyCommand extends AbstractBiostar77288.AbstractBiostar77288Command
+		{    
     private Map<String,Seq> sequences=new LinkedHashMap<String,Seq>();
     private int max_length=0;
     private int max_name=0;
@@ -81,7 +90,7 @@ public class Biostar77288 extends AbstractCommandLineProgram
    
     private void readingClustal(String IN) throws IOException
     	{
-    	this.info("reading CLUSTALW");
+    	LOG.info("reading CLUSTALW");
         String line;
         BufferedReader in=(IN==null?
                 new BufferedReader(new InputStreamReader(System.in)):
@@ -116,7 +125,7 @@ public class Biostar77288 extends AbstractCommandLineProgram
     
     private void readingSeqLogo(String IN) throws IOException
 		{
-		this.info("reading SeqLogo");
+		LOG.info("reading SeqLogo");
 	    String line;
 	    BufferedReader in=(IN==null?
 	            new BufferedReader(new InputStreamReader(System.in)):
@@ -146,9 +155,10 @@ public class Biostar77288 extends AbstractCommandLineProgram
 	    in.close();    
 	    }
     
-    
-    private int run(String IN) throws IOException
-        {
+    @Override
+    protected Collection<Throwable> call(String IN) throws Exception
+    	{
+    	FileWriter fileWriter=null;
         try
             {
         	if(this.SEQLOGO)
@@ -166,7 +176,15 @@ public class Biostar77288 extends AbstractCommandLineProgram
 
             
             XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-            this.w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
+            if(getOutputFile()==null)
+	            {
+	            this.w= xmlfactory.createXMLStreamWriter(stdout(),"UTF-8");
+	            }
+            else
+            	{
+            	fileWriter= new FileWriter(getOutputFile());
+            	 this.w= xmlfactory.createXMLStreamWriter(fileWriter);
+            	}
             w.writeStartDocument("UTF-8","1.0");
             w.writeStartElement("svg");
             w.writeDefaultNamespace(SVG.NS);
@@ -263,80 +281,21 @@ public class Biostar77288 extends AbstractCommandLineProgram
             w.writeEndElement();
             w.writeEndDocument();
             w.close();
-            return 0;
+            return Collections.emptyList();
             }
         catch (Exception err)
             {
-            this.error(err);
-            return -1;
+            return wrapException(err);
             }
+        finally
+        	{
+        	CloserUtil.close(this.w);
+        	CloserUtil.close(fileWriter);
+        	}
         }
-    
-    
-	@Override
-	public String getProgramDescription() {
-		return "Low resolution sequence alignment visualization . See https://www.biostars.org/p/77288/";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"Biostar77288";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -W (width) Alignment width");
-		out.println(" -S Input is seqLogo (see https://github.com/lindenb/jvarkit#sam4weblogo)");
-		super.printOptions(out);
-		}
-    
+   
 
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"W:Sr"))!=-1)
-			{
-			switch(c)
-				{
-				case 'W': this.ALN_WIDTH=Integer.parseInt(opt.getOptArg());break;
-				case 'S': this.SEQLOGO=true;break;
-				case 'r': this.use_rect=true;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		try {
-			if(opt.getOptInd()==args.length)
-				{
-				return run(null);
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				return run(args[opt.getOptInd()]);
-				}
-			else
-				{
-				error("Illegal number of arguments");
-				return -1;
-				}
-			}
-		catch (Exception e)
-			{
-			error(e);
-			return -1;
-			}
 		}
-
     
     public static void main(String[] args) {
 		new Biostar77288().instanceMainWithExit(args);

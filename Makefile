@@ -177,7 +177,7 @@ APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	bamrenamechr	bamsnvwig	bamstats04	bamtreepack	bamviewgui	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
-	biostar86480	biostar90204	biostar94573	biostar95652 biostar139647	biostar145820 blast2sam	blastmapannots \
+	biostar86480	biostar90204	biostar94573	biostar95652 biostar139647	biostar145820 biostar92368 blast2sam	blastmapannots \
 	blastn2snp	buildwpontology	bwamemdigest	bwamemnop	cmpbams	cmpbamsandbuild	coveragenormalizer \
 	deseqcount	downsamplevcf	evs2bed	evs2vcf	evs2xml	extendbed	fastq2fasta \
 	fastqentropy	fastqgrep	fastqjs	fastqphred64to33	fastqrecordtreepack	fastqrevcomp	fastqshuffle \
@@ -227,7 +227,6 @@ $(eval $(call compile-htsjdk-cmd,cnv01,${jvarkit.package}.tools.redon.CopyNumber
 #berkeley
 $(eval $(call compile-htsjdk-cmd,vcfphylotree,${jvarkit.package}.tools.phylo.VcfPhyloTree,${berkeleydb.jar}))
 $(eval $(call compile-htsjdk-cmd,ngsfilesscanner,${jvarkit.package}.tools.ngsfiles.NgsFilesScanner,${berkeleydb.jar}))
-$(eval $(call compile-htsjdk-cmd,92368,${berkeleydb.jar}))
 #mysql
 $(eval $(call compile-htsjdk-cmd,vcfucsc,${jvarkit.package}.tools.vcfucsc.VcfUcsc,${mysql.jar}))
 
@@ -269,6 +268,7 @@ $(eval $(call compile_biostar_cmd,84786))
 $(eval $(call compile_biostar_cmd,86363))
 $(eval $(call compile_biostar_cmd,86480))
 $(eval $(call compile_biostar_cmd,90204))
+$(eval $(call compile_biostar_cmd,92368,${berkeleydb.jar}))
 $(eval $(call compile_biostar_cmd,94573))
 $(eval $(call compile_biostar_cmd,95652,api.ncbi.gb))
 $(eval $(call compile_biostar_cmd,3654,api.ncbi.insdseq api.ncbi.blast))

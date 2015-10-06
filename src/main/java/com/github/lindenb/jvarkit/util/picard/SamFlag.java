@@ -7,6 +7,7 @@ import htsjdk.samtools.SAMRecord;
 
 import com.github.lindenb.jvarkit.lang.Predicate;
 
+@Deprecated
 public enum SamFlag
 		{
 		READ_PAIRED(0x1)

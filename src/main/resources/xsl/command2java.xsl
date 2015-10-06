@@ -404,6 +404,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		</xsl:when>
 		<xsl:when test="c:input/@type='stdin-or-one' or c:input/@type='sam'">
 		
+
+		
+		
 		<xsl:if test="c:input/@type='sam'">
 		
 		protected htsjdk.samtools.SamReaderFactory createSamReaderFactory()
@@ -450,6 +453,10 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				}
 			}
 		</xsl:when>
+		<xsl:when test="c:input/@type='strings'">
+		/* input type is 'strings' */
+		</xsl:when>
+		
 		<xsl:otherwise>
 		<xsl:message terminate="yes">undefined input/@type </xsl:message>
 		</xsl:otherwise>

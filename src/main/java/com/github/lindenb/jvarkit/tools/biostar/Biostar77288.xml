@@ -4,4 +4,21 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.biostar">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<input type="stdin-or-one"/>
+<description>Low resolution sequence alignment visualization . See https://www.biostars.org/p/77288/</description>
+
+
+<options>
+	<option name="ALN_WIDTH" type="int" opt="W" longopt="alnwidth" default="1000" >
+		<description>Alignment width</description>
+	</option>
+	<option name="SEQLOGO" type="boolean" opt="S" longopt="seqlogo" default="false" >
+		<description>Input is seqLogo (see https://github.com/lindenb/jvarkit#sam4weblogo)</description>
+	</option>
+	<option name="use_rect" type="boolean" opt="r" longopt="distance" default="false" >
+		<description>Use a simple plain rectangle</description>
+	</option>
+</options>
+
+<!-- __PLACEHOLDER__ -->
+</app>
