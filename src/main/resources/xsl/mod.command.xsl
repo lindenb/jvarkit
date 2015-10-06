@@ -280,6 +280,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="starts-with(@type,'java.lang')">false</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
 	<xsl:when test="@type='int'">false</xsl:when>
+	<xsl:when test="@type='long'">false</xsl:when>
 	<xsl:when test="$nilleable = 'true'">true</xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate='yes'>cloneable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
@@ -297,7 +298,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">true</xsl:when>
     <xsl:when test="starts-with(@type,'java.lang')">true</xsl:when>
-	<xsl:when test="@type='int' or @type='double'">false</xsl:when>
+	<xsl:when test="@type='int' or @type='double'or @type='long'">false</xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate='yes'>nilleable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 	</xsl:otherwise>
@@ -335,6 +336,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='input-file-set'">java.util.Set&lt;java.io.File&gt;</xsl:when>
 	<xsl:when test="@type='string-set'">java.util.Set&lt;java.lang.String&gt;</xsl:when>
 	<xsl:when test="@type='int'">int</xsl:when>
+	<xsl:when test="@type='long'">long</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">boolean</xsl:when>
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">java.lang.String</xsl:when>
 	<xsl:when test="@type='Integer' or @type='java.lang.Integer'">java.lang.Integer</xsl:when>
@@ -421,7 +423,13 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		int <xsl:value-of select="generate-id()"/> = 0;
 		try { <xsl:value-of select="generate-id()"/> = Integer.parseInt(opt.getValue());}
 		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to integer",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+		</xsl:when>
 		
+		
+		<xsl:when test="@type='long'">
+		long <xsl:value-of select="generate-id()"/> = 0L;
+		try { <xsl:value-of select="generate-id()"/> = Long.parseLong(opt.getValue());}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to long",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
 		</xsl:when>
 		
 		<xsl:when test="@type='java.lang.Integer'">

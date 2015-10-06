@@ -32,6 +32,49 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	private htsjdk.samtools.SamReader.Type outputformat= htsjdk.samtools.SamReader.Type.SAM_TYPE;
 	</xsl:if>
 	
+	<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
+	/** list of tmp directories */
+	private java.util.List&lt;java.io.File&gt; tmpDirs = null;
+	
+	
+	/** add a temporary directory */
+	public void addTmpDirectory(java.io.File dirOrFile)
+		{
+		if(dirOrFile==null) return;
+		if(dirOrFile.isFile())
+			{
+			dirOrFile=dirOrFile.getParentFile();
+			if(dirOrFile==null) return;
+			}
+		if(this.tmpDirs==null)
+			{
+			this.tmpDirs = new java.util.ArrayList&lt;java.io.File&gt;();
+			}
+		
+		this.tmpDirs.add(dirOrFile);
+		}
+	/** returns a list of tmp directory */
+	protected java.util.List&lt;java.io.File&gt; getTmpDirectories()
+		{
+		if(this.tmpDirs==null)
+			{
+			this.tmpDirs= new java.util.ArrayList&lt;java.io.File&gt;();
+			}
+		if(this.tmpDirs.isEmpty())
+			{
+			LOG.info("Adding 'java.io.tmpdir' directory to the list of tmp directories");
+			this.tmpDirs.add(new java.io.File(System.getProperty("java.io.tmpdir")));
+			}
+		return this.tmpDirs;
+		}
+	</xsl:if>
+		
+	<xsl:if test="c:snippet[@id='sorting-collection']">
+	/** When writing SAM files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM file, and increases the amount of RAM needed. */
+	private int maxRecordsInRam = 500000;
+	
+	</xsl:if>
+	
 	<xsl:if test="not(@generate-output-option='false')">
 		/** option outputFile */
 		protected java.io.File outputFile = null;
@@ -126,6 +169,30 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		</xsl:if>
 		
 		
+		<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
+		options.addOption(org.apache.commons.cli.Option
+			.builder("tmpdir")
+			.longOpt("tmpdir")
+			.desc("add tmp directory")
+			.argName("DIR")
+			.hasArgs()
+			.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
+			.build() );	
+		</xsl:if>
+		
+		<xsl:if test="c:snippet[@id='sorting-collection']">
+		options.addOption(org.apache.commons.cli.Option
+			.builder("maxrecordsinram")
+			.longOpt("maxrecordsinram")
+			.desc("When writing files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM file, and increases the amount of RAM needed.")
+			.argName("MAXRECORDS")
+			.hasArg(true)
+			.type(org.apache.commons.cli.PatternOptionBuilder.NUMBER_VALUE)
+			.build() );	
+		</xsl:if>
+		
+
+		
 		super.fillOptions(options);
 		}
 	
@@ -164,6 +231,44 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
 			}
 		</xsl:if>
+		
+		
+		<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
+		if(opt.getOpt().equals("tmpdir"))
+			{
+			for(String s:opt.getValues())
+				{
+				try {
+					java.io.File  dir = new java.io.File(s);
+					this.addTmpDirectory(dir);
+					}
+				catch(Exception err) { LOG.error("Cannot cast "+s+" to File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+				}
+			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
+			}
+
+		</xsl:if>
+		
+		<xsl:if test="c:snippet[@id='sorting-collection']">
+		if(opt.getOpt().equals("maxrecordsinram"))
+			{
+			try
+				{
+				this.maxRecordsInRam = Integer.parseInt(opt.getValue());
+				if(this.maxRecordsInRam&lt;2)
+					{
+					LOG.error(opt.getValue()+" is not a valid value (&lt;2).");
+					}
+				}
+			catch(Exception err)
+				{
+				LOG.error(opt.getValue()+" not a valid value for "+opt.getOpt());
+				return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+				}
+			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
+			}
+		</xsl:if>
+		
 		return super.visit(opt);
 		}
 		
@@ -197,6 +302,14 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			</xsl:if>
 			<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
 			this.outputformat = factory.outputformat;
+			</xsl:if>
+			
+			<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
+			this.tmpDirs = new java.util.ArrayList&lt;java.io.File&gt;(factory.getTmpDirectories());
+			</xsl:if>
+		
+			<xsl:if test="c:snippet[@id='sorting-collection']">
+			this.maxRecordsInRam = factory.maxRecordsInRam;
 			</xsl:if>
 			}
 			
@@ -235,6 +348,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 
 		
 		</xsl:if>
+		
+		
+		
 		
 		<xsl:if test="not(@generate-output-option='false')">
 		/** option outputFile */
@@ -286,7 +402,31 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		<xsl:when test="not(c:input/@type)">
 			<xsl:message terminate="no">input type undefined</xsl:message>
 		</xsl:when>
-		<xsl:when test="c:input/@type='stdin-or-one'">
+		<xsl:when test="c:input/@type='stdin-or-one' or c:input/@type='sam'">
+		
+		<xsl:if test="c:input/@type='sam'">
+		
+		protected htsjdk.samtools.SamReaderFactory createSamReaderFactory()
+			{
+			return  htsjdk.samtools.SamReaderFactory.makeDefault().validationStringency(htsjdk.samtools.ValidationStringency.LENIENT);
+			}
+		
+		protected htsjdk.samtools.SamReader openSamReader(final String inputName)
+			{
+			final htsjdk.samtools.SamReaderFactory srf= this.createSamReaderFactory();
+			if(inputName==null)
+				{
+				LOG.info("opening stdin");
+				return srf.open(htsjdk.samtools.SamInputResource.of(stdin()));
+				}
+			else
+				{
+				LOG.info("opening "+inputName);
+				return srf.open(htsjdk.samtools.SamInputResource.of(inputName));
+				}
+			}
+
+		</xsl:if>
 		
 		/** program should process this file or stdin() if inputName is null */ 
 		protected abstract java.util.Collection&lt;Throwable&gt; call(final String inputName) throws Exception;
@@ -315,6 +455,16 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		</xsl:otherwise>
 		</xsl:choose>
 		
+		
+		<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
+		/** list of tmp directories */
+		protected java.util.List&lt;java.io.File&gt; tmpDirs = new java.util.ArrayList&lt;java.io.File&gt;();
+		</xsl:if>
+		
+		<xsl:if test="c:snippet[@id='sorting-collection']">
+		/** When writing SAM files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM file, and increases the amount of RAM needed. */
+		protected int maxRecordsInRam = 500000;
+		</xsl:if>
 		
 		}
 	<xsl:if test="number($javaversion) &gt;= 8">
