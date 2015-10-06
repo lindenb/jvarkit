@@ -162,7 +162,8 @@ APPS= ${GALAXY_TOOLS} addlinearindextobed	allelefreqcalc	almostsortedvcf	backloc
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
 	biostar3654 vcfjoinvcfjs bioalcidae vcfburden vcfbedsetfilter vcfreplacetag vcfindextabix \
 	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele bedindextabix vcf2bam vcffilterxpath \
-	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 
+	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
+	biostar160470 
 
 
 .PHONY: all tests $(APPS) clean library top galaxy ${galaxy.bundle.dir}.tar ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -237,6 +238,7 @@ $(eval $(call compile_biostar_cmd,95652,api.ncbi.gb))
 $(eval $(call compile_biostar_cmd,3654,api.ncbi.insdseq api.ncbi.blast))
 $(eval $(call compile_biostar_cmd,154220))
 $(eval $(call compile_biostar_cmd,140111,api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
+$(eval $(call compile_biostar_cmd,160470,api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,blastmapannots, ${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations, api.ncbi.blast api.ncbi.gb ${generated.dir}/java/org/uniprot/package-info.java))
