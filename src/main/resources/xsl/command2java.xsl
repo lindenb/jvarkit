@@ -399,13 +399,49 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		
 		<xsl:choose>
-		<xsl:when test="not(c:input/@type)">
-			<xsl:message terminate="no">input type undefined</xsl:message>
+		<xsl:when test="c:output/@type='vcf'">
+		/* creates a VariantContextWriter according to FileOUt */
+		protected htsjdk.variant.variantcontext.writer.VariantContextWriter  openVariantContextWriter()
+			throws java.io.IOException
+			{
+			if(getOutputFile()!=null)
+				{
+				return com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVariantContextWriter(this.getOutputFile());
+				}
+			else
+				{
+				return com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVariantContextWriterToOutputStream(stdout());
+				}
+			}
 		</xsl:when>
-		<xsl:when test="c:input/@type='stdin-or-one' or c:input/@type='sam'">
+		</xsl:choose>
 		
 
 		
+		<xsl:choose>
+		<xsl:when test="not(c:input/@type)">
+			<xsl:message terminate="no">warning: input type undefined</xsl:message>
+		</xsl:when>
+		<xsl:when test="c:input/@type='stdin-or-one' or c:input/@type='sam' or c:input/@type='vcf'">
+		
+
+		<xsl:if test="c:input/@type='vcf'">
+		
+		/* creates a VCF iterator from inputName. */
+		protected com.github.lindenb.jvarkit.util.vcf.VcfIterator openVcfIterator(final String inputName)
+			throws java.io.IOException
+			{
+			if( inputName == null )
+					{
+					return com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVcfIteratorFromStream(stdin());
+					}
+				else
+					{
+					return com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVcfIterator(inputName);
+					}
+			}
+
+		</xsl:if>
 		
 		<xsl:if test="c:input/@type='sam'">
 		
@@ -449,7 +485,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				}
 			else
 				{
-				return wrapException("Illegal number of arguments.");
+				return wrapException(getMessageBundle("illegal.number.of.arguments"));
 				}
 			}
 		</xsl:when>

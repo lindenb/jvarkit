@@ -1,130 +1,84 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
+import com.github.lindenb.jvarkit.util.command.Command;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
-public class Biostar84452 extends AbstractCommandLineProgram
+public class Biostar84452 extends AbstractBiostar84452
 	{
-	private Biostar84452()
-		{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar84452.class);
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
 		}
 	
-	@Override
-	public String getProgramDescription()
+	static private class MyCommand extends AbstractBiostar84452.AbstractBiostar84452Command
 		{
-		return "remove clipped bases from BAM. See: http://www.biostars.org/p/84452/";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar84452";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (filename) output file. default: stdout.");
-		out.println(" -b force binary");
-		out.println(" -t (tag) tag to flag samrecord as processed. default:XS");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean binary=false;
-		String tag="XS";
-		SAMFileWriterFactory swf=new SAMFileWriterFactory();
-		File fileout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:bt:"))!=-1)
+		@Override
+		protected Collection<Throwable> call(String inputName) throws Exception
 			{
-			switch(c)
+			if(super.tag==null || super.tag.length()!=2 || !tag.startsWith("X"))
 				{
-				case 'o': fileout=new File(opt.getOptArg());break;
-				case 'b': binary=true;break;
-				case 't':
-					{	
-					tag=opt.getOptArg();
-					if(tag.length()!=2 || !tag.startsWith("X"))
-						{
-						error("Bad tag: expect length=2 && start with 'X'");
-						return -1;
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				return wrapException("Bad tag: expect length=2 && start with 'X'");
 				}
-			}
+				
+			
 		SAMFileWriter sfw=null;
 		SamReader sfr=null;
 		try
 			{
-			
-			if(opt.getOptInd()==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().open(args[opt.getOptInd()]);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
+			sfr = super.openSamReader(inputName);
 			SAMFileHeader header=sfr.getFileHeader();
-			SAMProgramRecord prg=header.createProgramRecord();
-			prg.setProgramName(getProgramName());
-			prg.setProgramVersion(getVersion());
-			prg.setCommandLine(getProgramCommandLine());
-			
-			
-			if(fileout==null)
-				{
-				sfw=(binary?
-						swf.makeBAMWriter(header, true, System.out)
-						:swf.makeSAMWriter(header, true, System.out));
-				}
-			else
-				{
-				sfw=(binary?
-						swf.makeBAMWriter(header, true,fileout)
-						:swf.makeSAMWriter(header, true,fileout));
-				}
+			sfw = openSAMFileWriter(header, true);
 			long nChanged=0L;
+			SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
 			SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
+				SAMRecord rec=progress.watch(iter.next());
 				if(rec.getReadUnmappedFlag())
 					{
 					sfw.addAlignment(rec);
@@ -154,7 +108,12 @@ public class Biostar84452 extends AbstractCommandLineProgram
 					{
 					switch(ce.getOperator())
 						{
-						case S: indexBases+=ce.getLength(); break;
+						case S:
+							{
+							indexBases+=ce.getLength();
+							L.add(new CigarElement(ce.getLength(), CigarOperator.H));
+							break;
+							}
 						case H://cont
 						case P: //cont
 						case N: //cont
@@ -182,6 +141,22 @@ public class Biostar84452 extends AbstractCommandLineProgram
 						}
 					
 					}
+				int ci=0;
+				while(ci+1< L.size())
+					{
+					if(L.get(ci).getOperator().equals(L.get(ci+1).getOperator()))
+						{
+						L.set(ci, new CigarElement(
+								L.get(ci).getLength()+L.get(ci+1).getLength(),
+								L.get(ci).getOperator())
+								);
+						L.remove(ci+1);
+						}
+					else
+						{
+						ci++;
+						}
+					}
 				if(indexBases!=bases.length)
 					{
 					throw new RuntimeException("ERRROR "+rec.getCigarString());
@@ -198,19 +173,20 @@ public class Biostar84452 extends AbstractCommandLineProgram
 				if(quals.length!=0)  rec.setBaseQualities(nqual.toByteArray());
 				sfw.addAlignment(rec);
 				}
-			info("Num records changed:"+nChanged);
+			LOG.info("Num records changed:"+nChanged);
+			progress.finish();
+			return Collections.emptyList();
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(sfw);
 			CloserUtil.close(sfr);
 			}
-		return 0;
+		}
 		}
 	/**
 	 * @param args

@@ -1,58 +1,71 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
+
+import htsjdk.samtools.util.CloserUtil;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.Reader;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.Rebase;
+import com.github.lindenb.jvarkit.util.command.Command;
 
-public class Biostar86480 extends AbstractCommandLineProgram
+public class Biostar86480 extends AbstractBiostar86480
 	{
-	private Rebase rebase=Rebase.createDefaultRebase();
-	
-	private Biostar86480()
-		{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar86480.class);
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
 		}
 
+	static private class MyCommand extends AbstractBiostar86480.AbstractBiostar86480Command
+		{    
+
+		private Rebase rebase=Rebase.createDefaultRebase();
 	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Genomic restriction finder. See also http://www.biostars.org/p/86480/";
-		}
 	
-	@Override
-	public String getProgramName()
-		{
-		return "Biostar86480";
-		}
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar86480";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -E (name) restrict to that enzyme. Can be called multiple times. Optional.");
-		super.printOptions(out);
-		}
 	
 	private void digest(
 			String seqName,
 			int position0,
-			final List<Character> sequence
+			final List<Character> sequence,
+			PrintStream out
 			)
 		{
 		for(Rebase.Enzyme enzyme:this.rebase)
@@ -71,25 +84,25 @@ public class Biostar86480 extends AbstractCommandLineProgram
 					}
 				if(x==enzyme.size())
 					{
-					System.out.print(seqName);
-					System.out.print('\t');
-					System.out.print(position0);
-					System.out.print('\t');
-					System.out.print(position0+enzyme.size());
-					System.out.print('\t');
+					out.print(seqName);
+					out.print('\t');
+					out.print(position0);
+					out.print('\t');
+					out.print(position0+enzyme.size());
+					out.print('\t');
 					for(int y=0;y< enzyme.size();++y)
 						{
-						System.out.print(sequence.get(y));
+						out.print(sequence.get(y));
 						}
-					System.out.print('\t');
-					System.out.print(1000);
-					System.out.print('\t');
-					System.out.print(strand==1?'-':'+');
-					System.out.print('\t');
-					System.out.print(enzyme.getName());
-					System.out.print('\t');
-					System.out.print(enzyme.getDecl());
-					System.out.println();
+					out.print('\t');
+					out.print(1000);
+					out.print('\t');
+					out.print(strand==1?'-':'+');
+					out.print('\t');
+					out.print(enzyme.getName());
+					out.print('\t');
+					out.print(enzyme.getDecl());
+					out.println();
 					break;
 					}
 				if(enzyme.isPalindromic()) break;
@@ -97,7 +110,7 @@ public class Biostar86480 extends AbstractCommandLineProgram
 			}
 		}
 	
-	private void run(Reader in) throws IOException
+	private void run(Reader in,PrintStream out) throws IOException
 		{
 		int longest=0;
 		for(Rebase.Enzyme E:this.rebase)
@@ -114,7 +127,7 @@ public class Biostar86480 extends AbstractCommandLineProgram
 				{
 				while(!sequences.isEmpty())
 					{
-					digest(seqName,position0,sequences);
+					digest(seqName,position0,sequences,out);
 					++position0;
 					sequences.remove(0);
 					}
@@ -132,88 +145,84 @@ public class Biostar86480 extends AbstractCommandLineProgram
 				sequences.add((char)Character.toUpperCase(c));
 				if(sequences.size()==longest)
 					{
-					digest(seqName,position0,sequences);
+					digest(seqName,position0,sequences,out);
 					++position0;
 					sequences.remove(0);
 					if(position0%1000000==0)
 						{
-						info(seqName+" "+position0);
+						LOG.info(seqName+" "+position0);
 						}
 					}
 				}
 			}
 		}
 
-	
 	@Override
-	public int doWork(String[] args)
+	public Collection<Throwable> call() throws Exception
 		{
-		Set<String> onlyEnz=new HashSet<String>();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "E:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'E': onlyEnz.add(opt.getOptArg()); break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(!onlyEnz.isEmpty())
+		final List<String> args = getInputFiles();
+		if(!super.onlyEnz.isEmpty())
 			{
 			Rebase rebase2=new Rebase();
-			for(String e:onlyEnz)
+			for(String e:super.onlyEnz)
 				{
 				Rebase.Enzyme enz=this.rebase.getEnzymeByName(e);
 				if(enz==null)
 					{
-					System.err.println("Cannot find enzyme "+enz +" in RE list.");
-					System.err.println("Current list is:");
+					LOG.error("Cannot find enzyme "+enz +" in RE list.");
+					LOG.error("Current list is:");
 					for(Rebase.Enzyme E: this.rebase)
 						{
-						System.err.println("\t"+E);
+						LOG.error("\t"+E);
 						}
-					return -1;
+					return wrapException("Cannot find enzyme "+enz +" in RE list.");
 					}
 				rebase2.getEnzymes().add(enz);
 				}
 			this.rebase=rebase2;
 			}
+		Reader in=null;
+		PrintStream out=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(getOutputFile()==null)
 				{
-				info("Reading from stdin");
-				run(new InputStreamReader(System.in));
+				out=stdout();
 				}
 			else
 				{
-				for(int i=opt.getOptInd(); i<args.length;++i)
+				out=new PrintStream(getOutputFile());
+				}
+			if(args.isEmpty())
+				{
+				LOG.info("Reading from stdin");
+				in = new InputStreamReader(stdin());
+				run(in,out);
+				in.close();
+				}
+			else
+				{
+				for(String arg: args)
 					{
-					info("Opening "+args[i]);
-					Reader in=IOUtils.openURIForBufferedReading(args[i]);
-					run(in);
+					LOG.info("Opening "+arg);
+					in=IOUtils.openURIForBufferedReading(arg);
+					run(in,out);
 					in.close();
 					}
-					
 				}
-			return 0;
+			return Collections.emptyList();
 			}
 		catch(Throwable err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
+			}
+		finally
+			{
+			CloserUtil.close(in);
+			CloserUtil.close(out);
 			}
 		}
-
+		}
 	/**
 	 * @param args
 	 */

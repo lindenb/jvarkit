@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -25,11 +27,15 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class Biostar86363 extends AbstractVCFFilter2
+public class Biostar86363 extends AbstractBiostar86363
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar86363.class);
+	
 	private static class ChromAndPos
 		{
 		String chrom;
@@ -60,41 +66,19 @@ public class Biostar86363 extends AbstractVCFFilter2
 			}
 		
 		}
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractBiostar86363.AbstractBiostar86363Command
+		{
 	private Map<ChromAndPos,Set<String>> pos2sample=new HashMap<Biostar86363.ChromAndPos, Set<String>>();
 
-	private Biostar86363()
-		{
-		}
-
-	@Override
-	public String getProgramDescription()
-		{
-		return "Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/";
-		}
-	
-	@Override
-	public String getProgramName()
-		{
-		return "Biostar86363";
-		}
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return DEFAULT_WIKI_PREFIX+"Biostar86363";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
-		out.println(" -G (File) genotypes to reset. Format :CHROM(tab)POS(tab)SAMPLE. REQUIRED.");
-		}
 
 	
-	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
+	
+	private void doWork(VcfIterator in, VariantContextWriter out)
 			throws IOException
 		{
 		final List<Allele> empty_g=new ArrayList<Allele>(2);
@@ -102,7 +86,7 @@ public class Biostar86363 extends AbstractVCFFilter2
 		empty_g.add(Allele.NO_CALL);
 		VCFHeader h=in.getHeader();
 		final List<String> vcf_samples=h.getSampleNamesInOrder();
-		h.addMetaDataLine(new VCFFormatHeaderLine("GR", 1, VCFHeaderLineType.Integer, "(1) = Genotype was reset by "+getProgramName()+":"+getProgramDescription()));
+		h.addMetaDataLine(new VCFFormatHeaderLine("GR", 1, VCFHeaderLineType.Integer, "(1) = Genotype was reset by "+getName()+":"+getFactory().getDescription()));
 		out.writeHeader(h);
 		while(in.hasNext())
 			{
@@ -140,14 +124,14 @@ public class Biostar86363 extends AbstractVCFFilter2
 			}
 		}
 
-	private int loadGenotypes(File f) 
+	private int loadGenotypes(String uri) throws IOException
 		{
-		info("Reading "+f);
+		LOG.info("Reading "+uri);
 		BufferedReader in=null;
 		try
 			{
 			Pattern tab=Pattern.compile("[\t]");
-			in=IOUtils.openFileForBufferedReading(f);
+			in=IOUtils.openURIForBufferedReading(uri);
 			String line;
 			while((line=in.readLine())!=null)
 				{
@@ -155,10 +139,9 @@ public class Biostar86363 extends AbstractVCFFilter2
 				String tokens[]=tab.split(line);
 				if(tokens.length<3)
 					{
-					error("Bad line in "+line);
 					in.close();
 					in=null;
-					return -1;
+					throw new IOException("Bad line in "+line);
 					}
 				ChromAndPos cap=new ChromAndPos(
 					tokens[0],
@@ -174,38 +157,38 @@ public class Biostar86363 extends AbstractVCFFilter2
 				}
 			return 0;
 			}
-		catch (Exception e)
-			{
-			
-			error(e);
-			return -1;
-			}
 		finally
 			{
 			CloserUtil.close(in);
 			}	
 		}
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args, "hvL:G:"))!=-1)
-			{
-			switch(c)
+		@Override
+		protected Collection<Throwable> call(String inputName) throws Exception {
+			if( genotypeURI == null)
 				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));break;
-				case 'G': if(loadGenotypes(new File(opt.getOptArg()))!=0) return -1;break;
-				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+opt.getOptOpt());return -1;
+				return wrapException("undefined list of genotypes");
+				}
+			
+			VcfIterator in=null;
+			VariantContextWriter out=null;
+			try {
+				loadGenotypes(genotypeURI);
+				in  = super.openVcfIterator(inputName);
+				out = super.openVariantContextWriter();
+				doWork(in, out);
+				return Collections.emptyList();
+			} catch (Exception e) {
+				return wrapException(e);
+				}
+			finally
+				{
+				CloserUtil.close(in);
+				CloserUtil.close(out);
 				}
 			}
-		return doWork(opt.getOptInd(), args);
+	
 		}
-
 	/**
 	 * @param args
 	 */

@@ -239,6 +239,7 @@ protected <xsl:apply-templates select="." mode="java-type"/><xsl:text> </xsl:tex
 		<xsl:when test="@default and (not(@type) or @type='string' or @type='String' or @type='java.lang.String')">"<xsl:value-of select="@default"/>"</xsl:when>
 		<xsl:when test="@default"><xsl:value-of select="@default"/></xsl:when>
 		<xsl:when test="$nilleable = 'true'">null</xsl:when>
+		<xsl:when test="@type='boolean' or @type='bool'"> false</xsl:when>
 		<xsl:otherwise>0</xsl:otherwise>
 	</xsl:choose>;
 
