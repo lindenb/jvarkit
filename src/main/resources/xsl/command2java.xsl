@@ -32,6 +32,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	private htsjdk.samtools.SamReader.Type outputformat= htsjdk.samtools.SamReader.Type.SAM_TYPE;
 	</xsl:if>
 	
+	
 	<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
 	/** list of tmp directories */
 	private java.util.List&lt;java.io.File&gt; tmpDirs = null;
@@ -290,7 +291,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			{
 			setLog( <xsl:apply-templates select="." mode="abstract-class-name"/>.LOG);
 			}
-			
+		
 		@Override
 		public void copyFrom(final com.github.lindenb.jvarkit.util.command.CommandFactory f) {
 			<xsl:apply-templates select="." mode="abstract-class-name"/> factory = <xsl:apply-templates select="." mode="abstract-class-name"/>.class.cast(f);
@@ -315,6 +316,8 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			
 			
 		<xsl:apply-templates select=".//c:option"/>
+		
+		
 		
 		<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
 		private htsjdk.samtools.SamReader.Type outputformat= htsjdk.samtools.SamReader.Type.SAM_TYPE;
@@ -400,18 +403,69 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		<xsl:choose>
 		<xsl:when test="c:output/@type='vcf'">
+			
+		/** count variants */
+		private int <xsl:value-of select="concat('count_variants_',generate-id())"/> = 0;
+		protected class VariantContextWriterCounter implements htsjdk.variant.variantcontext.writer.VariantContextWriter
+			{
+			htsjdk.variant.variantcontext.writer.VariantContextWriter delegate;
+			VariantContextWriterCounter(final htsjdk.variant.variantcontext.writer.VariantContextWriter delegate)
+				{
+				this.delegate=delegate;
+				<xsl:value-of select="concat('count_variants_',generate-id())"/> = 0 ; 
+				}
+			@Override
+			public void add(final htsjdk.variant.variantcontext.VariantContext vc) {
+				this.delegate.add(vc);
+				++<xsl:value-of select="concat('count_variants_',generate-id())"/>;
+				}
+			@Override
+			public boolean checkError() {
+				return this.delegate.checkError();
+				}
+			@Override
+			public void close() {
+				this.delegate.close();
+				}
+			@Override
+			public void writeHeader(final htsjdk.variant.vcf.VCFHeader header) {
+				this.delegate.writeHeader(header);
+				<xsl:value-of select="concat('count_variants_',generate-id())"/> = 0;
+				}
+
+			}
+		/** return the number of variants in the output vcf */
+		public int getVariantCount()
+			{
+			return <xsl:value-of select="concat('count_variants_',generate-id())"/>;
+			}
+
+		
+		protected htsjdk.variant.vcf.VCFHeader addMetaData(final htsjdk.variant.vcf.VCFHeader header)
+			{
+			header.addMetaDataLine(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+			header.addMetaDataLine(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"Version",String.valueOf(getVersion())));
+			header.addMetaDataLine(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"HtsJdkVersion",com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion
+.getVersion()));
+			header.addMetaDataLine(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"HtsJdkHome",com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion
+.getHome()));
+			return header;
+			}
+		
 		/* creates a VariantContextWriter according to FileOUt */
-		protected htsjdk.variant.variantcontext.writer.VariantContextWriter  openVariantContextWriter()
+		protected  VariantContextWriterCounter openVariantContextWriter()
 			throws java.io.IOException
 			{
+			htsjdk.variant.variantcontext.writer.VariantContextWriter delegate = null;
 			if(getOutputFile()!=null)
 				{
-				return com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVariantContextWriter(this.getOutputFile());
+				delegate = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVariantContextWriter(this.getOutputFile());
 				}
 			else
 				{
-				return com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVariantContextWriterToOutputStream(stdout());
+				delegate = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVariantContextWriterToOutputStream(stdout());
 				}
+			return new VariantContextWriterCounter(delegate);
 			}
 		</xsl:when>
 		</xsl:choose>

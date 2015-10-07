@@ -28,14 +28,12 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.samfixcigar;
 
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.zip.Deflater;
 
-import com.github.lindenb.jvarkit.util.picard.AbstractBamWriterProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
@@ -46,226 +44,162 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
-public class SamFixCigar extends AbstractBamWriterProgram
+public class SamFixCigar extends AbstractSamFixCigar
 	{
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-	
-	@Override
-	public String getProgramDescription() {
-		return "Fix Cigar String in SAM replacing 'M' by 'X' or '='";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"SamFixCigar";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -r (file) reference indexed with samtools faidx . Required.");
-		out.println(" -C (int) set zip compression level.");
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(SamFixCigar.class);
 
-		super.printOptions(out);
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
 		}
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		GenomicSequence genomicSequence=null;
-		File faidx=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args, getGetOptDefault()+"r:C:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'r': faidx=new File(opt.getOptArg());break;
-				case 'C': 
-					{
-					BlockCompressedOutputStream.setDefaultCompressionLevel(
-							Math.max(Deflater.NO_COMPRESSION, Math.min(Deflater.BEST_COMPRESSION, Integer.parseInt(opt.getOptArg())))
-							);
-					break;
-					}
-				default: switch(handleOtherOptions(c, opt, args))
-					{
-					case EXIT_FAILURE: return -1;
-					case EXIT_SUCCESS: return 0;
-					default:break;
-					}
-				}
-			}
+	static private class MyCommand extends AbstractSamFixCigar.AbstractSamFixCigarCommand
+		{    
+		private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 		
-		if(faidx==null)
-			{
-			error("Reference was not specified.");
-			return -1;
-			}
-		long nReads=0L;
-		long nX=0L;
-		SamReader sfr=null;
-		SAMFileWriter sfw=null;
-		SAMFileHeader header;
-		try
-			{
-			info("Loading reference");
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
-			
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading stdin");
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				File fin=new File(args[opt.getOptInd()]);
-				info("Reading "+fin);
-				sfr=SamFileReaderFactory.mewInstance().open(fin);
-				}
-			else
-				{
-				error("Illegal number of arguments");
-				return -1;
-				}
-			header=sfr.getFileHeader();
-			
-			sfw = openSAMFileWriter(header,true);
-			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
-			List<CigarElement> newCigar=new ArrayList<CigarElement>();
-			SAMRecordIterator iter=sfr.iterator();
-			while(iter.hasNext())
-				{
-				++nReads;
-				if(nReads%1E6==0)
+		@Override
+		protected Collection<Throwable> call(String inputName) throws Exception {
+				GenomicSequence genomicSequence=null;			
+				if(faidx==null)
 					{
-					info("Reads "+nReads+" operator:X="+nX);
+					return wrapException("Reference was not specified.");
 					}
-				SAMRecord rec=progress.watch(iter.next());
-				Cigar cigar=rec.getCigar();
-				byte bases[]=rec.getReadBases();
-				if( rec.getReadUnmappedFlag() ||
-					cigar==null ||
-					cigar.getCigarElements().isEmpty() ||
-					bases==null)
+				SamReader sfr=null;
+				SAMFileWriter sfw=null;
+				try
 					{
-					sfw.addAlignment(rec);
-					continue;
-					}
-				
-				if(genomicSequence==null ||
-					genomicSequence.getSAMSequenceRecord().getSequenceIndex()!=rec.getReferenceIndex())
-					{
-					genomicSequence=new GenomicSequence(indexedFastaSequenceFile, rec.getReferenceName());
-					}
-				
-				newCigar.clear();
-				int refPos1=rec.getAlignmentStart();
-				int readPos0=0;
-				
-				for(CigarElement ce:cigar.getCigarElements())
-					{
-					switch(ce.getOperator())
-						{
-    					case H:break;
-
-    					
-    					case P:break;
-						case N://cont
-						case D:
-							{
-							newCigar.add(ce);
-							refPos1+=ce.getLength();
-							break;
-							}
-						case S:
-						case I:
-							{
-							newCigar.add(ce);
-							readPos0+=ce.getLength();							
-							break;
-							}
-						case EQ://cont
-						case X:
-							{
-							newCigar.add(ce);
-							refPos1+=ce.getLength();
-							readPos0+=ce.getLength();	
-							break;
-							}
-						case M:
-							{
-							boolean X=false;
-							for(int i=0;i< ce.getLength();++i)
-	    		    			{
-								char c1=Character.toUpperCase((char)bases[readPos0]);
-								char c2=Character.toUpperCase(refPos1-1< genomicSequence.length()?genomicSequence.charAt(refPos1-1):'*');
-								
-								if(c2=='N' || c1==c2)
-									{
-									newCigar.add(new CigarElement(1, CigarOperator.EQ));
-									}
-								else
-									{
-									newCigar.add(new CigarElement(1, CigarOperator.X));
-									X=true;
-									}
-								
-	    						refPos1++;
-	    						readPos0++;
-    		    				}
-							if(X) nX++;
-							break;
-							}
-						default: throw new RuntimeException("Cannot parse cigar "+rec.getCigarString()+" in "+rec.getReadName());
-						}
-					}
-				int i=0;
-				while(i< newCigar.size())
-					{
-					CigarOperator op1 = newCigar.get(i).getOperator();
-					int length1 = newCigar.get(i).getLength();
+					LOG.info("Loading reference");
+					this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
+					sfr =  openSamReader(inputName);
+					SAMFileHeader header=sfr.getFileHeader();
 					
-					if( i+1 <  newCigar.size() &&
-						newCigar.get(i+1).getOperator()==op1)
+					sfw = openSAMFileWriter(header,true);
+					SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
+					List<CigarElement> newCigar=new ArrayList<CigarElement>();
+					SAMRecordIterator iter=sfr.iterator();
+					while(iter.hasNext())
 						{
-						CigarOperator op2= newCigar.get(i+1).getOperator();
-						int length2=newCigar.get(i+1).getLength();
-
-						 newCigar.set(i,new CigarElement(length1+length2, op2));
-						 newCigar.remove(i+1);
+						SAMRecord rec=progress.watch(iter.next());
+						Cigar cigar=rec.getCigar();
+						byte bases[]=rec.getReadBases();
+						if( rec.getReadUnmappedFlag() ||
+							cigar==null ||
+							cigar.getCigarElements().isEmpty() ||
+							bases==null)
+							{
+							sfw.addAlignment(rec);
+							continue;
+							}
+						
+						if(genomicSequence==null ||
+							genomicSequence.getSAMSequenceRecord().getSequenceIndex()!=rec.getReferenceIndex())
+							{
+							genomicSequence=new GenomicSequence(indexedFastaSequenceFile, rec.getReferenceName());
+							}
+						
+						newCigar.clear();
+						int refPos1=rec.getAlignmentStart();
+						int readPos0=0;
+						
+						for(CigarElement ce:cigar.getCigarElements())
+							{
+							switch(ce.getOperator())
+								{
+		    					case H:break;
+		
+		    					
+		    					case P:break;
+								case N://cont
+								case D:
+									{
+									newCigar.add(ce);
+									refPos1+=ce.getLength();
+									break;
+									}
+								case S:
+								case I:
+									{
+									newCigar.add(ce);
+									readPos0+=ce.getLength();							
+									break;
+									}
+								case EQ://cont
+								case X:
+									{
+									newCigar.add(ce);
+									refPos1+=ce.getLength();
+									readPos0+=ce.getLength();	
+									break;
+									}
+								case M:
+									{
+									for(int i=0;i< ce.getLength();++i)
+			    		    			{
+										char c1=Character.toUpperCase((char)bases[readPos0]);
+										char c2=Character.toUpperCase(refPos1-1< genomicSequence.length()?genomicSequence.charAt(refPos1-1):'*');
+										
+										if(c2=='N' || c1==c2)
+											{
+											newCigar.add(new CigarElement(1, CigarOperator.EQ));
+											}
+										else
+											{
+											newCigar.add(new CigarElement(1, CigarOperator.X));
+											}
+										
+			    						refPos1++;
+			    						readPos0++;
+		    		    				}
+									break;
+									}
+								default: throw new RuntimeException("Cannot parse cigar "+rec.getCigarString()+" in "+rec.getReadName());
+								}
+							}
+						int i=0;
+						while(i< newCigar.size())
+							{
+							CigarOperator op1 = newCigar.get(i).getOperator();
+							int length1 = newCigar.get(i).getLength();
+							
+							if( i+1 <  newCigar.size() &&
+								newCigar.get(i+1).getOperator()==op1)
+								{
+								CigarOperator op2= newCigar.get(i+1).getOperator();
+								int length2=newCigar.get(i+1).getLength();
+		
+								 newCigar.set(i,new CigarElement(length1+length2, op2));
+								 newCigar.remove(i+1);
+								}
+							else
+								{
+								++i;
+								}
+							}
+						cigar=new Cigar(newCigar);
+						rec.setCigar(cigar);
+						
+						sfw.addAlignment(rec);
 						}
-					else
-						{
-						++i;
-						}
+					progress.finish();
+					return RETURN_OK;
 					}
-				cigar=new Cigar(newCigar);
-				//info("changed "+rec.getCigarString()+" to "+newCigarStr+" "+rec.getReadName()+" "+rec.getReadString());
-				rec.setCigar(cigar);
-				
-				sfw.addAlignment(rec);
+				catch(Exception err)
+					{
+					return wrapException(err);
+					}
+				finally
+					{
+					CloserUtil.close(this.indexedFastaSequenceFile);
+					this.indexedFastaSequenceFile=null;
+					CloserUtil.close(sfr);
+					CloserUtil.close(sfw);
+					}
 				}
-			progress.finish();
-			return 0;
 			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(this.indexedFastaSequenceFile);
-			CloserUtil.close(sfr);
-			CloserUtil.close(sfw);
-			}
-		}
 	/**
 	 * @param args
 	 */

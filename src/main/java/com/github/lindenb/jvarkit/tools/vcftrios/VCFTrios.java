@@ -29,18 +29,20 @@ History:
 package com.github.lindenb.jvarkit.tools.vcftrios;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -56,25 +58,20 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 
 
 public class VCFTrios
-	extends AbstractVCFFilter3
+	extends AbstractVCFTrios
 	{
-	private Pedigree pedigree=null;
-    private boolean create_filter=false;
-    private String pedigreeURI=null;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VCFTrios.class);
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractVCFTrios.AbstractVCFTriosCommand
+		{    
+		Pedigree pedigree=null;
 	
-    public VCFTrios()
-    	{
-    	}
     
-    @Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"VCFTrio";
-    }
-	
-    @Override
-    public String getProgramDescription() {
-    	return  "Find mendelian incompatibilitie in a VCF. ";
-    	}
 	
 	
     private static String allelesToString(Genotype g)
@@ -140,8 +137,9 @@ public class VCFTrios
 				parent.getAllele(0),parent.getAllele(1)
 				);
 		}
-	@Override
-	protected void doWork(
+	
+	
+	protected  Collection<Throwable> doWork(
 			String source,
 			VcfIterator r, VariantContextWriter w)
 			throws IOException
@@ -183,7 +181,7 @@ public class VCFTrios
 				}
 			if(p==null)
 				{
-				info("Cannot find "+sampleName+" in "+pedigreeURI);
+				LOG.info("Cannot find "+sampleName+" in "+pedigreeURI);
 				}
 			else
 				{
@@ -191,14 +189,12 @@ public class VCFTrios
 				}
 			}
 		
-		info("persons in pedigree: "+samplename2person.size());
+		LOG.info("persons in pedigree: "+samplename2person.size());
 		
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 		while(r.hasNext())
 			{
-			VariantContext ctx= progress.watch(r.next());
-			incrVariantCount();
-			
+			VariantContext ctx= progress.watch(r.next());			
 			Set<String> incompatibilities=new HashSet<String>();
 			
 			
@@ -207,7 +203,7 @@ public class VCFTrios
 				Genotype gChild=ctx.getGenotype(child.getId());
 				if(gChild==null)
 					{
-					debug("cannot get genotype for child  "+child.getId());
+					LOG.debug("cannot get genotype for child  "+child.getId());
 					continue;
 					}
 				if(!gChild.isCalled())
@@ -220,7 +216,7 @@ public class VCFTrios
 					}
 				if(gChild.getAlleles().size()!=2)
 					{
-					warning(getClass().getSimpleName()+" only handle two alleles child:"+ allelesToString(gChild));
+					LOG.warn(getClass().getSimpleName()+" only handle two alleles child:"+ allelesToString(gChild));
 					continue;
 					}
 				
@@ -228,14 +224,14 @@ public class VCFTrios
 				Genotype gFather=(parent==null?null:ctx.getGenotype(parent.getId()));
 				if(gFather==null && parent!=null)
 					{
-					debug("cannot get genotype for father  "+parent.getId());
+					LOG.debug("cannot get genotype for father  "+parent.getId());
 					}
 				if(gFather!=null && !gFather.isCalled()) gFather=null;
 				if(gFather!=null && !gFather.isAvailable()) gFather=null;
 
 				if(gFather!=null && gFather.getAlleles().size()!=2)
 					{
-					warning(getClass().getSimpleName()+" only handle two alleles father: "+ allelesToString(gFather));
+					LOG.warn(getClass().getSimpleName()+" only handle two alleles father: "+ allelesToString(gFather));
 					gFather=null;
 					}
 				parent=child.getMother();
@@ -244,14 +240,14 @@ public class VCFTrios
 				
 				if(gMother==null && parent!=null)
 					{
-					debug("cannot get genotype for mother  "+parent.getId());
+					LOG.debug("cannot get genotype for mother  "+parent.getId());
 					}
 				
 				if(gMother!=null && !gMother.isCalled()) gMother=null;
 				if(gMother!=null && !gMother.isAvailable()) gMother=null;
 				if(gMother!=null && gMother.getAlleles().size()!=2)
 					{
-					warning(getClass().getSimpleName()+" only handle two alleles mother:"+ allelesToString(gMother));
+					LOG.warn(getClass().getSimpleName()+" only handle two alleles mother:"+ allelesToString(gMother));
 					gMother=null;
 					}
 				
@@ -276,7 +272,7 @@ public class VCFTrios
 				
 			if(incompatibilities.isEmpty())
 				{
-
+				
 				w.add(ctx);
 				continue;
 				}
@@ -286,92 +282,61 @@ public class VCFTrios
 			b.attribute("MENDEL", incompatibilities.toArray());
 			w.add(b.make());
 			
-			if(checkOutputError()) break;
+			if(w.checkError()) break;
 			}	
 		progress.finish();
-		info("incompatibilities N="+count_incompats);
+		LOG.info("incompatibilities N="+count_incompats);
+		return RETURN_OK;
 		}
 	
 	
-	public void setCreateFilter(boolean create_filter)
-		{
-		this.create_filter = create_filter;
-		}
-	
-	public void setPedigreeURI(String pedigreeURI) {
-		this.pedigreeURI = pedigreeURI;
-		}
 	
 	
 	@Override
-	public void disposeKnime() {
-		
-	}
-
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -p (file) Pedigree file");
-		out.println(" -f create a filter in the FILTER column");
-		out.println(" -o (filename) output. default:stdout");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:fo:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'f': this.setCreateFilter(true);break;
-				case 'p': this.setPedigreeURI(opt.getOptArg());break;
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
-	
-	public static void main(String[] args)
-		{
-		new VCFTrios().instanceMainWithExit(args);
-		}
-
-	@Override
-	public int initializeKnime()
-		{
+	public Collection<Throwable> initializeKnime() {
 		if(this.pedigreeURI==null)
 			{
-			error("Pedigree undefined.");
-			return -1;
+			return wrapException("Pedigree undefined.");
 			}
-	
+
 		try {
-			info("reading pedigree "+this.pedigreeURI);
+			LOG.info("reading pedigree "+this.pedigreeURI);
 			BufferedReader in=IOUtils.openURIForBufferedReading(this.pedigreeURI);
 			this.pedigree=Pedigree.readPedigree(in);
 			in.close();
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
-		return 0;
+		return super.initializeKnime();
+		}
+	
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception
+		{
+		VcfIterator in=null;
+		VariantContextWriter w=null;
+		try {
+			in = openVcfIterator(inputName);
+			w = openVariantContextWriter();
+			return doWork(inputName, in, w);
+			}
+		catch (Exception e) {
+			return wrapException(e);
+			}
+		finally
+			{
+			CloserUtil.close(in);
+			CloserUtil.close(w);
+			}
+		}
 	}
 
 
+	public static void main(String[] args)
+		{
+		new VCFTrios().instanceMainWithExit(args);
+		}
 
 	}

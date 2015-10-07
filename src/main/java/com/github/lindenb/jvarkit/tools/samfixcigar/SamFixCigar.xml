@@ -4,4 +4,16 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.samfixcigar">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Fix Cigar String in SAM replacing 'M' by 'X' or '='</description>
+<input type="sam"/>
+<output type="sam"/>
+
+<options>
+	<option name="faidx" type="input-file" opt="r" longopt="REF" argname="REFERENCE">
+		<description>indexed reference file</description>
+	</option>
+</options>
+
+
+<!-- __PLACEHOLDER__ -->
+</app>

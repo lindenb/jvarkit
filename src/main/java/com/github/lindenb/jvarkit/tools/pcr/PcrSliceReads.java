@@ -29,10 +29,10 @@ History:
 package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Pattern;
@@ -40,40 +40,37 @@ import java.util.regex.Pattern;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class PcrSliceReads extends AbstractCommandLineProgram
+public class PcrSliceReads extends AbstractPcrSliceReads
 	{
-	private boolean clip_reads=false;
-	private IntervalTreeMap<Interval> bedIntervals=new IntervalTreeMap<Interval>();
-	private File fileout = null;
-	private boolean binary=false;
-	private enum AmbiguityStrategy {zero,random,closer};
-	private AmbiguityStrategy ambiguityStrategy= AmbiguityStrategy.closer; 
-	private Random random=new Random(0L);//0L for reproductive calculations
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(PcrSliceReads.class);
+
 	@Override
-	public String getProgramDescription() {
-		return "Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/";
+	public Command createCommand() {
+		return new MyCommand();
 		}
+
 	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"PcrSliceReads";
-    	}
+	static private class MyCommand extends AbstractPcrSliceReads.AbstractPcrSliceReadsCommand
+		{    
+
+	
+	
+		private IntervalTreeMap<Interval> bedIntervals=new IntervalTreeMap<Interval>();
+		private enum AmbiguityStrategy {zero,random,closer};
+		private AmbiguityStrategy ambiguityStrategy= AmbiguityStrategy.closer; 
+		private Random random=new Random(0L);//0L for reproductive calculations
 	
 	private List<Interval> findIntervals(String chrom,int start,int end)
 		{
@@ -83,12 +80,12 @@ public class PcrSliceReads extends AbstractCommandLineProgram
 	
 	
 	@SuppressWarnings("resource")
-	private int run(SamReader reader)
+	private Collection<Throwable> run(SamReader reader)
 		{
 		ReadClipper readClipper = new ReadClipper();
 		SAMFileHeader header1= reader.getFileHeader();
 		SAMFileHeader header2 = header1.clone();
-		header2.addComment(getProgramName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
+		header2.addComment(getName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
 		header2.setSortOrder(SortOrder.unsorted);
 		
 		for(SAMReadGroupRecord srg:header1.getReadGroups())
@@ -106,23 +103,8 @@ public class PcrSliceReads extends AbstractCommandLineProgram
 		SAMRecordIterator iter = null;
 		try
 			{
-			SAMFileWriterFactory sfw=new SAMFileWriterFactory();
+			sw = openSAMFileWriter(header2, false);
 			
-			if( this.fileout == null )
-				{
-				if( this.binary)
-					{
-					sw = sfw.makeBAMWriter(header2, false, System.out);
-					}
-				else
-					{
-					sw = sfw.makeSAMWriter(header2, false, System.out);
-					}
-				}
-			else
-				{
-				sw = sfw.makeSAMOrBAMWriter(header2, false, this.fileout);
-				}
 			SAMSequenceDictionaryProgress progress =new SAMSequenceDictionaryProgress(header1);
 			iter =  reader.iterator();
 			while(iter.hasNext())
@@ -271,12 +253,12 @@ public class PcrSliceReads extends AbstractCommandLineProgram
 				sw.addAlignment(rec);
 				}
 			progress.finish();
-			return 0;
+			LOG.info("done");
+			return Collections.emptyList();
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -286,94 +268,49 @@ public class PcrSliceReads extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -a (strategy) if a read is mapped on multiple PCR fragments, how to resolve ambiguity ? default:"+this.ambiguityStrategy.name()+" . Where strategy is"); 
-		out.println("     "+AmbiguityStrategy.random.name() + " : choose a random fragment"); 
-		out.println("     "+AmbiguityStrategy.zero.name() + " : set MAPQ to zero and ignore."); 
-		out.println("     "+AmbiguityStrategy.closer.name() + " : choose PCR fragment closest to NGS-fragment boundaries."); 
-		out.println(" -o (file) output file (default stdout)"); 
-		out.println(" -b force binary for stdout (optional)"); 
-		out.println(" -B (file) bed file containing non-overlapping PCR fragments. Column name is required."); 
-		out.println(" -c clip read to their PCR fragments. see https://github.com/lindenb/jvarkit/wiki/PcrClipReads"); 
-		super.printOptions(out);
-		}
-
-	
 	@SuppressWarnings("resource")
-	@Override
-	public int doWork(String[] args)
+
+	protected Collection<Throwable> call(String inputName) throws Exception
 		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		File bedFile=null;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:bB:ca:"))!=-1)
+		try
 			{
-			switch(c)
-				{
-				case 'a': this.ambiguityStrategy = AmbiguityStrategy.valueOf(opt.getOptArg());break;
-				case 'c': this.clip_reads=true; break;
-				case 'B': bedFile =new File(opt.getOptArg());break;
-				case 'b': binary=true;break;
-				case 'o': fileout = new File(opt.getOptArg());break;				
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			this.ambiguityStrategy = AmbiguityStrategy.valueOf(this.ambiguityStrategyStr);
 			}
-		if(bedFile==null)
+		catch(Exception err)
 			{
-			error("undefined bed file");
-			return -1;
+			return wrapException("bad ambiguity "+ambiguityStrategyStr);
+			}
+		
+		if(super.bedFile==null)
+			{
+			return wrapException("undefined bed file");
 			}
 		BufferedReader r=null;
 		SamReader samReader=null;
 		try {
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-			if(opt.getOptInd()==args.length)
-				{
-				samReader = srf.open(SamInputResource.of(System.in));
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				samReader = srf.open(SamInputResource.of(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error("illegal number of args");
-				return -1;
-				}
+			samReader =  openSamReader(inputName);
 			
 			Pattern tab= Pattern.compile("[\t]");
-			 r= IOUtils.openFileForBufferedReading(bedFile);
+			 r= IOUtils.openFileForBufferedReading(super.bedFile);
 			String line;
 			while((line=r.readLine())!=null)
 				{
 				String tokens[]=tab.split(line);
 				if(tokens.length<4)
 					{
-					error("Bad bed line "+line);
-					return -1;
+					return wrapException("Bad bed line "+line);
 					}
 				String chrom = tokens[0];
 				int chromStart1 = Integer.parseInt(tokens[1])+1;
 				int chromEnd1 = Integer.parseInt(tokens[2])+0;
 				if(chromStart1<1 || chromStart1>chromEnd1)
 					{
-					error("Bad bed line "+line);
-					return -1;
+					return wrapException("Bad bed line "+line);
 					}
 				String name = tokens[3].trim();
 				if(name.isEmpty())
 					{
-					error("Bad bed line (name missing) in  "+line);
-					return -1;
+					return wrapException("Bad bed line (name missing) in  "+line);
 					}
 				Interval i =new Interval(chrom, chromStart1, chromEnd1,false,name);
 				this.bedIntervals.put(i, i);
@@ -381,8 +318,7 @@ public class PcrSliceReads extends AbstractCommandLineProgram
 			return run(samReader);
 			}
 		catch (Exception e) {
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{
@@ -391,6 +327,7 @@ public class PcrSliceReads extends AbstractCommandLineProgram
 			}
 		}
 
+		}
 	
 	public static void main(String[] args) {
 		new PcrSliceReads().instanceMain(args);

@@ -15,7 +15,7 @@ public abstract class Command
 	implements Callable<Collection<Throwable>>
 	{
 	private static final Log LOG=LogFactory.getLog(Command.class);
-	
+	protected static final Collection<Throwable> RETURN_OK = Collections.emptyList();
 	/** error stream */
 	private java.io.PrintStream _errStream = System.err;
 	/** stdout stream */
@@ -29,13 +29,15 @@ public abstract class Command
 	/** log */
 	private Log _log = LOG;
 	
+	
+	
 	public Command()
 		{
 		}
 	
 	public Collection<Throwable> initializeKnime()	
 		{
-		return Collections.emptyList();
+		return RETURN_OK;
 		}
 	
 	public void disposeKnime()	

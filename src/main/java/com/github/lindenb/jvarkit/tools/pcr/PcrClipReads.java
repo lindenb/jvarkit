@@ -29,8 +29,6 @@ History:
 package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.PrintStream;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.regex.Pattern;
@@ -38,36 +36,32 @@ import java.util.regex.Pattern;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.tools.biostar.Biostar76892;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class PcrClipReads extends AbstractCommandLineProgram
+public class PcrClipReads extends AbstractPcrClipReads
 	{
-	private IntervalTreeMap<Interval> bedIntervals=new IntervalTreeMap<Interval>();
-	private File fileout = null;
-	private boolean binary=false;
+	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar76892.class);
+
 	@Override
-	public String getProgramDescription() {
-		return "Soft clip bam files based on PCR target regions https://www.biostars.org/p/147136/";
+	public Command createCommand() {
+		return new MyCommand();
 		}
 	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"PcrClipReads";
-    	}
-	
+	static private class MyCommand extends AbstractPcrClipReads.AbstractPcrClipReadsCommand
+		{    
+	private IntervalTreeMap<Interval> bedIntervals=new IntervalTreeMap<Interval>();
+
 	private Interval findInterval(final SAMRecord rec)
 		{
 		if(rec.getReadUnmappedFlag()) return null;
@@ -88,33 +82,18 @@ public class PcrClipReads extends AbstractCommandLineProgram
 		}
 	
 	
-	private int run(SamReader reader)
+	private Collection<Throwable> run(SamReader reader)
 		{
 		SAMFileHeader header1= reader.getFileHeader();
 		SAMFileHeader header2 = header1.clone();
-		header2.addComment(getProgramName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
+		header2.addComment(getName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
 		header2.setSortOrder(SortOrder.unsorted);
 		SAMFileWriter sw=null;
 		SAMRecordIterator iter = null;
 		try
 			{
-			SAMFileWriterFactory sfw=new SAMFileWriterFactory();
+			sw =  openSAMFileWriter(header2, false);
 			
-			if( this.fileout == null )
-				{
-				if( this.binary)
-					{
-					sw = sfw.makeBAMWriter(header2, false, System.out);
-					}
-				else
-					{
-					sw = sfw.makeSAMWriter(header2, false, System.out);
-					}
-				}
-			else
-				{
-				sw = sfw.makeSAMOrBAMWriter(header2, false, this.fileout);
-				}
 			SAMSequenceDictionaryProgress progress =new SAMSequenceDictionaryProgress(header1);
 			iter =  reader.iterator();
 			while(iter.hasNext())
@@ -164,12 +143,12 @@ public class PcrClipReads extends AbstractCommandLineProgram
 				sw.addAlignment(rec);
 				}
 			progress.finish();
-			return 0;
+			LOG.info("done");
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -179,98 +158,49 @@ public class PcrClipReads extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (file) output file (default stdout)"); 
-		out.println(" -b force binary for stdout (optional)"); 
-		out.println(" -B (file) bed file containing non-overlapping PCR fragments."); 
-		super.printOptions(out);
-		}
-
-	
-	@SuppressWarnings("resource")
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		File bedFile=null;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:bB:"))!=-1)
-			{
-			switch(c)
+		protected Collection<Throwable> call(String inputName) throws Exception {
+			if(bedFile==null)
 				{
-				case 'B': bedFile =new File(opt.getOptArg());break;
-				case 'b': binary=true;break;
-				case 'o': fileout = new File(opt.getOptArg());break;				
-				default:
+				return wrapException("undefined bed file");
+				}
+			BufferedReader r=null;
+			SamReader samReader=null;
+			try {
+				samReader =  openSamReader(inputName);
+				
+				final  Pattern tab= Pattern.compile("[\t]");
+				 r= IOUtils.openFileForBufferedReading(bedFile);
+				String line;
+				while((line=r.readLine())!=null)
 					{
-					switch(handleOtherOptions(c, opt,args))
+					String tokens[]=tab.split(line);
+					if(tokens.length<3)
 						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+						return wrapException("Bad bed line "+line);
 						}
+					String chrom = tokens[0];
+					int chromStart1 = Integer.parseInt(tokens[1])+1;
+					int chromEnd1 = Integer.parseInt(tokens[2])+0;
+					if(chromStart1<1 || chromStart1>chromEnd1)
+						{
+						return wrapException("Bad bed line "+line);
+						}
+					Interval i =new Interval(chrom, chromStart1, chromEnd1);
+					this.bedIntervals.put(i, i);
 					}
+				return run(samReader);
 				}
-			}
-		if(bedFile==null)
-			{
-			error("undefined bed file");
-			return -1;
-			}
-		BufferedReader r=null;
-		SamReader samReader=null;
-		try {
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-			if(opt.getOptInd()==args.length)
+			catch (Exception e) {
+				return wrapException(e);
+				}
+			finally
 				{
-				samReader = srf.open(SamInputResource.of(System.in));
+				CloserUtil.close(r);
+				CloserUtil.close(samReader);
 				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				samReader = srf.open(SamInputResource.of(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error("illegal number of args");
-				return -1;
-				}
-			
-			Pattern tab= Pattern.compile("[\t]");
-			 r= IOUtils.openFileForBufferedReading(bedFile);
-			String line;
-			while((line=r.readLine())!=null)
-				{
-				String tokens[]=tab.split(line);
-				if(tokens.length<3)
-					{
-					error("Bad bed line "+line);
-					return -1;
-					}
-				String chrom = tokens[0];
-				int chromStart1 = Integer.parseInt(tokens[1])+1;
-				int chromEnd1 = Integer.parseInt(tokens[2])+0;
-				if(chromStart1<1 || chromStart1>chromEnd1)
-					{
-					error("Bad bed line "+line);
-					return -1;
-					}
-				Interval i =new Interval(chrom, chromStart1, chromEnd1);
-				this.bedIntervals.put(i, i);
-				}
-			return run(samReader);
 			}
-		catch (Exception e) {
-			error(e);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(r);
-			CloserUtil.close(samReader);
-			}
-		}
 
+		}
 	
 	public static void main(String[] args) {
 		new PcrClipReads().instanceMain(args);

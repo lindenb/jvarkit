@@ -4,4 +4,19 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.vcftrios">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Find mendelian incompatibilitie in a VCF</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+<options>
+	<option name="pedigreeURI" type="string" opt="p" longopt="pedigree" argname="PEDIGREE" >
+		<description>Pedigree file/URL</description>
+	</option>
+	<option name="create_filter" type="boolean" opt="f" longopt="filter" >
+		<description> create a filter in the FILTER column</description>
+	</option>
+</options>
+
+
+
+<!-- __PLACEHOLDER__ --></app>
