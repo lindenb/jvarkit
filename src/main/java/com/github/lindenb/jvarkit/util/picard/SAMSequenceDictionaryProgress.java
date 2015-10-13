@@ -29,8 +29,10 @@ History:
 */
 package com.github.lindenb.jvarkit.util.picard;
 
-import java.util.logging.Logger;
 
+
+
+import java.util.logging.Logger;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
@@ -41,7 +43,7 @@ import htsjdk.variant.vcf.VCFHeader;
 
 public class SAMSequenceDictionaryProgress
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(SAMSequenceDictionaryProgress.class);
+	private static final Logger LOG=Logger.getLogger("jvarkit");
 
 	private long start_ticks=-1L;
 	private long last_ticks=-1L;
