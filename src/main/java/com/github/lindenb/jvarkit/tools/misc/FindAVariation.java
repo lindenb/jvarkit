@@ -32,8 +32,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -47,13 +47,16 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class FindAVariation extends AbstractCommandLineProgram
+public class FindAVariation extends AbstractFindAVariation
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(FindAVariation.class);
+
+	
 	private static class Mutation
 		{
 		String chrom;
@@ -89,22 +92,18 @@ public class FindAVariation extends AbstractCommandLineProgram
 			}
 		
 		}
-	private Set<Mutation> mutations=new HashSet<Mutation>();
-	private PrintWriter out=null;
 	
-    private FindAVariation()
-    	{
-    	
-    	}		
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/FindAVariation";
-    	}
-    
-    @Override
-    public String getProgramDescription() {
-    	return "Find a specific mutation in a list of VCF files.";
-    	}
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractFindAVariation.AbstractFindAVariationCommand
+	 	{		
+		private Set<Mutation> mutations=new HashSet<Mutation>();
+		private PrintWriter out=null;
+	
+   
     
     private void reportPos(File f,VariantContext ctx)
 		{
@@ -159,7 +158,7 @@ public class FindAVariation extends AbstractCommandLineProgram
     		String s=VCFUtils.findChromNameEquivalent(m.chrom,h);
     		if(s==null)
     			{
-    			warning("Cannot convert chrom "+s+" in "+f);
+    			LOG.warn("Cannot convert chrom "+s+" in "+f);
     			continue;
     			}
     		copy.add(new Mutation(s, m.pos));
@@ -178,7 +177,7 @@ public class FindAVariation extends AbstractCommandLineProgram
     			if(!f.isFile()) continue;
     			if(!f.canRead()) continue;
     			if(!VCFUtils.isVcfFile(f)) continue;
-    			info(f);
+    			LOG.info(f);
     			VcfIterator iter=null;
     			
 	    			if(VCFUtils.isTabixVcfFile(f))
@@ -200,11 +199,11 @@ public class FindAVariation extends AbstractCommandLineProgram
 							}
 		    			catch(htsjdk.tribble.TribbleException.InvalidHeader err)
 		    				{
-		    				warning(f+"\t"+err.getMessage());
+		    				LOG.warn(f+"\t"+err.getMessage());
 		    				}
 						catch(Exception err)
 							{
-							error(err);
+							LOG.error(err);
 							}
 						finally
 							{
@@ -230,11 +229,11 @@ public class FindAVariation extends AbstractCommandLineProgram
 	    					}
 	    				catch(htsjdk.tribble.TribbleException.InvalidHeader err)
 		    				{
-		    				warning(f+"\t"+err.getMessage());
+		    				LOG.warn(f+"\t"+err.getMessage());
 		    				}
 	    				catch(Exception err)
 	    					{
-	    					error(err);
+	    					LOG.error(err);
 	    					}
 	    				finally
 	    					{
@@ -244,86 +243,71 @@ public class FindAVariation extends AbstractCommandLineProgram
 	    			
     			}
     	}
-    
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -p chrom:pos . Add this chrom/position.");
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:"))!=-1)
+    @Override
+    public Collection<Throwable> call() throws Exception
+    	{
+    	if(super.positionStrSet.isEmpty())
 			{
-			switch(c)
-				{
-				case 'p':
-					{
-					String s=opt.getOptArg();
-					int colon=s.indexOf(':');
-					if(colon==-1 || colon+1==s.length())
-						{
-						error("Bad chrom:pos "+s);
-						return -1;
-						}
-					
-					String chrom=s.substring(0,colon).trim();
-					if(chrom.isEmpty())
-						{
-						error("Bad chrom:pos "+s);
-						return -1;
-						}
-					Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
-					info("adding "+m);
-					this.mutations.add(m);
-					break;
-					}
-				default:
-					{
-					switch(super.handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS:return 0;
-						case OK:break;
-						}
-					}
-				}
+			return wrapException("position not defined");
 			}
+		else for(String s: super.positionStrSet)
+			{
+			int colon=s.indexOf(':');
+			if(colon==-1 || colon+1==s.length())
+				{
+				return wrapException("Bad chrom:pos "+s);
+				}
+			
+			String chrom=s.substring(0,colon).trim();
+			if(chrom.isEmpty())
+				{
+				return wrapException("Bad chrom:pos "+s);
+				}
+			Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
+			LOG.info("mutation =  "+m);
+			this.mutations.add(m);
+			}
+		if(this.mutations.isEmpty())
+			{
+			return wrapException("position not defined");
+			}
+		final List<String> args = getInputFiles();
+		this.out = null;
+		BufferedReader r = null;
 		try
 			{
-			this.out=new PrintWriter(System.out);
-			if(opt.getOptInd()==args.length)
+			this.out =openFileOrStdoutAsPrintWriter();  
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				scan(new BufferedReader(new InputStreamReader(System.in)));
+				LOG.info("Reading from stdin");
+				 r=new BufferedReader(new InputStreamReader(stdin()));
+				this.scan(r);
+				r.close();
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename:args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
-					BufferedReader r=IOUtils.openURIForBufferedReading(filename);
-					scan(r);
+					LOG.info("Reading from "+filename);
+					r=IOUtils.openURIForBufferedReading(filename);
+					this.scan(r);
 					r.close();
 					}
 				}
 			this.out.flush();
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-
+			CloserUtil.close(this.out);
+			CloserUtil.close(r);
 			}
 		}
+	 	}
 	
 	/**
 	 * @param args

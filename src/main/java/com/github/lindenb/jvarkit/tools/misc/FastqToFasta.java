@@ -1,46 +1,54 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.Collection;
+import java.util.List;
 
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 public class FastqToFasta
-	extends AbstractCommandLineProgram
+	extends AbstractFastqToFasta
 	{
-	private int fastaLineLen=50;
-	private boolean trim_after_space=false;
-	
-	private FastqToFasta()
-		{
-		}
-	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(FastqToFasta.class);
+
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FastqToFasta";
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "FastqToFasta";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (fileout) Filename output . Optional ");
-		out.println(" -N (fasta line length)  Optional. Default: "+fastaLineLen);
-		out.println(" -b trim fasta header after space.");
-		super.printOptions(out);
-		}
-	
+		 
+	public  static class MyCommand extends AbstractFastqToFasta.AbstractFastqToFastaCommand
+	 	{		
 	
 	
 	private void run(FastqReader r,PrintStream out)
@@ -52,7 +60,7 @@ public class FastqToFasta
 			{
 			if(++nRec%1E6==0)
 				{
-				info("N-Reads:"+nRec);
+				LOG.info("N-Reads:"+nRec);
 				}
 			FastqRecord fastq=r.next();
 			out.print(">");
@@ -77,76 +85,50 @@ public class FastqToFasta
 			if(out.checkError()) break;
 			}
 		out.flush();
-		info("Done. N-Reads:"+nRec);
+		LOG.info("Done. N-Reads:"+nRec);
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		File fileout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args, getGetOptDefault()+"o:N:b"))!=-1)
+	public Collection<Throwable> call() throws Exception
 			{
-			switch(c)
+			final List<String> args = getInputFiles();
+			PrintStream out=null;
+			FastqReader fqR = null;
+			try
 				{
-				case 'o': fileout=new File(getopt.getOptArg());break;
-				case 'b': trim_after_space=true;break;
-				case 'N': fastaLineLen=Math.max(1,Integer.parseInt(getopt.getOptArg()));break;
-				default: 
+				out =  openFileOrStdoutAsPrintStream();
+				
+				if(args.isEmpty())
 					{
-					switch(handleOtherOptions(c, getopt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
+					LOG.info("Reading from stdin");
+					 fqR=new FourLinesFastqReader(stdin());
+					run(fqR,out);
+					fqR.close();
+					fqR =null;
 					}
+				else for(String arg: args)
+					{
+					File f=new File(arg);
+					LOG.info("Reading from "+f);
+					fqR=new FourLinesFastqReader(f);
+					run(fqR,out);
+					fqR.close();
+					fqR =null;
+					}
+				out.flush();
+				return RETURN_OK;
+				}
+			catch(Exception err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				CloserUtil.close(out);
+				CloserUtil.close(fqR);
 				}
 			}
-		
-		PrintStream out=System.out;
-		try
-			{
-			if(fileout!=null)
-				{
-				info("Writing to "+fileout);
-				out=new PrintStream(IOUtils.openFileForWriting(fileout));
-				}
-			else
-				{
-				info("Writing to stdout");
-				out=System.out;
-				}
-			
-			if(getopt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				FastqReader fqR=new FourLinesFastqReader(System.in);
-				run(fqR,out);
-				fqR.close();
-				}
-			else for(int optind=getopt.getOptInd(); optind < args.length; ++optind)
-				{
-				File f=new File(args[optind]);
-				info("Reading from "+f);
-				FastqReader fqR=new FourLinesFastqReader(f);
-				run(fqR,out);
-				fqR.close();
-				}
-			out.flush();
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(out);
-			}
-		return 0;
-		}
+	 	}
 	
 	public static void main(String[] args) {
 		new FastqToFasta().instanceMainWithExit(args);

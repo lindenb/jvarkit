@@ -4,4 +4,19 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )</description>
+<output type="fastq"/>
+
+<options>
+	<option name="only_R1" type="boolean" opt="1" longopt="R1" default="false">
+		<description>interleaced input : only reverse complement R1 . Optional</description>
+	</option>
+	<option name="only_R2" type="boolean" opt="2" longopt="R2" default="false">
+		<description>interleaced input : only reverse complement R2 . Optional</description>
+	</option>
+</options>
+
+
+<!-- __PLACEHOLDER__ -->
+
+</app>

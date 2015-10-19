@@ -86,14 +86,14 @@ public class FastqGrep
 					{
 					keep=true;
 					}
-				if(inverse) keep=!keep;
+				if(super.inverse) keep=!keep;
 				if(keep)
 					{
 					++nRec;
 					out.write(fastq);
 					}
 				
-				if(n_before_remove!=-1 && !inverse && keep)
+				if(super.n_before_remove!=-1 && !super.inverse && keep)
 					{
 					count++;
 					if(count>=n_before_remove)
@@ -149,16 +149,7 @@ public class FastqGrep
 		FastqWriter out=null;
 		try
 			{
-			if(getOutputFile()!=null)
-				{
-				LOG.info("Writing to "+getOutputFile());
-				out=new BasicFastqWriter(getOutputFile());
-				}
-			else
-				{
-				LOG.info("Writing to stdout");
-				out=new BasicFastqWriter(stdout());
-				}
+			out  =  openFastqWriter();
 			
 			if(args.isEmpty())
 				{

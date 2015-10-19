@@ -317,7 +317,23 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			
 		<xsl:apply-templates select=".//c:option"/>
 		
+		<xsl:if test="c:output/@type='fastq'">
 		
+		/** open output as a  htsjdk.samtools.fastq.FastqWriter */
+		protected htsjdk.samtools.fastq.FastqWriter openFastqWriter()
+			{
+			if(getOutputFile()!=null)
+				{
+				LOG.info("Writing to "+getOutputFile());
+				return new htsjdk.samtools.fastq.BasicFastqWriter(getOutputFile());
+				}
+			else
+				{
+				LOG.info("Writing to stdout");
+				return new htsjdk.samtools.fastq.BasicFastqWriter(stdout());
+				}
+			}
+		</xsl:if>
 		
 		<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
 		private htsjdk.samtools.SamReader.Type outputformat= htsjdk.samtools.SamReader.Type.SAM_TYPE;

@@ -34,6 +34,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -52,11 +54,15 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.tools.misc.FastqToFasta.MyCommand;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.command.Command;
 
-public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
+public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(FindAllCoverageAtPosition.class);
+
 	private static class Mutation
 		{
 		String chrom;
@@ -92,22 +98,24 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
 			}
 		
 		}
-	private Mutation mutation=null;
-	private PrintWriter out=null;
-	private SamReaderFactory samReaderFactory;
-    private FindAllCoverageAtPosition()
-    	{
-    	samReaderFactory=  SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-    	}		
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/FindAllCoveragesAtPosition";
-    	}
-    
-    @Override
-    public String getProgramDescription() {
-    	return "Find depth at specific position in a list of BAM files.";
-    	}
+	
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractFindAllCoverageAtPosition.AbstractFindAllCoverageAtPositionCommand
+	 	{		
+
+		private Mutation mutation=null;
+		private PrintWriter out=null;
+		private SamReaderFactory samReaderFactory;
+	    public MyCommand()
+	    	{
+	    	samReaderFactory=  SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+	    	}		
+	   
     
   
     
@@ -116,7 +124,7 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
     	SAMSequenceDictionary dict=h.getSequenceDictionary();
     	if(dict==null)
     		{
-    		warning("No dictionary in "+h);
+    		LOG.warn("No dictionary in "+h);
     		return null;
     		}
     	SAMSequenceRecord rec=dict.getSequence(this.mutation.chrom);
@@ -166,7 +174,7 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
 				samReader = this.samReaderFactory.open(f);
 				if(!samReader.hasIndex())
 					{
-					warning("no index for "+f);
+					LOG.warn("no index for "+f);
 					continue;
 					}
 				SAMFileHeader header=samReader.getFileHeader();
@@ -188,7 +196,7 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
 					sample2count.put(DEFAULT_SAMPLE_NAME, new Counter<CigarOperator>());
 					}
 				
-				Mutation m = convertFromSamHeader(f,header);
+				final Mutation m = convertFromSamHeader(f,header);
 				if(m==null) continue;
 				iter=samReader.query(m.chrom, m.pos-1, m.pos+1,	false);
 				while(iter.hasNext())
@@ -199,6 +207,7 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
 					if(rec.getNotPrimaryAlignmentFlag()) continue;
 					if(rec.isSecondaryOrSupplementary()) continue;
 					if(rec.getDuplicateReadFlag()) continue;
+					if(rec.getMappingQuality()==0) continue;
 					Cigar cigar=rec.getCigar();
 					if(cigar==null) continue;
 					String sampleName=DEFAULT_SAMPLE_NAME;
@@ -217,36 +226,22 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
 						counter=new Counter<CigarOperator>();
 						sample2count.put(sampleName, counter);
 						}	
-					int ref= rec.getUnclippedStart();
+					int ref= rec.getAlignmentStart();
 					for(int k=0;k<cigar.numCigarElements() && ref< m.pos+1;++k)
 						{
 						CigarElement ce=cigar.getCigarElement(k);
 						CigarOperator op=ce.getOperator();
-						switch(op)
+						if(op.consumesReferenceBases())
 							{
-							case P: break;
-							case I: 
+							for(int i=0;i< ce.getLength() && ref< m.pos+1;++i )
 								{
-								if(ref==m.pos) counter.incr(op);
-								break;
-								}
-							case D:case N:
-							case M: case X: case EQ: 
-							case H:
-							case S:
-								{
-								for(int i=0;i< ce.getLength();++i )
+								if(ref==m.pos && op.consumesReadBases())
 									{
-									if(ref==m.pos)
-										{
-										counter.incr(op);
-										break;
-										}	
-									ref++;
-									}
-								break;
+									counter.incr(op);
+									break;
+									}	
+								ref++;
 								}
-							default: throw new RuntimeException("unknown operator:"+op);
 							}
 						}
 					}
@@ -278,10 +273,6 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
 					out.println();
 					}
 				}
-			catch(Exception err)
-				{
-				error(err);
-				}
 			finally
 				{
 				CloserUtil.close(iter);
@@ -291,61 +282,40 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
 	    
     	}
     
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -p chrom:pos . Add this chrom/position. Required");
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:"))!=-1)
-			{
-			switch(c)
+    @Override
+    public Collection<Throwable> call() throws Exception {
+    	if(this.positionStr==null)
+    		{
+			return wrapException("position not defined");
+    		}
+    	else
+    		{
+			String s = this.positionStr;
+			int colon=s.indexOf(':');
+			if(colon==-1 || colon+1==s.length())
 				{
-				case 'p':
-					{
-					String s=opt.getOptArg();
-					int colon=s.indexOf(':');
-					if(colon==-1 || colon+1==s.length())
-						{
-						error("Bad chrom:pos "+s);
-						return -1;
-						}
-					
-					String chrom=s.substring(0,colon).trim();
-					if(chrom.isEmpty())
-						{
-						error("Bad chrom:pos "+s);
-						return -1;
-						}
-					Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
-					info("adding "+m);
-					this.mutation = m;
-					break;
-					}
-				default:
-					{
-					switch(super.handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS:return 0;
-						case OK:break;
-						}
-					}
+				return wrapException("Bad chrom:pos "+s);
 				}
+			
+			String chrom=s.substring(0,colon).trim();
+			if(chrom.isEmpty())
+				{
+				return wrapException("Bad chrom:pos "+s);
+				}
+			Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
+			LOG.info("mutation =  "+m);
+			this.mutation = m;
 			}
 		if(this.mutation==null)
 			{
-			error("position not defined");
-			return -1;
+			return wrapException("position not defined");
 			}
+		final List<String> args = getInputFiles();
+		this.out = null;
+		BufferedReader r = null;
 		try
 			{
-			this.out=new PrintWriter(System.out);
+			this.out= openFileOrStdoutAsPrintWriter();
 			
 			out.print("#File");
 			out.print('\t');
@@ -364,36 +334,38 @@ public class FindAllCoverageAtPosition extends AbstractCommandLineProgram
 			out.println();
 
 			
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				scan(new BufferedReader(new InputStreamReader(System.in)));
+				LOG.info("Reading from stdin");
+				r= new BufferedReader(new InputStreamReader(stdin()));
+				scan(r);
+				r.close(); 
+				r= null;
 				}
-			else
+			else 
+			for(String filename:args)
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
-					{
-					String filename=args[i];
-					info("Reading from "+filename);
-					BufferedReader r=IOUtils.openURIForBufferedReading(filename);
-					scan(r);
-					r.close();
-					}
+				LOG.info("Reading from "+filename);
+				r=IOUtils.openURIForBufferedReading(filename);
+				scan(r);
+				r.close();
+				r=null;
 				}
+				
 			this.out.flush();
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-
+			CloserUtil.close(r);
+			CloserUtil.close(this.out);
 			}
 		}
-	
+	}
 	/**
 	 * @param args
 	 */
