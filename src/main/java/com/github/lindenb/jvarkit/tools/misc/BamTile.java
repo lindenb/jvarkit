@@ -29,24 +29,17 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
-import java.util.List;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 public class BamTile
 	extends AbstractBamTile
@@ -65,33 +58,15 @@ public class BamTile
 		private static class MyCommand extends AbstractBamTile.AbstractBamTileCommand
 			 	{
 				@Override
-				public Collection<Throwable> call() throws Exception 
-					{
-					List<String> args= this.getInputFiles();	
-							
+				protected Collection<Throwable> call(String inputName)
+					throws Exception {
+					
 					SAMRecordIterator iter=null;
 					SamReader sfr=null;
-					SAMFileWriter sfw=null;
+					SAMFileWriter sfw =null;
 					try
-						{
-						
-						SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-						
-						if(args.isEmpty())
-							{
-							LOG.info("Reading from stdin");
-							sfr=srf.open(SamInputResource.of(stdin()));
-							}
-						else if(args.size()==1)
-							{
-							File fin=new File(args.get(0));
-							LOG.info("Reading from "+fin);
-							sfr=SamFileReaderFactory.mewInstance().open(fin);
-							}
-						else
-							{
-							return wrapException("Illegal number of arguments.");
-							}
+						{			
+						sfr = openSamReader(null);
 						
 						SAMFileHeader header1=sfr.getFileHeader();
 						if(header1==null)
@@ -106,18 +81,9 @@ public class BamTile
 						
 						SAMFileHeader header2=header1.clone();
 						header2.addComment(getName()+":"+getVersion()+":"+getProgramCommandLine());
-							
-						SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
-						sfwf.setCreateIndex(false);
-						sfwf.setCreateMd5File(false);
-						if(getOutputFile()==null)
-							{
-							sfw = sfwf.makeSAMWriter(header2, true, stdout());
-							}
-						else
-							{
-							sfw = sfwf.makeSAMOrBAMWriter(header2, true, getOutputFile());
-							}
+						
+						sfw =  openSAMFileWriter(header2, true);
+						
 						
 						
 						
@@ -180,6 +146,7 @@ public class BamTile
 							
 							}
 						progress.finish();
+						LOG.info("done");
 						return Collections.emptyList();
 						}
 					catch(Exception err)

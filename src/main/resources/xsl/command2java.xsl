@@ -371,6 +371,18 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			this.outputFile = outputFile;
 			}
 		
+		protected java.io.PrintWriter openFileOrStdoutAsPrintWriter() throws java.io.IOException
+			{
+			if(getOutputFile()!=null)
+				{
+				return new java.io.PrintWriter(getOutputFile());
+				}
+			else
+				{
+				return new java.io.PrintWriter( stdout() );
+				}
+			}
+		
 		protected java.io.PrintStream openFileOrStdoutAsPrintStream() throws java.io.IOException
 			{
 			if(getOutputFile()!=null)
@@ -556,11 +568,69 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
 		/** list of tmp directories */
 		protected java.util.List&lt;java.io.File&gt; tmpDirs = new java.util.ArrayList&lt;java.io.File&gt;();
+		
+		
+		protected java.util.List&lt;java.io.File&gt; getTmpDirectories()
+			{
+			return this.tmpDirs;
+			}
+		
 		</xsl:if>
 		
 		<xsl:if test="c:snippet[@id='sorting-collection']">
 		/** When writing SAM files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM file, and increases the amount of RAM needed. */
 		protected int maxRecordsInRam = 500000;
+		
+		protected int getMaxRecordsInRam()
+			{
+			return this.maxRecordsInRam;
+			}
+		
+		
+		</xsl:if>
+		
+		
+		<xsl:if test="c:snippet[@id='custom-chrom-mapping']">
+		protected java.util.Map&lt;String,String&gt; loadCustomChromosomeMapping(final java.io.File mappingFile)
+			throws java.io.IOException
+			{
+			java.util.Map&lt;String,String&gt; customMapping=new java.util.HashMap&lt;String,String&gt;();
+			java.io.BufferedReader in = null;
+			try
+				{
+				LOG.info("Loading custom mapping "+mappingFile);
+				in = com.github.lindenb.jvarkit.io.IOUtils.openFileForBufferedReading(mappingFile);
+				String line;
+				while((line=in.readLine())!=null)
+					{
+					if(line.isEmpty() || line.startsWith("#")) continue;
+					String tokens[]=line.split("[\t]");
+					if(tokens.length!=2
+							|| tokens[0].trim().isEmpty()
+							|| tokens[1].trim().isEmpty()
+							|| tokens[0].equals(htsjdk.samtools.SAMRecord.NO_ALIGNMENT_REFERENCE_NAME)
+							|| tokens[1].equals(htsjdk.samtools.SAMRecord.NO_ALIGNMENT_REFERENCE_NAME)
+							)
+							{
+							in.close(); in =null;
+							throw new java.io.IOException("Bad mapping line: \""+line+"\" ");
+							}
+					tokens[0]=tokens[0].trim();
+					tokens[1]=tokens[1].trim();
+					if(customMapping.containsKey(tokens[0]))
+						{
+						in.close(); in =null;
+						throw new java.io.IOException("Mapping defined twice for: \""+tokens[0]+"\"");
+						}
+					customMapping.put(tokens[0], tokens[1]);
+					}
+				return customMapping;
+				}
+			finally
+				{
+				htsjdk.samtools.util.CloserUtil.close(in);
+				}
+			}
 		</xsl:if>
 		
 		}

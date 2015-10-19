@@ -129,6 +129,7 @@ public abstract class Command
 		}
 	protected Collection<Throwable> wrapException(final Throwable err)
 		{
+		err.printStackTrace(stderr());
 		return new ArrayList<>(Collections.singletonList(err));
 		}
 	@Deprecated

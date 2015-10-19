@@ -4,4 +4,19 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>extends a BED by 'X' bases.</description>
+<input type="stdin-or-one"/>
+
+<options>
+	<option name="EXTEND" type="int" opt="x" longopt="extend" default="0">
+		<description>extend by 'x' bases</description>
+	</option>
+	<option name="REF" type="input-file" opt="R" longopt="REF" >
+		<description>indexed reference file</description>
+	</option>
+</options>
+
+
+
+<!-- __PLACEHOLDER__ -->
+</app>

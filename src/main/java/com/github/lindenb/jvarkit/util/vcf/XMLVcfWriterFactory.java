@@ -37,7 +37,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
  */
 public class XMLVcfWriterFactory 
 	{
-	
+
 	private static class XMLVcfWriter implements VariantContextWriter
 		{
 		private XMLStreamWriter writer=null;
@@ -644,33 +644,17 @@ public class XMLVcfWriterFactory
 		{
 		
 		}
-	
-	public void setOutputFile(File out)
-		{
-		this.outputFile=out;
-		}
-	
-	
+		
 	public static XMLVcfWriterFactory newInstance()
 		{
 		return new XMLVcfWriterFactory();
 		}	
-	
-	
-	
-	public VariantContextWriter createVariantContextWriter() throws IOException
+	public VariantContextWriter createVariantContextWriter(File file) throws IOException
 		{
 		XMLVcfWriter w=new XMLVcfWriter();
 		try {
 			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-			if(this.outputFile!=null)
-				{
-				w.delegateOut=IOUtils.openFileForWriting(this.outputFile);
-				}
-			else
-				{
-				w.delegateOut=System.out;
-				}
+			w.delegateOut=IOUtils.openFileForWriting(this.outputFile);
 			w.writer = xmlfactory.createXMLStreamWriter(w.delegateOut);
 			} 
 		catch (XMLStreamException e)
@@ -679,8 +663,25 @@ public class XMLVcfWriterFactory
 			CloserUtil.close(w.delegateOut);;
 			throw new IOException(e);
 			}
-		
-		
 		return w;
 		}
+	
+	public VariantContextWriter createVariantContextWriter(OutputStream out,String encoding) throws IOException
+		{
+		XMLVcfWriter w=new XMLVcfWriter();
+		try {
+			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
+			w.delegateOut=out;
+			w.writer = xmlfactory.createXMLStreamWriter(out,encoding);
+			} 
+		catch (XMLStreamException e)
+			{
+			CloserUtil.close(w.writer);;
+			CloserUtil.close(w.delegateOut);;
+			throw new IOException(e);
+			}
+		return w;
+		}
+
+	
 	}

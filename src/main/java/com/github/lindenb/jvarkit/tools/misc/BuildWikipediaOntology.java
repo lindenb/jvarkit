@@ -11,6 +11,7 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.PrintWriter;
 import java.net.URLEncoder;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -48,14 +49,15 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
-
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.ns.RDF;
 
 @SuppressWarnings("serial")
-public class BuildWikipediaOntology extends AbstractCommandLineProgram
+public class BuildWikipediaOntology extends AbstractBuildWikipediaOntology
 	{
-	final static String RDFS="http://www.w3.org/2000/01/rdf-schema#";
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BuildWikipediaOntology.class);
+
+	private final static String RDFS="http://www.w3.org/2000/01/rdf-schema#";
 
 	private static long ID_GENERATOR=0L;
 	private class Frame extends JFrame
@@ -354,7 +356,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 		
 		Frame()
 			{
-			super(getProgramName());
+			super(BuildWikipediaOntology.this.getName());
 			setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			this.addWindowListener(new WindowAdapter()
 				{
@@ -409,7 +411,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 				}
 			catch (Exception err)
 				{
-				error(err);
+				LOG.error(err);
 				}	
 			}	
 		
@@ -431,7 +433,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 						URLEncoder.encode(term,"UTF-8")+
 						(cmcontinue==null?"":"&cmcontinue="+cmcontinue)
 						;
-				info(url);
+				LOG.info(url);
 				cmcontinue=null;
 				r=xif.createXMLEventReader(new StreamSource(url));
 				while(r.hasNext())
@@ -453,7 +455,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 				}
 			catch (Exception err)
 				{
-				error(err);
+				LOG.error(err);
 				}
 			return set;
 			}
@@ -461,73 +463,48 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 		
 		}
 	
-	private BuildWikipediaOntology()
+	public BuildWikipediaOntology()
 		{
 		
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BuildWikipediaOntology";
-		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "Build a simple RDFS/XML ontology from the Wikipedia Categories";
+	 @Override
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		final Frame frame=new Frame();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
+		 
+	public  class MyCommand extends AbstractBuildWikipediaOntology.AbstractBuildWikipediaOntologyCommand
+	 	{
+		@Override
+		public Collection<Throwable> call() throws Exception
 			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		
-		try
-			{
-			Dimension d=Toolkit.getDefaultToolkit().getScreenSize();
-			frame.setBounds(100, 100, d.width-200, d.height-200);
-			SwingUtilities.invokeAndWait(new Runnable()
-				{
-				@Override
-				public void run() {
-					frame.setVisible(true);
-				}
-			});
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
+			final Frame frame=new Frame();
 			
-			}
+			try
+				{
+				Dimension d=Toolkit.getDefaultToolkit().getScreenSize();
+				frame.setBounds(100, 100, d.width-200, d.height-200);
+				SwingUtilities.invokeAndWait(new Runnable()
+					{
+					@Override
+					public void run() {
+						frame.setVisible(true);
+					}
+				});
+				return RETURN_OK;
+				}
+			catch(Exception err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				
+				}
 		}
+ 	}
+	
 	public static void main(String[] args) {
 		new BuildWikipediaOntology().instanceMain(args);
 		}

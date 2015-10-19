@@ -1,9 +1,34 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.PrintStream;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import htsjdk.samtools.fastq.BasicFastqWriter;
@@ -14,194 +39,156 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 public class FastqGrep
-	extends AbstractCommandLineProgram
+	extends AbstractFastqGrep
 	{
-	private boolean inverse=false;
-	private Map<String,Integer> readNames=new HashMap<String,Integer>(); 
-	private int n_before_remove=-1;
 
-	
-	private FastqGrep()
-		{
-		}
-	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(FastqGrep.class);
+
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FastqGrep";
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Grep reads names in fastq";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -f (file) file containing a list of read names..");
-		out.println(" -R (name) add the read.");
-		out.println(" -n (int) when found, remove the read from the list of names when found more that 'n' time (increase speed)");
-		out.println(" -V  invert");
-		out.println(" -o (filename) output file. default: stdout.");
-		super.printOptions(out);
-		}
-	
-	private String getReadName(FastqRecord r)
-		{
-		return getReadName(r.getReadHeader());
-		}
-	
-	private String getReadName(String s)
-		{
-		int beg=(s.startsWith(FastqConstants.SEQUENCE_HEADER)?1:0);
-		int end=s.indexOf(' ');
-		if(end==-1) end=s.length();
-		s= s.substring(beg, end);
-		return s;
-		}
-	private void run(FastqReader r,FastqWriter out)
-		{
-		long nRec=0L;
-		r.setValidationStringency(ValidationStringency.LENIENT);
-		while(r.hasNext())
+		 
+	public  static class MyCommand extends AbstractFastqGrep.AbstractFastqGrepCommand
+	 	{		
+		private Map<String,Integer> readNames=new HashMap<String,Integer>(); 
+
+		
+		private String getReadName(FastqRecord r)
 			{
-			FastqRecord fastq=r.next();
-			boolean keep=false;
-			String readName=getReadName(fastq);
-			Integer count=readNames.get(readName);
-			if(count!=null)
-				{
-				keep=true;
-				}
-			if(inverse) keep=!keep;
-			if(keep)
-				{
-				++nRec;
-				out.write(fastq);
-				}
-			
-			if(n_before_remove!=-1 && !inverse && keep)
-				{
-				count++;
-				if(count>=n_before_remove)
-					{
-					readNames.remove(readName);
-					if(readNames.isEmpty()) break;
-					}
-				else
-					{
-					readNames.put(readName,count);
-					}
-				}
-			
-			
+			return getReadName(r.getReadHeader());
 			}
-		info("Done. N-Reads:"+nRec);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		File fileout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:f:R:n"))!=-1)
+		
+		private String getReadName(String s)
 			{
-			switch(c)
+			int beg=(s.startsWith(FastqConstants.SEQUENCE_HEADER)?1:0);
+			int end=s.indexOf(' ');
+			if(end==-1) end=s.length();
+			s= s.substring(beg, end);
+			return s;
+			}
+		private void run(FastqReader r,FastqWriter out)
+			{
+			long nRec=0L;
+			r.setValidationStringency(ValidationStringency.LENIENT);
+			while(r.hasNext())
 				{
-				case 'n': n_before_remove=Integer.parseInt(opt.getOptArg()); break;
-				case 'V': inverse=true;break;
-				case 'R': readNames.put(getReadName(opt.getOptArg()),0);break;
-				case 'f':
+				FastqRecord fastq=r.next();
+				boolean keep=false;
+				String readName=getReadName(fastq);
+				Integer count=readNames.get(readName);
+				if(count!=null)
 					{
-					BufferedReader in=null;
-					try
-						{
-						in=IOUtils.openURIForBufferedReading(opt.getOptArg());
-				    	String line;
-				    	while((line=in.readLine())!=null)
-				    		{
-				    		line=line.trim();
-				    		if(line.isEmpty()) continue;
-				    		readNames.put(getReadName(line),0);
-				    		}
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
-					finally
-						{
-						CloserUtil.close(in);
-						}
-					break;
+					keep=true;
 					}
-				case 'o': fileout=new File(opt.getOptArg());break;
-				default:
+				if(inverse) keep=!keep;
+				if(keep)
 					{
-					switch(handleOtherOptions(c, opt, null))
+					++nRec;
+					out.write(fastq);
+					}
+				
+				if(n_before_remove!=-1 && !inverse && keep)
+					{
+					count++;
+					if(count>=n_before_remove)
 						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+						this.readNames.remove(readName);
+						if(this.readNames.isEmpty()) break;
+						}
+					else
+						{
+						this.readNames.put(readName,count);
 						}
 					}
+				
+				
 				}
+			LOG.info("Done. N-Reads:"+nRec);
+			}
+		
+	@Override
+	public Collection<Throwable> call() throws Exception
+		{
+		
+		if(super.readNameFile!=null)
+			{
+			BufferedReader in=null;
+			try {
+				in=IOUtils.openFileForBufferedReading(super.readNameFile);
+		    	String line;
+		    	while((line=in.readLine())!=null)
+		    		{
+		    		line=line.trim();
+		    		if(line.isEmpty()) continue;
+		    		this.readNames.put(getReadName(line),0);
+		    		}
+			} catch (Exception e) {
+				return wrapException(e);
+				}
+			finally
+				{
+				CloserUtil.close(in);
+				}
+			}
+		for(String rn: super.readNameStrings)
+			{
+			this.readNames.put(getReadName(rn),0);
 			}
 		
 		if(readNames.isEmpty())
     		{
-    		warning("no read name found.");
+    		LOG.warn("no read name found.");
     		}
-		
+		List<String> args = this.getInputFiles();
 		FastqWriter out=null;
 		try
 			{
-			if(fileout!=null)
+			if(getOutputFile()!=null)
 				{
-				info("Writing to "+fileout);
-				out=new BasicFastqWriter(fileout);
+				LOG.info("Writing to "+getOutputFile());
+				out=new BasicFastqWriter(getOutputFile());
 				}
 			else
 				{
-				info("Writing to stdout");
-				out=new BasicFastqWriter(System.out);
+				LOG.info("Writing to stdout");
+				out=new BasicFastqWriter(stdout());
 				}
 			
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				FastqReader fqR=new FourLinesFastqReader(System.in);
+				LOG.info("Reading from stdin");
+				FastqReader fqR=new FourLinesFastqReader(stdin());
 				run(fqR,out);
 				fqR.close();
 				}
-			else for(int optind=opt.getOptInd(); optind < args.length; ++optind)
+			else for(String arg:args)
 				{
-				File f=new File(args[optind]);
-				info("Reading from "+f);
+				File f=new File(arg);
+				LOG.info("Reading from "+f);
 				FastqReader fqR=new FourLinesFastqReader(f);
 				run(fqR,out);
 				fqR.close();
 				}
-			CloserUtil.close(out);
-			return 0;
+			
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(out);
 			}
 		}
+	
+	 	}
 	
 	public static void main(String[] args) {
 		new FastqGrep().instanceMainWithExit(args);

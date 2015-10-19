@@ -3,97 +3,69 @@
  */
 package com.github.lindenb.jvarkit.tools.vcf2xml;
 
-import java.io.IOException;
-import java.io.PrintStream;
+import java.util.Collection;
 
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.XMLVcfWriterFactory;
 /**
  * @author lindenb
  *
  */
-public class Vcf2Xml extends AbstractVCFFilter3
+public class Vcf2Xml extends AbstractVcf2Xml
 	{
-	public Vcf2Xml()
-		{
-		
-		}
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Vcf2Xml.class);
+
 	@Override
-	protected void doWork(String inputSource, VcfIterator vcfIn,
-		VariantContextWriter out) throws IOException
-		{
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(vcfIn.getHeader());
-		while(vcfIn.hasNext())
-			{
-			out.add(progress.watch(vcfIn.next()));
-			}
-		progress.finish();
-		}
-	
-	/** open VariantContextWriter */
-	@Override
-	protected VariantContextWriter createVariantContextWriter()
-		throws IOException
-		{
-		XMLVcfWriterFactory factory=XMLVcfWriterFactory.newInstance();
-		if(getOutputFile()!=null)
-			{
-			factory.setOutputFile(getOutputFile());
-			}
-		return factory.createVariantContextWriter();
+	public Command createCommand() {
+		return new MyCommand();
 		}
 
-	
-	
+	static private class MyCommand extends AbstractVcf2Xml.AbstractVcf2XmlCommand
+		{    
 	@Override
-	public String getProgramDescription() {
-		return "Convert VCF to XML";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"Vcf2Xml";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
+	protected Collection<Throwable> call(String inputName) throws Exception
 		{
-		out.println(" -o (out)  output file. default stdout");
-		super.printOptions(out);
-		}
-
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
-			{
-			switch(c)
+		VcfIterator in=null;
+		VariantContextWriter w = null;
+		try {
+			in = openVcfIterator(inputName);
+			XMLVcfWriterFactory factory=XMLVcfWriterFactory.newInstance();
+			if(getOutputFile()!=null)
 				{
-				case 'o': this.setOutputFile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				w = factory.createVariantContextWriter(getOutputFile());
 				}
+			else
+				{
+				w = factory.createVariantContextWriter(stdout(),"UTF-8");
+				}
+			w.writeHeader(in.getHeader());
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(in.getHeader());
+			while(in.hasNext())
+				{
+				w.add(progress.watch(in.next()));
+				}
+			progress.finish();
+			LOG.info("done");
+			return RETURN_OK;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return wrapException(e);
 			}
-		return mainWork(opt.getOptInd(), args);
+		finally
+			{
+			CloserUtil.close(in);
+			CloserUtil.close(w);
+			}
 		}
-
+	}
 	
 	public static void main(String[] args)
 		{
 		new Vcf2Xml().instanceMain(args);
 		}
-}
+	}

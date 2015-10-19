@@ -28,29 +28,17 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
-
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.command.Command;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 

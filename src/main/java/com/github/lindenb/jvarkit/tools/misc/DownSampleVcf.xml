@@ -4,4 +4,20 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<input type="vcf"/>
+<output type="vcf"/>
+<description>DownSample a VCF</description>
+
+<options>
+	<option name="seed" type="long" opt="N" longopt="seed" default="-1L">
+		<description> random seed. Optional. -1 = use current time</description>
+	</option>
+	<option name="reservoir_size" type="int" opt="n" longopt="size" default="100">
+		<description>output size.</description>
+	</option>
+</options>
+
+
+
+<!-- __PLACEHOLDER__ -->
+</app>
