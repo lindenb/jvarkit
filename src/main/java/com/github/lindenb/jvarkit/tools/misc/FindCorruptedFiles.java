@@ -35,7 +35,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.util.Collection;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
+
+import jdk.nashorn.internal.runtime.regexp.RegExpResult;
 
 import htsjdk.tribble.TribbleException;
 import htsjdk.tribble.readers.LineIterator;
@@ -49,40 +53,44 @@ import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class FindCorruptedFiles extends AbstractCommandLineProgram
+public class FindCorruptedFiles extends AbstractFindCorruptedFiles
 	{
-	private boolean emptyIsError=false;
-    //public String USAGE = " Reads filename from stdin and search for corrupted NGS files (VCF/BAM/FASTQ). Prints file with problem on stdout.";
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(FindCorruptedFiles.class);
 
 
-    //@Option(shortName="N",doc="number of features (samrecord, variant) to read. -1= read everything. ",optional=true)
-	private long NUM=100L;
-    
-    private ValidationStringency validationStringency=ValidationStringency.LENIENT;
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractFindCorruptedFiles.AbstractFindCorruptedFilesCommand
+	 	{		
+		private PrintStream outputstream=null;
+		private ValidationStringency validationStringency=ValidationStringency.LENIENT;
     
     
     private void emptyFile(File f)
     	{
-    	if(this.emptyIsError)
+    	if(super.emptyIsError)
     		{
-    		System.out.println(f);
+    		this.outputstream.println(f);
     		}
     	else
     		{
-    		getLogger().warning("Empty content:"+f);
+    		LOG.warn("Empty content:"+f);
     		}
     	}
 	
     private void testBam(File f)
     	{
-    	getLogger().fine("Test BAM for "+f);
+    	LOG.info("Test BAM for "+f);
     	
     	//Test BGZ-EOF
     	try
@@ -90,15 +98,15 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     		BlockCompressedInputStream.FileTermination type=BlockCompressedInputStream.checkTermination(f);
     		if(type!=BlockCompressedInputStream.FileTermination.HAS_TERMINATOR_BLOCK)
     			{
-    			getLogger().warning("bgz:"+type+" for "+f);
-        		System.out.println(f);
+    			LOG.warn("bgz:"+type+" for "+f);
+        		this.outputstream.println(f);
         		return;
     			}
     		}
     	catch(IOException err)
     		{
-    		getLogger().warning("Error in "+f);
-    		System.out.println(f);
+    		LOG.warn("Error in "+f);
+    		this.outputstream.println(f);
     		return;
     		}
     	
@@ -122,8 +130,8 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 			} 
     	catch (Exception e)
     		{
-    		warning( "Error in "+f);
-    		System.out.println(f);
+    		LOG.warn( "Error in "+f);
+    		this.outputstream.println(f);
 			}
     	finally
     		{
@@ -147,14 +155,14 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 				String tokens[]=tab.split(line);
 				if(tokens.length<3)
 					{
-					warning( "BED error. Line "+(n+1)+" not enough columns in "+f);
-					System.out.println(f);
+					LOG.warn( "BED error. Line "+(n+1)+" not enough columns in "+f);
+					this.outputstream.println(f);
 					break;
 					}
 				if(tokens[0].trim().isEmpty())
 					{
-					warning( "BED error. Line "+(n+1)+" Bad chrom in "+f);
-					System.out.println(f);
+					LOG.warn( "BED error. Line "+(n+1)+" Bad chrom in "+f);
+					this.outputstream.println(f);
 					break;
 					}
 				int start=0;
@@ -166,15 +174,15 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 					}
 				catch(NumberFormatException err)
 					{
-					warning( "BED error. Line "+(n+1)+" Bad start in "+f);
-					System.out.println(f);
+					LOG.warn( "BED error. Line "+(n+1)+" Bad start in "+f);
+					this.outputstream.println(f);
 					break;
 					}
 				
 				if(start<0)
 					{
-					warning( "BED error. Line "+(n+1)+" Bad start in "+f);
-					System.out.println(f);
+					LOG.warn( "BED error. Line "+(n+1)+" Bad start in "+f);
+					this.outputstream.println(f);
 					break;
 					}
 				
@@ -184,14 +192,14 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 					}
 				catch(NumberFormatException err)
 					{
-					warning( "BED error. Line "+(n+1)+" Bad end in "+f);
-					System.out.println(f);
+					LOG.warn( "BED error. Line "+(n+1)+" Bad end in "+f);
+					this.outputstream.println(f);
 					break;
 					}
 				if(end<start)
 					{
-					warning( "BED error. Line "+(n+1)+" end<start in "+f);
-					System.out.println(f);
+					LOG.warn( "BED error. Line "+(n+1)+" end<start in "+f);
+					this.outputstream.println(f);
 					break;
 					}
 
@@ -205,8 +213,8 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 	    	}
     	catch (Exception e)
 			{
-			warning( "Error in "+f);
-			System.out.println(f);
+    		LOG.warn( "Error in "+f);
+			this.outputstream.println(f);
 			}
 		finally
 			{
@@ -236,7 +244,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     private void testFastq(File f)
 		{
     	long n=0;
-    	getLogger().fine("Test Fastq for "+f);
+    	LOG.info("Test Fastq for "+f);
     	FastqReader r=null;
     	try
     		{
@@ -254,8 +262,8 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     		}
     	catch(Exception err)
     		{
-    		getLogger().fine("Cannot read "+f);
-    		System.out.println(f);
+    		LOG.info("Cannot read "+f);
+    		this.outputstream.println(f);
     		}
     	finally
     		{
@@ -265,7 +273,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     
     private void testVcf(File f)
 		{
-    	getLogger().fine("Test VCF for "+f);
+    	LOG.info("Test VCF for "+f);
     	Exception error1=null;
     	BlockCompressedInputStream in1=null;
     	try
@@ -288,14 +296,14 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 	    		BlockCompressedInputStream.FileTermination type=BlockCompressedInputStream.checkTermination(f);
 	    		if(type!=BlockCompressedInputStream.FileTermination.HAS_TERMINATOR_BLOCK)
 	    			{
-	    			getLogger().warning("bgz:"+type+" for "+f);
-	        		System.out.println(f);
+	    			LOG.warn("bgz:"+type+" for "+f);
+	        		this.outputstream.println(f);
 	        		return;
 	    			}
 	    		}
 	    	catch(Exception err)
 	    		{
-	    		System.out.println(f);
+	    		this.outputstream.println(f);
 	    		return;
 	    		}
     		
@@ -309,7 +317,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     		{
     		in2=new GZIPInputStream(new FileInputStream(f));
     		testVcf(f,in2);
-    		getLogger().warning("gzip but not bgzip :"+f);
+    		LOG.warn("gzip but not bgzip :"+f);
     		return;
     		}
     	catch(Exception err)
@@ -320,8 +328,8 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     		{
     		if(in2!=null) try{ in2.close();} catch(IOException e) {}
     		}
-    	getLogger().fine("Not a BGZIP file / Error in VCF: "+f);
-    	System.out.println(f);
+    	LOG.info("Not a BGZIP file / Error in VCF: "+f);
+    	this.outputstream.println(f);
 		}
 
     private void testTbi(File f)
@@ -333,8 +341,8 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 
     	File baseFile=new File(f.getParentFile(),filename);
     	if(baseFile.exists() && baseFile.isFile()) return;
-    	getLogger().fine("Missing associated file for : "+f);
-    	System.out.println(f);		
+    	LOG.info("Missing associated file for : "+f);
+    	this.outputstream.println(f);		
 		}
     
     private void testBai(File f)
@@ -355,16 +363,16 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 			}
     	File bam=new File(f.getParentFile(),filename);
     	if(bam.exists() && bam.isFile()) return;
-    	getLogger().fine("Missing associated BAM file for : "+f);
-    	System.out.println(f);		
+    	LOG.info("Missing associated BAM file for : "+f);
+    	this.outputstream.println(f);		
 		}
     
 	private void analyze(File f)
 		{
-		getLogger().fine("Scanning "+f);
+		LOG.info("Scanning "+f);
 		if(f.isDirectory())
 			{
-			info("skipping "+f+" (directory)");
+			LOG.info("skipping "+f+" (directory)");
 			}
 		else
 			{	
@@ -396,86 +404,53 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
 			}
 		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED/TBI/BAI)";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FindCorruptedFiles";
-	}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		
-		out.println(" -V (validation stringency). Optional");
-		out.println(" -N (number). Number of records to test in each file (BAM, FASTQ, VCF...). ptional");
-		out.println(" -E empty file is an error.");
-
-		
-		}
 
 	
 	@Override
-	public int doWork(String args[])
-		{
-		GetOpt getopt=new GetOpt();
-		int c;
-		while((c=getopt.getopt(args,super.getGetOptDefault()+ "N:V:E"))!=-1)
+	public Collection<Throwable> call(String inputName) throws Exception
 			{
-			switch(c)
+			if(super.validationStringencyStr!=null)
 				{
-				case 'E': this.emptyIsError=true;break;
-				case 'N':
+				this.validationStringency=ValidationStringency.valueOf(super.validationStringencyStr);
+
+				}
+			
+			BufferedReader in=null;
+			String line;
+			this.outputstream =null;
+			try
+				{
+				this.outputstream =  openFileOrStdoutAsPrintStream();
+				if(inputName==null)
 					{
-					this.NUM=Integer.parseInt(getopt.getOptArg());
-					break;
+					in = new BufferedReader(new InputStreamReader(stdin()));
 					}
-				case 'V':
+				else
 					{
-					this.validationStringency=ValidationStringency.valueOf(getopt.getOptArg());
-					getLogger().info("setting validation stringency to "+this.validationStringency);
-					break;
+					in = IOUtils.openURIForBufferedReading(inputName);
 					}
-				default:
+				LOG.info("reading from stdin");
+				
+				while((line=in.readLine())!=null)
 					{
-					switch(handleOtherOptions(c, getopt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
+					if(line.isEmpty() || line.startsWith("#")) continue;
+					File f=new File(line);
+					analyze(f);
 					}
+				this.outputstream.flush();
+				return RETURN_OK;
+				}
+			catch(IOException err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				CloserUtil.close(in);
+				CloserUtil.close(this.outputstream);
 				}
 			}
-		if(getopt.getOptInd()!=args.length)
-			{
-			System.err.println("Too many arguments");
-			return -1;
-			}
-		getLogger().info("reading from stdin");
-		BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
-		String line;
-		try
-			{
-			while((line=in.readLine())!=null)
-				{
-				if(line.isEmpty() || line.startsWith("#")) continue;
-				File f=new File(line);
-				analyze(f);
-				}
-			}
-		catch(IOException err)
-			{
-			err.printStackTrace();
-			getLogger().severe("I/O Error "+err.getMessage());
-			return -1;
-			}
-		
-		return 0;
-		}
+	 	}
 	/**
 	 * @param args
 	 */
