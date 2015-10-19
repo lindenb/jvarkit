@@ -4,4 +4,24 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>after a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.</description>
+<input type="vcf"/>
+<output type="vcf"/>		
+<snippet id='tmp-dir'/>
+							
+<options>
+	<option name="bamListFile" type="input-file" opt="f" longopt="bams">
+		<description>list of indexed BAM path with read Groups</description>
+	</option>
+	<option name="minDepth" type="int" opt="d" longopt="mindepth" default="10">
+		<description>min depth</description>
+	</option>
+</options>
+
+
+
+
+
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

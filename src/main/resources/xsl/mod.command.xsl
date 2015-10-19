@@ -205,6 +205,10 @@ options.addOption(org.apache.commons.cli.Option
 		.hasArgs() //unlimited
 		.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
 		</xsl:when>
+		<xsl:when test="@type='string-list'">
+		.hasArgs() //unlimited
+		.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
+		</xsl:when>
 		<xsl:otherwise>
 			<xsl:message terminate="yes">option:cli unknown type <xsl:value-of select="@type"/></xsl:message>
 		</xsl:otherwise>
@@ -236,6 +240,7 @@ LongValidator <xsl:apply-templates select="@name"/>
 protected <xsl:apply-templates select="." mode="java-type"/><xsl:text> </xsl:text> <xsl:apply-templates select="." mode="name"/> = <xsl:choose>
 		<xsl:when test="@type='input-file-set'"> new java.util.HashSet&lt;java.io.File&gt;()</xsl:when>
 		<xsl:when test="@type='string-set'"> new java.util.HashSet&lt;java.lang.String&gt;()</xsl:when>
+		<xsl:when test="@type='string-list'"> new java.util.ArrayList&lt;java.lang.String&gt;()</xsl:when>
 		<xsl:when test="@default and (not(@type) or @type='string' or @type='String' or @type='java.lang.String')">"<xsl:value-of select="@default"/>"</xsl:when>
 		<xsl:when test="@default"><xsl:value-of select="@default"/></xsl:when>
 		<xsl:when test="$nilleable = 'true'">null</xsl:when>
@@ -257,6 +262,7 @@ public  void  <xsl:apply-templates select="." mode="setter"/>( final <xsl:apply-
 	this.<xsl:apply-templates select="." mode="name"/> = <xsl:choose>
 		<xsl:when test="@type='input-file-set'">(<xsl:apply-templates select="." mode="java-type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null: new java.util.HashSet&lt;java.io.File&gt;(<xsl:apply-templates select="." mode="name"/>))</xsl:when>
 		<xsl:when test="@type='string-set'">(<xsl:apply-templates select="." mode="java-type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null: new java.util.HashSet&lt;java.lang.String&gt;(<xsl:apply-templates select="." mode="name"/>))</xsl:when>
+		<xsl:when test="@type='string-list'">(<xsl:apply-templates select="." mode="java-type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null: new java.util.ArrayList&lt;java.lang.String&gt;(<xsl:apply-templates select="." mode="name"/>))</xsl:when>
 		<xsl:when test="$cloneable = 'true'">(<xsl:apply-templates select="." mode="java-type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null:<xsl:apply-templates select="." mode="name"/>.clone())</xsl:when>
 		<xsl:otherwise><xsl:apply-templates select="." mode="name"/></xsl:otherwise>
 		</xsl:choose>;
@@ -278,7 +284,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='output-file'">false</xsl:when>
 	<xsl:when test="@type='input-file'">false</xsl:when>
 	<xsl:when test="@type='input-directory'">false</xsl:when>
-	<xsl:when test="@type='input-file-set' or @type='string-set'">true</xsl:when>
+	<xsl:when test="@type='input-file-set' or @type='string-set' or @type='string-list'">true</xsl:when>
 	<xsl:when test="starts-with(@type,'java.lang')">false</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
 	<xsl:when test="@type='int'">false</xsl:when>
@@ -296,7 +302,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='output-file'">true</xsl:when>
 	<xsl:when test="@type='input-file'">true</xsl:when>
 	<xsl:when test="@type='input-directory'">true</xsl:when>
-	<xsl:when test="@type='input-file-set' or @type='string-set'">true</xsl:when>
+	<xsl:when test="@type='input-file-set' or @type='string-set' or @type='string-list'">true</xsl:when>
 	<xsl:when test="@type='java.net.URL'">true</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">true</xsl:when>
@@ -339,6 +345,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='input-directory'">java.io.File</xsl:when>
 	<xsl:when test="@type='input-file-set'">java.util.Set&lt;java.io.File&gt;</xsl:when>
 	<xsl:when test="@type='string-set'">java.util.Set&lt;java.lang.String&gt;</xsl:when>
+	<xsl:when test="@type='string-list'">java.util.List&lt;java.lang.String&gt;</xsl:when>
 	<xsl:when test="@type='int'">int</xsl:when>
 	<xsl:when test="@type='long'">long</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">boolean</xsl:when>
@@ -506,6 +513,9 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		</xsl:when>
 		<xsl:when test="@type='string-set'">
 		final <xsl:apply-templates select="." mode="java-type"/> <xsl:text> </xsl:text> <xsl:value-of select="generate-id()"/> = new java.util.HashSet&lt;java.lang.String&gt;( opt.getValuesList());
+		</xsl:when>
+		<xsl:when test="@type='string-list'">
+		final <xsl:apply-templates select="." mode="java-type"/> <xsl:text> </xsl:text> <xsl:value-of select="generate-id()"/> = opt.getValuesList();
 		</xsl:when>
 		<xsl:otherwise>
 			<xsl:message terminate='yes'>visit: unknown type <xsl:value-of select="@type"/>.</xsl:message>

@@ -36,10 +36,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.Collection;
-import java.util.List;
 import java.util.zip.GZIPInputStream;
-
-import jdk.nashorn.internal.runtime.regexp.RegExpResult;
 
 import htsjdk.tribble.TribbleException;
 import htsjdk.tribble.readers.LineIterator;

@@ -4,4 +4,43 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Extracts GC% and depth for multiple bam using a sliding window</description>
+
+<options>
+	<option name="refFile" type="input-file" opt="R" longopt="bams">
+		<description>Indexed reference sequence</description>
+	</option>
+	<option name="bedFile" type="input-file" opt="B" longopt="bedFile">
+		<description>Capture bed file If not defined: use whole genome. Warning memory consumming: must alloc sizeof(int)*win.size()*num(samples).</description>
+	</option>
+	<option name="windowSize" type="int" opt="w" longopt="winsize" default="100">
+		<description>window size</description>
+	</option>
+	<option name="windowStep" type="int" opt="s" longopt="winshift" default="50">
+		<description>window shift</description>
+	</option>
+	<option name="chromNameFile" type="input-file" opt="N" longopt="chromnames">
+		<description>chrom.name.helper</description>
+	</option>
+	<option name="min_depth" type="int" opt="m" longopt="mindepth" default="0">
+		<description>min depth</description>
+	</option>
+	<option name="skip_if_contains_N" type="boolean" opt="n" longopt="skipn" >
+		<description>skip window if Reference contains one 'N'</description>
+	</option>
+	<option name="disable_genomic_index" type="boolean" opt="x" longopt="noindex" >
+		<description>don't print genomic index</description>
+	</option>
+</options>
+
+
+
+
+
+
+
+
+
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>
