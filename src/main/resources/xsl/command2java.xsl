@@ -651,6 +651,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				}
 			return new  htsjdk.samtools.fastq.FastqReader(f,r,false);
 			}
+		
+		
+		
 		</xsl:when>
 		
 		
@@ -693,6 +696,27 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		protected java.util.List&lt;java.io.File&gt; getTmpDirectories()
 			{
 			return this.tmpDirs;
+			}
+		
+		</xsl:if>
+		
+		<xsl:if test="c:snippet[@id='fastq-reader']">
+		
+		protected htsjdk.samtools.fastq.FastqReader openFastqFileReader(final java.io.File inputFile)
+			throws java.io.IOException
+			{
+			java.io.File f = null;
+			java.io.BufferedReader r = null;
+			if( inputFile == null)
+				{
+				r = new java.io.BufferedReader( new java.io.InputStreamReader( stdin() ) );
+				}
+			else
+				{
+				f = inputFile;
+				r = com.github.lindenb.jvarkit.io.IOUtils.openFileForBufferedReading(f);
+				}
+			return new  htsjdk.samtools.fastq.FastqReader(f,r,false);
 			}
 		
 		</xsl:if>

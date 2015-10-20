@@ -4,4 +4,21 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>I have a query-sorted BAM file without read/qual sequences and a FASTQ file with the read/qual sequences. Is there a tool to add seq to BAM?  for @sjackman https://twitter.com/sjackman/status/575368165531611136</description>
+<output type="sam"/>
+<input type="sam"/>
+<snippet id="fastq-reader"/>
+
+<options>
+	<option name="fastqFin" type="input-file" opt="F" longopt="forward">
+		<description>(fastq / fastqF) required</description>
+	</option>
+	<option name="fastqRin" type="input-file" opt="R" longopt="reverse">
+		<description>(fastq / fastqR) optional</description>
+	</option>
+</options>
+
+
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

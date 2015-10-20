@@ -33,48 +33,34 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.util.CloserUtil;
 
-import java.io.File;
+import java.util.Collection;
 import java.util.List;
 
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
+public class SamRetrieveSeqAndQual extends AbstractSamRetrieveSeqAndQual
 	{
 
-	@Override
-	public String getProgramDescription() {
-		return "I have a query-sorted BAM file without read/qual sequences and a FASTQ file with the read/qual sequences. Is there a tool to add seq to BAM?  for @sjackman https://twitter.com/sjackman/status/575368165531611136";
-		}			
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/SamRetrieveSeqAndQual";
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(SamRetrieveSeqAndQual.class);
+
+	 @Override
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (file.out) optional. default: stdout");
-		out.println(" -F (fastq / fastqF) required.");
-		out.println(" -R (fastqR ) required.");
-		super.printOptions(out);
-		}
+		 
+	public  class MyCommand extends AbstractSamRetrieveSeqAndQual.AbstractSamRetrieveSeqAndQualCommand
+	 	{
+
 	
 	private String normalizeFastqName(String s)
 		{
@@ -84,225 +70,162 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 		return s;
 		}
 	
+	@SuppressWarnings("resource")
 	@Override
-	public int doWork(String[] args)
-		{
-		
-		File fastqFin=null;
-		File fastqRin=null;
-		File bamOut=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:F:R:"))!=-1)
-			{
-			switch(c)
+		protected Collection<Throwable> call(String inputName) throws Exception {
+			FastqReader[] fastqReaders=null;
+			SamReader samReader=null;
+			SAMFileWriter samWriter=null;
+			SAMRecordIterator iter=null;
+			try
 				{
-				case 'o': bamOut=new File(opt.getOptArg()); break;
-				case 'F': fastqFin=new File(opt.getOptArg()); break;
-				case 'R': fastqRin=new File(opt.getOptArg()); break;
-				default:
+				
+				if(super.fastqFin==null)
 					{
-					switch(handleOtherOptions(c, opt,args))
+					return wrapException("undefined fastq file");
+					}
+				else 
+					{
+					LOG.info("opening "+fastqFin);
+					FastqReader r1= openFastqFileReader(fastqFin);
+					if(fastqRin==null)
 						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+						fastqReaders=new FastqReader[]{r1};
+						}
+					else
+						{
+						LOG.info("opening "+fastqRin);
+						FastqReader r2 = openFastqFileReader(fastqRin);
+						fastqReaders=new FastqReader[]{r1,r2};
 						}
 					}
-				}
-			}
-			
-		FastqReader[] fastqReaders=null;
-		SamReader samReader=null;
-		SAMFileWriter samWriter=null;
-		SAMRecordIterator iter=null;
-		try
-			{
-			
-			if(fastqFin==null)
-				{
-				error("undefined fastq file");
-				return -1;
-				}
-			else 
-				{
-				info("opening "+fastqFin);
-				FastqReader r1=new FastqReader(fastqFin);
-				if(fastqRin==null)
+	
+				
+				
+				
+				
+				samReader  = openSamReader(inputName);
+					
+				
+				SAMFileHeader.SortOrder sortOrder = samReader.getFileHeader().getSortOrder();
+				if(sortOrder==null)
 					{
-					fastqReaders=new FastqReader[]{r1};
+					LOG.warn("undefined sort order read are in the sam order");
 					}
-				else
+				else if(sortOrder.equals(SAMFileHeader.SortOrder.coordinate))
 					{
-					info("opening "+fastqRin);
-					FastqReader r2=new FastqReader(fastqRin);
-					fastqReaders=new FastqReader[]{r1,r2};
-					}
-				}
-
-			
-			
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-			
-			int optind = opt.getOptInd();
-			if(optind==args.length)
-				{
-				info("Reading BAM from stdin");
-				samReader  = srf.open(SamInputResource.of(System.in));
-				}
-			else if(optind+1==args.length)
-				{
-				info("Reading BAM from "+args[optind]);
-				samReader  = srf.open(new File(args[optind]));
-				}
-			else
-				{
-				error("illegal.number.of.arguments");
-				return -1;
-				}
-			
-			SAMFileHeader.SortOrder sortOrder = samReader.getFileHeader().getSortOrder();
-			if(sortOrder==null)
-				{
-				warning("undefined sort order read are in the sam order");
-				}
-			else if(sortOrder.equals(SAMFileHeader.SortOrder.coordinate))
-				{
-				error("Bad Sort Order. Sort this input on read name");
-				return -1;
-				}
-			
-			SAMFileHeader header= samReader.getFileHeader().clone();
-			
-			SAMProgramRecord prg=header.createProgramRecord();
-			prg.setCommandLine(this.getProgramCommandLine());
-			prg.setProgramName(this.getProgramName());
-			prg.setProgramVersion(this.getVersion());
-			
-			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
-			sfwf.setCreateIndex(false);
-			sfwf.setCreateMd5File(false);
-			if(bamOut!=null)
-				{
-				samWriter = sfwf.makeSAMOrBAMWriter(header, true, bamOut);
-				}
-			else
-				{
-				samWriter =sfwf.makeSAMWriter(header, true, System.out);
-				}
-			iter=samReader.iterator();
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-			FastqRecord currFastq[]=new FastqRecord[]{null,null};
-			while(iter.hasNext())
-				{
-				SAMRecord rec= progress.watch(iter.next());
-				String readName = rec.getReadName();
-				int fastq_index = 0;
-				if(rec.getReadPairedFlag())
-					{
-					if(fastqReaders.length!=2)
-						{
-						error("Not paired but number of fastq!=2");
-						return  -1;
-						}
-					fastq_index = (rec.getFirstOfPairFlag()?0:1);
-					}
-				else
-					{
-					if(fastqReaders.length!=1)
-						{
-						error("Not paired but number of fastq!=1");
-						return  -1;
-						}
-					fastq_index=0;
+					return wrapException("Bad Sort Order. Sort this input on read name");
 					}
 				
-				if(sortOrder==SAMFileHeader.SortOrder.queryname)
+				SAMFileHeader header= samReader.getFileHeader().clone();
+				samWriter = openSAMFileWriter(header, true);
+					
+				iter=samReader.iterator();
+				SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+				FastqRecord currFastq[]=new FastqRecord[]{null,null};
+				while(iter.hasNext())
 					{
-					while(currFastq[fastq_index]==null || normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)<0)
+					SAMRecord rec= progress.watch(iter.next());
+					String readName = rec.getReadName();
+					int fastq_index = 0;
+					if(rec.getReadPairedFlag())
+						{
+						if(fastqReaders.length!=2)
+							{
+							return wrapException("Not paired but number of fastq!=2");
+							}
+						fastq_index = (rec.getFirstOfPairFlag()?0:1);
+						}
+					else
+						{
+						if(fastqReaders.length!=1)
+							{
+							return wrapException("Not paired but number of fastq!=1");
+							}
+						fastq_index=0;
+						}
+					
+					if(sortOrder==SAMFileHeader.SortOrder.queryname)
+						{
+						while(currFastq[fastq_index]==null || normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)<0)
+							{
+							if(! fastqReaders[ fastq_index ].hasNext())
+								{
+								return wrapException("Read Missing for "+readName);
+								}
+							currFastq[fastq_index] = fastqReaders[ fastq_index ].next();
+							if(normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)>0)
+								{
+								return wrapException("Read Missing for "+readName);
+								}
+							}
+						}
+					else
 						{
 						if(! fastqReaders[ fastq_index ].hasNext())
 							{
-							error("Read Missing for "+readName);
-							return -1;
+							return wrapException("Read Missing for "+readName);
 							}
 						currFastq[fastq_index] = fastqReaders[ fastq_index ].next();
-						if(normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)>0)
-							{
-							error("Read Missing for "+readName);
-							return -1;
-							}
 						}
-					}
-				else
-					{
-					if(! fastqReaders[ fastq_index ].hasNext())
+					if(normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)!=0)
 						{
-						error("Read Missing for "+readName);
-						return -1;
+						return wrapException("Read Missing/Error for "+readName+" current:" + currFastq[fastq_index].getReadHeader());
 						}
-					currFastq[fastq_index] = fastqReaders[ fastq_index ].next();
-					}
-				if(normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)!=0)
-					{
-					error("Read Missing/Error for "+readName+" current:" + currFastq[fastq_index].getReadHeader());
-					return -1;
-					}
-				String fastqBases = currFastq[fastq_index].getReadString();
-				String fastqQuals = currFastq[fastq_index].getBaseQualityString();
-				/* handle orientation */
-				if(!rec.getReadUnmappedFlag() && rec.getReadNegativeStrandFlag())
-					{
-					fastqBases = AcidNucleics.reverseComplement(fastqBases);
-					StringBuilder sb=new StringBuilder(fastqQuals.length());
-					for(int i=fastqQuals.length()-1;i>=0;--i)
-						sb.append(fastqQuals.charAt(i));
-					fastqQuals =  sb.toString();
-					}
-				/* remove hard clip */
-				Cigar cigar=rec.getCigar();
-				if(cigar!=null)
-					{
-					List<CigarElement> ceList=cigar.getCigarElements();
-					if(!ceList.isEmpty())
+					String fastqBases = currFastq[fastq_index].getReadString();
+					String fastqQuals = currFastq[fastq_index].getBaseQualityString();
+					/* handle orientation */
+					if(!rec.getReadUnmappedFlag() && rec.getReadNegativeStrandFlag())
 						{
-						CigarElement ce = ceList.get(ceList.size()-1);
-						if(ce.getOperator()==CigarOperator.HARD_CLIP)
+						fastqBases = AcidNucleics.reverseComplement(fastqBases);
+						StringBuilder sb=new StringBuilder(fastqQuals.length());
+						for(int i=fastqQuals.length()-1;i>=0;--i)
+							sb.append(fastqQuals.charAt(i));
+						fastqQuals =  sb.toString();
+						}
+					/* remove hard clip */
+					Cigar cigar=rec.getCigar();
+					if(cigar!=null)
+						{
+						List<CigarElement> ceList=cigar.getCigarElements();
+						if(!ceList.isEmpty())
 							{
-							fastqBases = fastqBases.substring(0, fastqBases.length()-ce.getLength());
-							fastqQuals = fastqQuals.substring(0, fastqQuals.length()-ce.getLength());
-							}
-						ce = ceList.get(0);
-						if(ce.getOperator()==CigarOperator.HARD_CLIP)
-							{
-							fastqBases = fastqBases.substring(ce.getLength());
-							fastqQuals = fastqQuals.substring(ce.getLength());
+							CigarElement ce = ceList.get(ceList.size()-1);
+							if(ce.getOperator()==CigarOperator.HARD_CLIP)
+								{
+								fastqBases = fastqBases.substring(0, fastqBases.length()-ce.getLength());
+								fastqQuals = fastqQuals.substring(0, fastqQuals.length()-ce.getLength());
+								}
+							ce = ceList.get(0);
+							if(ce.getOperator()==CigarOperator.HARD_CLIP)
+								{
+								fastqBases = fastqBases.substring(ce.getLength());
+								fastqQuals = fastqQuals.substring(ce.getLength());
+								}
 							}
 						}
+					rec.setBaseQualityString(fastqQuals);
+					rec.setReadString(fastqBases);
+					samWriter.addAlignment(rec);
 					}
-				rec.setBaseQualityString(fastqQuals);
-				rec.setReadString(fastqBases);
-				samWriter.addAlignment(rec);
+				progress.finish();
+				return RETURN_OK;
 				}
-			progress.finish();
-			return 0;
+			catch (Exception err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				if(fastqReaders!=null)
+					for(FastqReader r:fastqReaders)
+						CloserUtil.close(r);
+				CloserUtil.close(iter);
+				CloserUtil.close(samReader);
+				CloserUtil.close(samWriter);
+				}
 			}
-		catch (Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			if(fastqReaders!=null)
-				for(FastqReader r:fastqReaders)
-					CloserUtil.close(r);
-			CloserUtil.close(iter);
-			CloserUtil.close(samReader);
-			CloserUtil.close(samWriter);
-			}
-		}
-
+	 	}
 
 	public static void main(String[] args)
 		{
