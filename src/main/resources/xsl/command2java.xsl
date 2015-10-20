@@ -458,6 +458,38 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		<xsl:choose>
 		<xsl:when test="c:output/@type='vcf'">
+		
+		<xsl:if test="c:input/@type='vcf'">
+		
+		protected java.util.Collection&lt;Throwable&gt; doVcfToVcf(
+			final String inputName,
+			final com.github.lindenb.jvarkit.util.vcf.VcfIterator in,
+			final htsjdk.variant.variantcontext.writer.VariantContextWriter out
+			) throws java.io.IOException
+			{
+			throw new RuntimeException("No implemented!!!");
+			}
+		
+		protected java.util.Collection&lt;Throwable&gt; doVcfToVcf(String inputName) throws Exception
+			{
+			com.github.lindenb.jvarkit.util.vcf.VcfIterator in = null;
+			htsjdk.variant.variantcontext.writer.VariantContextWriter w=null;
+			try {
+				in= openVcfIterator(inputName);
+				w = openVariantContextWriter();
+				return doVcfToVcf(inputName==null?"&lt;STDIN&gt;":inputName,in,w);
+			} catch (Exception e) {
+				return wrapException(e);
+				}
+			finally
+				{
+				htsjdk.samtools.util.CloserUtil.close(in);
+				htsjdk.samtools.util.CloserUtil.close(w);
+				}
+			}
+
+		</xsl:if>
+		
 			
 		/** count variants */
 		private int <xsl:value-of select="concat('count_variants_',generate-id())"/> = 0;
@@ -601,6 +633,26 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		<xsl:when test="c:input/@type='strings'">
 		/* input type is 'strings' */
 		</xsl:when>
+		
+		<xsl:when test="c:input/@type='fastq'">
+		protected htsjdk.samtools.fastq.FastqReader openFastqReader(final String inputName)
+			throws java.io.IOException
+			{
+			java.io.File f = null;
+			java.io.BufferedReader r = null;
+			if( inputName == null)
+				{
+				r = new java.io.BufferedReader( new java.io.InputStreamReader( stdin() ) );
+				}
+			else
+				{
+				f = new java.io.File(inputName);
+				r = com.github.lindenb.jvarkit.io.IOUtils.openFileForBufferedReading(f);
+				}
+			return new  htsjdk.samtools.fastq.FastqReader(f,r,false);
+			}
+		</xsl:when>
+		
 		
 		<xsl:when test="c:input/@type='directory'">
 		/** program should process this existing directory */ 

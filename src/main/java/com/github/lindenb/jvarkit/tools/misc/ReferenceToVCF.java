@@ -28,9 +28,11 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Pattern;
@@ -41,110 +43,77 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public class ReferenceToVCF extends AbstractCommandLineProgram
+public class ReferenceToVCF extends AbstractReferenceToVCF
 	{
-	private IntervalTreeMap<Boolean> limitBed=null;
-	
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/ReferenceToVCF";
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(ReferenceToVCF.class);
+
+	 @Override
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-	
+		 
+	public  class MyCommand extends AbstractReferenceToVCF.AbstractReferenceToVCFCommand
+	 	{
+
+		private IntervalTreeMap<Boolean> limitBed=null;
+
 	@Override
-	public String getProgramDescription() {
-		return "Creates a VCF containing all the possible substitutions from a Reference Genome.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
+	public Collection<Throwable> call() throws Exception
 		{
-		out.println("-L (file) limit to this BED file.");
-		out.println("-d (int) generate deletions (size).");
-		out.println("-i (int) generate insertions (size).");
-		out.println("-g group ALT for same REF.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean group_alts=false;
-		int insertion_size = 0;
-		int deletion_size = 0;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"L:i:d:g"))!=-1)
-			{
-			switch(c)
-				{
-				case 'g': group_alts=true;break;
-				case 'i': insertion_size = Integer.parseInt(opt.getOptArg()); break;
-				case 'd': deletion_size = Integer.parseInt(opt.getOptArg()); break;
-				case 'L':
-					{
-					if(limitBed==null) limitBed=new IntervalTreeMap<Boolean>();
-					try
-						{
-						info("reading "+opt.getOptArg());
-						Pattern tab=Pattern.compile("[\t]");
-						LineIterator r=IOUtils.openURIForLineIterator(opt.getOptArg());
-						while(r.hasNext())
-							{
-							String line=r.next();
-							if(line.startsWith("#") || line.isEmpty()) continue;
-							String tokens[]=tab.split(line,4);
-							limitBed.put(new Interval(
-									tokens[0],
-									1+Integer.parseInt(tokens[1]),
-									1+Integer.parseInt(tokens[2])
-									), true);
-							}
-						CloserUtil.close(r);
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
-				
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+		final List<String> args = getInputFiles();
 		Random random=new Random(0L);
 		VariantContextWriter out=null;
+		IndexedFastaSequenceFile fasta= null;
+		
 		try
 			{
-			if(opt.getOptInd()+1!=args.length)
+			if(args.size()!=1)
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
+				return wrapException(getMessageBundle("illegal.number.of.arguments"));
 				}
-			IndexedFastaSequenceFile fasta=new IndexedFastaSequenceFile(new File(args[opt.getOptInd()]));
+			if(super.bedFile!=null)
+				{
+				BufferedReader r = null;
+				this.limitBed=new IntervalTreeMap<Boolean>();
+				try
+					{
+					LOG.info("reading "+super.bedFile);
+					final Pattern tab=Pattern.compile("[\t]");
+					r = IOUtils.openFileForBufferedReading(super.bedFile);
+					String line;
+					while((line=r.readLine())!=null)
+						{
+						if(line.startsWith("#") || line.isEmpty()) continue;
+						String tokens[]=tab.split(line,4);
+						this.limitBed.put(new Interval(
+								tokens[0],
+								1+Integer.parseInt(tokens[1]),
+								1+Integer.parseInt(tokens[2])
+								), true);
+						}
+					}
+				catch(Exception err)
+					{
+					return wrapException(err);
+					}
+				finally
+					{
+					CloserUtil.close(r);
+					}
+				}
+			fasta=new IndexedFastaSequenceFile(new File(args.get(0)));
 			SAMSequenceDictionary dict=fasta.getSequenceDictionary();
-			out=VCFUtils.createVariantContextWriterToOutputStream(System.out);
+			out= super.openVariantContextWriter();
 			
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			VCFHeader header=new VCFHeader();
@@ -276,28 +245,29 @@ public class ReferenceToVCF extends AbstractCommandLineProgram
 
 					
 					
-					if(System.out.checkError()) break;
+					if(out.checkError()) break;
 					
 					
 					}
-				if(System.out.checkError()) break;
+				if(out.checkError()) break;
 				}
 			progress.finish();
 			
 			
 			
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(out);
+			CloserUtil.close(fasta);
 			}
 		}
+	 	}
 	public static void main(String[] args) {
 		new ReferenceToVCF().instanceMainWithExit(args);
 	}

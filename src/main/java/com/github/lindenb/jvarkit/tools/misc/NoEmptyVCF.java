@@ -1,40 +1,59 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
 import htsjdk.variant.vcf.VCFCodec;
-
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
-
+import com.github.lindenb.jvarkit.util.command.Command;
+import htsjdk.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 
-public class NoEmptyVCF extends AbstractCommandLineProgram
+public class NoEmptyVCF extends AbstractNoEmptyVCF
 	{
-	private static Log LOG=Log.getInstance(NoEmptyVCF.class);
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(NoEmptyVCF.class);
 
-    @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + "  If VCF is empty or doesn't exists, create a dummy one. ";
-
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,doc="VCF input (or stdin)",optional=true)
-    public File IN=null;
-    
-	
-    @Option(shortName="S",doc="add this sample",minElements=0)
-    public List<String> SAMPLES=new ArrayList<String>();
-    
+	 @Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  class MyCommand extends AbstractNoEmptyVCF.AbstractNoEmptyVCFCommand
+	 	{
     private void write(File f) throws IOException
     	{
     	LOG.info("fixing "+f);
-		PrintWriter w=new PrintWriter(IOUtils.openFileForBufferedWriting(IN));
+		PrintWriter w=new PrintWriter(IOUtils.openFileForBufferedWriting(f));
 		write(w);
 		w.close();
     	}
@@ -46,86 +65,89 @@ public class NoEmptyVCF extends AbstractCommandLineProgram
 		out.print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO");
 		if(!this.SAMPLES.isEmpty())
 			{
-			System.out.print("\tFORMAT");
+			out.print("\tFORMAT");
 			for(String S:this.SAMPLES)
 				{
-				System.out.print("\t");
-				System.out.print(S);
+				out.print("\t");
+				out.print(S);
 				}
 			}
 		out.println();
 		out.flush();
     	}
-    
-	@Override
-	protected int doWork()
-		{
-		try
-			{
-			if(IN!=null)
+    @Override
+    protected Collection<Throwable> call(String inputName) throws Exception {
+    		PrintStream out= null;
+			try
 				{
-				if(IN.exists())
+				if(inputName!=null)
 					{
-					LOG.info("opening "+IN+" ... ");
-					Reader reader=IOUtils.openFileForBufferedReading(IN);
-					int c=reader.read();
-					reader.close();
-					reader=null;
+					final File IN =new File(inputName);
+					if(IN.exists())
+						{
+						LOG.info("opening "+IN+" ... ");
+						Reader reader=IOUtils.openFileForBufferedReading(IN);
+						int c=reader.read();
+						reader.close();
+						reader=null;
+						if(c!=-1 && c!='#')
+							{
+							return wrapException("File "+IN+" doesn't start with # but with ascii("+c+")");
+							}
+						if(c==-1)
+							{
+							write(IN);
+							}
+						}
+					else
+						{
+						LOG.error("File "+IN+" doesn't exists");
+						write(IN);
+						}
+					}
+				else
+					{
+					out = openFileOrStdoutAsPrintStream();
+					LOG.info("reading from stdin ... ");
+					int c= stdin().read();
 					if(c!=-1 && c!='#')
 						{
-						LOG.error("File "+IN+" doesn't start with # but with ascii("+c+")");
-						return -1;
+						LOG.warn("VCF doesn't start with # but with ascii("+c+")");
+						out.print((char)c);
+						IOUtils.copyTo(stdin(),out);
+						return RETURN_OK;
 						}
 					if(c==-1)
 						{
-						write(this.IN);
+						LOG.warn("writing empty VCF");
+						write(new PrintWriter(out));
 						}
+					else
+						{
+						out.print((char)c);
+						IOUtils.copyTo(stdin(), out);
+						}
+					out.flush();
 					}
-				else
-					{
-					LOG.error("File "+IN+" doesn't exists");
-					write(this.IN);
-					}
+				return RETURN_OK;
 				}
-			else
+			catch(IOException err)
 				{
-				LOG.info("reading from stdin ... ");
-				int c=System.in.read();
-				if(c!=-1 && c!='#')
-					{
-					LOG.warn("VCF doesn't start with # but with ascii("+c+")");
-					System.out.print((char)c);
-					IOUtils.copyTo(System.in, System.out);
-					return 0;
-					}
-				if(c==-1)
-					{
-					LOG.warn("writing empty VCF");
-					write(new PrintWriter(System.out));
-					}
-				else
-					{
-					System.out.print((char)c);
-					IOUtils.copyTo(System.in, System.out);
-					}
+				return wrapException(err);
+				}
+			finally
+				{
+				CloserUtil.close(out);
 				}
 			
-		
 			}
-		catch(IOException err)
-			{
-			LOG.error(err,"Boum");
-			return -1;
-			}
-		return 0;
-		}
-
+	 	}
+	
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
 		new NoEmptyVCF().instanceMainWithExit(args);
-
 	}
 
 }

@@ -33,24 +33,20 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
-import java.io.File;
-import java.util.Arrays;
+import java.io.PrintStream;
+import java.util.Collection;
 import java.util.TreeSet;
-
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 /**
  * SamClippingFraction
  */
-public class SamClipIndelFraction extends AbstractCommandLineProgram
+public class SamClipIndelFraction extends AbstractSamClipIndelFraction
 	{
 	private enum Type {
 		leftclip,
@@ -59,74 +55,31 @@ public class SamClipIndelFraction extends AbstractCommandLineProgram
 		insert,
 		deletion
 		};
-	private Type type=Type.allclip;
 		
-	private SamClipIndelFraction()
-		{
-		}
-	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Extract clipping/indel fraction from BAM";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/SamClipIndelFraction";
-		}
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(SamClipIndelFraction.class);
 
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -t (type) one of: "+Arrays.toString(Type.values())+" (default:"+this.type+")");
-		super.printOptions(out);
+	 @Override
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-	
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"t:"))!=-1)
-			{
-			switch(c)
-				{
-				case 't': type= Type.valueOf(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+		 
+	public  class MyCommand extends AbstractSamClipIndelFraction.AbstractSamClipIndelFractionCommand
+	 	{
+
+		private Type type=Type.allclip;
 		
+
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		PrintStream out=null;
 		SamReader sfr=null;
 		SAMRecordIterator iter=null;
 		try
 			{
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-			if(opt.getOptInd()==args.length)
-				{
-				sfr=srf.open(SamInputResource.of(System.in));
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{	
-				String filename=args[opt.getOptInd()];
-				sfr=srf.open(new File(filename));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
+			this.type = Type.valueOf(super.typeStr);
+			sfr = super.openSamReader(inputName);
+			out = openFileOrStdoutAsPrintStream();
+			
 			long total_bases_count=0L;
 			long count_clipped_reads=0L;
 			long count_clipped_left_reads=0L;
@@ -240,52 +193,53 @@ public class SamClipIndelFraction extends AbstractCommandLineProgram
 					case allclip:  counter.incr(left_clip_length+right_clip_length); break;
 					case deletion: counter.incr(deletion_D_length+ deletion_N_length); break;
 					case insert: counter.incr(insertion_length); break;
-					default: error("Bad type: "+type);return -1;
+					default: return wrapException("Bad type: "+type);
 					}
 				}
 			progress.finish();
 			
-			System.out.println("##UNMAPPED_READS="+count_unmapped_reads);
-			System.out.println("##MAPPED_READS="+(count_clipped_reads+count_unclipped_reads));
-			System.out.println("##CLIPPED_READS="+count_clipped_reads);
-			System.out.println("##CLIPPED_READS_5_PRIME="+count_clipped_left_reads);
-			System.out.println("##CLIPPED_READS_3_PRIME="+count_clipped_right_reads);
-			System.out.println("##UNCLIPPED_READS="+count_unclipped_reads);
-			System.out.println("##COUNT_BASES="+total_bases_count);
-			System.out.print("#");
+			out.println("##UNMAPPED_READS="+count_unmapped_reads);
+			out.println("##MAPPED_READS="+(count_clipped_reads+count_unclipped_reads));
+			out.println("##CLIPPED_READS="+count_clipped_reads);
+			out.println("##CLIPPED_READS_5_PRIME="+count_clipped_left_reads);
+			out.println("##CLIPPED_READS_3_PRIME="+count_clipped_right_reads);
+			out.println("##UNCLIPPED_READS="+count_unclipped_reads);
+			out.println("##COUNT_BASES="+total_bases_count);
+			out.print("#");
 			switch(type)
 				{
-				case leftclip:  System.out.print("CLIP_5_PRIME"); break;
-				case rightclip:  System.out.print("CLIP_3_PRIME"); break;
-				case allclip:  System.out.print("CLIP"); break;
-				case deletion:  System.out.print("DELETION"); break;
-				case insert:  System.out.print("INSERTION"); break;
-				default: error("Bad type: "+type);return -1;
+				case leftclip:  out.print("CLIP_5_PRIME"); break;
+				case rightclip:  out.print("CLIP_3_PRIME"); break;
+				case allclip:  out.print("CLIP"); break;
+				case deletion:  out.print("DELETION"); break;
+				case insert:  out.print("INSERTION"); break;
+				default: return wrapException("Bad type: "+type);
 				}
-			System.out.println("\tCOUNT\tFRACTION_OF_MAPPED_READS");
+			out.println("\tCOUNT\tFRACTION_OF_MAPPED_READS");
 			
 			for(Integer size: new TreeSet<Integer>(counter.keySet()))
 				{
-				System.out.print(size);
-				System.out.print('\t');
-				System.out.print(counter.count(size));
-				System.out.print('\t');
-				System.out.println(counter.count(size)/(double)(count_unclipped_reads+count_unclipped_reads));
+				out.print(size);
+				out.print('\t');
+				out.print(counter.count(size));
+				out.print('\t');
+				out.println(counter.count(size)/(double)(count_unclipped_reads+count_unclipped_reads));
 				}
-			
-			return 0;
+			LOG.info("done");
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(iter);
 			CloserUtil.close(sfr);
+			CloserUtil.close(out);
 			}
 		}
+	 }
 	/**
 	 * @param args
 	 */

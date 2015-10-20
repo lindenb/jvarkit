@@ -1,28 +1,54 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
+import java.util.Collection;
+import java.util.List;
 
-import htsjdk.samtools.fastq.BasicFastqWriter;
+import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.fastq.FastqWriter;
-import htsjdk.samtools.fastq.FastqWriterFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.FastqReader;
-import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+import com.github.lindenb.jvarkit.util.command.Command;
 
-public class PadEmptyFastq extends AbstractCommandLineProgram
+public class PadEmptyFastq extends AbstractPadEmptyFastq
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(PadEmptyFastq.class);
+
+	
 	private static final int DEFAULT_LENGTH=50;
-	private int N=-1;//default , will use the first read length
 	
-	
-	private PadEmptyFastq()
-		{
+	 @Override
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-	
+		 
+	public  class MyCommand extends AbstractPadEmptyFastq.AbstractPadEmptyFastqCommand
+	 	{
+
 	
 	private void copyTo(FastqReader r,FastqWriter w)
 		{
@@ -31,7 +57,6 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 		long nFill=0L;
 		String fillN=null;
 		String fillQ=null;
-		r.setValidationStringency(ValidationStringency.LENIENT);
 		while(r.hasNext())
 			{
 			FastqRecord rec=r.next();
@@ -39,7 +64,7 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 			
 			if(++nReads%1E6==0)
 				{
-				info("Read "+nReads +" reads. empty reads="+nFill);
+				LOG.info("Read "+nReads +" reads. empty reads="+nFill);
 				}
 			if(rec.getReadString().isEmpty())
 				{
@@ -69,102 +94,49 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 				}
 			w.write(rec);
 			}
-		info("Done. Read "+nReads +" reads. empty reads="+nFill);
+		LOG.info("Done. Read "+nReads +" reads. empty reads="+nFill);
 		}
 	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/PadEmptyFastq";
-		}
-	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Pad empty fastq sequence/qual with N/#";
-		}
 
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (Filename out). Default: stdout");
-		out.println(" -N (integer). number of bases/qual to be added.  Default: length of the first read  or "+DEFAULT_LENGTH);
-		super.printOptions(out);
-		}
-	
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		
-		File fileOut=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:N:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o':fileOut=new File(opt.getOptArg());break;
-				case 'N':N=Math.max(0,Integer.parseInt(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					break;
-					}
-				}
-			}
-		
+		public Collection<Throwable> call() throws Exception {		
 		FastqWriter fqw=null;		
+		final List<String> args = getInputFiles();
 		try
 			{
 			
-			if(fileOut==null)
+			fqw = openFastqWriter();
+			
+			if(args.isEmpty())
 				{
-				info("writing to stdout");
-				fqw=new BasicFastqWriter(System.out);
-				}
-			else
-				{
-				info("writing to "+fileOut);
-				fqw=new FastqWriterFactory().newWriter(fileOut);
-				}
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				FastqReader fqr=new FourLinesFastqReader(System.in);
+				FastqReader fqr= super.openFastqReader(null);
 				copyTo(fqr,fqw);
 				fqr.close();
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename:args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
-					FastqReader fqr=new FourLinesFastqReader(new File(filename));
+					LOG.info("Reading from "+filename);
+					FastqReader fqr= super.openFastqReader(filename);
 					copyTo(fqr,fqw);
 					fqr.close();
 					}
 				}
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			LOG.error(err);
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(fqw);
 			}
 		}
+	 	}
 	/**
 	 * @param args
 	 */
