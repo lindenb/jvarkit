@@ -29,14 +29,14 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 
+import htsjdk.samtools.util.CloserUtil;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -45,59 +45,39 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 
 public class IlluminaDirectory
-	extends AbstractKnimeApplication
+	extends AbstractIlluminaDirectory
 	{
-	private int ID_GENERATOR=0;
-	private boolean JSON=false;
-    private MessageDigest md5;
+	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(IlluminaDirectory.class);
 
-    
-    public void setJSON(boolean jSON) {
-		JSON = jSON;
+	
+	
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-    
-    public boolean isJSON() {
-		return JSON;
-		}
-    
-    private  String md5(String in)
-    	{
-    	if(md5==null)
-	    	{
-	    	  try {
-	              md5 = MessageDigest.getInstance("MD5");
-	          } catch (NoSuchAlgorithmException e) {
-	              throw new RuntimeException("MD5 algorithm not found", e);
-	          }
-	    	}
-    	 md5.reset();
-         md5.update(in.getBytes());
-         String s = new BigInteger(1, md5.digest()).toString(16);
-         if (s.length() != 32) {
-             final String zeros = "00000000000000000000000000000000";
-             s = zeros.substring(0, 32 - s.length()) + s;
-         }
-         return s;
-    	}
-    
+		 
+	public  class MyCommand extends AbstractIlluminaDirectory.AbstractIlluminaDirectoryCommand
+	 	{		
+		private int ID_GENERATOR=0;
     private class Folder
     	{
-    	SortedMap<String, Sample> sampleMap=new TreeMap<String, IlluminaDirectory.Sample>();
+    	SortedMap<String, Sample> sampleMap=new TreeMap<String, MyCommand.Sample>();
     	List<Pair> undtermined=new ArrayList<Pair>();
     	void scan(File f)
     		{
     		if(f==null) return;
     		if(!f.canRead()) return;
-    		IlluminaDirectory.this.info("Scanning "+f);
+    		LOG.info("Scanning "+f);
     		
 			FastQName fq=FastQName.parse(f);
 			if(!fq.isValid())
 				{
-				warning("invalid name:"+fq);
+				LOG.warn("invalid name:"+fq);
 				return;
 				}
 			if(fq.isUndetermined())
@@ -336,89 +316,43 @@ public class IlluminaDirectory
     
     
     
-    @Override
-	public String getProgramDescription() {
-		return "Scan folders and generate a structured summary of the files in JSON or XML";
-		}
-    @Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"Illuminadir";
-    	}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -J produces a JSON output");
-		super.printOptions(out);
-		}
-	
-
-	@Override
-	public int doWork(String[] args)
-			{
-			com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-			int c;
-			while((c=opt.getopt(args, super.getGetOptDefault()+"Jo:"))!=-1)
-				{
-				switch(c)
-					{
-					case 'o': setOutputFile(opt.getOptArg()); break;
-					case 'J': setJSON(true);break;
-					default:
-						{
-						switch(super.handleOtherOptions(c, opt, args))
-							{
-							case EXIT_FAILURE:return -1;
-							case EXIT_SUCCESS:return 0;
-							case OK:break;
-							}
-						}
-					}
-				}
-			return mainWork(opt.getOptInd(), args);
-			}
-	
-	
-		@Override
-		public int executeKnime(List<String> args)
-			{
+    	@Override
+    	public Collection<Throwable> call() throws Exception {
+    		final List<String> args = getInputFiles();
 			if(!args.isEmpty())
 				{
-				error("Expected to read filenames on stdin.");
-				return -1;
+				return wrapException("Expected to read filenames on stdin.");
 				}
-			
+			PrintStream pw=null;
 			try
 				{
 				List<Folder> folders=new ArrayList<Folder>();
 				Folder folder=new Folder();
 				folders.add(folder);
 				String line;
-				BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
+				BufferedReader in=new BufferedReader(new InputStreamReader(stdin()));
 				while((line=in.readLine())!=null)
 					{
 					if(line.isEmpty() || line.startsWith("#")) continue;
 					if(!line.endsWith(".fastq.gz"))
 						{
-						warning("ignoring "+line);
+						LOG.warn("ignoring "+line);
 						continue;
 						}
 					File f=new File(line);
 					if(!f.exists())
 						{
-						error("Doesn't exist:"+f);
-						return -1;
+						return wrapException("Doesn't exist:"+f);
 						}
 					if(!f.isFile())
 						{
-						error("Not a file:"+f);
-						return -1;
+						return wrapException("Not a file:"+f);
 						}
 					folder.scan(f);
 					}
 				in.close();
 		    	
-				PrintStream pw = getOutputFile()==null?System.out:new PrintStream(getOutputFile());
+				pw =  openFileOrStdoutAsPrintStream();
 
 		    	if(this.isJSON())
 		    		{
@@ -431,9 +365,8 @@ public class IlluminaDirectory
 		    		
 		    		pw.println("]");
 		    		pw.flush();
-		    		int ret = pw.checkError()?-1:0;
 		    		pw.close();
-		    		return ret;
+		    		return RETURN_OK;
 		    		}
 		    	else
 		    		{
@@ -449,19 +382,18 @@ public class IlluminaDirectory
 	    			w.close();
 		    		}
 				pw.close();
+				return RETURN_OK;
 				}
 			catch(Exception err)
 				{
-				error(err);
-				return -1;
+				return wrapException(err);
 				}
 			finally
 				{
-				
+				CloserUtil.close(pw);
 				}
-			return 0;
 			}
-   
+	 	}
 
 	/**
 	 * @param args

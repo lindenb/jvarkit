@@ -31,13 +31,13 @@ package com.github.lindenb.jvarkit.tools.misc;
 import htsjdk.samtools.util.CloserUtil;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.InputStreamReader;
 import java.io.StreamTokenizer;
 import java.io.StringReader;
 import java.net.URLDecoder;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -49,10 +49,18 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 
-public class Gtf2Xml extends AbstractCommandLineProgram{
-	private File outputFile=null;
+public class Gtf2Xml extends AbstractGtf2Xml{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Gtf2Xml.class);
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractGtf2Xml.AbstractGtf2XmlCommand
+	 	{	
 	private abstract class GffCodec
 		{
 		Map<String,Long> seqdict=new LinkedHashMap<>();
@@ -162,186 +170,141 @@ public class Gtf2Xml extends AbstractCommandLineProgram{
 				}
 			}
 		}
-	public Gtf2Xml() {
-		}
+	
+	
 	
 	@Override
-	public String getProgramDescription() {
-		return "Convert GTF to XML";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"Gtf2Xml";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (out)  output file. default stdout");
-		super.printOptions(out);
-		}
-
-	
-	public void setOutputFile(File outputFile) {
-		this.outputFile = outputFile;
-	}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
+		protected Collection<Throwable> call(String inputName) throws Exception
 			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default:
+			BufferedReader r=null;
+			XMLStreamWriter w=null;
+			FileWriter fw=null;
+			try {
+				if(inputName==null)
 					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
+					r = new BufferedReader(new InputStreamReader(stdin()));
 					}
-				}
-			}
-		BufferedReader r=null;
-		XMLStreamWriter w=null;
-		FileWriter fw=null;
-		try {
-			if(opt.getOptInd()==args.length)
-				{
-				r = IOUtils.openStdinForBufferedReader();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				r = IOUtils.openFileForBufferedReading(new File(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error("Illegal number of arguments");
-				return -1;
-				}
-			XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			if(this.outputFile==null)
-				{
-				w = xof.createXMLStreamWriter(System.out, "UTF-8");
-				}
-			else
-				{
-				w = xof.createXMLStreamWriter((fw=new FileWriter(this.outputFile)));
-				}
-			GffCodec codec = new DefaultCodec();
-			String headerLine=null;
-			w.writeStartDocument("UTF-8","1.0");
-			w.writeStartElement("gtf");
-			while((headerLine=r.readLine())!=null)
-				{
-				if(!headerLine.startsWith("#")) break;
-				int ws = headerLine.indexOf(' ');
-				if(ws==-1) continue; //??
-				
-				if(headerLine.startsWith("##gff-version "))
+				else 
 					{
-					String version=headerLine.substring(ws+1).trim();
-					info("version "+version);
-					if(version.equals("3"))
-						{
-						codec = new Gtf3Codec();
-						}
-					w.writeAttribute("gff-version", version);
+					r = IOUtils.openURIForBufferedReading(inputName);
 					}
-				else if(headerLine.startsWith("#!"))
+				XMLOutputFactory xof=XMLOutputFactory.newFactory();
+				if(this.outputFile==null)
 					{
-					w.writeAttribute(
-							headerLine.substring(2, ws),
-							headerLine.substring(ws+1).trim());
+					w = xof.createXMLStreamWriter(stdout(), "UTF-8");
 					}
 				else
 					{
-					warning("ignoring "+headerLine);
+					w = xof.createXMLStreamWriter((fw=new FileWriter(getOutputFile())));
 					}
-				}
-			w.writeCharacters("\n");
+				GffCodec codec = new DefaultCodec();
+				String headerLine=null;
+				w.writeStartDocument("UTF-8","1.0");
+				w.writeStartElement("gtf");
+				while((headerLine=r.readLine())!=null)
+					{
+					if(!headerLine.startsWith("#")) break;
+					int ws = headerLine.indexOf(' ');
+					if(ws==-1) continue; //??
+					
+					if(headerLine.startsWith("##gff-version "))
+						{
+						String version=headerLine.substring(ws+1).trim();
+						LOG.info("version "+version);
+						if(version.equals("3"))
+							{
+							codec = new Gtf3Codec();
+							}
+						w.writeAttribute("gff-version", version);
+						}
+					else if(headerLine.startsWith("#!"))
+						{
+						w.writeAttribute(
+								headerLine.substring(2, ws),
+								headerLine.substring(ws+1).trim());
+						}
+					else
+						{
+						LOG.warn("ignoring "+headerLine);
+						}
+					}
+				w.writeCharacters("\n");
+				
+				
 			
-			
-		
-			String line=null;
-			for(;;)
-				{
-				line=(headerLine!=null?headerLine:r.readLine());
-				headerLine=null;
-				if(line==null) break;
-				if(line.isEmpty()) continue;
-				codec.write(w,line);
-				}
-			
-			
-			w.writeStartElement("attributes");
-			for(String k : codec.att_keys)
-				{
-				w.writeStartElement("attribute");
-				w.writeCharacters(k);
+				String line=null;
+				for(;;)
+					{
+					line=(headerLine!=null?headerLine:r.readLine());
+					headerLine=null;
+					if(line==null) break;
+					if(line.isEmpty()) continue;
+					codec.write(w,line);
+					}
+				
+				
+				w.writeStartElement("attributes");
+				for(String k : codec.att_keys)
+					{
+					w.writeStartElement("attribute");
+					w.writeCharacters(k);
+					w.writeEndElement();
+					w.writeCharacters("\n");
+					}
 				w.writeEndElement();
 				w.writeCharacters("\n");
-				}
-			w.writeEndElement();
-			w.writeCharacters("\n");
-			
-			w.writeStartElement("types");
-			for(String k : codec.types)
-				{
-				w.writeStartElement("type");
-				w.writeCharacters(k);
+				
+				w.writeStartElement("types");
+				for(String k : codec.types)
+					{
+					w.writeStartElement("type");
+					w.writeCharacters(k);
+					w.writeEndElement();
+					w.writeCharacters("\n");
+					}
 				w.writeEndElement();
 				w.writeCharacters("\n");
-				}
-			w.writeEndElement();
-			w.writeCharacters("\n");
-			
-			
-			w.writeStartElement("sources");
-			for(String k : codec.sources)
-				{
-				w.writeStartElement("source");
-				w.writeCharacters(k);
+				
+				
+				w.writeStartElement("sources");
+				for(String k : codec.sources)
+					{
+					w.writeStartElement("source");
+					w.writeCharacters(k);
+					w.writeEndElement();
+					w.writeCharacters("\n");
+					}
 				w.writeEndElement();
 				w.writeCharacters("\n");
-				}
-			w.writeEndElement();
-			w.writeCharacters("\n");
-
-			w.writeStartElement("dict");
-			for(String k : codec.seqdict.keySet())
-				{
-				w.writeEmptyElement("chrom");
-				w.writeAttribute("name",k);
-				w.writeAttribute("length", String.valueOf(codec.seqdict.get(k)));
+	
+				w.writeStartElement("dict");
+				for(String k : codec.seqdict.keySet())
+					{
+					w.writeEmptyElement("chrom");
+					w.writeAttribute("name",k);
+					w.writeAttribute("length", String.valueOf(codec.seqdict.get(k)));
+					w.writeCharacters("\n");
+					}
+				w.writeEndElement();
 				w.writeCharacters("\n");
+	
+				
+				w.writeEndElement();
+				w.writeEndDocument();
+				w.flush();
+				return RETURN_OK;
 				}
-			w.writeEndElement();
-			w.writeCharacters("\n");
-
-			
-			w.writeEndElement();
-			w.writeEndDocument();
-			w.flush();
-			return 0;
+			catch (Exception e) {
+				LOG.error(e);
+				return wrapException(e);
+				}
+			finally
+				{
+				CloserUtil.close(r);
+				CloserUtil.close(fw);
+				}
 			}
-		catch (Exception e) {
-			error(e);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(r);
-			CloserUtil.close(fw);
-			}
-		}
-
+	 	}
 	
 	public static void main(String[] args) throws IOException
 		{

@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2015 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
@@ -8,9 +36,10 @@ import java.io.PrintStream;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
@@ -18,17 +47,24 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-public class HowManyBamDict extends AbstractCommandLineProgram {
-	private MessageDigest md5;
-	private HowManyBamDict()
-		{
-		 
-		}
+public class HowManyBamDict extends AbstractHowManyBamDict
+	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(HowManyBamDict.class);
+
 	
+	
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractHowManyBamDict.AbstractHowManyBamDictCommand
+	 	{		
+
+	private MessageDigest md5;
 	
 	private class Dict
 		{
@@ -71,52 +107,42 @@ public class HowManyBamDict extends AbstractCommandLineProgram {
 		public int hashCode() {
 			return ssd.hashCode();
 			}
-		void print()
+		void print(PrintStream out)
 			{
-			System.out.print("DICT");
-			System.out.print("\t");
-			System.out.print(this.hash);
-			System.out.print("\t");
-			System.out.print(ssd.size());
-			System.out.print("\t");
-			System.out.print(ssd.getReferenceLength());
-			System.out.print("\t");
+			out.print("DICT");
+			out.print("\t");
+			out.print(this.hash);
+			out.print("\t");
+			out.print(ssd.size());
+			out.print("\t");
+			out.print(ssd.getReferenceLength());
+			out.print("\t");
 			boolean first=true;
 			for(SAMSequenceRecord ssr:ssd.getSequences())
 				{
-				if(!first) System.out.print(";");
+				if(!first) out.print(";");
 				first=false;
-				System.out.print(ssr.getSequenceName());
-				System.out.print('=');
-				System.out.print(ssr.getSequenceLength());
+				out.print(ssr.getSequenceName());
+				out.print('=');
+				out.print(ssr.getSequenceLength());
 				}
-			System.out.print("\t");
-			System.out.print(this.representative);
-			System.out.println();
+			out.print("\t");
+			out.print(this.representative);
+			out.println();
 			}
 		}
 
 	private Dict empty=null;
 	private Set<Dict>  allditcs=new LinkedHashSet<Dict>();
 	
-	@Override
-	public String getProgramDescription() {
-		return "finds if there's are some differences in the sequence dictionaries.";
-		}
 	
- 	@Override
-	public void printOptions(PrintStream out)
- 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of "+Level.class.getName()+" currently:"+getLogger().getLevel());
-		}
  	
- 	private void handle(File f) throws IOException
+ 	
+ 	private void handle(PrintStream out,File f) throws IOException
  		{
  		SamReader sfr=null;
  		try {
- 			info(f);
+ 			LOG.info(f);
 			sfr=SamFileReaderFactory.mewInstance().open(f);
 			SAMFileHeader header=sfr.getFileHeader();
 			if(header==null || header.getSequenceDictionary()==null)
@@ -125,31 +151,31 @@ public class HowManyBamDict extends AbstractCommandLineProgram {
 					{
 					this.empty=new Dict(new SAMSequenceDictionary(),f);
 					allditcs.add(this.empty);
-					this.empty.print();
+					this.empty.print(out);
 					}
-				System.out.print("BAM\t");
-				System.out.print(f.getPath());
-				System.out.print("\t");
-				System.out.print(this.empty.hash);
-				System.out.println();
+				out.print("BAM\t");
+				out.print(f.getPath());
+				out.print("\t");
+				out.print(this.empty.hash);
+				out.println();
 				}
 			else
 				{
 				Dict d=new Dict(header.getSequenceDictionary(), f);
 				if(this.allditcs.add(d))
 					{
-					d.print();
+					d.print(out);
 					}
-				System.out.print("BAM\t");
-				System.out.print(f.getPath());
-				System.out.print("\t");
-				System.out.print(d.hash);
-				System.out.println();
+				out.print("BAM\t");
+				out.print(f.getPath());
+				out.print("\t");
+				out.print(d.hash);
+				out.println();
 				}
  			} 
  		catch (Exception e)
 			{
-			error(e, e.getMessage());
+			LOG.error(e);
 			throw new IOException(e);
 			}
  		finally
@@ -158,63 +184,53 @@ public class HowManyBamDict extends AbstractCommandLineProgram {
  			}
  		}
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		GetOpt getopt=new GetOpt();
-		int c;
-		while((c=getopt.getopt(args, "hvL:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(Level.parse(getopt.getOptArg()));break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
-				}
-			}
-		
+ 	@Override
+ 		public Collection<Throwable> call() throws Exception {
+ 		
 		 try {
    		  this.md5 = MessageDigest.getInstance("MD5");
          } catch (NoSuchAlgorithmException e) {
-            error(e,"MD5 algorithm not found");
-            return -1;
+        	 LOG.error("MD5 algorithm not found");
+            return wrapException(e);
          }
-		
+		final List<String> args  = super.getInputFiles();
+		PrintStream out = null;
 		try
 			{
-			if(getopt.getOptInd()==args.length)
+			out = super.openFileOrStdoutAsPrintStream();
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
+				LOG.info("Reading from stdin");
 				String line;
 				
-					BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
+					BufferedReader in=new BufferedReader(new InputStreamReader(stdin()));
 					while((line=in.readLine())!=null)
 						{
 						if(line.isEmpty() || line.endsWith(File.separator) || line.startsWith("#")) continue;
-						handle(new File(line));
+						handle(out,new File(line));
 						}
 					in.close();
 					
 				}
 			else
 				{
-				for(int i=getopt.getOptInd();i< args.length;++i)
+				for(String arg:args)
 					{
-					handle(new File(args[i]));
+					handle(out,new File(arg));
 					}
 				}
+			return RETURN_OK;
 			}
 		catch(IOException err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
-		
-		return 0;
+		finally
+			{
+			CloserUtil.close(out);
+			}
 		}
-
+	 	}
 	
 	/**
 	 * @param args

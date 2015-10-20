@@ -76,6 +76,33 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	
 	</xsl:if>
 	
+	<xsl:if test="c:snippet[@id='md5']">
+	
+	private java.security.MessageDigest _md5 = null;
+	protected  String md5(final String in)
+    	{
+    	if(_md5==null)
+	    	{
+	    	  try {
+	              _md5 = java.security.MessageDigest.getInstance("MD5");
+	          } catch (java.security.NoSuchAlgorithmException e) {
+	              throw new RuntimeException("MD5 algorithm not found", e);
+	          }
+	    	}
+    	 _md5.reset();
+         _md5.update(in.getBytes());
+         String s = new java.math.BigInteger(1, _md5.digest()).toString(16);
+         if (s.length() != 32) {
+             final String zeros = "00000000000000000000000000000000";
+             s = zeros.substring(0, 32 - s.length()) + s;
+         }
+         return s;
+    	}
+	
+	</xsl:if>
+	
+	
+	
 	<xsl:if test="not(@generate-output-option='false')">
 		/** option outputFile */
 		protected java.io.File outputFile = null;
@@ -573,6 +600,31 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		</xsl:when>
 		<xsl:when test="c:input/@type='strings'">
 		/* input type is 'strings' */
+		</xsl:when>
+		
+		<xsl:when test="c:input/@type='directory'">
+		/** program should process this existing directory */ 
+		protected abstract java.util.Collection&lt;Throwable&gt; call(final java.io.File directory) throws Exception;
+		
+		@Override
+		public  java.util.Collection&lt;Throwable&gt; call() throws Exception
+			{
+			final java.util.List&lt;String&gt; args= getInputFiles();
+			if(args.size()==1)
+				{
+				final String filename = args.get(0);
+				final java.io.File dir = new java.io.File(filename);
+				if(! dir.isDirectory())
+					{
+					return wrapException("Not a directory :"+dir);
+					}
+				return call(dir);
+				}
+			else
+				{
+				return wrapException(getMessageBundle("illegal.number.of.arguments"));
+				}
+			}
 		</xsl:when>
 		
 		<xsl:otherwise>

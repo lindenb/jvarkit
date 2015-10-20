@@ -4,4 +4,18 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Reads filenames from stdin: Count FASTQs in Illumina Result.</description>
+
+
+<options>
+	<option name="COUNT_INDEX" type="int" opt="X" longopt="countindex"  default="0">
+		<description> maximum number of DNA indexes to print. memory consuming if not 0. Optional</description>
+	</option>
+		<option name="nThreads" type="int" opt="T" longopt="threads"  default="1">
+		<description>number of threads</description>
+	</option>
+</options>
+
+
+
+<!-- __PLACEHOLDER__ --></app>
