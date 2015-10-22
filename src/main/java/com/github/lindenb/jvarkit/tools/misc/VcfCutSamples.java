@@ -100,14 +100,14 @@ public class VcfCutSamples
 				{
 				if(this.getUserSamples().contains(sample))
 					{
-					if(!invert)
+					if(!super.invert)
 						{
 						samples2.add(sample);
 						}
 					}
 				else
 					{
-					if(invert)
+					if(super.invert)
 						{
 						samples2.add(sample);
 						}

@@ -880,6 +880,34 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		
 		</xsl:if>
+		
+		<xsl:if test="c:snippet[@id='read-string-set']">
+		
+		protected java.util.Set&lt;String&gt; readStringSet(final java.io.File f) throws java.io.IOException
+			{
+			final java.util.Set&lt;String&gt; set = new java.util.HashSet&lt;String&gt;();
+			java.io.BufferedReader in= null;
+			try
+				{
+				LOG.info("Reading "+f);
+				in = IOUtils.openFileForBufferedReading(f);
+				String line;
+				while((line=in.readLine())!=null)
+					{
+					if(line.startsWith("#")) continue;
+					line=line.trim();
+					if(line.trim().isEmpty()) continue;
+					set.add(line);
+					}
+				return set;
+				}
+			finally
+				{
+				htsjdk.samtools.util.CloserUtil.close(in);
+				}
+			}
+		
+		</xsl:if>
 		}
 	
 		
