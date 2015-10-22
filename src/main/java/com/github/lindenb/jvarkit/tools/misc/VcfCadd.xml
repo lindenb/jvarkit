@@ -4,4 +4,18 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher &amp; al. A general framework for estimating the relative pathogenicity of human genetic variants.  Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892. PubMed PMID: 24487276.</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+<options>
+	<option name="ccaduri" type="string" opt="u" longopt="ccaduri" default="http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz" >
+		<description> Combined Annotation Dependent Depletion (CADD) Tabix file URI .</description>
+	</option>
+	<option name="buffer_distance" type="int" opt="d" longopt="distance"  default="1000" >
+		<description>processing window size</description>
+	</option>
+</options>
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>
