@@ -4,4 +4,28 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Select/Exclude some samples from a VCF</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+<options>
+	<option name="invert" type="boolean" opt="i" longopt="invert" default="false" >
+		<description>invert</description>
+	</option>
+	<option name="userSamples" type="string-set" opt="S" longopt="sample" >
+		<description>add sample</description>
+	</option>
+	<option name="sampleFile" type="input-file" opt="f" longopt="samplefile" >
+		<description>read file containing sample names. Optional</description>
+	</option>
+	<option name="removeCtxIfNoCall" type="boolean" opt="r" longopt="rmctxifnocall" default="false" >
+		<description>remove variant if there is not any called genotype on the line</description>
+	</option>
+	<option name="missing_sample_is_error" type="boolean" opt="E" longopt="missingiserror" default="true" >
+		<description>unknown user sample is not a fatal error </description>
+	</option>
+</options>
+
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

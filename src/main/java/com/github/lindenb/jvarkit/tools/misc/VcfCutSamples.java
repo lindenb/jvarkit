@@ -29,15 +29,14 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -47,10 +46,8 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
@@ -60,230 +57,142 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  *
  */
 public class VcfCutSamples
-	extends AbstractVCFFilter3
+	extends AbstractVcfCutSamples
 	{
-	/** output file */
-	private File outputFile=null;
-	/** selected sample */
-	private Set<String> user_samples=new HashSet<String>();
-	/** invert selection */
-	private boolean invert=false;
-	/** remove variant if no call at all */
-	private boolean removeCtxIfNoCall=false;
-	/** a missing sample is an error */
-	private boolean missing_sample_is_error=true;
-	
-	
-	public VcfCutSamples()
-		{
-		}
-	
-	public Set<String> getUserSamples() {
-		return user_samples;
-		}
-	
-	public void setInvert(boolean invert)
-		{
-		this.invert = invert;
-		}
-	
-	public void setMissingSampleIsError(boolean missing_sample_is_error) {
-		this.missing_sample_is_error = missing_sample_is_error;
-	}
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfBurden.class);
 
 	@Override
-	public String getProgramDescription() {
-		return "Select/Exclude some samples from a VCF";
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+ "VcfCutSamples";
-		}
-	
-	
-	@Override
-	public void checkKnimeCancelled() {
-		
-		}
-	
-	@Override
-	public void disposeKnime() {
-		
-		}
-	
-	@Override
-	public int initializeKnime() {
-		return 0;
-		}
-	
-
-	@Override
-	public void setOutputFile(File out) {
-		this.outputFile=out;
-		}
-	
-	public File getOutputFile() {
-		return outputFile;
-		}
-	
-	public void setRemoveCtxIfNoCall(boolean removeCtxIfNoCall) {
-		this.removeCtxIfNoCall = removeCtxIfNoCall;
-		}
-
-
-	@Override
-	protected void doWork( String inputSource,VcfIterator in,VariantContextWriter out )
-			throws IOException
-		{
-		VCFHeader header=in.getHeader();
-		final Set<String> samples1=new HashSet<String>(header.getSampleNamesInOrder());
-		
-		for(String my:this.getUserSamples())
+		 
+	public  static class MyCommand extends AbstractVcfCutSamples.AbstractVcfCutSamplesCommand
+		{		
+		@Override
+		protected Collection<Throwable> doVcfToVcf(
+					String inputName,
+					VcfIterator in,
+					VariantContextWriter out
+					) throws IOException
 			{
-			if(!samples1.contains(my))
+			VCFHeader header=in.getHeader();
+			final Set<String> samples1=new HashSet<String>(header.getSampleNamesInOrder());
+			
+			for(String my:this.getUserSamples())
 				{
-				String msg="user sample "+my+" is not present in VCF Header : "+samples1;
-				if(this.missing_sample_is_error)
+				if(!samples1.contains(my))
 					{
-					throw new RuntimeException(msg);
+					String msg="user sample "+my+" is not present in VCF Header : "+samples1;
+					if(this.missing_sample_is_error)
+						{
+						throw new RuntimeException(msg);
+						}
+					else
+						{
+						LOG.warn(msg);
+						}
+					}
+				}
+			
+			List<String> samples2=new ArrayList<String>();
+	
+			for(String sample: header.getSampleNamesInOrder())
+				{
+				if(this.getUserSamples().contains(sample))
+					{
+					if(!invert)
+						{
+						samples2.add(sample);
+						}
 					}
 				else
 					{
-					warning(msg);
+					if(invert)
+						{
+						samples2.add(sample);
+						}
 					}
 				}
-			}
-		
-		List<String> samples2=new ArrayList<String>();
-
-		for(String sample: header.getSampleNamesInOrder())
-			{
-			if(this.getUserSamples().contains(sample))
-				{
-				if(!invert)
+			
+			
+			VCFHeader header2=new VCFHeader(
+					header.getMetaDataInInputOrder(),
+					samples2
+					);
+			addMetaData(header2);
+			
+			out.writeHeader(header2);
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+			while(in.hasNext())
+				{	
+				VariantContext ctx=progress.watch(in.next());
+				
+				VariantContextBuilder vb=new VariantContextBuilder(ctx);
+				List<Genotype> genotypes=new ArrayList<Genotype>();
+				Set<Allele> alleles=new HashSet<Allele>();
+				boolean only_no_call=true;
+				for(String sample:samples2)
 					{
-					samples2.add(sample);
+					Genotype g=ctx.getGenotype(sample);
+					if(g.isNoCall()) continue;
+					alleles.addAll(g.getAlleles());
+					genotypes.add(g);
+					if(g.isCalled()) only_no_call=false;
 					}
+				
+				if(removeCtxIfNoCall && only_no_call) continue;
+				
+				alleles.add(ctx.getReference());
+				vb.alleles(alleles);
+				vb.genotypes(genotypes);
+				out.add(vb.make());
+				if(out.checkError()) break;
 				}
-			else
-				{
-				if(invert)
-					{
-					samples2.add(sample);
-					}
-				}
+			progress.finish();
+			return RETURN_OK;
 			}
 		
-		
-		VCFHeader header2=new VCFHeader(
-				header.getMetaDataInInputOrder(),
-				samples2
-				);
-		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-
-		
-		out.writeHeader(header2);
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
-		while(in.hasNext())
-			{	
-			VariantContext ctx=progress.watch(in.next());
-			
-			VariantContextBuilder vb=new VariantContextBuilder(ctx);
-			List<Genotype> genotypes=new ArrayList<Genotype>();
-			Set<Allele> alleles=new HashSet<Allele>();
-			boolean only_no_call=true;
-			for(String sample:samples2)
-				{
-				Genotype g=ctx.getGenotype(sample);
-				if(g.isNoCall()) continue;
-				alleles.addAll(g.getAlleles());
-				genotypes.add(g);
-				if(g.isCalled()) only_no_call=false;
-				}
-			
-			if(removeCtxIfNoCall && only_no_call) continue;
-			
-			alleles.add(ctx.getReference());
-			vb.alleles(alleles);
-			vb.genotypes(genotypes);
-			out.add(vb.make());
-			incrVariantCount();
-			
-			if(checkOutputError()) break;
-			}
-		progress.finish();
-		}
-	
-	
 	@Override
-	public void printOptions(PrintStream out)
+	public Collection<Throwable> initializeKnime()
 		{
-		out.println(" -v invert.");
-		out.println(" -S (name) add sample.");
-		out.println(" -f (file) read file containing sample names. Optional.");
-		out.println(" -r remove variant if there is not any called genotype on the line. Optional.");
-		out.println(" -E unknown user sample is not a fatal error . Optional.");
-		out.println(" -o (file) File out. Default: stdout.");
-		super.printOptions(out);
+		if(super.sampleFile!=null)
+			{
+			BufferedReader r=null;
+			try
+				{
+				LOG.info("Reading "+super.sampleFile);
+				r=IOUtils.openFileForBufferedReading(super.sampleFile);
+				String line;
+				while((line=r.readLine())!=null)
+					{
+					if(line.startsWith("#") || line.trim().isEmpty()) continue;
+					this.userSamples.add(line);
+					}
+				}
+			catch(Exception err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				CloserUtil.close(r);
+				}
+			}
+		return super.initializeKnime();
+		}
+	@Override
+	public void disposeKnime() {
+		this.userSamples.clear();
+		super.disposeKnime();
 		}
 	
 	@Override
-	public int doWork(String[] args)
+	protected Collection<Throwable> call(String inputName) throws Exception
 		{
-		
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "ErvS:f:o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'E': setMissingSampleIsError(false);break;
-				case 'v': setInvert(true); break;
-				case 'r': setRemoveCtxIfNoCall(true); break;
-				case 'S': getUserSamples().add(opt.getOptArg()); break;
-				case 'o': setOutputFile(new File(opt.getOptArg())); break;
-				case 'f':
-					BufferedReader r=null;
-					try
-						{
-						r=IOUtils.openURIForBufferedReading(opt.getOptArg());
-						String line;
-						while((line=r.readLine())!=null)
-							{
-							if(line.startsWith("#") || line.trim().isEmpty()) continue;
-							this.user_samples.add(line);
-							}
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
-					finally
-						{
-						CloserUtil.close(r);
-						}
-					break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		return this.mainWork(opt.getOptInd(), args);
+		return doVcfToVcf(inputName);
 		}
-
-
-
+	
+	}
 	
 	public static void main(String[] args)
 		{
