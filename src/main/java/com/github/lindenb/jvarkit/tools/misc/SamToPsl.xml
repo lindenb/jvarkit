@@ -4,4 +4,18 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12</description>
+<input type="sam"/>
+
+
+<options>
+	<option name="handle_paired_reads" type="boolean" opt="p" longopt="paired"  default="false">
+		<description>treat all reads as single end</description>
+	</option>
+	<option name="output_bed12" type="boolean" opt="B" longopt="bed2" default="false" >
+		<description>export as BED 12</description>
+	</option>
+</options>
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

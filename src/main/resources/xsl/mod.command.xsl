@@ -539,7 +539,15 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 </xsl:template>
 
 
-
+<xsl:template match="c:snippet[@id='javascript']" mode="fields">
+	private String javascriptExpr=null;
+	private	java.io.File javascriptFile=null;
+	
+	public String getJavascriptExpr() { return this.javascriptExpr;}
+	public void setJavascriptExpr(final String ex) {  this.javascriptExpr = ex;}
+	public java.io.File getJavascriptFile() { return this.javascriptFile;}	
+	public void setJavascriptFile(final java.io.File f) {  this.javascriptFile = f;}
+</xsl:template>
 
 </xsl:stylesheet>
 

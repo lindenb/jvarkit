@@ -76,6 +76,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	
 	</xsl:if>
 	
+	<xsl:apply-templates select="c:snippet[@id='javascript']" mode="fields"/>
+	
+	
 	<xsl:if test="c:snippet[@id='md5']">
 	
 	private java.security.MessageDigest _md5 = null;
@@ -219,7 +222,25 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			.build() );	
 		</xsl:if>
 		
-
+		<xsl:if test="c:snippet[@id='javascript']">
+		options.addOption(org.apache.commons.cli.Option
+			.builder("f")
+			.longOpt("scriptfile")
+			.desc("javascript file.")
+			.argName("FILE.js")
+			.hasArgs()
+			.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
+			.build() );	
+		options.addOption(org.apache.commons.cli.Option
+			.builder("e")
+			.longOpt("expression")
+			.desc("javascript expression.")
+			.argName("JAVASCRIPT_EXPRESSION")
+			.hasArgs()
+			.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
+			.build() );	
+		</xsl:if>
+		
 		
 		super.fillOptions(options);
 		}
@@ -297,6 +318,30 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		</xsl:if>
 		
+		
+		<xsl:if test="c:snippet[@id='javascript']">
+
+		if(opt.getOpt().equals("f"))
+			{
+			java.io.File f =  null;
+			try { f = new java.io.File(opt.getValue());}
+			catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to output File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+			if(!(f.exists() &amp;&amp; f.isFile()))
+				{
+				LOG.error("Not an existing file:"+f);
+				return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+				}
+			this.setJavascriptFile(f);
+			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
+			}
+		
+		if(opt.getOpt().equals("e"))
+			{
+			this.setJavascriptExpr(opt.getValue());
+			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
+			}
+		</xsl:if>
+		
 		return super.visit(opt);
 		}
 		
@@ -339,6 +384,12 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			<xsl:if test="c:snippet[@id='sorting-collection']">
 			this.maxRecordsInRam = factory.maxRecordsInRam;
 			</xsl:if>
+			
+			<xsl:if test="c:snippet[@id='javascript']">
+			this.javascriptExpr = factory.javascriptExpr;
+			this.javascriptFile = factory.javascriptFile;
+			</xsl:if>
+			
 			}
 			
 			
@@ -633,7 +684,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		<xsl:when test="c:input/@type='strings'">
 		/* input type is 'strings' */
 		</xsl:when>
-		
+		<xsl:when test="c:input/@type='xml'">
+		/* input type is 'xml' */
+		</xsl:when>
 		<xsl:when test="c:input/@type='fastq'">
 		protected htsjdk.samtools.fastq.FastqReader openFastqReader(final String inputName)
 			throws java.io.IOException
@@ -777,7 +830,59 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		</xsl:if>
 		
+		<xsl:apply-templates select="c:snippet[@id='javascript']" mode="fields"/>	
+		<xsl:if test="c:snippet[@id='javascript']">
+		
+		protected javax.script.CompiledScript compileJavascript() throws Exception
+			{
+			if( getJavascriptExpr()!=null &amp;&amp; getJavascriptFile()!=null)
+				{
+				throw new RuntimeException("Both javascript expression and file defined.");
+				}
+			
+			
+			if( getJavascriptExpr()==null &amp;&amp; getJavascriptFile()==null)
+				{
+				throw new RuntimeException("Undefined script");
+				}
+				
+			LOG.info("getting javascript manager");
+			final javax.script.ScriptEngineManager manager = new javax.script.ScriptEngineManager();
+			final javax.script.ScriptEngine engine = manager.getEngineByName("js");
+			if(engine==null)
+				{
+				throw new RuntimeException("not available ScriptEngineManager: javascript. Use the SUN/Oracle JDK ?");
+				}
+			final javax.script.Compilable compilingEngine = (javax.script.Compilable)engine;
+			if(getJavascriptFile()!=null)
+				{
+				LOG.info("Compiling "+getJavascriptFile());
+				java.io.FileReader r = null;
+				try
+					{
+					r = new java.io.FileReader(getJavascriptFile());
+					return compilingEngine.compile(r);
+					}
+				finally
+					{
+					htsjdk.samtools.util.CloserUtil.close(r);
+					}
+				}
+			else if(getJavascriptExpr()!=null)
+				{
+				LOG.info("Compiling "+getJavascriptExpr());
+				return compilingEngine.compile(getJavascriptExpr());
+				}
+			else
+				{
+				throw new RuntimeException("illegal state");
+				}
+			}
+		
+		</xsl:if>
 		}
+	
+		
 	<xsl:if test="number($javaversion) &gt;= 8">
 	<xsl:apply-templates select="." mode="jfx"/>
 	</xsl:if>

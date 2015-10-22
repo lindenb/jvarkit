@@ -3,9 +3,10 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.awt.Color;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
+import com.github.lindenb.jvarkit.util.command.Command;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.CigarElement;
@@ -15,18 +16,23 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.PslAlign;
 
-public class SamToPsl extends AbstractCommandLineProgram
+public class SamToPsl extends AbstractSamToPsl
 	{
-	private PrintWriter out=new PrintWriter(System.out);
-	private boolean handle_paired_reads=true;
-	private boolean output_bed12=false;
-	private SamToPsl()
-		{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(SamToPsl.class);
+
+	
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
 		}
+		 
+	public  static class MyCommand extends AbstractSamToPsl.AbstractSamToPslCommand
+	 	{		
+
+		private PrintWriter out=null;
 	
 	
 	
@@ -320,78 +326,50 @@ public class SamToPsl extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public String getProgramDescription()
-		{
-		return "Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/SamToPsl ";
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		throw new RuntimeException("illegal state");
 		}
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
+	public Collection<Throwable> call() throws Exception
 		{
-		out.print("-s treat all reads as single end");
-		out.print("-B export as BED 12");
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"sB"))!=-1)
-			{
-			switch(c)
-				{
-				case 's': this.handle_paired_reads=false;break;
-				case 'B': this.output_bed12=true;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+		final List<String> args = getInputFiles();
 		
 		SamReader sfr=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			out = openFileOrStdoutAsPrintWriter();
+			if(args.isEmpty())
 				{
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
+				sfr=openSamReader(null);
 				scan(sfr);
 				sfr.close();
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename: args)
 					{
-					String filename=args[i];
-					sfr=SamFileReaderFactory.mewInstance().open(filename);
+					sfr=openSamReader(filename);
 					scan(sfr);
 					sfr.close();
 					}
 				}
 			out.flush();
-			return 0;
+			LOG.info("done");
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(sfr);
+			CloserUtil.close(out);
+			out=null;
 			}
 		}
+	}
 	/**
 	 * @param args
 	 */

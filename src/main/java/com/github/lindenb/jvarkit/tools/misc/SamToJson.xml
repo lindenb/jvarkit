@@ -4,4 +4,20 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Convert a SAM input to JSON</description>
+<input type="sam"/>
+<output type="json"/>
+
+
+
+
+<options>
+	<option name="hide_header" type="boolean" opt="H" longopt="hide_header" >
+		<description>don't print SAM header</description>
+	</option>
+	<option name="no_crlf" type="boolean" opt="n" longopt="no_return" >
+		<description>don't add a carriage return after each read</description>
+	</option>
+</options>
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>
