@@ -1,3 +1,30 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import htsjdk.samtools.util.BlockCompressedInputStream;
@@ -10,22 +37,28 @@ import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.logging.Logger;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public class VcfGetVariantByIndex extends AbstractKnimeApplication
+public class VcfGetVariantByIndex extends AbstractVcfGetVariantByIndex
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
-	private File fileListOfIndexes=null;
-	private static final String STANDARD_EXTENSION=".ith";
-	private static abstract class IndexFile
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfGetVariantByIndex.class);
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractVcfGetVariantByIndex.AbstractVcfGetVariantByIndexCommand
+		{		
+		private static final String STANDARD_EXTENSION=".ith";
+		private static abstract class IndexFile
 		implements Closeable
 		{
 		protected File vcfFile;
@@ -230,139 +263,81 @@ public class VcfGetVariantByIndex extends AbstractKnimeApplication
 		}
 
 	@Override
-	public String getProgramDescription() {
-		return "Access a Plain or BGZF-compressed VCF file by index.";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"VcfGetVariantByIndex";
-    }
-	
-	public void setFileListOfIndexes(File fileListOfIndexes) {
-		this.fileListOfIndexes = fileListOfIndexes;
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (out)  output file. default stdout");
-		out.println(" -i (file) list of 1-based indexes");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int initializeKnime() {
+	public Collection<Throwable> initializeKnime() {
 		if(this.fileListOfIndexes==null)
 			{
-			error("undefined list of indexes");
-			return -1;
+			return wrapException("undefined list of indexes");
 			}
 		return super.initializeKnime();
 		}
-	
+	@SuppressWarnings("resource")
 	@Override
-	public int executeKnime(List<String> args) {
-		if(args.size()!=1)
-			{
-			error("Expected only one vcf file on input");
-			return -1;
-			}
-		File vcfFile=new File(args.get(0));
-		VariantContextWriter w=null;
-		IndexFile indexFile=null;
-		BufferedReader r=null;
-		String line;
-		try {
-			info("Opening "+vcfFile);
-			
-			if(vcfFile.getName().endsWith(".vcf.gz"))
-				{
-				indexFile = new BGZIndexFile(vcfFile);
-				}
-			else if(vcfFile.getName().endsWith(".vcf"))
-				{
-				indexFile = new RandomAccessIndexFile(vcfFile);
-				}
-			else
-				{
-				error("Not a .vcf or .vcf.gz file: "+vcfFile);
-				return -1;
-				}
-
-			
-			indexFile.open();
-			if(getOutputFile()==null)
-				{
-				w=VCFUtils.createVariantContextWriterToStdout();
-				}
-			else
-				{
-				w=VCFUtils.createVariantContextWriter(getOutputFile());
-				}
-			
-			w.writeHeader(indexFile.getHeader());
-			r=IOUtils.openFileForBufferedReading(fileListOfIndexes);
-			while((line=r.readLine())!=null)
-				{
-				if(line.isEmpty() || line.startsWith("#")) continue;
-				long ith;
-				try {
-					ith=Long.parseLong(line);
-					} 
-				catch (Exception e) {
-					error("Bad index in "+line+" ignoring");
-					continue;
-					}
-				ith--;//0-based index
-				if(ith<0 || ith>=indexFile.size())
-					{
-					error("Index out of bound in "+line+" ignoring");
-					continue;
-					}
-				String varStr = indexFile.getLine(ith);
-				w.add(indexFile.getCodec().decode(varStr));
-				}
-			} 
-		catch (Exception e)
-			{
-			error(e);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(indexFile);
-			CloserUtil.close(w);
-			CloserUtil.close(r);
-			}
-		return 0;
-		}
-	
-	@Override
-	public int doWork(String[] args)
+	public Collection<Throwable> call(String inpuName) throws Exception
 		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:i:"))!=-1)
-			{
-			switch(c)
+			if(inpuName==null)
 				{
-				case 'i': this.setFileListOfIndexes(new File(opt.getOptArg()));break;
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default:
+				return wrapException("Expected only one vcf file on input");
+				}
+			File vcfFile=new File(inpuName);
+			VariantContextWriter w=null;
+			IndexFile indexFile=null;
+			BufferedReader r=null;
+			String line;
+			try {
+				LOG.info("Opening "+vcfFile);
+				
+				if(vcfFile.getName().endsWith(".vcf.gz"))
 					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
+					indexFile = new BGZIndexFile(vcfFile);
 					}
+				else if(vcfFile.getName().endsWith(".vcf"))
+					{
+					indexFile = new RandomAccessIndexFile(vcfFile);
+					}
+				else
+					{
+					return wrapException("Not a .vcf or .vcf.gz file: "+vcfFile);
+					}
+	
+				
+				indexFile.open();
+				w = super.openVariantContextWriter();
+				w.writeHeader(indexFile.getHeader());
+				r=IOUtils.openFileForBufferedReading(fileListOfIndexes);
+				while((line=r.readLine())!=null)
+					{
+					if(line.isEmpty() || line.startsWith("#")) continue;
+					long ith;
+					try {
+						ith=Long.parseLong(line);
+						} 
+					catch (Exception e) {
+						return wrapException("Bad index in "+line+" ignoring");
+						}
+					ith--;//0-based index
+					if(ith<0 || ith>=indexFile.size())
+						{
+						return wrapException("Index out of bound in "+line+" ignoring");
+						}
+					String varStr = indexFile.getLine(ith);
+					w.add(indexFile.getCodec().decode(varStr));
+					}
+				return RETURN_OK;
+				} 
+			catch (Exception e)
+				{
+				return wrapException(e);
+				}
+			finally
+				{
+				CloserUtil.close(indexFile);
+				CloserUtil.close(w);
+				CloserUtil.close(r);
 				}
 			}
-		return mainWork(opt.getOptInd(), args);
+	
+		
 		}
-
 	
 	public static void main(String[] args) throws IOException
 		{

@@ -30,6 +30,7 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -41,50 +42,46 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VcfHead
 	extends AbstractVcfHead
 	{
-
-	 public VcfHead()
+	public VcfHead()
 		{
 		}
-	 
 	 
 	 @Override
 	public  Command createCommand() {
 		return new MyCommand();
-	}
+	 	}
 	 
 	 private static class MyCommand extends AbstractVcfHead.AbstractVcfHeadCommand
 	 	{
-		@Override
-		protected Throwable validateOptions()
-		 	{
-			if(this.count<0) return new IllegalArgumentException("bad value found count "+this.count);
-			return super.validateOptions();
+		 @Override
+		public Collection<Throwable> initializeKnime() {
+			if(this.count<0) return wrapException("bad value found count "+this.count);
+			return super.initializeKnime();
 		 	}
 		
 		@Override
-		protected void doWork(
-					String inpuSource,
-					VcfIterator in,
-					VariantContextWriter out
-					)
-				throws IOException
-			{
-			VCFHeader header=in.getHeader();
+		protected Collection<Throwable> doVcfToVcf(
+				String inputName,
+				VcfIterator in,
+				VariantContextWriter out
+				) throws IOException {
+			final VCFHeader header=in.getHeader();
 			VCFHeader h2=addMetaData(new VCFHeader(header));
 			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
-			while(in.hasNext() && this.getVariantCount()< this.count  && !checkError())
+			while(in.hasNext() && this.getVariantCount()< super.count  && !out.checkError())
 				{
 				out.add(progess.watch(in.next()));
-				incrVariantCount();
 				}
 			progess.finish();
+			return RETURN_OK;
+			}
+		
+		@Override
+		protected Collection<Throwable> call(String inputName) throws Exception {
+			return doVcfToVcf(inputName);
 			}
 	 	}
-	 
-
-		
-		
 	
 	public static void main(String[] args)
 		{

@@ -881,6 +881,8 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		</xsl:if>
 		
+		
+		
 		<xsl:if test="c:snippet[@id='read-string-set']">
 		
 		protected java.util.Set&lt;String&gt; readStringSet(final java.io.File f) throws java.io.IOException

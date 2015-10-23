@@ -45,6 +45,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -53,13 +54,25 @@ import java.util.Map;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfGroupByPopulation extends AbstractVCFFilter3
+public class VcfGroupByPopulation extends AbstractVcfGroupByPopulation
 	{
+	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfGetVariantByIndex.class);
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractVcfGroupByPopulation.AbstractVcfGroupByPopulationCommand
+		{		
+
+	
 	private Map<String,String> sample2population=new HashMap<>();
 	
 	private static class GCount
@@ -103,21 +116,13 @@ public class VcfGroupByPopulation extends AbstractVCFFilter3
 			}
 		}
 	
-	public VcfGroupByPopulation()
-		{
-		}
-	
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfGroupByPopulation";
-		}
-	
-	@Override
-	protected void doWork(String inputSource, VcfIterator vcfIn,
-			VariantContextWriter out) throws IOException
-		{
-		VCFHeader header= vcfIn.getHeader();
+		protected Collection<Throwable> doVcfToVcf(
+				String inputSource,
+				final VcfIterator vcfIn,
+				VariantContextWriter out) throws IOException {
+		final VCFHeader header= vcfIn.getHeader();
 		Set<String> samplesInVcf=new HashSet<>( header.getSampleNamesInOrder());
 		
 		this.sample2population.keySet().retainAll(samplesInVcf);
@@ -143,7 +148,7 @@ public class VcfGroupByPopulation extends AbstractVCFFilter3
 				}
 			}
 		
-		Set<VCFHeaderLine> metaData=new LinkedHashSet<>();
+		final Set<VCFHeaderLine> metaData=new LinkedHashSet<>();
 		for(VCFHeaderLine vhl: header.getMetaDataInInputOrder())
 			{
 			if(!(vhl instanceof VCFContigHeaderLine)) continue;
@@ -288,20 +293,10 @@ public class VcfGroupByPopulation extends AbstractVCFFilter3
 			out.add(vcb.make());
 			}
 		progress.finish();
+		return RETURN_OK;
 		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population";
-		}
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-o (output) default:stdout");
-		out.println("-f (mapping) mapping file: each line is (SAMPLE)\\t(POP)\\n");
-		super.printOptions(out);
-		}
 	
 	public void parsePopulationMapping(Reader in) throws IOException
 		{
@@ -324,46 +319,33 @@ public class VcfGroupByPopulation extends AbstractVCFFilter3
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:f:"))!=-1)
+	public Collection<Throwable> initializeKnime() {
+		if(this.mappingFile==null)
 			{
-			switch(c)
-				{
-				case 'o': setOutputFile(opt.getOptArg());
-				case 'f':
-					{
-					Reader r=null;
-					try {
-						r=IOUtils.openURIForBufferedReading(opt.getOptArg());
-						parsePopulationMapping(r);
-					} catch (Exception e) {
-						info(e);
-						return -1;
-						}
-					finally
-						{
-						CloserUtil.close(r);
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			return wrapException("undefined mapping file");
 			}
-		
-		return mainWork(opt.getOptInd(), args);
+		BufferedReader r=null;
+		try {
+			r = IOUtils.openFileForBufferedReading(this.mappingFile);
+			parsePopulationMapping(r);
+			}
+		catch (Exception e) {
+			return wrapException(e);
+			}
+		finally
+			{
+			CloserUtil.close(r);
+			}
+		LOG.info("done");
+		return super.initializeKnime();
 		}
-
+	
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		return doVcfToVcf(inputName);
+		}
+	}
+	
 public static void main(String[] args)
 	{
 	new VcfGroupByPopulation().instanceMainWithExit(args);
