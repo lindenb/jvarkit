@@ -1,3 +1,30 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.IOException;
@@ -5,6 +32,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -18,12 +46,11 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
@@ -41,18 +68,22 @@ import org.uniprot.LocationType;
 import org.uniprot.Uniprot;
 
 
-public class VcfMapUniprot extends AbstractVCFFilter2
+public class VcfMapUniprot extends AbstractVcfMapUniprot
 	{
-	private int taxonid=9606;
-	private Unmarshaller uniprotUnmarshaller=null;
-	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfIndexTabix.class);
 	@SuppressWarnings("unused")
 	private org.uniprot.ObjectFactory _fool_javac=null;
-	
-	private VcfMapUniprot()
-		{
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
 		}
-	private long intervalMillisec=1000;
+		 
+	public  static class MyCommand extends AbstractVcfMapUniprot.AbstractVcfMapUniprotCommand
+		{		
+	private Unmarshaller uniprotUnmarshaller=null;
+	
+	
 	private long last_fetch=0L;
 	private Uniprot fetch(String gene) throws IOException,JAXBException
 		{
@@ -60,7 +91,7 @@ public class VcfMapUniprot extends AbstractVCFFilter2
 		long diff=System.currentTimeMillis()-last_fetch;
 		if(diff< intervalMillisec && intervalMillisec>0)
 			{
-			info("Waiting : "+diff+" ms");
+			LOG.info("Waiting : "+diff+" ms");
 			try
 				{
 				Thread.sleep(intervalMillisec-diff);
@@ -83,7 +114,7 @@ public class VcfMapUniprot extends AbstractVCFFilter2
 				{
 				last_fetch=System.currentTimeMillis();
 				
-				info(url);
+				LOG.info(url);
 				in=url.openStream();
 				StreamSource is=new StreamSource(in);
 				JAXBElement<Uniprot> jaxbElement=uniprotUnmarshaller.unmarshal(is, Uniprot.class);
@@ -105,7 +136,7 @@ public class VcfMapUniprot extends AbstractVCFFilter2
 				}
 			}
 		if(lastErr==null) lastErr=new IllegalStateException(); 
-		error(lastErr);
+		LOG.error(lastErr);
 		return null;
 		}
 	private CacheMap<String, List<Entry>> ensemblToUniprot=new CacheMap<String,  List<Entry>>(50);
@@ -185,36 +216,16 @@ public class VcfMapUniprot extends AbstractVCFFilter2
 			}
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfMapUniprot";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Map uniprot features on VCF annoted with VEP or SNPEff";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-t (taxon-id) default:"+this.taxonid);
-		out.println("-w (milliSec) wait between two uniprot queries : -1 = no-wait. default:"+this.intervalMillisec);
-		super.printOptions(out);
-		}
 
-	
 	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
-		{
+		protected Collection<Throwable> doVcfToVcf(String inputName,
+				VcfIterator in, VariantContextWriter out) throws IOException {
 		final String TAG="UNIPROT";
 		VCFHeader header=in.getHeader();
 		MyPredictionParser myPredictionParser=new MyPredictionParser(header);
 		SnpEffPredictionParser snpEffPredictionParser=new SnpEffPredictionParser(header);
 		VepPredictionParser vepPredictionParser=new VepPredictionParser(header);
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		addMetaData(header);
 		header.addMetaDataLine(new VCFInfoHeaderLine(TAG,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Uniprot Features. Format: ACN|START|END|DESC|TYPE|ENSGENE|POSAA"));
 		out.writeHeader(header);
 		try
@@ -257,50 +268,30 @@ public class VcfMapUniprot extends AbstractVCFFilter2
 				
 				
 				out.add(vcb.make());
-				if(super.outCheckError()) break;
+				if(out.checkError()) break;
 				}
+			return RETURN_OK;
 			}
 		catch(JAXBException err)
 			{
-			throw new IOException(err);
+			return wrapException(err);
+			}
+		}
+	@Override
+		protected Collection<Throwable> call(String inputName) throws Exception {			
+			try
+				{
+				JAXBContext jc = JAXBContext.newInstance("org.uniprot");
+				this.uniprotUnmarshaller=jc.createUnmarshaller();
+				}
+			catch(Exception err)
+				{
+				return wrapException(err);
+				}
+			return doVcfToVcf(inputName);
 			}
 		}
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"t:w:"))!=-1)
-			{
-			switch(c)
-				{
-				case 't': this.taxonid=Integer.parseInt(opt.getOptArg());break;
-				case 'w': this.intervalMillisec=Long.parseLong(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		try
-			{
-			JAXBContext jc = JAXBContext.newInstance("org.uniprot");
-			this.uniprotUnmarshaller=jc.createUnmarshaller();
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		return super.doWork(opt.getOptInd(), args);
-		}
 	public static void main(String[] args) {
 		new VcfMapUniprot().instanceMainWithExit(args);
 		}

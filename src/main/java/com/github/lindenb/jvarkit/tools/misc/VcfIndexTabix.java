@@ -30,8 +30,7 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.util.Collection;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -45,16 +44,24 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder.OutputTy
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFRecordCodec;
 
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 public class VcfIndexTabix
-	extends AbstractVCFFilter3
+	extends AbstractVcfIndexTabix
 	{
-	private boolean sort=false;
-	private int MAX_RECORDS_IN_RAM=10000;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfIndexTabix.class);
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractVcfIndexTabix.AbstractVcfIndexTabixCommand
+		{		
+
 	
 	private class SortingVCFWriter implements VariantContextWriter
 		{
@@ -80,8 +87,8 @@ public class VcfIndexTabix
 	                        VariantContext.class,
 	                        new VCFRecordCodec(header),
 	                        header.getVCFRecordComparator(),
-	                        VcfIndexTabix.this.MAX_RECORDS_IN_RAM,
-	                        VcfIndexTabix.this.getTmpDirectories().get(0)
+	                        MyCommand.this.getMaxRecordsInRam(),
+	                        MyCommand.this.getTmpDirectories()
 	                        );
 			
 			}
@@ -119,144 +126,71 @@ public class VcfIndexTabix
 		}
 	
 	
-	public VcfIndexTabix()
-		{
-		}
-	
-	
-	@Override
-	public String getProgramDescription() {
-		return "Index and sort a VCF on the fly with Tabix.";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfIndexTabix";
-		}
-	
-	public void setSort(boolean sort) {
-		this.sort = sort;
-		}
-	
-	public void setMaxRecordsInRam(int n) {
-		this.MAX_RECORDS_IN_RAM = n;
-		}
-	
-	
-	@Override
-	protected void doWork(String inputSource, VcfIterator vcfIn,
-			VariantContextWriter out) throws IOException {
-		throw new IllegalStateException("should not be invoked");
-		}
-	
-	@Override
-	protected void filterVcfIterator(String inputSource, VcfIterator vcfIn)
-			throws IOException
-		{
-		File out=getOutputFile();
-		if(out==null)
+		@Override
+		protected Collection<Throwable> call(String inputName) throws Exception
 			{
-			throw new IOException(getProgramName()+" output file undefined.");
-			}
-		if(!out.getName().endsWith(".vcf.gz"))
-			{
-			throw new IOException("output file should en with .vcf.gz but got "+out);
-			}
-
-		SortingVCFWriter sortingVCW=null;
-		VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
-		VariantContextWriter w=null;
-		try {
-			SAMSequenceDictionary dict = vcfIn.getHeader().getSequenceDictionary();
-			if(dict!=null) vcwb.setReferenceDictionary(dict);
-			
-			vcwb.setOutputFile(out);
-			vcwb.setOutputFileType(OutputType.BLOCK_COMPRESSED_VCF);
-			w = vcwb.build();
-			
-			if(this.sort)
-				{
-				info("Creating a sorting writer");
-				sortingVCW= new SortingVCFWriter(w);
-				w=sortingVCW;
-				}
-			
-			w.writeHeader(vcfIn.getHeader());
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(vcfIn.getHeader());
-			while(vcfIn.hasNext())
-				{
-				w.add(progress.watch(vcfIn.next()));
-				incrVariantCount();
-				}
-			progress.finish();
-			
-			w.close();
-			w=null;
-			} 
-		catch (Exception e)
-			{
-			if(getOutputFile().exists() && getOutputFile().isFile())
-				{
-				warning("Deleting "+getOutputFile());
-				getOutputFile().delete();
-				File tbi = new File(getOutputFile().getPath()+TabixUtils.STANDARD_INDEX_EXTENSION);
-				if(tbi.exists() && tbi.isFile()) tbi.delete();
-				}
-			throw new IOException(e);
-			}
-		finally
-			{
-			CloserUtil.close(w);
-			}
-		}
-	
-	
-	@Override
-	public int initializeKnime() {
-		return super.initializeKnime();
-		}
-	@Override
-	public void disposeKnime() {
-		super.disposeKnime();
-		}
-	
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (file) filename.vcf.gz out. Required.");
-		out.println(" -s sort VCF prior to saving.");
-		out.println(" -n (max-record-in-ram). If defined, vcf will be sorted using this cache size. Default:"+MAX_RECORDS_IN_RAM);
-		out.println(" -T (tmp).add tmp dir. optional)");
-		super.printOptions(out);
-		}
-		
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:n:sT:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;
-				case 's': this.setSort(true);break;
-				case 'n': this.setMaxRecordsInRam(Integer.parseInt(opt.getOptArg()));break;
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default: 
+				
+				File out=getOutputFile();
+				if(out==null)
 					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
+					return wrapException(getName()+" output file undefined.");
 					}
-				}
+				if(!out.getName().endsWith(".vcf.gz"))
+					{
+					return wrapException("output file should en with .vcf.gz but got "+out);
+					}
+				
+				
+				SortingVCFWriter sortingVCW=null;
+				VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+				VariantContextWriter w=null;
+				VcfIterator vcfIn = null;
+				try {
+					vcfIn = openVcfIterator(inputName);
+					SAMSequenceDictionary dict = vcfIn.getHeader().getSequenceDictionary();
+					if(dict!=null) vcwb.setReferenceDictionary(dict);
+					
+					vcwb.setOutputFile(out);
+					vcwb.setOutputFileType(OutputType.BLOCK_COMPRESSED_VCF);
+					w = vcwb.build();
+					
+					if(this.sort)
+						{
+						LOG.info("Creating a sorting writer");
+						sortingVCW= new SortingVCFWriter(w);
+						w=sortingVCW;
+						}
+					
+					w.writeHeader(vcfIn.getHeader());
+					SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(vcfIn.getHeader());
+					while(vcfIn.hasNext())
+						{
+						w.add(progress.watch(vcfIn.next()));
+						}
+					progress.finish();
+					
+					w.close();
+					w=null;
+					return RETURN_OK;
+					} 
+				catch (Exception e)
+					{
+					if(getOutputFile().exists() && getOutputFile().isFile())
+						{
+						LOG.warn("Deleting "+getOutputFile());
+						getOutputFile().delete();
+						File tbi = new File(getOutputFile().getPath()+TabixUtils.STANDARD_INDEX_EXTENSION);
+						if(tbi.exists() && tbi.isFile()) tbi.delete();
+						}
+					return wrapException(e);
+					}
+				finally
+					{
+					CloserUtil.close(w);
+					}
 			}
-		return mainWork(opt.getOptInd(), args);
-		}
 		
+		}
 		
 		
 	public static void main(String[] args)

@@ -28,9 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.util.Collection;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
@@ -38,34 +37,30 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VCFPolyX extends AbstractVCFFilter3
+public class VCFPolyX extends AbstractVCFPolyX
 	{
-    private File REF=null;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfMultiToOneAllele.class);
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractVCFPolyX.AbstractVCFPolyXCommand
+		{		
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
-	public VCFPolyX()
-		{
-		}
-	
-	public void setReference(File fasta)
-		{
-		this.REF=fasta;
-		}
-	
 	@Override
-	protected void doWork(String source,
-			VcfIterator r, VariantContextWriter w)
-			throws IOException
+		protected Collection<Throwable> doVcfToVcf(String inputName,
+				VcfIterator r, VariantContextWriter w) throws IOException
 		{
 		GenomicSequence genomicSequence=null;
 
@@ -77,10 +72,7 @@ public class VCFPolyX extends AbstractVCFFilter3
 				VCFHeaderLineType.Integer,
 				"number of repeated bases around REF")
 				);
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+		addMetaData(h2);
 
 		w.writeHeader(h2);
 		SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
@@ -90,7 +82,7 @@ public class VCFPolyX extends AbstractVCFFilter3
 			VariantContextBuilder b=new VariantContextBuilder(ctx);
 			if(genomicSequence==null || !ctx.getContig().equals(genomicSequence.getChrom()))
 				{
-				this.info("loading chromosome "+ctx.getContig());
+				LOG.info("loading chromosome "+ctx.getContig());
 				genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getContig());
 				}
 			int pos0=ctx.getStart()-1;
@@ -115,49 +107,31 @@ public class VCFPolyX extends AbstractVCFFilter3
 				}
 			b.attribute(TAG,count);
 			w.add(b.make());
-			incrVariantCount();
-			if(this.checkOutputError()) break;
+			if(w.checkError()) break;
 			}		
 		progress.finish();
 		genomicSequence=null;
+		return RETURN_OK;
 		}
 
-	@Override
-	public String getProgramDescription() {
-		return "Number of repeated REF bases around POS.";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"VCFPolyX";
-    	}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -R (fasta) fasta reference indexed with samtools faidx and picard.");
-		out.println(" -o (out)  output file. default stdout");
-		super.printOptions(out);
-		}
 
-	
 	@Override
-	public int initializeKnime() {
-		try {
-			if(this.REF==null)
-				{
-				error("Undefined Reference");
-				return -1;
-				}
-			this.info("opening reference "+REF);
+	public Collection<Throwable> initializeKnime() {
+		if(this.REF==null)
+			{
+			return wrapException("Undefined Reference");
+			}
+		try
+			{
+			LOG.info("opening reference "+REF);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
 			}
 		catch (Exception e) {
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
 		return super.initializeKnime();
 		}
+	
 	@Override
 	public void disposeKnime() {
 		CloserUtil.close(this.indexedFastaSequenceFile);
@@ -165,30 +139,10 @@ public class VCFPolyX extends AbstractVCFFilter3
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:R:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'R': this.setReference(new File(opt.getOptArg()));break;
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
-
+		protected Collection<Throwable> call(String inputName) throws Exception {
+			return doVcfToVcf(inputName);
+			}	
+	}
 	
 	/**
 	 * @param args

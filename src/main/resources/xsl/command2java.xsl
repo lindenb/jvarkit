@@ -581,13 +581,24 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		protected htsjdk.variant.vcf.VCFHeader addMetaData(final htsjdk.variant.vcf.VCFHeader header)
 			{
-			header.addMetaDataLine(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			header.addMetaDataLine(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"Version",String.valueOf(getVersion())));
-			header.addMetaDataLine(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"HtsJdkVersion",com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion
-.getVersion()));
-			header.addMetaDataLine(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"HtsJdkHome",com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion
-.getHome()));
+			final java.util.Set&lt;htsjdk.variant.vcf.VCFHeaderLine&gt; set = new java.util.HashSet&lt;htsjdk.variant.vcf.VCFHeaderLine&gt;();
+			addMetaData(set);
+			for(final htsjdk.variant.vcf.VCFHeaderLine h : set)
+				{
+				header.addMetaDataLine(h);
+				}
 			return header;
+			}
+		
+		protected java.util.Set&lt;htsjdk.variant.vcf.VCFHeaderLine&gt; addMetaData(final java.util.Set&lt;htsjdk.variant.vcf.VCFHeaderLine&gt; metaData)
+			{
+			metaData.add(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+			metaData.add(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"Version",String.valueOf(getVersion())));
+			metaData.add(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"HtsJdkVersion",com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion
+.getVersion()));
+			metaData.add(new htsjdk.variant.vcf.VCFHeaderLine(getName()+"HtsJdkHome",com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion
+.getHome()));
+			return metaData;
 			}
 		
 		/* creates a VariantContextWriter according to FileOUt */
