@@ -5,20 +5,20 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -26,10 +26,17 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  * @author lindenb
  *
  */
-public class VcfRegulomeDB extends AbstractVCFFilter2
+public class VcfRegulomeDB extends AbstractVcfRegulomeDB
 	{
-	private String bedFile=null;
-	private String infoTag="REGULOMEDB";
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfRegulomeDB.class);
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractVcfRegulomeDB.AbstractVcfRegulomeDBCommand
+		{		
 	private RegDataTabixFileReader regDataTabixFileReader;
 	private int extend=5;
 	private Pattern acceptRegex=null;
@@ -78,30 +85,13 @@ public class VcfRegulomeDB extends AbstractVCFFilter2
 	    	}
 
 		}
-	
-	private VcfRegulomeDB()
-		{
-		
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Annotate a VCF with the Regulome data (http://regulome.stanford.edu/)";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfRegulomeDB";
-		}
-	
-
-	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
+		@Override
+	protected Collection<Throwable> doVcfToVcf(String inputName,
+			VcfIterator in, VariantContextWriter out) throws IOException
 		{
 		VCFHeader header=in.getHeader();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		addMetaData(header);
 		header.addMetaDataLine(new VCFInfoHeaderLine(
 				this.infoTag,
 				VCFHeaderLineCount.UNBOUNDED,
@@ -149,60 +139,35 @@ public class VcfRegulomeDB extends AbstractVCFFilter2
 			out.add(vcb.make());
 			}
 		progress.finish();
-		}
-		@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -b (file) bed indexed with tabix. Format: chrom(tab)start(tab)end(tab)rank Required.");
-		out.println(" -T (string) tag in vcf INFO. Default:"+this.infoTag);
-		out.println(" -x (int) base pairs. look.for data around the variation +/- 'x' Default:"+this.extend);
-		out.println(" -r (regex-pattern) if defined, only accept the rank matching the regular expression. Optional.");
-		super.printOptions(out);
+		return RETURN_OK;
 		}
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"b:T:x:r:"))!=-1)
-			{
-			switch(c)
+		protected Collection<Throwable> call(String inputName) throws Exception {
+			
+			if(this.bedFile==null)
 				{
-				case 'b': bedFile= opt.getOptArg();break;
-				case 'T': infoTag= opt.getOptArg();break;
-				case 'x': this.extend= Integer.parseInt(opt.getOptArg());break;
-				case 'r': this.acceptRegex=Pattern.compile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				return wrapException("Bed file indexed with tabix is missing");
 				}
-			}
-		
-		if(bedFile==null)
-			{
-			error("Bed file indexed with tabix is missing");
-			return -1;
-			}
-		try
-			{
-			info("Opening "+bedFile);
-			this.regDataTabixFileReader=new RegDataTabixFileReader(bedFile);
-			return super.doWork(opt.getOptInd(), args);
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(this.regDataTabixFileReader);
+			if(this.acceptRegexStr!=null)
+				{
+				this.acceptRegex = Pattern.compile(this.acceptRegexStr);
+				}
+			try
+				{
+				LOG.info("Opening "+bedFile);
+				this.regDataTabixFileReader=new RegDataTabixFileReader(bedFile);
+				return doVcfToVcf(inputName);
+				}
+			catch(Exception err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				CloserUtil.close(this.regDataTabixFileReader);
+				this.acceptRegex=null;
+				this.regDataTabixFileReader=null;
+				}
 			}
 		}
 	public static void main(String[] args)
