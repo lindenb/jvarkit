@@ -41,8 +41,8 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.Point2D.Double;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import javax.imageio.ImageIO;
@@ -54,34 +54,39 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfToHilbert extends AbstractCommandLineProgram
+public class VcfToHilbert extends AbstractVcfToHilbert
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfToHilbert.class);
+
+	 @Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	 private static class MyCommand extends AbstractVcfToHilbert.AbstractVcfToHilbertCommand
+	 	{
+
 	/** graphics context */ 
 	private Graphics2D g;
 	/** dictionary */
-	private SAMSequenceDictionary dict;
+	private SAMSequenceDictionary dict = null;
     /** level of recursion */
     private int recursionLevel=6;
-    /** with/height of the final picture */
-    private int imageWidth=1000;
     private double sampleWidth=0;
     private double genomicSizePerCurveUnit=0L;
-    /** radius of a point */
-    private float radiusSize =3.0f;
-
+    
     
     private abstract class HilbertSegmentHandler
     	{
         /** last index of the position in the genome */
     	double prev_base=0;
         /** size (in pb) of an edge */
-        private final double d_base=VcfToHilbert.this.genomicSizePerCurveUnit;
+        private final double d_base=MyCommand.this.genomicSizePerCurveUnit;
     	/** size of an edge */
         private double dist=-1;
         /** last time we plot a segment, point at end */
@@ -91,8 +96,8 @@ public class VcfToHilbert extends AbstractCommandLineProgram
         
         protected HilbertSegmentHandler()
         	{
-        	this.dist = VcfToHilbert.this.sampleWidth;
-        	for (int i= VcfToHilbert.this.recursionLevel; i>0; i--)
+        	this.dist = MyCommand.this.sampleWidth;
+        	for (int i= MyCommand.this.recursionLevel; i>0; i--)
 	            {
 	            this.dist /= 2.0;
 	            }
@@ -221,7 +226,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			this.ctx=ctx;
 			this.sample_x=sample_x;
 			this.sample_y=sample_y;
-			for(SAMSequenceRecord ssr:VcfToHilbert.this.dict.getSequences())
+			for(SAMSequenceRecord ssr:MyCommand.this.dict.getSequences())
 				{
 				if(ssr.getSequenceName().equals(ctx.getContig()))
 					{
@@ -362,26 +367,6 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			}
 		}
     
-    @Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"VcfToHilbert";
-    	}
-    
-	@Override
-	public String getProgramDescription() {
-		return "Plot a Hilbert Curve from a VCF file.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (file.png) output image name . Required");
-		out.println(" -w (int) image width . Default: "+this.imageWidth);
-		out.println(" -r (float) radius width . Default: "+this.radiusSize);
-		super.printOptions(out);
-		}
-	
-	
 
     
     private void paintReference()
@@ -422,79 +407,37 @@ public class VcfToHilbert extends AbstractCommandLineProgram
     	 g.setStroke(oldStroke);
     	}
     
-	@Override
-	public int doWork(String[] args)
-		{
-		File imgOut=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:w:r:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'r': this.radiusSize = Float.parseFloat(opt.getOptArg());break;
-				case 'o': imgOut=new File(opt.getOptArg());break;
-				case 'w': this.imageWidth = Integer.parseInt(opt.getOptArg());break;
-
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(imgOut==null)
-			{
-			error("output image file not defined");
-			return -1;
-			}
-		
+    @Override
+    	protected Collection<Throwable> call(String inputName) throws Exception {
 		if(this.imageWidth<1)
 			{
-			error("Bad image size:" +this.imageWidth);
-			return -1;
+			return wrapException("Bad image size:" +this.imageWidth);
+			}
+		
+		if(getOutputFile()==null)
+			{
+			return wrapException("udefined output file");
 			}
 		VcfIterator iter=null;
 		try
 			{
+			iter = openVcfIterator(inputName);
 			
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				iter=VCFUtils.createVcfIteratorStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				iter=VCFUtils.createVcfIterator(filename);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
 			VCFHeader header=iter.getHeader();
 			this.dict = header.getSequenceDictionary();
 			if(this.dict == null)
 				{
-				error(getMessageBundle("file.is.missing.dict"));
-				return -1;
+				return wrapException(getMessageBundle("file.is.missing.dict"));
 				}
 			List<String> samples=header.getSampleNamesInOrder();
 			if(samples.isEmpty())
 				{
-				error(getMessageBundle("no.sample.in.vcf"));
-				return -1;
+				return wrapException(getMessageBundle("no.sample.in.vcf"));
 				}
-			info("N-Samples:"+samples.size());
+			LOG.warn("N-Samples:"+samples.size());
 			double marginWidth = (this.imageWidth-2)*0.05;
 			this.sampleWidth= ((this.imageWidth-2)-marginWidth)/samples.size();
-			info("sample Width:"+sampleWidth);
+			LOG.info("sample Width:"+sampleWidth);
 			BufferedImage img = new BufferedImage(this.imageWidth, this.imageWidth, BufferedImage.TYPE_INT_RGB);
 			this.g = (Graphics2D)img.getGraphics();
 			this.g.setColor(Color.WHITE);
@@ -507,7 +450,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			evalCurve.run();
 			this.genomicSizePerCurveUnit = ((double)dict.getReferenceLength()/(double)(evalCurve.count));
 			if(this.genomicSizePerCurveUnit<1) this.genomicSizePerCurveUnit=1;
-			info("genomicSizePerCurveUnit:"+genomicSizePerCurveUnit);
+			LOG.info("genomicSizePerCurveUnit:"+genomicSizePerCurveUnit);
 			
 			for(int x=0;x< samples.size();++x)
 				{
@@ -554,8 +497,8 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 					g.translate(-tx, -ty);
 					}
 				}
-			info("genomicSizePerCurveUnit:"+(long)genomicSizePerCurveUnit*evalCurve.count+" "+dict.getReferenceLength()+" count="+evalCurve.count);
-			info("Scanning variants");
+			LOG.info("genomicSizePerCurveUnit:"+(long)genomicSizePerCurveUnit*evalCurve.count+" "+dict.getReferenceLength()+" count="+evalCurve.count);
+			LOG.info("Scanning variants");
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dict);
 			while(iter.hasNext())
 				{
@@ -584,27 +527,28 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			this.g.dispose();
 			
 			//save file
-			info("saving "+imgOut);
-			if(imgOut.getName().toLowerCase().endsWith(".png"))
+			LOG.info("saving "+getOutputFile());
+			if(getOutputFile().getName().toLowerCase().endsWith(".png"))
 				{
-				ImageIO.write(img, "PNG", imgOut);
+				ImageIO.write(img, "PNG", getOutputFile());
 				}
 			else
 				{
-				ImageIO.write(img, "JPG", imgOut);
+				ImageIO.write(img, "JPG", getOutputFile());
 				}
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(iter);
 			}
 		}
+	 	}
+	 
 	public static void main(String[] args) {
 		new VcfToHilbert().instanceMainWithExit(args);
 	}

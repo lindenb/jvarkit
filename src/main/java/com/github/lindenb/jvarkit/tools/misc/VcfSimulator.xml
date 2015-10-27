@@ -4,4 +4,23 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Generate a VCF from a REFERENCE</description>
+<output type="vcf"/>
+
+
+
+<options>
+	<option name="reference" type="input-file" opt="R" longopt="REF">
+		<description id="faidx"/>
+	</option>
+	<option name="seed" type="long" opt="S" longopt="seed" default="-1L">
+		<description>radom seed. -1 = current time</description>
+	</option>
+	<option name="numSamples" type="java.lang.Integer" opt="N" longopt="nsamples">
+		<description>number of samples</description>
+	</option>
+</options>
+
+
+
+<!-- __PLACEHOLDER__ --></app>

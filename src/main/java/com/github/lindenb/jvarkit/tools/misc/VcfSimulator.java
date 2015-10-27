@@ -28,10 +28,9 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -51,71 +50,51 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public class VcfSimulator extends AbstractCommandLineProgram
+public class VcfSimulator extends AbstractVcfSimulator
 	{
-	private Random random;
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfSimulator.class);
+
+	@Override
+	public  Command createCommand() {
+			return new MyCommand();
+		}
+		 
+	public  static class MyCommand extends AbstractVcfSimulator.AbstractVcfSimulatorCommand
+		{		
+
+	private Random random = null ;
+	private IndexedFastaSequenceFile indexedFastaSequenceFile = null;
 	private Set<String> samples=new HashSet<String>();
-	private Integer numSamples=null;
-	
-	private VcfSimulator()
-		{
-		}
-	
-
-	@Override
-	public String getProgramDescription() {
-		return "Generate a VCF";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfSimulator";
-		}
 	
 	
-
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -R (file) Fasta Reference (REQUIRED) .");
-		out.println(" -S (long) seed .");
-		super.printOptions(out);
-		}
-	@Override
-	public int doWork(String[] args)
-		{
-		long seed=System.currentTimeMillis();
-
-		File reference=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "S:R:"))!=-1)
-			{
-			switch(c)
+		public Collection<Throwable> initializeKnime() {
+			if(reference==null)
 				{
-				case 'S': seed=Long.parseLong(opt.getOptArg());break;
-				case 'R': reference=new File(opt.getOptArg());break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				return wrapException("Reference is undefined");
 				}
+			if(seed==-1L) seed=System.currentTimeMillis();
+			this.random=new Random(seed);
+			return super.initializeKnime();
 			}
-		if(reference==null)
+	@Override
+	public void disposeKnime() {
+		CloserUtil.close(reference);
+		reference=null;
+		this.random=null;
+		super.disposeKnime();
+		}
+	
+	@Override
+	public Collection<Throwable> call() throws Exception
+		{
+		if(!this.getInputFiles().isEmpty())	
 			{
-			error("Reference is undefined");
-			return -1;
+			return wrapException("illegal number of arguments");
 			}
-		this.random=new Random(seed);
 		if(numSamples==null) numSamples=1+this.random.nextInt(10);
 		while(this.samples.size()<numSamples) this.samples.add("SAMPLE"+(1+this.samples.size()));
 		VariantContextWriter writer=null;
@@ -139,20 +118,20 @@ public class VcfSimulator extends AbstractCommandLineProgram
 					this.samples);
 			header.setSequenceDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
 			
-			writer=VCFUtils.createVariantContextWriterToStdout();
+			writer=openVariantContextWriter();
 			
 			
 			writer.writeHeader(header);
 			for(;;)
 				{
-				if(System.out.checkError()) break;
+				if(writer.checkError()) break;
 				for(SAMSequenceRecord ssr: this.indexedFastaSequenceFile.getSequenceDictionary().getSequences())
 					{
-					if(System.out.checkError()) break;
+					if(writer.checkError()) break;
 					GenomicSequence genomic=new GenomicSequence(this.indexedFastaSequenceFile, ssr.getSequenceName());
 					for(int pos=1;pos<=ssr.getSequenceLength();++pos)
 						{
-						if(System.out.checkError()) break;
+						if(writer.checkError()) break;
 						char REF=Character.toUpperCase(genomic.charAt(pos-1));
 						if(REF=='N') continue;
 						char ALT='N';
@@ -198,19 +177,18 @@ public class VcfSimulator extends AbstractCommandLineProgram
 					
 					}
 				}
-
-			return 0;
+			LOG.info("done");
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-			CloserUtil.close(this.indexedFastaSequenceFile);
 			CloserUtil.close(writer);
 			}
+		}
 		}
 
 	public static void main(String[] args)

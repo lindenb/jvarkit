@@ -115,7 +115,7 @@ options.addOptionGroup(<xsl:value-of select="generate-id()"/>);
 
 <xsl:template match="c:option" mode="description">
 <xsl:choose>
-	<xsl:when test="c:description"><xsl:value-of select="c:description"/></xsl:when>
+	<xsl:when test="c:description"><xsl:apply-templates select="c:description"/></xsl:when>
 	<xsl:when test="@description"><xsl:value-of select="@description"/></xsl:when>
 	<xsl:otherwise><xsl:apply-templates select="." mode="label"/></xsl:otherwise>
 </xsl:choose>
@@ -155,7 +155,7 @@ options.addOption(org.apache.commons.cli.Option
 		)
 	</xsl:if>
 	<xsl:if test="c:description">
-	.desc("<xsl:value-of select="c:description"/>"
+	.desc("<xsl:apply-templates select="c:description"/>"
 		<xsl:if test="@default">
 		+ ". default: <xsl:value-of select="@default"/>"
 		</xsl:if>	
@@ -289,6 +289,8 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
 	<xsl:when test="@type='int'">false</xsl:when>
 	<xsl:when test="@type='long'">false</xsl:when>
+	<xsl:when test="@type='double'">false</xsl:when>
+	<xsl:when test="@type='float'">false</xsl:when>
 	<xsl:when test="$nilleable = 'true'">true</xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate='yes'>cloneable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
@@ -308,6 +310,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">true</xsl:when>
     <xsl:when test="starts-with(@type,'java.lang')">true</xsl:when>
 	<xsl:when test="@type='int' or @type='double'or @type='long'">false</xsl:when>
+	<xsl:when test="@type='float'">false</xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate='yes'>nilleable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 	</xsl:otherwise>
@@ -348,6 +351,8 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='string-list'">java.util.List&lt;java.lang.String&gt;</xsl:when>
 	<xsl:when test="@type='int'">int</xsl:when>
 	<xsl:when test="@type='long'">long</xsl:when>
+	<xsl:when test="@type='double'">double</xsl:when>
+	<xsl:when test="@type='float'">float</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">boolean</xsl:when>
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">java.lang.String</xsl:when>
 	<xsl:when test="@type='Integer' or @type='java.lang.Integer'">java.lang.Integer</xsl:when>
@@ -443,6 +448,13 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to long",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
 		</xsl:when>
 		
+		<xsl:when test="@type='float'">
+		float <xsl:value-of select="generate-id()"/> = 0f;
+		try { <xsl:value-of select="generate-id()"/> = Float.parseFloat(opt.getValue());}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to float",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+		</xsl:when>
+		
+		
 		<xsl:when test="@type='java.lang.Integer'">
 		java.lang.Integer <xsl:value-of select="generate-id()"/> = null;
 		try { <xsl:value-of select="generate-id()"/> =new Integer(opt.getValue());}
@@ -525,6 +537,17 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
 	}
 </xsl:template>
+
+<xsl:template match="c:description[@id='faidx']">
+<xsl:text>Indexed Reference genome</xsl:text>
+</xsl:template>
+
+
+<xsl:template match="c:description">
+<xsl:value-of select="text()"/>
+</xsl:template>
+
+
 
 
 <xsl:template name="titleize">

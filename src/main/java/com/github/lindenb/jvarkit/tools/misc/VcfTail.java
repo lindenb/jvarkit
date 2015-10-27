@@ -29,6 +29,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.IOException;
+import java.util.Collection;
 import java.util.LinkedList;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -56,16 +58,16 @@ public class VcfTail
 	 private static class MyCommand extends AbstractVcfTail.AbstractVcfTailCommand
 	 	{
 		@Override
-		protected Throwable validateOptions()
-		 	{
-			if(this.count<0) return new IllegalArgumentException("bad value for count "+this.count);
-			return super.validateOptions();
-		 	}
-
-		@Override
-		protected void doWork(String inpuSource,VcfIterator in, VariantContextWriter out)
+		public Collection<Throwable> initializeKnime()
 			{
-			setVariantCount(0);
+			if(this.count<0) return wrapException("bad value for count "+this.count);
+			return super.initializeKnime();
+			}
+		
+		@Override
+		protected Collection<Throwable> doVcfToVcf(String inputName,
+				VcfIterator in, VariantContextWriter out) throws IOException
+			{
 			try {
 				final VCFHeader header=in.getHeader();
 				final VCFHeader h2= addMetaData(new VCFHeader(header));
@@ -86,13 +88,18 @@ public class VcfTail
 					out.add(ctx);
 					}
 				progess.finish();
-				setVariantCount(L.size());
+				return RETURN_OK;
 				}
 			finally
 				{
 				CloserUtil.close(out);
 				out=null;
 				}
+			}
+		
+		@Override
+		protected Collection<Throwable> call(String inputName) throws Exception {
+			return doVcfToVcf(inputName);
 			}
 	 	}
 		
