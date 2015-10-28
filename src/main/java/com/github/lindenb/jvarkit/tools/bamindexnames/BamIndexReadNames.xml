@@ -3,5 +3,13 @@
  <!ENTITY name "BamIndexReadNames">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.bamindexnames">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	extends="com.github.lindenb.jvarkit.tools.bamindexnames.AbstractBaseBamIndexReadNames"
+	>
+<input type="sam"/>
+<description>Build a dictionary of read names to be searched with BamQueryReadNames</description>
+<snippet id="sorting-collection"/>
+
+
+<arguments> </arguments>
+!-- __PLACEHOLDER__ --></app>

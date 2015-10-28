@@ -507,6 +507,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			super.cleanup();
 			}
 		
+		
+		
+		
 		<xsl:choose>
 		<xsl:when test="c:output/@type='vcf'">
 		
@@ -620,6 +623,31 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		</xsl:choose>
 		
 
+		<xsl:if test="c:input/@type='sam' or c:snippet[@id='read-sam']">
+		
+		protected htsjdk.samtools.SamReaderFactory createSamReaderFactory()
+			{
+			return  htsjdk.samtools.SamReaderFactory.makeDefault().validationStringency(htsjdk.samtools.ValidationStringency.LENIENT);
+			}
+		
+		/** open a new SAM reader; If inputName==null, it reads from stdin */
+		protected htsjdk.samtools.SamReader openSamReader(final String inputName)
+			{
+			final htsjdk.samtools.SamReaderFactory srf= this.createSamReaderFactory();
+			if(inputName==null)
+				{
+				LOG.info("opening stdin");
+				return srf.open(htsjdk.samtools.SamInputResource.of(stdin()));
+				}
+			else
+				{
+				LOG.info("opening "+inputName);
+				return srf.open(htsjdk.samtools.SamInputResource.of(inputName));
+				}
+			}
+
+		</xsl:if>
+
 		
 		<xsl:choose>
 		<xsl:when test="not(c:input/@type)">
@@ -646,28 +674,10 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 
 		</xsl:if>
 		
-		<xsl:if test="c:input/@type='sam'">
-		
-		protected htsjdk.samtools.SamReaderFactory createSamReaderFactory()
-			{
-			return  htsjdk.samtools.SamReaderFactory.makeDefault().validationStringency(htsjdk.samtools.ValidationStringency.LENIENT);
-			}
-		
-		protected htsjdk.samtools.SamReader openSamReader(final String inputName)
-			{
-			final htsjdk.samtools.SamReaderFactory srf= this.createSamReaderFactory();
-			if(inputName==null)
-				{
-				LOG.info("opening stdin");
-				return srf.open(htsjdk.samtools.SamInputResource.of(stdin()));
-				}
-			else
-				{
-				LOG.info("opening "+inputName);
-				return srf.open(htsjdk.samtools.SamInputResource.of(inputName));
-				}
-			}
 
+		
+		<xsl:if test="c:input/@type='sam' or c:snippet[@id='read-sam']">
+		<!-- already done -->
 		</xsl:if>
 		
 		/** program should process this file or stdin() if inputName is null */ 

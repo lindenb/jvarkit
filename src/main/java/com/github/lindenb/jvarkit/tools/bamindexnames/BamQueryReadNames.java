@@ -32,45 +32,47 @@ package com.github.lindenb.jvarkit.tools.bamindexnames;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.tribble.readers.LineIterator;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.util.command.Command;
 
-public class BamQueryReadNames extends AbstractBamIndexReadNames
+public class BamQueryReadNames extends AbstractBamQueryReadNames
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamQueryReadNames.class);
+
+    public BamQueryReadNames()
+    	{
+    	}
+  
+    @Override
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractBamQueryReadNames.AbstractBamQueryReadNamesCommand
+		{
+
+	
 	private RandomAccessFile raf;
 	private NameIndexDef indexDef;
 
-	private BamQueryReadNames()
-		{
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"BamQueryReadNames";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Query a Bam file indexed with BamIndexReadNames";
-		}
 	
 	
 	private NameAndPos getNameAndPosAt(long index)
@@ -122,236 +124,199 @@ public class BamQueryReadNames extends AbstractBamIndexReadNames
 				}
 			return first;
 		}
-
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -N (file) save unmatched names here. (Optional)");
-		out.println(" -s user list of read names is sorted. (Optional)");
-		out.println(" -b write binary bam (Optional)");
-		super.printOptions(out);
-		}
-
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		boolean binary_bam=false;
-		boolean query_reads_is_sorted=false;
-		PrintWriter notFoundStream=new PrintWriter(new NullOuputStream());
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"N:sb"))!=-1)
-			{
-			switch(c)
+		protected Collection<Throwable> call(String inputName) throws Exception {
+			throw new IllegalStateException("should not be called");
+		}
+	
+	@Override
+			public Collection<Throwable> call() throws Exception {
 				{
-				case 's': query_reads_is_sorted=true;break;
-				case 'b': binary_bam=true;break;
-				case 'N':
-					{
-					try
-						{
-						notFoundStream=new PrintWriter(new File(opt.getOptArg()));
-						}
-					catch(IOException err)
-						{
-						error(err);
-						return -1;
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		SamReader sfr=null;
-		SAMFileWriter bamw=null;
-		try
-			{
-			if(!(opt.getOptInd()+2==args.length || opt.getOptInd()+1==args.length))
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			File bamFile=new File(args[opt.getOptInd()+0]);
-			sfr=SamReaderFactory.makeDefault().
-					validationStringency(ValidationStringency.SILENT).
-					open(bamFile);
-			File nameIdxFile=new File(bamFile.getParentFile(), bamFile.getName()+NAME_IDX_EXTENSION);
-			this.indexDef=new NameIndexDef();
-			this.raf=new RandomAccessFile(nameIdxFile, "r");
-			indexDef.countReads=raf.readLong();
-			indexDef.maxNameLengt=raf.readInt();
-			
-			
-			LineIterator r=null;
-			if(opt.getOptInd()+2==args.length)
-				{
-				r=IOUtils.openURIForLineIterator(args[opt.getOptInd()+1]);
-				}
-			else
-				{
-				r=IOUtils.openStdinForLineIterator();
-				}
-			SAMFileHeader header=sfr.getFileHeader().clone();
-			SAMProgramRecord spr=header.createProgramRecord();
-			spr.setProgramName(getProgramName());
-			spr.setCommandLine(getProgramCommandLine());
-			spr.setProgramVersion(getVersion());
-			
-			SAMFileWriterFactory sfw=new SAMFileWriterFactory();
-			sfw.setCreateIndex(false);
-			header.setSortOrder(SortOrder.unsorted);
-			if(binary_bam)
-				{
-				bamw=sfw.makeBAMWriter(header, false, System.out);
-				}
-			else
-				{
-				bamw=sfw.makeSAMWriter(header, false, System.out);
-				}
-			
-			
-			long iter_start = 0L;
-			
-			while(r.hasNext())
-				{
-				String line=r.next();
-				String searchRead=null;
-				int side=-1;
-				if(line.isEmpty() || line.startsWith("#")) continue;
+					
+					
 				
-				/* forward or reverse is specified ? */
-				if(line.endsWith("/1"))
+				PrintWriter notFoundStream;
+				
+				if(getNotFoundStreamFile()==null)
 					{
-					side=1;
-					searchRead=line.substring(0, line.length()-2);
-					}
-				else if(line.endsWith("/2"))
-					{
-					side=2;
-					searchRead=line.substring(0, line.length()-2);
+					notFoundStream =new PrintWriter(new NullOuputStream());
 					}
 				else
 					{
-					side=-1;
-					searchRead=line;
-					}	
-				long index=lower_bound(
-						iter_start,
-						this.indexDef.countReads,
-						searchRead
-						);
-				if(index>=this.indexDef.countReads)
-					{
-					notFoundStream.println(line);
-					continue;
-					}
-				if(query_reads_is_sorted)
-					{
-					iter_start=index;
+					notFoundStream = new PrintWriter(getNotFoundStreamFile());
 					}
 				
-				Set<SAMRecord> found=new LinkedHashSet<SAMRecord>();
-				while(index <this.indexDef.countReads )
+				
+				
+				final List<String> args = getInputFiles();
+				SamReader sfr=null;
+				SAMFileWriter bamw=null;
+				try
 					{
-					NameAndPos nap=getNameAndPosAt(index);
-					if(nap.name.compareTo(searchRead)<0)
+					if(!(2==args.size() ||1==args.size()))
 						{
-						++index;
-						continue;
+						return wrapException(getMessageBundle("illegal.number.of.arguments"));
 						}
-					else if(nap.name.compareTo(searchRead)>0)
+					final File bamFile=new File(args.get(0));
+					sfr= openSamReader(args.get(0));
+					File nameIdxFile=new File(bamFile.getParentFile(), bamFile.getName()+NAME_IDX_EXTENSION);
+					this.indexDef=new NameIndexDef();
+					this.raf=new RandomAccessFile(nameIdxFile, "r");
+					indexDef.countReads=raf.readLong();
+					indexDef.maxNameLengt=raf.readInt();
+					
+					
+					BufferedReader r=null;
+					if(2==args.size())
 						{
-						break;
-						}
-					SAMRecordIterator iter;
-					if(nap.tid<0)
-						{
-						iter=sfr.queryUnmapped();
+						r=IOUtils.openURIForBufferedReading(args.get(1));
 						}
 					else
 						{
-						iter=sfr.query(
-							header.getSequence(nap.tid).getSequenceName(),
-							nap.pos,
-							0,
-							true
-							);
+						r=IOUtils.openStreamForBufferedReader(stdin());
 						}
-					while(iter.hasNext())
+					SAMFileHeader header=sfr.getFileHeader().clone();
+					header.setSortOrder(SortOrder.unsorted);
+					
+					bamw= openSAMFileWriter(header, true);
+					
+					
+					
+					long iter_start = 0L;
+					String line;
+					while((line=r.readLine())!=null)
 						{
-						SAMRecord rec=iter.next();
-						if(nap.tid>=0)
+						String searchRead=null;
+						int side=-1;
+						if(line.isEmpty() || line.startsWith("#")) continue;
+						
+						/* forward or reverse is specified ? */
+						if(line.endsWith("/1"))
 							{
-							if(nap.tid!=rec.getReferenceIndex())throw new IllegalStateException();
-
-							if(rec.getAlignmentStart()< nap.pos)
+							side=1;
+							searchRead=line.substring(0, line.length()-2);
+							}
+						else if(line.endsWith("/2"))
+							{
+							side=2;
+							searchRead=line.substring(0, line.length()-2);
+							}
+						else
+							{
+							side=-1;
+							searchRead=line;
+							}	
+						long index=lower_bound(
+								iter_start,
+								this.indexDef.countReads,
+								searchRead
+								);
+						if(index>=this.indexDef.countReads)
+							{
+							notFoundStream.println(line);
+							continue;
+							}
+						if(query_reads_is_sorted)
+							{
+							iter_start=index;
+							}
+						
+						Set<SAMRecord> found=new LinkedHashSet<SAMRecord>();
+						while(index <this.indexDef.countReads )
+							{
+							NameAndPos nap=getNameAndPosAt(index);
+							if(nap.name.compareTo(searchRead)<0)
 								{
+								++index;
 								continue;
 								}
-							if(rec.getAlignmentStart()> nap.pos)
+							else if(nap.name.compareTo(searchRead)>0)
 								{
 								break;
 								}
+							SAMRecordIterator iter;
+							if(nap.tid<0)
+								{
+								iter=sfr.queryUnmapped();
+								}
+							else
+								{
+								iter=sfr.query(
+									header.getSequence(nap.tid).getSequenceName(),
+									nap.pos,
+									0,
+									true
+									);
+								}
+							while(iter.hasNext())
+								{
+								SAMRecord rec=iter.next();
+								if(nap.tid>=0)
+									{
+									if(nap.tid!=rec.getReferenceIndex())throw new IllegalStateException();
+		
+									if(rec.getAlignmentStart()< nap.pos)
+										{
+										continue;
+										}
+									if(rec.getAlignmentStart()> nap.pos)
+										{
+										break;
+										}
+									}
+								if(rec.getReadName().equals(searchRead))
+									{
+									if(side==1 && !(rec.getReadPairedFlag() && rec.getFirstOfPairFlag()))
+										{
+										continue;
+										}
+									else if(side==2 && !(rec.getReadPairedFlag() && rec.getSecondOfPairFlag()))
+										{
+										continue;
+										}
+									found.add(rec);
+									}
+								
+								}
+							iter.close();
+							
+							++index;
 							}
-						if(rec.getReadName().equals(searchRead))
+						if(found.isEmpty())
 							{
-							if(side==1 && !(rec.getReadPairedFlag() && rec.getFirstOfPairFlag()))
+							notFoundStream.println(line);
+							}
+						else
+							{
+							for(SAMRecord rec:found)
 								{
-								continue;
+								bamw.addAlignment(rec);
 								}
-							else if(side==2 && !(rec.getReadPairedFlag() && rec.getSecondOfPairFlag()))
-								{
-								continue;
-								}
-							found.add(rec);
 							}
 						
 						}
-					iter.close();
+					CloserUtil.close(r);
 					
-					++index;
+					notFoundStream.flush();
+					LOG.info("done");
+					return RETURN_OK;
 					}
-				if(found.isEmpty())
+				catch(Exception err)
 					{
-					notFoundStream.println(line);
+					return wrapException(err);
 					}
-				else
+				finally
 					{
-					for(SAMRecord rec:found)
-						{
-						bamw.addAlignment(rec);
-						}
+					CloserUtil.close(notFoundStream);
+					CloserUtil.close(raf);
+					CloserUtil.close(sfr);
+					CloserUtil.close(bamw);
 					}
-				
 				}
-			CloserUtil.close(r);
-			
-			notFoundStream.flush();
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(notFoundStream);
-			CloserUtil.close(raf);
-			CloserUtil.close(sfr);
-			CloserUtil.close(bamw);
 			}
 		}
+	
 	public static void main(String[] args)
 		{
 		new BamQueryReadNames().instanceMain(args);

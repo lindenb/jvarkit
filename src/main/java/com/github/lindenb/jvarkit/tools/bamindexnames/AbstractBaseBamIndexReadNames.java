@@ -28,12 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.bamindexnames;
 
-
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-
-
-public abstract class AbstractBamIndexReadNames
-	extends AbstractCommandLineProgram
+public abstract class AbstractBaseBamIndexReadNames
+	extends com.github.lindenb.jvarkit.util.command.CommandFactory
 	{
 	protected static final int FILE_PREFIX_SIZE=4+8;
 	protected static final String NAME_IDX_EXTENSION=".names.idx";

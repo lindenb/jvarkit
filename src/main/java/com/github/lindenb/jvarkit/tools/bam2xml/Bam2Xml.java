@@ -46,7 +46,6 @@ import htsjdk.samtools.util.ProgressLoggerInterface;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMBinaryTagAndValue;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFlag;
@@ -60,7 +59,6 @@ import htsjdk.samtools.SAMTagUtil;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.TextTagCodec;
 import htsjdk.samtools.ValidationStringency;
 
 

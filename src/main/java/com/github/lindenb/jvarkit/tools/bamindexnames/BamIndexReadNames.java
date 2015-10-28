@@ -34,8 +34,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Comparator;
 
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -51,202 +53,167 @@ import htsjdk.samtools.util.SortingCollection;
 public class BamIndexReadNames
 	extends AbstractBamIndexReadNames
 	{
-	private BamIndexReadNames()
+	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamIndexReadNames.class);
+
+	@Override
+	public Command createCommand()
 		{
-		
+		return new MyCommand();
 		}
 	
-	
-		
-	private static class NameAndPosCodec extends AbstractDataCodec<NameAndPos>
+	static private class MyCommand extends AbstractBamIndexReadNames.AbstractBamIndexReadNamesCommand
 		{
-		@Override
-		public NameAndPos decode(DataInputStream dis) throws IOException {
-			NameAndPos nap=new NameAndPos();
-			try
-				{	
-				nap.name=dis.readUTF();
-				}
-			catch(IOException err)
-				{
-				return null;
-				}
-			nap.tid=dis.readInt();
-			nap.pos=dis.readInt();
-			return nap;
-			}
-		@Override
-		public void encode(DataOutputStream dos, NameAndPos nap)
-				throws IOException {
-			dos.writeUTF(nap.name);
-			dos.writeInt(nap.tid);
-			dos.writeInt(nap.pos);
-			}
-		@Override
-		public AbstractDataCodec<NameAndPos> clone()
+		private static class NameAndPosCodec extends AbstractDataCodec<NameAndPos>
 			{
-			return new NameAndPosCodec();
-			}
-		}
-
-	private static class NameAndPosComparator
-		implements Comparator<NameAndPos>
-		{
-		@Override
-		public int compare(NameAndPos o1, NameAndPos o2)
-			{
-			int i=o1.name.compareTo(o2.name);
-			if(i!=0) return i;
-			i=o1.tid-o2.tid;
-			if(i!=0) return i;
-			i=o1.pos-o2.pos;
-			return i;
-			}
-		}
-
-		private int maxRecordsInRAM=50000;
-
-		
-		private void indexBamFile(File bamFile) throws IOException
-			{
-			
-			NameIndexDef indexDef=new NameIndexDef();
-
-			SortingCollection<NameAndPos> sorting=null;
-			info("Opening "+bamFile);
-			SamReader sfr=SamReaderFactory.makeDefault().
-					validationStringency(ValidationStringency.SILENT).
-					open(bamFile);
-			sorting=SortingCollection.newInstance(
-					NameAndPos.class,
-					new NameAndPosCodec() ,
-					new NameAndPosComparator(),
-					maxRecordsInRAM,
-					getTmpDirectories()
-					);
-			sorting.setDestructiveIteration(true);
-			if(sfr.getFileHeader().getSortOrder()!=SortOrder.coordinate)
-				{
-				throw new IOException("not SortOrder.coordinate "+sfr.getFileHeader().getSortOrder());
-				}
-			
-			SAMRecordIterator iter=sfr.iterator();
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader().getSequenceDictionary());
-			while(iter.hasNext())
-				{
-				SAMRecord rec=iter.next();
-				progress.watch(rec);
+			@Override
+			public NameAndPos decode(DataInputStream dis) throws IOException {
 				NameAndPos nap=new NameAndPos();
-				nap.name=rec.getReadName();
-				indexDef.maxNameLengt =Math.max(nap.name.length()+1, indexDef.maxNameLengt );
-				nap.tid=rec.getReferenceIndex();
-				nap.pos=rec.getAlignmentStart();
-				indexDef.countReads++;
-				sorting.add(nap);
+				try
+					{	
+					nap.name=dis.readUTF();
+					}
+				catch(IOException err)
+					{
+					return null;
+					}
+				nap.tid=dis.readInt();
+				nap.pos=dis.readInt();
+				return nap;
 				}
-			progress.finish();
-			iter.close();
-			sfr.close();
-			sorting.doneAdding();
-			info("Done Adding. N="+indexDef.countReads);
-			
-			File indexFile=new File(bamFile.getParentFile(), bamFile.getName()+NAME_IDX_EXTENSION);
-			
-			info("Writing index "+indexFile);
-			FileOutputStream raf=new FileOutputStream(indexFile);
-			
-			ByteBuffer byteBuff= ByteBuffer.allocate(8+4);
-			byteBuff.putLong(indexDef.countReads);
-			byteBuff.putInt(indexDef.maxNameLengt);
-			raf.write(byteBuff.array());
-			
-			byteBuff= ByteBuffer.allocate( indexDef.maxNameLengt+4+4);
-			CloseableIterator<NameAndPos> iter2=sorting.iterator();
-			while(iter2.hasNext())
+			@Override
+			public void encode(DataOutputStream dos, NameAndPos nap)
+					throws IOException {
+				dos.writeUTF(nap.name);
+				dos.writeInt(nap.tid);
+				dos.writeInt(nap.pos);
+				}
+			@Override
+			public AbstractDataCodec<NameAndPos> clone()
 				{
-				byteBuff.rewind();
-				NameAndPos nap=iter2.next();
-				for(int i=0;i< nap.name.length();++i)
+				return new NameAndPosCodec();
+				}
+			}
+	
+		private static class NameAndPosComparator
+			implements Comparator<NameAndPos>
+			{
+			@Override
+			public int compare(NameAndPos o1, NameAndPos o2)
+				{
+				int i=o1.name.compareTo(o2.name);
+				if(i!=0) return i;
+				i=o1.tid-o2.tid;
+				if(i!=0) return i;
+				i=o1.pos-o2.pos;
+				return i;
+				}
+			}
+	
+	
+			
+			private void indexBamFile(File bamFile) throws IOException
+				{
+				
+				NameIndexDef indexDef=new NameIndexDef();
+	
+				SortingCollection<NameAndPos> sorting=null;
+				LOG.info("Opening "+bamFile);
+				SamReader sfr=SamReaderFactory.makeDefault().
+						validationStringency(ValidationStringency.SILENT).
+						open(bamFile);
+				sorting=SortingCollection.newInstance(
+						NameAndPos.class,
+						new NameAndPosCodec() ,
+						new NameAndPosComparator(),
+						getMaxRecordsInRam(),
+						getTmpDirectories()
+						);
+				sorting.setDestructiveIteration(true);
+				if(sfr.getFileHeader().getSortOrder()!=SortOrder.coordinate)
 					{
-					byteBuff.put((byte)nap.name.charAt(i));
+					throw new IOException("not SortOrder.coordinate "+sfr.getFileHeader().getSortOrder());
 					}
-				for(int i=nap.name.length();i< indexDef.maxNameLengt;++i)
+				
+				SAMRecordIterator iter=sfr.iterator();
+				SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader().getSequenceDictionary());
+				while(iter.hasNext())
 					{
-					byteBuff.put((byte)'\0');
+					SAMRecord rec=iter.next();
+					progress.watch(rec);
+					NameAndPos nap=new NameAndPos();
+					nap.name=rec.getReadName();
+					indexDef.maxNameLengt =Math.max(nap.name.length()+1, indexDef.maxNameLengt );
+					nap.tid=rec.getReferenceIndex();
+					nap.pos=rec.getAlignmentStart();
+					indexDef.countReads++;
+					sorting.add(nap);
 					}
-				byteBuff.putInt(nap.tid);
-				byteBuff.putInt(nap.pos);
+				progress.finish();
+				iter.close();
+				sfr.close();
+				sorting.doneAdding();
+				LOG.info("Done Adding. N="+indexDef.countReads);
+				
+				File indexFile=new File(bamFile.getParentFile(), bamFile.getName()+NAME_IDX_EXTENSION);
+				
+				LOG.info("Writing index "+indexFile);
+				FileOutputStream raf=new FileOutputStream(indexFile);
+				
+				ByteBuffer byteBuff= ByteBuffer.allocate(8+4);
+				byteBuff.putLong(indexDef.countReads);
+				byteBuff.putInt(indexDef.maxNameLengt);
 				raf.write(byteBuff.array());
 				
-				}
-			raf.flush();
-			raf.close();
-			sorting.cleanup();
-			}
-		
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"BamIndexReadNames";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Build a dictionary of read names to be searched with BamQueryReadNames";
-		}
-
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
+				byteBuff= ByteBuffer.allocate( indexDef.maxNameLengt+4+4);
+				CloseableIterator<NameAndPos> iter2=sorting.iterator();
+				while(iter2.hasNext())
 					{
-					switch(handleOtherOptions(c, opt,args))
+					byteBuff.rewind();
+					NameAndPos nap=iter2.next();
+					for(int i=0;i< nap.name.length();++i)
 						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+						byteBuff.put((byte)nap.name.charAt(i));
 						}
+					for(int i=nap.name.length();i< indexDef.maxNameLengt;++i)
+						{
+						byteBuff.put((byte)'\0');
+						}
+					byteBuff.putInt(nap.tid);
+					byteBuff.putInt(nap.pos);
+					raf.write(byteBuff.array());
+					
 					}
+				raf.flush();
+				raf.close();
+				sorting.cleanup();
 				}
-			}
-		
-		
-		try
-			{
-			if(opt.getOptInd()+1!=args.length)
-				{
-				info(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			File bamFile=new File(args[opt.getOptInd()]);
-			if(bamFile.getParentFile()!=null)
-				{
-				addTmpDirectory(bamFile.getParentFile());
-				}
-			indexBamFile(bamFile);
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
 			
+	
+		@Override
+		protected Collection<Throwable> call(String inputName) throws Exception {			
+			try
+				{
+				if(inputName==null)
+					{
+					return wrapException(getMessageBundle("illegal.number.of.arguments"));
+					}
+				File bamFile=new File(inputName);
+				if(bamFile.getParentFile()!=null)
+					{
+					super.tmpDirs.add(bamFile.getParentFile());
+					}
+				indexBamFile(bamFile);
+				return RETURN_OK;
+				}
+			catch(Exception err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				
+				}
 			}
 		}
 	

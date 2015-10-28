@@ -454,6 +454,11 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to float",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
 		</xsl:when>
 		
+		<xsl:when test="@type='double'">
+		double <xsl:value-of select="generate-id()"/> = 0.0;
+		try { <xsl:value-of select="generate-id()"/> = Double.parseDouble(opt.getValue());}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to double",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+		</xsl:when>
 		
 		<xsl:when test="@type='java.lang.Integer'">
 		java.lang.Integer <xsl:value-of select="generate-id()"/> = null;

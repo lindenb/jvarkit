@@ -30,23 +30,21 @@ History:
 package com.github.lindenb.jvarkit.tools.bamstats01;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -56,11 +54,19 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
 public class BamStats01
-	extends AbstractCommandLineProgram
+	extends AbstractBamStats01
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamStats01.class);
+
+	@Override
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractBamStats01.AbstractBamStats01Command
+		{
 	private PrintStream out=System.out;
-	private File bedFile=null;
-	private double minMappingQuality=30.0;
 	private int chrX_index=-1;
 	private int chrY_index=-1;
 	private SAMSequenceDictionary samSequenceDictionary=null;
@@ -234,14 +240,10 @@ public class BamStats01
 		;
 		};
 	
-	private BamStats01()
-		{
-		
-		}
 		
 	private void run(String filename,SamReader samFileReader) throws IOException
 		{	
-		Map<String,Histogram> sample2hist=new HashMap<String, BamStats01.Histogram>();
+		Map<String,Histogram> sample2hist=new HashMap<String, BamStats01.MyCommand.Histogram>();
 			
 			SAMSequenceDictionary currDict=samFileReader.getFileHeader().getSequenceDictionary();
 
@@ -262,7 +264,7 @@ public class BamStats01
 				if(intervals==null)
 					{
 					intervals=new SamSequenceRecordTreeMap<Boolean>(currDict);
-					info("opening "+this.bedFile);
+					LOG.info("opening "+this.bedFile);
 					Pattern tab=Pattern.compile("[\t]");
 					String line;
 					BufferedReader bedIn=IOUtils.openFileForBufferedReading(bedFile);
@@ -281,7 +283,7 @@ public class BamStats01
 						intervals.put(seqIndex, chromStart1, chromEnd1,Boolean.TRUE);
 						}
 					bedIn.close();
-					info("done reading "+this.bedFile);
+					LOG.info("done reading "+this.bedFile);
 					}
 				}
 			this.chrX_index=-1;
@@ -373,104 +375,63 @@ public class BamStats01
 				}
 		}
 	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Statistics about the reads in a BAM.";
-		}
+	
+
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BamStats01";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-o (file) output. Default: stdout");
-		out.println("-q (qual) min mapping quality: default: "+this.minMappingQuality);
-		out.println("-B (file) capture bed file.  Optional");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		File OUT=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:q:B:"))!=-1)
+		public Collection<Throwable> call() throws Exception
 			{
-			switch(c)
+			SamReader samFileReader=null;		
+			try
 				{
-				case 'o': OUT=new File(opt.getOptArg());break;
-				case 'B': this.bedFile=new File(opt.getOptArg());break;
-				case 'q': minMappingQuality=Double.parseDouble(opt.getOptArg());break;
-				default:
+				
+				out = openFileOrStdoutAsPrintStream();
+					
+				
+				
+				out.print("#Filename\tSample");
+				for(Category2 cat2: Category2.values())
 					{
-					switch(handleOtherOptions(c, opt,args))
+					for(Category cat1: Category.values())
 						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+						out.print("\t"+cat2+"_"+cat1);//je je suis libertineuuh, je suis une cat1
+						}
+					if(bedFile==null) break;
+					}
+				out.println();
+				
+				
+				final List<String> args = getInputFiles();
+				
+				if(args.isEmpty())
+					{
+					LOG.info("Reading from stdin");
+					SamReader r= openSamReader(null);
+					run("stdin",r);
+					r.close();
+					}
+				else
+					{
+					for(final String filename: args)
+						{
+						LOG.info("Reading from "+filename);
+						SamReader sfr= openSamReader(filename);
+						run(filename,sfr);
+						sfr.close();
 						}
 					}
+				out.flush();
+				return RETURN_OK;
 				}
-			}
-		
-		SamReader samFileReader=null;		
-		try
-			{
-			if(OUT!=null)
+			catch(Exception err)
 				{
-				info("opening "+OUT+" for writing.");
-				out=new PrintStream(IOUtils.openFileForWriting(OUT));
+				return wrapException(err);
 				}
-			
-			
-			out.print("#Filename\tSample");
-			for(Category2 cat2: Category2.values())
+			finally
 				{
-				for(Category cat1: Category.values())
-					{
-					out.print("\t"+cat2+"_"+cat1);//je je suis libertineuuh, je suis une cat1
-					}
-				if(bedFile==null) break;
+				CloserUtil.close(samFileReader);
+				CloserUtil.close(out);
 				}
-			out.println();
-			
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-			
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				SamReader r= srf.open(SamInputResource.of(System.in));
-				run("stdin",r);
-				r.close();
-				}
-			else
-				{
-				for(int i=opt.getOptInd();i< args.length;++i)
-					{
-					String filename=args[i];
-					info("Reading from "+filename);
-					SamReader sfr=srf.open(new File(filename));
-					run(filename,sfr);
-					sfr.close();
-					}
-				}
-			out.flush();
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(samFileReader);
-			CloserUtil.close(out);
 			}
 		}
 	

@@ -4,4 +4,27 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.bam4deseq">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>java version of htseqcount</description>
+<input type="sam"/>
+
+<options>
+	<option name="gtfFile" type="input-file" opt="g" longopt="gtf" >
+		<description> path to GTF file. REQUIRED</description>
+	</option>
+	<option name="removeZero" type="boolean" opt="z" longopt="removezero"  default="false">
+		<description>remove 0 covered file</description>
+	</option>
+	<option name="print_chromstartend" type="boolean" opt="c" longopt="cse"  default="false">
+		<description>print chrom/start/end</description>
+	</option>
+	<option name="userFeatures" type="string-set" opt="F" longopt="features" >
+		<description> add this feature. default are : CDS and exon</description>
+	</option>
+	<option name="transcript_id" type="string" opt="T" longopt="transcript_id"  default="transcript_id">
+		<description>key for clustering info</description>
+	</option>
+</options>
+
+
+<!-- __PLACEHOLDER__ -->
+</app>

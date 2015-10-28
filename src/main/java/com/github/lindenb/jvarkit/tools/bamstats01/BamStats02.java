@@ -44,13 +44,13 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Rectangle2D;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -68,19 +68,16 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.tools.treepack.TreePack;
 import com.github.lindenb.jvarkit.tools.treepack.TreePacker;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFlag;
 
-import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -90,10 +87,20 @@ import htsjdk.samtools.util.IntervalTreeMap;
 
 @SuppressWarnings("serial")
 public class BamStats02
-	extends AbstractKnimeApplication
+	extends AbstractBamStats02
 	{
-	private File bedFile=null;
-	private IntervalTreeMap<Boolean> intervals=null;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamStats02.class);
+
+	@Override
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractBamStats02.AbstractBamStats02Command
+		{
+
+		private IntervalTreeMap<Boolean> intervals=null;
     
    
 	private static boolean isEmpty(String s)
@@ -149,8 +156,8 @@ public class BamStats02
     private static class SamFlagNodeFactory
     	implements NodeFactory
 		{
-		SamFlag flg;
-		SamFlagNodeFactory(SamFlag flg)
+		SAMFlag flg;
+		SamFlagNodeFactory(SAMFlag flg)
 			{
 			this.flg=flg;
 			}
@@ -168,7 +175,7 @@ public class BamStats02
 				{
 				switch(this.flg)
 					{
-					case READ_IS_DUPLICATE: 
+					case DUPLICATE_READ: 
 					case READ_REVERSE_STRAND: 
 					case SUPPLEMENTARY_ALIGNMENT:
 					case NOT_PRIMARY_ALIGNMENT:
@@ -179,8 +186,8 @@ public class BamStats02
 			
 			switch(this.flg)
 				{
-				case FIRST_IN_PAIR: return (is_set?"R1":"R2");
-				case READ_IS_DUPLICATE: return (is_set?"DUPLICATE":"UNSET");
+				case FIRST_OF_PAIR: return (is_set?"R1":"R2");
+				case DUPLICATE_READ: return (is_set?"DUPLICATE":"UNSET");
 				case READ_PAIRED: return (is_set?"PAIRED":"NORMAL");
 				case READ_UNMAPPED: return (is_set?"READ UNMAPPED":"READ MAPPED");
 				case MATE_UNMAPPED: return (is_set?"MATE UNMAPPED":"MATE MAPPED");
@@ -232,7 +239,7 @@ public class BamStats02
 				pw.print(s);
 				}
     		
-    		for(SamFlag flg:SamFlag.values())
+    		for(SAMFlag flg:SAMFlag.values())
     			{
     			pw.print("\t");
     			pw.print(flg.isSet(this.flag)?1:0);
@@ -661,7 +668,7 @@ public class BamStats02
 				});
     		
     		
-    		for(SamFlag sf:SamFlag.values())
+    		for(SAMFlag sf:SAMFlag.values())
     			{
     			nodeFactories.add(new SamFlagNodeFactory(sf));
     			}
@@ -832,34 +839,6 @@ public class BamStats02
     	
     	}
     
-	public BamStats02()
-		{
-		
-		}
-	
-	public void setBedFile(File bedFile) {
-		this.bedFile = bedFile;
-	}
-	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Statistics about the flags and reads in a BAM.";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"BamStats02";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-o (file) output. Default: stdout");
-		out.println("-B (bed) Optional capture.bed");
-		super.printOptions(out);
-		}
-	
 	
 	
 	private void run(String filename,SamReader r,PrintWriter out)
@@ -942,9 +921,7 @@ public class BamStats02
 		
 		}
 	
-	@SuppressWarnings("resource")
-	@Override
-	public int executeKnime(List<String> args)
+	public Collection<Throwable> execute(final List<String> args)
 		{
 		SamReader samFileReader=null;
 		PrintWriter out=null;
@@ -987,7 +964,7 @@ public class BamStats02
 				out.print("\t");
 				out.print(p.name());
 				}
-    		for(SamFlag flg:SamFlag.values())
+    		for(SAMFlag flg:SAMFlag.values())
     			{
     			out.print("\t");
     			out.print(flg.name());
@@ -996,14 +973,10 @@ public class BamStats02
     		out.print("count");
 			out.println();
 
-			
-			SamReaderFactory srf=SamReaderFactory.makeDefault().
-					validationStringency(ValidationStringency.SILENT);
-			
+						
 			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				samFileReader= srf.open(SamInputResource.of(System.in));
+				samFileReader= openSamReader(null);
 				run("stdin",samFileReader,out);
 				samFileReader.close();
 				samFileReader=null;
@@ -1012,8 +985,7 @@ public class BamStats02
 				{
 				for(String filename:IOUtils.unrollFiles(args))
 					{
-					info("Reading from "+filename);
-					samFileReader=srf.open(new File(filename));
+					samFileReader= openSamReader(filename);
 					run(filename,samFileReader,out);
 					samFileReader.close();
 					samFileReader=null;
@@ -1021,12 +993,11 @@ public class BamStats02
 				}
 			
 			out.flush();
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -1036,44 +1007,26 @@ public class BamStats02
 		}
 	
 	@Override
-	public int doWork(String[] args)
+	public Collection<Throwable> call() throws Exception
 		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:B:"))!=-1)
+		final List<String> args = getInputFiles();
+		if(!super.run_gui)
 			{
-			switch(c)
-				{
-				case 'o': setOutputFile(opt.getOptArg());break;
-				case 'B': this.setBedFile(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
-	
-	public static void main(String[] args)
-		{
-		if(!(args.length==2 && args[0].equals("gui")))
-			{
-			new BamStats02().instanceMainWithExit(args);
+			return execute(args);
 			}
 		else
 			{
+			if(args.size()!=1)
+				{
+				return wrapException("Illegal number of args");
+				}
+			
 			List<CategoryAndCount> categories = new ArrayList<>();
 			BufferedReader in=null;
 			try {
 				Pattern tab=Pattern.compile("[\t]");
-				System.err.println("[LOG] Reading "+args[1]);
-				in=IOUtils.openURIForBufferedReading(args[1]);
+				LOG.info("[LOG] Reading "+args.get(0));
+				in=IOUtils.openURIForBufferedReading(args.get(0));
 				String line;
 				while((line=in.readLine())!=null)
 					{
@@ -1096,7 +1049,7 @@ public class BamStats02
 						}
 					
 					cat.flag=0;
-					for(SamFlag sf:SamFlag.values())
+					for(SAMFlag sf:SAMFlag.values())
 						{
 						if(col>=tokens.length) throw new IOException("Not enough columns in "+line);
 						String ok=tokens[col++];
@@ -1106,19 +1059,18 @@ public class BamStats02
 							}
 						else if(ok.equals("1"))
 							{
-							cat.flag+=sf.getFlag();
+							cat.flag+=sf.intValue();
 							}
 						else
 							{
-							System.err.println("Illegal Flag Column for "+sf+" in "+line);
-							System.exit(-1);
+							return wrapException("Illegal Flag Column for "+sf+" in "+line);
 							}
 						}
 					if(col>=tokens.length) throw new IOException("Not enough columns in "+line);
 					cat.count=Long.parseLong(tokens[col++]);
 					categories.add(cat);
 					}
-				System.err.println("[LOG] Down reading "+args[1]+" N="+categories.size());
+				System.err.println("[LOG] Down reading "+args.get(0)+" N="+categories.size());
 				final ViewDialog f=new ViewDialog(categories);
 				Dimension screen=Toolkit.getDefaultToolkit().getScreenSize();
 				f.setBounds(50, 50, screen.width-100, screen.height-100);
@@ -1129,12 +1081,20 @@ public class BamStats02
 							f.setVisible(true);
 						}
 					});
+				return RETURN_OK;
 				}
 			catch (Exception e)
 				{
-				e.printStackTrace();
-				System.exit(-1);
+				return wrapException(e);
 				}
 			}
+		}
+	
+		
+		}
+	
+	public static void main(String[] args)
+		{
+		new BamStats02().instanceMain(args);//NOT with exit !
 		}
 	}
