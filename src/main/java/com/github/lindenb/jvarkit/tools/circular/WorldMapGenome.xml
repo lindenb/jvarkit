@@ -4,4 +4,40 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.circular">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Genome/Map of the world. Input is a BED file: chrom/start/end/country.</description>
+<input type="stdin-or-one"/>
+<output type="xml"/>
+
+
+	@Override
+	public void printOptions(java.io.PrintStream out)
+		{
+		out.println(" -R (ref) fasta reference file indexed with samtools. Required.");
+		out.println(" -w (int: size)  default:"+viewRect.width);
+		super.printOptions(out);
+		}
+
+				case 'u': this.svgMapUri=opt.getOptArg();break;
+				case 'T': =true;break;
+				
+				case 'R': faidx=new File(opt.getOptArg());break;
+				case 'o': fileout=new File(opt.getOptArg());break;
+
+
+<options>
+	<option name="faidx" type="input-file" opt="R" longopt="REF" >
+		<description id="faidx"/>
+	</option>
+	<option name="svgMapUri" type="string" opt="u" longopt="mapuri" default="http://upload.wikimedia.org/wikipedia/commons/7/76/World_V2.0.svg">
+		<description>URL world SVG map</description>
+	</option>
+	<option name="listCountries" type="boolean" opt="T" longopt="listCountries" default="false">
+		<description>Just list countries and exit.</description>
+	</option>
+	<option name="squareSize" type="int" opt="w" longopt="squareSize" default="1000">
+		<description>square size</description>
+	</option>
+</options>
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

@@ -1,4 +1,31 @@
 /*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
+/*
  
   ant jeter && cat jeter2.bed | java -jar dist/jeter.jar  -u src/main/resources/img/World_V2.0.svg -o ~/jeter.jpg -R /commun/data/pubdb/broadinstitute.org/bundle/1.5/b37/human_g1k_v37.fasta && eog ~/jeter.jpg
   
@@ -24,6 +51,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -50,40 +78,37 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.circular.CircularContext;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
-public class WorldMapGenome extends AbstractCommandLineProgram
+public class WorldMapGenome extends AbstractWorldMapGenome
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(WorldMapGenome.class);
+	
+	
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractWorldMapGenome.AbstractWorldMapGenomeCommand
+			{    
 	private CircularContext context=null;
 	/* ouput size */
 	private Dimension viewRect=new Dimension(1000, 1000);
     private Map<String,Shape> country2shape=new HashMap<String,Shape>();
     /* SVG map location */
-    private String svgMapUri="http://upload.wikimedia.org/wikipedia/commons/7/76/World_V2.0.svg";
     /* number of time we saw each country */
     private Counter<String> seen=new Counter<String>();
 	
-    private WorldMapGenome()
-		{
-		}
-    @Override
-	public String getProgramDescription()
-		{
-		return "Genome/Map of the world. Input is a BED file: chrom/start/end/country.";
-		}
-    
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/WorldMapGenome";
-    	}
+   
 		
 	private void loadWorld() throws IOException,XMLStreamException
 		{
 		Source source;
-		warning("openingg "+svgMapUri);
+		LOG.info("openingg "+svgMapUri);
 		if(IOUtils.isRemoteURI(svgMapUri))
 			{
 			source=new StreamSource(svgMapUri);
@@ -180,74 +205,31 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 		return  shape;
 		}
 
-	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -R (ref) fasta reference file indexed with samtools. Required.");
-		out.println(" -w (int: size) square size default:"+viewRect.width);
-		out.println(" -o (file.jpg) ouput file. Required");
-		out.println(" -T just list countries and exit.");
-		out.println(" -u (uri) URL world SVG map. Default is: "+svgMapUri);
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean listCountries=false;
-		File fileout=null;
-		File faidx=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:w:o:Tu:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'u': this.svgMapUri=opt.getOptArg();break;
-				case 'T': listCountries=true;break;
-				case 'w':
-					int size=Integer.parseInt(opt.getOptArg());
-					viewRect.width=size;
-					viewRect.height=size;
-					break;
-				case 'R': faidx=new File(opt.getOptArg());break;
-				case 'o': fileout=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		viewRect.width=super.squareSize;
+		viewRect.height=super.squareSize;
 		try
 			{
 			loadWorld();
-			if(listCountries)
+			if(super.listCountries)
 				{
 				for(String country:this.country2shape.keySet())
 					{
-					System.out.println(country);
+					stdout().println(country);
 					}
-				return 0;
+				return RETURN_OK;
 				}
 			if(faidx==null)
 				{
-				error("undefined reference file");
-				return -1;
+				return wrapException("undefined reference file");
 				}
-			if(fileout==null)
+			if(getOutputFile()==null)
 				{
-				error("undefined output file");
-				return -1;
+				return wrapException("undefined output file");
 				}
 			
-			info("loading "+faidx);
+			LOG.info("loading "+faidx);
 			this.context=new CircularContext(new SAMSequenceDictionaryFactory().load(faidx));
 			this.context.setCenter(viewRect.width/2,viewRect.height/2);
 			BufferedImage offscreen=new  BufferedImage(
@@ -257,17 +239,16 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 			Graphics2D g=(Graphics2D)offscreen.getGraphics();
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-			if(opt.getOptInd()==args.length)
+			if(inputName==null)
 				{
-				info("Reading from stdin");
-				scan(g,System.in);
+				LOG.info("Reading from stdin");
+				scan(g,stdin());
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename : this.getInputFiles())
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
+					LOG.info("Reading from "+filename);
 					InputStream in=IOUtils.openURIForReading(filename);
 					scan(g,in);
 					CloserUtil.close(in);
@@ -288,13 +269,12 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 			paintWorld(g);
 			g.drawImage(offscreen, 0, 0, null);
 			g.dispose();
-			ImageIO.write(background, "jpg", fileout);
-			return 0;
+			ImageIO.write(background, "jpg", getOutputFile());
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -453,6 +433,9 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 			}
 		CloserUtil.close(in);
 		}
+	}
+	
+	
 	/**
 	 * @param args
 	 */

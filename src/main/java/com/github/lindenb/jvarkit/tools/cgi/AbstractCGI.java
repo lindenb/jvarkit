@@ -13,11 +13,11 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
@@ -26,10 +26,12 @@ import javax.xml.stream.XMLStreamWriter;
 
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 
-public abstract class AbstractCGI extends AbstractCommandLineProgram
+public abstract class AbstractCGI extends Command
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(AbstractCGI.class);
+
 	private static final String PROPERTY_PREFFILE="prefs.file.xml";
 	
 	protected StringBuilder logStream=new StringBuilder();
@@ -85,8 +87,7 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 					}
 				}
 			};
-		System.setErr(new PrintStream(redirect));
-		getLogger().setLevel(Level.SEVERE);
+		stderr(new PrintStream(redirect));
 		}
 	
 	protected List<File> getPreferenceFiles()
@@ -338,10 +339,6 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 		this.parameters.add(new DefaultParameter(key.toString(),value==null?"":value.toString()));
 		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "Abstract CGI program";
-		}
 	
 	
 	
@@ -378,12 +375,15 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 		
 		w.writeCharacters("Author : ");
 
+		/*
 		w.writeStartElement("a");
 		w.writeAttribute("href","mailto:"+String.valueOf(getAuthorMail()));
 		w.writeAttribute("title", String.valueOf(getAuthorMail()));
 		w.writeCharacters(String.valueOf(getAuthorName()));
 		w.writeEndElement();
+		*/
 		
+		/*
 		String s=getOnlineDocUrl();
 		if(s!=null && !s.isEmpty())
 			{
@@ -393,7 +393,7 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 			w.writeAttribute("title", s);
 			w.writeCharacters(s);
 			w.writeEndElement();
-			}
+			}*/
 		
 		w.writeCharacters(" Version: ");
 		w.writeStartElement("i");
@@ -402,7 +402,7 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 		
 		w.writeCharacters(" Compilation: ");
 		w.writeStartElement("i");
-		w.writeCharacters(String.valueOf(getCompileDate()));
+		w.writeCharacters(String.valueOf(getFactory().getCompileDate()));
 		w.writeEndElement();
 		
 		
@@ -411,10 +411,9 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 	
 	abstract protected void doCGI();
 
-	
 	@Override
-	final public int doWork(String[] args)
-		{
+	public Collection<Throwable> call() throws Exception {
+		PrintStream out=stdout();
 		try {
 			parse();
 			doCGI();
@@ -424,17 +423,17 @@ public abstract class AbstractCGI extends AbstractCommandLineProgram
 			if(!isMimeHeaderPrinted())
 				{
 				setMimeHeaderPrinted(true);
-				System.out.print("Content-type: text/plain\n");
-				System.out.println();
+				out.print("Content-type: text/plain\n");
+				out.println();
 				}
-			e.printStackTrace(System.out);
+			e.printStackTrace(out);
 			}
 		finally
 			{
-			System.out.flush();
-			System.out.close();
+			out.flush();
+			out.close();
 			}
-		return 0;
+		return RETURN_OK;
 		}
 	protected void writeHTMLFooter(XMLStreamException out) throws XMLStreamException
 		{

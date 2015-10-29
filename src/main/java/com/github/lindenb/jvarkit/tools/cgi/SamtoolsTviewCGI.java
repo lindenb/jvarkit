@@ -18,16 +18,6 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 		{
 		}
 
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/TViewWeb";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "CGI/Web based version of samtools tview";
-		}
 	/*
 	private File convertFile(File f) throws IOException
 		{
@@ -416,8 +406,4 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 		}
 	
 	
-	public static void main(String[] args)
-		{
-		new SamtoolsTviewCGI().instanceMainWithExit(args);
-		}
 	}

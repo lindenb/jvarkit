@@ -33,7 +33,7 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 
 
-public class VcfRegistryCGI extends AbstractCGI {
+public class VcfRegistryCGI extends AbstractVcfRegistryCGI {
 	 private static final String GROUPID_PARAM="g";
 	    private static final String RGN_PARAM="r";
 	    private Throwable lastException=null;
