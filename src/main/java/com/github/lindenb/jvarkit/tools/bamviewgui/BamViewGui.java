@@ -92,6 +92,7 @@ import javax.swing.table.TableModel;
 
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -103,7 +104,6 @@ import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryTableModel;
-import com.github.lindenb.jvarkit.util.picard.SamFlag;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 
 
@@ -363,7 +363,7 @@ class FlagTableModel
 	@Override
 	public Object getValueAt(int rowIndex, int columnIndex)
 		{
-		SamFlag f=SamFlag.values()[rowIndex];
+		SAMFlag f=SAMFlag.values()[rowIndex];
 		return (columnIndex==0?
 				f.name():
 				f.isSet(this.flag)
@@ -371,7 +371,7 @@ class FlagTableModel
 		}
 	@Override
 	public int getRowCount() {
-		return SamFlag.values().length;
+		return SAMFlag.values().length;
 		}
 	@Override
 	public int getColumnCount() {
@@ -647,7 +647,7 @@ class BamFrame extends JDialog
 		int maxTimeSeconds=10;
 		Interval reg=null;
 		private BamInternalFrame bamintf;
-		private Set<SamFlag> g_flag_off=new HashSet<SamFlag>();
+		private Set<SAMFlag> g_flag_off=new HashSet<SAMFlag>();
 		private int g_flag_on=0;
 
 		
@@ -703,7 +703,7 @@ class BamFrame extends JDialog
 								)
 							{
 							SAMRecord rec=iter.next();
-							for(SamFlag f:g_flag_off)
+							for(SAMFlag f:g_flag_off)
 								{
 								if(f.isSet(rec.getFlags()))
 									{
@@ -816,14 +816,14 @@ class BamFrame extends JDialog
 		
 		menu=new JMenu("Flags");
 		bar.add(menu);
-			for(SamFlag flag:SamFlag.values())
+			for(SAMFlag flag:SAMFlag.values())
 			{
 			JCheckBox cbox=new JCheckBox("Require "+flag);
 			requiredFlags.add(cbox);
 			menu.add(cbox);
 			}
 		menu.add(new JSeparator());
-		for(SamFlag flag:SamFlag.values())
+		for(SAMFlag flag:SAMFlag.values())
 			{
 			JCheckBox cbox=new JCheckBox("Filter out "+flag);
 			filteringFlags.add(cbox);
@@ -901,11 +901,11 @@ class BamFrame extends JDialog
 			}
 		dataLoaderThread=new Reload();
 		
-		for(SamFlag flag:SamFlag.values())
+		for(SAMFlag flag:SAMFlag.values())
 			{
 			if(this.requiredFlags.get(flag.ordinal()).isSelected())
 				{
-				dataLoaderThread.g_flag_on |=flag.getFlag();
+				dataLoaderThread.g_flag_on |=flag.intValue();
 				}
 			if(this.filteringFlags.get(flag.ordinal()).isSelected())
 				{

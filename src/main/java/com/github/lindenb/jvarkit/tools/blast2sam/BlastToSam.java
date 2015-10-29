@@ -1,12 +1,35 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.blast2sam;
 
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
 
-import java.io.File;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import javax.xml.bind.JAXBContext;
@@ -26,7 +49,6 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
@@ -36,18 +58,27 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.blast.BlastHspAlignment;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
-public class BlastToSam extends AbstractCommandLineProgram
+public class BlastToSam extends AbstractBlastToSam
 	{
-	private SAMSequenceDictionary dictionary;
-	private Unmarshaller unmarshaller;
-	private int EXPECTED_SIZE=500;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BlastToSam.class);
 	//fool javac
 	@SuppressWarnings("unused")
 	private final static gov.nih.nlm.ncbi.blast.ObjectFactory _foolJavac=null;
+
+	
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractBlastToSam.AbstractBlastToSamCommand
+		{    
+	private SAMSequenceDictionary dictionary;
+	private Unmarshaller unmarshaller;
 	
 	private static class SequenceIteration
 		{
@@ -156,16 +187,6 @@ public class BlastToSam extends AbstractCommandLineProgram
 			}
 		}
 	
-	private BlastToSam()
-		{
-		
-		}
-	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Blast2Sam";
-		}
 	
 
 	private Iteration peekIteration(XMLEventReader r) throws XMLStreamException,JAXBException
@@ -316,7 +337,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 						SAMSequenceRecord ssr=this.dictionary.getSequence(hit.getHitDef());
 						if(ssr==null)
 							{
-							warning("Hit is not in SAMDictionary "+hit.getHitDef());
+							LOG.warn("Hit is not in SAMDictionary "+hit.getHitDef());
 							rec.setReferenceIndex(-1);
 							}
 						else
@@ -610,149 +631,92 @@ public class BlastToSam extends AbstractCommandLineProgram
 		
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -r (file)  fasta sequence file indexed with picard. Required.");
-		out.println(" -o (file.bam) filename out . Default: SAM stdout");
-		out.println(" -p (int expected size) input is an interleaved list of sequences forward and reverse (paired-ends)");
-		super.printOptions(out);
-		}
-
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean interleaved_input=false;
-		int maxRecordsInRam=10000;
-		File fileout=null;
-		String faidx=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args, super.getGetOptDefault()+ "r:o:p:"))!=-1)
+		@Override
+		public Collection<Throwable> call(String inputName) throws Exception
 			{
-			switch(c)
-				{	
-				case 'p':
-					interleaved_input=true;
-						EXPECTED_SIZE=Integer.parseInt(getopt.getOptArg());
-						break;
-				case 'r': faidx=getopt.getOptArg();break;
-				case 'o': fileout=new File(getopt.getOptArg());break;
-				default:
+			if(super.faidx==null)
+				{
+				return wrapException("Indexed fasta file missing.");
+				}
+			SAMFileWriter sfw=null;
+			XMLEventReader rx=null;
+			SAMFileHeader header=new SAMFileHeader();
+			try
+				{
+				LOG.info("opening "+faidx);
+				this.dictionary=new SAMSequenceDictionaryFactory().load(faidx);
+				header.setSortOrder(SortOrder.unsorted);
+				header.setSequenceDictionary(this.dictionary);
+				
+				
+				JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
+				this.unmarshaller=jc.createUnmarshaller();
+				XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
+				xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
+				xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
+				xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
+				xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
+				xmlInputFactory.setXMLResolver(new XMLResolver()
 					{
-					switch(handleOtherOptions(c, getopt, null))
+					@Override
+					public Object resolveEntity(String arg0, String arg1, String arg2,
+							String arg3) throws XMLStreamException
 						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+						LOG.info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
+						return null;
 						}
-					}
-				}
-			}
-		if(faidx==null)
-			{
-			error("Indexed fasta file missing.");
-			return -1;
-			}
-		SAMFileWriter sfw=null;
-		XMLEventReader rx=null;
-		SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
-		sfwf.setCreateIndex(false);
-		sfwf.setMaxRecordsInRam(maxRecordsInRam);
-		sfwf.setCreateMd5File(false);
-		sfwf.setUseAsyncIo(false);
-		SAMFileHeader header=new SAMFileHeader();
-		try
-			{
-			info("opening "+faidx);
-			this.dictionary=new SAMSequenceDictionaryFactory().load(new File(faidx));
-			header.setSortOrder(SortOrder.unsorted);
-			header.setSequenceDictionary(this.dictionary);
-			
-			
-			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
-			this.unmarshaller=jc.createUnmarshaller();
-			XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
-			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
-			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
-			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
-			xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
-			xmlInputFactory.setXMLResolver(new XMLResolver()
-				{
-				@Override
-				public Object resolveEntity(String arg0, String arg1, String arg2,
-						String arg3) throws XMLStreamException
+					});
+				if(inputName==null)
 					{
-					info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
-					return null;
+					LOG.info("Reading from stdin");
+					rx=xmlInputFactory.createXMLEventReader(stdin());
 					}
-				});
-			if(getopt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				rx=xmlInputFactory.createXMLEventReader(System.in);
-				}
-			else if(getopt.getOptInd()+1==args.length)
-				{
-				info("Reading from "+args[getopt.getOptInd()]);
-				rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(args[getopt.getOptInd()]));
-				}
-			else
-				{
-				error("Illegal number of args");
-				return -1;
-				}
+				else
+					{
+					LOG.info("Reading from "+inputName);
+					rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(inputName));
+					}
+				
+				
+				
+				SAMProgramRecord prg2=header.createProgramRecord();
+				fillHeader(rx,prg2);
+				SAMReadGroupRecord rg1=new SAMReadGroupRecord("g1");
+				rg1.setLibrary("blast");
+				rg1.setSample("blast");
+				rg1.setDescription("blast");
+				header.addReadGroup(rg1);
+				
+				
+	
 			
-			
-			SAMProgramRecord prg2=header.createProgramRecord();
-			fillHeader(rx,prg2);
-			SAMProgramRecord prg1=header.createProgramRecord();
-			prg1.setCommandLine(getProgramCommandLine());
-			prg1.setProgramVersion(getVersion());
-			prg1.setProgramName(getProgramName());
-			prg1.setPreviousProgramGroupId(prg2.getId());
-			SAMReadGroupRecord rg1=new SAMReadGroupRecord("g1");
-			rg1.setLibrary("blast");
-			rg1.setSample("blast");
-			rg1.setDescription("blast");
-			header.addReadGroup(rg1);
-			
-			
-
-			if(fileout==null)
-				{
-				sfw=sfwf.makeSAMWriter(header, false, System.out);
+				sfw=openSAMFileWriter(header, false);
+					
+	
+				
+				if(super.interleaved)
+					{
+					run_paired(sfw,rx,header);
+					}
+				else
+					{
+					run_single(sfw,rx,header);
+					}
+				
+				return RETURN_OK;
 				}
-			else
+			catch(Exception err)
 				{
-				sfw=sfwf.makeSAMOrBAMWriter(header, false, fileout);
-				}
-
-			
-			if(interleaved_input)
+				return wrapException(err);
+				}	
+			finally
 				{
-				run_paired(sfw,rx,header);
+				CloserUtil.close(sfw);
+				CloserUtil.close(rx);
 				}
-			else
-				{
-				run_single(sfw,rx,header);
-				}
-			
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}	
-		finally
-			{
-			CloserUtil.close(sfw);
-			CloserUtil.close(rx);
 			}
 		}
-
 	/**
 	 * @param args
 	 */

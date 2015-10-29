@@ -4,4 +4,29 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.bamstats04">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Coverage statistics for a BED file</description>
+<input type="sam"/>
+
+
+<options>
+	<option name="BEDILE" type="input-file" opt="B" longopt="bed" >
+		<description> capture bed file</description>
+	</option>
+	<option name="NO_DUP" type="boolean" opt="NODUP" longopt="NODUP" default="true">
+		<description>Discard duplicates</description>
+	</option>
+	<option name="NO_ORPHAN" type="boolean" opt="NO_ORPHAN" longopt="NO_ORPHAN" default="true">
+		<description>discard not properly paired</description>
+	</option>
+	<option name="NO_VENDOR" type="boolean" opt="NOVENDOR" longopt="NOVENDOR" default="true">
+		<description>discard failing Vendor Quality</description>
+	</option>
+	<option name="MIN_MAPING_QUALITY" type="int" opt="MIN_MAPING_QUALITY" longopt="MIN_MAPING_QUALITY" default="0">
+		<description>min mapping quality</description>
+	</option>
+	<option name="MIN_COV" type="int" opt="MIN_COV" longopt="MIN_COV" default="0">
+		<description>min coverage to say the position is not covered</description>
+	</option>
+</options>
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

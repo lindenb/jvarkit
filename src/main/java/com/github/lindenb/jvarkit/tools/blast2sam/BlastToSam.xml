@@ -4,4 +4,20 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.blast2sam">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>&name;</description>
+<input type="stdin-or-one"/>
+<output type="sam"/>
+
+
+<options>
+	<option name="faidx" type="input-file" opt="r" longopt="REF" argname="REF" >
+		<description id="faidx" />
+	</option>
+	<option name="interleaved" type="boolean" opt="p" longopt="interleaved" default="false" >
+		<description>input is an interleaved list of sequences forward and reverse (paired-ends)</description>
+	</option>
+	<option name="EXPECTED_SIZE" type="int" opt="d" longopt="distance" default="500" >
+		<description>paired-end: expected distance</description>
+	</option>
+</options>
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

@@ -29,174 +29,156 @@ History:
 package com.github.lindenb.jvarkit.tools.bamstats04;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
+import java.io.PrintStream;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.command.Command;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Log;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
 
-public class BamStats04 extends AbstractCommandLineProgram
+public class BamStats04 extends AbstractBamStats04
 	{
-	private static final Log LOG=Log.getInstance(BamStats04.class);
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Coverage statistics for a BED file. It uses the Cigar string instead of the start/end to get the voverage";
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamStats04.class);
 
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM file to process.",
-    		optional=false)
-	public File IN=null;
-
-    @Option(shortName= "BED", doc="BED File.",
-    		optional=false)
-	public File BEDILE=null;
-
-    @Option(shortName= "NODUP", doc="discard duplicates", optional=false)
-    public boolean NO_DUP=true;
-    
-    @Option(shortName= "NOORPHAN", doc="discard not properly paired", optional=false)
-	public boolean NO_ORPHAN=true;
-    
-    @Option(shortName= "NOVENDOR", doc="discard failing Vendor Quality", optional=false)
-	public boolean NO_VENDOR=true;
-    
-    @Option(shortName= "MIN_MAPING_QUALITY", doc="min mapping quality", optional=false)
-	public int MMQ=0;
-
-    @Option(shortName= "MIN_COV", doc="min coverage to say the position is not covered", optional=false)
-	public int MIN_COVERAGE=0;
-
-    
-    ///private boolean skipDuplicates=true;
-	//private int minQual=0;
-	//private int basesperbin=10;
-	//private int num_bin=20;
-	//private boolean cumulative=true;
-	
 	@Override
-	protected int doWork()
+	public Command createCommand()
 		{
-		BufferedReader bedIn=null;
-		SamReader samReader = null;
-		try
-			{
-			System.out.println("#chrom\tstart\tend\tlength\tmincov\tmaxcov\tmean\tnocoveragepb\tpercentcovered");
-			LOG.info("Scanning "+IN);
-			Pattern tab=Pattern.compile("[\t]");
-			String tokens[];
-			bedIn=IOUtils.openFileForBufferedReading(BEDILE);
-			
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(super.VALIDATION_STRINGENCY);
-			samReader = srf.open(IN);
-			String line=null;
-			while((line=bedIn.readLine())!=null)
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractBamStats04.AbstractBamStats04Command
+		{    
+		
+		@SuppressWarnings("resource")
+		@Override
+		protected Collection<Throwable> call(String IN) throws Exception
+			{			
+			if( BEDILE==null) return wrapException("undefined bed file");
+			PrintStream pw = null;
+			BufferedReader bedIn=null;
+			SamReader samReader = null;
+			try
 				{
-				if(line.isEmpty() || line.startsWith("#")) continue;
-				LOG.debug(line);
-				tokens=tab.split(line,5);
-				if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.BEDILE);
-				String chrom=tokens[0];
-				int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
-				int chromEnd1= Integer.parseInt(tokens[2]);
-				/* picard javadoc:  - Sequence name - Start position (1-based) - End position (1-based, end inclusive)  */
+				pw =  openFileOrStdoutAsPrintStream();
+				pw.println("#chrom\tstart\tend\tlength\tmincov\tmaxcov\tmean\tnocoveragepb\tpercentcovered");
+				LOG.info("Scanning "+IN);
+				Pattern tab=Pattern.compile("[\t]");
+				String tokens[];
+				bedIn=IOUtils.openFileForBufferedReading(BEDILE);
 				
-				
-				int counts[]=new int[chromEnd1-chromStart1+1];
-				if(counts.length==0) continue;
-				Arrays.fill(counts, 0);
-				
-				/**
-				 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
-	    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
-				 */
-				SAMRecordIterator r=samReader.queryOverlapping(chrom, chromStart1, chromEnd1);
-				while(r.hasNext())
+				samReader = openSamReader(IN);
+				String line=null;
+				while((line=bedIn.readLine())!=null)
 					{
-					SAMRecord rec=r.next();
-					if(rec.getReadUnmappedFlag()) continue;
-					if(NO_VENDOR && rec.getReadFailsVendorQualityCheckFlag()) continue;
-					if(NO_DUP && rec.getDuplicateReadFlag() ) continue;
-					if(rec.getReadPairedFlag())
+					if(line.isEmpty() || line.startsWith("#")) continue;
+					LOG.debug(line);
+					tokens=tab.split(line,5);
+					if(tokens.length<3)
 						{
-						if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
+						samReader.close();
+						bedIn.close();
+						return wrapException("bad bed line in "+line+" "+this.BEDILE);
 						}
-					if(rec.isSecondaryOrSupplementary()) continue;
-					if(!rec.getReferenceName().equals(chrom)) continue;
-					if(rec.getMappingQuality()==255 ||
-						rec.getMappingQuality()==0 ||
-						rec.getMappingQuality()< this.MMQ)
+					String chrom=tokens[0];
+					int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
+					int chromEnd1= Integer.parseInt(tokens[2]);
+					/* picard javadoc:  - Sequence name - Start position (1-based) - End position (1-based, end inclusive)  */
+					
+					
+					int counts[]=new int[chromEnd1-chromStart1+1];
+					if(counts.length==0) continue;
+					Arrays.fill(counts, 0);
+					
+					/**
+					 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
+		    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
+					 */
+					SAMRecordIterator r=samReader.queryOverlapping(chrom, chromStart1, chromEnd1);
+					while(r.hasNext())
 						{
-						continue;
-						}
-					Cigar cigar=rec.getCigar();
-					if(cigar==null) continue;
-		    		int refpos1=rec.getAlignmentStart();
-		    		for(CigarElement ce:cigar.getCigarElements())
-		    			{
-		    			CigarOperator op=ce.getOperator();
-		    			if(!op.consumesReferenceBases()) continue;
-		    			if(op.consumesReadBases())
-		    				{
-		    				for(int i=0;i< ce.getLength();++i)
-	    		    			{
-								if(refpos1+i>= chromStart1 && refpos1+i<=chromEnd1)
-									{
-									counts[refpos1+i-chromStart1]++;
-									}
+						SAMRecord rec=r.next();
+						if(rec.getReadUnmappedFlag()) continue;
+						if(NO_VENDOR && rec.getReadFailsVendorQualityCheckFlag()) continue;
+						if(NO_DUP && rec.getDuplicateReadFlag() ) continue;
+						if(rec.getReadPairedFlag())
+							{
+							if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
+							}
+						if(rec.isSecondaryOrSupplementary()) continue;
+						if(!rec.getReferenceName().equals(chrom)) continue;
+						if(rec.getMappingQuality()==255 ||
+							rec.getMappingQuality()==0 ||
+							rec.getMappingQuality()< super.MIN_MAPING_QUALITY)
+							{
+							continue;
+							}
+						Cigar cigar=rec.getCigar();
+						if(cigar==null) continue;
+			    		int refpos1=rec.getAlignmentStart();
+			    		for(CigarElement ce:cigar.getCigarElements())
+			    			{
+			    			CigarOperator op=ce.getOperator();
+			    			if(!op.consumesReferenceBases()) continue;
+			    			if(op.consumesReadBases())
+			    				{
+			    				for(int i=0;i< ce.getLength();++i)
+		    		    			{
+									if(refpos1+i>= chromStart1 && refpos1+i<=chromEnd1)
+										{
+										counts[refpos1+i-chromStart1]++;
+										}
+				    				}
 			    				}
-		    				}
-		    			refpos1+=ce.getLength();
-		    			}
+			    			refpos1+=ce.getLength();
+			    			}
+						}
+					
+					r.close();
+					
+					Arrays.sort(counts);
+					
+					int count_no_coverage=0;
+					double mean=0;
+					for(int cov:counts)
+						{
+						if(cov<=super.MIN_COV) ++count_no_coverage;
+						mean+=cov;
+						}
+					mean/=counts.length;
+					
+					pw.println(
+							tokens[0]+"\t"+tokens[1]+"\t"+tokens[2]+"\t"+
+							counts.length+"\t"+
+							counts[0]+"\t"+
+							counts[counts.length-1]+"\t"+
+							mean+"\t"+
+							count_no_coverage+"\t"+
+							(int)(((counts.length-count_no_coverage)/(double)counts.length)*100.0)
+							);
 					}
-				
-				r.close();
-				
-				Arrays.sort(counts);
-				
-				int count_no_coverage=0;
-				double mean=0;
-				for(int cov:counts)
-					{
-					if(cov<=MIN_COVERAGE) ++count_no_coverage;
-					mean+=cov;
-					}
-				mean/=counts.length;
-				
-				System.out.println(
-						tokens[0]+"\t"+tokens[1]+"\t"+tokens[2]+"\t"+
-						counts.length+"\t"+
-						counts[0]+"\t"+
-						counts[counts.length-1]+"\t"+
-						mean+"\t"+
-						count_no_coverage+"\t"+
-						(int)(((counts.length-count_no_coverage)/(double)counts.length)*100.0)
-						);
+				return RETURN_OK;
 				}
-			return 0;
+		catch(Exception err)
+			{
+			return wrapException(err);
 			}
-	catch(Exception err)
-		{
-		LOG.error(err);
-		return -1;
+		finally
+			{
+			CloserUtil.close(pw);
+			CloserUtil.close(bedIn);
+			CloserUtil.close(samReader);
+			}
 		}
-	finally
-		{
-		CloserUtil.close(bedIn);
-		CloserUtil.close(samReader);
-		}
+
 	}
 	
 	/**

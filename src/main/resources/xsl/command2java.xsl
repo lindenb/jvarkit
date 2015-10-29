@@ -510,10 +510,10 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		
 		
-		<xsl:choose>
-		<xsl:when test="c:output/@type='vcf'">
+
+		<xsl:if test="c:output/@type='vcf' and c:input/@type='vcf'">
 		
-		<xsl:if test="c:input/@type='vcf'">
+
 		
 		protected java.util.Collection&lt;Throwable&gt; doVcfToVcf(
 			final String inputName,
@@ -543,6 +543,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 
 		</xsl:if>
+		
+		
+		<xsl:if test="c:output/@type='vcf' or c:snippet[@id='write-vcf']">
 		
 			
 		/** count variants */
@@ -619,8 +622,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				}
 			return new VariantContextWriterCounter(delegate);
 			}
-		</xsl:when>
-		</xsl:choose>
+		</xsl:if>
 		
 
 		<xsl:if test="c:input/@type='sam' or c:snippet[@id='read-sam']">

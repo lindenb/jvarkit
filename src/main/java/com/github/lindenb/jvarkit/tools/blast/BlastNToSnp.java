@@ -29,7 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.blast;
 
 import java.io.PrintWriter;
-import java.util.List;
+import java.util.Collection;
 
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
@@ -50,33 +50,32 @@ import javax.xml.stream.events.XMLEvent;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.command.Command;
 
 
 
-public class BlastNToSnp extends AbstractKnimeApplication {
-	private Unmarshaller unmarshaller;
-	private Marshaller marshaller;
-	private int minGapSize=3;
+public class BlastNToSnp extends AbstractBlastNToSnp
+	{
 	/* force javac to compile */
 	@SuppressWarnings("unused")
 	private gov.nih.nlm.ncbi.blast.ObjectFactory _ignore_for_javac=null;
+
 	
-	private BlastNToSnp()
-		{
-		
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BlastnToSnp";
-		}
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BlastNToSnp.class);
+
 	
 	@Override
-	public String getProgramDescription() {
-		return "print indel/mismatch in a blastn stream";
+	public Command createCommand() {
+		return new MyCommand();
 		}
+
+	static private class MyCommand extends AbstractBlastNToSnp.AbstractBlastNToSnpCommand
+		{    
+		private Unmarshaller unmarshaller;
+		private Marshaller marshaller;
+
+	
 	
 	private Iteration peekIteration(XMLEventReader r) throws XMLStreamException,JAXBException
 		{
@@ -160,7 +159,7 @@ private void run(
 		++numIterations;
 		if(iter1.getIterationHits().getHit().isEmpty())
 			{
-			info("No hit found for "+iter1.getIterationQueryDef());
+			LOG.info("No hit found for "+iter1.getIterationQueryDef());
 			++numNoHit;
 			continue;
 			}
@@ -305,49 +304,14 @@ private void run(
 			}
 		
 		}//end while read
-	info("ITERATIONS : " +numIterations);
-	info("ONLY_PERFECT_MATCH : " +numPerfectMath);
-	info("NO_HIT : " +numNoHit);
+	LOG.info("ITERATIONS : " +numIterations);
+	LOG.info("ONLY_PERFECT_MATCH : " +numPerfectMath);
+	LOG.info("NO_HIT : " +numNoHit);
 
 	}
 
-	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.print(" -o (file) output file. (default: stdout)"); 
-		out.print(" -n min gap size (default :"+this.minGapSize+")"); 
-		super.printOptions(out);
-		}
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:n:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'n': this.minGapSize=Integer.parseInt(opt.getOptArg());break;
-				case 'o': setOutputFile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
-	
-		@Override
-		public int executeKnime(List<String> args)
+	protected Collection<Throwable> call(String inputName) throws Exception
 			{
 			PrintWriter pw=null;
 			XMLEventReader rx=null;
@@ -370,41 +334,28 @@ private void run(
 					public Object resolveEntity(String arg0, String arg1, String arg2,
 							String arg3) throws XMLStreamException
 						{
-						info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
+						LOG.info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
 						return null;
 						}
 					});
-				if(args.isEmpty())
+				if(inputName==null)
 					{
-					info("Reading from stdin");
-					rx=xmlInputFactory.createXMLEventReader(System.in);
-					}
-				else if(args.size()==1)
-					{
-					info("Reading from "+args.get(0));
-					rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(args.get(0)));
+					LOG.info("Reading from stdin");
+					rx=xmlInputFactory.createXMLEventReader(stdin());
 					}
 				else
 					{
-					error("Illegal number of args");
-					return -1;
+					LOG.info("Reading from "+inputName);
+					rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(inputName));
 					}
-				if(getOutputFile()==null)
-					{
-					pw= new PrintWriter(System.out);
-					}
-				else
-					{
-					pw= new PrintWriter(getOutputFile());
-					}
+				pw = openFileOrStdoutAsPrintWriter();
 				run(pw,rx);
 				pw.flush();
-				return 0;
+				return RETURN_OK;
 				}
 			catch(Exception err)
 				{
-				error(err);
-				return -1;
+				return wrapException(err);
 				}
 			finally
 				{
@@ -412,7 +363,8 @@ private void run(
 				CloserUtil.close(pw);
 				}
 			}
-
+		}
+	
 	/**
 	 * @param args
 	 */
