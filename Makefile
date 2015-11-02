@@ -172,7 +172,7 @@ endef
 # All executables
 #
 APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
-	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
+	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2raster	bam2svg \
 	bam2xml bam2wig		bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamtreepack	bamviewgui	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
@@ -235,7 +235,6 @@ $(eval $(call compile-cmd,allelefreqcalc,${jvarkit.package}.tools.misc.AlleleFre
 $(eval $(call compile-cmd,bam2xml,${jvarkit.package}.tools.bam2xml.Bam2Xml))
 $(eval $(call compile-htsjdk-cmd,almostsortedvcf,${jvarkit.package}.tools.sortvcfonref.AlmostSortedVcf))
 $(eval $(call compile-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate))
-$(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToFastq))
 $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster))
 $(eval $(call compile-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
 $(eval $(call compile-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig))

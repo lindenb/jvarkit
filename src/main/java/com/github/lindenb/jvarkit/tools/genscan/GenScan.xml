@@ -3,5 +3,21 @@
  <!ENTITY name "GenScan">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.genscan">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	extends="com.github.lindenb.jvarkit.tools.genscan.AbstractBaseGeneScan"
+	extends-command="com.github.lindenb.jvarkit.tools.genscan.AbstractBaseGeneScan.AbstractBaseGeneScanCommand"
+	>
+<description>Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).</description>
+<snippet id="sorting-collection"/>
+<input type="stdin-or-one"/>
+
+<options>
+	<option name="faidxFile" type="input-file" opt="R" longopt="REF"  >
+		<description id="faidx"/>
+	</option>
+	
+</options>
+
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

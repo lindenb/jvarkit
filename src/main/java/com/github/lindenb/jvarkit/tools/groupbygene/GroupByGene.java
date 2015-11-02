@@ -30,11 +30,11 @@ package com.github.lindenb.jvarkit.tools.groupbygene;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -56,9 +56,8 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.KnimeApplication;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -71,14 +70,23 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
  *
  */
 public class GroupByGene
-	extends AbstractCommandLineProgram
-	implements KnimeApplication
+	extends AbstractGroupByGene
 	{
-	private File outputFile=null;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(GroupByGene.class);
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractGroupByGene.AbstractGroupByGeneCommand
+		{    
+
+	
 	private Set<String> sampleNames = new TreeSet<String>();
-	private Set<String> user_gene_tags = new HashSet<String>();
-	private SortingCollection<Call> sortingCollection = null;
 	private boolean xml_output = false;
+
+	private SortingCollection<Call> sortingCollection = null;
 	
 	private static class GeneName
 		{
@@ -189,9 +197,7 @@ public class GroupByGene
 	private SnpEffPredictionParser snpEffPredictionParser=null;
 	private VepPredictionParser vepPredictionParser=null;
 	
-	public GroupByGene()
-		{
-		}
+	
 	
 	private Set<GeneName> getGenes(VariantContext ctx)
 		{
@@ -234,7 +240,7 @@ public class GroupByGene
 			s=pred.getEnsemblTranscript();
 			if(s!=null)  set.add(new GeneName(s,"snpeff-ensembl-transcript-name"));
 			}
-		for(String user_gene_tag:user_gene_tags)
+		for(String user_gene_tag:super.user_gene_tags)
 			{
 			if(user_gene_tag.isEmpty()) continue;
 			if(user_gene_tag.equals(".")) continue;
@@ -265,23 +271,10 @@ public class GroupByGene
 		return set;
 		}
 	
-	public void addUserGeneTag(String t) {
-		this.user_gene_tags.add(t);
-		}
 	
 	private void dump() throws IOException,XMLStreamException
 		{
-		PrintStream pw = null;
-		if(this.outputFile==null)
-			{
-			info("writing to stdout");
-			pw=System.out;
-			}
-		else
-			{
-			info("writing to "+this.outputFile);
-			pw= new PrintStream(this.outputFile);
-			}
+		PrintStream pw = openFileOrStdoutAsPrintStream();
 		
 		XMLStreamWriter w=null;
 		if(xml_output)
@@ -424,7 +417,7 @@ public class GroupByGene
 			w.close();
 			}
 		pw.flush();
-		if(outputFile!=null) pw.close();
+		pw.close();
 		}
 	
 	private void read(InputStream in)
@@ -488,36 +481,31 @@ public class GroupByGene
 		}
 	
 
-	@Override
-	public int initializeKnime() {
-		
-		return 0;
-	}
 
 	@Override
-	public int executeKnime(List<String> args)
-		{
-		int maxRecordsInRAM=10000;
+	public Collection<Throwable> call() throws Exception {
+			
+		final List<String> args = getInputFiles();
 		try
 			{
 			sortingCollection=SortingCollection.newInstance(
 					Call.class,
 					new CallCodec(),
 					new CallCmp(),
-					maxRecordsInRAM
+					getMaxRecordsInRam()
 					);
 			sortingCollection.setDestructiveIteration(true);
 			this.sampleNames.clear();
 			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				read(System.in);
+				LOG.info("Reading from stdin");
+				read(stdin());
 				}
 			else
 				{
 				for(String filename:args)
 					{
-					info("Reading from "+filename);
+					LOG.info("Reading from "+filename);
 					InputStream in=IOUtils.openURIForReading(filename);
 					read(in);
 					in.close();
@@ -525,91 +513,23 @@ public class GroupByGene
 				}
 			sortingCollection.doneAdding();
 	
-			info("Done reading. Now printing results.");
+			LOG.info("Done reading. Now printing results.");
 	
 			dump();
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			if(sortingCollection!=null) sortingCollection.cleanup();
+			sortingCollection=null;
 			}
 		}
 
-	@Override
-	public void disposeKnime() {
-		
 	}
-
-	@Override
-	public void checkKnimeCancelled() {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void setOutputFile(File out) {
-		this.outputFile=out;
-	}
-
-	
-
-	@Override
-	public String getProgramDescription() {
-		return "Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -X XML output");
-		out.println(" -T (tag) add Tag in INFO field containing the name of the genes.");
-		out.println(" -o (file) output file . Default stdout.");
-		
-		super.printOptions(out);
-		}
-	
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/GroupByGene";
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		
-
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"T:Xo:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'X': xml_output=true;break;
-				case 'T': this.addUserGeneTag(opt.getOptArg());break;
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		List<String> L=new ArrayList<String>();
-		for(int i=opt.getOptInd();i<args.length;++i) L.add(args[i]);
-		return this.executeKnime(L);
-		}
 	
 	public static void main(String[] args)
 		{

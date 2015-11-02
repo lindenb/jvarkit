@@ -4,4 +4,20 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.liftover">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Lift-over a BED file.</description>
+
+
+<options>
+	<option name="liftOverFile" type="input-file" opt="f" longopt="chain">
+		<description>LiftOver chain file</description>
+	</option>
+	<option name="minMatch" type="double" opt="m" longopt="minMatch" default="0.95">
+		<description> lift over min-match</description>
+	</option>
+</options>
+
+
+
+<arguments> </arguments>
+<!-- __PLACEHOLDER__ -->
+</app>

@@ -1,9 +1,8 @@
 package com.github.lindenb.jvarkit.tools.liftover;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -27,27 +26,26 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfLiftOver extends AbstractVCFFilter2
+public class VcfLiftOver extends AbstractVcfLiftOver
 	{
-	private LiftOver liftOver=null;
-	private File failedFile=null;
-	private SAMSequenceDictionary newDict=null;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfLiftOver.class);
 
 	@Override
-	public String getProgramDescription() {
-		return "Lift-over a VCF file.";
+	public Command createCommand() {
+		return new MyCommand();
 		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfLiftOver";
-		}
-	
+
+	static private class MyCommand extends AbstractVcfLiftOver.AbstractVcfLiftOverCommand
+		{    
+	private LiftOver liftOver=null;
+	private SAMSequenceDictionary newDict=null;
+
 	protected Allele revcomp(Allele a)
 		{
 		if(a.isNoCall()) return a;
@@ -62,9 +60,8 @@ public class VcfLiftOver extends AbstractVCFFilter2
 		}
 
 	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
-		{
+		protected Collection<Throwable> doVcfToVcf(String inputName,
+				VcfIterator in, VariantContextWriter out) throws IOException {
 		final String TAG="LIFTOVER";
 		VariantContextWriter failed=null;
 		
@@ -74,8 +71,7 @@ public class VcfLiftOver extends AbstractVCFFilter2
 		if(this.failedFile!=null)
 			{
 			VCFHeader header2=new VCFHeader(header);
-			header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			addMetaData(header2);
 			failed=VCFUtils.createVariantContextWriter(failedFile);
 			failed.writeHeader(header2);
 			}
@@ -85,7 +81,7 @@ public class VcfLiftOver extends AbstractVCFFilter2
 		if(newDict==null)
 			{
 			header3=new VCFHeader(header);
-			warning("##contig files should be changed.");
+			LOG.warn("##contig files should be changed.");
 			}
 		else
 			{
@@ -104,10 +100,7 @@ public class VcfLiftOver extends AbstractVCFFilter2
 					hh,header.getGenotypeSamples()
 					);
 			}
-		
-		
-		header3.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		header3.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		addMetaData(header3);
 		header3.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String,"Chromosome|Position before liftOver."));
 		out.writeHeader(header3);
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
@@ -157,67 +150,30 @@ public class VcfLiftOver extends AbstractVCFFilter2
 				}
 			}
 		CloserUtil.close(failed);	
-		}
-	
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -f (chain-file) LiftOver file. Required.");
-		out.println(" -m (double) lift over min-match. default:"+LiftOver.DEFAULT_LIFTOVER_MINMATCH);
-		out.println(" -X (file.vcf) write variants failing the liftOver here. Optional.");
-		out.println(" -D (reference) indexed reference file with the new sequence dictionary. Optional.");
-		super.printOptions(out);
+		return RETURN_OK;
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		double minMatch=LiftOver.DEFAULT_LIFTOVER_MINMATCH;
-		File liftOverFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "f:m:X:D:"))!=-1)
+		protected Collection<Throwable> call(String inputName) throws Exception
 			{
-			switch(c)
+			try {
+				if(liftOverFile==null)
 				{
-				case 'D': 
-					{
-					try
-						{
-						this.newDict=new SAMSequenceDictionaryFactory().load(new File(opt.getOptArg()));
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
-					break;
-					}
-				case 'X': this.failedFile=new File(opt.getOptArg()); break;
-				case 'f': liftOverFile=new File(opt.getOptArg()); break;
-				case 'm': minMatch=Double.parseDouble(opt.getOptArg()); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				return wrapException("LiftOver file is undefined.");
+				}
+			if(REF==null)
+				{
+				return wrapException("REF undefined.");
+				}
+			this.newDict=new SAMSequenceDictionaryFactory().load(REF);
+			this.liftOver=new LiftOver(liftOverFile);
+			this.liftOver.setLiftOverMinMatch(minMatch);
+			return doVcfToVcf(inputName);
+				} catch (Exception err) {
+				return wrapException(err);
 				}
 			}
-		if(liftOverFile==null)
-			{
-			error("LiftOver file is undefined.");
-			return -1;
-			}
-		this.liftOver=new LiftOver(liftOverFile);
-		this.liftOver.setLiftOverMinMatch(minMatch);
-		return doWork(opt.getOptInd(), args);
 		}
-
 	/**
 	 * @param args
 	 */

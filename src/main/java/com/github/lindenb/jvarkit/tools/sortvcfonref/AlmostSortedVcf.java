@@ -1,13 +1,13 @@
 package com.github.lindenb.jvarkit.tools.sortvcfonref;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 
 import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 
 import htsjdk.samtools.util.CloserUtil;
 
@@ -15,25 +15,20 @@ import htsjdk.samtools.util.CloserUtil;
  * AlmostSortedVcfOnRef
  *
  */
-public class AlmostSortedVcf extends AbstractCommandLineProgram
+public class AlmostSortedVcf extends AbstractAlmostSortedVcf
 	{
-	private PrintWriter out=null;
-    private int MAX_RECORDS_IN_RAM=1000;
-    
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/AlmostSortedVcf";
-    	}
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(AlmostSortedVcf.class);
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractAlmostSortedVcf.AbstractAlmostSortedVcfCommand
+		{    
 	
-    private AlmostSortedVcf()
-    	{
-    	
-    	}
-    
-    @Override
-    public String getProgramDescription() {
-    	return "Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.";
-    	}
+	
+  
     private static class ChromPosLine
     	implements Comparable<ChromPosLine>
     	{
@@ -81,59 +76,24 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
     		}
     	}
 	
-	
-	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -N (int) max records in ram. default: "+MAX_RECORDS_IN_RAM);
-		super.printOptions(out);
-		}
-    
-    @Override
-    public int doWork(String[] args)
-    	{
-    
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"N:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'N': MAX_RECORDS_IN_RAM=Math.max( Integer.parseInt(opt.getOptArg()),10);break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-    	
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		PrintWriter out=null;
 		LineIterator in=null;
 		int n_fixed=0;
 		try
 			{
-			this.out=new PrintWriter(System.out);
+			out= openFileOrStdoutAsPrintWriter();
 		    ArrayList<ChromPosLine> buffer=new ArrayList<ChromPosLine>(this.MAX_RECORDS_IN_RAM);
-			int ret=0;
-			if(opt.getOptInd()==args.length)
+			if(inputName==null)
 				{
-				in=IOUtils.openStdinForLineIterator();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				in=IOUtils.openURIForLineIterator(filename);
+				in=IOUtils.openStreamForLineIterator(stdin());
 				}
 			else
 				{
-				error("Illegal number of arguments.");
-				return -1;
+				in=IOUtils.openURIForLineIterator(inputName);
 				}
+			
 			
 			while(in.hasNext() && in.peek().startsWith("#"))
 				{
@@ -145,7 +105,7 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
 				String line=in.next();
 				if(line.startsWith("#"))
 					{
-					throw new IOException("Bad VCF file in "+line);
+					return wrapException("Bad VCF file in "+line);
 					}
 				ChromPosLine cpl=new ChromPosLine(line);
 				
@@ -160,7 +120,7 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
 						{
 						for(ChromPosLine other: buffer)
 							{
-							this.out.println(other.line);
+							out.println(other.line);
 							}
 						buffer.clear();
 						buffer.add(cpl);
@@ -172,14 +132,14 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
 							{
 							index--;
 							}
-						if(index==0) throw new IOException("Too many variants misplaced. use a larger 'max-records-in-ram' or use a classic vcf-sorter");
+						if(index==0) return wrapException("Too many variants misplaced. use a larger 'max-records-in-ram' or use a classic vcf-sorter");
 						if(index!=buffer.size()) ++n_fixed;
 						buffer.add(index, cpl);
 						
 						//flush buffer if needed
 						while(!buffer.isEmpty() &&buffer.size() > MAX_RECORDS_IN_RAM)
 							{
-							this.out.println(buffer.remove(0).line);
+							out.println(buffer.remove(0).line);
 							}
 
 						}
@@ -191,24 +151,23 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
 			//flush buffer
 			while(!buffer.isEmpty())
 				{
-				this.out.println(buffer.remove(0).line);
+				out.println(buffer.remove(0).line);
 				}
 			
-			this.out.flush();
+			out.flush();
 			if(n_fixed==0)
 				{
-				info("No VCF position was fixed: worth using "+getProgramName()+" !");
+				LOG.info("No VCF position was fixed: worth using "+getName()+" !");
 				}
 			else if(n_fixed>0)
 				{
-				info(""+n_fixed+" VCF positions were fixed: worth using "+getProgramName()+ " !");
+				LOG.info(""+n_fixed+" VCF positions were fixed: worth using "+getName()+ " !");
 				}
-			return ret;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -216,13 +175,13 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
 			CloserUtil.close(in);
 			}
     	}
+		}
     
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
 	new AlmostSortedVcf().instanceMainWithExit(args);
-
 	}
 
 }

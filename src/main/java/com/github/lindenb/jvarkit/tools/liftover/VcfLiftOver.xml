@@ -4,4 +4,79 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.liftover">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Lift-over a VCF file</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+<options>
+	<option name="liftOverFile" type="input-file" opt="f" longopt="chain">
+		<description>LiftOver chain file</description>
+	</option>
+	<option name="failedFile" type="output-file" opt="X" longopt="failed">
+		<description>write variants failing the liftOver here</description>
+	</option>
+	<option name="minMatch" type="double" opt="m" longopt="minMatch" default="0.95">
+		<description> lift over min-match</description>
+	</option>
+	<option name="REF" type="input-file" opt="R" longopt="REF" >
+		<description>indexed reference file with the new sequence dictionary. Optional.</description>
+	</option>
+</options>
+
+
+<documentation>
+<h:h1>Deprecated</h:h1>
+Use GATK LiftoverVariants https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_variantutils_LiftoverVariants.php
+
+
+<h:h3>Motivation</h:h3>
+[LiftOver](http://genome.ucsc.edu/cgi-bin/hgLiftOver) a VCF file. The program uses the following picard LiftOver class: http://picard.sourceforge.net/javadoc/net/sf/picard/liftover/LiftOver.html
+
+<h:h3>Warning</h:h3>
+
+The **##contig=** lines are not changed if option -D is not used.
+
+The program currently doesn't look at the strand.
+
+<h:h3>Example</h:h3>
+Lift over a hg19 file to hg18
+
+Before liftover:
+<h:pre class="bash"><!-- $  curl -s "https://raw.github.com/arq5x/gemini/master/test/test5.vep.snpeff.vcf" | grep -v "#
+
+chr1	145273345	.	T	C	289.85	.	.	GT:AD:DP:GQ:PL	0/0:226,22:250:99:0,158,4259	0/1:224,24:250:5.77:6,0,5314	0/1:219,28:249:57.30:57,0,5027	0/1:215,34:250:99:269,0,3796
+chr1	156011444	.	T	C	2523.46	.	.	GT:AD:DP:GQ:PL	0/1:24,15:40:99:214,0,443	0/1:32,36:68:99:702,0,794	1/1:1,59:61:99:1656,132,0	0/0:34,1:35:69.10:0,69,717
+chr5	64982321	.	T	C	61.12	.	.	GT:AD:DP:GQ:PL	1/1:0,2:2:6:58,6,0	1/1:0,1:1:3.01:37,3,0	./.	./.
+chr10	1142208	.	T	C	3404.30	.	.	GT:AD:DP:GQ:PL	1/1:1,37:39:87.16:940,87,0	1/1:0,29:29:78.20:899,78,0	1/1:0,24:24:66.14:729,66,0	1/1:0,30:30:75.18:836,75,0
+chr10	126678092	.	G	A	89.08	.	.	GT:AD:DP:GQ:PL	0/0:64,3:67:99:0,165,1505	0/0:11,1:12:7.31:0,7,240	0/0:52,10:62:54.97:0,55,1263	0/1:35,9:44:99:125,0,693
+chr10	135210791	.	T	C	65.41	.	.	GT:AD:DP:GQ:PL	0/0:4,0:4:9:0,9,84	1/1:0,3:3:6.02:74,6,0	1/1:0,1:1:3.01:37,3,0	0/0:3,0:3:9.02:0,9,100
+chr13	48873835	.	G	A	58.95	.	.	GT:AD:DP:GQ:PL	./.	./.	1/1:0,2:2:6.01:62,6,0	1/1:0,1:1:3.01:31,3,0
+chr20	36779424	.	G	A	128.76	.	.	GT:AD:DP:GQ:PL	0/0:49,1:52:63.68:0,64,969	0/0:17,0:17:30.05:0,30,320	0/0:93,0:94:99:0,216,2384	0/1:24,9:33:99:165,0,505
+chrX	17819377	.	T	C	7515.25	.	.	GT:AD:DP:GQ:PL	1/1:0,125:126:99:2343,237,0	1/1:0,26:26:78.14:837,78,0	1/1:0,90:92:99:2640,244,0	1/1:0,74:75:99:1695,171,0
+ --></h:pre>
+Running the liftover:
+
+<h:pre class="bash"><!-- $  curl -s "https://raw.github.com/arq5x/gemini/master/test/test5.vep.snpeff.vcf" |\
+  java -jar dist/vcfliftover.jar \
+      -f <( curl -s "http://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz" | gunzip -c ) \
+      -X failing.vcf |\
+grep -v "#"
+
+chr1	143984702	.	T	C	289.85	.	LIFTOVER=chr1|145273345	GT:AD:DP:GQ:PL0/0:226,22:250:99:0,158,4259	0/1:224,24:250:5.77:6,0,5314	0/1:219,28:249:57.30:57,0,5027	0/1:215,34:250:99:269,0,3796
+chr1	154278068	.	T	C	2523.46	.	LIFTOVER=chr1|156011444	GT:AD:DP:GQ:PL0/1:24,15:40:99:214,0,443	0/1:32,36:68:99:702,0,794	1/1:1,59:61:99:1656,132,0	0/0:34,1:35:69.10:0,69,717
+chr5	65018077	.	T	C	61.12	.	LIFTOVER=chr5|64982321	GT:AD:DP:GQ:PL1/1:0,2:2:6:58,6,0	1/1:0,1:1:3.01:37,3,0	./.	./.
+chr10	1132208	.	T	C	3404.30	.	LIFTOVER=chr10|1142208	GT:AD:DP:GQ:PL	1/1:1,37:39:87.16:940,87,0	1/1:0,29:29:78.20:899,78,0	1/1:0,24:24:66.14:729,66,0	1/1:0,30:30:75.18:836,75,0
+chr10	126668082	.	G	A	89.08	.	LIFTOVER=chr10|126678092	GT:AD:DP:GQ:PL0/0:64,3:67:99:0,165,1505	0/0:11,1:12:7.31:0,7,240	0/0:52,10:62:54.97:0,55,1263	0/1:35,9:44:99:125,0,693
+chr10	135060781	.	T	C	65.41	.	LIFTOVER=chr10|135210791	GT:AD:DP:GQ:PL0/0:4,0:4:9:0,9,84	1/1:0,3:3:6.02:74,6,0	1/1:0,1:1:3.01:37,3,0	0/0:3,0:3:9.02:0,9,100
+chr13	47771836	.	G	A	58.95	.	LIFTOVER=chr13|48873835	GT:AD:DP:GQ:PL./.	./.	1/1:0,2:2:6.01:62,6,0	1/1:0,1:1:3.01:31,3,0
+chr20	36212838	.	G	A	128.76	.	LIFTOVER=chr20|36779424	GT:AD:DP:GQ:PL0/0:49,1:52:63.68:0,64,969	0/0:17,0:17:30.05:0,30,320	0/0:93,0:94:99:0,216,2384	0/1:24,9:33:99:165,0,505
+chrX	17729298	.	T	C	7515.25	.	LIFTOVER=chrX|17819377	GT:AD:DP:GQ:PL1/1:0,125:126:99:2343,237,0	1/1:0,26:26:78.14:837,78,0	1/1:0,90:92:99:2640,244,0	1/1:0,74:75:99:1695,171,0
+
+
+
+ --></h:pre>
+
+</documentation>
+
+
+<!-- __PLACEHOLDER__ --></app>

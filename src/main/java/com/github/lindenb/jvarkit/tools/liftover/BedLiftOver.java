@@ -1,14 +1,14 @@
 package com.github.lindenb.jvarkit.tools.liftover;
 
-import java.io.File;
 import java.io.PrintStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.util.Interval;
@@ -16,20 +16,21 @@ import htsjdk.samtools.util.CloserUtil;
 
 
 
-public class BedLiftOver extends AbstractCommandLineProgram
+public class BedLiftOver extends AbstractBedLiftOver
 	{
-	private LiftOver liftOver=null;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BedLiftOver.class);
+
 	@Override
-	public String getProgramDescription() {
-		return "Lift-over a BED file.";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BedLiftOver";
+	public Command createCommand() {
+		return new MyCommand();
 		}
 
+	static private class MyCommand extends AbstractBedLiftOver.AbstractBedLiftOverCommand
+		{    
+		private LiftOver liftOver=null;
+
 	
-	private void scan(LineIterator r)
+	private void scan(PrintStream out,LineIterator r)
 		{
 		Pattern tab=Pattern.compile("\t");
 		while(r.hasNext())
@@ -45,14 +46,14 @@ public class BedLiftOver extends AbstractCommandLineProgram
 			Interval dest=this.liftOver.liftOver(srcInterval);
 			if(dest!=null)
 				{
-				System.out.print(dest.getContig());
-				System.out.print('\t');
-				System.out.print(dest.getStart()-1);
-				System.out.print('\t');
-				System.out.print(dest.getEnd());
-				System.out.print('\t');
-				System.out.print(line);
-				System.out.println();
+				out.print(dest.getContig());
+				out.print('\t');
+				out.print(dest.getStart()-1);
+				out.print('\t');
+				out.print(dest.getEnd());
+				out.print('\t');
+				out.print(line);
+				out.println();
 				}
 			else
 				{
@@ -61,92 +62,69 @@ public class BedLiftOver extends AbstractCommandLineProgram
 					{	
 					for(LiftOver.PartialLiftover plo:L)
 						{	
-						System.out.print("#");
-						System.out.print(tokens[0]);
-						System.out.print('\t');
-						System.out.print(tokens[1]);
-						System.out.print('\t');
-						System.out.print(tokens[2]);
-						System.out.print('\t');
-						System.out.println(plo);
+						out.print("#");
+						out.print(tokens[0]);
+						out.print('\t');
+						out.print(tokens[1]);
+						out.print('\t');
+						out.print(tokens[2]);
+						out.print('\t');
+						out.println(plo);
 						}
 					}
 				else
 					{
-					System.out.print("#");
-					System.out.print(line);
+					out.print("#");
+					out.print(line);
 					}
 				}			
 			}
 		}
 	
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -f (chain-file) LiftOver file. Required.");
-		out.println(" -m (double) lift over min-match. default:"+LiftOver.DEFAULT_LIFTOVER_MINMATCH);
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		double minMatch=LiftOver.DEFAULT_LIFTOVER_MINMATCH;
-		File liftOverFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "f:m:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'f': liftOverFile=new File(opt.getOptArg()); break;
-				case 'm': minMatch=Double.parseDouble(opt.getOptArg()); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public Collection<Throwable> call() throws Exception {
 		if(liftOverFile==null)
 			{
-			error("LiftOver file is undefined.");
-			return -1;
+			return wrapException("LiftOver file is undefined.");
 			}
-		this.liftOver=new LiftOver(liftOverFile);
-		this.liftOver.setLiftOverMinMatch(minMatch);
+		List<String> args = getInputFiles();
+		PrintStream out=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			this.liftOver=new LiftOver(liftOverFile);
+			this.liftOver.setLiftOverMinMatch(minMatch);
+			out=openFileOrStdoutAsPrintStream();
+				
+			if(args.isEmpty())
 				{
-				LineIterator r=IOUtils.openStdinForLineIterator();
-				scan(r);
+				LineIterator r=IOUtils.openStreamForLineIterator(stdin());
+				scan(out,r);
 				CloserUtil.close(r);
 				}
 			else
 				{
-				for(int optind=opt.getOptInd();optind< args.length;++optind)
+				for(String filename : args)
 					{
-					String filename=args[optind];
+					LOG.info("read "+filename);
 					LineIterator r=IOUtils.openURIForLineIterator(filename);
-					scan(r);
+					scan(out,r);
 					CloserUtil.close(r);
 					}
 				}
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
-		
+		finally
+			{
+			this.liftOver=null;
+			CloserUtil.close(out);
+			}
 		}
-
+		}
+	
 	/**
 	 * @param args
 	 */
