@@ -9,20 +9,6 @@
 <output type="xml"/>
 
 
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -R (ref) fasta reference file indexed with samtools. Required.");
-		out.println(" -w (int: size)  default:"+viewRect.width);
-		super.printOptions(out);
-		}
-
-				case 'u': this.svgMapUri=opt.getOptArg();break;
-				case 'T': =true;break;
-				
-				case 'R': faidx=new File(opt.getOptArg());break;
-				case 'o': fileout=new File(opt.getOptArg());break;
-
 
 <options>
 	<option name="faidx" type="input-file" opt="R" longopt="REF" >
@@ -38,6 +24,38 @@
 		<description>square size</description>
 	</option>
 </options>
+
+<documentation>
+<h:h3>Example</h:h3>
+
+<h:pre class=""><!-- head map.bed
+
+1	141535	143008	taiwan
+1	564463	570304	china
+1	564463	570304	china
+1	564463	564813	canada
+1	564510	569779	estonia
+1	564510	569779	estonia
+1	564510	569170	germany
+1	564633	569139	italy
+1	564660	565200	iran
+1	564733	569130	brazil
+1	564776	569431	mexico
+ --></h:pre>
+ 
+ 
+<h:pre class="bash"><!-- $  cat map.bed |\
+     java -jar dist/worldmapgenome.jar \
+     -u World_V2.0.svg \
+     -w 2000 -o ~/ouput.jpg \
+     -R human_g1k_v37.fasta
+ --></h:pre>
+ 
+ <h:img src="https://pbs.twimg.com/media/BfGE0X4CMAAfRAR.jpg"/>
+
+ 
+ 
+</documentation>
 
 
 <arguments> </arguments><!-- __PLACEHOLDER__ --></app>

@@ -36,6 +36,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -44,13 +45,11 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -68,10 +67,9 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import com.github.lindenb.jvarkit.io.TeeInputStream;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -80,62 +78,28 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  *
  */
 public class VcfEnsemblVepRest 
-	extends AbstractVCFFilter3
+	extends AbstractVcfEnsemblVepRest
 	{
 	public static final String TAG="VEPTRCSQ";
 	@SuppressWarnings("unused")
 	private static final ObjectFactory _fool_javac=null;
-	private int batchSize = 100;
-	private String server = "http://grch37.rest.ensembl.org";
-	private String extension = "/vep/homo_sapiens/region";
-	private boolean teeResponse=false;
+	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfEnsemblVepRest.class);
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractVcfEnsemblVepRest.AbstractVcfEnsemblVepRestCommand
+		{    
+
+
 	private Unmarshaller unmarshaller=null;
-	private boolean xmlBase64=false;
 	private DocumentBuilder documentBuilder;
 	private Transformer xmlSerializer;
 	
-	@Override
-	public String getProgramDescription() {
-		return "Annotate a VCF with ensembl REST API";
-		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfEnsemblVepRest";
-		}
-	
-	public void setServer(String server) {
-		this.server = server;
-		}
-	
-	public void setExtension(String extension) {
-		this.extension = extension;
-		}
-	
-	public void setBatchSize(int bastchSize) {
-		this.batchSize = bastchSize;
-		}
-	
-	public void setTeeResponse(boolean teeResponse)
-		{
-		this.teeResponse = teeResponse;
-		}
-	
-	public void setXmlBase64(boolean xmlBase64) {
-		this.xmlBase64 = xmlBase64;
-	}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (fileout) output. Default: stdout");
-		out.println(" -s (server) REST server . Default: "+this.server);
-		out.println(" -e (path extension)  Default: stdout"+this.extension);
-		out.println(" -n (batch size)  Default: "+this.batchSize);
-		out.println(" -T . 'Tee' xml response to stderr ");
-		out.println(" -x save whole XML document as xml base 64.");
-		super.printOptions(out);
-		}
 	
 	private static String createInputContext(VariantContext ctx)
 		{
@@ -174,7 +138,7 @@ public class VcfEnsemblVepRest
 	private long lastMillisec=-1L;
 	private Object generic_vep(List<VariantContext> contexts,boolean xml_answer) throws IOException
 		{
-		info("Running VEP "+contexts.size());
+		LOG.info("Running VEP "+contexts.size());
 		OutputStream wr=null;
 		URLConnection urlConnection=null;
 		HttpURLConnection  httpConnection=null;
@@ -268,20 +232,16 @@ public class VcfEnsemblVepRest
 		return (Document)generic_vep(contexts,true);
 		}
 
-	
 	@Override
-	protected void doWork(String inputSource, VcfIterator vcfIn,
-			VariantContextWriter out) throws IOException
+	protected Collection<Throwable> doVcfToVcf(String inputName,
+			VcfIterator vcfIn, VariantContextWriter out) throws IOException
 		{
 		sun.misc.BASE64Encoder base64Encoder=new sun.misc.BASE64Encoder();
 		final SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
 		VCFHeader header=vcfIn.getHeader();
 		List<VariantContext> buffer=new ArrayList<>(this.batchSize+1);
 		VCFHeader h2= new VCFHeader(header);
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+		addMetaData(h2);
 		
 		if(!xmlBase64)
 			{
@@ -331,7 +291,7 @@ public class VcfEnsemblVepRest
 								}
 							if(mydata==null)
 								{
-								info("No Annotation found for "+inputStr);
+								LOG.info("No Annotation found for "+inputStr);
 								out.add(ctx2);
 								continue;
 								}
@@ -362,7 +322,7 @@ public class VcfEnsemblVepRest
 									if(term==null)
 										{
 										sb.append(terms.get(j));
-										warning("No SO:Term found for "+terms.get(j));
+										LOG.warn("No SO:Term found for "+terms.get(j));
 										}
 									else
 										{
@@ -400,7 +360,7 @@ public class VcfEnsemblVepRest
 								Attr att = Element.class.cast(dataNode).getAttributeNode("input");
 								if(att==null)
 									{
-									warning("no @input in <data/>");
+									LOG.warn("no @input in <data/>");
 									continue;
 									}
 
@@ -414,7 +374,7 @@ public class VcfEnsemblVepRest
 								}
 							if(newdom==null)
 								{
-								info("No Annotation found for "+inputStr);
+								LOG.warn("No Annotation found for "+inputStr);
 								out.add(ctx2);
 								continue;
 								}
@@ -440,13 +400,15 @@ public class VcfEnsemblVepRest
 				if(ctx==null) break;
 				buffer.clear();
 				}
-			if(checkOutputError()) break;
+			if(out.checkError()) break;
 			}
 		progress.finish();
+		return RETURN_OK;
 		}
 	
 	@Override
-	public int initializeKnime() {
+	public Collection<Throwable> initializeKnime() {
+			
 		JAXBContext context;
 		try {
 			DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -458,46 +420,23 @@ public class VcfEnsemblVepRest
 			TransformerFactory trf=TransformerFactory.newInstance();
 			this.xmlSerializer = trf.newTransformer();
 		} catch (Exception e) {
-			error(e);
-			return -1;
+			return wrapException(e);
 		}
 		return super.initializeKnime();
 		}
+	
+	@Override
+		protected Collection<Throwable> call(String inputName) throws Exception {
+			return doVcfToVcf(inputName);
+			}
 	
 	@Override
 	public void disposeKnime() {
 		this.unmarshaller=null;
 		super.disposeKnime();
 		}
+	}
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:s:e:n:Tx"))!=-1)
-			{
-			switch(c)
-				{
-				case 's': setServer(opt.getOptArg()); break;
-				case 'e': setExtension(opt.getOptArg()); break;
-				case 'o': setOutputFile(opt.getOptArg());break;
-				case 'n': setBatchSize(Integer.parseInt(opt.getOptArg()));break;
-				case 'T': setTeeResponse(true);break;
-				case 'x': setXmlBase64(true);break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return this.mainWork(opt.getOptInd(), args);
-		}
 	public static void main(String[] args) {
 		new VcfEnsemblVepRest().instanceMainWithExit(args);
 	}

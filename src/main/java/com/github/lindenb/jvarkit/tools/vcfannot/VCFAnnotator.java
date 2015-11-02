@@ -14,10 +14,9 @@
 package com.github.lindenb.jvarkit.tools.vcfannot;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +32,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -42,12 +40,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
@@ -59,12 +57,21 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  * Annotator for VCF
  *
  */
-public class VCFAnnotator extends AbstractVCFFilter2
+public class VCFAnnotator extends AbstractVCFAnnotator
 	{
-	private static final String DEFAULT_KG_URI="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
-	private File REF=null;
-	private boolean print_SO_ACN=false;
-	private String kgURI=DEFAULT_KG_URI;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VCFAnnotator.class);
+	public static final String TAG="PRED";
+	public static enum FORMAT1{TRANSCRIPT,CDNAPOS,PROTPOS,CODON,AA,SEQONTOLOGY};
+
+	@Override
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractVCFAnnotator.AbstractVCFAnnotatorCommand
+		{
+
 
 	private SamSequenceRecordTreeMap<KnownGene> knownGenes=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -179,7 +186,7 @@ public class VCFAnnotator extends AbstractVCFFilter2
 		this.knownGenes=new SamSequenceRecordTreeMap<KnownGene>(
 				this.indexedFastaSequenceFile.getSequenceDictionary()
 				);
-		info("loading genes");
+		LOG.info("loading genes");
 		Set<String> unknown=new HashSet<String>();
 		BufferedReader in=IOUtils.openURIForBufferedReading(this.kgURI);
 		String line;
@@ -194,7 +201,7 @@ public class VCFAnnotator extends AbstractVCFFilter2
 				{
 				if(!unknown.contains(g.getContig()))
 					{
-					warning("The reference "+REF+" doesn't contain chromosome "+g.getContig());
+					LOG.warn("The reference "+REF+" doesn't contain chromosome "+g.getContig());
 					unknown.add(g.getContig());
 					}
 				}
@@ -204,7 +211,7 @@ public class VCFAnnotator extends AbstractVCFFilter2
 				}
 			}
 		in.close();
-		info("genes:"+n_genes);
+		LOG.info("genes:"+n_genes);
 		}
 	private boolean isStop(char c)
 		{
@@ -224,24 +231,19 @@ public class VCFAnnotator extends AbstractVCFFilter2
 		return false;
 		}
 	
-	public static final String TAG="PRED";
-	public static enum FORMAT1{TRANSCRIPT,CDNAPOS,PROTPOS,CODON,AA,SEQONTOLOGY};
 	
 	@Override
-	protected void doWork(VcfIterator r, VariantContextWriter w)
-		throws IOException
-		{	
+		protected Collection<Throwable> doVcfToVcf(String inputName,
+				VcfIterator r, VariantContextWriter w) throws IOException {
 		GenomicSequence genomicSequence=null;
-		info("opening REF:"+REF);
-		final String TAG="PRED";
+		LOG.info("opening REF:"+REF);
 		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
 		loadKnownGenesFromUri();
 		VCFHeader header=(VCFHeader)r.getHeader();
 		
 		
 		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+		addMetaData(h2);
 		
 		StringBuilder format=new StringBuilder();
 		for(FORMAT1 f:FORMAT1.values())
@@ -297,7 +299,7 @@ public class VCFAnnotator extends AbstractVCFFilter2
 				{
 				if(genomicSequence==null || !genomicSequence.getChrom().equals(ctx.getContig()))
 					{
-					info("getting genomic Sequence for "+ctx.getContig());
+					LOG.info("getting genomic Sequence for "+ctx.getContig());
 					genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getContig());
 					}
 				
@@ -332,7 +334,7 @@ public class VCFAnnotator extends AbstractVCFFilter2
 		        			{
 		        			if(isSimpleBase(ctx.getReference()))
 			        			{
-			        			warning("Warning REF!=GENOMIC SEQ!!! at "+position+"/"+ctx.getReference());
+			        			LOG.warn("Warning REF!=GENOMIC SEQ!!! at "+position+"/"+ctx.getReference());
 			        			}
 		        			continue;
 		        			}
@@ -627,59 +629,21 @@ public class VCFAnnotator extends AbstractVCFFilter2
 			w.add(vb.make());
 			}
 		CloserUtil.close(this.indexedFastaSequenceFile);
+		this.indexedFastaSequenceFile=null;
+		return RETURN_OK;
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VCFPredictions";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return  "Basic Variant Effect prediction using ucsc-known gene.";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -R (file) indexed Fasta genome REFERENCE.");
-		out.println(" -k (uri) KnownGene data URI/File. should look like"+ DEFAULT_KG_URI+"" +
-				" . Beware chromosome names are formatted the same as your REFERENCE.");
-		out.println(" -T Print SO:term accession rather than label");
-		super.printOptions(out);
-		}
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:k:T"))!=-1)
+		
+		@Override
+			protected Collection<Throwable> call(String inputName) throws Exception
 			{
-			switch(c)
+			if(this.REF==null)
 				{
-				case 'R': this.REF=new File(opt.getOptArg());break;
-				case 'k': this.kgURI=opt.getOptArg();break;
-				case 'T': this.print_SO_ACN=true;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				return wrapException("Undefined REFERENCE.");
 				}
+			
+			return doVcfToVcf(inputName);
 			}
-		
-		if(this.REF==null)
-			{
-			error("Undefined REFERENCE.");
-			return -1;
-			}
-		
-		return super.doWork(opt.getOptInd(), args);
 		}
 	
 	public static void main(String[] args)

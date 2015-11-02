@@ -856,6 +856,29 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		<xsl:apply-templates select="c:snippet[@id='javascript']" mode="fields"/>	
 		<xsl:if test="c:snippet[@id='javascript']">
 		
+		
+		protected boolean evalJavaScriptBoolean(
+			final javax.script.CompiledScript compiledScript,
+			final javax.script.Bindings bindings) throws javax.script.ScriptException
+			{
+			Object result = compiledScript.eval(bindings);
+			if(result==null) return false;
+			if(result instanceof Boolean)
+				{
+				if(Boolean.FALSE.equals(result)) return false;
+				}
+			else if(result instanceof Number)
+				{
+				if(((Number)result).intValue()!=1) return false;
+				}
+			else
+				{
+				LOG.warn("Script returned something that is not a boolean or a number:"+result.getClass());
+				 return false;
+				}
+			return true;
+			}
+		
 		protected javax.script.CompiledScript compileJavascript() throws Exception
 			{
 			if( getJavascriptExpr()!=null &amp;&amp; getJavascriptFile()!=null)
@@ -915,7 +938,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			try
 				{
 				LOG.info("Reading "+f);
-				in = IOUtils.openFileForBufferedReading(f);
+				in = com.github.lindenb.jvarkit.io.IOUtils.openFileForBufferedReading(f);
 				String line;
 				while((line=in.readLine())!=null)
 					{

@@ -14,4 +14,12 @@
 	</option>
 </options>
 
-<arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<documentation>
+<h:h3>Example</h:h3>
+
+<h:pre class="bash"><!-- $  java -jar dist/minicaller.jar -R ref.fa  bam.list > out.vcf
+ --></h:pre>
+</documentation>
+
+
+<!-- __PLACEHOLDER__ --></app>

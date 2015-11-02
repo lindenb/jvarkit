@@ -6,6 +6,7 @@ import java.io.StringWriter;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -21,24 +22,29 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 
 
 public class DumpExomeVariantServerData
-	extends AbstractCommandLineProgram
+	extends AbstractDumpExomeVariantServerData
 	{
-	private int STEP_SIZE=25000;
-    private long LIMIT=-1L;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(DumpExomeVariantServerData.class);
+	public static final String EVS_NS="http://webservice.evs.gs.washington.edu/";
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractDumpExomeVariantServerData.AbstractDumpExomeVariantServerDataCommand
+		{    
 	private long count_records=0L;
 	private long genome_total_size=0L;
 	private long genome_curr_size=0L;
 	
-	public static final String EVS_NS="http://webservice.evs.gs.washington.edu/";
 	private DocumentBuilder documentBuilder;
 	private Transformer transformer;
-	private DumpExomeVariantServerData()
-		{
-		}
+	
 	
 	private static Element first(Element root,String namespaceuri,String localName)
 		{
@@ -58,7 +64,7 @@ public class DumpExomeVariantServerData
 		{
 		double ratio=100.0*(this.genome_curr_size+start)/(double)this.genome_total_size;
 		
-		info(chrom+":"+start+"-"+end+ " N="+count_records+" "+(int)ratio+"%");
+		LOG.info(chrom+":"+start+"-"+end+ " N="+count_records+" "+(int)ratio+"%");
 		try
 			{
 		    URL url = new URL("http://gvs-1.gs.washington.edu/wsEVS/EVSDataQueryService");
@@ -127,8 +133,8 @@ public class DumpExomeVariantServerData
 		
 		public void run() throws Exception
 			{
-			if(DumpExomeVariantServerData.this.LIMIT>0 && DumpExomeVariantServerData.this.count_records>=DumpExomeVariantServerData.this.LIMIT) return;
-			final int step=DumpExomeVariantServerData.this.STEP_SIZE;
+			if(MyCommand.this.LIMIT>0 && MyCommand.this.count_records>=MyCommand.this.LIMIT) return;
+			final int step=MyCommand.this.STEP_SIZE;
 			int start=1;
 			do
 				{
@@ -189,7 +195,7 @@ public class DumpExomeVariantServerData
 	
 	
 
-	private int doWork()
+	private Collection<Throwable> doWork()
 		{
 		try {
 			DocumentBuilderFactory f=DocumentBuilderFactory.newInstance();
@@ -249,70 +255,25 @@ public class DumpExomeVariantServerData
 		catch (Exception e)
 			{
 			e.printStackTrace();
-			return -1;
+			return wrapException(e);
 			}
-		return 0;
+		return RETURN_OK;
 		}
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/EVS2Bed";
-		}
-	
-	@Override
-	public String getProgramName() {
-		return "EVS2Bed";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-N (integer) download using a step of  'N' bases. Optional. Default:"+STEP_SIZE);
-		out.println("-L (integer) limit to L records (for debugging). Optional. ");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"N:L:"))!=-1)
-			{
-			switch(c)
+		public Collection<Throwable> call() throws Exception {
+			try
 				{
-				case 'N': this.STEP_SIZE=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
-				case 'L': this.LIMIT=  Integer.parseInt(opt.getOptArg()); break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				return doWork();
 				}
-			}
-		
-		
-		try
-			{
-			return doWork();
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			
+			catch(Exception err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				
+				}
 			}
 		}
 	public static void main(String[] args)

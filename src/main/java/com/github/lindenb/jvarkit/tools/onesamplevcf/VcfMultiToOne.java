@@ -28,15 +28,13 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.onesamplevcf;
 
-import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -52,8 +50,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -61,94 +58,37 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /*
  * VcfMultiToOne
  */
-public class VcfMultiToOne extends AbstractKnimeApplication
+public class VcfMultiToOne extends AbstractVcfMultiToOne
 	{
-	private boolean keep_no_call=true;
-	private boolean keep_hom_ref=true;
-	private boolean keep_non_available=true;
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfMultiToOne.class);
+
+	@Override
+	public Command createCommand()
+		{
+		return new MyCommand();
+		}
+	
+	static private class MyCommand extends AbstractVcfMultiToOne.AbstractVcfMultiToOneCommand
+		{
+
+	
 	public static final String DEFAULT_VCF_SAMPLE_NAME="SAMPLE";
 	public static final String DEFAULT_SAMPLE_TAGID="SAMPLENAME";
 	public static final String DEFAULT_SAMPLE_FILETAGID="SAMPLESOURCE";
 	public static final String SAMPLE_HEADER_DECLARATION="VcfMultiToOne.Sample";
 	
 
-	private int countFilteredVariants=0;
-	
-	/** return the number of variants in the output vcf */
-	public int getVariantCount()
-		{
-		return this.countFilteredVariants;
-		}
-
-	
-	public VcfMultiToOne()
-		{
-		}
-	
-	/** general utility for program using VCFMulti2One:
-	 *  Extract SampleNames
-	 */
-	static Set<String> extractSampleNames(final VCFHeader header)
-		{
-		List<String> sample_list =header.getSampleNamesInOrder();
-		if(sample_list.size()!=1 || !sample_list.get(0).equals(DEFAULT_VCF_SAMPLE_NAME))
-			{
-			throw new IllegalArgumentException("Not a VCF produced by VcfMultiToOne");
-			}
-		Set<String> samples = new TreeSet<String>();
-		for(VCFHeaderLine h:header.getMetaDataInInputOrder())
-			{
-			if(h.getKey().equals(SAMPLE_HEADER_DECLARATION))
-				{
-				sample_list.add(h.getValue());
-				}
-			}
-		return samples;
-		}
 	
 	
-	public void setKeepHomRef(boolean keep_hom_ref) {
-		this.keep_hom_ref = keep_hom_ref;
-	}
-	public void setKeepNoCall(boolean keep_no_call) {
-		this.keep_no_call = keep_no_call;
-	}
-	public void setKeepNonAvailable(boolean keep_non_available)
-		{
-		this.keep_non_available = keep_non_available;
-		}
+	
+	
+	
 	
 	
 	@Override
-	public String getProgramDescription() {
-		return "Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfMultiToOne";
-		}
-	
-	/** open VariantContextWriter */
-	protected VariantContextWriter createVariantContextWriter()
-		throws IOException
+	protected Collection<Throwable> call(String inputName) throws Exception
 		{
-		if(getOutputFile()==null)
-			{
-			return VCFUtils.createVariantContextWriterToStdout();
-			}
-		else
-			{
-			info("opening vcf writer to "+getOutputFile());
-			return VCFUtils.createVariantContextWriter(getOutputFile());
-			}
-
-		}
-	
-	
-	@Override
-	public int executeKnime(List<String> arguments)
-		{
+		List<String> arguments = getInputFiles();
 		VariantContextWriter  out=null;
 		Set<String> args= IOUtils.unrollFiles(arguments);
 		List<VcfIterator> inputs=new ArrayList<>(args.size()+1);
@@ -159,13 +99,12 @@ public class VcfMultiToOne extends AbstractKnimeApplication
 			{
 			if(args.isEmpty() && arguments.isEmpty())
 				{
-				inputs.add(VCFUtils.createVcfIteratorStdin());
+				inputs.add(VCFUtils.createVcfIteratorFromStream(stdin()));
 				inputFiles.add("stdin");
 				}
 			else if(args.isEmpty())
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
+				return wrapException(getMessageBundle("illegal.number.of.arguments"));
 				}
 			else
 				{
@@ -188,13 +127,11 @@ public class VcfMultiToOne extends AbstractKnimeApplication
 					}
 				else if(header.getSequenceDictionary()==null)
 					{
-					error(getMessageBundle("no.dict.in.vcf"));
-					return -1;
+					return wrapException(getMessageBundle("no.dict.in.vcf"));
 					}
 				else if(!SequenceUtil.areSequenceDictionariesEqual(dict, header.getSequenceDictionary()))
 					{
-					error(getMessageBundle("not.the.same.sequence.dictionaries"));
-					return -1;
+					return wrapException(getMessageBundle("not.the.same.sequence.dictionaries"));
 					}
 				metaData.addAll(in.getHeader().getMetaDataInInputOrder());
 				sampleNames.addAll(in.getHeader().getSampleNamesInOrder());
@@ -205,10 +142,8 @@ public class VcfMultiToOne extends AbstractKnimeApplication
 					VCFUtils.createChromPosRefComparator():
 					VCFUtils.createTidPosRefComparator(dict)
 					);
-			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+			
+			addMetaData(metaData);
 			metaData.add(new VCFInfoHeaderLine(
 					DEFAULT_SAMPLE_TAGID,1,VCFHeaderLineType.String,
 					"Sample Name from multi-sample vcf"
@@ -231,12 +166,12 @@ public class VcfMultiToOne extends AbstractKnimeApplication
 					Collections.singleton(DEFAULT_VCF_SAMPLE_NAME)
 					);
 			
-			out= createVariantContextWriter();
+			out= openVariantContextWriter();
 			out.writeHeader(h2);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			for(;;)
 				{
-				if(checkOutputError()) break;
+				if(out.checkError()) break;
 				/* get 'smallest' variant */
 				VariantContext smallest = null;
 				int idx=0;
@@ -277,7 +212,6 @@ public class VcfMultiToOne extends AbstractKnimeApplication
 						vcb.attribute(DEFAULT_SAMPLE_FILETAGID,inputFiles.get(best_idx));
 						vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
 						out.add(vcb.make());
-						++countFilteredVariants;
 						}
 					continue;
 					}
@@ -303,61 +237,27 @@ public class VcfMultiToOne extends AbstractKnimeApplication
 					
 					vcb.genotypes(gb.make());
 					out.add(vcb.make());
-					++countFilteredVariants;
 					}
 				}
 			progress.finish();
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(inputs);
 			CloserUtil.close(out);
 			}
-		return 0;
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -c discard if variant is no-call");
-		out.println(" -r discard if variant is hom-ref");
-		out.println(" -a discard if variant is non-available");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "crao:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(args[opt.getOptInd()]);
-				case 'c': this.setKeepNoCall(false); break;
-				case 'r': this.setKeepHomRef(false); break;
-				case 'a': this.setKeepNonAvailable(false); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		
-		return mainWork(opt.getOptInd(), args);
+			
+	
 		}
-
+	
 	public static void main(String[] args)
 		{
 		new VcfMultiToOne().instanceMainWithExit(args);

@@ -4,4 +4,155 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.onesamplevcf">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+<options>
+	<option name="keep_no_call" type="boolean" opt="c" longopt="nocall" default="true" >
+		<description>discard if variant is no-call</description>
+	</option>
+	<option name="keep_hom_ref" type="boolean" opt="r" longopt="homref" default="true" >
+		<description>discard if variant is hom-ref</description>
+	</option>
+	<option name="keep_non_available" type="boolean" opt="a" longopt="available" default="true" >
+		<description>discard if variant is non-available</description>
+	</option>
+</options>
+
+
+<documentation>
+<h:h3>Motivation</h:h3>
+
+Convert a multiple-samples VCF(s) to a VCF with one SAMPLE . Each variant is copied for each sample , and the original sample name is added in the __INFO__ column.
+
+<h:h3>Example</h:h3>
+
+<h:pre class="bash"><!-- $ curl -s "http://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5.20130502.genotypes.vcf.gz" |\
+gunzip -c |\
+java -jar dist/vcfmulti2one.jar  -c -r -a  |\
+grep -v '##' |\
+grep -E '(CHROM|SAMPLENAME)' | head | verticalize 
+
+
+>>> 2
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00096;SAS_AF=0.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 2
+
+>>> 3
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00097;SAS_AF=0.4949
+$9   FORMAT : GT
+$10  SAMPLE : 0|1
+<<< 3
+
+>>> 4
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00099;SAS_AF=0.4949
+$9   FORMAT : GT
+$10  SAMPLE : 0|1
+<<< 4
+
+>>> 5
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00100;SAS_AF=0.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 5
+
+>>> 6
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00102;SAS_AF=0.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 6
+
+>>> 7
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00103;SAS_AF=0.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 7
+
+>>> 8
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00105;SAS_AF=0.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 8
+
+>>> 9
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00106;SAS_AF=0.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 9
+
+>>> 10
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00114;SAS_AF=0.4949
+$9   FORMAT : GT
+$10  SAMPLE : 0|1
+<<< 10
+ --></h:pre>
+
+</documentation>
+
+<!-- __PLACEHOLDER__ --></app>

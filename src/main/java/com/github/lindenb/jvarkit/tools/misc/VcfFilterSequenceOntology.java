@@ -56,7 +56,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 public class VcfFilterSequenceOntology
 	extends AbstractVcfFilterSequenceOntology
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfBurden.class);
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfFilterSequenceOntology.class);
 
 	@Override
 	public  Command createCommand() {

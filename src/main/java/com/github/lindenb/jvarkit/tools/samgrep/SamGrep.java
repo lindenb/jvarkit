@@ -50,7 +50,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-public class SamGrep extends AbstractCommandLineProgram
+public class SamGrep extends AbstractSamGrep
 	{
     private SamGrep()
     	{

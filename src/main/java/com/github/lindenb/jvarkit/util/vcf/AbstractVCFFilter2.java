@@ -49,16 +49,16 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
  * @author lindenb
  *
  */
+@Deprecated
 public abstract class AbstractVCFFilter2
-	extends AbstractCommandLineProgram
+	//extends AbstractCommandLineProgram
 	{
 	
-	protected AbstractVCFFilter2()
+	private AbstractVCFFilter2()
 		{
 		
 		}
 	
-	@Override
 	public String getProgramDescription() {
 		return "Another VCF filter.";
 		}
@@ -97,7 +97,6 @@ public abstract class AbstractVCFFilter2
 			}
 		catch (Exception e)
 			{
-			this.error(e);
 			return -1;
 			}
 		finally
@@ -110,30 +109,7 @@ public abstract class AbstractVCFFilter2
 	
 	protected int doWork(int optind,String args[])
 		{
-
-		try
-			{
-			if(optind==args.length)
-				{
-				info("reading from stdin.");
-				return doWork((String)null, null);
-				}
-			else if(optind+1==args.length)
-				{
-				info("reading from "+args[optind]);
-				return doWork(args[optind],null);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
+		return -1;
 		}
 	
 	}

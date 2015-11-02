@@ -14,6 +14,13 @@
 	</option>
 </arguments>
 
+<documentation>
+<h:h3>Example</h:h3>
+
+<h:pre class="bash"><!--   java -jar dist/bedindextabix.jar -s -o out.bed.gz input.bed
+
+ --></h:pre>
+</documentation>
 				
 
 <!-- __PLACEHOLDER__ -->

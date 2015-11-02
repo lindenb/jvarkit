@@ -33,7 +33,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
@@ -44,6 +43,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -58,12 +58,11 @@ import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
 import com.github.lindenb.jvarkit.util.igv.SeekableStreamAdaptor;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfEnsemblReg extends AbstractVCFFilter2
+public class VcfEnsemblReg extends AbstractVcfEnsemblReg
 	{
 	private static class Track
 		{
@@ -74,8 +73,19 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		String longLabel=null;
 		URL url=null;
 		}
+	
+	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfEnsemblReg.class);
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractVcfEnsemblReg.AbstractVcfEnsemblRegCommand
+		{    
+
 	private List<Track> tracks=new ArrayList<Track>();
-	private String trackDBUrl="http://ngs.sanger.ac.uk/production/ensembl/regulation/hg19/trackDb.txt";
 
 	private static final String BrightRed="187,0,0";
 	private static final String LightRed="255,105,105";
@@ -117,7 +127,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		case Gold : return "UnannotatedActiveTFBS";
 		case Yellow: return "UnannotatedActiveOpenChromatinRegions" ;
 		case LightGray: return "InactiveRegions"; 
-		default: warning("projectedSegments: undefined color: "+color); return null;
+		default: LOG.warn("projectedSegments: undefined color: "+color); return null;
 		}
 	}
 	/** http://ngs.sanger.ac.uk/production/ensembl/regulation/hg19/overview/ */
@@ -132,7 +142,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		case Blue : return "CTCFBindingSite";
 		case Gold : return "UnannotatedTFBS";
 		case Yellow: return "UnannotatedOpenChromatinRegions" ;
-		default: warning("regBuildOverview: undefined color: "+color);return null;
+		default: LOG.warn("regBuildOverview: undefined color: "+color);return null;
 		}
 	}
 	
@@ -156,7 +166,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 	private void annotate(Track track,File inf,File outf) throws IOException
 		{
 		boolean contained=false;
-		info("Processing "+track.id+" ("+track.shortLabel+") "+track.url);
+		LOG.warn("Processing "+track.id+" ("+track.shortLabel+") "+track.url);
 		VcfIterator in=VCFUtils.createVcfIteratorFromFile(inf);
 		VCFHeader header=in.getHeader();
 		VCFInfoHeaderLine info=null;
@@ -279,10 +289,10 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		in.close();
 		w1.close();
 		}
-	
 	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException {
+		protected Collection<Throwable> doVcfToVcf(String inputName,
+				VcfIterator in, VariantContextWriter out) throws IOException
+		{
 		File tmpDir= this.getTmpDirectories().get(0);
 		File tmp1=File.createTempFile("tmp_",".vcf", tmpDir);
 		File tmp2=File.createTempFile("tmp_",".vcf", tmpDir);
@@ -291,10 +301,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		
 		VariantContextWriter w1=VCFUtils.createVariantContextWriter(tmp1);
 		VCFHeader header=in.getHeader();
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+		addMetaData(header);
 		w1.writeHeader(header);
 		while(in.hasNext())
 			{
@@ -321,11 +328,12 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		in.close();
 		tmp1.delete();
 		tmp2.delete();
+		return RETURN_OK;
 		}
 	
 	private void parseTrackDB(URL url) throws IOException
 		{
-		info("Parsing "+url);
+		LOG.info("Parsing "+url);
 		BufferedReader r=new BufferedReader(new InputStreamReader(url.openStream(),"UTF-8"));
 		String line;
 		Track track=null;
@@ -356,7 +364,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 			int w=line.indexOf(' ');
 			if(w==-1)
 				{
-				info("No whitespace in "+line+" ?");
+				LOG.warn("No whitespace in "+line+" ?");
 				continue;
 				}
 			if(track==null) track=new Track();
@@ -377,59 +385,23 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		
 		CloserUtil.close(r);
 		}
-	@Override
-	public String getProgramDescription() {
-		return "Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.";
-		}
 
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -d (url) trackDB.txt URL. Default is: "+this.trackDBUrl);
-		out.println(" -t (dir). "+getMessageBundle("add.tmp.dir"));
-		super.printOptions(out);
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfEnsemblReg";
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"t:"))!=-1)
+		protected Collection<Throwable> call(String inputName) throws Exception
 			{
-			switch(c)
+			try
 				{
-				case 't': trackDBUrl=opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				parseTrackDB(new URL(trackDBUrl));
+				
+				return doVcfToVcf(inputName);
+				}
+			catch(Exception err)
+				{
+				return wrapException(err);
 				}
 			}
-		try
-			{
-			parseTrackDB(new URL(trackDBUrl));
-			
-			return doWork(opt.getOptInd(), args);
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		
 		}
-
+	
 	public static void main(String[] args)
 		{
 		new VcfEnsemblReg().instanceMainWithExit(args);

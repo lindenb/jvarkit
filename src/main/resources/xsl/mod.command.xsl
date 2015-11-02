@@ -414,22 +414,19 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	/* <xsl:value-of select="@name"/> : <xsl:value-of select="@type"/> */
 	<xsl:choose>
 		<xsl:when test="@type='bool' or @type='boolean' or @type='Boolean' or @type='java.lang.Boolean' ">
-		boolean <xsl:value-of select="generate-id()"/>;
-		if( opt.getValue().toLowerCase().equals("t") || opt.getValue().toLowerCase().equals("true") || opt.getValue().toLowerCase().equals("yes") || opt.getValue().toLowerCase().equals("1"))
-			{
-			<xsl:value-of select="generate-id()"/> = true;
-			}
-		else if( opt.getValue().toLowerCase().equals("f") || opt.getValue().toLowerCase().equals("false") || opt.getValue().toLowerCase().equals("no") || opt.getValue().toLowerCase().equals("0"))
-			{
-			<xsl:value-of select="generate-id()"/> = false;
-			}
-		else
-			{
-			LOG.error("<xsl:value-of select="@name"/> : Cannot cast "+opt.getValue()+" to a boolean value");
-			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
-			}
+			boolean <xsl:value-of select="generate-id()"/>;
+			<xsl:choose>
+				<xsl:when test="@default='true'">
+				 <xsl:value-of select="generate-id()"/> = false;
+				</xsl:when>
+				<xsl:when test="@default='false'">
+				 <xsl:value-of select="generate-id()"/> = true;
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:message terminate='true'>c:option visit no @default value set for  <xsl:value-of select="@name"/></xsl:message>
+				</xsl:otherwise>
+			</xsl:choose>
 		</xsl:when>
-	
 	
 		<xsl:when test="not(@type) or @type='string' or @type='String' or @type='java.lang.String'">
 		java.lang.String <xsl:value-of select="generate-id()"/> = opt.getValue();

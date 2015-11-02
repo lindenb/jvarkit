@@ -70,7 +70,7 @@ public abstract class AbstractCommandLineProgram
 	private ResourceBundle messagesBundle=null;
 	protected static final String DEFAULT_WIKI_PREFIX="https://github.com/lindenb/jvarkit/wiki/";
 	
-	protected AbstractCommandLineProgram()
+	private AbstractCommandLineProgram()
 		{
 		final SimpleDateFormat datefmt=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		LOG.setUseParentHandlers(false);

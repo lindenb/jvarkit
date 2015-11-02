@@ -36,7 +36,6 @@ import htsjdk.tribble.index.IndexFactory;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +45,7 @@ import java.io.StringWriter;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
@@ -64,34 +64,35 @@ import javax.xml.transform.stream.StreamSource;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.LocationAwareOutputStream;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
 import edu.washington.gs.evs.SnpData;
 
 
 public class EvsDumpXml
-	extends AbstractCommandLineProgram
+	extends AbstractEvsDumpXml
 	{
-	private int STEP_SIZE=1000000;
-    private long LIMIT=-1L;
-	private long count_records=0L;
-	private long genome_total_size=0L;
-	private long genome_curr_size=0L;
-	private final int MAX_TRY=10; 
-	private File outfilename = null;
 	public static final String EVS_NS="http://webservice.evs.gs.washington.edu/";
-	private XMLInputFactory xmlInputFactory;
-	private Transformer transformer;
-	private SortingCollection<String> sortingCollection;
-	private boolean doSort=false;
-	private LocationAwareOutputStream outputstream=null;
-	
-	
-	private EvsDumpXml()
-		{
-		
+
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(AbstractEvsDumpXml.class);
+
+
+	@Override
+	public Command createCommand() {
+		return new MyCommand();
 		}
+
+	static private class MyCommand extends AbstractEvsDumpXml.AbstractEvsDumpXmlCommand
+		{    
+		private long count_records=0L;
+		private long genome_total_size=0L;
+		private long genome_curr_size=0L;
+		private final int MAX_TRY=10; 
+		private XMLInputFactory xmlInputFactory;
+		private Transformer transformer;
+		private SortingCollection<String> sortingCollection;
+		private LocationAwareOutputStream outputstream=null;
 	
 	private static class SnpDataBinding
 		{
@@ -179,7 +180,7 @@ public class EvsDumpXml
 		SnpDataBinding dataBinding=new SnpDataBinding();
 		double ratio=100.0*(this.genome_curr_size+start)/(double)this.genome_total_size;
 		
-		info(chrom+":"+start+"-"+end+ " N="+count_records+" "+(int)ratio+"%");
+		LOG.info(chrom+":"+start+"-"+end+ " N="+count_records+" "+(int)ratio+"%");
 		try
 			{
 		    URL url = new URL("http://gvs-1.gs.washington.edu/wsEVS/EVSDataQueryService");
@@ -195,7 +196,7 @@ public class EvsDumpXml
 		    	catch(java.net.ConnectException err)
 		    		{
 		    		if(n_try+1==MAX_TRY) throw err;
-		    		warning(
+		    		LOG.warn(
 		    			"Error: trying "+(n_try)+"/"+MAX_TRY+" "+url
 		    			);
 		    		}	
@@ -269,8 +270,8 @@ public class EvsDumpXml
 		
 		public void run() throws Exception
 			{
-			if(EvsDumpXml.this.LIMIT>0 && EvsDumpXml.this.count_records>=EvsDumpXml.this.LIMIT) return;
-			final int step=EvsDumpXml.this.STEP_SIZE;
+			if(MyCommand.this.LIMIT>0 && MyCommand.this.count_records>=MyCommand.this.LIMIT) return;
+			final int step=MyCommand.this.STEP_SIZE;
 			int start=1;
 			do
 				{
@@ -291,7 +292,7 @@ public class EvsDumpXml
 		}
 	
 	
-	private int doWork()
+	private Collection<Throwable> doWork()
 		{
 		try {
 			this.xmlInputFactory =XMLInputFactory.newFactory();
@@ -306,7 +307,7 @@ public class EvsDumpXml
 						String.class,
 						new SnpStringCodec(),
 						new SnpDataComparator(),
-						100000,
+						getMaxRecordsInRam(),
 						getTmpDirectories()
 						);
 				this.sortingCollection.setDestructiveIteration(true);
@@ -348,12 +349,12 @@ public class EvsDumpXml
 				}
 			
 			DynamicIndexCreator indexer=null;
-			if(this.outfilename!=null)
+			if(this.getOutputFile()!=null)
 				{
-				info("Opening "+this.outfilename);
-				this.outputstream = new LocationAwareOutputStream(new FileOutputStream(this.outfilename));
+				LOG.info("Opening "+this.getOutputFile());
+				this.outputstream = new LocationAwareOutputStream(new FileOutputStream(this.getOutputFile()));
 				indexer =new DynamicIndexCreator(
-						this.outfilename,
+						this.getOutputFile(),
 						 IndexFactory.IndexBalanceApproach.FOR_SEEK_TIME
 						);
 				}
@@ -408,98 +409,48 @@ public class EvsDumpXml
 
 			 if(indexer!=null)
 			 	{
-				 info("Writing index");
+				 LOG.info("Writing index");
 				 final Index index = indexer.finalizeIndex(
 						 last_index
 						 );
-				 index.writeBasedOnFeatureFile(this.outfilename);
+				 index.writeBasedOnFeatureFile(this.getOutputFile());
 			 	}
+			 return RETURN_OK;
 			} 
 		catch (Exception e)
 			{
-			e.printStackTrace();
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{
 			if(this.sortingCollection!=null)
 				this.sortingCollection.cleanup();
 			}
-		return 0;
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/Evs2Xml";
-		}
-	
-	@Override
-	public String getProgramName() {
-		return "Evs2Xml";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Download data from EVS http://evs.gs.washington.edu/EVS as XML file. ";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-N (integer) download using a step of  'N' bases. Optional. Default:"+STEP_SIZE);
-		out.println("-L (integer) limit to L records (for debugging). Optional. ");
-		out.println("-o (filename) output filename. must end with"+SnpDataCodec.XML_FILE_SUFFIX+" will be indexed with tribble ");
-		out.println("-s sort data. (default if filename specified with -o)");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"N:L:o:s"))!=-1)
-			{
-			switch(c)
+		@Override
+		public Collection<Throwable> call() throws Exception {
+			if(this.getOutputFile()!=null)
 				{
-				case 'o': this.outfilename = new File(opt.getOptArg()); break;
-				case 'N': this.STEP_SIZE=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
-				case 'L': this.LIMIT =  Integer.parseInt(opt.getOptArg()); break;
-				case 's': this.doSort=true;break;
-				default:
+				if(!this.getOutputFile().getName().endsWith(SnpDataCodec.XML_FILE_SUFFIX))
 					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
+					return wrapException("Ouput filename should end with "+SnpDataCodec.XML_FILE_SUFFIX+": "+getOutputFile());
 					}
+				super.getTmpDirectories().add(this.getOutputFile().getParentFile());
+				this.doSort=true;
 				}
-			}
-		
-		if(this.outfilename!=null)
-			{
-			if(!this.outfilename.getName().endsWith(SnpDataCodec.XML_FILE_SUFFIX))
+			try
 				{
-				error("Ouput filename should end with "+SnpDataCodec.XML_FILE_SUFFIX+": "+outfilename);
-				return -1;
+				return doWork();
 				}
-			this.addTmpDirectory(this.outfilename.getParentFile());
-			this.doSort=true;
-			}
-		try
-			{
-			return doWork();
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			
+			catch(Exception err)
+				{
+				return wrapException(err);
+				}
+			finally
+				{
+				
+				}
 			}
 		}
 	public static void main(String[] args)

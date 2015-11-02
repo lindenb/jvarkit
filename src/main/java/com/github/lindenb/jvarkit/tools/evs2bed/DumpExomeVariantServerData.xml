@@ -4,4 +4,34 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.evs2bed">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.</description>
+
+<options>
+	<option name="STEP_SIZE" type="int" opt="N" longopt="STEP_SIZE" default="25000" >
+		<description>download using a step of  'N' bases. </description>
+	</option>
+	<option name="LIMIT" type="int" opt="L" longopt="limit" default="-1" >
+		<description> limit to L records (for debugging) </description>
+	</option>
+</options>
+
+
+<documentation>
+Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML.
+
+Note: Before indexing with tabix, you should perform a sort| uniq to remove duplicate data.
+
+For later use, see VCFTabixml.
+
+<h:h3> Example</h:h3>
+<h:pre class="bash"><!-- $ java  -jar dist/evs2bed.jar L=10 2> /dev/null | cut -c 1-100
+1	69427	69428	<snpList><positionString>1:69428</positionString><chrPosition>69428</chrPosition><alle..
+1	69475	69476	<snpList><positionString>1:69476</positionString><chrPosition>69476</chrPosition><alle..
+1	69495	69496	<snpList><positionString>1:69496</positionString><chrPosition>69496</chrPosition><alle..
+1	69510	69511	<snpList><positionString>1:69511</positionString><chrPosition>69511</chrPosition><alle..
+ --></h:pre></documentation>
+
+
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>
