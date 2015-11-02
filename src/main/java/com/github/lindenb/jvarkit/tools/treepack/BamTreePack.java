@@ -3,8 +3,10 @@ package com.github.lindenb.jvarkit.tools.treepack;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
@@ -15,9 +17,10 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
 
-public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
+public class BamTreePack extends AbstractBamTreePack
 	{
-	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamTreePack.class);
+
 	/** Group by SAMReadGroupRecord */
 	private class GroupIdNodeFactory extends NodeFactory
 		{
@@ -392,89 +395,68 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 			}
 		return _factories;
 		}
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/BamTreePack";
-		}
-	@Override
-	public String getProgramDescription()
-		{
-		return "Create a TreeMap from one or more SAM/BAM file. Ouput is a SVG file.";
-		}
+	
 
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()))!=-1)
+	public Command createCommand() {
+		return new MyCommand();
+		}
+
+	static private class MyCommand extends AbstractBamTreePack.AbstractBamTreePackCommand
+		{    
+		@Override
+		public Collection<Throwable> call() throws Exception
 			{
-			switch(c)
+			if(super.nodeFactoryChain.isEmpty())
 				{
-				default: 
+				LOG.error("no path defined");
+				return -1;
+				}
+			List<String> args= getInputFiles();
+			SamReader sfr=null;
+			try
+				{
+				if(args.isEmpty())
 					{
-					switch(handleOtherOptions(c, opt, null))
+					LOG.info("Reading stdin");
+					sfr= openSamReader(null);
+					scan(sfr);
+					CloserUtil.close(sfr);
+					LOG.info("Done stdin");
+					}
+				else
+					{
+					for(String filename:args)
 						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
+						InputStream in=null;
+						LOG.info("Reading "+filename);
+						sfr= openSamReader(filename);
+						scan(sfr);
+						LOG.info("Done "+filename);
+						CloserUtil.close(sfr);
+						CloserUtil.close(in);
+						
 						}
 					}
+				
+				this.layout();
+				this.svg();
+				return RETURN_OK;
 				}
-			}
-		if(super.nodeFactoryChain.isEmpty())
-			{
-			error("no path defined");
-			return -1;
-			}
-		
-		SamReader sfr=null;
-		try
-			{
-			if(opt.getOptInd()==args.length)
+			catch (Exception err)
 				{
-				info("Reading stdin");
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				scan(sfr);
+				return wrapException(err);
+				}
+			finally
+				{
 				CloserUtil.close(sfr);
-				info("Done stdin");
 				}
-			else
-				{
-				for(int optind =opt.getOptInd(); optind < args.length;++optind)
-					{
-					InputStream in=null;
-					String filename= args[optind];
-					info("Reading "+filename);
-					sfr=SamFileReaderFactory.mewInstance().open(filename);
-					scan(sfr);
-					info("Done "+filename);
-					CloserUtil.close(sfr);
-					CloserUtil.close(in);
-					
-					}
-				}
-			
-			this.layout();
-			this.svg();
-			return 0;
-			}
-		catch (Exception e)
-			{
-			error(e);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(sfr);
 			}
 		}
 	
 	public static void main(String[] args)
 		{
 		new BamTreePack().instanceMainWithExit(args);
-
 		}
 
 	}

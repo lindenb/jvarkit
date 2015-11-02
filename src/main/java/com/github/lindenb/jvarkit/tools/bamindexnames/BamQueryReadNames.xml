@@ -14,7 +14,7 @@
 	<option name="notFoundStreamFile" type="output-file" opt="N" longopt="unmatched" >
 		<description> (file) save unmatched names here</description>
 	</option>
-	<option name="query_reads_is_sorted" type="boolean" opt="s" longopt="sorted" boolean="false" >
+	<option name="query_reads_is_sorted" type="boolean" opt="s" longopt="sorted" default="false" >
 		<description>user list of read names is sorted.</description>
 	</option>
 </options>

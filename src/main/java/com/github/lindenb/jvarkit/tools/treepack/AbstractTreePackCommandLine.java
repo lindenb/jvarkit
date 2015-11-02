@@ -14,23 +14,131 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import org.apache.commons.cli.Option;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+
 import com.github.lindenb.jvarkit.util.Hershey;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.command.Command;
+import com.github.lindenb.jvarkit.util.command.CommandFactory;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 
 public abstract class AbstractTreePackCommandLine<WATCH>
-	extends AbstractCommandLineProgram
+	extends CommandFactory
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(AbstractTreePackCommandLine.class);
+
 	protected Rectangle viewRect=new Rectangle(1000,1000);
-	protected final String XLINK="http://www.w3.org/1999/xlink";
-	protected final String JVARKIT_NS="https://github.com/lindenb/jvarkit";
+	protected final static String XLINK="http://www.w3.org/1999/xlink";
+	protected final static String JVARKIT_NS="https://github.com/lindenb/jvarkit";
 	protected List<NodeFactory> nodeFactoryChain=new ArrayList<NodeFactory>();
-	protected AbstractNode root=null;
+
 	protected Hershey hershey=new Hershey();   
 
+	protected abstract static class AbstractTreePackCommandLineCommand<WATCH>
+		extends Command
+		{
+		protected List<AbstractTreePackCommandLine<WATCH>.NodeFactory> nodeFactoryChain=new ArrayList<>();
+		protected Rectangle viewRect=new Rectangle(1000,1000);
+		protected AbstractTreePackCommandLine<WATCH>.AbstractNode root=null;
+		
+		@Override
+		public void copyFrom(CommandFactory factory) {
+			AbstractTreePackCommandLine<WATCH> f=(AbstractTreePackCommandLine<WATCH>)factory;
+			this.nodeFactoryChain.addAll(f.nodeFactoryChain);
+			this.viewRect = new Rectangle(f.viewRect);
+			super.copyFrom(factory);
+			}
+		protected void svg() throws XMLStreamException
+		  	{
+		  	LOG.info("writing svg");
+			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
+			XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
+			w.writeStartDocument("UTF-8","1.0");
+			w.writeStartElement("svg","svg",SVG.NS);
+			
+			
+			
+			w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "svg", SVG.NS);
+			w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "xlink", XLINK);
+			w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "jvarkit", JVARKIT_NS);
+			w.writeAttribute("width",String.valueOf(this.viewRect.getWidth()));
+			w.writeAttribute("height",String.valueOf(this.viewRect.getHeight()));
+			
+			
+			w.writeStartElement("svg","defs",SVG.NS);
+			w.writeStartElement("svg","style",SVG.NS);
+			w.writeAttribute("type","text/css");
+			w.writeCharacters(getCascadingStylesheet());
+			w.writeEndElement();//svg:style
+			w.writeEndElement();//svg:def
+	
+			
+			w.writeStartElement("svg","title",SVG.NS);
+			w.writeCharacters(getName());
+			w.writeEndElement();
+			//w.writeComment("Cmd-Line:"+());
+			w.writeComment("Version "+getVersion());
+			root.svg(w);
+			w.writeEndElement();//svg
+			w.writeEndDocument();
+			w.flush();
+		  	}
+
+		protected String getCascadingStylesheet()
+			{
+			return "svg {fill:none;stroke:black;stroke-width:0.5px;}\n"+
+					".r0 {fill:none;stroke:black;stroke-width:0.5px;}\n"+
+					".r1 {fill:none;stroke:black;stroke-width:0.5px;}\n"+
+					".lbla0 {stroke:black;stroke-width:0.3px;}\n"+
+					".lblb0 {stroke:red;stroke-width:0.3px;}\n"+
+					".lbla1 {stroke:gray;stroke-width:0.3px;}\n"+
+					".lblb1 {stroke:red;stroke-width:0.3px;}\n"+
+					""
+					;
+			}
+		protected void layout()
+			{
+			LOG.info("layout");
+			this.root.setBounds(new Rectangle2D.Double(0, 0, this.viewRect.getWidth(), this.viewRect.getHeight()));
+			TreePacker packer=new TreePacker();
+			this.root.layout(packer);
+			}
+		protected int buildFactoryChain(String path)
+			{
+			
+			if(path==null)
+				{
+				LOG.warn("No path defined!");
+				this.root=createLeafNode(null,"");
+				}
+			else
+				{
+				for(String p: path.split("[ \t/,;]+"))
+					{
+					NodeFactory nf=findFactoryByName(p);
+					if(nf==null)
+						{
+						LOG.error("Cannot get type \'"+p+"\' in "+getAllAvailableFactories());
+						return -1;
+						}
+					if(this.nodeFactoryChain.isEmpty())
+						{
+						this.root=nf.createBranch(null,"");
+						}
+					this.nodeFactoryChain.add(nf);
+					}
+				if(this.root==null)
+					{
+					LOG.error("Wrong path "+path);
+					return -1;
+					}
+				}
+			return 0;
+			}
+
+		}
+	
 	
 	public abstract class NodeFactory
 		{
@@ -144,7 +252,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		   {
 		   if(getWeight()<=0)
 			   {
-			   info("weight < 0 for "+getPath());
+			   LOG.info("weight < 0 for "+getPath());
 			   return ;
 			   }
 		   final Rectangle2D bounds=this.getBounds();
@@ -383,59 +491,9 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			
 			}
 	
-	protected String getCascadingStylesheet()
-		{
-		return "svg {fill:none;stroke:black;stroke-width:0.5px;}\n"+
-				".r0 {fill:none;stroke:black;stroke-width:0.5px;}\n"+
-				".r1 {fill:none;stroke:black;stroke-width:0.5px;}\n"+
-				".lbla0 {stroke:black;stroke-width:0.3px;}\n"+
-				".lblb0 {stroke:red;stroke-width:0.3px;}\n"+
-				".lbla1 {stroke:gray;stroke-width:0.3px;}\n"+
-				".lblb1 {stroke:red;stroke-width:0.3px;}\n"+
-				""
-				;
-		}
 	
-	protected void svg() throws XMLStreamException
-	  	{
-	  	info("writing svg");
-		XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-		XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
-		w.writeStartDocument("UTF-8","1.0");
-		w.writeStartElement("svg","svg",SVG.NS);
-		
-		
-		
-		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "svg", SVG.NS);
-		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "xlink", XLINK);
-		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "jvarkit", JVARKIT_NS);
-		w.writeAttribute("width",String.valueOf(this.viewRect.getWidth()));
-		w.writeAttribute("height",String.valueOf(this.viewRect.getHeight()));
-		
-		
-		w.writeStartElement("svg","defs",SVG.NS);
-		w.writeStartElement("svg","style",SVG.NS);
-		w.writeAttribute("type","text/css");
-		w.writeCharacters(getCascadingStylesheet());
-		w.writeEndElement();//svg:style
-		w.writeEndElement();//svg:def
-
-		
-		w.writeStartElement("svg","title",SVG.NS);
-		w.writeCharacters(getProgramName());
-		w.writeEndElement();
-		w.writeComment("Cmd-Line:"+getProgramCommandLine());
-		w.writeComment("Version "+getVersion());
-		root.svg(w);
-		w.writeEndElement();//svg
-		w.writeEndDocument();
-		w.flush();
-	  	}
 	
-	protected AbstractTreePackCommandLine()
-		{
-		
-		}
+	
 	
 	protected String convertWeightToString(double weight)
 		{
@@ -448,13 +506,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		return String.valueOf((int)(value)*step+"-"+((value+1)*step));
 		}
 
-	protected void layout()
-		{
-		info("layout");
-		this.root.setBounds(new Rectangle2D.Double(0, 0, this.viewRect.getWidth(), this.viewRect.getHeight()));
-		TreePacker packer=new TreePacker();
-		this.root.layout(packer);
-		}
+	
 	protected abstract List<NodeFactory> getAllAvailableFactories();
 	
 	protected NodeFactory findFactoryByName(String s)
@@ -465,11 +517,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			}
 		return null;
 		}
-	protected String getGetOptDefault()
-		{
-		return super.getGetOptDefault()+"e:x:";
-		}
-	@Override
+	
 	public void printOptions(PrintStream out)
 		{
 		out.println(" -e 'path1 path2 path3 path4 ... A list of observed components.");
@@ -482,74 +530,42 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		out.println(" -x {width}x{height} dimension of the output rectangle. default:"+this.viewRect.width+"x"+this.viewRect.height);
 		super.printOptions(out);
 		}
+	
 	@Override
-	protected GetOptStatus handleOtherOptions(int c, GetOpt opt, String[] args)
-		{
-		switch(c)
+	protected Status visit(Option opt) {
+		if(opt.getOpt().equals("e"))
 			{
-			case 'e':
-				if(buildFactoryChain(opt.getOptArg())!=0) return GetOptStatus.EXIT_FAILURE;
-				return GetOptStatus.OK;
-			case 'x':
-					{
-					String s=opt.getOptArg();
-					int x=s.indexOf('x');
-					if(x==-1)
-						{
-						error("'x' missing in "+s);
-						return GetOptStatus.EXIT_FAILURE;
-						}
-					this.viewRect.x=Integer.parseInt(s.substring(0, x));
-					this.viewRect.y=Integer.parseInt(s.substring(x+1));
-					if(viewRect.x<=0 ||this.viewRect.y<=0 )
-						{
-						error("bad viewRect "+viewRect);
-						return GetOptStatus.EXIT_FAILURE;
-						}
-					return GetOptStatus.OK;
-					}
-			default:return super.handleOtherOptions(c, opt, args);
+			if(buildFactoryChain(opt.getValue())!=0) return Status.EXIT_FAILURE;
+			return Status.OK;
+			}
+		if(opt.getOpt().equals("x"))
+			{
+			String s=opt.getValue();
+			int x=s.indexOf('x');
+			if(x==-1)
+				{
+				LOG.error("'x' missing in "+s);
+				return Status.EXIT_FAILURE;
+				}
+			this.viewRect.x=Integer.parseInt(s.substring(0, x));
+			this.viewRect.y=Integer.parseInt(s.substring(x+1));
+			if(viewRect.x<=0 ||this.viewRect.y<=0 )
+				{
+				LOG.error("bad viewRect "+viewRect);
+				return Status.EXIT_FAILURE;
+				}
+			return Status.OK;
 			}
 		
-		}
+		return super.visit(opt);
+	}
+	
 	
 	protected LeafNode createLeafNode(BranchNode parent,String label)
 		{
 		return new DefaultLeafNode(null, label);
 		}
 	
-	protected int buildFactoryChain(String path)
-		{
-		
-		if(path==null)
-			{
-			warning("No path defined!");
-			this.root=createLeafNode(null,"");
-			}
-		else
-			{
-			for(String p: path.split("[ \t/,;]+"))
-				{
-				NodeFactory nf=findFactoryByName(p);
-				if(nf==null)
-					{
-					error("Cannot get type \'"+p+"\' in "+getAllAvailableFactories());
-					return -1;
-					}
-				if(this.nodeFactoryChain.isEmpty())
-					{
-					this.root=nf.createBranch(null,"");
-					}
-				this.nodeFactoryChain.add(nf);
-				}
-			if(this.root==null)
-				{
-				error("Wrong path "+path);
-				return -1;
-				}
-			}
-		return 0;
-		}
 	
 	
 	}
