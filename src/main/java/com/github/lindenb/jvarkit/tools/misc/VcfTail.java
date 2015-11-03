@@ -29,6 +29,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.IOException;
+import java.util.Collection;
 import java.util.LinkedList;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -47,32 +49,24 @@ public class VcfTail
 	public VcfTail()
 		{
 		}
-	
-	 @Override
-	public  Command createCommand() {
-			return new MyCommand();
-		}
-		 
-	 private static class MyCommand extends AbstractVcfTail.AbstractVcfTailCommand
-	 	{
-		@Override
-		protected Throwable validateOptions()
-		 	{
-			if(this.count<0) return new IllegalArgumentException("bad value for count "+this.count);
-			return super.validateOptions();
-		 	}
+	@Override
+	public Collection<Throwable> initializeKnime()
+		{
+		if(this.count<0) return wrapException("bad value for count "+this.count);
+		return super.initializeKnime();
+	 	}
 
-		@Override
-		protected void doWork(String inpuSource,VcfIterator in, VariantContextWriter out)
+	@Override
+	protected Collection<Throwable> doVcfToVcf(String inputName,
+			VcfIterator in, VariantContextWriter out) throws IOException
 			{
-			setVariantCount(0);
 			try {
 				final VCFHeader header=in.getHeader();
 				final VCFHeader h2= addMetaData(new VCFHeader(header));
 				final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header);
 				out.writeHeader(h2);
 				final LinkedList<VariantContext> L=new LinkedList<VariantContext>();
-				while(in.hasNext() && L.size()< this.count && !checkError())
+				while(in.hasNext() && L.size()< this.count && !out.checkError())
 					{	
 					L.add(progess.watch(in.next()));
 					}
@@ -86,7 +80,7 @@ public class VcfTail
 					out.add(ctx);
 					}
 				progess.finish();
-				setVariantCount(L.size());
+				return RETURN_OK;
 				}
 			finally
 				{
@@ -94,7 +88,12 @@ public class VcfTail
 				out=null;
 				}
 			}
-	 	}
+	
+	 @Override
+	protected Collection<Throwable> call(String inputName) throws Exception
+		{
+		return doVcfToVcf(inputName);
+		}
 		
 		
 	public static void main(String[] args)

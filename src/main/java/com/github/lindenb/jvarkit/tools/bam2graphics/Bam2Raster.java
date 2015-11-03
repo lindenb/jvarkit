@@ -54,7 +54,6 @@ import javax.imageio.ImageIO;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 
@@ -80,14 +79,6 @@ public class Bam2Raster extends AbstractBam2Raster
     	{
     	}
   
-    @Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
-	
-	static private class MyCommand extends AbstractBam2Raster.AbstractBam2RasterCommand
-		{
 		
    private static interface Colorizer
     	{
@@ -608,7 +599,7 @@ public class Bam2Raster extends AbstractBam2Raster
 				}
 	
 			}
-		}
+		
 	public static void main(String[] args)
 		{
 		new Bam2Raster().instanceMainWithExit(args);

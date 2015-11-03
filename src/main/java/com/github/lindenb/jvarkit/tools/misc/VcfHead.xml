@@ -11,11 +11,12 @@
 	 app="&name;"
 	 package="&package;"
 	 __placeholder__="1"
-	 extends="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter4"
-	 extends-command="com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter4.AbstractVCFCommand"
 	>
 
 <description>Print the first variants of a VCF.</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
 
 <options>
 	<option name="count" type="int" opt="n" longopt="count" min-inclusive="0" default="10">

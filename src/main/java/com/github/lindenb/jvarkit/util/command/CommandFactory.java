@@ -36,6 +36,7 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.jar.Manifest;
 
+import javax.swing.AbstractAction;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.xml.stream.XMLStreamException;
@@ -53,6 +54,7 @@ import org.apache.commons.logging.LogFactory;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 
+@Deprecated
 public abstract class CommandFactory 
 	{
 	protected enum Status {OK,EXIT_SUCCESS,EXIT_FAILURE};
@@ -293,16 +295,16 @@ public String getVersion()
 	}
 
 
-protected String getOnlineDocUrl()
+public String getOnlineDocUrl()
 	{
 	return "https://github.com/lindenb/jvarkit/wiki/"+getName();
 	}
 
-protected String getAuthorName()
+public String getAuthorName()
 	{
 	return "Pierre Lindenbaum PhD.";
 	}
-protected String getAuthorMail()
+public String getAuthorMail()
 	{
 	return "plinden"+"baum"+
 			'@'+
@@ -376,14 +378,6 @@ public void usage(PrintStream out)
 					}
 				}
 			cmd = createCommand();
-			cmd.setProgramCommandLine(sb.toString().
-					replace('\n', ' ').
-					replace('\t', ' ').
-					replace('\"', ' ').
-					replace('\'', ' '));
-			cmd.copyFrom(this);
-			
-			cmd.setInputFiles(cli.getArgList());
 			
 			final Date startDate=new Date();
 			LOG.info("Starting JOB at "+startDate+" "+getClass().getName()+
@@ -453,7 +447,6 @@ public void usage(PrintStream out)
 			if(cmd!=null) cmd.cleanup();
 			}
 		}
-
 	
 	
 	public void instanceMainWithExit(final String args[])
@@ -461,6 +454,4 @@ public void usage(PrintStream out)
 		int ret = instanceMain(args);
 		System.exit(ret);
 		}
-	
-	
 	}

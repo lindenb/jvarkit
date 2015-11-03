@@ -54,6 +54,7 @@ import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
  * @author lindenb
  *
  */
+@Deprecated
 public abstract class AbstractVCFFilter4
 	extends CommandFactory
 	{

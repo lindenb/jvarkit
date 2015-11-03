@@ -76,7 +76,6 @@ import javax.imageio.ImageIO;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.BufferedList;
 import com.github.lindenb.jvarkit.util.Hershey;
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -84,19 +83,12 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 	{
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamCmpCoverage.class);
 
-	 @Override
-		public  Command createCommand() {
-				return new MyCommand();
-			}
-			 
-		private static class MyCommand extends AbstractBamCmpCoverage.AbstractBamCmpCoverageCommand
-			 	{
-				private double sampleWidth=0;
-				private double marginWidth=0;
-				private BufferedImage image=null;
-				private Map<String,Integer> sample2column=new HashMap<>();
-				/** restrict to BED */
-				private IntervalTreeMap<Boolean> intervals=null;
+	private double sampleWidth=0;
+	private double marginWidth=0;
+	private BufferedImage image=null;
+	private Map<String,Integer> sample2column=new HashMap<>();
+	/** restrict to BED */
+	private IntervalTreeMap<Boolean> intervals=null;
 
 		
 	
@@ -164,12 +156,12 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 		BitSampleMatrix(int n_samples)
 			{
 			/* max-min coverage */
-			int diffDepth=  MyCommand.this.maxDepth-MyCommand.this.minDepth;
+			int diffDepth=  BamCmpCoverage.this.maxDepth-BamCmpCoverage.this.minDepth;
 			LOG.info("diffDepth:"+diffDepth);
 			
 			/* square size according to final image size */
-			int squarePixel = (int)Math.ceil(MyCommand.this.sampleWidth);
-			LOG.info("squarePixel:"+squarePixel+" ("+MyCommand.this.sampleWidth+")");
+			int squarePixel = (int)Math.ceil(BamCmpCoverage.this.sampleWidth);
+			LOG.info("squarePixel:"+squarePixel+" ("+BamCmpCoverage.this.sampleWidth+")");
 			
 			/* we use the minimal size */
 			this.bitSize= Math.min(diffDepth,squarePixel);
@@ -751,7 +743,7 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 			
 			}
 		}
-			 	}
+			 	
 	public static void main(String[] args) {
 		new BamCmpCoverage().instanceMainWithExit(args);
 		}

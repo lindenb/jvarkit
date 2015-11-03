@@ -32,11 +32,11 @@ package com.github.lindenb.jvarkit.tools.vcffilterjs;
 
 
 import java.io.IOException;
+import java.util.Collection;
 
 import javax.script.Bindings;
+import javax.script.CompiledScript;
 import javax.script.ScriptException;
-
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
@@ -45,7 +45,6 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 
 
 
@@ -54,58 +53,63 @@ import htsjdk.variant.vcf.VCFHeaderLine;
  * Motivation http://www.biostars.org/p/66319/ 
  */
 public class VCFFilterJS
-	extends AbstractVcfJavascript
+	extends AbstractVCFFilterJS
 	{	
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VCFFilterJS.class);
+	private CompiledScript compiledScript = null;
+	
 	/** 2015-02-10 : moved to public , so we can use it in knime */
 	public VCFFilterJS()
 		{
 		
 		}
-	
 	@Override
-	protected void doWork(
-			String inpuSource,
-			VcfIterator r,
-			VariantContextWriter w
+	protected Collection<Throwable> doVcfToVcf(
+			final String inputName,
+			final VcfIterator r,
+			final VariantContextWriter w
 			) throws IOException
 		{
 		try
 			{
-			VCFHeader header=r.getHeader();
-			SnpEffPredictionParser snpEffPredictionParser=new SnpEffPredictionParser(header);
-			VepPredictionParser vepPredictionParser=new VepPredictionParser(header);
-			
-			
-			VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-	
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-				
-			Bindings bindings = this.getScriptEngine().createBindings();
-	        bindings.put("header", header);
-       
-	        w.writeHeader(h2);
-	        while(r.hasNext() && !this.checkOutputError())
-	        	{
-	        	VariantContext variation=progress.watch(r.next());
-	        	
+			final VCFHeader header = r.getHeader();
+			SnpEffPredictionParser snpEffPredictionParser = new SnpEffPredictionParser(
+					header);
+			VepPredictionParser vepPredictionParser = new VepPredictionParser(
+					header);
+
+			final  VCFHeader h2 = new VCFHeader(header.getMetaDataInInputOrder(),
+					header.getSampleNamesInOrder());
+			addMetaData(h2);
+
+			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(
+					header.getSequenceDictionary());
+
+			final  Bindings bindings = this.compiledScript.getEngine()
+					.createBindings();
+			bindings.put("header", header);
+
+			w.writeHeader(h2);
+			while (r.hasNext() && !w.checkError())
+				{
+				final  VariantContext variation = progress.watch(r.next());
+
 				bindings.put("variant", variation);
-				bindings.put("snpEff", snpEffPredictionParser.getPredictions(variation));
-				bindings.put("vep", vepPredictionParser.getPredictions(variation));
-				
-				if(!accept(bindings)) continue;				
-				this.incrVariantCount();
+				bindings.put("snpEff",
+						snpEffPredictionParser.getPredictions(variation));
+				bindings.put("vep",
+						vepPredictionParser.getPredictions(variation));
+
+				if (!evalJavaScriptBoolean(this.compiledScript, bindings))
+					continue;
 				w.add(variation);
 				}
-	        }
-        catch(ScriptException err)
-        	{
-        	error(err);
-        	throw new IOException(err);
-        	}
+			return RETURN_OK;
+			}
+		catch (ScriptException err)
+			{
+			return wrapException(err);
+			}
 		finally
 			{
 
@@ -113,46 +117,31 @@ public class VCFFilterJS
 		}
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VCFFilterJS";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return  "Filtering VCF with javascript (java rhino)."+
-				" The script puts 'variant' a "+VariantContext.class.getName()+" ("+HtsjdkVersion.getJavadocUrl(VariantContext.class)+") "+
-				" , 'header' ( "+VCFHeader.class.getName()+" "+ HtsjdkVersion.getJavadocUrl(VCFHeader.class)+" ) in the script context, "+
-				" 'snpEff' a java.util.List SnpEffPredictionParser$SnpEffPrediction of https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/SnpEffPredictionParser.java "+
-				" 'vep' a java.util.List of VepPredictionParser$VepPrediction https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/VepPredictionParser.java  ."
-				;
-		}
-	
-	
-	
-	@Override
-	public int doWork(String[] args)
+	public Collection<Throwable> initializeKnime()
 		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()))!=-1)
+		try
 			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			this.compiledScript = super.compileJavascript();
 			}
-		return mainWork(opt.getOptInd(), args);
+		catch(Exception err)
+			{
+			return wrapException(err);
+			}
+		return super.initializeKnime();
 		}
-		
-
+	
+	@Override
+	public void disposeKnime()
+		{
+		this.compiledScript=null;
+		super.disposeKnime();
+		}
+	
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		LOG.info("NPUT ="+inputName+" "+getInputFiles());
+		return doVcfToVcf(inputName);
+		}
 	
 	public static void main(String[] args) throws Exception
 		{
