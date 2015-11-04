@@ -3,5 +3,187 @@
  <!ENTITY name "VCFFilterJS">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.vcffilterjs">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;"
+	ui-swing="false"
+	__placeholder__="1"
+	>
+<description>Filtering VCF with javascript (java rhino).</description>
+<input type="vcf"/>
+<output type="vcf"/>
+<snippet id="javascript"/>
+
+<options>
+</options>
+
+<documentation>
+Filters a VCF with javascript ( java rhino engine http://en.wikipedia.org/wiki/Rhino_%28JavaScript_engine%29 )
+This tool is not safe for a public Galaxy server, because the javascript code can access the filesystem.
+
+
+the script binds the following variables:
+
+<h:ul>
+<h:li> <h:b>variant</h:b> : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html )</h:li>
+<h:li> <h:b>header</h:b> : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html ).</h:li>
+<h:li> <h:b>snpEff</h:b> (new 2015-02-20 ) a java.util.List of SnpEffPredictionParser$SnpEffPrediction (  https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/SnpEffPredictionParser.java )</h:li>
+<h:li> <h:b>vep</h:b> (new 2015-02-20 )  a java.util.List of VepPredictionParser$VepPrediction  ( https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/VepPredictionParser.java  ) .</h:li>
+</h:ul>
+
+
+<h:h3> Examples</h:h3>
+
+<h:h4> Example 1</h:h4>
+the file filter.js
+
+<h:pre class="javascript"><!-- /** prints a VARIATION if two samples at least have a DP<200 */ 
+function myfilterFunction()
+	{
+	var samples=header.genotypeSamples;
+	var countOkDp=0;
+
+
+	for(var i=0; i< samples.size();++i)
+		{
+		var sampleName=samples.get(i);
+		if(! variant.hasGenotype(sampleName)) continue;
+		var genotype = variant.genotypes.get(sampleName);
+		if( ! genotype.hasDP()) continue;
+		var dp= genotype.getDP();
+		if(dp < 200 ) countOkDp++;
+		}
+	return (countOkDp>2)
+	}
+myfilterFunction();
+ --></h:pre>
+
+<h:pre class="bash"><!-- $ curl -sL "https://raw.github.com/jamescasbon/PyVCF/master/vcf/test/gatk.vcf" |\
+   java -jar  dist/vcffilterjs.jar  -f filter.js
+   
+##fileformat=VCFv4.1
+##FORMAT=<ID=AD,Number=.,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	BLANK	NA12878	NA12891	NA12892	NA19238NA19239	NA19240
+chr22	42526449	.	T	A	151.47	.	AC=1;AF=0.071;AN=14;BaseQRankSum=2.662;DP=1226;DS;Dels=0.00;FS=0.000;HRun=0;HaplotypeScore=41.2083;MQ=240.47;MQ0=0;MQRankSum=0.578;QD=4.89;ReadPosRankSum=3.611	GT:AD:DP:GQ:PL	0/1:23,8:31:99:190,0,694	0/0:188,0:190:99:0,478,5376	0/0:187,0:187:99:0,493,5322	0/0:247,0:249:99:0,634,6728	0/0:185,0:185:99:0,487,5515	0/0:202,0:202:99:0,520,5857	0/0:181,1:182:99:0,440,5362
+chr22	42526634	.	T	C	32.60	.	AC=1;AF=0.071;AN=14;BaseQRankSum=1.147;DP=1225;DS;Dels=0.00;FS=0.000;HRun=0;HaplotypeScore=50.0151;MQ=240.65;MQ0=0;MQRankSum=1.151;QD=1.30;ReadPosRankSum=1.276	GT:AD:DP:GQ:PL	0/1:21,4:25:71:71,0,702	0/0:187,2:189:99:0,481,6080	0/0:233,0:233:99:0,667,7351	0/0:230,0:230:99:0,667,7394	0/0:174,1:175:99:0,446,5469	0/0:194,2:196:99:0,498,6239	0/0:174,0:175:99:0,511,5894
+chr22	42527793	rs1080989	C	T	3454.66	.	AC=2;AF=0.167;AN=12;BaseQRankSum=-3.007;DB;DP=1074;DS;Dels=0.01;FS=0.000;HRun=1;HaplotypeScore=75.7865;MQ=209.00;MQ0=0;MQRankSum=3.014;QD=9.36;ReadPosRankSum=0.618	GT:AD:DP:GQ:PL	./.	0/1:72,90:162:99:1699,0,1767	0/1:103,96:202:99:1756,0,2532	0/0:188,0:188:99:0,526,5889	0/0:160,0:160:99:0,457,4983	0/0:197,0:198:99:0,544,6100	0/0:156,0:156:99:0,439,5041
+
+ --></h:pre>
+
+<h:h4> Example 2</h:h4>
+
+Script used for http://plindenbaum.blogspot.fr/2013/10/yes-choice-of-transcripts-and-software.html
+<h:pre class="javascript"><!-- function has_missense(v)
+	{
+	if(!v.getClass().getName().equals("java.lang.String"))
+		{
+		var i;
+		for(i=0;i< v.size();++i)
+			{
+			if(has_missense(v.get(i))) return true;
+			}
+		return false;
+		}
+	if(v.indexOf("non_coding_exon_variant")!=-1) return 0;
+	return v.indexOf("missense")!=-1;
+	}
+
+function accept(v)
+	{
+	if(v.isIndel()) return 0;
+	var vep=v.getAttribute("CSQ");
+	if(vep==null ) return 0;
+
+	var pred=v.getAttribute("PRED");
+	if(pred==null ) return 0;	
+	if(!has_missense(vep) && has_missense(pred)) return 1;
+	return 0;
+	}
+	
+accept(variant);
+ --></h:pre>
+
+<h:h4> Example 3</h:h4>
+Sample having a unique genotype:
+<h:pre class="javascript"><!-- function accept(ctx)
+	{
+	var x,y,g1,g2,count_same=0;
+	var sampleList=header.getSampleNamesInOrder();
+	/** loop over one sample */
+	for(x=0;x < sampleList.size();++x)
+		{
+		g1=ctx.getGenotype( sampleList.get(x) );
+		/** ignore non-called */
+		if(! g1.isCalled() ) continue;
+		count_same=0;
+		/** loop over the other samples */
+		for(y=0;y< sampleList.size() && count_same==0 ;++y)
+			{
+			if(x==y) continue;/* same sample ?*/
+			g2=ctx.getGenotype( sampleList.get(y) );
+			/** ignore non-called */
+			if(! g2.isCalled() ) continue;
+			/** is g1==g2 ? */
+			if( g1.sameGenotype( g2 ) )
+				{
+				count_same++;
+				}
+			}
+		/* found no other same genotype */
+		if(count_same==0) return true;
+		}
+	return false;
+	}
+accept(variant);
+ --></h:pre>
+<h:pre class="bash"><!--  curl "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/ALL.chr1.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf.gz" |\
+gunzip -c |\
+java -jar dist/vcffilterjs.jar  -f select.js |\
+grep -v "#" | cut -f 1-5 
+
+1	13957	rs201747181	TC	T
+1	51914	rs190452223	T	G
+1	54753	rs143174675	T	G
+1	55313	rs182462964	A	T
+1	55326	rs3107975	T	C
+1	55330	rs185215913	G	A
+1	55388	rs182711216	C	T
+1	55416	rs193242050	G	A
+1	55427	rs183189405	T	C
+1	62156	rs181864839	C	T
+1	63276	rs185977555	G	A
+1	66457	rs13328655	T	A
+1	69534	rs190717287	T	C
+1	72148	rs182862337	C	T
+1	77470	rs192898053	T	C
+1	79137	rs143777184	A	T
+1	81949	rs181567186	T	C
+1	83088	rs186081601	G	C
+1	83977	rs180759811	A	G
+1	84346	rs187855973	T	C
+ --></h:pre>
+verify:
+<h:pre class="bash"><!-- curl  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/ALL.chr1.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf.gz" |\
+gunzip -c  |\
+grep rs201747181 |\
+cut -f 10- |\
+tr "   " "\n" |\
+cut -d ':' -f 1 |\
+sort |\
+uniq -c
+
+   1013 0|0
+     26 0|1
+      7 1|0
+      1 1|1
+ --></h:pre>
+<h:h4> Example 4</h:h4>
+filter homozygotes for sample NA12878
+<h:pre class="bash"><!-- curl -sL "https://raw.github.com/jamescasbon/PyVCF/master/vcf/test/gatk.vcf" |\
+java -jar dist/vcffilterjs.jar -e 'variant.getGenotype("NA12878").isHom()'
+ --></h:pre>
+
+
+</documentation>
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

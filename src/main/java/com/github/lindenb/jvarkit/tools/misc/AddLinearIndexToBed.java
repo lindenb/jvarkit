@@ -26,13 +26,6 @@ public class AddLinearIndexToBed extends AbstractAddLinearIndexToBed
 		
 		}
 	
-	 @Override
-		public  Command createCommand() {
-				return new MyCommand();
-			}
-			 
-		private static class MyCommand extends AbstractAddLinearIndexToBed.AbstractAddLinearIndexToBedCommand
-		 	{
 			private SAMSequenceDictionary dictionary=null;
 			private long tid2offset[]=null;
 
@@ -128,7 +121,7 @@ public class AddLinearIndexToBed extends AbstractAddLinearIndexToBed
 				tid2offset=null;
 				}
 			}
-	 	}
+	 	
 
 	
 

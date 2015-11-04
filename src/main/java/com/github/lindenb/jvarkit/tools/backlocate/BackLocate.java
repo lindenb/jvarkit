@@ -53,7 +53,6 @@ import java.util.regex.Pattern;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
@@ -63,14 +62,6 @@ public class BackLocate
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BackLocate.class);
 
 	
-	@Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
-	
-	static private class MyCommand extends AbstractBackLocate.AbstractBackLocateCommand
-		{
 		private boolean printSequences=false;
 		private GenomicSequence genomicSeq=null;
 		private Map<String,Set<String>> geneSymbol2kg=new HashMap<>();
@@ -569,7 +560,7 @@ public class BackLocate
 			super.disposeKnime();
 			}
 		
-		}
+		
 	public static void main(String[] args)
 		{
 		new BackLocate().instanceMainWithExit(args);

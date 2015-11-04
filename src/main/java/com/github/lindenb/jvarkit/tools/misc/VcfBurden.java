@@ -63,6 +63,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
 public class VcfBurden extends AbstractKnimeApplication
 	{
+	private boolean highdamage=false;
 	private Map<String,Boolean> gene2seen=null;
 	private String dirName="burden";
 	public VcfBurden()
@@ -230,11 +231,29 @@ public class VcfBurden extends AbstractKnimeApplication
 			Map<GeneTranscript,List<VariantContext>> gene2variants=new HashMap<>();
 			SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
 			Set<SequenceOntologyTree.Term> acn=new HashSet<>();
-			for(String acns:new String[]{
+			/* mail solena  *SO en remplacement des SO actuels (VEP HIGH + MODERATE) - pas la peine de faire retourner les analyses mais servira pour les futures analyses burden */
+			String acn_list[]=new String[]{
+					"SO:0001893",  "SO:0001574",  "SO:0001575", 
+					"SO:0001587",  "SO:0001589",  "SO:0001578", 
+					"SO:0002012",  "SO:0001889",  "SO:0001821", 
+					"SO:0001822",  "SO:0001583",  "SO:000181"
+					
+					/*
 					"SO:0001589", "SO:0001587", "SO:0001582", "SO:0001583",
 					"SO:0001575", "SO:0001578", "SO:0001574", "SO:0001889",
-					"SO:0001821", "SO:0001822", "SO:0001893"
-					})
+					"SO:0001821", "SO:0001822", "SO:0001893"*/
+					};
+			
+			if(this.highdamage)
+				{
+				acn_list=new String[]{
+						"SO:0001893",  "SO:0001574",  "SO:0001575",
+						"SO:0001587",  "SO:0001589",  "SO:0001578", 
+						"SO:0002012",  "SO:0001889"
+						};
+				}
+			
+			for(String acns:acn_list)
 				{
 				acn.addAll(soTree.getTermByAcn(acns).getAllDescendants());
 				}
@@ -425,6 +444,7 @@ public class VcfBurden extends AbstractKnimeApplication
 		out.println(" -o (file) output file (default stdout)");
 		out.println(" -g (file) optional list of gene names (restrict genes, print genes without data)");
 		out.println(" -d (dir) base zip dir default:"+this.dirName);
+		out.println(" -H only high damage");
 		super.printOptions(out);
 		}
 	
@@ -434,10 +454,11 @@ public class VcfBurden extends AbstractKnimeApplication
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:d:g:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:d:g:H"))!=-1)
 			{
 			switch(c)
 				{
+				case 'H': highdamage=true;break;
 				case 'o': setOutputFile(opt.getOptArg()); break;
 				case 'd': this.dirName=opt.getOptArg();break;
 				case 'g': 

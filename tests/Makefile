@@ -6,12 +6,14 @@ define compile
 endef
 
 
-TEST_APPS = bamtile addlinearindextobed bamcmpcoverage allelefreqcalc vcfhead vcftail
+TEST_APPS = vcffilterjs bamtile addlinearindextobed bamcmpcoverage allelefreqcalc vcfhead vcftail
 
 all:tests
 
 tests: ${TEST_APPS}
 
+vcffilterjs:
+	$(call compile,$@) && java -jar ${dist.dir}/$@.jar -e 'variant.getStart()%2==0' ${htsjdk.home}/testdata/htsjdk/variant/ILLUMINA.wex.broad_phase2_baseline.20111114.both.exome.genotypes.1000.vcf > /dev/null && echo "OK: $@" > $(addsuffix .ok,$@)
 
 allelefreqcalc: 
 	$(call compile,$@) && java -jar ${dist.dir}/$@.jar ${htsjdk.home}/testdata/htsjdk/variant/ILLUMINA.wex.broad_phase2_baseline.20111114.both.exome.genotypes.1000.vcf > /dev/null && echo "OK: $@" > $(addsuffix .ok,$@)

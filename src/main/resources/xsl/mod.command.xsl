@@ -48,15 +48,57 @@ SOFTWARE.
 <xsl:apply-templates select="." mode="class-name"/>
 </xsl:template>
 
-<xsl:template match="c:app" mode="factory-class-name">
+<xsl:template match="c:app" mode="swing-name">
 <xsl:apply-templates select="." mode="class-name"/>
-<xsl:text>Factory</xsl:text>
+<xsl:text>SwingUI</xsl:text>
+</xsl:template>
+
+<xsl:template match="c:app" mode="factory-class-name">
+<xsl:message terminate="yes">Factory is deprecated</xsl:message>
 </xsl:template>
 
 <xsl:template match="c:app" mode="abstract-command-name">
 <xsl:text>Abstract</xsl:text>
 <xsl:apply-templates select="." mode="class-name"/>
 <xsl:text>Command</xsl:text>
+</xsl:template>
+
+<xsl:template match="c:app" mode="label">
+	<xsl:choose>
+		<xsl:when test="c:label">
+		@Override
+		public String getLabel()
+			{
+			return "<xsl:value-of select="c:label"/>";
+			}
+		</xsl:when>
+		<xsl:when test="@label">
+		@Override
+		public String getLabel()
+			{
+			return "<xsl:value-of select="@label"/>";
+			}
+		</xsl:when>
+	</xsl:choose>
+</xsl:template>
+	
+<xsl:template match="c:app" mode="description">
+	<xsl:choose>
+		<xsl:when test="c:description">
+		@Override
+		public String getDescription()
+			{
+			return "<xsl:value-of select="c:description"/>";
+			}
+		</xsl:when>
+		<xsl:when test="@description">
+		@Override
+		public String getDescription()
+			{
+			return "<xsl:value-of select="@description"/>";
+			}
+		</xsl:when>
+	</xsl:choose>
 </xsl:template>
 
 <xsl:template match="c:app" mode="jfx">
@@ -115,11 +157,12 @@ options.addOptionGroup(<xsl:value-of select="generate-id()"/>);
 
 <xsl:template match="c:option" mode="description">
 <xsl:choose>
-	<xsl:when test="c:description"><xsl:value-of select="c:description"/></xsl:when>
+	<xsl:when test="c:description"><xsl:apply-templates select="c:description"/></xsl:when>
 	<xsl:when test="@description"><xsl:value-of select="@description"/></xsl:when>
 	<xsl:otherwise><xsl:apply-templates select="." mode="label"/></xsl:otherwise>
 </xsl:choose>
 </xsl:template>
+
 
 
 <xsl:template match="c:option" mode="cli">
@@ -155,7 +198,7 @@ options.addOption(org.apache.commons.cli.Option
 		)
 	</xsl:if>
 	<xsl:if test="c:description">
-	.desc("<xsl:value-of select="c:description"/>"
+	.desc("<xsl:apply-templates select="c:description"/>"
 		<xsl:if test="@default">
 		+ ". default: <xsl:value-of select="@default"/>"
 		</xsl:if>	
@@ -193,7 +236,7 @@ options.addOption(org.apache.commons.cli.Option
 		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
 		</xsl:when>
-		<xsl:when test="@type='existing-file' or @type='input-file'">
+		<xsl:when test="@type='existing-file' or @type='input-file' or @type='input-directory'">
 		.hasArg(true)
 		.type(org.apache.commons.cli.PatternOptionBuilder.EXISTING_FILE_VALUE)
 		</xsl:when>
@@ -202,6 +245,10 @@ options.addOption(org.apache.commons.cli.Option
 		.type(org.apache.commons.cli.PatternOptionBuilder.EXISTING_FILE_VALUE)
 		</xsl:when>
 		<xsl:when test="@type='string-set'">
+		.hasArgs() //unlimited
+		.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
+		</xsl:when>
+		<xsl:when test="@type='string-list'">
 		.hasArgs() //unlimited
 		.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
 		</xsl:when>
@@ -236,9 +283,11 @@ LongValidator <xsl:apply-templates select="@name"/>
 protected <xsl:apply-templates select="." mode="java-type"/><xsl:text> </xsl:text> <xsl:apply-templates select="." mode="name"/> = <xsl:choose>
 		<xsl:when test="@type='input-file-set'"> new java.util.HashSet&lt;java.io.File&gt;()</xsl:when>
 		<xsl:when test="@type='string-set'"> new java.util.HashSet&lt;java.lang.String&gt;()</xsl:when>
+		<xsl:when test="@type='string-list'"> new java.util.ArrayList&lt;java.lang.String&gt;()</xsl:when>
 		<xsl:when test="@default and (not(@type) or @type='string' or @type='String' or @type='java.lang.String')">"<xsl:value-of select="@default"/>"</xsl:when>
 		<xsl:when test="@default"><xsl:value-of select="@default"/></xsl:when>
 		<xsl:when test="$nilleable = 'true'">null</xsl:when>
+		<xsl:when test="@type='boolean' or @type='bool'"> false</xsl:when>
 		<xsl:otherwise>0</xsl:otherwise>
 	</xsl:choose>;
 
@@ -256,6 +305,7 @@ public  void  <xsl:apply-templates select="." mode="setter"/>( final <xsl:apply-
 	this.<xsl:apply-templates select="." mode="name"/> = <xsl:choose>
 		<xsl:when test="@type='input-file-set'">(<xsl:apply-templates select="." mode="java-type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null: new java.util.HashSet&lt;java.io.File&gt;(<xsl:apply-templates select="." mode="name"/>))</xsl:when>
 		<xsl:when test="@type='string-set'">(<xsl:apply-templates select="." mode="java-type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null: new java.util.HashSet&lt;java.lang.String&gt;(<xsl:apply-templates select="." mode="name"/>))</xsl:when>
+		<xsl:when test="@type='string-list'">(<xsl:apply-templates select="." mode="java-type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null: new java.util.ArrayList&lt;java.lang.String&gt;(<xsl:apply-templates select="." mode="name"/>))</xsl:when>
 		<xsl:when test="$cloneable = 'true'">(<xsl:apply-templates select="." mode="java-type"/>)(<xsl:apply-templates select="." mode="name"/>==null?null:<xsl:apply-templates select="." mode="name"/>.clone())</xsl:when>
 		<xsl:otherwise><xsl:apply-templates select="." mode="name"/></xsl:otherwise>
 		</xsl:choose>;
@@ -280,6 +330,14 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="starts-with(@type,'java.lang')">false</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
 	<xsl:when test="@type='int'">false</xsl:when>
+	<xsl:when test="@type='input-directory'">false</xsl:when>
+	<xsl:when test="@type='input-file-set' or @type='string-set' or @type='string-list'">true</xsl:when>
+	<xsl:when test="starts-with(@type,'java.lang')">false</xsl:when>
+	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
+	<xsl:when test="@type='int'">false</xsl:when>
+	<xsl:when test="@type='long'">false</xsl:when>
+	<xsl:when test="@type='double'">false</xsl:when>
+	<xsl:when test="@type='float'">false</xsl:when>
 	<xsl:when test="$nilleable = 'true'">true</xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate='yes'>cloneable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
@@ -293,11 +351,14 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='output-file'">true</xsl:when>
 	<xsl:when test="@type='input-file'">true</xsl:when>
 	<xsl:when test="@type='input-file-set' or @type='string-set'">true</xsl:when>
+	<xsl:when test="@type='input-directory'">true</xsl:when>
+	<xsl:when test="@type='input-file-set' or @type='string-set' or @type='string-list'">true</xsl:when>
 	<xsl:when test="@type='java.net.URL'">true</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">false</xsl:when>
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">true</xsl:when>
     <xsl:when test="starts-with(@type,'java.lang')">true</xsl:when>
-	<xsl:when test="@type='int' or @type='double'">false</xsl:when>
+	<xsl:when test="@type='int' or @type='double'or @type='long'">false</xsl:when>
+	<xsl:when test="@type='float'">false</xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate='yes'>nilleable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 	</xsl:otherwise>
@@ -332,9 +393,14 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 <xsl:choose>
 	<xsl:when test="@type='output-file'">java.io.File</xsl:when>
 	<xsl:when test="@type='input-file'">java.io.File</xsl:when>
+	<xsl:when test="@type='input-directory'">java.io.File</xsl:when>
 	<xsl:when test="@type='input-file-set'">java.util.Set&lt;java.io.File&gt;</xsl:when>
 	<xsl:when test="@type='string-set'">java.util.Set&lt;java.lang.String&gt;</xsl:when>
+	<xsl:when test="@type='string-list'">java.util.List&lt;java.lang.String&gt;</xsl:when>
 	<xsl:when test="@type='int'">int</xsl:when>
+	<xsl:when test="@type='long'">long</xsl:when>
+	<xsl:when test="@type='double'">double</xsl:when>
+	<xsl:when test="@type='float'">float</xsl:when>
 	<xsl:when test="@type='bool' or @type='boolean'">boolean</xsl:when>
 	<xsl:when test="@type='string' or @type='String' or @type='java.lang.String'">java.lang.String</xsl:when>
 	<xsl:when test="@type='Integer' or @type='java.lang.Integer'">java.lang.Integer</xsl:when>
@@ -396,22 +462,19 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	/* <xsl:value-of select="@name"/> : <xsl:value-of select="@type"/> */
 	<xsl:choose>
 		<xsl:when test="@type='bool' or @type='boolean' or @type='Boolean' or @type='java.lang.Boolean' ">
-		boolean <xsl:value-of select="generate-id()"/>;
-		if( opt.getValue().toLowerCase().equals("t") || opt.getValue().toLowerCase().equals("true") || opt.getValue().toLowerCase().equals("yes") || opt.getValue().toLowerCase().equals("1"))
-			{
-			<xsl:value-of select="generate-id()"/> = true;
-			}
-		else if( opt.getValue().toLowerCase().equals("f") || opt.getValue().toLowerCase().equals("false") || opt.getValue().toLowerCase().equals("no") || opt.getValue().toLowerCase().equals("0"))
-			{
-			<xsl:value-of select="generate-id()"/> = false;
-			}
-		else
-			{
-			LOG.error("<xsl:value-of select="@name"/> : Cannot cast "+opt.getValue()+" to a boolean value");
-			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
-			}
+			boolean <xsl:value-of select="generate-id()"/>;
+			<xsl:choose>
+				<xsl:when test="@default='true'">
+				 <xsl:value-of select="generate-id()"/> = false;
+				</xsl:when>
+				<xsl:when test="@default='false'">
+				 <xsl:value-of select="generate-id()"/> = true;
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:message terminate='true'>c:option visit no @default value set for  <xsl:value-of select="@name"/></xsl:message>
+				</xsl:otherwise>
+			</xsl:choose>
 		</xsl:when>
-	
 	
 		<xsl:when test="not(@type) or @type='string' or @type='String' or @type='java.lang.String'">
 		java.lang.String <xsl:value-of select="generate-id()"/> = opt.getValue();
@@ -420,42 +483,96 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		<xsl:when test="@type='int'">
 		int <xsl:value-of select="generate-id()"/> = 0;
 		try { <xsl:value-of select="generate-id()"/> = Integer.parseInt(opt.getValue());}
-		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to integer",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to integer",err); return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;}
+		</xsl:when>
 		
+		
+		<xsl:when test="@type='long'">
+		long <xsl:value-of select="generate-id()"/> = 0L;
+		try { <xsl:value-of select="generate-id()"/> = Long.parseLong(opt.getValue());}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to long",err); return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;}
+		</xsl:when>
+		
+		<xsl:when test="@type='float'">
+		float <xsl:value-of select="generate-id()"/> = 0f;
+		try { <xsl:value-of select="generate-id()"/> = Float.parseFloat(opt.getValue());}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to float",err); return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;}
+		</xsl:when>
+		
+		<xsl:when test="@type='double'">
+		double <xsl:value-of select="generate-id()"/> = 0.0;
+		try { <xsl:value-of select="generate-id()"/> = Double.parseDouble(opt.getValue());}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to double",err); return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;}
 		</xsl:when>
 		
 		<xsl:when test="@type='java.lang.Integer'">
 		java.lang.Integer <xsl:value-of select="generate-id()"/> = null;
 		try { <xsl:value-of select="generate-id()"/> =new Integer(opt.getValue());}
-		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to integer",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
-		
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to integer",err); return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;}
 		</xsl:when>
 		
 		<xsl:when test="@type='output-file'">
 		java.io.File <xsl:value-of select="generate-id()"/> =  null;
 		try { <xsl:value-of select="generate-id()"/> = new java.io.File(opt.getValue());}
-		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to File",err); return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;}
 		</xsl:when>
-		<xsl:when test="@type='input-file'">
+		<xsl:when test="@type='input-file' or @type='input-directory'">
 		java.io.File <xsl:value-of select="generate-id()"/> =  null;
 		try { <xsl:value-of select="generate-id()"/> = new java.io.File(opt.getValue());}
-		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+		catch(Exception err) { LOG.error("Cannot cast "+opt.getValue()+" to File",err); return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;}
 		if(!<xsl:value-of select="generate-id()"/>.exists())
 			{
 			LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" doesn't exists");
-			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+			return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
 			}
-		if(!<xsl:value-of select="generate-id()"/>.isFile())
+		<xsl:choose>
+			<xsl:when test="@type='input-directory'">
+			if(!<xsl:value-of select="generate-id()"/>.isDirectory())
+				{
+				LOG.error("option -"+opt.getOpt()+": path "+<xsl:value-of select="generate-id()"/>+" is not a directory.");
+				return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
+				}
+			</xsl:when>
+			<xsl:otherwise>
+			if(!<xsl:value-of select="generate-id()"/>.isFile())
+				{
+				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not a file.");
+				return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
+				}
+			if(!<xsl:value-of select="generate-id()"/>.canRead())
+				{
+				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not readeable.");
+				return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
+				}
+			</xsl:otherwise>
+		</xsl:choose>
+		</xsl:when>
+		<xsl:when test="@type='input-file-set'">
+		final <xsl:apply-templates select="." mode="java-type"/> <xsl:text> </xsl:text> <xsl:value-of select="generate-id()"/> = new java.util.HashSet&lt;java.io.File&gt;();
+		for(final String <xsl:value-of select="concat('s_',generate-id())"/>: opt.getValues())
 			{
-			LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not a file.");
-			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
-			}
-		if(!<xsl:value-of select="generate-id()"/>.canRead())
-			{
-			LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not readeable.");
-			return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+			java.io.File <xsl:value-of select="concat('f_',generate-id())"/> =  null;
+			try { <xsl:value-of select="concat('f_',generate-id())"/> = new java.io.File( <xsl:value-of select="concat('s_',generate-id())"/>);}
+			catch(Exception err) { LOG.error("Cannot cast "+ <xsl:value-of select="concat('s_',generate-id())"/>+" to File",err); return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;}
+			if(!<xsl:value-of select="concat('f_',generate-id())"/>.exists())
+				{
+				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="concat('f_',generate-id())"/>+" doesn't exists");
+				return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
+				}
+			if(!<xsl:value-of select="concat('f_',generate-id())"/>.isFile())
+				{
+				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not a file.");
+				return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
+				}
+			if(!<xsl:value-of select="concat('f_',generate-id())"/>.canRead())
+				{
+				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="concat('f_',generate-id())"/>+" is not readeable.");
+				return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
+				}
+			<xsl:value-of select="generate-id()"/>.add(<xsl:value-of select="concat('f_',generate-id())"/>);
 			}
 		</xsl:when>
+
 		<xsl:when test="@type='input-file-set'">
 		final <xsl:apply-templates select="." mode="java-type"/> <xsl:text> </xsl:text> <xsl:value-of select="generate-id()"/> = new java.util.HashSet&lt;java.io.File&gt;();
 		for(final String <xsl:value-of select="concat('s_',generate-id())"/>: opt.getValues())
@@ -481,17 +598,131 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 			<xsl:value-of select="generate-id()"/>.add(<xsl:value-of select="concat('f_',generate-id())"/>);
 			}
 		</xsl:when>
-		<xsl:when test="@type='string-set'">
-		final <xsl:apply-templates select="." mode="java-type"/> <xsl:text> </xsl:text> <xsl:value-of select="generate-id()"/> = new java.util.HashSet&lt;java.lang.String&gt;( opt.getValuesList());
+
+		<xsl:when test="@type='string-list'">
+		final <xsl:apply-templates select="." mode="java-type"/> <xsl:text> </xsl:text> <xsl:value-of select="generate-id()"/> = opt.getValuesList();
 		</xsl:when>
+
 		<xsl:otherwise>
 			<xsl:message terminate='yes'>visit: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 		</xsl:otherwise>
 	</xsl:choose>
 	this.<xsl:apply-templates select="." mode="setter"/>(<xsl:value-of select="generate-id()"/>);
-	return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.OK;
+	return com.github.lindenb.jvarkit.util.command.Command.Status.OK;
 	}
 </xsl:template>
+
+<xsl:template match="c:option" mode="height">
+<xsl:choose>
+	<xsl:otherwise>
+		<xsl:text>DEFAULT_HEIGHT</xsl:text>
+	</xsl:otherwise>
+</xsl:choose>
+</xsl:template>
+
+
+<xsl:template match="c:option" mode="swing-declare">
+<xsl:choose>
+	<xsl:when test="@type='string' and @multiline='true'">
+		private javax.swing.JTextArea <xsl:value-of select="generate-id(.)"/> = null;
+	</xsl:when>
+	<xsl:when test="@type='string'">
+		private javax.swing.JTextField <xsl:value-of select="generate-id(.)"/> = null;
+	</xsl:when>
+	<xsl:when test="@type='input-file'">
+		private com.github.lindenb.jvarkit.util.command.CommandUI.InputFileChooser <xsl:value-of select="generate-id(.)"/> = null;
+	</xsl:when>
+	<xsl:otherwise>
+		<xsl:message terminate='yes'>swing-build: unknown type <xsl:value-of select="@type"/>.</xsl:message>
+	</xsl:otherwise>
+</xsl:choose>
+</xsl:template>
+
+<xsl:template match="c:option" mode="swing-build">
+
+/* BEGIN option <xsl:value-of select="@name"/> ****/
+final javax.swing.JLabel <xsl:value-of select="generate-id(.)"/>lbl = new javax.swing.JLabel("<xsl:value-of select="@name"/>");
+<xsl:value-of select="generate-id(.)"/>lbl.setBounds( insets.left+SPACING, y, label_width, DEFAULT_HEIGHT );
+pane.add(<xsl:value-of select="generate-id(.)"/>lbl);
+x = (int)<xsl:value-of select="generate-id(.)"/>lbl.getBounds().getMaxX();
+
+<xsl:value-of select="generate-id(.)"/>lbl.setToolTipText("<xsl:value-of select="@name"/>");
+
+<xsl:choose>
+	<xsl:when test="@type='string' and @multiline='true'">
+		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextArea();
+		<xsl:if test="@default">
+		this.<xsl:value-of select="generate-id(.)"/>.setText("<xsl:value-of select="@default"/>");
+		</xsl:if>
+		final javax.swing.JScrollPane <xsl:value-of select="generate-id(.)"/>scroll = new javax.swing.JScrollPane(this.<xsl:value-of select="generate-id(.)"/>);
+		<xsl:value-of select="generate-id(.)"/>scroll.setBounds(x+SPACING, y, component_width, 3*DEFAULT_HEIGHT );
+		pane.add(<xsl:value-of select="generate-id(.)"/>scroll);
+		y = (int)<xsl:value-of select="generate-id(.)"/>scroll.getBounds().getMaxY();
+	</xsl:when>
+	<xsl:when test="@type='string'">
+		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextField();
+		<xsl:if test="@default">
+		this.<xsl:value-of select="generate-id(.)"/>.setText("<xsl:value-of select="@default"/>");
+		</xsl:if>
+		this.<xsl:value-of select="generate-id(.)"/>.setBounds(x+SPACING, y, component_width, DEFAULT_HEIGHT );
+		pane.add(<xsl:value-of select="generate-id(.)"/>);
+		y = (int)this.<xsl:value-of select="generate-id(.)"/>.getBounds().getMaxY();
+	</xsl:when>
+	<xsl:when test="@type='input-file'">
+		this.<xsl:value-of select="generate-id(.)"/> = new com.github.lindenb.jvarkit.util.command.CommandUI.InputFileChooser();
+		this.<xsl:value-of select="generate-id(.)"/>.setBounds(x+SPACING, y, component_width, DEFAULT_HEIGHT );
+		pane.add(<xsl:value-of select="generate-id(.)"/>);
+		y = (int)this.<xsl:value-of select="generate-id(.)"/>.getBounds().getMaxY();
+	</xsl:when>
+	<xsl:otherwise>
+		<xsl:message terminate='yes'>swing-build: unknown type <xsl:value-of select="@type"/>.</xsl:message>
+	</xsl:otherwise>
+</xsl:choose>
+<xsl:value-of select="generate-id(.)"/>lbl.setLabelFor(this.<xsl:value-of select="generate-id(.)"/>);
+
+
+height = Math.max( y, height );
+width = Math.max(width, (int)this.<xsl:value-of select="generate-id(.)"/>.getBounds().getMaxX());
+y+= SPACING;
+/* END option <xsl:value-of select="@name"/> ****/
+
+</xsl:template>
+
+
+<xsl:template match="c:option" mode="swing-copy">
+
+/* BEGIN option <xsl:value-of select="@name"/> ****/
+<xsl:choose>
+	<xsl:when test="@type='string'">
+		if( ! this.<xsl:value-of select="generate-id(.)"/>.getText().trim().isEmpty() )
+			{
+			app.<xsl:apply-templates select="." mode="setter"/>(this.<xsl:value-of select="generate-id(.)"/>.getText());
+			}
+	</xsl:when>
+	<xsl:when test="@type='input-file'">
+		if( this.<xsl:value-of select="generate-id(.)"/>.getFile() != null )
+			{
+			app.<xsl:apply-templates select="." mode="setter"/>(this.<xsl:value-of select="generate-id(.)"/>.getFile());
+			}
+	</xsl:when>
+	<xsl:otherwise>
+		<xsl:message terminate='yes'>swing-build: unknown type <xsl:value-of select="@type"/>.</xsl:message>
+	</xsl:otherwise>
+	</xsl:choose>
+/* END option <xsl:value-of select="@name"/> ****/
+
+</xsl:template>
+
+<xsl:template match="c:description[@id='faidx']">
+<xsl:text>Indexed Reference genome</xsl:text>
+</xsl:template>
+
+
+<xsl:template match="c:description">
+<xsl:value-of select="text()"/>
+</xsl:template>
+
+
 
 
 <xsl:template name="titleize">
@@ -509,5 +740,6 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 
 
 </xsl:stylesheet>
+
 
 

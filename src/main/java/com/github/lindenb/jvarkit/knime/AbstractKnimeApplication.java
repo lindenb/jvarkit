@@ -9,8 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.command.Command;
-import com.github.lindenb.jvarkit.util.command.CommandFactory;
 
 /**
  * @author lindenb
@@ -24,10 +22,6 @@ public abstract class AbstractKnimeApplication
 	private File outputfile=null;
 	protected static final String INPUT_SOURCE_STDIN="<STDIN>";
 	
-	protected static abstract class AbstractKnimeCommand extends Command
-		{
-		
-		}
 	public void setOutputFile(String out) {
 		setOutputFile(new File(out));
 		}
