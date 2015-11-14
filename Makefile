@@ -205,7 +205,7 @@ APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	biostar3654 vcfjoinvcfjs bioalcidae vcfburden vcfbedsetfilter vcfreplacetag vcfindextabix \
 	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele bedindextabix vcf2bam vcffilterxpath \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
-	biostar160470 
+	biostar160470 biostar165777
 
 
 .PHONY: all tests $(APPS) clean library top ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -247,6 +247,7 @@ $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphic
 $(eval $(call compile-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
 $(eval $(call compile-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig))
 $(eval $(call compile-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage))
+$(eval $(call compile-cmd,biostar165777,${jvarkit.package}.tools.biostar.Biostar165777))
 $(eval $(call compile-htsjdk-cmd,bamgenscan,${jvarkit.package}.tools.genscan.BamGenScan))
 $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bamindexnames.BamIndexReadNames))
 $(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver))
