@@ -788,6 +788,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		/** BEGIN : JAVASCRIPT SECTION ************************************************/
 		
+		<!-- defined in preproc 
 		private String javascriptExpr=null;
 		private	java.io.File javascriptFile=null;
 		
@@ -795,7 +796,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		public void setJavascriptExpr(final String ex) {  this.javascriptExpr = ex;}
 		public java.io.File getJavascriptFile() { return this.javascriptFile;}	
 		public void setJavascriptFile(final java.io.File f) {  this.javascriptFile = f;}
-		
+		-->
 		
 		
 		protected boolean evalJavaScriptBoolean(
