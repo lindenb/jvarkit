@@ -4,4 +4,37 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?</description>
+
+<options>
+	<option name="positionStr" type="string" opt="p" longopt="position">
+		<description>-p chrom:pos . Add this chrom/position. Required</description>
+	</option>
+</options>
+
+
+
+<documentation>
+<h:h3>Example</h:h3>
+<h:pre>
+$ find ./  -type f -name "*.bam" |\
+   java -jar dist/findallcoverageatposition.jar -p "chr2:1234" 
+
+
+#File   CHROM   POS SAMPLE  DEPTH   M   I   D   N   S   H   P   EQ  X
+/path/to/Sample1.bam    2   1234    SAMPLE1 10  10  0   1   0   0   0   0   0   0
+/path/to/Sample2.bam    2   1234    SAMPLE2 10  0   0   0   1   0   0   0   5   5
+/path/to/Sample3.bam    2   1234    SAMPLE3 10  10  0   0   0   0   0   0   0   0
+</h:pre>
+
+<h:h3>See also</h:h3>
+
+<h:ul>
+    <h:li>https://twitter.com/pjacock/status/538300664334798848</h:li>
+    <h:li>https://twitter.com/yokofakun/status/538300434109456385</h:li>
+    <h:li>https://twitter.com/pjacock/status/538299549455233024</h:li>
+    <h:li>FindAVariation</h:li>
+</h:ul>
+
+</documentation>
+<!-- __PLACEHOLDER__ --></app>

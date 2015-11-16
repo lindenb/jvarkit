@@ -76,7 +76,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	
 	</xsl:if>
 	
-
+	
 	
 	
 	<xsl:if test="c:snippet[@id='md5']">
@@ -104,7 +104,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	
 	</xsl:if>
 	
-	
+
 	
 	<xsl:if test="not(@generate-output-option='false')">
 		/** option outputFile */
@@ -201,7 +201,15 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		</xsl:if>
 		
 		<xsl:if test="c:snippet[@id='javascript']">
-
+		options.addOption(org.apache.commons.cli.Option
+			.builder("f")
+			.longOpt("scriptfile")
+			.desc("javascript file.")
+			.argName("FILE.js")
+			.hasArg()
+			.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
+			.build() );	
+			
 		options.addOption(org.apache.commons.cli.Option
 			.builder("e")
 			.longOpt("expression")
@@ -210,6 +218,8 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			.hasArg()
 			.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
 			.build() );	
+			
+			
 		</xsl:if>
 		
 		
@@ -777,6 +787,16 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		<xsl:if test="c:snippet[@id='javascript']">
 		
 		/** BEGIN : JAVASCRIPT SECTION ************************************************/
+		
+		private String javascriptExpr=null;
+		private	java.io.File javascriptFile=null;
+		
+		public String getJavascriptExpr() { return this.javascriptExpr;}
+		public void setJavascriptExpr(final String ex) {  this.javascriptExpr = ex;}
+		public java.io.File getJavascriptFile() { return this.javascriptFile;}	
+		public void setJavascriptFile(final java.io.File f) {  this.javascriptFile = f;}
+		
+		
 		
 		protected boolean evalJavaScriptBoolean(
 			final javax.script.CompiledScript compiledScript,

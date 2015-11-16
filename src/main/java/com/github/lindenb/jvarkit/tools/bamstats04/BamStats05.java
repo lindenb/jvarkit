@@ -35,6 +35,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +51,7 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
@@ -151,7 +153,8 @@ public class BamStats05 extends AbstractCommandLineProgram
 					
 					final List<Integer> counts = new ArrayList<>();
 					
-					for(Interval interval:gene2interval.get(gene))
+					
+					for(final Interval interval:gene2interval.get(gene))
 						{
 						geneStart = Math.min(geneStart, interval.getStart()-1);
 						geneEnd = Math.max(geneEnd, interval.getEnd());
@@ -161,16 +164,23 @@ public class BamStats05 extends AbstractCommandLineProgram
 						if(interval_counts.length==0) continue;
 						Arrays.fill(interval_counts, 0);
 						
+						if(IN.getFileHeader().getSequenceIndex(interval.getContig())==-1)
+							{
+							throw new IllegalArgumentException("NO DICT FOR \""+interval.getContig()+"\"");
+							}
 						
 						/**
 						 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
 			    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
 						 */
-						SAMRecordIterator r=IN.queryOverlapping(
-								interval.getContig(),
+					
+						SAMRecordIterator r=IN.query(new QueryInterval[]{
+								new QueryInterval(
+								header.getSequenceIndex(interval.getContig()),
 								interval.getStart(),
 								interval.getEnd()
-								);
+								)},false)
+								;
 						while(r.hasNext())
 							{
 							SAMRecord rec=r.next();
@@ -211,13 +221,13 @@ public class BamStats05 extends AbstractCommandLineProgram
 				    			refpos1+=ce.getLength();
 				    			}
 							}/* end while r */
+						r.close();
 						for(int d: interval_counts)
 							{
 							counts.add(d);
 							}
 						}/* end interval */
 						
-						IN.close();
 						
 						Collections.sort(counts);
 						
@@ -242,6 +252,11 @@ public class BamStats05 extends AbstractCommandLineProgram
 							);
 					}//end gene
 				}//end sample
+		}
+	catch(Exception err)
+		{
+		error(err);
+		throw err;
 		}
 	finally
 		{
@@ -307,10 +322,17 @@ public class BamStats05 extends AbstractCommandLineProgram
 			Map<String, List<Interval>> gene2interval = readBedFile(BEDILE);
 			System.out.println("#chrom\tstart\tend\tgene\tsample\tlength\tmincov\tmaxcov\tmean\tnocoverage.bp\tpercentcovered");
 			SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+			Set<String> files = new  HashSet<>();
 			for(int i=opt.getOptInd();i< args.length;++i)
 				{
-				in = srf.open(new File(args[i]));
-				doWork(gene2interval,args[i],in);
+				files.addAll(IOUtils.unrollFiles(
+						Collections.singletonList(args[i])
+						));
+				}
+			for(String f:files)
+				{
+				in = srf.open(new File(f));
+				doWork(gene2interval,f,in);
 				CloserUtil.close(in);
 				in=null;
 				}

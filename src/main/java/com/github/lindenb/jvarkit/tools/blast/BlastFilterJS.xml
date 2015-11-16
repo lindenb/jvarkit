@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "BlastFilterJS">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.blast">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<description>Filters a BlastOutput with a javascript expression. The script injects each &lt;Hit&gt; as the variable 'blasthit'. The user script should return 'true' to keep the hit.</description>
+<input type="stdin-or-one"/>
+<snippet id="javascript"/>
+
+<options>
+
+</options>
+
+<documentation>
+<h:h3>Examples</h:h3>
+Filter Hit having &lt;Hit_len&gt; &lt;1500
+
+<h:pre><![CDATA[
+$ java -jar dist/blastfilterjs.jar blastn.xml  -e 'parseInt(hit.getHitLen())<1500' 2> /dev/null |\
+  xmllint --format - | grep "Hit_len"
+  
+   <Hit_len>1492</Hit_len>
+   <Hit_len>1488</Hit_len>
+   <Hit_len>1477</Hit_len>
+   <Hit_len>1452</Hit_len>
+   <Hit_len>1430</Hit_len>
+   <Hit_len>1064</Hit_len>
+   <Hit_len>1283</Hit_len>
+   <Hit_len>1052</Hit_len>
+   <Hit_len>1272</Hit_len>
+   <Hit_len>693</Hit_len>
+     ]]>
+</h:pre>
+
+keep hsp having 100>&gt; Hsp_align-len &lt;= 200 
+
+<h:pre>
+$ cat filter.js
+<![CDATA[
+/** keep hsp having 100>= Hsp_align-len <= 200 */
+function rmhsps()
+	{
+	var hsps = hit.getHitHsps().getHsp();
+	var i=0;
+	while(i< hsps.size())
+		{
+		var hsp = hsps.get(i);
+		var hsplen = parseInt(hsp.getHspAlignLen());
+		
+		if( hsplen < 100 || hsplen > 300 )
+			{
+			hsps.remove(i);
+			}
+		else
+			{
+			i++;
+			}
+		}
+	return true;
+	}
+rmhsps();
+]]></h:pre>
+
+
+<h:pre><![CDATA[
+$ java -jar dist/blastfilterjs.jar -f filter.js blastn.xml 2> /dev/null |\
+	xmllint --format - | grep -F 'Hsp_align-len'
+
+	 <Hsp_align-len>289</Hsp_align-len>
+	 <Hsp_align-len>291</Hsp_align-len>
+	 <Hsp_align-len>197</Hsp_align-len>
+	 <Hsp_align-len>227</Hsp_align-len>
+]]></h:pre>
+
+
+</documentation>
+
+<!-- __PLACEHOLDER__ --></app>

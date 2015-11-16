@@ -205,7 +205,7 @@ APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	biostar3654 vcfjoinvcfjs bioalcidae vcfburden vcfbedsetfilter vcfreplacetag vcfindextabix \
 	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele bedindextabix vcf2bam vcffilterxpath \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
-	biostar160470 biostar165777
+	biostar160470 biostar165777 blastfilterjs
 
 
 .PHONY: all tests $(APPS) clean library top ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -308,7 +308,7 @@ $(eval $(call compile-htsjdk-cmd,fastqrecordtreepack,${jvarkit.package}.tools.tr
 $(eval $(call compile-htsjdk-cmd,fastqrevcomp,${jvarkit.package}.tools.misc.FastqRevComp))
 $(eval $(call compile-htsjdk-cmd,fastqshuffle,${jvarkit.package}.tools.fastq.FastqShuffle))
 $(eval $(call compile-htsjdk-cmd,fastqsplitinterleaved,${jvarkit.package}.tools.fastq.FastqSplitInterleaved))
-$(eval $(call compile-htsjdk-cmd,findallcoverageatposition,${jvarkit.package}.tools.misc.FindAllCoverageAtPosition))
+$(eval $(call compile-cmd,findallcoverageatposition,${jvarkit.package}.tools.misc.FindAllCoverageAtPosition))
 $(eval $(call compile-htsjdk-cmd,findavariation,${jvarkit.package}.tools.misc.FindAVariation))
 $(eval $(call compile-htsjdk-cmd,findcorruptedfiles,${jvarkit.package}.tools.misc.FindCorruptedFiles))
 $(eval $(call compile-htsjdk-cmd,findmyvirus,${jvarkit.package}.tools.mem.FindMyVirus))
@@ -413,6 +413,7 @@ $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf))
 $(eval $(call compile-htsjdk-cmd,vcfviewgui,${jvarkit.package}.tools.vcfviewgui.VcfViewGui))
 $(eval $(call compile-htsjdk-cmd,worldmapgenome,${jvarkit.package}.tools.circular.WorldMapGenome))
 $(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,${generated.dir}/java/org/uniprot/package-info.java ))
+$(eval $(call compile-cmd,blastfilterjs,${jvarkit.package}.tools.blast.BlastFilterJS,api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,skipxmlelements,${jvarkit.package}.tools.misc.SkipXmlElements))
 $(eval $(call compile-htsjdk-cmd,minicaller,${jvarkit.package}.tools.calling.MiniCaller))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallersonesample,${jvarkit.package}.tools.vcfcmp.VcfCompareCallersOneSample))

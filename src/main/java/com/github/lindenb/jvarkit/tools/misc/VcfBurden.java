@@ -229,14 +229,14 @@ public class VcfBurden extends AbstractKnimeApplication
 			String prev_chrom = null;
 			VepPredictionParser vepPredParser=new VepPredictionParser(header);
 			Map<GeneTranscript,List<VariantContext>> gene2variants=new HashMap<>();
-			SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
-			Set<SequenceOntologyTree.Term> acn=new HashSet<>();
+			final SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
+			final Set<SequenceOntologyTree.Term> acn=new HashSet<>();
 			/* mail solena  *SO en remplacement des SO actuels (VEP HIGH + MODERATE) - pas la peine de faire retourner les analyses mais servira pour les futures analyses burden */
 			String acn_list[]=new String[]{
 					"SO:0001893",  "SO:0001574",  "SO:0001575", 
 					"SO:0001587",  "SO:0001589",  "SO:0001578", 
 					"SO:0002012",  "SO:0001889",  "SO:0001821", 
-					"SO:0001822",  "SO:0001583",  "SO:000181"
+					"SO:0001822",  "SO:0001583",  "SO:0001818"
 					
 					/*
 					"SO:0001589", "SO:0001587", "SO:0001582", "SO:0001583",
@@ -253,13 +253,19 @@ public class VcfBurden extends AbstractKnimeApplication
 						};
 				}
 			
-			for(String acns:acn_list)
+			for(final String acns:acn_list)
 				{
-				acn.addAll(soTree.getTermByAcn(acns).getAllDescendants());
+				final SequenceOntologyTree.Term  tacn = soTree.getTermByAcn(acns);
+				if(tacn==null)
+					{
+					in.close();
+					throw new NullPointerException("tacn == null pour "+acns);
+					}
+				acn.addAll(tacn.getAllDescendants());
 				}
 			
 		
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(in.getHeader());
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(in.getHeader());
 			for(;;)
 				{
 				VariantContext ctx1=null;
