@@ -65,7 +65,7 @@ $(1)  : ${htsjdk.jars} \
 		$(3) ${apache.commons.cli.jars}
 	echo "### COMPILING $(1) requirements : $$^ ######"
 	#generate java code if needed = a file with .xml exists, requires xsltproc
-	mkdir -p ${tmp.dir}/META-INF ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
+	mkdir -p ${dist.dir} ${tmp.dir}/META-INF ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
 	xsltproc \
 		--xinclude \
 		--stringparam githash $$(if $$(realpath ${this.dir}.git/refs/heads/master), `cat  $$(realpath ${this.dir}.git/refs/heads/master) `, "undefined") \
