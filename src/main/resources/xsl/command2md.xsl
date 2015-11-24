@@ -66,10 +66,15 @@ The project is licensed under the MIT license.
 
 
 <xsl:template match="h:pre">
-
-```
+<xsl:text>
+```</xsl:text>
+<xsl:value-of select="@class"/>
+<xsl:text>
+</xsl:text>
 <xsl:apply-templates/>
+<xsl:text>
 ```
+</xsl:text>
 
 </xsl:template>
 
@@ -98,7 +103,7 @@ The project is licensed under the MIT license.
 </xsl:template>
 
 
-<xsl:template match="h:p">
+<xsl:template match="h:p|h:div">
 <xsl:text>
 </xsl:text>
 <xsl:apply-templates/>
@@ -106,6 +111,56 @@ The project is licensed under the MIT license.
 </xsl:text>
 </xsl:template>
 
+<xsl:template match="h:ul">
+<xsl:text>
+</xsl:text>
+<xsl:apply-templates select="h:li"/>
+<xsl:text>
+</xsl:text>
+</xsl:template>
+
+<xsl:template match="h:code">
+<xsl:text>`</xsl:text>
+<xsl:apply-templates/>
+<xsl:text>`</xsl:text>
+</xsl:template>
+
+<xsl:template match="h:br">
+<xsl:text>
+</xsl:text>
+</xsl:template>
+
+<xsl:template match="h:li">
+<xsl:text>  * </xsl:text>
+<xsl:apply-templates/>
+<xsl:text>
+</xsl:text>
+</xsl:template>
+
+
+<xsl:template match="h:a[not(@href)]">
+<xsl:text>[</xsl:text>
+<xsl:value-of select="."/>
+<xsl:text>](</xsl:text>
+<xsl:value-of select="."/>
+<xsl:text>)</xsl:text>
+</xsl:template>
+
+<xsl:template match="h:a[@href]">
+<xsl:text>[</xsl:text>
+<xsl:choose>
+	<xsl:when test="string-length(normalize-space(.))&gt;0">
+		<xsl:apply-templates/>
+	</xsl:when>
+	<xsl:otherwise>
+		<xsl:value-of select="@href"/>
+	</xsl:otherwise>
+</xsl:choose>
+<xsl:value-of select="."/>
+<xsl:text>](</xsl:text>
+<xsl:value-of select="@href"/>
+<xsl:text>)</xsl:text>
+</xsl:template>
 
 <xsl:template match="c:options">
 

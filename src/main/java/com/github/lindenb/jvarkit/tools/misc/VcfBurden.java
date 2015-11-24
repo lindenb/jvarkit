@@ -64,12 +64,23 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 public class VcfBurden extends AbstractKnimeApplication
 	{
 	private boolean highdamage=false;
-	private Map<String,Boolean> gene2seen=null;
+	private Map<String,Boolean> _gene2seen=null;
 	private String dirName="burden";
+	private boolean printSOTerms=false;//mail matilde 11/10/2015 11:38 AM
 	public VcfBurden()
 		{
 		}
 	
+	private static class VariantAndCsq
+		{
+		final VariantContext variant;
+		final Set<SequenceOntologyTree.Term> terms;
+		VariantAndCsq(VariantContext variant,Set<SequenceOntologyTree.Term> terms)
+			{
+			this.variant = variant;
+			this.terms = new HashSet<>(terms);
+			}
+		}
 	
 	private static class GeneTranscript
 		{
@@ -133,34 +144,49 @@ public class VcfBurden extends AbstractKnimeApplication
 	
 	private void dump(
 			ZipOutputStream zout,
+			final String contig,
 			String filename,
 			List<String> samples,
-			List<VariantContext> variants
+			List<VariantAndCsq> variants
 			) throws IOException
 		{
-
-		ZipEntry ze = new ZipEntry(this.dirName+"/"+filename+".txt");
+		info(this.dirName+"/"+filename+".txt");
+		ZipEntry ze = new ZipEntry(this.dirName+"/"+contig+"_"+filename+".txt");
 		zout.putNextEntry(ze);
 		PrintWriter pw = new PrintWriter(zout);
 		pw.print("CHROM\tPOS\tREF\tALT");
+		if(printSOTerms)
+			{
+			pw.print("\t");
+			pw.print("SO");//TODO
+			}
 		for(String sample:samples)
 			{
 			pw.print("\t");
 			pw.print(sample);
 			}
 		pw.println();
-		for(VariantContext ctx:variants)
+		for(VariantAndCsq vac:variants)
 			{
-			pw.print(ctx.getContig());
+			pw.print(vac.variant.getContig());
 			pw.print("\t");
-			pw.print(ctx.getStart());
+			pw.print(vac.variant.getStart());
 			pw.print("\t");
-			pw.print(ctx.getReference().getDisplayString());
+			pw.print(vac.variant.getReference().getDisplayString());
 			pw.print("\t");
-			pw.print(ctx.getAlternateAlleles().get(0).getDisplayString());
+			pw.print(vac.variant.getAlternateAlleles().get(0).getDisplayString());
+			if(printSOTerms)
+				{
+				pw.print("\t");
+				for(SequenceOntologyTree.Term t:vac.terms)
+					{
+					pw.print(t.getAcn());
+					pw.print(";");
+					}
+				}
 			for(String sample:samples)
 				{
-				Genotype g=ctx.getGenotype(sample);
+				Genotype g=vac.variant.getGenotype(sample);
 				pw.print("\t");
 				if(g.isHomRef())
 					{
@@ -228,7 +254,7 @@ public class VcfBurden extends AbstractKnimeApplication
 			VCFHeader header=in.getHeader();
 			String prev_chrom = null;
 			VepPredictionParser vepPredParser=new VepPredictionParser(header);
-			Map<GeneTranscript,List<VariantContext>> gene2variants=new HashMap<>();
+			Map<GeneTranscript,List<VariantAndCsq>> gene2variants=new HashMap<>();
 			final SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
 			final Set<SequenceOntologyTree.Term> acn=new HashSet<>();
 			/* mail solena  *SO en remplacement des SO actuels (VEP HIGH + MODERATE) - pas la peine de faire retourner les analyses mais servira pour les futures analyses burden */
@@ -287,6 +313,7 @@ public class VcfBurden extends AbstractKnimeApplication
 						{
 						geneNames.add(gene_transcript.geneName);
 						dump(zout,
+								prev_chrom,
 								gene_transcript.geneName+"_"+gene_transcript.transcriptName,
 								samples,
 								gene2variants.get(gene_transcript)
@@ -295,11 +322,14 @@ public class VcfBurden extends AbstractKnimeApplication
 					
 					for(String geneName : geneNames)
 						{
-						Comparator<VariantContext> cmp = new Comparator<VariantContext>()
+						Comparator<VariantAndCsq> cmp = new Comparator<VariantAndCsq>()
 									{
 									@Override
-									public int compare(VariantContext o1,
-											VariantContext o2) {
+									public int compare(
+											final VariantAndCsq v1,
+											final VariantAndCsq v2) {
+										final VariantContext o1 = v1.variant;
+										final VariantContext o2 = v2.variant;
 										int i = o1.getContig().compareTo(o2.getContig());
 										if(i!=0) return i;
 										i = o1.getStart() - o2.getStart();
@@ -311,10 +341,10 @@ public class VcfBurden extends AbstractKnimeApplication
 										return 0;
 										}
 									};
-						SortedSet<VariantContext> lis_nm = new TreeSet<>(cmp);
-						SortedSet<VariantContext> lis_all = new TreeSet<>(cmp);
-						SortedSet<VariantContext> lis_refseq = new TreeSet<>(cmp);
-						SortedSet<VariantContext> lis_enst = new TreeSet<>(cmp);
+						SortedSet<VariantAndCsq> lis_nm = new TreeSet<>(cmp);
+						SortedSet<VariantAndCsq> lis_all = new TreeSet<>(cmp);
+						SortedSet<VariantAndCsq> lis_refseq = new TreeSet<>(cmp);
+						SortedSet<VariantAndCsq> lis_enst = new TreeSet<>(cmp);
 						
 						for(GeneTranscript gene_transcript:gene2variants.keySet() )
 							{
@@ -334,24 +364,28 @@ public class VcfBurden extends AbstractKnimeApplication
 								}
 							}
 						dump(zout,
+								prev_chrom,
 								geneName+"_ALL_TRANSCRIPTS",
 								samples,
-								new ArrayList<VariantContext>(lis_all)
+								new ArrayList<VariantAndCsq>(lis_all)
 								);
 						dump(zout,
+								prev_chrom,
 								geneName+"_ALL_NM",
 								samples,
-								new ArrayList<VariantContext>(lis_nm)
+								new ArrayList<VariantAndCsq>(lis_nm)
 								);
 						dump(zout,
+								prev_chrom,
 								geneName+"_ALL_REFSEQ",
 								samples,
-								new ArrayList<VariantContext>(lis_refseq)
+								new ArrayList<VariantAndCsq>(lis_refseq)
 								);
 						dump(zout,
+								prev_chrom,
 								geneName+"_ALL_ENST",
 								samples,
-								new ArrayList<VariantContext>(lis_enst)
+								new ArrayList<VariantAndCsq>(lis_enst)
 								);
 						}
 					
@@ -362,13 +396,14 @@ public class VcfBurden extends AbstractKnimeApplication
 				Set<GeneTranscript> seen_names=new HashSet<>();
 				for(VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))
 					{
+					
 					String geneName= pred.getSymbol();
 					if(geneName==null || geneName.trim().isEmpty()) continue;
 					
 					
-					if(this.gene2seen!=null)
+					if(this._gene2seen!=null)
 						{
-						if(!this.gene2seen.containsKey(geneName)) continue;
+						if(!this._gene2seen.containsKey(geneName)) continue;
 						
 						}
 					
@@ -391,31 +426,32 @@ public class VcfBurden extends AbstractKnimeApplication
 							ok=true;
 							}
 						}
-					if(!ok) continue;
+					if(!printSOTerms && !ok) continue;
 					
-					List<VariantContext> L = gene2variants.get(geneTranscript);
+					List<VariantAndCsq> L = gene2variants.get(geneTranscript);
 					if(L==null)
 						{
 						L=new ArrayList<>();
 						gene2variants.put(geneTranscript,L);
 						}
-					L.add(ctx1);
+					L.add(new VariantAndCsq(ctx1,pred.getSOTerms()));
 					seen_names.add(geneTranscript);
-					if(this.gene2seen!=null)
+					if(this._gene2seen!=null)
 						{
-						this.gene2seen.put(geneTranscript.geneName, Boolean.TRUE);
+						this._gene2seen.put(geneTranscript.geneName, Boolean.TRUE);
 						}
 					}
 				}
 			
-			if(this.gene2seen!=null)
+			if(this._gene2seen!=null)
 				{
-				final List<VariantContext> emptylist = Collections.emptyList();
-				for(String gene:this.gene2seen.keySet())
+				final List<VariantAndCsq> emptylist = Collections.emptyList();
+				for(String gene:this._gene2seen.keySet())
 					{
-					if(this.gene2seen.get(gene).equals(Boolean.TRUE)) continue;
+					if(this._gene2seen.get(gene).equals(Boolean.TRUE)) continue;
 					warning("Gene not found : "+gene);
 					dump(zout,
+							"UNDEFINED",
 							gene+"_000000000000000.txt",
 							samples,
 							emptylist
@@ -451,6 +487,7 @@ public class VcfBurden extends AbstractKnimeApplication
 		out.println(" -g (file) optional list of gene names (restrict genes, print genes without data)");
 		out.println(" -d (dir) base zip dir default:"+this.dirName);
 		out.println(" -H only high damage");
+		out.println(" -f print ALL consequence+ colum, SO terms (mail matilde 11/10/2015 11:38 AM)");
 		super.printOptions(out);
 		}
 	
@@ -460,25 +497,26 @@ public class VcfBurden extends AbstractKnimeApplication
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:d:g:H"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:d:g:Hf"))!=-1)
 			{
 			switch(c)
 				{
-				case 'H': highdamage=true;break;
+				case 'f': this. printSOTerms = true; break;
+				case 'H':  this.highdamage=true;break;
 				case 'o': setOutputFile(opt.getOptArg()); break;
 				case 'd': this.dirName=opt.getOptArg();break;
 				case 'g': 
 					{
 						BufferedReader in=null;
 					try {
-						if(this.gene2seen==null) this.gene2seen=new HashMap<>();
+						if(this._gene2seen==null) this._gene2seen=new HashMap<>();
 						in = IOUtils.openURIForBufferedReading(opt.getOptArg());
 						String line;
 						while((line=in.readLine())!=null)
 							{
 							line=line.trim();
 							if(line.isEmpty()||line.startsWith("#")) continue;
-							this.gene2seen.put(line, Boolean.FALSE);
+							this._gene2seen.put(line, Boolean.FALSE);
 							}
 						}
 					catch (Exception e) {

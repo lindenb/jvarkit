@@ -14,9 +14,8 @@
 
 <documentation>
 <h:h3>Examples</h:h3>
-Filter Hit having &lt;Hit_len&gt; &lt;1500
-
-<h:pre><![CDATA[
+<h:p>Filter Hit having <h:code>&lt;Hit_len&gt;</h:code> &lt;1500</h:p>
+<h:pre  class="bash"><![CDATA[
 $ java -jar dist/blastfilterjs.jar blastn.xml  -e 'parseInt(hit.getHitLen())<1500' 2> /dev/null |\
   xmllint --format - | grep "Hit_len"
   
@@ -32,10 +31,8 @@ $ java -jar dist/blastfilterjs.jar blastn.xml  -e 'parseInt(hit.getHitLen())<150
    <Hit_len>693</Hit_len>
      ]]>
 </h:pre>
-
-keep hsp having 100>&gt; Hsp_align-len &lt;= 200 
-
-<h:pre>
+<h:p>keep hsp having 100 &gt; <h:code>Hsp_align-len</h:code> &lt;= 200 </h:p>
+<h:pre class="bash">
 $ cat filter.js
 <![CDATA[
 /** keep hsp having 100>= Hsp_align-len <= 200 */
@@ -63,7 +60,7 @@ rmhsps();
 ]]></h:pre>
 
 
-<h:pre><![CDATA[
+<h:pre class="bash"><![CDATA[
 $ java -jar dist/blastfilterjs.jar -f filter.js blastn.xml 2> /dev/null |\
 	xmllint --format - | grep -F 'Hsp_align-len'
 
@@ -72,6 +69,11 @@ $ java -jar dist/blastfilterjs.jar -f filter.js blastn.xml 2> /dev/null |\
 	 <Hsp_align-len>197</Hsp_align-len>
 	 <Hsp_align-len>227</Hsp_align-len>
 ]]></h:pre>
+
+<h:h3>See also</h:h3>
+<h:ul>
+	<h:li><h:a href="https://www.biostars.org/p/165891/"/></h:li>
+</h:ul>
 
 
 </documentation>

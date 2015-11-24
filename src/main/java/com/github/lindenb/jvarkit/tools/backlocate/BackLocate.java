@@ -237,7 +237,8 @@ public class BackLocate
 	    int peptideIndex0= peptidePos1-1;
         if(peptideIndex0 >=wildProt.length())
         	{
-        	wrapException("#index out of range for :"+gene.getName()+" petide length="+wildProt.length());
+        	out.println("#index out of range for :"+gene.getName()+" petide length="+wildProt.length());
+        	return;
         	}
     
         if(wildProt.charAt(peptideIndex0)!=aa1)

@@ -43,7 +43,9 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -106,7 +108,7 @@ public class FindAVariation extends AbstractCommandLineProgram
     	return "Find a specific mutation in a list of VCF files.";
     	}
     
-    private void reportPos(File f,VariantContext ctx)
+    private void reportPos(File f,VCFHeader header,VariantContext ctx)
 		{
 		out.print(f);
 		out.print('\t');
@@ -118,23 +120,31 @@ public class FindAVariation extends AbstractCommandLineProgram
 		out.print('\t');
 		out.print(ctx.hasID()?ctx.getID():".");
 		out.print('\t');
+		out.print(ctx.getReference().getDisplayString());
 		}	
 
     
-    private void report(File f,VariantContext ctx)
+    private void report(File f,VCFHeader header,VariantContext ctx)
     	{
     	GenotypesContext genotypes=ctx.getGenotypes();
     	if(genotypes==null || genotypes.isEmpty())
     		{
-    		reportPos(f,ctx);
+    		reportPos(f,header,ctx);
     		out.println();
     		}
     	else
     		{
+    		VCFFormatHeaderLine DP4header = header.getFormatHeaderLine("DP4");
+    		if(DP4header!=null &&
+    			!( DP4header.getType().equals(VCFHeaderLineType.Integer) &&
+    				DP4header.getCount()==4))
+    			{
+    			DP4header=null;
+    			}
     		for(int i=0;i< genotypes.size();++i)
     			{
     			Genotype g=genotypes.get(i);
-    			reportPos(f,ctx);
+    			reportPos(f,header,ctx);
     			out.print('\t');
     			out.print(g.getSampleName());
     			out.print('\t');
@@ -145,6 +155,15 @@ public class FindAVariation extends AbstractCommandLineProgram
     				{
     				if(na>0) out.print(" ");
     				out.print(alleles.get(na).getDisplayString());
+    				}
+    			if(DP4header!=null)
+    				{
+    				Object dp4=g.getExtendedAttribute("DP4");
+    				if(dp4!=null )
+    					{
+    					out.print('\t');
+    					out.print(String.valueOf(dp4));//it's a String not an int[] ??
+    					}
     				}
     			out.println();
     			}
@@ -178,7 +197,6 @@ public class FindAVariation extends AbstractCommandLineProgram
     			if(!f.isFile()) continue;
     			if(!f.canRead()) continue;
     			if(!VCFUtils.isVcfFile(f)) continue;
-    			info(f);
     			VcfIterator iter=null;
     			
 	    			if(VCFUtils.isTabixVcfFile(f))
@@ -187,13 +205,15 @@ public class FindAVariation extends AbstractCommandLineProgram
 		    			try
 							{
 							r=new TabixVcfFileReader(f.getPath());
-							for(Mutation m:convertFromVcfHeader(f,r.getHeader()))
+							final VCFHeader header =r.getHeader();
+							for(Mutation m:convertFromVcfHeader(f,header))
 								{
+								
 								Iterator<VariantContext> iter2=r.iterator(
 										m.chrom, m.pos, m.pos);
 								while(iter2.hasNext())
 									{
-									report(f,iter2.next());
+									report(f,header,iter2.next());
 									}
 								CloserUtil.close(iter2);
 								}
@@ -216,6 +236,7 @@ public class FindAVariation extends AbstractCommandLineProgram
 	    				try
 	    					{
 	    					iter=VCFUtils.createVcfIteratorFromFile(f);
+	    					final VCFHeader header = iter.getHeader();
 	    					Set<Mutation> mutlist=convertFromVcfHeader(f,iter.getHeader());
 	    					while(iter.hasNext())
 	    						{
@@ -223,7 +244,7 @@ public class FindAVariation extends AbstractCommandLineProgram
 	    						Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
 	    						if(mutlist.contains(m))
 	    							{
-	    							report(f,ctx);
+	    							report(f,header,ctx);
 	    							}
 	    						}
 	    					
@@ -248,35 +269,66 @@ public class FindAVariation extends AbstractCommandLineProgram
 	@Override
 	public void printOptions(PrintStream out) {
 		out.println(" -p chrom:pos . Add this chrom/position.");
+		out.println(" -f <file> . Add this file containing chrom:position.");
 		super.printOptions(out);
 		}
 
+	private Mutation parseMutation(String s)
+		{
+		int colon=s.indexOf(':');
+		if(colon==-1 || colon+1==s.length())
+			{
+			throw new IllegalArgumentException("Bad chrom:pos "+s);
+			}
+		
+		String chrom=s.substring(0,colon).trim();
+		if(chrom.isEmpty())
+			{
+			throw new IllegalArgumentException("Bad chrom:pos "+s);
+			}
+		Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
+		return m;
+		}
+	
 	@Override
 	public int doWork(String[] args)
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+"p:f:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'p':
+				case 'f':
 					{
-					String s=opt.getOptArg();
-					int colon=s.indexOf(':');
-					if(colon==-1 || colon+1==s.length())
+					BufferedReader r = null;
+					try
 						{
-						error("Bad chrom:pos "+s);
+						r = IOUtils.openURIForBufferedReading(opt.getOptArg());
+						String line;
+						while((line=r.readLine())!=null)
+							{
+							if(line.isEmpty() || line.startsWith("#")) continue;
+							Mutation m= parseMutation(line);
+							info("adding "+m);
+							this.mutations.add(m);
+							}
+						}
+					catch(Exception err)
+						{	
+						error(err);
 						return -1;
+						}
+					finally
+						{
+						CloserUtil.close(r);
 						}
 					
-					String chrom=s.substring(0,colon).trim();
-					if(chrom.isEmpty())
-						{
-						error("Bad chrom:pos "+s);
-						return -1;
-						}
-					Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
+					break;
+					}
+				case 'p':
+					{
+					Mutation m= parseMutation(opt.getOptArg());
 					info("adding "+m);
 					this.mutations.add(m);
 					break;
@@ -295,6 +347,7 @@ public class FindAVariation extends AbstractCommandLineProgram
 		try
 			{
 			this.out=new PrintWriter(System.out);
+			this.out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tDP4");
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
