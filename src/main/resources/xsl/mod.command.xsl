@@ -79,6 +79,13 @@ SOFTWARE.
 			return "<xsl:value-of select="@label"/>";
 			}
 		</xsl:when>
+		<xsl:otherwise>
+		@Override
+		public String getLabel()
+			{
+			return "<xsl:apply-templates select="." mode="class-name"/>";
+			}
+		</xsl:otherwise>
 	</xsl:choose>
 </xsl:template>
 	
@@ -626,14 +633,17 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	<xsl:when test="@type='string' and @multiline='true'">
 		private javax.swing.JTextArea <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
-	<xsl:when test="@type='string'">
+	<xsl:when test="@type='string' or @type='int'">
 		private javax.swing.JTextField <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
 	<xsl:when test="@type='input-file'">
-		private com.github.lindenb.jvarkit.util.command.CommandUI.InputFileChooser <xsl:value-of select="generate-id(.)"/> = null;
+		private com.github.lindenb.jvarkit.util.swing.InputChooser <xsl:value-of select="generate-id(.)"/> = null;
+	</xsl:when>
+	<xsl:when test="@type='output-file'">
+		private com.github.lindenb.jvarkit.util.swing.OutputChooser <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
 	<xsl:otherwise>
-		<xsl:message terminate='yes'>swing-build: unknown type <xsl:value-of select="@type"/>.</xsl:message>
+		<xsl:message terminate='yes'>swing-declare: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 	</xsl:otherwise>
 </xsl:choose>
 </xsl:template>
@@ -642,10 +652,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 
 /* BEGIN option <xsl:value-of select="@name"/> ****/
 final javax.swing.JLabel <xsl:value-of select="generate-id(.)"/>lbl = new javax.swing.JLabel("<xsl:value-of select="@name"/>");
-<xsl:value-of select="generate-id(.)"/>lbl.setBounds( insets.left+SPACING, y, label_width, DEFAULT_HEIGHT );
 pane.add(<xsl:value-of select="generate-id(.)"/>lbl);
-x = (int)<xsl:value-of select="generate-id(.)"/>lbl.getBounds().getMaxX();
-
 <xsl:value-of select="generate-id(.)"/>lbl.setToolTipText("<xsl:value-of select="@name"/>");
 
 <xsl:choose>
@@ -655,62 +662,91 @@ x = (int)<xsl:value-of select="generate-id(.)"/>lbl.getBounds().getMaxX();
 		this.<xsl:value-of select="generate-id(.)"/>.setText("<xsl:value-of select="@default"/>");
 		</xsl:if>
 		final javax.swing.JScrollPane <xsl:value-of select="generate-id(.)"/>scroll = new javax.swing.JScrollPane(this.<xsl:value-of select="generate-id(.)"/>);
-		<xsl:value-of select="generate-id(.)"/>scroll.setBounds(x+SPACING, y, component_width, 3*DEFAULT_HEIGHT );
-		pane.add(<xsl:value-of select="generate-id(.)"/>scroll);
-		y = (int)<xsl:value-of select="generate-id(.)"/>scroll.getBounds().getMaxY();
 	</xsl:when>
 	<xsl:when test="@type='string'">
 		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextField();
 		<xsl:if test="@default">
 		this.<xsl:value-of select="generate-id(.)"/>.setText("<xsl:value-of select="@default"/>");
 		</xsl:if>
-		this.<xsl:value-of select="generate-id(.)"/>.setBounds(x+SPACING, y, component_width, DEFAULT_HEIGHT );
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
-		y = (int)this.<xsl:value-of select="generate-id(.)"/>.getBounds().getMaxY();
+
 	</xsl:when>
 	<xsl:when test="@type='input-file'">
-		this.<xsl:value-of select="generate-id(.)"/> = new com.github.lindenb.jvarkit.util.command.CommandUI.InputFileChooser();
-		this.<xsl:value-of select="generate-id(.)"/>.setBounds(x+SPACING, y, component_width, DEFAULT_HEIGHT );
+		this.<xsl:value-of select="generate-id(.)"/> = new com.github.lindenb.jvarkit.util.swing.InputChooser();
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
-		y = (int)this.<xsl:value-of select="generate-id(.)"/>.getBounds().getMaxY();
+	</xsl:when>
+	<xsl:when test="@type='output-file'">
+		this.<xsl:value-of select="generate-id(.)"/> = new com.github.lindenb.jvarkit.util.swing.OutputChooser();
+		pane.add(<xsl:value-of select="generate-id(.)"/>);
+	</xsl:when>
+	<xsl:when test="@type='int'">
+		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextField(20);
+		this.<xsl:value-of select="generate-id(.)"/>.setText("<xsl:value-of select="@default"/>");
+		pane.add(<xsl:value-of select="generate-id(.)"/>);
 	</xsl:when>
 	<xsl:otherwise>
-		<xsl:message terminate='yes'>swing-build: unknown type <xsl:value-of select="@type"/>.</xsl:message>
+		<xsl:message terminate='yes'>swing-build: unknown type '<xsl:value-of select="@type"/>'.</xsl:message>
 	</xsl:otherwise>
 </xsl:choose>
 <xsl:value-of select="generate-id(.)"/>lbl.setLabelFor(this.<xsl:value-of select="generate-id(.)"/>);
 
-
-height = Math.max( y, height );
-width = Math.max(width, (int)this.<xsl:value-of select="generate-id(.)"/>.getBounds().getMaxX());
-y+= SPACING;
 /* END option <xsl:value-of select="@name"/> ****/
 
 </xsl:template>
 
 
-<xsl:template match="c:option" mode="swing-copy">
-
-/* BEGIN option <xsl:value-of select="@name"/> ****/
+<xsl:template match="c:option" mode="swing-validation">
 <xsl:choose>
 	<xsl:when test="@type='string'">
-		if( ! this.<xsl:value-of select="generate-id(.)"/>.getText().trim().isEmpty() )
+
+	</xsl:when>
+	<xsl:when test='@type="int"'>
+		{
+		try
 			{
-			app.<xsl:apply-templates select="." mode="setter"/>(this.<xsl:value-of select="generate-id(.)"/>.getText());
+			int v = Integer.parseInt(<xsl:value-of select="generate-id(.)"/>.getText());
 			}
+		catch(Exception err)
+			{
+			this.<xsl:value-of select="generate-id(.)"/>.requestFocus();
+			return "Not an integer: <xsl:value-of select="@name"/>";
+			}
+		}
 	</xsl:when>
 	<xsl:when test="@type='input-file'">
-		if( this.<xsl:value-of select="generate-id(.)"/>.getFile() != null )
-			{
-			app.<xsl:apply-templates select="." mode="setter"/>(this.<xsl:value-of select="generate-id(.)"/>.getFile());
-			}
+
+	</xsl:when>
+	<xsl:when test="@type='output-file'">
+
 	</xsl:when>
 	<xsl:otherwise>
-		<xsl:message terminate='yes'>swing-build: unknown type <xsl:value-of select="@type"/>.</xsl:message>
+		<xsl:message terminate='yes'>swing-validationvalidation: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 	</xsl:otherwise>
-	</xsl:choose>
-/* END option <xsl:value-of select="@name"/> ****/
+</xsl:choose>
+</xsl:template>
 
+
+<xsl:template match="c:option" mode="swing-fill-command">
+<xsl:choose>
+	<xsl:when test="@type='string' or @type='int'">
+	if( !this.<xsl:value-of select="generate-id(.)"/>.getText().trim().isEmpty())
+		{
+		command.add("-<xsl:value-of select="@opt"/>");
+		command.add(this.<xsl:value-of select="generate-id(.)"/>.getText().trim());
+		}
+	</xsl:when>
+	
+	<xsl:when test="@type='input-file' or  @type='output-file'">
+	if( !this.<xsl:value-of select="generate-id(.)"/>.getTextField().getText().trim().isEmpty())
+		{
+		command.add("-<xsl:value-of select="@opt"/>");
+		command.add(this.<xsl:value-of select="generate-id(.)"/>.getTextField().getText().trim());
+		}
+	</xsl:when>
+	<xsl:otherwise>
+		<xsl:message terminate='yes'>swing-fill-command: unknown type <xsl:value-of select="@type"/>.</xsl:message>
+	</xsl:otherwise>
+</xsl:choose>
 </xsl:template>
 
 <xsl:template match="c:description[@id='faidx']">

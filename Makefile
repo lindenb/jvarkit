@@ -112,13 +112,16 @@ $(1)  : ${htsjdk.jars} \
 		$(3) ${apache.commons.cli.jars}
 	echo "### COMPILING $(1) ######"
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
-	#generate java code if needed = a file with .xml exists, requires xsltproc
+	#generate java code if needed = a file with .xml exists, requires xsltproc, preproc file twice
 	if [ -e "$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"   ] ; then mkdir -p ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
 	xsltproc \
 		--xinclude \
-		-o "$(addsuffix .proc.xml,${generated.dir}/$(2))" \
 		${this.dir}src/main/resources/xsl/commandpreproc.xsl \
-		"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"  && \
+		"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"  | \
+	xsltproc \
+		--xinclude \
+		-o "$(addsuffix .proc.xml,${generated.dir}/$(2))" \
+		${this.dir}src/main/resources/xsl/commandpreproc.xsl -  && \
 	xsltproc \
 		--xinclude \
 		--stringparam githash $$(if $$(realpath ${this.dir}.git/refs/heads/master), `cat  $$(realpath ${this.dir}.git/refs/heads/master) `, "undefined") \
@@ -384,7 +387,7 @@ $(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterj
 $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.misc.VcfFilterSequenceOntology))
 $(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology))
-$(eval $(call compile-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead))
+$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead))
 $(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn))
 $(eval $(call compile-htsjdk-cmd,vcfjaspar,${jvarkit.package}.tools.jaspar.VcfJaspar))
 $(eval $(call compile-htsjdk-cmd,vcfliftover,${jvarkit.package}.tools.liftover.VcfLiftOver))

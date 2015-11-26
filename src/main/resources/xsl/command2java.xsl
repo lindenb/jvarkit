@@ -76,22 +76,54 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	
 	</xsl:if>
 	
-	
-	
-	
+	<xsl:if test="c:snippet[@id='boolean.intervals']">
+
+	protected htsjdk.samtools.util.IntervalTreeMap&lt;Boolean&gt; readBedFileAsBooleanIntervalTreeMap(final java.io.File file) throws java.io.IOException
+		{
+		java.io.BufferedReader r=null;
+		try
+			{
+			final  htsjdk.samtools.util.IntervalTreeMap&lt;Boolean&gt; intervals = new
+					 htsjdk.samtools.util.IntervalTreeMap&lt;Boolean&gt;();
+			r=com.github.lindenb.jvarkit.io.IOUtils.openFileForBufferedReading(file);
+			String line;
+			final java.util.regex.Pattern tab = java.util.regex.Pattern.compile("[\t]");
+			while((line=r.readLine())!=null) 
+				{
+				if(line.startsWith("#") || line.startsWith("track") || line.startsWith("browser") ||  line.isEmpty()) continue; 
+				final String tokens[]=tab.split(line,4);
+				if(tokens.length &lt; 3)
+					{
+					throw new java.io.IOException("Bad bed line in "+file+" "+line);
+					}	
+				final htsjdk.samtools.util.Interval interval=new htsjdk.samtools.util.Interval(tokens[0],
+						Integer.parseInt(tokens[1])+1,
+						Integer.parseInt(tokens[2])
+						);
+				intervals.put(interval,true); 
+				}
+			return intervals;
+			}
+		finally
+			{
+			htsjdk.samtools.util.CloserUtil.close(r);
+			}
+		}
+
+	</xsl:if>
+
 	<xsl:if test="c:snippet[@id='md5']">
-	
-	private java.security.MessageDigest _md5 = null;
-	protected  String md5(final String in)
-    	{
-    	if(_md5==null)
+	 private java.security.MessageDigest _md5 = null;
+	 
+          protected String md5(final String in)
 	    	{
+		 if(_md5==null) {
 	    	  try {
 	              _md5 = java.security.MessageDigest.getInstance("MD5");
 	          } catch (java.security.NoSuchAlgorithmException e) {
 	              throw new RuntimeException("MD5 algorithm not found", e);
-	          }
-	    	}
+	          }}
+	    	
     	 _md5.reset();
          _md5.update(in.getBytes());
          String s = new java.math.BigInteger(1, _md5.digest()).toString(16);
@@ -121,7 +153,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			{
 			this.outputFile = outputFile;
 			}
-		</xsl:if>
+	</xsl:if>
 	
 	<xsl:if test="not(@generate-constructor='false')">
 	/** Constructor */
@@ -901,146 +933,81 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		</xsl:if>
 	
 	<xsl:if test="@ui-swing = 'true'">
+	/** BEGIN SECTION SWING */
+	
 		@SuppressWarnings("serial")
-		static class <xsl:apply-templates select="." mode="swing-name"/>
-			extends com.github.lindenb.jvarkit.util.command.CommandUI
+		public static class <xsl:apply-templates select="." mode="swing-name"/>
+			extends com.github.lindenb.jvarkit.tools.central.CentralPane
 			{
-			/** input port */
-			private com.github.lindenb.jvarkit.util.command.CommandUI.InputFileChooser inputFileChooser = null;
-			@Override
-			public boolean isInputPortDefined()
-				{
-				if(this.inputFileChooser==null) throw new IllegalStateException("inputFileChooser is null");
-				return this.inputFileChooser!=null &amp;&amp; this.inputFileChooser.getFile()!=null;
-				}
-			
 			<xsl:apply-templates select="//c:option" mode="swing-declare"/>
-			
-			/** output port */
-			private  com.github.lindenb.jvarkit.util.command.CommandUI.OutputFileChooser outputFileChooser = null;
-			@Override
-			public boolean isOutputPortDefined()
-				{
-				return this.outputFileChooser!=null &amp;&amp;  this.outputFileChooser.getFile()!=null;
-				}
+			<xsl:choose>
+				<xsl:when test="not(c:input)">
+				com.github.lindenb.jvarkit.util.swing.MultipleInputChooser _inputs;
+				</xsl:when>
+			</xsl:choose>
+			<xsl:choose>
+				<xsl:when test="not(c:output)">
+				com.github.lindenb.jvarkit.util.swing.OutputChooser _output;
+				</xsl:when>
+			</xsl:choose>
 			
 			
 			public <xsl:apply-templates select="." mode="swing-name"/>()
 				{
 				super();
+				final  javax.swing.JPanel pane = new javax.swing.JPanel(new com.github.lindenb.jvarkit.util.swing.FormLayout());
+				<xsl:apply-templates select="//c:option" mode="swing-build"/>
+				
+				/* inputs */
+				<xsl:choose>
+					<xsl:when test="not(c:input)">
+					pane.add(new javax.swing.JLabel("Inputs:"));
+					this._inputs = new com.github.lindenb.jvarkit.util.swing.MultipleInputChooser();
+					pane.add(this._inputs);
+					</xsl:when>
+				</xsl:choose>
+				/* output */
+				<xsl:choose>
+					<xsl:when test="not(c:output)">
+					pane.add(new javax.swing.JLabel("Output:"));
+					this._inputs = new com.github.lindenb.jvarkit.util.swing.MultipleInputChooser();
+					pane.add(this._inputs);
+					</xsl:when>
+				</xsl:choose>
+				this.add(pane,java.awt.BorderLayout.CENTER);
 				}
 			<xsl:apply-templates select="." mode="label"/>
 			<xsl:apply-templates select="." mode="description"/>
 			@Override
-			protected Class&lt;<xsl:apply-templates select="." mode="class-name"/>&gt; getCommandClass()
+			public Class&lt;?&gt; getMainClass()
 				{
 				return <xsl:apply-templates select="." mode="class-name"/>.class;
 				}
-			
+			@SuppressWarnings("unused")
 			@Override
-			protected java.awt.Component buildContentPane()
+			public String getValidationMessage()
 				{
-				final int SPACING = 5;
-				final int DEFAULT_HEIGHT = 24;
-				int x = 0;
-				int y = 0;
-				int width = 100;
-				int height = 100;
-				int label_width = 100;
-				int component_width = label_width*4;
-				final  javax.swing.JPanel pane = new javax.swing.JPanel(null);
-				pane.setBorder(new javax.swing.border.EmptyBorder(SPACING, SPACING, SPACING, SPACING));
-				final java.awt.Insets insets = pane.getInsets();
-				
-								
-				final javax.swing.JLabel inputLabel = new javax.swing.JLabel("Input");
-				inputLabel.setBounds( insets.left+SPACING, y, label_width, DEFAULT_HEIGHT );
-				pane.add(inputLabel);
-				x = (int)inputLabel.getBounds().getMaxX();
-				inputLabel.setToolTipText("Input");
-				this.inputFileChooser = new com.github.lindenb.jvarkit.util.command.CommandUI.InputFileChooser();
-				this.inputFileChooser.setBounds(x+SPACING, y, component_width, DEFAULT_HEIGHT );
-				inputLabel.setLabelFor(this.inputFileChooser);
-				pane.add(this.inputFileChooser);
-				y = (int)this.inputFileChooser.getBounds().getMaxY();
-				height = Math.max( y, height );
-				width = Math.max(width, (int)this.inputFileChooser.getBounds().getMaxX());
-				y+= SPACING;
-
-				
-				
-				<xsl:apply-templates select="//c:option" mode="swing-build"/>
-				
-				final javax.swing.JLabel outputLabel = new javax.swing.JLabel("Output");
-				outputLabel.setBounds( insets.left+SPACING, y, label_width, DEFAULT_HEIGHT );
-				pane.add(outputLabel);
-				x = (int)outputLabel.getBounds().getMaxX();
-				outputLabel.setToolTipText("Input");
-				this.outputFileChooser = new com.github.lindenb.jvarkit.util.command.CommandUI.OutputFileChooser();
-				this.outputFileChooser.setBounds(x+SPACING, y, component_width, DEFAULT_HEIGHT );
-				outputLabel.setLabelFor(this.outputFileChooser);
-				pane.add(this.outputFileChooser);
-				y = (int)this.outputFileChooser.getBounds().getMaxY();
-				height = Math.max( y, height );
-				width = Math.max(width, (int)this.outputFileChooser.getBounds().getMaxX());
-				y+= SPACING;
-				
-				
-				final java.awt.Dimension dim = new java.awt.Dimension(
-					width  + insets.left + insets.right,
-					height + insets.top + insets.bottom
-					);
-				pane.setSize(dim);
-				pane.setMinimumSize(dim);
-				pane.setPreferredSize(dim);
-
-				LOG.info(dim);
-				return pane;
-				}
-
-			
-			@Override
-			protected <xsl:apply-templates select="." mode="class-name"/> createCommand()
-				{
-				try
-						{
-						final <xsl:apply-templates select="." mode="class-name"/> app =  new  <xsl:apply-templates select="." mode="class-name"/>();
-						
-						<xsl:apply-templates select="//c:option" mode="swing-copy"/>
-						if(this.inputFileChooser.getFile() == null)
-							{
-							alert("No input defined");
-							return null;
-							}
-						else
-							{
-							app.setInputFiles(java.util.Collections.singletonList(this.inputFileChooser.getFile().getPath()));
-							}
-						if(this.outputFileChooser.getFile() == null)
-							{
-							alert("No output defined");
-							return null;
-							}
-						else
-							{
-							app.setOutputFile(this.outputFileChooser.getFile());
-							}
-						return app;
-						}
-					catch (Exception e)
-						{
-						LOG.warn(e);
-						com.github.lindenb.jvarkit.util.swing.ThrowablePane.show(<xsl:apply-templates select="." mode="swing-name"/>.this,e);
-						return null;
-						}
-					finally
-						{
-						}
-				
+				<xsl:apply-templates select="//c:option" mode="swing-validation"/>
+				return super.getValidationMessage();
 				}
 			
+			@Override
+			public void fillCommandLine(final java.util.List&lt;String&gt; command)
+				{
+				super.fillCommandLine(command);
+				<xsl:apply-templates select="//c:option[not(@opt='o')]" mode="swing-fill-command"/>
+				<xsl:choose>
+					<xsl:when test="not(c:output)">
+					for(final String f:this._inputs.getAsList())
+						{
+						command.add(f);
+						}
+					</xsl:when>
+				</xsl:choose>
+				}
 			
 			}
+	/** END SECTION SWING */
 	</xsl:if>
 	
 		

@@ -36,9 +36,9 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
-import java.io.File;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,17 +51,23 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.samtools.util.Interval;
+
 public class VcfCompareCallers
-	extends AbstractKnimeApplication
+	extends AbstractVcfCompareCallers
 	{
+	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfCompareCallers.class);
+
 	private enum Category
 		{
+		off_target_only_1,
+		off_target_only_2,
+		off_target_both,
 		unique_to_file_1,
 		unique_to_file_1_snp,
 		unique_to_file_1_indel,
@@ -85,42 +91,12 @@ public class VcfCompareCallers
 		called_but_discordant_others,
 		
 		}
-	private int numberOfExampleVariants=10;
-	private File exampleFile=null;
-	
 	
 	public VcfCompareCallers()
 		{
 		}
 	
 	
-	public void setExampleFile(File exampleFile) {
-		this.exampleFile = exampleFile;
-		}
-	
-	public void setNumberOfExampleVariants(int numberOfExampleVariants) {
-		this.numberOfExampleVariants = numberOfExampleVariants;
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfCompareCallers";
-		}
-
-		@Override
-	public String getProgramDescription() {
-		return "Compare two VCFs; Prints a list table f(Y=sample, X=category)";
-		}
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (filename) output. Default:stdout.");
-		out.println(" -n number of variants to dump in the example file. Default: "+numberOfExampleVariants);
-		out.println(" -e (example file.xml). Print a few representative Variants in this XML file. Optional.");
-		super.printOptions(out);
-		}
 	
 	private void watch(
 			XMLStreamWriter out,
@@ -132,7 +108,7 @@ public class VcfCompareCallers
 			) throws XMLStreamException
 		{
 		long n=count.incr(cat);
-		if(out==null || n> this.numberOfExampleVariants) return;
+		if(out==null || n> super.numberOfExampleVariants) return;
 		VariantContext variants[]=new VariantContext[]{ctx0,ctx1};
 		Genotype gts[]=new Genotype[]{g0,g1};
 		out.writeStartElement("diff");
@@ -202,42 +178,47 @@ public class VcfCompareCallers
 		}
 	
 
-	@SuppressWarnings("resource")
 	@Override
-	public int executeKnime(List<String> args)
-		{
+	public Collection<Throwable> call() throws Exception {
+		htsjdk.samtools.util.IntervalTreeMap<Boolean> capture = null;
 		PrintWriter exampleWriter=null;
 		XMLStreamWriter  exampleOut=null;
 		PrintStream pw=null;
 		VcfIterator vcfInputs[]=new VcfIterator[]{null,null};
 		VCFHeader headers[]=new VCFHeader[]{null,null};
+		final List<String> args = getInputFiles();
 		try {
 			if(args.size()==1)
 				{
-				info("Reading from stdin and "+ args.get(0));
+				LOG.info("Reading from stdin and "+ args.get(0));
 				vcfInputs[0] = VCFUtils.createVcfIteratorStdin();
 				vcfInputs[1] = VCFUtils.createVcfIterator( args.get(0));
 				}
 			else if(args.size()==2)
 				{
-				info("Reading from stdin and "+ args.get(0)+" and "+ args.get(1));
+				LOG.info("Reading from stdin and "+ args.get(0)+" and "+ args.get(1));
 				vcfInputs[0] = VCFUtils.createVcfIterator( args.get(0));
 				vcfInputs[1] = VCFUtils.createVcfIterator( args.get(1));
 				}
 			else
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
+				return wrapException(getMessageBundle("illegal.number.of.arguments"));
 				}
 		
+			if( super.captureFile !=null )
+				{
+				LOG.info("Reading "+super.captureFile);
+				capture = super.readBedFileAsBooleanIntervalTreeMap(super.captureFile);
+				}
+			
 			for(int i=0;i< vcfInputs.length;++i)
 				{
 				headers[i] = vcfInputs[i].getHeader();
 				}
 			/* dicts */
-			SAMSequenceDictionary dict0 = headers[0].getSequenceDictionary();
-			SAMSequenceDictionary dict1 = headers[1].getSequenceDictionary();
-			Comparator<VariantContext> ctxComparator=null;
+			final SAMSequenceDictionary dict0 = headers[0].getSequenceDictionary();
+			final SAMSequenceDictionary dict1 = headers[1].getSequenceDictionary();
+			final Comparator<VariantContext> ctxComparator;
 			if(dict0==null && dict1==null)
 				{
 				ctxComparator = VCFUtils.createChromPosRefComparator();
@@ -246,15 +227,13 @@ public class VcfCompareCallers
 				{
 				if( !SequenceUtil.areSequenceDictionariesEqual(dict0, dict1))
 					{
-					error(getMessageBundle("not.the.same.sequence.dictionaries"));
-					return -1;
+					return wrapException(getMessageBundle("not.the.same.sequence.dictionaries"));
 					}
 				ctxComparator = VCFUtils.createTidPosRefComparator(dict0);
 				}
 			else
 				{
-				error(getMessageBundle("not.the.same.sequence.dictionaries"));
-				return -1;
+				return wrapException(getMessageBundle("not.the.same.sequence.dictionaries"));
 				}
 			/* samples */
 			Set<String> samples0=new HashSet<>(headers[0].getSampleNamesInOrder());
@@ -264,12 +243,11 @@ public class VcfCompareCallers
 			
 			if(samples.size()!=samples0.size() || samples.size()!=samples1.size())
 				{
-				warning("Warning: Not the same samples set. Using intersection of both lists.");
+				LOG.warn("Warning: Not the same samples set. Using intersection of both lists.");
 				}
 			if(samples.isEmpty())
 				{	
-				error("No common samples");
-				return -1;
+				return wrapException("No common samples");
 				}
 			
 			Map<String, Counter<Category>> sample2info=new HashMap<String, Counter<Category>>(samples.size());
@@ -278,7 +256,7 @@ public class VcfCompareCallers
 				sample2info.put(sampleName, new  Counter<Category>());
 				}
 			
-			if(this.exampleFile!=null)
+			if(super.exampleFile!=null)
 				{
 				exampleWriter=new PrintWriter(exampleFile,"UTF-8");
 				XMLOutputFactory xof=XMLOutputFactory.newFactory();
@@ -304,12 +282,11 @@ public class VcfCompareCallers
 							/* check data are sorted */
 							if(prev[i]!=null && ctxComparator.compare(prev[i], buffer[i])>0)
 								{
-								error("Input "+(i+1)+"/2 is not sorted"+(
+								return wrapException("Input "+(i+1)+"/2 is not sorted"+(
 									((i==0 && dict0==null) ||(i==1 && dict1==null))?
 									"on chrom/pos/ref":
 									"on sequence dictionary"
 									)+". got\n"+buffer[i]+"\nafter\n"+prev[i]);
-								return -1;
 								}
 							}
 						else
@@ -332,29 +309,39 @@ public class VcfCompareCallers
 				
 				VariantContext ctx0=null;
 				VariantContext ctx1=null;
-				
+				Interval interval= null;
+
 				if(buffer[0]!=null && ctxComparator.compare(buffer[0],smallest)==0)
 					{
 					prev[0] = progress.watch(vcfInputs[0].next());
 					ctx0= prev[0];
 					buffer[0]=null;
+					interval = new Interval(ctx0.getContig(),ctx0.getStart(),ctx0.getEnd());
 					}
 				if(buffer[1]!=null && ctxComparator.compare(buffer[1],smallest)==0)
 					{
 					prev[1]= progress.watch(vcfInputs[1].next());
 					ctx1= prev[1];
 					buffer[1]=null;
+					interval = new Interval(ctx1.getContig(),ctx1.getStart(),ctx1.getEnd());
 					}
-	
-				
-				for(String sampleName: sample2info.keySet())
+				boolean in_capture=true;
+				if(capture!=null && interval!=null)
 					{
-					Counter<Category> sampleInfo=sample2info.get(sampleName);
+					in_capture = capture.containsOverlapping(interval);
+					}
+				
+				for(final String sampleName: sample2info.keySet())
+					{
+					final Counter<Category> sampleInfo=sample2info.get(sampleName);
 					Genotype g0=(ctx0==null?null:ctx0.getGenotype(sampleName));
 					Genotype g1=(ctx1==null?null:ctx1.getGenotype(sampleName));
 					if(g0!=null && (g0.isNoCall() || !g0.isAvailable())) g0=null;
 					if(g1!=null && (g1.isNoCall() || !g1.isAvailable())) g1=null;
 					
+					
+
+
 					if(g0==null && g1==null)
 						{
 						watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.both_missing);
@@ -362,6 +349,10 @@ public class VcfCompareCallers
 						}
 					else if(g0!=null && g1==null)
 						{
+						if(!in_capture)  {
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.off_target_only_1);
+							continue;
+							}
 						watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.unique_to_file_1);
 						
 						if(ctx0.isIndel())
@@ -376,7 +367,11 @@ public class VcfCompareCallers
 						}
 					else if(g0==null && g1!=null)
 						{
-						
+						if(!in_capture) {
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.off_target_only_2);
+							continue;
+							}
+						watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.unique_to_file_2);
 						if(ctx1.isIndel())
 							{
 							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.unique_to_file_2_indel);
@@ -389,6 +384,11 @@ public class VcfCompareCallers
 						}
 					else
 						{	
+						if(!in_capture)
+							{
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.off_target_both);
+							continue;
+							}
 						watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.common_context);
 						if(ctx0.isIndel() && ctx1.isIndel())
 							{
@@ -414,7 +414,7 @@ public class VcfCompareCallers
 
 							if(g0.isHomRef())
 								{
-								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_and_same);
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_and_same_hom_ref);
 								}
 							if(g0.isHomVar())
 								{
@@ -456,7 +456,7 @@ public class VcfCompareCallers
 				}
 			progress.finish();
 		
-			pw  = (getOutputFile()==null?System.out:new PrintStream(getOutputFile()));
+			pw  = openFileOrStdoutAsPrintStream();
 			pw.print("#Sample");
 			for(Category c:Category.values())
 				{
@@ -485,12 +485,11 @@ public class VcfCompareCallers
 				exampleOut.flush();
 				exampleOut.close();
 				}
-			return 0;
+			return RETURN_OK;
 			} 
 		catch (Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -502,32 +501,7 @@ public class VcfCompareCallers
 
 	
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:n:e:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(opt.getOptArg()); break;
-				case 'n': this.setNumberOfExampleVariants(Integer.parseInt(opt.getOptArg())); break;
-				case 'e': this.setExampleFile(new File(opt.getOptArg())); break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
 	public static void main(String[] args) {
 		new VcfCompareCallers().instanceMainWithExit(args);
 	}
-	}
+}
