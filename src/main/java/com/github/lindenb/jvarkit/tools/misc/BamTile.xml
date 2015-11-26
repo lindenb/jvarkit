@@ -8,6 +8,9 @@
 <input type="sam"/>
 <output type="sam"/>
 
+<options>
+</options>
+
 <documentation>
 <h:h3>Example</h:h3>
 

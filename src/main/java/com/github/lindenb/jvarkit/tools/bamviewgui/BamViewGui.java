@@ -49,7 +49,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -101,7 +100,6 @@ import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.util.picard.SamFlag;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
@@ -1011,16 +1009,6 @@ public class BamViewGui
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamViewGui.class);
 
 	
-	@Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
-	
-	static private class MyCommand extends AbstractBamViewGui.AbstractBamViewGuiCommand
-		{
-	
-	   
 	    
 	    private BamFileRef create(File bamFile) throws IOException
 	    	{
@@ -1144,9 +1132,9 @@ public class BamViewGui
 				System.exit(-1);
 				}
 			
-			return Collections.emptyList();
+			return RETURN_OK;
 			}
-		}
+		
 	/**
 	 * @param args
 	 */

@@ -3,10 +3,15 @@
  <!ENTITY name "BamCmpCoverage">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	ui-swing='true'
+	>
 <description>Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2</description>
+<input type="one-to-many">
+	<filter id="sam"/>
+</input>
 
-<arguments>
+<options>
 	<option name="imgageSize" type="int" opt="w" longopt="width" min-inclusive="1" default="1000">
 		<description>image width</description>
 	</option>
@@ -22,7 +27,7 @@
 	<option name="bedFile" type="input-file" opt="b" longopt="bed" min-inclusive="0"  arg-name="BED-FILE">
 		<description>restrict to region</description>
 	</option>
-</arguments>
+</options>
 
 <documentation>
 <h:h3>Screenshot</h:h3>

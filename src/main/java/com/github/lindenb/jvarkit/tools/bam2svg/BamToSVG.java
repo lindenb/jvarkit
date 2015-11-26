@@ -64,7 +64,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -79,15 +78,6 @@ public class BamToSVG extends AbstractBamToSVG
 	
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamToSVG.class);
 
-	
-	@Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
-	
-	static private class MyCommand extends AbstractBamToSVG.AbstractBamToSVGCommand
-		{
 	
 		private int HEIGHT_RULER=200;
 		private Hershey hershey=new Hershey();
@@ -108,10 +98,10 @@ public class BamToSVG extends AbstractBamToSVG
 			public double getHeight()
 				{
 				double dim_height= HEIGHT_SAMPLE_NAME;
-				dim_height+= MyCommand.this.featureHeight;//ref seq
-				dim_height+= MyCommand.this.featureHeight;//consensus
-				if(!pos2variant.isEmpty())dim_height+= MyCommand.this.featureHeight;//variants
-				dim_height+= this.lines.size()*MyCommand.this.featureHeight;//consensus
+				dim_height+= BamToSVG.this.featureHeight;//ref seq
+				dim_height+= BamToSVG.this.featureHeight;//consensus
+				if(!pos2variant.isEmpty())dim_height+= BamToSVG.this.featureHeight;//variants
+				dim_height+= this.lines.size()*BamToSVG.this.featureHeight;//consensus
 				return dim_height;
 				}
 			}
@@ -427,8 +417,8 @@ public class BamToSVG extends AbstractBamToSVG
 			w.writeStartElement(SVG.NS,"description");
 			w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
 			w.writeCharacters("Version:"+getVersion()+"\n");
-			w.writeCharacters("Author:"+ this.getFactory().getAuthorName()+" "+this.getFactory().getAuthorMail()+"\n");
-			w.writeCharacters("WWW:"+this.getFactory().getOnlineDocUrl()+"\n");
+			w.writeCharacters("Author:"+ getAuthorName()+" "+ getAuthorMail()+"\n");
+			w.writeCharacters("WWW:"+ getOnlineDocUrl()+"\n");
 			w.writeCharacters("Htsjdk: "+HtsjdkVersion.getHome()+" "+HtsjdkVersion.getVersion()+"\n");
 			w.writeEndElement();
 			
@@ -946,7 +936,7 @@ public class BamToSVG extends AbstractBamToSVG
 				this.interval=null;
 				}
 			}
-		}
+		
 	
 	
 	public static void main(String[] args)

@@ -138,22 +138,6 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	
 
 	
-	<xsl:if test="not(@generate-output-option='false')">
-		/** option outputFile */
-		protected java.io.File outputFile = null;
-		
-		/** getter for outputFile */
-		public java.io.File getOutputFile()
-			{
-			return this.outputFile;
-			}
-		
-		/** setter for outputFile */
-		public  void  setOutputFile( final java.io.File outputFile)
-			{
-			this.outputFile = outputFile;
-			}
-	</xsl:if>
 	
 	<xsl:if test="not(@generate-constructor='false')">
 	/** Constructor */
@@ -178,14 +162,6 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		{
 		<xsl:apply-templates select=".//c:option|.//c:options-group" mode="cli"/>
 		
-		<xsl:if test="@ui-swing = 'true'">
-		options.addOption(org.apache.commons.cli.Option
-			.builder("swing")
-			.longOpt("swing")
-			.desc("show a swing dialog")
-			.hasArg(false)
-			.build() );	
-		</xsl:if>
 		
 		<xsl:if test="not(@generate-output-option='false')">
 		options.addOption(org.apache.commons.cli.Option
@@ -263,15 +239,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		{
 		<xsl:apply-templates select=".//c:option" mode="visit"/>
 		
-		<xsl:if test="@ui-swing = 'true'">
-		if(opt.getOpt().equals("swing"))
-			{
-			final <xsl:apply-templates select="." mode="swing-name"/> dlg = new <xsl:apply-templates select="." mode="swing-name"/>();
-			javax.swing.JOptionPane.showMessageDialog(null,dlg);
 
-			return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_SUCCESS;
-			}
-		</xsl:if>
 		
 		<xsl:if test="not(@generate-output-option='false')">
 		if(opt.getOpt().equals("o"))
@@ -720,8 +688,14 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		</xsl:when>
 		
+		<xsl:when test="c:input/@type='stdin-or-many'">
+		</xsl:when>
+		<xsl:when test="c:input/@type='one-to-many'">
+		</xsl:when>
+		
+		
 		<xsl:otherwise>
-		<xsl:message terminate="yes">undefined input/@type </xsl:message>
+		<xsl:message terminate="yes">undefined input/@type <xsl:value-of select="c:input/@type"/></xsl:message>
 		</xsl:otherwise>
 		</xsl:choose>
 		
@@ -941,15 +915,17 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			{
 			<xsl:apply-templates select="//c:option" mode="swing-declare"/>
 			<xsl:choose>
-				<xsl:when test="not(c:input)">
-				com.github.lindenb.jvarkit.util.swing.MultipleInputChooser _inputs;
+				<xsl:when test="c:input/@type='sam' or c:input/@type='vcf' or c:input/@type='stdin-or-one' ">
+				com.github.lindenb.jvarkit.util.swing.InputChooser _input = null;
 				</xsl:when>
-			</xsl:choose>
-			<xsl:choose>
-				<xsl:when test="not(c:output)">
-				com.github.lindenb.jvarkit.util.swing.OutputChooser _output;
+				<xsl:when test="c:input/@type='TODO'">
+
 				</xsl:when>
+				<xsl:otherwise>
+				com.github.lindenb.jvarkit.util.swing.MultipleInputChooser _inputs = null;
+				</xsl:otherwise>
 			</xsl:choose>
+			
 			
 			
 			public <xsl:apply-templates select="." mode="swing-name"/>()
@@ -960,20 +936,20 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				
 				/* inputs */
 				<xsl:choose>
-					<xsl:when test="not(c:input)">
+					<xsl:when test="c:input/@type='sam' or c:input/@type='vcf'  or c:input/@type='stdin-or-one'">
+					pane.add(new javax.swing.JLabel("Input:"));
+					this._input = new com.github.lindenb.jvarkit.util.swing.InputChooser();
+					pane.add(this._input);
+					</xsl:when>
+					<xsl:when test="c:input/@type='TODO'">
+					</xsl:when>
+					<xsl:otherwise>
 					pane.add(new javax.swing.JLabel("Inputs:"));
 					this._inputs = new com.github.lindenb.jvarkit.util.swing.MultipleInputChooser();
 					pane.add(this._inputs);
-					</xsl:when>
+					</xsl:otherwise>
 				</xsl:choose>
-				/* output */
-				<xsl:choose>
-					<xsl:when test="not(c:output)">
-					pane.add(new javax.swing.JLabel("Output:"));
-					this._inputs = new com.github.lindenb.jvarkit.util.swing.MultipleInputChooser();
-					pane.add(this._inputs);
-					</xsl:when>
-				</xsl:choose>
+				
 				this.add(pane,java.awt.BorderLayout.CENTER);
 				}
 			<xsl:apply-templates select="." mode="label"/>
@@ -988,6 +964,23 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			public String getValidationMessage()
 				{
 				<xsl:apply-templates select="//c:option" mode="swing-validation"/>
+				
+				
+				<xsl:choose>
+					<xsl:when test="c:input/@type='sam' or c:input/@type='vcf' or c:input/@type='stdin-or-one'">
+					if(this._input.getTextField().getText().trim().isEmpty())
+						{
+						return "No input defined";
+						}
+					</xsl:when>
+					<xsl:otherwise>
+					if(this._inputs.getAsList().isEmpty())
+						{
+						return "No input defined";
+						}
+					</xsl:otherwise>
+				</xsl:choose>
+				
 				return super.getValidationMessage();
 				}
 			
@@ -997,12 +990,15 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				super.fillCommandLine(command);
 				<xsl:apply-templates select="//c:option[not(@opt='o')]" mode="swing-fill-command"/>
 				<xsl:choose>
-					<xsl:when test="not(c:output)">
+					<xsl:when test="c:input/@type='sam' or c:input/@type='vcf' or c:input/@type='stdin-or-one'">
+						command.add(this._input.getTextField().getText().trim());
+					</xsl:when>
+					<xsl:otherwise>
 					for(final String f:this._inputs.getAsList())
 						{
 						command.add(f);
 						}
-					</xsl:when>
+					</xsl:otherwise>
 				</xsl:choose>
 				}
 			

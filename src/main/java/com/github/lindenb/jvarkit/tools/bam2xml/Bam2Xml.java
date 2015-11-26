@@ -29,15 +29,12 @@ package com.github.lindenb.jvarkit.tools.bam2xml;
 
 import java.io.OutputStream;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;
@@ -46,7 +43,6 @@ import htsjdk.samtools.util.ProgressLoggerInterface;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMBinaryTagAndValue;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFlag;
@@ -56,13 +52,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.SAMTagUtil;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.TextTagCodec;
-import htsjdk.samtools.ValidationStringency;
-
 
 public class Bam2Xml extends AbstractBam2Xml
 	{
@@ -70,7 +60,7 @@ public class Bam2Xml extends AbstractBam2Xml
 
 	public static class SAMXMLWriter implements SAMFileWriter
 		{
-		private final SAMTagUtil tagUtil = new SAMTagUtil();
+		//private final SAMTagUtil tagUtil = new SAMTagUtil();
 		private long id_generator=0L;
 		private ProgressLoggerInterface progress;
 		private XMLStreamWriter w;
@@ -271,14 +261,9 @@ public class Bam2Xml extends AbstractBam2Xml
 			}
 		}
 	
-	@Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
 	
-	static private class MyCommand extends AbstractBam2Xml.AbstractBam2XmlCommand
-		{
+	
+	
 		private int run(SamReader samReader)
 			{    	
 			OutputStream fout=null;
@@ -325,42 +310,26 @@ public class Bam2Xml extends AbstractBam2Xml
 	    	}
 		
 		
-	
-			@Override
-			public Collection<Throwable> call() throws Exception
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		SamReader r=null;
+			try
 				{
-				final List<String> args = getInputFiles();
-				SamReader r=null;
-				try
-					{
-					SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-					if(args.isEmpty())
-						{
-						r = srf.open(SamInputResource.of(stdin()));
-						}
-					else if(args.size()==1)
-						{
-						r = srf.open(SamInputResource.of(args.get(0)));
-						}
-					else
-						{	
-						return wrapException("Illegal number of arguments.");
-						}
-					run(r);
-					return Collections.emptyList();
-					}
-				catch(Exception err)
-					{
-					err.printStackTrace();
-					return wrapException(err);
-					}
-				finally
-					{
-					CloserUtil.close(r);
-					}
+				r= openSamReader(inputName);
+				run(r);
+				return RETURN_OK;
+				}
+			catch(Exception err)
+				{
+				err.printStackTrace();
+				return wrapException(err);
+				}
+			finally
+				{
+				CloserUtil.close(r);
 				}
 			}
-	
+		
 	
     public static void main(final String[] argv)
 		{

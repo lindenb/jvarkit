@@ -3,14 +3,18 @@
  <!ENTITY name "AddLinearIndexToBed">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	ui-swing='true'
+	>
 <description>Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.</description>
+<input type="stdin-or-many">
+	<filter id="bed"/>
+</input>
+<snippet id="ref.faidx" name="refFile"/>
 
-<arguments>
-	<option name="refFile" type="input-file" opt="R" longopt="faidx" >
-		<description>Fasta Reference indexed with samtools, or sequence dictionary. Required</description>
-	</option>
-</arguments>
+<options>
+
+</options>
 
 <documentation>
 <h:h3>Example</h:h3>

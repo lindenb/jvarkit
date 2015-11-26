@@ -28,7 +28,6 @@ import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Set;
@@ -75,7 +74,6 @@ import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
@@ -1018,25 +1016,19 @@ class BatchIGVPicturesFrame extends JFrame
 public class BatchIGVPictures extends AbstractBatchIGVPictures
 	{
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BatchIGVPictures.class);
-	@Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
 	
-	static private class MyCommand extends AbstractBatchIGVPictures.AbstractBatchIGVPicturesCommand
-		{
+	
 		@Override
 		public Collection<Throwable> call() throws Exception
 			{
 
 			final BatchIGVPicturesFrame app=new BatchIGVPicturesFrame();
 			
-			app.about=" Author:"+getFactory().getAuthorName()+
+			app.about=" Author:"+ getAuthorName()+
 						" Version:"+getVersion()+
 						" Htsjdk.version:"+HtsjdkVersion.getVersion()+
-						" WWW:"+getFactory().getOnlineDocUrl()+
-						" Date:"+getFactory().getCompileDate()
+						" WWW:"+ getOnlineDocUrl()+
+						" Date:"+getCompileDate()
 						;
 			try
 				{
@@ -1055,7 +1047,7 @@ public class BatchIGVPictures extends AbstractBatchIGVPictures
 						app.setVisible(true);
 						}
 					});
-				return Collections.emptyList();
+				return RETURN_OK;
 				}
 			catch(Exception err)
 				{
@@ -1066,7 +1058,7 @@ public class BatchIGVPictures extends AbstractBatchIGVPictures
 				{
 				}
 			}
-		}
+		
 	
 	public static void main(String[] args) {
 		new BatchIGVPictures().instanceMain(args);

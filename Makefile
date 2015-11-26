@@ -52,54 +52,6 @@ EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
 
 
-
-define compile-cmd
-
-## 1 : target name
-## 2 : qualified main class name
-## 3 : other deps
-
-$(1)  : ${htsjdk.jars} \
-		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
-		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
-		$(3) ${apache.commons.cli.jars}
-	echo "### COMPILING $(1) requirements : $$^ ######"
-	#generate java code if needed = a file with .xml exists, requires xsltproc
-	mkdir -p ${dist.dir} ${tmp.dir}/META-INF ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
-	xsltproc \
-		--xinclude \
-		--stringparam githash $$(if $$(realpath ${this.dir}.git/refs/heads/master), `cat  $$(realpath ${this.dir}.git/refs/heads/master) `, "undefined") \
-		--path "${this.dir}src/main/resources/xml" \
-		-o ${generated.dir}/java/$(dir $(subst .,/,$(2)))Abstract$(notdir $(subst .,/,$(2))).java \
-		${this.dir}src/main/resources/xsl/command2java.xsl \
-		"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"  
-	#copy resource
-	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
-	echo '### Printing javac version : it should be 1.7. if Not, check your $$$${PATH}.'
-	${JAVAC} -version
-	#compile
-	${JAVAC} -d ${tmp.dir} -g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" -sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
-	#create META-INF/MANIFEST.MF
-	echo "Manifest-Version: 1.0" > ${tmp.mft}
-	echo "Main-Class: $(2)" >> ${tmp.mft}
-	echo "Class-Path: $$(realpath $$(filter %.jar,$$^)) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
-	echo -n "Git-Hash: " >> ${tmp.mft}
-	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.mft} 
-	echo -n "Compile-Date: " >> ${tmp.mft}
-	date +%Y-%m-%d:%H-%m-%S >> ${tmp.mft}
-	#create jar
-	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
-	#create bash executable
-	echo '#!/bin/bash' > ${dist.dir}/$(1)
-	echo '${JAVA} -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$$$*' >> ${dist.dir}/$(1)
-	chmod  ugo+rx ${dist.dir}/$(1)
-	#cleanup
-	rm -rf ${tmp.dir}
-
-
-endef
-
-
 define compile-htsjdk-cmd
 
 ## 1 : target name
@@ -112,16 +64,13 @@ $(1)  : ${htsjdk.jars} \
 		$(3) ${apache.commons.cli.jars}
 	echo "### COMPILING $(1) ######"
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
-	#generate java code if needed = a file with .xml exists, requires xsltproc, preproc file twice
+	#generate java code if needed = a file with .xml exists, requires xsltproc, preprocessing file twice
 	if [ -e "$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"   ] ; then mkdir -p ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
 	xsltproc \
 		--xinclude \
-		${this.dir}src/main/resources/xsl/commandpreproc.xsl \
-		"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"  | \
-	xsltproc \
-		--xinclude \
 		-o "$(addsuffix .proc.xml,${generated.dir}/$(2))" \
-		${this.dir}src/main/resources/xsl/commandpreproc.xsl -  && \
+		${this.dir}src/main/resources/xsl/commandpreproc.xsl \
+		"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" && \
 	xsltproc \
 		--xinclude \
 		--stringparam githash $$(if $$(realpath ${this.dir}.git/refs/heads/master), `cat  $$(realpath ${this.dir}.git/refs/heads/master) `, "undefined") \
@@ -173,7 +122,7 @@ endef
 # $2: other deps
 #
 define compile_biostar_cmd
-$(call compile-cmd,biostar$(1),${jvarkit.package}.tools.biostar.Biostar$(1),$(2))
+$(call compile-htsjdk-cmd,biostar$(1),${jvarkit.package}.tools.biostar.Biostar$(1),$(2))
 endef
 
 # 
@@ -240,17 +189,16 @@ $(eval $(call compile-htsjdk-cmd,92368,${berkeleydb.jar}))
 #mysql
 $(eval $(call compile-htsjdk-cmd,vcfucsc,${jvarkit.package}.tools.vcfucsc.VcfUcsc,${mysql.jar}))
 
-$(eval $(call compile-cmd,addlinearindextobed,${jvarkit.package}.tools.misc.AddLinearIndexToBed))
-$(eval $(call compile-cmd,allelefreqcalc,${jvarkit.package}.tools.misc.AlleleFrequencyCalculator))
-$(eval $(call compile-cmd,bam2xml,${jvarkit.package}.tools.bam2xml.Bam2Xml))
+$(eval $(call compile-htsjdk-cmd,addlinearindextobed,${jvarkit.package}.tools.misc.AddLinearIndexToBed))
+$(eval $(call compile-htsjdk-cmd,allelefreqcalc,${jvarkit.package}.tools.misc.AlleleFrequencyCalculator))
+$(eval $(call compile-htsjdk-cmd,bam2xml,${jvarkit.package}.tools.bam2xml.Bam2Xml))
 $(eval $(call compile-htsjdk-cmd,almostsortedvcf,${jvarkit.package}.tools.sortvcfonref.AlmostSortedVcf))
-$(eval $(call compile-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate))
+$(eval $(call compile-htsjdk-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate))
 $(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToFastq))
 $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster))
-$(eval $(call compile-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
-$(eval $(call compile-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig))
-$(eval $(call compile-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage))
-$(eval $(call compile-cmd,biostar165777,${jvarkit.package}.tools.biostar.Biostar165777))
+$(eval $(call compile-htsjdk-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
+$(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig))
+$(eval $(call compile-htsjdk-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage))
 $(eval $(call compile-htsjdk-cmd,bamgenscan,${jvarkit.package}.tools.genscan.BamGenScan))
 $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bamindexnames.BamIndexReadNames))
 $(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver))
@@ -260,8 +208,8 @@ $(eval $(call compile-htsjdk-cmd,bamstats02,${jvarkit.package}.tools.bamstats01.
 $(eval $(call compile-htsjdk-cmd,bamstats04,${jvarkit.package}.tools.bamstats04.BamStats04))
 $(eval $(call compile-htsjdk-cmd,bamstats05,${jvarkit.package}.tools.bamstats04.BamStats05))
 $(eval $(call compile-htsjdk-cmd,bamtreepack,${jvarkit.package}.tools.treepack.BamTreePack))
-$(eval $(call compile-cmd,bamviewgui,${jvarkit.package}.tools.bamviewgui.BamViewGui))
-$(eval $(call compile-cmd,batchigvpictures,${jvarkit.package}.tools.batchpicts.BatchIGVPictures,copy.opendoc.odp.resources))
+$(eval $(call compile-htsjdk-cmd,bamviewgui,${jvarkit.package}.tools.bamviewgui.BamViewGui))
+$(eval $(call compile-htsjdk-cmd,batchigvpictures,${jvarkit.package}.tools.batchpicts.BatchIGVPictures,copy.opendoc.odp.resources))
 $(eval $(call compile-htsjdk-cmd,bedliftover,${jvarkit.package}.tools.liftover.BedLiftOver))
 $(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.ConvertBedChromosomes))
 $(eval $(call compile_biostar_cmd,103303))
@@ -286,6 +234,7 @@ $(eval $(call compile_biostar_cmd,3654,api.ncbi.insdseq api.ncbi.blast))
 $(eval $(call compile_biostar_cmd,154220))
 $(eval $(call compile_biostar_cmd,140111,api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
 $(eval $(call compile_biostar_cmd,160470,api.ncbi.blast))
+$(eval $(call compile_biostar_cmd,165777))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,blastmapannots, ${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations, api.ncbi.blast api.ncbi.gb ${generated.dir}/java/org/uniprot/package-info.java))
@@ -311,7 +260,7 @@ $(eval $(call compile-htsjdk-cmd,fastqrecordtreepack,${jvarkit.package}.tools.tr
 $(eval $(call compile-htsjdk-cmd,fastqrevcomp,${jvarkit.package}.tools.misc.FastqRevComp))
 $(eval $(call compile-htsjdk-cmd,fastqshuffle,${jvarkit.package}.tools.fastq.FastqShuffle))
 $(eval $(call compile-htsjdk-cmd,fastqsplitinterleaved,${jvarkit.package}.tools.fastq.FastqSplitInterleaved))
-$(eval $(call compile-cmd,findallcoverageatposition,${jvarkit.package}.tools.misc.FindAllCoverageAtPosition))
+$(eval $(call compile-htsjdk-cmd,findallcoverageatposition,${jvarkit.package}.tools.misc.FindAllCoverageAtPosition))
 $(eval $(call compile-htsjdk-cmd,findavariation,${jvarkit.package}.tools.misc.FindAVariation))
 $(eval $(call compile-htsjdk-cmd,findcorruptedfiles,${jvarkit.package}.tools.misc.FindCorruptedFiles))
 $(eval $(call compile-htsjdk-cmd,findmyvirus,${jvarkit.package}.tools.mem.FindMyVirus))
@@ -409,7 +358,7 @@ $(eval $(call compile-htsjdk-cmd,vcfstats,${jvarkit.package}.tools.vcfstats.VcfS
 $(eval $(call compile-htsjdk-cmd,vcfstopcodon,${jvarkit.package}.tools.vcfannot.VCFStopCodon))
 $(eval $(call compile-htsjdk-cmd,vcfstripannot,${jvarkit.package}.tools.vcfstripannot.VCFStripAnnotations))
 $(eval $(call compile-htsjdk-cmd,vcftabixml,${jvarkit.package}.tools.vcftabixml.VCFTabixml))
-$(eval $(call compile-cmd,vcftail,${jvarkit.package}.tools.misc.VcfTail))
+$(eval $(call compile-htsjdk-cmd,vcftail,${jvarkit.package}.tools.misc.VcfTail))
 $(eval $(call compile-htsjdk-cmd,vcftreepack,${jvarkit.package}.tools.treepack.VcfTreePack))
 $(eval $(call compile-htsjdk-cmd,vcftrio,${jvarkit.package}.tools.vcftrios.VCFTrios))
 $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf))
@@ -424,12 +373,12 @@ $(eval $(call compile-htsjdk-cmd,samretrieveseqandqual,${jvarkit.package}.tools.
 $(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.VcfEnsemblVepRest,api.ensembl.vep))
 $(eval $(call compile-htsjdk-cmd,vcfgroupbypop,${jvarkit.package}.tools.misc.VcfGroupByPopulation))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallers,${jvarkit.package}.tools.vcfcmp.VcfCompareCallers))
-$(eval $(call compile-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile))
+$(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile))
 $(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xcontamination.XContaminations))
 $(eval $(call compile-htsjdk-cmd,vcfjoinvcfjs,${jvarkit.package}.tools.vcffilterjs.VCFJoinVCFJS))
 $(eval $(call compile_biostar_cmd,139647))
 $(eval $(call compile-htsjdk-cmd,vcfburden,${jvarkit.package}.tools.misc.VcfBurden))
-$(eval $(call compile-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae))
+$(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae))
 $(eval $(call compile-htsjdk-cmd,vcfbedsetfilter,${jvarkit.package}.tools.vcfbed.VCFBedSetFilter))
 $(eval $(call compile-htsjdk-cmd,vcfreplacetag,${jvarkit.package}.tools.vcfstripannot.VCFReplaceTag))
 $(eval $(call compile-htsjdk-cmd,vcfindextabix,${jvarkit.package}.tools.misc.VcfIndexTabix))

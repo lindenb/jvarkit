@@ -342,9 +342,6 @@ public abstract class Command
 		final OptionGroup g = new OptionGroup();
 		g.addOption(createHelpOption());
 		g.addOption(createVersionOption());
-		g.addOption(Option.builder("proxy").required(false).longOpt("proxy").hasArg(true).
-				argName("HOST:PORT").
-				desc("set the http and the https proxy.").build());
 		opts.addOptionGroup(g);
 		}
 	
@@ -363,22 +360,7 @@ public abstract class Command
 			usage(stdout());
 			return Status.EXIT_SUCCESS;
 			}
-		else if(opt.getOpt().equals("proxy"))
-			{
-			String proxy = opt.getValue();
-			int colon =proxy.lastIndexOf(':');
-			if(colon==-1)
-				{
-				LOG.error("bad proxy \""+proxy+"\"");
-				return Status.EXIT_FAILURE;
-				}
-			LOG.debug("setting proxy "+proxy);
-			System.setProperty("http.proxyHost", proxy.substring(0,colon));
-			System.setProperty("http.proxyPort", proxy.substring(colon+1));
-			System.setProperty("https.proxyHost", proxy.substring(0,colon));
-			System.setProperty("https.proxyPort", proxy.substring(colon+1));
-			return Status.OK;
-			}
+		
 		LOG.fatal("Unknown option "+opt.getOpt());
 		return Status.EXIT_FAILURE;
 		}	
@@ -461,7 +443,7 @@ public abstract class Command
 		w.writeEndElement();
 		}
 	
-	public  int instanceMain(final String args[])
+	public  int instanceMainWithExceptions(final String args[],final List<Throwable> putExceptionsHere)
 		{
 		try{
 			/* cmd line */
@@ -535,6 +517,7 @@ public abstract class Command
 			final Collection<Throwable> initErrors = this.initializeKnime(); 
 			if(!(initErrors==null || initErrors.isEmpty()))
 				{
+				putExceptionsHere.addAll(initErrors);
 				for(Throwable err:initErrors)
 					{
 					LOG.error(err);
@@ -546,6 +529,7 @@ public abstract class Command
 			final Collection<Throwable> errors = this.call(); 
 			if(!(errors==null || errors.isEmpty()))
 				{
+				putExceptionsHere.addAll(initErrors);
 				for(Throwable err:errors)
 					{
 					LOG.error(err);
@@ -577,6 +561,10 @@ public abstract class Command
 			}
 		}
 	
+	public  int instanceMain(final String args[])
+		{
+		return instanceMainWithExceptions(args,new ArrayList<Throwable>());
+		}
 		
 	
 	public void instanceMainWithExit(final String args[])

@@ -28,18 +28,12 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.bam2wig;
 
-import java.io.File;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 
 import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMRecord;
@@ -48,7 +42,6 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 public class Bam2Wig extends AbstractBam2Wig
@@ -63,14 +56,8 @@ public class Bam2Wig extends AbstractBam2Wig
 		}
 	
 
-	@Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
 	
-	static private class MyCommand extends AbstractBam2Wig.AbstractBam2WigCommand
-		{
+	
 		private PrintWriter pw = null;
 	
 	private void run(final SamReader sfr)
@@ -233,44 +220,16 @@ public class Bam2Wig extends AbstractBam2Wig
 		}
 	
 
-	
 		@Override
-		public Collection<Throwable> call() throws Exception 
-			{
-			final SamReaderFactory sfrf= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+		protected Collection<Throwable> call(String inputName) throws Exception {
 			SamReader in=null;
-			final List<String> args = getInputFiles();
-			if(getOutputFile()==null)
-				{
-				this.pw=new PrintWriter(stdout());
-				}
-			else
-				{
-				this.pw=new PrintWriter(getOutputFile());
-				}
+			this.pw = openFileOrStdoutAsPrintWriter();
 			try
 				{
-				if(args.isEmpty())
-					{
-					LOG.info("Reading from stdin");
-					in=sfrf.open(SamInputResource.of(System.in));
-					run(in);
-					in.close();
-					}
-				else if(args.size()==1)
-					{
-					String filename=args.get(0);
-					LOG.info("Reading from "+filename);
-					in=sfrf.open(SamInputResource.of(new File(filename)));
-					run(in);
-					}
-				else
-					{
-					return wrapException(getMessageBundle("illegal.number.of.arguments"));
-					}
-				
+				in = openSamReader(inputName);
+				run(in);
 				pw.flush();
-				return Collections.emptyList();
+				return RETURN_OK;
 				}
 			catch(Exception err)
 				{
@@ -285,7 +244,7 @@ public class Bam2Wig extends AbstractBam2Wig
 				in=null;
 				}
 			}
-		}
+		
 	/**
 	 * @param args
 	 */

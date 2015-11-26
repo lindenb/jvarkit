@@ -6,7 +6,7 @@
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
 <description>BAM to raster graphics</description>
 <options>
-	<option name="printBases" type="bool" opt="b" longopt="bases" default="false">
+	<option name="printBases" type="boolean" opt="b" longopt="bases" default="false">
 		<description>print bases</description>
 	</option>
 	<option name="region" type="string" opt="r" longopt="region" argname="CHR:START-END">
@@ -18,7 +18,7 @@
 	<option name="WIDTH" type="int" opt="w" longopt="width" argname="IMAGE-WIDTH">
 		<description> indexed fasta reference</description>
 	</option>
-	<option name="printName" type="bool" opt="N" longopt="name" default="false">
+	<option name="printName" type="boolean" opt="N" longopt="name" default="false">
 		<description>print read name</description>
 	</option>
 </options>

@@ -11,6 +11,7 @@
 	 app="&name;"
 	 package="&package;"
 	 __placeholder__="1"
+	 ui-swing="true"
 	>
 <input type="vcf"/>
 <output type="vcf"/>

@@ -3,24 +3,27 @@
  <!ENTITY name "BamToSVG">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.bam2svg">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	ui-swing='true'
+	>
 <description>Convert a BAM file to SVG</description>
-
+<snippet id="ref.faidx" name="refFile"/>
+<snippet id="http.proxy" />
+<input>
+	<filter id="indexed-bam"/>
+</input>
 
 <options>
-	<option name="refFile" type="input-file" opt="R" longopt="reference" argname="FASTA">
-		<description>indexed Fasta sequence</description>
-	</option>
 	<option name="intervalStr" type="string" opt="i" longopt="interval" argname="CHR:START-END">
 		<description>interval</description>
 	</option>
 	<option name="drawinAreaWidth" type="int" opt="w" longopt="width"  argname="WIDTH" default="1000">
 		<description>Page width</description>
 	</option>
-	<option name="vcfFileSet" type="string-set" opt="S" longopt="vcf"  argname="VCF">
+	<option name="vcfFileSet" type="uri-set" opt="S" longopt="vcf"  argname="VCF">
 		<description>add VCF indexed with tabix. Optinal. the Samples's name must be the same than in the BAM.</description>
 	</option>
-	<option name="showClipping" type="bool" opt="c" longopt="showclipping" default="false">
+	<option name="showClipping" type="boolean" opt="c" longopt="showclipping" default="false">
 		<description>Show clipping</description>
 	</option>
 	

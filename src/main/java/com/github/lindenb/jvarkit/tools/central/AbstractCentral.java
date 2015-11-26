@@ -20,7 +20,10 @@ import javax.swing.JTextArea;
 import javax.swing.border.EmptyBorder;
 import javax.swing.text.JTextComponent;
 
+import com.github.lindenb.jvarkit.tools.bam2svg.AbstractBamToSVG;
+import com.github.lindenb.jvarkit.tools.misc.AbstractAddLinearIndexToBed;
 import com.github.lindenb.jvarkit.tools.misc.AbstractVcfHead;
+import com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.vcfcmp.AbstractVcfCompareCallers;
 import com.github.lindenb.jvarkit.util.swing.FormLayout;
@@ -70,6 +73,8 @@ public abstract class AbstractCentral extends JFrame {
 	
 	this.tabbedPane.addTab("VCFHead", new AbstractVcfHead.VcfHeadSwingUI());
 	this.tabbedPane.addTab("VCFCompareCallers", new AbstractVcfCompareCallers.VcfCompareCallersSwingUI());
+	this.tabbedPane.addTab("BamToSVG", new AbstractBamToSVG.BamToSVGSwingUI());
+	this.tabbedPane.addTab("AbstractAddLinearIndexToBed", new AbstractAddLinearIndexToBed.AddLinearIndexToBedSwingUI());
 	
 	JPanel bottom = new JPanel(new BorderLayout(5,5));
 	bottom.setBorder(new EmptyBorder(5, 5, 5, 5));
