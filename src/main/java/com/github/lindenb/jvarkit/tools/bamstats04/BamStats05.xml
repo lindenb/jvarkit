@@ -3,5 +3,26 @@
  <!ENTITY name "BamStats05">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.bamstats04">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	ui-swing="true">
+<description>Coverage statistics for a BED file, group by gene. It uses the Cigar string instead of the start/end to get the coverage</description>
+<input type="stdin-or-many">
+</input>
+
+<options>
+	<option name="MIN_COVERAGE" opt="m" longopt="mincoverage" label="min coverage" type="int" min-including="0"  default="0">
+		<description> min coverage to say the position is not covered</description>
+	</option>
+	<option name="BEDILE" opt="B" label="BED file" longopt="bed" type="input-file" required="true">
+		<description>bed file (chrom start end GENE)</description>
+	</option>
+	<option name="USE_ORPHAN" opt="p" longopt="orphan" label="use orphan reads" type="boolean" default="false">
+		<description>use orphan reads (not only properly paired)</description>
+	</option>
+	<option name="MMQ" opt="q" longopt="minmapq" label="min MAPQ" type="int" default="0">
+		<description>min mapping quality</description>
+	</option>	
+</options>
+
+<!-- __PLACEHOLDER__ -->
+</app>

@@ -16,7 +16,6 @@ import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.command.Command;
 
 public class Biostar105754 extends AbstractBiostar105754
 	{
@@ -40,14 +39,7 @@ public class Biostar105754 extends AbstractBiostar105754
 		return d;
 		}
 	
-	@Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
 	
-	static private class MyCommand extends AbstractBiostar105754.AbstractBiostar105754Command
-			{
 			private PrintWriter out=null;
 			private org.broad.igv.bbfile.BBFileReader bbFileReader=null;
 			private final long EXTEND_SHIFT=1000000;//
@@ -195,8 +187,8 @@ public class Biostar105754 extends AbstractBiostar105754
 					bbFileReader=null;
 					}
 				}
-			}
+			
 	public static void main(String[] args) {
 		new Biostar105754().instanceMainWithExit(args);
-	}
+		}
 	}

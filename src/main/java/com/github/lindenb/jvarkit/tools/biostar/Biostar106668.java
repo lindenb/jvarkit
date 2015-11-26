@@ -15,7 +15,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
@@ -27,15 +26,6 @@ public class Biostar106668 extends AbstractBiostar106668
 	
 	
 	
-
-	@Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
-	
-	static private class MyCommand extends AbstractBiostar106668.AbstractBiostar106668Command
-		{
 		@Override
 		public Collection<Throwable> call() throws Exception
 			{
@@ -111,8 +101,7 @@ public class Biostar106668 extends AbstractBiostar106668
 				}
 			
 			}
-
-		}
+		
 	
 	/**
 	 * @param args

@@ -61,7 +61,7 @@ define compile-htsjdk-cmd
 $(1)  : ${htsjdk.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
-		$(3) ${apache.commons.cli.jars}
+		$(3) ${apache.commons.cli.jars} ${slf4j.jars}
 	echo "### COMPILING $(1) ######"
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
 	#generate java code if needed = a file with .xml exists, requires xsltproc, preprocessing file twice

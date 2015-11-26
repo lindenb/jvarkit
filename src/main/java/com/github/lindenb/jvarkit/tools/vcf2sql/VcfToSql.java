@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +47,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -55,10 +54,11 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
-public class VcfToSql extends AbstractCommandLineProgram
+public class VcfToSql extends AbstractVcfToSql
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfToSql.class);
+
     private PrintWriter outputWriter =null;
-    private boolean drop_tables=false;
     
     private class SelectStmt
     	{
@@ -335,7 +335,7 @@ public class VcfToSql extends AbstractCommandLineProgram
 				String s=String.valueOf(o);
 				if(s.length() >this.maxLength)
 					{
-					throw new RuntimeException("string length greater than "+this.maxLength+" L="+s.length()+" . Update source code for "+getAntiquote());
+					throw new RuntimeException("string length("+s+") greater  than "+this.maxLength+" L="+s.length()+" . Update source code for "+getAntiquote()+" "+table.getName());
 					}
 				StringBuilder sb=new StringBuilder(s.length()+2);
 				sb.append("\"");
@@ -437,7 +437,7 @@ public class VcfToSql extends AbstractCommandLineProgram
     	
     	}
     
-    private int MAX_ALLELE_LENGTH=50;
+    private int MAX_ALLELE_LENGTH=250;
     
     private Table vcfFileTable = new TableBuilder().name("vcffile").columns(
     		new ColumnBuilder().primaryKey().make(),
@@ -564,15 +564,15 @@ public class VcfToSql extends AbstractCommandLineProgram
 		this.vcfFileTable.insert(outputWriter,null,filename);
 		final SelectStmt vcffile_id = new SelectStmt(this.vcfFileTable);
 		
-		Map<String,SelectStmt> sample2sampleid = new HashMap<String,SelectStmt>();
-		Map<String,SelectStmt> filter2filterid = new HashMap<String,SelectStmt>();
-		Map<String,SelectStmt> chrom2chromId = new HashMap<String,SelectStmt>();
+		final Map<String,SelectStmt> sample2sampleid = new HashMap<String,SelectStmt>();
+		final Map<String,SelectStmt> filter2filterid = new HashMap<String,SelectStmt>();
+		final Map<String,SelectStmt> chrom2chromId = new HashMap<String,SelectStmt>();
 		
-		VcfIterator r=VCFUtils.createVcfIteratorFromFile(filename);
-		VCFHeader header=r.getHeader();
+		final VcfIterator r=VCFUtils.createVcfIteratorFromFile(filename);
+		final VCFHeader header=r.getHeader();
 		
 		/* parse samples */
-		for(String sampleName:header.getSampleNamesInOrder())
+		for(final String sampleName:header.getSampleNamesInOrder())
 			{
 			this.sampleTable.insert(outputWriter,null,sampleName);
 			SelectStmt sample_id = new SelectStmt(this.sampleTable, "name", sampleName);
@@ -582,7 +582,7 @@ public class VcfToSql extends AbstractCommandLineProgram
 			}
 		
 		/* parse filters */
-		for(VCFFilterHeaderLine filter:header.getFilterLines())
+		for(final VCFFilterHeaderLine filter:header.getFilterLines())
 			{
 			this.filterTable.insert(
 					outputWriter,
@@ -591,7 +591,7 @@ public class VcfToSql extends AbstractCommandLineProgram
 					filter.getID(),
 					filter.getValue()
 					);
-			filter2filterid.put(filter.getID(), new SelectStmt(this.filterTable, "name", filter));
+			filter2filterid.put(filter.getID(), new SelectStmt(this.filterTable, "name", filter.getID()));
 			}
 
 		
@@ -601,7 +601,7 @@ public class VcfToSql extends AbstractCommandLineProgram
 			throw new RuntimeException("dictionary missing in VCF");
 			}
 		/* parse sequence dict */
-		for(SAMSequenceRecord ssr: dict.getSequences())
+		for(final SAMSequenceRecord ssr: dict.getSequences())
 			{
 			this.chromosomeTable.insert(
 					outputWriter,
@@ -669,45 +669,48 @@ public class VcfToSql extends AbstractCommandLineProgram
 					);
 				}
 			
-			for(VepPrediction pred: vepPredictionParser.getPredictions(var))
+			if(!super.ignore_info)
 				{
-				vepPrediction.insert(
-						outputWriter,
-						null,
-						variant_id,
-						pred.getEnsemblGene(),
-						pred.getEnsemblTranscript(),
-						pred.getEnsemblProtein(),
-						pred.getSymbol()
-						);
-				SelectStmt pred_id = new SelectStmt(vepPrediction);
-		
-				for(SequenceOntologyTree.Term t: pred.getSOTerms())
+				for(VepPrediction pred: vepPredictionParser.getPredictions(var))
 					{
-					String term=t.getAcn().replace(':', '_');
-					soTermTable.insert(
+					vepPrediction.insert(
 							outputWriter,
 							null,
-							term,
-							t.getAcn()
-							);//for bioportal compatibility
-					SelectStmt term_id = new SelectStmt(soTermTable,"acn",term);
-					
-					vepPrediction2so.insert(
-						outputWriter,
-						null,
-						pred_id,
-						term_id
-						);
+							variant_id,
+							pred.getEnsemblGene(),
+							pred.getEnsemblTranscript(),
+							pred.getEnsemblProtein(),
+							pred.getSymbol()
+							);
+					SelectStmt pred_id = new SelectStmt(vepPrediction);
+			
+					for(SequenceOntologyTree.Term t: pred.getSOTerms())
+						{
+						String term=t.getAcn().replace(':', '_');
+						soTermTable.insert(
+								outputWriter,
+								null,
+								term,
+								t.getAcn()
+								);//for bioportal compatibility
+						SelectStmt term_id = new SelectStmt(soTermTable,"acn",term);
+						
+						vepPrediction2so.insert(
+							outputWriter,
+							null,
+							pred_id,
+							term_id
+							);
+						}
 					}
 				}
 			
 			/* insert genotypes */
-			for(String sampleName: sample2sampleid.keySet())
+			for(final String sampleName: sample2sampleid.keySet())
 				{
-				Genotype g= var.getGenotype(sampleName);
+				final Genotype g= var.getGenotype(sampleName);
 				
-				if(!g.hasDP() &&  !g.hasGQ() && !g.isCalled()) continue;
+				if(!g.isAvailable() || g.isNoCall()) continue;
 				genotypeTable.insert(
 						outputWriter,
 						null,
@@ -724,68 +727,18 @@ public class VcfToSql extends AbstractCommandLineProgram
 		r.close();
 		}
 	
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/VCF2SQL";
-    	}
     
-    @Override
-	public String getProgramDescription() {
-		return "Generate the SQL code to insert a VCF into mysql.";
-		}
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
+	protected Collection<Throwable> call(String inputName) throws Exception
 		{
-		out.println(" -G dump schema as DOT");
-		out.println(" -d drop file on startup");
-		out.println(" -o (file) filename out.");
-		super.printOptions(out);
-		}
-
-
-	
-
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean print_schema=false;
-		File outFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:dG"))!=-1)
-			{
-			switch(c)
-				{
-				case 'G': print_schema=true; break;
-				case 'd': drop_tables=true; break;
-				case 'o':outFile=new File(opt.getOptArg()); break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		
 		try
 			{
 			
-			if(print_schema)
+			if(super.print_schema)
 				{
-				if(outFile==null)
-					{
-					this.outputWriter=new PrintWriter(System.out);
-					}
-				else
-					{
-					this.outputWriter = IOUtils.openFileForPrintWriter(outFile);
-					}
+				this.outputWriter =  openFileOrStdoutAsPrintWriter();
+				
 				this.outputWriter.println("digraph G{");
 				for(int i=0;i< this.all_tables.length;++i)
 					{
@@ -808,24 +761,16 @@ public class VcfToSql extends AbstractCommandLineProgram
 				this.outputWriter.println("}");
 				this.outputWriter.flush();
 				this.outputWriter.close();
-				return 0;
+				return RETURN_OK;
 				}
 			
-			if(opt.getOptInd()+1!=args.length)
+			if(inputName==null)
 				{
-				info("Illegal number of arguments");
-				return -1;
+				return wrapException("Illegal number of arguments");
 				}
-			File filename=new File(args[opt.getOptInd()]);
+			final File filename=new File(inputName);
 			
-			if(outFile==null)
-				{
-				this.outputWriter=new PrintWriter(System.out);
-				}
-			else
-				{
-				this.outputWriter = IOUtils.openFileForPrintWriter(outFile);
-				}
+			this.outputWriter =  openFileOrStdoutAsPrintWriter();
 			
 			if(this.drop_tables)
 				{
@@ -848,12 +793,11 @@ public class VcfToSql extends AbstractCommandLineProgram
 			this.outputWriter.flush();
 			this.outputWriter.close();
 			this.outputWriter=null;
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{

@@ -44,6 +44,16 @@ public abstract class AbstractOneFileChooser extends AbstractFileChooser
 		this.add(new JButton(this.resetAction));
 		}
 	
+	public boolean isEmpty()
+		{
+		return getText().trim().isEmpty();
+		}
+	
+	public String getText()
+		{
+		return getTextField().getText();
+		}
+	
 	public JTextField getTextField()
 		{
 		return textField;

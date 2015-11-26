@@ -3,5 +3,26 @@
  <!ENTITY name "VcfToSql">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.vcf2sql">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	ui-swing="true"
+	>
+<description>Generate the SQL code to insert a VCF into mysql</description>
+<input type="vcf"/>
+
+<options>
+	<option name="print_schema" opt="s" longopt="schema" type="boolean" default="false">
+		<description>Print Schema</description>
+	</option>
+	<option name="drop_tables" opt="d" longopt="drop" type="boolean" label="Add Drop Tables Statement" default="false">
+		<description>Add Drop Tables Statement</description>
+	</option>
+	<option name="ignore_info" opt="n" longopt="noinfo" type="boolean" label="ignore INFO column" default="false">
+		<description>ignore INFO column</description>
+	</option>
+	<option name="ignore_filter" opt="f" longopt="nofilter" type="boolean" label="ignore FILTER column" default="false">
+		<description>ignore FILTER column</description>
+	</option>
+</options>
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

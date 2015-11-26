@@ -32,8 +32,11 @@ commons.validator.jars  = \
 	$(lib.dir)/commons-validator/commons-validator/1.4.1/commons-validator-1.4.1.jar \
 	$(lib.dir)/commons-digester/commons-digester/1.8.1/commons-digester-1.8.1.jar 
 
+slf4j.jars = \
+	$(lib.dir)/org/slf4j/slf4j-api/1.7.13/slf4j-api-1.7.13.jar \
+	$(lib.dir)/org/slf4j/slf4j-simple/1.7.13/slf4j-simple-1.7.13.jar
 
-all_maven_jars = $(sort  ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars})
+all_maven_jars = $(sort  ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars})
 
 ${all_maven_jars}  : 
 	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o "$@" "http://central.maven.org/maven2/$(patsubst ${lib.dir}/%,%,$@)"

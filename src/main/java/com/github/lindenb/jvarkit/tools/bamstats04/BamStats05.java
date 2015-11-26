@@ -31,9 +31,10 @@ package com.github.lindenb.jvarkit.tools.bamstats04;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -43,8 +44,9 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -60,13 +62,10 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 
-public class BamStats05 extends AbstractCommandLineProgram
+public class BamStats05 extends AbstractBamStats05
 	{
-	private File BEDILE=null;
-	private boolean PROPERLY_PAIRED=true;
-	private int MMQ=0;
-	private int MIN_COVERAGE=0;
-	
+	private static final Logger LOG= com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractBamStats05.class);
+
     @SuppressWarnings("resource")
 	private Map<String, List<Interval>> readBedFile(File bedFile) throws IOException
     	{
@@ -122,14 +121,14 @@ public class BamStats05 extends AbstractCommandLineProgram
     		}
     	}
 	
-	protected void doWork(
+	protected  Collection<Throwable> doWork(
 			final Map<String, List<Interval>> gene2interval,
 			final String filename,
 			final SamReader IN) throws Exception
 		{
 		try
 			{
-			this.info("Scanning "+filename);
+			LOG.info("Scanning "+filename);
 			final SAMFileHeader header = IN.getFileHeader();
 			List<SAMReadGroupRecord> rgs = header.getReadGroups();
 			if(rgs==null || rgs.isEmpty())
@@ -189,7 +188,7 @@ public class BamStats05 extends AbstractCommandLineProgram
 							if(rec.getDuplicateReadFlag() ) continue;
 							if(rec.getReadPairedFlag())
 								{
-								if(PROPERLY_PAIRED && !rec.getProperPairFlag()) continue;
+								if(!USE_ORPHAN && !rec.getProperPairFlag()) continue;
 								}
 							if(rec.isSecondaryOrSupplementary()) continue;
 							if(!rec.getReferenceName().equals(interval.getContig())) continue;
@@ -252,11 +251,11 @@ public class BamStats05 extends AbstractCommandLineProgram
 							);
 					}//end gene
 				}//end sample
+		return RETURN_OK;
 		}
 	catch(Exception err)
 		{
-		error(err);
-		throw err;
+		return wrapException(err);
 		}
 	finally
 		{
@@ -265,86 +264,65 @@ public class BamStats05 extends AbstractCommandLineProgram
 	}
 	
 	@Override
-	public String getProgramDescription() {
-		return "Coverage statistics for a BED file, group by gene. It uses the Cigar string instead of the start/end to get the voverage";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"BamStats05";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
+	public Collection<Throwable> call() throws Exception
 		{
-		out.println(" -m min coverage to say the position is not covered");
-		out.println(" -B (file) bed file (chrom start end GENE)");
-		out.println(" -p use orphan reads (not only properly paired)");
-		out.println(" -q (int) min mapping quality:"+MMQ);
-		super.printOptions(out);
-		}
-	@Override
-	public int doWork(String[] args) {
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"m:B:pq:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'm': this.MIN_COVERAGE=Integer.parseInt(opt.getOptArg());break;
-				case 'B': this.BEDILE=new File(opt.getOptArg());break;
-				case 'p': this.PROPERLY_PAIRED = false; break;
-				case 'q': this.MMQ=Integer.parseInt(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(opt.getOptInd()==args.length)
-			{
-			error("Illegal number of args");
-			return -1;
-			}
+		final List<String> args = getInputFiles();
 		if(BEDILE==null)
 			{
-			error("missing bed file");
-			return -1;
+			return wrapException("missing bed file");
 			}
 		SamReader in=null;
+		BufferedReader r=null;
 		try
 			{
 			Map<String, List<Interval>> gene2interval = readBedFile(BEDILE);
 			System.out.println("#chrom\tstart\tend\tgene\tsample\tlength\tmincov\tmaxcov\tmean\tnocoverage.bp\tpercentcovered");
 			SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			Set<String> files = new  HashSet<>();
-			for(int i=opt.getOptInd();i< args.length;++i)
+			if(args.isEmpty())
 				{
-				files.addAll(IOUtils.unrollFiles(
-						Collections.singletonList(args[i])
-						));
+				LOG.info("reading BAM path from stdin");
+				r = new BufferedReader(new InputStreamReader(stdin()));
+				String line;
+				while((line=r.readLine())!=null)
+					{
+					if(line.startsWith("#") || line.trim().isEmpty()) continue;
+					if(!line.endsWith(".bam"))
+						{
+						return wrapException("line should end with .bam :"+line);
+						}
+					}
+				CloserUtil.close(r);
 				}
+			
+			else
+				{
+				for(final String fname:args)
+					{
+					files.addAll(IOUtils.unrollFiles(
+							Collections.singletonList(fname)
+							));
+					}
+				}
+			
 			for(String f:files)
 				{
 				in = srf.open(new File(f));
-				doWork(gene2interval,f,in);
+				 Collection<Throwable> tl =doWork(gene2interval,f,in);
 				CloserUtil.close(in);
 				in=null;
+				if(!tl.isEmpty()) return tl;
 				}
-			return 0;
+			
+			return RETURN_OK;
 			}
 		catch (Exception e) {
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{
 			CloserUtil.close(in);
+			CloserUtil.close(r);
 			}
 		}
 

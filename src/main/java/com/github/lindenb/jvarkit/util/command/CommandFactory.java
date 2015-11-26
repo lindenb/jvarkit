@@ -53,12 +53,13 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.log.Logging;
 
 @Deprecated
 public abstract class CommandFactory 
 	{
 	protected enum Status {OK,EXIT_SUCCESS,EXIT_FAILURE};
-	private static final Log LOG=LogFactory.getLog(CommandFactory.class);
+	private static final Log LOG=Logging.getLog(CommandFactory.class);
 	private String version=null;
 	private String compileDate;
 

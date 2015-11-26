@@ -60,7 +60,6 @@ import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.biostar.AbstractBiostar103303;
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 public class Biostar103303 extends AbstractBiostar103303
@@ -129,15 +128,6 @@ public class Biostar103303 extends AbstractBiostar103303
 		
 		}
 
-	
-	@Override
-	public Command createCommand()
-		{
-		return new MyCommand();
-		}
-	
-	static private class MyCommand extends AbstractBiostar103303.AbstractBiostar103303Command
-		{
 		
 	private IntervalTreeMap<List<GTFGene.Exon>> exonMap=new IntervalTreeMap<List<GTFGene.Exon>>();
 	
@@ -491,7 +481,7 @@ public class Biostar103303 extends AbstractBiostar103303
 			}
 		return Collections.emptyList();
 		}
-		}
+		
 	
 	
 	/**

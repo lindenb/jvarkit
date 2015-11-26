@@ -25,7 +25,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		<xsl:otherwise> com.github.lindenb.jvarkit.util.command.Command </xsl:otherwise>
 	</xsl:choose>
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(<xsl:apply-templates select="." mode="abstract-class-name"/>.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(<xsl:apply-templates select="." mode="abstract-class-name"/>.class);
 	<xsl:apply-templates select=".//c:option"/>
 	
 	<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
@@ -914,15 +914,17 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			extends com.github.lindenb.jvarkit.tools.central.CentralPane
 			{
 			<xsl:apply-templates select="//c:option" mode="swing-declare"/>
+			
+			/* inputs : <xsl:value-of select="c:input/@type"/>*/
 			<xsl:choose>
 				<xsl:when test="c:input/@type='sam' or c:input/@type='vcf' or c:input/@type='stdin-or-one' ">
-				com.github.lindenb.jvarkit.util.swing.InputChooser _input = null;
+				private com.github.lindenb.jvarkit.util.swing.InputChooser _input = null;
 				</xsl:when>
 				<xsl:when test="c:input/@type='TODO'">
 
 				</xsl:when>
 				<xsl:otherwise>
-				com.github.lindenb.jvarkit.util.swing.MultipleInputChooser _inputs = null;
+				private com.github.lindenb.jvarkit.util.swing.MultipleInputChooser _inputs = null;
 				</xsl:otherwise>
 			</xsl:choose>
 			
@@ -931,31 +933,42 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			public <xsl:apply-templates select="." mode="swing-name"/>()
 				{
 				super();
-				final  javax.swing.JPanel pane = new javax.swing.JPanel(new com.github.lindenb.jvarkit.util.swing.FormLayout());
-				<xsl:apply-templates select="//c:option" mode="swing-build"/>
+				final  javax.swing.JPanel top = new javax.swing.JPanel(new java.awt.BorderLayout());
+				final javax.swing.JLabel title = new javax.swing.JLabel(getDescription());
+				title.setFont(new java.awt.Font("Dialog", java.awt.Font.BOLD, 14));
+				top.add(title,java.awt.BorderLayout.CENTER);
+				this.add(top,java.awt.BorderLayout.NORTH);
+
 				
-				/* inputs */
+				
+				final  javax.swing.JPanel pane = new javax.swing.JPanel(new com.github.lindenb.jvarkit.util.swing.FormLayout());
+				<xsl:apply-templates select="//c:option[not(@opt='o')]" mode="swing-build"/>
+				
+				
+				/* inputs : <xsl:value-of select="c:input/@type"/>*/
 				<xsl:choose>
 					<xsl:when test="c:input/@type='sam' or c:input/@type='vcf'  or c:input/@type='stdin-or-one'">
-					pane.add(new javax.swing.JLabel("Input:"));
+					pane.add(new javax.swing.JLabel("Input:",javax.swing.JLabel.RIGHT));
 					this._input = new com.github.lindenb.jvarkit.util.swing.InputChooser();
 					pane.add(this._input);
 					</xsl:when>
 					<xsl:when test="c:input/@type='TODO'">
 					</xsl:when>
 					<xsl:otherwise>
-					pane.add(new javax.swing.JLabel("Inputs:"));
+					pane.add(new javax.swing.JLabel("Inputs:",javax.swing.JLabel.RIGHT));
 					this._inputs = new com.github.lindenb.jvarkit.util.swing.MultipleInputChooser();
 					pane.add(this._inputs);
 					</xsl:otherwise>
 				</xsl:choose>
+				
+				<xsl:apply-templates select="//c:option[@opt='o']" mode="swing-build"/>
 				
 				this.add(pane,java.awt.BorderLayout.CENTER);
 				}
 			<xsl:apply-templates select="." mode="label"/>
 			<xsl:apply-templates select="." mode="description"/>
 			@Override
-			public Class&lt;?&gt; getMainClass()
+			public Class&lt;? extends com.github.lindenb.jvarkit.util.command.Command&gt; getMainClass()
 				{
 				return <xsl:apply-templates select="." mode="class-name"/>.class;
 				}
@@ -964,6 +977,8 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			public String getValidationMessage()
 				{
 				<xsl:apply-templates select="//c:option" mode="swing-validation"/>
+				
+				
 				
 				
 				<xsl:choose>
@@ -988,7 +1003,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			public void fillCommandLine(final java.util.List&lt;String&gt; command)
 				{
 				super.fillCommandLine(command);
-				<xsl:apply-templates select="//c:option[not(@opt='o')]" mode="swing-fill-command"/>
+				<xsl:apply-templates select="//c:option" mode="swing-fill-command"/>
 				<xsl:choose>
 					<xsl:when test="c:input/@type='sam' or c:input/@type='vcf' or c:input/@type='stdin-or-one'">
 						command.add(this._input.getTextField().getText().trim());

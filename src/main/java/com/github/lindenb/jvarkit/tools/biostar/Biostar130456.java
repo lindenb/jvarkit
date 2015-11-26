@@ -47,7 +47,6 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
-import com.github.lindenb.jvarkit.util.command.Command;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -59,13 +58,7 @@ public class Biostar130456 extends AbstractBiostar130456
 
 	private final static String SAMPLE_TAG="__SAMPLE__";
 	
-	@Override
-	public Command createCommand() {
-		return new MyCommand();
-		}
 	
-	static private class MyCommand extends AbstractBiostar130456.AbstractBiostar130456Command
-		{
 		@Override
 		public Collection<Throwable> call() throws Exception
 			{
@@ -161,7 +154,7 @@ public class Biostar130456 extends AbstractBiostar130456
 				CloserUtil.close(in);
 				}
 			}
-		}
+		
 
 	/**
 	 * @param args

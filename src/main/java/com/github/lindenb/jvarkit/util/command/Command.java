@@ -59,8 +59,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 
@@ -70,8 +69,8 @@ public abstract class Command
 	implements Callable<Collection<Throwable>>
 	{
 	protected enum Status {OK,EXIT_SUCCESS,EXIT_FAILURE};
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Command.class);
 
-	private static final Log LOG=LogFactory.getLog(Command.class);
 	protected static final Collection<Throwable> RETURN_OK = Collections.emptyList();
 	/** error stream */
 	private java.io.PrintStream _errStream = System.err;
@@ -242,7 +241,7 @@ public abstract class Command
 		return getGitHash();
 		}
 	
-	public Log getLog()
+	public Logger getLog()
 		{
 		return LOG;
 		}
@@ -257,17 +256,17 @@ public abstract class Command
 		return new ArrayList<>(Collections.singletonList(err));
 		}
 	@Deprecated
-	public void info(final Object o) { getLog().info(o);}
+	public void info(final Object o) { getLog().info(String.valueOf(o));}
 	@Deprecated
-	public void info(final Object o,final  Throwable err) { getLog().info(o,err);}
+	public void info(final Object o,final  Throwable err) { getLog().info(String.valueOf(o),err);}
 	@Deprecated
-	public void warning(final Object o) { getLog().warn(o);}
+	public void warning(final Object o) { getLog().warn(String.valueOf(o));}
 	@Deprecated
-	public void warning(final Object o,final  Throwable err) { getLog().warn(o,err);}
+	public void warning(final Object o,final  Throwable err) { getLog().warn(String.valueOf(o),err);}
 	@Deprecated
-	public void error(final Object o) { getLog().error(o);}
+	public void error(final Object o) { getLog().error(String.valueOf(o));}
 	@Deprecated
-	public void error(final Object o,final  Throwable err) { getLog().error(o,err);}
+	public void error(final Object o,final  Throwable err) { getLog().error(String.valueOf(o),err);}
 	
 	public String getMessageBundle(String key)
 		{
@@ -361,7 +360,7 @@ public abstract class Command
 			return Status.EXIT_SUCCESS;
 			}
 		
-		LOG.fatal("Unknown option "+opt.getOpt());
+		LOG.error("Unknown option "+opt.getOpt());
 		return Status.EXIT_FAILURE;
 		}	
 		
@@ -520,9 +519,9 @@ public abstract class Command
 				putExceptionsHere.addAll(initErrors);
 				for(Throwable err:initErrors)
 					{
-					LOG.error(err);
+					LOG.error(err.getMessage());
 					}
-				LOG.fatal("Command initialization failed ");
+				LOG.error("Command initialization failed ");
 				return -1;
 				}
 			LOG.debug("calling");
@@ -532,9 +531,9 @@ public abstract class Command
 				putExceptionsHere.addAll(initErrors);
 				for(Throwable err:errors)
 					{
-					LOG.error(err);
+					LOG.error(err.getMessage());
 					}
-				LOG.fatal("Command failed ");
+				LOG.error("Command failed ");
 				return -1;
 				}
 			LOG.debug("success ");
@@ -547,12 +546,12 @@ public abstract class Command
 			}
 		catch(org.apache.commons.cli.UnrecognizedOptionException err)
 			{
-			LOG.fatal("Unknown command ("+ err.getOption()+ ") , please check your input.",err);
+			LOG.error("Unknown command ("+ err.getOption()+ ") , please check your input.",err);
 			return -1;
 			}
 		catch(Throwable err)
 			{
-			LOG.fatal("cannot execute command", err);
+			LOG.error("cannot execute command", err);
 			return -1;
 			}
 		finally
@@ -572,5 +571,6 @@ public abstract class Command
 		int ret = instanceMain(args);
 		System.exit(ret);
 		}
+	
 	
 	}

@@ -16,6 +16,19 @@
 <xsl:copy select="."/>
 </xsl:template>
 
+<xsl:template match="c:app">
+<c:app >
+	<xsl:if test="not(c:options)">
+		<c:options>
+			<xsl:call-template name="make-output-option"/>
+		</c:options>
+	</xsl:if>
+	<xsl:apply-templates select="@*"/>
+	<xsl:apply-templates select="*|text()"/>
+</c:app>
+</xsl:template>
+
+
 <xsl:template match="c:input[not(@type)]">
 <c:input type="stdin-or-many">
 	<xsl:apply-templates select="@*"/>
@@ -26,12 +39,8 @@
 
 <xsl:template match="c:options">
 <c:options>
-	<xsl:if test="/c:app[not(@generate-output-option='false')]">
-		<c:option name="outputFile" type="output-file" argname="OUTPUT-FILE" opt="o" longopt="output">
-			<c:description>Output file. Default:stdout</c:description>
-		</c:option>
-	</xsl:if>
-
+	<xsl:call-template name="make-output-option"/>
+	
 	<xsl:if test="../c:snippet[@id='http.proxy']">
 		<c:option name="http_proxy_str" type="string" argname="HOST:PORT" opt="http_proxy" longopt="http_proxy">
 			<c:description>set the http and the https proxy ( HOST:PORT ) </c:description>
@@ -83,6 +92,15 @@
 <xsl:apply-templates select="@*"/>
 <xsl:apply-templates select="*|text()"/>
 </xsl:copy>
+</xsl:template>
+
+
+<xsl:template name="make-output-option">
+	<xsl:if test="/c:app[not(@generate-output-option='false')]">
+		<c:option name="outputFile" type="output-file" argname="OUTPUT-FILE" opt="o" longopt="output">
+			<c:description>Output file. Default:stdout</c:description>
+		</c:option>
+	</xsl:if>
 </xsl:template>
 
 </xsl:stylesheet>

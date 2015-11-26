@@ -396,14 +396,6 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 
 </xsl:template>
 
-<xsl:template match="c:option" mode="label">
-"TODO"
-</xsl:template>
-
-
-<xsl:template match="c:option" mode="description">
-"TODO"
-</xsl:template>
 
 <xsl:template match="c:option" mode="java-type">
 <xsl:choose>
@@ -670,19 +662,20 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	pane.add(new javax.swing.JLabel(""));
 	</xsl:when>
 	<xsl:otherwise>
-		final javax.swing.JLabel <xsl:value-of select="generate-id(.)"/>lbl = new javax.swing.JLabel("<xsl:value-of select="@name"/>");
+		final javax.swing.JLabel <xsl:value-of select="generate-id(.)"/>lbl = new javax.swing.JLabel(makeLabel("<xsl:apply-templates select="." mode="label"/>")+":",javax.swing.JLabel.RIGHT);
 		pane.add(<xsl:value-of select="generate-id(.)"/>lbl);
-		<xsl:value-of select="generate-id(.)"/>lbl.setToolTipText("<xsl:value-of select="@name"/>");
+		<xsl:value-of select="generate-id(.)"/>lbl.setToolTipText("<xsl:apply-templates select="." mode="description"/>");
 	</xsl:otherwise>
 </xsl:choose>
 
 <xsl:choose>
 	<xsl:when test="@type='string' and @multiline='true'">
-		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextArea();
+		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextArea(5,20);
 		<xsl:if test="@default">
 		this.<xsl:value-of select="generate-id(.)"/>.setText("<xsl:value-of select="@default"/>");
 		</xsl:if>
 		final javax.swing.JScrollPane <xsl:value-of select="generate-id(.)"/>scroll = new javax.swing.JScrollPane(this.<xsl:value-of select="generate-id(.)"/>);
+		pane.add(<xsl:value-of select="generate-id(.)"/>scroll);
 	</xsl:when>
 	<xsl:when test="@type='string'">
 		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextField();
@@ -696,7 +689,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		this.<xsl:value-of select="generate-id(.)"/> = new com.github.lindenb.jvarkit.util.swing.InputChooser();
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
 	</xsl:when>
-	<xsl:when test="@type='output-file'">
+	<xsl:when test="@type='output-file' ">
 		this.<xsl:value-of select="generate-id(.)"/> = new com.github.lindenb.jvarkit.util.swing.OutputChooser();
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
 	</xsl:when>
@@ -707,7 +700,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	</xsl:when>
 	
 	<xsl:when test="@type='boolean'">
-		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JCheckBox(<xsl:apply-templates select="." mode="label"/>);
+		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JCheckBox("<xsl:apply-templates select="." mode="label"/>");
 		<xsl:choose>
 			<xsl:when test="@default='true'">this.<xsl:value-of select="generate-id(.)"/>.setSelected(true);</xsl:when>
 			<xsl:when test="@default='false'">this.<xsl:value-of select="generate-id(.)"/>.setSelected(false);</xsl:when>
@@ -741,6 +734,12 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 
 <xsl:template match="c:option" mode="swing-validation">
 <xsl:choose>
+	<xsl:when test="@type='output-file' and @opt='o'">
+	if( <xsl:value-of select="generate-id(.)"/>.isEmpty())
+		{
+		return "undefined output file";
+		}
+	</xsl:when>
 	<xsl:when test="@type='string'">
 
 	</xsl:when>
@@ -758,10 +757,20 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		}
 	</xsl:when>
 	<xsl:when test="@type='input-file'">
-
+		<xsl:if test="@required='true'">
+			if(<xsl:value-of select="generate-id(.)"/>.isEmpty())
+				{
+				return "Undefined input file for <xsl:value-of select="@name"/>";
+				}
+		</xsl:if>
 	</xsl:when>
 	<xsl:when test="@type='output-file'">
-
+		<xsl:if test="@required='true'">
+			if(<xsl:value-of select="generate-id(.)"/>.isEmpty())
+				{
+				return "Undefined output file for <xsl:value-of select="@name"/>";
+				}
+		</xsl:if>
 	</xsl:when>
 	<xsl:when test="@type='uri-set'">
 
@@ -787,19 +796,29 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	</xsl:when>
 	
 	<xsl:when test="@type='input-file' or  @type='output-file'">
-	if( !this.<xsl:value-of select="generate-id(.)"/>.getTextField().getText().trim().isEmpty())
+	if( !this.<xsl:value-of select="generate-id(.)"/>.isEmpty())
 		{
 		command.add("-<xsl:value-of select="@opt"/>");
-		command.add(this.<xsl:value-of select="generate-id(.)"/>.getTextField().getText().trim());
+		command.add(this.<xsl:value-of select="generate-id(.)"/>.getText().trim());
 		}
 	</xsl:when>
 	
 	<xsl:when test="@type='uri-set'">
-	//TODO
+	if(!this.<xsl:value-of select="generate-id(.)"/>.getAsList().isEmpty())
+		{
+		command.add("-<xsl:value-of select="@opt"/>");
+		for(final String s: this.<xsl:value-of select="generate-id(.)"/>.getAsList())
+			{
+			command.add(s);
+			}
+		}
 	</xsl:when>
 	
 	<xsl:when test="@type='boolean'">
-	//TODO
+	if( this.<xsl:value-of select="generate-id(.)"/>.isSelected())
+		{
+		command.add("-<xsl:value-of select="@opt"/>");
+		}
 	</xsl:when>
 	
 	<xsl:otherwise>
