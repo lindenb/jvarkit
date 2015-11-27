@@ -3,5 +3,30 @@
  <!ENTITY name "SamJavascript">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.samjs">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1" executable-name="samjs"
+	ui-swing="true"
+	>
+<description>Filters a BAM using javascript ( java rhino engine http://en.wikipedia.org/wiki/Rhino_%28JavaScript_engine%29 ).</description>
+<snippet id="javascript"/>
+<input type="sam"/>
+<output type="sam"/>
+
+<options>
+	<option name="failingReadsFile" type="input-file" opt="X" label="failing file" longopt="fail"  arg-name="FAIL.bam">
+		<description>Save dicarded reads in that file</description>
+	</option>
+	<option name="LIMIT" type="long" opt="N" label="failing file" longopt="limit" arg-name="NUMBER" default="-1L">
+		<description>limit to 'N' records. </description>
+	</option>
+</options>
+
+<documentation>
+<h:h3>Motivation</h:h3>
+<h:p>Filters a BAM using javascript( java rhino engine).
+The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  " +
+and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .</h:p>
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>

@@ -42,7 +42,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import javax.script.Bindings;
@@ -120,7 +119,7 @@ public class BioAlcidae
 			bindings.put("iter",in);
 			bindings.put("format","vcf");
 			this.script.eval(bindings);
-			return Collections.emptyList();
+			return RETURN_OK;
 			} 
 		catch (Exception e)
 			{
@@ -144,7 +143,7 @@ public class BioAlcidae
 			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			if(source==null)
 				{
-				in= srf.open(SamInputResource.of(System.in));
+				in= srf.open(SamInputResource.of(stdin()));
 				}
 			else
 				{
@@ -155,7 +154,7 @@ public class BioAlcidae
 			bindings.put("iter",iter);
 			bindings.put("format","sam");
 			this.script.eval(bindings);
-			return Collections.emptyList();
+			return RETURN_OK;
 			} 
 		catch (Exception e)
 			{
@@ -257,7 +256,7 @@ public class BioAlcidae
 			bindings.put("iter",iter);
 			bindings.put("format","fasta");
 			this.script.eval(bindings);
-			return Collections.emptyList();
+			return RETURN_OK;
 			} 
 		catch (Exception e)
 			{
@@ -279,7 +278,7 @@ public class BioAlcidae
 		try {
 			if(source==null)
 				{
-				in= System.in;
+				in= stdin();
 				}
 			else
 				{
@@ -289,7 +288,7 @@ public class BioAlcidae
 			bindings.put("iter",in);
 			bindings.put("format","fastq");
 			this.script.eval(bindings);
-			return Collections.emptyList();
+			return RETURN_OK;
 			} 
 		catch (Exception e)
 			{
@@ -397,7 +396,7 @@ public class BioAlcidae
 				
 			
 			this.writer.flush();
-			return Collections.emptyList();
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{

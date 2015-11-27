@@ -37,6 +37,7 @@ import java.util.Collection;
 import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
+
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
@@ -55,7 +56,7 @@ import htsjdk.variant.vcf.VCFHeader;
 public class VCFFilterJS
 	extends AbstractVCFFilterJS
 	{	
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VCFFilterJS.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractVCFFilterJS.class);
 	private CompiledScript compiledScript = null;
 	
 	/** 2015-02-10 : moved to public , so we can use it in knime */

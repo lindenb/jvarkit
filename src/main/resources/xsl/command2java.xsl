@@ -153,7 +153,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		{
 		return "<xsl:apply-templates select="." mode="class-name"/>";
 		}
-	
+	<xsl:apply-templates select="." mode="online-urls"/>
 	<xsl:apply-templates select="." mode="label"/>
 	<xsl:apply-templates select="." mode="description"/>	
 	
@@ -174,16 +174,6 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			.build() );	
 		</xsl:if>
 		
-		<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
-		options.addOption(org.apache.commons.cli.Option
-			.builder("formatout")
-			.longOpt("formatout")
-			.desc("output format : sam or bam if stdout")
-			.argName("FORMAT")
-			.hasArg(true)
-			.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
-			.build() );	
-		</xsl:if>
 		
 		
 		<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
@@ -918,26 +908,39 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			/* inputs : <xsl:value-of select="c:input/@type"/>*/
 			<xsl:choose>
 				<xsl:when test="c:input/@type='sam' or c:input/@type='vcf' or c:input/@type='stdin-or-one' ">
+				/** input for type = '<xsl:value-of select="c:input/@type"/>' */
 				private com.github.lindenb.jvarkit.util.swing.InputChooser _input = null;
 				</xsl:when>
 				<xsl:when test="c:input/@type='TODO'">
 
 				</xsl:when>
 				<xsl:otherwise>
+				/** default input type */
 				private com.github.lindenb.jvarkit.util.swing.MultipleInputChooser _inputs = null;
 				</xsl:otherwise>
 			</xsl:choose>
 			
 			
-			
+			/** constructor for SwingUI */
 			public <xsl:apply-templates select="." mode="swing-name"/>()
 				{
 				super();
+				/* top */
 				final  javax.swing.JPanel top = new javax.swing.JPanel(new java.awt.BorderLayout());
 				final javax.swing.JLabel title = new javax.swing.JLabel(getDescription());
 				title.setFont(new java.awt.Font("Dialog", java.awt.Font.BOLD, 14));
 				top.add(title,java.awt.BorderLayout.CENTER);
 				this.add(top,java.awt.BorderLayout.NORTH);
+				
+				/* icons */
+				final  javax.swing.JPanel topRight = new javax.swing.JPanel();
+				topRight.setLayout(new javax.swing.BoxLayout(topRight, javax.swing.BoxLayout.LINE_AXIS));
+				top.add(topRight,java.awt.BorderLayout.EAST);
+				javax.swing.JButton button = createSrcButton();
+				if(button!=null) topRight.add(button);
+				button = createDocButton();
+				if(button!=null) topRight.add(button);
+
 
 				
 				
@@ -1017,6 +1020,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				</xsl:choose>
 				}
 			
+			<xsl:apply-templates select="." mode="online-urls"/>
 			}
 	/** END SECTION SWING */
 	</xsl:if>

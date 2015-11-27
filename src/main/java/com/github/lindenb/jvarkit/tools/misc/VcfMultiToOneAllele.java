@@ -40,67 +40,43 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class VcfMultiToOneAllele
-	extends AbstractVCFFilter3
+	extends AbstractVcfMultiToOneAllele
 	{
-	private boolean print_samples=false;
-	
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfMultiToOneAllele.class);
+
 	 public VcfMultiToOneAllele()
 		{
 		}
 	 
 	@Override
-	public String getProgramDescription() {
-		return " 'one variant with N ALT alleles' to 'N variants with one ALT'";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfMultiToOneAllele";
-		}
-	
-	
-	@Override
-	protected void doWork(
-				String inpuSource,
-				VcfIterator in,
-				VariantContextWriter out
-				)
-			throws IOException {
+	protected Collection<Throwable> doVcfToVcf(String inputName,
+			VcfIterator in, VariantContextWriter out) throws IOException {
 		final String TAG="VCF_MULTIALLELIC_SRC";
 		final List<String> noSamples=Collections.emptyList();
 	
-		VCFHeader header=in.getHeader();
+		final VCFHeader header=in.getHeader();
 		final List<String> sample_names=header.getSampleNamesInOrder();
-		Set<VCFHeaderLine> metaData=new HashSet<>(header.getMetaDataInInputOrder());
-		
-		
-		metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-		
-		metaData.add(new VCFInfoHeaderLine(TAG, 1, VCFHeaderLineType.String, "The variant was processed with VcfMultiAlleleToOneAllele and contained the following alleles."));
-		
+		final Set<VCFHeaderLine> metaData=new HashSet<>(header.getMetaDataInInputOrder());
+		addMetaData(metaData);		
+		metaData.add(new VCFInfoHeaderLine(TAG, 1, VCFHeaderLineType.String,
+				"The variant was processed with VcfMultiAlleleToOneAllele and contained the following alleles."));
 		VCFHeader h2;
 		
-		if(!print_samples)
+		if(!super.print_samples)
 			{
 			h2 = new VCFHeader(
 					metaData,
@@ -122,7 +98,7 @@ public class VcfMultiToOneAllele
 			List<Allele> alleles = new ArrayList<>(ctx.getAlternateAlleles());
 			if(alleles.isEmpty())
 				{
-				warning("Remove no ALT variant:"+ctx);
+				LOG.warn("Remove no ALT variant:"+ctx);
 				continue;
 				}
 			else if(alleles.size()==1)
@@ -132,12 +108,10 @@ public class VcfMultiToOneAllele
 					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					vcb.noGenotypes();
 					out.add(vcb.make());
-					incrVariantCount();
 					}
 				else
 					{
 					out.add(ctx);
-					incrVariantCount();
 					}
 				}
 			else
@@ -224,49 +198,19 @@ public class VcfMultiToOneAllele
 						vcb.genotypes(genotypes);
 						}
 					
-					incrVariantCount();
 					out.add(vcb.make());
 					}
 				}
 			}
 		progess.finish();
+		return RETURN_OK;
 		}
 
-		
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println("-o (file) output file. default stdout");
-		out.println("-p print sample name. set genotype to ./. if both allele of the genotype are in 'ALT'.");
-		super.printOptions(out);
-		}
-		
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:p"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				case 'p': this.print_samples=true;break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		return mainWork(opt.getOptInd(), args);
-		}
 	
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		return doVcfToVcf(inputName);
+		}
 	
 	public static void main(String[] args)
 		{

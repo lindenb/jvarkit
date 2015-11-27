@@ -581,21 +581,21 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 			{
 			java.io.File <xsl:value-of select="concat('f_',generate-id())"/> =  null;
 			try { <xsl:value-of select="concat('f_',generate-id())"/> = new java.io.File( <xsl:value-of select="concat('s_',generate-id())"/>);}
-			catch(Exception err) { LOG.error("Cannot cast "+ <xsl:value-of select="concat('s_',generate-id())"/>+" to File",err); return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;}
+			catch(Exception err) { LOG.error("Cannot cast "+ <xsl:value-of select="concat('s_',generate-id())"/>+" to File",err); return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;}
 			if(!<xsl:value-of select="concat('f_',generate-id())"/>.exists())
 				{
 				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="concat('f_',generate-id())"/>+" doesn't exists");
-				return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+				return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
 				}
 			if(!<xsl:value-of select="concat('f_',generate-id())"/>.isFile())
 				{
 				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="generate-id()"/>+" is not a file.");
-				return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+				return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
 				}
 			if(!<xsl:value-of select="concat('f_',generate-id())"/>.canRead())
 				{
 				LOG.error("option -"+opt.getOpt()+": file "+<xsl:value-of select="concat('f_',generate-id())"/>+" is not readeable.");
-				return com.github.lindenb.jvarkit.util.command.CommandFactory.Status.EXIT_FAILURE;
+				return com.github.lindenb.jvarkit.util.command.Command.Status.EXIT_FAILURE;
 				}
 			<xsl:value-of select="generate-id()"/>.add(<xsl:value-of select="concat('f_',generate-id())"/>);
 			}
@@ -634,10 +634,10 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	<xsl:when test="@type='boolean'">
 		private javax.swing.JCheckBox  <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
-	<xsl:when test="@type='string' and @multiline='true'">
+	<xsl:when test="(@type='string' and @multiline='true') or @type='string-set' or @type='string-list'">
 		private javax.swing.JTextArea <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
-	<xsl:when test="@type='string' or @type='int'">
+	<xsl:when test="@type='string' or @type='int' or @type='long'">
 		private javax.swing.JTextField <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
 	<xsl:when test="@type='input-file'">
@@ -646,7 +646,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	<xsl:when test="@type='output-file'">
 		private com.github.lindenb.jvarkit.util.swing.OutputChooser <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
-	<xsl:when test="@type='uri-set'">
+	<xsl:when test="@type='uri-set' or @type='input-file-set'">
 		private  com.github.lindenb.jvarkit.util.swing.MultipleInputChooser <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
 	<xsl:otherwise>
@@ -669,7 +669,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 </xsl:choose>
 
 <xsl:choose>
-	<xsl:when test="@type='string' and @multiline='true'">
+	<xsl:when test="(@type='string' and @multiline='true') or @type='string-list' or @type='string-set'">
 		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextArea(5,20);
 		<xsl:if test="@default">
 		this.<xsl:value-of select="generate-id(.)"/>.setText("<xsl:value-of select="@default"/>");
@@ -693,7 +693,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		this.<xsl:value-of select="generate-id(.)"/> = new com.github.lindenb.jvarkit.util.swing.OutputChooser();
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
 	</xsl:when>
-	<xsl:when test="@type='int'">
+	<xsl:when test="@type='int' or @type='long'">
 		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextField(20);
 		this.<xsl:value-of select="generate-id(.)"/>.setText("<xsl:value-of select="@default"/>");
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
@@ -710,7 +710,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		</xsl:choose>
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
 	</xsl:when>
-	<xsl:when test="@type='uri-set'">
+	<xsl:when test="@type='uri-set' or @type='input-file-set'">
 		this.<xsl:value-of select="generate-id(.)"/> = new  com.github.lindenb.jvarkit.util.swing.MultipleInputChooser();
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
 	 </xsl:when>
@@ -741,21 +741,48 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		}
 	</xsl:when>
 	<xsl:when test="@type='string'">
-
+	
+	<xsl:if test="c:regex">
+	final java.util.regex.Pattern  <xsl:value-of select="generate-id(.)"/>regex = java.util.regex.Pattern.compile("<xsl:value-of select="c:regex/text()"/>");
+	if(! <xsl:value-of select="generate-id(.)"/>regex.matcher(<xsl:value-of select="generate-id(.)"/>.getText().trim()).matches())
+		{
+		this.<xsl:value-of select="generate-id(.)"/>.requestFocus();
+		return " <xsl:value-of select="@name"/> doesn't match "+  <xsl:value-of select="generate-id(.)"/>regex.pattern();
+		}
+	</xsl:if>
+	
+	
+	
+	
 	</xsl:when>
 	<xsl:when test='@type="int"'>
 		{
 		try
 			{
-			int v = Integer.parseInt(<xsl:value-of select="generate-id(.)"/>.getText());
+			Integer.parseInt(<xsl:value-of select="generate-id(.)"/>.getText());
 			}
 		catch(Exception err)
 			{
 			this.<xsl:value-of select="generate-id(.)"/>.requestFocus();
-			return "Not an integer: <xsl:value-of select="@name"/>";
+			return "Not an integer number: <xsl:value-of select="@name"/>";
 			}
 		}
 	</xsl:when>
+	
+	<xsl:when test='@type="long"'>
+		{
+		try
+			{
+			Long.parseLong(<xsl:value-of select="generate-id(.)"/>.getText());
+			}
+		catch(Exception err)
+			{
+			this.<xsl:value-of select="generate-id(.)"/>.requestFocus();
+			return "Not a Long number: <xsl:value-of select="@name"/>";
+			}
+		}
+	</xsl:when>
+	
 	<xsl:when test="@type='input-file'">
 		<xsl:if test="@required='true'">
 			if(<xsl:value-of select="generate-id(.)"/>.isEmpty())
@@ -778,6 +805,20 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	<xsl:when test="@type='boolean'">
 
 	</xsl:when>
+	
+	<xsl:when test="@type='string-set'">
+
+	</xsl:when>
+	
+	<xsl:when test="@type='string-list'">
+
+	</xsl:when>
+	
+	<xsl:when test="@type='input-file-set'">
+
+	</xsl:when>
+	
+	
 	<xsl:otherwise>
 		<xsl:message terminate='yes'>swing-validationvalidation: unknown type <xsl:value-of select="@type"/>.</xsl:message>
 	</xsl:otherwise>
@@ -787,7 +828,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 
 <xsl:template match="c:option" mode="swing-fill-command">
 <xsl:choose>
-	<xsl:when test="@type='string' or @type='int'">
+	<xsl:when test="@type='string' or @type='int' or @type='long'">
 	if( !this.<xsl:value-of select="generate-id(.)"/>.getText().trim().isEmpty())
 		{
 		command.add("-<xsl:value-of select="@opt"/>");
@@ -803,7 +844,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		}
 	</xsl:when>
 	
-	<xsl:when test="@type='uri-set'">
+	<xsl:when test="@type='uri-set' or @type='input-file-set'">
 	if(!this.<xsl:value-of select="generate-id(.)"/>.getAsList().isEmpty())
 		{
 		command.add("-<xsl:value-of select="@opt"/>");
@@ -818,6 +859,49 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	if( this.<xsl:value-of select="generate-id(.)"/>.isSelected())
 		{
 		command.add("-<xsl:value-of select="@opt"/>");
+		}
+	</xsl:when>
+	
+	<xsl:when test="@type='string-set'">
+	
+		{
+		final java.util.Set&lt;String&gt; set = new java.util.LinkedHashSet&lt;String&gt;();
+		for( String s: this.<xsl:value-of select="generate-id(.)"/>.getText().trim().split("[\n\r]"))
+			{
+			s=s.trim();
+			if(s.isEmpty()) continue;
+			set.add(s);
+			}
+		if( !set.isEmpty())
+			{
+			command.add("-<xsl:value-of select="@opt"/>");
+			for(String s:set)
+				{
+				command.add(s);
+				}
+			}
+		}
+	</xsl:when>
+	
+	
+	<xsl:when test="@type='string-list'">
+	
+		{
+		final java.util.List&lt;String&gt; list = new java.util.ArrayList&lt;String&gt;();
+		for( String s: this.<xsl:value-of select="generate-id(.)"/>.getText().trim().split("[\n\r]"))
+			{
+			s=s.trim();
+			if(s.isEmpty()) continue;
+			list.add(s);
+			}
+		if( !list.isEmpty())
+			{
+			command.add("-<xsl:value-of select="@opt"/>");
+			for(String s:list)
+				{
+				command.add(s);
+				}
+			}
 		}
 	</xsl:when>
 	
@@ -837,7 +921,21 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 </xsl:template>
 
 
+<xsl:template match="c:app" mode="online-urls">
 
+	@Override
+	public String getOnlineSrcUrl()
+		{
+		return "https://github.com/lindenb/jvarkit/blob/master/src/main/java/<xsl:value-of select="translate(@package,'.','/')"/>/<xsl:value-of select="@app"/>.java";
+		}
+	
+	@Override
+	public String getOnlineDocUrl()
+		{
+		return "https://github.com/lindenb/jvarkit/wiki/<xsl:value-of select="@app"/>";
+		}
+	
+</xsl:template>
 
 <xsl:template name="titleize">
 <xsl:param name="s"/>

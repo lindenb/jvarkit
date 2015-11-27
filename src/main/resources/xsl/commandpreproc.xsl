@@ -18,12 +18,15 @@
 
 <xsl:template match="c:app">
 <c:app >
+	<xsl:apply-templates select="@*"/>
+	
 	<xsl:if test="not(c:options)">
 		<c:options>
 			<xsl:call-template name="make-output-option"/>
+			<xsl:call-template name="make-sam-output-option"/>
 		</c:options>
 	</xsl:if>
-	<xsl:apply-templates select="@*"/>
+	
 	<xsl:apply-templates select="*|text()"/>
 </c:app>
 </xsl:template>
@@ -39,7 +42,10 @@
 
 <xsl:template match="c:options">
 <c:options>
+	<xsl:apply-templates select="@*"/>
+	
 	<xsl:call-template name="make-output-option"/>
+	<xsl:call-template name="make-sam-output-option"/>
 	
 	<xsl:if test="../c:snippet[@id='http.proxy']">
 		<c:option name="http_proxy_str" type="string" argname="HOST:PORT" opt="http_proxy" longopt="http_proxy">
@@ -82,7 +88,7 @@
 	</c:option>
 	</xsl:if>
 	
-	<xsl:apply-templates select="@*"/>
+	
 	<xsl:apply-templates select="*|text()"/>
 </c:options>
 </xsl:template>
@@ -97,11 +103,22 @@
 
 <xsl:template name="make-output-option">
 	<xsl:if test="/c:app[not(@generate-output-option='false')]">
-		<c:option name="outputFile" type="output-file" argname="OUTPUT-FILE" opt="o" longopt="output">
+		<c:option name="outputFile" type="output-file" arg-name="OUTPUT-FILE" opt="o" longopt="output">
 			<c:description>Output file. Default:stdout</c:description>
 		</c:option>
 	</xsl:if>
 </xsl:template>
+
+
+<xsl:template name="make-sam-output-option">
+	<xsl:if test="/c:app/c:output[@type='sam'] or /c:app/c:output[@type='bam']">
+		<c:option name="formatout" type="string" arg-name="FORMAT" opt="formatout" longopt="formatout" default="sam">
+			<c:regex>(sam|bam)</c:regex>
+			<c:description>output format : sam or bam.  if stdout is used</c:description>
+		</c:option>
+	</xsl:if>
+</xsl:template>
+
 
 </xsl:stylesheet>
 

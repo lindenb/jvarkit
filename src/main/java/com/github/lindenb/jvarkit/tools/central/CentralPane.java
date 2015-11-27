@@ -5,6 +5,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
@@ -33,6 +36,16 @@ public abstract class CentralPane extends JPanel
 		{
 		
 		}
+	public String getOnlineDocUrl()
+		{
+		return "https://github.com/lindenb/jvarkit/wiki/"+getName();
+		}
+	
+	public String getOnlineSrcUrl()
+		{
+		return null;
+		}
+
 	protected String makeLabel(String s)
 		{
 		while(s.startsWith("-")) s=s.substring(1);
@@ -64,5 +77,44 @@ public abstract class CentralPane extends JPanel
 		}
 	public Map<String, String> getExternalResourceMap() {
 		return externalResourceMap;
+		}
+	
+	protected JButton createSrcButton()
+		{
+		Action a = createURLAction("SRC", getOnlineSrcUrl(),"View Source");
+		if(a==null) return null;
+		JButton button=new JButton(a);
+		return button;
+		}
+	
+	protected JButton createDocButton()
+		{
+		Action a = createURLAction("WWW", getOnlineDocUrl(),"View Online Doc");
+		if(a==null) return null;
+		JButton button=new JButton(a);
+		return button;
+		}
+
+	
+	private Action createURLAction(final String name,final String url,String tooltip)
+		{
+		if(url==null) return null;
+		if(!java.awt.Desktop.isDesktopSupported()) return null;
+		AbstractAction a = new AbstractAction(name)
+			{
+			@Override
+			public void actionPerformed(final java.awt.event.ActionEvent e) {
+				 try {
+				 	 java.awt.Desktop.getDesktop().browse(new java.net.URI(url));
+				 	 }
+				 catch(Exception err)
+				 	{
+				 	LOG.error("Cannot open url", err);
+				 	}
+				}
+			};
+		a.putValue(AbstractAction.SHORT_DESCRIPTION,tooltip);
+		a.putValue(AbstractAction.LONG_DESCRIPTION,tooltip);
+		return a;
 		}
 	}

@@ -30,15 +30,14 @@ package com.github.lindenb.jvarkit.tools.vcffixindels;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.variant.variantcontext.Allele;
@@ -48,7 +47,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
@@ -58,41 +56,26 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
  * VCFFixIndels
  *
  */
-public class VCFFixIndels extends AbstractVCFFilter3
+public class VCFFixIndels extends AbstractVCFFixIndels
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFFixIndels.class);
+
 	public VCFFixIndels()
 		{
 		}
 	
-	@Override
-	public String getProgramDescription() {
-		return " Fix samtools indels (for @SolenaLS).";
-		}
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VCFFixIndels";
-		}
-	
-	
-	@Override
-	protected void doWork(
-			String source,
-			VcfIterator r,
-			VariantContextWriter w
-			)
-			throws IOException
+	protected Collection<Throwable> doVcfToVcf(String inputName,
+			VcfIterator r, VariantContextWriter w) throws IOException
 		{
 		long nChanged=0L;
 		final String TAG="INDELFIXED";
-		VCFHeader header=r.getHeader();
+		final VCFHeader header=r.getHeader();
 		
-		VCFHeader h2=new VCFHeader(header);
+		final VCFHeader h2=new VCFHeader(header);
+		addMetaData(h2);
 		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String,"Fix Indels for @SolenaLS (position|alleles...)"));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
 
 		w.writeHeader(h2);
 		SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
@@ -119,7 +102,6 @@ public class VCFFixIndels extends AbstractVCFFilter3
 				original2modified.size()<2 /* at least 2 alleles: REF+ ALT */
 				)
 				{
-				incrVariantCount();
 				w.add(ctx);
 				continue;
 				}
@@ -206,7 +188,6 @@ public class VCFFixIndels extends AbstractVCFFilter3
 			if(!somethingChanged)
 				{
 				w.add(ctx);
-				incrVariantCount();
 				continue;
 				}
 			
@@ -246,47 +227,25 @@ public class VCFFixIndels extends AbstractVCFFilter3
 			b.attribute(TAG,tagContent.toString());
 			b.genotypes(genotypes);
 			
-			incrVariantCount();
 			w.add( b.make());
 			
-			if(this.checkOutputError()) break;
+			if(w.checkError()) break;
 			}
 		progress.finish();
-		info("indels changed:"+nChanged);
+		LOG.info("indels changed:"+nChanged);
+		return RETURN_OK;
 		}
-	
 
-	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-o (filename) file out. default:stdout");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		try {
+			return doVcfToVcf(inputName);
+			} 
+		catch (Exception e) {
+			return wrapException(e);
 			}
-		return super.mainWork(opt.getOptInd(), args);
 		}
+	
 	
 	public static void main(String[] args) throws IOException
 		{

@@ -401,6 +401,11 @@ public abstract class Command
 		return "https://github.com/lindenb/jvarkit/wiki/"+getName();
 		}
 	
+	public String getOnlineSrcUrl()
+		{
+		return "https://github.com/lindenb/jvarkit";
+		}
+	
 	public String getAuthorName()
 		{
 		return "Pierre Lindenbaum PhD.";

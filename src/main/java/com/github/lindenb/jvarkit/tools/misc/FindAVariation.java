@@ -32,8 +32,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -49,13 +49,14 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class FindAVariation extends AbstractCommandLineProgram
+public class FindAVariation extends AbstractFindAVariation
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(FindAVariation.class);
+
 	private static class Mutation
 		{
 		String chrom;
@@ -98,15 +99,7 @@ public class FindAVariation extends AbstractCommandLineProgram
     	{
     	
     	}		
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/FindAVariation";
-    	}
-    
-    @Override
-    public String getProgramDescription() {
-    	return "Find a specific mutation in a list of VCF files.";
-    	}
+   
     
     private void reportPos(File f,VCFHeader header,VariantContext ctx)
 		{
@@ -178,7 +171,7 @@ public class FindAVariation extends AbstractCommandLineProgram
     		String s=VCFUtils.findChromNameEquivalent(m.chrom,h);
     		if(s==null)
     			{
-    			warning("Cannot convert chrom "+s+" in "+f);
+    			LOG.warn("Cannot convert chrom "+s+" in "+f);
     			continue;
     			}
     		copy.add(new Mutation(s, m.pos));
@@ -188,90 +181,82 @@ public class FindAVariation extends AbstractCommandLineProgram
 
     private void scan(BufferedReader in) throws IOException
     	{
-    	
     	String line;
     	while((line=in.readLine())!=null)
-    			{
-    			if(line.isEmpty() || line.startsWith("#")) continue;
-    			File f=new File(line);
-    			if(!f.isFile()) continue;
-    			if(!f.canRead()) continue;
-    			if(!VCFUtils.isVcfFile(f)) continue;
-    			VcfIterator iter=null;
+			{
+			if(line.isEmpty() || line.startsWith("#")) continue;
+			File f=new File(line);
+			if(!f.isFile()) continue;
+			if(!f.canRead()) continue;
+			if(!VCFUtils.isVcfFile(f)) continue;
+			VcfIterator iter=null;
+			
+			if(VCFUtils.isTabixVcfFile(f))
+				{
+				TabixVcfFileReader r=null;
+    			try
+					{
+					r=new TabixVcfFileReader(f.getPath());
+					final VCFHeader header =r.getHeader();
+					for(Mutation m:convertFromVcfHeader(f,header))
+						{
+						Iterator<VariantContext> iter2=r.iterator(
+								m.chrom, m.pos, m.pos);
+						while(iter2.hasNext())
+							{
+							report(f,header,iter2.next());
+							}
+						CloserUtil.close(iter2);
+						}
+					}
+    			catch(htsjdk.tribble.TribbleException.InvalidHeader err)
+    				{
+    				LOG.warn(f+"\t"+err.getMessage());
+    				}
+				catch(Exception err)
+					{
+					LOG.error("cannot read "+f,err);
+					}
+				finally
+					{
+					CloserUtil.close(r);
+					}    				
+				}
+			else
+				{
+				try
+					{
+					iter=VCFUtils.createVcfIteratorFromFile(f);
+					final VCFHeader header = iter.getHeader();
+					Set<Mutation> mutlist=convertFromVcfHeader(f,iter.getHeader());
+					while(iter.hasNext())
+						{
+						VariantContext ctx=iter.next();
+						Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
+						if(mutlist.contains(m))
+							{
+							report(f,header,ctx);
+							}
+						}
+					
+					}
+				catch(htsjdk.tribble.TribbleException.InvalidHeader err)
+    				{
+    				LOG.warn(f+"\t"+err.getMessage());
+    				}
+				catch(Exception err)
+					{
+					LOG.error("Error in "+f,err);
+					}
+				finally
+					{
+					CloserUtil.close(iter);
+					}
+				}
     			
-	    			if(VCFUtils.isTabixVcfFile(f))
-	    				{
-	    				TabixVcfFileReader r=null;
-		    			try
-							{
-							r=new TabixVcfFileReader(f.getPath());
-							final VCFHeader header =r.getHeader();
-							for(Mutation m:convertFromVcfHeader(f,header))
-								{
-								
-								Iterator<VariantContext> iter2=r.iterator(
-										m.chrom, m.pos, m.pos);
-								while(iter2.hasNext())
-									{
-									report(f,header,iter2.next());
-									}
-								CloserUtil.close(iter2);
-								}
-							}
-		    			catch(htsjdk.tribble.TribbleException.InvalidHeader err)
-		    				{
-		    				warning(f+"\t"+err.getMessage());
-		    				}
-						catch(Exception err)
-							{
-							error(err);
-							}
-						finally
-							{
-							CloserUtil.close(r);
-							}    				
-	    				}
-	    			else
-	    				{
-	    				try
-	    					{
-	    					iter=VCFUtils.createVcfIteratorFromFile(f);
-	    					final VCFHeader header = iter.getHeader();
-	    					Set<Mutation> mutlist=convertFromVcfHeader(f,iter.getHeader());
-	    					while(iter.hasNext())
-	    						{
-	    						VariantContext ctx=iter.next();
-	    						Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
-	    						if(mutlist.contains(m))
-	    							{
-	    							report(f,header,ctx);
-	    							}
-	    						}
-	    					
-	    					}
-	    				catch(htsjdk.tribble.TribbleException.InvalidHeader err)
-		    				{
-		    				warning(f+"\t"+err.getMessage());
-		    				}
-	    				catch(Exception err)
-	    					{
-	    					error(err);
-	    					}
-	    				finally
-	    					{
-	    					CloserUtil.close(iter);
-	    					}
-	    				}
-	    			
-    			}
+			}
     	}
     
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -p chrom:pos . Add this chrom/position.");
-		out.println(" -f <file> . Add this file containing chrom:position.");
-		super.printOptions(out);
-		}
 
 	private Mutation parseMutation(String s)
 		{
@@ -291,86 +276,68 @@ public class FindAVariation extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:f:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'f':
-					{
-					BufferedReader r = null;
-					try
-						{
-						r = IOUtils.openURIForBufferedReading(opt.getOptArg());
-						String line;
-						while((line=r.readLine())!=null)
-							{
-							if(line.isEmpty() || line.startsWith("#")) continue;
-							Mutation m= parseMutation(line);
-							info("adding "+m);
-							this.mutations.add(m);
-							}
-						}
-					catch(Exception err)
-						{	
-						error(err);
-						return -1;
-						}
-					finally
-						{
-						CloserUtil.close(r);
-						}
-					
-					break;
-					}
-				case 'p':
-					{
-					Mutation m= parseMutation(opt.getOptArg());
-					info("adding "+m);
-					this.mutations.add(m);
-					break;
-					}
-				default:
-					{
-					switch(super.handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS:return 0;
-						case OK:break;
-						}
-					}
-				}
-			}
+	public Collection<Throwable> initializeKnime() {
+		BufferedReader r=null;
 		try
 			{
-			this.out=new PrintWriter(System.out);
-			this.out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tDP4");
-			if(opt.getOptInd()==args.length)
+			for(File f:super.positionFilesList)
 				{
-				info("Reading from stdin");
-				scan(new BufferedReader(new InputStreamReader(System.in)));
+				r = IOUtils.openFileForBufferedReading(f);
+				String line;
+				while((line=r.readLine())!=null)
+					{
+					if(line.isEmpty() || line.startsWith("#")) continue;
+					Mutation m= parseMutation(line);
+					LOG.debug("adding "+m);
+					this.mutations.add(m);
+					}
+				}
+			for(String s:super.positionsList)
+				{
+				Mutation m= parseMutation(s);
+				LOG.debug("adding "+m);
+				this.mutations.add(m);
+				}
+			}
+		catch(Exception err)
+			{	
+			return wrapException(err);
+			}
+		finally
+			{
+			CloserUtil.close(r);
+			}
+		return super.initializeKnime();
+		}
+	
+	@Override
+	public Collection<Throwable> call() throws Exception {
+		final List<String> args = getInputFiles();
+		try
+			{
+			this.out=super.openFileOrStdoutAsPrintWriter();
+			this.out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tDP4");
+			if(args.isEmpty())
+				{
+				LOG.info("Reading from stdin");
+				scan(new BufferedReader(new InputStreamReader(stdin())));
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename: args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
+					LOG.info("Reading from "+filename);
 					BufferedReader r=IOUtils.openURIForBufferedReading(filename);
 					scan(r);
 					r.close();
 					}
 				}
 			this.out.flush();
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
