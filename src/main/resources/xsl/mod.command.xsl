@@ -637,10 +637,10 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	<xsl:when test="(@type='string' and @multiline='true') or @type='string-set' or @type='string-list'">
 		private javax.swing.JTextArea <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
-	<xsl:when test="@type='string' or @type='int' or @type='long'">
+	<xsl:when test="@type='string' or @type='int' or @type='long' or @type='double' or @type='float'">
 		private javax.swing.JTextField <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
-	<xsl:when test="@type='input-file'">
+	<xsl:when test="@type='input-file' or @type='input-directory'">
 		private com.github.lindenb.jvarkit.util.swing.InputChooser <xsl:value-of select="generate-id(.)"/> = null;
 	</xsl:when>
 	<xsl:when test="@type='output-file'">
@@ -685,15 +685,18 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
 
 	</xsl:when>
-	<xsl:when test="@type='input-file'">
+	<xsl:when test="@type='input-file' or @type='input-directory'">
 		this.<xsl:value-of select="generate-id(.)"/> = new com.github.lindenb.jvarkit.util.swing.InputChooser();
+		<xsl:if test="@type='input-directory'">
+		this.<xsl:value-of select="generate-id(.)"/>.setSelectType(com.github.lindenb.jvarkit.util.swing.InputChooser.SelectType.SELECT_DIRECTORY);
+		</xsl:if>
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
 	</xsl:when>
 	<xsl:when test="@type='output-file' ">
 		this.<xsl:value-of select="generate-id(.)"/> = new com.github.lindenb.jvarkit.util.swing.OutputChooser();
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
 	</xsl:when>
-	<xsl:when test="@type='int' or @type='long'">
+	<xsl:when test="@type='int' or @type='long'  or @type='double'  or @type='float'">
 		this.<xsl:value-of select="generate-id(.)"/> = new javax.swing.JTextField(20);
 		this.<xsl:value-of select="generate-id(.)"/>.setText("<xsl:value-of select="@default"/>");
 		pane.add(<xsl:value-of select="generate-id(.)"/>);
@@ -783,7 +786,36 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		}
 	</xsl:when>
 	
-	<xsl:when test="@type='input-file'">
+	<xsl:when test='@type="double"'>
+		{
+		try
+			{
+			Double.parseDouble(<xsl:value-of select="generate-id(.)"/>.getText());
+			}
+		catch(Exception err)
+			{
+			this.<xsl:value-of select="generate-id(.)"/>.requestFocus();
+			return "Not an double number: <xsl:value-of select="@name"/>";
+			}
+		}
+	</xsl:when>
+	
+	<xsl:when test='@type="float"'>
+		{
+		try
+			{
+			Float.parseFloat(<xsl:value-of select="generate-id(.)"/>.getText());
+			}
+		catch(Exception err)
+			{
+			this.<xsl:value-of select="generate-id(.)"/>.requestFocus();
+			return "Not an float number: <xsl:value-of select="@name"/>";
+			}
+		}
+	</xsl:when>
+	
+	
+	<xsl:when test="@type='input-file' or @type='input-directory'">
 		<xsl:if test="@required='true'">
 			if(<xsl:value-of select="generate-id(.)"/>.isEmpty())
 				{
@@ -828,7 +860,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 
 <xsl:template match="c:option" mode="swing-fill-command">
 <xsl:choose>
-	<xsl:when test="@type='string' or @type='int' or @type='long'">
+	<xsl:when test="@type='string' or @type='int' or @type='long' or @type='double' or @type='float'">
 	if( !this.<xsl:value-of select="generate-id(.)"/>.getText().trim().isEmpty())
 		{
 		command.add("-<xsl:value-of select="@opt"/>");
@@ -836,7 +868,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 		}
 	</xsl:when>
 	
-	<xsl:when test="@type='input-file' or  @type='output-file'">
+	<xsl:when test="@type='input-file' or  @type='output-file' or  @type='input-directory'">
 	if( !this.<xsl:value-of select="generate-id(.)"/>.isEmpty())
 		{
 		command.add("-<xsl:value-of select="@opt"/>");

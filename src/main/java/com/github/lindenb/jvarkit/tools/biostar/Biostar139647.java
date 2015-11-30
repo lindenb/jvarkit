@@ -29,6 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,14 +47,14 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
-
 import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 
-public class Biostar139647 extends AbstractKnimeApplication
+public class Biostar139647 extends AbstractBiostar139647
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar139647.class);
+
 	private static final char CLIPPING=' ';
 	private String REF="chrUn";
 	private int align_length=0;
@@ -91,49 +92,25 @@ public class Biostar139647 extends AbstractKnimeApplication
 	
 	
 	
-	
 	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+ "Biostar139647";
-		}
-	@Override
-	public String getProgramDescription() {
-		return "Convert alignment in Fasta/Clustal format to SAM/BAM file see https://www.biostars.org/p/139647/";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-R (name) reference name. Optional");
-		out.println("-o (file) output file. default: stdout");
-		super.printOptions(out);
-		}
-	
-	
-	@Override
-	public int executeKnime(List<String> args)
+	protected Collection<Throwable> call(final String filename) throws Exception
 		{
 		SAMFileWriter w=null;
 		LineIterator r=null;
 		SAMFileWriterFactory sfwf=null;
 		try
 			{
-			if(args.isEmpty())
+			if(filename==null)
 				{
-				info("Reading from stdin");
-				r=IOUtils.openStdinForLineIterator();
-				}
-			else if(args.size()==0)
-				{
-				String filename=args.get(0);
-				info("Reading from "+filename);
-				r=IOUtils.openURIForLineIterator(filename);
+				LOG.info("Reading from stdin");
+				r=IOUtils.openStreamForLineIterator(stdin());
 				}
 			else
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
+				LOG.info("Reading from "+filename);
+				r=IOUtils.openURIForLineIterator(filename);
 				}
+			
 			Format format=Format.None;
 
 			
@@ -154,11 +131,10 @@ public class Biostar139647 extends AbstractKnimeApplication
 					}
 				else
 					{
-					error("MSA format not recognized in "+line);
-					return -1;
+					return wrapException("MSA format not recognized in "+line);
 					}
 				}
-			info("format : "+format);
+			LOG.info("format : "+format);
 			if(Format.Fasta.equals(format))
 				{
 				//this.consensus=new FastaConsensus();
@@ -172,8 +148,7 @@ public class Biostar139647 extends AbstractKnimeApplication
 						curr.name=line.substring(1).trim();
 						if(sample2sequence.containsKey(curr.name))
 							{
-							error("Sequence ID "+curr.name +" defined twice");
-							return -1;
+							return wrapException("Sequence ID "+curr.name +" defined twice");
 							}
 						sample2sequence.put(curr.name, curr);
 						}
@@ -201,8 +176,7 @@ public class Biostar139647 extends AbstractKnimeApplication
 						{
 						if(columnStart==-1)
 							{
-							error("illegal consensus line for "+line);
-							return -1;
+							return wrapException("illegal consensus line for "+line);
 							}	
 						}
 					else
@@ -212,8 +186,7 @@ public class Biostar139647 extends AbstractKnimeApplication
 							columnStart=line.indexOf(' ');
 							if(columnStart==-1)
 								{
-								error("no whithespace in "+line);
-								return -1;
+								return wrapException("no whithespace in "+line);
 								}
 							while(columnStart< line.length() && line.charAt(columnStart)==' ')
 								{
@@ -235,8 +208,7 @@ public class Biostar139647 extends AbstractKnimeApplication
 				}
 			else
 				{
-				error("Undefined input format");
-				return -1;
+				return wrapException("Undefined input format");
 				}
 			SAMFileHeader header=new SAMFileHeader();
 			SAMSequenceDictionary dict=new SAMSequenceDictionary();
@@ -244,7 +216,7 @@ public class Biostar139647 extends AbstractKnimeApplication
 			header.setSortOrder(SortOrder.unsorted);
 			header.setSequenceDictionary(dict);
 			SAMProgramRecord pgr=header.createProgramRecord();
-			pgr.setProgramName(getProgramName());
+			pgr.setProgramName(getName());
 			pgr.setProgramVersion(getVersion());
 			if(getProgramCommandLine().trim().isEmpty())
 				{
@@ -332,13 +304,12 @@ public class Biostar139647 extends AbstractKnimeApplication
 				w.addAlignment(rec);
 				}
 			
-			info("Done");
-			return 0;
+			LOG.info("Done");
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -347,30 +318,6 @@ public class Biostar139647 extends AbstractKnimeApplication
 			}	
 		}
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'R': REF=opt.getOptArg();break;
-				case 'o': setOutputFile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
 	
 	public static void main(String[] args) {
 		new Biostar139647().instanceMainWithExit(args);

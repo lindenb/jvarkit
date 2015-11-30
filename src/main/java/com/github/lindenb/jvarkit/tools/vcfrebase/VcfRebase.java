@@ -28,15 +28,13 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfrebase;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
-
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -48,36 +46,25 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.Rebase;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
-public class VcfRebase extends AbstractVCFFilter2 {
+public class VcfRebase extends AbstractVcfRebase {
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfRebase.class);
+
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private Rebase rebase=Rebase.createDefaultRebase();
-	private final float DEFAULT_WEIGHT=5f;
 
 	private VcfRebase() {
 		}
 	
-
 	@Override
-	public String getProgramDescription() {
-		return "Finds restriction sites overlaping variants";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfRebase";
-		}
-	
-	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
-		{
+	protected Collection<Throwable> doVcfToVcf(String inputName,
+			VcfIterator in, VariantContextWriter out) throws IOException {
 		final String ATT="ENZ";
 		GenomicSequence genomicSequence=null;
 		VCFHeader header=in.getHeader();
-		
+		addMetaData(header);
 		header.addMetaDataLine(new VCFInfoHeaderLine(ATT, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Enzyme overlapping: Format: (Name,Site,Sequence,pos-1,strand)"));
 		out.writeHeader(header);
 		while(in.hasNext())
@@ -86,7 +73,7 @@ public class VcfRebase extends AbstractVCFFilter2 {
 
 			if(genomicSequence==null || !genomicSequence.getChrom().equals(var.getContig()))
 				{
-				info("Loading sequence "+var.getContig());
+				LOG.info("Loading sequence "+var.getContig());
 				genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile,var.getContig());
 				}
 			
@@ -147,55 +134,29 @@ public class VcfRebase extends AbstractVCFFilter2 {
 			vcb.attribute(ATT, hits.toArray(new String[hits.size()]));
 			out.add(vcb.make());
 			}
-		}
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
-		out.println(" -E (name) restrict to that enzyme. Can be called multiple times. Optional.");
-		out.println(" -R (fasta) path to reference sequence indexed with faidx. Required.");
-		out.println(" -w (float) min enzyme weight (e.g: A=1, N=0.0, S=0.5) default="+DEFAULT_WEIGHT+" . Optional.");
+		return RETURN_OK;
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		float weight=DEFAULT_WEIGHT;
-		File fasta=null;
-		Set<String> onlyEnz=new HashSet<String>();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args, "hvL:E:R:w:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));break;
-				case 'E': onlyEnz.add(opt.getOptArg()); break;
-				case 'R': fasta=new File(opt.getOptArg()); break;
-				case 'w': weight=Float.parseFloat(opt.getOptArg()); break;
-				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+opt.getOptOpt());return -1;
-				}
-			}
-		if(!onlyEnz.isEmpty())
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		
+		if(!super.selEnzymesStr.isEmpty())
 			{
 			Rebase rebase2=new Rebase();
-			for(String e:onlyEnz)
+			for(String e:selEnzymesStr)
 				{
+				if(e.isEmpty()) continue;
 				Rebase.Enzyme enz=this.rebase.getEnzymeByName(e);
 				if(enz==null)
 					{
-					System.err.println("Cannot find enzyme "+enz +" in RE list.");
-					System.err.println("Current list is:");
+					StringBuilder msg= new StringBuilder();
+					msg.append("Cannot find enzyme \""+e +"\" in RE list.\n");
+					msg.append("Current list is:\n");
 					for(Rebase.Enzyme E: this.rebase)
 						{
-						System.err.println("\t"+E);
+						msg.append("\t"+E+"\n");
 						}
-					return -1;
+					return wrapException(msg.toString());
 					}
 				rebase2.getEnzymes().add(enz);
 				}
@@ -217,24 +178,21 @@ public class VcfRebase extends AbstractVCFFilter2 {
 		
 		if(rebase.size()==0)
 			{
-			warning("REBASE IS EMPTY");
+			LOG.warn("REBASE IS EMPTY");
 			}
-		
+
 		if(fasta==null)
 			{
-			super.error(getMessageBundle("reference.undefined"));
-			return -1;
+			return wrapException("reference.undefined");
 			}
 		try
 			{
-			info("opening "+fasta);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(fasta);
-			return doWork(opt.getOptInd(), args);
+			return doVcfToVcf(inputName);
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{

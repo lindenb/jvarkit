@@ -29,11 +29,9 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
-import java.io.File;
-import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -42,29 +40,27 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMUtils;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
 /**
  * https://github.com/lindenb/jvarkit/wiki/SAM2Tsv
  */
 public class Sam2Tsv
-	extends AbstractCommandLineProgram
+	extends AbstractSam2Tsv
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Sam2Tsv.class);
+
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
-	private boolean printAlignment=false;
 	/** lines for alignments */
 	private StringBuilder L1=null;
 	private StringBuilder L2=null;
 	private StringBuilder L3=null;
 
-	private PrintWriter out=new PrintWriter(System.out);
+	private PrintWriter out = null;
 	
 	private class Row
 		{
@@ -353,7 +349,7 @@ public class Sam2Tsv
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error("scan error:",err);
 			throw new RuntimeException(String.valueOf(err.getMessage()),err);
 			}
 		finally
@@ -362,54 +358,12 @@ public class Sam2Tsv
 			}
 		}
 	
-	
 	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/SAM2Tsv";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Prints the SAM alignments as a TAB delimited file.";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -r (reference) "+ getMessageBundle("reference.faidx") +" . REQUIRED.");
-		out.println(" -A display alignment.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		File refFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args,getGetOptDefault()+ "r:R:A"))!=-1)
-			{
-			switch(c)
-				{
-				case 'A': this.printAlignment=true;break;
-				case 'R': case 'r': refFile=new File(getopt.getOptArg());break;
-				default: 
-					{
-					switch(handleOtherOptions(c, getopt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
+	protected Collection<Throwable> call(String inputName) throws Exception {
 		
-		if(refFile==null)
+		if(super.refFile==null)
 			{
-			error(getMessageBundle("reference.undefined"));
-			return -1;
+			return wrapException(getMessageBundle("reference.undefined"));
 			}
 		
 		if(printAlignment)
@@ -422,43 +376,30 @@ public class Sam2Tsv
 		SamReader samFileReader=null;
 		try
 			{
-			SamReaderFactory srf =SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
 			
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
-			
-			samFileReader=null;
-			
+			out  =  openFileOrStdoutAsPrintWriter();
 			out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
-			if(getopt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				samFileReader= srf.open(SamInputResource.of(System.in));
-				scan(samFileReader);
-				samFileReader.close();
-				}
-			else 
-				{
-				for(int optind=getopt.getOptInd();optind< args.length;++optind)
-					{
-					File bamFile=new File(args[optind]);
-					info("Reading "+bamFile);
-					samFileReader= srf.open(SamInputResource.of(bamFile));
-					scan(samFileReader);
-					samFileReader.close();
-					}
-				}
+			samFileReader= openSamReader(inputName);
+			
+			scan(samFileReader);
+			samFileReader.close();
+			samFileReader = null;
 			this.out.flush();
-			return 0;
+			return RETURN_OK;
 			}
 		catch (Exception e)
 			{
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{
 			CloserUtil.close(indexedFastaSequenceFile);
 			CloserUtil.close(samFileReader);
+			CloserUtil.close(out);
+			L1=null;
+			L2=null;
+			L3=null;
 			}
 		}
 	

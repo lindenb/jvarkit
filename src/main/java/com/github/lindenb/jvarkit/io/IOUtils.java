@@ -209,16 +209,29 @@ public class IOUtils {
     
     public static BufferedReader openStdinForBufferedReader() throws IOException
 		{
-		return  new BufferedReader(new InputStreamReader(System.in));
+		return openStreamForBufferedReader(System.in);
 		}
-    
+    public static BufferedReader openStreamForBufferedReader(InputStream in) throws IOException
+		{
+		return  new BufferedReader(new InputStreamReader(in));
+		}
 
+    /** @return a LineIterator that should be closed with CloserUtils */
+    public static LineIterator openStreamForLineIterator(final InputStream in) throws IOException
+  		{
+  		return  new LineIteratorImpl(openStreamForLineReader(in));
+  		}
     
     /** @return a LineIterator that should be closed with CloserUtils */
     public static LineIterator openStdinForLineIterator() throws IOException
   		{
-  		return  new LineIteratorImpl(openStdinForLineReader());
+  		return  openStreamForLineIterator(System.in);
   		}
+
+    public static LineReader openStreamForLineReader(final InputStream in) throws IOException
+		{
+		return  LineReaderUtil.fromBufferedStream(in);
+		}
 
     
     public static LineReader openURIForLineReader(String uri) throws IOException

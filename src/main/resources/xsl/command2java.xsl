@@ -70,11 +70,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		}
 	</xsl:if>
 		
-	<xsl:if test="c:snippet[@id='sorting-collection']">
-	/** When writing SAM files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM file, and increases the amount of RAM needed. */
-	private int maxRecordsInRam = 500000;
-	
-	</xsl:if>
+
 	
 	<xsl:if test="c:snippet[@id='boolean.intervals']">
 
@@ -161,66 +157,6 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	protected void fillOptions(final org.apache.commons.cli.Options options)
 		{
 		<xsl:apply-templates select=".//c:option|.//c:options-group" mode="cli"/>
-		
-		
-		<xsl:if test="not(@generate-output-option='false')">
-		options.addOption(org.apache.commons.cli.Option
-			.builder("o")
-			.longOpt("output")
-			.desc("output file. <xsl:if test="c:output/@type='sam' or c:output/@type='bam'"> extension should be .sam or .bam </xsl:if> Default: stdout")
-			.argName("FILENAME")
-			.hasArg(true)
-			.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
-			.build() );	
-		</xsl:if>
-		
-		
-		
-		<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
-		options.addOption(org.apache.commons.cli.Option
-			.builder("tmpdir")
-			.longOpt("tmpdir")
-			.desc("add tmp directory")
-			.argName("DIR")
-			.hasArg()
-			.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
-			.build() );	
-		</xsl:if>
-		
-		<xsl:if test="c:snippet[@id='sorting-collection']">
-		options.addOption(org.apache.commons.cli.Option
-			.builder("maxrecordsinram")
-			.longOpt("maxrecordsinram")
-			.desc("When writing files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM file, and increases the amount of RAM needed.")
-			.argName("MAXRECORDS")
-			.hasArg(true)
-			.type(org.apache.commons.cli.PatternOptionBuilder.NUMBER_VALUE)
-			.build() );	
-		</xsl:if>
-		
-		<xsl:if test="c:snippet[@id='javascript']">
-		options.addOption(org.apache.commons.cli.Option
-			.builder("f")
-			.longOpt("scriptfile")
-			.desc("javascript file.")
-			.argName("FILE.js")
-			.hasArg()
-			.type(org.apache.commons.cli.PatternOptionBuilder.FILE_VALUE)
-			.build() );	
-			
-		options.addOption(org.apache.commons.cli.Option
-			.builder("e")
-			.longOpt("expression")
-			.desc("javascript expression.")
-			.argName("JAVASCRIPT_EXPRESSION")
-			.hasArg()
-			.type(org.apache.commons.cli.PatternOptionBuilder.STRING_VALUE)
-			.build() );	
-			
-			
-		</xsl:if>
-		
-		
 		super.fillOptions(options);
 		}
 	
@@ -689,18 +625,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		</xsl:otherwise>
 		</xsl:choose>
 		
-		
-		<xsl:if test="c:snippet[@id='sorting-collection'] or c:snippet[@id='tmp-dir']">
-		/** list of tmp directories */
-		protected java.util.List&lt;java.io.File&gt; tmpDirs = new java.util.ArrayList&lt;java.io.File&gt;();
-		
-		
-		protected java.util.List&lt;java.io.File&gt; getTmpDirectories()
-			{
-			return this.tmpDirs;
-			}
-		
-		</xsl:if>
+	
 		
 		<xsl:if test="c:snippet[@id='fastq-reader']">
 		
@@ -723,17 +648,6 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		</xsl:if>
 		
-		<xsl:if test="c:snippet[@id='sorting-collection']">
-		/** When writing SAM files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM file, and increases the amount of RAM needed. */
-		protected int maxRecordsInRam = 500000;
-		
-		protected int getMaxRecordsInRam()
-			{
-			return this.maxRecordsInRam;
-			}
-		
-		
-		</xsl:if>
 		
 		
 		<xsl:if test="c:snippet[@id='custom-chrom-mapping']">

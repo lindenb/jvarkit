@@ -1,12 +1,36 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
 package com.github.lindenb.jvarkit.tools.sam4weblogo;
 
-import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 
-
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -17,90 +41,31 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 
-public class SAM4WebLogo extends AbstractCommandLineProgram
+public class SAM4WebLogo extends AbstractSAM4WebLogo
 	{
-    private SAM4WebLogo()
-    	{
-    	
-    	}
-    @Override
-    protected String getOnlineDocUrl()
-    	{
-    	return "https://github.com/lindenb/jvarkit/wiki/SAM4WebLogo";
-    	}
-    @Override
-    public String getProgramDescription()
-    	{
-    	return "Sequence logo for different alleles or generated from SAM/BAM http://www.biostars.org/p/73021";
-    	}
-    
-    
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -R Region to observe: chrom:start-end . REQUIRED.");
-		out.println(" -c use clipped bases.");
-		super.printOptions(out);
-		}
-    @Override
-    public int doWork(String[] args)
-    	{
-    	boolean useClip=false;
-    	Interval interval=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args,getGetOptDefault()+ "r:c"))!=-1)
-			{
-			switch(c)
-				{
-				case 'c': useClip=true;break;
-				case 'r':
-					{
-					interval=parseInterval(getopt.getOptArg());
-					if(interval==null)
-						{
-						error("Bad interval "+getopt.getOptArg());
-						return -1;
-						}
-					break;
-					}
-				default: 
-					{
-					switch(handleOtherOptions(c, getopt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SAM4WebLogo.class);
 
+    @Override
+    protected Collection<Throwable> call(String inputName) throws Exception {
+    
+    	if(super.regionStr==null)
+			{
+			return wrapException("Undefined interval.");
+			}
+    	
+    
+		final Interval interval=parseInterval(this.regionStr);
 		if(interval==null)
 			{
-			error("Undefined interval.");
-			return -1;
+			return wrapException("Bad interval "+this.regionStr);
 			}
 		
-		PrintWriter out=new PrintWriter(System.out);
+		PrintWriter out= openFileOrStdoutAsPrintWriter();
 		SamReader samReader=null;
 		SAMRecordIterator iter=null;
 		boolean warningInsertion=false;
 		try {
-			if(getopt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				samReader=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(getopt.getOptInd()+1==args.length)
-				{
-				samReader=SamFileReaderFactory.mewInstance().open(args[getopt.getOptInd()]);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
+			samReader = openSamReader(inputName);
 		
 			if(samReader.hasIndex())
 					{
@@ -115,7 +80,7 @@ public class SAM4WebLogo extends AbstractCommandLineProgram
 					iter=samReader.iterator();
 					}
 			
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader().getSequenceDictionary());
+		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader().getSequenceDictionary());
 	       while(iter.hasNext())
                 {
                 SAMRecord rec=iter.next();
@@ -217,15 +182,14 @@ public class SAM4WebLogo extends AbstractCommandLineProgram
             	out.println(seq);
                 }
 	       progress.finish();
-	        if(warningInsertion)
+	       if(warningInsertion)
 	        	{
-	        	warning("Some reads contained insertions.");
+	        	LOG.warn("Some reads contained insertions.");
 	        	}
-	        
+	        return RETURN_OK;
 			} 
 		catch (Exception e) {
-			e.printStackTrace();
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{
@@ -233,7 +197,6 @@ public class SAM4WebLogo extends AbstractCommandLineProgram
 			CloserUtil.close(samReader);
 			out.flush();
 			}
-		return 0;
 		}
 
 private static Interval parseInterval(String reg)

@@ -3,5 +3,26 @@
  <!ENTITY name "VCFStripAnnotations">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.vcfstripannot">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	ui-swing="true">
+<description>Removes one or more field from the INFO/FORMAT column of a VCF.</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+<options>
+	<option name="inverse" type="boolean" label="inverse selection" opt="i" longopt="inverse" default="false">
+		<description>inverse selection</description>
+	</option>
+	<option name="KEY" type="string-set" label="INFO" opt="k" longopt="info" >
+		<description>remove this INFO attribute. '*'= all keys</description>
+	</option>
+	<option name="FORMAT" type="string-set" label="FORMAT" opt="f" longopt="format" >
+		<description>remove this FORMAT attribute. '*'= all keys BUT GT/DP/AD/GQ/PL</description>
+	</option>
+	<option name="FILTER" type="string-set" label="FILTER" opt="F" longopt="filter" >
+		<description>remove this FILTER attribute. '*'= all keys</description>
+	</option>
+</options>
+
+	<!-- __PLACEHOLDER__ -->
+</app>

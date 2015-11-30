@@ -5,7 +5,8 @@
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" 
 	ui-swing="true"
-	__placeholder__="1">
+	__placeholder__="1"
+	ui-string="true">
 <description>Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?</description>
 <input type="stdin-or-many"/>
 
