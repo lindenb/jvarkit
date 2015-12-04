@@ -395,6 +395,7 @@ $(eval $(call compile-htsjdk-cmd,samjmx,${jvarkit.package}.tools.jmx.SamJmx))
 $(eval $(call compile-htsjdk-cmd,vcfjmx,${jvarkit.package}.tools.jmx.VcfJmx))
 $(eval $(call compile-htsjdk-cmd,gtf2xml,${jvarkit.package}.tools.misc.Gtf2Xml))
 $(eval $(call compile-htsjdk-cmd,sortsamrefname,${jvarkit.package}.tools.misc.SortSamRefName))
+$(eval $(call compile-htsjdk-cmd,localrealignreads,${jvarkit.package}.tools.misc.LocalRealignReads))
 
 
 

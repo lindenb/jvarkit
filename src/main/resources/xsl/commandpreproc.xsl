@@ -81,8 +81,8 @@
 	</xsl:if>
 	
 	<xsl:if test="/c:app/c:snippet[@id='sorting-collection'] or /c:app/c:snippet[@id='tmp-dir']" >
-		<c:option name="tmpdir" type="input-directory" arg-name="TMPDIR" label="Tmp" opt="tmpdir" longopt="tmpdir" >
-			<c:description>Add tmp directory</c:description>
+		<c:option name="tmpdir" type="input-directory" arg-name="TMPDIR" label="Temporary directory" opt="tmpdir" longopt="tmpdir" >
+			<c:description>Set tmp directory</c:description>
 		</c:option>
 	</xsl:if>
 		<xsl:if test="/c:app/c:snippet[@id='http.proxy']">

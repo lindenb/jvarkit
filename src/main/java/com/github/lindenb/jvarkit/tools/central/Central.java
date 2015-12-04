@@ -44,10 +44,13 @@ import com.github.lindenb.jvarkit.tools.groupbygene.AbstractGroupByGene;
 import com.github.lindenb.jvarkit.tools.misc.AbstractAddLinearIndexToBed;
 import com.github.lindenb.jvarkit.tools.misc.AbstractFindAVariation;
 import com.github.lindenb.jvarkit.tools.misc.AbstractFindAllCoverageAtPosition;
+import com.github.lindenb.jvarkit.tools.misc.AbstractFixVcfMissingGenotypes;
+import com.github.lindenb.jvarkit.tools.misc.AbstractVCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.AbstractVcfHead;
 import com.github.lindenb.jvarkit.tools.misc.AbstractVcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.onesamplevcf.AbstractVcfMultiToOne;
 import com.github.lindenb.jvarkit.tools.sam4weblogo.AbstractSAM4WebLogo;
+import com.github.lindenb.jvarkit.tools.samfixcigar.AbstractSamFixCigar;
 import com.github.lindenb.jvarkit.tools.samjs.AbstractSamJavascript;
 import com.github.lindenb.jvarkit.tools.vcf2sql.AbstractVcfToSql;
 import com.github.lindenb.jvarkit.tools.vcfcmp.AbstractVcfCompareCallers;
@@ -103,11 +106,16 @@ public class Central extends JFrame {
 	this.addTab(AbstractFindAVariation.FindAVariationSwingUI.class);
 	this.addTab(AbstractGroupByGene.GroupByGeneSwingUI.class);
 	this.addTab(AbstractSamJavascript.SamJavascriptSwingUI.class);
+	this.addTab(AbstractSamFixCigar.SamFixCigarSwingUI.class);
 	this.addTab(AbstractSAM4WebLogo.SAM4WebLogoSwingUI.class);
 	this.addTab(AbstractVCFFixIndels.VCFFixIndelsSwingUI.class);
 	
 	this.addTab(AbstractVcfCompareCallers.VcfCompareCallersSwingUI.class);
 	this.addTab(AbstractVCFFilterJS.VCFFilterJSSwingUI.class);
+	
+	
+	this.addTab(AbstractFixVcfMissingGenotypes.FixVcfMissingGenotypesSwingUI.class);
+	this.addTab(AbstractVCFPolyX.VCFPolyXSwingUI.class);
 	this.addTab(AbstractVcfHead.VcfHeadSwingUI.class);
 	this.addTab(AbstractVcfMultiToOneAllele.VcfMultiToOneAlleleSwingUI.class);
 	this.addTab(AbstractVcfMultiToOne.VcfMultiToOneSwingUI.class);

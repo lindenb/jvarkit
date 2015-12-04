@@ -46,7 +46,6 @@ import java.io.PushbackInputStream;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -278,7 +277,7 @@ public class IOUtils {
      * @param inputs files
      * @return set of files
      */
-	public static LinkedHashSet<String> unrollFiles(List<String> inputs)
+	public static LinkedHashSet<String> unrollFiles(java.util.Collection<String> inputs)
 		{
 		LinkedHashSet<String> vcfFiles= new LinkedHashSet<>(inputs.size()+1);
 		for(String file : inputs)
@@ -310,6 +309,37 @@ public class IOUtils {
 			}
 		return vcfFiles;
 		}
+	
+    /** return 'inputs' as set, if a filename ends with '*.list'
+     * is is considered as a file:one file per line
+     * @param inputs files
+     * @return set of files
+     */
+	public static LinkedHashSet<File> unrollFileCollection(java.util.Collection<File> inputs)
+		{
+		LinkedHashSet<File> vcfFiles= new LinkedHashSet<>(inputs.size()+1);
+		for(File file : inputs)
+			{
+			if(file.getName().endsWith(".list"))
+				{
+				IOUtil.assertFileIsReadable(file);
+				 for (final String s : IOUtil.readLines(file))
+				 	{
+					if (s.endsWith("#")) continue;
+					if (s.trim().isEmpty()) continue;
+					vcfFiles.add(new File(s));
+					}
+				}
+			else
+				{
+				vcfFiles.add(file);
+				}
+			
+			}
+		return vcfFiles;
+		}
+
+	
 	/** converts a BufferedReader to a line Iterator */
 	public static  LineIterator toLineIterator(BufferedReader r)
 		{

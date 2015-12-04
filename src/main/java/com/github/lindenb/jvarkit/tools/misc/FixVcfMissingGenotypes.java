@@ -50,9 +50,9 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -60,96 +60,32 @@ import java.util.Map;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class FixVcfMissingGenotypes extends AbstractCommandLineProgram
+public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 	{
-	private Map<String,Set<File>> sample2bam=new HashMap<>();
-	private int minDepth=10;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(FixVcfMissingGenotypes.class);
 	
-	private FixVcfMissingGenotypes()
+	public FixVcfMissingGenotypes()
 		{
 		
 		}
-
 	
 	@Override
-	protected String getOnlineDocUrl()
-		{
-		return DEFAULT_WIKI_PREFIX +"FixVcfMissingGenotypes";	
-		}
-
-	@Override
-	public String getProgramDescription() {
-		return "after a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -f (file) list of indexed BAM path with read Groups");
-		out.println(" -d (depth) min depth default:"+this.minDepth);
-		super.printOptions(out);
-		}
-	
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		Set<File> bamFiles=new HashSet<>();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"f:d:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'd': this.minDepth=Integer.parseInt(opt.getOptArg());break;
-				case 'f':
-					{
-
-					try {
-						BufferedReader in=IOUtils.openURIForBufferedReading(opt.getOptArg());
-						String line;
-						while((line=in.readLine())!=null)
-							{
-							if(line.startsWith("#") || line.trim().isEmpty()) continue;
-							bamFiles.add(new File(line));
-							}
-						in.close();
-						} 
-					catch (Exception e)
-						{
-						error(e);
-						return -1;
-						}
-						
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	protected Collection<Throwable> call(String inputName) throws Exception {
 		VcfIterator in=null;
-		try
-			{
-			SamReaderFactory srf=SamReaderFactory.makeDefault();
+		try {
+			final Set<File> bamFiles=  IOUtils.unrollFileCollection(super.bamList);
+			final Map<String,Set<File>> sample2bam=new HashMap<>(bamFiles.size());
+
+			final SamReaderFactory srf=SamReaderFactory.makeDefault();
 			srf.validationStringency(ValidationStringency.SILENT);
 			
 			for(File bam: bamFiles)
 				{
-				info("Reading header for "+bam);
+				LOG.info("Reading header for "+bam);
 				SamReader reader=srf.open(bam);
 				SAMFileHeader header=reader.getFileHeader();
 				for(SAMReadGroupRecord g:header.getReadGroups())
@@ -157,30 +93,18 @@ public class FixVcfMissingGenotypes extends AbstractCommandLineProgram
 					if(g.getSample()==null) continue;
 					String sample=g.getSample();
 					if(sample.isEmpty()) continue;
-					Set<File> set=this.sample2bam.get(sample);
+					Set<File> set= sample2bam.get(sample);
 					if(set==null)
 						{
 						set=new HashSet<>();
-						this.sample2bam.put(sample,set);
+						sample2bam.put(sample,set);
 						}
 					set.add(bam);
 					}
 				reader.close();
 				}
+			in =  openVcfIterator(inputName);
 			
-			if(opt.getOptInd()==args.length)
-				{
-				in=VCFUtils.createVcfIteratorStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				in=VCFUtils.createVcfIterator(args[opt.getOptInd()]);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
 			File tmpFile1 = File.createTempFile("fixvcf", ".vcf",getTmpDirectories().get(0));
 			File tmpFile2 = File.createTempFile("fixvcf", ".vcf",getTmpDirectories().get(0));
 			VCFHeader header=in.getHeader();
@@ -199,18 +123,18 @@ public class FixVcfMissingGenotypes extends AbstractCommandLineProgram
 				int countTotal=0;
 				
 				String sample= header.getSampleNamesInOrder().get(i);
-				info("Sample: "+sample);
-				Set<File> bams = this.sample2bam.get(sample);
+				LOG.info("Sample: "+sample);
+				Set<File> bams = sample2bam.get(sample);
 				if(bams==null) bams = new HashSet<File>();
 				if(bams.isEmpty())
 					{
-					warning("No bam to fix sample "+sample);
+					LOG.warn("No bam to fix sample "+sample);
 					//don't 'continue' for simplicity
 					}
 				List<SamReader> samReaders= new ArrayList<>(bams.size());
 				for(File bam:bams)
 					{
-					info("Opening "+bam);
+					LOG.info("Opening "+bam);
 					samReaders.add(srf.open(bam));
 					}
 				VariantContextWriter w = VCFUtils.createVariantContextWriter(i%2==0?tmpFile1:tmpFile2);	
@@ -295,7 +219,7 @@ public class FixVcfMissingGenotypes extends AbstractCommandLineProgram
 				//closing BAMS
 				for(SamReader r:samReaders) CloserUtil.close(r);
 				
-				info("done sample "+sample+
+				LOG.info("done sample "+sample+
 						" fixed="+countFixed+
 						" not-fixed="+countNonFixed+
 						" total="+countTotal+
@@ -316,12 +240,11 @@ public class FixVcfMissingGenotypes extends AbstractCommandLineProgram
 			w.close();
 			tmpFile1.delete();
 			tmpFile2.delete();
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return RETURN_OK;
 			}
 		finally
 			{

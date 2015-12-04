@@ -865,7 +865,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				/* inputs : <xsl:value-of select="c:input/@type"/>*/
 				<xsl:choose>
 					<xsl:when test="c:input/@type='sam' or c:input/@type='vcf'  or c:input/@type='stdin-or-one'">
-					pane.add(new javax.swing.JLabel("Input:",javax.swing.JLabel.RIGHT));
+					pane.add(new javax.swing.JLabel("<xsl:choose><xsl:when test="c:input/@type='sam'">BAM </xsl:when><xsl:when test="c:input/@type='sam'">VCF </xsl:when></xsl:choose>Input :",javax.swing.JLabel.RIGHT));
 					this._input = new com.github.lindenb.jvarkit.util.swing.InputChooser();
 					pane.add(this._input);
 					</xsl:when>
@@ -921,6 +921,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				{
 				super.fillCommandLine(command);
 				<xsl:apply-templates select="//c:option" mode="swing-fill-command"/>
+				command.add("--");
 				<xsl:choose>
 					<xsl:when test="c:input/@type='sam' or c:input/@type='vcf' or c:input/@type='stdin-or-one'">
 						command.add(this._input.getTextField().getText().trim());
