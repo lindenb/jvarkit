@@ -11,7 +11,7 @@
 <snippet id="ref.faidx" opt='r' name="refFile"/>
 
 <options>
-	<option name="useClip" type="boolean" opt="A" label="Print Alignments" longopt="printAlignments" default="false">
+	<option name="printAlignment" type="boolean" opt="A" label="Print Alignments" longopt="printAlignments" default="false">
 		<description>Print Alignments</description>
 	</option>
 </options>
