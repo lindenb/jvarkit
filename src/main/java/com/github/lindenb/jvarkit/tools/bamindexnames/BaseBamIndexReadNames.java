@@ -32,7 +32,7 @@ package com.github.lindenb.jvarkit.tools.bamindexnames;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
 
-public abstract class AbstractBamIndexReadNames
+public abstract class BaseBamIndexReadNames
 	extends AbstractCommandLineProgram
 	{
 	protected static final int FILE_PREFIX_SIZE=4+8;
