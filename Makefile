@@ -22,7 +22,7 @@ JAVA?=java
 JAR?=jar
 XJC?=xjc
 
-export htsjdk.version?=1.139
+export htsjdk.version?=1.141
 export htsjdk.home?=${this.dir}htsjdk-${htsjdk.version}
 htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} snappy-java-1.0.3-rc3 commons-compress-1.4.1 apache-ant-1.8.2-bzip2 xz-1.5))
 src.dir=${this.dir}src/main/java
@@ -157,7 +157,7 @@ APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	biostar3654 vcfjoinvcfjs bioalcidae vcfburden vcfbedsetfilter vcfreplacetag vcfindextabix \
 	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele bedindextabix vcf2bam vcffilterxpath \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
-	biostar160470 biostar165777 blastfilterjs
+	biostar160470 biostar165777 blastfilterjs vcfcomparecallers
 
 
 .PHONY: all tests $(APPS) clean library top ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -185,7 +185,7 @@ $(eval $(call compile-htsjdk-cmd,cnv01,${jvarkit.package}.tools.redon.CopyNumber
 #berkeley
 $(eval $(call compile-htsjdk-cmd,vcfphylotree,${jvarkit.package}.tools.phylo.VcfPhyloTree,${berkeleydb.jar}))
 $(eval $(call compile-htsjdk-cmd,ngsfilesscanner,${jvarkit.package}.tools.ngsfiles.NgsFilesScanner,${berkeleydb.jar}))
-$(eval $(call compile-htsjdk-cmd,92368,${berkeleydb.jar}))
+$(eval $(call compile_biostar_cmd,92368,${berkeleydb.jar}))
 #mysql
 $(eval $(call compile-htsjdk-cmd,vcfucsc,${jvarkit.package}.tools.vcfucsc.VcfUcsc,${mysql.jar}))
 

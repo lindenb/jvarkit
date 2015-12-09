@@ -53,7 +53,7 @@ import java.util.Set;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 
-public class BamQueryReadNames extends AbstractBamIndexReadNames
+public class BamQueryReadNames extends BaseBamIndexReadNames
 	{
 	private RandomAccessFile raf;
 	private NameIndexDef indexDef;

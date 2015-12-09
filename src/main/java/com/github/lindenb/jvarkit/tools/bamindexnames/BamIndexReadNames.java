@@ -49,7 +49,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
 
 public class BamIndexReadNames
-	extends AbstractBamIndexReadNames
+	extends BaseBamIndexReadNames
 	{
 	private BamIndexReadNames()
 		{
