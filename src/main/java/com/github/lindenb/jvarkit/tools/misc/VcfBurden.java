@@ -391,6 +391,7 @@ public class VcfBurden extends AbstractKnimeApplication
 					
 					if(ctx1==null) break;
 					gene2variants.clear();
+					System.gc();
 					prev_chrom = ctx1.getContig();
 					}
 				Set<GeneTranscript> seen_names=new HashSet<>();
