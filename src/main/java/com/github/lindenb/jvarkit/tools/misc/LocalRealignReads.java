@@ -195,7 +195,7 @@ public class LocalRealignReads extends AbstractLocalRealignReads
 				align(hits, matrix,
 						genomicSequence,
 						Math.max(0,rec.getUnclippedStart()-rec.getReadLength()),
-						rec.getUnclippedEnd()+rec.getReadLength(),
+						Math.min(rec.getUnclippedEnd()+rec.getReadLength(),genomicSequence.length()),
 						readseq,
 						0,readseq.length(),
 						-1
@@ -203,6 +203,26 @@ public class LocalRealignReads extends AbstractLocalRealignReads
 				if(hits.size()<2) continue;
 				for(Hit hit:hits)
 					{
+					int readstart=0;
+					boolean in_M=false;
+					for(int i=0;i< nCigarElement;++i)
+						{
+						final CigarElement ce = cigar.getCigarElement(i);
+						if(ce.getOperator().consumesReadBases())
+							{
+							int readend = readstart + ce.getLength(); 
+							if(ce.getOperator() == CigarOperator.M || ce.getOperator() == CigarOperator.X || ce.getOperator() == CigarOperator.EQ)
+								{
+								if(!(hit.s2_to <=readstart || readend<= hit.s2_from))
+									{
+									in_M=true;
+									break;
+									}
+								}
+							readstart=readend;
+							}
+						}
+					if(in_M) continue;
 					
 					int align_size = (hit.s2_to-hit.s2_from);
 					System.err.println(rec.getReadName()+" "+rec.getCigarString()+" "+rec.getAlignmentStart()+"-"+rec.getAlignmentEnd());
