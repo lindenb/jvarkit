@@ -100,6 +100,12 @@
 	</c:option>
 	</xsl:if>
 	
+	<xsl:if test="/c:app/c:snippet[@id='berkeleydb']">
+	<c:option name="berkeleyDbHome" type="input-directory" argname="BDB.HOME" opt="bdbHome" longopt="bdbHome" >
+		<c:description>BerkeleyDB home directory used to store data</c:description>
+	</c:option>
+	</xsl:if>
+	
 	
 	<xsl:if test="/c:app/c:snippet[@id='ref.faidx']">
 	<xsl:variable name="snippet" select="/c:app/c:snippet[@id='ref.faidx']"/>

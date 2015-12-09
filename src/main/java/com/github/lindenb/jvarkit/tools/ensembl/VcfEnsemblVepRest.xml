@@ -3,5 +3,32 @@
  <!ENTITY name "VcfEnsemblVepRest">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.ensembl">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;"
+	__placeholder__="1"
+	ui-swing='true'
+	>
+<description>Annotate a VCF with ensembl REST API</description>
+<input type="vcf"/>
+<output type="vcf"/>
+<snippet id="http.proxy"/>
+
+<options>
+	<option name="server" type='string' opt='s' longopt='server' default="http://grch37.rest.ensembl.org">
+		<description>REST server</description>
+	</option>
+	<option name="extension" type='string' opt='e' longopt='extension' default="/vep/homo_sapiens/region">
+		<description>Path extension</description>
+	</option>
+	<option name="batchSize" type='int' opt='n' longopt='batchSize' default="100">
+		<description>batch size</description>
+	</option>
+	<option name="xmlBase64" type='boolean' opt='x' longopt='base64' default="false">
+		<description>save whole XML document as xml base 64</description>
+	</option>
+	<option name="teeResponse" type='boolean' opt='T' longopt='tee' default="false">
+		<description>'Tee' xml response to stderr</description>
+	</option>
+</options>
+
+<!-- __PLACEHOLDER__ -->
+</app>

@@ -76,7 +76,7 @@ public class BamToSVG extends AbstractBamToSVG
 	private static final int HEIGHT_SAMPLE_NAME=50;
 	
 	
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamToSVG.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamToSVG.class);
 
 	
 		private int HEIGHT_RULER=200;
@@ -923,7 +923,6 @@ public class BamToSVG extends AbstractBamToSVG
 				}
 			catch(Exception err)
 				{
-				LOG.error(err);
 				return wrapException(err);
 				}
 			finally

@@ -10,6 +10,8 @@ public class Logging
 		}
 	public static Logger getLog(final String name)
 		{
-		return org.slf4j.LoggerFactory.getLogger("jvarkit");
+		return org.slf4j.LoggerFactory.getLogger(
+				System.getProperty("jvarkit.log.name", "jvarkit")
+				);
 		}
 	}

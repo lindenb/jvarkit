@@ -22,9 +22,9 @@ JAVA?=java
 JAR?=jar
 XJC?=xjc
 
-export htsjdk.version?=1.141
+export htsjdk.version?=2.0.1
 export htsjdk.home?=${this.dir}htsjdk-${htsjdk.version}
-htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} snappy-java-1.0.3-rc3 commons-compress-1.4.1 apache-ant-1.8.2-bzip2 xz-1.5))
+htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,apache-ant-1.8.2-bzip2 commons-compress-1.4.1 commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} ngs-java-1.2.2 snappy-java-1.0.3-rc3 xz-1.5 ))
 src.dir=${this.dir}src/main/java
 generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.version}
@@ -80,7 +80,7 @@ $(1)  : ${htsjdk.jars} \
 		"$(addsuffix .proc.xml,${generated.dir}/$(2))"  ; fi
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
-	echo '### Printing javac version : it should be 1.7. if Not, check your $$$${PATH}.'
+	echo '### Printing javac version : it should be 1.8. if Not, check your $$$${PATH}.'
 	${JAVAC} -version
 	#compile
 	${JAVAC} -d ${tmp.dir} -g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" -sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
@@ -96,7 +96,7 @@ $(1)  : ${htsjdk.jars} \
 	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
 	#create bash executable
 	echo '#!/bin/bash' > ${dist.dir}/$(1)
-	echo '${JAVA} -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$$$*' >> ${dist.dir}/$(1)
+	echo '${JAVA} -Djvarkit.log.name=$(1) -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$$$*' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	#cleanup
 	rm -rf ${tmp.dir}
@@ -157,7 +157,7 @@ APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	biostar3654 vcfjoinvcfjs bioalcidae vcfburden vcfbedsetfilter vcfreplacetag vcfindextabix \
 	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele bedindextabix vcf2bam vcffilterxpath \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
-	biostar160470 biostar165777 blastfilterjs vcfcomparecallers
+	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads
 
 
 .PHONY: all tests $(APPS) clean library top ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -370,7 +370,7 @@ $(eval $(call compile-htsjdk-cmd,skipxmlelements,${jvarkit.package}.tools.misc.S
 $(eval $(call compile-htsjdk-cmd,minicaller,${jvarkit.package}.tools.calling.MiniCaller))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallersonesample,${jvarkit.package}.tools.vcfcmp.VcfCompareCallersOneSample))
 $(eval $(call compile-htsjdk-cmd,samretrieveseqandqual,${jvarkit.package}.tools.misc.SamRetrieveSeqAndQual))
-$(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.VcfEnsemblVepRest,api.ensembl.vep))
+$(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.VcfEnsemblVepRest,api.ensembl.vep ${httpclient.libs}))
 $(eval $(call compile-htsjdk-cmd,vcfgroupbypop,${jvarkit.package}.tools.misc.VcfGroupByPopulation))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallers,${jvarkit.package}.tools.vcfcmp.VcfCompareCallers))
 $(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile))
@@ -395,6 +395,7 @@ $(eval $(call compile-htsjdk-cmd,samjmx,${jvarkit.package}.tools.jmx.SamJmx))
 $(eval $(call compile-htsjdk-cmd,vcfjmx,${jvarkit.package}.tools.jmx.VcfJmx))
 $(eval $(call compile-htsjdk-cmd,gtf2xml,${jvarkit.package}.tools.misc.Gtf2Xml))
 $(eval $(call compile-htsjdk-cmd,sortsamrefname,${jvarkit.package}.tools.misc.SortSamRefName))
+$(eval $(call compile-htsjdk-cmd,bamclip2insertion,${jvarkit.package}.tools.misc.BamClipToInsertion))
 $(eval $(call compile-htsjdk-cmd,localrealignreads,${jvarkit.package}.tools.misc.LocalRealignReads))
 
 

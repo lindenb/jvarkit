@@ -625,6 +625,12 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		</xsl:otherwise>
 		</xsl:choose>
 		
+		<xsl:if test="/c:app/c:snippet[@id='berkeleydb']">
+		
+		
+		
+		</xsl:if>
+	
 	
 		
 		<xsl:if test="c:snippet[@id='fastq-reader']">

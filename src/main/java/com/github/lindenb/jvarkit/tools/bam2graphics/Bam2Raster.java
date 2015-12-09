@@ -73,8 +73,7 @@ import htsjdk.samtools.util.CloserUtil;
 
 public class Bam2Raster extends AbstractBam2Raster
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Bam2Raster.class);
-
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Bam2Raster.class);
     public Bam2Raster()
     	{
     	}
@@ -151,7 +150,7 @@ public class Bam2Raster extends AbstractBam2Raster
 		SAMRecordIterator iter=null;
 		if(bamFile!=null)//got index
 			{
-			iter=r.queryOverlapping(interval.getSequence(),interval.getStart(), interval.getEnd());
+			iter=r.queryOverlapping(interval.getContig(),interval.getStart(), interval.getEnd());
 			}
 		else //loop until we get the data
 			{
@@ -167,7 +166,7 @@ public class Bam2Raster extends AbstractBam2Raster
 			//when reading from stdin  we're in the right interval
 			if(this.bamFile==null)
 				{
-				if(!this.interval.getSequence().equals(rec.getReferenceName())) continue;
+				if(!this.interval.getContig().equals(rec.getReferenceName())) continue;
 				if(rec.getAlignmentEnd() < this.interval.getStart()) continue;
 				if(rec.getAlignmentStart() > this.interval.getEnd()) break;
 				}
@@ -222,7 +221,7 @@ public class Bam2Raster extends AbstractBam2Raster
 		if(this.indexedFastaSequenceFile !=null)
 			{
 			genomicSequence=new GenomicSequence(
-					this.indexedFastaSequenceFile, this.interval.getSequence());
+					this.indexedFastaSequenceFile, this.interval.getContig());
 			}
 		else
 			{

@@ -709,5 +709,8 @@ public class RDFVcfWriter
 			}
 		};
 	
-	
+	@Override
+	public boolean checkError() {
+		return false;
+		}
 	}
