@@ -1,9 +1,32 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.File;
 import java.io.PrintStream;
 import java.util.Arrays;
-
+import java.util.Collection;
 import java.util.List;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -12,101 +35,43 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-//import com.github.lindenb.jvarkit.util.picard.SamWriterFactory;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
-public class SamShortInvertion extends AbstractCommandLineProgram
+public class SamShortInvertion extends AbstractSamShortInvertion
 	{
-	private int max_size_inversion=2000;
-	private int min_coverage=10;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractSamShortInvertion.class);
 
-	
-	
 	@Override
-	public String getProgramDescription() {
-		return "";
-		}
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -R (ref) "+getMessageBundle("reference.faidx"));
-		out.println(" -m (int) max size of inversion . Default: "+max_size_inversion);
-		out.println(" -c (int) min coverage . Default: "+min_coverage);
-		super.printOptions(out);
-		}
-	
-	
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:m:c:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'm':max_size_inversion= Integer.parseInt(opt.getOptArg());break;
-				case 'c':min_coverage= Integer.parseInt(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-	
+	protected Collection<Throwable> call(String inputName) throws Exception {
 		SamReader r=null;
-		PrintStream out=System.out;
+		PrintStream out = null;
 		//SAMFileWriter w=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				r=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				r=SamFileReaderFactory.mewInstance().open(new File(filename));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			SAMFileHeader header=r.getFileHeader();
+			r = openSamReader(inputName);
+			out =  openFileOrStdoutAsPrintStream();
+			final SAMFileHeader header=r.getFileHeader();
 			OtherCanonicalAlignFactory xpalignFactory=new OtherCanonicalAlignFactory(header);
 			int prev_tid=-1;
 			short coverage[]=null;
 			short max_coverage=0;
 			//w=swf.make(header, System.out);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-			SAMRecordIterator it= r.iterator();
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMRecordIterator it= r.iterator();
 			for(;;)
 				{
 				SAMRecord rec=null;
 				if(it.hasNext())
 					{
-					rec=it.next();
-					progress.watch(rec);
+					rec=progress.watch(it.next());
 					if(rec.getReadUnmappedFlag()) continue;
 					if(rec.isSecondaryOrSupplementary()) continue;
 					if(rec.getDuplicateReadFlag()) continue;
+					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 					}
+				
 				if(rec==null || prev_tid==-1 || (prev_tid!=-1 && prev_tid!=rec.getReferenceIndex()))
 					{
 					if(coverage!=null)
@@ -114,7 +79,7 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 
 						while(max_coverage>=Math.max(1,this.min_coverage))
 							{
-							info("Scanning "+header.getSequence(prev_tid).getSequenceName()+" for cov:"+max_coverage);
+							LOG.info("Scanning "+header.getSequence(prev_tid).getSequenceName()+" for cov:"+max_coverage);
 
 							int chromStart0=0;
 							while(chromStart0 < coverage.length)
@@ -161,7 +126,7 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 					
 					if(rec==null) break;
 					prev_tid=rec.getReferenceIndex();
-					info("Alloc sizeof(short)*"+header.getSequence(prev_tid).getSequenceLength());
+					LOG.info("Alloc sizeof(short)*"+header.getSequence(prev_tid).getSequenceLength());
 					coverage=new short[header.getSequence(prev_tid).getSequenceLength()];
 					Arrays.fill(coverage,(short)0);
 					max_coverage=0;
@@ -201,7 +166,7 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 						if(coverage[x]<Short.MAX_VALUE) coverage[x]++;
 						if(max_coverage< coverage[x])
 							{
-							info("Max coverage "+max_coverage);
+							LOG.info("Max coverage "+max_coverage);
 							max_coverage=coverage[x];
 							}
 						}
@@ -210,18 +175,17 @@ public class SamShortInvertion extends AbstractCommandLineProgram
 			
 			it.close();
 			progress.finish();
-			return 0;
+			return RETURN_OK;
 			}
 
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(r);
-			//CloserUtil.close(w);
+			CloserUtil.close(out);
 			}
 		}
 	/**
