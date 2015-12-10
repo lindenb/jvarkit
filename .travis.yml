@@ -1,5 +1,5 @@
-language: c
-install: make all
+language: java
+script: make all
 jdk:
    - oraclejdk8
 before_install:
