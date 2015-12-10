@@ -572,7 +572,7 @@ $(filter-out ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar  ,${htsjdk.jars}) 
 ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar : ${htsjdk.home}/build.xml
 	echo "Compiling htsjdk with $${JAVA_HOME} = ${JAVA_HOME}"
 	echo "Compiling htsjdk library for java. Requires  apache ANT. If it fails here, it's a not a problem with jvarkit."
-	echo "And $${JAVA_HOME}/bin/javac should be >=1.7"
+	echo "And $${JAVA_HOME}/bin/javac should be >=1.8"
 	(cd ${htsjdk.home} && ${ANT} )
 
 ${htsjdk.home}/build.xml : 
