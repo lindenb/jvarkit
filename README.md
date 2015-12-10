@@ -3,6 +3,8 @@ JVARKIT
 
 Java utilities for Bioinformatics
 
+[![Build Status](https://travis-ci.org/lindenb/jvarkit.svg)](https://travis-ci.org/lindenb/jvarkit)
+
 ## Warning
 
 <div style="background-color:red;">Since 2015-12-10, I'm slowly moving to a <b>XML</b>-based description of my tools and I'm now using <b>java8</b> .

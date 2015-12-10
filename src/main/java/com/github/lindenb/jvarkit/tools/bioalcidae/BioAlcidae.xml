@@ -11,7 +11,7 @@
 <input type="stdin-or-many"/>
 
 <options>
-	<option name="formatString" type="string" opt="k" longopt="format" label="Format" arg-name="FORMAT">
+	<option name="formatString" type="string" opt="F" longopt="format" label="Format" arg-name="FORMAT">
 		<regex>(VCF|BAM|SAM|FASTQ|FASTA)</regex>
 		<description> force format: one of VCF BAM SAM FASTQ FASTA</description>
 	</option>
