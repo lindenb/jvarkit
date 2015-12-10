@@ -1,5 +1,5 @@
 language: java
 install: make all
 jdk:
-	- oraclejdk8
+   - oraclejdk8
 
