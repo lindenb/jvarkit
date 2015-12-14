@@ -64,7 +64,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
 public class VcfBurden extends AbstractKnimeApplication
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractMiniCaller.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurden.class);
 
 	private boolean highdamage=false;
 	private Map<String,Boolean> _gene2seen=null;
