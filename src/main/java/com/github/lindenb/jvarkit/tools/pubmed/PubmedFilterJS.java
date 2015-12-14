@@ -33,6 +33,7 @@ import gov.nih.nlm.ncbi.pubmed.ObjectFactory;
 import gov.nih.nlm.ncbi.pubmed.PubmedArticle;
 import gov.nih.nlm.ncbi.pubmed.PubmedBookArticle;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.Collection;
@@ -44,6 +45,8 @@ import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLEventWriter;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLResolver;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.bind.JAXBContext;
@@ -88,6 +91,14 @@ public class PubmedFilterJS
 			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
+			xmlInputFactory.setXMLResolver(new XMLResolver() {
+				@Override
+				public Object resolveEntity(String publicID, String systemID, String baseURI, String namespace)
+						throws XMLStreamException {
+					LOG.info("ignoring "+publicID+" "+baseURI+" "+namespace);
+					return new ByteArrayInputStream(new byte[0]);
+				}
+			});
 			marshaller.setProperty(Marshaller.JAXB_FRAGMENT, true);
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
 
