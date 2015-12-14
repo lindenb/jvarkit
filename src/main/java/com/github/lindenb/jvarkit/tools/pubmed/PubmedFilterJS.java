@@ -34,13 +34,10 @@ import gov.nih.nlm.ncbi.pubmed.PubmedArticle;
 import gov.nih.nlm.ncbi.pubmed.PubmedBookArticle;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.PrintWriter;
+import java.util.Collection;
 
-import javax.script.Compilable;
 import javax.script.CompiledScript;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.SimpleBindings;
 import javax.xml.stream.XMLEventFactory;
 import javax.xml.stream.XMLEventReader;
@@ -54,106 +51,33 @@ import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-
-
 
 /**
  * PubmedFilterJS
  *
  */
 public class PubmedFilterJS
-	extends AbstractCommandLineProgram
+	extends AbstractPubmedFilterJS
 	{
-	
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PubmedFilterJS.class);
+
 	@SuppressWarnings("unused")
 	private static ObjectFactory _fool_javac=null;
 	
-	private PubmedFilterJS()
+	public PubmedFilterJS()
 		{
 		
 		}
-	@Override
-	public String getProgramDescription() {
-		return "Filters Pubmed XML with a javascript  (java rhino) expression. "
-				+ "Context contain 'article' a  PubmedBookArticle or a PubmedArticle "
-				+ "and 'index', the index in the XML file.";
-		}			
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"PubmedFilterJS";
-		}
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -e (js expression). Optional.");
-		out.println(" -f (js file). Optional.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		
-
-		String scriptExpr=null;
-		File scriptFile=null;
-		CompiledScript compiledScript=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"e:f:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'e': scriptExpr=opt.getOptArg();break;
-				case 'f': scriptFile=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	protected Collection<Throwable> call(String inputName) throws Exception {
+	CompiledScript compiledScript=null;
 		Unmarshaller unmarshaller;
 		Marshaller marshaller;
 		try
 			{
-			ScriptEngineManager manager = new ScriptEngineManager();
-			ScriptEngine engine = manager.getEngineByName("js");
-			if(engine==null)
-				{
-				error("not available: javascript. Use the SUN/Oracle JDK ?");
-				return -1;
-				}
-			Compilable compilingEngine = (Compilable)engine;
-			if(scriptFile!=null)
-				{
-				info("Compiling "+scriptFile);
-				FileReader r=new FileReader(scriptFile);
-				compiledScript=compilingEngine.compile(r);
-				r.close();
-				}
-			else if(scriptExpr!=null)
-				{
-				info("Compiling "+scriptExpr);
-				compiledScript=compilingEngine.compile(scriptExpr);
-				}
-			else
-				{
-				error("Undefined script");
-				return -1;
-				}
-
-			
-			
+			compiledScript =  super.compileJavascript();
+						
 			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.pubmed");
 			unmarshaller =jc.createUnmarshaller();
 			marshaller =jc.createMarshaller();
@@ -168,27 +92,23 @@ public class PubmedFilterJS
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
 
 			
-			PrintWriter pw=new PrintWriter(System.out);
+			PrintWriter pw= openFileOrStdoutAsPrintWriter();
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			XMLEventWriter w=xof.createXMLEventWriter(pw);
 			
 			
 			StreamSource src=null;
-			if(opt.getOptInd()==args.length)
+			if(inputName==null)
 				{
-				info("Reading stdin");
+				LOG.info("Reading stdin");
 				src=new StreamSource(System.in);
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else 
 				{
-				info("Reading file");
-				src=new StreamSource(new File(args[opt.getOptInd()]));
+				LOG.info("Reading file");
+				src=new StreamSource(new File(inputName));
 				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
+			
 			XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
 			
 			XMLEventFactory eventFactory=XMLEventFactory.newFactory();
@@ -226,20 +146,9 @@ public class PubmedFilterJS
 							
 							bindings.put("article", article);
 							bindings.put("index", nArticles++);
-							Object result=compiledScript.eval(bindings);
 							
-							if(result==null) break;
-							if(result instanceof Boolean)
+							if(!super.evalJavaScriptBoolean(compiledScript, bindings))
 								{
-								if(Boolean.FALSE.equals(result)) break;
-								}
-							else if(result instanceof Number)
-								{
-								if(((Number)result).intValue()!=1) break;
-								}
-							else
-								{
-								warning("Script returned something that is not a boolean or a number:"+result.getClass());
 								break;
 								}
 							marshaller.marshal(jaxbElement, w);
@@ -260,12 +169,11 @@ public class PubmedFilterJS
 			w.close();
 			pw.flush();
 			pw.close();
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
