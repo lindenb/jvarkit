@@ -29,86 +29,56 @@ History:
 package com.github.lindenb.jvarkit.tools.pubmed;
 
 
+import java.io.ByteArrayInputStream;
 import java.io.PrintWriter;
 import java.net.URLEncoder;
+import java.util.Collection;
+import java.util.List;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLEventWriter;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLResolver;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import htsjdk.samtools.util.CloserUtil;
 
 /**
  * PubmedDump
  *
  */
 public class PubmedDump
-	extends AbstractCommandLineProgram
+	extends AbstractPubmedDump
 	{
-	private String email=null;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PubmedDump.class);
+
 	private String tool="pubmedump";
 
-	private PubmedDump()
+	public PubmedDump()
 		{
 		
 		}
-	@Override
-	public String getProgramDescription() {
-		return "Dump pubmed articles as XML. Can read more than ret_max=100000 articles.";
-		}			
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/PubmedDump";
-		}
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -e (email) user's email. Optional.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"e:"))!=-1)
+	public Collection<Throwable> call() throws Exception {
+		PrintWriter pw=null;
+		final List<String> args = getInputFiles();
+		final StringBuilder query=new StringBuilder();
+		if(args.isEmpty())
 			{
-			switch(c)
-				{
-				case 'e': email=opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			return wrapException("Query missing");
 			}
-		StringBuilder query=new StringBuilder();
-		if(opt.getOptInd()==args.length)
-			{
-			error("Query missing");
-			return -1;
-			}
-		for(int i=opt.getOptInd();i< args.length;++i)
+		for(final String arg:args)
 			{
 			if(query.length()>0) query.append(" ");
-			query.append( args[i]);
+			query.append(arg);
 			}
 		if(query.toString().trim().isEmpty())
 			{
-			error("Query is empty");
-			return -1;
+			return wrapException("Query is empty");
 			}
 
 		
@@ -119,7 +89,15 @@ public class PubmedDump
 			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
-						
+			xmlInputFactory.setXMLResolver(new XMLResolver() {
+				@Override
+				public Object resolveEntity(String publicID, String systemID, String baseURI, String namespace)
+						throws XMLStreamException {
+					LOG.info("ignoring "+publicID+" "+baseURI+" "+namespace);
+					return new ByteArrayInputStream(new byte[0]);
+				}
+			});
+			
 			String url=
 					"http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term="+
 					URLEncoder.encode(query.toString(), "UTF-8")+	
@@ -127,7 +105,7 @@ public class PubmedDump
 					(email==null?"":"&email="+URLEncoder.encode(email,"UTF-8"))+
 					(tool==null?"":"&tool="+URLEncoder.encode(tool,"UTF-8"))
 					;
-			info(url);
+			LOG.info(url);
 			long count=-1;
 			String WebEnv=null;
 			String QueryKey=null;
@@ -152,13 +130,14 @@ public class PubmedDump
 						}
 					}
 				}
-			r.close();
+			CloserUtil.close(r);
+			r=null;
+			
 			if(count<0 || WebEnv==null || QueryKey==null)
 				{
-				error("Bad esearch result");
-				return -1;
+				return wrapException("Bad esearch result");
 				}
-			PrintWriter pw=new PrintWriter(System.out);
+			pw=super.openFileOrStdoutAsPrintWriter();
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			XMLEventWriter w=xof.createXMLEventWriter(pw);
 			long nFound=0L;
@@ -166,7 +145,7 @@ public class PubmedDump
 			while(nFound< count)
 				{
 				final int ret_max=90000;
-				info("nFound:"+nFound+"/"+count);
+				LOG.info("nFound:"+nFound+"/"+count);
 				url= "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&WebEnv="+
 						URLEncoder.encode(WebEnv,"UTF-8")+
 						"&query_key="+URLEncoder.encode(QueryKey,"UTF-8")+
@@ -174,13 +153,14 @@ public class PubmedDump
 						(email==null?"":"&email="+URLEncoder.encode(email,"UTF-8"))+
 						(tool==null?"":"&tool="+URLEncoder.encode(tool,"UTF-8"))
 						;
-				info(url);
+				LOG.info(url);
 				int curr_count=0;
-				r=xmlInputFactory.createXMLEventReader(new StreamSource(url));
+				r = xmlInputFactory.createXMLEventReader(new StreamSource(url));
 				
 				while(r.hasNext())
 					{
 					XMLEvent evt=r.nextEvent();
+					
 					switch(evt.getEventType())
 						{
 						case XMLEvent.ATTRIBUTE:
@@ -257,8 +237,7 @@ public class PubmedDump
 							}
 						default:
 							{
-							warning("XML evt no handled: "+evt);
-							break;
+							return wrapException("XML evt no handled: "+evt);
 							}
 						}
 					}
@@ -266,23 +245,22 @@ public class PubmedDump
 				r.close();
 				if(curr_count==0)
 					{
-					info("Nothing found . Exiting.");
+					LOG.info("Nothing found . Exiting.");
 					}
 				}
 			w.flush();
 			w.close();
 			pw.flush();
 			pw.close();
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-			
+			CloserUtil.close(pw);
 			}
 		}
 	
