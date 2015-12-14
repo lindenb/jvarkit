@@ -1,41 +1,47 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTree;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.Log;
 
 
-public class Biostar81455 extends AbstractCommandLineProgram
+public class Biostar81455 extends AbstractBiostar81455
 	{
-	
-	
-	
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Defining precisely the genomic context based on a position .";
-
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="input process (or stdin): chromosome(tab)pos0.",
-    		optional=true)
-	public File IN=null;
-
- 
-	private Log LOG=Log.getInstance(Biostar81455.class);
-	
-	
-    @Option(shortName="KG",doc="KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.",optional=false)
-	public String kgUri="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar81455.class);
+	private IntervalTreeMap<KnownGene> kgMap=null;
 	
     private static int distance(int pos0,KnownGene kg)
 		{
@@ -52,17 +58,20 @@ public class Biostar81455 extends AbstractCommandLineProgram
     	}
     
     
-    
-	@Override
-	protected int doWork()
-		{
-		IntervalTreeMap<KnownGene> kgMap=new IntervalTreeMap<KnownGene>();
-		try
+    @Override
+    public Collection<Throwable> initializeKnime() {
+    	BufferedReader r=null;
+    	try
 			{
+    		if(super.kgUri==null || super.kgUri.trim().isEmpty())
+    			{
+    			return wrapException("undefined kguri");
+    			}
+    		this.kgMap = new IntervalTreeMap<KnownGene>();
 			LOG.info("readubf "+kgUri);
 			String line;
 			Pattern tab=Pattern.compile("[\t]");
-			BufferedReader r=IOUtils.openURIForBufferedReading(this.kgUri);
+			r=IOUtils.openURIForBufferedReading(this.kgUri);
 			while((line=r.readLine())!=null)
 				{
 				String tokens[]=tab.split(line);
@@ -77,28 +86,47 @@ public class Biostar81455 extends AbstractCommandLineProgram
 				kg.setCdsEnd(Integer.parseInt(tokens[6]));
 				kg.setExonBounds(Integer.parseInt(tokens[7]), tokens[8], tokens[9]);
 				if(kg.getExonCount()==0) continue;
-				
 				kgMap.put(new Interval(kg.getChromosome(), kg.getTxStart()+1, kg.getTxEnd()), kg);
 				}
-			r.close();
-			
-			
-			if(IN!=null)
+			}
+    	catch(Exception err)
+    		{
+			return wrapException(err);
+    		}
+    	finally {
+			CloserUtil.close(r);
+			}
+    	return super.initializeKnime();
+    	}
+    
+    @Override
+    public void disposeKnime() {
+    	this.kgMap= null;
+    	super.disposeKnime();
+    	}
+    
+    @Override
+    protected Collection<Throwable> call(String inputName) throws Exception {
+		BufferedReader r=null;
+		String line;
+		PrintStream out=null;
+		final Pattern tab=Pattern.compile("[\t]");
+    	try
+    		{
+			if(inputName==null)
 				{
-				LOG.info("opening stdin "+this.IN);
-				r=IOUtils.openFileForBufferedReading(this.IN);
+				r=IOUtils.openStreamForBufferedReader(stdin());
 				}
 			else
 				{
-				LOG.info("opening stdin");
-				r=new BufferedReader(new InputStreamReader(System.in));
+				r=IOUtils.openURIForBufferedReading(inputName);
 				}
-			
+			out = openFileOrStdoutAsPrintStream();
 			while((line=r.readLine())!=null)
 				{
 				if(line.startsWith("#"))
 					{
-					System.out.println(line);
+					out.println(line);
 					continue;
 					}
 				boolean found=false;
@@ -141,7 +169,7 @@ public class Biostar81455 extends AbstractCommandLineProgram
 								}
 							if(bestExon!=null)
 								{
-								System.out.println(
+								out.println(
 										line+"\t"+
 										kg.getName()+"\t"+
 										kg.getTxStart()+"\t"+kg.getTxEnd()+"\t"+kg.getStrand()+"\t"+
@@ -156,18 +184,23 @@ public class Biostar81455 extends AbstractCommandLineProgram
 					}
 				if(!found)
 					{
-					System.out.println(line+"\tNULL");
+					out.println(line+"\tNULL");
 					}
 				}
-			r.close();
+
 			LOG.info("done");
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			LOG.error(err);
-			return -1;
+			return wrapException(err);
 			}
+    	finally
+    		{
+    		CloserUtil.close(r);
+    		CloserUtil.close(out);
+    		
+    		}
 		}
 	
 	public static void main(String[] args)throws Exception

@@ -1,6 +1,6 @@
 package com.github.lindenb.jvarkit.tools.biostar;
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -17,17 +17,11 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.transform.stream.StreamSource;
 
-
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Log;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
@@ -36,8 +30,11 @@ import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 
 
-public class Biostar78400 extends CommandLineProgram
+public class Biostar78400 extends AbstractBiostar78400
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar78400.class);
+
+	
 	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class ReadGroup
 		{
@@ -84,41 +81,13 @@ public class Biostar78400 extends CommandLineProgram
 		}
 	
 	
-	
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" add the read group info to the sam file on a per lane basis? .";
-
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM file to process (or stdin).",
-    		optional=true)
-	public File IN=null;
-
-    @Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="BAM file (or stdout).",
-    		optional=true)
-	public File OUT=null;
-    
-    @Option(shortName= "X", doc="XML desfription of the groups.",
-    		optional=false)
-	public File XML=null;
-
-    
-	private Log LOG=Log.getInstance(Biostar78400.class);
-	
 	@Override
-	public String getProgramVersion() {
-		return "1.0";
-		}
-	
-	
-	private Map<String, Map<Integer,String>> flowcell2lane2id=new HashMap<String, Map<Integer,String>>();
-	
-	@SuppressWarnings("resource")
-	@Override
-	protected int doWork()
-		{
-		
-		
-		
-		
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		if(this.XML==null)
+			{
+			return wrapException("XML file missing");
+			}
+		final Map<String, Map<Integer,String>> flowcell2lane2id = new HashMap<String, Map<Integer,String>>();
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
@@ -132,31 +101,17 @@ public class Biostar78400 extends CommandLineProgram
 				}
 			
 			
-
-
+			sfr = openSamReader(inputName);
 			
-	    	if(IN==null)
-	    		{
-	    		sfr=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).openStdin();
-	    		}
-	    	else
-	    		{
-	    		sfr=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).open(IN);
-	    		}
-			
-			
-			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
-			sfwf.setMaxRecordsInRam(super.MAX_RECORDS_IN_RAM);
-			if(super.TMP_DIR.isEmpty()) sfwf.setTempDirectory(super.TMP_DIR.get(0));
-	
+			final SAMFileHeader header = sfr.getFileHeader().clone();
 			
 			
 			SAMProgramRecord sp=new SAMProgramRecord(getClass().getSimpleName());
 			sp.setProgramName(getClass().getSimpleName());
-			sp.setProgramVersion(String.valueOf(getProgramVersion()));
+			sp.setProgramVersion(String.valueOf(getVersion()));
 			sp.setPreviousProgramGroupId(getClass().getSimpleName());
-			sp.setCommandLine(getCommandLine().replace('\t', ' '));
-			sfr.getFileHeader().addProgramRecord(sp);
+			sp.setCommandLine(getProgramCommandLine().replace('\t', ' '));
+			header.addProgramRecord(sp);
 			
 			Set<String> seenids=new HashSet<String>();
 			List<SAMReadGroupRecord> samReadGroupRecords=new ArrayList<SAMReadGroupRecord>();
@@ -170,7 +125,7 @@ public class Biostar78400 extends CommandLineProgram
 						{
 						if(seenids.contains(rg.id))
 							{
-							throw new RuntimeException("Group id "+rg.id +" defined twice");
+							return wrapException("Group id "+rg.id +" defined twice");
 							}
 						seenids.add(rg.id);
 						 // create the read group we'll be using
@@ -185,35 +140,19 @@ public class Biostar78400 extends CommandLineProgram
 				        samReadGroupRecords.add(rgrec);
 						}
 					}
-				this.flowcell2lane2id.put(fc.name,lane2id);
+				flowcell2lane2id.put(fc.name,lane2id);
 				}
-			 sfr.getFileHeader().setReadGroups(samReadGroupRecords);
+			header.setReadGroups(samReadGroupRecords);
 			
-			boolean presorted=false;
-			switch(sfr.getFileHeader().getSortOrder())
-				{
-				case coordinate: 
-				case queryname: presorted=true;break;
-				default:break;
-				}
-			if(OUT!=null)
-				{
-				LOG.info("opening "+OUT);
-				sfwf.setCreateIndex(super.CREATE_INDEX);
-				sfwf.setCreateMd5File(super.CREATE_MD5_FILE);
-				sfw=sfwf.makeBAMWriter(sfr.getFileHeader(), presorted, OUT);
-				}
-			else
-				{
-				LOG.info("opening stdout");
-				sfw=sfwf.makeSAMWriter(sfr.getFileHeader(), presorted, System.out);
-				}
+		
+			sfw = openSAMFileWriter(header, true);
 			
 			final Pattern colon=Pattern.compile("[\\:]");
+			SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
 			SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
+				SAMRecord rec= progress.watch(iter.next());
 				
 				String RGID=null;
 				String tokens[]=colon.split(rec.getReadName(),3);
@@ -240,14 +179,14 @@ public class Biostar78400 extends CommandLineProgram
 				rec.setAttribute(SAMTag.RG.name(), RGID);
 				sfw.addAlignment(rec);
 				}
+			progress.finish();
 			iter.close();
 			LOG.info("done");
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			LOG.error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{

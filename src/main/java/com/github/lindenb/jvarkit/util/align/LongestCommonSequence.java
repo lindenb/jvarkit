@@ -26,6 +26,8 @@ package com.github.lindenb.jvarkit.util.align;
 
 import java.util.Arrays;
 
+import com.github.lindenb.jvarkit.lang.SubSequence;
+
 
 public class LongestCommonSequence 
 	{
@@ -36,6 +38,12 @@ public class LongestCommonSequence
 		private int y=0;
 		private CharSequence a;
 		private CharSequence b;
+		
+		public CharSequence getMatchingSequence()
+			{
+			return new SubSequence(getX(), getStartX(), getEndX());
+			}
+		
 		@Override
 		public String toString()
 			{
@@ -86,7 +94,7 @@ public class LongestCommonSequence
 
 	public boolean compare(char c1,char c2)
 		{
-		return c1==c2;
+		return c1!='N' && c1==c2;
 		}
 	
 	public Hit align(

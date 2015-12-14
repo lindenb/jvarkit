@@ -53,6 +53,7 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.tools.calling.AbstractMiniCaller;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -63,6 +64,8 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
 public class VcfBurden extends AbstractKnimeApplication
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractMiniCaller.class);
+
 	private boolean highdamage=false;
 	private Map<String,Boolean> _gene2seen=null;
 	private String dirName="burden";
@@ -150,7 +153,7 @@ public class VcfBurden extends AbstractKnimeApplication
 			List<VariantAndCsq> variants
 			) throws IOException
 		{
-		info(this.dirName+"/"+filename+".txt");
+		info(this.dirName+"/"+contig+"_"+filename+".txt");
 		ZipEntry ze = new ZipEntry(this.dirName+"/"+contig+"_"+filename+".txt");
 		zout.putNextEntry(ze);
 		PrintWriter pw = new PrintWriter(zout);
@@ -312,17 +315,19 @@ public class VcfBurden extends AbstractKnimeApplication
 					for(GeneTranscript gene_transcript:gene2variants.keySet() )
 						{
 						geneNames.add(gene_transcript.geneName);
+						
 						dump(zout,
 								prev_chrom,
 								gene_transcript.geneName+"_"+gene_transcript.transcriptName,
 								samples,
 								gene2variants.get(gene_transcript)
 								);
+						LOG.info("dumped" +gene_transcript.geneName);
 						}
-					
+					LOG.info("loop over geneName");
 					for(String geneName : geneNames)
 						{
-						Comparator<VariantAndCsq> cmp = new Comparator<VariantAndCsq>()
+						final Comparator<VariantAndCsq> cmp = new Comparator<VariantAndCsq>()
 									{
 									@Override
 									public int compare(
@@ -345,7 +350,7 @@ public class VcfBurden extends AbstractKnimeApplication
 						SortedSet<VariantAndCsq> lis_all = new TreeSet<>(cmp);
 						SortedSet<VariantAndCsq> lis_refseq = new TreeSet<>(cmp);
 						SortedSet<VariantAndCsq> lis_enst = new TreeSet<>(cmp);
-						
+						LOG.info("loop over gene2variants");
 						for(GeneTranscript gene_transcript:gene2variants.keySet() )
 							{
 							if(!geneName.equals(gene_transcript.geneName)) continue;
@@ -363,24 +368,28 @@ public class VcfBurden extends AbstractKnimeApplication
 								lis_enst.addAll(gene2variants.get(gene_transcript));
 								}
 							}
+						LOG.info("dump_ALL_TRANSCRIPTS");
 						dump(zout,
 								prev_chrom,
 								geneName+"_ALL_TRANSCRIPTS",
 								samples,
 								new ArrayList<VariantAndCsq>(lis_all)
 								);
+						LOG.info("dump_ALL_NM");
 						dump(zout,
 								prev_chrom,
 								geneName+"_ALL_NM",
 								samples,
 								new ArrayList<VariantAndCsq>(lis_nm)
 								);
+						LOG.info("dump_ALL_REFSEQ");
 						dump(zout,
 								prev_chrom,
 								geneName+"_ALL_REFSEQ",
 								samples,
 								new ArrayList<VariantAndCsq>(lis_refseq)
 								);
+						LOG.info("dump_ALL_ENST");
 						dump(zout,
 								prev_chrom,
 								geneName+"_ALL_ENST",
@@ -390,11 +399,14 @@ public class VcfBurden extends AbstractKnimeApplication
 						}
 					
 					if(ctx1==null) break;
+					LOG.info("gene2variants");
 					gene2variants.clear();
+					LOG.info("System.gc();");
 					System.gc();
 					prev_chrom = ctx1.getContig();
+					LOG.info("prev_chrom="+prev_chrom);
 					}
-				Set<GeneTranscript> seen_names=new HashSet<>();
+				final Set<GeneTranscript> seen_names=new HashSet<>();
 				for(VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))
 					{
 					
@@ -442,6 +454,7 @@ public class VcfBurden extends AbstractKnimeApplication
 						this._gene2seen.put(geneTranscript.geneName, Boolean.TRUE);
 						}
 					}
+				
 				}
 			
 			if(this._gene2seen!=null)

@@ -60,6 +60,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -68,22 +69,21 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public class MiniCaller extends AbstractCommandLineProgram
+public class MiniCaller extends AbstractMiniCaller
     {
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractMiniCaller.class);
+
 	private SAMSequenceDictionary dictionary=null;
     private VariantContextWriter variantContextWriter = null;
     private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
     private Map<String,Integer> sample2index=new TreeMap<>();
     private List<String> samples=new ArrayList<>();
     private List<MyVariantContext> buffer=new ArrayList<>();
-    private int min_depth=20;
     private double min_fraction_alt=1.0/1000.0;
    
     
@@ -293,55 +293,14 @@ public class MiniCaller extends AbstractCommandLineProgram
         this.buffer.add(idx, ctx);
         return ctx;
         }
-
     @Override
-    public String getProgramDescription() {
-        return "Simple and Stupid Variant Caller designed for @AdrienLeger2";
-        }
-
-    @Override
-    protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/MiniCaller";
-        }
-
-
-    @Override
-    public void printOptions(java.io.PrintStream out)
-        {
-        out.println(" -R (fasta) Reference Sequence indexed with faidx");
-        super.printOptions(out);
-        }
-
-    @Override
-    public int doWork(String[] args)
-        {
-        Set<File> bamFileSet=new HashSet<File>();
-        File fastaFile=null;
-        com.github.lindenb.jvarkit.util.cli.GetOpt opt=new
-                com.github.lindenb.jvarkit.util.cli.GetOpt();
-        int c;
-        while((c=opt.getopt(args,getGetOptDefault()+"R:"))!=-1)
-            {
-            switch(c)
-                {
-                case 'R': fastaFile=new File(opt.getOptArg());break;
-                default:
-                    {
-                    switch(handleOtherOptions(c, opt,args))
-                        {
-                        case EXIT_FAILURE: return -1;
-                        case EXIT_SUCCESS: return 0;
-                        default:break;
-                        }
-                    }
-                }
-            }
-
+    public Collection<Throwable> call() throws Exception {
+    	final Set<File> bamFileSet=new HashSet<File>();
+    	List<String> args = super.getInputFiles();
         List<SamReader> readers = new ArrayList<SamReader>();
         try {
-            for(int i=opt.getOptInd();i< args.length;++i)
+            for(String filename:args)
                 {
-                String filename=args[i];
                 if(filename.endsWith(".list"))
                     {
                     BufferedReader
@@ -359,20 +318,19 @@ public class MiniCaller extends AbstractCommandLineProgram
                     bamFileSet.add(new File(filename));
                     }
                 }
-            if(fastaFile==null)
+            if(super.fastaFile==null)
                 {
-                error("no REF");
-                return -1;
+                return wrapException("no REF");
                 }
+            if(bamFileSet.isEmpty())
+	            {
+	            return wrapException("No Bam Files");
+	            }
             /* load faid */
             this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(fastaFile);
 
 
-            if(bamFileSet.isEmpty())
-                {
-                error("No Bam Files");
-                return -1;
-                }
+            
             /** create merged SAMReader */
             List<File> bamFiles=new ArrayList<File>(bamFileSet);
             
@@ -385,7 +343,7 @@ public class MiniCaller extends AbstractCommandLineProgram
             /* open each bam file */
             for(File bamFile:bamFiles)
                 {
-                info("Opening "+bamFile);
+                LOG.info("Opening "+bamFile);
                 SamReader samReader = srf.open(bamFile);
                 /* get header; check group and dict */
                 SAMFileHeader header= samReader.getFileHeader();
@@ -393,8 +351,7 @@ public class MiniCaller extends AbstractCommandLineProgram
                 SAMSequenceDictionary dict= header.getSequenceDictionary();
                 if(dict==null)
                 	{
-                	error("No SAMSequenceDictionary defined in "+bamFile);
-                	return -1;
+                	return wrapException("No SAMSequenceDictionary defined in "+bamFile);
                 	}
                 if(this.dictionary==null)
                 	{
@@ -403,16 +360,14 @@ public class MiniCaller extends AbstractCommandLineProgram
                 
                 if(!SequenceUtil.areSequenceDictionariesEqual(dict,this.dictionary))
                 	{
-                	error("Not same SAMSequenceDictionaries last was "+bamFile);
-                	return -1;
+                	return wrapException("Not same SAMSequenceDictionaries last was "+bamFile);
                 	}
                 
                 	
                 List<SAMReadGroupRecord> groups = header.getReadGroups();
                 if(groups==null || groups.isEmpty())
                 	{
-                	error("No group defined in "+bamFile);
-                	return -1;
+                	return wrapException("No group defined in "+bamFile);
                 	}
                 
                 for(SAMReadGroupRecord srgr : groups)
@@ -486,20 +441,14 @@ public class MiniCaller extends AbstractCommandLineProgram
             metaData.addAll(VCFUtils.samSequenceDictToVCFContigHeaderLine(
             		this.dictionary
             		));
-
-            metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-            metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-            metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-            metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-
+            addMetaData(metaData);
             
-            
-            VCFHeader vcfHeader=new VCFHeader(
+            final VCFHeader vcfHeader=new VCFHeader(
                     metaData , this.sample2index.keySet()
                     );
             
             /* create variant context */
-            this.variantContextWriter = VCFUtils.createVariantContextWriterToOutputStream(System.out);
+            this.variantContextWriter = super.openVariantContextWriter();
             this.variantContextWriter.writeHeader(vcfHeader);
 
             GenomicSequence genomicSeq=null;
@@ -543,7 +492,7 @@ public class MiniCaller extends AbstractCommandLineProgram
                     if(sgr!=null) sampleName = sgr.getSample();
                     if(sampleName==null)
                     	{
-                    	warning("Cannot get sample name for "+rec.getReadName());
+                    	LOG.warn("Cannot get sample name for "+rec.getReadName());
                     	continue;
                     	}
                     
@@ -649,12 +598,11 @@ public class MiniCaller extends AbstractCommandLineProgram
             progress.finish();
             iter.close();
             this.variantContextWriter.close();
-            return 0;
+            return RETURN_OK;
             }
         catch (Exception e)
             {
-            error(e);
-            return -1;
+            return wrapException(e);
             }
         finally
             {

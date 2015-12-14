@@ -16,7 +16,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.lang.SubSequence;
 import com.github.lindenb.jvarkit.util.align.LongestCommonSequence;
+import com.github.lindenb.jvarkit.util.bio.RevCompCharSequence;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -115,6 +117,66 @@ public class LocalRealignReads extends AbstractLocalRealignReads
 				
 				final CharSequence readseq = rec.getReadString();
 				
+				
+				/** short invert */
+				if(ce5.getOperator()==CigarOperator.S && ce5.getLength()>=MIN_ALIGN_LEN)
+					{
+					CharSequence clipseq = new SubSequence(readseq, 0, ce5.getLength());
+					CharSequence revcomp = new RevCompCharSequence(clipseq);
+					LongestCommonSequence.Hit hit = matrix.align(genomicSequence,
+							Math.max(0,rec.getUnclippedStart()-rec.getReadLength()),
+							Math.min(rec.getUnclippedEnd()+rec.getReadLength(),genomicSequence.length()),
+							revcomp,
+							0,
+							revcomp.length()
+							);
+					if(hit.size()>=MIN_ALIGN_LEN)
+						{
+						System.err.println("REVCOMP5' "+hit.getMatchingSequence()+" "+clipseq+" for "+readseq+" "+rec.getReadName()+" "+rec.getCigarString());
+						}
+					/*
+					
+					hit = matrix.align(
+							readseq, 0, readseq.length(),
+							revcomp,
+							0,
+							revcomp.length()
+							);
+					if(hit.size()>=MIN_ALIGN_LEN)
+						{
+						System.err.println("REVCOMP5' vs ITSELF: "+hit.getMatchingSequence()+" "+clipseq+" for "+readseq+" "+rec.getReadName()+" "+rec.getCigarString());
+						}
+					*/
+					}
+				if(ce3.getOperator()==CigarOperator.S && ce3.getLength()>=MIN_ALIGN_LEN)
+					{
+					CharSequence clipseq = new SubSequence(readseq,readseq.length()-ce3.getLength(),readseq.length());
+					CharSequence revcomp = new RevCompCharSequence(clipseq);
+					LongestCommonSequence.Hit hit = matrix.align(genomicSequence,
+							Math.max(0,rec.getUnclippedStart()-rec.getReadLength()),
+							Math.min(rec.getUnclippedEnd()+rec.getReadLength(),genomicSequence.length()),
+							revcomp,
+							0,
+							revcomp.length()
+							);
+					if(hit.size()>=MIN_ALIGN_LEN)
+						{
+						System.err.println("REVCOMP3' "+hit.getMatchingSequence()+" "+clipseq+" for "+readseq+" "+rec.getReadName());
+						}
+					/*
+					hit = matrix.align(
+							readseq, 0, readseq.length(),
+							revcomp,
+							0,
+							revcomp.length()
+							);
+					if(hit.size()>=MIN_ALIGN_LEN)
+						{
+						System.err.println("REVCOMP3' vs ITSELF: "+hit.getMatchingSequence()+" "+clipseq+" for "+readseq+" "+rec.getReadName()+" "+rec.getCigarString());
+						}*/
+					}
+				
+				/* other */
 				List<LongestCommonSequence.Hit> hits = new ArrayList<>();
 				align(hits, matrix,
 						genomicSequence,
@@ -124,7 +186,7 @@ public class LocalRealignReads extends AbstractLocalRealignReads
 						0,readseq.length(),
 						-1
 						);
-				if(hits.size()<2) continue;
+				if(hits.size()<2000) continue;
 				for(LongestCommonSequence.Hit hit:hits)
 					{
 					int readstart=0;
