@@ -35,32 +35,20 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.util.Collection;
 import java.util.Comparator;
 
-import com.github.lindenb.jvarkit.util.picard.AbstractBamWriterProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class SortSamRefName extends AbstractBamWriterProgram
+public class SortSamRefName extends AbstractSortSamRefName
 	{
-	private int maxRecordsInRAM=50000;
-	
-	public void setMaxRecordsInRAM(int maxRecordsInRAM) {
-		this.maxRecordsInRAM = maxRecordsInRAM;
-	}
-	public int getMaxRecordsInRAM() {
-		return maxRecordsInRAM;
-	}
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SortSamRefName.class);
 	
 	
 	private static class RefNameComparator implements
@@ -86,48 +74,29 @@ public class SortSamRefName extends AbstractBamWriterProgram
 		
 		}
 	
-	private SortSamRefName()
+	public SortSamRefName()
 		{
-		
-		}
-	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Sort a BAM of contig and then on name";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return DEFAULT_WIKI_PREFIX+"SortSamRefName";
 		}
 
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -t (dir) add tmp directory. Optional"); 
-		out.println(" -n (int) max records in RAM. Default " +getMaxRecordsInRAM()); 
-		super.printOptions(out);
-		}
-
-	private int doWork( SamReader in) throws IOException
-		{
-		SAMFileHeader header= in.getFileHeader();
-		
+	protected Collection<Throwable> call(String inputName) throws Exception {	
+		SamReader in=null;
 		SAMFileWriter out=null;
 		SAMRecordIterator iter=null;
 		CloseableIterator<SAMRecord> iter2=null;
 		SortingCollection<SAMRecord> sorter=null;
 		try
 			{
+			in  = openSamReader(inputName);
+			SAMFileHeader header= in.getFileHeader();
+			
 			final BAMRecordCodec bamRecordCodec=new BAMRecordCodec(header);
 			final RefNameComparator refNameComparator=new RefNameComparator();
 			sorter =SortingCollection.newInstance(
 					SAMRecord.class,
 					bamRecordCodec,
 					refNameComparator,
-					getMaxRecordsInRAM(),
+					super.getMaxRecordsInRam(),
 					getTmpDirectories()
 					);
 			sorter.setDestructiveIteration(true);
@@ -138,12 +107,13 @@ public class SortSamRefName extends AbstractBamWriterProgram
 				{
 				sorter.add( progress.watch(iter.next()));
 				}
+			in.close();in=null;
 			sorter.doneAdding();
 			
 			SAMFileHeader header2=header.clone();
-			header2.addComment(getProgramName()+" "+getVersion()+" "+getProgramCommandLine());
+			header2.addComment(getName()+" "+getVersion()+" "+getProgramCommandLine());
 			header2.setSortOrder(SortOrder.unsorted);
-			out = openSAMFileWriter(header2, true);
+			out = super.openSAMFileWriter(header2, true);
 			iter2 = sorter.iterator();
 			while(iter2.hasNext())
 				{
@@ -152,82 +122,24 @@ public class SortSamRefName extends AbstractBamWriterProgram
 			out.close();out=null;
 			sorter.cleanup();
 			progress.finish();
-			return 0;
+			LOG.info("done");
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-			
 			CloserUtil.close(iter2);
 			CloserUtil.close(iter);
 			CloserUtil.close(out);
-			}
-		}
-	
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "t:n:"))!=-1)
-			{
-			switch(c)
-				{
-				case 't': this.addTmpDirectory(new File(opt.getOptArg()));
-				case 'n': this.setMaxRecordsInRAM(Integer.parseInt(opt.getOptArg()));
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
-		
-		SamReader in=null;
-		try
-			{
-			SamReaderFactory srf= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-			if(opt.getOptInd()==args.length)
-				{
-				in = srf.open(SamInputResource.of(System.in));
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				in = srf.open(SamInputResource.of(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error("Illegal number of arguments");
-				return -1;
-				}
-			return doWork(in); 
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
 			CloserUtil.close(in);
 			}
 		}
-
 	
 	public static void main(String[] args) throws IOException
 		{
 		new SortSamRefName().instanceMainWithExit(args);
 		}
-		
-
 	}
