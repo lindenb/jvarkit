@@ -134,7 +134,7 @@ APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	bamviewgui	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
-	biostar86480	biostar90204	biostar94573	biostar95652 biostar139647	biostar145820 blast2sam	blastmapannots \
+	biostar86480	biostar90204	msa2vcf	biostar95652 biostar139647	biostar145820 blast2sam	blastmapannots \
 	blastn2snp	buildwpontology	bwamemdigest	bwamemnop	cmpbams	cmpbamsandbuild	coveragenormalizer \
 	deseqcount	downsamplevcf	evs2bed	evs2vcf	evs2xml	extendbed	fastq2fasta \
 	fastqentropy	fastqgrep	fastqjs	fastqphred64to33	fastqrecordtreepack	fastqrevcomp	fastqshuffle \
@@ -228,7 +228,6 @@ $(eval $(call compile_biostar_cmd,84786))
 $(eval $(call compile_biostar_cmd,86363))
 $(eval $(call compile_biostar_cmd,86480))
 $(eval $(call compile_biostar_cmd,90204))
-$(eval $(call compile_biostar_cmd,94573))
 $(eval $(call compile_biostar_cmd,95652,api.ncbi.gb))
 $(eval $(call compile_biostar_cmd,3654,api.ncbi.insdseq api.ncbi.blast))
 $(eval $(call compile_biostar_cmd,154220))
@@ -397,6 +396,8 @@ $(eval $(call compile-htsjdk-cmd,gtf2xml,${jvarkit.package}.tools.misc.Gtf2Xml))
 $(eval $(call compile-htsjdk-cmd,sortsamrefname,${jvarkit.package}.tools.misc.SortSamRefName))
 $(eval $(call compile-htsjdk-cmd,bamclip2insertion,${jvarkit.package}.tools.misc.BamClipToInsertion))
 $(eval $(call compile-htsjdk-cmd,localrealignreads,${jvarkit.package}.tools.misc.LocalRealignReads))
+$(eval $(call compile-htsjdk-cmd,msa2vcf,${jvarkit.package}.tools.msa2vcf.MsaToVcf))
+
 
 
 

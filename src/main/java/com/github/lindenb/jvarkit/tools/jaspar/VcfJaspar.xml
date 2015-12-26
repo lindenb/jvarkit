@@ -4,4 +4,18 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.jaspar">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Finds JASPAR profiles in VCF</description>
+<input type="vcf"/>
+<output type="vcf"/>
+<snippet id="ref.faidx" opt="R" name="fasta"/>
+
+
+<options>
+	<option name="jasparUri" type="string" opt="J" longopt="jasparuri">
+		<description>jaspar PFM uri example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt </description>
+	</option>
+	<option name="fraction_of_max" type="double" opt="f" longopt="fraction" default="0.95">
+		<description>(0&lt;ratio&lt;1) fraction of best score </description>
+	</option>	
+</options>
+<!-- __PLACEHOLDER__ --></app>

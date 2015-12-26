@@ -133,7 +133,7 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamChangeReference">SamChangeReference<a></th><td>TODO</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamExtractClip">SamExtractClip<a></th><td>TODO</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/GCAndDepth">GCAndDepth<a></th><td>Extracts GC% and depth for multiple bam using a sliding window.</td></tr>
-<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar94573">Biostar94573<a></th><td>Getting a VCF file from a CLUSTAW or FASTA alignment</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/MsaToVcf">MsaToVcf<a></th><td>Getting a VCF file from a CLUSTAW or FASTA alignment</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/CompareBamAndBuild">CompareBamAndBuild<a></th><td>Compare two  BAM files mapped on two different builds. Requires a liftover chain file.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/KnownGenesToBed">KnownGenesToBed<a></th><td>Convert UCSC KnownGene to BED.</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar95652">Biostar95652<a></th><td>Drawing a schematic genomic context tree. See also http://www.biostars.org/p/95652/</td></tr>

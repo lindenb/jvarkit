@@ -3,10 +3,9 @@
  */
 package com.github.lindenb.jvarkit.tools.jaspar;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -16,14 +15,10 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.tribble.readers.LineIterator;
-import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.readers.LineReaderUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -32,39 +27,27 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SubSequence;
 import com.github.lindenb.jvarkit.util.bio.RevCompCharSequence;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
-public class VcfJaspar extends AbstractVCFFilter2
+public class VcfJaspar extends AbstractVcfJaspar
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfJaspar.class);
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private List<Matrix> jasparDb=new ArrayList<Matrix>();
-	private double fraction_of_max=0.95;
-
-	private VcfJaspar() {
-		}
 	
 
-	@Override
-	public String getProgramDescription() {
-		return "Finds JASPAR profiles in VCF";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfJaspar";
+	public VcfJaspar() {
 		}
 	
-	
+
 	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
-		{
+	protected Collection<Throwable> doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out)
+			throws IOException {
 		final String ATT="JASPAR";
 		GenomicSequence genomicSequence=null;
-		VCFHeader header=in.getHeader();
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		final VCFHeader header=new VCFHeader(in.getHeader());
+		addMetaData(header);
 
 		header.addMetaDataLine(new VCFInfoHeaderLine(ATT,
 				VCFHeaderLineCount.UNBOUNDED,
@@ -78,13 +61,13 @@ public class VcfJaspar extends AbstractVCFFilter2
 
 			if(genomicSequence==null || !genomicSequence.getChrom().equals(var.getContig()))
 				{
-				info("Loading sequence "+var.getContig());
+				LOG.info("Loading sequence "+var.getContig());
 				genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile,var.getContig());
 				}
 			
-			Set<String> hits=new HashSet<String>();
+			final Set<String> hits=new HashSet<String>();
 		
-			for(Matrix matrix:this.jasparDb)
+			for(final Matrix matrix:this.jasparDb)
 				{
 					int start0=Math.max(0, var.getStart() - matrix.length());
 					for(int y=start0;y<var.getStart() && y+matrix.length() <= genomicSequence.length();++y)
@@ -124,93 +107,54 @@ public class VcfJaspar extends AbstractVCFFilter2
 				out.add(var);
 				continue;
 				}
-			VariantContextBuilder vcb=new VariantContextBuilder(var);
+			final VariantContextBuilder vcb=new VariantContextBuilder(var);
 			vcb.attribute(ATT, hits.toArray(new String[hits.size()]));
 			out.add(vcb.make());
 			}
-		}
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -J (uri) jaspar PFM uri. required. example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt ");
-		out.println(" -R (fasta) path to reference sequence indexed with picard. Required.");
-		out.println(" -f (0<ratio<1) fraction of best score. default:"+this.fraction_of_max);
-		super.printOptions(out);
+		return RETURN_OK;
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		File fasta=null;
-		String jasparUri=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "J:R:f:"))!=-1)
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		if(super.jasparUri==null)
 			{
-			switch(c)
-				{
-				case 'J': jasparUri=opt.getOptArg(); break;
-				case 'R': fasta=new File(opt.getOptArg()); break;
-				case 'f': this.fraction_of_max=Double.parseDouble(opt.getOptArg()); break;
-				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(jasparUri==null)
+			return wrapException("Undefined jaspar-uri");
+			}		
+		
+		if(super.fasta==null)
 			{
-			error("Undefined jaspar-uri");
-			return -1;
-			}
-
-		
-	
-		
-		
-		
-		if(fasta==null)
-			{
-			super.error("Undefined fasta sequence");
-			return -1;
+			return wrapException("Undefined fasta sequence");
 			}
 		try
 			{
-			info("Reading JASPAR: "+jasparUri);
-			LineReader lr=LineReaderUtil.fromBufferedStream(IOUtils.openURIForReading(jasparUri));
-			LineIterator liter=new LineIteratorImpl(lr);
+			LOG.info("Reading JASPAR: "+jasparUri);
+			LineIterator liter = IOUtils.openURIForLineIterator(this.jasparUri);
 			Iterator<Matrix> miter=Matrix.iterator(liter);
 			while(miter.hasNext())
 				{
 				Matrix matrix = miter.next();
 				this.jasparDb.add(matrix.convertToPWM());
 				}
-			lr.close();
-			info("JASPAR size: "+this.jasparDb.size());
+			CloserUtil.close(liter);
+			LOG.info("JASPAR size: "+this.jasparDb.size());
 
 			if(jasparDb.isEmpty())
 				{
-				warning("JASPAR IS EMPTY");
+				LOG.warn("JASPAR IS EMPTY");
 				}
 			
-			info("opening "+fasta);
+			LOG.info("opening "+fasta);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(fasta);
-			return doWork(opt.getOptInd(), args);
+			return doVcfToVcf(inputName);
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(this.indexedFastaSequenceFile);
+			this.indexedFastaSequenceFile=null;
 			}
 		}
 

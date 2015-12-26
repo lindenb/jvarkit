@@ -26,16 +26,16 @@ History:
 * 2014 creation
 
 */
-package com.github.lindenb.jvarkit.tools.biostar;
+package com.github.lindenb.jvarkit.tools.msa2vcf;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.io.File;
 import java.io.PrintWriter;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -54,12 +54,13 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.log.Logging;
 
-public class Biostar94573 extends AbstractCommandLineProgram
+public class MsaToVcf extends AbstractMsaToVcf
 	{
+	private static final org.slf4j.Logger LOG = Logging.getLog(MsaToVcf.class);
+
 	private static final char CLIPPING=' ';
 	private static final char DELETION='-';
 	private static final char MATCH='*';
@@ -67,8 +68,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 	private Map<String, AlignSequence> sample2sequence=new HashMap<String, AlignSequence>();
 	private AbstractSequence consensus=null;
 	private enum Format{None,Clustal,Fasta};
-	private File outFasta=null;
-	private boolean printAllSites=false;
+	
 	
 	private abstract class AbstractSequence
 		{
@@ -140,75 +140,24 @@ public class Biostar94573 extends AbstractCommandLineProgram
 		}
 	
 	
-	
 	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"Biostar94573";
-		}
-	@Override
-	public String getProgramDescription() {
-		return "Getting a VCF file from a CLUSTAW or FASTA alignment. See also http://www.biostars.org/p/94573/";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-R (name) reference name used for the CHROM column. Optional");
-		out.println("-f (fasta) save computed fasta sequence in this file. Optional");
-		out.println("-m haploid outpout. Optional");
-		out.println("-a generate variant for all sites");
-		out.println("-c (name) use this sequence as CONSENSUS.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		String consensusRefName=null;
-		boolean haploid=false;
-		String REF="chrUn";
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:f:mac:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'c': consensusRefName = opt.getOptArg();break;
-				case 'a': this.printAllSites=true; break;
-				case 'm': haploid=true; break;
-				case 'R': REF=opt.getOptArg(); break;
-				case 'f': this.outFasta = new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		
 		VariantContextWriter w=null;
 		LineIterator r=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(inputName==null)
 				{
-				info("Reading from stdin");
-				r=IOUtils.openStdinForLineIterator();
+				LOG.info("Reading from stdin");
+				r=IOUtils.openStreamForLineIterator(stdin());
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else 
 				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				r=IOUtils.openURIForLineIterator(filename);
+				LOG.info("Reading from "+inputName);
+				r=IOUtils.openURIForLineIterator(inputName);
 				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
+			
 			Format format=Format.None;
 
 			/** try to guess format */
@@ -229,11 +178,10 @@ public class Biostar94573 extends AbstractCommandLineProgram
 					}
 				else
 					{
-					error("MSA format not recognized in "+line);
-					return -1;
+					return wrapException("MSA format not recognized in "+line);
 					}
 				}
-			info("format : "+format);
+			LOG.info("format : "+format);
 			/** parse lines as FASTA */
 			if(Format.Fasta.equals(format))
 				{
@@ -248,8 +196,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						curr.name=line.substring(1).trim();
 						if(sample2sequence.containsKey(curr.name))
 							{
-							error("Sequence ID "+curr.name +" defined twice");
-							return -1;
+							return wrapException("Sequence ID "+curr.name +" defined twice");
 							}
 						sample2sequence.put(curr.name, curr);
 						}
@@ -259,6 +206,24 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						this.align_length=Math.max(this.align_length, curr.seq.length());
 						}
 					}
+				/*
+				//remove heading & trailing '-'
+				for(final String sample:this.sample2sequence.keySet())
+					{
+					final AlignSequence seq = this.sample2sequence.get(sample);
+					int i=0;
+					while(i<this.align_length && seq.at(i)==DELETION)
+						{
+						seq.seq.setCharAt(i, CLIPPING);
+						++i;
+						}
+					i= this.align_length-1;
+					while(i>=0 && seq.at(i)==DELETION)
+						{
+						seq.seq.setCharAt(i, CLIPPING);
+						--i;
+						}
+					}*/
 				}
 			/** parse lines as CLUSTAL */
 			else if(Format.Clustal.equals(format))
@@ -280,8 +245,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 						{
 						if(columnStart==-1)
 							{
-							error("illegal consensus line for "+line);
-							return -1;
+							return wrapException("illegal consensus line for "+line);
 							}	
 						/* if consensus doesn't exist in the first rows */
 						while(clustalconsensus.seq.length() < (this.align_length-(line.length()-columnStart) ))
@@ -297,8 +261,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 							columnStart=line.indexOf(' ');
 							if(columnStart==-1)
 								{
-								error("no whithespace in "+line);
-								return -1;
+								return wrapException("no whithespace in "+line);
 								}
 							while(columnStart< line.length() && line.charAt(columnStart)==' ')
 								{
@@ -326,8 +289,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				}
 			else
 				{
-				error("Undefined input format");
-				return -1;
+				return wrapException("Undefined input format");
 				}
 			CloserUtil.close(r);
 			
@@ -337,12 +299,10 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				AlignSequence namedSequence=null;
 				if((namedSequence=sample2sequence.get(consensusRefName))==null)
 					{
-					error("Cannot find consensus sequence \""+consensusRefName+"\" in list of sequences: "+this.sample2sequence.keySet().toString());
-					return -1;
+					return wrapException("Cannot find consensus sequence \""+consensusRefName+"\" in list of sequences: "+this.sample2sequence.keySet().toString());
 					}
 				this.consensus = new NamedConsensus(namedSequence);
 				}
-			
 			/** we're done, print VCF */
 			
 			/** first, print header */
@@ -351,8 +311,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 			vcfHeaderLines.add(new VCFInfoHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth."));
 			vcfHeaderLines.add(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_KEY, 1, VCFHeaderLineType.String, "Genotype"));
 			vcfHeaderLines.add(new VCFFormatHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth"));
-			vcfHeaderLines.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			vcfHeaderLines.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			super.addMetaData(vcfHeaderLines);
 			Map<String,String> mapping=new HashMap<String,String>();
 			mapping.put("ID", REF);
 			mapping.put("length",String.valueOf(this.align_length));
@@ -361,7 +320,7 @@ public class Biostar94573 extends AbstractCommandLineProgram
 			Set<String> samples=new TreeSet<String>(this.sample2sequence.keySet());
 			VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
 			
-			w=VCFUtils.createVariantContextWriterToStdout();
+			w= super.openVariantContextWriter();
 			w.writeHeader(vcfHeader);
 			
 			/** loop over data, print header */
@@ -553,16 +512,15 @@ public class Biostar94573 extends AbstractCommandLineProgram
 				fasta.close();
 				}
 			
-			info("Done");
+			LOG.info("Done");
 			
 			
 			
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -572,6 +530,6 @@ public class Biostar94573 extends AbstractCommandLineProgram
 		}
 	
 	public static void main(String[] args) {
-		new Biostar94573().instanceMainWithExit(args);
+		new MsaToVcf().instanceMainWithExit(args);
 	}
 }
