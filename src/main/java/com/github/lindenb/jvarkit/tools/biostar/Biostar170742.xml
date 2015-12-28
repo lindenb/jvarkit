@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "Biostar170742">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.biostar">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<input type="sam"/>
+<snippet id="ref.faidx" name="faidx" opt="R"/>
+
+<description>convert sam format to axt Format</description>
+
+<options>
+
+</options>
+
+<documentation>
+<h:h3>Example</h:h3>
+<h:pre>$ java -jar dist-2.0.1/biostar170742.jar \
+	-R ref.fa \
+	S1.bam  | head -n 15
+ 
+0 rotavirus 1 70 rotavirus_1_317_5:0:0_7:0:0_2de/1 + 60
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATT
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAATATGGCGTCAACTCAGCAGATGGTCAGCTCTAATATT
+
+1 rotavirus 1 70 rotavirus_1_535_4:0:0_4:0:0_1a6/2 + 60
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATT
+GGCTTTTACTGCTTTTCAGTGGTTGCTTCTCAAGATGGAGTGTACTCATCAGATGGTAAGCTCTATTATT
+
+2 rotavirus 1 70 rotavirus_1_543_5:0:0_11:0:0_390/2 + 60
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATT
+GGCTTTTAATGCTTTTCATTTGATGCTGCTCAAGATGGAGTCTACACAGCAGATGGTCAGCTCTATTATT
+
+3 rotavirus 1 70 rotavirus_1_578_3:0:0_7:0:0_7c/1 + 60
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATT
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTCCTGAGCAGCTGGTAAGCTCTATTATT
+(...)
+</h:pre>
+
+<h:h3>See also</h:h3>
+<h:ul>
+	<h:li><h:a href="https://www.biostars.org/p//#170790">https://www.biostars.org/p//#170790</h:a></h:li>
+	<h:li><h:a href="hhttps://genome.ucsc.edu/goldenPath/help/axt.html">https://genome.ucsc.edu/goldenPath/help/axt.html</h:a></h:li>
+</h:ul>
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>

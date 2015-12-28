@@ -28,12 +28,12 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collection;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -42,20 +42,17 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 
-
-public class Biostar78285 extends AbstractCommandLineProgram
+public class Biostar78285 extends AbstractBiostar78285
 	{
-    
-    private  int scan(SamReader samFileReader) throws IOException
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar78285.class);
+
+    private  Collection<Throwable> scan(final SamReader samFileReader,final PrintStream out) throws IOException
     	{
     	SAMRecordIterator iter=null;
     	try
@@ -64,14 +61,12 @@ public class Biostar78285 extends AbstractCommandLineProgram
 	    	SAMFileHeader header=samFileReader.getFileHeader();
 	    	if(header.getSortOrder()!=SortOrder.coordinate)
 	    		{
-	    		error("Sam file is not sorted on coordinate :"+header.getSortOrder());
-	    		return -1;
+	    		return wrapException("Sam file is not sorted on coordinate :"+header.getSortOrder());
 	    		}
 	    	SAMSequenceDictionary dict=header.getSequenceDictionary();
 	    	if(dict==null)
 	    		{
-	    		error("SamFile doesn't contain a SAMSequenceDictionary.");
-	    		return -1;
+	    		return wrapException("SamFile doesn't contain a SAMSequenceDictionary.");
 	    		}
 	    	/* flag, do we saw all chromosomes in dictionary ? */
 	    	boolean seen_tid[]=new boolean[dict.getSequences().size()];
@@ -90,20 +85,21 @@ public class Biostar78285 extends AbstractCommandLineProgram
 	    		if(rec.getDuplicateReadFlag()) continue;
 	    		if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 	    		if(rec.getMappingQuality()==0) continue;
+	    		
 	    		Cigar cigar=rec.getCigar();
 	    		if(cigar==null) continue;
 	    		if(ssr==null || ssr.getSequenceIndex()!=rec.getReferenceIndex())
 	    			{
 	    			if(ssr!=null && mapped!=null)
 	    				{
-		    			dump(ssr,mapped);
+		    			dump(ssr,mapped,out);
 		    			}
 	    			ssr=dict.getSequence(rec.getReferenceIndex());
 	    			if(ssr==null)
 	    				{
-	    				error("Sequence not in dict :"+rec);
+	    				return wrapException("Sequence not in dict :"+rec);
 	    				}
-	    			info("allocating bitset for "+ssr.getSequenceName()+" LENGTH="+ssr.getSequenceLength());
+	    			LOG.info("allocating bitset for "+ssr.getSequenceName()+" LENGTH="+ssr.getSequenceLength());
 	    			mapped=new BitSet(ssr.getSequenceLength());
 	    			seen_tid[rec.getReferenceIndex()]=true;
 	    			}
@@ -128,7 +124,7 @@ public class Biostar78285 extends AbstractCommandLineProgram
 	    	
 	    	if(ssr!=null && mapped!=null)
 				{
-    			dump(ssr,mapped);
+    			dump(ssr,mapped,out);
     			}
 	    		
 				
@@ -140,14 +136,13 @@ public class Biostar78285 extends AbstractCommandLineProgram
 	    		ssr=dict.getSequence(i);
     			System.out.println(ssr.getSequenceName()+"\t0\t"+ssr.getSequenceLength());
 	    		}
-	    	
+	    	out.flush();
 	    	progress.finish();
-	    	return 0;
+	    	return RETURN_OK;
 	    	}
     	catch(Exception err)
     		{
-    		error(err);
-    		return -1;
+    		return wrapException(err);
     		}
     	finally
     		{
@@ -156,7 +151,7 @@ public class Biostar78285 extends AbstractCommandLineProgram
     		}
     	
     	}
-    private void dump(SAMSequenceRecord ssr,BitSet mapped)
+    private void dump(SAMSequenceRecord ssr,BitSet mapped,final PrintStream out)
     	{
     	int i=0;
     	while(i<ssr.getSequenceLength())
@@ -171,79 +166,28 @@ public class Biostar78285 extends AbstractCommandLineProgram
     			{
     			++j;
         		}
-    		System.out.println(ssr.getSequenceName()+"\t"+i+"\t"+j);
+    		out.println(ssr.getSequenceName()+"\t"+i+"\t"+j);
     		i=j;
     		}
     	}
     
     @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/Biostar78285";
-    	}
-    
-    @Override
-	public String getProgramDescription() {
-		return "Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		SamReader samReader=null;
+    protected Collection<Throwable> call(String inputName) throws Exception {
+    	SamReader samReader=null;
+    	PrintStream out=null;
 		try
 			{
-			SamReaderFactory srf= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-			
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				samReader = srf.open(SamInputResource.of(System.in));
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				samReader = srf.open(new File(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			int err=scan(samReader);
-			samReader.close();
-			samReader=null;
-			return err;
+			out = openFileOrStdoutAsPrintStream();
+			samReader = openSamReader(inputName); 
+			return scan(samReader,out);
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
+			CloserUtil.close(out);
 			CloserUtil.close(samReader);
 			}
 		}

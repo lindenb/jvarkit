@@ -284,14 +284,6 @@ public class VCFTrios
 	}
 
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -p (file) Pedigree file");
-		out.println(" -f create a filter in the FILTER column");
-		out.println(" -o (filename) output. default:stdout");
-		super.printOptions(out);
-		}
 	
 	@Override
 	protected Collection<Throwable> call(String inputName) throws Exception {
