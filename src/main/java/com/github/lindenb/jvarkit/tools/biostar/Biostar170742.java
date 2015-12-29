@@ -146,6 +146,10 @@ public class Biostar170742 extends AbstractBiostar170742
 						}
 					}
 				out.print(' ');
+				out.print(1+rec.getAlignmentStart()-rec.getUnclippedStart());
+				out.print(' ');
+				out.print(rec.getReadLength()-(rec.getUnclippedEnd()-rec.getAlignmentEnd()));
+				out.print(' ');
 				out.print(rec.getReadNegativeStrandFlag()?"-":"+");
 				out.print(' ');
 				out.print(rec.getMappingQuality());
