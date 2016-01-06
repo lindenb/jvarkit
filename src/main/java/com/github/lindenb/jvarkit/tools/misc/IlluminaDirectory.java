@@ -31,13 +31,12 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -45,69 +44,44 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 
-public class IlluminaDirectory
-	extends AbstractKnimeApplication
-	{
-	private int ID_GENERATOR=0;
-	private boolean JSON=false;
-    private MessageDigest md5;
+import htsjdk.samtools.util.CloserUtil;
 
-    
-    public void setJSON(boolean jSON) {
-		JSON = jSON;
-		}
-    
-    public boolean isJSON() {
-		return JSON;
-		}
-    
-    private  String md5(String in)
-    	{
-    	if(md5==null)
-	    	{
-	    	  try {
-	              md5 = MessageDigest.getInstance("MD5");
-	          } catch (NoSuchAlgorithmException e) {
-	              throw new RuntimeException("MD5 algorithm not found", e);
-	          }
-	    	}
-    	 md5.reset();
-         md5.update(in.getBytes());
-         String s = new BigInteger(1, md5.digest()).toString(16);
-         if (s.length() != 32) {
-             final String zeros = "00000000000000000000000000000000";
-             s = zeros.substring(0, 32 - s.length()) + s;
-         }
-         return s;
-    	}
+public class IlluminaDirectory
+	extends AbstractIlluminaDirectory
+	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(IlluminaDirectory.class);
+
+	private int ID_GENERATOR=0;
+
     
     private class Folder
     	{
-    	SortedMap<String, Sample> sampleMap=new TreeMap<String, IlluminaDirectory.Sample>();
-    	List<Pair> undtermined=new ArrayList<Pair>();
-    	void scan(File f)
+    	String projectName="Project1";
+    	final SortedMap<String, Sample> sampleMap=new TreeMap<String, IlluminaDirectory.Sample>();
+    	final List<Pair> undetermined=new ArrayList<Pair>();
+    	void scan(final File f)
     		{
     		if(f==null) return;
     		if(!f.canRead()) return;
-    		IlluminaDirectory.this.info("Scanning "+f);
+    		LOG.info("Scanning "+f);
     		
 			FastQName fq=FastQName.parse(f);
 			if(!fq.isValid())
 				{
-				warning("invalid name:"+fq);
+				LOG.warn("invalid name:"+fq);
 				return;
 				}
 			if(fq.isUndetermined())
 				{
-				for(int i=0;i< undtermined.size();++i)
+				for(int i=0;i< undetermined.size();++i)
 	    			{
-	    			Pair p=undtermined.get(i);
+	    			Pair p=undetermined.get(i);
 	    			if(p.complement(fq)) return;
 	    			}
-				undtermined.add(new Pair(fq));
+				undetermined.add(new Pair(fq));
 				}
 			else
 				{
@@ -119,6 +93,17 @@ public class IlluminaDirectory
 					this.sampleMap.put(sample.name,sample);
 					}
 				sample.add(fq);
+				
+				
+				final File sampleDir = f.getParentFile();
+				if(sampleDir!=null && sampleDir.isDirectory() && sampleDir.getName().startsWith("Sample_"))
+					{
+					final File projDir = sampleDir.getParentFile();
+					if(projDir!=null && projDir.isDirectory() && projDir.getName().startsWith("Project_"))
+						{
+						this.projectName = projDir.getName().substring(8).replace(' ', '_');
+						}
+					}
 				}
 				
     			
@@ -136,7 +121,7 @@ public class IlluminaDirectory
 				}
     		out.print("],\"undetermined\":[");
     		first=true;
-    		for(Pair p:undtermined)
+    		for(final Pair p:undetermined)
 				{
     			if(!first) out.print(',');
     			first=false;
@@ -145,20 +130,20 @@ public class IlluminaDirectory
     		out.print("]}");
     		}
     	
-    	void write(XMLStreamWriter w) throws XMLStreamException
+    	void write(final XMLStreamWriter w) throws XMLStreamException
     		{
     		w.writeStartElement("project");
-    		w.writeAttribute("name", "Project1");
+    		w.writeAttribute("name",this.projectName);
     		w.writeAttribute("center", "CENTER");
     		w.writeAttribute("haloplex", "false");
     		w.writeAttribute("wgs", "false");
 
-    		for(Sample S:this.sampleMap.values())
+    		for(final Sample S:this.sampleMap.values())
     			{
     			S.write(w);
     			}
     		w.writeStartElement("undetermined");
-    		for(Pair p:undtermined)
+    		for(final Pair p:this.undetermined)
     			{
     			p.write(w);
     			}
@@ -188,7 +173,7 @@ public class IlluminaDirectory
     			}
     		}
     	
-    	boolean complement(FastQName other)
+    	boolean complement(final FastQName other)
     		{
     		if(forward!=null && reverse!=null) return false;
     		if(forward!=null && forward.isComplementOf(other))
@@ -204,7 +189,7 @@ public class IlluminaDirectory
     		return false;
     		}
     	
-    	void json(PrintStream out)
+    	void json(final PrintStream out)
     		{
     		if(forward!=null && reverse!=null)
 				{
@@ -273,6 +258,7 @@ public class IlluminaDirectory
 			w.writeAttribute("lane", String.valueOf(forward.getLane()));
 			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(forward.getSeqIndex()));
 			w.writeAttribute("split", String.valueOf(forward.getSplit()));
+			w.writeAttribute("group-id", getGroupId());
 			
 			if(forward!=null && reverse!=null)
     			{
@@ -287,12 +273,30 @@ public class IlluminaDirectory
 		
 			w.writeEndElement();
     		}
+    	private String getGroupId()
+    		{
+    		return IlluminaDirectory.this.getGroupId(this.forward);
+    		}
     	}
+    
+    private Map<String,String> groupIdMap=new HashMap<>(); 
+    private String getGroupId(final FastQName fastq)
+    	{
+    	final String s= md5( fastq.getSample()+" "+fastq.getLane()+" "+fastq.getSeqIndex());
+    	String gid = this.groupIdMap.get(s);
+    	if(gid==null)
+    		{
+    		gid = fastq.getSample()+"."+(this.groupIdMap.size()+1);
+    		this.groupIdMap.put(s, gid);
+    		}
+    	return gid;
+    	}
+    
     
     private class Sample
 		{
 		String name;
-    	List<Pair> pairs=new ArrayList<Pair>();
+    	final List<Pair> pairs=new ArrayList<Pair>();
     	
     	private void add(FastQName fq)
     		{
@@ -334,132 +338,73 @@ public class IlluminaDirectory
     	
 		}
     
-    
-    
-    @Override
-	public String getProgramDescription() {
-		return "Scan folders and generate a structured summary of the files in JSON or XML";
-		}
-    @Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"Illuminadir";
-    	}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -J produces a JSON output");
-		super.printOptions(out);
-		}
-	
-
-	@Override
-	public int doWork(String[] args)
-			{
-			com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-			int c;
-			while((c=opt.getopt(args, super.getGetOptDefault()+"Jo:"))!=-1)
-				{
-				switch(c)
-					{
-					case 'o': setOutputFile(opt.getOptArg()); break;
-					case 'J': setJSON(true);break;
-					default:
-						{
-						switch(super.handleOtherOptions(c, opt, args))
-							{
-							case EXIT_FAILURE:return -1;
-							case EXIT_SUCCESS:return 0;
-							case OK:break;
-							}
-						}
-					}
-				}
-			return mainWork(opt.getOptInd(), args);
-			}
-	
-	
-		@Override
-		public int executeKnime(List<String> args)
-			{
-			if(!args.isEmpty())
-				{
-				error("Expected to read filenames on stdin.");
-				return -1;
-				}
-			
+	    @Override
+	    protected Collection<Throwable> call(String inputName) throws Exception {
+	    	BufferedReader in=null;;
 			try
 				{
-				List<Folder> folders=new ArrayList<Folder>();
-				Folder folder=new Folder();
-				folders.add(folder);
+				if( inputName == null) 
+					{
+					in = IOUtils.openStreamForBufferedReader(stdin());
+					}
+				else
+					{
+					in = IOUtils.openURIForBufferedReading(inputName);
+					}
+				
+				final Folder folder=new Folder();
 				String line;
-				BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
 				while((line=in.readLine())!=null)
 					{
 					if(line.isEmpty() || line.startsWith("#")) continue;
 					if(!line.endsWith(".fastq.gz"))
 						{
-						warning("ignoring "+line);
+						LOG.warn("ignoring "+line+" because it doesn't end with *.fastq.gz");
 						continue;
 						}
-					File f=new File(line);
+					final File f=new File(line);
 					if(!f.exists())
 						{
-						error("Doesn't exist:"+f);
-						return -1;
+						return wrapException("Doesn't exist:"+f);
 						}
 					if(!f.isFile())
 						{
-						error("Not a file:"+f);
-						return -1;
+						return wrapException("Not a file:"+f);
 						}
 					folder.scan(f);
 					}
 				in.close();
 		    	
-				PrintStream pw = getOutputFile()==null?System.out:new PrintStream(getOutputFile());
+				PrintStream pw = this.openFileOrStdoutAsPrintStream();
 
-		    	if(this.isJSON())
+		    	if(super.isJSON())
 		    		{
-		    		pw.print("[");
-		    		for(int i=0;i< folders.size();++i)
-		    			{
-		    			if(i>0) pw.print(",");
-		    			folders.get(i).json(pw);
-		    			}
-		    		
-		    		pw.println("]");
-		    		pw.flush();
-		    		int ret = pw.checkError()?-1:0;
-		    		pw.close();
-		    		return ret;
+		    		folder.json(pw);
 		    		}
 		    	else
 		    		{
 	    			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 	    			XMLStreamWriter w= xmlfactory.createXMLStreamWriter(pw);
 	    			w.writeStartDocument("UTF-8","1.0");
-	    			w.writeStartElement("model");
-	    			w.writeComment(this.getProgramCommandLine());
-	    			for(Folder f:folders) f.write(w);
-	    			w.writeEndElement();
+	    			folder.write(w);
 	    			w.writeEndDocument();
 	    			w.flush();
 	    			w.close();
 		    		}
-				pw.close();
+		    	pw.flush();
+		    	int ret = pw.checkError()?-1:0;
+		    	pw.close();
+		    	if(ret!=0) return wrapException("I/O error on out (checkError)");
+				return RETURN_OK;
 				}
 			catch(Exception err)
 				{
-				error(err);
-				return -1;
+				return wrapException(err);
 				}
 			finally
 				{
-				
+				CloserUtil.close(in);
 				}
-			return 0;
 			}
    
 

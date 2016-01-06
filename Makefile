@@ -155,7 +155,7 @@ APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
 	biostar3654 vcfjoinvcfjs bioalcidae vcfburden vcfbedsetfilter vcfreplacetag vcfindextabix \
-	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele bedindextabix vcf2bam vcffilterxpath \
+	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele vcfmulti2oneinfo bedindextabix vcf2bam vcffilterxpath \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742
 
@@ -385,6 +385,7 @@ $(eval $(call compile-htsjdk-cmd,vcfindextabix,${jvarkit.package}.tools.misc.Vcf
 $(eval $(call compile-htsjdk-cmd,vcfpeekvcf,${jvarkit.package}.tools.vcfvcf.VcfPeekVcf))
 $(eval $(call compile-htsjdk-cmd,vcfgetvariantbyindex,${jvarkit.package}.tools.misc.VcfGetVariantByIndex))
 $(eval $(call compile-htsjdk-cmd,vcfmulti2oneallele,${jvarkit.package}.tools.misc.VcfMultiToOneAllele))
+$(eval $(call compile-htsjdk-cmd,vcfmulti2oneinfo,${jvarkit.package}.tools.misc.VcfMultiToOneInfo))
 $(eval $(call compile-htsjdk-cmd,bedindextabix,${jvarkit.package}.tools.misc.BedIndexTabix))
 $(eval $(call compile-htsjdk-cmd,vcf2bam,${jvarkit.package}.tools.misc.VcfToBam))
 $(eval $(call compile-htsjdk-cmd,vcffilterxpath,${jvarkit.package}.tools.misc.VcfFilterXPath))
