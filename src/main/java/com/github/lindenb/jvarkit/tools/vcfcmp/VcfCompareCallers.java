@@ -33,6 +33,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -61,7 +62,7 @@ import htsjdk.samtools.util.Interval;
 public class VcfCompareCallers
 	extends AbstractVcfCompareCallers
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VcfCompareCallers.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfCompareCallers.class);
 
 	private enum Category
 		{
@@ -177,6 +178,19 @@ public class VcfCompareCallers
 		out.writeCharacters("\n");
 		}
 	
+	private void internalTests()
+		{
+		Allele ref = Allele.create("A",true);
+		List<Allele> alleles = new java.util.ArrayList<Allele>();
+		alleles.add(ref);
+		alleles.add(ref);
+		Genotype g=new GenotypeBuilder("sample",alleles).make();
+		if(g.isNoCall()) throw new IllegalStateException();
+		if(!g.isCalled()) throw new IllegalStateException();
+		if(!g.isAvailable()) throw new IllegalStateException();
+		if(!g.isHomRef()) throw new IllegalStateException();
+		}
+	
 
 	@Override
 	public Collection<Throwable> call() throws Exception {
@@ -187,6 +201,9 @@ public class VcfCompareCallers
 		VcfIterator vcfInputs[]=new VcfIterator[]{null,null};
 		VCFHeader headers[]=new VCFHeader[]{null,null};
 		final List<String> args = getInputFiles();
+		
+		internalTests();
+		
 		try {
 			if(args.size()==1)
 				{
@@ -221,6 +238,7 @@ public class VcfCompareCallers
 			final Comparator<VariantContext> ctxComparator;
 			if(dict0==null && dict1==null)
 				{
+				LOG.info("using createChromPosRefComparator");
 				ctxComparator = VCFUtils.createChromPosRefComparator();
 				}
 			else if(dict0!=null && dict1!=null)
@@ -229,6 +247,7 @@ public class VcfCompareCallers
 					{
 					return wrapException(getMessageBundle("not.the.same.sequence.dictionaries"));
 					}
+				LOG.info("using createTidPosRefComparator");
 				ctxComparator = VCFUtils.createTidPosRefComparator(dict0);
 				}
 			else
@@ -250,8 +269,8 @@ public class VcfCompareCallers
 				return wrapException("No common samples");
 				}
 			
-			Map<String, Counter<Category>> sample2info=new HashMap<String, Counter<Category>>(samples.size());
-			for(String sampleName:samples)
+			final Map<String, Counter<Category>> sample2info=new HashMap<String, Counter<Category>>(samples.size());
+			for(final String sampleName:samples)
 				{
 				sample2info.put(sampleName, new  Counter<Category>());
 				}
@@ -265,9 +284,9 @@ public class VcfCompareCallers
 				exampleOut.writeStartElement("compare-callers");
 				}
 			
-			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(dict0);
-			VariantContext buffer[]=new VariantContext[vcfInputs.length];
-			VariantContext prev[]=new VariantContext[vcfInputs.length];
+			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(dict0);
+			final VariantContext buffer[]=new VariantContext[vcfInputs.length];
+			final VariantContext prev[]=new VariantContext[vcfInputs.length];
 			for(;;)
 				{
 				VariantContext smallest=null;
@@ -325,6 +344,16 @@ public class VcfCompareCallers
 					buffer[1]=null;
 					interval = new Interval(ctx1.getContig(),ctx1.getStart(),ctx1.getEnd());
 					}
+				
+				//paranoid check
+				if( buffer[0]!=null && buffer[1]!=null)
+					{
+					if( ctxComparator.compare(buffer[0],buffer[1])!=0) {
+						exampleWriter.close();
+						throw new IllegalStateException();
+						}	
+					}
+				
 				boolean in_capture=true;
 				if(capture!=null && interval!=null)
 					{
@@ -334,13 +363,24 @@ public class VcfCompareCallers
 				for(final String sampleName: sample2info.keySet())
 					{
 					final Counter<Category> sampleInfo=sample2info.get(sampleName);
+					
+					
 					Genotype g0=(ctx0==null?null:ctx0.getGenotype(sampleName));
 					Genotype g1=(ctx1==null?null:ctx1.getGenotype(sampleName));
+					
+					
+					
+					
 					if(g0!=null && (g0.isNoCall() || !g0.isAvailable())) g0=null;
 					if(g1!=null && (g1.isNoCall() || !g1.isAvailable())) g1=null;
 					
+					/* when merging multiple vcf with GATK. there is no homref
+					 * because everything is no call. Problem when comparing 
+					 * with multiple called VCF.
+					 */
+					if(g0!=null && super.homRefIsNoCall && g0.isHomRef()) g0=null;
+					if(g1!=null && super.homRefIsNoCall && g1.isHomRef()) g1=null;
 					
-
 
 					if(g0==null && g1==null)
 						{

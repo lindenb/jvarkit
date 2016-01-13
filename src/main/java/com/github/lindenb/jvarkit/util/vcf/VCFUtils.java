@@ -495,10 +495,10 @@ public class VCFUtils
 	private static class _DictCompareCtx
 		implements Comparator<VariantContext>
 		{
-		SAMSequenceDictionary dict;
-		_DictCompareCtx(SAMSequenceDictionary dict) {this.dict=dict;}
+		final SAMSequenceDictionary dict;
+		_DictCompareCtx(final SAMSequenceDictionary dict) {this.dict=dict;}
 		
-		private int tid(String chrom)
+		private int tid(final String chrom)
 			{
 			int t= dict.getSequenceIndex(chrom);
 			if(t==-1) throw new IllegalArgumentException("chromosome \""+chrom+"\" is missing in dictionary");

@@ -19,6 +19,9 @@
 	<option name="captureFile" type="input-file" longopt="bed"  opt="B">
 		<description>Limit to variants in that BED region</description>
 	</option>
+	<option name="homRefIsNoCall" type="boolean" longopt="homref2nocall"  opt="c" default="false">
+		<description>Treat HomRef as No Call (created when comparing merged vcf with GATK: there is no homref, everything is nocall)</description>
+	</option>
 </options>
 
 
@@ -31,6 +34,36 @@ $ java -jar dist/vcfcomparecallers.jar file1.vcf(.gz) file2.vcf(.gz)
 </h:pre>
 
 <h:p>both vcf **must** be sorted on CHROM/POS/REF</h:p>
+
+<h:h3>Column headers</h:h3>
+<h:ul>
+<h:li>off_target_only_1 : variant for this sample is found in vcf1 but not in vcf2, but variant is off target</h:li>
+<h:li>off_target_only_2 : variant for this sample is found in vcf2 but not in vcf1, but variant is off target</h:li>
+<h:li>off_target_both : variant for this sample is found in both vcf, but it variant off target</h:li>
+<h:li>unique_to_file_1 :  variant for this sample is found in vcf1 but not in vcf2 (in target)</h:li>
+<h:li>unique_to_file_1_snp : variant for this sample is found in vcf1 but not in vcf2 (in target) and it is a snp</h:li>
+<h:li>unique_to_file_1_indel : variant for this sample is found in vcf1 but not in vcf2 (in target) and it is an indel</h:li>
+<h:li>unique_to_file_2 :  variant for this sample is found in vcf2 but not in vcf1 (in target)</h:li>
+<h:li>unique_to_file_2_snp: variant for this sample is found in vcf2 but not in vcf1 (in target) and it is a snp</h:li>
+<h:li>unique_to_file_2_indel: variant for this sample is found in vcf2 but not in vcf1 (in target) and it is an indel</h:li>
+<h:li>both_missing: there is no genotype for this variant (chrom/pos/ref), while some other samples can have a called genotype.</h:li>
+<h:li>common_context: a genotype is available for this sample for this context in vcf1 and vcf2.</h:li>
+<h:li>common_context_snp:  a genotype is available for this sample for this context in vcf1 and vcf2 and it's a snp.</h:li>
+<h:li>common_context_indel:  a genotype is available for this sample for this context in vcf1 and vcf2 and it's an indel.</h:li>
+<h:li>common_context_discordant_id:  a genotype is available for this sample for this context in vcf1 and vcf2  but the column ID was not the same.</h:li>
+<h:li>called_and_same : vcf1 and vcf2 have the same genotype for this sample and variant (chrom/pos/ref).</h:li>
+<h:li>called_and_same_hom_ref :  vcf1 and vcf2 have the same hom-ref genotype for this sample and variant (chrom/pos/ref).</h:li>
+<h:li>called_and_same_hom_var :  vcf1 and vcf2 have the same hom-var genotype for this sample and variant (chrom/pos/ref).</h:li>
+<h:li>called_and_same_het : vcf1 and vcf2 have the same het genotype for this sample and variant (chrom/pos/ref).</h:li>
+<h:li>called_but_discordant : vcf1 and vcf2 don't have the same genotype for this variant and sample.</h:li>
+<h:li>called_but_discordant_hom1_het2 :  vcf1 and vcf2 don't have the same genotype for this variant and sample. vcf1 is hom and vcf2 is het</h:li>
+<h:li>called_but_discordant_het1_hom2 :  vcf1 and vcf2 don't have the same genotype for this variant and sample. vcf1 is het and vcf2 is hom</h:li>
+<h:li>called_but_discordant_hom1_hom2 :  vcf1 and vcf2 don't have the same genotype for this variant and sample. vcf1 is hom and vcf2 is hom</h:li>
+<h:li>called_but_discordant_het1_het2 :  vcf1 and vcf2 don't have the same genotype for this variant and sample. vcf1 is het and vcf2 is het</h:li>
+<h:li>called_but_discordant_others :  vcf1 and vcf2 don't have the same genotype for this variant and sample. other cases.</h:li>
+</h:ul>
+
+
 
 <h:h3>Example</h:h3>
 <h:pre>$ java -jar dist-1.128/vcfcomparecallers.jar  Proj1.samtools.vcf.gz  Proj1.varscan.vcf.gz

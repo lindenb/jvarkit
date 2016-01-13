@@ -363,7 +363,28 @@ public class VepPredictionParser implements PredictionParser
 				}
 			return set;
 			}
-
+		
+		public Integer getPositionInCDna()
+		{
+			final String s= getByCol(COLS.cDNA_position);
+			if(s==null || s.trim().isEmpty()) return null;
+			try {
+				return Integer.parseInt(s);
+			} catch (Exception e) {
+				return null;
+			}
+		}
+		
+		public Integer getPositionInCDS()
+		{
+			final String s= getByCol(COLS.CDS_position);
+			if(s==null || s.trim().isEmpty()) return null;
+			try {
+				return Integer.parseInt(s);
+			} catch (Exception e) {
+				return null;
+			}
+		}
 		
 	@Override
 	public String toString() {

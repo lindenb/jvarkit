@@ -1,16 +1,38 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
@@ -18,13 +40,12 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-public class HowManyBamDict extends AbstractCommandLineProgram {
-	private MessageDigest md5;
-	private HowManyBamDict()
+public class HowManyBamDict extends AbstractHowManyBamDict {
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(HowManyBamDict.class);
+
+	public HowManyBamDict()
 		{
 		 
 		}
@@ -39,24 +60,7 @@ public class HowManyBamDict extends AbstractCommandLineProgram {
 			{
 			this.ssd=ssd;
 			this.representative=representative;
-		    
-	    	
-	    	 md5.reset();
-	    	 md5.update(String.valueOf(ssd.size()).getBytes());
-	    	 for(SAMSequenceRecord ssr:ssd.getSequences())
-	    	 	{
-	    		 md5.update(ssr.getSequenceName().getBytes());
-	    		 md5.update(String.valueOf(ssr.getSequenceLength()).getBytes());
-	    	 	}
-	         
-	         hash = new BigInteger(1, md5.digest()).toString(16);
-	         if (hash.length() != 32) {
-	             final String zeros = "00000000000000000000000000000000";
-	             hash= zeros.substring(0, 32 - hash.length()) + hash;
-	         }
-	       
-
-			
+	    	this.hash =ssd.md5();
 			}
 		
 		@Override
@@ -99,24 +103,13 @@ public class HowManyBamDict extends AbstractCommandLineProgram {
 	private Dict empty=null;
 	private Set<Dict>  allditcs=new LinkedHashSet<Dict>();
 	
-	@Override
-	public String getProgramDescription() {
-		return "finds if there's are some differences in the sequence dictionaries.";
-		}
 	
- 	@Override
-	public void printOptions(PrintStream out)
- 		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of "+Level.class.getName()+" currently:"+getLogger().getLevel());
-		}
  	
- 	private void handle(File f) throws IOException
+ 	private void handle(PrintWriter out,File f) throws IOException
  		{
  		SamReader sfr=null;
  		try {
- 			info(f);
+ 			LOG.info(f.getPath());
 			sfr=SamFileReaderFactory.mewInstance().open(f);
 			SAMFileHeader header=sfr.getFileHeader();
 			if(header==null || header.getSequenceDictionary()==null)
@@ -149,7 +142,7 @@ public class HowManyBamDict extends AbstractCommandLineProgram {
  			} 
  		catch (Exception e)
 			{
-			error(e, e.getMessage());
+			LOG.error(e.getMessage(),e);
 			throw new IOException(e);
 			}
  		finally
@@ -158,61 +151,44 @@ public class HowManyBamDict extends AbstractCommandLineProgram {
  			}
  		}
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		GetOpt getopt=new GetOpt();
-		int c;
-		while((c=getopt.getopt(args, "hvL:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(Level.parse(getopt.getOptArg()));break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
-				}
-			}
-		
-		 try {
-   		  this.md5 = MessageDigest.getInstance("MD5");
-         } catch (NoSuchAlgorithmException e) {
-            error(e,"MD5 algorithm not found");
-            return -1;
-         }
-		
+ 	@Override
+ 	public Collection<Throwable> call() throws Exception {
+ 		final List<String> args = super.getInputFiles();
+		PrintWriter out=null;
 		try
 			{
-			if(getopt.getOptInd()==args.length)
+			out = super.openFileOrStdoutAsPrintWriter();
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
+				LOG.info("Reading from stdin");
 				String line;
 				
 					BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
 					while((line=in.readLine())!=null)
 						{
 						if(line.isEmpty() || line.endsWith(File.separator) || line.startsWith("#")) continue;
-						handle(new File(line));
+						handle(out,new File(line));
 						}
 					in.close();
 					
 				}
 			else
 				{
-				for(int i=getopt.getOptInd();i< args.length;++i)
+				for(String filename:args)
 					{
-					handle(new File(args[i]));
+					handle(out,new File(filename));
 					}
 				}
+			out.flush();
+			return RETURN_OK;
 			}
 		catch(IOException err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
-		
-		return 0;
+		finally {
+			CloserUtil.close(out);
+			}
 		}
 
 	

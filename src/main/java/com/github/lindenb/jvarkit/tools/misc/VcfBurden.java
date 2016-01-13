@@ -68,7 +68,8 @@ public class VcfBurden extends AbstractKnimeApplication
 	private boolean highdamage=false;
 	private Map<String,Boolean> _gene2seen=null;
 	private String dirName="burden";
-	private boolean printSOTerms=false;//mail matilde 11/10/2015 11:38 AM
+	private boolean printSOTerms = false;//mail matilde 11/10/2015 11:38 AM
+	private boolean printPositionInCDS = false;
 	public VcfBurden()
 		{
 		}
@@ -77,10 +78,17 @@ public class VcfBurden extends AbstractKnimeApplication
 		{
 		final VariantContext variant;
 		final Set<SequenceOntologyTree.Term> terms;
-		VariantAndCsq(VariantContext variant,Set<SequenceOntologyTree.Term> terms)
+		final Integer pos_in_cds;
+		VariantAndCsq(VariantContext variant,Set<SequenceOntologyTree.Term> terms,Integer pos_in_cds)
 			{
 			this.variant = variant;
 			this.terms = new HashSet<>(terms);
+			this.pos_in_cds=pos_in_cds;
+			}
+		
+		Integer getPositionInCDS()
+			{
+			return this.pos_in_cds;
 			}
 		}
 	
@@ -157,6 +165,13 @@ public class VcfBurden extends AbstractKnimeApplication
 		zout.putNextEntry(ze);
 		PrintWriter pw = new PrintWriter(zout);
 		pw.print("CHROM\tPOS\tREF\tALT");
+		
+		if(printPositionInCDS)
+			{
+			pw.print("\t");
+			pw.print("PositionInCDSA");
+			}
+		
 		if(printSOTerms)
 			{
 			pw.print("\t");
@@ -177,6 +192,13 @@ public class VcfBurden extends AbstractKnimeApplication
 			pw.print(vac.variant.getReference().getDisplayString());
 			pw.print("\t");
 			pw.print(vac.variant.getAlternateAlleles().get(0).getDisplayString());
+			
+			if(printPositionInCDS)
+				{
+				pw.print("\t");
+				pw.print(vac.getPositionInCDS()==null?"N/A":""+vac.getPositionInCDS());
+				}
+			
 			if(printSOTerms)
 				{
 				pw.print("\t");
@@ -446,7 +468,11 @@ public class VcfBurden extends AbstractKnimeApplication
 						L=new ArrayList<>();
 						gene2variants.put(geneTranscript,L);
 						}
-					L.add(new VariantAndCsq(ctx1,pred.getSOTerms()));
+					L.add(new VariantAndCsq(
+							ctx1,
+							pred.getSOTerms(),
+							pred.getPositionInCDna()
+							));
 					seen_names.add(geneTranscript);
 					if(this._gene2seen!=null)
 						{
@@ -501,6 +527,7 @@ public class VcfBurden extends AbstractKnimeApplication
 		out.println(" -d (dir) base zip dir default:"+this.dirName);
 		out.println(" -H only high damage");
 		out.println(" -f print ALL consequence+ colum, SO terms (mail matilde 11/10/2015 11:38 AM)");
+		out.println(" -p print position in CDS");
 		super.printOptions(out);
 		}
 	
@@ -510,10 +537,11 @@ public class VcfBurden extends AbstractKnimeApplication
 		{
 		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
 		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:d:g:Hf"))!=-1)
+		while((c=opt.getopt(args,getGetOptDefault()+ "o:d:g:Hfp"))!=-1)
 			{
 			switch(c)
 				{
+				case 'p': this.printPositionInCDS = true; break;
 				case 'f': this. printSOTerms = true; break;
 				case 'H':  this.highdamage=true;break;
 				case 'o': setOutputFile(opt.getOptArg()); break;

@@ -222,11 +222,10 @@ public class VCFShuffle extends AbstractKnimeApplication
 		CloserUtil.close(lr);
 		CloserUtil.close(out);
 		}
-		}
+	}
 	
 	@Override
-	public void printOptions(PrintStream out)
-		{
+	public void printOptions(PrintStream out) {
 		out.println(" -T (dir) tmp directory. Optional.");
 		out.println(" -N (long) random seed. Optional.");
 		out.println(" -m (int) max records in ram. Optional");
