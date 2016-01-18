@@ -209,5 +209,6 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BlastFilterJS">BlastFilterJS</a></th><td>Filters a XML Blast Output with a javascript expression</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar170742">Biostar170742</a></th><td>SAM to AXT converter</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar172515">Biostar172515</a></th><td>Convert Bam Index to XML</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar173114">Biostar173114</a></th><td>make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114</td></tr>
 </table>
 

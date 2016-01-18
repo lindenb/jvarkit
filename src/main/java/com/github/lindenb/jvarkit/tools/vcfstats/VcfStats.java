@@ -1,8 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 package com.github.lindenb.jvarkit.tools.vcfstats;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -27,8 +50,6 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.io.TeeInputStream;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -38,8 +59,10 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.Sn
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
-public class VcfStats extends AbstractCommandLineProgram
+public class VcfStats extends AbstractVcfStats
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfStats.class);
+
 	private static final int HISTOGRAM_STEP=5;
 	private VepPredictionParser vepPredictionParser=null;
 	private SnpEffPredictionParser snpEffPredictionParser=null;
@@ -518,80 +541,33 @@ public class VcfStats extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public String getProgramDescription() {
-		return "VCF statitics";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-o (filename?xml) . If set, the original VCF will be printed to stdout. ");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		File fileout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': fileout=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-	
+	protected Collection<Throwable> call(String filename) throws Exception {
 		VcfIterator iter=null;
 		XMLStreamWriter xout=null;
 		InputStream vcfInputStream=null;
-		
+		OutputStream ostream = null;
 		try
-			{
-			String filename;
+			{			
 			
-			
-			
-			if(opt.getOptInd()==args.length)
+			if(filename==null)
 				{
 				filename="stdin";
-				vcfInputStream=System.in;
+				vcfInputStream=stdin();
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else
 				{
-				filename=args[opt.getOptInd()];
 				vcfInputStream=IOUtils.openURIForReading(filename);
 				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
-			info("Reading from "+filename);
+			
+			LOG.info("Reading from "+filename);
+			ostream= super.openFileOrStdoutAsStream();
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			if(fileout!=null)
-				{
-				vcfInputStream=new TeeInputStream(vcfInputStream, System.out, true);
-				xout=xof.createXMLStreamWriter(new FileOutputStream(fileout),"UTF-8");
-				}
-			else
-				{
-				xout=xof.createXMLStreamWriter(System.out,"UTF-8");
-				}
+			xout=xof.createXMLStreamWriter(ostream,"UTF-8");
+			
 			
 			iter=new VcfIterator(vcfInputStream);
-			VCFHeader header=iter.getHeader();
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final VCFHeader header=iter.getHeader();
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			
 			
 			VCFInfoHeaderLine vihl=header.getInfoHeaderLine("DP");
@@ -780,16 +756,19 @@ public class VcfStats extends AbstractCommandLineProgram
 			xout.writeEndElement();//body
 			xout.writeEndElement();//html
 			xout.flush();
-			return 0;
+			ostream.flush();
+			ostream.close();
+			
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(xout);
+			CloserUtil.close(ostream);
 			CloserUtil.close(iter);
 			CloserUtil.close(vcfInputStream);
 			}

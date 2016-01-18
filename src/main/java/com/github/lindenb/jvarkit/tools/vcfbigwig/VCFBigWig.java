@@ -31,15 +31,14 @@ package com.github.lindenb.jvarkit.tools.vcfbigwig;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -47,68 +46,55 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VCFBigWig extends AbstractVCFFilter3
+public class VCFBigWig extends AbstractVCFBigWig
 	{
-	public boolean contained = true;
-    private String biwWigFile;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFBigWig.class);
+
 	private BBFileReader bbFileReader=null;
-	private String TAG=null;
 	
 	public VCFBigWig()
 		{
 		}
 	
-	public void setContained(boolean contained) {
-		this.contained = contained;
-		}
-	
-	private boolean isContained()
-		{
-		return contained;
-		}
 	
 	@Override
-	public int initializeKnime() {
+	public Collection<Throwable> initializeKnime() {
+		if(super.biwWigFile==null || super.biwWigFile.isEmpty())
+			{
+			return wrapException("Undefined BigWig file");
+			}
 		try
 			{
-			if(this.biwWigFile==null || this.biwWigFile.isEmpty())
-				{
-				error("Undefined BigWig file");
-				return -1;
-				}
-			this.bbFileReader= new BBFileReader(this.biwWigFile);
+			
+			this.bbFileReader= new BBFileReader(super.biwWigFile);
 			if(!this.bbFileReader.isBigWigFile())
 				{
 				this.bbFileReader=null;
-				throw new IOException(this.biwWigFile+" is not a bigWIG file.");
+				throw new IOException(super.biwWigFile+" is not a bigWIG file.");
 				}
 			
 			if(this.TAG==null || this.TAG.isEmpty())
 				{
-				this.TAG=this.biwWigFile;
+				super.TAG=super.biwWigFile;
 				int i=TAG.lastIndexOf(File.separator);
 				if(i!=-1) TAG=TAG.substring(i+1);
-				i=this.TAG.indexOf('.');
-				this.TAG=this.TAG.substring(0,i);
-				info("setting tag to "+this.TAG);
+				i=super.TAG.indexOf('.');
+				super.TAG=super.TAG.substring(0,i);
+				LOG.info("setting tag to "+super.TAG);
 				}
 			
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		return super.initializeKnime();
 		}
-	
 	
 	@Override
 	public void disposeKnime() {
@@ -123,51 +109,45 @@ public class VCFBigWig extends AbstractVCFFilter3
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error("Error",err);
 			}
 		super.disposeKnime();
 		}
 	
-	public void setBiwWigFile(String biwWigFile) {
-		this.biwWigFile = biwWigFile;
-		}
-	
-	public void setTag(String tAG) {
-		this.TAG = tAG;
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		return doVcfToVcf(inputName);
 		}
 	
 	@Override
-	protected void doWork(String inputSource, VcfIterator r,
-			VariantContextWriter w) throws IOException
-		{
-		VCFHeader header=r.getHeader();
-		
-		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
+	protected Collection<Throwable> doVcfToVcf(
+			final String inputName,
+			final VcfIterator r,
+			final VariantContextWriter w)
+			throws IOException {
+		final VCFHeader header=r.getHeader();
+		final VCFHeader h2=new VCFHeader(header);
 		h2.addMetaDataLine(new VCFInfoHeaderLine(
-				this.TAG,1,
+				super.TAG,1,
 				VCFHeaderLineType.Float,
 				"Values from bigwig file: "+this.biwWigFile
 				));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+		super.addMetaData(h2);
 		w.writeHeader(h2);
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 		
-		List<Float> values=new ArrayList<Float>();
+		final List<Float> values=new ArrayList<Float>();
 		while(r.hasNext())
 			{
-			
-			VariantContext ctx = progress.watch(r.next());
+			final VariantContext ctx = progress.watch(r.next());
 			values.clear();
 			
-			BigWigIterator iter=this.bbFileReader.getBigWigIterator(
+			final BigWigIterator iter=this.bbFileReader.getBigWigIterator(
 					ctx.getContig(),
 					ctx.getStart()-1,
 					ctx.getContig(),
 					ctx.getEnd(),
-					isContained()
+					super.isContained()
 					);
 			while(iter!=null && iter.hasNext())
 				{
@@ -178,70 +158,20 @@ public class VCFBigWig extends AbstractVCFFilter3
 				}
 			if(values.isEmpty())
 				{
-				incrVariantCount();
 				w.add(ctx);
 				continue;
 				}
 			
 			double total=0L;
 			for(Float f:values) total+=f;
-			VariantContextBuilder b=new VariantContextBuilder(ctx);
+			final VariantContextBuilder b=new VariantContextBuilder(ctx);
 			b.attribute(this.TAG,(float)(total/values.size()));
 			w.add(b.make());
-			incrVariantCount();
 			}
 		progress.finish();
+		return RETURN_OK;
 		}
 	
-	
-	@Override
-	public String getProgramDescription() {
-		return "annotate a VCF with values from a bigwig file.";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"VCFBigWig";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -B (file) Path to the bigwig file.");
-		out.println(" -T (name) of the INFO tag. default: name of the bigwig.");
-		out.println(" -C Specifies wig values must be contained by region. if false: return any intersecting region values.");
-		out.println(" -o (out)  output file. default stdout");
-		super.printOptions(out);
-		}
-
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"B:Co:T:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'B': this.setBiwWigFile(opt.getOptArg());break;
-				case 'T': this.setTag(opt.getOptArg());break;
-				case 'C': this.setContained(true); break;
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
-
 	
 	public static void main(String[] args) throws IOException
 		{

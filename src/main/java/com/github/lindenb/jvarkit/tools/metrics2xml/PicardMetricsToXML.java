@@ -3,11 +3,12 @@ package com.github.lindenb.jvarkit.tools.metrics2xml;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -16,16 +17,17 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-
 import htsjdk.samtools.metrics.Header;
 import htsjdk.samtools.metrics.MetricBase;
 import htsjdk.samtools.metrics.MetricsFile;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Histogram;
 
 public class PicardMetricsToXML
-	extends AbstractCommandLineProgram
+	extends AbstractPicardMetricsToXML
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PicardMetricsToXML.class);
+
 	private static final String NS="http://picard.sourceforge.net/";
 	private static class MinMax
 		{
@@ -204,6 +206,7 @@ public class PicardMetricsToXML
 	
 	private void parse(String filename,Reader in) throws IOException,XMLStreamException
 		{
+		LOG.info("processing "+filename);
 		out.writeStartElement("metrics-file");
 		out.writeAttribute("file", filename);
 		this.metricsFile = new MetricsFile<MetricBase, Comparable<?>>();
@@ -220,78 +223,48 @@ public class PicardMetricsToXML
 		}
 	
 	@Override
-	public String getProgramDescription() {
-		return "transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html ";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/PicardMetricsToXML";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
-		out.println(" -s print sum");
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args, "hvL:s"))!=-1)
-			{
-			switch(c)
-				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(getopt.getOptArg()));break;
-				case 's': print_sums=true;break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
-				}
-			}
-	
+	public Collection<Throwable> call() throws Exception {
+		OutputStream pstream=null;
+		final List<String> args = super.getInputFiles();
 		try
 			{
+			pstream = super.openFileOrStdoutAsStream();
 			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-			this.out= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
+			this.out= xmlfactory.createXMLStreamWriter(pstream,"UTF-8");
 			this.out.setDefaultNamespace(NS);
 			out.writeStartDocument("UTF-8","1.0");
 			out.writeStartElement("picard-metrics");
 			out.writeDefaultNamespace(NS);
 			out.writeAttribute(XMLConstants.XMLNS_ATTRIBUTE, XMLConstants.XML_NS_URI,"xsi", XMLConstants.W3C_XML_SCHEMA_INSTANCE_NS_URI);
 
-			if(getopt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				parse("stdin",new InputStreamReader(System.in));
+				parse("stdin",new InputStreamReader(stdin()));
 				}
 			else
 				{
-				for(int i=getopt.getOptInd();i< args.length;++i)
+				for(final String filename:args)
 					{
-					parse(new File(args[i]));
+					parse(new File(filename));
 					}
 				}
 			out.writeEndElement();
 			out.writeEndDocument();
 			out.flush();
 			out.close();
+			pstream.flush();
+			pstream.close();
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-			
+			CloserUtil.close(this.out);
+			CloserUtil.close(pstream);
 			}
-		return 0;
 		}
 	
 	public static void main(String[] args)

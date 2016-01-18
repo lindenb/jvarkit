@@ -29,8 +29,8 @@ History:
 package com.github.lindenb.jvarkit.tools.vcfstripannot;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -48,18 +48,15 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
-public class VCFReplaceTag extends AbstractVCFFilter3
+public class VCFReplaceTag extends AbstractVCFReplaceTag
 	{
-	private Set<String> userStrings=new HashSet<>();
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractVCFReplaceTag.class);
 	private Map<String,String> transformMap=new HashMap<>();
-	private String replaceType=null;
 	private int replaceTypeNo=-1;
 	
 	public VCFReplaceTag()
@@ -67,35 +64,17 @@ public class VCFReplaceTag extends AbstractVCFFilter3
 		}
 	
 	@Override
-	protected String getOnlineDocUrl()
-		{
-		return DEFAULT_WIKI_PREFIX+"VCFReplaceTag";
-		}
-	
-	@Override
-	protected String getProgramCommandLine()
-		{
-		return "Replace the key for INFO/FORMAT/FILTER";
-		}
-	
-	public void setReplaceType(String replaceType) {
-		this.replaceType = replaceType;
-		}
-	
-	public Set<String> getUserReplace() {
-		return userStrings;
-		}
-	
-	
-	@Override
-	protected void doWork(String source,VcfIterator r, VariantContextWriter w)
-			throws IOException
-			{
-			VCFHeader header=r.getHeader();
+	protected Collection<Throwable> doVcfToVcf(
+			final String inputName,
+			final VcfIterator r,
+			final VariantContextWriter w)
+			throws IOException {
+
+			final VCFHeader header=r.getHeader();
 			
-			HashSet<VCFHeaderLine> copyMeta= new HashSet<>(header.getMetaDataInInputOrder());
+			final HashSet<VCFHeaderLine> copyMeta= new HashSet<>(header.getMetaDataInInputOrder());
 			
-			for(String key:this.transformMap.keySet())
+			for(final String key:this.transformMap.keySet())
 				{
 				switch(this.replaceTypeNo)
 					{
@@ -132,21 +111,11 @@ public class VCFReplaceTag extends AbstractVCFFilter3
 					default: throw new IllegalStateException(""+this.replaceTypeNo);
 					}
 				}
-			
-			copyMeta.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			copyMeta.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			copyMeta.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			copyMeta.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+			addMetaData(copyMeta);
 
-			VCFHeader h2=new VCFHeader(copyMeta,header.getSampleNamesInOrder());
-			
-			
-			
-			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(h2);
-
-			
+			final VCFHeader h2=new VCFHeader(copyMeta,header.getSampleNamesInOrder());
+			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(h2);
 			w.writeHeader(h2);
-			
 			while(r.hasNext())
 				{
 				VariantContext ctx=progress.watch(r.next());
@@ -208,50 +177,46 @@ public class VCFReplaceTag extends AbstractVCFFilter3
 						}
 					
 				w.add(b.make());
-				this.incrVariantCount();
-				if(this.checkOutputError()) break;
+				if(w.checkError()) break;
 				}	
 			progress.finish();
+			LOG.info("done");
+			return RETURN_OK;
 			}
-	
 	
 	@Override
-	public int initializeKnime() {
-		if(this.replaceType==null)
+	public Collection<Throwable> initializeKnime()
+		{	
+		if(super.replaceType==null)
 			{
-			error("Undefined replaceType");
-			return -1;
+			return wrapException("Undefined replaceType");
 			}
-		this.replaceType= this.replaceType.toUpperCase();
-		if(this.replaceType.equals("FILTER")){replaceTypeNo=2;}
-		else if(this.replaceType.equals("INFO")){replaceTypeNo=0;}
-		else if(this.replaceType.equals("FORMAT")){replaceTypeNo=1;}
+		super.replaceType= this.replaceType.toUpperCase();
+		if(super.replaceType.equals("FILTER")){replaceTypeNo=2;}
+		else if(super.replaceType.equals("INFO")){replaceTypeNo=0;}
+		else if(super.replaceType.equals("FORMAT")){replaceTypeNo=1;}
 		else
 			{	
-			error("Undefined replace type :"+this.replaceType);
-			return -1;
+			return wrapException("Undefined replace type :"+this.replaceType);
 			}
-		for(String s:this.userStrings)
+		for(final String s:super.userTagList)
 			{
 			int slash=s.indexOf('/');
 			if(slash==-1)
 				{
-				error("missing '/' in "+s);
-				return -1;
+				return wrapException("missing '/' in "+s);
 				}
 			if(slash==0 || slash+1==s.length())
 				{
-				error("bad '/' in "+s);
-				return -1;
+				return wrapException("bad '/' in "+s);
 				}
-			String key = s.substring(0,slash);
+			final String key = s.substring(0,slash);
 			if(replaceTypeNo==1)
 				{
 				if(key.equals("DP") || key.equals("GT")|| key.equals("PL")||
 					key.equals("AD")|| key.equals("GQ"))
 					{
-					error("Cannot replace built-in FORMAT fields "+key);
-					return -1;
+					return wrapException("Cannot replace built-in FORMAT fields "+key);
 					}
 				}
 			this.transformMap.put(key,s.substring(slash+1));
@@ -260,40 +225,8 @@ public class VCFReplaceTag extends AbstractVCFFilter3
 		}
 	
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -k (key-src/key-to) replace this tag. Multiple.");
-		out.println(" -t (type) replace type: one of FORMAT,FILTER,INFO. Required");
-		out.println(" -o (file) output file. Default stdout.");
-		super.printOptions(out);
-		}
-
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:k:t:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'k': this.getUserReplace().add(opt.getOptArg()); break;
-				case 't': this.setReplaceType(opt.getOptArg()); break;
-				case 'o': this.setOutputFile(opt.getOptArg());break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		return mainWork(opt.getOptInd(), args);
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		return doVcfToVcf(inputName);
 		}
 
 	

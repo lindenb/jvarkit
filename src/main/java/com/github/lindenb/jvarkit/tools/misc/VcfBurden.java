@@ -169,7 +169,7 @@ public class VcfBurden extends AbstractKnimeApplication
 		if(printPositionInCDS)
 			{
 			pw.print("\t");
-			pw.print("PositionInCDSA");
+			pw.print("PositionInCDS");
 			}
 		
 		if(printSOTerms)
@@ -471,7 +471,7 @@ public class VcfBurden extends AbstractKnimeApplication
 					L.add(new VariantAndCsq(
 							ctx1,
 							pred.getSOTerms(),
-							pred.getPositionInCDna()
+							pred.getPositionInCDS()
 							));
 					seen_names.add(geneTranscript);
 					if(this._gene2seen!=null)
