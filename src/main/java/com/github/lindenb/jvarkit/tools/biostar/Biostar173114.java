@@ -24,7 +24,6 @@ SOFTWARE.
 
 package com.github.lindenb.jvarkit.tools.biostar;
 import java.util.Collection;
-import java.util.List;
 
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
@@ -32,7 +31,6 @@ import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.SAMRecordFactory;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;

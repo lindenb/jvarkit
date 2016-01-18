@@ -15,4 +15,31 @@
 
 </options>
 
+<documentation>
+<h:h3>Example</h:h3>
+<h:pre><![CDATA[ $ java -jar dist/biostar173114.jar --formatout sam  my.bam  | samtools view -h | head -n 100
+
+@HD VN:1.5  GO:none SO:coordinate
+@SQ SN:1    LN:249250621
+@SQ SN:2    LN:243199373
+(...)
+@SQ SN:GL000192.1   LN:547496
+R0  0   1   822010  55  51M *   0   0   *   *
+R1  16  1   822010  55  51M *   0   0   *   *
+R2  0   1   829084  60  87M13S  *   0   0   *   *
+R3  0   1   829084  60  87M13S  *   0   0   *   *
+R4  0   1   829084  60  87M13S  *   0   0   *   *
+R5  16  1   829122  59  48M36D52M   *   0   0   *   *
+R6  16  1   829122  59  48M36D52M   *   0   0   *   *
+R7  16  1   829122  59  48M36D52M   *   0   0   *   *
+R8  0   1   848195  46  19S20M3S    *   0   0   *   *
+R9  16  1   848195  46  19S20M3S    *   0   0   *   *
+Ra  0   1   908830  60  47M *   0   0   *   *
+Rb  16  1   908830  60  47M *   0   0   *   *
+Rc  0   1   922930  60  100M    *   0   0   *   *
+Rd  0   1   922930  60  100M    *   0   0   *   *
+Re  0   1   922930  60  100M    *   0   0   *   *
+]]></h:pre>
+</documentation>
+
 <!-- __PLACEHOLDER__ --></app>
