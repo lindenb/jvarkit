@@ -12,6 +12,9 @@
 	<option name="minMapQ" type="int" opt="M" longopt="mapq" argname="MAPQ" default="30">
 		<description>min mapQ</description>
 	</option>
+	<option name="rmSeq" type="boolean" opt="s" longopt="rmseq" default="false">
+		<description>remove read sequence</description>
+	</option>
 
 </options>
 

@@ -206,6 +206,11 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 			pw=(OUT==null?new PrintWriter(System.out):new PrintWriter(OUT));
 			LOG.info("read "+REF);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
+			if(this.indexedFastaSequenceFile.getSequenceDictionary()==null)
+				{
+				LOG.error("fasta sequence is not indexed");
+				return -1;
+				}
 			LOG.info("readubf "+kgUri);
 			String line;
 			Pattern tab=Pattern.compile("[\t]");

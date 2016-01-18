@@ -28,6 +28,9 @@ import java.util.Collection;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.DefaultSAMRecordFactory;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
@@ -78,9 +81,24 @@ public class Biostar173114 extends AbstractBiostar173114
 				 rec2.setReadName("R"+ Long.toHexString(nReads++));
 				 rec2.setReferenceIndex(record.getReferenceIndex());
 				 rec2.setAlignmentStart(record.getAlignmentStart());
-				 rec2.setCigar(record.getCigar());
+				 if(record.getCigar()!=null) {
+				 final Cigar cigar = record.getCigar();
+				 final java.util.List<CigarElement> cl = new java.util.ArrayList<>(cigar.numCigarElements());
+				 for(int i=0;i<cigar.numCigarElements();++i) {
+				  final CigarElement ce=cigar.getCigarElement(i);
+				  if(ce.getOperator()==CigarOperator.S || ce.getOperator()==CigarOperator.H)
+				    {
+				    continue;
+				    }
+				  cl.add(ce);
+				  }
+				 
+				 rec2.setCigar(new Cigar(cl));
+				 }
+				 
 				 rec2.setMappingQuality(record.getMappingQuality());
-				
+				 rec2.setReadBases(super.rmSeq?SAMRecord.NULL_SEQUENCE:record.getReadBases());
+				 rec2.setBaseQualities(SAMRecord.NULL_QUALS);
 				sfw.addAlignment(rec2);
 				}
 			LOG.info("done");
