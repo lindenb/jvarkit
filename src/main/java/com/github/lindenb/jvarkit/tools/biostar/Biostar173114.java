@@ -86,7 +86,7 @@ public class Biostar173114 extends AbstractBiostar173114
 				 final java.util.List<CigarElement> cl = new java.util.ArrayList<>(cigar.numCigarElements());
 				 for(int i=0;i<cigar.numCigarElements();++i) {
 				  final CigarElement ce=cigar.getCigarElement(i);
-				  if(ce.getOperator()==CigarOperator.S || ce.getOperator()==CigarOperator.H)
+				  if(ce.getOperator()==CigarOperator.H)
 				    {
 				    continue;
 				    }
