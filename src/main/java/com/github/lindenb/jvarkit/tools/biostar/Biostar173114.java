@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2016 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-
 package com.github.lindenb.jvarkit.tools.biostar;
 import java.util.Collection;
 
@@ -52,7 +51,7 @@ public class Biostar173114 extends AbstractBiostar173114
 		SAMFileWriter sfw=null;
 		SAMRecordIterator iter=null;
 		try
-			{
+ {
 			BlockCompressedOutputStream.setDefaultCompressionLevel(9);
 			sfr = super.openSamReader(inputName);
 			final SAMFileHeader header0 = sfr.getFileHeader();
@@ -61,49 +60,52 @@ public class Biostar173114 extends AbstractBiostar173114
 			header.setGroupOrder(header0.getGroupOrder());
 			header.setSortOrder(header0.getSortOrder());
 			sfw = super.openSAMFileWriter(header, true);
-			iter=sfr.iterator();
+			iter = sfr.iterator();
 			final SAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
-			long nReads=0;
-			while(iter.hasNext())
-				{
-				final SAMRecord record= iter.next();
-				
-				
-				if(record.getReadUnmappedFlag()) continue;
-				if(record.getReadFailsVendorQualityCheckFlag()) continue;
-				if(record.isSecondaryOrSupplementary()) continue;
-				if(record.getDuplicateReadFlag()) continue;
-				if(record.getMappingQuality()< super.minMapQ) continue;
-				
-				final SAMRecord rec2=samRecordFactory.createSAMRecord(header);
-				 rec2.setReadUnmappedFlag(false);
-				 rec2.setReadNegativeStrandFlag(record.getReadNegativeStrandFlag());;
-				 rec2.setReadName("R"+ Long.toHexString(nReads++));
-				 rec2.setReferenceIndex(record.getReferenceIndex());
-				 rec2.setAlignmentStart(record.getAlignmentStart());
-				 if(record.getCigar()!=null) {
-				 final Cigar cigar = record.getCigar();
-				 final java.util.List<CigarElement> cl = new java.util.ArrayList<>(cigar.numCigarElements());
-				 for(int i=0;i<cigar.numCigarElements();++i) {
-				  final CigarElement ce=cigar.getCigarElement(i);
-				  if(ce.getOperator()==CigarOperator.H)
-				    {
-				    continue;
-				    }
-				  cl.add(ce);
-				  }
-				 
-				 rec2.setCigar(new Cigar(cl));
-				 }
-				 
-				 rec2.setMappingQuality(record.getMappingQuality());
-				 rec2.setReadBases(super.rmSeq?SAMRecord.NULL_SEQUENCE:record.getReadBases());
-				 rec2.setBaseQualities(SAMRecord.NULL_QUALS);
-				sfw.addAlignment(rec2);
+			long nReads = 0;
+			while (iter.hasNext()) {
+				final SAMRecord record = iter.next();
+
+				if (record.getReadUnmappedFlag())
+					continue;
+				if (record.getReadFailsVendorQualityCheckFlag())
+					continue;
+				if (record.isSecondaryOrSupplementary())
+					continue;
+				if (record.getDuplicateReadFlag())
+					continue;
+				if (record.getMappingQuality() < super.minMapQ)
+					continue;
+
+				final SAMRecord rec2 = samRecordFactory.createSAMRecord(header);
+				rec2.setReadUnmappedFlag(false);
+				rec2.setReadNegativeStrandFlag(record.getReadNegativeStrandFlag());
+				;
+				rec2.setReadName("R" + Long.toHexString(nReads++));
+				rec2.setReferenceIndex(record.getReferenceIndex());
+				rec2.setAlignmentStart(record.getAlignmentStart());
+				if (record.getCigar() != null) {
+					final Cigar cigar = record.getCigar();
+					final java.util.List<CigarElement> cl = new java.util.ArrayList<>(cigar.numCigarElements());
+					for (int i = 0; i < cigar.numCigarElements(); ++i) {
+						final CigarElement ce = cigar.getCigarElement(i);
+						if (ce.getOperator() == CigarOperator.H) {
+							continue;
+						}
+						cl.add(ce);
+					}
+
+					rec2.setCigar(new Cigar(cl));
 				}
+
+				rec2.setMappingQuality(record.getMappingQuality());
+				rec2.setReadBases(super.rmSeq ? SAMRecord.NULL_SEQUENCE : record.getReadBases());
+				rec2.setBaseQualities(SAMRecord.NULL_QUALS);
+				sfw.addAlignment(rec2);
+			}
 			LOG.info("done");
 			return RETURN_OK;
-			}
+		}
 		catch(Exception err)
 			{
 			return wrapException(err);
