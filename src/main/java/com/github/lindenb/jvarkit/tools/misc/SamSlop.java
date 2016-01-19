@@ -198,7 +198,7 @@ public class SamSlop extends AbstractSamSlop
 					final CigarElement ce2 = cl.get(idx+1);
 					if(ce1.getOperator()==ce2.getOperator())
 						{
-						cl.set(idx,new CigarElement(ce1.getLength()+ce1.getLength(), ce1.getOperator()));
+						cl.set(idx,new CigarElement(ce1.getLength()+ce2.getLength(), ce1.getOperator()));
 						cl.remove(idx+1);
 						}
 					else
