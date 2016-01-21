@@ -586,7 +586,7 @@ ${htsjdk.home}/build.xml :
 	mkdir -p $(dir ${htsjdk.home})
 	rm -rf $(dir ${htsjdk.home})${htsjdk.version}.zip $(dir $@) 
 	echo "Downloading HTSJDK ${htsjdk.version} with curl"
-	curl  ${curl.proxy} -o $(dir ${htsjdk.home})${htsjdk.version}.zip -L "https://github.com/samtools/htsjdk/archive/${htsjdk.version}.zip"
+	curl  -k ${curl.proxy} -o $(dir ${htsjdk.home})${htsjdk.version}.zip -L "https://github.com/samtools/htsjdk/archive/${htsjdk.version}.zip"
 	unzip $(dir ${htsjdk.home})${htsjdk.version}.zip -d $(dir ${htsjdk.home})
 	find ${htsjdk.home} -exec touch '{}'  ';'
 	rm -f $(dir ${htsjdk.home})${htsjdk.version}.zip
