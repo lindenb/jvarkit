@@ -170,13 +170,15 @@ options.addOptionGroup(<xsl:value-of select="generate-id()"/>);
 </xsl:choose>
 </xsl:template>
 
-
+<xsl:template match="c:option" mode="OPTION_OPT">
+<xsl:value-of select="concat('OPTION_',translate(@name,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'))"/>
+</xsl:template>
 
 <xsl:template match="c:option" mode="cli">
 options.addOption(org.apache.commons.cli.Option
 	<xsl:choose>
 		<xsl:when test="@opt">
-			.builder("<xsl:value-of select="@opt"/>")
+			.builder(<xsl:apply-templates select="." mode="OPTION_OPT"/>)
 		</xsl:when>
 		<xsl:otherwise>
 			.builder("<xsl:value-of select="@name"/>")
@@ -287,6 +289,9 @@ LongValidator <xsl:apply-templates select="@name"/>
 </xsl:variable>
 
 /** option <xsl:apply-templates select="." mode="name"/> */
+
+public static final String <xsl:apply-templates select="." mode="OPTION_OPT"/> = "<xsl:value-of select="@opt"/>";
+
 protected <xsl:apply-templates select="." mode="java-type"/><xsl:text> </xsl:text> <xsl:apply-templates select="." mode="name"/> = <xsl:choose>
 		<xsl:when test="@type='input-file-set'"> new java.util.HashSet&lt;java.io.File&gt;()</xsl:when>
 		<xsl:when test="@type='string-set' or @type='uri-set'"> new java.util.HashSet&lt;java.lang.String&gt;()</xsl:when>
@@ -465,7 +470,7 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 </xsl:template>
 
 
-<xsl:template match="c:option" mode="visit">if(opt.getOpt().equals("<xsl:value-of select="@opt"/>"))
+<xsl:template match="c:option" mode="visit">if(opt.getOpt().equals(<xsl:apply-templates select="." mode="OPTION_OPT"/>))
 	{
 	/* <xsl:value-of select="@name"/> : <xsl:value-of select="@type"/> */
 	<xsl:choose>
