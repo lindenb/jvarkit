@@ -11,6 +11,8 @@ import java.io.IOException;
 
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Log;
 
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -83,7 +85,7 @@ public abstract class AbstractVCFFilter
 		finally
 			{
 			if(w!=null) w.close();
-			if(r!=null) r.close();
+			CloserUtil.close(r);
 			}	
 		return 0;
 		}
