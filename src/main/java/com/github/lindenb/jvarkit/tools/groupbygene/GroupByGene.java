@@ -51,6 +51,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -468,7 +469,7 @@ public class GroupByGene
 						}
 					else
 						{
-						iter.close();
+						CloserUtil.close(iter);
 						throw new RuntimeException("cannot handle multi-ploidy "+ctx);
 						}
 
@@ -476,7 +477,7 @@ public class GroupByGene
 					}
 				}	
 			}
-		iter.close();
+		CloserUtil.close(iter);
 		}
 	
 
