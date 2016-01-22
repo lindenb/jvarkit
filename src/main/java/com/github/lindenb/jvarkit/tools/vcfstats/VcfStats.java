@@ -54,6 +54,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -565,7 +566,7 @@ public class VcfStats extends AbstractVcfStats
 			xout=xof.createXMLStreamWriter(ostream,"UTF-8");
 			
 			
-			iter=new VcfIterator(vcfInputStream);
+			iter=new VcfIteratorImpl(vcfInputStream);
 			final VCFHeader header=iter.getHeader();
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			

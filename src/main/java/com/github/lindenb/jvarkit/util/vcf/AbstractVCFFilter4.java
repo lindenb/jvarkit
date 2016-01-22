@@ -175,7 +175,7 @@ public abstract class AbstractVCFFilter4
 				if(unrolledVcfFiles.isEmpty() && args.isEmpty())
 					{
 					LOG.info("Reading from stdin");
-					vcfIn = new VcfIterator(this.stdin());
+					vcfIn = new VcfIteratorImpl(this.stdin());
 					this.filterVcfIterator("<STDIN>",vcfIn);
 					}
 				else if(unrolledVcfFiles.size()==1)

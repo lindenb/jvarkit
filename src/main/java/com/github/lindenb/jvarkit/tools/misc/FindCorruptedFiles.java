@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
 public class FindCorruptedFiles extends AbstractCommandLineProgram
 	{
@@ -219,7 +220,7 @@ public class FindCorruptedFiles extends AbstractCommandLineProgram
     private void testVcf(File f,InputStream in) throws IOException,TribbleException
     	{
     	long n=0;
-    	VcfIterator iter=new VcfIterator(in);
+    	VcfIterator iter=new VcfIteratorImpl(in);
     	iter.getHeader();
     	while(iter.hasNext() &&  (NUM<0 || n<NUM))
     		{

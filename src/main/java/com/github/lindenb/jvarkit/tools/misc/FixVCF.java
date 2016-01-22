@@ -34,6 +34,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
 public class FixVCF
 	extends com.github.lindenb.jvarkit.util.AbstractCommandLineProgram
@@ -227,7 +228,7 @@ public class FixVCF
 		//reopen tmp file
 
 		@SuppressWarnings("resource")
-		VcfIterator in=new VcfIterator(new SequenceInputStream(
+		VcfIterator in=new VcfIteratorImpl(new SequenceInputStream(
 				new ByteArrayInputStream(baos.toByteArray()),
 				new GZIPInputStream(new FileInputStream(tmp)))
 				);

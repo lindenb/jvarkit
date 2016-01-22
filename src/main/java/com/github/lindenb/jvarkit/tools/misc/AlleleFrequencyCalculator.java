@@ -40,6 +40,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
 public class AlleleFrequencyCalculator extends AbstractAlleleFrequencyCalculator
 	{
@@ -60,7 +61,7 @@ public class AlleleFrequencyCalculator extends AbstractAlleleFrequencyCalculator
 			if(inputName==null)
 				{
 				LOG.info("reading stdin");
-				in=new VcfIterator(stdin());
+				in=new VcfIteratorImpl(stdin());
 				}
 			else
 				{

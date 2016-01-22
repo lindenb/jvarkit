@@ -67,6 +67,7 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
 public class VCFCompareGT extends AbstractCommandLineProgram
 	{
@@ -224,7 +225,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 				{
 				File vcfFile=new File(args[i]);
 				getLogger().info("Opening "+vcfFile);
-				VcfIterator iter= new VcfIterator(IOUtils.openFileForReading(vcfFile));
+				VcfIterator iter= new VcfIteratorImpl(IOUtils.openFileForReading(vcfFile));
 				VCFHeader header=iter.getHeader();
 				sampleNames.addAll(header.getSampleNamesInOrder());
 				

@@ -23,6 +23,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
 public class VcfToPostscript extends AbstractCommandLineProgram
 	{
@@ -369,13 +370,13 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 			if(opt.getOptInd()==args.length)
 				{
 				info("Reading from stdin");
-				iter=new VcfIterator(System.in);
+				iter=new VcfIteratorImpl(System.in);
 				}
 			else if(opt.getOptInd()+1==args.length)
 				{
 				String uri=args[opt.getOptInd()];
 				info("Reading from "+uri);
-				iter=new VcfIterator(IOUtils.openURIForReading(uri));
+				iter=new VcfIteratorImpl(IOUtils.openURIForReading(uri));
 				}
 			else
 				{

@@ -58,6 +58,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
@@ -417,7 +418,7 @@ public class GroupByGene
 	
 	private void read(InputStream in)
 		{
-		VcfIterator iter=new VcfIterator(in);
+		VcfIterator iter=new VcfIteratorImpl(in);
 		VCFHeader header=(VCFHeader)iter.getHeader();
 		if(header.getSampleNamesInOrder()!=null)
 			{

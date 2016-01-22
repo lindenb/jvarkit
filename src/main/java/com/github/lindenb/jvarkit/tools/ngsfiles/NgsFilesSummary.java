@@ -18,6 +18,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
 public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 	{
@@ -112,7 +113,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     		{
     		in=IOUtils.openFileForReading(f);
     		
-    		r=new VcfIterator(in);
+    		r=new VcfIteratorImpl(in);
         	VCFHeader header=r.getHeader();
         	for(String sample:header.getSampleNamesInOrder())
 	        	{

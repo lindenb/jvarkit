@@ -76,6 +76,7 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
 /** merge VCF files */
 public class VCFMerge2
@@ -428,7 +429,7 @@ public class VCFMerge2
 		{
 		this.countMergedVariants=0;
 		@SuppressWarnings("resource")
-		VcfIterator iter=new VcfIterator(in);
+		VcfIterator iter=new VcfIteratorImpl(in);
 		VCFHeader h=iter.getHeader();
 		VariantContextWriter out= this.createVariantContextWriter();
 		out.writeHeader(h);

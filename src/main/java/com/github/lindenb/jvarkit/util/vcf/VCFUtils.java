@@ -237,7 +237,7 @@ public class VCFUtils
 	public static  VcfIterator createVcfIteratorFromStream(InputStream in) throws IOException
 		{
 		LOG.info("reading vcf from stream");
-		return new VcfIterator(in);	
+		return new VcfIteratorImpl(in);	
 		}
 	
 	/** create a VCF iterator
@@ -247,7 +247,7 @@ public class VCFUtils
 	public static  VcfIterator createVcfIteratorFromFile(File f) throws IOException
 		{
 		LOG.info("reading vcf from "+f);
-		return new VcfIterator(IOUtils.openFileForReading(f));	
+		return new VcfIteratorImpl(IOUtils.openFileForReading(f));	
 		}
 	
 	/** create a VCF iterator
@@ -257,7 +257,7 @@ public class VCFUtils
 	public static  VcfIterator createVcfIteratorFromInputStream(InputStream in) throws IOException
 		{
 		LOG.info("reading vcf from stream");
-		return new VcfIterator(in);	
+		return new VcfIteratorImpl(in);	
 		}
 
 	
@@ -274,7 +274,7 @@ public class VCFUtils
 		else
 			{
 			LOG.info("reading from "+IN);
-			return new VcfIterator(IOUtils.openURIForReading(IN));
+			return new VcfIteratorImpl(IOUtils.openURIForReading(IN));
 			}
 		}
 	/** create a VCF iterator
@@ -284,7 +284,7 @@ public class VCFUtils
 	public static  VcfIterator createVcfIteratorStdin() throws IOException
 		{
 		LOG.info("reading from stdin");
-		return new VcfIterator(System.in);
+		return new VcfIteratorImpl(System.in);
 		}
 	
 	public static  VariantContextWriter createVariantContextWriterToStdout()
