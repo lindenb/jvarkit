@@ -8,6 +8,8 @@
 	>
 <input type="vcf"/>
 <output type="vcf"/>
+<snippet id="variant.ctx.builder"/>
+
 <description>Find mendelian incompatibilitie in a VCF.</description>
 <options>
 	<option name="pedigreeFile" type="input-file" label="Pedigree" opt="p" longopt="pedigree" required='true'>

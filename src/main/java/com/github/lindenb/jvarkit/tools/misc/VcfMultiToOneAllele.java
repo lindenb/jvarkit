@@ -94,8 +94,8 @@ public class VcfMultiToOneAllele
 		out.writeHeader(h2);
 		while(in.hasNext())
 			{
-			VariantContext ctx=progess.watch(in.next());
-			List<Allele> alleles = new ArrayList<>(ctx.getAlternateAlleles());
+			final VariantContext ctx=progess.watch(in.next());
+			final List<Allele> alleles = new ArrayList<>(ctx.getAlternateAlleles());
 			if(alleles.isEmpty())
 				{
 				LOG.warn("Remove no ALT variant:"+ctx);
@@ -105,7 +105,7 @@ public class VcfMultiToOneAllele
 				{
 				if(!print_samples)
 					{
-					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+					final VariantContextBuilder vcb = super.getVariantContextBuilderFactory().newVariantContextBuilder(ctx);
 					vcb.noGenotypes();
 					out.add(vcb.make());
 					}
@@ -128,13 +128,12 @@ public class VcfMultiToOneAllele
 				
 				for(int i=0;i< alleles.size();++i)
 					{
-					final Allele the_allele=alleles.get(i);
-					
+					final Allele the_allele = alleles.get(i);
 
-					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+					final VariantContextBuilder vcb = super.getVariantContextBuilderFactory().newVariantContextBuilder(ctx);
 					vcb.alleles(Arrays.asList(ctx.getReference(),the_allele));
 					
-					for(String attid:attributes.keySet())
+					for(final String attid:attributes.keySet())
 						{
 						VCFInfoHeaderLine info = header.getInfoHeaderLine(attid);
 						if(info==null) throw new IOException("Cannot get header INFO tag="+attid);

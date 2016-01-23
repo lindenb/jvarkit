@@ -177,12 +177,12 @@ public class VCFTrios
 		
 		LOG.info("persons in pedigree: "+samplename2person.size());
 		
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 		while(r.hasNext())
 			{
 			VariantContext ctx= progress.watch(r.next());
 			
-			Set<String> incompatibilities=new HashSet<String>();
+			final Set<String> incompatibilities=new HashSet<String>();
 			
 			
 			for(Pedigree.Person child:samplename2person.values())
@@ -263,7 +263,7 @@ public class VCFTrios
 				continue;
 				}
 			++count_incompats;
-			VariantContextBuilder b=new VariantContextBuilder(ctx);
+			final VariantContextBuilder b= getVariantContextBuilderFactory().newVariantContextBuilder(ctx);
 			if( create_filter) b.filter("MENDEL");
 			b.attribute("MENDEL", incompatibilities.toArray());
 			w.add(b.make());

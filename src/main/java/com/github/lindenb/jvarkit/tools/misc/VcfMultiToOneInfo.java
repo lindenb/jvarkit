@@ -87,7 +87,7 @@ public class VcfMultiToOneInfo
 				}
 			for(final Object o: L)
 				{
-				VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				final VariantContextBuilder vcb = super.getVariantContextBuilderFactory().newVariantContextBuilder(ctx);
 				vcb.attribute(srcInfo.getID(), o);
 				out.add(vcb.make());
 				}

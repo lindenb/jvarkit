@@ -70,7 +70,22 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		}
 	</xsl:if>
 		
+	<xsl:if test="c:snippet[@id='variant.ctx.builder']">
+	
+	private com.github.lindenb.jvarkit.util.vcf.VariantContextBuilderFactory _variantContextFactory = new com.github.lindenb.jvarkit.util.vcf.DefaultVariantContextBuilderFactory();
+	
+	/** get VariantContextBuilderFactory */
+	protected com.github.lindenb.jvarkit.util.vcf.VariantContextBuilderFactory getVariantContextBuilderFactory() {
+	  return this._variantContextFactory;
+	}
 
+	/** set VariantContextBuilderFactory */
+	protected void setVariantContextBuilderFactory(final com.github.lindenb.jvarkit.util.vcf.VariantContextBuilderFactory factory ) {
+	  this._variantContextFactory = factory;
+	}
+
+	
+	</xsl:if>
 	
 	<xsl:if test="c:snippet[@id='boolean.intervals']">
 
@@ -168,7 +183,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 
 		
 		<xsl:if test="not(@generate-output-option='false')">
-		if(opt.getOpt().equals("o"))
+		if(opt.getOpt().equals(OPTION_OUTPUTFILE))
 			{
 			java.io.File tmpf =  null;
 			try { tmpf = new java.io.File(opt.getValue());}

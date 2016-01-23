@@ -9,6 +9,7 @@
 <description>'one INFO with N values' to 'N variants with one INFO'</description>
 <input type="vcf"/>
 <output type="vcf"/>
+<snippet id="variant.ctx.builder"/>
 
 <options>
 	<option name="infoTag" type="string" label="INFO tag" opt="i" longopt="info" >

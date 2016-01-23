@@ -9,6 +9,8 @@
 <description>'one variant with N ALT alleles' to 'N variants with one ALT'</description>
 <input type="vcf"/>
 <output type="vcf"/>
+<snippet id="variant.ctx.builder"/>
+
 
 <options>
 	<option name="print_samples" type="boolean" label="Print Samples" opt="p" longopt="samples" default="false">
