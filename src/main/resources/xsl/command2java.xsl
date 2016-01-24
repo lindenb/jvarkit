@@ -384,8 +384,6 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 
 		<xsl:if test="c:output/@type='vcf' and c:input/@type='vcf'">
 		
-
-		
 		protected java.util.Collection&lt;Throwable&gt; doVcfToVcf(
 			final String inputName,
 			final com.github.lindenb.jvarkit.util.vcf.VcfIterator in,

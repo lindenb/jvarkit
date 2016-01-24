@@ -65,7 +65,7 @@ public class VCFFilterJS
 		
 		}
 	@Override
-	protected Collection<Throwable> doVcfToVcf(
+	public Collection<Throwable> doVcfToVcf(
 			final String inputName,
 			final VcfIterator r,
 			final VariantContextWriter w

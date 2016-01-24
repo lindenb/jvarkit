@@ -3,5 +3,32 @@
  <!ENTITY name "VcfFilterSequenceOntology">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" 
+	app="&name;" package="&package;" __placeholder__="1"
+	ui-swing="true"
+	>
+<input type="vcf"/>
+<output type="vcf"/>
+<description>Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.</description>
+
+
+<options>
+	<option name="userTermsAsString" opt="A" type="string-list" longopt="acn" argname="SO:ACN">
+		<description>add this SO:ACN</description>
+	</option>
+	<option name="userAcnFile" opt="f" type="input-file" longopt="acnfile" argname="ACN.FILE">
+		<description>file of SO accession numbers</description>
+	</option>
+	<option name="showList" opt="S" type="boolean" longopt="showacn" default="false">
+		<description>list the available SO accession and exit.</description>
+	</option>
+	<option name="invert" opt="i" type="boolean" longopt="invert" default="false">
+		<description>invert selection</description>
+	</option>
+	<option name="disableReasoning" opt="d" type="boolean" longopt="noreasoning" default="false">
+		<description>disable reasoning, don't use term's children.</description>
+	</option>
+</options>
+
+<!-- __PLACEHOLDER__ -->
+</app>
