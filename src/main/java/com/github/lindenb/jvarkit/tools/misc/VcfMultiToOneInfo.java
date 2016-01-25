@@ -50,8 +50,9 @@ public class VcfMultiToOneInfo
 		}
 	 
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName,
-			VcfIterator in, VariantContextWriter out) throws IOException {
+	/* public to be called by knime */
+	public Collection<Throwable> doVcfToVcf(final String inputName,
+			final VcfIterator in, final VariantContextWriter out) throws IOException {
 		
 		final VCFHeader srcHeader=in.getHeader();
 		final VCFInfoHeaderLine srcInfo = srcHeader.getInfoHeaderLine(this.infoTag);
@@ -96,14 +97,20 @@ public class VcfMultiToOneInfo
 		LOG.info("done");
 		return RETURN_OK;
 		}
-
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public Collection<Throwable> initializeKnime() {
 		if(super.infoTag==null || super.infoTag.isEmpty())
 			{
 			return wrapException("No info tag defined");
 			}
+		return super.initializeKnime();
+		}
+
+	
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		
 		return doVcfToVcf(inputName);
 		}
 	

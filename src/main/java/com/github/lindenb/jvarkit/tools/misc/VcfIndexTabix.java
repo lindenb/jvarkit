@@ -32,6 +32,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Collection;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -51,11 +52,10 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 public class VcfIndexTabix
-	extends AbstractVCFFilter3
+	extends AbstractVcfIndexTabix
 	{
-	private boolean sort=false;
-	private int MAX_RECORDS_IN_RAM=10000;
-	
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfIndexTabix.class);
+
 	private class SortingVCFWriter implements VariantContextWriter
 		{
 		VariantContextWriter delegate;
@@ -80,7 +80,7 @@ public class VcfIndexTabix
 	                        VariantContext.class,
 	                        new VCFRecordCodec(header),
 	                        header.getVCFRecordComparator(),
-	                        VcfIndexTabix.this.MAX_RECORDS_IN_RAM,
+	                        VcfIndexTabix.this.getMaxRecordsInRam(),
 	                        VcfIndexTabix.this.getTmpDirectories().get(0)
 	                        );
 			
@@ -123,43 +123,15 @@ public class VcfIndexTabix
 		{
 		}
 	
-	
-	@Override
-	public String getProgramDescription() {
-		return "Index and sort a VCF on the fly with Tabix.";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfIndexTabix";
-		}
-	
-	public void setSort(boolean sort) {
-		this.sort = sort;
-		}
-	
-	public void setMaxRecordsInRam(int n) {
-		this.MAX_RECORDS_IN_RAM = n;
-		}
-	
-	
-	@Override
-	protected void doWork(String inputSource, VcfIterator vcfIn,
-			VariantContextWriter out) throws IOException {
-		throw new IllegalStateException("should not be invoked");
-		}
-	
-	@Override
-	protected void filterVcfIterator(String inputSource, VcfIterator vcfIn)
-			throws IOException
-		{
-		File out=getOutputFile();
-		if(out==null)
+	/* public for knime */
+	public Collection<Throwable> doVcfToVcf(String inputName, final VcfIterator vcfIn,final File outFile) throws IOException {
+		if(outFile==null)
 			{
-			throw new IOException(getProgramName()+" output file undefined.");
+			throw new IOException(getName()+" output file undefined.");
 			}
-		if(!out.getName().endsWith(".vcf.gz"))
+		if(!outFile.getName().endsWith(".vcf.gz"))
 			{
-			throw new IOException("output file should en with .vcf.gz but got "+out);
+			return wrapException("output file should en with .vcf.gz but got "+outFile);
 			}
 
 		SortingVCFWriter sortingVCW=null;
@@ -169,13 +141,13 @@ public class VcfIndexTabix
 			SAMSequenceDictionary dict = vcfIn.getHeader().getSequenceDictionary();
 			if(dict!=null) vcwb.setReferenceDictionary(dict);
 			
-			vcwb.setOutputFile(out);
+			vcwb.setOutputFile(outFile);
 			vcwb.setOutputFileType(OutputType.BLOCK_COMPRESSED_VCF);
 			w = vcwb.build();
 			
 			if(this.sort)
 				{
-				info("Creating a sorting writer");
+				LOG.info("Creating a sorting writer");
 				sortingVCW= new SortingVCFWriter(w);
 				w=sortingVCW;
 				}
@@ -185,23 +157,23 @@ public class VcfIndexTabix
 			while(vcfIn.hasNext())
 				{
 				w.add(progress.watch(vcfIn.next()));
-				incrVariantCount();
 				}
 			progress.finish();
 			
 			w.close();
 			w=null;
+			return RETURN_OK;
 			} 
 		catch (Exception e)
 			{
 			if(getOutputFile().exists() && getOutputFile().isFile())
 				{
-				warning("Deleting "+getOutputFile());
+				LOG.warn("Deleting "+outFile);
 				getOutputFile().delete();
 				File tbi = new File(getOutputFile().getPath()+TabixUtils.STANDARD_INDEX_EXTENSION);
 				if(tbi.exists() && tbi.isFile()) tbi.delete();
 				}
-			throw new IOException(e);
+			return wrapException(e);
 			}
 		finally
 			{
@@ -209,52 +181,33 @@ public class VcfIndexTabix
 			}
 		}
 	
-	
 	@Override
-	public int initializeKnime() {
+	public Collection<Throwable> initializeKnime() {
 		return super.initializeKnime();
 		}
+	
 	@Override
 	public void disposeKnime() {
 		super.disposeKnime();
 		}
 	
-	
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (file) filename.vcf.gz out. Required.");
-		out.println(" -s sort VCF prior to saving.");
-		out.println(" -n (max-record-in-ram). If defined, vcf will be sorted using this cache size. Default:"+MAX_RECORDS_IN_RAM);
-		out.println(" -T (tmp).add tmp dir. optional)");
-		super.printOptions(out);
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		if(getOutputFile()==null)
+			{
+			return wrapException("output file is required");
+			}
+		VcfIterator iter = null;
+		try {
+			iter =  super.openVcfIterator(inputName);
+			return doVcfToVcf(inputName==null?"STDIN":inputName, iter, getOutputFile());
+		} catch (Exception e) {
+			return wrapException(e);
+		} finally {
+			CloserUtil.close(iter);
 		}
 		
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:n:sT:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;
-				case 's': this.setSort(true);break;
-				case 'n': this.setMaxRecordsInRam(Integer.parseInt(opt.getOptArg()));break;
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
+		
 		}
 		
 		

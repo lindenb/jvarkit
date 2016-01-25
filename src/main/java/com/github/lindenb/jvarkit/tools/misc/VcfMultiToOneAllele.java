@@ -63,7 +63,8 @@ public class VcfMultiToOneAllele
 		}
 	 
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName,
+	/* public for knime */
+	public Collection<Throwable> doVcfToVcf(String inputName,
 			VcfIterator in, VariantContextWriter out) throws IOException {
 		final String TAG="VCF_MULTIALLELIC_SRC";
 		final List<String> noSamples=Collections.emptyList();
