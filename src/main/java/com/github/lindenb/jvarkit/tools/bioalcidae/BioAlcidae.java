@@ -108,12 +108,28 @@ public class BioAlcidae
 		
 
 	
-	private  Collection<Throwable> execute_vcf(String source) throws IOException
+	/** moved to public for knime */
+	public  Collection<Throwable> executeAsVcf(String source) throws IOException
 		{
 		LOG.info("source: "+source);
 		VcfIterator in=null;
 		try {
-			in = VCFUtils.createVcfIterator(source);
+			
+			return executeAsVcf(source);
+			} 
+		catch (Exception e)
+			{
+			return wrapException(e);
+			}
+		finally
+			{
+			CloserUtil.close(in);
+			}
+		}
+	
+	public  Collection<Throwable> executeAsVcf(final VcfIterator in) throws IOException
+		{
+		try {
 			bindings.put("codec",in.getCodec());
 			bindings.put("header",in.getHeader());
 			bindings.put("iter",in);
@@ -134,6 +150,8 @@ public class BioAlcidae
 			bindings.remove("iter");
 			}
 		}
+
+	
 	
 	private  Collection<Throwable> execute_bam(String source) throws IOException
 		{
@@ -310,7 +328,7 @@ public class BioAlcidae
 		{
 		switch(fmt)
 			{
-			case VCF: return execute_vcf(source);
+			case VCF: return executeAsVcf(source);
 			case BAM: case SAM: return execute_bam(source);
 			case FASTQ: return execute_fastq(source);
 			case FASTA: return execute_fasta(source);
@@ -318,17 +336,14 @@ public class BioAlcidae
 			}
 		}
 	
-	
 	@Override
-	public Collection<Throwable> call() throws Exception
+	public Collection<Throwable> initializeKnime()
 		{
-		
-
 		if(this.formatString!=null)
 			{
 			try {
 				this.format=FORMAT.valueOf(this.formatString.toUpperCase());
-			} catch (Exception e) {
+				} catch (Exception e) {
 				return wrapException(e);
 				}
 			}
@@ -340,25 +355,34 @@ public class BioAlcidae
 			{
 			return wrapException(err);
 			}
-		
-		
+		return super.initializeKnime();
+		}
+	
+	@Override
+	public void disposeKnime() {
+		CloserUtil.close(this.writer);
+		this.writer=null;
+		this.bindings=null;
+		this.bindings=null;
+		this.format=null;
+		super.disposeKnime();
+		}
+	
+	/** moved to public for knime */
+	public void initializeJavaScript() throws IOException
+		{
+		this.bindings = this.script.getEngine().createBindings();
+		this.writer = super.openFileOrStdoutAsPrintWriter();
+		this.bindings.put("out",this.writer);
+		}
+	
+	@Override
+	public Collection<Throwable> call() throws Exception
+		{
 		final List<String> args = getInputFiles();
-		
-		
-		
-		
 		try
 			{
-			this.bindings = this.script.getEngine().createBindings();
-			if(getOutputFile()==null)
-				{
-				this.writer = new PrintWriter(stdout());
-				}
-			else
-				{
-				this.writer = new PrintWriter(getOutputFile());
-				}
-			this.bindings.put("out",this.writer);
+			this.initializeJavaScript();
 			
 			if(args.isEmpty()  )
 				{
@@ -368,7 +392,7 @@ public class BioAlcidae
 					}
 				return execute(this.format,null);
 				}
-			for(String filename:IOUtils.unrollFiles(args))
+			for(final String filename:IOUtils.unrollFiles(args))
 				{
 				this.bindings.put("FILENAME",filename);
 				FORMAT fmt=this.format;
@@ -410,7 +434,7 @@ public class BioAlcidae
 				CloserUtil.close(this.writer);
 				}
 			this.writer=null;
-			bindings=null;
+			this.bindings=null;
 			this.bindings=null;
 			this.format=null;
 			}

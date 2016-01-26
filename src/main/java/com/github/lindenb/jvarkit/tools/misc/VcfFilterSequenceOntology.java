@@ -86,7 +86,7 @@ public class VcfFilterSequenceOntology
 		}
 	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	/* public for knime */ public Collection<Throwable> doVcfToVcf(final String inputName,final  VcfIterator in,final  VariantContextWriter out) {
 		try {
 			VCFHeader header=in.getHeader();
 			VCFHeader h2=new VCFHeader(header);
