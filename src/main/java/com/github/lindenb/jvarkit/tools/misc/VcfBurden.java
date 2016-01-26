@@ -138,7 +138,7 @@ public class VcfBurden extends AbstractKnimeApplication
 		}
 	@Override
 	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"SolenaVcfToRaw";
+		return DEFAULT_WIKI_PREFIX+"VcfBurden";
 		}
 	
 	@Override
@@ -160,6 +160,7 @@ public class VcfBurden extends AbstractKnimeApplication
 			List<VariantAndCsq> variants
 			) throws IOException
 		{
+		int outCount=0;
 		info(this.dirName+"/"+contig+"_"+filename+".txt");
 		ZipEntry ze = new ZipEntry(this.dirName+"/"+contig+"_"+filename+".txt");
 		zout.putNextEntry(ze);
@@ -208,9 +209,9 @@ public class VcfBurden extends AbstractKnimeApplication
 					pw.print(";");
 					}
 				}
-			for(String sample:samples)
+			for(final String sample:samples)
 				{
-				Genotype g=vac.variant.getGenotype(sample);
+				final Genotype g=vac.variant.getGenotype(sample);
 				pw.print("\t");
 				if(g.isHomRef())
 					{
@@ -230,13 +231,15 @@ public class VcfBurden extends AbstractKnimeApplication
 					}
 				}
 			pw.println();
+			outCount++;
 			}
 		pw.flush();
 		zout.closeEntry();
+		LOG.info(this.dirName+"/"+contig+"_"+filename+".txt N="+outCount);
 		}
 	
 	@Override
-	public int executeKnime(List<String> args)
+	public int executeKnime(final List<String> args)
 		{
 		ZipOutputStream zout=null;
 		FileOutputStream fout=null;
@@ -332,7 +335,7 @@ public class VcfBurden extends AbstractKnimeApplication
 				if(ctx1==null || !ctx1.getContig().equals(prev_chrom))
 					{
 					info("DUMP to zip n="+gene2variants.size());
-					Set<String> geneNames= new HashSet<>();
+					final Set<String> geneNames= new HashSet<>();
 					for(GeneTranscript gene_transcript:gene2variants.keySet() )
 						{
 						geneNames.add(gene_transcript.geneName);
@@ -367,12 +370,12 @@ public class VcfBurden extends AbstractKnimeApplication
 										return 0;
 										}
 									};
-						SortedSet<VariantAndCsq> lis_nm = new TreeSet<>(cmp);
-						SortedSet<VariantAndCsq> lis_all = new TreeSet<>(cmp);
-						SortedSet<VariantAndCsq> lis_refseq = new TreeSet<>(cmp);
-						SortedSet<VariantAndCsq> lis_enst = new TreeSet<>(cmp);
+						final SortedSet<VariantAndCsq> lis_nm = new TreeSet<>(cmp);
+						final SortedSet<VariantAndCsq> lis_all = new TreeSet<>(cmp);
+						final SortedSet<VariantAndCsq> lis_refseq = new TreeSet<>(cmp);
+						final SortedSet<VariantAndCsq> lis_enst = new TreeSet<>(cmp);
 						LOG.info("loop over gene2variants");
-						for(GeneTranscript gene_transcript:gene2variants.keySet() )
+						for(final GeneTranscript gene_transcript:gene2variants.keySet() )
 							{
 							if(!geneName.equals(gene_transcript.geneName)) continue;
 							lis_all.addAll(gene2variants.get(gene_transcript));
@@ -428,28 +431,25 @@ public class VcfBurden extends AbstractKnimeApplication
 					LOG.info("prev_chrom="+prev_chrom);
 					}
 				final Set<GeneTranscript> seen_names=new HashSet<>();
-				for(VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))
+				for(final VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))
 					{
-					
 					String geneName= pred.getSymbol();
 					if(geneName==null || geneName.trim().isEmpty()) continue;
-					
+
 					
 					if(this._gene2seen!=null)
 						{
 						if(!this._gene2seen.containsKey(geneName)) continue;
 						
 						}
-					
-					
-					String transcriptName = pred.getFeature();
+					final String transcriptName = pred.getFeature();
 					if(transcriptName==null || transcriptName.trim().isEmpty())
 						{
 						info("No transcript in "+ctx1);
 						continue;
 						}
 					
-					GeneTranscript geneTranscript = new GeneTranscript(geneName, transcriptName);
+					final GeneTranscript geneTranscript = new GeneTranscript(geneName, transcriptName);
 					
 					if(seen_names.contains(geneTranscript)) continue;
 					boolean ok=false;
