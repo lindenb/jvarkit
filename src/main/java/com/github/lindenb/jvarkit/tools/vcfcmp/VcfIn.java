@@ -28,17 +28,15 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -47,7 +45,6 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -55,116 +52,48 @@ import htsjdk.samtools.util.CloserUtil;
  * VcfIn
  *
  */
-public class VcfIn extends AbstractVCFFilter3
+public class VcfIn extends AbstractVcfIn
 	{
-	private boolean inverse=false;
-	private boolean databaseIsTabix=false;
-	private boolean userAltInDatabase=false;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfIn.class);
+
 	public VcfIn()
 		{
 		}
-	
-	/**
-	 * print user variant only if not found in database VCF
-	 * @param b
-	 */
-	public void setInverse(boolean b)
-		{
-		this.inverse=b;
-		}
-	
-	/** print user variant that are not part of database ? */
-	public boolean isInverse()
-		{
-		return inverse;
-		}
-	
-	public void setDatabaseIsTabix(boolean databaseIsTabix) {
-		this.databaseIsTabix = databaseIsTabix;
-		}
-	
-	public void setUserAltInDatabase(boolean userAltInDatabase) {
-		this.userAltInDatabase = userAltInDatabase;
-		}
-	
-	public boolean isUserAltInDatabase() {
-		return userAltInDatabase;
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfIn";
-		}
-
-		@Override
-	public String getProgramDescription() {
-		return "Only prints variants that are contained/not contained into another VCF.";
-		}
-	
 		
-		
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -i : inverse. Print variant that are not part of the VCF-database.");
-		out.println(" -t : database is tabix-ed.");
-		out.println(" -A : ALL user ALT must be found in VCF-database ALT.");
-		super.printOptions(out);
-		}
-	
-	
 	
 	private boolean allUserAltFoundInDatabase(
-			VariantContext userVariants,
-			VariantContext databaseVariants
+			final VariantContext userVariants,
+			final VariantContext databaseVariants
 			)
 		{
-		if(!isUserAltInDatabase()) return true;
-		Set<Allele> user_alts=new HashSet<Allele>(userVariants.getAlternateAlleles());
+		if(!super.isUserAltInDatabase()) return true;
+		final Set<Allele> user_alts=new HashSet<Allele>(userVariants.getAlternateAlleles());
 		user_alts.removeAll(databaseVariants.getAlternateAlleles());
 		return user_alts.isEmpty();
 		}
 	
-	private VariantContextWriter openWriter(VCFHeader header)
-		throws IOException
+	/* public for knime */
+	public Collection<Throwable> scanFileSorted(final VariantContextWriter vcw,final String databaseVcfUri,final VcfIterator userVcfIn)
 		{
-		VariantContextWriter w = super.createVariantContextWriter();
-		VCFHeader h2= new VCFHeader(header);
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-		w.writeHeader(h2);
-		return w;
-		}
-	
-	private int scanFileSorted(String databaseVcfUri,String userVcfUri)
-		{
-		VariantContextWriter vcw=null;
-		VcfIterator userVcfIn=null;
 		EqualRangeVcfIterator equalRangeDbIter=null;
 		try
 			{
-			userVcfIn = (userVcfUri==null?VCFUtils.createVcfIteratorStdin():
-				VCFUtils.createVcfIterator(userVcfUri));
-			VCFHeader header = userVcfIn.getHeader();
-			SAMSequenceDictionary userVcfDict = new VCFHeader(header).getSequenceDictionary();
+			final VCFHeader header = new VCFHeader(userVcfIn.getHeader());
+			final SAMSequenceDictionary userVcfDict = header.getSequenceDictionary();
 			/// NO need if(dict1==null)
 			if(userVcfDict==null)
 				{
-				error("NO SAM sequence Dict in user VCF "+(userVcfUri==null?"stdin":userVcfUri));
-				return -1;
+				return wrapException("NO SAM sequence Dict in user VCF");
 				}
-			Comparator<VariantContext> vcfComparator =
+			final Comparator<VariantContext> vcfComparator =
 					VCFUtils.createTidPosComparator(userVcfDict)
 					;
 			equalRangeDbIter = new EqualRangeVcfIterator(
 					VCFUtils.createVcfIterator(databaseVcfUri),vcfComparator);
 
-			vcw = this.openWriter(header);
-			SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(userVcfDict);
-			
-			
+			addMetaData(header);
+			vcw.writeHeader(header);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(userVcfDict);
 			
 			while(userVcfIn.hasNext())
 				{
@@ -192,16 +121,14 @@ public class VcfIn extends AbstractVCFFilter3
 				if(keep)
 					{
 					vcw.add(ctx);
-					incrVariantCount();
 					}
 					
 				}
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
@@ -210,28 +137,25 @@ public class VcfIn extends AbstractVCFFilter3
 			CloserUtil.close(vcw);
 			}
 		}
-	
-	private int scanUsingTabix(String databaseVcfUri,String userVcfUri)
+	/* public for knime */
+	public Collection<Throwable> scanUsingTabix(final VariantContextWriter vcw,final String databaseVcfUri,final VcfIterator in2)
 		{
-		VariantContextWriter vcw=null;
 		TabixVcfFileReader tabix=null;
-		VcfIterator in2=null;
 		try
 			{
-			setVariantCount(0);
-			info("opening "+databaseVcfUri+" as tabix");
+			LOG.info("opening "+databaseVcfUri+" as tabix");
 			tabix =  new TabixVcfFileReader(databaseVcfUri);
-			in2 = (userVcfUri==null?VCFUtils.createVcfIteratorStdin():
-				VCFUtils.createVcfIterator(userVcfUri));
-			VCFHeader header1= in2.getHeader();
-			vcw = this.openWriter(header1);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1.getSequenceDictionary());
+			final VCFHeader header1= new VCFHeader(in2.getHeader());
+			addMetaData(header1);
+			vcw.writeHeader(header1);
 			
-			while(in2.hasNext() && !this.checkOutputError())
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1.getSequenceDictionary());
+			
+			while(in2.hasNext() && !vcw.checkError())
 				{
 				final VariantContext userCtx= progress.watch(in2.next());
-				checkKnimeCancelled();
-				Iterator<VariantContext> iter= tabix.iterator(userCtx.getContig(),
+				
+				final Iterator<VariantContext> iter= tabix.iterator(userCtx.getContig(),
 						Math.max(1,userCtx.getStart()-1),
 						userCtx.getEnd()+1);
 				boolean keep=false;
@@ -248,31 +172,31 @@ public class VcfIn extends AbstractVCFFilter3
 				if(this.isInverse()) keep=!keep;
 				if(!keep) continue;
 				vcw.add(userCtx);
-				incrVariantCount();
 				}
 			progress.finish();
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(tabix);
 			CloserUtil.close(in2);
-			CloserUtil.close(vcw);
 			}
 		}
 	
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		throw new IllegalStateException("shouldn't be called");
+		}
 	
 	@Override
-	public int executeKnime(List<String> args)
-		{
-		String databaseVcfUri = null;
-		String userVcfUri = null;
-
+	public Collection<Throwable> call() throws Exception {
+		final List<String> args=super.getInputFiles(); 
+		String databaseVcfUri;
+		String userVcfUri;
 		if(args.size()==1)
 			{
 			databaseVcfUri = args.get(0);
@@ -285,48 +209,38 @@ public class VcfIn extends AbstractVCFFilter3
 			}
 		else
 			{
-			error(getMessageBundle("illegal.number.of.arguments"));
-			return -1;
+			return wrapException(getMessageBundle("illegal.number.of.arguments"));
 			}
 
-		if(this.databaseIsTabix)
-			{
-			return this.scanUsingTabix(databaseVcfUri, userVcfUri);
-			}
-		else
-			{	
-			return scanFileSorted(databaseVcfUri, userVcfUri);
-			}
-		}
-	
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"itAo:"))!=-1)
-			{
-			switch(c)
+		VariantContextWriter w=null;
+		VcfIterator in=null;
+		try {
+			in = (userVcfUri==null?
+					VCFUtils.createVcfIteratorFromInputStream(stdin()):
+					VCFUtils.createVcfIterator(userVcfUri)
+					);
+			w= super.openVariantContextWriter();
+			if(super.databaseIsTabix)
 				{
-				case 'i': this.setInverse(true);break;
-				case 't': this.setDatabaseIsTabix(true);break;
-				case 'A': this.setUserAltInDatabase(true);break;
-				case 'o': this.setOutputFile(opt.getOptArg()); break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				return this.scanUsingTabix(w,databaseVcfUri, in);
 				}
+			else
+				{	
+				return scanFileSorted(w,databaseVcfUri, in);
+				}
+			} catch (Exception err) {
+				return wrapException(err);
+			} finally
+			{
+			CloserUtil.close(in);
+			CloserUtil.close(w);
 			}
-		return mainWork(opt.getOptInd(), args);
+		
+		
 		}
+	
+	
+	
 	public static void main(String[] args) {
 		new VcfIn().instanceMainWithExit(args);
 	}

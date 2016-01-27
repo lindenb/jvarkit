@@ -4,4 +4,30 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.vcfvcf">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Get the INFO from a VCF and use it for another VCF.</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+<options>
+	<option name="TABIX" type="string" opt="f" longop="source" required="true" default="">
+		<description>The VCF file indexed with TABIX or tribble. Source of the annotations</description>
+	</option>
+	<option name="tagsAsString" type="string" opt="t" longop="tag" required="true">
+		<description>tag1,tag2,tag... the INFO keys to peek from the indexed file</description>
+	</option>
+	<option name="peekTagPrefix" type="string" opt="p" longop="prefix" required="false" default="">
+		<description>prefix all database tags with this prefix to avoid collisions</description>
+	</option>
+	<option name="altAlleleCheck" type="boolean" opt="a" longop="allalt" default="false">
+		<description>**ALL** alt allele must be found in indexed file.</description>
+	</option>
+		<option name="peekId" type="boolean" opt="i" longop="peekid" default="false">
+		<description>Replace the ID field if it exists</description>
+	</option>
+	
+</options>
+
+<!-- __PLACEHOLDER__ -->
+
+
+</app>
