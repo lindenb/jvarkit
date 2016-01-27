@@ -4,4 +4,20 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.vcfcmp">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Only prints variants that are contained/not contained into another VCF.</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+<options>
+	<option name="inverse" opt="i" longopt="inverse" type="boolean" default="false">
+		<description>Print variant that are not part of the VCF-database.</description>
+	</option>
+	<option name="databaseIsTabix" opt="t" longopt="tabix" type="boolean" default="false">
+		<description>Database is Tabix-ed</description>
+	</option>
+	<option name="userAltInDatabase" opt="A" longopt="allalt" type="boolean" default="false">
+		<description>ALL user ALT must be found in VCF-database ALT</description>
+	</option>
+</options>
+<!-- __PLACEHOLDER__ -->
+</app>

@@ -29,11 +29,10 @@ History:
 package com.github.lindenb.jvarkit.tools.vcfvcf;
 
 import java.io.IOException;
-import java.io.PrintStream;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -44,44 +43,35 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-
-public class VcfPeekVcf extends AbstractVCFFilter3
+public class VcfPeekVcf extends AbstractVcfPeekVcf
 	{
-	private String TABIX=null;
-	public Set<String> peek_info_tags=new HashSet<String>();
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfPeekVcf.class);
+	private final Set<String> peek_info_tags=new HashSet<String>();
 	private IndexedVcfFileReader indexedVcfFileReader=null;
-	private String peekTagPrefix="";
-	private boolean peekId=false;
-	private boolean altAlleleCheck=false;
-	
-
 	
 	public VcfPeekVcf()
 		{
 		}
 	
-	public Set<String> getPeekInfoTags() {
-		return peek_info_tags;
-		}
 	
 	@Override
-	public int initializeKnime() {
-		
+	public Collection<Throwable> initializeKnime() {
 		this.indexedVcfFileReader = null;
 		try
 			{
 			this.indexedVcfFileReader = new IndexedVcfFileReader(TABIX);
+			for(final String s: super.tagsAsString.split("[, \n]+")) {
+				if(s.isEmpty()) continue;
+				this.peek_info_tags.add(s);
+			}
 			} 
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		return super.initializeKnime();
 		}
@@ -90,27 +80,29 @@ public class VcfPeekVcf extends AbstractVCFFilter3
 	public void disposeKnime() {
 		CloserUtil.close(this.indexedVcfFileReader);
 		this.indexedVcfFileReader=null;
+		this.peek_info_tags.clear();
 		super.disposeKnime();
 		}
 	
+	/** public for knime */
 	@Override
-	protected void doWork(String inputSource, VcfIterator vcfIn,
-			VariantContextWriter out) throws IOException
+	public Collection<Throwable> doVcfToVcf(
+			final String inputName, 
+			final VcfIterator vcfIn,
+			final VariantContextWriter out)
+			throws IOException
 		{
-		VCFHeader h = vcfIn.getHeader();
-		VCFHeader h2 = new VCFHeader(h);
+		final VCFHeader h = vcfIn.getHeader();
+		final VCFHeader h2 = new VCFHeader(h);
 		
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+		super.addMetaData(h2);
 		
-		for(String key: this.peek_info_tags)
+		for(final String key: this.peek_info_tags)
 			{
 			VCFInfoHeaderLine hinfo =this.indexedVcfFileReader.getHeader().getInfoHeaderLine(key);
 			if(hinfo==null)
 				{
-				warning("INFO name="+key+" missing in "+this.TABIX);
+				LOG.warn("INFO name="+key+" missing in "+this.TABIX);
 				continue;
 				}
 			hinfo = VCFUtils.renameVCFInfoHeaderLine(hinfo, this.peekTagPrefix+key);
@@ -122,12 +114,12 @@ public class VcfPeekVcf extends AbstractVCFFilter3
 			}
 		
 		out.writeHeader(h2);
-		SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h);
+		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h);
 		while(vcfIn.hasNext())
 			{
-			VariantContext ctx=progress.watch(vcfIn.next());
+			final VariantContext ctx=progress.watch(vcfIn.next());
 						
-			VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			CloseableIterator<VariantContext> iter= this.indexedVcfFileReader.iterator(
 					ctx.getContig(),
 					Math.max(0,ctx.getStart()-1),
@@ -157,94 +149,28 @@ public class VcfPeekVcf extends AbstractVCFFilter3
 					{
 					vcb.id(ctx2.getID());
 					}
-				for(String key: this.peek_info_tags)
+				for(final String key: this.peek_info_tags)
 					{
 					if(!ctx2.hasAttribute(key)) continue;
-					Object o = ctx2.getAttribute(key);
+					final Object o = ctx2.getAttribute(key);
 					vcb.attribute(this.peekTagPrefix+key, o);
 					}
 				}
-			iter.close(); iter=null;
+			iter.close();
+			iter=null;
 			
 			out.add(vcb.make());
 				
-			incrVariantCount();
-			if(checkOutputError()) break;
+			if(out.checkError()) break;
 			}
 		progress.finish();
-		}
-	
-	public void setPeekTagPrefix(String peekTagPrefix) {
-		this.peekTagPrefix = peekTagPrefix;
-	}
-	public void setPeekId(boolean peekId) {
-		this.peekId = peekId;
-	}
-	
-	public void setAltAlleleCheck(boolean altAlleleCheck) {
-		this.altAlleleCheck = altAlleleCheck;
-	}
-	public void setIndexFile(String tABIX) {
-		TABIX = tABIX;
-		}
-	@Override
-	public String getProgramDescription() {
-		return "Get the INFO from a VCF and use it for another VCF.";
+		return RETURN_OK;
 		}
 	
 	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"VcfPeekVcf";
-    	}
-	
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -f (file) The VCF file indexed with TABIX or tribble. Source of the annotations");
-		out.println(" -t tag1,tag2,tag... the INFO keys to peek from the indexed file");
-		out.println(" -i Replace the ID field if it exists.");
-		out.println(" -a ALL alt allele must be found in indexed file.");
-		out.println(" -p (prefix) prefix all database tags with this prefix to avoid collisions");
-		out.println(" -o (out)  output file. default stdout");
-		super.printOptions(out);
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		return doVcfToVcf(inputName);
 		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"f:o:t:p:ia"))!=-1)
-			{
-			switch(c)
-				{
-				case 'f': setIndexFile(opt.getOptArg());break;
-				case 'a': setAltAlleleCheck(true);break;
-				case 'i': setPeekId(true); break;
-				case 'p': setPeekTagPrefix(opt.getOptArg());break;
-				case 't': for(String s: opt.getOptArg().split("[\\s;,]+"))
-					{
-					if(s.isEmpty()) continue;
-					getPeekInfoTags().add(s);
-					}
-					break;
-				case 'o': this.setOutputFile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
-
-	
 	
 	public static void main(String[] args) throws IOException
 		{
