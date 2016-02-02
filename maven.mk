@@ -39,8 +39,31 @@ slf4j.jars = \
 derby.jars  =  \
 	$(lib.dir)/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar
 
+jetty.jars  =  \
+	$(lib.dir)/javax/servlet/javax.servlet-api/4.0.0-b01/javax.servlet-api-4.0.0-b01.jar \
+	$(lib.dir)/org/eclipse/jetty/jetty-webapp/9.3.7.v20160115/jetty-webapp-9.3.7.v20160115.jar \
+	$(lib.dir)/org/eclipse/jetty/jetty-http/9.3.7.v20160115/jetty-http-9.3.7.v20160115.jar \
+	$(lib.dir)/org/eclipse/jetty/jetty-server/9.3.7.v20160115/jetty-server-9.3.7.v20160115.jar \
+	$(lib.dir)/org/eclipse/jetty/jetty-io/9.3.7.v20160115/jetty-io-9.3.7.v20160115.jar \
+	$(lib.dir)/org/eclipse/jetty/jetty-security/9.3.7.v20160115/jetty-security-9.3.7.v20160115.jar \
+	$(lib.dir)/org/eclipse/jetty/jetty-servlet/9.3.7.v20160115/jetty-servlet-9.3.7.v20160115.jar \
+	$(lib.dir)/org/eclipse/jetty/jetty-util/9.3.7.v20160115/jetty-util-9.3.7.v20160115.jar \
+	$(lib.dir)/org/eclipse/jetty/jetty-xml/9.3.7.v20160115/jetty-xml-9.3.7.v20160115.jar
 
-all_maven_jars = $(sort ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars})
+spring-beans.jars  =  \
+	$(lib.dir)/org/springframework/spring-core/4.2.4.RELEASE/spring-core-4.2.4.RELEASE.jar \
+	$(lib.dir)/org/springframework/spring-beans/4.2.4.RELEASE/spring-beans-4.2.4.RELEASE.jar \
+	$(lib.dir)/commons-logging/commons-logging/1.2/commons-logging-1.2.jar
+
+web.frameworks.jar  =  \
+	$(lib.dir)/org/webjars/bootstrap/3.3.5/bootstrap-3.3.5.jar \
+	$(lib.dir)/org/webjars/jquery-ui/1.11.4/jquery-ui-1.11.4.jar \
+	$(lib.dir)/org/webjars/jquery/1.11.1/jquery-1.11.1.jar
+
+
+all_maven_jars = $(sort ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars})
+
+download_all_maven : ${all_maven_jars}
 
 ${all_maven_jars}  : 
 	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o "$@" "http://central.maven.org/maven2/$(patsubst ${lib.dir}/%,%,$@)"
