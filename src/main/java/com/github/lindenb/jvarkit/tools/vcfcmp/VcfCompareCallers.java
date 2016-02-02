@@ -194,12 +194,7 @@ public class VcfCompareCallers
 
 	@Override
 	public Collection<Throwable> call() throws Exception {
-		htsjdk.samtools.util.IntervalTreeMap<Boolean> capture = null;
-		PrintWriter exampleWriter=null;
-		XMLStreamWriter  exampleOut=null;
-		PrintStream pw=null;
 		VcfIterator vcfInputs[]=new VcfIterator[]{null,null};
-		VCFHeader headers[]=new VCFHeader[]{null,null};
 		final List<String> args = getInputFiles();
 		
 		internalTests();
@@ -221,7 +216,28 @@ public class VcfCompareCallers
 				{
 				return wrapException(getMessageBundle("illegal.number.of.arguments"));
 				}
+			return compare(vcfInputs[0],vcfInputs[1]);
+			}
+		catch (Exception err)
+			{
+			return wrapException(err);
+			}
+		finally
+			{
+			CloserUtil.close(vcfInputs[0]);
+			CloserUtil.close(vcfInputs[1]);
+			}
+		}
 		
+	public  Collection<Throwable> compare(VcfIterator vcfIterator1,VcfIterator vcfIterator2)
+		{
+		PrintWriter exampleWriter=null;
+		XMLStreamWriter  exampleOut=null;
+		PrintStream pw=null;
+		final VCFHeader headers[]=new VCFHeader[]{null,null};
+		htsjdk.samtools.util.IntervalTreeMap<Boolean> capture = null;
+		final VcfIterator vcfInputs[]=new VcfIterator[]{vcfIterator1,vcfIterator2};
+		try {	
 			if( super.captureFile !=null )
 				{
 				LOG.info("Reading "+super.captureFile);
@@ -504,7 +520,7 @@ public class VcfCompareCallers
 				pw.print(c.name());
 				}
 			pw.println();
-			for(String sample: sample2info.keySet())
+			for(final String sample: sample2info.keySet())
 				{
 				Counter<Category> count=sample2info.get(sample);
 				pw.print(sample);
@@ -536,7 +552,6 @@ public class VcfCompareCallers
 			if(getOutputFile()!=null)  CloserUtil.close(pw);
 			CloserUtil.close(exampleWriter);
 			}
-		
 		}
 
 	
