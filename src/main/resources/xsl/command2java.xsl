@@ -124,10 +124,22 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	</xsl:if>
 
 	<xsl:if test="c:snippet[@id='md5']">
+	
+	<xsl:variable name="staticmd5"><xsl:choose>
+		 <xsl:when test="c:snippet[@id='md5' and @static='true']">true</xsl:when>
+		 <xsl:otherwise>false</xsl:otherwise></xsl:choose>
+	</xsl:variable>
+	
+	 <xsl:if test="$staticmd5 = 'false'">
 	 private java.security.MessageDigest _md5 = null;
-	 
-          protected String md5(final String in)
+	 </xsl:if>
+	 	
+	 	
+	 	  /** compute md5 sum of string */
+          protected <xsl:if test="$staticmd5 ='true'"> static </xsl:if> String md5(final String in)
 	    	{
+	    	<xsl:if test="$staticmd5 ='true'">  java.security.MessageDigest _md5 = null; </xsl:if>
+	    	
 		 if(_md5==null) {
 	    	  try {
 	              _md5 = java.security.MessageDigest.getInstance("MD5");

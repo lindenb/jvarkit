@@ -57,7 +57,7 @@ public class ConvertVcfChromosomes extends AbstractConvertVcfChromosomes {
 		{
 		}
 	
-	private String convertName(String chrom)throws IOException
+	private String convertName(final String chrom)throws IOException
 		{
 		if(chrom==null) throw new NullPointerException();
 		String newname=customMapping.get(chrom);
@@ -79,25 +79,28 @@ public class ConvertVcfChromosomes extends AbstractConvertVcfChromosomes {
 		return newname;
 		}
 	
+	/** public for knime */
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName,
-			VcfIterator in, VariantContextWriter out)
+	public Collection<Throwable> doVcfToVcf(
+			final String inputName,
+			final  VcfIterator in,
+			final  VariantContextWriter out)
 			throws IOException {
 		final VCFHeader header1=in.getHeader();
 	
-		Set<VCFHeaderLine> meta2=new LinkedHashSet<VCFHeaderLine>();
-		for(VCFHeaderLine L:header1.getMetaDataInInputOrder())
+		final  Set<VCFHeaderLine> meta2=new LinkedHashSet<VCFHeaderLine>();
+		for(final  VCFHeaderLine L:header1.getMetaDataInInputOrder())
 			{
 			if(!L.getKey().equals(VCFHeader.CONTIG_KEY))
 				{
 				meta2.add(L);
 				}
 			}
-		VCFHeader header2=new VCFHeader(meta2,header1.getSampleNamesInOrder());
+		final VCFHeader header2=new VCFHeader(meta2,header1.getSampleNamesInOrder());
 
 		if(header1.getSequenceDictionary()!=null)
 			{
-			List<SAMSequenceRecord> ssrs=new ArrayList<SAMSequenceRecord>();
+			final List<SAMSequenceRecord> ssrs=new ArrayList<SAMSequenceRecord>();
 
 			for(int i=0;i< header1.getSequenceDictionary().size();++i)
 				{
@@ -113,15 +116,13 @@ public class ConvertVcfChromosomes extends AbstractConvertVcfChromosomes {
 				}
 			header2.setSequenceDictionary(new SAMSequenceDictionary(ssrs));
 			}
-		
-		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		super.addMetaData(header2);
 		out.writeHeader(header2);
 		
 		while(in.hasNext())
 			{
-			VariantContext ctx=in.next();
-			String newName=convertName(ctx.getContig());
+			final VariantContext ctx=in.next();
+			final String newName=convertName(ctx.getContig());
 			if(newName==null)
 				{
 				//skip unknown chromosomes
@@ -129,8 +130,7 @@ public class ConvertVcfChromosomes extends AbstractConvertVcfChromosomes {
 				}
 			final VariantContextBuilder vcb= super.getVariantContextBuilderFactory().newVariantContextBuilder(ctx);
 			vcb.chr(newName);
-			ctx=vcb.make();
-			out.add(ctx);
+			out.add(vcb.make());
 			}
 		
 		if(!unmappedChromosomes.isEmpty())

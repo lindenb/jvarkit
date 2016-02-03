@@ -26,5 +26,10 @@
 		<description>print all sites</description>
 	</option>
 </options>
+
+<documentation>
+<h:b>Deprecated</h:b>: use <h:a>https://github.com/sanger-pathogens/snp_sites</h:a>
+
+</documentation>
 <!-- __PLACEHOLDER__ -->
 </app>

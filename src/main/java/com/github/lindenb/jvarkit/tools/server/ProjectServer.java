@@ -26,10 +26,18 @@ package com.github.lindenb.jvarkit.tools.server;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
@@ -46,6 +54,7 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 
 public  class ProjectServer extends AbstractProjectServer {
@@ -56,18 +65,16 @@ public  class ProjectServer extends AbstractProjectServer {
 		
 		}
 	
-	private static class NgsFile{
-		private final String uri;
-		NgsFile(final String uri)
-			{	
-			this.uri=uri;
-			}
-	}
 	
 	private static class ProjectFile {
 		private final File configFile;
+		private final Set<Path> ngsFiles = new HashSet<>();
+		private String id="";
+		private String label=null;
+		private String description=null;
 		ProjectFile(final File configFile) {
 			this.configFile=configFile;
+			this.id=configFile.getName();
 			IOUtil.assertFileIsReadable(configFile);
 			BufferedReader r=null;
 			try {
@@ -75,7 +82,23 @@ public  class ProjectServer extends AbstractProjectServer {
 				String line;
 				while((line=r.readLine())!=null)
 					{	
-					
+					if(line.trim().isEmpty()) continue;
+					if(line.startsWith("#"))
+						{
+						line=line.substring(1);
+						int colon = line.indexOf(":");
+						if(colon>0 )
+							{
+							final String key = line.substring(0,colon).trim().toLowerCase();
+							final String value = line.substring(colon+1).trim();
+							if(key.equals("id")) this.id=value;
+							else if(key.equals("name") || key.equals("label")) this.label=value;
+							else if(key.equals("desc") || key.equals("description")) this.description=value;
+							}
+						continue;
+						}
+					final Path file= Paths.get(line.trim());
+					ngsFiles.add(file);
 					}
 			} catch (IOException err) {
 				throw new RuntimeIOException(err);
@@ -83,14 +106,14 @@ public  class ProjectServer extends AbstractProjectServer {
 		}
 		
 		public String getId() {
-			return "";
+			return this.id;
 		}
 		public String getLabel() {
-			return "";
+			return this.label==null?getId():this.label;
 		}
 		
 		public String getDefinition() {
-			return "";
+			return this.description==null?getLabel():this.description;
 		}
 		
 		void anchor(XMLStreamWriter w) throws XMLStreamException{
@@ -101,26 +124,44 @@ public  class ProjectServer extends AbstractProjectServer {
 			w.writeEndElement();
 		}
 		
+	List<Path> getBams() {
+		return this.ngsFiles.stream().filter(p->p.endsWith(".bam")).collect(Collectors.toList());
+		}
+	List<Path> getVcfs() {
+		return this.ngsFiles.stream().filter(p->p.endsWith(".vcf.gz")).collect(Collectors.toList());
+		}
 	}
 	
 	
 	private static class ProjectHandler extends DefaultHandler{
 		final List<ProjectFile> projects;
-		ProjectHandler(final List<String> args) {
-			this.projects = args.stream().map(S-> new ProjectFile(new File(S))).collect(Collectors.toList());
+		ProjectHandler(final File configFile) {
+		BufferedReader in= null;
+		try {
+			in= new BufferedReader(new FileReader(configFile));
+		} catch (IOException e) {
+			throw new RuntimeIOException(e);
+			}
+		finally 
+			{
+			CloserUtil.close(in);
+			}
 		}
 		@Override
 		public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
 				throws IOException, ServletException
 			  {
-			 System.err.println("target:"+target);
-			 System.err.println("base:"+baseRequest);
-			 System.err.println("request"+request);
-			 System.err.println("Response:"+response);
-			 doListProjects(target,baseRequest,request,response);
+				request.getPathInfo();
+			  if(target==null) target="/";
+			  
+			  doListProjects(target,baseRequest,request,response);
 			 baseRequest.setHandled(true);
 		}
 	
+	private void doShowBam(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)	throws IOException, ServletException
+		{
+		}
+		
 	private void doListProjects(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)	throws IOException, ServletException
 		{
 		 response.setContentType("text/html; charset=utf-8");
@@ -153,15 +194,19 @@ public  class ProjectServer extends AbstractProjectServer {
 	}
 	
 	@Override
-	protected Handler createDefaultHandler(List<String> args) {
-		return new ProjectHandler(args);
+	protected Handler createDefaultHandler(final List<String> args) {
+		return new ProjectHandler(new File(args.get(0)));
 	}
 	
 	@Override
 	public java.util.Collection<Throwable> call() throws Exception
 	{
 	try {
-		super.createAndRunServer(super.getInputFiles());
+		final List<String> inputFiles = super.getInputFiles();
+		if( inputFiles.size()!=1) {
+			return wrapException("Illegal Argument. Expected one config file");
+		}
+		super.createAndRunServer(inputFiles);
 	    return RETURN_OK;
 		}
 	catch (Exception e) {

@@ -12,6 +12,7 @@
 	>
 <description>Jetty Based http server serving VCF, BAM files</description>
 <snippet id="jetty-server"/>
+<snippet id="md5" static="true"/>
 
 <options>
 </options>

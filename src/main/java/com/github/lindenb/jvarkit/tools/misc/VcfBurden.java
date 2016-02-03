@@ -60,8 +60,6 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
-
-
 public class VcfBurden extends AbstractKnimeApplication
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurden.class);
@@ -139,7 +137,7 @@ public class VcfBurden extends AbstractKnimeApplication
 		}
 	@Override
 	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"SolenaVcfToRaw";
+		return DEFAULT_WIKI_PREFIX+"VcfBurden";
 		}
 	
 	@Override
@@ -334,7 +332,7 @@ public class VcfBurden extends AbstractKnimeApplication
 					{
 					info("DUMP to zip n="+gene2variants.size());
 					Set<String> geneNames= new HashSet<>();
-					for(GeneTranscript gene_transcript:gene2variants.keySet() )
+					for(final GeneTranscript gene_transcript:gene2variants.keySet() )
 						{
 						geneNames.add(gene_transcript.geneName);
 						
@@ -347,7 +345,7 @@ public class VcfBurden extends AbstractKnimeApplication
 						LOG.info("dumped" +gene_transcript.geneName);
 						}
 					LOG.info("loop over geneName");
-					for(String geneName : geneNames)
+					for(final String geneName : geneNames)
 						{
 						final Comparator<VariantAndCsq> cmp = new Comparator<VariantAndCsq>()
 									{
@@ -368,10 +366,10 @@ public class VcfBurden extends AbstractKnimeApplication
 										return 0;
 										}
 									};
-						SortedSet<VariantAndCsq> lis_nm = new TreeSet<>(cmp);
-						SortedSet<VariantAndCsq> lis_all = new TreeSet<>(cmp);
-						SortedSet<VariantAndCsq> lis_refseq = new TreeSet<>(cmp);
-						SortedSet<VariantAndCsq> lis_enst = new TreeSet<>(cmp);
+						final SortedSet<VariantAndCsq> lis_nm = new TreeSet<>(cmp);
+						final SortedSet<VariantAndCsq> lis_all = new TreeSet<>(cmp);
+						final SortedSet<VariantAndCsq> lis_refseq = new TreeSet<>(cmp);
+						final SortedSet<VariantAndCsq> lis_enst = new TreeSet<>(cmp);
 						LOG.info("loop over gene2variants");
 						for(GeneTranscript gene_transcript:gene2variants.keySet() )
 							{
@@ -429,7 +427,7 @@ public class VcfBurden extends AbstractKnimeApplication
 					LOG.info("prev_chrom="+prev_chrom);
 					}
 				final Set<GeneTranscript> seen_names=new HashSet<>();
-				for(VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))
+				for(final VepPredictionParser.VepPrediction pred: vepPredParser.getPredictions(ctx1))
 					{
 					
 					String geneName= pred.getSymbol();
@@ -486,7 +484,7 @@ public class VcfBurden extends AbstractKnimeApplication
 			if(this._gene2seen!=null)
 				{
 				final List<VariantAndCsq> emptylist = Collections.emptyList();
-				for(String gene:this._gene2seen.keySet())
+				for(final String gene:this._gene2seen.keySet())
 					{
 					if(this._gene2seen.get(gene).equals(Boolean.TRUE)) continue;
 					warning("Gene not found : "+gene);
