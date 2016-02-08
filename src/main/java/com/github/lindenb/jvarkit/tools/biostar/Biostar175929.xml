@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "Biostar175929">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.biostar">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<description>Construct a combination set of fasta sequences from a vcf see also https://www.biostars.org/p/175929/</description>
+<input type="vcf"/>
+<snippet id="ref.faidx" name="faidx" opt="R"/>
+
+<options>
+	<option name="extendBases" type="int" opt="x" longopt="extend" argname="BASES" default="100">
+		<description>extend FASTA sequence by 'n' bases</description>
+	</option>
+	<option name="bracket" type="boolean" opt="b" longopt="bracket"  default="false">
+		<description>Surround variant with '[' and ']'</description>
+	</option>
+
+</options>
+
+<documentation>
+<h:h3>Example</h:h3>
+<h:pre><![CDATA[
+$ java -jar dist-2.0.1/biostar175929.jar -x 2 -R ~/src/gatk-ui/testdata/ref.fa -b ~/src/gatk-ui/testdata/S1.vcf.gz  | more
+
+>rotavirus:127|rotavirus:130-130(T)|rotavirus:232-232(T)|rotavirus:267-267(C)|rotavirus:286-286(G)|rotavirus:536-536(A)|rotavirus:693-693(T)|rotavirus:833-833(G)|rotavirus:916-916
+(A)|rotavirus:961-961(T)
+at[T]caatatgattacaatgaagtatttaccagagttaaaagtaaatttgattatgtga
+tggatgactctggtgttaaaaacaatcttttgggtaaagctataac[T]attgatcaggc
+gttaaatggaaagtttagctcag[C]tattagaaatagaaattg[G]atgactgattcta
+aaacggttgctaaattagatgaagacgtgaataaacttagaatgactttatcttctaaag
+ggatcgaccaaaagatgagagtacttaatgcttgttttagtgtaaaaagaataccaggaa
+aatcatcatcaataattaaatgcactagacttatgaaggataaaatagaacgtggagaag
+ttgaggttgatgattcatatgttgatgagaaaatggaaattgatactattgattgg[A]a
+atctcgttatgatcagttagaaaaaagatttgaatcactaaaacagagggttaatgagaa
+atacaatacttgggtacaaaaagcgaagaaagtaaatgaaaatatgtactctcttcagaa
+tgttatctcacaacagcaaaaccaaatagcagatc[T]tcaacaatattgtagtaaattg
+gaagctgatttgcaaggtaaatttagttcattagtgtcatcagttgagtggtatctaagg
+tctatggaattaccagatgatgtaaagaatgacattgaacagcagttaaattcaatt[G]
+atttaattaatcccattaatgctatagatgatatcgaatcgctgattagaaatttaattc
+aagattatgacagaacattttt[A]atgttaaaaggactgttgaagcaatgcaactatga
+atatgcata[T]tg
+>rotavirus:127|rotavirus:130-130(T)|rotavirus:232-232(T)|rotavirus:267-267(C)|rotavirus:286-286(G)|rotavirus:536-536(A)|rotavirus:693-693(T)|rotavirus:833-833(G)|rotavirus:916-916
+(A)|rotavirus:961-961(A)
+at[T]caatatgattacaatgaagtatttaccagagttaaaagtaaatttgattatgtga
+tggatgactctggtgttaaaaacaatcttttgggtaaagctataac[T]attgatcaggc
+gttaaatggaaagtttagctcag[C]tattagaaatagaaattg[G]atgactgattcta
+aaacggttgctaaattagatgaagacgtgaataaacttagaatgactttatcttctaaag
+ggatcgaccaaaagatgagagtacttaatgcttgttttagtgtaaaaagaataccaggaa
+aatcatcatcaataattaaatgcactagacttatgaaggataaaatagaacgtggagaag
+ttgaggttgatgattcatatgttgatgagaaaatggaaattgatactattgattgg[A]a
+atctcgttatgatcagttagaaaaaagatttgaatcactaaaacagagggttaatgagaa
+atacaatacttgggtacaaaaagcgaagaaagtaaatgaaaatatgtactctcttcagaa
+tgttatctcacaacagcaaaaccaaatagcagatc[T]tcaacaatattgtagtaaattg
+gaagctgatttgcaaggtaaatttagttcattagtgtcatcagttgagtggtatctaagg
+tctatggaattaccagatgatgtaaagaatgacattgaacagcagttaaattcaatt[G]
+atttaattaatcccattaatgctatagatgatatcgaatcgctgattagaaatttaattc
+aagattatgacagaacattttt[A]atgttaaaaggactgttgaagcaatgcaactatga
+atatgcata[A]tg
+>rotavirus:127|rotavirus:130-130(T)|rotavirus:232-232(T)|rotavirus:267-267(C)|rotavirus:286-286(G)|rotavirus:536-536(A)|rotavirus:693-693(T)|rotavirus:833-833(G)|rotavirus:916-916
+(T)|rotavirus:961-961(T)
+at[T]caatatgattacaatgaagtatttaccagagttaaaagtaaatttgattatgtga
+tggatgactctggtgttaaaaacaatcttttgggtaaagctataac[T]attgatcaggc
+gttaaatggaaagtttagctcag[C]tattagaaatagaaattg[G]atgactgattcta
+aaacggttgctaaattagatgaagacgtgaataaacttagaatgactttatcttctaaag
+ggatcgaccaaaagatgagagtacttaatgcttgttttagtgtaaaaagaataccaggaa
+aatcatcatcaataattaaatgcactagacttatgaaggataaaatagaacgtggagaag
+ttgaggttgatgattcatatgttgatgagaaaatggaaattgatactattgattgg[A]a
+atctcgttatgatcagttagaaaaaagatttgaatcactaaaacagagggttaatgagaa
+atacaatacttgggtacaaaaagcgaagaaagtaaatgaaaatatgtactctcttcagaa
+tgttatctcacaacagcaaaaccaaatagcagatc[T]tcaacaatattgtagtaaattg
+gaagctgatttgcaaggtaaatttagttcattagtgtcatcagttgagtggtatctaagg
+tctatggaattaccagatgatgtaaagaatgacattgaacagcagttaaattcaatt[G]
+atttaattaatcccattaatgctatagatgatatcgaatcgctgattagaaatttaattc
+aagattatgacagaacattttt[T]atgttaaaaggactgttgaagcaatgcaactatga
+atatgcata[T]tg
+>rotavirus:127|rotavirus:130-130(T)|rotavirus:232-232(T)|rotavirus:267-267(C)|rotavirus:286-286(G)|rotavirus:536-536(A)|rotavirus:693-693(T)|rotavirus:833-833(G)|rotavirus:916-916
+(T)|rotavirus:961-961(A)
+at[T]caatatgattacaatgaagtatttaccagagttaaaagtaaatttgattatgtga
+tggatgactctggtgttaaaaacaatcttttgggtaaagctataac[T]attgatcaggc
+gttaaatggaaagtttagctcag[C]tattagaaatagaaattg[G]atgactgattcta
+aaacggttgctaaattagatgaagacgtgaataaacttagaatgactttatcttctaaag
+ggatcgaccaaaagatgagagtacttaatgcttgttttagtgtaaaaagaataccaggaa
+aatcatcatcaataattaaatgcactagacttatgaaggataaaatagaacgtggagaag
+ttgaggttgatgattcatatgttgatgagaaaatggaaattgatactattgattgg[A]a
+atctcgttatgatcagttagaaaaaagatttgaatcactaaaacagagggttaatgagaa
+atacaatacttgggtacaaaaagcgaagaaagtaaatgaaaatatgtactctcttcagaa
+tgttatctcacaacagcaaaaccaaatagcagatc[T]tcaacaatattgtagtaaattg
+gaagctgatttgcaaggtaaatttagttcattagtgtcatcagttgagtggtatctaagg
+tctatggaattaccagatgatgtaaagaatgacattgaacagcagttaaattcaatt[G]
+atttaattaatcccattaatgctatagatgatatcgaatcgctgattagaaatttaattc
+aagattatgacagaacattttt[T]atgttaaaaggactgttgaagcaatgcaactatga
+atatgcata[A]tg
+]]></h:pre>
+</documentation>
+
+<!-- __PLACEHOLDER__ --></app>
