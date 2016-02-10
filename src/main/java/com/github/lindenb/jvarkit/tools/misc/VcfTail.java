@@ -54,9 +54,9 @@ public class VcfTail
 		if(this.count<0) return wrapException("bad value for count "+this.count);
 		return super.initializeKnime();
 	 	}
-
+	/* public for knime */
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName,
+	public Collection<Throwable> doVcfToVcf(String inputName,
 			VcfIterator in, VariantContextWriter out) throws IOException
 			{
 			try {
