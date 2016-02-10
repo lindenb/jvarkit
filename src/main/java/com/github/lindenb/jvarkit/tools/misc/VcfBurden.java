@@ -60,8 +60,6 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
-
-
 public class VcfBurden extends AbstractKnimeApplication
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurden.class);
@@ -350,7 +348,7 @@ public class VcfBurden extends AbstractKnimeApplication
 						LOG.info("dumped" +gene_transcript.geneName);
 						}
 					LOG.info("loop over geneName");
-					for(String geneName : geneNames)
+					for(final String geneName : geneNames)
 						{
 						final Comparator<VariantAndCsq> cmp = new Comparator<VariantAndCsq>()
 									{
@@ -486,7 +484,7 @@ public class VcfBurden extends AbstractKnimeApplication
 			if(this._gene2seen!=null)
 				{
 				final List<VariantAndCsq> emptylist = Collections.emptyList();
-				for(String gene:this._gene2seen.keySet())
+				for(final String gene:this._gene2seen.keySet())
 					{
 					if(this._gene2seen.get(gene).equals(Boolean.TRUE)) continue;
 					warning("Gene not found : "+gene);

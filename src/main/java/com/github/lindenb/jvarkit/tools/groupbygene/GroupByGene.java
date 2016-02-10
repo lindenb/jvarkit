@@ -58,8 +58,8 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
@@ -145,7 +145,7 @@ public class GroupByGene
 		@Override
 		public Call decode(DataInputStream dis) throws IOException
 			{
-			Call c= new Call();
+			final Call c= new Call();
 			try {
 				c.chrom=dis.readUTF();
 			} catch (Exception e) {
@@ -269,8 +269,11 @@ public class GroupByGene
 		this.user_gene_tags.add(t);
 		}
 	
-	private void dump() throws IOException,XMLStreamException
+	/** public for knime */
+	public void dump() throws IOException,XMLStreamException
 		{
+		this.sortingCollection.doneAdding();
+		
 		PrintStream pw = openFileOrStdoutAsPrintStream();
 		
 		XMLStreamWriter w=null;
@@ -417,10 +420,17 @@ public class GroupByGene
 		if(outputFile!=null) pw.close();
 		}
 	
-	private void read(InputStream in)
+	private void read(final InputStream in) throws IOException
 		{
-		VcfIterator iter=new VcfIteratorImpl(in);
-		VCFHeader header=(VCFHeader)iter.getHeader();
+		final VcfIterator iter = VCFUtils.createVcfIteratorFromInputStream(in);
+		this.readVcf(iter);
+		CloserUtil.close(iter);
+		}
+	
+	/** public for knime */
+	public void readVcf(final VcfIterator iter) 
+		{
+		final VCFHeader header=(VCFHeader)iter.getHeader();
 		if(header.getSampleNamesInOrder()!=null)
 			{
 			this.sampleNames.addAll(header.getSampleNamesInOrder());
@@ -480,7 +490,19 @@ public class GroupByGene
 		CloserUtil.close(iter);
 		}
 	
-
+	/** public for knime */
+	public void initializeSortingCollections()
+		{
+		this.sortingCollection=SortingCollection.newInstance(
+				Call.class,
+				new CallCodec(),
+				new CallCmp(),
+				getMaxRecordsInRam(),
+				getTmpDirectories()
+				);
+		this.sortingCollection.setDestructiveIteration(true);
+		this.sampleNames.clear();
+		}
 
 	
 	@Override
@@ -489,15 +511,8 @@ public class GroupByGene
 		final List<String> args = getInputFiles();
 		try
 			{
-			sortingCollection=SortingCollection.newInstance(
-					Call.class,
-					new CallCodec(),
-					new CallCmp(),
-					getMaxRecordsInRam(),
-					getTmpDirectories()
-					);
-			sortingCollection.setDestructiveIteration(true);
-			this.sampleNames.clear();
+			this.initializeSortingCollections();
+			
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
@@ -513,7 +528,6 @@ public class GroupByGene
 					in.close();
 					}
 				}
-			sortingCollection.doneAdding();
 	
 			LOG.info("Done reading. Now printing results.");
 	

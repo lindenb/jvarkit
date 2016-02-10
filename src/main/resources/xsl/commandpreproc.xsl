@@ -132,6 +132,12 @@
 	</c:option>
 	</xsl:if>
 
+	<xsl:if test="/c:app/c:snippet[@id='jetty-server']">
+		<c:option name="serverPort" type="int" argname="PORT" opt="port" longopt="port" default="8080">
+			<c:description>server port</c:description>
+		</c:option>
+	</xsl:if>
+	
 	
 </xsl:template>
 

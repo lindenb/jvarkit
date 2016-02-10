@@ -124,10 +124,22 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	</xsl:if>
 
 	<xsl:if test="c:snippet[@id='md5']">
+	
+	<xsl:variable name="staticmd5"><xsl:choose>
+		 <xsl:when test="c:snippet[@id='md5' and @static='true']">true</xsl:when>
+		 <xsl:otherwise>false</xsl:otherwise></xsl:choose>
+	</xsl:variable>
+	
+	 <xsl:if test="$staticmd5 = 'false'">
 	 private java.security.MessageDigest _md5 = null;
-	 
-          protected String md5(final String in)
+	 </xsl:if>
+	 	
+	 	
+	 	  /** compute md5 sum of string */
+          protected <xsl:if test="$staticmd5 ='true'"> static </xsl:if> String md5(final String in)
 	    	{
+	    	<xsl:if test="$staticmd5 ='true'">  java.security.MessageDigest _md5 = null; </xsl:if>
+	    	
 		 if(_md5==null) {
 	    	  try {
 	              _md5 = java.security.MessageDigest.getInstance("MD5");
@@ -283,7 +295,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		{
 		return "<xsl:value-of select="$githash"/>";
 		}
-		
+	
 		
 		<xsl:if test="c:output/@type='fastq'">
 		
@@ -545,7 +557,6 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 
 		</xsl:if>
 		
-
 		
 		<xsl:if test="c:input/@type='sam' or c:snippet[@id='read-sam']">
 		<!-- already done -->
@@ -644,6 +655,56 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		</xsl:if>
 	
+	
+		<xsl:if test="c:snippet[@id='jetty-server']">
+		
+		/** create default handler: (null by default) */
+		protected org.eclipse.jetty.server.Handler createDefaultHandler(final java.util.List&lt;String&gt; args) {
+			return null;
+		}
+		
+		/** create jetty handlers */
+		protected org.eclipse.jetty.server.handler.HandlerCollection createHandlers(final java.util.List&lt;String&gt; args) {
+			final org.eclipse.jetty.server.handler.HandlerCollection handlers= new org.eclipse.jetty.server.handler.HandlerCollection();
+			final  org.eclipse.jetty.server.Handler handler = createDefaultHandler(args);
+			if(handler!=null) {
+				handlers.addHandler(handler);
+				}
+			else
+				{
+				LOG.warn("No default handler defined");
+				}
+			return handlers;
+		}
+		
+		
+		/** create a new void jetty server */
+		protected org.eclipse.jetty.server.Server createServer() {
+			LOG.info("creating server listening on port "+this.serverPort);
+		   return new org.eclipse.jetty.server.Server(this.serverPort);
+		}
+		
+		/** create a new void jetty server */
+		protected org.eclipse.jetty.server.Server configure(final org.eclipse.jetty.server.Server server,final java.util.List&lt;String&gt; args) {
+		     server.setHandler(createHandlers(args));
+		    return server;
+			}
+		
+		
+		/** create the server, start and join, should be called by 'call()' */
+		protected void createAndRunServer(final java.util.List&lt;String&gt; args) throws Exception
+			{
+		    final org.eclipse.jetty.server.Server server = this.createServer();
+		    configure(server,args);
+		    LOG.info("Starting server "+getName()+" on port "+this.serverPort);
+		    server.start();
+		    LOG.info("Server started Press Ctrl-C to stop");
+		    server.join();
+			}
+		
+		
+		
+		</xsl:if>
 	
 		
 		<xsl:if test="c:snippet[@id='fastq-reader']">
