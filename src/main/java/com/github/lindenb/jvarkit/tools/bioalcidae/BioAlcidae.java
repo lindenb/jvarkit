@@ -49,7 +49,6 @@ import javax.script.CompiledScript;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -135,6 +134,7 @@ public class BioAlcidae
 			bindings.put("iter",in);
 			bindings.put("format","vcf");
 			this.script.eval(bindings);
+			this.writer.flush();
 			return RETURN_OK;
 			} 
 		catch (Exception e)
@@ -172,6 +172,7 @@ public class BioAlcidae
 			bindings.put("iter",iter);
 			bindings.put("format","sam");
 			this.script.eval(bindings);
+			this.writer.flush();
 			return RETURN_OK;
 			} 
 		catch (Exception e)
@@ -274,6 +275,7 @@ public class BioAlcidae
 			bindings.put("iter",iter);
 			bindings.put("format","fasta");
 			this.script.eval(bindings);
+			this.writer.flush();
 			return RETURN_OK;
 			} 
 		catch (Exception e)
@@ -306,6 +308,7 @@ public class BioAlcidae
 			bindings.put("iter",in);
 			bindings.put("format","fastq");
 			this.script.eval(bindings);
+			this.writer.flush();
 			return RETURN_OK;
 			} 
 		catch (Exception e)

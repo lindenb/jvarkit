@@ -50,9 +50,9 @@ public class VcfHead
 			if(this.count<0) return wrapException("bad value found count "+this.count);
 			return super.initializeKnime();
 		 	}
-		
+		/* public for knime */
 		@Override
-		protected Collection<Throwable> doVcfToVcf(
+		public Collection<Throwable> doVcfToVcf(
 				String inputName,
 				VcfIterator in,
 				VariantContextWriter out
@@ -61,9 +61,11 @@ public class VcfHead
 			VCFHeader h2=addMetaData(new VCFHeader(header));
 			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
-			while(in.hasNext() && this.getVariantCount()< super.count  && !out.checkError())
+			int n=0;
+			while(in.hasNext() && n< super.count  && !out.checkError())
 				{
 				out.add(progess.watch(in.next()));
+				++n;
 				}
 			progess.finish();
 			return RETURN_OK;
