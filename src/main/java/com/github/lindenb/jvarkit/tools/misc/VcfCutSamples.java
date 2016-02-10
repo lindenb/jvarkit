@@ -130,9 +130,9 @@ public class VcfCutSamples
 		this.removeCtxIfNoCall = removeCtxIfNoCall;
 		}
 
-
+	/* public for knime */
 	@Override
-	protected void doWork( String inputSource,VcfIterator in,VariantContextWriter out )
+	public void doWork( String inputSource,VcfIterator in,VariantContextWriter out )
 			throws IOException
 		{
 		VCFHeader header=in.getHeader();
