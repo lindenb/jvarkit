@@ -433,7 +433,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		private int <xsl:value-of select="concat('count_variants_',generate-id())"/> = 0;
 		protected class VariantContextWriterCounter implements htsjdk.variant.variantcontext.writer.VariantContextWriter
 			{
-			htsjdk.variant.variantcontext.writer.VariantContextWriter delegate;
+			final htsjdk.variant.variantcontext.writer.VariantContextWriter delegate;
 			VariantContextWriterCounter(final htsjdk.variant.variantcontext.writer.VariantContextWriter delegate)
 				{
 				this.delegate=delegate;
@@ -450,7 +450,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				}
 			@Override
 			public void close() {
-				this.delegate.close();
+				try { this.delegate.close(); } catch(Throwable err) {
+					/* https://github.com/samtools/htsjdk/issues/469 */
+					}
 				}
 			@Override
 			public void writeHeader(final htsjdk.variant.vcf.VCFHeader header) {

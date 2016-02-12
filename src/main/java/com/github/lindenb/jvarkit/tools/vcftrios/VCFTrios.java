@@ -129,7 +129,7 @@ public class VCFTrios
 				);
 		}
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName,
+	public Collection<Throwable> doVcfToVcf(String inputName,
 			VcfIterator r, VariantContextWriter w) throws IOException
 		{
 		int count_incompats=0;

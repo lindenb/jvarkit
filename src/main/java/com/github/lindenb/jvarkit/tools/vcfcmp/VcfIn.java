@@ -97,9 +97,9 @@ public class VcfIn extends AbstractVcfIn
 			
 			while(userVcfIn.hasNext())
 				{
-				VariantContext ctx = progress.watch(userVcfIn.next());
+				final VariantContext ctx = progress.watch(userVcfIn.next());
 				//fill both contextes
-				List<VariantContext> dbContexes = new ArrayList<VariantContext>(equalRangeDbIter.next(ctx));
+				final List<VariantContext> dbContexes = new ArrayList<VariantContext>(equalRangeDbIter.next(ctx));
 				
 				int i=0;
 				while(i< dbContexes.size())
