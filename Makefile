@@ -158,7 +158,7 @@ APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele vcfmulti2oneinfo bedindextabix vcf2bam vcffilterxpath \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
-	biostar173114 samslop biostar175929
+	biostar173114 samslop biostar175929 vcfcalledwithanothermethod
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top ${dist.dir}/jvarkit-${htsjdk.version}.jar
@@ -405,6 +405,9 @@ $(eval $(call compile-htsjdk-cmd,localrealignreads,${jvarkit.package}.tools.misc
 $(eval $(call compile-htsjdk-cmd,msa2vcf,${jvarkit.package}.tools.msa2vcf.MsaToVcf))
 $(eval $(call compile-htsjdk-cmd,samslop,${jvarkit.package}.tools.misc.SamSlop))
 $(eval $(call compile-htsjdk-cmd,projectserver,${jvarkit.package}.tools.server.ProjectServer,${jetty.jars}))
+$(eval $(call compile-htsjdk-cmd,vcfcalledwithanothermethod,${jvarkit.package}.tools.misc.VcfCalledWithAnotherMethod))
+
+
 
 
 

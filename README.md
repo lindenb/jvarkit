@@ -212,5 +212,8 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar173114">Biostar173114</a></th><td>make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamSlop">SamSlop</a></th><td>extends the SAM record in 5' and 3'</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar175929">Biostar175929</a></th><td>Construct a combination set of fasta sequences from a vcf</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCalledWithAnotherMethod">VcfCalledWithAnotherMethod</a></th><td>Add flags in VCF to tell whether Genotype/variant was called in another VCF</td></tr>
+
+
 </table>
 

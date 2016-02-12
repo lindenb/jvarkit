@@ -10,47 +10,37 @@
  */
 package com.github.lindenb.jvarkit.tools.vcfannot;
 
-import java.io.File;
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
-
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloserUtil;
-
-import htsjdk.tribble.readers.LineIterator;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.SortingCollection;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 
 
 
@@ -59,16 +49,14 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  * @SolenaLS 's idea: consecutive synonymous bases give a stop codon
  *
  */
-public class VCFStopCodon extends AbstractVCFFilter2
+public class VCFStopCodon extends AbstractVCFStopCodon
 	{
-	private static final String DEFAULT_KG_URI="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
-	private File REF=null;
-	private String kgURI=DEFAULT_KG_URI;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFStopCodon.class);
 
-	private Map<String,List<KnownGene>> knownGenes=null;
+	private IntervalTreeMap<KnownGene> knownGenes=new IntervalTreeMap<KnownGene>();
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
-	
+	private SortingCollection<Variant> variants= null;
 	
 	private static class MutedSequence extends DelegateCharSequence
 		{
@@ -121,251 +109,295 @@ public class VCFStopCodon extends AbstractVCFFilter2
 		
 	private void loadKnownGenesFromUri() throws IOException
 		{
-		if(this.knownGenes!=null) return;
-		int n_genes=0;
-		SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
-		this.knownGenes=new HashMap<String, List<KnownGene>>(dict.size());
-		for(SAMSequenceRecord ssr:dict.getSequences())
-			{
-			this.knownGenes.put(ssr.getSequenceName(), new ArrayList<KnownGene>());
-			}
-		info("loading genes from "+this.kgURI);
-		Set<String> unknown=new HashSet<String>();
-		LineIterator iter=IOUtils.openURIForLineIterator(this.kgURI);
-		Pattern tab=Pattern.compile("[\t]");
-		while(iter.hasNext())
-			{
-			String line=iter.next();
-			if(line.isEmpty()) continue;
-			String tokens[]=tab.split(line);
-			KnownGene g=new KnownGene(tokens);
-			if(g.isNonCoding()) continue;
+		BufferedReader in = null;
+		try {
+			final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
+	        if(dict==null) throw new IOException("dictionary missing");
 
-			List<KnownGene> L=this.knownGenes.get(g.getContig());
-			if(L==null)
+			LOG.info("loading genes from "+this.kgURI);
+			in =IOUtils.openURIForBufferedReading(this.kgURI);
+			final Pattern tab=Pattern.compile("[\t]");
+			String line = null;
+			while((line=in.readLine())!=null)
 				{
-				if(!unknown.contains(g.getContig()))
+				line= line.trim();
+				if(line.isEmpty()) continue;
+				String tokens[]=tab.split(line);
+				final KnownGene g=new KnownGene(tokens);
+				if(g.isNonCoding()) continue;
+				if(dict.getSequence(g.getContig())==null)
 					{
-					warning("The reference "+REF+" doesn't contain chromosome "+g.getContig());
-					unknown.add(g.getContig());
+					LOG.warn("Unknown chromosome "+g.getContig()+" in dictionary");
+					continue;
 					}
-				continue;
+				//use 1 based interval
+				final Interval interval=new Interval(g.getContig(), g.getTxStart()-1, g.getTxEnd());
+				this.knownGenes.put(interval, g);
 				}
-			L.add(g);
-			++n_genes;
+			CloserUtil.close(in);in=null;
+			LOG.info("genes:"+knownGenes.size());
 			}
-		CloserUtil.close(iter);
-		for(String C:knownGenes.keySet())
+		finally
 			{
-			Collections.sort(knownGenes.get(C),new Comparator<KnownGene>()
-				{
-				@Override
-				public int compare(KnownGene o1, KnownGene o2)
-					{
-					return o1.getTxStart()-o2.getTxStart();
-					}
-				});
+			CloserUtil.close(in);
 			}
-		info("genes:"+n_genes);
 		}
 	
 	
 	
-	private static class Variant
+	private static int ID_GENERATOR=0;
+	static private class Variant
 		{
-		VariantContext ctx;
+		String contig;
+		int genomicPosition1=0;
+		String transcriptName;
+		Allele refAllele;
+		Allele altAllele;
 		int position_in_cdna=-1;
-		MutedSequence mutRNA=null;
-		Set<String> set=new HashSet<String>();
+		String wildCodon=null;
+		String mutCodon=null;
+		int sorting_id;
+		
+		Variant()
+			{
+			
+			}
+		
+		Variant(final VariantContext ctx,final Allele allele,final KnownGene gene) {
+			this.contig = ctx.getContig();
+			this.genomicPosition1=ctx.getStart();
+			this.transcriptName = gene.getName();
+			this.refAllele = ctx.getReference();
+			this.altAllele = allele;
+			}
+		int positionInCodon() { return  position_in_cdna%3;}
+		int codonStart() { return this.position_in_cdna - this.positionInCodon();}
 		@Override
 		public String toString() {
-			return ctx.getContig()+":"+ctx.getStart()+" "+ctx.getReference()+"/"+ctx.getAlternateAllele(0);
+			return contig+"\t"+genomicPosition1+"\t"+refAllele.getBaseString()+"\t"+
+					altAllele.getBaseString()+"\t"+
+					transcriptName+"\t"+
+					position_in_cdna+"\t"+
+					codonStart()+"\t"+
+					positionInCodon()+"\t"+
+					wildCodon+"\t"+
+					mutCodon
+					;
 			}
+		
 		}
+	static private class VariantCodec extends AbstractDataCodec<Variant>
+		{
+		@Override
+		public Variant decode(DataInputStream dis) throws IOException {
+			String contig;
+			try {
+				contig = dis.readUTF();
+			} catch (Exception e) {
+				return null;
+				}
+			final Variant variant = new Variant();
+			variant.contig = contig;
+			variant.genomicPosition1 = dis.readInt();
+			variant.transcriptName = dis.readUTF();
+			variant.refAllele = Allele.create(dis.readUTF(), true);
+			variant.altAllele = Allele.create(dis.readUTF(), false);
+			variant.position_in_cdna = dis.readInt();
+			variant.wildCodon = dis.readUTF();
+			variant.mutCodon = dis.readUTF();
+			variant.sorting_id = dis.readInt();
+			return variant;
+		}
+
+		@Override
+		public void encode(DataOutputStream dos, Variant v) throws IOException {
+			dos.writeUTF(v.contig);
+			dos.writeInt(v.genomicPosition1);
+			dos.writeUTF(v.transcriptName);
+			dos.writeUTF(v.refAllele.getBaseString());
+			dos.writeUTF(v.altAllele.getBaseString());
+			dos.writeInt(v.position_in_cdna);
+			dos.writeUTF(v.wildCodon);
+			dos.writeUTF(v.mutCodon);
+			dos.writeInt(v.sorting_id);
+		}
+
+		@Override
+		public VariantCodec clone() {
+			return new VariantCodec();
+		}
+		
+		}
+	static private class VariantComparator implements Comparator<Variant>
+		{
+		SAMSequenceDictionary dict;
+		VariantComparator(SAMSequenceDictionary dict) {
+			this.dict = dict;
+		}
+		int contig(Variant v) { return dict.getSequenceIndex(v.contig);}
+		@Override
+		public int compare(Variant o1, Variant o2) {
+			int i= contig(o1) - contig(o2);
+			if(i!=0) return i;
+			i= o1.transcriptName.compareTo(o2.transcriptName);
+			if(i!=0) return i;
+			i= o1.position_in_cdna-o2.position_in_cdna;
+			if(i!=0) return i;
+			return o1.sorting_id - o2.sorting_id;
+			}
+	
+		}
+
+	
+	
 	static final String TAG="STREAMCODON";
 	
-	protected void dump(VariantContextWriter w,Variant var)
-		{
-		if(var.set.isEmpty())
-			{
-			w.add(var.ctx);
-			return;
+	
+	
+	protected Collection<Throwable> scan(final VcfIterator r) throws IOException {
+			
+			CloseableIterator<Variant> varIter = null;
+			try {
+			LOG.info("opening REF:"+referenceFile);
+			
+			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
+	        final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
+	        if(dict==null) throw new IOException("dictionary missing");
+			loadKnownGenesFromUri();
+			
+			this.variants = SortingCollection.newInstance(Variant.class,
+					new VariantCodec(),
+					new VariantComparator(dict),
+					super.getMaxRecordsInRam(),
+					super.getTmpDirectories()
+					);
+			this.variants.setDestructiveIteration(true);
+			
+			
+			final VCFHeader header=(VCFHeader)r.getHeader();
+			
+	       SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+			while(r.hasNext())
+				{
+				final VariantContext ctx= progress.watch(r.next());
+				/* discard non SNV variant */
+				if(!ctx.isSNP() ||  !ctx.isVariant())
+					{
+					continue;
+					}
+				
+				final Collection<KnownGene> genes= this.knownGenes.getOverlapping(
+						new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd())
+						); 
+				for(final KnownGene kg:genes) {
+					for(final Allele alt: ctx.getAlternateAlleles()) {
+						challenge(ctx,alt,kg);
+						}
+					}
+				}
+			progress.finish();
+			this.variants.doneAdding();
+			final GeneticCode geneticCode= GeneticCode.getStandard();
+			
+			varIter = this.variants.iterator();
+			ArrayList<Variant> buffer= new ArrayList<>();
+			for(;;)
+				{
+				Variant variant = null;
+				if(varIter.hasNext())
+					{
+					variant = varIter.next();
+					}
+				if(variant==null || !(!buffer.isEmpty() && buffer.get(0).contig.equals(variant.contig) &&  buffer.get(0).transcriptName.equals(variant.transcriptName)))
+					{
+					if(!buffer.isEmpty()) {
+					for(int i=0;i< buffer.size();++i)
+						{
+						final Variant v1  = buffer.get(i);
+						for(int j=i+1;j< buffer.size();++j)
+							{
+							final Variant v2  = buffer.get(j);
+							if(v1.codonStart() != v2.codonStart()) continue;
+							if(v1.positionInCodon() == v2.positionInCodon()) continue;
+							if(!v1.wildCodon.equals(v2.wildCodon))
+								{
+								throw new IllegalStateException();
+								}
+							
+							StringBuilder combinedCodon = new StringBuilder(v1.wildCodon);
+							combinedCodon.setCharAt(v1.positionInCodon(), v1.mutCodon.charAt(v1.positionInCodon()));
+							combinedCodon.setCharAt(v2.positionInCodon(), v2.mutCodon.charAt(v2.positionInCodon()));
+							
+							final String pwild = new ProteinCharSequence(geneticCode, v1.wildCodon).getString();
+							final String p1 = new ProteinCharSequence(geneticCode, v1.mutCodon).getString();
+							final String p2 = new ProteinCharSequence(geneticCode, v2.mutCodon).getString();
+							final String pCombined = new ProteinCharSequence(geneticCode, combinedCodon).getString();
+							if(!pCombined.equals(pwild) &&
+								p1.equals(pwild) &&
+								p2.equals(pwild)
+								) {
+								System.out.print(v1.toString());
+								System.out.print("\t");
+								System.out.print(p1);
+								System.out.print("\t");
+								System.out.print(v2.toString());
+								System.out.print("\t");
+								System.out.print(p2);
+								System.out.print("\t");
+								System.out.print(pCombined);
+								System.out.println();
+
+
+							}
+							
+							}
+						}
+					}
+					buffer.clear();
+					if(variant==null) break;
+					}
+				buffer.add(variant);
+				}
+			
+			
+			return RETURN_OK;
 			}
-		VariantContextBuilder vcb=new VariantContextBuilder(var.ctx);
-		vcb.attribute(TAG, var.set.toArray());
-		w.add(vcb.make());
+		catch(Exception err)
+			{
+			return wrapException(err);
+			}
+		finally
+			{
+			CloserUtil.close(this.indexedFastaSequenceFile);
+			CloserUtil.close(varIter);
+			if(this.variants!=null) this.variants.cleanup();
+			this.variants=null;
+			}
+		
 		}
 	
-	@Override
-	protected void doWork(VcfIterator r, VariantContextWriter w)
-		throws IOException
-		{	
-		info("opening REF:"+REF);
-	
-		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
-		loadKnownGenesFromUri();
-		
-		VCFHeader header=(VCFHeader)r.getHeader();
-		
-		
-		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,
-				"Prediction from "+getClass().getSimpleName()
-				));
-
-		
-		
-		
-        w.writeHeader(h2);
-        long n_variants=0L;
-        String currChrom=null;
-        LinkedList<Variant> variantStack=new LinkedList<Variant>();
-        final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-		List<KnownGene> currListOfGenes=null; 
-		while(r.hasNext())
-			{
-			VariantContext ctx=r.next();
-			progress.watch(ctx.getContig(), ctx.getStart());
-			
-			if(n_variants++%1000==0)
-				{
-				if(currListOfGenes!=null) info("Genes: "+currListOfGenes.size());
-				info("Variants: "+variantStack.size());
-				}
-			
-			if(!ctx.isSNP() || ctx.getAlternateAlleles().size()!=1)
-				{
-				w.add(ctx);
-				continue;
-				}
-
-			
-			//unknown chromosome
-			if(!this.knownGenes.containsKey(ctx.getContig()))
-				{
-				while(!variantStack.isEmpty())
-					{
-					dump(w,variantStack.removeFirst());
-					}
-				warning("unknown chrom "+ctx.getContig());
-				currChrom=null;
-				continue;
-				}
-			
-			//not same chromosome
-			if(!ctx.getContig().equals(currChrom))
-				{
-				while(!variantStack.isEmpty())
-					{
-					dump(w,variantStack.removeFirst());
-					}
-				currChrom=ctx.getContig();
-				currListOfGenes=new ArrayList<KnownGene>(this.knownGenes.get(currChrom));
-				}
-			
-			Variant variant=new Variant();
-			variant.ctx=ctx;
-			variantStack.add(variant);
-			
-			
-			
-			//no more genes
-			if(currListOfGenes.isEmpty())
-				{
-				while(!variantStack.isEmpty())
-					{
-					dump(w,variantStack.removeFirst());
-					}
-				continue;
-				}
-			
-			//remove old variants
-			while(  !variantStack.isEmpty() &&
-					!currListOfGenes.isEmpty() &&
-					variantStack.getFirst().ctx.getEnd()-1 < currListOfGenes.get(0).getTxStart()
-					)
-				{
-				dump(w,variantStack.removeFirst());
-				}
-			
-			//find genes to be processed
-			int kgIndex=0;
-			while(kgIndex< currListOfGenes.size())
-				{
-				KnownGene kg=currListOfGenes.get(kgIndex);
-				if(kg.getTxEnd() < ctx.getStart())
-					{
-					challenge(variantStack,kg);
-					currListOfGenes.remove(kgIndex);
-					}
-				else if(kg.getTxStart() > ctx.getEnd())
-					{
-					break;
-					}
-				else
-					{
-					kgIndex++;
-					}
-				}
-			
-			}
-		while(!variantStack.isEmpty())
-			{
-			dump(w,variantStack.removeFirst());
-			}
-		}
-	
-	private void challenge(List<Variant> L,KnownGene gene) throws IOException
+	private void challenge(
+			final VariantContext ctx,
+			final Allele allele,
+			final KnownGene gene
+			) throws IOException
 		{
-		if(L.size()<2) return;
-		List<Variant> variants=new ArrayList<Variant>(L);
-		
-		for(int i=1;i< variants.size();++i)
+		if(genomicSequence==null || !genomicSequence.getChrom().equals(ctx.getContig()))
 			{
-			VariantContext ctx1=variants.get(i-1).ctx;
-			VariantContext ctx2=variants.get(i).ctx;
-			if(!ctx1.getContig().equals(ctx2.getContig())) throw new IllegalStateException();
-			if(ctx1.getStart()> ctx2.getStart())
-				{
-				error("Data are not sorted");
-				throw new IOException("VCF is not sorted");
-				}
-			}
-		Map<Integer,Variant> genomicposzero2var=new HashMap<Integer,Variant>(variants.size());
-		for(Variant var:variants)
-			{
-			if(genomicposzero2var.put(var.ctx.getStart()-1, var)!=null)
-				{
-				warning("duplicate variant at position "+gene.getContig()+":"+var.ctx.getStart());
-				}
-			}
-		
-			
-		if(genomicSequence==null || !genomicSequence.getChrom().equals(gene.getContig()))
-			{
-			info("getting genomic Sequence for "+gene.getContig());
+			LOG.info("getting genomic Sequence for "+gene.getContig());
 			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, gene.getContig());
 			}
 				
-			
-		GeneticCode geneticCode=GeneticCode.getStandard();
+		Variant variant=null;
     		
-		StringBuilder wildRNA=new StringBuilder();
-		MutedSequence mutRNA=new MutedSequence(wildRNA);
-    					
-		for(Variant var:variants)
-			{
-			var.position_in_cdna=-1;
-			var.mutRNA=new MutedSequence(wildRNA);
-			}
+		final StringBuilder wildRNA=new StringBuilder();
+		final MutedSequence mutRNA=new MutedSequence(wildRNA);
+    	
 		if(gene.isPositiveStrand())
 			{
 	    	for(int exon_index=0;exon_index< gene.getExonCount();++exon_index)
 	    		{
-	    		KnownGene.Exon exon= gene.getExon(exon_index);
+	    		final KnownGene.Exon exon= gene.getExon(exon_index);
 	    		for(int i= exon.getStart();
 						i< exon.getEnd();
 						++i)
@@ -375,15 +407,14 @@ public class VCFStopCodon extends AbstractVCFFilter2
 
 					wildRNA.append(genomicSequence.charAt(i));
 					
-					Variant var=genomicposzero2var.get(i);
-					if(var!=null)
+					if(variant==null && ctx.getStart()-1==i)
 						{
-						var.position_in_cdna=wildRNA.length()-1;
-						char mutBase=var.ctx.getAlternateAllele(0).getBaseString().charAt(0);
+						variant = new Variant(ctx,allele,gene);
+						variant.sorting_id = ID_GENERATOR++;
+						variant.position_in_cdna=wildRNA.length()-1;
+						char mutBase= allele.getBaseString().charAt(0);
 						mutRNA.put( wildRNA.length()-1, mutBase 	);
-						var.mutRNA.put( wildRNA.length()-1, mutBase );
 						}
-						
 					}
 	    		}
 			}
@@ -392,9 +423,7 @@ public class VCFStopCodon extends AbstractVCFFilter2
 			int exon_index = gene.getExonCount()-1;
 			while(exon_index >=0)
 				{
-	
-				KnownGene.Exon exon= gene.getExon(exon_index);
-				
+				final KnownGene.Exon exon= gene.getExon(exon_index);
 				
 				for(int i= exon.getEnd()-1;
 					    i>= exon.getStart();
@@ -403,137 +432,61 @@ public class VCFStopCodon extends AbstractVCFFilter2
 					if(i>= gene.getCdsEnd()) continue;
 					if(i<  gene.getCdsStart()) break;
 	
-				
 					wildRNA.append(AcidNucleics.complement(genomicSequence.charAt(i)));
 					
-					
-					Variant var=genomicposzero2var.get(i);
-						
-					if(var!=null)
+					if(variant==null && ctx.getStart()-1==i)
 						{
-						var.position_in_cdna=wildRNA.length()-1;
-						char mutBase=AcidNucleics.complement(var.ctx.getAlternateAllele(0).getBaseString().charAt(0));
+						variant = new Variant(ctx,allele,gene);
+						variant.sorting_id = ID_GENERATOR++;
+						variant.position_in_cdna=wildRNA.length()-1;
+						char mutBase=AcidNucleics.complement(allele.getBaseString().charAt(0));
 						mutRNA.put( wildRNA.length()-1, mutBase 	);
-						var.mutRNA.put( wildRNA.length()-1, mutBase );
 						}
-						
     				}
     			--exon_index;
     			}
 			}
         	
-    	for(Variant var:variants)
+    	if(variant!=null)
     		{
-    		if(var.position_in_cdna==-1) continue;
-    		int pos_aa=var.position_in_cdna/3;
-    		int mod= var.position_in_cdna%3;
-    		ProteinCharSequence wildProt=new ProteinCharSequence(geneticCode, wildRNA);
-    		ProteinCharSequence mutProt=new ProteinCharSequence(geneticCode, mutRNA);
-    		ProteinCharSequence varProt=new ProteinCharSequence(geneticCode, var.mutRNA);
-    		char aa1=wildProt.charAt(pos_aa);
-    		char aa2=mutProt.charAt(pos_aa);
-    		char aa3=varProt.charAt(pos_aa);
-    		if(aa3==aa2) continue;//already known mutation
-    		if(aa3==aa1) continue;//silent mutation
-    		int first_base_codon_in_cdna=var.position_in_cdna-mod;
-    		StringBuilder sb=new StringBuilder();
-    		sb.append(gene.getName());
-    		sb.append("|");
-    		sb.append(gene.isPositiveStrand()?'+':'-');
-    		sb.append("|");
-    		sb.append((1+var.position_in_cdna));
-    		sb.append("|");
-    		sb.append(wildRNA.substring(first_base_codon_in_cdna, first_base_codon_in_cdna+3));
-    		sb.append("|");
-    		sb.append(aa1);
-    		sb.append("|");
-    		sb.append(mutRNA.subSequence(first_base_codon_in_cdna, first_base_codon_in_cdna+3));
-    		sb.append("|");
-    		sb.append(aa2);
-    		sb.append("|");
-    		sb.append(var.mutRNA.subSequence(first_base_codon_in_cdna, first_base_codon_in_cdna+3));
-    		sb.append("|");
-    		sb.append(aa3);
-    		sb.append("|");
-    		for(Variant var2:variants)
+    		variant.wildCodon="";
+    		variant.mutCodon="";
+    		for(int i=0;i< 3;++i)
     			{
-    			if(var==var2) continue;
-    			if(var2.position_in_cdna==-1) continue;
-    			if(var2.position_in_cdna/3 != pos_aa) continue;
-    			if(var2.ctx.hasID()) sb.append(var2.ctx.getID()+"_");
-    			sb.append(var2.ctx.getStart());
-    			sb.append("/");
+    			int pos = variant.codonStart()+i;
+    			variant.wildCodon += (pos< wildRNA.length()?wildRNA.charAt(pos):'*');
+    			variant.mutCodon +=  (pos< mutRNA.length()?mutRNA.charAt(pos):'*');
     			}
+    		variant.wildCodon = variant.wildCodon.toUpperCase();
+    		variant.mutCodon = variant.mutCodon.toUpperCase();
     		
-    		var.set.add(sb.toString());
-    		//System.err.println(wildProt);
-    		//System.err.println(mutProt);
+    		if(variant.wildCodon.equals(variant.mutCodon)) {
+    			LOG.info("Uh???????");
+    			return;
+    			}
+    		this.variants.add(variant);
     		}
-			
 		}
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VCFStopCodon";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return  "Idea from @SolenaLS.";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -R (file) indexed Fasta genome REFERENCE.");
-		out.println(" -k (uri) KnownGene data URI/File. should look like"+ DEFAULT_KG_URI+"" +
-				" . Beware chromosome names are formatted the same as your REFERENCE.");
-		super.printOptions(out);
-		}
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:k:"))!=-1)
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		if(this.referenceFile==null)
 			{
-			switch(c)
-				{
-				case 'R': this.REF=new File(opt.getOptArg());break;
-				case 'k': this.kgURI=opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			return wrapException("Undefined REFERENCE. option: -"+OPTION_REFERENCEFILE);
 			}
-		
-		if(this.REF==null)
+		if(this.kgURI==null || this.kgURI.trim().isEmpty())
 			{
-			error("Undefined REFERENCE.");
-			return -1;
+			return wrapException("Undefined kgURI. option: -"+OPTION_KGURI);
 			}
-		
-		
-		try
+		VcfIterator iter=null;
+		try {
+			iter = super.openVcfIterator(inputName);
+			return scan(iter);
+		} catch (Exception e) {
+			return wrapException(e);
+			} finally
 			{
-
-			return super.doWork(opt.getOptInd(), args);
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			
+			CloserUtil.close(iter);	
 			}
 		}
 	

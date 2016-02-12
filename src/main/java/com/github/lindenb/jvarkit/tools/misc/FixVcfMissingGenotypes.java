@@ -230,7 +230,7 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 				h2= in.getHeader();
 				}
 			
-			VariantContextWriter w = VCFUtils.createVariantContextWriterToStdout();
+			final VariantContextWriter w = super.openVariantContextWriter();
 			w.writeHeader(h2);
 			while(in.hasNext())
 				{
@@ -244,7 +244,7 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 			}
 		catch(Exception err)
 			{
-			return RETURN_OK;
+			return wrapException(err);
 			}
 		finally
 			{

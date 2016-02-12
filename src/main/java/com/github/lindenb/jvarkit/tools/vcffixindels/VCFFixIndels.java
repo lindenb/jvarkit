@@ -228,7 +228,7 @@ public class VCFFixIndels extends AbstractVCFFixIndels
 			b.genotypes(genotypes);
 			
 			w.add( b.make());
-			
+			++nChanged;
 			if(w.checkError()) break;
 			}
 		progress.finish();
