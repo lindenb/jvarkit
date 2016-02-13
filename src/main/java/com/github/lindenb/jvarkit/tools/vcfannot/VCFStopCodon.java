@@ -42,6 +42,7 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -101,7 +102,7 @@ public class VCFStopCodon extends AbstractVCFStopCodon
 		@Override
 		public char charAt(int index)
 			{
-			if(this.newseq==null || this.begin<index) return getDelegate().charAt(index);
+			if(this.newseq==null || index < this.begin ) return getDelegate().charAt(index);
 			int idx2= index-this.begin;
 			if(idx2 < this.newseq.length())
 				{
@@ -182,6 +183,7 @@ public class VCFStopCodon extends AbstractVCFStopCodon
 	static private class AbstractContext {
 		String contig;
 		int genomicPosition1=0;
+		String id=VCFConstants.EMPTY_ID_FIELD;
 		Allele refAllele;
 		Allele altAllele;
 		int sorting_id;
@@ -202,6 +204,7 @@ public class VCFStopCodon extends AbstractVCFStopCodon
 		Variant(final VariantContext ctx,final Allele allele,final KnownGene gene) {
 			this.contig = ctx.getContig();
 			this.genomicPosition1=ctx.getStart();
+			this.id = (ctx.hasID()?ctx.getID():VCFConstants.EMPTY_ID_FIELD);
 			this.transcriptName = gene.getName();
 			this.refAllele = ctx.getReference();
 			this.altAllele = allele;
@@ -213,21 +216,25 @@ public class VCFStopCodon extends AbstractVCFStopCodon
 			return String.join("|",
 					// common data
 					"CHROM",this.contig,
-					"POS",String.valueOf(genomicPosition1),
 					"REF",this.refAllele.getBaseString(),
 					"TRANSCRIPT",this.transcriptName,
 					"cDdnaPos",String.valueOf(this.position_in_cdna+1),
 					"CodonPos",String.valueOf(this.codonStart()+1),
 					"CodonWild",this.wildCodon,
+					"AAPos",String.valueOf(1+(this.codonStart()/3) ),
 					"AAWild",new ProteinCharSequence(this.wildCodon).getString(),
 					
 					//data about this
+					"POS1",String.valueOf(this.genomicPosition1),
+					"ID1",this.id,
 					"PosInCodon1",String.valueOf(this.positionInCodon()+1),
 					"Alt1",this.altAllele.getBaseString(),
 					"Codon1",this.mutCodon,
 					"AA1",new ProteinCharSequence(this.mutCodon).getString(),
 					
 					//data about the other
+					"POS2",String.valueOf(other.genomicPosition1),
+					"ID2",other.id,
 					"PosInCodon2",String.valueOf(other.positionInCodon()+1),
 					"Alt2",other.altAllele.getBaseString(),
 					"Codon2",other.mutCodon,
@@ -262,6 +269,7 @@ public class VCFStopCodon extends AbstractVCFStopCodon
 			final Variant variant = new Variant();
 			variant.contig = contig;
 			variant.genomicPosition1 = dis.readInt();
+			variant.id = dis.readUTF();
 			variant.transcriptName = dis.readUTF();
 			variant.refAllele = Allele.create(dis.readUTF(), true);
 			variant.altAllele = Allele.create(dis.readUTF(), false);
@@ -276,6 +284,7 @@ public class VCFStopCodon extends AbstractVCFStopCodon
 		public void encode(DataOutputStream dos, Variant v) throws IOException {
 			dos.writeUTF(v.contig);
 			dos.writeInt(v.genomicPosition1);
+			dos.writeUTF(v.id);
 			dos.writeUTF(v.transcriptName);
 			dos.writeUTF(v.refAllele.getBaseString());
 			dos.writeUTF(v.altAllele.getBaseString());
@@ -319,7 +328,7 @@ public class VCFStopCodon extends AbstractVCFStopCodon
 	static private class MutationCodec extends AbstractDataCodec<Mutation>
 		{
 		@Override
-		public Mutation decode(DataInputStream dis) throws IOException {
+		public Mutation decode(final DataInputStream dis) throws IOException {
 			String contig;
 			try {
 				contig = dis.readUTF();
@@ -329,6 +338,7 @@ public class VCFStopCodon extends AbstractVCFStopCodon
 			final Mutation variant = new Mutation();
 			variant.contig = contig;
 			variant.genomicPosition1 = dis.readInt();
+			variant.id = dis.readUTF();
 			variant.refAllele = Allele.create(dis.readUTF(), true);
 			variant.altAllele = Allele.create(dis.readUTF(), false);
 			variant.info = dis.readUTF();
@@ -340,6 +350,7 @@ public class VCFStopCodon extends AbstractVCFStopCodon
 		public void encode(final DataOutputStream dos, final Mutation v) throws IOException {
 			dos.writeUTF(v.contig);
 			dos.writeInt(v.genomicPosition1);
+			dos.writeUTF(v.id);
 			dos.writeUTF(v.refAllele.getBaseString());
 			dos.writeUTF(v.altAllele.getBaseString());
 			dos.writeUTF(v.info);
@@ -407,8 +418,10 @@ static private class MutationComparator implements Comparator<Mutation>
 					}
 				
 				final Collection<KnownGene> genes= this.knownGenes.getOverlapping(
-						new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd())
-						); 
+						new Interval(ctx.getContig(),
+						Math.max(1,ctx.getStart()-3),
+						ctx.getEnd()+3
+						)); 
 				for(final KnownGene kg:genes) {
 					for(final Allele alt: ctx.getAlternateAlleles()) {
 						challenge(ctx,alt,kg);
@@ -470,6 +483,7 @@ static private class MutationComparator implements Comparator<Mutation>
 								final Mutation m1 = new Mutation();
 								m1.contig = v1.contig;
 								m1.genomicPosition1 = v1.genomicPosition1;
+								m1.id = v1.id ;
 								m1.refAllele = v1.refAllele;
 								m1.altAllele = v1.altAllele;
 								m1.info = v1.getInfo(v2)+ infoSuffix;
@@ -479,6 +493,7 @@ static private class MutationComparator implements Comparator<Mutation>
 								final Mutation m2 = new Mutation();
 								m2.contig = v2.contig;
 								m2.genomicPosition1 = v2.genomicPosition1;
+								m2.id = v2.id ;
 								m2.refAllele = v2.refAllele;
 								m2.altAllele = v2.altAllele;
 								m2.info = v2.getInfo(v1) + infoSuffix;
@@ -502,8 +517,10 @@ static private class MutationComparator implements Comparator<Mutation>
 			
 			final VCFHeader header2 = new VCFHeader();
 			header.setSequenceDictionary(header.getSequenceDictionary());
-			final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine("CODONVARIANT",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"todo");
+			final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
+					"CodonVariant",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
+					"Variant affected by two distinct mutation. Format is defined in the INFO column"
+					);
 			super.addMetaData(header2);
 			header2.addMetaDataLine(infoHeaderLine);
 			w.writeHeader(header2);
@@ -516,7 +533,10 @@ static private class MutationComparator implements Comparator<Mutation>
 					{
 					variant = mutIter.next();
 					}
-				if(variant==null || !(!mBuffer.isEmpty() && mBuffer.get(0).contig.equals(variant.contig) &&  mBuffer.get(0).refAllele.equals(variant.refAllele)))
+				if(variant==null || !(!mBuffer.isEmpty() &&
+						mBuffer.get(0).contig.equals(variant.contig) &&  
+						mBuffer.get(0).genomicPosition1 == variant.genomicPosition1 &&  
+						mBuffer.get(0).refAllele.equals(variant.refAllele)))
 					{
 					if(!mBuffer.isEmpty()) {
 					final Mutation first  = mBuffer.get(0);
@@ -527,10 +547,13 @@ static private class MutationComparator implements Comparator<Mutation>
 					vcb.chr(first.contig);
 					vcb.start(first.genomicPosition1);
 					vcb.stop(first.genomicPosition1 + first.refAllele.length()-1);
+					if( !first.id.equals(VCFConstants.EMPTY_ID_FIELD)) vcb.id(first.id);
 					for(final Mutation m:mBuffer){
 						alleles.add(m.altAllele);
+						info.add(m.info);
 					}
 					vcb.attribute(infoHeaderLine.getID(), new ArrayList<String>(info));
+					vcb.alleles(alleles);
 					w.add(vcb.make());
 					}
 					mBuffer.clear();
@@ -591,8 +614,9 @@ static private class MutationComparator implements Comparator<Mutation>
 	    	for(int exon_index=0;exon_index< gene.getExonCount();++exon_index)
 	    		{
 	    		final KnownGene.Exon exon= gene.getExon(exon_index);
+			final boolean is_last_exon = ( exon_index +1 == gene.getExonCount() );
 	    		for(int i= exon.getStart();
-						i< exon.getEnd() && wildRNA.length()< cdna_length;
+						( is_last_exon ?  wildRNA.length()< cdna_length :  i< exon.getEnd() );
 						++i)
 					{
 					if(i<  gene.getCdsStart()) continue;
@@ -617,9 +641,9 @@ static private class MutationComparator implements Comparator<Mutation>
 			while(exon_index >=0)
 				{
 				final KnownGene.Exon exon= gene.getExon(exon_index);
-				
+				final boolean is_last_exon = exon_index == 0;
 				for(int i= exon.getEnd()-1;
-					    i>= exon.getStart() && wildRNA.length()< cdna_length;
+					( is_last_exon ? wildRNA.length()< cdna_length : i>= exon.getStart() );
 					--i)
 					{
 					if(i>= gene.getCdsEnd()) continue;
