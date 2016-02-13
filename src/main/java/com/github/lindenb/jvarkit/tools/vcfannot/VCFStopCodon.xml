@@ -7,6 +7,7 @@
 <description>Idea from @SolenaLS and then Antoine</description>
 <snippet id="ref.faidx" name="referenceFile" opt="R"/>
 <input type="vcf"/>
+<output type="vcf"/>
 <snippet id="sorting-collection"/>
 
 <options>
