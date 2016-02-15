@@ -18,6 +18,13 @@
 	<option name="userAltInDatabase" opt="A" longopt="allalt" type="boolean" default="false">
 		<description>ALL user ALT must be found in VCF-database ALT</description>
 	</option>
+	<option name="filterIn" opt="fi" longopt="filterin" type="string" default="">
+		<description>Do not discard variant but add this FILTER if the variant is found in the database</description>
+	</option>
+	<option name="filterOut" opt="fo" longopt="filterout" type="string" default="">
+		<description>Do not discard variant but add this FILTER if the variant is NOT found in the database</description>
+	</option>
+
 </options>
 <!-- __PLACEHOLDER__ -->
 </app>

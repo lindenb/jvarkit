@@ -14,11 +14,17 @@
 	<option name="kgURI" type="string" opt="k" longopt="knownGene" label="KnownGene URI" default="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz">
 		<description> KnownGene data URI/File. Beware chromosome names are formatted the same as your REFERENCE.</description>
 	</option>
+	<option name="bamIn" type="input-file" opt="B" longopt="bam" label="Bam">
+		<description>Optional indexed BAM file used to get phasing information.</description>
+	</option>
 
 </options>
 
 <documentation>
+
+<h:h3>Example</h:h3>
 	
+
 </documentation>
 
 

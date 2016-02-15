@@ -43,7 +43,9 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -72,6 +74,56 @@ public class VcfIn extends AbstractVcfIn
 		return user_alts.isEmpty();
 		}
 	
+	@Override
+	protected VCFHeader addMetaData(VCFHeader header) {
+		if(!super.filterIn.isEmpty()) {
+			header.addMetaDataLine(new VCFFilterHeaderLine(super.filterIn,
+					"Variant overlapping database."));
+			}
+		if(!super.filterOut.isEmpty()) {
+			header.addMetaDataLine(new VCFFilterHeaderLine(super.filterOut,
+					"Variant non overlapping database."));
+			}
+		return super.addMetaData(header);
+		}
+	
+	private void addVariant(final VariantContextWriter w,final VariantContext ctx,boolean keep)
+		{
+		if(isInverse()) keep=!keep;
+		if(!this.filterIn.isEmpty())
+			{
+			if(keep){
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.filter(this.filterIn);
+				w.add(vcb.make());
+				}
+			else
+				{
+				w.add(ctx);
+				}
+			}
+		else  if(!this.filterOut.isEmpty()) {
+			if(keep){
+				w.add(ctx);
+				}
+			else
+				{
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.filter(this.filterOut);
+				w.add(vcb.make());
+				}
+			}
+		else
+			{
+			if(keep) {
+				w.add(ctx);
+				} else
+				{
+					/* don't print */
+				}
+			}
+		}
+	
 	/* public for knime */
 	public Collection<Throwable> scanFileSorted(final VariantContextWriter vcw,final String databaseVcfUri,final VcfIterator userVcfIn)
 		{
@@ -91,7 +143,7 @@ public class VcfIn extends AbstractVcfIn
 			equalRangeDbIter = new EqualRangeVcfIterator(
 					VCFUtils.createVcfIterator(databaseVcfUri),vcfComparator);
 
-			addMetaData(header);
+			this.addMetaData(header);
 			vcw.writeHeader(header);
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(userVcfDict);
 			
@@ -115,14 +167,9 @@ public class VcfIn extends AbstractVcfIn
 						}
 					}
 				
-				boolean keep=!dbContexes.isEmpty();
-				
-				if(isInverse()) keep=!keep;
-				if(keep)
-					{
-					vcw.add(ctx);
-					}
-					
+				final boolean keep=!dbContexes.isEmpty();
+				addVariant(vcw,ctx,keep);
+				if(vcw.checkError()) break;
 				}
 			return RETURN_OK;
 			}
@@ -146,7 +193,7 @@ public class VcfIn extends AbstractVcfIn
 			LOG.info("opening "+databaseVcfUri+" as tabix");
 			tabix =  new TabixVcfFileReader(databaseVcfUri);
 			final VCFHeader header1= new VCFHeader(in2.getHeader());
-			addMetaData(header1);
+			this.addMetaData(header1);
 			vcw.writeHeader(header1);
 			
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1.getSequenceDictionary());
@@ -161,7 +208,7 @@ public class VcfIn extends AbstractVcfIn
 				boolean keep=false;
 				while(iter.hasNext())
 					{
-					VariantContext dbctx= iter.next();
+					final VariantContext dbctx= iter.next();
 					if(! dbctx.getContig().equals(userCtx.getContig())) continue;
 					if(dbctx.getStart()!=userCtx.getStart()) continue;
 					if(! dbctx.getReference().equals(userCtx.getReference())) continue;
@@ -169,9 +216,9 @@ public class VcfIn extends AbstractVcfIn
 					keep=true;
 					break;
 					}
-				if(this.isInverse()) keep=!keep;
-				if(!keep) continue;
-				vcw.add(userCtx);
+				
+				addVariant(vcw,userCtx,keep);
+				if(vcw.checkError()) break;
 				}
 			progress.finish();
 			return RETURN_OK;
@@ -194,6 +241,13 @@ public class VcfIn extends AbstractVcfIn
 	
 	@Override
 	public Collection<Throwable> call() throws Exception {
+		if(!super.filterIn.isEmpty() && !super.filterOut.isEmpty()) {
+			return wrapException("Option -"+OPTION_FILTERIN+"  and  -"+OPTION_FILTEROUT+" both defined.");
+		}
+		if(super.inverse && (!super.filterIn.isEmpty() || !super.filterOut.isEmpty())) {
+			return wrapException("Option -"+OPTION_INVERSE+" cannot be used when Option -"+OPTION_FILTERIN+" or  -"+OPTION_FILTEROUT+" is defined.");
+		}
+		
 		final List<String> args=super.getInputFiles(); 
 		String databaseVcfUri;
 		String userVcfUri;
