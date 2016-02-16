@@ -67,7 +67,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /**
  * VCFStopCodon
- * @SolenaLS 's idea: consecutive synonymous bases give a stop codon
+ * @SolenaLS 's idea: variant in the same codon give a new Amino acid undetected by annotaion tools.
  *
  */
 public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
@@ -305,7 +305,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 			
 			int n = dis.readInt();
 			variant.alleleInfo =new HashMap<>(n);
-			for(int i=0;i< n;++n) {
+			for(int i=0;i< n;++i) {
 				final String k = dis.readUTF();
 				final String v = dis.readUTF();
 				variant.alleleInfo.put(k, v);
@@ -552,6 +552,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				);
 			
 			varIter = this.variants.iterator();
+			progress=new SAMSequenceDictionaryProgress(header);
 			final ArrayList<Variant> buffer= new ArrayList<>();
 			for(;;)
 				{
@@ -559,6 +560,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				if(varIter.hasNext())
 					{
 					variant = varIter.next();
+					progress.watch(variant.contig, variant.genomicPosition1);
 					}
 				if(variant==null || !(!buffer.isEmpty() && buffer.get(0).contig.equals(variant.contig) &&  buffer.get(0).transcriptName.equals(variant.transcriptName)))
 					{
@@ -791,14 +793,14 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 					}
 				buffer.add(variant);
 				}
-			
+			progress.finish();
 			mutations.doneAdding();
 			varIter.close();varIter=null;
 			variants.cleanup();variants=null;
 			final ArrayList<CombinedMutation> mBuffer= new ArrayList<>();
 			
 			final VCFHeader header2 = new VCFHeader();
-			header.setSequenceDictionary(header.getSequenceDictionary());
+			header2.setSequenceDictionary(header.getSequenceDictionary());
 			
 			final StringBuilder infoDesc =new StringBuilder("Variant affected by two distinct mutation. Format is defined in the INFO column. ");
 			
@@ -823,6 +825,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				}
 			w.writeHeader(header2);
 			
+			progress=new SAMSequenceDictionaryProgress(header);
 			mutIter = mutations.iterator();
 			for(;;)
 				{
@@ -830,6 +833,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				if(mutIter.hasNext())
 					{
 					mutation = mutIter.next();
+					progress.watch(mutation.contig, mutation.genomicPosition1);
 					}
 				if(mutation==null || !(!mBuffer.isEmpty() &&
 						mBuffer.get(0).contig.equals(mutation.contig) &&  
@@ -866,6 +870,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 					}
 				mBuffer.add(mutation);
 				}
+			progress.finish();
 			mutIter.close();
 			mutations.cleanup();mutations=null;
 			

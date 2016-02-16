@@ -138,6 +138,20 @@ The project is licensed under the MIT license.
 </xsl:template>
 
 
+<xsl:template match="h:table">
+<xsl:apply-templates select="h:tr"/>
+</xsl:template>
+
+<xsl:template match="h:tr">
+<xsl:for-each select="h:th|h:td">
+<xsl:if test="position()&gt;1 and position()&lt;= last()">  |  </xsl:if>
+<xsl:apply-templates select="."/>
+</xsl:for-each>
+<xsl:text>
+</xsl:text>
+</xsl:template>
+
+
 <xsl:template match="h:a[not(@href)]">
 <xsl:text>[</xsl:text>
 <xsl:value-of select="."/>
