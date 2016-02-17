@@ -481,7 +481,7 @@ public abstract class Command
 				{
 				if(opt.hasArg() && !opt.hasOptionalArg() && opt.getValue()==null)
 					{
-					LOG.warn("OPTION ####"+opt);
+					LOG.info("WARNING OPTION ####"+opt+" with null value ??");
 					}
 				final Status status = visit(opt);
 				switch(status)

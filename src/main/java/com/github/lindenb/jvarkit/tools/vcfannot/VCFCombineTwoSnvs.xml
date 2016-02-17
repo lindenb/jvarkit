@@ -17,7 +17,9 @@
 	<option name="bamIn" type="input-file" opt="B" longopt="bam" label="Bam">
 		<description>Optional indexed BAM file used to get phasing information.</description>
 	</option>
-
+	<option name="grabInfoA" type="boolean" opt="A" longopt="infoA" label="pick Allele info" default="false">
+		<description>pick allele data from INFO/A </description>
+	</option>
 </options>
 
 <documentation>
@@ -72,6 +74,10 @@
 <h:tr><h:th>N_READS_ONLY_1</h:th><h:td>0</h:td><h:td>Number of reads carrying onlt variant 1</h:td></h:tr>
 <h:tr><h:th>N_READS_ONLY_2</h:th><h:td>0</h:td><h:td>Number of reads carrying onlt variant 2</h:td></h:tr>
 </h:table>
+
+<h:h3>See also</h:h3>
+<h:a>http://bmcresnotes.biomedcentral.com/articles/10.1186/1756-0500-5-615</h:a>
+
 </documentation>
 
 

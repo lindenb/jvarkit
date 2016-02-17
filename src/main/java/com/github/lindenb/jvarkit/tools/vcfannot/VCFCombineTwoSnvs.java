@@ -16,6 +16,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -213,6 +214,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 	static private class Variant extends AbstractContext
 		{
 		String transcriptName;
+		byte strand;
 		int position_in_cdna=-1;
 		String wildCodon=null;
 		String mutCodon=null;
@@ -229,6 +231,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 			this.genomicPosition1=ctx.getStart();
 			this.id = (ctx.hasID()?ctx.getID():VCFConstants.EMPTY_ID_FIELD);
 			this.transcriptName = gene.getName();
+			this.strand = (byte)(gene.isNegativeStrand()?'-':'+');
 			this.refAllele = ctx.getReference();
 			this.altAllele = allele;
 			}
@@ -257,6 +260,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 			info.put("CHROM",this.contig);
 			info.put("REF",this.refAllele.getBaseString());
 			info.put("TRANSCRIPT",this.transcriptName);
+			info.put("STRAND",this.strand==(byte)'+'?"plus":"minus");
 			info.put("cDdnaPos",String.valueOf(this.position_in_cdna+1));
 			info.put("CodonPos",String.valueOf(this.codonStart()+1));
 			info.put("CodonWild",this.wildCodon);
@@ -296,6 +300,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 			variant.genomicPosition1 = dis.readInt();
 			variant.id = dis.readUTF();
 			variant.transcriptName = dis.readUTF();
+			variant.strand = dis.readByte();
 			variant.refAllele = Allele.create(dis.readUTF(), true);
 			variant.altAllele = Allele.create(dis.readUTF(), false);
 			variant.position_in_cdna = dis.readInt();
@@ -320,6 +325,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 			dos.writeInt(v.genomicPosition1);
 			dos.writeUTF(v.id);
 			dos.writeUTF(v.transcriptName);
+			dos.writeByte(v.strand);
 			dos.writeUTF(v.refAllele.getBaseString());
 			dos.writeUTF(v.altAllele.getBaseString());
 			dos.writeInt(v.position_in_cdna);
@@ -363,6 +369,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 		{
 		String info=null;
 		String filter = VCFConstants.UNFILTERED;
+		int depth =0;
 		}
 
 	static private class MutationCodec extends AbstractDataCodec<CombinedMutation>
@@ -384,6 +391,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 			mutation.info = dis.readUTF();
 			mutation.sorting_id = dis.readInt();
 			mutation.filter = dis.readUTF();
+			mutation.depth = dis.readInt();
 			return mutation;
 		}
 	
@@ -397,6 +405,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 			dos.writeUTF(v.info);
 			dos.writeInt(v.sorting_id);
 			dos.writeUTF(v.filter);
+			dos.writeInt(v.depth);
 		}
 	
 		@Override
@@ -455,6 +464,12 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 	        final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
 	        if(dict==null) throw new IOException("dictionary missing");
 	        
+	        
+	        final VCFInfoHeaderLine depthInfoHeaderLine = (super.bamIn == null ?
+	        		null:
+	        		new VCFInfoHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth")
+	        		);
+	        
 	        if(super.bamIn!=null)
 	        	{
 	        	LOG.info("opening BAM :"+super.bamIn);
@@ -488,9 +503,12 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			final VCFHeader header=(VCFHeader)r.getHeader();
 			/* collect VCF INFO describing ALT alleles */
 			final List<VCFInfoHeaderLine> alleleInfoHeaderLines = 
+					super.grabInfoA ?
 					header.getInfoHeaderLines().stream().
 					filter(INFO->INFO.getCountType()==VCFHeaderLineCount.A).
-					collect(Collectors.toList());
+					collect(Collectors.toList()):
+					Collections.emptyList()
+					;
 			
 			
 	       SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
@@ -648,6 +666,9 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 								info1.putAll(combinedMap);
 								info2.putAll(combinedMap);
 								
+								/** depth at position */
+								int depth1=0;
+								int depth2=0;
 								
 								/* get phasing info */
 								if(samReader!=null) {
@@ -671,6 +692,16 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 											if(rec.isSecondaryOrSupplementary()) continue;
 											if(rec.getDuplicateReadFlag()) continue;
 											if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+											
+											// get DEPTh for variant 1
+											if(rec.getAlignmentStart()<= v1.genomicPosition1 && v1.genomicPosition1<=rec.getAlignmentEnd()) {
+												depth1++;
+												}
+											// get DEPTh for variant 2
+											if(rec.getAlignmentStart()<= v2.genomicPosition1 && v2.genomicPosition1<=rec.getAlignmentEnd()) {
+												depth2++;
+												}
+											
 											if(rec.getAlignmentEnd()<chromEnd) continue;
 											if(rec.getAlignmentStart()>chromStart) continue;
 											final Cigar cigar  =  rec.getCigar();
@@ -768,6 +799,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 								m1.altAllele = v1.altAllele;
 								m1.info = mapToString(info1);
 								m1.filter = filter;
+								m1.depth = depth1;
 
 								m1.sorting_id = ID_GENERATOR++;
 								mutations.add(m1);
@@ -780,6 +812,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 								m2.altAllele = v2.altAllele;
 								m2.info = mapToString(info2);
 								m2.filter = filter;
+								m2.depth = depth2;
 								
 								m2.sorting_id = ID_GENERATOR++;
 								mutations.add(m2);
@@ -819,6 +852,10 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			
 			super.addMetaData(header2);
 			header2.addMetaDataLine(infoHeaderLine);
+			if(depthInfoHeaderLine!=null)
+				{
+				header2.addMetaDataLine(depthInfoHeaderLine);
+				}
 			if(samReader!=null)
 				{
 				header2.addMetaDataLine(vcfFilterHeaderLine);
@@ -862,6 +899,11 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 						}
 						if(filter!=null && samReader!=null) vcb.filter(filter);
 						vcb.attribute(infoHeaderLine.getID(), new ArrayList<String>(info));
+						if(depthInfoHeaderLine!=null)
+							{
+							vcb.attribute(depthInfoHeaderLine.getID(),first.depth);
+							}
+						
 						vcb.alleles(alleles);
 						w.add(vcb.make());
 						}
@@ -907,6 +949,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		if(!allele.isCalled())return;
 		if(allele.length()!=1) return;
 		if(ctx.getReference().length()!=1) return;
+		if(allele.equals(Allele.SPAN_DEL)) return;
 		
 		if(genomicSequence==null || !genomicSequence.getChrom().equals(ctx.getContig()))
 			{

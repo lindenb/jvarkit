@@ -48,6 +48,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -89,7 +90,33 @@ public class VcfBurden extends AbstractKnimeApplication
 			{
 			return this.pos_in_cds;
 			}
+		@Override
+		public String toString() {
+			return variant.getContig()+":"+variant.getStart()+"-"+variant.getEnd()+" "+
+					 variant.getReference()+"/"+variant.getAlternateAlleles();
+			}
 		}
+	
+	private final Comparator<VariantAndCsq> variantAndCsqComparator = new Comparator<VariantAndCsq>()
+		{
+		@Override
+		public int compare(
+				final VariantAndCsq v1,
+				final VariantAndCsq v2) {
+			final VariantContext o1 = v1.variant;
+			final VariantContext o2 = v2.variant;
+			int i = o1.getContig().compareTo(o2.getContig());
+			if(i!=0) return i;
+			i = o1.getStart() - o2.getStart();
+			if(i!=0) return i;
+			i = o1.getReference().compareTo(o2.getReference());
+			if(i!=0) return i;
+			i = o1.getAlternateAllele(0).compareTo(o2.getAlternateAllele(0));
+			if(i!=0) return i;
+			return 0;
+			}
+		};
+	
 	
 	private static class GeneTranscript
 		{
@@ -151,19 +178,30 @@ public class VcfBurden extends AbstractKnimeApplication
 		}
 	
 	
-	private void dump(
-			ZipOutputStream zout,
+	private void dumpVariants(
+			final ZipOutputStream zout,
 			final String contig,
-			String filename,
-			List<String> samples,
-			List<VariantAndCsq> variants
+			final String filename,
+			final List<String> samples,
+			final List<VariantAndCsq> variants
 			) throws IOException
 		{
+		for(int i=0;i<variants.size();++i ) {
+			for(int j=i+1;j<variants.size();++j ) {
+				VariantAndCsq v1  = variants.get(i);
+				VariantAndCsq v2  = variants.get(j);
+				if(this.variantAndCsqComparator.compare(v1, v2)==0) {
+					throw new IOException(v1+" "+v2);
+				}
+			}
+		}
+		
+		
 		int outCount=0;
 		info(this.dirName+"/"+contig+"_"+filename+".txt");
-		ZipEntry ze = new ZipEntry(this.dirName+"/"+contig+"_"+filename+".txt");
+		final ZipEntry ze = new ZipEntry(this.dirName+"/"+contig+"_"+filename+".txt");
 		zout.putNextEntry(ze);
-		PrintWriter pw = new PrintWriter(zout);
+		final  PrintWriter pw = new PrintWriter(zout);
 		pw.print("CHROM\tPOS\tREF\tALT");
 		
 		if(printPositionInCDS)
@@ -177,13 +215,13 @@ public class VcfBurden extends AbstractKnimeApplication
 			pw.print("\t");
 			pw.print("SO");//TODO
 			}
-		for(String sample:samples)
+		for(final String sample:samples)
 			{
 			pw.print("\t");
 			pw.print(sample);
 			}
 		pw.println();
-		for(VariantAndCsq vac:variants)
+		for(final VariantAndCsq vac:variants)
 			{
 			pw.print(vac.variant.getContig());
 			pw.print("\t");
@@ -276,11 +314,11 @@ public class VcfBurden extends AbstractKnimeApplication
 				fout = new FileOutputStream(getOutputFile());
 				zout = new ZipOutputStream(fout);
 				}
-			List<String> samples= in.getHeader().getSampleNamesInOrder();
-			VCFHeader header=in.getHeader();
+			final List<String> samples= in.getHeader().getSampleNamesInOrder();
+			final VCFHeader header=in.getHeader();
 			String prev_chrom = null;
-			VepPredictionParser vepPredParser=new VepPredictionParser(header);
-			Map<GeneTranscript,List<VariantAndCsq>> gene2variants=new HashMap<>();
+			final VepPredictionParser vepPredParser=new VepPredictionParser(header);
+			final Map<GeneTranscript,List<VariantAndCsq>> gene2variants=new HashMap<>();
 			final SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
 			final Set<SequenceOntologyTree.Term> acn=new HashSet<>();
 			/* mail solena  *SO en remplacement des SO actuels (VEP HIGH + MODERATE) - pas la peine de faire retourner les analyses mais servira pour les futures analyses burden */
@@ -329,6 +367,9 @@ public class VcfBurden extends AbstractKnimeApplication
 						//info("count(ALT)!=1 in "+ctx1.getChr()+":"+ctx1.getStart());
 						continue;
 						}
+					if(ctx1.getAlternateAlleles().get(0).equals(Allele.SPAN_DEL)) {
+						continue;
+						}
 					}
 				
 				if(ctx1==null || !ctx1.getContig().equals(prev_chrom))
@@ -339,40 +380,25 @@ public class VcfBurden extends AbstractKnimeApplication
 						{
 						geneNames.add(gene_transcript.geneName);
 						
-						dump(zout,
+						final Set<VariantAndCsq> uniq =new TreeSet<>(this.variantAndCsqComparator);
+						uniq.addAll(gene2variants.get(gene_transcript));
+						
+						dumpVariants(zout,
 								prev_chrom,
 								gene_transcript.geneName+"_"+gene_transcript.transcriptName,
 								samples,
-								gene2variants.get(gene_transcript)
+								new ArrayList<VariantAndCsq>(uniq)
 								);
 						LOG.info("dumped" +gene_transcript.geneName);
 						}
 					LOG.info("loop over geneName");
 					for(final String geneName : geneNames)
 						{
-						final Comparator<VariantAndCsq> cmp = new Comparator<VariantAndCsq>()
-									{
-									@Override
-									public int compare(
-											final VariantAndCsq v1,
-											final VariantAndCsq v2) {
-										final VariantContext o1 = v1.variant;
-										final VariantContext o2 = v2.variant;
-										int i = o1.getContig().compareTo(o2.getContig());
-										if(i!=0) return i;
-										i = o1.getStart() - o2.getStart();
-										if(i!=0) return i;
-										i = o1.getReference().compareTo(o2.getReference());
-										if(i!=0) return i;
-										i = o1.getAlternateAllele(0).compareTo(o2.getAlternateAllele(0));
-										if(i!=0) return i;
-										return 0;
-										}
-									};
-						final SortedSet<VariantAndCsq> lis_nm = new TreeSet<>(cmp);
-						final SortedSet<VariantAndCsq> lis_all = new TreeSet<>(cmp);
-						final SortedSet<VariantAndCsq> lis_refseq = new TreeSet<>(cmp);
-						final SortedSet<VariantAndCsq> lis_enst = new TreeSet<>(cmp);
+						
+						final SortedSet<VariantAndCsq> lis_nm = new TreeSet<>(this.variantAndCsqComparator);
+						final SortedSet<VariantAndCsq> lis_all = new TreeSet<>(this.variantAndCsqComparator);
+						final SortedSet<VariantAndCsq> lis_refseq = new TreeSet<>(this.variantAndCsqComparator);
+						final SortedSet<VariantAndCsq> lis_enst = new TreeSet<>(this.variantAndCsqComparator);
 						LOG.info("loop over gene2variants");
 						for(final GeneTranscript gene_transcript:gene2variants.keySet() )
 							{
@@ -392,28 +418,28 @@ public class VcfBurden extends AbstractKnimeApplication
 								}
 							}
 						LOG.info("dump_ALL_TRANSCRIPTS");
-						dump(zout,
+						dumpVariants(zout,
 								prev_chrom,
 								geneName+"_ALL_TRANSCRIPTS",
 								samples,
 								new ArrayList<VariantAndCsq>(lis_all)
 								);
 						LOG.info("dump_ALL_NM");
-						dump(zout,
+						dumpVariants(zout,
 								prev_chrom,
 								geneName+"_ALL_NM",
 								samples,
 								new ArrayList<VariantAndCsq>(lis_nm)
 								);
 						LOG.info("dump_ALL_REFSEQ");
-						dump(zout,
+						dumpVariants(zout,
 								prev_chrom,
 								geneName+"_ALL_REFSEQ",
 								samples,
 								new ArrayList<VariantAndCsq>(lis_refseq)
 								);
 						LOG.info("dump_ALL_ENST");
-						dump(zout,
+						dumpVariants(zout,
 								prev_chrom,
 								geneName+"_ALL_ENST",
 								samples,
@@ -488,7 +514,7 @@ public class VcfBurden extends AbstractKnimeApplication
 					{
 					if(this._gene2seen.get(gene).equals(Boolean.TRUE)) continue;
 					warning("Gene not found : "+gene);
-					dump(zout,
+					dumpVariants(zout,
 							"UNDEFINED",
 							gene+"_000000000000000.txt",
 							samples,
