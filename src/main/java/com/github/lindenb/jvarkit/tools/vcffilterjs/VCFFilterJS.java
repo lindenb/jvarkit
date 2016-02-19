@@ -44,7 +44,9 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
 
@@ -74,17 +76,22 @@ public class VCFFilterJS
 		try
 			{
 			final VCFHeader header = r.getHeader();
-			SnpEffPredictionParser snpEffPredictionParser = new SnpEffPredictionParser(
+			final SnpEffPredictionParser snpEffPredictionParser = new SnpEffPredictionParser(
 					header);
-			VepPredictionParser vepPredictionParser = new VepPredictionParser(
+			final VepPredictionParser vepPredictionParser = new VepPredictionParser(
 					header);
 
-			final  VCFHeader h2 = new VCFHeader(header.getMetaDataInInputOrder(),
-					header.getSampleNamesInOrder());
+			final  VCFHeader h2 = new VCFHeader(header);
 			addMetaData(h2);
-
-			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(
-					header.getSequenceDictionary());
+			
+			final VCFFilterHeaderLine filterHeaderLine = (filteredTag.trim().isEmpty()?null:
+				new VCFFilterHeaderLine(super.filteredTag.trim(),"Filtered with "+getName())
+				);
+			
+			
+			if(filterHeaderLine!=null) h2.addMetaDataLine(filterHeaderLine);
+			
+			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
 
 			final  Bindings bindings = this.compiledScript.getEngine()
 					.createBindings();
@@ -102,7 +109,15 @@ public class VCFFilterJS
 						vepPredictionParser.getPredictions(variation));
 
 				if (!evalJavaScriptBoolean(this.compiledScript, bindings))
+					{
+					if(filterHeaderLine!=null)
+						{
+						final VariantContextBuilder vcb = new VariantContextBuilder(variation);
+						vcb.filter(filterHeaderLine.getID());
+						w.add(vcb.make());
+						}
 					continue;
+					}
 				w.add(variation);
 				}
 			return RETURN_OK;

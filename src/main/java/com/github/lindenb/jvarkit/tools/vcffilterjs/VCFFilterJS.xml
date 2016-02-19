@@ -13,6 +13,9 @@
 <snippet id="javascript"/>
 
 <options>
+	<option name="filteredTag" type="string" opt="F" longopt="filter" label="Filter" default="">
+		<description>If not empty, variants won't be discarded and this name will be used in the FILTER column</description>
+	</option>
 </options>
 
 <documentation>
