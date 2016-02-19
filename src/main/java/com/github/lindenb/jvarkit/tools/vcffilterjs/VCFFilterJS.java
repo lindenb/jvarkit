@@ -108,7 +108,7 @@ public class VCFFilterJS
 				bindings.put("vep",
 						vepPredictionParser.getPredictions(variation));
 
-				if (!evalJavaScriptBoolean(this.compiledScript, bindings))
+				if (!evalJavaScriptBoolean(this.compiledScript, bindings) )
 					{
 					if(filterHeaderLine!=null)
 						{

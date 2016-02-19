@@ -31,6 +31,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.bio.GranthamScore;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -60,6 +61,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -370,6 +372,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 		String info=null;
 		String filter = VCFConstants.UNFILTERED;
 		int depth =0;
+		int grantham_score = -1;
 		}
 
 	static private class MutationCodec extends AbstractDataCodec<CombinedMutation>
@@ -392,6 +395,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 			mutation.sorting_id = dis.readInt();
 			mutation.filter = dis.readUTF();
 			mutation.depth = dis.readInt();
+			mutation.grantham_score = dis.readInt();
 			return mutation;
 		}
 	
@@ -406,6 +410,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 			dos.writeInt(v.sorting_id);
 			dos.writeUTF(v.filter);
 			dos.writeInt(v.depth);
+			dos.writeInt(v.grantham_score);
 		}
 	
 		@Override
@@ -565,7 +570,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			
 			
 			final VCFFilterHeaderLine vcfFilterHeaderLine = new VCFFilterHeaderLine(
-				"TwoStrands",
+				"TwoHaplotypes",
 				"(number of reads carrying both mutation) < (reads carrying variant 1 + reads carrying variant 2) "
 				);
 			
@@ -651,6 +656,12 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 							 */
 							if( combinedSO != null)
 								{
+								/** grantham score is max found combined vs (p1/p2/wild)*/
+								int grantham_score= GranthamScore.score(pCombined.charAt(0), pwild.charAt(0));
+								grantham_score = Math.max(grantham_score,GranthamScore.score(pCombined.charAt(0), p1.charAt(0)));
+								grantham_score = Math.max(grantham_score,GranthamScore.score(pCombined.charAt(0), p2.charAt(0)));
+								
+								
 								/** info that will be displayed in the vcf */
 								final Map<String,Object> info1 = v1.getInfo(v2);
 								final Map<String,Object> info2 = v2.getInfo(v1);
@@ -662,6 +673,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 								combinedMap.put("CombinedAA",pCombined);
 								combinedMap.put("CombinedSO",combinedSO);
 								combinedMap.put("CombinedType",combinedType);
+								combinedMap.put("GranthamScore", grantham_score);
 								
 								info1.putAll(combinedMap);
 								info2.putAll(combinedMap);
@@ -800,6 +812,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 								m1.info = mapToString(info1);
 								m1.filter = filter;
 								m1.depth = depth1;
+								m1.grantham_score = grantham_score;
 
 								m1.sorting_id = ID_GENERATOR++;
 								mutations.add(m1);
@@ -813,6 +826,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 								m2.info = mapToString(info2);
 								m2.filter = filter;
 								m2.depth = depth2;
+								m2.grantham_score = grantham_score;
 								
 								m2.sorting_id = ID_GENERATOR++;
 								mutations.add(m2);
@@ -833,6 +847,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			final ArrayList<CombinedMutation> mBuffer= new ArrayList<>();
 			
 			final VCFHeader header2 = new VCFHeader();
+			header2.addMetaDataLine(new VCFHeaderLine(getName()+"AboutQUAL", "QUAL is filled with Grantham Score  http://www.ncbi.nlm.nih.gov/pubmed/4843792"));
 			header2.setSequenceDictionary(header.getSequenceDictionary());
 			
 			final StringBuilder infoDesc =new StringBuilder("Variant affected by two distinct mutation. Format is defined in the INFO column. ");
@@ -879,6 +894,8 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 					{
 					if(!mBuffer.isEmpty())
 						{
+						//default grantham score used in QUAL
+						int grantham_score = -1;
 						//default filter fails
 						String filter=vcfFilterHeaderLine.getID();
 						final CombinedMutation first  = mBuffer.get(0);
@@ -893,6 +910,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 						for(final CombinedMutation m:mBuffer){
 							alleles.add(m.altAllele);
 							info.add(m.info);
+							grantham_score=Math.max(grantham_score, m.grantham_score);
 							if(VCFConstants.UNFILTERED.equals(m.filter)) {
 								filter = null; //at least one SNP is ok one this line
 							}
@@ -903,7 +921,9 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 							{
 							vcb.attribute(depthInfoHeaderLine.getID(),first.depth);
 							}
-						
+						if(grantham_score>0) {
+							vcb.log10PError(grantham_score/-10.0);
+						}
 						vcb.alleles(alleles);
 						w.add(vcb.make());
 						}
