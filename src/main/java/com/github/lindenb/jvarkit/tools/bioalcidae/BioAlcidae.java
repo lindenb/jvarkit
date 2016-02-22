@@ -49,6 +49,7 @@ import javax.script.CompiledScript;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -113,8 +114,8 @@ public class BioAlcidae
 		LOG.info("source: "+source);
 		VcfIterator in=null;
 		try {
-			
-			return executeAsVcf(source);
+			in = VCFUtils.createVcfIterator(source);
+			return executeAsVcf(in);
 			} 
 		catch (Exception e)
 			{
