@@ -26,6 +26,12 @@
 		</c:options>
 	</xsl:if>
 	
+	<xsl:if test="not(c:elixir)">
+		<c:elixir>
+			<xsl:apply-templates select="." mode="elixir"/>
+		</c:elixir>
+	</xsl:if>
+	
 	<xsl:apply-templates select="*|text()"/>
 </c:app>
 </xsl:template>
@@ -51,6 +57,14 @@
 </c:options>
 </xsl:template>
 
+<xsl:template match="c:elixir">
+<c:elixir>
+	<xsl:apply-templates select="@*"/>
+	<xsl:apply-templates select="*"/>
+	<xsl:apply-templates select="/c:app" mode="elixir"/>
+</c:elixir>
+</xsl:template>
+
 <xsl:template match="*">
 <xsl:copy select=".">
 <xsl:apply-templates select="@*"/>
@@ -58,6 +72,8 @@
 </xsl:copy>
 </xsl:template>
 
+<xsl:template match="c:app" mode="elixir">
+</xsl:template>
 
 <xsl:template match="c:app" mode="otheroptions">
 

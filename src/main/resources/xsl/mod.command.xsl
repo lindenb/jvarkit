@@ -969,9 +969,14 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	@Override
 	public String getOnlineDocUrl()
 		{
-		return "https://github.com/lindenb/jvarkit/wiki/<xsl:value-of select="@app"/>";
+		return "<xsl:apply-templates select="." mode="wikiurl"/>";
 		}
 	
+</xsl:template>
+
+<xsl:template match="c:app" mode="wikiurl">
+<xsl:text>https://github.com/lindenb/jvarkit/wiki/</xsl:text>
+<xsl:value-of select="@app"/>
 </xsl:template>
 
 <xsl:template name="titleize">
