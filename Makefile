@@ -81,7 +81,11 @@ $(1)  : ${htsjdk.jars} \
 	xsltproc \
 		-o "$(addsuffix .elixir.jsonx,${generated.dir}/$(2))" \
 		${this.dir}src/main/resources/xsl/jsonxelixir.xsl \
-		"$(addsuffix .proc.xml,${generated.dir}/$(2))" ; fi
+		"$(addsuffix .proc.xml,${generated.dir}/$(2))" && \
+	xsltproc \
+		-o "$(addsuffix .elixir.json,${generated.dir}/$(2))" \
+		${this.dir}src/main/resources/xsl/jsonx2json.xsl \
+		"$(addsuffix .elixir.jsonx,${generated.dir}/$(2))" ; fi
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
 	echo '### Printing javac version : it should be 1.8. if Not, check your $$$${PATH}.'

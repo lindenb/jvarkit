@@ -332,22 +332,22 @@ public class Sam2Tsv
 	
 	
 	
-	private void scan(SamReader r) 
+	private void scan(final SamReader r) 
 		{
-		Row row=new Row();
+		final Row row=new Row();
 		SAMRecordIterator iter=null;
 		try{
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(r.getFileHeader().getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(r.getFileHeader());
 			iter=r.iterator();	
 			while(iter.hasNext())
 				{
-				row.rec =iter.next();
-				progress.watch(row.rec);
+				row.rec =progress.watch(iter.next());
 				printAln(row);
 				if(this.out.checkError()) break;
 				}
+			progress.finish();
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error("scan error:",err);
 			throw new RuntimeException(String.valueOf(err.getMessage()),err);
@@ -359,7 +359,7 @@ public class Sam2Tsv
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 		
 		if(super.refFile==null)
 			{
