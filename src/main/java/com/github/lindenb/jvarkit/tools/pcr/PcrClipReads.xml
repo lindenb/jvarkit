@@ -4,4 +4,81 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.pcr">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Soft clip bam files based on PCR target regions https://www.biostars.org/p/147136/</description>
+<input type="sam"/>
+<output type="sam"/>
+<options>
+	<option name="bedFile" type="input-file"  opt="B" longopt="bed"  >
+		<description>Bed file containing non-overlapping PCR fragments</description>
+	</option>
+	<option name="onlyFlag" type="int"  opt="flag" longopt="flag" required="false" default="-1" >
+		<description>Only run on reads having sam flag (flag). -1 = all reads. (as https://github.com/lindenb/jvarkit/issues/43)</description>
+	</option>
+</options>
+
+
+<documentation>
+
+ Soft clip BAM files based on PCR target regions <h:a>https://www.biostars.org/p/147136/</h:a>
+
+<h:ul>
+<h:li>mapping quality is set to zero if a read on strand - overlap the 5' side of the PCR fragment</h:li>
+<h:li>mapping quality is set to zero if a read on strand + overlap the 3' side of the PCR fragment</h:li>
+<h:li>mapping quality is set to zero if no PCR fragment is found</h:li>
+</h:ul>
+after processing the BAM file should be sorted, processed with samtools calmd and picard fixmate
+
+
+<h:h3>Example</h:h3>
+
+
+<h:pre class="bash">
+echo  "seq2\t1100\t1200" &gt; test.bed
+java -jar dist-1.133/pcrclipreads.jar -B test.bed -b  samtools-0.1.19/examples/ex1.bam  |\
+	samtools  view -q 1 -F 4 -bu  -  |\
+	samtools  sort - clipped &amp;&amp; samtools index clipped.bam
+
+samtools tview -p seq2:1100  clipped.bam  samtools-0.1.19/examples/ex1.fa
+
+</h:pre>
+<h:h3>output</h:h3>
+
+<h:img src="http://i.imgur.com/bjDEnMW.jpg"/>
+
+
+<h:pre>
+    1091      1101      1111      1121      1131      1141      1151      1161      1171      1181      1191
+AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCACCTAACACAAGACTACCCAGATTCATAAAACAAATNNNNN
+              ...................................                               ..................................
+              ,,,                                                               ..................................
+              ,,,,,                                                              .................................
+              ,,,,,,,,,,,                                                        .............................N...
+              ,,,,,,,,                                                             ...............................
+              ,,g,,,,,,,,,,,,,                                                        ............................
+              ,,,,,,,,,,,,,,,,,,,,                                                    ............................
+              ,,,,,,,,,,,,,,,,,,,                                                       ..........................
+              ,,,,,,,,,,,,,,,,,,,,,,                                                    ..........................
+              ,,,,,,,,,,,,,,,,,,,,,,,                                                       ......................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,                                                        ..................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,                                                        ..................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                       .................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                       ................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                        ...............
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                         ............
+              ,,,,,,,,,,,,a,,,,,,,,,,,,,,,,,,,                                                             .......
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                            ......
+              ,,a,,,a,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                              ....
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                             ....
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                                .
+                                                                                                                 .
+</h:pre>
+
+<h:h3>See also</h:h3>
+<h:ul>
+<h:li><h:a>https://www.biostars.org/p/147136/</h:a></h:li>
+<h:li><h:a>https://www.biostars.org/p/178308</h:a></h:li>
+</h:ul>
+
+</documentation>
+
+</app>
