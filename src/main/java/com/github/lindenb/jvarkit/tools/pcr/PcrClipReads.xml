@@ -14,6 +14,9 @@
 	<option name="onlyFlag" type="int"  opt="flag" longopt="flag" required="false" default="-1" >
 		<description>Only run on reads having sam flag (flag). -1 = all reads. (as https://github.com/lindenb/jvarkit/issues/43)</description>
 	</option>
+	<option name="chooseLargestOverlap" type="boolean"  opt="largest" longopt="largest"  default="false" >
+		<description>see if a read overlaps two bed intervals use the bed region sharing the longest sequence with a read. see  https://github.com/lindenb/jvarkit/issues/44 </description>
+	</option>
 </options>
 
 

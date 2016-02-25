@@ -29,14 +29,14 @@ History:
 package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.io.BufferedReader;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
@@ -51,32 +51,45 @@ public class PcrClipReads extends AbstractPcrClipReads
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PcrClipReads.class);
 
-	private IntervalTreeMap<Interval> bedIntervals=new IntervalTreeMap<Interval>();
+	private final IntervalTreeMap<Interval> bedIntervals=new IntervalTreeMap<Interval>();
 	
 	private Interval findInterval(final SAMRecord rec)
 		{
 		if(rec.getReadUnmappedFlag()) return null;
 		return findInterval(rec.getContig(), rec.getAlignmentStart(), rec.getAlignmentEnd());
 		}
-	private Interval findInterval(String chrom,int start,int end)
+	private Interval findInterval(final String chrom,final int start,final int end)
 		{
-		Interval i= new Interval(chrom,start,end);
-		Collection<Interval> L=this.bedIntervals.getOverlapping(i);
-		Iterator<Interval> iter = L.iterator();
-		if(iter.hasNext())
+		final Interval i= new Interval(chrom,start,end);
+		final List<Interval> L= new ArrayList<>(this.bedIntervals.getOverlapping(i));
+		if(L.isEmpty()) return null;
+		if(L.size()==1) return L.get(0);
+		if(super.chooseLargestOverlap)
 			{
-			Interval j = iter.next();
-			if(iter.hasNext()  ) throw new IllegalStateException("Overlapping PCR intervals : "+j+" "+iter.next());
-			return j;
+			Interval best = null;
+			Integer dist = null;
+			for(final Interval j: L) {
+				if(!i.intersects(j)) continue;//????
+				final int commonDist = i.intersect(j).length();
+				if(dist==null || dist < commonDist) {
+					best = j;
+					dist = commonDist;
+					}	
+				}
+			return best;
 			}
-		return null;
+		else
+			{
+			throw new IllegalStateException(
+					"Option -"+OPTION_CHOOSELARGESTOVERLAP+" not used. Overlapping PCR intervals samRecord "+i+": "+L);
+			}
 		}
 	
 	
-	private Collection<Throwable> run(SamReader reader)
+	private Collection<Throwable> run(final SamReader reader)
 		{
-		SAMFileHeader header1= reader.getFileHeader();
-		SAMFileHeader header2 = header1.clone();
+		final SAMFileHeader header1= reader.getFileHeader();
+		final SAMFileHeader header2 = header1.clone();
 		header2.addComment(getName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
 		header2.setSortOrder(SortOrder.unsorted);
 		SAMFileWriter sw=null;
@@ -154,7 +167,7 @@ public class PcrClipReads extends AbstractPcrClipReads
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 
 		if(super.bedFile==null)
 			{
