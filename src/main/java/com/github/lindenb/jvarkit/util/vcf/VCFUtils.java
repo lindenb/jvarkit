@@ -532,7 +532,7 @@ public class VCFUtils
 	 * Creates a comparator based on dict(CHROM)/POS/REF
 	 * @return
 	 */
-	public static Comparator<VariantContext> createTidPosComparator(SAMSequenceDictionary dict)
+	public static Comparator<VariantContext> createTidPosComparator(final SAMSequenceDictionary dict)
 		{
 		return new _DictCompareCtxTidPos(dict);
 		}
@@ -541,10 +541,15 @@ public class VCFUtils
 	private static class _DictCompareCtxTidPos
 		implements Comparator<VariantContext>
 		{
-		SAMSequenceDictionary dict;
-		_DictCompareCtxTidPos(SAMSequenceDictionary dict) {this.dict=dict;}
+		final SAMSequenceDictionary dict;
+		_DictCompareCtxTidPos(final SAMSequenceDictionary dict) {
+			this.dict=dict;
+			if(this.dict==null) {
+				throw new RuntimeException("No Sequence Dictionary provided. '##contig' Missing in VCF header ?");
+				}
+			}
 		
-		private int tid(String chrom)
+		private int tid(final String chrom)
 			{
 			int t= dict.getSequenceIndex(chrom);
 			if(t==-1) throw new IllegalArgumentException("chromosome \""+chrom+"\" is missing in dictionary");

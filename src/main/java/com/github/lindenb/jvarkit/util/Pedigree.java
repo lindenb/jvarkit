@@ -30,10 +30,13 @@ package com.github.lindenb.jvarkit.util;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
 
 
 public class Pedigree
@@ -99,6 +102,26 @@ public class Pedigree
 			{
 			return this.individuals.values();
 			}
+		@Override
+		public int hashCode() {
+			return id.hashCode();
+		}
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) {
+				return true;
+			}
+			if (obj == null || getClass() != obj.getClass()) {
+				return false;
+			}
+			
+			final FamilyImpl other = (FamilyImpl) obj;
+			return id.equals(other.id);
+			}
+		@Override
+		public String toString() {
+			return this.id;
+			}
 		}
 	
 	public interface Person
@@ -161,25 +184,62 @@ public class Pedigree
 			{
 			return sex;
 			}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + family.hashCode();
+			result = prime * result + id.hashCode();
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) return true;
+			if (obj == null || getClass() != obj.getClass()) {
+				return false;
+			}
+			final PersonImpl p =(PersonImpl)obj;
+			return	this.family.equals(p.family) &&
+					this.id.equals(p.id);
+			}
+
+		@Override
+		public String toString() {
+			return family+":"+this.id;
+			}
 		}
 	
 	private Pedigree()
 		{
 		
 		}
-	
+	/** get all the families in this pedigree */
 	public java.util.Collection<? extends Family> getFamilies()
 		{
 		return this.families.values();
 		}
 	
-	private void read(BufferedReader r) throws IOException
+	/** get all the individuals in this pedigree */
+	public java.util.Set<Person> getPersons()
 		{
+		final java.util.Set<Person> set = new HashSet<>();
+		for(final Family f:families.values())
+			{
+			set.addAll(f.getIndividuals());
+			}
+		return set;
+		}
+	
+	private void read(final BufferedReader r) throws IOException
+		{
+		Pattern tab = Pattern.compile("[\t]");
 		String line;
 		while((line=r.readLine())!=null)
 			{
 			if(line.isEmpty() || line.startsWith("#")) continue;
-			String tokens[]=line.split("\t");
+			final String tokens[]=tab.split(line);
 			FamilyImpl fam=this.families.get(tokens[0]);
 			if(fam==null)
 				{
@@ -209,16 +269,16 @@ public class Pedigree
 			}
 		}
 	
-	public static Pedigree readPedigree(File f) throws IOException
+	public static Pedigree readPedigree(final File f) throws IOException
 		{
-		BufferedReader r=new BufferedReader(new FileReader(f));
-		Pedigree ped=Pedigree.readPedigree(r);
+		final BufferedReader r= IOUtils.openFileForBufferedReading(f);
+		final Pedigree ped=Pedigree.readPedigree(r);
 		r.close();
 		return ped;
 		}	
-	public static Pedigree readPedigree(BufferedReader r) throws IOException
+	public static Pedigree readPedigree(final BufferedReader r) throws IOException
 		{
-		Pedigree ped=new Pedigree();
+		final Pedigree ped=new Pedigree();
 		ped.read(r);
 		return ped;
 		}	

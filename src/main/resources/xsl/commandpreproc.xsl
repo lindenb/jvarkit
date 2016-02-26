@@ -157,6 +157,9 @@
 	
 </xsl:template>
 
+<xsl:template match="c:doc[@id='pedigree-file']">
+<xsl:text>A pedigree file is a text file containing the following columns: FAMILY-ID INDIVIDUAL-ID FATHER-ID(or 0) MOTHER-ID(or 0) SEX(1 male, 2 female, 0 unknown) PHENOTYPE (1 affected, 0 unaffected, 9 not available)</xsl:text>
+</xsl:template>
 
 </xsl:stylesheet>
 

@@ -416,6 +416,8 @@ $(eval $(call compile-htsjdk-cmd,projectserver,${jvarkit.package}.tools.server.P
 $(eval $(call compile-htsjdk-cmd,vcfcalledwithanothermethod,${jvarkit.package}.tools.misc.VcfCalledWithAnotherMethod))
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burden.VcfBurdenSplitter))
 $(eval $(call compile-htsjdk-cmd,vcfburdenf1,${jvarkit.package}.tools.burden.VcfBurdenFilter1))
+$(eval $(call compile-htsjdk-cmd,vcfburdenf2,${jvarkit.package}.tools.burden.VcfBurdenFilter2))
+$(eval $(call compile-htsjdk-cmd,vcfburdenf3,${jvarkit.package}.tools.burden.VcfBurdenFilter3))
 
 
 

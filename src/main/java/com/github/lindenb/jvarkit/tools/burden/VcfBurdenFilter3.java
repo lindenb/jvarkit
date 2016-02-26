@@ -50,12 +50,12 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
-public class VcfBurdenFilter1
-	extends AbstractVcfBurdenFilter1
+public class VcfBurdenFilter3
+	extends AbstractVcfBurdenFilter3
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFilter1.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFilter3.class);
 	
-	public VcfBurdenFilter1()
+	public VcfBurdenFilter3()
 		{
 		}
 	 
@@ -71,10 +71,11 @@ public class VcfBurdenFilter1
 	@Override
 	public Collection<Throwable> doVcfToVcf(
 			final String inputName,
-			final VcfIterator in,
+			final VcfIterator vcfIterator,
 			final VariantContextWriter out
 			) throws IOException {
 		VcfIterator exacIn =null;
+		final VcfIterator in = VCFUtils.createAssertSortedVcfIterator(vcfIterator, VCFUtils.createTidPosComparator(vcfIterator.getHeader().getSequenceDictionary()));
 		EqualRangeVcfIterator equalRange = null;
 		final String exacPopulations[]= super.exacPopulationStr.split("[,]+");
 		try {
@@ -82,7 +83,7 @@ public class VcfBurdenFilter1
 			exacIn = VCFUtils.createVcfIteratorFromFile(super.exacFile);
 			equalRange = new EqualRangeVcfIterator(exacIn, VCFUtils.createTidPosComparator(exacIn.getHeader().getSequenceDictionary()));
 			final VCFHeader header=in.getHeader();
-			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine("BurdenF1",
+			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine("BurdenF3",
 					"Freq:"+this.maxFreq+"% Pop:"+super.exacPopulationStr);
 			final VCFInfoHeaderLine freqExacInfoHeader = new VCFInfoHeaderLine(
 					"FreqExac",1,VCFHeaderLineType.Float,"Freq in Exac AC/AN"
@@ -92,13 +93,13 @@ public class VcfBurdenFilter1
 			for(final String pop:exacPopulations)
 				{
 				final VCFInfoHeaderLine ac = exacIn.getHeader().getInfoHeaderLine("AC_"+pop);
-				h2.addMetaDataLine(ac);
+				if(ac!=null) h2.addMetaDataLine(ac);
 				final VCFInfoHeaderLine an = exacIn.getHeader().getInfoHeaderLine("AN_"+pop);
-				h2.addMetaDataLine(an);
+				if(an!=null) h2.addMetaDataLine(an);
 				}
-			
 			h2.addMetaDataLine(filter);
-			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
 				{
@@ -115,6 +116,7 @@ public class VcfBurdenFilter1
 				Optional<Float> freqInExac = Optional.empty();
 				for(final VariantContext exacVariant : equalRange.next(ctx))
 					{
+					if(!exacVariant.getReference().equals(ctx.getReference())) continue;
 					int exacAltIndex=-1;
 					for(final Allele  exacAlt : exacVariant.getAlternateAlleles()) {
 						++exacAltIndex;
@@ -152,7 +154,7 @@ public class VcfBurdenFilter1
 					set_filter = true;
 				}
 				
-				if(freqInExac!=null) {
+				if(freqInExac.isPresent()) {
 					vcb.attribute(freqExacInfoHeader.getID(), freqInExac.get());
 				}
 				if(  set_filter ) {
@@ -162,11 +164,12 @@ public class VcfBurdenFilter1
 				}
 			progess.finish();
 			return RETURN_OK;
-			} catch(Exception err) {
+			} catch(final Exception err) {
 				return wrapException(err);
 			} finally {
 				CloserUtil.close(equalRange);
 				CloserUtil.close(exacIn);
+				CloserUtil.close(in);
 			}
 		}
 	
@@ -178,6 +181,6 @@ public class VcfBurdenFilter1
 	
 	public static void main(String[] args)
 		{
-		new VcfBurdenFilter1().instanceMainWithExit(args);
+		new VcfBurdenFilter3().instanceMainWithExit(args);
 		}
 	}

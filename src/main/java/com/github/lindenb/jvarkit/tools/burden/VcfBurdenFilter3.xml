@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!DOCTYPE app [
- <!ENTITY name "VcfBurdenFilter1">
+ <!ENTITY name "VcfBurdenFilter3">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.burden">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/"
@@ -20,7 +20,7 @@
 
 <options>
 	<option name="exacFile" type="input-file" longopt="exac" opt="exac">
-		<description>Path to Exac</description>
+		<description>Path to Exac VCF file</description>
 	</option>
 	<option name="ifNotInExacThenDiscard" type="boolean" longopt="discardNotInExac" opt="d" default="false">
 		<description>if variant was not found in Exac, discard the variant (set the FILTER). Default: don't set the FILTER. </description>
