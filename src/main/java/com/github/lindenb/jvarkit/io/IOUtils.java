@@ -62,6 +62,14 @@ import htsjdk.samtools.util.IOUtil;
 
 public class IOUtils {
 	
+	public static void copyTo(final File f,final OutputStream fous) throws IOException
+		{
+		FileInputStream fin=new FileInputStream(f);
+		copyTo(fin,fous);
+		fous.flush();
+		fous.close();
+		}
+	
 	public static void copyTo(InputStream in,File f) throws IOException
 		{
 		FileOutputStream fous=new FileOutputStream(f);

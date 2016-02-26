@@ -45,6 +45,7 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -53,6 +54,8 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VcfBurdenFilter2
 	extends AbstractVcfBurdenFilter2
 	{
+	private static final int CASE_POP=0;
+	
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFilter2.class);
 	
 	public VcfBurdenFilter2()
@@ -83,7 +86,7 @@ public class VcfBurdenFilter2
 		final Set<Pedigree.Person> caseSamples = Pedigree.readPedigree(super.casesFile).getPersons();
 		final Set<Pedigree.Person> controlSamples = Pedigree.readPedigree(super.controlsFile).getPersons();
 		for(int pop=0;pop<2;++pop) {
-			final Set<Pedigree.Person> persons = (pop==0?caseSamples:controlSamples);
+			final Set<Pedigree.Person> persons = (pop==CASE_POP?caseSamples:controlSamples);
 			for(Pedigree.Person sample:persons) {
 				if(!header.getSampleNamesInOrder().contains(sample.getId())) {
 					LOG.warn("VCF header doesn't contain sample "+sample);
@@ -109,12 +112,21 @@ public class VcfBurdenFilter2
 			final VCFFilterHeaderLine filterCaseOrControlsHeader = new VCFFilterHeaderLine(
 					"BurdenF2MAFCaseOrControls","MAF of (cases OR controls) is greater than "+super.maxMAF
 					);
+			
+			final VCFInfoHeaderLine fisherAlleleInfoHeader = new VCFInfoHeaderLine(
+					"BurdenF1Fisher",1,VCFHeaderLineType.Float,"Fisher Exact Test Case/Control"
+					);
+			final VCFFilterHeaderLine fisherAlleleFilterHeader = new VCFFilterHeaderLine(
+					fisherAlleleInfoHeader.getID(),"Fisher case:control vs miss|have ALT is lower than "+super.minFisherPValue
+					);
 
 			h2.addMetaDataLine(mafCasInfoHeader);
 			h2.addMetaDataLine(mafControlsInfoHeader);
 			h2.addMetaDataLine(filterCasHeader);
 			h2.addMetaDataLine(filterControlsHeader);
 			h2.addMetaDataLine(filterCaseOrControlsHeader);
+			h2.addMetaDataLine(fisherAlleleInfoHeader);
+			h2.addMetaDataLine(fisherAlleleFilterHeader);
 			
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
@@ -128,7 +140,13 @@ public class VcfBurdenFilter2
 					}
 				final Allele observed_alt = ctx.getAlternateAllele(0);
 				final boolean is_chrom_X = (ctx.getContig().equals("X") ||  ctx.getContig().equals("chrX"));
-
+				
+				/* count for fisher allele */
+				int count_case_have_alt=0;
+				int count_case_miss_alt=0;
+				int count_ctrl_have_alt=0;
+				int count_ctrl_miss_alt=0;
+				
 				int count_filter_set=0;
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				/* loop over two populations : 0 = case, 1=controls */
@@ -136,13 +154,15 @@ public class VcfBurdenFilter2
 					int count_alt = 0;
 					double count_total=0.0;/* total number of alleles */
 					/* loop over persons in this pop */
-					for(final Pedigree.Person p:(pop==0?caseSamples:controlSamples)) 	{
+					for(final Pedigree.Person p:(pop==CASE_POP?caseSamples:controlSamples)) 	{
 					/* get genotype for this individual */
 					final Genotype genotype = ctx.getGenotype(p.getId());
 					/* individual is not in vcf header */
 					if(genotype==null) continue;
 					/* genotype is not called */
 					if(!genotype.isCalled()) continue;
+					
+					boolean genotype_contains_allele=false;
 					/* loop over alleles */
 					for(final Allele a: genotype.getAlleles()) {
 						/* chromosome X and male ? count half */
@@ -153,10 +173,25 @@ public class VcfBurdenFilter2
 							{
 							count_total+=1.0;
 							}
-						if(a.equals(observed_alt)) count_alt++;//TODO even on X ??
+						if(a.equals(observed_alt))
+							{
+							genotype_contains_allele=true;
+							count_alt++;
+							}
 						}
-					}
-					/* at least one genotype foud */
+					/* fisher */
+					if(genotype_contains_allele) {
+						if( pop==CASE_POP) { count_case_have_alt++; }
+						else { count_ctrl_have_alt++; }
+						}
+					else {
+						if( pop==CASE_POP) { count_case_miss_alt++; }
+						else { count_ctrl_miss_alt++; }
+						}
+					
+					}/* end of loop over persons */
+					
+					/* at least one genotype found */
 					if(count_total!=0)
 						{
 						/* get MAF */
@@ -175,6 +210,17 @@ public class VcfBurdenFilter2
 				if(count_filter_set==2) {
 					vcb.filter(filterCaseOrControlsHeader.getID());
 				}
+				/* fisher test for alleles */
+				final FisherExactTest fisherAlt = FisherExactTest.compute(
+						count_case_have_alt, count_case_miss_alt,
+						count_ctrl_have_alt, count_ctrl_miss_alt
+						);
+				vcb.attribute(fisherAlleleInfoHeader.getID(),
+						fisherAlt.getAsDouble()
+						);
+				if( fisherAlt.getAsDouble() < super.minFisherPValue ) {
+					vcb.filter(fisherAlleleFilterHeader.getID());
+					}
 				out.add(vcb.make());
 				}
 			progess.finish();

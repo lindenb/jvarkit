@@ -13,7 +13,7 @@
 	 __placeholder__="1"
 	>
 
-<description>Burden filter 1</description>
+<description>Burden filter 3</description>
 <input type="vcf"/>
 <output type="vcf"/>
 
