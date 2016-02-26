@@ -244,6 +244,7 @@ public class Pedigree
 			if(fam==null)
 				{
 				fam=new FamilyImpl();
+				fam.id = tokens[0];
 				this.families.put(tokens[0], fam);
 				}
 			if(fam.getPersonById(tokens[1])!=null) throw new IOException("duplicate individual: "+line);
