@@ -23,8 +23,6 @@ SOFTWARE.
 
 
 History:
-* 2014 creation
-* 2015 moving to knime
 
 */
 package com.github.lindenb.jvarkit.tools.burden;

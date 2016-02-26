@@ -247,7 +247,7 @@ public class VcfBurdenSplitter
 			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", super.getTmpdir());
 			tmpReportFile.deleteOnExit();
 			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
-			pw.println("#key\tFisher\tSuperVariant\tCount_Variants");
+			pw.println("#key\tFisher\tCount_Variants");
 			
 			iter = sortingcollection.iterator();
 			final List<KeyAndLine> buffer=new ArrayList<>();

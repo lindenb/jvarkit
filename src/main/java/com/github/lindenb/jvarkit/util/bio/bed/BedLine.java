@@ -36,6 +36,14 @@ public class BedLine
 		return (index<tokens.length?tokens[index]:null);
 		}
 	
+	public String join(final CharSequence delimiter) {
+		return String.join(delimiter, this.tokens);
+	}
+	public String join() {
+		return join("\t");
+	}
+
+	
 	public int getColumnCount()
 		{
 		return tokens.length;

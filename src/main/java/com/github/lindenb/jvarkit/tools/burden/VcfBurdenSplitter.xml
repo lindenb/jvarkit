@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "VcfBurdenSplitter">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.burden">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 xmlns:h="http://www.w3.org/1999/xhtml"
+	 xmlns:svg="http://www.w3.org/2000/svg"
+	 app="&name;"
+	 package="&package;"
+	 __placeholder__="1"
+	>
+
+<description>Split VCF Using a Burden Splitter (by gene, transcript, etc..)</description>
+<input type="vcf"/>
+<output type="vcf"/>
+<snippet id="sorting-collection"/>
+
+<options>
+	<option name="casesFile" type="input-file" longopt="cases" opt="cas">
+		<description>Path to a pedigree )containing the names of the CASES. <doc id="pedigree-file"/></description>
+	</option>
+	<option name="controlsFile" type="input-file" longopt="controls" opt="ctrl">
+		<description>Path to a pedigree containing the names of the CONTROLS. <doc id="pedigree-file"/></description>
+	</option>
+	<option name="baseZipDir" type="string" longopt="zipdir" opt="zipdir" default="burden">
+		<description>Base zip entry</description>
+	</option>
+</options>
+
+<documentation>
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>
