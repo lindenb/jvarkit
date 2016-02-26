@@ -247,7 +247,7 @@ public class VcfBurdenSplitter
 			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", super.getTmpdir());
 			tmpReportFile.deleteOnExit();
 			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
-			pw.println("#key\tFisher\tSuperVariant");
+			pw.println("#key\tFisher\tSuperVariant\tCount_Variants");
 			
 			iter = sortingcollection.iterator();
 			final List<KeyAndLine> buffer=new ArrayList<>();
@@ -311,7 +311,7 @@ public class VcfBurdenSplitter
 								count_case_sv0, count_case_sv1,
 								count_ctrl_sv0, count_ctrl_sv1
 								);
-						pw.println(first.key+"\t"+fisher.getAsDouble());
+						pw.println(first.key+"\t"+fisher.getAsDouble()+"\t"+variants.size());
 						
 						
 						ZipEntry ze = new ZipEntry(super.baseZipDir+"/"+first.key+".vcf");
