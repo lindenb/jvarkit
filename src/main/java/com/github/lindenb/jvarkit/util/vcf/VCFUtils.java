@@ -44,9 +44,12 @@ import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.FeatureCodec;
 import htsjdk.tribble.Tribble;
@@ -664,6 +667,58 @@ public class VCFUtils
 				h.getValue()
 				);
 		}
+    
+    /** wrap a VCF iterator that checks that variants are sorted in a VCF file */
+    public static VcfIterator createAssertSortedVcfIterator(final VcfIterator iter, final Comparator<VariantContext> cmp) {
+    	return new AssertSortedVcfIterator(iter,cmp);
+    }
+    
+    private static class AssertSortedVcfIterator implements VcfIterator {
+    	private final VcfIterator iter;
+    	private final Comparator<VariantContext> cmp;
+    	private VariantContext prev = null;
+    	AssertSortedVcfIterator(final VcfIterator iter, final Comparator<VariantContext> cmp) {
+    		this.iter = iter;
+    		this.cmp = cmp;
+    		this.prev = null;
+    		}
+    	@Override
+    	public boolean hasNext() {
+    		return this.iter.hasNext();
+    		}
+    	@Override
+    	public VariantContext peek() {
+    		final VariantContext ctx =  this.iter.peek();
+    		if(ctx!=null && prev!=null && this.cmp.compare(this.prev,ctx)>0) {
+    			throw new RuntimeIOException("VCF is not sorted got\n  "+
+    					ctx+"\nafter\n "+this.prev);
+    		}
+    		return ctx;
+    		}
+    	@Override
+    	public VariantContext next() {
+    		final VariantContext ctx =  this.iter.next();
+    		if(ctx!=null && prev!=null && this.cmp.compare(this.prev,ctx)>0) {
+    			throw new RuntimeIOException("VCF is not sorted got\n  "+
+    					ctx+"\nafter\n "+this.prev);
+    		}
+    		this.prev = ctx;
+    		return ctx;
+    		}
+    	@Override
+    	public AbstractVCFCodec getCodec() {
+    		return this.iter.getCodec();
+    		}
+    	@Override
+    	public VCFHeader getHeader() {
+    		return this.iter.getHeader();
+    		}
+    	@Override
+    	public void close() throws IOException {
+    		CloserUtil.close(this.iter);
+    		}
+    	}
+    
     
 	/*
 	private Pattern semicolon=Pattern.compile("[;]");
