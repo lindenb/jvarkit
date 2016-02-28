@@ -74,7 +74,7 @@ public class EqualRangeIterator<T>
 				if(d==0 ) {
 					buffer.add(curr);
 					}
-				else if(d>0) {
+				else if(d < 0) {
 					this.lastPeek = Optional.of(curr);
 					break;
 					}
