@@ -59,6 +59,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -397,8 +398,8 @@ public class VcfBurdenSplitter
 				if(	ctx.getAlternateAlleles().size()!=1) {
 					return wrapException("Expected only one allele per variant. Please use ManyAlleletoOne.");
 					}
-
-				if(ctx.isFiltered() && !super.acceptFiltered) continue;
+				
+				//no check for ctx.ifFiltered here, we do this later.
 				
 				
 				for(final String key: splitter.keys(ctx)) {
@@ -416,104 +417,112 @@ public class VcfBurdenSplitter
 			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", super.getTmpdir());
 			tmpReportFile.deleteOnExit();
 			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
-			pw.println("#chrom\tstart\tend\tkey\tFisher\tCount_Variants");
+			pw.println("#chrom\tstart\tend\tkey\tFisher\tCount_Variants\tCount_non_filtered_Variants");
 			
 			iter = sortingcollection.iterator();
-			final List<KeyAndLine> buffer=new ArrayList<>();
-			for(;;)
+			final EqualRangeIterator<KeyAndLine> eqiter = new EqualRangeIterator<>(iter, new Comparator<KeyAndLine>() {
+				@Override
+				public int compare(final KeyAndLine o1, final KeyAndLine o2) {
+					return o1.key.compareTo(o2.key);
+					}
+				});
+			while(eqiter.hasNext())
 				{
-				KeyAndLine curr = null;
-				if( iter.hasNext() ) {
-					curr = iter.next();
-					}
-				if(curr==null || (!buffer.isEmpty() && !buffer.get(0).key.equals(curr.key))) {
-					if(!buffer.isEmpty()) {
-						final KeyAndLine first =  buffer.get(0);
-						LOG.info(first.key);
-						final List<VariantContext> variants = new ArrayList<>(buffer.size());
-						String contig=null;
-						int chromStart=Integer.MAX_VALUE;
-						int chromEnd=0;
-						for(final KeyAndLine kal:buffer) {
-							final VariantContext ctx = cah.codec.decode(kal.ctx);
-							variants.add(ctx);
-							contig = ctx.getContig();
-							chromStart = Math.min( chromStart , ctx.getStart() );
-							chromEnd = Math.max( chromEnd , ctx.getEnd() );
+				final List<KeyAndLine> buffer = eqiter.next();
+				
+				final KeyAndLine first =  buffer.get(0);
+				LOG.info(first.key);
+				final List<VariantContext> variants = new ArrayList<>(buffer.size());
+				String contig=null;
+				int chromStart=Integer.MAX_VALUE;
+				int chromEnd=0;
+				int count_non_filtered=0;
+				for(final KeyAndLine kal:buffer) {
+					final VariantContext ctx = cah.codec.decode(kal.ctx);
+					variants.add(ctx);
+					if(!ctx.isFiltered() || super.acceptFiltered) {
+						count_non_filtered++;
 						}
-						/* initialize supervariants */
-						int count_case_sv0=0;
-						int count_ctrl_sv0=0;
-						int count_case_sv1=0;
-						int count_ctrl_sv1=0;
+					contig = ctx.getContig();
+					chromStart = Math.min( chromStart , ctx.getStart() );
+					chromEnd = Math.max( chromEnd , ctx.getEnd() );
+					}
+				
+			// all ctx are filtered			
+			if( count_non_filtered == 0)  continue;
+			
+			/* initialize supervariants */
+			int count_case_sv0=0;
+			int count_ctrl_sv0=0;
+			int count_case_sv1=0;
+			int count_ctrl_sv1=0;
 
 
-						//loop over case control
-						for(int pop=0;pop<2;++pop) {
-							for(final Pedigree.Person person : (pop==0?caseSamples:controlSamples)) {
-								SuperVariant superVariant = SuperVariant.SV0;
-								
-								for(final VariantContext ctx : variants)
-									{
-									final Genotype g = ctx.getGenotype(person.getId());	
-									if(g==null) continue;//not in vcf header
-									final Allele alt = ctx.getAlternateAlleles().get(0);
+			//loop over case control
+			for(int pop=0;pop<2;++pop) {
+				for(final Pedigree.Person person : (pop==0?caseSamples:controlSamples)) {
+					SuperVariant superVariant = SuperVariant.SV0;
+					
+					for(final VariantContext ctx : variants)
+						{
+						if(ctx.isFiltered() && !super.acceptFiltered) continue;
 
-									for(final Allele a:g.getAlleles())
-										{
-										if(a.equals(alt)) {
-											superVariant = SuperVariant.AT_LEAST_ONE_VARIANT;
-											break;
-											}
-										}//end of allele
-									if(superVariant!=SuperVariant.SV0 ) break;
-									}//end of variant
-								if(superVariant==SuperVariant.SV0 ) {
-									if(pop==0 ) count_case_sv0++;
-									else count_ctrl_sv0++;
-								} else // AT_LEAST_ONE_VARIANT 
-									{
-									if(pop==0 ) count_case_sv1++;
-									else count_ctrl_sv1++;
-									}
-								
-							}//end of case/ctrl
-						}//end of pop
-						
-						
+						final Genotype g = ctx.getGenotype(person.getId());	
+						if(g==null) continue;//not in vcf header
+						final Allele alt = ctx.getAlternateAlleles().get(0);
 
-						final FisherExactTest fisher = FisherExactTest.compute(
-								count_case_sv0, count_case_sv1,
-								count_ctrl_sv0, count_ctrl_sv1
-								);
-						pw.println(
-								contig+"\t"+
-								chromStart+"\t"+
-								chromEnd+"\t"+
-								first.key+"\t"+
-								fisher.getAsDouble()+"\t"+
-								variants.size()
-								);
-						
-						
-						ZipEntry ze = new ZipEntry(super.baseZipDir+"/"+first.key+".vcf");
-						zout.putNextEntry(ze);
-						VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(zout);
-						final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
-						header2.addMetaDataLine(new VCFHeaderLine("VCFBurdenFisher",
-								String.valueOf(fisher.getAsDouble())));
-						out.writeHeader(header2);
-						for(final VariantContext ctx:variants) {
-							out.add(ctx);
+						for(final Allele a:g.getAlleles())
+							{
+							if(a.equals(alt)) {
+								superVariant = SuperVariant.AT_LEAST_ONE_VARIANT;
+								break;
+								}
+							}//end of allele
+						if(superVariant!=SuperVariant.SV0 ) break;
+						}//end of variant
+					if(superVariant==SuperVariant.SV0 ) {
+						if(pop==0 ) count_case_sv0++;
+						else count_ctrl_sv0++;
+					} else // AT_LEAST_ONE_VARIANT 
+						{
+						if(pop==0 ) count_case_sv1++;
+						else count_ctrl_sv1++;
 						}
-						//out.close();//NON
-						zout.closeEntry();
-					}
-					if(curr==null) break;
-					buffer.clear();
-					}
-				buffer.add(curr);
+						
+					}//end of case/ctrl
+				}//end of pop
+				
+				
+	
+				final FisherExactTest fisher = FisherExactTest.compute(
+						count_case_sv0, count_case_sv1,
+						count_ctrl_sv0, count_ctrl_sv1
+						);
+				pw.println(
+						contig+"\t"+
+						(chromStart-1)+"\t"+//-1 for bed compatibility
+						chromEnd+"\t"+
+						first.key+"\t"+
+						fisher.getAsDouble()+"\t"+
+						variants.size()+"\t"+
+						count_non_filtered
+						);
+				
+				// save vcf file
+				final ZipEntry ze = new ZipEntry(super.baseZipDir+"/"+first.key+".vcf");
+				zout.putNextEntry(ze);
+				final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(zout);
+				final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
+				header2.addMetaDataLine(new VCFHeaderLine("VCFBurdenFisher",
+						String.valueOf(fisher.getAsDouble())));
+				out.writeHeader(header2);
+				for(final VariantContext ctx:variants) {
+					out.add(ctx);
 				}
+				//out.close();//NON
+				zout.closeEntry();
+				}
+			eqiter.close();
 			iter.close();iter=null;
 			
 			progess.finish();
@@ -521,7 +530,7 @@ public class VcfBurdenSplitter
 			LOG.info("saving report");
 			pw.flush();
 			pw.close();
-			ZipEntry entry = new ZipEntry(super.baseZipDir+"/fisher.tsv");
+			final ZipEntry entry = new ZipEntry(super.baseZipDir+"/fisher.tsv");
 			zout.putNextEntry(entry);
 			IOUtils.copyTo(tmpReportFile,zout);
 			zout.closeEntry();
@@ -530,7 +539,7 @@ public class VcfBurdenSplitter
 			zout.close();
 			return RETURN_OK;
 			}
-		catch(Exception err) 
+		catch(final Exception err) 
 			{
 			return wrapException(err);
 			}
