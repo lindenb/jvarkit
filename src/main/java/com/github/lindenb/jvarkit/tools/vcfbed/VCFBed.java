@@ -180,11 +180,11 @@ public class VCFBed extends AbstractVCFFilter3
 					);
 			while(iter.hasNext())
 				{
-				BedLine bedLine = iter.next();
+				final BedLine bedLine = iter.next();
 				
 				if(!ctx.getContig().equals(bedLine.getContig())) continue;
-				if(ctx.getStart()-1 >= bedLine.getEnd() ) continue;
-				if(ctx.getEnd()-1 < bedLine.getStart() ) continue;
+				if(ctx.getStart() > bedLine.getEnd() ) continue;
+				if(ctx.getEnd() < bedLine.getStart() ) continue;
 
 				
 				String newannot=this.parsedFormat.toString(bedLine);

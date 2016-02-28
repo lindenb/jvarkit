@@ -28,6 +28,15 @@
 	<option name="baseZipDir" type="string" longopt="zipdir" opt="zipdir" default="burden">
 		<description>Base zip entry</description>
 	</option>
+	<option name="listSplitter" type="boolean" longopt="listsplitters" opt="ls" default="false">
+		<description>List available splitters and exit</description>
+	</option>
+	<option name="splitterName" type="string" longopt="splitterName" opt="sp" default="vepso">
+		<description>Splitter Name</description>
+	</option>
+	<option name="acceptFiltered" type="boolean" longopt="ignorefilter" opt="if" default="false">
+		<description>accept variants having a FILTER column. Default is ignore variants with a FILTER column</description>
+	</option>
 </options>
 
 <documentation>

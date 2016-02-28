@@ -21,9 +21,10 @@ public class BedLine
 	public String getContig() {
 		return tokens[0];
 		}
+	
 	@Override
 	public int getStart() {
-		return Integer.parseInt(tokens[1]);
+		return Integer.parseInt(tokens[1]) + 1; /* +1 because the Feature uses a +1 position */
 		}
 	
 	@Override

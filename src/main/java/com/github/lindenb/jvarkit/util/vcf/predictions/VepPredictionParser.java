@@ -86,7 +86,7 @@ public class VepPredictionParser implements PredictionParser
 	private String tag;
 
 	
-	public VepPredictionParser(VCFHeader header)
+	public VepPredictionParser(final VCFHeader header)
 		{		
 		this(header,getDefaultTag());
 		}
@@ -230,6 +230,7 @@ public class VepPredictionParser implements PredictionParser
 			}
 		
 		
+		/** alias of getHGNC */
 		@Override
 		public String getGeneName()
 			{

@@ -62,8 +62,11 @@ import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
 
 public class VcfBurdenSplitter
@@ -130,12 +133,132 @@ public class VcfBurdenSplitter
 	
 	private abstract class Splitter {
 		public abstract Set<String> keys(final VariantContext ctx);
+		public abstract String getName();
+		public abstract String getDescription();
+		public void initialize(final VCFHeader header) {}
 		}
+	
+		private class VepSplitter extends Splitter {
+		private VepPredictionParser vepPredictionParser=null;
+		VepSplitter() {}
+		
+		
+		
+		@Override public String getName() { return "vep";}
+		@Override public String getDescription() { return "Ensembl Variant Effect Prediction";}
+		public void initialize(final VCFHeader header) {
+			this.vepPredictionParser = new VepPredictionParser(header);
+			}
+		public boolean accept(VepPrediction pred) {
+			return true;
+		}
+		private boolean isEmpty(final String s) {
+			return s==null || s.trim().isEmpty();
+		}
+		@Override
+		public Set<String> keys(final VariantContext ctx) {
+			final Set<String> keys = new HashSet<>();
+			for(final VepPrediction pred: this.vepPredictionParser.getPredictions(ctx)) {
+				if(!accept(pred)) continue;
+				String s= pred.getHGNC();
+				if(!isEmpty(s)) {
+					keys.add(String.format("HGNC_%s_%s",ctx.getContig(),s));
+					}
+				s= pred.getEnsemblGene();
+				if(!isEmpty(s)) {
+					keys.add(String.format("ENSG_%s_%s",ctx.getContig(),s));
+					}
+				s= pred.getEnsemblTranscript();
+				if(!isEmpty(s)) {
+					keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
+					}
+				s= pred.getFeature();
+				if(!isEmpty(s)) {
+					keys.add(String.format("FEATURE_%s_%s",ctx.getContig(),s));
+					}
+				s= pred.getSymbol();
+				if(!isEmpty(s)) {
+					keys.add(String.format("SYMBOL_%s_%s",ctx.getContig(),s));
+					}
+				}
+			return keys;
+			}
+		}
+	
+	private abstract class AbstractSoVepSplitter extends VepSplitter {
+		final Set<SequenceOntologyTree.Term> acns;
+		AbstractSoVepSplitter(final String acn_list[])
+			{
+			final SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
+			this.acns = new HashSet<>(acn_list.length);
+			for(final String soacn:acn_list)
+				{
+				final SequenceOntologyTree.Term  tacn = soTree.getTermByAcn(soacn);
+				if(tacn==null)
+					{
+					throw new NullPointerException("tacn == null pour "+acns);
+					}
+				acns.addAll(tacn.getAllDescendants());
+				}
+			}
+		@Override
+		public boolean accept(final VepPrediction pred) {
+			boolean ok=false;
+			for(SequenceOntologyTree.Term so:pred.getSOTerms())
+				{
+				if(acns.contains(so))
+					{
+					ok=true;
+					}
+				}
+			return ok;
+			}
+	}
+	
+	private class SoVepSplitter extends AbstractSoVepSplitter {
+		SoVepSplitter() {
+			super(new String[]{
+					"SO:0001893",  "SO:0001574",  "SO:0001575", 
+					"SO:0001587",  "SO:0001589",  "SO:0001578", 
+					"SO:0002012",  "SO:0001889",  "SO:0001821", 
+					"SO:0001822",  "SO:0001583",  "SO:0001818"
+					});
+			}
+		@Override
+		public String getName() {
+			return "vepso";
+			}
+		@Override
+		public String getDescription() {
+			return "Vep SO. Terms: "+ this.acns;
+			}
+	}
+	
+	private class HighDamageVepSplitter extends AbstractSoVepSplitter {
+		HighDamageVepSplitter() {
+			super(new String[]{
+				"SO:0001893",  "SO:0001574",  "SO:0001575",
+				"SO:0001587",  "SO:0001589",  "SO:0001578", 
+				"SO:0002012",  "SO:0001889"
+				});
+		}
+		@Override
+		public String getName() {
+			return "vephd";
+			}
+				
+		@Override
+		public String getDescription() {
+			return "Vep High Damage. Terms: "+ this.acns;
+			}
+	}
+
+	
 	
 	private class SlidingWindowSplitter extends Splitter {
 		final int winsize;
 		final int winshift;
-		SlidingWindowSplitter(final VCFHeader header,int winsize,int winshift)
+		SlidingWindowSplitter(int winsize,int winshift)
 			{
 			this.winsize = winsize;
 			this.winshift =winshift;
@@ -152,8 +275,23 @@ public class VcfBurdenSplitter
 			}
 	 		return set;
 			}
+		@Override
+		public String getName() {
+			return "split"+this.winsize+"_"+this.winshift;
+			}
+		@Override
+		public String getDescription() {
+			return "split using a sliding window of "+this.winsize+" each "+this.winshift;
+			}
 	}
 	
+	private final Splitter splitters[]= new Splitter[]{
+			new VepSplitter(),
+			new SoVepSplitter(),
+			new HighDamageVepSplitter(),
+			new SlidingWindowSplitter(1000, 500),
+			new SlidingWindowSplitter(1000, 300),
+		};
 	
 	public VcfBurdenSplitter()
 		{
@@ -169,6 +307,23 @@ public class VcfBurdenSplitter
 		}
 		if(super.outputFile==null || !outputFile.getName().endsWith(".zip")) {
 			return wrapException("output file option -"+OPTION_OUTPUTFILE+" must be declared and must en with .zip");
+		}
+		
+		if(!super.listSplitter) {
+			if(super.splitterName.isEmpty()) {
+				return wrapException("splitter name undefined in option -"+OPTION_SPLITTERNAME);
+			}
+			Splitter splitter=null;
+			for(final Splitter s: this.splitters)
+				{
+				if(super.splitterName.equals(s.getName())) {
+					splitter=s;
+					break;
+					}
+				}
+			if(splitter==null) {
+			return wrapException("Cannot find a splitter named "+super.splitterName);
+			}
 		}
 		return super.initializeKnime();
 	 	}
@@ -210,8 +365,19 @@ public class VcfBurdenSplitter
 					}
 				}
 				}
-			
-			Splitter splitter = new SlidingWindowSplitter(cah.header, 1000, 500);
+			/** find splitter by name */
+			Splitter splitter = null;
+			for(final Splitter s: this.splitters)
+				{
+				if(super.splitterName.equals(s.getName())) {
+					splitter=s;
+					break;
+					}
+				}
+			if(splitter==null) {
+				return wrapException("Cannot find a splitter named "+super.splitterName);
+			}
+			splitter.initialize(cah.header);
 			
 			sortingcollection = SortingCollection.newInstance(
 					KeyAndLine.class,
@@ -232,6 +398,9 @@ public class VcfBurdenSplitter
 					return wrapException("Expected only one allele per variant. Please use ManyAlleletoOne.");
 					}
 
+				if(ctx.isFiltered() && !super.acceptFiltered) continue;
+				
+				
 				for(final String key: splitter.keys(ctx)) {
 					sortingcollection.add(new KeyAndLine(key, line));
 					}
@@ -247,7 +416,7 @@ public class VcfBurdenSplitter
 			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", super.getTmpdir());
 			tmpReportFile.deleteOnExit();
 			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
-			pw.println("#key\tFisher\tCount_Variants");
+			pw.println("#chrom\tstart\tend\tkey\tFisher\tCount_Variants");
 			
 			iter = sortingcollection.iterator();
 			final List<KeyAndLine> buffer=new ArrayList<>();
@@ -262,9 +431,15 @@ public class VcfBurdenSplitter
 						final KeyAndLine first =  buffer.get(0);
 						LOG.info(first.key);
 						final List<VariantContext> variants = new ArrayList<>(buffer.size());
+						String contig=null;
+						int chromStart=Integer.MAX_VALUE;
+						int chromEnd=0;
 						for(final KeyAndLine kal:buffer) {
 							final VariantContext ctx = cah.codec.decode(kal.ctx);
 							variants.add(ctx);
+							contig = ctx.getContig();
+							chromStart = Math.min( chromStart , ctx.getStart() );
+							chromEnd = Math.max( chromEnd , ctx.getEnd() );
 						}
 						/* initialize supervariants */
 						int count_case_sv0=0;
@@ -311,7 +486,14 @@ public class VcfBurdenSplitter
 								count_case_sv0, count_case_sv1,
 								count_ctrl_sv0, count_ctrl_sv1
 								);
-						pw.println(first.key+"\t"+fisher.getAsDouble()+"\t"+variants.size());
+						pw.println(
+								contig+"\t"+
+								chromStart+"\t"+
+								chromEnd+"\t"+
+								first.key+"\t"+
+								fisher.getAsDouble()+"\t"+
+								variants.size()
+								);
 						
 						
 						ZipEntry ze = new ZipEntry(super.baseZipDir+"/"+first.key+".vcf");
@@ -364,6 +546,13 @@ public class VcfBurdenSplitter
 		
 	@Override
 	protected Collection<Throwable> call(String inputName) throws Exception {
+		if(super.listSplitter) {
+			for(final Splitter splitter:this.splitters) {
+				stdout().println(splitter.getName()+"\t"+splitter.getDescription());
+	
+			}
+			return RETURN_OK;
+		}
 		return doVcfToVcf(inputName);
 		}
 	 	

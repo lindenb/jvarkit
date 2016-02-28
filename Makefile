@@ -166,8 +166,8 @@ APPS= vcffilterjs vcftail vcfhead vcftrio  vcffilterso groupbygene \
 	vcfpeekvcf vcfgetvariantbyindex vcfmulti2oneallele vcfmulti2oneinfo bedindextabix vcf2bam vcffilterxpath \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
-	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713
-
+	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
+	vcfburdensplitter vcfburdenf2 vcfburdenf3
 
 .PHONY: all tests $(APPS) clean download_all_maven library top ${dist.dir}/jvarkit-${htsjdk.version}.jar
 
@@ -418,12 +418,6 @@ $(eval $(call compile-htsjdk-cmd,vcfcalledwithanothermethod,${jvarkit.package}.t
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burden.VcfBurdenSplitter))
 $(eval $(call compile-htsjdk-cmd,vcfburdenf2,${jvarkit.package}.tools.burden.VcfBurdenFilter2))
 $(eval $(call compile-htsjdk-cmd,vcfburdenf3,${jvarkit.package}.tools.burden.VcfBurdenFilter3))
-
-
-
-
-
-
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \

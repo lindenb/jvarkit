@@ -119,10 +119,10 @@ public class VCFBedSetFilter extends AbstractVCFFilter3
 					);
 			while(iter.hasNext())
 				{
-				BedLine bed=iter.next();
+				final BedLine bed = iter.next();
 				if(!ctx.getContig().equals(bed.getContig())) continue;
-				if(ctx.getStart()-1 >= bed.getEnd() ) continue;
-				if(ctx.getEnd()-1 < bed.getStart() ) continue;
+				if(ctx.getStart() > bed.getEnd() ) continue;
+				if(ctx.getEnd() < bed.getStart() ) continue;
 				set_filter=true;
 				break;
 				}
