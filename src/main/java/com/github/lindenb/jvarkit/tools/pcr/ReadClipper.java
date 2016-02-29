@@ -36,12 +36,22 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.Interval;
 
 public class ReadClipper
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
-
+	private String programGroup = null;
+	
+	public void setProgramGroup(String programGroup) {
+		this.programGroup = programGroup;
+	}
+	
+	public String getProgramGroup() {
+		return programGroup;
+	}
+	
 	public SAMRecord clip(SAMRecord rec,final Interval fragment)
 		{
 		
@@ -216,16 +226,18 @@ public class ReadClipper
 		
 		if(!found_M)
 			{
-			
-			rec.setReadUnmappedFlag(true);
-			rec.setAlignmentStart(SAMRecord.NO_ALIGNMENT_START);
-			rec.setReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
+			SAMUtils.makeReadUnmappedWithOriginalTags(rec);
+			if(this.programGroup!=null) {
+				rec.setAttribute("PG",programGroup);
+			}
 			return rec;
 			}
 		cigar = new Cigar(newcigarlist);				
 		rec.setCigar(cigar);
 		rec.setAlignmentStart(newStart);
-	
+		if(this.programGroup!=null) {
+			rec.setAttribute("PG",programGroup);
+		}
 		return rec;
 		}
 	}

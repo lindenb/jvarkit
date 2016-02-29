@@ -17,6 +17,9 @@
 	<option name="chooseLargestOverlap" type="boolean"  opt="largest" longopt="largest"  default="false" >
 		<description>see if a read overlaps two bed intervals use the bed region sharing the longest sequence with a read. see  https://github.com/lindenb/jvarkit/issues/44 </description>
 	</option>
+	<option name="addProgramId" type="boolean"  opt="pr" longopt="programId"  default="false" >
+		<description>add a program ID to the clipped SAM records</description>
+	</option>
 </options>
 
 

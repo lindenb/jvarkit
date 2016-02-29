@@ -32,11 +32,13 @@ import java.io.BufferedReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
@@ -90,6 +92,13 @@ public class PcrClipReads extends AbstractPcrClipReads
 		{
 		final SAMFileHeader header1= reader.getFileHeader();
 		final SAMFileHeader header2 = header1.clone();
+		Optional<SAMProgramRecord> samProgramRecord = Optional.empty();
+		if(super.addProgramId) {
+			final SAMProgramRecord spr = header2.createProgramRecord();
+			samProgramRecord = Optional.of(spr);
+			spr.setProgramName(this.getName());
+			spr.setProgramVersion(this.getGitHash());
+			}
 		header2.addComment(getName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
 		header2.setSortOrder(SortOrder.unsorted);
 		SAMFileWriter sw=null;
@@ -148,8 +157,11 @@ public class PcrClipReads extends AbstractPcrClipReads
 					
 					continue;
 					}
-				ReadClipper readClipper = new ReadClipper();
-				rec = readClipper.clip(rec, fragment);		
+				final ReadClipper readClipper = new ReadClipper();
+				if(samProgramRecord.isPresent()) {
+					readClipper.setProgramGroup(samProgramRecord.get().getId());
+				}
+				rec = readClipper.clip(rec, fragment);
 				sw.addAlignment(rec);
 				}
 			progress.finish();
