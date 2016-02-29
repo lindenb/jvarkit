@@ -340,7 +340,7 @@ public class VepPredictionParser implements PredictionParser
 				}
 			}
 		
-		
+		/** override of getFeature */
 		@Override
 		public String getEnsemblTranscript() {
 			return getFeature();

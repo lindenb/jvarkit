@@ -137,9 +137,13 @@ public class VcfBurdenSplitter
 		public abstract String getName();
 		public abstract String getDescription();
 		public void initialize(final VCFHeader header) {}
+		@Override
+		public String toString() {
+			return getName()+" "+getDescription();
+			}
 		}
 	
-		private class VepSplitter extends Splitter {
+	private class VepSplitter extends Splitter {
 		private VepPredictionParser vepPredictionParser=null;
 		VepSplitter() {}
 		
@@ -169,14 +173,27 @@ public class VcfBurdenSplitter
 				if(!isEmpty(s)) {
 					keys.add(String.format("ENSG_%s_%s",ctx.getContig(),s));
 					}
+				/* same as feature 
 				s= pred.getEnsemblTranscript();
 				if(!isEmpty(s)) {
 					keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
-					}
+					}*/
+					
 				s= pred.getFeature();
 				if(!isEmpty(s)) {
 					keys.add(String.format("FEATURE_%s_%s",ctx.getContig(),s));
+					
+					if(s.startsWith("XM_") || s.startsWith("NM_"))
+						{
+						keys.add(String.format("REFSEQ_%s_%s",ctx.getContig(),s));
+						}
+					else if(s.startsWith("ENST_"))
+						{
+						keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
+						}
 					}
+				
+				
 				s= pred.getSymbol();
 				if(!isEmpty(s)) {
 					keys.add(String.format("SYMBOL_%s_%s",ctx.getContig(),s));
@@ -231,7 +248,7 @@ public class VcfBurdenSplitter
 			}
 		@Override
 		public String getDescription() {
-			return "Vep SO. Terms: "+ this.acns;
+			return "Vep Sequence Ontology http://sequenceontology.org/ . Terms: "+ this.acns;
 			}
 	}
 	
@@ -250,7 +267,7 @@ public class VcfBurdenSplitter
 				
 		@Override
 		public String getDescription() {
-			return "Vep High Damage. Terms: "+ this.acns;
+			return "Vep Sequence Ontology http://sequenceontology.org/ . Terms:  High Damage. Terms: "+ this.acns;
 			}
 	}
 
@@ -300,17 +317,20 @@ public class VcfBurdenSplitter
 	 
 	@Override
 	public Collection<Throwable> initializeKnime() {
-		if(super.casesFile==null || !super.casesFile.exists()) {
-		return wrapException("Undefined Case file option -"+OPTION_CASESFILE);
-		}
-		if(super.controlsFile==null || !super.controlsFile.exists()) {
-		return wrapException("Undefined Control file option -"+OPTION_CONTROLSFILE);
-		}
-		if(super.outputFile==null || !outputFile.getName().endsWith(".zip")) {
-			return wrapException("output file option -"+OPTION_OUTPUTFILE+" must be declared and must en with .zip");
-		}
 		
 		if(!super.listSplitter) {
+			
+			if(super.casesFile==null || !super.casesFile.exists()) {
+				return wrapException("Undefined Case file option -"+OPTION_CASESFILE);
+				}
+				if(super.controlsFile==null || !super.controlsFile.exists()) {
+				return wrapException("Undefined Control file option -"+OPTION_CONTROLSFILE);
+				}
+				if(super.outputFile==null || !outputFile.getName().endsWith(".zip")) {
+					return wrapException("output file option -"+OPTION_OUTPUTFILE+" must be declared and must en with .zip");
+				}
+			
+			
 			if(super.splitterName.isEmpty()) {
 				return wrapException("splitter name undefined in option -"+OPTION_SPLITTERNAME);
 			}
@@ -379,7 +399,7 @@ public class VcfBurdenSplitter
 				return wrapException("Cannot find a splitter named "+super.splitterName);
 			}
 			splitter.initialize(cah.header);
-			
+			LOG.info("splitter is "+splitter);
 			sortingcollection = SortingCollection.newInstance(
 					KeyAndLine.class,
 					new KeyAndLineCodec(),
@@ -389,8 +409,8 @@ public class VcfBurdenSplitter
 					);
 			sortingcollection.setDestructiveIteration(true);
 			
-			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(cah.header.getSequenceDictionary());
-			
+			// read variants
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(cah.header);
 			String line;
 			while((line=in.readLine())!=null)
 				{
@@ -400,8 +420,6 @@ public class VcfBurdenSplitter
 					}
 				
 				//no check for ctx.ifFiltered here, we do this later.
-				
-				
 				for(final String key: splitter.keys(ctx)) {
 					sortingcollection.add(new KeyAndLine(key, line));
 					}
@@ -432,6 +450,7 @@ public class VcfBurdenSplitter
 				
 				final KeyAndLine first =  buffer.get(0);
 				LOG.info(first.key);
+				
 				final List<VariantContext> variants = new ArrayList<>(buffer.size());
 				String contig=null;
 				int chromStart=Integer.MAX_VALUE;
@@ -513,7 +532,7 @@ public class VcfBurdenSplitter
 				zout.putNextEntry(ze);
 				final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(zout);
 				final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
-				header2.addMetaDataLine(new VCFHeaderLine("VCFBurdenFisher",
+				header2.addMetaDataLine(new VCFHeaderLine("VCFBurdenSplitFisher",
 						String.valueOf(fisher.getAsDouble())));
 				out.writeHeader(header2);
 				for(final VariantContext ctx:variants) {
@@ -530,7 +549,7 @@ public class VcfBurdenSplitter
 			LOG.info("saving report");
 			pw.flush();
 			pw.close();
-			final ZipEntry entry = new ZipEntry(super.baseZipDir+"/fisher.tsv");
+			final ZipEntry entry = new ZipEntry(super.baseZipDir+"/fisher.bed");
 			zout.putNextEntry(entry);
 			IOUtils.copyTo(tmpReportFile,zout);
 			zout.closeEntry();
