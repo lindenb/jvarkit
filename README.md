@@ -214,5 +214,6 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Biostar175929">Biostar175929</a></th><td>Construct a combination set of fasta sequences from a vcf</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfCalledWithAnotherMethod">VcfCalledWithAnotherMethod</a></th><td>Add flags in VCF to tell whether Genotype/variant was called in another VCF</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wikiBiostar178713">Biostar178713</a></th><td> split bed file into several bed files where each region is separated of any other by N bases </td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRemoveGenotypeJs">VcfRemoveGenotypeJs</a></th><td>Reset Genotypes in VCF using a javascript expression</td></tr>
 </table>
 
