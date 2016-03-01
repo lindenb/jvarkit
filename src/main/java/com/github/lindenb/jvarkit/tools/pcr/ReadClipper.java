@@ -44,7 +44,7 @@ public class ReadClipper
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 	private String programGroup = null;
 	
-	public void setProgramGroup(String programGroup) {
+	public void setProgramGroup(final String programGroup) {
 		this.programGroup = programGroup;
 	}
 	
@@ -52,10 +52,8 @@ public class ReadClipper
 		return programGroup;
 	}
 	
-	public SAMRecord clip(SAMRecord rec,final Interval fragment)
+	public SAMRecord clip(final SAMRecord rec,final Interval fragment)
 		{
-		
-		
 		if(rec.getReadUnmappedFlag())
 			{
 			return rec;	
@@ -84,12 +82,11 @@ public class ReadClipper
 			LOG.warning("cigar missing in "+rec);
 			return rec;
 			}
-		
-		List<CigarOperator> operators = new ArrayList<>();
+		final List<CigarOperator> operators = new ArrayList<>(200);
 		//expand cigar	
-		for(CigarElement ce:cigar.getCigarElements())
+		for(final CigarElement ce:cigar.getCigarElements())
 			{
-			CigarOperator op = ce.getOperator();
+			final CigarOperator op = ce.getOperator();
 			for(int x=0;x < ce.getLength();++x)
 				{
 				operators.add(op);
@@ -106,7 +103,7 @@ public class ReadClipper
 			while(	operator_index < operators.size() &&
 					refPos1< fragment.getStart())
 				{
-				CigarOperator op = operators.get(operator_index);
+				final CigarOperator op = operators.get(operator_index);
 				if(op.consumesReferenceBases() )
 					{
 					refPos1++;
@@ -136,7 +133,7 @@ public class ReadClipper
 			int y=0;
 			for(x=0;x< operator_index;++x)
 				{
-				CigarOperator op = operators.get(y);
+				final CigarOperator op = operators.get(y);
 				if(!(op.equals(CigarOperator.S) || op.equals(CigarOperator.H)))
 					{
 					operators.remove(y);
@@ -159,7 +156,7 @@ public class ReadClipper
 			while(operator_index >=0 &&
 				refPos1 > fragment.getEnd())
 				{
-				CigarOperator op = operators.get(operator_index);
+				final CigarOperator op = operators.get(operator_index);
 				if(op.consumesReferenceBases() )
 					{
 					refPos1--;
@@ -174,7 +171,7 @@ public class ReadClipper
 			//shouln't end with a problem
 			while(operator_index >=0 )
 				{
-				CigarOperator op = operators.get(operator_index);
+				final CigarOperator op = operators.get(operator_index);
 				if(op.equals(CigarOperator.M) || op.equals(CigarOperator.EQ))
 					{
 					break;
@@ -185,19 +182,16 @@ public class ReadClipper
 					}
 				operator_index--;
 				}
-			int y=operators.size()-1;
-			int len = (operators.size()-1)-operator_index;
+			int y = operators.size()-1;
+			final int len = (operators.size()-1) - operator_index;
 			for(int x=0;x< len;++x)
 				{
-				CigarOperator op = operators.get(y);
+				final CigarOperator op = operators.get(y);
 				if(!(op.equals(CigarOperator.S) || op.equals(CigarOperator.H)))
 					{
 					operators.remove(y);
 					}
-				else
-					{
-					--y;
-					}
+				--y;
 				}
 			
 			}
