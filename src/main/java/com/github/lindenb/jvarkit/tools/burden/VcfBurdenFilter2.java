@@ -159,6 +159,7 @@ public class VcfBurdenFilter2
 					if(genotype==null) continue;
 					/* genotype is not called */
 					if(!genotype.isCalled()) continue;
+					if(genotype.isFiltered()) continue;
 					
 					boolean genotype_contains_allele=false;
 					/* loop over alleles */

@@ -34,12 +34,17 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
@@ -64,6 +69,11 @@ public class VcfRemoveGenotypeJs extends AbstractVcfRemoveGenotypeJs {
 		try {
 		this.script  = super.compileJavascript();
 		final	VCFHeader h2=new VCFHeader(in.getHeader());
+		
+		if(!super.filterName.isEmpty() )
+			{
+			h2.addMetaDataLine(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_FILTER_KEY, 1, VCFHeaderLineType.String, "Genotype-level filter"));
+			}	
 		addMetaData(h2);
 		out.writeHeader(h2);
 		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader());
@@ -72,7 +82,7 @@ public class VcfRemoveGenotypeJs extends AbstractVcfRemoveGenotypeJs {
 
 		while(in.hasNext())
 			{
-			final VariantContext ctx = in.next();
+			final VariantContext ctx = progress.watch(in.next());
 			bindings.put("variant", ctx);
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			List<Genotype> genotypes= new ArrayList<>();
@@ -89,7 +99,13 @@ public class VcfRemoveGenotypeJs extends AbstractVcfRemoveGenotypeJs {
 					}
 				else if(genotype.isCalled() &&
 					!super.evalJavaScriptBoolean(this.script, bindings)) {
-					if(super.replaceByHomRef){
+					if(!super.filterName.isEmpty()) {
+						if(!genotype.isFiltered()) 
+							{
+							genotype = new GenotypeBuilder(genotype).filters(super.filterName).make();
+							}
+						}
+					else if(super.replaceByHomRef){
 						List<Allele> homRefList=new ArrayList<>(genotype.getPloidy());
 						for(int p=0;p< genotype.getPloidy();++p)
 							{

@@ -174,7 +174,7 @@ public class VcfBurdenFilter3
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 		return doVcfToVcf(inputName);
 		}
 	 	
