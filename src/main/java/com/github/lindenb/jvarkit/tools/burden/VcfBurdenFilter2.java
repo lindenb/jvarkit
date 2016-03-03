@@ -48,7 +48,15 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-
+/**
+ * Burden F2: 
+ *    
+ *    * tests Fisher cas/controle
+ *    * tests MAF cas/control
+ *     
+ * @author lindenb
+ *
+ */
 public class VcfBurdenFilter2
 	extends AbstractVcfBurdenFilter2
 	{
