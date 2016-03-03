@@ -64,6 +64,14 @@ public class VcfBurdenFilter2
 	
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFilter2.class);
 	
+	private static class Count {
+		int case_have_alt =0;
+		int case_miss_alt = 0;
+		int ctrl_have_alt = 0;
+		int ctrl_miss_alt = 0;
+		
+	}
+	
 	public VcfBurdenFilter2()
 		{
 		}
@@ -97,6 +105,10 @@ public class VcfBurdenFilter2
 				if(!header.getSampleNamesInOrder().contains(sample.getId())) {
 					LOG.warn("VCF header doesn't contain sample "+sample);
 				}
+				final Set<Pedigree.Person> other =  (pop==CASE_POP?controlSamples:caseSamples);
+				if(other.contains(sample)) {
+					return wrapException("Duplicate sample in case and controls "+sample);
+				}
 			}
 		}
 		
@@ -125,7 +137,12 @@ public class VcfBurdenFilter2
 			final VCFFilterHeaderLine fisherAlleleFilterHeader = new VCFFilterHeaderLine(
 					fisherAlleleInfoHeader.getID(),"Fisher case:control vs miss|have ALT is lower than "+super.minFisherPValue
 					);
+			
+			final VCFInfoHeaderLine fisherDetailInfoHeader = new VCFInfoHeaderLine(
+					"BurdenF1FisherDetail",1,VCFHeaderLineType.String,"Fisher Exact Test Case/Control"
+					);
 
+			
 			h2.addMetaDataLine(mafCasInfoHeader);
 			h2.addMetaDataLine(mafControlsInfoHeader);
 			h2.addMetaDataLine(filterCasHeader);
@@ -133,6 +150,7 @@ public class VcfBurdenFilter2
 			h2.addMetaDataLine(filterCaseOrControlsHeader);
 			h2.addMetaDataLine(fisherAlleleInfoHeader);
 			h2.addMetaDataLine(fisherAlleleFilterHeader);
+			h2.addMetaDataLine(fisherDetailInfoHeader);
 			
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
@@ -148,10 +166,7 @@ public class VcfBurdenFilter2
 				final boolean is_chrom_X = (ctx.getContig().equals("X") ||  ctx.getContig().equals("chrX"));
 				
 				/* count for fisher allele */
-				int count_case_have_alt=0;
-				int count_case_miss_alt=0;
-				int count_ctrl_have_alt=0;
-				int count_ctrl_miss_alt=0;
+				Count count = new Count();
 				
 				int count_filter_set=0;
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
@@ -164,10 +179,14 @@ public class VcfBurdenFilter2
 					/* get genotype for this individual */
 					final Genotype genotype = ctx.getGenotype(p.getId());
 					/* individual is not in vcf header */
-					if(genotype==null) continue;
-					/* genotype is not called */
-					if(!genotype.isCalled()) continue;
-					if(genotype.isFiltered()) continue;
+					if(genotype==null || !genotype.isCalled() ) {
+						//no information , we consider that sample was called AND HOM REF
+						if( pop==CASE_POP) { count.case_miss_alt++; }
+						else { count.ctrl_miss_alt++; }
+						
+						continue;
+					}
+					
 					
 					boolean genotype_contains_allele=false;
 					/* loop over alleles */
@@ -188,14 +207,13 @@ public class VcfBurdenFilter2
 						}
 					/* fisher */
 					if(genotype_contains_allele) {
-						if( pop==CASE_POP) { count_case_have_alt++; }
-						else { count_ctrl_have_alt++; }
+						if( pop==CASE_POP) { count.case_have_alt++; ;}
+						else { count.ctrl_have_alt++; }
 						}
 					else {
-						if( pop==CASE_POP) { count_case_miss_alt++; }
-						else { count_ctrl_miss_alt++; }
+						if( pop==CASE_POP) { count.case_miss_alt++; }
+						else { count.ctrl_miss_alt++; }
 						}
-					
 					}/* end of loop over persons */
 					
 					/* at least one genotype found */
@@ -217,14 +235,35 @@ public class VcfBurdenFilter2
 				if(count_filter_set==2) {
 					vcb.filter(filterCaseOrControlsHeader.getID());
 				}
+				
+				
+				if(count.case_have_alt+count.case_miss_alt > caseSamples.size()) {
+					throw new IllegalStateException();
+				}
+				if(count.ctrl_have_alt+count.ctrl_miss_alt > controlSamples.size()) {
+					throw new IllegalStateException();
+				}
+
+				
 				/* fisher test for alleles */
 				final FisherExactTest fisherAlt = FisherExactTest.compute(
-						count_case_have_alt, count_case_miss_alt,
-						count_ctrl_have_alt, count_ctrl_miss_alt
+						count.case_have_alt, count.case_miss_alt,
+						count.ctrl_have_alt, count.ctrl_miss_alt
 						);
 				vcb.attribute(fisherAlleleInfoHeader.getID(),
 						fisherAlt.getAsDouble()
 						);
+				
+				vcb.attribute(fisherDetailInfoHeader.getID(),
+						String.join("|",
+						"FISHER",String.valueOf(fisherAlt.getAsDouble()),
+						"CASE_HAVE_ALT",String.valueOf(count.case_have_alt),
+						"CASE_MISS_ALT",String.valueOf(count.case_miss_alt),
+						"CTRL_HAVE_ALT",String.valueOf(count.ctrl_have_alt),
+						"CTRL_MISS_ALT",String.valueOf(count.ctrl_miss_alt)
+						)
+						);
+				
 				if( fisherAlt.getAsDouble() < super.minFisherPValue ) {
 					vcb.filter(fisherAlleleFilterHeader.getID());
 					}

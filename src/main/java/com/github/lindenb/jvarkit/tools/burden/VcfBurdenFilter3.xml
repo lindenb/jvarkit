@@ -25,7 +25,7 @@
 	<option name="ifNotInExacThenDiscard" type="boolean" longopt="discardNotInExac" opt="d" default="false">
 		<description>if variant was not found in Exac, discard the variant (set the FILTER). Default: don't set the FILTER. </description>
 	</option>
-	<option name="maxFreq" type="double" longopt="maxFreq" opt="maxFreq" default="0.1">
+	<option name="maxFreq" type="double" longopt="maxFreq" opt="maxFreq" default="0.001">
 		<description>set FILTER if max(exac frequency in any pop) is greater than this value) </description>
 	</option>
 	<option name="exacPopulationStr" type="string" longopt="population" opt="pop" default="AFR,AMR,EAS,FIN,NFE,SAS">

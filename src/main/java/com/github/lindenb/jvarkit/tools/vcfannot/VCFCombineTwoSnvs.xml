@@ -15,10 +15,7 @@
 		<description> KnownGene data URI/File. Beware chromosome names are formatted the same as your REFERENCE.</description>
 	</option>
 	<option name="bamIn" type="input-file" opt="B" longopt="bam" label="Bam">
-		<description>Optional indexed BAM file used to get phasing information.</description>
-	</option>
-	<option name="grabInfoA" type="boolean" opt="A" longopt="infoA" label="pick Allele info" default="false">
-		<description>pick allele data from INFO/A </description>
+		<description>Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'</description>
 	</option>
 </options>
 

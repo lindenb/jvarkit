@@ -200,4 +200,18 @@ public class FisherExactTest implements DoubleSupplier,Comparable<FisherExactTes
     	return new Double( this.getAsDouble()).compareTo(new Double(o.getAsDouble()));
     	}
     
+    public static void main(String[] args) {
+		if(args.length!=4) {
+			System.err.println("Fisher: A1 B1 A2 B2");
+			return;
+		}
+		System.out.println(
+				FisherExactTest.compute(
+					Integer.parseInt(args[0]),
+					Integer.parseInt(args[1]),
+					Integer.parseInt(args[2]),
+					Integer.parseInt(args[3])
+				));
+	}
+    
 	}
