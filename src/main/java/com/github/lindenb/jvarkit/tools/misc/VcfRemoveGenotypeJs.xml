@@ -16,6 +16,9 @@
 	<option name="replaceByHomRef" type="boolean" opt="homref" longopt="homref" default="false">
 		<description>Replace variant with homref instead of nocall</description>
 	</option>
+	<option name="filterName" type="string" opt="filter" longopt="filter" default="">
+		<description>if not empty, don't delete the genotype but filter it.</description>
+	</option>
 </options>
 
 

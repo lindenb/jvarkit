@@ -488,6 +488,7 @@ public class VcfBurdenSplitter
 
 						final Genotype g = ctx.getGenotype(person.getId());	
 						if(g==null) continue;//not in vcf header
+						if(g.isFiltered()) continue;//ignore this genotype
 						final Allele alt = ctx.getAlternateAlleles().get(0);
 
 						for(final Allele a:g.getAlleles())
