@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tool_dependency>
+	<package name="jvarkit" version="20160308">
+		<install version="1.0">
+			<actions>
+			
+				<action type="shell_command">git clone "https://github.com/lindenb/jvarkit.git" jvarkit</action>
+				
+				
+				<action type="move_directory_files">
+					<source_directory>.</source_directory>
+					<destination_directory>$REPOSITORY_INSTALL_DIR</destination_directory>
+				</action>
+				<action type="shell_command">make -C $REPOSITORY_INSTALL_DIR -f $REPOSITORY_INSTALL_DIR/Makefile __TARGET__</action>
+			
+			</actions>
+		</install>
+		<readme>Install jvarkit.
+The first installs failed because:
+
+* ant was not installed
+* fucking proxy: a file .curlrc was defined in user:galaxy's home
+* move_directory_files was not moved to INSTALL_DIR
+* remove all xml comments ????!!!
+		</readme>
+	</package>
+	
+	 <set_environment version="1.0">
+        <environment_variable name="JVARKIT_DIR" action="set_to">$REPOSITORY_INSTALL_DIR</environment_variable>
+        <environment_variable name="JVARKIT_DIST" action="set_to">$REPOSITORY_INSTALL_DIR/dist-2.0.1</environment_variable>
+    </set_environment> 
+    
+</tool_dependency>

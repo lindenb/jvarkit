@@ -992,7 +992,28 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 
 
 
-
+<xsl:template name="string-replace">
+    <xsl:param name="string"/>
+    <xsl:param name="from"/>
+    <xsl:param name="to"/>
+    
+    <xsl:if test="string-length($from)=0"><xsl:message terminate="yes">BOUM:'<xsl:value-of select="$from"/>' vs '<xsl:value-of select="$to"/>'</xsl:message></xsl:if>
+    
+    <xsl:choose>
+      <xsl:when test="contains($string,$from)">
+        <xsl:value-of select="substring-before($string,$from)"/>
+        <xsl:value-of select="$to"/>
+        <xsl:call-template name="string-replace">
+          <xsl:with-param name="string" select="substring-after($string,$from)"/>
+          <xsl:with-param name="from" select="$from"/>
+          <xsl:with-param name="to" select="$to"/>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$string"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
 
 </xsl:stylesheet>
 

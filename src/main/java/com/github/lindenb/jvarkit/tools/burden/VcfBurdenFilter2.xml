@@ -8,6 +8,7 @@
 	 xmlns:xi="http://www.w3.org/2001/XInclude"
 	 xmlns:h="http://www.w3.org/1999/xhtml"
 	 xmlns:svg="http://www.w3.org/2000/svg"
+	 xmlns:galaxy="https://usegalaxy.org/"
 	 app="&name;"
 	 package="&package;"
 	 __placeholder__="1"
@@ -19,10 +20,10 @@
 
 
 <options>
-	<option name="casesFile" type="input-file" longopt="cases" opt="cas">
+	<option name="casesFile" type="input-file" longopt="cases" opt="cas" galaxy:format="lped">
 		<description>Path to a pedigree )containing the names of the CASES. <doc id="pedigree-file"/></description>
 	</option>
-	<option name="controlsFile" type="input-file" longopt="controls" opt="ctrl">
+	<option name="controlsFile" type="input-file" longopt="controls" opt="ctrl" galaxy:format="lped">
 		<description>Path to a pedigree containing the names of the CONTROLS. <doc id="pedigree-file"/></description>
 	</option>
 	<option name="maxMAF" type="double" longopt="maxMAF" opt="maxMAF" default="0.05">

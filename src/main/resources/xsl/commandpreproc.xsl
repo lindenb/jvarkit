@@ -6,8 +6,8 @@
 	version='1.0'
 	>
 <xsl:output method="xml" indent="no" />
-
-
+<xsl:param name="githash">undefined</xsl:param>
+<xsl:param name="jarname">jarname</xsl:param>
 <xsl:template match="/">
 <xsl:apply-templates/>
 </xsl:template>
@@ -18,6 +18,8 @@
 
 <xsl:template match="c:app">
 <c:app >
+	<xsl:attribute name="githash"><xsl:value-of select="$githash"/></xsl:attribute>
+	<xsl:attribute name="jarname"><xsl:value-of select="$jarname"/></xsl:attribute>
 	<xsl:apply-templates select="@*"/>
 	
 	<xsl:if test="not(c:options)">

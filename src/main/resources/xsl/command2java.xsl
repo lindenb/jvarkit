@@ -6,7 +6,6 @@
 	>
 <xsl:import href="mod.command.xsl"/>
 <xsl:output method="text"/>
-<xsl:param name="githash">undefined</xsl:param>
 <xsl:param name="javaversion">7</xsl:param>
 
 <xsl:template match="/">
@@ -293,7 +292,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	@Override
 	public String getGitHash()
 		{
-		return "<xsl:value-of select="$githash"/>";
+		return "<xsl:value-of select="@githash"/>";
 		}
 	
 		
