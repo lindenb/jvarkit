@@ -92,10 +92,15 @@ $(1)  : ${htsjdk.jars} \
 	${JAVAC} -version
 	#compile
 	${JAVAC} -d ${tmp.dir} -g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" -sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
+ifeq (${standalone},yes)
+	$$(foreach J,$$(filter %.jar,$$^),unzip -o $${J} -d ${tmp.dir};) 
+endif
 	#create META-INF/MANIFEST.MF
 	echo "Manifest-Version: 1.0" > ${tmp.mft}
 	echo "Main-Class: $(2)" >> ${tmp.mft}
+ifneq (${standalone},yes)
 	echo "Class-Path: $$(realpath $$(filter %.jar,$$^)) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
+endif
 	echo -n "Git-Hash: " >> ${tmp.mft}
 	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.mft} 
 	echo -n "Compile-Date: " >> ${tmp.mft}
@@ -104,7 +109,13 @@ $(1)  : ${htsjdk.jars} \
 	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
 	#create bash executable
 	echo '#!/bin/bash' > ${dist.dir}/$(1)
-	echo '${JAVA} -Djvarkit.log.name=$(1) -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) $$$$*' >> ${dist.dir}/$(1)
+	echo -n '${JAVA} -Djvarkit.log.name=$(1) -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) ' >> ${dist.dir}/$(1)
+ifeq (${standalone},yes)
+	echo -n ' -jar "${dist.dir}/$(1).jar" '  >> ${dist.dir}/$(1)
+else
+	echo -n ' -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) '  >> ${dist.dir}/$(1)
+endif
+	echo '$$$$*' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	#cleanup
 	rm -rf ${tmp.dir}
