@@ -96,6 +96,18 @@ Date: <xsl:value-of select="date:date-time()"/>
 <xsl:template match="c:option" mode="input">
 <xsl:choose>
 	<xsl:when test="@galaxy:ignore='true'"></xsl:when>
+	<xsl:when test="@type='string-list'">
+		<repeat>
+			<xsl:attribute name="name"><xsl:value-of select="@name"/>_list</xsl:attribute>
+			<xsl:attribute name="title"><xsl:value-of select="@name"/></xsl:attribute>
+			<xsl:attribute name="help"><xsl:value-of select="c:description"/></xsl:attribute>
+			<param type="text">
+				<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
+				<xsl:attribute name="label"><xsl:value-of select="c:description"/></xsl:attribute>
+				<xsl:attribute name="value"></xsl:attribute>
+			</param>
+		</repeat>
+	</xsl:when>
 	<xsl:when test="@type='string'">
 		<param type="text">
 			<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
@@ -154,6 +166,7 @@ Date: <xsl:value-of select="date:date-time()"/>
 <xsl:template match="c:option" mode="output">
 <xsl:choose>
 	<xsl:when test="@galaxy:ignore='true'"></xsl:when>
+	<xsl:when test="@type='string-list'"></xsl:when>
 	<xsl:when test="@type='int'"></xsl:when>
 	<xsl:when test="@type='input-file'"></xsl:when>
 	<xsl:when test="@type='double'"></xsl:when>
@@ -212,15 +225,20 @@ Date: <xsl:value-of select="date:date-time()"/>
 		<xsl:value-of select="@name"/>
 		<xsl:text>} </xsl:text>
 	</xsl:when>
+	<xsl:when test='@type="string-list"'> -<xsl:value-of select="@opt"/>
+#for $<xsl:value-of select="generate-id(.)"/>, in enumerate($<xsl:value-of select="@name"/>_list):
+            '${<xsl:value-of select="generate-id(.)"/>.<xsl:value-of select="@name"/>}'
+#end for
+ --  </xsl:when>
 	<xsl:when test='@type="output-file" and @opt="o" and /c:app/c:output/@type="vcf"'>
 		<xsl:text>-o '${outputFile}.vcf.gz'</xsl:text>
 	</xsl:when>
 	<xsl:when test='@type="input-file" and galaxy:conditional[@id="vcf"]'>
 <xsl:text>
-#if $</xsl:text><xsl:value-of select="@name"/><xsl:text>.isindexed:
-  ${</xsl:text><xsl:value-of select="@name"/><xsl:text>.index.fields.path}
+#if $</xsl:text><xsl:value-of select="@name"/><xsl:text>.index_type == "fromHistory":
+  ${</xsl:text><xsl:value-of select="@name"/>.<xsl:value-of select="@name"/><xsl:text>_vcf_file}
 #else
-  ${</xsl:text><xsl:value-of select="@name"/><xsl:text>.vcf_file}
+  ${</xsl:text><xsl:value-of select="@name"/>.<xsl:value-of select="@name"/><xsl:text>_index.fields.path}
 #end if
 </xsl:text>
 	</xsl:when>
@@ -263,20 +281,23 @@ Date: <xsl:value-of select="date:date-time()"/>
 </xsl:if>
 <conditional>
   <xsl:attribute name="name"><xsl:value-of select="$varname"/></xsl:attribute>
-  <param name="isindexed" type="select" label="Will you select a VCF from your history or use a built-in index?">
-    <option value="true">Use a built-in VCF</option>
-    <option value="">Use one from your history</option>
+  <param name="index_type" type="select" label="Will you select a VCF from your history or use a built-in index?">
+    <option value="builtin">Use a built-in VCF</option>
+    <option value="history">Use one from your history</option>
   </param>
-  <when value="true">
-    <param name="vcf_file" type="select" label="Select a VCF">
+  <when value="builtin">
+    <param type="select" label="Select a VCF">
+      <xsl:attribute name="name"><xsl:value-of select="$varname"/>_index</xsl:attribute>
       <options>
       	<xsl:attribute name="from_data_table"><xsl:value-of select="@data-table"/></xsl:attribute>
         <validator type="no_options" message="No file are available" />
       </options>
     </param>
   </when>
-  <when value="">
-    <param name="reference" type="data" format="vcf,vcf_bgzip" metadata_name="dbkey" label="Select a VCF from your history" />
+  <when value="history">
+    <param type="data" format="vcf,vcf_bgzip" metadata_name="dbkey" label="Select a VCF from your history" >
+   	 <xsl:attribute name="name"><xsl:value-of select="$varname"/>_vcf_file</xsl:attribute>
+    </param>
   </when>
 </conditional>
 </xsl:template>

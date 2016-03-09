@@ -36,9 +36,12 @@ import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -62,7 +65,7 @@ public class VcfFilterSequenceOntology
 	
 	
 	/* all sequence terms */
-	private Set<SequenceOntologyTree.Term> user_terms=new HashSet<SequenceOntologyTree.Term>();
+	private final Set<SequenceOntologyTree.Term> user_terms=new HashSet<SequenceOntologyTree.Term>();
 	/* inverse result */
 	private final SequenceOntologyTree sequenceOntologyTree=SequenceOntologyTree.getInstance();
 	
@@ -72,6 +75,44 @@ public class VcfFilterSequenceOntology
 		{
 		}
 	
+	
+	private void addVariant(final VariantContextWriter w,final VariantContext ctx,boolean keep)
+		{
+		if(super.isInvert()) keep=!keep;
+		if(!this.filterIn.isEmpty())
+			{
+			if(keep){
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.filter(this.filterIn);
+				w.add(vcb.make());
+				}
+			else
+				{
+				w.add(ctx);
+				}
+			}
+		else  if(!this.filterOut.isEmpty()) {
+			if(keep){
+				w.add(ctx);
+				}
+			else
+				{
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.filter(this.filterOut);
+				w.add(vcb.make());
+				}
+			}
+		else
+			{
+			if(keep) {
+				w.add(ctx);
+				} else
+				{
+					/* don't print */
+				}
+			}
+		}
+
 	
 	private boolean hasUserTem(final Set<SequenceOntologyTree.Term> ctxTerms)
 		{
@@ -88,8 +129,8 @@ public class VcfFilterSequenceOntology
 	@Override
 	/* public for knime */ public Collection<Throwable> doVcfToVcf(final String inputName,final  VcfIterator in,final  VariantContextWriter out) {
 		try {
-			VCFHeader header=in.getHeader();
-			VCFHeader h2=new VCFHeader(header);
+			final VCFHeader header=in.getHeader();
+			final VCFHeader h2=new VCFHeader(header);
 			addMetaData(h2);
 			
 			out.writeHeader(h2);
@@ -100,32 +141,29 @@ public class VcfFilterSequenceOntology
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			while(in.hasNext() )
 				{	
-				VariantContext ctx=progress.watch(in.next());
+				final  VariantContext ctx=progress.watch(in.next());
 				boolean keep=false;
 								
-				for(SnpEffPredictionParser.SnpEffPrediction pred:snpEffparser.getPredictions(ctx))
+				for(final SnpEffPredictionParser.SnpEffPrediction pred:snpEffparser.getPredictions(ctx))
 					{
 					if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
 					}
 				if(!keep)
 					{
-					for(VepPredictionParser.VepPrediction pred:vepParser.getPredictions(ctx))
+					for(final VepPredictionParser.VepPrediction pred:vepParser.getPredictions(ctx))
 						{
 						if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
 						}
 					}
 				if(!keep)
 					{
-					for(MyPredictionParser.MyPrediction pred:myPredParser.getPredictions(ctx))
+					for(final MyPredictionParser.MyPrediction pred:myPredParser.getPredictions(ctx))
 						{
 						if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
 						}
 					}
-				if(super.isInvert() ) keep=!keep;
-				if(keep)
-					{
-					out.add(ctx);
-					}
+				
+				addVariant(out,ctx,keep);
 				if(out.checkError()) break;
 				}
 			progress.finish();
@@ -153,7 +191,31 @@ public class VcfFilterSequenceOntology
 		}
 	
 	@Override
+	protected VCFHeader addMetaData(VCFHeader header) {
+		final String termlist = String.join(", ",this.user_terms.stream().map(S->S.getAcn()).collect(Collectors.toSet()));
+		if(!super.filterIn.isEmpty()) {
+			header.addMetaDataLine(new VCFFilterHeaderLine(super.filterIn,
+					"Variant having SO terms:"+ termlist));
+			}
+		if(!super.filterOut.isEmpty()) {
+			header.addMetaDataLine(new VCFFilterHeaderLine(super.filterOut,
+					"Variant non having SO terms :" + termlist));
+			}
+		return super.addMetaData(header);
+		}
+
+	
+	@Override
 	public Collection<Throwable> initializeKnime() {
+		
+		if(!super.filterIn.isEmpty() && !super.filterOut.isEmpty()) {
+			return wrapException("Option -"+OPTION_FILTERIN+"  and  -"+OPTION_FILTEROUT+" both defined.");
+		}
+		if(super.invert && (!super.filterIn.isEmpty() || !super.filterOut.isEmpty())) {
+			return wrapException("Option -"+OPTION_INVERT+" cannot be used when Option -"+OPTION_FILTERIN+" or  -"+OPTION_FILTEROUT+" is defined.");
+		}
+
+		
 		final boolean reasoning = !super.disableReasoning;
 		if(super.userAcnFile!=null)
 			{

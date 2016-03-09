@@ -42,7 +42,7 @@
 #end if
 &amp;&amp; cp '${outputFile}.vcf.gz' '${outputFile}' &amp;&amp; rm '${outputFile}.vcf.gz'</galaxy:command>
 	  <galaxy:inputs>
-    	<galaxy:conditional id="vcf" name="databaseVcf" data-table="vcflist"/>
+    	<galaxy:conditional id="vcf" name="databaseVcf" data-table="common-vcf"/>
   	 </galaxy:inputs>
 </galaxy:galaxy>
 

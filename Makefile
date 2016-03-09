@@ -149,9 +149,9 @@ endef
 # 
 # All executables
 #
-GALAXY_APPS=vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele vcfin
+GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele vcfin vcffilterso
 
-APPS= ${GALAXY_APPS} vcffilterjs  vcftrio  vcffilterso groupbygene \
+APPS= ${GALAXY_APPS} vcffilterjs  vcftrio   groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
 	bam2xml bam2wig		bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	bamviewgui	batchigvpictures	bedliftover \
@@ -171,7 +171,7 @@ APPS= ${GALAXY_APPS} vcffilterjs  vcftrio  vcffilterso groupbygene \
 	sortvcfonref2	splitbam3	splitbytile	splitread	tview	tview.cgi \
 	vcf2hilbert	vcf2ps	vcf2rdf	vcf2sql	vcf2xml	vcfannobam	vcfbed \
 	vcfbedjs	vcfbiomart	vcfcadd	vcfcmppred	vcfcomm	vcfcompare	vcfcomparegt \
-	vcfconcat	vcfcutsamples	vcffilterdoid		vcffixindels	vcfgo \
+	vcfconcat	vcfcutsamples	vcffilterdoid		vcfgo \
 	vcfjaspar	vcfliftover	vcfmapuniprot	vcfmerge	vcfmulti2one \
 	vcfpolyx	vcfpredictions	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats vcfcombinetwosnvs vcfstripannot \
@@ -367,8 +367,8 @@ $(eval $(call compile-htsjdk-cmd,vcfcutsamples,${jvarkit.package}.tools.misc.Vcf
 $(eval $(call compile-htsjdk-cmd,vcfdas,${jvarkit.package}.tools.vcfdas.VcfDistributedAnnotationSystem, ${jetty.jars}))
 $(eval $(call compile-htsjdk-cmd,vcffilterdoid,${jvarkit.package}.tools.vcfdo.VcfFilterDoid))
 $(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterjs.VCFFilterJS))
-$(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.misc.VcfFilterSequenceOntology))
-$(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels))
+$(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.misc.VcfFilterSequenceOntology,galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology))
 $(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn,galaxy_flag))
