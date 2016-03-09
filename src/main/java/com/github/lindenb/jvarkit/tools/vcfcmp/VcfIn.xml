@@ -3,7 +3,13 @@
  <!ENTITY name "VcfIn">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.vcfcmp">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<app	xmlns="http://github.com/lindenb/jvarkit/"
+		xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+		xmlns:galaxy="https://usegalaxy.org/"
+		xmlns:xi="http://www.w3.org/2001/XInclude"
+		xmlns:h="http://www.w3.org/1999/xhtml"
+		xmlns:svg="http://www.w3.org/2000/svg"
+		app="&name;" package="&package;" __placeholder__="1">
 <description>Only prints variants that are contained/not contained into another VCF.</description>
 <input type="vcf"/>
 <output type="vcf"/>
@@ -12,7 +18,7 @@
 	<option name="inverse" opt="i" longopt="inverse" type="boolean" default="false">
 		<description>Print variant that are not part of the VCF-database.</description>
 	</option>
-	<option name="databaseIsTabix" opt="t" longopt="tabix" type="boolean" default="false">
+	<option galaxy:ignore="true" name="databaseIsTabix" opt="t" longopt="tabix" type="boolean" default="false">
 		<description>Database is Tabix-ed</description>
 	</option>
 	<option name="userAltInDatabase" opt="A" longopt="allalt" type="boolean" default="false">
@@ -26,5 +32,46 @@
 	</option>
 
 </options>
+
+<galaxy:galaxy>
+	<galaxy:command>(gunzip -c ${input} 2&gt; /dev/null || cat ${input}) |  java -jar \$JVARKIT_DIST/vcfin.jar  -o '${outputFile}.vcf.gz'  ${inverse}  ${userAltInDatabase}  -fi '${filterIn}'  -fo '${filterOut}'  
+#if $databaseVcf.isindexed:
+  ${databaseVcf.index.fields.path}
+#else
+  ${databaseVcf.vcf_file}
+#end if
+&amp;&amp; cp '${outputFile}.vcf.gz' '${outputFile}' &amp;&amp; rm '${outputFile}.vcf.gz'</galaxy:command>
+	  <galaxy:inputs>
+    	<galaxy:conditional id="vcf" name="databaseVcf" data-table="vcflist"/>
+  	 </galaxy:inputs>
+</galaxy:galaxy>
+
+
+<documentation>
+<h:h3>Example</h:h3>
+list variants found with gatk AND samtools, keep the variants with <h:a>http://www.sequenceontology.org/browser/current_release/term/SO:0001818</h:a> , remove variants found in a previous alignment (samtools or gatk)
+
+<h:pre>#!/bin/bash
+
+ls Samples | while read S
+do
+gunzip -c NEWALIGN/{S}.gatk.vcf.gz |\
+        java -jar jvarkit-git/dist/vcffilterso.jar -A SO:0001818 |\
+        java -jar jvarkit-git/dist/vcfin.jar NEWALIGN/{S}.samtools.vcf.gz |\
+        java -jar jvarkit-git/dist/vcfin.jar -i OLDALIGN/{S}.samtools.vcf.gz |
+        java -jar jvarkit-git/dist/vcfin.jar -i OLDALIGN/${S}.gatk.vcf.gz |
+        grep -vE '^#' |
+        awk -v S=${S} -F '      ' '{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",S,$1,$2,$3,$4,$5,$8);}' 
+done</h:pre>
+
+<h:h3>History</h:h3>
+<h:ul>
+<h:li>2015-02-24: rewritten. all files must be sorted: avoid to sort on disk. Support for tabix. Option -A</h:li>
+<h:li>2015-01-26: changed option '-v' to option '-i' (-v is for version)</h:li>
+<h:li>2014: Creation</h:li>
+</h:ul>
+
+</documentation>
+
 <!-- __PLACEHOLDER__ -->
 </app>

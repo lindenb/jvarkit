@@ -149,7 +149,7 @@ endef
 # 
 # All executables
 #
-GALAXY_APPS=vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele
+GALAXY_APPS=vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele vcfin
 
 APPS= ${GALAXY_APPS} vcffilterjs  vcftrio  vcffilterso groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
@@ -172,7 +172,7 @@ APPS= ${GALAXY_APPS} vcffilterjs  vcftrio  vcffilterso groupbygene \
 	vcf2hilbert	vcf2ps	vcf2rdf	vcf2sql	vcf2xml	vcfannobam	vcfbed \
 	vcfbedjs	vcfbiomart	vcfcadd	vcfcmppred	vcfcomm	vcfcompare	vcfcomparegt \
 	vcfconcat	vcfcutsamples	vcffilterdoid		vcffixindels	vcfgo \
-	vcfin	vcfjaspar	vcfliftover	vcfmapuniprot	vcfmerge	vcfmulti2one \
+	vcfjaspar	vcfliftover	vcfmapuniprot	vcfmerge	vcfmulti2one \
 	vcfpolyx	vcfpredictions	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats vcfcombinetwosnvs vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
@@ -371,7 +371,7 @@ $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.misc.VcfFi
 $(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology))
 $(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,galaxy_flag))
-$(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn))
+$(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfjaspar,${jvarkit.package}.tools.jaspar.VcfJaspar))
 $(eval $(call compile-htsjdk-cmd,vcfliftover,${jvarkit.package}.tools.liftover.VcfLiftOver))
 $(eval $(call compile-htsjdk-cmd,vcfmapuniprot,${jvarkit.package}.tools.misc.VcfMapUniprot,${generated.dir}/java/org/uniprot/package-info.java))

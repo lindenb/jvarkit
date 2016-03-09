@@ -30,8 +30,8 @@
 	</requirements>
 	<command>
 		<xsl:choose>
-			<xsl:when test="c:galaxy/c:command">
-				<xsl:value-of select="c:galaxy/c:command"/>
+			<xsl:when test="galaxy:galaxy/galaxy:command">
+				<xsl:value-of select="galaxy:galaxy/galaxy:command"/>
 			</xsl:when>
 			<xsl:otherwise>
 			 	<xsl:apply-templates select="." mode="command"/>
@@ -50,9 +50,13 @@
 			</xsl:otherwise>
 		</xsl:choose>
 		<xsl:apply-templates select="c:options/c:option" mode="input"/>
+		<xsl:apply-templates select="galaxy:galaxy/galaxy:inputs/galaxy:param"/>
+		<xsl:apply-templates select="galaxy:galaxy/galaxy:inputs/galaxy:conditional"/>
+		
 	</inputs>
 	<outputs>
-	<xsl:apply-templates select="c:options/c:option" mode="output"/>
+		<xsl:apply-templates select="c:options/c:option" mode="output"/>
+		<xsl:apply-templates select="galaxy:galaxy/galaxy:outputs/galaxy:data"/>
 	</outputs>
 	<stdio>
 		<exit_code range="1:" />
@@ -91,6 +95,7 @@ Date: <xsl:value-of select="date:date-time()"/>
 
 <xsl:template match="c:option" mode="input">
 <xsl:choose>
+	<xsl:when test="@galaxy:ignore='true'"></xsl:when>
 	<xsl:when test="@type='string'">
 		<param type="text">
 			<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
@@ -121,6 +126,9 @@ Date: <xsl:value-of select="date:date-time()"/>
 			<xsl:attribute name="value"><xsl:value-of select="@default"/></xsl:attribute>
 		</param>
 	</xsl:when>
+	<xsl:when test="@type='input-file' and galaxy:conditional">
+		<xsl:apply-templates select="galaxy:conditional"/>
+	</xsl:when>
 	<xsl:when test="@type='input-file'">
 		<param type="data">
 			<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
@@ -145,6 +153,7 @@ Date: <xsl:value-of select="date:date-time()"/>
 
 <xsl:template match="c:option" mode="output">
 <xsl:choose>
+	<xsl:when test="@galaxy:ignore='true'"></xsl:when>
 	<xsl:when test="@type='int'"></xsl:when>
 	<xsl:when test="@type='input-file'"></xsl:when>
 	<xsl:when test="@type='double'"></xsl:when>
@@ -153,7 +162,6 @@ Date: <xsl:value-of select="date:date-time()"/>
 	<xsl:when test="@opt='o' and /c:app/c:output/@type='vcf'">
 		<data format="vcf_bgzip">
 			<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
-			<xsl:attribute name="label">VCF output of <xsl:value-of select="/c:app/@app"/></xsl:attribute>
 		</data>
 	</xsl:when>
 	<xsl:otherwise>
@@ -198,6 +206,7 @@ Date: <xsl:value-of select="date:date-time()"/>
 
 <xsl:template match="c:option" mode="command">
 <xsl:choose>
+	<xsl:when test="@galaxy:ignore='true'"></xsl:when>
 	<xsl:when test='@type="boolean"'>
 		<xsl:text> ${</xsl:text>
 		<xsl:value-of select="@name"/>
@@ -206,6 +215,16 @@ Date: <xsl:value-of select="date:date-time()"/>
 	<xsl:when test='@type="output-file" and @opt="o" and /c:app/c:output/@type="vcf"'>
 		<xsl:text>-o '${outputFile}.vcf.gz'</xsl:text>
 	</xsl:when>
+	<xsl:when test='@type="input-file" and galaxy:conditional[@id="vcf"]'>
+<xsl:text>
+#if $</xsl:text><xsl:value-of select="@name"/><xsl:text>.isindexed:
+  ${</xsl:text><xsl:value-of select="@name"/><xsl:text>.index.fields.path}
+#else
+  ${</xsl:text><xsl:value-of select="@name"/><xsl:text>.vcf_file}
+#end if
+</xsl:text>
+	</xsl:when>
+	
 	<xsl:when test='@type="int" or @type="input-file" or @type="double" or @type="string"'>
 		<xsl:text>-</xsl:text>
 		<xsl:value-of select="@opt"/>
@@ -218,6 +237,50 @@ Date: <xsl:value-of select="date:date-time()"/>
   </xsl:otherwise>
 </xsl:choose>
 </xsl:template>
+
+
+<!-- copy galaxy -->
+<xsl:template match="galaxy:*">
+<xsl:variable name="N" select="local-name(.)"/>
+<xsl:element name="{$N}">
+	<xsl:copy-of select="@*"/>
+	<xsl:apply-templates select="galaxy:*|text()"/>
+</xsl:element>
+</xsl:template>
+
+<xsl:template match="galaxy:conditional[@id='vcf']">
+<xsl:variable name="varname">
+<xsl:choose>
+  	<xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when>
+  	<xsl:when test="local-name(..) ='option'"><xsl:value-of select="../@name"/></xsl:when>
+	<xsl:otherwise test="not(@name)">
+		<xsl:message terminate="yes">no @name in galaxy:conditional.</xsl:message>
+	</xsl:otherwise>
+</xsl:choose>
+</xsl:variable>
+<xsl:if test="not(@data-table)">
+	<xsl:message terminate="yes">no @data-table in galaxy:conditional</xsl:message>
+</xsl:if>
+<conditional>
+  <xsl:attribute name="name"><xsl:value-of select="$varname"/></xsl:attribute>
+  <param name="isindexed" type="select" label="Will you select a VCF from your history or use a built-in index?">
+    <option value="true">Use a built-in VCF</option>
+    <option value="">Use one from your history</option>
+  </param>
+  <when value="true">
+    <param name="vcf_file" type="select" label="Select a VCF">
+      <options>
+      	<xsl:attribute name="from_data_table"><xsl:value-of select="@data-table"/></xsl:attribute>
+        <validator type="no_options" message="No file are available" />
+      </options>
+    </param>
+  </when>
+  <when value="">
+    <param name="reference" type="data" format="vcf,vcf_bgzip" metadata_name="dbkey" label="Select a VCF from your history" />
+  </when>
+</conditional>
+</xsl:template>
+
 
 <!-- restructuredtext  http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html -->
 
@@ -282,11 +345,26 @@ Date: <xsl:value-of select="date:date-time()"/>
 </xsl:text>
 </xsl:template>
 
+<xsl:template match="h:li"  mode="rst">
+<xsl:text>
+- </xsl:text>
+<xsl:apply-templates mode="rst"/>
+</xsl:template>
+
+<xsl:template match="h:ul"  mode="rst">
+<xsl:text>
+</xsl:text>
+<xsl:apply-templates select="*" mode="rst"/>
+<xsl:text>
+</xsl:text>
+</xsl:template>
+
 
 <xsl:template match="h:pre"  mode="rst">
 <xsl:text>
 
-::
+.. code:: bash
+    
     </xsl:text>
 <xsl:variable name="newline" select="'&#10;'" />
 <xsl:call-template name="string-replace">
@@ -297,6 +375,7 @@ Date: <xsl:value-of select="date:date-time()"/>
 	<xsl:with-param name="to" select="concat($newline,'    ')"/>
 </xsl:call-template>
 <xsl:text>
+
 </xsl:text>
 </xsl:template>
 

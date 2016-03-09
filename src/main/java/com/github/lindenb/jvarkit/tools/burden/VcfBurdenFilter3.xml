@@ -8,6 +8,7 @@
 	 xmlns:xi="http://www.w3.org/2001/XInclude"
 	 xmlns:h="http://www.w3.org/1999/xhtml"
 	 xmlns:svg="http://www.w3.org/2000/svg"
+	 xmlns:galaxy="https://usegalaxy.org/"
 	 app="&name;"
 	 package="&package;"
 	 __placeholder__="1"
@@ -21,6 +22,7 @@
 <options>
 	<option name="exacFile" type="input-file" longopt="exac" opt="exac">
 		<description>Path to Exac VCF file</description>
+		<galaxy:conditional id="vcf" data-table="vcflist"/>
 	</option>
 	<option name="ifNotInExacThenDiscard" type="boolean" longopt="discardNotInExac" opt="d" default="false">
 		<description>if variant was not found in Exac, discard the variant (set the FILTER). Default: don't set the FILTER. </description>

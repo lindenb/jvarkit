@@ -125,7 +125,11 @@ public class VcfIn extends AbstractVcfIn
 		}
 	
 	/* public for knime */
-	public Collection<Throwable> scanFileSorted(final VariantContextWriter vcw,final String databaseVcfUri,final VcfIterator userVcfIn)
+	public Collection<Throwable> scanFileSorted(
+			final VariantContextWriter vcw,
+			final String databaseVcfUri,
+			final VcfIterator userVcfIn
+			)
 		{
 		EqualRangeVcfIterator equalRangeDbIter=null;
 		try
@@ -279,8 +283,8 @@ public class VcfIn extends AbstractVcfIn
 				return this.scanUsingTabix(w,databaseVcfUri, in);
 				}
 			else
-				{	
-				return scanFileSorted(w,databaseVcfUri, in);
+				{
+				return this.scanFileSorted(w,databaseVcfUri, in);
 				}
 			} catch (Exception err) {
 				return wrapException(err);
