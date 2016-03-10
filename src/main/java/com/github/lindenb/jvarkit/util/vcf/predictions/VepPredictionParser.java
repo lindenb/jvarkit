@@ -79,7 +79,10 @@ public class VepPredictionParser implements PredictionParser
 		STRAND,
 		SYMBOL,
 		SYMBOL_SOURCE,
-		HGNC_ID
+		HGNC_ID,
+		IMPACT,BIOTYPE,INTRON,HGVSc,
+		HGVSp,ALLELE_NUM,CANONICAL,
+		CCDS,ENSP,DOMAINS
 		};
 	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
 	private Pattern pipe=Pattern.compile("[\\|]");
@@ -268,6 +271,11 @@ public class VepPredictionParser implements PredictionParser
 		public String getGene()
 			{
 			return getByCol(COLS.Gene);
+			}
+		
+		public String getENSP()
+			{
+			return getByCol(COLS.ENSP);
 			}
 		
 		public String getSymbolSource()

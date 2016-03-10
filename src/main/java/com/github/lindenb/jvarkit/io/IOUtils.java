@@ -36,6 +36,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -376,4 +377,18 @@ public class IOUtils {
 				}
 			}
 		}
+	
+	/** Prevent an output stream to be closed. 
+	 *  Wrap into a stream that will be flushed instead of being closed 
+	 *  For example calling vcfwriter.close in a zip entry. */
+	public static OutputStream uncloseableOutputStream(final OutputStream os) {
+		return new FilterOutputStream(os) {
+			@Override
+			public void close() throws IOException {
+				this.flush();
+				os.flush();
+				}
+		};
+	}
+	
 	}
