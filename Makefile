@@ -87,7 +87,7 @@ $(1)  : ${htsjdk.jars} \
 		-o "$(addsuffix .elixir.json,${generated.dir}/$(2))" \
 		${this.dir}src/main/resources/xsl/jsonx2json.xsl \
 		"$(addsuffix .elixir.jsonx,${generated.dir}/$(2))" \
-		$(if $(filter galaxy_flag,$(3)), && mkdir -p ${galaxy.dir} && xsltproc -o '${galaxy.dir}/$(1).xml' ${this.dir}src/main/resources/xsl/tools2galaxy.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))" ); fi
+		$(if $(filter galaxy_flag,$(3)), && mkdir -p ${galaxy.dir} && xsltproc ${this.dir}src/main/resources/xsl/tools2galaxy.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))" |  sed 's/__DOLLAR__//g' > ${galaxy.dir}/$(1).xml ); fi
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
 	echo '### Printing javac version : it should be 1.8. if Not, check your $$$${PATH}.'
