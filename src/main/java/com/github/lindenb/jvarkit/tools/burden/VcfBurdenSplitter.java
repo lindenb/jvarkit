@@ -198,6 +198,11 @@ public class VcfBurdenSplitter
 				if(!isEmpty(s)) {
 					keys.add(String.format("SYMBOL_%s_%s",ctx.getContig(),s));
 					}
+				
+				s= pred.getENSP();
+				if(!isEmpty(s)) {
+					keys.add(String.format("ENSP_%s_%s",ctx.getContig(),s));
+					}
 				}
 			return keys;
 			}
@@ -531,7 +536,7 @@ public class VcfBurdenSplitter
 				// save vcf file
 				final ZipEntry ze = new ZipEntry(super.baseZipDir+"/"+first.key+".vcf");
 				zout.putNextEntry(ze);
-				final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(zout);
+				final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(IOUtils.uncloseableOutputStream(zout));
 				final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
 				header2.addMetaDataLine(new VCFHeaderLine("VCFBurdenSplitFisher",
 						String.valueOf(fisher.getAsDouble())));
@@ -539,7 +544,7 @@ public class VcfBurdenSplitter
 				for(final VariantContext ctx:variants) {
 					out.add(ctx);
 				}
-				//out.close();//NON
+				out.close();//yes because wrapped into IOUtils.encloseableOutputSream
 				zout.closeEntry();
 				}
 			eqiter.close();

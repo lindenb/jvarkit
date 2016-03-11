@@ -182,7 +182,7 @@ APPS= ${GALAXY_APPS} vcffilterjs  vcftrio   groupbygene \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
-	vcfburdensplitter  vcfremovegenotypejs
+	vcfburdensplitter  vcfremovegenotypejs vcfgenesplitter
 
 .PHONY: all tests $(APPS) clean download_all_maven library top ${dist.dir}/jvarkit-${htsjdk.version}.jar galaxy
 
@@ -440,6 +440,7 @@ $(eval $(call compile-htsjdk-cmd,vcfcalledwithanothermethod,${jvarkit.package}.t
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burden.VcfBurdenSplitter))
 $(eval $(call compile-htsjdk-cmd,vcfburdenf2,${jvarkit.package}.tools.burden.VcfBurdenFilter2,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenf3,${jvarkit.package}.tools.burden.VcfBurdenFilter3,galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,vcfgenesplitter,${jvarkit.package}.tools.misc.VcfGeneSplitter))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \

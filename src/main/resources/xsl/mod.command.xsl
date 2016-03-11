@@ -204,18 +204,28 @@ options.addOption(org.apache.commons.cli.Option
 		<xsl:if test="@default">
 		+ ". default: <xsl:value-of select="@default"/>"
 		</xsl:if>
+		<xsl:if test="@type='input-file-set' or @type='string-list' or @type='string-set' or @type='uri-set'">
+		+ ". Multiple calls to this option should end with double hyphen : --."
+		</xsl:if>
+		
 		)
 	</xsl:if>
 	<xsl:if test="c:description">
 	.desc("<xsl:apply-templates select="c:description"/>"
 		<xsl:if test="@default">
 		+ ". default: <xsl:value-of select="@default"/>"
-		</xsl:if>	
+		</xsl:if>
+		<xsl:if test="@type='input-file-set' or @type='string-list' or @type='string-set' or @type='uri-set'">
+		+ ". Multiple calls to this option should end with double hyphen : --."
+		</xsl:if>
 		)
 	</xsl:if>
 		<xsl:choose>
 		<xsl:when test="@arg-name">
 			.argName("<xsl:value-of select="@arg-name"/>")
+		</xsl:when>
+		<xsl:when test="@argname">
+			.argName("<xsl:value-of select="@argname"/>")
 		</xsl:when>
 		<xsl:otherwise>
 			.argName("<xsl:value-of select="@name"/>")
