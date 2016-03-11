@@ -47,7 +47,6 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 
 import java.io.File;
@@ -60,7 +59,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -74,7 +73,7 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 		VcfIterator in=null;
 		try {
 			final Set<File> bamFiles=  IOUtils.unrollFileCollection(super.bamList);
@@ -83,12 +82,12 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 			final SamReaderFactory srf=SamReaderFactory.makeDefault();
 			srf.validationStringency(ValidationStringency.SILENT);
 			
-			for(File bam: bamFiles)
+			for(final File bam: bamFiles)
 				{
 				LOG.info("Reading header for "+bam);
-				SamReader reader=srf.open(bam);
-				SAMFileHeader header=reader.getFileHeader();
-				for(SAMReadGroupRecord g:header.getReadGroups())
+				final SamReader reader=srf.open(bam);
+				final SAMFileHeader header=reader.getFileHeader();
+				for(final SAMReadGroupRecord g:header.getReadGroups())
 					{
 					if(g.getSample()==null) continue;
 					String sample=g.getSample();
@@ -105,16 +104,13 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 				}
 			in =  openVcfIterator(inputName);
 			
-			File tmpFile1 = File.createTempFile("fixvcf", ".vcf",getTmpDirectories().get(0));
-			File tmpFile2 = File.createTempFile("fixvcf", ".vcf",getTmpDirectories().get(0));
+			final File tmpFile1 = File.createTempFile("fixvcf", ".vcf",getTmpDirectories().get(0));
+			final File tmpFile2 = File.createTempFile("fixvcf", ".vcf",getTmpDirectories().get(0));
 			VCFHeader header=in.getHeader();
 			VCFHeader h2=new VCFHeader(header);
 			final String FIXED_TAG="FXG";
 			h2.addMetaDataLine(new VCFFormatHeaderLine(FIXED_TAG,1,VCFHeaderLineType.Integer,"Genotype was set as homozygous (min depth ="+this.minDepth+")"));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+			super.addMetaData(h2);
 
 			for(int i=0;i< header.getNGenotypeSamples();++i)
 				{
@@ -122,7 +118,7 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 				int countNonFixed=0;
 				int countTotal=0;
 				
-				String sample= header.getSampleNamesInOrder().get(i);
+				final String sample= header.getSampleNamesInOrder().get(i);
 				LOG.info("Sample: "+sample);
 				Set<File> bams = sample2bam.get(sample);
 				if(bams==null) bams = new HashSet<File>();
@@ -131,24 +127,25 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 					LOG.warn("No bam to fix sample "+sample);
 					//don't 'continue' for simplicity
 					}
-				List<SamReader> samReaders= new ArrayList<>(bams.size());
+				final List<SamReader> samReaders= new ArrayList<>(bams.size());
 				for(File bam:bams)
 					{
 					LOG.info("Opening "+bam);
 					samReaders.add(srf.open(bam));
 					}
-				VariantContextWriter w = VCFUtils.createVariantContextWriter(i%2==0?tmpFile1:tmpFile2);	
+				final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
+				final VariantContextWriter w = VCFUtils.createVariantContextWriter(i%2==0?tmpFile1:tmpFile2);	
 				w.writeHeader(h2);
 				while(in.hasNext())
 					{
-					VariantContext ctx= in.next();
+					final VariantContext ctx= progress.watch(in.next());
 					countTotal++;
 					if(samReaders.isEmpty()) 
 						{
 						w.add(ctx);
 						continue;
 						}
-					Genotype genotype = ctx.getGenotype(sample);
+					final Genotype genotype = ctx.getGenotype(sample);
 					if(genotype!=null && genotype.isCalled())
 						{	
 						w.add(ctx);
@@ -161,19 +158,19 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 						SAMRecordIterator iter=sr.query(ctx.getContig(), ctx.getStart(), ctx.getEnd(), false);
 						while(iter.hasNext())
 							{
-							SAMRecord rec=iter.next();
+							final SAMRecord rec=iter.next();
 							if(rec.getReadUnmappedFlag()) continue;
 							if(rec.getDuplicateReadFlag()) continue;
 							if(rec.isSecondaryOrSupplementary()) continue;
 							if(rec.getMappingQuality()==0 ) continue;
 							if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 							
-							SAMReadGroupRecord rg=rec.getReadGroup();
+							final SAMReadGroupRecord rg=rec.getReadGroup();
 							if(!sample.equals(rg.getSample())) continue;
-							Cigar cigar=rec.getCigar();
+							final Cigar cigar=rec.getCigar();
 							if(cigar==null) continue;
 							int refPos=rec.getAlignmentStart();
-							for(CigarElement ce:cigar.getCigarElements())
+							for(final CigarElement ce:cigar.getCigarElements())
 								{
 								if(!ce.getOperator().consumesReferenceBases()) continue;
 								if( ce.getOperator().consumesReadBases() &&
@@ -195,10 +192,10 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 						w.add(ctx);
 						continue;
 						}
-					List<Allele> homozygous=new ArrayList<>(2);
+					final List<Allele> homozygous=new ArrayList<>(2);
 					homozygous.add(ctx.getReference());
 					homozygous.add(ctx.getReference());
-					GenotypeBuilder gb=new GenotypeBuilder(genotype);
+					final GenotypeBuilder gb=new GenotypeBuilder(genotype);
 					gb.alleles(homozygous);
 					gb.attribute(FIXED_TAG, 1);
 					if(header.getFormatHeaderLine("DP")!=null)
@@ -206,18 +203,19 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 						gb.DP(depth);
 						}
 					
-					GenotypesContext gtx=GenotypesContext.copy(ctx.getGenotypes());
+					final GenotypesContext gtx=GenotypesContext.copy(ctx.getGenotypes());
 					gtx.replace(gb.make());
 					
-					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+					final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					vcb.genotypes(gtx);
 					w.add(vcb.make());
 					countFixed++;
 					}
+				progress.finish();
 				w.close();
 				in.close();
 				//closing BAMS
-				for(SamReader r:samReaders) CloserUtil.close(r);
+				for(final SamReader r:samReaders) CloserUtil.close(r);
 				
 				LOG.info("done sample "+sample+
 						" fixed="+countFixed+
