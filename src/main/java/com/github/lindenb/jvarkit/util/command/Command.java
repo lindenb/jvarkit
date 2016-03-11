@@ -101,9 +101,20 @@ public abstract class Command
 			{
 			LOG.warn("Cannot get messages bundle ",e);
 			}
-		/** set locale http://seqanswers.com/forums/showthread.php?p=174020#post174020 */
-		Locale.setDefault(Locale.US);
-		System.setProperty("file.encoding", "UTF-8");
+		
+		try {
+			/** set locale http://seqanswers.com/forums/showthread.php?p=174020#post174020 */
+			Locale.setDefault(Locale.US);
+			}
+		catch(final java.security.AccessControlException err) {
+			LOG.warn("Cannot set Locale to US for security reasons",err);
+			}
+		try {
+			System.setProperty("file.encoding", "UTF-8");
+			}
+		catch(final java.security.AccessControlException err) {
+			LOG.warn("Cannot set file.encoding to UTF-8 for security reasons",err);
+			}
 		}
 	
 	public Collection<Throwable> initializeKnime()	
@@ -510,13 +521,18 @@ public abstract class Command
 				{
 				hostname="host";
 				}
+			
+			try {
 			LOG.info("Executing as " +
 	                System.getProperty("user.name") + "@" + hostname +
 	                " on " + System.getProperty("os.name") + " " + System.getProperty("os.version") +
 	                " " + System.getProperty("os.arch") + "; " + System.getProperty("java.vm.name") +
 	                " " + System.getProperty("java.runtime.version") 
 	                );
-
+			} catch(final java.security.AccessControlException err) {
+				/* ignore security manager */
+			}
+			
 			LOG.debug("initialize");
 			final Collection<Throwable> initErrors = this.initializeKnime(); 
 			if(!(initErrors==null || initErrors.isEmpty()))
