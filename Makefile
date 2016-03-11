@@ -22,14 +22,15 @@ JAVA?=java
 JAR?=jar
 XJC?=xjc
 
-export htsjdk.version?=2.0.1
-export htsjdk.home?=${this.dir}htsjdk-${htsjdk.version}
+export htsjdk.hash?=8dd4559dced3a243dde094415a9974c03aceb3e3
+export htsjdk.version?=2.1.1
+export htsjdk.home?=${this.dir}htsjdk-${htsjdk.hash}
 htsjdk.jars=$(addprefix ${htsjdk.home}/dist/,$(addsuffix .jar,apache-ant-1.8.2-bzip2 commons-compress-1.4.1 commons-jexl-2.1.1 commons-logging-1.1.1 htsjdk-${htsjdk.version} ngs-java-1.2.2 snappy-java-1.0.3-rc3 xz-1.5 ))
 src.dir=${this.dir}src/main/java
 generated.dir=${this.dir}src/main/generated-sources
-tmp.dir=${this.dir}_tmp-${htsjdk.version}
+tmp.dir=${this.dir}_tmp-${htsjdk.hash}
 tmp.mft=${tmp.dir}/META-INF/MANIFEST.MF
-export dist.dir?=${this.dir}dist-${htsjdk.version}
+export dist.dir?=${this.dir}dist
 galaxy.dir?=galaxy
 
 mysql.version?=5.1.34
@@ -149,9 +150,9 @@ endef
 # 
 # All executables
 #
-GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele vcfin vcffilterso
+GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele vcfin vcffilterso vcffilterjs 
 
-APPS= ${GALAXY_APPS} vcffilterjs  vcftrio   groupbygene \
+APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
 	bam2xml bam2wig		bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	bamviewgui	batchigvpictures	bedliftover \
@@ -366,7 +367,7 @@ $(eval $(call compile-htsjdk-cmd,vcfconcat,${jvarkit.package}.tools.vcfconcat.Vc
 $(eval $(call compile-htsjdk-cmd,vcfcutsamples,${jvarkit.package}.tools.misc.VcfCutSamples))
 $(eval $(call compile-htsjdk-cmd,vcfdas,${jvarkit.package}.tools.vcfdas.VcfDistributedAnnotationSystem, ${jetty.jars}))
 $(eval $(call compile-htsjdk-cmd,vcffilterdoid,${jvarkit.package}.tools.vcfdo.VcfFilterDoid))
-$(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterjs.VCFFilterJS))
+$(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterjs.VCFFilterJS,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.misc.VcfFilterSequenceOntology,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology))
@@ -618,12 +619,14 @@ ${htsjdk.home}/dist/htsjdk-${htsjdk.version}.jar : ${htsjdk.home}/build.xml
 
 ${htsjdk.home}/build.xml : 
 	mkdir -p $(dir ${htsjdk.home})
-	rm -rf $(dir ${htsjdk.home})${htsjdk.version}.zip $(dir $@) 
+	rm -rf "$(dir ${htsjdk.home})${htsjdk.hash}.zip" "$(dir $@)"  "${tmp.dir}"
+	mkdir -p "${tmp.dir}"
 	echo "Downloading HTSJDK ${htsjdk.version} with curl"
-	curl  -k ${curl.proxy} -o $(dir ${htsjdk.home})${htsjdk.version}.zip -L "https://github.com/samtools/htsjdk/archive/${htsjdk.version}.zip"
-	unzip $(dir ${htsjdk.home})${htsjdk.version}.zip -d $(dir ${htsjdk.home})
+	curl  -k ${curl.proxy} -o $(dir ${htsjdk.home})${htsjdk.hash}.zip -L "https://github.com/samtools/htsjdk/archive/${htsjdk.hash}.zip"
+	unzip $(dir ${htsjdk.home})${htsjdk.hash}.zip -d "${tmp.dir}"
+	mv "${tmp.dir}/htsjdk-${htsjdk.hash}" "${htsjdk.home}" 
 	find ${htsjdk.home} -exec touch '{}'  ';'
-	rm -f $(dir ${htsjdk.home})${htsjdk.version}.zip
+	rm -rf "$(dir ${htsjdk.home})${htsjdk.hash}.zip" "${tmp.dir}"
 
 ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java : ${htsjdk.home}/build.xml $(realpath .git/refs/heads/master)
 	mkdir -p $(dir $@)
@@ -631,6 +634,7 @@ ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java 
 	echo '@javax.annotation.Generated("jvarkit")' >> $@
 	echo 'public class HtsjdkVersion{ private HtsjdkVersion(){}' >> $@
 	echo 'public static String getVersion() {return "${htsjdk.version}";}' >> $@
+	echo 'public static String getHash() {return "${htsjdk.hash}";}' >> $@
 	echo 'public static String getHome() {return "${htsjdk.home}";}' >> $@
 	echo 'public static String getJavadocUrl(Class<?> clazz) {return "https://samtools.github.io/htsjdk/javadoc/htsjdk/"+clazz.getName().replaceAll("\\.","/")+".html";}' >> $@
 	echo '}'  >> $@

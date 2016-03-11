@@ -3,6 +3,7 @@
 	xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
 	xmlns:c="http://github.com/lindenb/jvarkit/"
 	xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:galaxy="https://usegalaxy.org/"
 	version='1.0'
 	>
 <xsl:output method="xml" indent="no" />
@@ -110,11 +111,11 @@
 	</xsl:if>
 
 	<xsl:if test="/c:app/c:snippet[@id='javascript']">
-	<c:option name="javascriptFile" type="input-file" argname="SCRIPT.JS" opt="f" longopt="jsfile">
-		<c:description>Javascript file</c:description>
+	<c:option  name="javascriptFile" type="input-file" argname="SCRIPT.JS" opt="f" longopt="jsfile" galaxy:optional="true">
+		<c:description>Javascript file. Use either javascript file or javascript expression.</c:description>
 	</c:option>
-	<c:option name="javascriptExpr" type="string" argname="SCRIPT" opt="e" longopt="jsexpr"  multiline="true">
-		<c:description>Javascript expression</c:description>
+	<c:option name="javascriptExpr"  galaxy:optional="true" galaxy:area="true" galaxy:size="20x80" type="string" argname="SCRIPT" opt="e" longopt="jsexpr"  multiline="true">
+		<c:description>Javascript expression. Use either javascript file or javascript expression.</c:description>
 	</c:option>
 	</xsl:if>
 	

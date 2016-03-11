@@ -26,8 +26,17 @@
 See also [[Compilation]].
 
 ```bash
-$  make <xsl:value-of select="translate(@app,$uppercase,$lowercase)"/>
+$  make <xsl:value-of select="translate(@jarname)"/>
 ```
+
+by default, the libraries are not included in the jar file, so you shouldn't move them. You can create
+a bigger but standalone executable jar by addinging `standalone=yes` on the command line:
+
+
+```bash
+$  make <xsl:value-of select="translate(@jarname)"/> standalone=yes
+```
+
 
 ##Synopsis
 
@@ -181,13 +190,7 @@ The project is licensed under the MIT license.
 <xsl:text>## Options
 </xsl:text>
 <xsl:apply-templates select="c:option"/>
-<xsl:if test="/c:app/c:snippet[@id='javascript']">
-<xsl:text>  * -e (expression) javascript expression
-  * -f (file) javascript file
-</xsl:text>
-</xsl:if>
-<xsl:text>  * -o,--output &lt;FILENAME&gt; output file.
-  * -h,--help print help
+<xsl:text>  * -h,--help print help
   * -version,--version show version and exit
 </xsl:text>
 
@@ -198,7 +201,8 @@ The project is licensed under the MIT license.
 <xsl:value-of select="@opt"/>
 <xsl:text> </xsl:text>
 <xsl:apply-templates select="c:description"/>
-
+<xsl:text>
+</xsl:text>
 </xsl:template>
 
 

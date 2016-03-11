@@ -113,6 +113,15 @@ Date: <xsl:value-of select="date:date-time()"/>
 			<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
 			<xsl:attribute name="label"><xsl:value-of select="c:description"/></xsl:attribute>
 			<xsl:attribute name="value"><xsl:value-of select="@default"/></xsl:attribute>
+			<xsl:if test="@galaxy:area = 'true'">
+				<xsl:attribute name="area">True</xsl:attribute>
+			</xsl:if>
+			<xsl:if test="@galaxy:size">
+				<xsl:attribute name="size"><xsl:value-of select="@galaxy:size"/></xsl:attribute>
+			</xsl:if>
+			<xsl:if test="@galaxy:optional">
+				<xsl:attribute name="optional"><xsl:value-of select="@galaxy:optional"/></xsl:attribute>
+			</xsl:if>
 		</param>
 	</xsl:when>
 	<xsl:when test="@type='boolean'">
@@ -129,6 +138,10 @@ Date: <xsl:value-of select="date:date-time()"/>
 			<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
 			<xsl:attribute name="label"><xsl:value-of select="c:description"/></xsl:attribute>
 			<xsl:attribute name="value"><xsl:value-of select="@default"/></xsl:attribute>
+			<xsl:if test="@galaxy:optional">
+				<xsl:attribute name="optional"><xsl:value-of select="@galaxy:optional"/></xsl:attribute>
+			</xsl:if>
+			
 		</param>
 	</xsl:when>
 	<xsl:when test="@type='double'">
@@ -136,6 +149,9 @@ Date: <xsl:value-of select="date:date-time()"/>
 			<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
 			<xsl:attribute name="label"><xsl:value-of select="c:description"/></xsl:attribute>
 			<xsl:attribute name="value"><xsl:value-of select="@default"/></xsl:attribute>
+			<xsl:if test="@galaxy:optional">
+				<xsl:attribute name="optional"><xsl:value-of select="@galaxy:optional"/></xsl:attribute>
+			</xsl:if>
 		</param>
 	</xsl:when>
 	<xsl:when test="@type='input-file' and galaxy:conditional">
@@ -153,6 +169,9 @@ Date: <xsl:value-of select="date:date-time()"/>
 					<xsl:otherwise></xsl:otherwise>
 				</xsl:choose>
 			</xsl:attribute>
+			<xsl:if test="@galaxy:optional">
+				<xsl:attribute name="optional"><xsl:value-of select="@galaxy:optional"/></xsl:attribute>
+			</xsl:if>
 		</param>
 	</xsl:when>
 	<xsl:when test="@opt='o' and /c:app/c:output/@type='vcf'"></xsl:when>
@@ -173,7 +192,17 @@ Date: <xsl:value-of select="date:date-time()"/>
 	<xsl:when test="@type='string'"></xsl:when>
 	<xsl:when test="@type='boolean'"></xsl:when>
 	<xsl:when test="@opt='o' and /c:app/c:output/@type='vcf'">
-		<data format="vcf_bgzip">
+		<data >
+			<xsl:attribute name="format">
+				<xsl:choose>
+					<xsl:when test="/c:app/@galaxy:security='true' or /c:app/c:snippet[@id='javascript']">
+						<xsl:text>vcf</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:text>vcf_bgzip</xsl:text>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:attribute>
 			<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
 		</data>
 	</xsl:when>
@@ -194,7 +223,11 @@ Date: <xsl:value-of select="date:date-time()"/>
 </xsl:choose>
 
 <!-- call java -->
-<xsl:text> |  java -jar \$JVARKIT_DIST/</xsl:text>
+<xsl:text> |  java </xsl:text>
+<xsl:if test="/c:app/@galaxy:security='true' or /c:app/c:snippet[@id='javascript']">
+	<xsl:text> -Djava.security.manager </xsl:text>
+</xsl:if>
+<xsl:text> -jar  \$JVARKIT_DIST/</xsl:text>
 <xsl:value-of select="@jarname"/>
 <xsl:text>.jar </xsl:text>
 <xsl:for-each select="c:options/c:option">
@@ -203,8 +236,21 @@ Date: <xsl:value-of select="date:date-time()"/>
 	<xsl:text> </xsl:text>
 </xsl:for-each>
 
+<!--  security tool save to stdout -->
+<xsl:choose>
+   <xsl:when test="c:output/@type='vcf' and (/c:app/@galaxy:security='true' or /c:app/c:snippet[@id='javascript'])">
+ 	<xsl:text>  &gt; '${outputFile}' </xsl:text>
+  </xsl:when>
+  <xsl:otherwise></xsl:otherwise>
+</xsl:choose>
+
+
 <!-- move output -->
 <xsl:choose>
+   <xsl:when test="c:output/@type='vcf' and (/c:app/@galaxy:security='true' or /c:app/c:snippet[@id='javascript'])">
+ 	<xsl:text>  </xsl:text>
+  </xsl:when>
+
  <xsl:when test='c:output/@type="vcf"'>
  	<xsl:text> &amp;&amp; cp '${outputFile}.vcf.gz' '${outputFile}' &amp;&amp; rm '${outputFile}.vcf.gz' </xsl:text>
   </xsl:when>
@@ -226,10 +272,14 @@ Date: <xsl:value-of select="date:date-time()"/>
 		<xsl:text>} </xsl:text>
 	</xsl:when>
 	<xsl:when test='@type="string-list"'> -<xsl:value-of select="@opt"/>
-#for $<xsl:value-of select="generate-id(.)"/>, in enumerate($<xsl:value-of select="@name"/>_list):
+#for $<xsl:value-of select="concat(generate-id(.),'idx')"/>,$<xsl:value-of select="generate-id(.)"/> in enumerate($<xsl:value-of select="@name"/>_list):
             '${<xsl:value-of select="generate-id(.)"/>.<xsl:value-of select="@name"/>}'
 #end for
  --  </xsl:when>
+ 
+  <xsl:when test="@type='output-file' and @opt='o' and /c:app/c:output/@type='vcf' and (/c:app/@galaxy:security='true' or /c:app/c:snippet[@id='javascript'])">
+  		<!-- just ignore, wil be printed to stdout -->
+  </xsl:when>
 	<xsl:when test='@type="output-file" and @opt="o" and /c:app/c:output/@type="vcf"'>
 		<xsl:text>-o '${outputFile}.vcf.gz'</xsl:text>
 	</xsl:when>
@@ -244,11 +294,21 @@ Date: <xsl:value-of select="date:date-time()"/>
 	</xsl:when>
 	
 	<xsl:when test='@type="int" or @type="input-file" or @type="double" or @type="string"'>
+		<xsl:if test="@galaxy:optional='true'">
+<xsl:text>
+#if ${</xsl:text><xsl:value-of select="@name"/><xsl:text>}
+</xsl:text>
+		</xsl:if>
 		<xsl:text>-</xsl:text>
 		<xsl:value-of select="@opt"/>
 		<xsl:text> '${</xsl:text>
 		<xsl:value-of select="@name"/>
 		<xsl:text>}'</xsl:text>
+		<xsl:if test="@galaxy:optional='true'">
+<xsl:text>
+#end if
+</xsl:text>
+		</xsl:if>
 	</xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate="yes">unknown option type '<xsl:value-of select="@type"/>'</xsl:message>
@@ -281,12 +341,14 @@ Date: <xsl:value-of select="date:date-time()"/>
 </xsl:if>
 <conditional>
   <xsl:attribute name="name"><xsl:value-of select="$varname"/></xsl:attribute>
-  <param name="index_type" type="select" label="Will you select a VCF from your history or use a built-in index?">
-    <option value="builtin">Use a built-in VCF</option>
-    <option value="history">Use one from your history</option>
+  <param name="index_type" type="select" >
+  	<xsl:attribute name="label"><xsl:value-of select="$varname"/>: Will you select a VCF from your history or use a built-in index?</xsl:attribute>
+    <option value="builtin">Use <xsl:value-of select="$varname"/> from built-in VCFs</option>
+    <option value="history">Use <xsl:value-of select="$varname"/> from your history</option>
   </param>
   <when value="builtin">
-    <param type="select" label="Select a VCF">
+    <param type="select">
+      <xsl:attribute name="label"><xsl:value-of select="$varname"/>: Select a VCF</xsl:attribute>
       <xsl:attribute name="name"><xsl:value-of select="$varname"/>_index</xsl:attribute>
       <options>
       	<xsl:attribute name="from_data_table"><xsl:value-of select="@data-table"/></xsl:attribute>
@@ -295,7 +357,8 @@ Date: <xsl:value-of select="date:date-time()"/>
     </param>
   </when>
   <when value="history">
-    <param type="data" format="vcf,vcf_bgzip" metadata_name="dbkey" label="Select a VCF from your history" >
+    <param type="data" format="vcf,vcf_bgzip" metadata_name="dbkey">
+     <xsl:attribute name="label"><xsl:value-of select="$varname"/>: Select a VCF  from your history</xsl:attribute>
    	 <xsl:attribute name="name"><xsl:value-of select="$varname"/>_vcf_file</xsl:attribute>
     </param>
   </when>
@@ -366,6 +429,16 @@ Date: <xsl:value-of select="date:date-time()"/>
 </xsl:text>
 </xsl:template>
 
+
+<xsl:template match="h:h4"  mode="rst">
+<xsl:text>
+
+**</xsl:text>
+<xsl:apply-templates mode="rst"/>
+<xsl:text>**
+</xsl:text>
+</xsl:template>
+
 <xsl:template match="h:li"  mode="rst">
 <xsl:text>
 - </xsl:text>
@@ -382,18 +455,25 @@ Date: <xsl:value-of select="date:date-time()"/>
 
 
 <xsl:template match="h:pre"  mode="rst">
-<xsl:text>
-
-.. code:: bash
-    
-    </xsl:text>
+<xsl:variable name="margin"><xsl:text>    </xsl:text></xsl:variable>
 <xsl:variable name="newline" select="'&#10;'" />
+<xsl:text>
+.. code-block::
+
+</xsl:text>
+<xsl:value-of select="$margin"/>
 <xsl:call-template name="string-replace">
 	<xsl:with-param name="string">
-		<xsl:value-of select="."/>
-	</xsl:with-param>
-	<xsl:with-param name="from" select="$newline"/>
-	<xsl:with-param name="to" select="concat($newline,'    ')"/>
+		<xsl:call-template name="string-replace">
+			<xsl:with-param name="string">
+				<xsl:value-of select="."/>
+			</xsl:with-param>
+			<xsl:with-param name="from" select="$newline"/>
+			<xsl:with-param name="to" select="concat($newline,$margin)"/>
+		</xsl:call-template>
+    </xsl:with-param>
+	<xsl:with-param name="from">$</xsl:with-param>
+	<xsl:with-param name="to">__DOLLAR__</xsl:with-param>
 </xsl:call-template>
 <xsl:text>
 
