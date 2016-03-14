@@ -31,6 +31,7 @@ generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.hash}
 tmp.mft=${tmp.dir}/META-INF/MANIFEST.MF
 export dist.dir?=${this.dir}dist
+wiki.dir?=${this.dir}doc/wiki
 galaxy.dir?=galaxy
 
 mysql.version?=5.1.34
@@ -62,7 +63,7 @@ define compile-htsjdk-cmd
 $(1)  : ${htsjdk.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
-		$(filter-out galaxy_flag,$(3)) ${apache.commons.cli.jars} ${slf4j.jars}
+		$(filter-out wiki_flag,$(filter-out galaxy_flag,$(3))) ${apache.commons.cli.jars} ${slf4j.jars}
 	echo "### COMPILING $(1) ######"
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
 	#generate java code if needed = a file with .xml exists, requires xsltproc, preprocessing file twice
@@ -88,7 +89,9 @@ $(1)  : ${htsjdk.jars} \
 		-o "$(addsuffix .elixir.json,${generated.dir}/$(2))" \
 		${this.dir}src/main/resources/xsl/jsonx2json.xsl \
 		"$(addsuffix .elixir.jsonx,${generated.dir}/$(2))" \
-		$(if $(filter galaxy_flag,$(3)), && mkdir -p ${galaxy.dir} && xsltproc ${this.dir}src/main/resources/xsl/tools2galaxy.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))" |  sed 's/__DOLLAR__//g' > ${galaxy.dir}/$(1).xml ); fi
+		$(if $(filter galaxy_flag,$(3)), && mkdir -p ${galaxy.dir} && xsltproc ${this.dir}src/main/resources/xsl/tools2galaxy.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))" |  sed 's/__DOLLAR__//g' > ${galaxy.dir}/$(1).xml ) \
+		$(if $(filter wiki_flag,$(3)), && mkdir -p ${wiki.dir} && xsltproc -o "${wiki.dir}/$(notdir $(subst .,/,$(2))).wiki" ${this.dir}src/main/resources/xsl/command2md.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))"  ) \
+		; fi
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
 	echo '### Printing javac version : it should be 1.8. if Not, check your $$$${PATH}.'
@@ -369,9 +372,9 @@ $(eval $(call compile-htsjdk-cmd,vcfdas,${jvarkit.package}.tools.vcfdas.VcfDistr
 $(eval $(call compile-htsjdk-cmd,vcffilterdoid,${jvarkit.package}.tools.vcfdo.VcfFilterDoid))
 $(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterjs.VCFFilterJS,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.misc.VcfFilterSequenceOntology,galaxy_flag))
-$(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology))
-$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfjaspar,${jvarkit.package}.tools.jaspar.VcfJaspar))
 $(eval $(call compile-htsjdk-cmd,vcfliftover,${jvarkit.package}.tools.liftover.VcfLiftOver))
@@ -394,7 +397,7 @@ $(eval $(call compile-htsjdk-cmd,vcfstats,${jvarkit.package}.tools.vcfstats.VcfS
 $(eval $(call compile-htsjdk-cmd,vcfcombinetwosnvs,${jvarkit.package}.tools.vcfannot.VCFCombineTwoSnvs))
 $(eval $(call compile-htsjdk-cmd,vcfstripannot,${jvarkit.package}.tools.vcfstripannot.VCFStripAnnotations))
 $(eval $(call compile-htsjdk-cmd,vcftabixml,${jvarkit.package}.tools.vcftabixml.VCFTabixml))
-$(eval $(call compile-htsjdk-cmd,vcftail,${jvarkit.package}.tools.misc.VcfTail,galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,vcftail,${jvarkit.package}.tools.misc.VcfTail,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcftreepack,${jvarkit.package}.tools.treepack.VcfTreePack))
 $(eval $(call compile-htsjdk-cmd,vcftrio,${jvarkit.package}.tools.vcftrios.VCFTrios))
 $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf))

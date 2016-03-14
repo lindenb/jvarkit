@@ -33,6 +33,12 @@ grep -v "##"| cut -f 1,2,4,5
 chr1    935492  G   T
 chr1    1334052 CTAGAG  C
 </h:pre>
+
+<h:h3>See also</h:h3>
+<h:ul>
+<h:li><h:a>https://github.com/lindenb/jvarkit/wiki/VcfHead</h:a></h:li>
+</h:ul>
+
 </documentation>
 
 <!-- __PLACEHOLDER__ -->

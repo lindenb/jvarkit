@@ -23,25 +23,54 @@
 
 ##Compilation
 
-See also [[Compilation]].
+### Requirements / Dependencies
+
+* java 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* GNU Make > 3.81
+* curl/wget
+* git
+* apache ant is only required to compile htsjdk
+* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html
+
+
+### Download and Compile
 
 ```bash
-$  make <xsl:value-of select="translate(@jarname)"/>
+$ git clone "https://github.com/lindenb/jvarkit.git"
+$ cd jvarkit
+$ make <xsl:value-of select="@jarname"/>
 ```
 
-by default, the libraries are not included in the jar file, so you shouldn't move them. You can create
-a bigger but standalone executable jar by addinging `standalone=yes` on the command line:
+by default, the libraries are not included in the jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ). You can create a bigger but standalone executable jar by addinging `standalone=yes` on the command line:
 
 
 ```bash
-$  make <xsl:value-of select="translate(@jarname)"/> standalone=yes
+$ git clone "https://github.com/lindenb/jvarkit.git"
+$ cd jvarkit
+$ make <xsl:value-of select="@jarname"/> standalone=yes
 ```
 
+The required libraries will be downloaded and installed in the `dist` directory.
+
+### edit 'local.mk' (optional)
+
+The a file **local.mk** can be created edited to override/add some paths.
+
+For example it can be used to set the HTTP proxy:
+
+```
+http.proxy.host=your.host.com
+http.proxy.port=124567
+```
 
 ##Synopsis
 
-```
-$ java -jar dist/<xsl:value-of select="translate(@app,$uppercase,$lowercase)"/>.jar  [options ] (stdin|file) 
+```bash
+$ java -jar dist/<xsl:value-of select="translate(@app,$uppercase,$lowercase)"/>.jar  [options] (stdin|file<xsl:choose>
+	<xsl:when test="c:input/@type='vcf'">.vcf|file.vcf.gz</xsl:when>
+	<xsl:when test="c:input/@type='sam' or c:input/@type='bam'">.bam|file.sam</xsl:when>
+	<xsl:otherwise></xsl:otherwise>
+</xsl:choose>) 
 ```
 
 <xsl:apply-templates select="c:options"/>
@@ -57,10 +86,6 @@ Main code is: https://github.com/lindenb/jvarkit/blob/master/src/main/java/<xsl:
 
 - Issue Tracker: http://github.com/lindenb/jvarkit/issues
 - Source Code: http://github.com/lindenb/jvarkit
-
-##History
-
-* 2016 : Creation
 
 ## License
 
@@ -199,7 +224,15 @@ The project is licensed under the MIT license.
 <xsl:template match="c:option">
 <xsl:text>  * -</xsl:text>
 <xsl:value-of select="@opt"/>
+<xsl:text>|--</xsl:text>
+<xsl:value-of select="@longopt"/>
 <xsl:text> </xsl:text>
+<xsl:choose>
+	<xsl:when test="@type='boolean'"></xsl:when>
+	<xsl:when test="@argname"> (<xsl:value-of select="@argname"/>) </xsl:when>
+	<xsl:when test="@arg-name"> (<xsl:value-of select="@arg-name"/>) </xsl:when>
+	<xsl:otherwise> (VALUE) </xsl:otherwise>
+</xsl:choose>
 <xsl:apply-templates select="c:description"/>
 <xsl:text>
 </xsl:text>
