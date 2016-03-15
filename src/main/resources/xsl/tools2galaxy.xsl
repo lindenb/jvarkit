@@ -214,7 +214,7 @@ Date: <xsl:value-of select="date:date-time()"/>
 
 <xsl:template match="c:app" mode="command">
 <xsl:choose>
-	<xsl:when test="c:input[@type='vcf']">
+	<xsl:when test="c:input[@type='vcf'] or c:input[@type='stdin-or-many']">
 		<xsl:text>(gunzip -c ${input} 2&gt; /dev/null || cat ${input})</xsl:text>
 	</xsl:when>
 	<xsl:otherwise>
@@ -254,6 +254,10 @@ Date: <xsl:value-of select="date:date-time()"/>
  <xsl:when test='c:output/@type="vcf"'>
  	<xsl:text> &amp;&amp; cp '${outputFile}.vcf.gz' '${outputFile}' &amp;&amp; rm '${outputFile}.vcf.gz' </xsl:text>
   </xsl:when>
+  <xsl:when test='c:output/@type="bed"'>
+ 	<xsl:text> &amp;&amp; cp '${outputFile}.bed' '${outputFile}' &amp;&amp; rm '${outputFile}.bed' </xsl:text>
+  </xsl:when>
+  
   <xsl:otherwise>
 	<xsl:message terminate="yes">unknown c:output/type '<xsl:value-of select="c:output/@type"/>'</xsl:message>
   </xsl:otherwise>
@@ -262,10 +266,12 @@ Date: <xsl:value-of select="date:date-time()"/>
 
 </xsl:template>
 
+<!--  ======================================================================== -->
 
 <xsl:template match="c:option" mode="command">
 <xsl:choose>
 	<xsl:when test="@galaxy:ignore='true'"></xsl:when>
+	<xsl:when test="galaxy:command"><xsl:apply-templates select="galaxy:command" mode="option"/></xsl:when>
 	<xsl:when test='@type="boolean"'>
 		<xsl:text> ${</xsl:text>
 		<xsl:value-of select="@name"/>
@@ -282,6 +288,9 @@ Date: <xsl:value-of select="date:date-time()"/>
   </xsl:when>
 	<xsl:when test='@type="output-file" and @opt="o" and /c:app/c:output/@type="vcf"'>
 		<xsl:text>-o '${outputFile}.vcf.gz'</xsl:text>
+	</xsl:when>
+	<xsl:when test='@type="output-file" and @opt="o" and /c:app/c:output/@type="bed"'>
+		<xsl:text>-o '${outputFile}.bed'</xsl:text>
 	</xsl:when>
 	<xsl:when test='@type="input-file" and galaxy:conditional[@id="vcf"]'>
 <xsl:text>
@@ -316,6 +325,10 @@ Date: <xsl:value-of select="date:date-time()"/>
 </xsl:choose>
 </xsl:template>
 
+<!--  ======================================================================== -->
+<xsl:template match="galaxy:command" mode="option">
+<xsl:apply-templates/>
+</xsl:template>
 
 <!-- copy galaxy -->
 <xsl:template match="galaxy:*">
@@ -479,7 +492,6 @@ Date: <xsl:value-of select="date:date-time()"/>
 
 </xsl:text>
 </xsl:template>
-
 
 
 

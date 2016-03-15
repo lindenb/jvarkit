@@ -90,7 +90,7 @@ $(1)  : ${htsjdk.jars} \
 		${this.dir}src/main/resources/xsl/jsonx2json.xsl \
 		"$(addsuffix .elixir.jsonx,${generated.dir}/$(2))" \
 		$(if $(filter galaxy_flag,$(3)), && mkdir -p ${galaxy.dir} && xsltproc ${this.dir}src/main/resources/xsl/tools2galaxy.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))" |  sed 's/__DOLLAR__//g' > ${galaxy.dir}/$(1).xml ) \
-		$(if $(filter wiki_flag,$(3)), && mkdir -p ${wiki.dir} && xsltproc -o "${wiki.dir}/$(notdir $(subst .,/,$(2))).wiki" ${this.dir}src/main/resources/xsl/command2md.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))"  ) \
+		$(if $(filter wiki_flag,$(3)), && mkdir -p ${wiki.dir} && xsltproc -o "${wiki.dir}/$(notdir $(subst .,/,$(2))).md" ${this.dir}src/main/resources/xsl/command2md.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))"  ) \
 		; fi
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
@@ -163,11 +163,11 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
 	biostar86480	biostar90204	msa2vcf	biostar95652 biostar139647	biostar145820 blast2sam	blastmapannots \
 	blastn2snp	buildwpontology	bwamemdigest	bwamemnop	cmpbams	cmpbamsandbuild	coveragenormalizer \
-	deseqcount	downsamplevcf	evs2bed	evs2vcf	evs2xml	extendbed	fastq2fasta \
+	deseqcount	downsamplevcf	evs2bed	evs2vcf	evs2xml	extendbed	fastq2fasta kg2bed \
 	fastqentropy	fastqgrep	fastqjs	fastqphred64to33	fastqrecordtreepack	fastqrevcomp	fastqshuffle \
 	fastqsplitinterleaved	findallcoverageatposition	findavariation	findcorruptedfiles	findmyvirus	findnewsplicesites	fixvarscanmissingheader \
 	fixvcf	fixvcfformat	fixvcfmissinggenotypes	gcanddepth	genomicjaspar	genscan	 \
-	howmanybamdict	illuminadir	ilmnfastqstats	impactofduplicates	jeter	kg2bed \
+	howmanybamdict	illuminadir	ilmnfastqstats	impactofduplicates	jeter \
 	liftover2svg	mapuniprot	mergesplittedblast	metrics2xml	ncbitaxonomy2xml	ngsfilessummary	noemptyvcf \
 	nozerovariationvcf	pademptyfastq	paintcontext	pubmeddump	pubmedfilterjs	referencetovcf	sam2json \
 	sam2psl	sam2tsv	sam4weblogo	samclipindelfraction	samextractclip	samfindclippedregions	samfixcigar \
@@ -227,7 +227,7 @@ $(eval $(call compile-htsjdk-cmd,addlinearindextobed,${jvarkit.package}.tools.mi
 $(eval $(call compile-htsjdk-cmd,allelefreqcalc,${jvarkit.package}.tools.misc.AlleleFrequencyCalculator))
 $(eval $(call compile-htsjdk-cmd,bam2xml,${jvarkit.package}.tools.bam2xml.Bam2Xml))
 $(eval $(call compile-htsjdk-cmd,almostsortedvcf,${jvarkit.package}.tools.sortvcfonref.AlmostSortedVcf))
-$(eval $(call compile-htsjdk-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate))
+$(eval $(call compile-htsjdk-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToFastq))
 $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster))
 $(eval $(call compile-htsjdk-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG))
@@ -316,7 +316,7 @@ $(eval $(call compile-htsjdk-cmd,idea20130924,${jvarkit.package}.tools.bwamempcr
 $(eval $(call compile-htsjdk-cmd,illuminadir,${jvarkit.package}.tools.misc.IlluminaDirectory))
 $(eval $(call compile-htsjdk-cmd,ilmnfastqstats,${jvarkit.package}.tools.misc.IlluminaStatsFastq))
 $(eval $(call compile-htsjdk-cmd,impactofduplicates,${jvarkit.package}.tools.impactdup.ImpactOfDuplicates))
-$(eval $(call compile-htsjdk-cmd,kg2bed,${jvarkit.package}.tools.misc.KnownGenesToBed))
+$(eval $(call compile-htsjdk-cmd,kg2bed,${jvarkit.package}.tools.misc.KnownGenesToBed, wiki_flag))
 $(eval $(call compile-htsjdk-cmd,liftover2svg,${jvarkit.package}.tools.liftover.LiftOverToSVG))
 $(eval $(call compile-htsjdk-cmd,mapuniprot,${jvarkit.package}.tools.misc.MapUniProtFeatures,${generated.dir}/java/org/uniprot/package-info.java))
 $(eval $(call compile-htsjdk-cmd,mergesplittedblast,${jvarkit.package}.tools.blast.MergeSplittedBlast,api.ncbi.blast))
@@ -327,7 +327,7 @@ $(eval $(call compile-htsjdk-cmd,noemptyvcf,${jvarkit.package}.tools.misc.NoEmpt
 $(eval $(call compile-htsjdk-cmd,nozerovariationvcf,${jvarkit.package}.tools.misc.NoZeroVariationVCF))
 $(eval $(call compile-htsjdk-cmd,pademptyfastq,${jvarkit.package}.tools.misc.PadEmptyFastq))
 $(eval $(call compile-htsjdk-cmd,paintcontext,${jvarkit.package}.tools.bam2graphics.PaintContext))
-$(eval $(call compile-htsjdk-cmd,pubmeddump,${jvarkit.package}.tools.pubmed.PubmedDump))
+$(eval $(call compile-htsjdk-cmd,pubmeddump,${jvarkit.package}.tools.pubmed.PubmedDump,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,pubmedgraph,${jvarkit.package}.tools.pubmed.PubmedGraph))
 $(eval $(call compile-htsjdk-cmd,pubmedfilterjs,${jvarkit.package}.tools.pubmed.PubmedFilterJS,api.ncbi.pubmed))
 $(eval $(call compile-htsjdk-cmd,referencetovcf,${jvarkit.package}.tools.misc.ReferenceToVCF))
@@ -445,6 +445,7 @@ $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burd
 $(eval $(call compile-htsjdk-cmd,vcfburdenf2,${jvarkit.package}.tools.burden.VcfBurdenFilter2,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenf3,${jvarkit.package}.tools.burden.VcfBurdenFilter3,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfgenesplitter,${jvarkit.package}.tools.misc.VcfGeneSplitter))
+$(eval $(call compile-htsjdk-cmd,vcfsqltag,${jvarkit.package}.tools.sql.VcfSqlTag))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \

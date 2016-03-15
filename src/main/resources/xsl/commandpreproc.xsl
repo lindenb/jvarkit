@@ -78,6 +78,18 @@
 <xsl:template match="c:app" mode="elixir">
 </xsl:template>
 
+<xsl:template match="c:description">
+<c:description>
+<xsl:apply-templates select="@*"/>
+<xsl:apply-templates select="*|text()"/>
+
+<xsl:if test="../@type='input-file-set' or ../@type='string-list' or ../@type='string-set' or ../@type='uri-set'">
+ <xsl:text>Multiple calls to this option should end with double hyphen : --</xsl:text>
+</xsl:if>
+</c:description>
+</xsl:template>
+
+
 <xsl:template match="c:app" mode="otheroptions">
 
 	<xsl:if test="/c:app[not(@generate-output-option='false')]">
@@ -148,6 +160,33 @@
 			</xsl:choose>
 		</xsl:attribute>
 		<c:description>indexed Fasta sequence</c:description>
+		
+	    <galaxy:conditional>
+	     <xsl:attribute name="name"><xsl:value-of select="$snippet/@name"/>_source</xsl:attribute>
+	      <galaxy:param name="reference_source_selector" type="select" label="Load reference genome from">
+	        <galaxy:option value="cached">Local cache</galaxy:option>
+	        <galaxy:option value="history">History</galaxy:option>
+	      </galaxy:param>
+	      <galaxy:when value="cached">
+	        <galaxy:param name="ref_file" type="select" label="Using reference genome" help="REFERENCE_SEQUENCE">
+	          <galaxy:options from_data_table="all_fasta">
+	          </galaxy:options>
+	          <galaxy:validator type="no_options" message="A built-in reference genome is not available for the build associated with the selected input file"/>
+	        </galaxy:param>
+	      </galaxy:when>
+	      <galaxy:when value="history">
+	        <galaxy:param name="ref_file" type="data" format="fasta" label="Use the folloing dataset as the reference sequence" help="REFERENCE_SEQUENCE; You can upload a FASTA sequence to the history and use it as reference" />
+	      </galaxy:when>
+	    </galaxy:conditional>
+	    <galaxy:command>
+ #if $<xsl:value-of select="$snippet/@name"/>_source.reference_source_selector != "history":
+     -<xsl:value-of select="$snippet/@opt"/> "${<xsl:value-of select="$snippet/@name"/>_source.ref_file.fields.path}"
+ #else:
+     -<xsl:value-of select="$snippet/@opt"/> "${<xsl:value-of select="$snippet/@name"/>_source.ref_file}"
+ #end if
+</galaxy:command>
+	    
+	    
 	</c:option>
 	</xsl:if>
 
@@ -163,6 +202,13 @@
 <xsl:template match="c:doc[@id='pedigree-file']">
 <xsl:text>A pedigree file is a text file containing the following columns: FAMILY-ID INDIVIDUAL-ID FATHER-ID(or 0) MOTHER-ID(or 0) SEX(1 male, 2 female, 0 unknown) PHENOTYPE (1 affected, 0 unaffected, 9 not available)</xsl:text>
 </xsl:template>
+
+<xsl:template match="c:doc[@id='file.list']">
+<xsl:text>If the filename ends with .list , it will be interpreted as a text file containing the path(s) of the file(s) to be read.</xsl:text>
+</xsl:template>
+
+
+
 
 </xsl:stylesheet>
 

@@ -91,6 +91,14 @@ Main code is: https://github.com/lindenb/jvarkit/blob/master/src/main/java/<xsl:
 
 The project is licensed under the MIT license.
 
+## Citing
+
+http://dx.doi.org/10.6084/m9.figshare.1425030
+
+&gt; Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
+&gt; http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
 </xsl:template>
 
 
@@ -215,9 +223,10 @@ The project is licensed under the MIT license.
 <xsl:text>## Options
 </xsl:text>
 <xsl:apply-templates select="c:option"/>
-<xsl:text>  * -h,--help print help
-  * -version,--version show version and exit
+<xsl:text>  * -h|--help print help
+  * -version|--version show version and exit
 </xsl:text>
+
 
 </xsl:template>
 
@@ -234,6 +243,13 @@ The project is licensed under the MIT license.
 	<xsl:otherwise> (VALUE) </xsl:otherwise>
 </xsl:choose>
 <xsl:apply-templates select="c:description"/>
+
+<xsl:if test="@default">
+<xsl:text> Default value : "</xsl:text>
+<xsl:value-of select="@default"/>
+<xsl:text>".</xsl:text>
+</xsl:if>
+
 <xsl:text>
 </xsl:text>
 </xsl:template>

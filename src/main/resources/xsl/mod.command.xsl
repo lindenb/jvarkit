@@ -215,9 +215,6 @@ options.addOption(org.apache.commons.cli.Option
 		<xsl:if test="@default">
 		+ ". default: <xsl:value-of select="@default"/>"
 		</xsl:if>
-		<xsl:if test="@type='input-file-set' or @type='string-list' or @type='string-set' or @type='uri-set'">
-		+ ". Multiple calls to this option should end with double hyphen : --."
-		</xsl:if>
 		)
 	</xsl:if>
 		<xsl:choose>

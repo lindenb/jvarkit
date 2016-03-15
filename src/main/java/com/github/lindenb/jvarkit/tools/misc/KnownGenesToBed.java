@@ -1,36 +1,54 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Collection;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.util.CloserUtil;
 
-import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
-public class KnownGenesToBed extends AbstractCommandLineProgram
+public class KnownGenesToBed extends AbstractKnownGenesToBed
 	{
-	private PrintStream out=System.out;
-	private boolean print_introns=true;
-	private boolean print_utrs=true;
-	private boolean print_cds=true;
-	private boolean print_exons=true;
-	private boolean print_transcripts=true;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(KnownGenesToBed.class);
+
+	private PrintStream out;
 	
-	@Override
-	public String getProgramDescription() {
-		return "KnownGene to BED.";
-		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/KnownGenesToBed";
-		}
-	
-	private void print(KnownGene kg,int start,int end,String type,String name)
+	private void print(final KnownGene kg,final int start,final int end,final String type,final String name)
 		{
 		if(start>=end) return;
 		out.print(kg.getChromosome());
@@ -49,28 +67,28 @@ public class KnownGenesToBed extends AbstractCommandLineProgram
 		out.println();
 		}
 	
-	private void scan(LineIterator r)
+	private void scan(final BufferedReader r) throws IOException
 		{
-		Pattern tab=Pattern.compile("[\t]");
-		while(r.hasNext())
+		String line;
+		final Pattern tab=Pattern.compile("[\t]");
+		while((line=r.readLine())!=null)
 			{
 			if(out.checkError()) break;
-			String line=r.next();
 			String tokens[]=tab.split(line);
-			KnownGene kg=new KnownGene(tokens);
-			if(print_transcripts) print(kg,kg.getTxStart(),kg.getTxEnd(),"TRANSCRIPT",kg.getName());
+			final KnownGene kg=new KnownGene(tokens);
+			if(!super.hide_transcripts) print(kg,kg.getTxStart(),kg.getTxEnd(),"TRANSCRIPT",kg.getName());
 			for(int i=0;i< kg.getExonCount();++i)
 				{
-				KnownGene.Exon exon=kg.getExon(i);
-				if(print_exons) print(kg,exon.getStart(),exon.getEnd(),"EXON",exon.getName());
+				final KnownGene.Exon exon=kg.getExon(i);
+				if(!super.hide_exons) print(kg,exon.getStart(),exon.getEnd(),"EXON",exon.getName());
 				
-				if(print_utrs && kg.getCdsStart()>exon.getStart())
+				if(!super.hide_utr && kg.getCdsStart()>exon.getStart())
 					{
 					print(kg,exon.getStart(),
 							Math.min(kg.getCdsStart(),exon.getEnd()),"UTR","UTR"+(kg.isPositiveStrand()?"5":"3"));
 					}
 				
-				if(print_cds && !(kg.getCdsStart()>=exon.getEnd() || kg.getCdsEnd()<exon.getStart()))
+				if(!super.hide_cds && !(kg.getCdsStart()>=exon.getEnd() || kg.getCdsEnd()<exon.getStart()))
 					{
 					print(kg,
 							Math.max(kg.getCdsStart(),exon.getStart()),
@@ -80,12 +98,12 @@ public class KnownGenesToBed extends AbstractCommandLineProgram
 					}
 				
 				KnownGene.Intron intron=exon.getNextIntron();
-				if(print_introns && intron!=null)
+				if(!super.hide_introns && intron!=null)
 					{
 					print(kg,intron.getStart(),intron.getEnd(),"INTRON",intron.getName());
 					}
 				
-				if(print_utrs && kg.getCdsEnd()<exon.getEnd())
+				if(!super.hide_utr && kg.getCdsEnd()<exon.getEnd())
 					{
 					print(kg,Math.max(kg.getCdsEnd(),exon.getStart()),
 							exon.getEnd(),
@@ -95,74 +113,44 @@ public class KnownGenesToBed extends AbstractCommandLineProgram
 				}
 			}
 		}
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -i don't print introns");
-		out.println(" -u don't print utr");
-		out.println(" -c don't print cds");
-		out.println(" -x don't print exons");
-		out.println(" -t don't print transcripts");
-		super.printOptions(out);
-		}
+
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"iucxt"))!=-1)
-			{
-			switch(c)
-				{
-				case 'i': print_introns=false;break;
-				case 'u': print_utrs=false;break;
-				case 'c': print_cds=false;break;
-				case 'x': print_exons=false;break;
-				case 't': print_transcripts=false;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		LineIterator r=null;
+	public Collection<Throwable> call() throws Exception {
+		BufferedReader r=null;
+		final List<String> args = super.getInputFiles();
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			this.out = super.openFileOrStdoutAsPrintStream();
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				r=IOUtils.openStdinForLineIterator();
+				LOG.info("Reading from stdin");
+				r=IOUtils.openStreamForBufferedReader(super.stdin());
 				scan(r);
 				CloserUtil.close(r);
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(final String filename:args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
-					r=IOUtils.openURIForLineIterator(filename);
+					LOG.info("Reading from "+filename);
+					r=IOUtils.openURIForBufferedReading(filename);
 					scan(r);
 					CloserUtil.close(r);
 					}
 				}
-			return 0;
+			this.out.flush();
+			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-			
+			CloserUtil.close(r);
+			CloserUtil.close(this.out);
+			this.out=null;
 			}
 		}
 	/**

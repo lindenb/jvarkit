@@ -356,6 +356,15 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			{
 			if(getOutputFile()!=null)
 				{
+				if(getOutputFile().getName().endsWith(".vcf.gz") || 
+				   getOutputFile().getName().endsWith(".bed.gz"))
+					{
+					return new java.io.PrintWriter(new htsjdk.samtools.util.BlockCompressedOutputStream(getOutputFile()));
+					}
+				else if(getOutputFile().getName().endsWith(".gz"))
+					{
+					return new java.io.PrintWriter(new java.util.zip.GZIPOutputStream(new java.io.FileOutputStream(getOutputFile())));
+					}
 				return new java.io.PrintWriter(getOutputFile());
 				}
 			else
@@ -368,6 +377,15 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			{
 			if(getOutputFile()!=null)
 				{
+				if(getOutputFile().getName().endsWith(".vcf.gz") || 
+				   getOutputFile().getName().endsWith(".bed.gz"))
+					{
+					return new java.io.PrintStream(new htsjdk.samtools.util.BlockCompressedOutputStream(getOutputFile()));
+					}
+				else if(getOutputFile().getName().endsWith(".gz"))
+					{
+					return new java.io.PrintStream(new java.util.zip.GZIPOutputStream(new java.io.FileOutputStream(getOutputFile())));
+					}
 				return new java.io.PrintStream(getOutputFile());
 				}
 			else

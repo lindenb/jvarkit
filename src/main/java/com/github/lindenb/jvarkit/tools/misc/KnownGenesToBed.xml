@@ -4,4 +4,61 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>converts UCSC knownGenes file to BED.</description>
+<input type="stdin-or-many"/>
+<output type="bed"/>
+
+<options>
+		<option name="hide_introns" type="boolean" opt="i" longopt="intron" default="false">
+			<description>Hide Introns</description>
+		</option>
+		<option name="hide_utr" type="boolean" opt="u" longopt="utr" default="false">
+			<description>Hide UTRs</description>
+		</option>
+		<option name="hide_cds" type="boolean" opt="c" longopt="cds" default="false">
+			<description>Hide CDSs</description>
+		</option>
+		<option name="hide_exons" type="boolean" opt="x" longopt="exon" default="false">
+			<description>Hide Exons</description>
+		</option>
+		<option name="hide_transcripts" type="boolean" opt="t" longopt="transcript" default="false">
+			<description>Hide Transcript</description>
+		</option>
+</options>
+
+<documentation>
+<h:h3>Example</h:h3>
+<h:pre class="bash">$ curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" |\
+  gunzip -c |\
+  java -jar dist/kg2bed.jar
+chr1	11873	14409	+	uc001aaa.3	TRANSCRIPT	uc001aaa.3
+chr1	11873	12227	+	uc001aaa.3	EXON	Exon 1
+chr1	12227	12612	+	uc001aaa.3	INTRON	Intron 1
+chr1	11873	12227	+	uc001aaa.3	UTR	UTR3
+chr1	12612	12721	+	uc001aaa.3	EXON	Exon 2
+chr1	12721	13220	+	uc001aaa.3	INTRON	Intron 2
+chr1	12612	12721	+	uc001aaa.3	UTR	UTR3
+chr1	13220	14409	+	uc001aaa.3	EXON	Exon 3
+chr1	13220	14409	+	uc001aaa.3	UTR	UTR3
+chr1	11873	14409	+	uc010nxr.1	TRANSCRIPT	uc010nxr.1
+chr1	11873	12227	+	uc010nxr.1	EXON	Exon 1
+chr1	12227	12645	+	uc010nxr.1	INTRON	Intron 1
+chr1	11873	12227	+	uc010nxr.1	UTR	UTR3
+chr1	12645	12697	+	uc010nxr.1	EXON	Exon 2
+chr1	12697	13220	+	uc010nxr.1	INTRON	Intron 2
+</h:pre>
+
+<h:h3>See also</h:h3>
+<h:ul>
+	<h:li><h:a>https://www.biostars.org/p/151628</h:a></h:li>
+</h:ul>
+<h:h3>History</h:h3>
+<h:ul>
+	<h:li>2014: Creation</h:li>
+	<h:li>2015-07-21 : removed duplicate exon</h:li>
+</h:ul>
+</documentation>
+
+
+<!-- __PLACEHOLDER__ -->
+</app>
