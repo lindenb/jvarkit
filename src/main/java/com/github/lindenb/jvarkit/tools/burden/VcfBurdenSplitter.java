@@ -47,6 +47,9 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamWriter;
+
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
@@ -65,7 +68,6 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
@@ -131,7 +133,7 @@ public class VcfBurdenSplitter
 			}
 		}
 
-	
+	/** abstract splitter */
 	private abstract class Splitter {
 		public abstract Set<String> keys(final VariantContext ctx);
 		public abstract String getName();
@@ -143,6 +145,7 @@ public class VcfBurdenSplitter
 			}
 		}
 	
+	/** base vep splitter */
 	private class VepSplitter extends Splitter {
 		private VepPredictionParser vepPredictionParser=null;
 		VepSplitter() {}
@@ -154,7 +157,7 @@ public class VcfBurdenSplitter
 		public void initialize(final VCFHeader header) {
 			this.vepPredictionParser = new VepPredictionParser(header);
 			}
-		public boolean accept(VepPrediction pred) {
+		public boolean accept(final VepPrediction pred) {
 			return true;
 		}
 		private boolean isEmpty(final String s) {
@@ -308,6 +311,7 @@ public class VcfBurdenSplitter
 			}
 	}
 	
+	/** list of available splitters */
 	private final Splitter splitters[]= new Splitter[]{
 			new VepSplitter(),
 			new SoVepSplitter(),
@@ -353,24 +357,18 @@ public class VcfBurdenSplitter
 		}
 		return super.initializeKnime();
 	 	}
-	/* public for knime */
-	@Override
-	public Collection<Throwable> doVcfToVcf(
-			String inputName,
-			VcfIterator in,
-			VariantContextWriter out
-			) throws IOException {
-		throw new IllegalArgumentException("should be never called");
-		}
 	
-	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName) throws Exception {
+	
+	//@Override
+	public Collection<Throwable> doVcfToVcf(String inputName) throws Exception {
 		SortingCollection<KeyAndLine> sortingcollection=null;
 		BufferedReader in = null;
 		FileOutputStream fos = null;
 		ZipOutputStream zout=null;
 		CloseableIterator<KeyAndLine> iter=null;
 		PrintWriter pw = null;
+		FileOutputStream galaxyf= null;
+		XMLStreamWriter galaxyw= null;
 		try {
 			in = inputName==null?
 					IOUtils.openStreamForBufferedReader(stdin()):
@@ -440,7 +438,28 @@ public class VcfBurdenSplitter
 			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", super.getTmpdir());
 			tmpReportFile.deleteOnExit();
 			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
-			pw.println("#chrom\tstart\tend\tkey\tFisher\tCount_Variants\tCount_non_filtered_Variants");
+			pw.println("track name=\"burden\" description=\"chrom(tab)start(tab)end(tab)key(tab)Fisher(tab)Count_Variants(tab)Count_non_filtered_Variants\"");
+			
+			
+			// galaxy stuff 
+			final File galaxyReportFile;
+			if(super.galaxyHtmlPath.trim().isEmpty()) {
+				galaxyReportFile = null;
+			} else
+				{
+				galaxyReportFile = File.createTempFile("_tmp.", ".html", super.getTmpdir());
+				galaxyReportFile.deleteOnExit();
+				galaxyf = new FileOutputStream(galaxyReportFile);
+				galaxyw = XMLOutputFactory.newInstance().createXMLStreamWriter(galaxyf, "UTF-8");
+				galaxyw.writeStartElement("html");
+				galaxyw.writeStartElement("head");
+				galaxyw.writeStartElement("title");
+				galaxyw.writeCharacters(getName());
+				galaxyw.writeEndElement();//title
+				galaxyw.writeEndElement();//head
+				galaxyw.writeStartElement("body");
+				galaxyw.writeStartElement("table");
+				}
 			
 			iter = sortingcollection.iterator();
 			final EqualRangeIterator<KeyAndLine> eqiter = new EqualRangeIterator<>(iter, new Comparator<KeyAndLine>() {
@@ -533,6 +552,35 @@ public class VcfBurdenSplitter
 						count_non_filtered
 						);
 				
+				if( galaxyw !=null) {
+					galaxyw.writeStartElement("tr");
+					
+					galaxyw.writeStartElement("td");
+					galaxyw.writeCharacters(contig+":"+chromStart+"-"+chromEnd);
+					galaxyw.writeEndElement();//td
+					
+					galaxyw.writeStartElement("td");
+					galaxyw.writeStartElement("a");
+					galaxyw.writeAttribute("href",super.galaxyHtmlPath+"/"+ super.baseZipDir+"/"+first.key+".vcf");
+					galaxyw.writeCharacters(first.key);
+					galaxyw.writeEndElement();//a
+					galaxyw.writeEndElement();//td
+					
+					galaxyw.writeStartElement("td");
+					galaxyw.writeCharacters(String.valueOf(fisher.getAsDouble()));
+					galaxyw.writeEndElement();//td
+					
+					galaxyw.writeStartElement("td");
+					galaxyw.writeCharacters(String.valueOf(variants.size()));
+					galaxyw.writeEndElement();//td
+
+					galaxyw.writeStartElement("td");
+					galaxyw.writeCharacters(String.valueOf(count_non_filtered));
+					galaxyw.writeEndElement();//td
+
+					
+					galaxyw.writeEndElement();//tr
+					}
 				// save vcf file
 				final ZipEntry ze = new ZipEntry(super.baseZipDir+"/"+first.key+".vcf");
 				zout.putNextEntry(ze);
@@ -552,13 +600,28 @@ public class VcfBurdenSplitter
 			
 			progess.finish();
 			
-			LOG.info("saving report");
+			LOG.info("saving BED report");
 			pw.flush();
 			pw.close();
-			final ZipEntry entry = new ZipEntry(super.baseZipDir+"/fisher.bed");
+			ZipEntry entry = new ZipEntry(super.baseZipDir+"/fisher.bed");
 			zout.putNextEntry(entry);
 			IOUtils.copyTo(tmpReportFile,zout);
 			zout.closeEntry();
+			
+			if(galaxyw!=null) {
+				LOG.info("saving galaxy report");
+				galaxyw.writeEndElement();//table
+				galaxyw.writeEndElement();//body
+				galaxyw.writeEndElement();//html
+				galaxyw.flush();
+				galaxyw.close();galaxyw=null;
+				galaxyf.flush();
+				galaxyf.close();galaxyf=null;
+				entry = new ZipEntry(super.baseZipDir+"/galaxy.html");
+				zout.putNextEntry(entry);
+				IOUtils.copyTo(galaxyReportFile,zout);
+				zout.closeEntry();
+				}
 			
 			zout.finish();
 			zout.close();
@@ -575,6 +638,8 @@ public class VcfBurdenSplitter
 			CloserUtil.close(in);
 			CloserUtil.close(fos);
 			CloserUtil.close(pw);
+			CloserUtil.close(galaxyw);
+			CloserUtil.close(galaxyf);
 			}
 		}
 		

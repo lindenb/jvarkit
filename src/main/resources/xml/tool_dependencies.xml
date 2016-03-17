@@ -11,7 +11,7 @@
 					<source_directory>.</source_directory>
 					<destination_directory>$REPOSITORY_INSTALL_DIR</destination_directory>
 				</action>
-				<action type="shell_command">make -C $REPOSITORY_INSTALL_DIR -f $REPOSITORY_INSTALL_DIR/Makefile __TARGET__</action>
+				<action type="shell_command">make -C $REPOSITORY_INSTALL_DIR -f $REPOSITORY_INSTALL_DIR/Makefile galaxy</action>
 			
 			</actions>
 		</install>

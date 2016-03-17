@@ -96,6 +96,9 @@ Date: <xsl:value-of select="date:date-time()"/>
 <xsl:template match="c:option" mode="input">
 <xsl:choose>
 	<xsl:when test="@galaxy:ignore='true'"></xsl:when>
+	<xsl:when test="galaxy:param">
+		<xsl:apply-templates select="galaxy:param" mode="custom_option_param"/>
+	</xsl:when>
 	<xsl:when test="@type='string-list'">
 		<repeat>
 			<xsl:attribute name="name"><xsl:value-of select="@name"/>_list</xsl:attribute>
@@ -175,6 +178,7 @@ Date: <xsl:value-of select="date:date-time()"/>
 		</param>
 	</xsl:when>
 	<xsl:when test="@opt='o' and /c:app/c:output/@type='vcf'"></xsl:when>
+	<xsl:when test="@opt='o' and /c:app/c:output/@type='zip'"></xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate="yes">c:option/mode=input : unknown input for '<xsl:value-of select="@name"/>/<xsl:value-of select="@type"/>'</xsl:message>
 	</xsl:otherwise>
@@ -206,6 +210,7 @@ Date: <xsl:value-of select="date:date-time()"/>
 			<xsl:attribute name="name"><xsl:value-of select="@name"/></xsl:attribute>
 		</data>
 	</xsl:when>
+	<xsl:when test="@opt='o'"></xsl:when>
 	<xsl:otherwise>
 		<xsl:message terminate="yes">c:option/mode=output : unknown output for '<xsl:value-of select="@name"/>/<xsl:value-of select="@type"/>'</xsl:message>
 	</xsl:otherwise>
@@ -323,6 +328,15 @@ Date: <xsl:value-of select="date:date-time()"/>
 		<xsl:message terminate="yes">unknown option type '<xsl:value-of select="@type"/>'</xsl:message>
   </xsl:otherwise>
 </xsl:choose>
+</xsl:template>
+
+<!--  == cutsom param under tag <option< ======================================================================== -->
+<xsl:template match="galaxy:param" mode="custom_option_param">
+<param>
+	<xsl:if test="not(@name)"><xsl:attribute name="name"><xsl:value-of select="../@name"/></xsl:attribute></xsl:if>
+	<xsl:if test="not(@label)"><xsl:attribute name="label"><xsl:value-of select="../c:description"/></xsl:attribute></xsl:if>
+	<xsl:apply-templates select="galaxy:*|text()"/>
+</param>
 </xsl:template>
 
 <!--  ======================================================================== -->

@@ -106,18 +106,18 @@
 	</xsl:if>
 
 	<xsl:if test="/c:app/c:snippet[@id='sorting-collection']">
-		<c:option name="maxRecordsInRam" type="int" arg-name="NUMBER" label="Max Records in RAM" opt="maxRecordsInRam" longopt="maxRecordsInRam" default="500000">
-			<c:description>When writing SAM files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM file, and increases the amount of RAM needed.</c:description>
+		<c:option name="maxRecordsInRam" type="int" arg-name="NUMBER" label="Max Records in RAM" opt="maxRecordsInRam" longopt="maxRecordsInRam" default="500000" galaxy:ignore="true">
+			<c:description>When writing files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM/VCF/... file, and increases the amount of RAM needed.</c:description>
 		</c:option>
 	</xsl:if>
 	
 	<xsl:if test="/c:app/c:snippet[@id='sorting-collection'] or /c:app/c:snippet[@id='tmp-dir']" >
-		<c:option name="tmpdir" type="input-directory" arg-name="TMPDIR" label="Temporary directory" opt="tmpdir" longopt="tmpdir" >
-			<c:description>Set tmp directory</c:description>
+		<c:option name="tmpdir" type="input-directory" arg-name="TMPDIR" label="Temporary directory" opt="tmpdir" longopt="tmpdir" galaxy:ignore="true" >
+			<c:description>Set temporary directory</c:description>
 		</c:option>
 	</xsl:if>
 		<xsl:if test="/c:app/c:snippet[@id='http.proxy']">
-		<c:option name="http_proxy_str" type="string" argname="HOST:PORT" opt="http_proxy" longopt="http_proxy">
+		<c:option name="http_proxy_str" type="string" argname="HOST:PORT" opt="http_proxy" longopt="http_proxy" galaxy:ignore="true">
 			<c:description>set the http and the https proxy ( HOST:PORT ) </c:description>
 		</c:option>
 	</xsl:if>
@@ -132,7 +132,7 @@
 	</xsl:if>
 	
 	<xsl:if test="/c:app/c:snippet[@id='berkeleydb']">
-	<c:option name="berkeleyDbHome" type="input-directory" argname="BDB.HOME" opt="bdbHome" longopt="bdbHome" >
+	<c:option name="berkeleyDbHome" type="input-directory" argname="BDB.HOME" opt="bdbHome" longopt="bdbHome" galaxy:ignore="true">
 		<c:description>BerkeleyDB home directory used to store data</c:description>
 	</c:option>
 	</xsl:if>

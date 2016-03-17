@@ -351,19 +351,14 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		<xsl:if test="not(@generate-output-option='false')">
 
-		
+		/** open output (file or stdout) as PrintWriter */
 		protected java.io.PrintWriter openFileOrStdoutAsPrintWriter() throws java.io.IOException
 			{
 			if(getOutputFile()!=null)
 				{
-				if(getOutputFile().getName().endsWith(".vcf.gz") || 
-				   getOutputFile().getName().endsWith(".bed.gz"))
+				if(getOutputFile().getName().endsWith(".gz"))
 					{
-					return new java.io.PrintWriter(new htsjdk.samtools.util.BlockCompressedOutputStream(getOutputFile()));
-					}
-				else if(getOutputFile().getName().endsWith(".gz"))
-					{
-					return new java.io.PrintWriter(new java.util.zip.GZIPOutputStream(new java.io.FileOutputStream(getOutputFile())));
+					return new java.io.PrintWriter(this.openFileOrStdoutAsStream());
 					}
 				return new java.io.PrintWriter(getOutputFile());
 				}
@@ -373,18 +368,21 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				}
 			}
 		
+		/** open output (file or stdout) as PrintStream */
 		protected java.io.PrintStream openFileOrStdoutAsPrintStream() throws java.io.IOException
 			{
 			if(getOutputFile()!=null)
 				{
-				if(getOutputFile().getName().endsWith(".vcf.gz") || 
-				   getOutputFile().getName().endsWith(".bed.gz"))
+				if(getOutputFile().getName().endsWith(".gz"))
 					{
-					return new java.io.PrintStream(new htsjdk.samtools.util.BlockCompressedOutputStream(getOutputFile()));
-					}
-				else if(getOutputFile().getName().endsWith(".gz"))
-					{
-					return new java.io.PrintStream(new java.util.zip.GZIPOutputStream(new java.io.FileOutputStream(getOutputFile())));
+					final java.io.OutputStream os = this.openFileOrStdoutAsStream();
+					if(os instanceof java.io.PrintStream) {
+						return java.io.PrintStream.class.cast(os);
+						}
+					else
+						{
+						return new java.io.PrintStream(os);
+						}
 					}
 				return new java.io.PrintStream(getOutputFile());
 				}
@@ -393,6 +391,8 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				return stdout();
 				}
 			}
+		
+		/** open output (file or stdout) as OutputStream */
 		protected java.io.OutputStream openFileOrStdoutAsStream() throws java.io.IOException
 			{
 			if(getOutputFile()!=null)
@@ -422,7 +422,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			throw new RuntimeException("No implemented!!!");
 			}
 		
-		protected java.util.Collection&lt;Throwable&gt; doVcfToVcf(String inputName) throws Exception
+		protected java.util.Collection&lt;Throwable&gt; doVcfToVcf(final String inputName) throws Exception
 			{
 			com.github.lindenb.jvarkit.util.vcf.VcfIterator in = null;
 			htsjdk.variant.variantcontext.writer.VariantContextWriter w=null;
@@ -448,32 +448,22 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			
 		/** count variants */
 		private int <xsl:value-of select="concat('count_variants_',generate-id())"/> = 0;
-		protected class VariantContextWriterCounter implements htsjdk.variant.variantcontext.writer.VariantContextWriter
+		protected class VariantContextWriterCounter extends com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter
 			{
-			final htsjdk.variant.variantcontext.writer.VariantContextWriter delegate;
 			VariantContextWriterCounter(final htsjdk.variant.variantcontext.writer.VariantContextWriter delegate)
 				{
-				this.delegate=delegate;
+				super(delegate);
 				<xsl:value-of select="concat('count_variants_',generate-id())"/> = 0 ; 
 				}
 			@Override
 			public void add(final htsjdk.variant.variantcontext.VariantContext vc) {
-				this.delegate.add(vc);
+				super.add(vc);
 				++<xsl:value-of select="concat('count_variants_',generate-id())"/>;
 				}
-			@Override
-			public boolean checkError() {
-				return this.delegate.checkError();
-				}
-			@Override
-			public void close() {
-				try { this.delegate.close(); } catch(Throwable err) {
-					/* https://github.com/samtools/htsjdk/issues/469 */
-					}
-				}
+			
 			@Override
 			public void writeHeader(final htsjdk.variant.vcf.VCFHeader header) {
-				this.delegate.writeHeader(header);
+				super.writeHeader(header);
 				<xsl:value-of select="concat('count_variants_',generate-id())"/> = 0;
 				}
 
@@ -507,11 +497,13 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			return metaData;
 			}
 		
+		
+		
 		/* creates a VariantContextWriter according to FileOUt */
 		protected  VariantContextWriterCounter openVariantContextWriter()
 			throws java.io.IOException
 			{
-			htsjdk.variant.variantcontext.writer.VariantContextWriter delegate = null;
+			final htsjdk.variant.variantcontext.writer.VariantContextWriter delegate;
 			if(getOutputFile()!=null)
 				{
 				delegate = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVariantContextWriter(this.getOutputFile());
@@ -527,6 +519,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 
 		<xsl:if test="c:input/@type='sam' or c:snippet[@id='read-sam']">
 		
+		/** create a new SamReaderFactory */
 		protected htsjdk.samtools.SamReaderFactory createSamReaderFactory()
 			{
 			return  htsjdk.samtools.SamReaderFactory.makeDefault().validationStringency(htsjdk.samtools.ValidationStringency.LENIENT);

@@ -153,7 +153,7 @@ endef
 # 
 # All executables
 #
-GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele vcfin vcffilterso vcffilterjs 
+GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele vcfin vcffilterso vcffilterjs vcfburdensplitter
 
 APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
@@ -186,7 +186,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
-	vcfburdensplitter  vcfremovegenotypejs vcfgenesplitter
+	vcfremovegenotypejs vcfgenesplitter
 
 .PHONY: all tests $(APPS) clean download_all_maven library top ${dist.dir}/jvarkit-${htsjdk.version}.jar galaxy
 
@@ -204,7 +204,8 @@ all: $(APPS)
 
 galaxy: ${GALAXY_APPS}
 	mkdir -p '${galaxy.dir}'
-	sed 's%__TARGET__%$^%' ${this.dir}src/main/resources/xml/tool_dependencies.xml > ${galaxy.dir}/tool_dependencies.xml
+	cp ${this.dir}src/main/resources/xml/tool_dependencies.xml ${galaxy.dir}/tool_dependencies.xml
+	echo "$^" | tr " " "\n" | awk 'BEGIN {printf("<section id=\"jvk\" name=\"JVARKIT\">\n");} {printf("  <tool file=\"jvarkit/%s\"/>\n",$$1);} END { printf("</section>\n");}' >  ${galaxy.dir}/tool_conf.fragment
 	
 
 tests: 
@@ -441,7 +442,7 @@ $(eval $(call compile-htsjdk-cmd,msa2vcf,${jvarkit.package}.tools.msa2vcf.MsaToV
 $(eval $(call compile-htsjdk-cmd,samslop,${jvarkit.package}.tools.misc.SamSlop))
 $(eval $(call compile-htsjdk-cmd,projectserver,${jvarkit.package}.tools.server.ProjectServer,${jetty.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfcalledwithanothermethod,${jvarkit.package}.tools.misc.VcfCalledWithAnotherMethod))
-$(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burden.VcfBurdenSplitter))
+$(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burden.VcfBurdenSplitter,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenf2,${jvarkit.package}.tools.burden.VcfBurdenFilter2,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenf3,${jvarkit.package}.tools.burden.VcfBurdenFilter3,galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfgenesplitter,${jvarkit.package}.tools.misc.VcfGeneSplitter))

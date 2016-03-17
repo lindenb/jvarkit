@@ -8,6 +8,7 @@
 	 xmlns:xi="http://www.w3.org/2001/XInclude"
 	 xmlns:h="http://www.w3.org/1999/xhtml"
 	 xmlns:svg="http://www.w3.org/2000/svg"
+	 xmlns:galaxy="https://usegalaxy.org/"
 	 app="&name;"
 	 package="&package;"
 	 __placeholder__="1"
@@ -15,31 +16,91 @@
 
 <description>Split VCF Using a Burden Splitter (by gene, transcript, etc..)</description>
 <input type="vcf"/>
-<output type="vcf"/>
+<output type="zip"/>
 <snippet id="sorting-collection"/>
+<snippet id="write-vcf"/>
 
 <options>
 	<option name="casesFile" type="input-file" longopt="cases" opt="cas">
-		<description>Path to a pedigree )containing the names of the CASES. <doc id="pedigree-file"/></description>
+		<description>Path to a pedigree containing the names of the CASES. <doc id="pedigree-file"/></description>
 	</option>
 	<option name="controlsFile" type="input-file" longopt="controls" opt="ctrl">
 		<description>Path to a pedigree containing the names of the CONTROLS. <doc id="pedigree-file"/></description>
 	</option>
-	<option name="baseZipDir" type="string" longopt="zipdir" opt="zipdir" default="burden">
+	<option galaxy:ignore="true" name="baseZipDir" type="string" longopt="zipdir" opt="zipdir" default="burden">
 		<description>Base zip entry</description>
 	</option>
-	<option name="listSplitter" type="boolean" longopt="listsplitters" opt="ls" default="false">
+	<option galaxy:ignore="true" name="listSplitter" type="boolean" longopt="listsplitters" opt="ls" default="false">
 		<description>List available splitters and exit</description>
 	</option>
 	<option name="splitterName" type="string" longopt="splitterName" opt="sp" default="vepso">
 		<description>Splitter Name</description>
+		<galaxy:param type="select">
+             <galaxy:option value="vep" >vep. All Ensembl Variant Effect Prediction</galaxy:option>
+             <galaxy:option value="vepso" selected="true">vepso : VEP affecting proteins</galaxy:option>
+             <galaxy:option value="vephd">vephd : VEP high damage</galaxy:option>
+		</galaxy:param>
 	</option>
 	<option name="acceptFiltered" type="boolean" longopt="ignorefilter" opt="if" default="false">
 		<description>accept variants having a FILTER column. Default is ignore variants with a FILTER column</description>
 	</option>
+	<option galaxy:ignore="true" name="galaxyHtmlPath" type="string" longopt="galaxyhtml" opt="gh" default="">
+		<description>When used with galaxy, the files will be expanded in that path. </description>
+	</option>
 </options>
 
+<galaxy:galaxy>
+	<galaxy:command>(gunzip -c ${input} 2&gt; /dev/null || cat ${input}) |  java  -jar  \$JVARKIT_DIST/vcfburdensplitter.jar  -o '${outputFile}.zip'    -galaxyHtmlPath "$html_file.files_path"  -cas '${casesFile}'  -ctrl '${controlsFile}'  -sp '${splitterName}'   ${acceptFiltered}    -o '${outputFile}.zip' &amp;&amp; cp '${outputFile}.zip' '${outputFile}' &amp;&amp; rm '${outputFile}.zip'</galaxy:command>
+  <galaxy:outputs>
+    <galaxy:qdata format="html" name="outputFile"/>
+  </galaxy:outputs>
+</galaxy:galaxy>
+
+
 <documentation>
+This tools reads a VCF  (it should be annotated with VEP) and split data into genomic area of interest (géne, transcripts...).
+For each area, a small VCF is produced and a Fished test is computed.
+The final output is a zip file containing the VCFs as well as a summary file 'fisher.bed' 
+
+<h:pre><![CDATA[$ unzip -t out.zip
+Archive:  jeter.zip
+    testing: burden/ENSG_1_ENSG00000007400.vcf   OK
+    testing: burden/ENSG_1_ENSG00000038912.vcf   OK
+    testing: burden/ENSG_1_ENSG00000050460.vcf   OK
+    testing: burden/ENSG_1_ENSG00000097360.vcf   OK
+
+    (...)
+    testing: burden/fisher.bed        OK
+]]></h:pre>
+
+<h:h4>Fisher.bed file</h:h4>
+
+<h:pre><![CDATA[$ unzip jeter.zip burden/fisher.bed
+Archive:  out.zip
+  inflating: burden/fisher.bed       
+
+$ more burden/fisher.bed 
+#chrom  start   end key Fisher  Count_Variants  Count_non_filtered_Variants
+12  7156291    71690259    ENSG_10_105    0.7855502803319143  15  14
+12  1280   1292668   ENSG_10_173    0.47257890414433446 33  31
+12  9506    9524944    ENSG_10_26   0.5642965529949753  64  61
+12  7583    75845    ENSG_10_74   0.6112264683630495  25  25
+12  75830    7587    ENSG_10_ENSG03 0.6112264683630495  25  25
+12  9506    952194    ENSG_10_ENSG19 0.6144896143655698  67  62
+12  1287   12968   ENSG_10_ENSG760 0.47257890414433446 33  31
+12  715    71031    ENSG_10_ENSG67 1.0 17  16
+13  74    7469    ENSG_11_108   0.42098345305788265 3   3
+13  101   1035   ENSG_11_25  0.3999191285392515  10  9
+(...)
+]]></h:pre>
+
+In the VCF file, I added the Fisher value into the field: 'VCFBurdenSplitFisher':
+<h:pre><![CDATA[
+(...)
+##VCFBurdenSplitFisher=0.013575884259900603
+(...)
+]]></h:pre>
+
 </documentation>
 
 <!-- __PLACEHOLDER__ -->
