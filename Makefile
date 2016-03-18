@@ -153,7 +153,7 @@ endef
 # 
 # All executables
 #
-GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele vcfin vcffilterso vcffilterjs vcfburdensplitter
+GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenf2 vcfburdenf3 vcfmulti2oneallele vcfin vcffilterso vcffilterjs vcfburdensplitter vcfpredictions
 
 APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
@@ -177,7 +177,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	vcfbedjs	vcfbiomart	vcfcadd	vcfcmppred	vcfcomm	vcfcompare	vcfcomparegt \
 	vcfconcat	vcfcutsamples	vcffilterdoid		vcfgo \
 	vcfjaspar	vcfliftover	vcfmapuniprot	vcfmerge	vcfmulti2one \
-	vcfpolyx	vcfpredictions	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
+	vcfpolyx	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats vcfcombinetwosnvs vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
@@ -383,7 +383,7 @@ $(eval $(call compile-htsjdk-cmd,vcfmapuniprot,${jvarkit.package}.tools.misc.Vcf
 $(eval $(call compile-htsjdk-cmd,vcfmerge,${jvarkit.package}.tools.vcfmerge.VCFMerge2))
 $(eval $(call compile-htsjdk-cmd,vcfmulti2one,${jvarkit.package}.tools.onesamplevcf.VcfMultiToOne))
 $(eval $(call compile-htsjdk-cmd,vcfpolyx,${jvarkit.package}.tools.misc.VCFPolyX))
-$(eval $(call compile-htsjdk-cmd,vcfpredictions,${jvarkit.package}.tools.vcfannot.VCFAnnotator))
+$(eval $(call compile-htsjdk-cmd,vcfpredictions,${jvarkit.package}.tools.vcfannot.VCFPredictions,wiki_flag galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfrebase,${jvarkit.package}.tools.vcfrebase.VcfRebase))
 $(eval $(call compile-cgi-cmd,vcfregistry.cgi))
 $(eval $(call compile-htsjdk-cmd,vcfregulomedb,${jvarkit.package}.tools.misc.VcfRegulomeDB))

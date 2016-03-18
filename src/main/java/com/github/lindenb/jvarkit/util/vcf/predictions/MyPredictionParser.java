@@ -16,7 +16,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.tools.vcfannot.VCFAnnotator;
+import com.github.lindenb.jvarkit.tools.vcfannot.VCFPredictions;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
 /**
@@ -26,13 +26,13 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 public class MyPredictionParser implements PredictionParser
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
-	private Map<VCFAnnotator.FORMAT1, Integer> col2col=new HashMap<VCFAnnotator.FORMAT1, Integer>();
+	private Map<VCFPredictions.FORMAT1, Integer> col2col=new HashMap<VCFPredictions.FORMAT1, Integer>();
 
 	private Pattern pipe=Pattern.compile("[\\|]");
 
 	public final String getTag()
 		{
-		return VCFAnnotator.TAG;
+		return VCFPredictions.TAG;
 		}
 	
 	
@@ -59,8 +59,8 @@ public class MyPredictionParser implements PredictionParser
 		for(i=0;i< tokens.length;++i)
 			{
 			if(tokens[i].isEmpty()) continue;
-			VCFAnnotator.FORMAT1 col=null;
-			for(VCFAnnotator.FORMAT1 c:VCFAnnotator.FORMAT1.values())
+			VCFPredictions.FORMAT1 col=null;
+			for(VCFPredictions.FORMAT1 c:VCFPredictions.FORMAT1.values())
 				{
 				if(c.name().equalsIgnoreCase(tokens[i]))
 					{
@@ -127,7 +127,7 @@ public class MyPredictionParser implements PredictionParser
 			{
 			this.tokens=tokens;
 			}			
-		private String getByCol(VCFAnnotator.FORMAT1 col)
+		private String getByCol(VCFPredictions.FORMAT1 col)
 			{
 			Integer idx=col2col.get(col);
 			if(idx==null || idx>=tokens.length || tokens[idx].isEmpty())
@@ -139,7 +139,7 @@ public class MyPredictionParser implements PredictionParser
 		
 		public String getTranscript()
 			{
-			return getByCol(VCFAnnotator.FORMAT1.TRANSCRIPT);
+			return getByCol(VCFPredictions.FORMAT1.TRANSCRIPT);
 			}
 		
 		
@@ -150,10 +150,10 @@ public class MyPredictionParser implements PredictionParser
 			}
 		
 		
-		private Map<VCFAnnotator.FORMAT1,String> getMap()
+		private Map<VCFPredictions.FORMAT1,String> getMap()
 			{
-			Map<VCFAnnotator.FORMAT1, String> hash=new HashMap<VCFAnnotator.FORMAT1,String>();
-			for(VCFAnnotator.FORMAT1 c: col2col.keySet())
+			Map<VCFPredictions.FORMAT1, String> hash=new HashMap<VCFPredictions.FORMAT1,String>();
+			for(VCFPredictions.FORMAT1 c: col2col.keySet())
 				{
 				int idx=col2col.get(c);
 				if(idx>=this.tokens.length) continue;
@@ -165,7 +165,7 @@ public class MyPredictionParser implements PredictionParser
 		
 		public String getCodonChange()
 			{
-			return getByCol(VCFAnnotator.FORMAT1.CODON);
+			return getByCol(VCFPredictions.FORMAT1.CODON);
 			}
 		
 		public String getAltCodon()
@@ -189,7 +189,7 @@ public class MyPredictionParser implements PredictionParser
 		
 		public String getAminoAcidChange()
 			{
-			return getByCol(VCFAnnotator.FORMAT1.AA);
+			return getByCol(VCFPredictions.FORMAT1.AA);
 			}
 		
 		@Override
@@ -205,7 +205,7 @@ public class MyPredictionParser implements PredictionParser
 		@Override
 		public Integer getAminoAcidPosition()
 			{
-			String s= getByCol(VCFAnnotator.FORMAT1.PROTPOS);
+			String s= getByCol(VCFPredictions.FORMAT1.PROTPOS);
 			if(s==null || s.isEmpty()) return null;
 			try {
 				return Integer.parseInt(s);
@@ -242,7 +242,7 @@ public class MyPredictionParser implements PredictionParser
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
 			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
-			String EFF=getByCol(VCFAnnotator.FORMAT1.SEQONTOLOGY);
+			String EFF=getByCol(VCFPredictions.FORMAT1.SEQONTOLOGY);
 			if(EFF==null) return set;
 			for(SequenceOntologyTree.Term t:SequenceOntologyTree.getInstance().getTerms())
 				{

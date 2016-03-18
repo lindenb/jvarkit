@@ -15,7 +15,7 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import com.github.lindenb.jvarkit.tools.vcfannot.VCFAnnotator;
+import com.github.lindenb.jvarkit.tools.vcfannot.VCFPredictions;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -160,7 +160,7 @@ public class RDFVcfWriter
 				}
 			key2infoHandler.put(SnpEffPredictionParser.getDefaultTag(), new SnpEffHandler());
 			key2infoHandler.put(VepPredictionParser.getDefaultTag(), new VepHandler());
-			key2infoHandler.put(VCFAnnotator.TAG, new MyPredictionHandler());
+			key2infoHandler.put(VCFPredictions.TAG, new MyPredictionHandler());
 			for(VCFInfoHeaderLine h:header.getInfoHeaderLines())
 				{
 				RDFVcfInfoHandler handler= key2infoHandler.get(h.getID());

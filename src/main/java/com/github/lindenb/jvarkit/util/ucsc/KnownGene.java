@@ -70,7 +70,6 @@ public class KnownGene implements Iterable<Integer>,Feature
 		return getChromosome();
 		}
 	
-	
 	@Override
 	public final int getStart() {
 		return getTxStart();
@@ -372,7 +371,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			}
 		
 		
-		public KnownGene(String tokens[])
+		public KnownGene(final String tokens[])
 			{
 			this.name = tokens[0];
 			this.chrom= tokens[1];
@@ -387,12 +386,12 @@ public class KnownGene implements Iterable<Integer>,Feature
 	            
             
             int index=0;
-            for(String s: tokens[8].split("[,]"))
+            for(final String s: tokens[8].split("[,]"))
             	{
             	this.exonStarts[index++]=Integer.parseInt(s);
             	}
             index=0;
-            for(String s: tokens[9].split("[,]"))
+            for(final String s: tokens[9].split("[,]"))
             	{
             	this.exonEnds[index++]=Integer.parseInt(s);
             	}
@@ -404,7 +403,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.name;
 			}
 		
-		public void setName(String name) {
+		public void setName(final String name) {
 			this.name = name;
 		}
 		
@@ -414,7 +413,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.chrom;
 			}
 		
-		public void setChrom(String chrom) {
+		public void setChrom(final String chrom) {
 			this.chrom = chrom;
 			}
 		
@@ -444,7 +443,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 	    	return getStrand()==Strand.NEGATIVE;
 	    	}
 
-		public void setTxStart(int txStart) {
+		public void setTxStart(final int txStart) {
 			this.txStart = txStart;
 		}
 		public int getTxStart()
@@ -452,7 +451,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.txStart;
 			}
 		
-		public void setTxEnd(int txEnd) {
+		public void setTxEnd(final int txEnd) {
 			this.txEnd = txEnd;
 			}
 
@@ -461,7 +460,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.txEnd;
 			}
 		
-		public void setCdsStart(int cdsStart) {
+		public void setCdsStart(final int cdsStart) {
 			this.cdsStart = cdsStart;
 			}
 		public int getCdsStart()
@@ -469,7 +468,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.cdsStart;
 			}
 		
-		public void setCdsEnd(int cdsEnd) {
+		public void setCdsEnd(final int cdsEnd) {
 			this.cdsEnd = cdsEnd;
 			}
 		public int getCdsEnd()
@@ -478,17 +477,17 @@ public class KnownGene implements Iterable<Integer>,Feature
 			}
 		
 
-		public void setExonBounds(int exonCount,String exonStarts,String exonEnds)
+		public void setExonBounds(final int exonCount,final String exonStarts,final String exonEnds)
 			{
 			this.exonStarts=new int[exonCount];
 			this.exonEnds=new int[exonCount];
 			int i=0;
-			for(String s: exonStarts.split("[,]"))
+			for(final String s: exonStarts.split("[,]"))
 				{
 				this.exonStarts[i++]=Integer.parseInt(s);
 				}
 			i=0;
-			for(String s: exonEnds.split("[,]"))
+			for(final String s: exonEnds.split("[,]"))
 				{
 				this.exonEnds[i++]=Integer.parseInt(s);
 				}
