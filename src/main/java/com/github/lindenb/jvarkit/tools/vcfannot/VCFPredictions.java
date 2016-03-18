@@ -67,7 +67,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  */
 public class VCFPredictions extends AbstractVCFPredictions
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractVCFAnnotator.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFPredictions.class);
 	private IntervalTreeMap<KnownGene> knownGenes=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
