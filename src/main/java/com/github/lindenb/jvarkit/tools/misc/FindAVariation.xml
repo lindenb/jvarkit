@@ -20,6 +20,20 @@
 
 </options>
 
+<documentation>
+The program will try to fix the chromosome names according to the dictionary in the VCF headers.
+
+<h:h3>Example</h:h3>
+<h:pre><![CDATA[$ find ./ -name "*.vcf" -o -name "*.vcf.gz" |\
+   java -jar dist/findamutation.jar -p "chr1:1234" 
+
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	1	8216713	8216713	yossi-1		NA12878	HET	A G
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	1	8216713	8216713	yossi-1		NA12891	HET	A G
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	1	8216713	8216713	yossi-1		NA12892	HET	A G
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2	2	2	.		NA12878	HOM_REF	C C
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2	2	2	.		NA12891	HET	C T
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2	2	2	.		NA12892	HET	C T]]></h:pre></documentation>
+
 
 <!-- __PLACEHOLDER__ -->
 </app>

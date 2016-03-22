@@ -47,6 +47,34 @@
 	<option galaxy:ignore="true" name="galaxyHtmlPath" type="string" longopt="galaxyhtml" opt="gh" default="">
 		<description>When used with galaxy, the files will be expanded in that path. </description>
 	</option>
+	<option name="ignoreVepFeature" opt="vepFeature" longopt="vepFeature" type="boolean" default="false">
+		<description>Ignore VEP 'FEATURE' (transcript)</description>
+	</option>
+	<option name="ignoreVepHgnc" opt="vepHgnc" longopt="vepHgnc" type="boolean" default="false">
+		<description>Ignore VEP 'HGNC'</description>
+	</option>
+	<option name="ignoreVepEnsg" opt="vepEnsg" longopt="vepEnsg" type="boolean" default="false">
+		<description>Ignore VEP 'ENSG'</description>
+	</option>
+	<option name="ignoreVepEnst" opt="vepEnst" longopt="vepEnst" type="boolean" default="false">
+		<description>Ignore VEP 'FEATURE' starting with 'ENST'</description>
+	</option>
+	<option name="ignoreVepEnsp" opt="vepEnsp" longopt="vepEnsp" type="boolean" default="false">
+		<description>Ignore VEP 'ENSP'</description>
+	</option>
+	<option name="ignoreVepSymbol" opt="vepSymbol" longopt="vepSymbol" type="boolean" default="false">
+		<description>Ignore VEP 'SYMBOL'</description>
+	</option>
+	<option name="ignoreVepRefSeq" opt="vepRefSeq" longopt="vepRefSeq" type="boolean" default="false">
+		<description>Ignore VEP 'SYMBOL'= XM_ or NM_</description>
+	</option>
+	
+	<option name="ignoreAllNM" opt="all_nm" longopt="all_nm" type="boolean" default="false">
+		<description>Ignore grouping by ALL_NM : gene not empty and transcript starting with NM_ </description>
+	</option>
+	<option name="ignoreAllRefSeq" opt="all_refseq" longopt="all_refseq" type="boolean" default="false">
+		<description>Ignore grouping by ALL_REFSEQ: gene not empty and transcript NOT starting with ENST</description>
+	</option>
 </options>
 
 <galaxy:galaxy>

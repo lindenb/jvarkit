@@ -59,9 +59,9 @@ public class FindAVariation extends AbstractFindAVariation
 
 	private static class Mutation
 		{
-		String chrom;
-		int pos;
-		Mutation(String chrom,int pos)
+		final String chrom;
+		final int pos;
+		Mutation(final String chrom,final int pos)
 			{
 			this.chrom=chrom;
 			this.pos=pos;
@@ -76,9 +76,9 @@ public class FindAVariation extends AbstractFindAVariation
 			return result;
 			}
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj)return true;
-			Mutation other = (Mutation) obj;
+			final Mutation other = (Mutation) obj;
 			if (pos != other.pos) return false;
 			 if (!chrom.equals(other.chrom))
 				return false;
@@ -92,16 +92,15 @@ public class FindAVariation extends AbstractFindAVariation
 			}
 		
 		}
-	private Set<Mutation> mutations=new HashSet<Mutation>();
+	private final Set<Mutation> mutations=new HashSet<Mutation>();
 	private PrintWriter out=null;
 	
     private FindAVariation()
     	{
-    	
     	}		
    
     
-    private void reportPos(File f,VCFHeader header,VariantContext ctx)
+    private void reportPos(final File f,final VCFHeader header,final VariantContext ctx)
 		{
 		out.print(f);
 		out.print('\t');
@@ -117,9 +116,9 @@ public class FindAVariation extends AbstractFindAVariation
 		}	
 
     
-    private void report(File f,VCFHeader header,VariantContext ctx)
+    private void report(final File f,final VCFHeader header,final VariantContext ctx)
     	{
-    	GenotypesContext genotypes=ctx.getGenotypes();
+    	final GenotypesContext genotypes=ctx.getGenotypes();
     	if(genotypes==null || genotypes.isEmpty())
     		{
     		reportPos(f,header,ctx);
@@ -151,7 +150,7 @@ public class FindAVariation extends AbstractFindAVariation
     				}
     			if(DP4header!=null)
     				{
-    				Object dp4=g.getExtendedAttribute("DP4");
+    				final  Object dp4=g.getExtendedAttribute("DP4");
     				if(dp4!=null )
     					{
     					out.print('\t');
@@ -163,12 +162,12 @@ public class FindAVariation extends AbstractFindAVariation
     		}
     	}	
     
-    private Set<Mutation> convertFromVcfHeader(File f,VCFHeader h)
+    private Set<Mutation> convertFromVcfHeader(final File f,final VCFHeader h)
     	{
-    	Set<Mutation> copy=new HashSet<Mutation>(this.mutations.size());
-    	for(Mutation m:this.mutations)
+    	final Set<Mutation> copy=new HashSet<Mutation>(this.mutations.size());
+    	for(final Mutation m:this.mutations)
     		{
-    		String s=VCFUtils.findChromNameEquivalent(m.chrom,h);
+    		final String s=VCFUtils.findChromNameEquivalent(m.chrom,h);
     		if(s==null)
     			{
     			LOG.warn("Cannot convert chrom "+s+" in "+f);
@@ -179,13 +178,13 @@ public class FindAVariation extends AbstractFindAVariation
     	return copy;
     	}
 
-    private void scan(BufferedReader in) throws IOException
+    private void scan(final BufferedReader in) throws IOException
     	{
     	String line;
     	while((line=in.readLine())!=null)
 			{
 			if(line.isEmpty() || line.startsWith("#")) continue;
-			File f=new File(line);
+			final File f=new File(line);
 			if(!f.isFile()) continue;
 			if(!f.canRead()) continue;
 			if(!VCFUtils.isVcfFile(f)) continue;
@@ -198,9 +197,9 @@ public class FindAVariation extends AbstractFindAVariation
 					{
 					r=new TabixVcfFileReader(f.getPath());
 					final VCFHeader header =r.getHeader();
-					for(Mutation m:convertFromVcfHeader(f,header))
+					for(final Mutation m:convertFromVcfHeader(f,header))
 						{
-						Iterator<VariantContext> iter2=r.iterator(
+						final Iterator<VariantContext> iter2 = r.iterator(
 								m.chrom, m.pos, m.pos);
 						while(iter2.hasNext())
 							{
@@ -209,11 +208,11 @@ public class FindAVariation extends AbstractFindAVariation
 						CloserUtil.close(iter2);
 						}
 					}
-    			catch(htsjdk.tribble.TribbleException.InvalidHeader err)
+    			catch(final htsjdk.tribble.TribbleException.InvalidHeader err)
     				{
     				LOG.warn(f+"\t"+err.getMessage());
     				}
-				catch(Exception err)
+				catch(final Exception err)
 					{
 					LOG.error("cannot read "+f,err);
 					}
@@ -228,23 +227,22 @@ public class FindAVariation extends AbstractFindAVariation
 					{
 					iter=VCFUtils.createVcfIteratorFromFile(f);
 					final VCFHeader header = iter.getHeader();
-					Set<Mutation> mutlist=convertFromVcfHeader(f,iter.getHeader());
+					final Set<Mutation> mutlist=convertFromVcfHeader(f,iter.getHeader());
 					while(iter.hasNext())
 						{
-						VariantContext ctx=iter.next();
-						Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
+						final VariantContext ctx=iter.next();
+						final Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
 						if(mutlist.contains(m))
 							{
 							report(f,header,ctx);
 							}
 						}
-					
 					}
-				catch(htsjdk.tribble.TribbleException.InvalidHeader err)
+				catch(final htsjdk.tribble.TribbleException.InvalidHeader err)
     				{
     				LOG.warn(f+"\t"+err.getMessage());
     				}
-				catch(Exception err)
+				catch(final Exception err)
 					{
 					LOG.error("Error in "+f,err);
 					}
@@ -258,20 +256,20 @@ public class FindAVariation extends AbstractFindAVariation
     	}
     
 
-	private Mutation parseMutation(String s)
+	private Mutation parseMutation(final String s)
 		{
-		int colon=s.indexOf(':');
+		final int colon=s.indexOf(':');
 		if(colon==-1 || colon+1==s.length())
 			{
 			throw new IllegalArgumentException("Bad chrom:pos "+s);
 			}
 		
-		String chrom=s.substring(0,colon).trim();
+		final String chrom=s.substring(0,colon).trim();
 		if(chrom.isEmpty())
 			{
 			throw new IllegalArgumentException("Bad chrom:pos "+s);
 			}
-		Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
+		final Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
 		return m;
 		}
 	
@@ -280,26 +278,26 @@ public class FindAVariation extends AbstractFindAVariation
 		BufferedReader r=null;
 		try
 			{
-			for(File f:super.positionFilesList)
+			for(final File f:super.positionFilesList)
 				{
 				r = IOUtils.openFileForBufferedReading(f);
 				String line;
 				while((line=r.readLine())!=null)
 					{
 					if(line.isEmpty() || line.startsWith("#")) continue;
-					Mutation m= parseMutation(line);
+					final Mutation m= parseMutation(line);
 					LOG.debug("adding "+m);
 					this.mutations.add(m);
 					}
 				}
-			for(String s:super.positionsList)
+			for(final String s:super.positionsList)
 				{
 				Mutation m= parseMutation(s);
 				LOG.debug("adding "+m);
 				this.mutations.add(m);
 				}
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{	
 			return wrapException(err);
 			}
@@ -324,7 +322,7 @@ public class FindAVariation extends AbstractFindAVariation
 				}
 			else
 				{
-				for(String filename: args)
+				for(final String filename: args)
 					{
 					LOG.info("Reading from "+filename);
 					BufferedReader r=IOUtils.openURIForBufferedReading(filename);

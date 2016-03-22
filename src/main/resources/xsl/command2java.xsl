@@ -27,7 +27,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(<xsl:apply-templates select="." mode="abstract-class-name"/>.class);
 	<xsl:apply-templates select=".//c:option"/>
 	
-	<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
+	<xsl:if test="c:output/@type='sam' or c:output/@type='bam' or c:snippet[@id='write-sam']">
 	private htsjdk.samtools.SamReader.Type outputformat= htsjdk.samtools.SamReader.Type.SAM_TYPE;
 	</xsl:if>
 	
@@ -203,7 +203,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			return com.github.lindenb.jvarkit.util.command.Command.Status.OK;
 			}
 		</xsl:if>
-		<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
+		<xsl:if test="c:output/@type='sam' or c:output/@type='bam' or c:snippet[@id='write-sam']">
 		if(opt.getOpt().equals("formatout"))
 			{
 			String formatout= opt.getValue().toLowerCase();
@@ -314,11 +314,16 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		</xsl:if>
 		
-		<xsl:if test="c:output/@type='sam' or c:output/@type='bam'">
+		<xsl:if test="c:output/@type='sam' or c:output/@type='bam' or c:snippet[@id='write-sam']">
+		/** creates a SAMFileWriterFactory */
+		protected htsjdk.samtools.SAMFileWriterFactory createSAMFileWriterFactory() {
+			return new htsjdk.samtools.SAMFileWriterFactory();
+			}
 		
-				protected htsjdk.samtools.SAMFileWriter openSAMFileWriter(final htsjdk.samtools.SAMFileHeader header,final boolean presorted)
+		/** create a SAMFile write from the current output file */
+		protected htsjdk.samtools.SAMFileWriter openSAMFileWriter(final htsjdk.samtools.SAMFileHeader header,final boolean presorted)
 			{
-			final htsjdk.samtools.SAMFileWriterFactory sfw= new htsjdk.samtools.SAMFileWriterFactory();
+			final htsjdk.samtools.SAMFileWriterFactory sfw= this.createSAMFileWriterFactory();
 			if(getOutputFile()==null)
 				{
 				if(this.outputformat==null || this.outputformat.equals(htsjdk.samtools.SamReader.Type.SAM_TYPE))
@@ -338,7 +343,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				}
 			else
 				{
-				LOG.info("Saving as "+ getOutputFile());
+				LOG.info("Saving sam/bam to "+ getOutputFile());
 				return sfw.makeSAMOrBAMWriter(header, presorted, getOutputFile());
 				}
 			}

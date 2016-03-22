@@ -57,7 +57,8 @@ public class VepPredictionParser implements PredictionParser
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 
-	private enum COLS{
+	/* public, used in VcfBurdenFilterGene */
+	public enum COLS{
 		Allele,
 		Gene,
 		Feature,
@@ -157,15 +158,15 @@ public class VepPredictionParser implements PredictionParser
 		return preds;
 		}
 	
-	public VepPrediction parseOnePrediction(VariantContext ctx,Object o)
+	public VepPrediction parseOnePrediction(final VariantContext ctx,final Object o)
 		{
 		if(o==null) return null;
 		if(!(o instanceof String))
 			{
 			return parseOnePrediction(ctx,o.toString());
 			}
-		String s=String.class.cast(o).trim();
-		String tokens[]=pipe.split(s);
+		final String s=String.class.cast(o).trim();
+		final String tokens[]=pipe.split(s);
 		return new VepPrediction(tokens,ctx);
 		}
 	
@@ -200,9 +201,9 @@ public class VepPredictionParser implements PredictionParser
 					}
 				}
 			}
-		private String getByCol(COLS col)
+		public String getByCol(final COLS col)
 			{
-			Integer idx=col2col.get(col);
+			final Integer idx=col2col.get(col);
 			if(idx==null || idx>=tokens.length || tokens[idx].isEmpty())
 				{
 				return null;

@@ -379,7 +379,7 @@ this.<xsl:apply-templates select="." mode="setter"/>(factory.<xsl:apply-template
 	<xsl:when test="@type='int' or @type='double'or @type='long'">false</xsl:when>
 	<xsl:when test="@type='float'">false</xsl:when>
 	<xsl:otherwise>
-		<xsl:message terminate='yes'>nilleable: unknown type <xsl:value-of select="@type"/>.</xsl:message>
+		<xsl:message terminate='yes'>nilleable: unknown type <xsl:value-of select="@type"/> name=<xsl:value-of select="@name"/> opt=<xsl:value-of select="@opt"/>.</xsl:message>
 	</xsl:otherwise>
 </xsl:choose>
 </xsl:template>

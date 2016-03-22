@@ -36,18 +36,14 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 //import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
@@ -64,14 +60,10 @@ import htsjdk.samtools.util.ProgressLoggerInterface;
  * SplitBam
  *
  */
-public class SplitBam3 extends AbstractCommandLineProgram
+public class SplitBam3 extends AbstractSplitBam3
 	{
-	private int maxRecordsInRam=1000000;
-	private boolean ADD_MOCK_RECORD=false;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SplitBam3.class);
 	private final static String REPLACE_GROUPID="__GROUPID__";
-	private String OUT_FILE_PATTERN="";
-	private String UNDERTERMINED_NAME="Unmapped";
-	
 	private long id_generator=System.currentTimeMillis();
 	private java.util.Map<String,SplitGroup> name2group=new java.util.HashMap<String,SplitGroup>();
 	private IntervalTreeMap<SplitGroup> interval2group = new IntervalTreeMap<SplitGroup>();
@@ -80,14 +72,14 @@ public class SplitBam3 extends AbstractCommandLineProgram
 	private class SplitGroup
 		implements SAMFileWriter
 		{
-		String groupName;
+		final String groupName;
 		SAMFileHeader header=null;
 		SAMFileWriter _writer;
 		long count=0L;
 		@SuppressWarnings("unused")
 		ProgressLoggerInterface progress;
 		
-		SplitGroup(String groupName)
+		SplitGroup(final String groupName)
 			{
 			this.groupName=groupName;
 			}
@@ -106,28 +98,27 @@ public class SplitBam3 extends AbstractCommandLineProgram
 							));
 			}
 		
-		public void open(SAMFileHeader src)
+		public void open(final SAMFileHeader src)
 			{	
-			SAMFileWriterFactory samFileWriterFactory=new SAMFileWriterFactory();
-			
-			samFileWriterFactory.setTempDirectory(  SplitBam3.this.getTmpDirectories().get(0) );
+			final SAMFileWriterFactory samFileWriterFactory= SplitBam3.this.createSAMFileWriterFactory();
 			samFileWriterFactory.setMaxRecordsInRam(maxRecordsInRam);
 
 			
-			File fileout=getFile();
-			info("opening BAM file "+fileout);
-			File parent=fileout.getParentFile();
-			if(parent!=null) parent.mkdirs();
+			final File fileout=getFile();
+			LOG.info("opening BAM file "+fileout);
+			final File parent=fileout.getParentFile();
+			if(parent!=null) {
+				parent.mkdirs();
+				samFileWriterFactory.setTempDirectory(parent);
+			}
 
 			
-			this.header=src.clone();
+			this.header= src.clone();
 			this.header.addComment(
-					"Processed with "+getProgramName()+
+					"Processed with "+getName()+
 					" version:"+getVersion()+
 					"CommandLine:"+getProgramCommandLine()
 					);
-			
-			
 			
 			this.header.setSortOrder(SortOrder.coordinate);
 			samFileWriterFactory.setCreateIndex(true);
@@ -141,30 +132,30 @@ public class SplitBam3 extends AbstractCommandLineProgram
 			}
 		
 		@Override
-		public void addAlignment(SAMRecord rec)
+		public void addAlignment(final SAMRecord rec)
 			{
 			this._writer.addAlignment(rec);
 			++this.count;
 			}
 		
 		@Override
-		public void setProgressLogger(ProgressLoggerInterface progress) {
+		public void setProgressLogger(final ProgressLoggerInterface progress) {
 			this.progress=progress;
 			}
 		
 		@Override
 		public void close()
 			{
-			info("CLOSING "+this.groupName+" N="+this.count);
+			LOG.info("CLOSING "+this.groupName+" N="+this.count);
 			if(count==0L && SplitBam3.this.ADD_MOCK_RECORD)
 				{
-				List<SAMReadGroupRecord> G=getFileHeader().getReadGroups();
-				String bases="NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN";
-				SAMRecordFactory f=new DefaultSAMRecordFactory();
+				final List<SAMReadGroupRecord> G=getFileHeader().getReadGroups();
+				final String bases="NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN";
+				final SAMRecordFactory f=new DefaultSAMRecordFactory();
 				++id_generator;
 				for(int i=0;i< 2;++i)
 					{
-					SAMRecord rec=f.createSAMRecord(getFileHeader());
+					final SAMRecord rec=f.createSAMRecord(getFileHeader());
 					rec.setFirstOfPairFlag(i%2==0);
 					rec.setSecondOfPairFlag(i%2==1);
 					rec.setReadBases(bases.getBytes());
@@ -175,7 +166,7 @@ public class SplitBam3 extends AbstractCommandLineProgram
 					rec.setReadPairedFlag(true);
 					String readName="MOCKREAD"+(id_generator)+":1:190:289:82";
 					rec.setReadName(readName);
-					info("generating mock read: "+readName);
+					LOG.info("generating mock read: "+readName);
 					rec.setAttribute("MK",1);
 					if(G!=null && !G.isEmpty())
 						{
@@ -196,13 +187,13 @@ public class SplitBam3 extends AbstractCommandLineProgram
 	
 	private SplitGroup getGroupFromInterval(Interval interval)
 		{
-		Collection<SplitGroup> groups=this.interval2group.getOverlapping(interval);
+		final Collection<SplitGroup> groups=this.interval2group.getOverlapping(interval);
 		if(groups==null || groups.isEmpty()) return null;
 		if(groups.size()!=1) throw new IllegalStateException();
 		return groups.iterator().next();
 		}
 	
-	private void put(String groupName,Interval interval)
+	private void put(final String groupName,final Interval interval)
 		{
 		SplitGroup splitgroup = this.getGroupFromInterval(interval);
 		if(splitgroup!=null && !splitgroup.groupName.equals(groupName))
@@ -224,12 +215,12 @@ public class SplitBam3 extends AbstractCommandLineProgram
 		
 	
 	@SuppressWarnings("resource")
-	private void scan(SamReader samFileReader,File chromGroupFile) throws Exception
+	private void scan(final SamReader samFileReader) throws Exception
 		{
 		try
 			{
 			final SAMFileHeader srcHeader= samFileReader.getFileHeader();
-			SAMSequenceDictionary samSequenceDictionary=samFileReader.getFileHeader().getSequenceDictionary();
+			final SAMSequenceDictionary samSequenceDictionary=samFileReader.getFileHeader().getSequenceDictionary();
 			if(samSequenceDictionary==null || samSequenceDictionary.isEmpty())
 				{
 				throw new IOException(getMessageBundle("file.is.missing.dict"));
@@ -246,17 +237,15 @@ public class SplitBam3 extends AbstractCommandLineProgram
 	
 			
 			
-			if(chromGroupFile!=null)
+			if(super.chromGroupFile!=null)
 				{
-				
-				
 				BufferedReader r=IOUtils.openFileForBufferedReading(chromGroupFile);
 				String line;
 				while((line=r.readLine())!=null)
 					{
 					if(line.isEmpty() || line.startsWith("#")) continue;
-					String tokens[] =line.split("[ \t,]+");
-					String groupName=tokens[0].trim();
+					final String tokens[] =line.split("[ \t,]+");
+					final String groupName=tokens[0].trim();
 					if(groupName.isEmpty()) throw new IOException("Empty group name in "+line);
 					if(this.UNDERTERMINED_NAME.equals(groupName))  throw new IOException("Group cannot be named "+UNDERTERMINED_NAME);
 					if(this.name2group.containsKey(groupName))  throw new IOException("Group defined twice "+groupName);
@@ -295,7 +284,7 @@ public class SplitBam3 extends AbstractCommandLineProgram
 							end = Integer.parseInt(segment.substring(hyphen+1));
 							}
 						
-						Interval interval=new Interval(sequence, start, end);
+						final Interval interval = new Interval(sequence, start, end);
 						this.put(groupName,interval);
 						}
 					}
@@ -303,28 +292,29 @@ public class SplitBam3 extends AbstractCommandLineProgram
 				}
 			else
 				{
-				for(SAMSequenceRecord seq:samSequenceDictionary.getSequences())
+				LOG.info("creating default split interval");
+				for(final SAMSequenceRecord seq:samSequenceDictionary.getSequences())
 					{
-					String groupName=seq.getSequenceName();
-					Interval interval= new Interval(groupName, 1, seq.getSequenceLength());
+					final String groupName=seq.getSequenceName();
+					final Interval interval= new Interval(groupName, 1, seq.getSequenceLength());
 					this.put(groupName,interval);
 					}
 				}
 			
 		
 			/* open all output bams */
-			for(SplitGroup g:this.name2group.values())
+			for(final SplitGroup g:this.name2group.values())
 				{
 				g.open(srcHeader);
 				}
 			
 	        
-	       SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samFileReader.getFileHeader()==null?null:samFileReader.getFileHeader().getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samFileReader.getFileHeader()==null?null:samFileReader.getFileHeader().getSequenceDictionary());
 	        
 			for(Iterator<SAMRecord> iter=samFileReader.iterator();
 					iter.hasNext(); )
 				{
-				SAMRecord record = progress.watch(iter.next());
+				final SAMRecord record = progress.watch(iter.next());
 			
 				Interval interval=null;
 				if( record.getReadUnmappedFlag() )
@@ -362,23 +352,23 @@ public class SplitBam3 extends AbstractCommandLineProgram
 			samFileReader.close();
 			
 			/* copenlose all */
-			for(SplitGroup g:this.name2group.values())
+			for(final SplitGroup g:this.name2group.values())
 				{
 				g.close();
 				}
 			
 			progress.finish();
 			}
-		catch(Exception error)
+		catch(final Exception error)
 			{
-			error(error);
-			for(SplitGroup g:this.name2group.values())
+			LOG.error("failure:",error);
+			for(final SplitGroup g:this.name2group.values())
 				{
 				g.close();
-				File f=g.getFile();
+				final File f=g.getFile();
 				if(f.exists())
 					{
-					info("Delete "+f);
+					LOG.info("Delete "+f);
 					f.delete();
 					}
 				}
@@ -387,102 +377,31 @@ public class SplitBam3 extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public String getProgramDescription() {
-		return "Split a BAM by chromosome group.";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"SplitBam";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-p (file) output file pattern. MUST contain "+REPLACE_GROUPID+" and end with .bam");
-		out.println("-g (file) Chromosome group file. Optional");
-		out.println("-u (name) unmapped chromosome name. Optional. Default "+UNDERTERMINED_NAME);
-		out.println("-m add mock record if no samRecord saved in bam");
-		out.println("-R (int)  max records in RAM "+getMessageBundle("max.records.in.ram"));
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-
-		File chromGroupFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"u:g:p:mR:"))!=-1)
-			{
-			switch(c)
-				{	
-				case 'R': maxRecordsInRam= Integer.parseInt(opt.getOptArg());break;
-				case 'u': UNDERTERMINED_NAME= opt.getOptArg();break;
-				case 'p': OUT_FILE_PATTERN= opt.getOptArg();break;
-				case 'g': chromGroupFile=new File(opt.getOptArg());break;
-				case 'm': ADD_MOCK_RECORD=true;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 		SamReader sfr=null;
 		try
 			{
-			
-			
 			if(!OUT_FILE_PATTERN.contains(REPLACE_GROUPID))
 				{
-				error("output file pattern undefined or doesn't contain "+REPLACE_GROUPID+" : "+this.OUT_FILE_PATTERN);
-				return -1;
+				return wrapException("output file pattern undefined or doesn't contain "+REPLACE_GROUPID+" : "+this.OUT_FILE_PATTERN);
 				}
 			if(!OUT_FILE_PATTERN.endsWith(".bam"))
 				{
-				error("output file must end with '.bam'");
-				return -1;
+				return wrapException("output file must end with '.bam'");
 				}
 			
+			sfr = super.openSamReader(inputName);
 			
-			SamReaderFactory samReaderFactory=SamReaderFactory.makeDefault().
-					validationStringency(ValidationStringency.SILENT)
-					;
-			SamInputResource samInputResource=null;	
-			 
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				samInputResource = SamInputResource.of(System.in);
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				samInputResource = SamInputResource.of(new File(filename));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			sfr=samReaderFactory.open(samInputResource);
 					
-			scan(sfr,chromGroupFile);
+			scan(sfr);
 			
-			info("Done");
-			return 0;
+			LOG.info("Done");
+			sfr.close();sfr=null;
+			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{

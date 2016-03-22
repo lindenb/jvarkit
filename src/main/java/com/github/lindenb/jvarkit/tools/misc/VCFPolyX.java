@@ -36,6 +36,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -54,31 +55,47 @@ public class VCFPolyX extends AbstractVCFPolyX
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 		return doVcfToVcf(inputName);
 		}
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName,
-			VcfIterator r, VariantContextWriter w) throws IOException
+	protected Collection<Throwable> doVcfToVcf(
+			final String inputName,
+			final VcfIterator r,
+			final VariantContextWriter w
+			) throws IOException
 		{
 		GenomicSequence genomicSequence=null;
 
-		final String TAG="POLYX";
 		final VCFHeader header=r.getHeader();
-		
 		final VCFHeader h2=new VCFHeader(header);
 		addMetaData(h2);
-		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,
+		
+		final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
+				super.polyXtag.trim(),
+				1,
 				VCFHeaderLineType.Integer,
-				"number of repeated bases around REF")
-				);
+				"Number of repeated bases around REF")
+				;
+		
+		final VCFFilterHeaderLine filterHeaderLine = new VCFFilterHeaderLine(
+				infoHeaderLine.getID()+"_ge_"+this.filterTrehsold,
+				"Number of repeated bases around REF is greater or equal to "+this.filterTrehsold)
+				;
+		
+		
+		h2.addMetaDataLine(infoHeaderLine);
+		
+		if( this.filterTrehsold>-1) {
+			h2.addMetaDataLine(filterHeaderLine);
+		}
 
 		w.writeHeader(h2);
-		SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
+		final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
 		while(r.hasNext())
 			{
-			VariantContext ctx=progress.watch(r.next());
-			VariantContextBuilder b=new VariantContextBuilder(ctx);
+			final VariantContext ctx=progress.watch(r.next());
+			final VariantContextBuilder b=new VariantContextBuilder(ctx);
 			if(genomicSequence==null || !ctx.getContig().equals(genomicSequence.getChrom()))
 				{
 				LOG.info("loading chromosome "+ctx.getContig());
@@ -104,7 +121,14 @@ public class VCFPolyX extends AbstractVCFPolyX
 				++count;
 				++pos0;
 				}
-			b.attribute(TAG,count);
+			b.attribute(infoHeaderLine.getID(),count);
+			
+			/* filter */
+			if(super.filterTrehsold>-1 && count>=super.filterTrehsold)
+				{
+				b.filter(filterHeaderLine.getID());
+				}
+			
 			w.add(b.make());
 			if(w.checkError()) break;
 			}		
@@ -117,6 +141,9 @@ public class VCFPolyX extends AbstractVCFPolyX
 	
 	@Override
 	public Collection<Throwable> initializeKnime() {
+		if(super.polyXtag.trim().isEmpty()) {
+			return wrapException("Empty tag in option -"+OPTION_POLYXTAG);
+		}
 		try {
 			if(this.REF==null)
 				{
@@ -125,7 +152,7 @@ public class VCFPolyX extends AbstractVCFPolyX
 			LOG.info("opening reference "+REF);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
 			}
-		catch (Exception e) {
+		catch (final Exception e) {
 			return wrapException(e);
 			}
 		return super.initializeKnime();
@@ -135,8 +162,6 @@ public class VCFPolyX extends AbstractVCFPolyX
 		CloserUtil.close(this.indexedFastaSequenceFile);
 		this.indexedFastaSequenceFile=null;
 		}
-	
-	
 	
 	/**
 	 * @param args

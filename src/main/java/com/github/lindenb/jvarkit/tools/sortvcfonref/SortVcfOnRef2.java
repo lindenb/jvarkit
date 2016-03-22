@@ -31,19 +31,15 @@ package com.github.lindenb.jvarkit.tools.sortvcfonref;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.regex.Pattern;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -58,20 +54,13 @@ import htsjdk.samtools.util.SortingCollection;
  * Sort a VCF on the REFERENCE
  *
  */
-public class SortVcfOnRef2 extends AbstractCommandLineProgram
+public class SortVcfOnRef2 extends AbstractSortVcfOnRef2
 	{
-	private int max_records_in_ram=10000;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SortVcfOnRef2.class);
     private SAMSequenceDictionary dict=null;
-    private Pattern tab=Pattern.compile("[\t]");
-    @Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"SortVCFOnRef";
-    	}
+    private final Pattern tab=Pattern.compile("[\t]");
 	    
-    @Override
-    public String getProgramDescription() {
-    	return "Sort a VCF using the internal dictionary or an external reference order. ";
-    	}
+    
     
     private class ChromPosLine
     	implements Comparable<ChromPosLine>
@@ -83,7 +72,7 @@ public class SortVcfOnRef2 extends AbstractCommandLineProgram
     	ChromPosLine()
     		{
     		}
-    	public ChromPosLine(String line)
+    	public ChromPosLine(final String line)
     		{
     		String tokens[]= tab.split(line, 5);
     		if(tokens.length<5) throw new IllegalArgumentException("Bad VCF line in "+line); 
@@ -168,90 +157,53 @@ public class SortVcfOnRef2 extends AbstractCommandLineProgram
 			}
 		}
 	
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		return doVcfToVcf(inputName);
+		}
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -R (fasta) indexed reference. Optional. The order of this reference will be used for sorting");
-		out.println(" -T (dir) add tmp directory (optional)");
-		out.println(" -N (int) max records in ram. default: "+ this.max_records_in_ram);
-		super.printOptions(out);
-		}
-    
-    @Override
-    public int doWork(String[] args)
-    	{    
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:T:N:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'N': this.max_records_in_ram=Math.max(10,Integer.parseInt(opt.getOptArg()));break;
-				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;
-				case 'R':
-					{
-					try
-						{
-						this.dict=new SAMSequenceDictionaryFactory().load(new File(opt.getOptArg()));
-						}
-					catch(IOException err)
-						{
-						error(err);
-						return -1;
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-    	
-		
+	protected Collection<Throwable> doVcfToVcf(final String inputName) throws Exception {
+		BufferedReader in =null;
 		try
 			{
-			int ret=0;
-			if(opt.getOptInd()==args.length)
+			if(inputName==null)
 				{
-				info("reading from stdin");
-				ret=sortvcf(new BufferedReader(new InputStreamReader(System.in)));
+				LOG.info("reading from stdin");
+				in = IOUtils.openStreamForBufferedReader(stdin());
+				return sortvcf(in);
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else 
 				{
-				String filename=args[opt.getOptInd()];
-				info("Reading "+filename);
-				BufferedReader in=IOUtils.openURIForBufferedReading(filename);
-				ret= sortvcf(in);
-				CloserUtil.close(in);
+				LOG.info("Reading "+inputName);
+				in=IOUtils.openURIForBufferedReading(inputName);
 				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
-			return ret;
+	
+			return sortvcf(in);
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
+			}
+		finally
+			{
+			CloserUtil.close(in);
 			}
     	}
     
    
-	protected int sortvcf(BufferedReader in) throws IOException 
+	protected Collection<Throwable> sortvcf(BufferedReader in) throws IOException 
     	{
-    	VCFUtils.CodecAndHeader cah =VCFUtils.parseHeader(in);
-    	
-    	VCFHeader h2=new  VCFHeader(cah.header);
+		if(super.refdict!=null) {
+			LOG.info("load dict from "+super.refdict);
+			this.dict = new SAMSequenceDictionaryFactory().load(super.refdict);
+			if(this.dict==null) {
+				return wrapException("cannot find sam sequence dictionary from "+refdict);
+			}
+		}
+		
+		final VCFUtils.CodecAndHeader cah =VCFUtils.parseHeader(in);
+    	final VCFHeader h2=new  VCFHeader(cah.header);
     	if(this.dict!=null)
     		{
     		h2.setSequenceDictionary(this.dict);
@@ -261,18 +213,15 @@ public class SortVcfOnRef2 extends AbstractCommandLineProgram
     		this.dict= h2.getSequenceDictionary();
     		if(this.dict==null)
     			{
-    			throw new IOException("No internal sequence dictionay found in input");
+    			return wrapException("No internal sequence dictionay found in input");
     			}
     		}
     	
-    	h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+    	addMetaData(h2);
 		
 		if(this.dict.isEmpty())
 			{
-			warning("SEQUENCE DICTIONARY IS EMPTY/NULL");
+			LOG.warn("SEQUENCE DICTIONARY IS EMPTY/NULL");
 			}
 		
     	CloseableIterator<ChromPosLine> iter=null;
@@ -283,36 +232,35 @@ public class SortVcfOnRef2 extends AbstractCommandLineProgram
 					ChromPosLine.class,
 					new VariantCodec(),
 					new VariantComparator(),
-					this.max_records_in_ram,
-					this.getTmpDirectories()
+					super.maxRecordsInRam,
+					super.getTmpDirectories()
 					);
 			array.setDestructiveIteration(true);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dict);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dict);
 			String line;
 			while((line=in.readLine())!=null)
 				{
-				ChromPosLine cpl=new ChromPosLine(line);
+				final ChromPosLine cpl=new ChromPosLine(line);
 				progress.watch(cpl.tid,cpl.pos);
 				array.add(cpl);
 				}
 			array.doneAdding();
 			progress.finish();
 			
-			 w = VCFUtils.createVariantContextWriterToStdout();
+			w = super.openVariantContextWriter();
 			w.writeHeader(h2);
 			
 			iter=array.iterator();
 			while(iter.hasNext())
 				{
 				w.add(cah.codec.decode(iter.next().line));
-				if(System.out.checkError()) break;
+				if(w.checkError()) break;
 				}
-			return 0;
+			return RETURN_OK;
 			}
     	catch (Exception e)
     		{
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
     	finally
 	    	{

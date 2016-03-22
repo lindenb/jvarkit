@@ -13,6 +13,24 @@
 
 
 <options>
-	
+	<option name="filterTrehsold" type="int" opt="n" longopt="filter" argname="NUMBASES" default="-1">
+		<description>if number of repeated bases is greater or equal to 'n' set a FILTER = (tag)</description>
+	</option>
+	<option name="polyXtag" type="string" opt="t" longopt="tag" argname="TAG" default="POLYX">
+		<description>Tag used in INFO and FILTER columns.</description>
+	</option>
 </options>
+
+<documentation>
+<h:h3>Example</h:h3>
+<h:pre>$ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf
+(...)
+2   1133956 .   A   G   2468.84 .   POLYX=23
+2   1133956 .   A   AG  3604.25 .   POLYX=23
+2   2981671 .   T   G   47.18   .   POLYX=24
+(...)</h:pre>
+
+
+</documentation>
+
 <!-- __PLACEHOLDER__ --></app>

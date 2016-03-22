@@ -168,43 +168,71 @@ public class VcfBurdenSplitter
 			final Set<String> keys = new HashSet<>();
 			for(final VepPrediction pred: this.vepPredictionParser.getPredictions(ctx)) {
 				if(!accept(pred)) continue;
-				String s= pred.getHGNC();
-				if(!isEmpty(s)) {
-					keys.add(String.format("HGNC_%s_%s",ctx.getContig(),s));
+				
+				
+				//ALL_NM && ALL_REFSEQ
+					{
+					final String geneName =  pred.getSymbol();
+					final String transcriptName =  pred.getFeature();
+					if(!isEmpty(geneName) && !isEmpty(transcriptName)) {
+						if(!isIgnoreAllNM() && transcriptName.startsWith("NM_")) {
+							keys.add(String.format("ALL_NM_%s_%s",ctx.getContig(),geneName));
+							}
+						if(!isIgnoreAllRefSeq() && !transcriptName.startsWith("ENST"))
+							{
+							keys.add(String.format("ALL_REFSEQ_%s_%s",ctx.getContig(),geneName));
+							}
+						}
 					}
-				s= pred.getEnsemblGene();
-				if(!isEmpty(s)) {
-					keys.add(String.format("ENSG_%s_%s",ctx.getContig(),s));
+				
+				String s;
+				if(!isIgnoreVepHgnc()) {
+					s= pred.getHGNC();
+					if(!isEmpty(s)) {
+						keys.add(String.format("HGNC_%s_%s",ctx.getContig(),s));
+						}
+					}
+				
+				if(!isIgnoreVepEnsg()) {
+					s= pred.getEnsemblGene();
+					if(!isEmpty(s)) {
+						keys.add(String.format("ENSG_%s_%s",ctx.getContig(),s));
+						}
 					}
 				/* same as feature 
 				s= pred.getEnsemblTranscript();
 				if(!isEmpty(s)) {
 					keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
 					}*/
-					
-				s= pred.getFeature();
-				if(!isEmpty(s)) {
-					keys.add(String.format("FEATURE_%s_%s",ctx.getContig(),s));
-					
-					if(s.startsWith("XM_") || s.startsWith("NM_"))
-						{
-						keys.add(String.format("REFSEQ_%s_%s",ctx.getContig(),s));
-						}
-					else if(s.startsWith("ENST_"))
-						{
-						keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
+				
+				if(!isIgnoreVepFeature()) {
+					s= pred.getFeature();
+					if(!isEmpty(s)) {
+						keys.add(String.format("FEATURE_%s_%s",ctx.getContig(),s));
+						
+						if(!isIgnoreVepRefSeq() && (s.startsWith("XM_") || s.startsWith("NM_")))
+							{
+							keys.add(String.format("REFSEQ_%s_%s",ctx.getContig(),s));
+							}
+						else if(!isIgnoreVepEnst() && s.startsWith("ENST_"))
+							{
+							keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
+							}
 						}
 					}
 				
-				
-				s= pred.getSymbol();
-				if(!isEmpty(s)) {
-					keys.add(String.format("SYMBOL_%s_%s",ctx.getContig(),s));
+				if(!isIgnoreVepSymbol()) {
+					s= pred.getSymbol();
+					if(!isEmpty(s)) {
+						keys.add(String.format("SYMBOL_%s_%s",ctx.getContig(),s));
+						}
 					}
 				
-				s= pred.getENSP();
-				if(!isEmpty(s)) {
-					keys.add(String.format("ENSP_%s_%s",ctx.getContig(),s));
+				if(!isIgnoreVepEnsp()) {
+					s= pred.getENSP();
+					if(!isEmpty(s)) {
+						keys.add(String.format("ENSP_%s_%s",ctx.getContig(),s));
+						}
 					}
 				}
 			return keys;
