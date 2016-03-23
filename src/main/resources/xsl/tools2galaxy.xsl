@@ -28,6 +28,12 @@
 		 <requirement type="binary">java</requirement>
 		 <requirement type="set_environment">JVARKIT_DIST</requirement> 
 	</requirements>
+	
+	<stdio>
+		<exit_code range="1:" />
+		<exit_code range=":-1" />
+	</stdio>	
+	
 	<command>
 		<xsl:choose>
 			<xsl:when test="galaxy:galaxy/galaxy:command">
@@ -38,6 +44,9 @@
 			</xsl:otherwise>
 		</xsl:choose>
 	</command>
+
+
+	
 	<inputs>
 		 <xsl:choose>
 			<xsl:when test="c:input/@type='vcf'">
@@ -54,14 +63,12 @@
 		<xsl:apply-templates select="galaxy:galaxy/galaxy:inputs/galaxy:conditional"/>
 		
 	</inputs>
+
 	<outputs>
 		<xsl:apply-templates select="c:options/c:option" mode="output"/>
 		<xsl:apply-templates select="galaxy:galaxy/galaxy:outputs/galaxy:data"/>
 	</outputs>
-	<stdio>
-		<exit_code range="1:" />
-		<exit_code range=":-1" />
-	</stdio>
+
 	<help>
 
 <xsl:apply-templates select="c:documentation" mode="rst"/>
@@ -333,8 +340,10 @@ Date: <xsl:value-of select="date:date-time()"/>
 <!--  == cutsom param under tag <option< ======================================================================== -->
 <xsl:template match="galaxy:param" mode="custom_option_param">
 <param>
+	<xsl:copy-of select="@*"/>
 	<xsl:if test="not(@name)"><xsl:attribute name="name"><xsl:value-of select="../@name"/></xsl:attribute></xsl:if>
 	<xsl:if test="not(@label)"><xsl:attribute name="label"><xsl:value-of select="../c:description"/></xsl:attribute></xsl:if>
+	<xsl:if test="not(@type)"><xsl:attribute name="type"><xsl:value-of select="../@type"/></xsl:attribute></xsl:if>
 	<xsl:apply-templates select="galaxy:*|text()"/>
 </param>
 </xsl:template>

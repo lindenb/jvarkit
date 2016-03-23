@@ -207,6 +207,7 @@ galaxy: ${GALAXY_APPS}
 	mkdir -p '${galaxy.dir}'
 	cp ${this.dir}src/main/resources/xml/tool_dependencies.xml ${galaxy.dir}/tool_dependencies.xml
 	echo "$^" | tr " " "\n" | awk 'BEGIN {printf("<section id=\"jvk\" name=\"JVARKIT\">\n");} {printf("  <tool file=\"jvarkit/%s\"/>\n",$$1);} END { printf("</section>\n");}' >  ${galaxy.dir}/tool_conf.fragment
+	-planemo  lint --skip "tests"  ${galaxy.dir}/*.xml
 	
 
 burden: vcfburden vcfburdensplitter vcfburdenf2 vcfburdenf3 vcfburdenfiltergenes

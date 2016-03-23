@@ -35,7 +35,7 @@
 	</option>
 	<option name="splitterName" type="string" longopt="splitterName" opt="sp" default="vepso">
 		<description>Splitter Name</description>
-		<galaxy:param type="select">
+		<galaxy:param type="string"  >
              <galaxy:option value="vep" >vep. All Ensembl Variant Effect Prediction</galaxy:option>
              <galaxy:option value="vepso" selected="true">vepso : VEP affecting proteins</galaxy:option>
              <galaxy:option value="vephd">vephd : VEP high damage</galaxy:option>
@@ -80,7 +80,7 @@
 <galaxy:galaxy>
 	<galaxy:command>(gunzip -c ${input} 2&gt; /dev/null || cat ${input}) |  java  -jar  \$JVARKIT_DIST/vcfburdensplitter.jar  -o '${outputFile}.zip'    -galaxyHtmlPath "$html_file.files_path"  -cas '${casesFile}'  -ctrl '${controlsFile}'  -sp '${splitterName}'   ${acceptFiltered}    -o '${outputFile}.zip' &amp;&amp; cp '${outputFile}.zip' '${outputFile}' &amp;&amp; rm '${outputFile}.zip'</galaxy:command>
   <galaxy:outputs>
-    <galaxy:qdata format="html" name="outputFile"/>
+    <galaxy:data format="zip" name="outputFile"/>
   </galaxy:outputs>
 </galaxy:galaxy>
 
