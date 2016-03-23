@@ -2,7 +2,7 @@ package com.github.lindenb.jvarkit.tools.treepack;
 
 import java.awt.Rectangle;
 import java.awt.geom.Rectangle2D;
-import java.io.PrintStream;
+import java.io.IOException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,15 +15,15 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Hershey;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 
 public abstract class AbstractTreePackCommandLine<WATCH>
-	extends AbstractCommandLineProgram
+	extends com.github.lindenb.jvarkit.util.command.Command
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractTreePackCommandLine.class);
+
 	protected Rectangle viewRect=new Rectangle(1000,1000);
 	protected final String XLINK="http://www.w3.org/1999/xlink";
 	protected final String JVARKIT_NS="https://github.com/lindenb/jvarkit";
@@ -144,7 +144,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		   {
 		   if(getWeight()<=0)
 			   {
-			   info("weight < 0 for "+getPath());
+			   LOG.info("weight < 0 for "+getPath());
 			   return ;
 			   }
 		   final Rectangle2D bounds=this.getBounds();
@@ -396,11 +396,14 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 				;
 		}
 	
-	protected void svg() throws XMLStreamException
+	protected abstract java.io.OutputStream openFileOrStdoutAsStream() throws java.io.IOException;
+	
+	protected void svg() throws XMLStreamException,IOException
 	  	{
-	  	info("writing svg");
+	  	LOG.info("writing svg");
 		XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-		XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
+		XMLStreamWriter w= xmlfactory.createXMLStreamWriter(
+				openFileOrStdoutAsStream(),"UTF-8");
 		w.writeStartDocument("UTF-8","1.0");
 		w.writeStartElement("svg","svg",SVG.NS);
 		
@@ -422,7 +425,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 
 		
 		w.writeStartElement("svg","title",SVG.NS);
-		w.writeCharacters(getProgramName());
+		w.writeCharacters(getName());
 		w.writeEndElement();
 		w.writeComment("Cmd-Line:"+getProgramCommandLine());
 		w.writeComment("Version "+getVersion());
@@ -450,7 +453,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 
 	protected void layout()
 		{
-		info("layout");
+		LOG.info("layout");
 		this.root.setBounds(new Rectangle2D.Double(0, 0, this.viewRect.getWidth(), this.viewRect.getHeight()));
 		TreePacker packer=new TreePacker();
 		this.root.layout(packer);
@@ -465,10 +468,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			}
 		return null;
 		}
-	protected String getGetOptDefault()
-		{
-		return super.getGetOptDefault()+"e:x:";
-		}
+	/*
 	@Override
 	public void printOptions(PrintStream out)
 		{
@@ -482,6 +482,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		out.println(" -x {width}x{height} dimension of the output rectangle. default:"+this.viewRect.width+"x"+this.viewRect.height);
 		super.printOptions(out);
 		}
+	
 	@Override
 	protected GetOptStatus handleOtherOptions(int c, GetOpt opt, String[] args)
 		{
@@ -511,7 +512,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			default:return super.handleOtherOptions(c, opt, args);
 			}
 		
-		}
+		}*/
 	
 	protected LeafNode createLeafNode(BranchNode parent,String label)
 		{
@@ -523,7 +524,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		
 		if(path==null)
 			{
-			warning("No path defined!");
+			LOG.warn("No path defined!");
 			this.root=createLeafNode(null,"");
 			}
 		else
@@ -533,7 +534,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 				NodeFactory nf=findFactoryByName(p);
 				if(nf==null)
 					{
-					error("Cannot get type \'"+p+"\' in "+getAllAvailableFactories());
+					LOG.error("Cannot get type \'"+p+"\' in "+getAllAvailableFactories());
 					return -1;
 					}
 				if(this.nodeFactoryChain.isEmpty())
@@ -544,12 +545,30 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 				}
 			if(this.root==null)
 				{
-				error("Wrong path "+path);
+				LOG.error("Wrong path "+path);
 				return -1;
 				}
 			}
 		return 0;
 		}
-	
+	protected void printAvailableFactories() {
+		for(final NodeFactory f:getAllAvailableFactories())
+			{
+			stdout().println("    "+f.getName()+"\t\""+f.getDescription()+"\"");
+			}
+		}
+	protected void setDimension(final String s){
+		final int x=s.indexOf('x');
+		if(x==-1)
+			{
+			throw new IllegalArgumentException("'x' missing in "+s);
+			}
+		this.viewRect.x=Integer.parseInt(s.substring(0, x));
+		this.viewRect.y=Integer.parseInt(s.substring(x+1));
+		if(viewRect.x<=0 ||this.viewRect.y<=0 )
+			{
+			throw new IllegalArgumentException("bad viewRect "+s);
+			}
+		}
 	
 	}

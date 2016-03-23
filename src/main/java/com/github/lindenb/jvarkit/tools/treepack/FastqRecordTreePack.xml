@@ -3,5 +3,46 @@
  <!ENTITY name "FastqRecordTreePack">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.treepack">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	extends="com.github.lindenb.jvarkit.tools.treepack.AbstractTreePackCommandLine&lt;htsjdk.samtools.fastq.FastqRecord&gt;"
+	>
+<description>Create a TreeMap from one or more Fastq file. Ouput is a SVG file</description>
+
+<options>
+	<option name="listFactories" opt="list" longopt="list" type="boolean" default="false">
+		<description>List available components and exit.</description>
+	</option>
+	<option name="chainExpression" opt="e" longopt="expression" type="string" default="">
+		<description>path1 path2 path3 path4 ... A list of observed components.</description>
+	</option>
+	<option name="dimensionStr" opt="x" longopt="dimension" type="string" default="1000x1000">
+		<description>dimension of the output rectangle</description>
+	</option>
+</options>
+
+<documentation>
+<h:h3>Synopsis</h:h3>
+
+<h:pre>$ java -jar dist/fastqrecordtreepack.jar -e 'expression' (stdin|fq1.gz fq2.gz ...) gt; out.svg</h:pre>
+
+<h:h3>Example</h:h3>
+
+<h:pre>$ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data/NA21144/sequence_read/ERR047877.filt.fastq.gz" |\
+   gunzip -c | java -jar dist/fastqrecordtreepack.jar -e 'word5'  &gt; out.svg
+</h:pre>
+
+<h:img src="https://pbs.twimg.com/media/Bem-_tVCEAA9uT1.jpg:large"/>
+
+<h:h3>See also</h:h3>
+
+<h:ul>
+	<h:li><h:a>VcfTreePack</h:a></h:li>
+	<h:li><h:a>http://www.cs.umd.edu/hcil/treemap-history/</h:a></h:li>
+</h:ul>
+
+
+</documentation>
+
+
+
+<!-- __PLACEHOLDER__ --></app>

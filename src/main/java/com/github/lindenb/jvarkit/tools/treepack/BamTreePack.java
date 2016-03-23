@@ -1,23 +1,47 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.treepack;
 
-import java.io.InputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.CloserUtil;
 
 
-public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
+public class BamTreePack extends AbstractBamTreePack
 	{
-	
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamTreePack.class);
 	/** Group by SAMReadGroupRecord */
 	private class GroupIdNodeFactory extends NodeFactory
 		{
@@ -29,7 +53,7 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 				}
 			
 			@Override
-			public void watch(SAMRecord seq)
+			public void watch(final SAMRecord seq)
 				{
 				SAMReadGroupRecord g=seq.getReadGroup();
 				String gid=(g==null?"*":g.getReadGroupId());
@@ -354,25 +378,17 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 		}
 	
 	
-	 private void scan(SamReader sfr)
+	 private void scan(final SamReader sfr)
 		 {
-		 SAMRecordIterator iter=sfr.iterator();
-		 SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader().getSequenceDictionary());
+		 final SAMRecordIterator iter=sfr.iterator();
+		 final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader());
 		 while(iter.hasNext())
 			 {
-			 SAMRecord rec=iter.next();
-			 progress.watch(rec);
-			 root.watch(rec);
+			 root.watch(progress.watch(iter.next()));
 			 }
 		 progress.finish();
 		 }
 	  
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
 	
 	private  List<NodeFactory> _factories=null;
 	@Override
@@ -392,84 +408,61 @@ public class BamTreePack extends AbstractTreePackCommandLine<SAMRecord>
 			}
 		return _factories;
 		}
+	
+	
+	
 	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/BamTreePack";
-		}
-	@Override
-	public String getProgramDescription()
-		{
-		return "Create a TreeMap from one or more SAM/BAM file. Ouput is a SVG file.";
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()))!=-1)
+	public Collection<Throwable> call() throws Exception {
+		if(super.listFactories) 
 			{
-			switch(c)
-				{
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			super.printAvailableFactories();
+			return RETURN_OK;
 			}
+		setDimension(super.dimensionStr);
+		buildFactoryChain(super.chainExpression);
 		if(super.nodeFactoryChain.isEmpty())
 			{
-			error("no path defined");
-			return -1;
+			return wrapException("no path defined");
 			}
 		
-		SamReader sfr=null;
+		SamReader in=null;
+		final List<String> args= super.getInputFiles();
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(args.isEmpty())
 				{
-				info("Reading stdin");
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				scan(sfr);
-				CloserUtil.close(sfr);
-				info("Done stdin");
+				LOG.info("Reading stdin");
+				in = srf.open(SamInputResource.of(stdin()));
+				scan(in);
+				CloserUtil.close(in);in=null;
+				LOG.info("Done stdin");
 				}
 			else
 				{
-				for(int optind =opt.getOptInd(); optind < args.length;++optind)
+				for(final String filename:args)
 					{
-					InputStream in=null;
-					String filename= args[optind];
-					info("Reading "+filename);
-					sfr=SamFileReaderFactory.mewInstance().open(filename);
-					scan(sfr);
-					info("Done "+filename);
-					CloserUtil.close(sfr);
+					LOG.info("Reading "+filename);
+					in= srf.open(SamInputResource.of(filename));
+					scan(in);
+					LOG.info("Done "+filename);
 					CloserUtil.close(in);
-					
 					}
 				}
-			
 			this.layout();
 			this.svg();
-			return 0;
+			return RETURN_OK;
 			}
-		catch (Exception e)
+		catch (final Exception err)
 			{
-			error(e);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-			CloserUtil.close(sfr);
+			CloserUtil.close(in);
 			}
 		}
+
 	
 	public static void main(String[] args)
 		{

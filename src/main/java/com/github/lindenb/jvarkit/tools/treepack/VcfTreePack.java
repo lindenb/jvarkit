@@ -1,6 +1,7 @@
 package com.github.lindenb.jvarkit.tools.treepack;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -13,8 +14,10 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfTreePack extends AbstractTreePackCommandLine<VariantContext>
+public class VcfTreePack extends  AbstractVcfTreePack
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfTreePack.class);
+
 	/** Group by Chromosome */
 	private class ChromosomeNodeFactory extends NodeFactory
 		{
@@ -105,10 +108,11 @@ public class VcfTreePack extends AbstractTreePackCommandLine<VariantContext>
 				while(parent!=null)
 					{
 					if(parent.isLeaf()) break;
-					BranchNode b=(BranchNode)parent;
+					@SuppressWarnings("unchecked")
+					final BranchNode b=(BranchNode)parent;
 					if(b instanceof SampleNodeFactory.MyNode)
 						{
-						String sample= b.findKeyByValue(me);
+						final String sample= b.findKeyByValue(me);
 						if(sample==null) throw new IllegalStateException();
 						return sample;
 						}
@@ -236,59 +240,37 @@ public class VcfTreePack extends AbstractTreePackCommandLine<VariantContext>
 			}
 		return _factories;
 		}
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/VcfTreePack";
-		}
-	@Override
-	public String getProgramDescription()
-		{
-		return "Create a TreeMap from one or more VCF. Ouput is a SVG file.";
-		}
+	
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()))!=-1)
+	public Collection<Throwable> call() throws Exception {
+		if(super.listFactories) 
 			{
-			switch(c)
-				{
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			super.printAvailableFactories();
+			return RETURN_OK;
 			}
+		setDimension(super.dimensionStr);
+		buildFactoryChain(super.chainExpression);
 		if(super.nodeFactoryChain.isEmpty())
 			{
-			error("no path defined");
-			return -1;
+			return wrapException("no path defined");
 			}
 		
 		VcfIterator in=null;
-		
+		final List<String> args= super.getInputFiles();
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading stdin");
-				in=VCFUtils.createVcfIteratorStdin();
+				LOG.info("Reading stdin");
+				in=VCFUtils.createVcfIteratorFromStream(stdin());
 				scan(in);
 				CloserUtil.close(in);
 				}
 			else
 				{
-				for(int optind =opt.getOptInd(); optind < args.length;++optind)
+				for(final String f: args)
 					{
-					String f = args[optind];
 					in=VCFUtils.createVcfIterator(f);
 					scan(in);
 					CloserUtil.close(in);
@@ -296,12 +278,11 @@ public class VcfTreePack extends AbstractTreePackCommandLine<VariantContext>
 				}
 			this.layout();
 			this.svg();
-			return 0;
+			return RETURN_OK;
 			}
-		catch (Exception e)
+		catch (final Exception err)
 			{
-			error(e);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{

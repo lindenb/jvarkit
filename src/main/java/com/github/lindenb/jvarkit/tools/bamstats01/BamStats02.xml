@@ -3,5 +3,96 @@
  <!ENTITY name "BamStats02">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.bamstats01">
 ]>
-<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+		>
+<description>Statistics about the flags and reads in a BAM</description>
+<snippet id="read-sam"/>
+<snippet id="boolean.intervals"/>
+
+<options>
+	<option name="bedFile" type="input-file" opt="B" longopt="bed" arg-name="BED" >
+		<description>Optional Bed File</description>
+	</option>
+</options>
+
+
+<documentation>
+
+<h:h3>Example</h:h3>
+
+<h:pre><![CDATA[$  find dir -name "*final.bam" | xargs  java -jar dist/bamstats02.jar -B capture.bed  > output.tsv
+$  verticalize output.tsv
+
+>>> 2
+$1	#filename	dir/Sample0258.final.bam
+$2	sampleName	Sample0258
+$3	chromosome	2
+$4	mapq	60
+$5	inTarget	1
+$6	READ_PAIRED	1
+$7	READ_MAPPED_IN_PROPER_PAIR	1
+$8	READ_UNMAPPED	0
+$9	MATE_UNMAPPED	0
+$10	READ_REVERSE_STRAND	1
+$11	MATE_REVERSE_STRAND	0
+$12	FIRST_IN_PAIR	0
+$13	SECOND_IN_PAIR	1
+$14	NOT_PRIMARY_ALIGNMENT	0
+$15	READ_FAILS_VENDOR_QUALITY_CHECK	0
+$16	READ_IS_DUPLICATE	0
+$17	SUPPLEMENTARY_ALIGNMENT	0
+$18	count	463982
+<<< 2
+
+>>> 3
+$1	#filename	dir/Sample0258.final.bam
+$2	sampleName	Sample0258
+$3	chromosome	.
+$4	mapq	0
+$5	inTarget	-1
+$6	READ_PAIRED	1
+$7	READ_MAPPED_IN_PROPER_PAIR	0
+$8	READ_UNMAPPED	1
+$9	MATE_UNMAPPED	1
+$10	READ_REVERSE_STRAND	0
+$11	MATE_REVERSE_STRAND	0
+$12	FIRST_IN_PAIR	1
+$13	SECOND_IN_PAIR	0
+$14	NOT_PRIMARY_ALIGNMENT	0
+$15	READ_FAILS_VENDOR_QUALITY_CHECK	0
+$16	READ_IS_DUPLICATE	0
+$17	SUPPLEMENTARY_ALIGNMENT	0
+$18	count	458630
+<<< 3
+
+>>> 4
+$1	#filename	dir/Sample0258.final.bam
+$2	sampleName	Sample0258
+$3	chromosome	.
+$4	mapq	0
+$5	inTarget	-1
+$6	READ_PAIRED	1
+$7	READ_MAPPED_IN_PROPER_PAIR	0
+$8	READ_UNMAPPED	1
+$9	MATE_UNMAPPED	1
+$10	READ_REVERSE_STRAND	0
+$11	MATE_REVERSE_STRAND	0
+$12	FIRST_IN_PAIR	0
+$13	SECOND_IN_PAIR	1
+$14	NOT_PRIMARY_ALIGNMENT	0
+$15	READ_FAILS_VENDOR_QUALITY_CHECK	0
+$16	READ_IS_DUPLICATE	0
+$17	SUPPLEMENTARY_ALIGNMENT	0
+$18	count	458630
+<<< 4
+```]]></h:pre>
+
+<h:h3>See also</h:h3>
+<h:a>BamStats02View</h:a>
+</documentation>
+
+
+
+
+</app>

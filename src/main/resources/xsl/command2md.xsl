@@ -201,6 +201,15 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 </xsl:template>
 
 
+<xsl:template match="h:img[@src]">
+<xsl:text>![</xsl:text>
+<xsl:value-of select="@src"/>
+<xsl:text>](</xsl:text>
+<xsl:value-of select="@src"/>
+<xsl:text>)</xsl:text>
+</xsl:template>
+
+
 <xsl:template match="h:a[not(@href)]">
 <xsl:text>[</xsl:text>
 <xsl:value-of select="."/>

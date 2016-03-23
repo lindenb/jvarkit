@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -15,8 +16,10 @@ import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.CloserUtil;
 
 
-public class FastqRecordTreePack extends AbstractTreePackCommandLine<FastqRecord>
+public class FastqRecordTreePack extends AbstractFastqRecordTreePack
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(FastqRecordTreePack.class);
+
 	private class LengthNodeFactory extends NodeFactory
 		{
 		private class MyNode extends BranchNode
@@ -178,61 +181,40 @@ public class FastqRecordTreePack extends AbstractTreePackCommandLine<FastqRecord
 			}
 		return _factories;
 		}
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/FastqRecordTreePack";
-		}
-	@Override
-	public String getProgramDescription()
-		{
-		return "Create a TreeMap from one or more Fastq file. Ouput is a SVG file.";
-		}
+
 
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()))!=-1)
+	public Collection<Throwable> call() throws Exception {
+		if(super.listFactories) 
 			{
-			switch(c)
-				{
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			super.printAvailableFactories();
+			return RETURN_OK;
 			}
+		setDimension(super.dimensionStr);
+		buildFactoryChain(super.chainExpression);
 		if(super.nodeFactoryChain.isEmpty())
 			{
-			error("no path defined");
-			return -1;
+			return wrapException("no path defined");
 			}
 		
 		FastqReader fqr=null;
+		final List<String> args = getInputFiles();
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading stdin");
-				fqr=new FourLinesFastqReader(System.in);
+				LOG.info("Reading stdin");
+				fqr=new FourLinesFastqReader(stdin());
 				scan(fqr);
 				CloserUtil.close(fqr);
-				info("Done stdin");
+				LOG.info("Done stdin");
 				}
 			else
 				{
-				for(int optind =opt.getOptInd(); optind < args.length;++optind)
+				for(final String filename:args)
 					{
 					InputStream in=null;
-					String filename= args[optind];
-					info("Reading "+filename);
+					LOG.info("Reading "+filename);
 					if(IOUtils.isRemoteURI(filename))
 						{
 						in=IOUtils.openURIForReading(filename);
@@ -243,7 +225,7 @@ public class FastqRecordTreePack extends AbstractTreePackCommandLine<FastqRecord
 						fqr=new FourLinesFastqReader(new File(filename));
 						}
 					scan(fqr);
-					info("Done "+filename);
+					LOG.info("Done "+filename);
 					CloserUtil.close(fqr);
 					CloserUtil.close(in);
 					}
@@ -251,12 +233,11 @@ public class FastqRecordTreePack extends AbstractTreePackCommandLine<FastqRecord
 			
 			this.layout();
 			this.svg();
-			return 0;
+			return RETURN_OK;
 			}
 		catch (Exception e)
 			{
-			error(e);
-			return -1;
+			return wrapException(e);
 			}
 		finally
 			{

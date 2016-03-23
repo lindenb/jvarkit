@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "BamStats02View">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.bamstats01">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1"
+	generate-output-option='false'
+	>
+<description>Statistics about the flags and reads in a BAM. Visualize date from BamStats02</description>
+
+<options>
+</options>
+
+<documentation>
+Explore those statistics with a graphical user interface. Left-click shows a popup menu used to include/exclude categories.
+
+<h:h3>Synopsis</h:h3>
+<h:pre><![CDATA[$java -jar dist/bamstats02view.jar output_of_bamstats02.tsv]]></h:pre>
+
+<h:h3>Example</h:h3>
+<h:pre><![CDATA[$java -jar dist/bamstats02view.jar output.tsv]]></h:pre>
+
+<h:img src="http://i.imgur.com/xC6grmV.jpg"/>
+<h:p/>
+<h:img src="http://i.imgur.com/cjItYY0.jp"/>
+
+<h:h3>See also</h:h3>
+<h:a>BamStats02</h:a>
+</documentation>
+
+
+</app>
