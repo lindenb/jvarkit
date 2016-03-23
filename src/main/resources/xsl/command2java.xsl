@@ -87,7 +87,8 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	</xsl:if>
 	
 	<xsl:if test="c:snippet[@id='boolean.intervals']">
-
+	
+	/** reads a Bed file and convert it to a IntervalTreeMap&lt;Boolean&gt; */
 	protected htsjdk.samtools.util.IntervalTreeMap&lt;Boolean&gt; readBedFileAsBooleanIntervalTreeMap(final java.io.File file) throws java.io.IOException
 		{
 		java.io.BufferedReader r=null;
@@ -100,7 +101,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			final java.util.regex.Pattern tab = java.util.regex.Pattern.compile("[\t]");
 			while((line=r.readLine())!=null) 
 				{
-				if(line.startsWith("#") || line.startsWith("track") || line.startsWith("browser") ||  line.isEmpty()) continue; 
+				if(line.startsWith("#") ||  com.github.lindenb.jvarkit.util.bio.bed.BedLine.isBedHeader(line) ||  line.isEmpty()) continue; 
 				final String tokens[]=tab.split(line,4);
 				if(tokens.length &lt; 3)
 					{
@@ -121,6 +122,42 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		}
 
 	</xsl:if>
+	
+	<xsl:if test="c:snippet[@id='bedline.intervals']">
+	
+	/** reads a Bed file and convert it to a IntervalTreeMap&lt;Bedline&gt; */
+	protected htsjdk.samtools.util.IntervalTreeMap&lt;com.github.lindenb.jvarkit.util.bio.bed.BedLine&gt; readBedFileAsIntervalTreeMap(final java.io.File file) throws java.io.IOException
+		{
+		java.io.BufferedReader r=null;
+		try
+			{
+			final  htsjdk.samtools.util.IntervalTreeMap&lt;com.github.lindenb.jvarkit.util.bio.bed.BedLine&gt; intervals = new
+					 htsjdk.samtools.util.IntervalTreeMap&lt;com.github.lindenb.jvarkit.util.bio.bed.BedLine&gt;();
+			r=com.github.lindenb.jvarkit.io.IOUtils.openFileForBufferedReading(file);
+			String line;
+			final com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec codec = new com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec();
+			while((line=r.readLine())!=null) 
+				{
+				if(line.startsWith("#") ||  com.github.lindenb.jvarkit.util.bio.bed.BedLine.isBedHeader(line) ||  line.isEmpty()) continue; 
+				final com.github.lindenb.jvarkit.util.bio.bed.BedLine bl = codec.decode(line);
+				if(bl==null) continue;
+				final htsjdk.samtools.util.Interval interval=new htsjdk.samtools.util.Interval(
+						bl.getContig(),
+						bl.getStart(),
+						bl.getEnd()
+						);
+				intervals.put(interval,bl); 
+				}
+			return intervals;
+			}
+		finally
+			{
+			htsjdk.samtools.util.CloserUtil.close(r);
+			}
+		}
+
+	</xsl:if>
+	
 
 	<xsl:if test="c:snippet[@id='md5']">
 	

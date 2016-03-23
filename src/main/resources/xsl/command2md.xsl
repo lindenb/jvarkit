@@ -63,18 +63,21 @@ http.proxy.host=your.host.com
 http.proxy.port=124567
 ```
 
+<xsl:if test="not(documentation/h:h3[text() = 'Synopsis'])">
+
 ##Synopsis
 
 ```bash
-$ java -jar dist/<xsl:value-of select="translate(@app,$uppercase,$lowercase)"/>.jar  [options] (stdin|file<xsl:choose>
+$ java -jar dist/<xsl:value-of select="@jarname"/>.jar  [options] (stdin|file<xsl:choose>
 	<xsl:when test="c:input/@type='vcf'">.vcf|file.vcf.gz</xsl:when>
 	<xsl:when test="c:input/@type='sam' or c:input/@type='bam'">.bam|file.sam</xsl:when>
 	<xsl:otherwise></xsl:otherwise>
 </xsl:choose>) 
 ```
 
-<xsl:apply-templates select="c:options"/>
+</xsl:if>
 
+<xsl:apply-templates select="c:options"/>
 
 ##Source Code
 
@@ -92,6 +95,10 @@ Main code is: https://github.com/lindenb/jvarkit/blob/master/src/main/java/<xsl:
 The project is licensed under the MIT license.
 
 ## Citing
+
+Should you cite **<xsl:value-of select="@jarname"/>** ? https://github.com/mr-c/shouldacite/blob/master/decision-tree.md
+
+The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 

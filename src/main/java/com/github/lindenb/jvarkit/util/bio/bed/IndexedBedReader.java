@@ -41,6 +41,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
@@ -51,7 +52,8 @@ import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 
 /**
  * @author lindenb
- *
+ * 
+ * Tabix or Tribble BED reader.
  */
 public class IndexedBedReader
 	implements Closeable
@@ -62,12 +64,12 @@ public class IndexedBedReader
 	private Object source;
 	private AbstractIndexReader reader;
 	
-	public IndexedBedReader(File bedFile) throws IOException
+	public IndexedBedReader(final File bedFile) throws IOException
 		{
 		init(bedFile);
 		}
 	
-	private void init(File bedFile) throws IOException
+	private void init(final File bedFile) throws IOException
 		{
 		this.source=bedFile;
     	if(bedFile==null) throw new NullPointerException("bed file==null");
@@ -114,20 +116,20 @@ public class IndexedBedReader
 	
 
 	public CloseableIterator<BedLine>
-		iterator(String chrom,int start,int end)
+		iterator(final String chrom,final int start,final int end)
 		throws IOException
 		{
 		checkOpen();
 		return this.reader.query(chrom, start, end);
 		}
 	
-	public List<BedLine> getLines(String chrom,int start,int end) throws IOException
+	public List<BedLine> getLines(final String chrom,final int start,final int end) throws IOException
 		{
 		checkOpen();
 		CloseableIterator<BedLine> iter=null;
 		try
 			{
-			List<BedLine> L= new ArrayList<>();
+			final List<BedLine> L= new ArrayList<>();
 			iter = iterator(chrom,start,end);
 			while(iter.hasNext())
 				{
@@ -151,8 +153,9 @@ public class IndexedBedReader
 	
 	private interface AbstractIndexReader
 		{
-		public abstract CloseableIterator<BedLine> query(String chrom,int start,int end) throws IOException;
-		public abstract void close();
+		public Collection<String> getContigs();
+		public CloseableIterator<BedLine> query(String chrom,int start,int end) throws IOException;
+		public void close();
 		}
 	
 	private class TribbleReader
@@ -162,9 +165,9 @@ public class IndexedBedReader
 	    private AbstractFeatureReader<BedLine, LineIterator> reader;
 	    private BedLineCodec bedCodec =new BedLineCodec();
 
-		TribbleReader(File bedFile)  throws IOException
+		TribbleReader(final File bedFile)  throws IOException
 			{
-			File indexFile=Tribble.indexFile(bedFile);
+			final File indexFile = Tribble.indexFile(bedFile);
 			if(indexFile.exists())
 	    		{
 				LOG.info("loading tribble index in memory for "+ bedFile);
@@ -182,8 +185,10 @@ public class IndexedBedReader
 				);
 			}
 		@Override
-		public CloseableIterator<BedLine> query(String chrom, int start,
-				int end) throws IOException {
+		public CloseableIterator<BedLine> query(
+				final String chrom,
+				final int start,
+				final int end) throws IOException {
 			return this.reader.query(chrom, start, end);
 			}
 		@Override
@@ -192,15 +197,24 @@ public class IndexedBedReader
 			this.reader=null;
 			this.tribbleIndex=null;
 			}
+		@Override
+		public List<String> getContigs() {
+			return this.reader.getSequenceNames();
+			}
 		}
 	private class TabixReader
 		extends AbstractTabixObjectReader<BedLine>
 		implements AbstractIndexReader
 		{
-		TabixReader(String bedFile) throws IOException
+		TabixReader(final String bedFile) throws IOException
 			{
 			super(bedFile);
 			}
+		
+		@Override
+		public Collection<String> getContigs() {
+			return super.getChromosomes();
+		}
 		
 		@Override
 		public CloseableIterator<BedLine> query(String chrom, int start, int end)

@@ -4,4 +4,38 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.vcfbed">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Set FILTER for VCF if it doesn't intersects with BED.</description>
+<input type="vcf"/>
+<output type="vcf"/>
+<snippet id="boolean.intervals"/>
+
+<options>
+	<option name="filterName" opt="f" longopt="filter" type="string" argname="FILTER" default="VCFBED">
+		<description>FILTER name</description>
+	</option>
+	<option name="inverse" opt="i" longopt="inverse" type="boolean" default="false">
+		<description>inverse selection</description>
+	</option>
+	<option name="tabixFile" opt="B" longopt="bed" argname="FILE.BED" type="input-file" >
+		<description>Tribble or Tabix bed file</description>
+	</option>
+	<option name="treeMapFile" opt="m" longopt="map" argname="FILE.BED" type="input-file" >
+		<description>unindexed bed file, will be loaded in memory (faster than tribble/tabix but memory consumming)</description>
+	</option>
+	<option name="discardFlag" opt="d" longopt="discard" type="boolean" default="false" >
+		<description>Discard filtered variants</description>
+	</option>
+</options>
+
+<documentation>
+<h:h3>Examples</h:h3>
+<h:pre class="bash">$java -jar dist/vcfbedsetfilter.jar -f MYFILTER - -B in.bed in.vcf 
+</h:pre>
+
+</documentation>
+
+<arguments> </arguments>
+
+<!-- __PLACEHOLDER__ -->
+
+</app>
