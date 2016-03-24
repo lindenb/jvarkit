@@ -45,7 +45,7 @@ A special node '&lt;alt&gt;' can be called once. &lt;sample&gt; will generate a 
   <node name="ref">variant.getReference()</node>
   <node name="alt">variant.getAlternateAlleles()</node>
 </treepack>
-]]>
+]]></h:pre>
 
 
 <h:pre class="xml"><![CDATA[
