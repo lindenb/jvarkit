@@ -15,12 +15,155 @@
 		<regex>(VCF|BAM|SAM|FASTQ|FASTA)</regex>
 		<description> force format: one of VCF BAM SAM FASTQ FASTA</description>
 	</option>
-
-	
 </options>
 
+<documentation>
+Bioinformatics file javascript-based reformatter ( java engine <h:a>http://openjdk.java.net/projects/nashorn/</h:a> ). Something like awk for VCF, BAM, SAM, FASTQ, FASTA etc...
 
-<arguments> </arguments>
+
+The program injects the following variables:
+
+<h:ul>
+	<h:li><h:b>out</h:b> a java.io.PrintWriter ( https://docs.oracle.com/javase/7/docs/api/java/io/PrintWriter.html ) for output</h:li>
+	<h:li><h:b>FILENAME</h:b> a string, the name of the current input</h:li>
+	<h:li> <h:b>format</h:b> a string, the format of the current input ("VCF"...)</h:li>
+</h:ul>
+
+
+<h:h4>VCF</h:h4>
+
+for VCF , the program injects the following variables:
+<h:ul>
+	<h:li><h:b>header</h:b> a htsjdk.variant.vcf.VCFHeader https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html</h:li>
+	<h:li><h:b>iter</h:b> a java.util.Iterator&lt;htsjdk.variant.variantcontext.VariantContext&gt;  https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html</h:li>
+</h:ul>
+
+<h:h4>Fasta</h:h4>
+
+* <h:b>iter</h:b> a java.util.Iterator&lt;Fasta&gt;   
+
+<h:pre><![CDATA[
+	public class Fasta 
+		{
+		public String getSequence();
+		public String getName();
+		public void print();
+		public int getSize();
+		public char charAt(int i);
+		}
+]]></h:pre>
+
+<h:h4>BAM or SAM</h:h4>
+
+<h:ul>
+	<h:li><h:b>header</h:b> a htsjdk.samtools.SAMFileHeader http://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html</h:li>
+	<h:li><h:b>iter</h:b> a htsjdk.samtools.SAMRecordIterator  https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecordIterator.html</h:li>
+</h:ul>
+
+
+<h:h4>FASTQ</h:h4>
+<h:ul>
+	<h:li><h:b>iter</h:b> a java.util.Iterator&lt;htsjdk.samtools.fastq.FastqRecord&gt;  https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/fastq/FastqRecord.html</h:li>
+</h:ul>
+
+
+<h:h3>Example</h:h3>
+
+<h:h4>VCF</h:h4>
+Reformating a VCF
+we want to reformat a VCF with header
+<h:pre><![CDATA[
+CHROM POS REF ALT GENOTYPE_SAMPLE1 GENOTYPE_SAMPLE2 ... GENOTYPE_SAMPLEN
+]]></h:pre>
+we use the following javascript file:
+
+<h:pre><![CDATA[
+var samples = header.sampleNamesInOrder;
+out.print("CHROM\tPOS\tREF\tALT");
+for(var i=0;i< samples.size();++i)
+	{
+	out.print("\t"+samples.get(i));
+	}
+out.println();
+
+while(iter.hasNext())
+	{
+	var ctx = iter.next();
+	if(ctx.alternateAlleles.size()!=1) continue;
+	out.print(ctx.chr +"\t"+ctx.start+"\t"+ctx.reference.displayString+"\t"+ctx.alternateAlleles.get(0).displayString);
+	for(var i=0;i< samples.size();++i)
+		{
+		var g = ctx.getGenotype(samples.get(i));
+
+		out.print("\t");
+
+		if(g.isHomRef())
+			{
+			out.print("0");
+			}
+		else if(g.isHomVar())
+			{
+			out.print("2");
+			}
+		else if(g.isHet())
+			{
+			out.print("1");
+			}
+		else
+			{
+			out.print("-9");
+			}
+		}
+	out.println();
+	}
+]]></h:pre>
+
+
+<h:pre><![CDATA[
+$ curl -s  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" | \
+gunzip -c | java -jar ./dist/bioalcidae.jar -f jeter.js -F vcf | head -n 5 | cut -f 1-10
+
+CHROM	POS	REF	ALT	HG00096	HG00097	HG00099	HG00100	HG00101	HG00102
+22	16050075	A	G	0	0	0	0	0	0
+22	16050115	G	A	0	0	0	0	0	0
+22	16050213	C	T	0	0	0	0	0	0
+22	16050319	C	T	0	0	0	0	0	0
+]]></h:pre>
+
+***
+for 1000 genome data, print CHROM/POS/REF/ALT/AF(europe):
+
+<h:pre><![CDATA[
+$ curl  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |  gunzip -c |\
+java -jar dist/bioalcidae.jar  -F VCF -e 'while(iter.hasNext()) {var ctx=iter.next(); if(!ctx.hasAttribute("EUR_AF") || ctx.alternateAlleles.size()!=1) continue; out.println(ctx.chr+"\t"+ctx.start+"\t"+ctx.reference.displayString+"\t"+ctx.alternateAlleles.get(0).displayString+"\t"+ctx.getAttribute("EUR_AF"));}' 
+
+1	10177	A	AC	0.4056
+1	10235	T	TA	0
+1	10352	T	TA	0.4264
+1	10505	A	T	0
+1	10506	C	G	0
+1	10511	G	A	0
+1	10539	C	A	0.001
+1	10542	C	T	0
+1	10579	C	A	0
+1	10616	CCGCCGTTGCAAAGGCGCGCCG	C	0.994
+(...)
+]]></h:pre>
+
+
+<h:h3>See also</h:h3>
+<h:ul>
+	<h:li><h:a>https://github.com/lh3/bioawk</h:a></h:li>
+	<h:li><h:a>https://www.biostars.org/p/152016/</h:a></h:li>
+	<h:li><h:a>https://www.biostars.org/p/152720/</h:a></h:li>
+	<h:li><h:a>https://www.biostars.org/p/152820/</h:a></h:li>
+	<h:li><h:a>https://www.biostars.org/p/153060/</h:a></h:li>
+	<h:li><h:a>https://www.biostars.org/p/183197</h:a></h:li>
+</h:ul>
+
+</documentation>
+
+
 
 
 <!-- __PLACEHOLDER__ --></app>

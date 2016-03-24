@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
@@ -59,9 +60,10 @@ public abstract class AbstractTreePackCommandLine
 	private final String XLINK="http://www.w3.org/1999/xlink";
 	private final String JVARKIT_NS="https://github.com/lindenb/jvarkit";
 	protected RootNodeFactory nodeFactoryChain=new RootNodeFactory();
-	protected final TreeNode rootNode =new TreeNode("(root)",nodeFactoryChain,null);
+	protected final TreeNode rootNode =new TreeNode("(root)",nodeFactoryChain,null,null);
 	private final Hershey hershey=new Hershey();   
 	protected final SimpleBindings bindings = new SimpleBindings();
+	private final AtomicReference<String> styleReference = new AtomicReference<String>(null);
 
 	/** Node Factory */
 	protected abstract class NodeFactory
@@ -84,7 +86,9 @@ public abstract class AbstractTreePackCommandLine
 			final TreeNode child;
 			if(parentNode.factory!=this.prev) throw new IllegalStateException();
 			if(!parentNode.children.containsKey(key)) {
-				 child =new TreeNode(key, this,parentNode);
+				 final String style = styleReference.get();
+				 styleReference.set(null);
+				 child =new TreeNode(key, this,parentNode,style);
 				 parentNode.children.put(key,child);
 			} else {
 				child = parentNode.children.get(key);
@@ -136,16 +140,24 @@ public abstract class AbstractTreePackCommandLine
 		{
 		private Rectangle2D bounds=new Rectangle2D.Double(-10,-10,10,10);
 		private final String label;
+		/** css style */
+		private final String style;
 		protected final TreeNode parent;
 		protected final NodeFactory factory;
 		private Map<String,TreeNode> children=new HashMap<String,TreeNode>();
 		private long count=0L;
 		
-		protected TreeNode(final String label,final NodeFactory factory,final TreeNode parent)
+		protected TreeNode(
+				final String label,
+				final NodeFactory factory,
+				final TreeNode parent,
+				final String style
+				)
 			{
 			this.label=label;
 			this.factory = factory; 
 			this.parent = parent;
+			this.style = style;
 			if(this.factory==null) throw new IllegalStateException("Factory is null");
 			if(this.label==null || this.label.trim().isEmpty()) throw new IllegalStateException("label is null");
 			}
@@ -206,7 +218,7 @@ public abstract class AbstractTreePackCommandLine
 			{
 			final double ratio=0.9;
 			final Rectangle2D r0=getBounds();
-			Rectangle2D.Double r1=new Rectangle2D.Double();
+			final Rectangle2D.Double r1=new Rectangle2D.Double();
 			r1.width=r0.getWidth()*ratio;
 			r1.x=r0.getX()+(r0.getWidth()-r1.width)/2;
 			r1.height=r0.getHeight()*ratio;
@@ -244,8 +256,8 @@ public abstract class AbstractTreePackCommandLine
 		
 		private Rectangle2D getTitleFrame()
 			{
-			Rectangle2D r=getBounds(); 
-			Rectangle2D.Double frame= new Rectangle2D.Double();
+			final Rectangle2D r=getBounds(); 
+			final Rectangle2D.Double frame= new Rectangle2D.Double();
 			frame.height=r.getHeight()*0.1;
 			frame.y=r.getY();
 			frame.width=r.getWidth();
@@ -297,16 +309,22 @@ public abstract class AbstractTreePackCommandLine
 		   
 		   w.writeStartElement("svg","g",SVG.NS);
 		   w.writeAttribute("title",getPath()+"="+convertWeightToString());
+		   
+		   
 		   w.writeAttribute("jvarkit",JVARKIT_NS,"path",getPath());
 		   w.writeAttribute("jvarkit",JVARKIT_NS,"weight",convertWeightToString());
-		   	if(!isLeaf())
+		   if(!isLeaf())
 		   		{
 		   		w.writeAttribute("jvarkit",JVARKIT_NS,"category",factory.getName());
 		   		w.writeAttribute("jvarkit",JVARKIT_NS,"count",""+children.size());
 		   		}
 		   
 		   w.writeEmptyElement("svg", "rect", SVG.NS);
+		   
 		   w.writeAttribute("class", "r"+(getDepth()%2));
+		   if(!(this.style==null || this.style.trim().isEmpty())) {
+			   w.writeAttribute("style",this.style);
+		   }
 		   w.writeAttribute("x",String.valueOf(frameUsed.getX()));
 		   w.writeAttribute("y",String.valueOf(frameUsed.getY()));
 		   w.writeAttribute("width",String.valueOf(frameUsed.getWidth()));
@@ -326,7 +344,7 @@ public abstract class AbstractTreePackCommandLine
 		   
 		   if(isLeaf())
 			   {
-			   	final Rectangle2D f_up=new Rectangle2D.Double(
+			   final Rectangle2D f_up=new Rectangle2D.Double(
 			   			insets.getX(),insets.getY(),
 			   			insets.getWidth(),insets.getHeight()/2.0
 			   			);
@@ -409,6 +427,7 @@ public abstract class AbstractTreePackCommandLine
 		w.writeEndElement();
 		w.writeComment("Cmd-Line:"+getProgramCommandLine());
 		w.writeComment("Version "+getVersion());
+		w.writeComment("Author "+getAuthorName());
 		rootNode.svg(w);
 		w.writeEndElement();//svg
 		w.writeEndDocument();
@@ -417,7 +436,7 @@ public abstract class AbstractTreePackCommandLine
 	
 	protected AbstractTreePackCommandLine()
 		{
-		
+		this.bindings.put("style",this.styleReference);
 		}
 	
 	protected String convertWeightToString(double weight)
@@ -435,55 +454,9 @@ public abstract class AbstractTreePackCommandLine
 		{
 		LOG.info("layout");
 		this.rootNode.setBounds(new Rectangle2D.Double(0, 0, this.viewRect.getWidth(), this.viewRect.getHeight()));
-		TreePacker packer=new TreePacker();
+		final TreePacker packer=new TreePacker();
 		this.rootNode.layout(packer);
 		}
-	/*
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -e 'path1 path2 path3 path4 ... A list of observed components.");
-		out.println("    The current list of available components is:");
-		out.println("    #name\tdescription");
-		for(NodeFactory f:getAllAvailableFactories())
-			{
-			out.println("    "+f.getName()+"\t\""+f.getDescription()+"\"");
-			}
-		out.println(" -x {width}x{height} dimension of the output rectangle. default:"+this.viewRect.width+"x"+this.viewRect.height);
-		super.printOptions(out);
-		}
-	
-	@Override
-	protected GetOptStatus handleOtherOptions(int c, GetOpt opt, String[] args)
-		{
-		switch(c)
-			{
-			case 'e':
-				if(buildFactoryChain(opt.getOptArg())!=0) return GetOptStatus.EXIT_FAILURE;
-				return GetOptStatus.OK;
-			case 'x':
-					{
-					String s=opt.getOptArg();
-					int x=s.indexOf('x');
-					if(x==-1)
-						{
-						error("'x' missing in "+s);
-						return GetOptStatus.EXIT_FAILURE;
-						}
-					this.viewRect.x=Integer.parseInt(s.substring(0, x));
-					this.viewRect.y=Integer.parseInt(s.substring(x+1));
-					if(viewRect.x<=0 ||this.viewRect.y<=0 )
-						{
-						error("bad viewRect "+viewRect);
-						return GetOptStatus.EXIT_FAILURE;
-						}
-					return GetOptStatus.OK;
-					}
-			default:return super.handleOtherOptions(c, opt, args);
-			}
-		
-		}*/
-	
 
 	protected void setDimension(final String s){
 		final int x=s.indexOf('x');

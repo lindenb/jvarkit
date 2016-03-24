@@ -26,8 +26,12 @@
 
 XML root is &lt;treepack&gt;. children are '&lt;node&gt;' or '&lt;sample&gt;'.
 A '&lt;node&gt;' has an attribute 'name'. The text content of the &lt;node&gt; will be evaluated as a javascript expression with the embedded javascript engine.
-The javascript engine injects <h:b>variant</h:b> a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html and
-<h:b>header</h:b> https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html.
+The javascript engine injects :
+<h:ul>
+	<h:li><h:b>variant</h:b> a <h:a>https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html</h:a></h:li>
+	<h:li><h:b>header</h:b> a <h:a>https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html</h:a>.</h:li>
+	<h:li><h:b>style</h:b> a java.util.concurrent.atomic.AtomicReference&lt;String&gt; that, if it is not empty, will be used as the SVG/CSS style of the current node.</h:li>
+</h:ul>
 A special node '&lt;sample&gt;' can be called once. &lt;sample&gt; will generate a new node splitting by sample name and injects a new variable '<h:b>genotype</h:b>' a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/Genotype.html .
 A special node '&lt;alt&gt;' can be called once. &lt;sample&gt; will generate a new node splitting by ALT allele name and injects a new variable '<h:b>alt</h:b>' a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/Allele.html .
 
@@ -44,6 +48,20 @@ A special node '&lt;alt&gt;' can be called once. &lt;sample&gt; will generate a 
 ]]>
 
 
+<h:pre class="xml"><![CDATA[
+<?xml version="1.0"?>
+<treepack>
+  <samples/>
+  <node name="indels">
+  function fun() {
+	  if(variant.isSNP()) return null;
+	  if(genotype.isNoCall() || genotype.isHomRef()) return null;
+	  return "INDEL";
+	  }
+fun(); 
+  </node>
+</treepack>
+]]>
 $ echo 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y MT |\
 tr " " "\n" |\
 awk '{printf("ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/ByPopulation/YRI-1412-%s.vcf.gz\n",$1);}' |\
