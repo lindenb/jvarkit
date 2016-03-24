@@ -24,15 +24,24 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.treepack;
 
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+
+import javax.script.CompiledScript;
+import javax.script.ScriptException;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
@@ -42,337 +51,8 @@ import htsjdk.samtools.util.CloserUtil;
 public class BamTreePack extends AbstractBamTreePack
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamTreePack.class);
-	/** Group by SAMReadGroupRecord */
-	private class GroupIdNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(GroupIdNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(final SAMRecord seq)
-				{
-				SAMReadGroupRecord g=seq.getReadGroup();
-				String gid=(g==null?"*":g.getReadGroupId());
-				if(gid==null || gid.isEmpty()) gid="*";
-				this.get(gid).watch(seq);
-				}
-			}
-		@Override
-		public String getName() {
-			return "group";
-			}
-		@Override
-		public String getDescription()
-			{
-			return "SAMReadGroupRecord.groupId)";
-			}
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-	
-	
-	
-	/** Group by Sample */
-	private class SampleNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(SampleNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(SAMRecord seq)
-				{
-				SAMReadGroupRecord g=seq.getReadGroup();
-				String sample=(g==null?"*":g.getSample());
-				if(sample==null || sample.isEmpty()) sample="*";
-				this.get(sample).watch(seq);
-				}
-			}
-		
-		@Override
-		public String getDescription()
-			{
-			return "Sample name";
-			}
-		
-		@Override
-		public String getName() {
-			return "sample";
-			}
-		
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-	
-	
-	/** Group by InsertSize */
-	private class InsertSizeNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(InsertSizeNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(SAMRecord rec)
-				{
-				String s="*";
-				int v=Math.abs(rec.getInferredInsertSize());
-				if(v>0) s=intervalToString(v, 10);
-					
-				this.get(s).watch(rec);
-				}
-			}
-		
-		@Override
-		public String getDescription()
-			{
-			return "Insert-Size";
-			}
-		
-		@Override
-		public String getName() {
-			return "insertsize";
-			}
-		
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-	
-	/** Group by Chromosome */
-	private class ChromosomeNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(ChromosomeNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(SAMRecord seq)
-				{
-				String chr=seq.getReferenceName();
-				if(chr==null) chr=SAMRecord.NO_ALIGNMENT_REFERENCE_NAME;
-				this.get(chr).watch(seq);
-				}
-			}
-		@Override
-		public String getDescription()
-			{
-			return "Chromosome";
-			}
-		@Override
-		public String getName()
-			{
-			return "chrom";
-			}
-		
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-	
-	/** Group by MAPQ */
-	private class MappingQualityFactory
-		extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(MappingQualityFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(SAMRecord seq)
-				{
-				String qualStr="*";
-				if(!seq.getReadUnmappedFlag())
-					{
-					int qual=seq.getMappingQuality();
-					if(qual==255)
-						{
-						qualStr="?";
-						}
-					else if(qual==0)
-						{
-						qualStr="*";
-						}
-					else
-						{
-						qual=((int)(qual/10.0));
-						qualStr="["+(int)(qual)*10+"-"+((qual+1)*10)+"[";
-						}
-					}
-				this.get(qualStr).watch(seq);
-				}
-			}
-		@Override
-		public String getDescription()
-			{
-			return "Mapping quality window.size=10";
-			}
-		@Override
-		public String getName() {
-			return "mapq";
-			}
 
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-
-	/** Group by MAPQ */
-	private class PropertyPairedFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(PropertyPairedFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(SAMRecord seq)
-				{
-				String s="not-paired";
-				if(seq.getReadPairedFlag())
-					{
-					s=(seq.getReadPairedFlag()?"properly-paired":"not-property-paired");
-					}
-				this.get(s).watch(seq);
-				}
-			}
-		@Override
-		public String getDescription()
-			{
-			return "Properly paired reads";
-			}
-		@Override
-		public String getName() {
-			return "properly-paired";
-			}
-		
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-	
-	/** Group by NotSameChromNodeFactory */
-	private class NotSameChromNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(NotSameChromNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(SAMRecord rec)
-				{
-				String ref1=null;
-				String ref2=null;
-				if(rec.getReadPairedFlag() && 
-					!rec.getReadUnmappedFlag() &&
-					!rec.getMateUnmappedFlag() &&
-					(ref1=rec.getReferenceName())!=(ref2=rec.getMateReferenceName())
-					)
-					{
-					String s=ref1.compareTo(ref2)<0?
-							ref1+"/"+ref2:
-							ref2+"/"+ref1
-							;
-					this.get(s).watch(rec);
-					}
-				
-				}
-			}
-		
-		@Override
-		public String getDescription()
-			{
-			return "read chromosome != mate chromosome";
-			}
-		
-		@Override
-		public String getName() {
-			return "splitchrom";
-			}
-		
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-
-	
-	private class SamFlagNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(SamFlagNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(SAMRecord rec)
-				{
-				String s=String.valueOf(rec.getFlags());
-				this.get(s).watch(rec);	
-				}
-			}
-		
-		@Override
-		public String getDescription()
-			{
-			return "sam flag";
-			}
-		
-		@Override
-		public String getName() {
-			return "samflag";
-			}
-		
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-	
-	
-
-	
-	
-	private BamTreePack()
+	public BamTreePack()
 		{
 		
 		}
@@ -380,55 +60,107 @@ public class BamTreePack extends AbstractBamTreePack
 	
 	 private void scan(final SamReader sfr)
 		 {
+		 super.bindings.put("header", sfr.getFileHeader());
 		 final SAMRecordIterator iter=sfr.iterator();
 		 final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader());
 		 while(iter.hasNext())
 			 {
-			 root.watch(progress.watch(iter.next()));
+			 final SAMRecord rec= progress.watch(iter.next());
+			 super.bindings.put("record", rec);
+			 super.nodeFactoryChain.watch(rootNode, rec);
 			 }
 		 progress.finish();
 		 }
 	  
 	
-	private  List<NodeFactory> _factories=null;
-	@Override
-	protected List<NodeFactory> getAllAvailableFactories()
-		{
-		if(_factories==null)
-			{
-			_factories=new ArrayList<NodeFactory>();
-			_factories.add(new ChromosomeNodeFactory());
-			_factories.add(new SampleNodeFactory());
-			_factories.add(new PropertyPairedFactory());
-			_factories.add(new MappingQualityFactory());
-			_factories.add(new GroupIdNodeFactory());
-			_factories.add(new InsertSizeNodeFactory());
-			_factories.add(new NotSameChromNodeFactory());
-			_factories.add(new SamFlagNodeFactory());
+		private void parseConfigFile() throws IOException{
+			if(super.configFile==null || !super.configFile.exists()) {
+				throw new IOException("Undefined config file option -"+OPTION_CONFIGFILE);
 			}
-		return _factories;
-		}
-	
-	
-	
+			try {
+				LOG.info("getting javascript manager");
+				final javax.script.ScriptEngineManager manager = new javax.script.ScriptEngineManager();
+				final javax.script.ScriptEngine engine = manager.getEngineByName("js");
+				if(engine==null)
+					{
+					throw new RuntimeException("not available ScriptEngineManager: javascript. Use the SUN/Oracle JDK ?");
+					}
+				final javax.script.Compilable compilingEngine = (javax.script.Compilable)engine;
+				
+				final DocumentBuilderFactory dbf=DocumentBuilderFactory.newInstance();
+				final DocumentBuilder db=dbf.newDocumentBuilder();
+				LOG.info("parsing "+configFile);
+				final Document dom = db.parse(super.configFile);
+				final Element root=dom.getDocumentElement();
+				if(root==null) throw new RuntimeException("not root node in "+this.configFile);
+				if(!root.getTagName().equals("treepack"))
+					{
+					throw new IOException("Bad root in "+configFile+" expected root node <treepack> but got "+root.getTagName());
+					}
+				Attr att=root.getAttributeNode("width");
+				if(att!=null) {
+					super.viewRect.width=Math.max(100, Integer.parseInt(att.getValue()));
+				}
+				att=root.getAttributeNode("height");
+				if(att!=null) {
+						super.viewRect.height=Math.max(100, Integer.parseInt(att.getValue()));
+					}
+				for(org.w3c.dom.Node c=root.getFirstChild();c!=null;c=c.getNextSibling()) {
+					if(c.getNodeType()!=Node.ELEMENT_NODE) continue;
+					Element e1=Element.class.cast(c);
+					if(e1.getTagName().equals("node")) {
+					att= e1.getAttributeNode("name");
+					if(att==null) throw new IOException("missing attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+					final String name=att.getValue().trim();
+					if(name.isEmpty())  throw new IOException("empty attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+					
+					final String content=e1.getTextContent();
+					if(content==null || content.trim().isEmpty())  throw new IOException("empty text content under element " +e1.getTagName()+" in "+super.configFile);
+					CompiledScript compiled =null;
+					try {
+						compiled=compilingEngine.compile(content);
+						}
+					catch(ScriptException err) {
+						throw new IOException("Cannot compile node "+e1.getTagName(), err);
+					}
+
+					final JsNodeFactory js=new JsNodeFactory(name,compiled); 
+					super.nodeFactoryChain.append(js);
+					}
+					else {
+						throw new IOException("Unknown node under root "+e1);
+					}
+				}
+				
+				} 
+			catch(IOException err) {
+				throw err;
+			}
+			catch(Exception err) {
+				throw new IOException(err);
+			}
+			finally {
+				}
+			}
+
+		
 	@Override
 	public Collection<Throwable> call() throws Exception {
-		if(super.listFactories) 
-			{
-			super.printAvailableFactories();
-			return RETURN_OK;
-			}
+		
 		setDimension(super.dimensionStr);
-		buildFactoryChain(super.chainExpression);
-		if(super.nodeFactoryChain.isEmpty())
-			{
-			return wrapException("no path defined");
-			}
+		
 		
 		SamReader in=null;
 		final List<String> args= super.getInputFiles();
 		try
 			{
+			parseConfigFile();
+			if(super.nodeFactoryChain.next==null)
+				{
+				return wrapException("no path defined");
+				}
+
+			
 			final SamReaderFactory srf = super.createSamReaderFactory();
 			if(args.isEmpty())
 				{

@@ -1,152 +1,61 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.treepack;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
+import javax.script.CompiledScript;
+import javax.script.ScriptException;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 import htsjdk.samtools.fastq.FastqRecord;
-import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.CloserUtil;
-
 
 public class FastqRecordTreePack extends AbstractFastqRecordTreePack
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(FastqRecordTreePack.class);
 
-	private class LengthNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(LengthNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(FastqRecord rec)
-				{
-				String key=String.valueOf(rec.getReadString().length());
-				this.get(key).watch(rec);
-				}
-			}
-		@Override
-		public String getName() {
-			return "length";
-			}
-		@Override
-		public String getDescription()
-			{
-			return "Read Length";
-			}
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-	
-	
-	
-	/** Group by Sample */
-	private class SubSequenceFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(SubSequenceFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(FastqRecord seq)
-				{
-				for(int i=0;i+ SubSequenceFactory.this.len <= seq.getReadString().length();++i)
-					{
-					String key=seq.getReadString().substring(i,i+SubSequenceFactory.this.len);
-					this.get(key).watch(seq);
-					}
-				}
-			}
-		
-		@Override
-		public String getDescription()
-			{
-			return "DNA words. Length:"+len+" bases";
-			}
-		
-		@Override
-		public String getName() {
-			return "word"+len;
-			}
-		
-		private int len;
-		SubSequenceFactory(int len)
-			{
-			this.len=len;
-			}
-		
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-	
-	
-	/** Group by InsertSize */
-	private class QualityNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(QualityNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(FastqRecord rec)
-				{
-				String qual=rec.getBaseQualityString();
-				int x=0;
-				for(int i=0;i< qual.length();++i)
-					{
-					x+=SAMUtils.fastqToPhred(qual.charAt(i));
-					}
-				String s= intervalToString((int)(x/qual.length()),5);
-				this.get(s).watch(rec);
-				}
-			}
-		
-		@Override
-		public String getDescription()
-			{
-			return "Mean quality (phred>=33)";
-			}
-		
-		@Override
-		public String getName() {
-			return "qual";
-			}
-		
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-	
-	
-
-	
-	
-	private FastqRecordTreePack()
+	public FastqRecordTreePack()
 		{
 		
 		}
@@ -156,51 +65,98 @@ public class FastqRecordTreePack extends AbstractFastqRecordTreePack
 		 {
 		 while(iter.hasNext())
 			 {
-			 FastqRecord rec=iter.next();
-			 root.watch(rec);
+			 final FastqRecord rec=iter.next();
+			 super.bindings.put("record", rec);
+			 super.nodeFactoryChain.watch(rootNode,rec);
 			 }
 		 }
-	  
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		super.printOptions(out);
+
+	private void parseConfigFile() throws IOException{
+		if(super.configFile==null || !super.configFile.exists()) {
+			throw new IOException("Undefined config file option -"+OPTION_CONFIGFILE);
 		}
-	
-	
-	private  List<NodeFactory> _factories=null;
-	@Override
-	protected List<NodeFactory> getAllAvailableFactories()
-		{
-		if(_factories==null)
-			{
-			_factories=new ArrayList<NodeFactory>();
-			for(int i=1;i<=5;++i) _factories.add(new SubSequenceFactory(i));
-			_factories.add(new LengthNodeFactory());
-			_factories.add(new QualityNodeFactory());
+		try {
+			LOG.info("getting javascript manager");
+			final javax.script.ScriptEngineManager manager = new javax.script.ScriptEngineManager();
+			final javax.script.ScriptEngine engine = manager.getEngineByName("js");
+			if(engine==null)
+				{
+				throw new RuntimeException("not available ScriptEngineManager: javascript. Use the SUN/Oracle JDK ?");
+				}
+			final javax.script.Compilable compilingEngine = (javax.script.Compilable)engine;
+			
+			final DocumentBuilderFactory dbf=DocumentBuilderFactory.newInstance();
+			final DocumentBuilder db=dbf.newDocumentBuilder();
+			LOG.info("parsing "+configFile);
+			final Document dom = db.parse(super.configFile);
+			final Element root=dom.getDocumentElement();
+			if(root==null) throw new RuntimeException("not root node in "+this.configFile);
+			if(!root.getTagName().equals("treepack"))
+				{
+				throw new IOException("Bad root in "+configFile+" expected root node <treepack> but got "+root.getTagName());
+				}
+			Attr att=root.getAttributeNode("width");
+			if(att!=null) {
+				super.viewRect.width=Math.max(100, Integer.parseInt(att.getValue()));
 			}
-		return _factories;
+			att=root.getAttributeNode("height");
+			if(att!=null) {
+					super.viewRect.height=Math.max(100, Integer.parseInt(att.getValue()));
+				}
+			for(org.w3c.dom.Node c=root.getFirstChild();c!=null;c=c.getNextSibling()) {
+				if(c.getNodeType()!=Node.ELEMENT_NODE) continue;
+				Element e1=Element.class.cast(c);
+				if(e1.getTagName().equals("node")) {
+				att= e1.getAttributeNode("name");
+				if(att==null) throw new IOException("missing attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+				final String name=att.getValue().trim();
+				if(name.isEmpty())  throw new IOException("empty attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+				
+				final String content=e1.getTextContent();
+				if(content==null || content.trim().isEmpty())  throw new IOException("empty text content under element " +e1.getTagName()+" in "+super.configFile);
+				CompiledScript compiled =null;
+				try {
+					compiled=compilingEngine.compile(content);
+					}
+				catch(ScriptException err) {
+					throw new IOException("Cannot compile node "+e1.getTagName(), err);
+				}
+
+				final JsNodeFactory js=new JsNodeFactory(name,compiled); 
+				super.nodeFactoryChain.append(js);
+				}
+				else {
+					throw new IOException("Unknown node under root "+e1);
+				}
+			}
+			
+			} 
+		catch(IOException err) {
+			throw err;
+		}
+		catch(Exception err) {
+			throw new IOException(err);
+		}
+		finally {
+			}
 		}
 
-
+	
 	@Override
 	public Collection<Throwable> call() throws Exception {
-		if(super.listFactories) 
-			{
-			super.printAvailableFactories();
-			return RETURN_OK;
-			}
+		
 		setDimension(super.dimensionStr);
-		buildFactoryChain(super.chainExpression);
-		if(super.nodeFactoryChain.isEmpty())
-			{
-			return wrapException("no path defined");
-			}
+
 		
 		FastqReader fqr=null;
 		final List<String> args = getInputFiles();
 		try
 			{
+			parseConfigFile();
+			if(super.nodeFactoryChain.next==null) {
+			return wrapException("no path defined");
+			}
+			
 			if(args.isEmpty())
 				{
 				LOG.info("Reading stdin");

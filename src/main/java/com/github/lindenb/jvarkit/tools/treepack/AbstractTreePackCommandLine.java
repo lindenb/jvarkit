@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.treepack;
 
 import java.awt.Rectangle;
@@ -9,59 +37,122 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.script.CompiledScript;
+import javax.script.ScriptException;
+import javax.script.SimpleBindings;
 import javax.xml.XMLConstants;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 
-public abstract class AbstractTreePackCommandLine<WATCH>
+
+public abstract class AbstractTreePackCommandLine
 	extends com.github.lindenb.jvarkit.util.command.Command
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractTreePackCommandLine.class);
 
 	protected Rectangle viewRect=new Rectangle(1000,1000);
-	protected final String XLINK="http://www.w3.org/1999/xlink";
-	protected final String JVARKIT_NS="https://github.com/lindenb/jvarkit";
-	protected List<NodeFactory> nodeFactoryChain=new ArrayList<NodeFactory>();
-	protected AbstractNode root=null;
-	protected Hershey hershey=new Hershey();   
+	private final String XLINK="http://www.w3.org/1999/xlink";
+	private final String JVARKIT_NS="https://github.com/lindenb/jvarkit";
+	protected RootNodeFactory nodeFactoryChain=new RootNodeFactory();
+	protected final TreeNode rootNode =new TreeNode("(root)",nodeFactoryChain,null);
+	private final Hershey hershey=new Hershey();   
+	protected final SimpleBindings bindings = new SimpleBindings();
 
-	
-	public abstract class NodeFactory
+	/** Node Factory */
+	protected abstract class NodeFactory
 		{
-		public  abstract String getName();
-		public abstract String getDescription();
-		public  abstract BranchNode createBranch(BranchNode parent,String label);
+		public abstract String getName();
+		public NodeFactory next=null;
+		public NodeFactory prev=null;
 		@Override
 		public String toString()
 			{
 			return getName();
 			}
+		public NodeFactory append(final NodeFactory child) {
+			if(next!=null) return next.append(child);
+			this.next=child;
+			child.prev=this;
+			return child;
+		}
+		public TreeNode increment(final TreeNode parentNode,String key) {
+			final TreeNode child;
+			if(parentNode.factory!=this.prev) throw new IllegalStateException();
+			if(!parentNode.children.containsKey(key)) {
+				 child =new TreeNode(key, this,parentNode);
+				 parentNode.children.put(key,child);
+			} else {
+				child = parentNode.children.get(key);
+			}
+			child.count++;
+			return child;
+			}
+		public abstract void watch(final TreeNode parentNode,final Object o);
 		}
 	
-	protected abstract class AbstractNode
+	/** Root Node Factory */
+	protected final class RootNodeFactory extends NodeFactory
+		{
+		public String getName() { return "ALL";}
+		public void watch(final TreeNode parentNode,final Object o) {
+			if(parentNode!=rootNode) throw new IllegalStateException();
+			if(next==null) return;
+			next.watch(parentNode, o);
+			}
+		}
+	/** Root Node Factory */
+	protected class JsNodeFactory extends NodeFactory
+		{
+		protected final String name;
+		protected final CompiledScript script;
+		public JsNodeFactory(final String name,CompiledScript script) {
+			this.name=name;
+			this.script=script;
+		}
+		public String getName() { return name;}
+		public void watch(final TreeNode parentNode,final Object o) {
+			if(parentNode.factory!=this.prev) throw new IllegalStateException();
+			try {
+				final Object jso=script.eval(bindings);
+				if(jso==null) return;
+				final String key = String.valueOf(jso);
+				if(key==null || key.trim().isEmpty()) return;
+				final TreeNode child = increment(parentNode, key);
+				if(next!=null) next.watch(child, o);
+			} catch (ScriptException e) {
+				throw new RuntimeException(e);
+			}
+			
+			}
+		}
+	
+	protected final class TreeNode
 		implements TreePack
 		{
-		private AbstractNode parent=null;
 		private Rectangle2D bounds=new Rectangle2D.Double(-10,-10,10,10);
-		private String label="";
+		private final String label;
+		protected final TreeNode parent;
+		protected final NodeFactory factory;
+		private Map<String,TreeNode> children=new HashMap<String,TreeNode>();
+		private long count=0L;
 		
-		
-		protected AbstractNode(AbstractNode parent,String label)
+		protected TreeNode(final String label,final NodeFactory factory,final TreeNode parent)
 			{
-			this.parent=parent;
 			this.label=label;
+			this.factory = factory; 
+			this.parent = parent;
+			if(this.factory==null) throw new IllegalStateException("Factory is null");
+			if(this.label==null || this.label.trim().isEmpty()) throw new IllegalStateException("label is null");
 			}
 		
-		public boolean isRoot()
-			{
-			return getParent()==null;
-			}
+		public final boolean isRoot() {
+			return this.parent == null;
+		}
 		
 		protected String convertWeightToString()
 			{
@@ -72,8 +163,8 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		
 		public String getPath()
 			{
-			StringBuilder b=new StringBuilder();
-			AbstractNode curr=this;
+			final StringBuilder b=new StringBuilder();
+			TreeNode curr=this;
 			while(curr!=null)
 				{
 				if(b.length()!=0) b.insert(0,"/");
@@ -88,16 +179,15 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			return this.label;
 			}
 		
-		public AbstractNode getParent()
+		public TreeNode getParent()
 			{
 			return parent;
 			}
 		
-		
 		public int getDepth()
 			{
 			int d=0;
-			AbstractNode p=this;
+			TreeNode p=this;
 			while(p.parent!=null)
 				{
 				p=p.parent;
@@ -131,16 +221,64 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			}
 	
 		@Override
-		public abstract double getWeight();
+		public double getWeight() {
+			if(isLeaf()) {
+				return this.count;
+			}
+			else
+				{
+				double N=0;
+				for(final String k:this.children.keySet())
+					{
+					final TreePack c = this.children.get(k);
+					if(c.getWeight()<=0) throw new IllegalStateException(getPath());
+					N+=c.getWeight();
+					}
+				return N;
+				}
+		}
 		
-		public abstract void watch(WATCH object);
-		public abstract boolean isLeaf();
+		public boolean isLeaf(){
+			return this.factory.next==null;
+		}
 		
+		private Rectangle2D getTitleFrame()
+			{
+			Rectangle2D r=getBounds(); 
+			Rectangle2D.Double frame= new Rectangle2D.Double();
+			frame.height=r.getHeight()*0.1;
+			frame.y=r.getY();
+			frame.width=r.getWidth();
+			frame.x=r.getX();
+			return frame;
+			}
+		private Rectangle2D getChildrenFrame()
+			{
+			final Rectangle2D r=getBounds(); 
+			if(isRoot()) return r;
+			final Rectangle2D.Double frame= new Rectangle2D.Double();
+			frame.height=r.getHeight()*0.9;//yes again after
+			frame.y=r.getMaxY()-frame.height;
+			frame.height=r.getHeight()*0.85;//yes again 
+			frame.width=r.getWidth()*0.95;
+			frame.x=r.getX()+(r.getWidth()-frame.width)/2.0;
+			return frame;
+			}
+	
+	public void layout(final TreePacker packer)
+		{
+		if(isLeaf()) return;
+		if(getWeight()<=0) return ;
+		final List<TreePack> L=new ArrayList<TreePack>(children.values());
+		packer.layout(L, getChildrenFrame() );
+		for(final TreeNode c:this.children.values())
+			{
+			c.layout(packer);
+			}
+		}			
+	
 		
-		public abstract void layout(TreePacker packer);		
-		
-		@SuppressWarnings("unchecked")
-		public void svg(XMLStreamWriter w) throws XMLStreamException
+		public void svg(final XMLStreamWriter w) throws XMLStreamException
 		   {
 		   if(getWeight()<=0)
 			   {
@@ -163,8 +301,8 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		   w.writeAttribute("jvarkit",JVARKIT_NS,"weight",convertWeightToString());
 		   	if(!isLeaf())
 		   		{
-		   		w.writeAttribute("jvarkit",JVARKIT_NS,"category",((BranchNode)this).factory.getName());
-		   		w.writeAttribute("jvarkit",JVARKIT_NS,"count",""+((BranchNode)this).children.size());
+		   		w.writeAttribute("jvarkit",JVARKIT_NS,"category",factory.getName());
+		   		w.writeAttribute("jvarkit",JVARKIT_NS,"count",""+children.size());
 		   		}
 		   
 		   w.writeEmptyElement("svg", "rect", SVG.NS);
@@ -174,25 +312,21 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		   w.writeAttribute("width",String.valueOf(frameUsed.getWidth()));
 		   w.writeAttribute("height",String.valueOf(frameUsed.getHeight()));
 			   
-
-		   if(!isLeaf())
-			   {
-			   BranchNode me=((BranchNode)this);
-			   
+		   /* write banner */
+		   if(!isLeaf() && !isRoot())
+			   {			   
 			   w.writeEmptyElement("svg", "path", SVG.NS);
 			   w.writeAttribute("d",
 						hershey.svgPath(getLabel()+"="+convertWeightToString(),
-								me.getTitleFrame())
+								this.getTitleFrame())
 						);
 			   }
 		   
 
 		   
-		   
-		   
 		   if(isLeaf())
 			   {
-			   	Rectangle2D f_up=new Rectangle2D.Double(
+			   	final Rectangle2D f_up=new Rectangle2D.Double(
 			   			insets.getX(),insets.getY(),
 			   			insets.getWidth(),insets.getHeight()/2.0
 			   			);
@@ -202,7 +336,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 						);	
 				w.writeAttribute("class","lbla"+(getDepth()%2));
 
-				Rectangle2D f_down=new Rectangle2D.Double(
+				final Rectangle2D f_down=new Rectangle2D.Double(
 						insets.getX(),insets.getCenterY(),
 						insets.getWidth(),insets.getHeight()/2.0
 			   			);
@@ -214,174 +348,20 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			   }
 		   else
 			   {
-			   BranchNode me=(BranchNode)this;
-			   for(String key:me.children.keySet())
+			   for(final String key:this.children.keySet())
 				   {
-				   me.children.get(key).svg(w);
+				   this.children.get(key).svg(w);
 				   }
 			   }
 		   
 		   w.writeEndElement();//g
-		   }
-		
+		   }		
 		}
 	
+			
+			
 	
-	
-	protected abstract class LeafNode
-		extends AbstractNode
-		{
-		LeafNode(AbstractNode parent,String label)
-			{
-			super(parent,label);
-			}
-		
-		@Override
-		public final boolean isLeaf() {
-			return true;
-			}
-		
-		@Override
-		public void layout(TreePacker packer) {
-			//nothing
-			}
-		}
-	protected class DefaultLeafNode
-		extends LeafNode
-			{
-			long count;
-			
-			DefaultLeafNode(AbstractNode parent,String label)
-				{
-				super(parent,label);
-				}
-			@Override
-			public void watch(WATCH object) {
-				++count;
-				}
-			
-			@Override
-			public double getWeight() {
-				return count;
-				}
-			}
-	
-	
-	protected abstract class BranchNode
-		extends AbstractNode
-			{
-			long count;
-			private Map<String,AbstractNode> children=new HashMap<String,AbstractNode>();
-			protected NodeFactory factory=null;
-			
-			
-			
-			
-			protected BranchNode(NodeFactory factory,AbstractNode parent,String label)
-				{
-				super(parent,label);
-				this.factory=factory;
-				}
-			
-			protected String findKeyByValue(AbstractNode child)
-				{
-				for(String key:children.keySet())
-					{
-					if(children.get(key)==child) return key;
-					}
-				return null;
-				}
-			
-			public List<AbstractNode> getChildren()
-				{
-				return new ArrayList<AbstractNode>(this.children.values());
-				}
-			
-			@Override
-			public double getWeight()
-				{
-				double N=0;
-				for(TreePack c:this.getChildren())
-					{
-					if(c.getWeight()<=0) throw new IllegalStateException(getPath());
-					N+=c.getWeight();
-					}
-				return N;
-				}
-			
-			protected LeafNode createLeafNode(String label)
-				{
-				return  AbstractTreePackCommandLine.this.createLeafNode(this,label);
-				}
-			
-			protected AbstractNode createChildren(String key)
-				{
-				if(getDepth()+1< AbstractTreePackCommandLine.this.nodeFactoryChain.size())
-					 {
-					 return nodeFactoryChain.get(getDepth()+1).createBranch(this,key);
-					 }
-				 else
-					 {
-					 return  this.createLeafNode(key);
-					 }
-				}
-			
-			protected AbstractNode get(String key)
-				{
-				AbstractNode c=this.children.get(key);
-				if(c==null)
-					{
-					c =createChildren(key);
-					this.children.put(key, c);
-					}
-				return c;
-				}
 
-			@Override
-			public final boolean isLeaf()
-				{
-				return false;
-				}
-			
-			protected Rectangle2D getTitleFrame()
-				{
-				Rectangle2D r=getBounds(); 
-				Rectangle2D.Double frame= new Rectangle2D.Double();
-				frame.height=r.getHeight()*0.1;
-				frame.y=r.getY();
-				frame.width=r.getWidth();
-				frame.x=r.getX();
-				return frame;
-				}
-			
-			protected Rectangle2D getChildrenFrame()
-				{
-				Rectangle2D r=getBounds(); 
-				Rectangle2D.Double frame= new Rectangle2D.Double();
-				frame.height=r.getHeight()*0.9;//yes again after
-				frame.y=r.getMaxY()-frame.height;
-				frame.height=r.getHeight()*0.85;//yes again 
-				frame.width=r.getWidth()*0.95;
-				frame.x=r.getX()+(r.getWidth()-frame.width)/2.0;
-				return frame;
-				}
-			
-			@Override
-			public void layout(TreePacker packer)
-				{
-				if(getWeight()<=0) return ;
-				List<TreePack> L=new ArrayList<TreePack>(children.values());
-				packer.layout(L, getChildrenFrame() );
-				for(AbstractNode c:getChildren())
-					{
-					c.layout(packer);
-					}
-				}
-			
-
-			
-			
-			}
 	
 	protected String getCascadingStylesheet()
 		{
@@ -429,7 +409,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		w.writeEndElement();
 		w.writeComment("Cmd-Line:"+getProgramCommandLine());
 		w.writeComment("Version "+getVersion());
-		root.svg(w);
+		rootNode.svg(w);
 		w.writeEndElement();//svg
 		w.writeEndDocument();
 		w.flush();
@@ -454,19 +434,9 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 	protected void layout()
 		{
 		LOG.info("layout");
-		this.root.setBounds(new Rectangle2D.Double(0, 0, this.viewRect.getWidth(), this.viewRect.getHeight()));
+		this.rootNode.setBounds(new Rectangle2D.Double(0, 0, this.viewRect.getWidth(), this.viewRect.getHeight()));
 		TreePacker packer=new TreePacker();
-		this.root.layout(packer);
-		}
-	protected abstract List<NodeFactory> getAllAvailableFactories();
-	
-	protected NodeFactory findFactoryByName(String s)
-		{
-		for(NodeFactory f:getAllAvailableFactories())
-			{
-			if(f.getName().equalsIgnoreCase(s)) return f;
-			}
-		return null;
+		this.rootNode.layout(packer);
 		}
 	/*
 	@Override
@@ -514,49 +484,7 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 		
 		}*/
 	
-	protected LeafNode createLeafNode(BranchNode parent,String label)
-		{
-		return new DefaultLeafNode(null, label);
-		}
-	
-	protected int buildFactoryChain(String path)
-		{
-		
-		if(path==null)
-			{
-			LOG.warn("No path defined!");
-			this.root=createLeafNode(null,"");
-			}
-		else
-			{
-			for(String p: path.split("[ \t/,;]+"))
-				{
-				NodeFactory nf=findFactoryByName(p);
-				if(nf==null)
-					{
-					LOG.error("Cannot get type \'"+p+"\' in "+getAllAvailableFactories());
-					return -1;
-					}
-				if(this.nodeFactoryChain.isEmpty())
-					{
-					this.root=nf.createBranch(null,"");
-					}
-				this.nodeFactoryChain.add(nf);
-				}
-			if(this.root==null)
-				{
-				LOG.error("Wrong path "+path);
-				return -1;
-				}
-			}
-		return 0;
-		}
-	protected void printAvailableFactories() {
-		for(final NodeFactory f:getAllAvailableFactories())
-			{
-			stdout().println("    "+f.getName()+"\t\""+f.getDescription()+"\"");
-			}
-		}
+
 	protected void setDimension(final String s){
 		final int x=s.indexOf('x');
 		if(x==-1)
@@ -570,5 +498,8 @@ public abstract class AbstractTreePackCommandLine<WATCH>
 			throw new IllegalArgumentException("bad viewRect "+s);
 			}
 		}
+	
+	
+	
 	
 	}

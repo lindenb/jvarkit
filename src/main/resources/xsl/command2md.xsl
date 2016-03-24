@@ -96,7 +96,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **<xsl:value-of select="@jarname"/>** ? https://github.com/mr-c/shouldacite/blob/master/decision-tree.md
+Should you cite **<xsl:value-of select="@jarname"/>** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 

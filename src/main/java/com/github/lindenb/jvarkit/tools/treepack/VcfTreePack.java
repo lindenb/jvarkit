@@ -1,11 +1,49 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.treepack;
 
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
-import htsjdk.samtools.util.CloserUtil;
+import javax.script.CompiledScript;
+import javax.script.ScriptException;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -17,249 +55,164 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VcfTreePack extends  AbstractVcfTreePack
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfTreePack.class);
-
-	/** Group by Chromosome */
-	private class ChromosomeNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(ChromosomeNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(VariantContext ctx)
-				{
-				this.get(ctx.getContig()).watch(ctx);
-				}
-			}
+	
+	private class SampleNodeFactory extends NodeFactory {
 		@Override
-		public String getDescription()
-			{
-			return "chromosomes";
-			}
-		@Override
-		public String getName()
-			{
-			return "chrom";
-			}
-		
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-
-	/** Group by Sample */
-	private class SampleNodeFactory extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(SampleNodeFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(VariantContext ctx)
-				{
-				if(!ctx.hasGenotypes()) return;
-				for(Genotype g:ctx.getGenotypes())
-					{
-					if(!g.isAvailable()) continue;
-					if(g.isNoCall()) continue;
-					this.get(g.getSampleName()).watch(ctx);
-					}
-				
-				}
-			}
-		@Override
-		public String getDescription()
-			{
-			return "sample-name";
-			}
-		@Override
-		public String getName()
-			{
+		public String getName() {
 			return "sample";
 			}
 		
 		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
+		public void watch(TreeNode parentNode, Object o) {
+			if(parentNode.factory!=this.prev) throw new IllegalStateException();
+
+			if(!(o instanceof VariantContext)) throw new IllegalStateException();
+			final VariantContext ctx=VariantContext.class.cast(o);
+			for(final String key:ctx.getSampleNames()) {
+				TreeNode child = increment(parentNode, key);
+				final Genotype g= ctx.getGenotype(key);
+				bindings.put("genotype", g);
+				if(next!=null) next.watch(child, ctx);
 			}
+			bindings.remove("genotype");
 		}
-	/** Group by Genotype */
-	private abstract class AbstractSubSampleNodeFactory extends NodeFactory
-		{
-		private abstract class MyGNode extends BranchNode
-			{
-			private MyGNode(BranchNode parent,String label)
-				{
-				super(AbstractSubSampleNodeFactory.this,parent,label);
-				}
-			private String findSample()
-				{
-				AbstractNode me=this;
-				AbstractNode parent=me.getParent();
-				while(parent!=null)
-					{
-					if(parent.isLeaf()) break;
-					@SuppressWarnings("unchecked")
-					final BranchNode b=(BranchNode)parent;
-					if(b instanceof SampleNodeFactory.MyNode)
-						{
-						final String sample= b.findKeyByValue(me);
-						if(sample==null) throw new IllegalStateException();
-						return sample;
-						}
-					me=parent;
-					parent=parent.getParent();
-					}
-				throw new RuntimeException("Bad path: you MUST use a 'sample' before using a "+getName());
-				}
-			public abstract void watch(Genotype g,VariantContext ctx);
-			@Override
-			public void watch(VariantContext ctx)
-				{
-				if(!ctx.hasGenotypes()) return;
-				String sample=this.findSample();
-				Genotype genotype=ctx.getGenotype(sample);
-				if(genotype==null) throw new IllegalStateException();
-				watch(genotype,ctx);
-				}
-			}
-		}
-	
-	
-	/** Group by Genotype */
-	private class GenotypeNodeFactory extends AbstractSubSampleNodeFactory
-		{
-		private class MyNode extends AbstractSubSampleNodeFactory.MyGNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(parent,label);
-				}
-			
-			@Override
-			public void watch(Genotype g,VariantContext ctx)
-				{
-				this.get(g.getType().name()).watch(ctx);
-				}
-			}
+	}
+
+	private class AltNodeFactory extends NodeFactory {
 		@Override
-		public String getDescription()
-			{
-			return "genotype";
-			}
-		@Override
-		public String getName()
-			{
-			return "genotype";
+		public String getName() {
+			return "alt";
 			}
 		
 		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
+		public void watch(TreeNode parentNode, Object o) {
+			if(parentNode.factory!=this.prev) throw new IllegalStateException();
+
+			if(!(o instanceof VariantContext)) throw new IllegalStateException();
+			final VariantContext ctx=VariantContext.class.cast(o);
+			for(final Allele alt:ctx.getAlleles()) {
+				final String key=alt.getDisplayString();
+				TreeNode child = increment(parentNode, key);
+				bindings.put("alt", alt);
+				if(next!=null) next.watch(child,ctx);
 			}
+			bindings.remove("alt");
 		}
+	}
 
-	
-	/** Group by MAPQ */
-	private class QualityFactory
-		extends NodeFactory
-		{
-		private class MyNode extends BranchNode
-			{
-			private MyNode(BranchNode parent,String label)
-				{
-				super(QualityFactory.this,parent,label);
-				}
-			
-			@Override
-			public void watch(VariantContext ctx)
-				{
-				String qualStr="*";
-				if(ctx.hasLog10PError())
-					{
-					int qual=(int)ctx.getPhredScaledQual();
-					qual=((int)(qual/10.0));
-					qualStr=(int)(qual)*10+"-"+((qual+1)*10);
-					}
-				this.get(qualStr).watch(ctx);
-				}
-			}
-		@Override
-		public String getDescription()
-			{
-			return "quality (window.size=10)";
-			}
-		@Override
-		public String getName() {
-			return "qual";
-			}
 
-		@Override
-		public BranchNode createBranch(BranchNode parent,String label)
-			{
-			return new MyNode(parent,label);
-			}
-		}
-
-	
-	 private void scan(VcfIterator iter)
+	void scan(final VcfIterator iter)
 		 {
-		 VCFHeader header=iter.getHeader();
-		 SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+		 final VCFHeader header=iter.getHeader();
+		 super.bindings.put("header", header);
+		 final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 		 while(iter.hasNext())
 			 {
-			 VariantContext rec=iter.next();
-			 progress.watch(rec.getContig(),rec.getStart());
-			 root.watch(rec);
+			 final VariantContext ctx=progress.watch(iter.next());
+			 bindings.put("variant",ctx);
+			 super.nodeFactoryChain.watch(super.rootNode,ctx);
 			 }
 		 progress.finish();
 		 }
 
-	private  List<NodeFactory> _factories=null;
-
-	@Override
-	protected List<NodeFactory> getAllAvailableFactories()
-		{
-		if(_factories==null)
-			{
-			_factories=new ArrayList<NodeFactory>();
-			_factories.add(new ChromosomeNodeFactory());
-			_factories.add(new QualityFactory());
-			_factories.add(new SampleNodeFactory());
-			_factories.add(new GenotypeNodeFactory());
-			}
-		return _factories;
+	private void parseConfigFile() throws IOException{
+		if(super.configFile==null || !super.configFile.exists()) {
+			throw new IOException("Undefined config file option -"+OPTION_CONFIGFILE);
 		}
+		try {
+			LOG.info("getting javascript manager");
+			final javax.script.ScriptEngineManager manager = new javax.script.ScriptEngineManager();
+			final javax.script.ScriptEngine engine = manager.getEngineByName("js");
+			if(engine==null)
+				{
+				throw new RuntimeException("not available ScriptEngineManager: javascript. Use the SUN/Oracle JDK ?");
+				}
+			final javax.script.Compilable compilingEngine = (javax.script.Compilable)engine;
+			
+			final DocumentBuilderFactory dbf=DocumentBuilderFactory.newInstance();
+			final DocumentBuilder db=dbf.newDocumentBuilder();
+			LOG.info("parsing "+configFile);
+			final Document dom = db.parse(super.configFile);
+			final Element root=dom.getDocumentElement();
+			if(root==null) throw new RuntimeException("not root node in "+this.configFile);
+			if(!root.getTagName().equals("treepack"))
+				{
+				throw new IOException("Bad root in "+configFile+" expected root node <treepack> but got "+root.getTagName());
+				}
+			Attr att=root.getAttributeNode("width");
+			if(att!=null) {
+				super.viewRect.width=Math.max(100, Integer.parseInt(att.getValue()));
+			}
+			att=root.getAttributeNode("height");
+			if(att!=null) {
+					super.viewRect.height=Math.max(100, Integer.parseInt(att.getValue()));
+				}
+			boolean found_sample=false;
+			boolean found_alt=false;
+			for(org.w3c.dom.Node c=root.getFirstChild();c!=null;c=c.getNextSibling()) {
+				if(c.getNodeType()!=Node.ELEMENT_NODE) continue;
+				Element e1=Element.class.cast(c);
+				if(e1.getTagName().equals("node")) {
+				att= e1.getAttributeNode("name");
+				if(att==null) throw new IOException("missing attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+				final String name=att.getValue().trim();
+				if(name.isEmpty())  throw new IOException("empty attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+				
+				final String content=e1.getTextContent();
+				if(content==null || content.trim().isEmpty())  throw new IOException("empty text content under element " +e1.getTagName()+" in "+super.configFile);
+				CompiledScript compiled =null;
+				try {
+					compiled=compilingEngine.compile(content);
+					}
+				catch(ScriptException err) {
+					throw new IOException("Cannot compile node "+e1.getTagName(), err);
+				}
+
+				final JsNodeFactory js=new JsNodeFactory(name,compiled); 
+				super.nodeFactoryChain.append(js);
+				}
+				else if(!found_sample && (e1.getTagName().equals("samples") || e1.equals("genotypes"))) {
+					found_sample=true;
+					super.nodeFactoryChain.append(new SampleNodeFactory());
+				} else if(!found_alt && (e1.getTagName().equals("alts") || e1.equals("alternate"))) {
+					found_alt=true;
+					super.nodeFactoryChain.append(new AltNodeFactory());
+				} else
+				{
+					throw new IOException("Unknown node under root "+e1);
+				}
+			}
+			
+			} 
+		catch(IOException err) {
+			throw err;
+		}
+		catch(Exception err) {
+			throw new IOException(err);
+		}
+		finally {
+			}
+		}
+
 	
 	
 	@Override
 	public Collection<Throwable> call() throws Exception {
-		if(super.listFactories) 
-			{
-			super.printAvailableFactories();
-			return RETURN_OK;
-			}
 		setDimension(super.dimensionStr);
-		buildFactoryChain(super.chainExpression);
-		if(super.nodeFactoryChain.isEmpty())
-			{
-			return wrapException("no path defined");
-			}
+		
+		
 		
 		VcfIterator in=null;
 		final List<String> args= super.getInputFiles();
 		try
 			{
+			parseConfigFile();
+			
+			if(super.nodeFactoryChain.next==null)
+				{
+				return wrapException("no path defined");
+				}
+			
 			if(args.isEmpty())
 				{
 				LOG.info("Reading stdin");
