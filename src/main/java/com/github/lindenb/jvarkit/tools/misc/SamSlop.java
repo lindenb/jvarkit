@@ -238,7 +238,6 @@ public class SamSlop extends AbstractSamSlop
 			CloserUtil.close(sfw);
 			}
 		}
-	
 	/**
 	 * @param args
 	 */

@@ -28,7 +28,8 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 	<xsl:apply-templates select=".//c:option"/>
 	
 	<xsl:if test="c:output/@type='sam' or c:output/@type='bam' or c:snippet[@id='write-sam']">
-	private htsjdk.samtools.SamReader.Type outputformat= htsjdk.samtools.SamReader.Type.SAM_TYPE;
+	/** outpout format for SAM files */
+	protected htsjdk.samtools.SamReader.Type samoutputformat= htsjdk.samtools.SamReader.Type.SAM_TYPE;
 	</xsl:if>
 	
 	
@@ -247,11 +248,11 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			if(!formatout.startsWith(".")) formatout="."+formatout;
 			if( formatout.equals(".bam"))
 				{
-				this.outputformat = htsjdk.samtools.SamReader.Type.BAM_TYPE;
+				this.samoutputformat = htsjdk.samtools.SamReader.Type.BAM_TYPE;
 				}
 			else if( formatout.equals(".sam"))
 				{
-				this.outputformat = htsjdk.samtools.SamReader.Type.SAM_TYPE;
+				this.samoutputformat = htsjdk.samtools.SamReader.Type.SAM_TYPE;
 				}
 			else
 				{
@@ -354,7 +355,9 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		<xsl:if test="c:output/@type='sam' or c:output/@type='bam' or c:snippet[@id='write-sam']">
 		/** creates a SAMFileWriterFactory */
 		protected htsjdk.samtools.SAMFileWriterFactory createSAMFileWriterFactory() {
-			return new htsjdk.samtools.SAMFileWriterFactory();
+			final htsjdk.samtools.SAMFileWriterFactory sfw =  new htsjdk.samtools.SAMFileWriterFactory();
+			sfw.setCompressionLevel(getBam_compression_level());
+			return sfw;
 			}
 		
 		/** create a SAMFile write from the current output file */
@@ -363,12 +366,12 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			final htsjdk.samtools.SAMFileWriterFactory sfw= this.createSAMFileWriterFactory();
 			if(getOutputFile()==null)
 				{
-				if(this.outputformat==null || this.outputformat.equals(htsjdk.samtools.SamReader.Type.SAM_TYPE))
+				if(this.samoutputformat==null || this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.SAM_TYPE))
 					{
 					LOG.info("Saving as SAM");
 					return sfw.makeSAMWriter(header, presorted, stdout());
 					}
-				else if( this.outputformat.equals(htsjdk.samtools.SamReader.Type.BAM_TYPE))
+				else if( this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.BAM_TYPE))
 					{
 					LOG.info("Saving as BAM");
 					return sfw.makeBAMWriter(header, presorted, stdout());

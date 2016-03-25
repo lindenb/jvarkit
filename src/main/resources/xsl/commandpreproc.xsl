@@ -103,6 +103,9 @@
 			<c:regex>(sam|bam)</c:regex>
 			<c:description>output format : sam or bam.  if stdout is used</c:description>
 		</c:option>
+		<c:option name="bam_compression_level" type="int" arg-name="LEVEL" opt="bam_compression_level" longopt="bam_compression_level" default="9">
+			<c:description>BAM Compression level (0-9)</c:description>
+		</c:option>
 	</xsl:if>
 
 	<xsl:if test="/c:app/c:snippet[@id='sorting-collection']">

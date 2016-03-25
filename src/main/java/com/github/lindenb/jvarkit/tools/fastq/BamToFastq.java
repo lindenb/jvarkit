@@ -1,11 +1,36 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.fastq;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
@@ -19,28 +44,15 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 
 public class BamToFastq
-	extends AbstractCommandLineProgram
+	extends AbstractBamToFastq
 	{
-	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. Previous version was an Implementation of https://twitter.com/DNAntonie/status/402909852277932032";
-		}
-	
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BamToFastq";
-		}
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamToFastq.class);
+
 	
 	private static class MappedFastq
 		{
@@ -59,7 +71,7 @@ public class BamToFastq
 		implements Comparator<MappedFastq>
 		{
 		@Override
-		public int compare(MappedFastq o1, MappedFastq o2)
+		public int compare(final MappedFastq o1, final  MappedFastq o2)
 			{
 			//int i= o1.hash - o2.hash;
 			//if(i!=0) return i;
@@ -78,7 +90,7 @@ public class BamToFastq
 	private static class MappedFastqCodec extends AbstractDataCodec<MappedFastq>
 		{
 		@Override
-		public void encode(DataOutputStream dos, MappedFastq o)
+		public void encode(final  DataOutputStream dos, final MappedFastq o)
 				throws IOException
 			{
 			dos.writeByte(o.side);
@@ -132,80 +144,40 @@ public class BamToFastq
 		super.printOptions(out);
 		}
 
-	
 	@Override
-	public int doWork(String[] args)
-		{
-		boolean repair_missing_read=false;
-		SortingCollectionFactory<MappedFastq> sortingFactory=new SortingCollectionFactory<MappedFastq>();
-		File forwardFile=null;
-		File reverseFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		
-		sortingFactory.setComponentType(MappedFastq.class);
-		sortingFactory.setCodec(new MappedFastqCodec());
-		sortingFactory.setComparator(new MappedFastqComparator());
-		
-		while((c=opt.getopt(args,super.getGetOptDefault()+ "F:R:N:r"))!=-1)
-			{
-			switch(c)
-				{
-				case 'F': forwardFile=new File(opt.getOptArg());break;
-				case 'R': reverseFile=new File(opt.getOptArg());break;
-				case 't': addTmpDirectory(new File(opt.getOptArg()));break;
-				case 'N': sortingFactory.setMaxRecordsInRAM(Math.max(Integer.parseInt(opt.getOptArg()),100));break;
-				case 'r': repair_missing_read=true;break;
-				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	protected Collection<Throwable> call(String inputName) throws Exception {
 		SamReader sfr=null;
 		SortingCollection<MappedFastq> fastqCollection=null;
 		try
 			{
-			sortingFactory.setTmpDirs(this.getTmpDirectories());
-			fastqCollection=sortingFactory.make();
-			fastqCollection.setDestructiveIteration(true);
 			boolean found_single=false;
 			boolean found_paired=false;
 			long non_primary_alignmaned_flag=0L;
 			
-			if(opt.getOptInd()==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				sfr=SamFileReaderFactory.mewInstance().open(filename);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
+			sfr = openSamReader(inputName);
+			
+			fastqCollection = SortingCollection.newInstance(
+					MappedFastq.class,
+					new MappedFastqCodec(),
+					new MappedFastqComparator(),
+					super.maxRecordsInRam,
+					getTmpDirectories()
+					);
+			fastqCollection.setDestructiveIteration(true);
+
 			SAMRecordIterator iter=sfr.iterator();
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(sfr.getFileHeader().getSequenceDictionary());
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
-				progress.watch(rec);
+				final SAMRecord rec=progress.watch(iter.next());
+				
 
 				
 				if(rec.isSecondaryOrSupplementary())
 					{
 					if(non_primary_alignmaned_flag==0)
 						{
-						warning("SKIPPING NON-PRIMARY "+(non_primary_alignmaned_flag+1)+" ALIGNMENTS");
+						LOG.warn("SKIPPING NON-PRIMARY "+(non_primary_alignmaned_flag+1)+" ALIGNMENTS");
 						}
 					non_primary_alignmaned_flag++;
 					continue;
@@ -226,7 +198,7 @@ public class BamToFastq
 					}
 				if(m.seq.length()!=m.qual.length())
 					{
-					error("length(seq)!=length(qual) in "+m.name);
+					LOG.error("length(seq)!=length(qual) in "+m.name);
 					continue;
 					}
 				if(m.seq.isEmpty() && m.qual.isEmpty())
@@ -264,7 +236,7 @@ public class BamToFastq
 			progress.finish();
 			
 			fastqCollection.doneAdding();
-			info("Done reading.");
+			LOG.info("Done reading.");
 			
 			if(found_paired) 
 				{
@@ -272,22 +244,22 @@ public class BamToFastq
 				FastqWriter fqw2=null;
 				if(forwardFile!=null)
 					{
-					info("Writing to "+forwardFile);
+					LOG.info("Writing to "+forwardFile);
 					fqw1=new BasicFastqWriter(forwardFile);
 					}
 				else
 					{
-					info("Writing to stdout");
+					LOG.info("Writing to stdout");
 					fqw1=new BasicFastqWriter(new PrintStream(System.out));
 					}
 				if(reverseFile!=null)
 					{
-					info("Writing to "+reverseFile);
+					LOG.info("Writing to "+reverseFile);
 					fqw2=new BasicFastqWriter(reverseFile);
 					}
 				else
 					{
-					info("Writing to interlaced stdout");
+					LOG.info("Writing to interlaced stdout");
 					fqw2=fqw1;
 					}
 				List<MappedFastq> row=new ArrayList<MappedFastq>();
@@ -302,7 +274,7 @@ public class BamToFastq
 							{
 							if(row.size()>2)
 								{
-								warning("WTF :"+row);
+								LOG.warn("WTF :"+row);
 								}
 							boolean found_F=false;
 							boolean found_R=false;
@@ -326,9 +298,9 @@ public class BamToFastq
 								}
 							if(!found_F)
 								{
-								if(repair_missing_read)
+								if(super.repair_missing_read)
 									{
-									warning("forward not found for "+row.get(0));
+									LOG.warn("forward not found for "+row.get(0));
 									MappedFastq pad=new MappedFastq();
 									pad.side=(byte)1;
 									pad.name=row.get(0).name;
@@ -345,7 +317,7 @@ public class BamToFastq
 								{
 								if(repair_missing_read)
 									{
-									warning("reverse not found for "+row.get(0));
+									LOG.warn("reverse not found for "+row.get(0));
 									MappedFastq pad=new MappedFastq();
 									pad.side=(byte)2;
 									pad.name=row.get(0).name;
@@ -373,16 +345,16 @@ public class BamToFastq
 				FastqWriter fqw1=null;
 				if(forwardFile!=null)
 					{
-					info("Writing to "+forwardFile);
+					LOG.info("Writing to "+forwardFile);
 					fqw1=new BasicFastqWriter(forwardFile);
 					}
 				else
 					{
-					info("Writing to stdout");
-					fqw1=new BasicFastqWriter(new PrintStream(System.out));
+					LOG.info("Writing to stdout");
+					fqw1=new BasicFastqWriter(new PrintStream(stdout()));
 					}
 			
-				CloseableIterator<MappedFastq> r=fastqCollection.iterator();
+				final CloseableIterator<MappedFastq> r=fastqCollection.iterator();
 				while(r.hasNext())
 					{
 					echo(fqw1,r.next());
@@ -390,12 +362,11 @@ public class BamToFastq
 				r.close();
 				fqw1.close();
 				}
-			return 0;
+			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{

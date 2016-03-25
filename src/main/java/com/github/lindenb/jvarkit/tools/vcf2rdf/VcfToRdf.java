@@ -34,15 +34,8 @@ import java.io.PrintWriter;
 import java.net.URI;
 
 
-
-
-
-
-
-
-
-
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -56,7 +49,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -64,32 +57,23 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
-public class VcfToRdf extends AbstractCommandLineProgram
+public class VcfToRdf extends AbstractVcfToRdf
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractVcfToRdf.class);
+
 	private long id_generator=0L;
 	private static final String XSD="http://www.w3.org/2001/XMLSchema#";
 	private static final String RDF=com.github.lindenb.jvarkit.util.ns.RDF.NS;
 	private static final String DC="http://purl.org/dc/elements/1.1/";
 	private static final String NS="http://github.com/lindenb/jvarkit/";
-	private Set<String> suffixes=new HashSet<String>();
+	private final Set<String> suffixes=new HashSet<String>();
 	private PrintWriter w = null;
 	
-	
-	private VcfToRdf()
+	public VcfToRdf()
 		{
 		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "convert VCF to RDF (N3 notation)";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfToRdf";
-		}
-	
-	private void prefix(String pfx,String uri)
+	private void prefix(final String pfx,final String uri)
 		{
 		this.w.print("@prefix ");
 		this.w.print(pfx);
@@ -99,7 +83,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 		this.suffixes.add(pfx);
 		}
 	
-	private void emitResource(Object r)
+	private void emitResource(final Object r)
 		{
 		if(r.getClass()==String.class)
 			{
@@ -117,7 +101,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 			}
 		}
 	
-	private void emitObject(Object r)
+	private void emitObject(final Object r)
 		{
 		if(r.getClass()==String.class)
 			{
@@ -186,17 +170,17 @@ public class VcfToRdf extends AbstractCommandLineProgram
 			}
 		}
 	
-	private void writeHeader(VCFHeader header,URI source)
+	private void writeHeader(final VCFHeader header,final URI source)
 		{
 		if(source!=null)
 			{
 			emit(source,"rdf:type","vcf:File");
 			}
 		
-		SAMSequenceDictionary dict=header.getSequenceDictionary();
+		final SAMSequenceDictionary dict=header.getSequenceDictionary();
 		if(dict!=null)
 			{
-			for(SAMSequenceRecord ssr:dict.getSequences())
+			for(final SAMSequenceRecord ssr:dict.getSequences())
 				{
 				emit(URI.create("urn:chrom/"+ssr.getSequenceName()),
 					"rdf:type","vcf:Chromosome",
@@ -207,7 +191,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 				}
 			}
 		
-		for(VCFFilterHeaderLine h:header.getFilterLines())
+		for(final VCFFilterHeaderLine h:header.getFilterLines())
 			{
 			emit(URI.create("urn:filter/"+h.getID()),
 					"rdf:type","vcf:Filter",
@@ -217,7 +201,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 			}
 		
 		//Sample
-		for(String sample:header.getSampleNamesInOrder())
+		for(final String sample:header.getSampleNamesInOrder())
 			{
 			emit(URI.create("urn:sample/"+sample),
 					"rdf:type","vcf:Sample",
@@ -229,7 +213,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 		}
 	
 	
-	private void scanVCF(File filein) throws IOException
+	private void scanVCF(final File filein) throws IOException
 		{
 		VcfIterator in=null;
 		URI source=null;
@@ -237,21 +221,21 @@ public class VcfToRdf extends AbstractCommandLineProgram
 		try {
 			if(filein!=null) source= filein.toURI();
 			in=(filein==null?VCFUtils.createVcfIteratorStdin():VCFUtils.createVcfIteratorFromFile(filein));
-			VCFHeader header = in.getHeader();
-			VepPredictionParser vepPredictionParser=new VepPredictionParser(header);
+			final VCFHeader header = in.getHeader();
+			final VepPredictionParser vepPredictionParser=new VepPredictionParser(header);
 			writeHeader(header,source);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			while(in.hasNext())
 				{
 				if(this.w.checkError())
 					{
-					warning("I/O interruption");
+					LOG.warn("I/O interruption");
 					break;
 					}
-				VariantContext ctx = progress.watch(in.next()); 
+				final VariantContext ctx = progress.watch(in.next()); 
 				
 				/* Variant */
-				URI variant = URI.create("urn:variant/"+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getBaseString());
+				final URI variant = URI.create("urn:variant/"+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getBaseString());
 				
 				
 				
@@ -264,31 +248,31 @@ public class VcfToRdf extends AbstractCommandLineProgram
 					"vcf:qual",(ctx.hasLog10PError()?ctx.getPhredScaledQual():null)
 					);
 				
-				for(Allele alt: ctx.getAlternateAlleles())
+				for(final Allele alt: ctx.getAlternateAlleles())
 					{
 					emit(variant,"vcf:alt",alt.getBaseString());
 					}
 				
-				for(String f:ctx.getFilters())
+				for(final String f:ctx.getFilters())
 					{
 					emit(variant,"vcf:filter",URI.create("urn:filter/"+f));
 					}
 				
 				
-				for(VepPrediction prediction : vepPredictionParser.getPredictions(ctx))
+				for(final VepPrediction prediction : vepPredictionParser.getPredictions(ctx))
 					{
-					List<Object> L=new ArrayList<>();
+					final List<Object> L=new ArrayList<>();
 					L.add("rdf:type");L.add("vep:Prediction");
 					L.add("vcf:variant"); L.add(variant);
 					L.add("vcf:allele");L.add(prediction.getAllele().getBaseString());
-					for(SequenceOntologyTree.Term term:prediction.getSOTerms())
+					for(final SequenceOntologyTree.Term term:prediction.getSOTerms())
 						{
 						L.add("vcf:so");
 						L.add(URI.create(term.getUri()));
 						}
 					if(prediction.getEnsemblTranscript()!=null)
 						{
-						URI transcriptid=URI.create("http://www.ensembl.org/id/"+prediction.getEnsemblTranscript());
+						final  URI transcriptid=URI.create("http://www.ensembl.org/id/"+prediction.getEnsemblTranscript());
 						L.add("vep:transcript");
 						L.add(transcriptid);
 
@@ -319,12 +303,12 @@ public class VcfToRdf extends AbstractCommandLineProgram
 						);
 					}
 				
-				for(String sample: ctx.getSampleNames())
+				for(final String sample: ctx.getSampleNames())
 					{
-					Genotype g = ctx.getGenotype(sample);
+					final Genotype g = ctx.getGenotype(sample);
 					
 					
-					List<Object> L=new ArrayList<>();
+					final List<Object> L=new ArrayList<>();
 					L.add("vcf:sample");  L.add(URI.create("urn:sample/"+sample));
 					L.add("vcf:variant"); L.add(variant);
 					L.add("rdf:type");L.add("vcf:Genotype");
@@ -363,7 +347,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 								L.add("rdf:type");L.add("vcf:HomVarGenotype");
 								}
 							}
-						for(Allele a:g.getAlleles())
+						for(final Allele a:g.getAlleles())
 							{
 							L.add("vcf:allele");L.add(a.getBaseString());
 							}
@@ -380,8 +364,7 @@ public class VcfToRdf extends AbstractCommandLineProgram
 			in.close(); in = null;
 			progress.finish();
 			} 
-		catch (Exception e) {
-			error(e);
+		catch (final Exception e) {
 			throw new IOException(e);
 			}
 		finally
@@ -391,28 +374,11 @@ public class VcfToRdf extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public Collection<Throwable> call() throws Exception {
+		final List<String > args = super.getInputFiles();
 		try
 			{
-			this.w= new PrintWriter(System.out);
+			this.w= super.openFileOrStdoutAsPrintWriter();
 			prefix("rdf",RDF);
 			prefix("dc", DC);
 			prefix("vcf", NS);
@@ -424,27 +390,26 @@ public class VcfToRdf extends AbstractCommandLineProgram
 			//prefix("so", "<http://www.sequenceontology.org/browser/current_svn/term/");
 
 			
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
 				scanVCF(null);
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i )
+				for(final String file: IOUtils.unrollFiles(args))
 					{
-					scanVCF(new File(args[i]));
+					scanVCF(new File(file));
 					}
 				}
 			
 			w.flush();
 			w.close();
 			w=null;
-			return 0;
+			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
