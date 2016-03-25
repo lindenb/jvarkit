@@ -98,7 +98,7 @@
 		</c:option>
 	</xsl:if>
 
-	<xsl:if test="/c:app/c:output[@type='sam'] or /c:app/c:output[@type='bam']">
+	<xsl:if test="/c:app/c:output[@type='sam'] or /c:app/c:output[@type='bam'] or  /c:app/c:snippet[@id='write-sam']">
 		<c:option name="formatout" type="string" arg-name="FORMAT" opt="formatout" longopt="formatout" default="sam" label="Sam Format">
 			<c:regex>(sam|bam)</c:regex>
 			<c:description>output format : sam or bam.  if stdout is used</c:description>
