@@ -127,6 +127,11 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 </xsl:template>
 
+<xsl:template match="h:h4">
+#### <xsl:apply-templates/>
+
+</xsl:template>
+
 
 <xsl:template match="h:h3">
 ### <xsl:apply-templates/>

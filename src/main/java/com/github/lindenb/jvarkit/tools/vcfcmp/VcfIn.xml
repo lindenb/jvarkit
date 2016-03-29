@@ -48,6 +48,8 @@
 
 
 <documentation>
+VCF files should be sorted using the same order as the sequence dictionary (see picard SortVcf).
+
 <h:h3>Example</h:h3>
 list variants found with gatk AND samtools, keep the variants with <h:a>http://www.sequenceontology.org/browser/current_release/term/SO:0001818</h:a> , remove variants found in a previous alignment (samtools or gatk)
 
@@ -63,6 +65,79 @@ gunzip -c NEWALIGN/{S}.gatk.vcf.gz |\
         grep -vE '^#' |
         awk -v S=${S} -F '      ' '{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",S,$1,$2,$3,$4,$5,$8);}' 
 done</h:pre>
+
+<h:h4>Example 2</h:h4>
+My list of bad variants is in the file 'bad.vcf'.
+
+<h:pre><![CDATA[##fileformat=VCFv4.2
+##contig=<ID=1,length=249250621,assembly=b37>
+##contig=<ID=22,length=51304566,assembly=b37>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+1	11167517	.	G	A	.	.	.
+1	11167760	.	C	T	.	.	.
+1	11168529	.	A	G	.	.	.
+1	11169789	.	A	G	.	.	.
+1	11174331	.	T	C	.	.	.
+1	11174715	.	T	C	.	.	.
+1	11180949	.	C	T	.	.	.]]></h:pre>
+
+My main vcf file is 'input.vcf'.
+
+<h:pre><![CDATA[##fileformat=VCFv4.2
+##contig=<ID=1,length=249250621,assembly=b37>
+##contig=<ID=22,length=51304566,assembly=b37>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+1	11166480	.	C	T	.	.	.
+1	11166541	.	G	C	.	.	.
+1	11166577	.	C	T	.	.	.
+1	11166713	.	T	C	.	.	.
+1	11167146	.	G	A	.	.	.
+1	11167158	.	C	T	.	.	.
+1	11167270	.	G	T	.	.	.
+1	11167517	.	G	T	.	.	.
+1	11167627	.	G	C	.	.	.
+1	11167760	.	C	T	.	.	.
+1	11167829	.	C	T	.	.	.
+1	11168529	.	A	G	.	.	.
+1	11168769	.	CAAA	C	.	.	.
+1	11169250	.	G	A	.	.	.
+1	11169420	.	G	A	.	.	.
+1	11169440	.	A	G	.	.	.
+1	11169585	.	A	G	.	.	.
+1	11169624	.	T	C	.	.	.]]></h:pre>
+
+I want to put a FILTER in the variants if they are contained in VCF.
+
+<h:pre>java -jar dist/vcfin.jar -A -fi InMyListOfBadVariants jeter2.vcf jeter1.vcf</h:pre>
+
+output:
+
+<h:pre><![CDATA[##fileformat=VCFv4.2
+##FILTER=<ID=InMyListOfBadVariants,Description="Variant overlapping database.">
+##contig=<ID=1,length=249250621,assembly=b37>
+##contig=<ID=22,length=51304566,assembly=b37>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+1	11166480	.	C	T	.	.	.
+1	11166541	.	G	C	.	.	.
+1	11166577	.	C	T	.	.	.
+1	11166713	.	T	C	.	.	.
+1	11167146	.	G	A	.	.	.
+1	11167158	.	C	T	.	.	.
+1	11167270	.	G	T	.	.	.
+1	11167517	.	G	T	.	.	.
+1	11167627	.	G	C	.	.	.
+1	11167760	.	C	T	.	InMyListOfBadVariants	.
+1	11167829	.	C	T	.	.	.
+1	11168529	.	A	G	.	InMyListOfBadVariants	.
+1	11168769	.	CAAA	C	.	.	.
+1	11169250	.	G	A	.	.	.
+1	11169420	.	G	A	.	.	.
+1	11169440	.	A	G	.	.	.
+1	11169585	.	A	G	.	.	.
+1	11169624	.	T	C	.	.	.
+]]></h:pre>
+Please not that variant <h:b>1	11167517</h:b> is not flagged because is alternate allele is not contained in 'bad.vcf'
+
 
 <h:h3>History</h:h3>
 <h:ul>

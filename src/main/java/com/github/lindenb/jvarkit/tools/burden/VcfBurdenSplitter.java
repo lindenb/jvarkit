@@ -170,10 +170,11 @@ public class VcfBurdenSplitter
 				if(!accept(pred)) continue;
 				
 				
-				//ALL_NM && ALL_REFSEQ
+				//ALL_NM && ALL_REFSEQ && ALL_ENST && ALL_TRANSCRIPTS
 					{
 					final String geneName =  pred.getSymbol();
 					final String transcriptName =  pred.getFeature();
+					
 					if(!isEmpty(geneName) && !isEmpty(transcriptName)) {
 						if(!isIgnoreAllNM() && transcriptName.startsWith("NM_")) {
 							keys.add(String.format("ALL_NM_%s_%s",ctx.getContig(),geneName));
@@ -181,6 +182,14 @@ public class VcfBurdenSplitter
 						if(!isIgnoreAllRefSeq() && !transcriptName.startsWith("ENST"))
 							{
 							keys.add(String.format("ALL_REFSEQ_%s_%s",ctx.getContig(),geneName));
+							}
+						if(!isIgnoreAllEnst() && transcriptName.startsWith("ENST"))
+							{
+							keys.add(String.format("ALL_ENST_%s_%s",ctx.getContig(),geneName));
+							}
+						if(!isIgnoreAllTranscript())
+							{
+							keys.add(String.format("ALL_TRANSCRIPTS_%s_%s",ctx.getContig(),geneName));
 							}
 						}
 					}
@@ -447,7 +456,7 @@ public class VcfBurdenSplitter
 				{
 				final VariantContext ctx = progess.watch(cah.codec.decode(line));
 				if(	ctx.getAlternateAlleles().size()!=1) {
-					return wrapException("Expected only one allele per variant. Please use ManyAlleletoOne.");
+					return wrapException("Expected only one allele per variant. Please use VcfMultiToOneAllele https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele.");
 					}
 				
 				//no check for ctx.ifFiltered here, we do this later.
@@ -466,7 +475,11 @@ public class VcfBurdenSplitter
 			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", super.getTmpdir());
 			tmpReportFile.deleteOnExit();
 			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
-			pw.println("track name=\"burden\" description=\"chrom(tab)start(tab)end(tab)key(tab)Fisher(tab)Count_Variants(tab)Count_non_filtered_Variants\"");
+			pw.println("track name=\"burden\" description=\""
+					+ "chrom(tab)start(tab)end(tab)key(tab)Fisher(tab)Count_Variants(tab)Count_non_filtered_Variants"
+					+ "(tab)Count_non_filtered_Variants_not_case_nor_control"
+					+ "(tab)case_sv0(tab)ctrl_sv0(tab)case_sv1(tab)ctrl_sv1"
+					+ "\"");
 			
 			
 			// galaxy stuff 
@@ -528,7 +541,31 @@ public class VcfBurdenSplitter
 			int count_case_sv1=0;
 			int count_ctrl_sv1=0;
 
-
+			/** there are some samples that are NOT in the control list and NOT in the sample list
+			 * if those samples carry the only variants, while case/control are all uncalled/homref
+			 * we're overestimating the number of variants
+			 * */
+			int count_unfiltered_not_in_pedigrees_variants=0;
+			for(final VariantContext ctx : variants)
+				{
+				if(ctx.isFiltered() && !super.acceptFiltered) continue;
+				boolean called_in_case_control=false;
+				for(int pop=0;pop<2 && called_in_case_control==false ;++pop) {
+					for(final Pedigree.Person person : (pop==0?caseSamples:controlSamples)) {
+						final Genotype g = ctx.getGenotype(person.getId());	
+						if(g==null || g.isNoCall()) continue;//not in vcf header
+						if(g.isCalled() && !g.isHomRef()) {
+							called_in_case_control=true;
+							break;
+							}
+						}
+					}
+				if(!called_in_case_control) {
+					count_unfiltered_not_in_pedigrees_variants++;
+				}
+				}
+			
+			
 			//loop over case control
 			for(int pop=0;pop<2;++pop) {
 				for(final Pedigree.Person person : (pop==0?caseSamples:controlSamples)) {
@@ -577,7 +614,12 @@ public class VcfBurdenSplitter
 						first.key+"\t"+
 						fisher.getAsDouble()+"\t"+
 						variants.size()+"\t"+
-						count_non_filtered
+						(count_non_filtered - count_unfiltered_not_in_pedigrees_variants )+"\t"+
+						count_unfiltered_not_in_pedigrees_variants+"\t"+
+						count_case_sv0+"\t"+
+						count_ctrl_sv0+"\t"+
+						count_case_sv1+"\t"+
+						count_ctrl_sv1
 						);
 				
 				if( galaxyw !=null) {
