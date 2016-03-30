@@ -79,7 +79,7 @@ public class SortSamRefName extends AbstractSortSamRefName
 		}
 
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {	
+	protected Collection<Throwable> call(final String inputName) throws Exception {	
 		SamReader in=null;
 		SAMFileWriter out=null;
 		SAMRecordIterator iter=null;
@@ -88,7 +88,7 @@ public class SortSamRefName extends AbstractSortSamRefName
 		try
 			{
 			in  = openSamReader(inputName);
-			SAMFileHeader header= in.getFileHeader();
+			final SAMFileHeader header= in.getFileHeader();
 			
 			final BAMRecordCodec bamRecordCodec=new BAMRecordCodec(header);
 			final RefNameComparator refNameComparator=new RefNameComparator();
@@ -101,7 +101,7 @@ public class SortSamRefName extends AbstractSortSamRefName
 					);
 			sorter.setDestructiveIteration(true);
 			
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			iter = in.iterator();
 			while(iter.hasNext())
 				{
@@ -110,7 +110,7 @@ public class SortSamRefName extends AbstractSortSamRefName
 			in.close();in=null;
 			sorter.doneAdding();
 			
-			SAMFileHeader header2=header.clone();
+			final SAMFileHeader header2=header.clone();
 			header2.addComment(getName()+" "+getVersion()+" "+getProgramCommandLine());
 			header2.setSortOrder(SortOrder.unsorted);
 			out = super.openSAMFileWriter(header2, true);
@@ -138,7 +138,7 @@ public class SortSamRefName extends AbstractSortSamRefName
 			}
 		}
 	
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args) throws IOException
 		{
 		new SortSamRefName().instanceMainWithExit(args);
 		}

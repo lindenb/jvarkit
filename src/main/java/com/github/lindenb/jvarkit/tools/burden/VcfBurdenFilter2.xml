@@ -14,7 +14,7 @@
 	 __placeholder__="1"
 	>
 
-<description>Burden filter 2</description>
+<description>Burden filter 2 - Fisher Case / Controls </description>
 <input type="vcf"/>
 <output type="vcf"/>
 
@@ -35,6 +35,30 @@
 </options>
 
 <documentation>
+Variant in that VCF should have one and <h:b>only one</h:b> ALT allele. Use <h:a>https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele</h:a> if needed.
+<h:h3>Output</h:h3>
+
+<h:h4>INFO column</h:h4>
+<h:ul>
+	<h:li><h:b>BurdenF2MAFCas</h:b> : MAF cases</h:li>
+	<h:li><h:b>BurdenF2MAFControls</h:b> : MAF controls</h:li>
+	<h:li><h:b>BurdenF1Fisher</h:b> : Fisher test</h:li>
+</h:ul>
+
+<h:h4>FILTER column</h:h4>
+<h:ul>
+	<h:li><h:b>BurdenF2MAFCas</h:b> : MAF for cases  doesn't meet  user's requirements</h:li>
+	<h:li><h:b>BurdenF2MAFControls</h:b> : MAF for controls  doesn't meet  user's requirements</h:li>
+	<h:li><h:b>BurdenF2MAFCaseOrControls</h:b> : MAF for controls or cases  doesn't meet  user's requirements</h:li>
+	<h:li><h:b>BurdenF1Fisher</h:b> :Fisher test doesn't meet  user's requirements</h:li>
+</h:ul>
+
+<h:h3>see also</h:h3>
+<h:ul>
+	<h:li><h:a>VcfBurdenFilter3</h:a></h:li>
+</h:ul>
+
+
 </documentation>
 
 <!-- __PLACEHOLDER__ -->

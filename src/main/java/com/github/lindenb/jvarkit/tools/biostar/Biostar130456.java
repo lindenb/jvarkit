@@ -29,11 +29,11 @@ History:
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,9 +45,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
-
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -60,90 +57,72 @@ public class Biostar130456 extends AbstractBiostar130456
 	
 	
 		@Override
-		public Collection<Throwable> call() throws Exception
+		public Collection<Throwable> call(final String inputName) throws Exception
 			{
-			final List<String> args =  getInputFiles();
-			
 			if(super.filepattern==null || !filepattern.contains(SAMPLE_TAG))
 				{
 				return wrapException("File pattern is missing "+SAMPLE_TAG);
 				}
-			
+			PrintStream out = null;
 			VcfIterator in=null;
 			try
 				{
-				if(args.isEmpty())
-					{
-					LOG.info("Reading from <stdin>");
-					in = VCFUtils.createVcfIteratorFromInputStream(stdin());
-					}
-				else if(args.size()==1)
-					{
-					String filename=args.get(0);
-					LOG.info("Reading from "+filename);
-					in = VCFUtils.createVcfIterator(filename);
-					}
-				else
-					{
-					return wrapException(getMessageBundle("illegal.number.of.arguments"));
-					}
-				VCFHeader header=in.getHeader();
-				Set<String> samples = new HashSet<String>(header.getSampleNamesInOrder());
-				Map<String,VariantContextWriter> sample2writer=new HashMap<String,VariantContextWriter>(samples.size());
+				out = openFileOrStdoutAsPrintStream();
+				in = super.openVcfIterator(inputName);
+				final VCFHeader header=in.getHeader();
+				final Set<String> samples = new HashSet<String>(header.getSampleNamesInOrder());
+				final Map<String,VariantContextWriter> sample2writer=new HashMap<String,VariantContextWriter>(samples.size());
 	
 				if(samples.isEmpty())
 					{
 					return wrapException("VCF doesn't contain any sample");
 					}
 				LOG.info("N sample:"+samples.size());
-				for(String sample:samples)
+				for(final String sample:samples)
 					{
-					
-					VCFHeader h2=new VCFHeader(
+					final VCFHeader h2=new VCFHeader(
 							header.getMetaDataInInputOrder(),
 							Collections.singleton(sample)
 							);
-					h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-					h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-					h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-					h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-					String sampleFile= filepattern.replaceAll(SAMPLE_TAG,sample);
-					stdout().println(sampleFile);
-					File fout = new File(sampleFile);
+					super.addMetaData(h2);
+					final String sampleFile= filepattern.replaceAll(SAMPLE_TAG,sample);
+					out.println(sampleFile);
+					final File fout = new File(sampleFile);
 					if(fout.getParentFile()!=null) fout.getParentFile().mkdirs();
-					VariantContextWriter w= VCFUtils.createVariantContextWriter(fout);
+					final VariantContextWriter w= VCFUtils.createVariantContextWriter(fout);
 					w.writeHeader(h2);
 					sample2writer.put(sample, w);
 					}
-				SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+				final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 				while(in.hasNext())
 					{
-					VariantContext ctx= progress.watch(in.next());
-					for(String sample: samples)
+					final VariantContext ctx= progress.watch(in.next());
+					for(final String sample: samples)
 						{
-						Genotype g= ctx.getGenotype(sample);
+						final Genotype g= ctx.getGenotype(sample);
 						if(g==null) continue;
 						if(remove_uncalled && (!g.isAvailable() || !g.isCalled() || g.isNoCall()))
 							{
 							continue;
 							}
 						if(remove_homref && g.isHomRef()) continue;
-						VariantContextWriter w= sample2writer.get(sample);
-						VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-						GenotypeBuilder gb=new GenotypeBuilder(g);
+						final VariantContextWriter w= sample2writer.get(sample);
+						final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+						final GenotypeBuilder gb=new GenotypeBuilder(g);
 						vcb.genotypes(Collections.singletonList(gb.make()));
-						VariantContext ctx2= vcb.make();
+						final VariantContext ctx2= vcb.make();
 						w.add(ctx2);
 						}
 					}
-				for(String sample:samples)
+				for(final String sample:samples)
 					{
 					LOG.info("Closing for sample "+sample);
-					VariantContextWriter w= sample2writer.get(sample);
+					final VariantContextWriter w= sample2writer.get(sample);
 					w.close();
 					}
 				progress.finish();
-				return Collections.emptyList();
+				out.flush();
+				return RETURN_OK;
 				}
 			catch (Exception e)
 				{
@@ -151,6 +130,7 @@ public class Biostar130456 extends AbstractBiostar130456
 				}
 			finally
 				{
+				CloserUtil.close(out);
 				CloserUtil.close(in);
 				}
 			}

@@ -14,14 +14,14 @@
 	 __placeholder__="1"
 	>
 
-<description>Burden filter 3</description>
+<description>Burden filter 3 - Exac</description>
 <input type="vcf"/>
 <output type="vcf"/>
 
 
 <options>
 	<option name="exacFile" type="input-file" longopt="exac" opt="exac">
-		<description>Path to Exac VCF file</description>
+		<description>Path to Exac VCF file. At the time of writing, you'd better use a normalized version of Exac (see https://github.com/lindenb/jvarkit/wiki/VCFFixIndels )</description>
 		<galaxy:conditional id="vcf" data-table="common-vcf"/>
 	</option>
 	<option name="ifNotInExacThenDiscard" type="boolean" longopt="discardNotInExac" opt="d" default="false">
@@ -36,6 +36,24 @@
 </options>
 
 <documentation>
+Variant in that VCF should have one and <h:b>only one</h:b> ALT allele. Use <h:a>https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele</h:a> if needed.
+
+<h:h3>Output</h:h3>
+
+<h:h4>INFO column</h:h4>
+<h:ul>
+	<h:li><h:b>FreqExac</h:b> : Exac frequency.</h:li>
+	<h:li><h:b>AC_*</h:b> and <h:b>AN_*</h:b>: Transpose original population data from original Exac file</h:li>
+</h:ul>
+
+<h:h4>FILTER column</h:h4>
+<h:ul>
+	<h:li><h:b>BurdenF3</h:b> : if FreqExac doesn't fit the criteria <h:b>maxFreq</h:b></h:li>
+</h:ul>
+<h:h3>see also</h:h3>
+<h:ul>
+	<h:li><h:a>VcfBurdenFilter2</h:a></h:li>
+</h:ul>
 </documentation>
 
 <!-- __PLACEHOLDER__ -->

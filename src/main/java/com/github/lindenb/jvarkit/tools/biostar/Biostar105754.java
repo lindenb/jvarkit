@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -50,7 +49,7 @@ public class Biostar105754 extends AbstractBiostar105754
 			throws IOException
 			{
 			String line;
-			Pattern tab=Pattern.compile("[\t]");
+			final Pattern tab=Pattern.compile("[\t]");
 			while((line=r.readLine())!=null && !this.out.checkError())
 				{
 				if(line.startsWith("#"))
@@ -135,7 +134,7 @@ public class Biostar105754 extends AbstractBiostar105754
 				{
 				if(super.bigWigFile==null)
 					{
-					return wrapException("Big wig file undefined");
+					return wrapException("Big wig file undefined option -"+OPTION_BIGWIGFILE);
 					}
 				
 				try
@@ -146,15 +145,8 @@ public class Biostar105754 extends AbstractBiostar105754
 						{
 						return wrapException("File "+super.bigWigFile+" is not a bigwig file");
 						}
-					if(getOutputFile()==null)
-						{
-						this.out=new PrintWriter(System.out);
-						}
-					else
-						{
-						this.out = new PrintWriter(stdout());
-						}
-					List<String> args = this.getInputFiles();
+					this.out = super.openFileOrStdoutAsPrintWriter();
+					final List<String> args = this.getInputFiles();
 					if(args.isEmpty())
 						{
 						BufferedReader r= new BufferedReader(new InputStreamReader(stdin()));
@@ -163,17 +155,17 @@ public class Biostar105754 extends AbstractBiostar105754
 						}
 					else
 						{
-						for(String filename : args)
+						for(final String filename : args)
 							{
 							LOG.info("Reading BED from "+filename);
-							BufferedReader r= IOUtils.openURIForBufferedReading(filename);
+							final BufferedReader r= IOUtils.openURIForBufferedReading(filename);
 							run(r);
 							CloserUtil.close(r);
 							}
 						}
 					this.out.flush();
 					this.out.close();
-					return Collections.emptyList();
+					return RETURN_OK;
 					}
 				catch(Exception err)
 					{
@@ -185,6 +177,7 @@ public class Biostar105754 extends AbstractBiostar105754
 					CloserUtil.close(bbFileReader);
 					CloserUtil.close(this.out);
 					bbFileReader=null;
+					this.out=null;
 					}
 				}
 			
