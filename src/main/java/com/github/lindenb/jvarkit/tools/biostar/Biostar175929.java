@@ -97,9 +97,9 @@ public class Biostar175929 extends AbstractBiostar175929
 			title.setLength(title_length);
 			sequence.setLength(sequence_length);
 			title.append("|"+ctx.getContig()+":"+ctx.getStart()+"-"+ctx.getEnd()+"("+allele.getBaseString()+")");
-			if(super.bracket) sequence.append("[");
+			if(super.bracket);
 			sequence.append(allele.getBaseString().toUpperCase());
-			if(super.bracket) sequence.append("]");
+			if(super.bracket);
 			recursive(chromosome, variants, index+1, title, sequence);
 			}
 		
