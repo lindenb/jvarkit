@@ -77,6 +77,10 @@ public class VcfBurdenSplitter
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenSplitter.class);
 	
+	//public for knime
+	public static final String VCF_HEADER_FISHER_VALUE="VCFBurdenSplitFisher";
+	public static final String VCF_HEADER_SPLITKEY="VCFBurdenSplitName";
+	
 	private enum SuperVariant
 		{
 		SV0,AT_LEAST_ONE_VARIANT
@@ -656,8 +660,9 @@ public class VcfBurdenSplitter
 				zout.putNextEntry(ze);
 				final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(IOUtils.uncloseableOutputStream(zout));
 				final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
-				header2.addMetaDataLine(new VCFHeaderLine("VCFBurdenSplitFisher",
+				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE,
 						String.valueOf(fisher.getAsDouble())));
+				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_SPLITKEY,first.key));
 				out.writeHeader(header2);
 				for(final VariantContext ctx:variants) {
 					out.add(ctx);

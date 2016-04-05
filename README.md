@@ -216,5 +216,6 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wikiBiostar178713">Biostar178713</a></th><td> split bed file into several bed files where each region is separated of any other by N bases </td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRemoveGenotypeJs">VcfRemoveGenotypeJs</a></th><td>Reset Genotypes in VCF using a javascript expression</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamMaskAlignedBases">SamMaskAlignedBases</a></th><td>Mask bases aligned on Reference</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Gff2KnownGene">Gff2KnownGene</a></th><td>Convert GFF3 to UCSC knownGene</td></tr>
 </table>
 

@@ -200,42 +200,47 @@ public class VCFPredictions extends AbstractVCFPredictions
 		{
 		BufferedReader in=null;
 		try {
-			
-		
-		if(this.indexedFastaSequenceFile.getSequenceDictionary()==null)
-			{
-			throw new IOException("Cannot get sequence dictionary for REF : "+getMessageBundle("picard.dictionary.needed"));
+			if (this.indexedFastaSequenceFile.getSequenceDictionary() == null) {
+				throw new IOException(
+						"Cannot get sequence dictionary for REF : " + getMessageBundle("picard.dictionary.needed"));
 			}
-		int n_genes=0;
-		this.knownGenes=new IntervalTreeMap<KnownGene>();
-		LOG.info("loading genes");
-		in=IOUtils.openURIForBufferedReading(this.kgURI);
-		String line;
-		final Pattern tab=Pattern.compile("[\t]");
-		while((line=in.readLine())!=null)
-			{
-			if(line.isEmpty()) continue;
-			String tokens[]=tab.split(line);
-			final KnownGene g=new KnownGene(tokens);
-			if(this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(g.getContig())==null) {
-				continue;
+			int n_genes = 0;
+			this.knownGenes = new IntervalTreeMap<KnownGene>();
+			LOG.info("loading genes");
+			in = IOUtils.openURIForBufferedReading(this.kgURI);
+			String line;
+			final Pattern tab = Pattern.compile("[\t]");
+			while ((line = in.readLine()) != null) {
+				if (line.isEmpty())
+					continue;
+				final String tokens[] = tab.split(line);
+				final KnownGene g = new KnownGene(tokens);
+				if (this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(g.getContig()) == null) {
+					continue;
 				}
-			
-			final Interval interval = new Interval(g.getContig(), g.getStart()+1, g.getEnd());
-			this.knownGenes.put(interval, g);
+				final int extend_gene_search = 5000; // because we want to set
+														// SO:5KB_upstream_variant
+
+				final Interval interval = new Interval(g.getContig(),
+						Math.max(1, g.getTxStart() + 1 - extend_gene_search), g.getTxEnd() + extend_gene_search);
+				this.knownGenes.put(interval, g);
 			}
-		in.close();in=null;
-		LOG.info("genes:"+n_genes);} finally {
+			in.close();
+			in = null;
+			LOG.info("genes:" + n_genes);
+			}
+		finally {
 			CloserUtil.close(in);
-		}
+			}
 		}
 	private boolean isStop(char c)
 		{
 		return !Character.isLetter(c);
 		}
 	
-	private  boolean isSimpleBase(Allele a)
+	private  boolean isSimpleBase(final Allele a)
 		{
+		if(a.isSymbolic()) return false;
 		final String s=a.getBaseString();
 		if(s.length()!=1) return false;
 		switch(s.charAt(0))
@@ -308,14 +313,21 @@ public class VCFPredictions extends AbstractVCFPredictions
 		final SequenceOntologyTree.Term so_intergenic=soTree.getTermByAcn("SO:0001628");
 		final SequenceOntologyTree.Term so_nc_transcript_variant=soTree.getTermByAcn("SO:0001619");
 		final SequenceOntologyTree.Term so_non_coding_exon_variant=soTree.getTermByAcn("SO:0001792");
-
+		final SequenceOntologyTree.Term _2KB_upstream_variant=soTree.getTermByAcn("SO:0001636");
+		final SequenceOntologyTree.Term _5KB_upstream_variant=soTree.getTermByAcn("SO:0001635");
+		final SequenceOntologyTree.Term _5KB_downstream_variant=soTree.getTermByAcn("SO:0001633");
+		final SequenceOntologyTree.Term _500bp_downstream_variant=soTree.getTermByAcn("SO:0001634");
+		
+		
 		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 		while(r.hasNext())
 			{
 			final VariantContext ctx=progress.watch(r.next());
 			
 			final Collection<KnownGene> genes=this.knownGenes.getOverlapping(new Interval(
-					ctx.getContig(), ctx.getStart(), ctx.getEnd() //1-based
+					ctx.getContig(),
+					ctx.getStart(),
+					ctx.getEnd() //1-based
 					));
 			final List<Annotation> ctx_annotations=new ArrayList<Annotation>();
 			if(genes==null || genes.isEmpty())
@@ -373,7 +385,19 @@ public class VCFPredictions extends AbstractVCFPredictions
 		        		
 		        		if(gene.isPositiveStrand())
 		            		{
-		            		if(position < gene.getCdsStart())
+		        			if(position < gene.getTxStart() - 2000) {
+		        				annotations.seqont.add(_5KB_upstream_variant);
+		        				}
+		        			else if(position < gene.getTxStart()) {
+		        				annotations.seqont.add(_2KB_upstream_variant);
+		        				}
+		        			else if( position >= gene.getTxEnd() + 500) {
+		        				annotations.seqont.add(_5KB_downstream_variant);
+		        				}
+		        			else if( position >= gene.getTxEnd() ) {
+		        				annotations.seqont.add(_500bp_downstream_variant);
+		        				}
+		        			else if(position < gene.getCdsStart())
 		            			{
 		            			annotations.seqont.add(so_5_prime_UTR_variant);//UTR5
 		            			}
@@ -485,8 +509,19 @@ public class VCFPredictions extends AbstractVCFPredictions
 		            		}
 		            	else // reverse orientation
 		            		{
-
-		            		if(position < gene.getCdsStart())
+		            		if(position >= gene.getTxEnd() + 2000) {
+		        				annotations.seqont.add(_5KB_upstream_variant);
+		        				}
+		        			else if(position >= gene.getTxEnd()) {
+		        				annotations.seqont.add(_2KB_upstream_variant);
+		        				}
+		        			else if( position < gene.getTxStart() - 500) {
+		        				annotations.seqont.add(_5KB_downstream_variant);
+		        				}
+		        			else if( position < gene.getTxStart() ) {
+		        				annotations.seqont.add(_500bp_downstream_variant);
+		        				}
+		        			else if(position < gene.getCdsStart())
 		            			{
 		            			annotations.seqont.add(so_3_prime_UTR_variant);
 		            			}

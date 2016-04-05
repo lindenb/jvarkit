@@ -187,7 +187,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
-	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases
+	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg
 
 .PHONY: all tests $(APPS) clean download_all_maven library top ${dist.dir}/jvarkit-${htsjdk.version}.jar galaxy burden
 
@@ -218,7 +218,7 @@ tests:
 #bigwig
 $(eval $(call compile-htsjdk-cmd,vcfbigwig,		${jvarkit.package}.tools.vcfbigwig.VCFBigWig,${bigwig.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfensemblreg,	${jvarkit.package}.tools.ensemblreg.VcfEnsemblReg,${bigwig.jars}))
-$(eval $(call compile_biostar_cmd,105754,${bigwig.jar}))
+$(eval $(call compile_biostar_cmd,105754,${bigwig.jar} wiki_flag))
 # common math
 $(eval $(call compile-htsjdk-cmd,cnv01,${jvarkit.package}.tools.redon.CopyNumber01,${common.math.jar}))
 #berkeley
@@ -254,7 +254,7 @@ $(eval $(call compile-htsjdk-cmd,bedliftover,${jvarkit.package}.tools.liftover.B
 $(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.ConvertBedChromosomes))
 $(eval $(call compile_biostar_cmd,103303))
 $(eval $(call compile_biostar_cmd,106668))
-$(eval $(call compile_biostar_cmd,130456))
+$(eval $(call compile_biostar_cmd,130456,wiki_flag))
 $(eval $(call compile_biostar_cmd,145820))
 $(eval $(call compile_biostar_cmd,59647))
 $(eval $(call compile_biostar_cmd,76892))
@@ -277,7 +277,7 @@ $(eval $(call compile_biostar_cmd,165777))
 $(eval $(call compile_biostar_cmd,170742))
 $(eval $(call compile_biostar_cmd,172515))
 $(eval $(call compile_biostar_cmd,173114))
-$(eval $(call compile_biostar_cmd,175929))
+$(eval $(call compile_biostar_cmd,175929,wiki_flag))
 $(eval $(call compile_biostar_cmd,178713))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
@@ -444,7 +444,7 @@ $(eval $(call compile-htsjdk-cmd,sortsamrefname,${jvarkit.package}.tools.misc.So
 $(eval $(call compile-htsjdk-cmd,bamclip2insertion,${jvarkit.package}.tools.misc.BamClipToInsertion))
 $(eval $(call compile-htsjdk-cmd,localrealignreads,${jvarkit.package}.tools.misc.LocalRealignReads))
 $(eval $(call compile-htsjdk-cmd,msa2vcf,${jvarkit.package}.tools.msa2vcf.MsaToVcf))
-$(eval $(call compile-htsjdk-cmd,samslop,${jvarkit.package}.tools.misc.SamSlop))
+$(eval $(call compile-htsjdk-cmd,samslop,${jvarkit.package}.tools.misc.SamSlop,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,projectserver,${jvarkit.package}.tools.server.ProjectServer,${jetty.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfcalledwithanothermethod,${jvarkit.package}.tools.misc.VcfCalledWithAnotherMethod))
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burden.VcfBurdenSplitter,galaxy_flag wiki_flag))
@@ -454,6 +454,7 @@ $(eval $(call compile-htsjdk-cmd,vcfgenesplitter,${jvarkit.package}.tools.misc.V
 $(eval $(call compile-htsjdk-cmd,vcfsqltag,${jvarkit.package}.tools.sql.VcfSqlTag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenfiltergenes,${jvarkit.package}.tools.burden.VcfBurdenFilterGenes,wiki_flag galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,sammaskalignedbases,${jvarkit.package}.tools.misc.SamMaskAlignedBases,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,gff2kg,${jvarkit.package}.tools.misc.Gff2KnownGene,wiki_flag))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
