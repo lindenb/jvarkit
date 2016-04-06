@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "HaloplexParasite">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.haloplex">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<description>&name;</description>
+<input type="vcf"/>
+<output type="vcf"/>
+<snippet id="read-sam"/>
+
+<options>
+  <option name="bamList" opt="B" longopt="bams" type="input-file" argname="BAMLIST">
+	<description>A list of path to indexed BAM files</description>
+  </option>
+  <option name="minClipSize" opt="m" longopt="clipsize" type="int" argname="SIZE" default="5">
+	<description>Min. Soft Clipping size</description>
+  </option>
+  <option name="tresholdFraction" opt="t" longopt="treshold" type="double" argname="TRESHOLD" default="0.1">
+	<description>treshold</description>
+  </option>
+  
+</options>
+<!-- __PLACEHOLDER__ -->
+</app>

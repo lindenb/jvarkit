@@ -457,6 +457,7 @@ $(eval $(call compile-htsjdk-cmd,vcfburdenfiltergenes,${jvarkit.package}.tools.b
 $(eval $(call compile-htsjdk-cmd,sammaskalignedbases,${jvarkit.package}.tools.misc.SamMaskAlignedBases,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,gff2kg,${jvarkit.package}.tools.misc.Gff2KnownGene,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,miniassembly,${jvarkit.package}.tools.misc.MiniAssembly,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,haloplexparasite,${jvarkit.package}.tools.haloplex.HaloplexParasite,wiki_flag))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
