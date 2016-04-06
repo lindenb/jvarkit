@@ -68,6 +68,34 @@ for VCF , the program injects the following variables:
 
 
 <h:h3>Example</h:h3>
+<h:h4>BAM</h:h4>
+getting an histogram of the length of the reads
+<h:pre><![CDATA[
+L={};
+while(iter.hasNext()) {
+	var rec=iter.next();
+	if( rec.getReadUnmappedFlag() || rec.isSecondaryOrSupplementary()) continue;
+	var n= rec.getReadLength();
+	if(n in L) {L[n]++;} else {L[n]=1;}
+	}
+for(var i in L) {
+	out.println(""+i+"\t"+L[i]);
+	}
+]]></h:pre>
+
+<h:h4>Fasta</h:h4>
+"Creating a consensus based on 'x' number of fasta files" ( <h:a>https://www.biostars.org/p/185162/#185168</h:a>)
+
+<h:pre><![CDATA[
+$ echo -e ">A_2795\nTCAGAAAGAACCTC\n>B_10\nTCAGAAAGCACCTC\n>C_3\nTCTGAAAGCACTTC" |\
+java -jar ~/src/jvarkit-git/dist/bioalcidae.jar -F fasta -e 'var consensus=[];while(iter.hasNext()) { var seq=iter.next();out.printlnseq.name+"\t"+seq.sequence);for(var i=0;i< seq.length();++i) {while(consensus.length <= i) consensus.push({}); var b = seq.charAt(i);if(b in consensus[i]) {consensus[i][b]++;} else {consensus[i][b]=1;} } } out.print("Cons.\t"); for(var i=0;i< consensus.length;i++) {var best=0,base="N"; for(var b in consensus[i]) {if(consensus[i][b]>best) { best= consensus[i][b];base=b;}} out.print(base);} out.println();' 
+
+
+A_2795      TCAGAAAGAACCTC
+B_10         TCAGAAAGCACCTC
+C_3           TCTGAAAGCACTTC
+Cons.        TCAGAAAGCACCTC
+]]></h:pre>
 
 <h:h4>VCF</h:h4>
 Reformating a VCF
@@ -159,6 +187,7 @@ java -jar dist/bioalcidae.jar  -F VCF -e 'while(iter.hasNext()) {var ctx=iter.ne
 	<h:li><h:a>https://www.biostars.org/p/152820/</h:a></h:li>
 	<h:li><h:a>https://www.biostars.org/p/153060/</h:a></h:li>
 	<h:li><h:a>https://www.biostars.org/p/183197</h:a></h:li>
+	<h:li><h:a>https://www.biostars.org/p/185162/#185168</h:a></h:li>
 </h:ul>
 
 </documentation>

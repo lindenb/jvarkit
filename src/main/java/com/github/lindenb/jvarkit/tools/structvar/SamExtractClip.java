@@ -1,6 +1,32 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.File;
+import java.util.Collection;
+import java.util.List;
 
 import htsjdk.samtools.fastq.BasicFastqWriter;
 import htsjdk.samtools.fastq.FastqRecord;
@@ -10,107 +36,58 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-public class SamExtractClip extends AbstractCommandLineProgram
+public class SamExtractClip extends AbstractSamExtractClip
 	{
-	private int min_clip_length=5;
-	private boolean print_clipped_read=false;
-	private boolean print_original_read=false;
-	
-	
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamExtractClip.class);
+
 	@Override
-	public String getProgramDescription() {
-		return "Extract Clipped Sequences from a SAM. Ouput is a FASTQ";
-		}
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -m (int) Min size of clipped read. default:"+min_clip_length);
-		out.println(" -c print Clipped read");
-		out.println(" -r print original Read");
-		out.println(" -o (file.fastq) file out. Default:stdout");
-		super.printOptions(out);
-		}
-	
-	
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		File fatqsout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"m:cro:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'r': print_original_read=true;break;
-				case 'c': print_clipped_read=true;break;
-				case 'm':min_clip_length=Integer.parseInt(opt.getOptArg());break;
-				case 'o':fatqsout=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-	
+	public Collection<Throwable> call() throws Exception {
 		SamReader r=null;
 		BasicFastqWriter out=null;
+		final List<String> args = super.getInputFiles();
 		try
 				{
-				if(fatqsout!=null)
+				if(getOutputFile()!=null)
 					{
-					info("writing to "+fatqsout);
-					out=new BasicFastqWriter(fatqsout);
+					LOG.info("writing to "+getOutputFile());
+					out=new BasicFastqWriter(getOutputFile());
 					}
 				else
 					{
-					info("writing to stdout");
-					out=new BasicFastqWriter(System.out);
+					LOG.info("writing to stdout");
+					out=new BasicFastqWriter(stdout());
 					}
-				if(opt.getOptInd()==args.length)
+				if(args.isEmpty())
 					{
-					info("Reading from stdin");
-					r=SamFileReaderFactory.mewInstance().openStdin();
+					LOG.info("Reading from stdin");
+					r= createSamReaderFactory().open(SamInputResource.of(stdin()));
 					run(r,out);
 					r.close();
 					}
 				else 
 					{
-					for(int optind=opt.getOptInd();optind<args.length;++optind)
+					for(final String filename:args)
 						{
-						String filename=args[optind];
-						info("Reading from "+filename);
-						r=SamFileReaderFactory.mewInstance().open(filename);
+						LOG.info("Reading from "+filename);
+						r= createSamReaderFactory().open(SamInputResource.of(filename));
 						run(r,out);
-						r.close();
+						r.close();r=null;
 						}
 					}
 				out.flush();
-				return 0;
+				return RETURN_OK;
 				}
-			catch(Exception err)
+			catch(final Exception err)
 				{
-				error(err);
-				return -1;
+				return wrapException(err);
 				}
 			finally
 				{
@@ -119,27 +96,22 @@ public class SamExtractClip extends AbstractCommandLineProgram
 				}
 		}
 		
-		private void run(SamReader r,FastqWriter out)
+		private void run(final SamReader r,final FastqWriter out)
 			{
 			int startend[]=new int[2];
-			SAMFileHeader header=r.getFileHeader();
-			SAMProgramRecord spr=header.createProgramRecord();
-			spr.setProgramName(getProgramName());
-			spr.setProgramVersion(getVersion());
-			spr.setCommandLine(getProgramCommandLine());
-			
+			final SAMFileHeader header=r.getFileHeader();
 			//w=swf.make(header, System.out);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			SAMRecordIterator it= r.iterator();
 			while(it.hasNext())
 				{
-				SAMRecord rec=it.next();
-				progress.watch(rec);
+				final SAMRecord rec=progress.watch(it.next());
+				
 				if(rec.getReadUnmappedFlag()) continue;
 				if(rec.isSecondaryOrSupplementary()) continue;
 				if(rec.getDuplicateReadFlag()) continue;
 				
-				Cigar cigar=rec.getCigar();
+				final Cigar cigar=rec.getCigar();
 				if(cigar==null || cigar.isEmpty()) continue;
 				
 				String suffix="";
@@ -156,13 +128,13 @@ public class SamExtractClip extends AbstractCommandLineProgram
 				boolean found=false;
 				for(int side=0;side<2;++side)
 					{
-					CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
+					final CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
 					if(!ce.getOperator().equals(CigarOperator.S)) continue;
 					if(ce.getLength() < min_clip_length) continue;
 					
 					found=true;
-					String clippedSeq;
-					String clippedQual;
+					final String clippedSeq;
+					final String clippedQual;
 					if(side==0)
 						{
 						startend[0]=ce.getLength();

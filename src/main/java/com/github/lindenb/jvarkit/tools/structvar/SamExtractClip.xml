@@ -4,4 +4,88 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.structvar">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Extract Clipped Sequences from a SAM. Ouput is a FASTQ</description>
+<snippet id="read-sam"/>
+
+<options>
+	<option name="min_clip_length" opt="m" longopt="minsize" type="int" default="5">
+		<description> Min size of clipped read</description>
+	</option>
+	<option name="print_clipped_read" opt="c" longopt="clipped" type="boolean" default="false">
+		<description>Print the original Read where the clipped regions have been removed</description>
+	</option>
+	<option name="print_original_read" opt="c" longopt="clipped" type="boolean" default="false">
+		<description>Print Original whole Read that contained a clipped region.</description>
+	</option>
+</options>
+
+<documentation>
+
+
+<h:h3>Example</h:h3>
+
+<h:pre><![CDATA[
+$ curl -L -s "https://raw.githubusercontent.com/samtools/samtools/develop/test/dat/mpileup.1.sam" | java -jar dist/samextractclip.jar 2> /dev/null 
+@ERR013140.3521432/1:0:17:1:99
+AGAGGTCCCCAACTTCTTTGCA
++
+@AEDGBHIIIIIFJGIKHGHIJ
+@ERR156632.12704932/2:0:17:1:163
+TGGAGAAGGGGACAAGAGGTCCCCAACTTCTTTGCA
++
+BFAFGFEIGFEFHHEIDKJGHHHJIIE=@KKGGKJG
+@ERR156632.9601178/1:0:17:1:99
+CTATGACAGGGAGGTCATGTGCAGGCTGGAGAAGGGGACAAGAGGTCCCCAACTTCTTTGCA
++
+DEEEIIHHKIJILKHLHIKEKHHMKLKKJGKKKKLKLFIHEKIKL=KLJLKIILHKMH9LJJ
+@ERR162872.21706338/1:0:17:1:99
+CTTCTTTGCA
++
+BHBFH<EIFG
+@ERR243039.1049231/2:0:17:1:163
+TGCAGGCTGGAGAAGGGGACAAGAGGTCCCCAACTTCTTTGCA
++
+AEEFIFHIJDGIGIJHHIAGGGLGJIEJHJHHFIJGJJDFJIG
+@ERR013140.20277196/2:1:17:97:163
+AAACTGTCCAGCGCATACCCGCATCCCCCCAAAAGAAGCCACCGCCCCAACACACACCCCCCACCCGCATAACC
++
+00($,+3(*+..,%%+6%*#%2,/001)%%$2%%/$.%$00(,%+,1'*.%7(%&$&#'$$$#%#%#($+%+)"
+@ERR013140.19887184/1:0:17:99:113
+GTGTGTGTCGGGGGTGTCTGGGGTCTCACCCACGACCAAC
++
+%$($&$*+#%%#1'$$%2-'0&3*/$/$-73/69:7=1%2
+@ERR013140.4461044/1:0:17:114:113
+ACTCCCTGGGCCTGGCA
++
+/=1:/=44-348<0(91
+@ERR013140.3521432/2:0:17:226:147
+CACCCCTAGAAGTGACGGC
++
+71%??A9A792/7-2%(&:
+@ERR013140.11659627/1:0:17:645:83
+TTAGCAACAAAAAGGAC
++
+%5?-$)89<=;9>(.14
+@ERR013140.7259970/1:0:17:660:83
+ACGCCTGGTACA
++
+40&/81&8:/<<
+@ERR013140.29762488/1:0:17:716:83
+GGACTCA
++
+)/4/142
+@ERR013140.11567710/1:0:17:984:83
+TGCTTGA
++
+/36>+5/]]></h:pre>
+
+<h:h3>See also</h:h3>
+<h:ul>
+	<h:li><h:a>https://www.biostars.org/p/125874</h:a></h:li>
+</h:ul>
+
+
+
+</documentation>
+
+</app>
