@@ -424,7 +424,7 @@ $(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xconta
 $(eval $(call compile-htsjdk-cmd,vcfjoinvcfjs,${jvarkit.package}.tools.vcffilterjs.VCFJoinVCFJS))
 $(eval $(call compile_biostar_cmd,139647))
 $(eval $(call compile-htsjdk-cmd,vcfburden,${jvarkit.package}.tools.misc.VcfBurden))
-$(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae,api.ncbi.blast api.ncbi.insdseq ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java  wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfbedsetfilter,${jvarkit.package}.tools.vcfbed.VCFBedSetFilter,wiki_flag galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcfreplacetag,${jvarkit.package}.tools.vcfstripannot.VCFReplaceTag))
 $(eval $(call compile-htsjdk-cmd,vcfindextabix,${jvarkit.package}.tools.misc.VcfIndexTabix))
@@ -492,8 +492,8 @@ api.uniprot :
 
 api.ncbi.pubmed : 
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} http://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_150101.dtd
-
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_150101.dtd"
+	
 
 api.evs:
 	mkdir -p ${generated.dir}/java
@@ -531,7 +531,12 @@ api.ncbi.insdseq:
 api.ncbi.dbsnp.gt:
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp.gt ${xjc.proxy} "http://ftp.ncbi.nlm.nih.gov/snp/specs/genoex_1_5.xsd"
-	
+
+
+${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java : api.ncbi.dbsnp
+api.ncbi.dbsnp:
+	mkdir -p ${generated.dir}/java
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp ${xjc.proxy} "http://ftp.ncbi.nlm.nih.gov/snp/specs/docsum_current.xsd"
 
 
 ## API Ensembl

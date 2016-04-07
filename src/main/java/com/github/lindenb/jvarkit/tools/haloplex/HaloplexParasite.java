@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -51,7 +52,6 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
@@ -86,7 +86,7 @@ public class HaloplexParasite extends AbstractHaloplexParasite {
 		final VCFHeader header = new VCFHeader();
 		header.setSequenceDictionary(in.getHeader().getSequenceDictionary());
 		final VCFFilterHeaderLine filter = new VCFFilterHeaderLine("HALOPLEXPARASITE", "fails Parasite Haloplex Sequence");
-		final VCFInfoHeaderLine infoWord = new VCFInfoHeaderLine("PARASITEWORD",1,VCFHeaderLineType.String, "Parasite Haloplex Sequence (Word|Count)");
+		final VCFInfoHeaderLine infoWord = new VCFInfoHeaderLine(filter.getID(),1,VCFHeaderLineType.String, "Parasite Haloplex Sequence (Word|Count|Fraction)");
 		
 		super.addMetaData(header);
 		out.writeHeader(header);
@@ -103,7 +103,7 @@ public class HaloplexParasite extends AbstractHaloplexParasite {
 					ctx.getAlleles()
 					);
 			
-			if(!ctx.isIndel()) {
+			if(!(ctx.isIndel() ||ctx.isMixed())) {
 				out.add(vcb.make());
 				continue;
 			}
@@ -141,7 +141,7 @@ public class HaloplexParasite extends AbstractHaloplexParasite {
 				/* scan cigar overlapping that mutation */
 				for(final CigarElement ce: cigar) {
 					final CigarOperator op =ce.getOperator();
-					final int ref_end = refpos + (op.consumesReferenceBases() || op.equals(CigarOperator.S) ? ce.getLength() : 0 );
+					final int ref_end = refpos + (op.consumesReferenceBases() || op.isClipping() ? ce.getLength() : 0 );
 					final int read_end = readpos + (op.consumesReadBases()? ce.getLength() : 0 );
 					/* check clip is large enough */
 					if(op.equals(CigarOperator.S) && ce.getLength()>=this.minClipSize) {
@@ -150,7 +150,11 @@ public class HaloplexParasite extends AbstractHaloplexParasite {
 							/* break read of soft clip into words */
 							for(int x=0;x + this.minClipSize <= ce.getLength();++x ) {
 								final String substr = new String(bases, readpos+ x, this.minClipSize);
-								mutWords.add(substr);
+								if(!substr.contains("N")) {
+									final String revcomp = AcidNucleics.reverseComplement(substr);
+									mutWords.add(substr);
+									if(!revcomp.equals(substr)) mutWords.add(revcomp);
+									}
 							}
 						}
 					}
@@ -183,23 +187,27 @@ public class HaloplexParasite extends AbstractHaloplexParasite {
 					);
 			
 			String worstString = null;
-			Long worstcount=null;
+			Double worstFraction=null;
 			final double totalWords = words.getTotal(); 
 			for(final Allele a: mut.alleles) {
 				if(a.isSymbolic() || a.isNoCall() || a.length()< this.minClipSize) continue;
 				for(int x = 0;x+this.minClipSize <= a.length();++x) {
 					final String substr = new String(a.getBases(),x, this.minClipSize);
 					final long count = words.count(substr);
-					if(count/totalWords < super.tresholdFraction) continue;
-					if(worstcount==null || worstcount < count) {
-						worstString=substr;
-						worstcount = count;
+					final double fraction=count/totalWords;
+					if(worstFraction==null || worstFraction < fraction) {
+						worstString=substr+"|"+count+"|"+fraction;
+						worstFraction = fraction;
 					}
 				}
 			}
-			if(worstcount!=null) {
+			if(worstString!=null) {
+				vcb.attribute(infoWord.getID(), worstString);
+			}
+			
+			if(worstFraction!=null && worstFraction.doubleValue()>=super.tresholdFraction) {
 				vcb.filter(filter.getID());
-				vcb.attribute(infoWord.getID(), worstString+"|"+worstcount);
+				
 			}
 			
 			out.add(vcb.make());

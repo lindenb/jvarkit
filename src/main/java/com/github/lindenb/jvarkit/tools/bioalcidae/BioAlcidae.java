@@ -36,8 +36,10 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.LineIterator;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -46,11 +48,23 @@ import java.util.List;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
+import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.XMLEvent;
+import javax.xml.transform.stream.StreamSource;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
+import gov.nih.nlm.ncbi.blast.Hit;
+import gov.nih.nlm.ncbi.dbsnp.Rs;
+import gov.nih.nlm.ncbi.insdseq.INSDSeq;
 
 /**
  * BioAlcidae
@@ -60,7 +74,13 @@ public class BioAlcidae
 	extends AbstractBioAlcidae
 	{
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BioAlcidae.class);
-	
+	@SuppressWarnings("unused")
+	private static gov.nih.nlm.ncbi.blast.ObjectFactory _fooljavac1 = null;
+	@SuppressWarnings("unused")
+	private static gov.nih.nlm.ncbi.insdseq.ObjectFactory _fooljavac2 = null;
+	@SuppressWarnings("unused")
+	private static gov.nih.nlm.ncbi.dbsnp.ObjectFactory _fooljavac3 = null;
+
 	private enum FORMAT {
 		VCF{
 			@Override
@@ -92,7 +112,25 @@ public class BioAlcidae
 					return src!=null && (src.endsWith(".fq") || src.endsWith(".fastq") || src.endsWith(".fq.gz") || src.endsWith(".fastq.gz")  );
 				}
 				}
-			
+			,
+		BLAST{
+				@Override
+				boolean canAs(String src) {
+					return src!=null && (src.endsWith(".blast.xml")  );
+				}
+				},
+		INSDSEQ{
+				@Override
+				boolean canAs(String src) {
+					return src!=null && (src.endsWith(".insdseq.xml")  );
+				}
+				},
+		DBSNP {
+					@Override
+					boolean canAs(String src) {
+						return src!=null && (src.endsWith(".dbsnp.xml")  );
+					}
+				}
 			;
 		abstract boolean canAs(String src);
 		};
@@ -109,7 +147,7 @@ public class BioAlcidae
 
 	
 	/** moved to public for knime */
-	public  Collection<Throwable> executeAsVcf(String source) throws IOException
+	public  Collection<Throwable> executeAsVcf(final String source) throws IOException
 		{
 		LOG.info("source: "+source);
 		VcfIterator in=null;
@@ -258,7 +296,7 @@ public class BioAlcidae
 			StringBuilder sb=new StringBuilder();
 			while(in.hasNext())
 				{
-				String line=in.peek();
+				final String line=in.peek();
 				if(line.trim().isEmpty()) {in.next();continue;}
 				if(line.startsWith(">")) break;//new sequence
 				sb.append(in.next().trim());
@@ -272,7 +310,7 @@ public class BioAlcidae
 		{
 		FastaIterator iter=new FastaIterator();
 		try {
-			iter.in = (source==null?IOUtils.openStdinForLineIterator():IOUtils.openURIForLineIterator(source));
+			iter.in = (source==null?IOUtils.openStreamForLineIterator(stdin()):IOUtils.openURIForLineIterator(source));
 			bindings.put("iter",iter);
 			bindings.put("format","fasta");
 			this.script.eval(bindings);
@@ -327,6 +365,233 @@ public class BioAlcidae
 			}
 		}
 	
+	public static class BlastIteration {
+		private int num=0;
+		private String queryId=null;
+		private String queryDef=null;
+		private int queryLen=-1;
+		public int getNum() {
+			return num;
+		}
+		public String getQueryId() {
+			return queryId;
+		}
+		public String getQueryDef() {
+			return queryDef;
+		}
+		public int getQueryLen() {
+			return queryLen;
+		}
+	}
+	
+	
+	public static abstract class AbstractXMLIterator<T>  extends AbstractIterator<T> implements Closeable {
+		protected final InputStream in;
+		protected final JAXBContext jc;
+		protected final Unmarshaller unmarshaller;
+		protected XMLEventReader r=null;
+		AbstractXMLIterator(final InputStream in,final String jaxbPath,final Boolean namespaceaware) throws JAXBException,XMLStreamException  {
+			this.in = in;
+			this.jc = JAXBContext.newInstance(jaxbPath);
+			this.unmarshaller =jc.createUnmarshaller();
+			final XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
+			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE,namespaceaware);
+			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
+			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
+			xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
+			final StreamSource streamSource = new StreamSource(in);
+			r=xmlInputFactory.createXMLEventReader(streamSource);
+			}
+		
+		@Override
+		public void close() throws IOException {
+			CloserUtil.close(r);
+			CloserUtil.close(in);
+			}
+		protected T simpleAdvance(final Class<T> clazz,final String tagName) {
+			try {
+				while(r.hasNext())
+					{
+					final XMLEvent evt=r.peek();
+					if(evt.isStartElement() && evt.asStartElement().getName().getLocalPart().equals(tagName))
+						{
+						return unmarshaller.unmarshal(r,clazz).getValue();
+						}
+					else
+						{
+						r.next();//consumme
+						}
+					}
+				return null;
+			} catch (XMLStreamException|JAXBException e) {
+				throw new RuntimeIOException(e);
+			}
+			
+		}
+	}
+	
+	public static class BlastIterator extends AbstractXMLIterator<Hit> {
+		private BlastIteration iteration= new BlastIteration();
+		BlastIterator(final InputStream in) throws JAXBException,XMLStreamException {
+			super(in,"gov.nih.nlm.ncbi.blast",Boolean.TRUE);
+			}
+		
+		public BlastIteration getIteration() {
+			return this.iteration;
+		}
+		
+		@Override
+		protected Hit advance() {
+			try {
+				while(r.hasNext())
+					{
+					XMLEvent evt=r.peek();
+					if(evt.isStartElement() )
+						{
+						final String localName= evt.asStartElement().getName().getLocalPart();
+						if(localName.equals("Hit"))
+							{
+							return unmarshaller.unmarshal(r,Hit.class).getValue();
+							}
+						else if(localName.equals("Iteration"))
+							{
+							this.iteration= new BlastIteration();
+							r.next();//consumme
+							}
+						else if(localName.equals("Iteration_iter-num"))
+							{
+							r.next();//consumme
+							this.iteration.num= Integer.parseInt(r.getElementText());
+							}
+						else if(localName.equals("Iteration_query-ID"))
+							{
+							r.next();//consumme
+							this.iteration.queryId= r.getElementText();
+							}
+						else if(localName.equals("Iteration_query-def"))
+							{
+							r.next();//consumme
+							this.iteration.queryDef= r.getElementText();
+							}
+						else if(localName.equals("Iteration_query-len"))
+							{
+							r.next();//consumme
+							this.iteration.queryLen = Integer.parseInt(r.getElementText());
+							}
+						else
+							{
+							r.next();//consumme
+							}
+						}
+					else
+						{
+						r.next();//consumme
+						}
+					}
+				return null;
+			} catch (XMLStreamException|JAXBException e) {
+				throw new RuntimeIOException(e);
+			}
+			}
+		
+		}
+	
+	private  Collection<Throwable> execute_blast(String source) throws IOException
+		{
+		BlastIterator iter=null;
+		try {
+			iter =new BlastIterator(source==null?stdin():IOUtils.openURIForReading(source));
+			bindings.put("iter",iter);
+			bindings.put("format","blast");
+			this.script.eval(bindings);
+			this.writer.flush();
+			return RETURN_OK;
+			} 
+		catch (Exception e)
+			{
+			LOG.error(e);
+			return wrapException(e);
+			}
+		finally
+			{
+			CloserUtil.close(iter);
+			bindings.remove("iter");
+			bindings.remove("format");
+			}
+		}
+
+	
+	public static class InsdSeqIterator extends AbstractXMLIterator<INSDSeq>   {
+		InsdSeqIterator(final InputStream in) throws JAXBException,XMLStreamException {
+		super(in,"gov.nih.nlm.ncbi.insdseq",Boolean.TRUE);
+		}
+	
+			@Override
+			protected INSDSeq advance() { return super.simpleAdvance(INSDSeq.class, "INSDSeq"); 
+			}
+		}
+
+	
+	
+	private  Collection<Throwable> execute_insdseq(String source) throws IOException
+		{
+		InsdSeqIterator iter=null;
+		try {
+			iter =new InsdSeqIterator(source==null?stdin():IOUtils.openURIForReading(source));
+			bindings.put("iter",iter);
+			bindings.put("format","insdseq");
+			this.script.eval(bindings);
+			this.writer.flush();
+			return RETURN_OK;
+			} 
+		catch (Exception e)
+			{
+			LOG.error(e);
+			return wrapException(e);
+			}
+		finally
+			{
+			CloserUtil.close(iter);
+			bindings.remove("iter");
+			bindings.remove("format");
+			}
+		}
+
+	
+	private  Collection<Throwable> execute_dbsnp(String source) throws IOException
+		{
+		AbstractXMLIterator<Rs> iter=null;
+		try {
+			iter =new AbstractXMLIterator<Rs>(
+					source==null?stdin():IOUtils.openURIForReading(source),
+					"gov.nih.nlm.ncbi.dbsnp",
+					Boolean.TRUE)
+				{
+				@Override
+				protected Rs advance() {
+					return super.simpleAdvance(Rs.class, "Rs");
+					}
+				};
+			bindings.put("iter",iter);
+			bindings.put("format","dbsnp");
+			this.script.eval(bindings);
+			this.writer.flush();
+			return RETURN_OK;
+			} 
+		catch (Exception e)
+			{
+			LOG.error(e);
+			return wrapException(e);
+			}
+		finally
+			{
+			CloserUtil.close(iter);
+			bindings.remove("iter");
+			bindings.remove("format");
+			}
+		}
+
+	
 	
 	private  Collection<Throwable> execute(FORMAT fmt,String source) throws IOException
 		{
@@ -336,6 +601,9 @@ public class BioAlcidae
 			case BAM: case SAM: return execute_bam(source);
 			case FASTQ: return execute_fastq(source);
 			case FASTA: return execute_fasta(source);
+			case BLAST: return execute_blast(source);
+			case INSDSEQ: return execute_insdseq(source);
+			case DBSNP: return execute_dbsnp(source);
 			default: return wrapException(new IllegalStateException());
 			}
 		}
@@ -413,9 +681,9 @@ public class BioAlcidae
 					}
 				if(fmt==null)
 					{
-					return wrapException("Cannot get file format for "+filename);
+					return wrapException("Cannot get file format for "+filename+". Please specifiy using option -"+OPTION_FORMATSTRING);
 					}
-				Collection<Throwable> errors= execute(fmt,filename);
+				final Collection<Throwable> errors= execute(fmt,filename);
 				if(!errors.isEmpty())
 					{
 					return errors;
