@@ -39,10 +39,12 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.LineIterator;
 
+import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.util.Collection;
 import java.util.List;
 
@@ -53,6 +55,7 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
@@ -61,6 +64,9 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonParser;
 
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.dbsnp.Rs;
@@ -399,6 +405,16 @@ public class BioAlcidae
 			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
+			xmlInputFactory.setXMLResolver(new XMLResolver()
+				{
+				@Override
+				public Object resolveEntity(String publicID,
+						String systemID, String baseURI, String namespace)
+						throws XMLStreamException {
+						LOG.warn("ignoring resolveEntity "+systemID+" "+baseURI+" "+namespace);
+							return new ByteArrayInputStream(new byte[0]);
+						}
+				});
 			final StreamSource streamSource = new StreamSource(in);
 			r=xmlInputFactory.createXMLEventReader(streamSource);
 			}
@@ -651,10 +667,25 @@ public class BioAlcidae
 	@Override
 	public Collection<Throwable> call() throws Exception
 		{
+		
 		final List<String> args = getInputFiles();
+		Reader jsonIn = null;
 		try
 			{
 			this.initializeJavaScript();
+			
+			if( super.jsonFile != null) {
+				LOG.info("Reading JSON FILE "+super.jsonFile);
+				jsonIn = IOUtils.openFileForBufferedReading(super.jsonFile);
+				final JsonParser gsonParser = new JsonParser();
+				final JsonElement jsonElement = gsonParser.parse(jsonIn);
+				jsonIn.close();
+				jsonIn=null;
+				this.bindings.put("userData", jsonElement);
+			} else
+				{
+				this.bindings.put("userData", JsonNull.INSTANCE);
+				}
 			
 			if(args.isEmpty()  )
 				{
@@ -709,6 +740,7 @@ public class BioAlcidae
 			this.bindings=null;
 			this.bindings=null;
 			this.format=null;
+			CloserUtil.close(jsonIn);
 			}
 		}
 	

@@ -15,6 +15,9 @@
 		<regex>(VCF|BAM|SAM|FASTQ|FASTA|BLAST|INSDSEQ)</regex>
 		<description> force format: one of VCF BAM SAM FASTQ FASTA BLAST DBSNP. BLAST is BLAST XML version 1. DBSNP is XML output of NCBI dbsnp. INSDSEQ is XML output of NCBI EFetch rettype=gbc. </description>
 	</option>
+	<option name="jsonFile" type="input-file" opt="J" longopt="json" label="JSON" arg-name="JSON_FILE">
+		<description>Optional. Reads a JSON File using google gson  (https://google-gson.googlecode.com/svn/trunk/gson/docs/javadocs/index.html ) and injects it as 'userData' in the javascript context.</description>
+	</option>
 </options>
 
 <documentation>

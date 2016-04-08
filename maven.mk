@@ -61,7 +61,11 @@ web.frameworks.jar  =  \
 	$(lib.dir)/org/webjars/jquery/1.11.1/jquery-1.11.1.jar
 
 
-all_maven_jars = $(sort ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars})
+gson.jar = \
+	$(lib.dir)/com/google/code/gson/gson/2.6.2/gson-2.6.2.jar
+
+
+all_maven_jars = $(sort ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar})
 
 download_all_maven : ${all_maven_jars}
 

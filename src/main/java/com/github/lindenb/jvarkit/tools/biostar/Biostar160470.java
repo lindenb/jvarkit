@@ -29,7 +29,6 @@ History:
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import gov.nih.nlm.ncbi.blast.Hit;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 
 import java.io.PrintStream;
@@ -39,6 +38,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Marshaller;
@@ -62,9 +62,8 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 
-public class Biostar160470 extends AbstractKnimeApplication
+public class Biostar160470 extends AbstractBiostar160470
 	{
 	@SuppressWarnings("unused")
 	private static final gov.nih.nlm.ncbi.blast.ObjectFactory _fool_javac1=null;
@@ -79,26 +78,17 @@ public class Biostar160470 extends AbstractKnimeApplication
 	/** transforms XML/DOM  */
 	private Marshaller marshaller;
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"Biostar160470";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Getting untranslated nucleotide sequences on tblastn standalone https://www.biostars.org/p/160470/";
-	}
-	
+
 	/** parses BLAST output */
-	private void parseBlast(XMLEventReader r)  throws Exception
+	private void parseBlast(final XMLEventReader r)  throws Exception
 		{
-		PrintStream out=System.out;
-		XMLOutputFactory xof = XMLOutputFactory.newFactory();
-		XMLEventWriter w=xof.createXMLEventWriter(out, "UTF-8");
+		final PrintStream out=super.openFileOrStdoutAsPrintStream();
+		final XMLOutputFactory xof = XMLOutputFactory.newFactory();
+		final XMLEventWriter w=xof.createXMLEventWriter(out, "UTF-8");
 
 		while(r.hasNext())
 			{
-			XMLEvent evt=r.peek();
+			final XMLEvent evt=r.peek();
 			if(evt.isStartElement() &&
 					evt.asStartElement().getName().getLocalPart().equals("BlastOutput_program"))
 				{
@@ -112,7 +102,7 @@ public class Biostar160470 extends AbstractKnimeApplication
 			else if(evt.isStartElement() &&
 				evt.asStartElement().getName().getLocalPart().equals("Hit"))
 				{
-				Hit hit= this.unmarshaller.unmarshal(r, Hit.class).getValue();
+				final Hit hit= this.unmarshaller.unmarshal(r, Hit.class).getValue();
 				parseHit(out,hit);
 				}
 			else
@@ -123,21 +113,24 @@ public class Biostar160470 extends AbstractKnimeApplication
 		
 		w.flush();
 		w.close();
+		out.flush();
+		out.close();
 		}
 	
-	private void parseHit(PrintStream out,Hit hit) throws Exception
+	private void parseHit(final PrintStream out,Hit hit) throws Exception
 		{
 		// Create the Document
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        DocumentBuilder db = dbf.newDocumentBuilder();
-        Document document = db.newDocument();
+		final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+		final DocumentBuilder db = dbf.newDocumentBuilder();
+		final Document document = db.newDocument();
         
         // Marshal the Object to a Document
         marshaller.marshal(hit, document);
 
-        String hitDef=null;
+        @SuppressWarnings("unused")
+		String hitDef=null;
     	String hitId=null;
-        Element hitNode= document.getDocumentElement();
+    	final Element hitNode= document.getDocumentElement();
         for(Node c1=hitNode.getFirstChild();c1!=null;c1=c1.getNextSibling())
         	{
         	
@@ -177,7 +170,7 @@ public class Biostar160470 extends AbstractKnimeApplication
 	                    		}
                         	}
                 		if(hit_from>hit_to) throw new RuntimeException("not handled");
-                		List<String> args=new ArrayList<>();
+                		final  List<String> args=new ArrayList<>();
                 		args.add((this.blastBinDir==null?"":this.blastBinDir+File.separatorChar)+"blastdbcmd");
                 		args.add("-db");
                 		args.add(this.blastDb);
@@ -187,14 +180,14 @@ public class Biostar160470 extends AbstractKnimeApplication
                 		args.add("%s");
                 		args.add("-range");
                 		args.add(String.valueOf(hit_from)+"-"+hit_to);
-                		ProcessBuilder proc=new ProcessBuilder(args);
-                		Process process = proc.start();
-                		StringBuilder sequence= new StringBuilder( IOUtil.readFully(process.getInputStream()));
+                		final ProcessBuilder proc=new ProcessBuilder(args);
+                		final Process process = proc.start();
+                		final StringBuilder sequence= new StringBuilder( IOUtil.readFully(process.getInputStream()));
                 		if(process.waitFor()!=0)
                 			{
                 			throw new RuntimeException("Proc failed: "+args);
                 			}
-                		Element hitDna=c2.getOwnerDocument().createElement("Hsp_hit-DNA");
+                		final Element hitDna=c2.getOwnerDocument().createElement("Hsp_hit-DNA");
                 		for(int i=0;i< Hsp_hseq.length() && i*3+2< sequence.length();++i)
                 			{
                 			char c=Hsp_hseq.charAt(i);
@@ -216,26 +209,25 @@ public class Biostar160470 extends AbstractKnimeApplication
         
         out.flush();
      // Output the Document
-        TransformerFactory tf = TransformerFactory.newInstance();
-        Transformer t = tf.newTransformer();
+        final  TransformerFactory tf = TransformerFactory.newInstance();
+        final  Transformer t = tf.newTransformer();
         t.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION,"yes");
         t.setOutputProperty(OutputKeys.INDENT,"yes");
-        DOMSource source = new DOMSource(document);
-        StreamResult result = new StreamResult(System.out);
+        final  DOMSource source = new DOMSource(document);
+        final StreamResult result = new StreamResult(System.out);
         t.transform(source, result);			
 		}
 		
-		
-
 	@Override
-	public int executeKnime(final List<String> args)
-		{
-		XMLEventReader r=null;
-		try
+	public Collection<Throwable> call(final String filename) throws Exception {
+		if(blastDb==null)
 			{
-			
+			return wrapException("undefined blastdb");
+			}
+		XMLEventReader r=null;
+		try {
 			//create a Unmarshaller for genbank
-			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
+			final JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 			this.marshaller=jc.createMarshaller();
 			this.marshaller.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);
@@ -252,80 +244,28 @@ public class Biostar160470 extends AbstractKnimeApplication
 						}
 				});
 			
-			
 			//read from stdin
-			if(args.isEmpty())
+			if(filename==null)
 				{
-			    r=this.xif.createXMLEventReader(System.in, "UTF-8");
+			    r=this.xif.createXMLEventReader(stdin(), "UTF-8");
 				this.parseBlast(r);
 				r.close();
 				r=null;
 				}
-			else if(args.size()==1)
+			else
 				{
-				String inputName=args.get(0);
-				FileReader fr=new java.io.FileReader(inputName);
+				final FileReader fr=new java.io.FileReader(filename);
 				r=this.xif.createXMLEventReader(fr);
 				this.parseBlast(r);
 				r.close();
 				fr.close();
 				r=null;
 				}
-			else
-				{
-				error("Illegal number of args");
-				return -1;
-				}
-			return 0;
-			}
-		catch(Throwable err)
-			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(r);
-			}
+			return RETURN_OK;
+		} catch (final Exception e) {
+			return wrapException(e);
 		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -p (blast-bin-dir)");
-		out.println(" -d (blast-db-name)");
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:d:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'p':blastBinDir=opt.getOptArg();break;
-				case 'd':blastDb=opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(blastDb==null)
-			{
-			error("undefined blastdb");
-			return -1;
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
+	}
 
 	/**
 	 * @param args
