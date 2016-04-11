@@ -1,11 +1,35 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.awt.Color;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.CigarElement;
@@ -15,15 +39,14 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.PslAlign;
 
-public class SamToPsl extends AbstractCommandLineProgram
+public class SamToPsl extends AbstractSamToPsl
 	{
-	private PrintWriter out=new PrintWriter(System.out);
-	private boolean handle_paired_reads=true;
-	private boolean output_bed12=false;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractSamToPsl.class);
+
+	private PrintWriter out = null;
 	private SamToPsl()
 		{
 		}
@@ -87,9 +110,9 @@ public class SamToPsl extends AbstractCommandLineProgram
 	
 	private List<PslAlign> makePslAlign(SAMRecord rec,SAMSequenceDictionary dict)
 		{
-		List<PslAlign> aligns=new ArrayList<PslAlign>();
+		final List<PslAlign> aligns=new ArrayList<PslAlign>();
 
-		PslAlign a=new PslAlign();
+		final PslAlign a=new PslAlign();
 		
 		
 		
@@ -97,7 +120,7 @@ public class SamToPsl extends AbstractCommandLineProgram
 		a.setQName(rec.getReadName()+(rec.getReadPairedFlag()?(rec.getFirstOfPairFlag()?"/1":"/2"):"")+"_"+rec.getFlags());
 		
 		a.setTName(rec.getReferenceName());
-		SAMSequenceRecord ssr=dict.getSequence(rec.getReferenceIndex());
+		final SAMSequenceRecord ssr=dict.getSequence(rec.getReferenceIndex());
 		if(ssr==null)
 			{
 			throw new RuntimeException("Cannot get SAMSequenceRecord dict for "+rec.getReferenceName());
@@ -107,7 +130,7 @@ public class SamToPsl extends AbstractCommandLineProgram
 		int qBaseInsert=0;
 		int tBaseInsert=0;
 		int readLength=0;
-		for(CigarElement ce:rec.getCigar().getCigarElements())
+		for(final  CigarElement ce:rec.getCigar().getCigarElements())
 			{
 			switch(ce.getOperator())
 				{
@@ -169,12 +192,12 @@ public class SamToPsl extends AbstractCommandLineProgram
 			a.setQEnd(readLength-(rec.getUnclippedEnd()-rec.getAlignmentEnd()));
 			a.setTEnd(rec.getAlignmentEnd());
 			
-			int readPos=rec.getAlignmentStart()-rec.getUnclippedStart();
-			int refPos=rec.getAlignmentStart()-1;
+			final int readPos=rec.getAlignmentStart()-rec.getUnclippedStart();
+			final int refPos=rec.getAlignmentStart()-1;
 			a.setQStart(readPos);
 			a.setTStart(refPos);
 			
-			for(Align ctg:scancigar(readPos,refPos,rec))
+			for(final Align ctg:scancigar(readPos,refPos,rec))
 				{
 				a.addBlock(ctg.read0, ctg.ref0, ctg.len);
 				}
@@ -198,7 +221,7 @@ public class SamToPsl extends AbstractCommandLineProgram
 				a.setQStart(readPos);
 				a.setTStart(refPos);
 								
-				for(Align ctg:scancigar(readPos,refPos,rec))
+				for(final Align ctg:scancigar(readPos,refPos,rec))
 					{
 					a.addBlock(ctg.read0, ctg.ref0, ctg.len);
 					}
@@ -223,7 +246,7 @@ public class SamToPsl extends AbstractCommandLineProgram
 						1
 						);
 				
-				for(Align ctg:scancigar(1,rec.getAlignmentStart(),rec))
+				for(final Align ctg:scancigar(1,rec.getAlignmentStart(),rec))
 					{
 					a.addBlock(ctg.read0, ctg.ref0, ctg.len);
 					}
@@ -235,33 +258,30 @@ public class SamToPsl extends AbstractCommandLineProgram
 		return aligns;
 		}
 	
-	private void scan(SamReader in) 
+	private void scan(final SamReader in) 
 		{
-		SAMSequenceDictionary dict=in.getFileHeader().getSequenceDictionary();
+		final SAMSequenceDictionary dict=in.getFileHeader().getSequenceDictionary();
 		if(dict==null) throw new RuntimeException("Sequence dictionary missing...");
-		SAMRecordIterator iter=in.iterator();
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);		
+		final SAMRecordIterator iter=in.iterator();
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);		
 		while(iter.hasNext() && !this.out.checkError())
 			{
-			SAMRecord rec=iter.next();
+			final  SAMRecord rec=progress.watch(iter.next());
 			if(rec.getReadUnmappedFlag()) continue;
-			progress.watch(rec);
-			for(PslAlign a:makePslAlign(rec,dict))
+			for(final PslAlign a:makePslAlign(rec,dict))
 				{
 				out.println(toString(a,rec));
 				}
-			
-			
 			}
 		progress.finish();
 		iter.close();
 		}
 	
-	private String toString(PslAlign a, SAMRecord rec)
+	private String toString(final PslAlign a,final  SAMRecord rec)
 		{
-		if(output_bed12)
+		if(super.output_bed12)
 			{
-			StringBuilder b=new StringBuilder();
+			final StringBuilder b=new StringBuilder();
 		    //chrom - The name of the chromosome (e.g. chr3, chrY, chr2_random) or scaffold (e.g. scaffold10671).
 			b.append(a.getTName());
 			//chromStart - The starting position of the feature in the chromosome or scaffold. The first base in a chromosome is numbered 0.
@@ -319,77 +339,29 @@ public class SamToPsl extends AbstractCommandLineProgram
 			}
 		}
 	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/SamToPsl ";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.print("-s treat all reads as single end");
-		out.print("-B export as BED 12");
-		super.printOptions(out);
-		}
 
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"sB"))!=-1)
-			{
-			switch(c)
-				{
-				case 's': this.handle_paired_reads=false;break;
-				case 'B': this.output_bed12=true;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 		
 		SamReader sfr=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				scan(sfr);
-				sfr.close();
-				}
-			else
-				{
-				for(int i=opt.getOptInd();i< args.length;++i)
-					{
-					String filename=args[i];
-					sfr=SamFileReaderFactory.mewInstance().open(filename);
-					scan(sfr);
-					sfr.close();
-					}
-				}
-			out.flush();
-			return 0;
+			sfr = super.openSamReader(inputName);
+			this.out = super.openFileOrStdoutAsPrintWriter();
+			scan(sfr);
+			this.out.flush();
+			LOG.info("done");
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(sfr);
+			CloserUtil.close(this.out);
+			this.out=null;
 			}
 		}
 	/**

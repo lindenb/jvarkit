@@ -34,10 +34,13 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -364,7 +367,8 @@ public class VcfBurdenSplitter
 	public VcfBurdenSplitter()
 		{
 		}
-	 
+	
+	
 	@Override
 	public Collection<Throwable> initializeKnime() {
 		
@@ -401,7 +405,7 @@ public class VcfBurdenSplitter
 	
 	
 	//@Override
-	public Collection<Throwable> doVcfToVcf(String inputName) throws Exception {
+	public Collection<Throwable> doVcfToVcf(final String inputName) throws Exception {
 		SortingCollection<KeyAndLine> sortingcollection=null;
 		BufferedReader in = null;
 		FileOutputStream fos = null;
@@ -566,7 +570,47 @@ public class VcfBurdenSplitter
 					}
 				if(!called_in_case_control) {
 					count_unfiltered_not_in_pedigrees_variants++;
+					}
 				}
+			
+				if (!super.ignoreSkat) {
+					/**
+					 mail matile April 11: requires calling R for SKAT: needs
+					 matrix of samples and genotypes */
+					final List<Integer> skatRSampleList = new ArrayList<>();
+					final List<Integer> skatRGenotypes = new ArrayList<>();
+					
+					/** fill skatRSampleList */
+					for (int pop = 0; pop < 2; ++pop) {
+						for (final Pedigree.Person person : (pop == 0 ?controlSamples  : caseSamples)) {
+							skatRSampleList.add(pop==0?0:1);
+							}
+						}
+					
+					/** fill skatRGenotypes */
+					for (final VariantContext ctx : variants) {
+						if (ctx.isFiltered() && !super.acceptFiltered)
+							{
+							continue;
+							}
+	
+						for (int pop = 0; pop < 2; ++pop) {
+							for (final Pedigree.Person person : (pop == 0 ? caseSamples : controlSamples)) {
+								{
+									final Genotype g = ctx.getGenotype(person.getId());
+									if (g.isHomRef()) {
+										skatRGenotypes.add(0);
+									} else if (g.isHomVar()) {
+										skatRGenotypes.add(2);
+									} else if (g.isHet()) {
+										skatRGenotypes.add(1);
+									} else {
+										skatRGenotypes.add(-9);
+									}
+								}
+							}
+						}
+					}
 				}
 			
 			
@@ -575,10 +619,12 @@ public class VcfBurdenSplitter
 				for(final Pedigree.Person person : (pop==0?caseSamples:controlSamples)) {
 					SuperVariant superVariant = SuperVariant.SV0;
 					
+					
 					for(final VariantContext ctx : variants)
 						{
 						if(ctx.isFiltered() && !super.acceptFiltered) continue;
 
+						
 						final Genotype g = ctx.getGenotype(person.getId());	
 						if(g==null) continue;//not in vcf header
 						if(g.isFiltered()) continue;//ignore this genotype
@@ -593,6 +639,7 @@ public class VcfBurdenSplitter
 							}//end of allele
 						if(superVariant!=SuperVariant.SV0 ) break;
 						}//end of variant
+					
 					if(superVariant==SuperVariant.SV0 ) {
 						if(pop==0 ) count_case_sv0++;
 						else count_ctrl_sv0++;

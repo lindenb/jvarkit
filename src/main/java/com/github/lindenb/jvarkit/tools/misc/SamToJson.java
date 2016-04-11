@@ -1,94 +1,68 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.PrintWriter;
+import java.util.Collection;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.picard.SamJsonWriter;
 
-public class SamToJson extends AbstractCommandLineProgram
-	{
-	private PrintWriter out=new PrintWriter(System.out);
+public class SamToJson extends AbstractSamToJson {
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamToJson.class);
+
 	@Override
-	public String getProgramDescription()
-		{
-		return "Convert a SAM input to JSON.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-n add a '\\n' after each read");
-		out.println("-H don't print SAM header");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean print_header=true;
-		boolean crlf=false;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"nH"))!=-1)
-			{
-			switch(c)
-				{
-				case 'H': print_header=false;break;
-				case 'n': crlf=true; break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	protected Collection<Throwable> call(final String inputName) throws Exception {
+		PrintWriter out=null;
 		SamReader sfr=null;
 		SamJsonWriter swf=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{	
-				String filename=args[opt.getOptInd()];
-				sfr=SamFileReaderFactory.mewInstance().open(filename);	
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
+			sfr = super.openSamReader(inputName);
+			out = super.openFileOrStdoutAsPrintWriter();
 			swf=new SamJsonWriter(out, sfr.getFileHeader());
-			swf.setAddCarriageReturn(crlf);
-			swf.setPrintHeader(print_header);
-			SAMRecordIterator iter=sfr.iterator();
+			swf.setAddCarriageReturn(super.crlf);
+			swf.setPrintHeader(super.print_header);
+			final SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext() && !out.checkError())
 				{
 				swf.addAlignment(iter.next());
 				}
 			iter.close();
+			out.flush();
 			swf.close();
-			return 0;
+			LOG.info("done");
+			return RETURN_OK;
 			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
+		catch(final Exception err) {
+			return wrapException(err);
 			}
-		finally
-			{
+		finally 	{
 			CloserUtil.close(sfr);
 			}
 		}
