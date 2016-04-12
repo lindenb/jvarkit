@@ -127,8 +127,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
             this.prevPoint= point;
             this.prev_base= chromEnd;;
         	}
-        
-     // Make U-shaped curve at this scale:
+ 	//make U shaped curve       
         private void HilbertU(int level)
             {
             if (level <= 0) return;
@@ -139,7 +138,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
            
             }
      
-        // Make D-shaped (really "]" shaped) curve at this scale:
+	//make D shaped rule
         private void HilbertD(int level)
         	{
         	if (level <= 0) return;
@@ -149,7 +148,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
             HilbertA(level-1);
     		}
      
-        // Make C-shaped (really "[" shaped) curve at this scale:
+	// make C shaped
         private void HilbertC(int level)
         	{
         	if (level <= 0) return;
@@ -158,8 +157,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
             HilbertC(level-1);    this.lineRel(dist, 0);
             HilbertU(level-1);
         	}
-     
-        // Make A-shaped (really "⊓" shaped) curve at this scale:
+     	//make A shaped
         private void HilbertA(int level) {
         	if (level <= 0) return;
             HilbertC(level-1);    this.lineRel(0, -dist);
