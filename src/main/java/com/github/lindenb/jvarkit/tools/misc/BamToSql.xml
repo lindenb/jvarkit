@@ -87,11 +87,10 @@ FOREIGN KEY(read_id) REFERENCES Read(id)
 <h:h3>Example</h:h3>
 Build a sqlite3 database for a set of BAM files in the region "rotavirus:1-10""
 
-<h:pre class="sql"><!-- $java -jar dist/bam2sql.jar -r 'rotavirus:1-10' -R  ref.fa -c S*.bam | sqlite3 database.sqlite
---></h:pre>
+<h:pre class="bash">$java -jar dist/bam2sql.jar -r 'rotavirus:1-10' -R  ref.fa -c S*.bam | sqlite3 database.sqlite</h:pre>
 
 Select data from sqlite database where the genomic position is "rotavirus:5" 
-<h:pre class="sql"><!-- 
+<h:pre class="sql">
 select  SamFile.filename,
 		ReadGroup.sample,
 		Read.flag,
@@ -111,15 +110,15 @@ where
 		Read.rname = "rotavirus" and 
 		Cigar.ref_pos= 5
 		;
---></h:pre>
+</h:pre>
 
 query:
 
-<h:pre class="bash"><!-- $ sqlite3 -header -separator '   ' database.sqlite < query.sql  | column -t --></h:pre>
+<h:pre class="bash">$ sqlite3 -header -separator '   ' database.sqlite &lt; query.sql  | column -t </h:pre>
 
 output:
 
-<h:pre ><!--filename  sample  flag  rname      operator  read_pos  read_base  read_qual  ref_pos  ref_base
+<h:pre >filename  sample  flag  rname      operator  read_pos  read_base  read_qual  ref_pos  ref_base
 S1.bam    S1      99    rotavirus  M         4         T          10         5        T
 S1.bam    S1      163   rotavirus  M         4         T          10         5        T
 S1.bam    S1      163   rotavirus  M         4         T          10         5        T
@@ -209,7 +208,7 @@ S4.bam    S4      99    rotavirus  M         0         T          10         5  
 S4.bam    S4      99    rotavirus  M         4         T          10         5        T
 S4.bam    S4      163   rotavirus  M         0         T          10         5        T
 S4.bam    S4      163   rotavirus  M         0         T          10         5        T
---></h:pre>
+</h:pre>
 
 
 

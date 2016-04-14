@@ -217,5 +217,6 @@ See [Download and Install](https://github.com/lindenb/jvarkit/wiki/Compilation)
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/VcfRemoveGenotypeJs">VcfRemoveGenotypeJs</a></th><td>Reset Genotypes in VCF using a javascript expression</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/SamMaskAlignedBases">SamMaskAlignedBases</a></th><td>Mask bases aligned on Reference</td></tr>
 <tr><th><a href="https://github.com/lindenb/jvarkit/wiki/Gff2KnownGene">Gff2KnownGene</a></th><td>Convert GFF3 to UCSC knownGene</td></tr>
+<tr><th><a href="https://github.com/lindenb/jvarkit/wiki/BamToSql">BamToSql</a></th><td>Convert BAM to SQLITE3</td></tr>
 </table>
 
