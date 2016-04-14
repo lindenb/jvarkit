@@ -180,6 +180,20 @@ private <T> Optional<T> empty(boolean exception,String message,Throwable cause) 
 	return Optional.empty();
 }
 
-
+/** parse interval. chr:start-end */
+public Optional<Interval> parseInterval(final String rgn) {
+	final int colon = rgn.indexOf(":");
+	if(colon<=0) return empty(isThrowingOnError(), "Cannot find ':' in "+rgn); 
+	final String chrom = rgn.substring(0,colon);
+	final  int hyphen = rgn.indexOf("-");
+	if(hyphen<colon || hyphen+1==rgn.length()) return empty(isThrowingOnError(), "Cannot find  '-' in "+rgn); 
+	final int chromStart = convertCoord(rgn.substring(colon+1,hyphen));
+	final int chromEnd = convertCoord(rgn.substring(hyphen+1));
+	return Optional.of(convert(chrom, chromStart, chromEnd));
+	}
+/** parse coordinate to integer */
+public int convertCoord(final String s) {
+	return Integer.parseInt(s);
+	}
 
 }

@@ -41,52 +41,29 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SamReaderFactory.Option;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 
-import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class ExtendReferenceWithReads extends AbstractCommandLineProgram
+public class ExtendReferenceWithReads extends AbstractExtendReferenceWithReads
 	{
-	private int minLenNNNNContig=100;
-	private double callingFraction=0.8;
-	private int minDepth=1;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(ExtendReferenceWithReads.class);
 	private List<SamReader> samReaders=new ArrayList<>();
 	private enum Rescue {LEFT,CENTER,RIGHT};
 	
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return DEFAULT_WIKI_PREFIX+"ExtendReferenceWithReads";
-		}
-	@Override
-	public String getProgramDescription() {
-		return "Extending ends of sequences with the help of reads https://www.biostars.org/p/148089/";
-		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -R (ref) "+getMessageBundle("reference.faidx")+" Required");
-		out.println(" -N (int) consider only gaps with size>=N default:"+this.minLenNNNNContig);
-		out.println(" -f (0.0<float<=1.0) new base must have fraction greater than this number :"+this.callingFraction);
-		out.println(" -d (int) min depth. default:"+this.minDepth);
-		super.printOptions(out);
-		}
 
 	private char consensus(Counter<Byte> count)
 		{
@@ -108,27 +85,27 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 
 	 */
 	private Map<Integer, Counter<Byte>> scanRegion(
-			SAMSequenceRecord contig,
-			int chromStart,
-			int chromEnd,
-			Rescue rescue
+			final SAMSequenceRecord contig,
+			final int chromStart,
+			final int chromEnd,
+			final Rescue rescue
 			)
 		{
-		Map<Integer, Counter<Byte>> pos2bases = new HashMap<>(1+chromEnd-chromStart);
-		info("Scanning :"+contig.getSequenceName()+":"+chromStart+"-"+chromEnd);
+		final Map<Integer, Counter<Byte>> pos2bases = new HashMap<>(1+chromEnd-chromStart);
+		LOG.info("Scanning :"+contig.getSequenceName()+":"+chromStart+"-"+chromEnd);
 		for(int side=0;side<2;++side)
 			{
 			if(!rescue.equals(Rescue.CENTER) && side>0)//5' or 3'
 				{
 				break;//already done
 				}
-			for(SamReader samReader: samReaders)
+			for(final SamReader samReader: samReaders)
 				{
-				SAMSequenceDictionary dict2=samReader.getFileHeader().getSequenceDictionary();
-				SAMSequenceRecord ssr2 = dict2.getSequence(contig.getSequenceName());
+				final SAMSequenceDictionary dict2=samReader.getFileHeader().getSequenceDictionary();
+				final SAMSequenceRecord ssr2 = dict2.getSequence(contig.getSequenceName());
 				if(ssr2==null || ssr2.getSequenceLength()!=contig.getSequenceLength())
 					{
-					warning("No contig "+contig.getSequenceName()+" with L="+contig.getSequenceLength() +" bases in "+samReader.getResourceDescription());
+					LOG.info("No contig "+contig.getSequenceName()+" with L="+contig.getSequenceLength() +" bases in "+samReader.getResourceDescription());
 					continue;
 					}
 				int mappedPos=-1;
@@ -141,7 +118,7 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 					case CENTER: mappedPos= (side==0? chromStart+1:chromEnd);break;
 					default: throw new IllegalStateException();
 					}
-				SAMRecordIterator iter =  samReader.query(
+				final SAMRecordIterator iter =  samReader.query(
 						contig.getSequenceName(),
 						mappedPos,
 						mappedPos,
@@ -149,19 +126,19 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 						);
 				while(iter.hasNext())
 					{
-					SAMRecord rec = iter.next();
+					final SAMRecord rec = iter.next();
 					if(rec.getReadUnmappedFlag()) continue;
 					if(rec.getMappingQuality()==0) continue;
 					if(rec.isSecondaryOrSupplementary()) continue;
-					Cigar cigar=rec.getCigar();
+					final Cigar cigar=rec.getCigar();
 					if(cigar==null) continue;
-					byte bases[]=rec.getReadBases();
+					final byte bases[]=rec.getReadBases();
 					if(bases==null || bases.length==0) continue;
 					int refPos1 = rec.getUnclippedStart();
 					int readpos = 0;
-					for(CigarElement ce: cigar.getCigarElements())
+					for(final CigarElement ce : cigar)
 						{
-						CigarOperator op= ce.getOperator();
+						final CigarOperator op= ce.getOperator();
 						for(int L=0;L<ce.getLength();++L)
 							{
 							if(op.consumesReadBases())
@@ -192,113 +169,84 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		File faidx=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:N:f:d:"))!=-1)
+	public Collection<Throwable> call() throws Exception {
+		if(super.faidx==null)
 			{
-			switch(c)
-				{
-				case 'R': faidx = new File(opt.getOptArg());break;
-				case 'N': this.minLenNNNNContig = Math.max(1, Integer.parseInt(opt.getOptArg()));break;
-				case 'f': this.callingFraction = Math.min(1.0,Math.max(0.0, Double.parseDouble(opt.getOptArg())));break;
-				case 'd': this.minDepth = Math.max(1, Integer.parseInt(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			return wrapException("No REF defined option -"+OPTION_FAIDX);
 			}
-		if(faidx==null)
-			{
-			error("No REF defined");
-			return -1;
-			}
+		final List<String> args = super.getInputFiles();
 		this.samReaders.clear();
-		PrintStream out=System.out;
+		PrintStream out=null;
 		try {
 			this.indexedFastaSequenceFile= new IndexedFastaSequenceFile(faidx);
 			SAMSequenceDictionary dict = this.indexedFastaSequenceFile.getSequenceDictionary();
 			if(dict==null)
 				{
-				error("Reference file is missing a sequence dictionary (use picard)");
-				return -1;
+				return wrapException("Reference file is missing a sequence dictionary (use picard)");
 				}
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+			final SamReaderFactory srf= super.createSamReaderFactory();
 			srf.setOption(Option.CACHE_FILE_BASED_INDEXES, true);
-			for(String uri:IOUtils.unrollFiles(Arrays.asList(Arrays.copyOfRange(args, opt.getOptInd(), args.length))))
+			for(final String uri:IOUtils.unrollFiles(args))
 				{
-				info("opening BAM "+uri);
-				SamReader sr = null;
-				
-				sr = srf.open(SamInputResource.of(uri));
+				LOG.info("opening BAM "+uri);
+				final SamReader sr = srf.open(SamInputResource.of(uri));
 					
-				
-				
 				/* doesn't work with remote ?? */
 				if(!sr.hasIndex()) 
 					{
-					error("file "+uri+" is not indexed");
-					return -1;
+					return wrapException("file "+uri+" is not indexed");
 					}
-				SAMFileHeader header= sr.getFileHeader();
+				final SAMFileHeader header= sr.getFileHeader();
 				if(!header.getSortOrder().equals(SortOrder.coordinate))
 					{
-					error("file "+uri+" not sorted on coordinate but "+header.getSortOrder());
-					return -1;
+					return wrapException("file "+uri+" not sorted on coordinate but "+header.getSortOrder());
 					}
-				SAMSequenceDictionary dict2 = header.getSequenceDictionary();
+				final SAMSequenceDictionary dict2 = header.getSequenceDictionary();
 				if(dict2==null)
 					{
-					error("file "+uri+" needs a sequence dictionary");
-					return -1;
+					return wrapException("file "+uri+" needs a sequence dictionary");
 					}
 				
 				samReaders.add(sr);
 				}
 			if(samReaders.isEmpty())
 				{
-				error("No BAM defined");
-				return -1;
+				return wrapException("No BAM defined");
 				}
-			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(dict);
-			for(SAMSequenceRecord ssr: dict.getSequences())
+			
+			out = super.openFileOrStdoutAsPrintStream();
+			
+			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(dict);
+			for(final SAMSequenceRecord ssr: dict.getSequences())
 				{
-				GenomicSequence genomic=new GenomicSequence(this.indexedFastaSequenceFile, ssr.getSequenceName());
+				final GenomicSequence genomic = new GenomicSequence(this.indexedFastaSequenceFile, ssr.getSequenceName());
 				int chromStart=0;
 				
 				int nPrinted=0;
 				out.print(">");
 				out.print(ssr.getSequenceName());
 				
-				for(Rescue side: Rescue.values())
+				for(final Rescue side: Rescue.values())
 					{
 					switch(side) /* look 5' */
 						{
 						case LEFT: /* look before position 0 of chromosome */
 							{
-							Map<Integer, Counter<Byte>> pos2bases = scanRegion(
+							final Map<Integer, Counter<Byte>> pos2bases = scanRegion(
 									ssr,
 									-1,
 									-1,
 									side
 									);
 							int newstart=0;
-							for(Integer pos:pos2bases.keySet())
+							for(final Integer pos:pos2bases.keySet())
 								{
 								if(pos>=0) continue;
 								newstart=Math.min(newstart, pos);
 								}
 							while(newstart<0)
 								{
-								Counter<Byte> count = pos2bases.get(newstart); 
+								final Counter<Byte> count = pos2bases.get(newstart); 
 								if(nPrinted%60==0) out.println();
 								out.print(consensus(count));
 								newstart++;
@@ -306,23 +254,23 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 								}
 							break;
 							}
-						case RIGHT: /* look before position > length(chromosome) */
+						case RIGHT: /* look after position > length(chromosome) */
 							{
-							Map<Integer, Counter<Byte>> pos2bases =  scanRegion(
+							final Map<Integer, Counter<Byte>> pos2bases =  this.scanRegion(
 									ssr,
 									-1,
 									-1,
 									side
 									);
 							int newend=ssr.getSequenceLength();
-							for(Integer pos:pos2bases.keySet())
+							for(final Integer pos:pos2bases.keySet())
 								{
 								if(pos<ssr.getSequenceLength()) continue;
 								newend=Math.max(newend, pos+1);
 								}
 							for(int i=ssr.getSequenceLength();i< newend;i++)
 								{
-								Counter<Byte> count = pos2bases.get(i); 
+								final Counter<Byte> count = pos2bases.get(i); 
 								if(nPrinted%60==0) out.println();
 								out.print(consensus(count));
 								++nPrinted;
@@ -334,7 +282,7 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 							chromStart=0;
 							while(chromStart< genomic.length())
 								{
-								char base = Character.toUpperCase(genomic.charAt(chromStart));
+								final char base = Character.toUpperCase(genomic.charAt(chromStart));
 								if(base!='N')
 									{
 									progress.watch(ssr.getSequenceName(), chromStart);
@@ -363,7 +311,7 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 										}
 									continue;
 									}
-								Map<Integer, Counter<Byte>> pos2bases = scanRegion(
+								final Map<Integer, Counter<Byte>> pos2bases = scanRegion(
 										ssr,
 										chromStart,
 										chromEnd,
@@ -373,7 +321,7 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 
 								while(chromStart<chromEnd)
 									{
-									Counter<Byte> count = pos2bases.get(chromStart); 
+									final Counter<Byte> count = pos2bases.get(chromStart); 
 									if(nPrinted%60==0) out.println();
 									if(count==null)
 										{
@@ -398,16 +346,16 @@ public class ExtendReferenceWithReads extends AbstractCommandLineProgram
 			progress.finish();
 			
 			out.flush();
-			return 0;
+			out.close();
+			return RETURN_OK;
 			}
-		catch (Exception e) {
-			error(e);
-			return -1;
+		catch (final Exception e) {
+			return wrapException(e);
 			}
 		finally
 			{
 			CloserUtil.close(this.indexedFastaSequenceFile);
-			for(SamReader r : samReaders) CloserUtil.close(r);
+			for(final SamReader r : samReaders) CloserUtil.close(r);
 			samReaders.clear();
 			}
 		

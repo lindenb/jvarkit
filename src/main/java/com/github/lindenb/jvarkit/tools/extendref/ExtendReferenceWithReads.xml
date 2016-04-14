@@ -4,4 +4,49 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.extendref">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Extending ends of sequences with the help of reads https://www.biostars.org/p/148089/</description>
+<snippet id="read-sam"/>
+<snippet id="ref.faidx" name="faidx" opt="R"/>
+
+
+<options>
+	<option name="minLenNNNNContig" opt="N" longopt="mincontig" type="int" default="100">
+		<description>consider only gaps in reference with size&gt;=N</description>
+	</option>
+	<option name="callingFraction" opt="f" longopt="callingfraction" type="double" default="0.8">
+		<description>(0.0&lt;float&lt;=1.0) new base must have fraction greater than this number</description>
+	</option>
+	<option name="minDepth" opt="d" longopt="mindepth" type="int" default="1">
+		<description>min depth</description>
+	</option>
+</options>
+
+<documentation>
+
+<h:h3>Example</h:h3>
+<h:pre><![CDATA[
+$  java   -jar dist/extendrefwithreads.jar \
+     -R human_g1k_v37.fasta -f 0.3 \
+     f1.bam f2.bam f3.bam 2> /dev/null |\
+  cat -n | grep -E '(>|[atgc])' 
+
+     1	>1
+   167	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNncgattaccctaacgctcac
+   168	cctaaccctcnccctntnccnncnncccnncttcttccgaTAACCCTAACCCTAACCCTA
+  3791	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNatt
+  3792	tatgcNctttntgctgtGATTCATGGCTGAAATCGTGTTTGACCAGCTATGTGTGTCTCT
+  8691	NNNNNNNNNNNNNNNNNNNNNNNNctagGATCCTTGAAGCGCCCCCAAGGGCATCTTCTC
+ 64089	TGGTGAGGGAAATTAGAACCACGACAATTTGGGAACTTAGCTTCTGCCctgctccNNNNN
+ 66589	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNgagtAGCTGAGACTAC]]></h:pre>
+
+<h:h3>See also</h:h3>
+<h:ul>
+	<h:li><h:a>https://www.biostars.org/p/148089/</h:a></h:li>
+</h:ul>
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+
+
+</app>

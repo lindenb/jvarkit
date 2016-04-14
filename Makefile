@@ -188,6 +188,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
+	bam2sql
 	
 
 .PHONY: all tests $(APPS) clean download_all_maven library top ${dist.dir}/jvarkit-${htsjdk.version}.jar galaxy burden
@@ -436,7 +437,7 @@ $(eval $(call compile-htsjdk-cmd,bedindextabix,${jvarkit.package}.tools.misc.Bed
 $(eval $(call compile-htsjdk-cmd,vcf2bam,${jvarkit.package}.tools.misc.VcfToBam))
 $(eval $(call compile-htsjdk-cmd,vcffilterxpath,${jvarkit.package}.tools.misc.VcfFilterXPath))
 $(eval $(call compile-htsjdk-cmd,pcrclipreads,${jvarkit.package}.tools.pcr.PcrClipReads))
-$(eval $(call compile-htsjdk-cmd,extendrefwithreads,${jvarkit.package}.tools.extendref.ExtendReferenceWithReads))
+$(eval $(call compile-htsjdk-cmd,extendrefwithreads,${jvarkit.package}.tools.extendref.ExtendReferenceWithReads,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,pcrslicereads,${jvarkit.package}.tools.pcr.PcrSliceReads))
 $(eval $(call compile-htsjdk-cmd,samjmx,${jvarkit.package}.tools.jmx.SamJmx))
 $(eval $(call compile-htsjdk-cmd,vcfjmx,${jvarkit.package}.tools.jmx.VcfJmx))
@@ -458,6 +459,7 @@ $(eval $(call compile-htsjdk-cmd,sammaskalignedbases,${jvarkit.package}.tools.mi
 $(eval $(call compile-htsjdk-cmd,gff2kg,${jvarkit.package}.tools.misc.Gff2KnownGene,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,miniassembly,${jvarkit.package}.tools.misc.MiniAssembly,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,haloplexparasite,${jvarkit.package}.tools.haloplex.HaloplexParasite,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,bam2sql,${jvarkit.package}.tools.misc.BamToSql,wiki_flag))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
