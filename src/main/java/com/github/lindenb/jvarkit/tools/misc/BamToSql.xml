@@ -34,6 +34,7 @@ At the time of writing the schema is :
 id INTEGER PRIMARY KEY,
 filename TEXT
 );
+
 CREATE TABLE IF NOT EXISTS Dictionary
 (
 id INTEGER PRIMARY KEY,
@@ -43,6 +44,7 @@ tid INT NOT NULL,
 samfile_id INT NOT NULL,
 FOREIGN KEY(samfile_id) REFERENCES SamFile(id)
 );
+
 CREATE TABLE IF NOT EXISTS ReadGroup
 (
 id INTEGER PRIMARY KEY,
@@ -51,6 +53,7 @@ sample TEXT NOT NULL,
 samfile_id INT NOT NULL,
 FOREIGN KEY(samfile_id) REFERENCES SamFile(id)
 );
+
 CREATE TABLE IF NOT EXISTS Read
 (
 id INTEGER PRIMARY KEY,
@@ -66,10 +69,11 @@ tlen INTEGER,
 sequence TEXT NOT NULL,
 qualities TEXT NOT NULL,
 samfile_id INT NOT NULL,
-group_id INT NOT NULL,
+group_id INT,
 FOREIGN KEY(samfile_id) REFERENCES SamFile(id),
 FOREIGN KEY(group_id) REFERENCES ReadGroup(id)
 );
+
 CREATE TABLE IF NOT EXISTS Cigar
 (
 id INTEGER PRIMARY KEY,
@@ -87,7 +91,8 @@ FOREIGN KEY(read_id) REFERENCES Read(id)
 <h:h3>Example</h:h3>
 Build a sqlite3 database for a set of BAM files in the region "rotavirus:1-10""
 
-<h:pre class="bash">$java -jar dist/bam2sql.jar -r 'rotavirus:1-10' -R  ref.fa -c S*.bam | sqlite3 database.sqlite</h:pre>
+<h:pre class="bash">$java -jar dist/bam2sql.jar -r 'rotavirus:1-10' -R  ref.fa -c S*.bam |\
+sqlite3 database.sqlite</h:pre>
 
 Select data from sqlite database where the genomic position is "rotavirus:5" 
 <h:pre class="sql">

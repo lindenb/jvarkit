@@ -31,17 +31,17 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
+import com.github.lindenb.jvarkit.util.samtools.SAMSequenceDictionaryHelper;
 
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.SamReader;
@@ -55,18 +55,19 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 
-public class CompareBams2  extends AbstractCommandLineProgram
+public class CompareBams2  extends AbstractCompareBams2
 	{
-	private int min_mapq=0;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(CompareBams2.class);
+
 	private boolean samSequenceDictAreTheSame=true;
 	private List<SAMSequenceDictionary> sequenceDictionaries=new ArrayList<SAMSequenceDictionary>();
-
+	private PrintWriter out;
 	
 	private class MatchComparator
 		implements Comparator<Match>
 		{
 		@Override
-		public int compare(Match m0, Match m1)
+		public int compare(final Match m0, final Match m1)
 			{
 			int i=m0.readName.compareTo(m1.readName);
 			if(i!=0) return i;
@@ -89,7 +90,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 	implements Comparator<Match>
 		{
 		@Override
-		public int compare(Match m0, Match m1)
+		public int compare(final Match m0, final Match m1)
 			{
 			int i=m0.readName.compareTo(m1.readName);
 			if(i!=0) return i;
@@ -107,9 +108,9 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			return new MatchCodec();
 			}
 		@Override
-		public Match decode(DataInputStream dis) throws IOException
+		public Match decode(final DataInputStream dis) throws IOException
 			{
-			Match m=new Match();
+			final Match m=new Match();
 			try {
 				m.readName=dis.readUTF();
 				}
@@ -126,7 +127,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			return m;
 			}
 		@Override
-		public void encode(DataOutputStream dos, Match match)
+		public void encode(final DataOutputStream dos, final Match match)
 				throws IOException
 			{
 			dos.writeUTF(match.readName);
@@ -163,11 +164,11 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			return result;
 			}
 		@Override
-		public boolean equals(Object obj)
+		public boolean equals(final Object obj)
 			{
 			if (this == obj) { return true; }
 			if (obj == null) { return false; }
-			Match other = (Match) obj;
+			final Match other = (Match) obj;
 			if (num_in_pair != other.num_in_pair) { return false; }
 			if (compareTid(this.bamIndex,tid,other.bamIndex,other.tid)!=0) { return false; }
 			if(tid==-1) return true;
@@ -186,7 +187,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 		return s1;
 		}
 	
-	private int compare(String s1,String s2)
+	private int compare(final String s1,final String s2)
 		{
 		return norm(s1).compareToIgnoreCase(norm(s2));
 		}
@@ -202,8 +203,8 @@ public class CompareBams2  extends AbstractCommandLineProgram
 			{
 			return 1;
 			}
-		String chrom1=this.sequenceDictionaries.get(file_id1).getSequence(tid1).getSequenceName();
-		String chrom2=this.sequenceDictionaries.get(file_id2).getSequence(tid2).getSequenceName();
+		final String chrom1=this.sequenceDictionaries.get(file_id1).getSequence(tid1).getSequenceName();
+		final String chrom2=this.sequenceDictionaries.get(file_id2).getSequence(tid2).getSequenceName();
 		if(chrom1==null)
 			{
 			return chrom2==null?0:-1;
@@ -217,38 +218,30 @@ public class CompareBams2  extends AbstractCommandLineProgram
 		boolean first=true;
 		for(Match m:set)
 			{
-			if(!first)System.out.print(',');
+			if(!first)this.out.print(',');
 			first=false;
-			if(m.tid<0){ System.out.print("unmapped"); continue;}
-			SAMSequenceRecord ssr=(dict==null?null:dict.getSequence(m.tid));
+			if(m.tid<0){ this.out.print("unmapped"); continue;}
+			final SAMSequenceRecord ssr=(dict==null?null:dict.getSequence(m.tid));
 			String seqName=(ssr==null?null:ssr.getSequenceName());
 			if(seqName==null) seqName="tid"+m.tid;
-			System.out.print(String.valueOf(seqName+":"+(m.pos)));
-			if(this.useSamFlag) System.out.print("="+m.flag);
-			if(this.useCigar) System.out.print("/"+m.cigar);
+			this.out.print(String.valueOf(seqName+":"+(m.pos)));
+			if(super.useSamFlag) this.out.print("="+m.flag);
+			if(super.useCigar) this.out.print("/"+m.cigar);
 			}
-		if(first) System.out.print("(empty)");
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Compare two or more BAM files.";
+		if(first) this.out.print("(empty)");
 		}
 	
 	
 	
-	private List<File> IN=new ArrayList<File>();
-    private String REGION=null;
-    private boolean useSamFlag=false;
-    private boolean useCigar=false;
-    private SortingCollectionFactory<Match> sortingFactory=new SortingCollectionFactory<Match>();
-	private int distance_tolerance=10;
 	
-    private boolean same(Set<Match> set1,Set<Match> set2)
+	
+	private final List<File> IN=new ArrayList<File>();
+	
+    private boolean same(final Set<Match> set1,final Set<Match> set2)
     	{
-    	for(Match m0:set1)
+    	for(final Match m0:set1)
     		{
-    		for(Match m1:set2)
+    		for(final Match m1:set2)
 	    		{
     			int i=m0.readName.compareTo(m1.readName);
     			if(i!=0) continue;
@@ -271,89 +264,47 @@ public class CompareBams2  extends AbstractCommandLineProgram
     	}
     
     @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/CmpBams";
-    	}
-    
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -d (dist) distance tolerance between two alignments.");
-		out.println(" -r (region) restrict to that region chr:start-end");
-		out.println(" -F use SAM Flag when comparing.");
-		out.println(" -C use CIGAR when comparing.");
-		out.println(" -Q min MAPQ: default:"+min_mapq);
-		out.println(" -n (int) "+getMessageBundle("max.records.in.ram")+" Optional.");
-		out.println(" -T (dir) "+getMessageBundle("add.tmp.dir")+" Optional.");
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"r:FCn:d:T:Q:"))!=-1)
+    public Collection<Throwable> call() throws Exception {
+    	this.IN.clear();
+		for(final String s:getInputFiles())
 			{
-			switch(c)
-				{
-				case 'Q':this.min_mapq=Integer.parseInt(opt.getOptArg());break;
-				case 'd':distance_tolerance=Integer.parseInt(opt.getOptArg());break;
-				case 'r':REGION=opt.getOptArg();break;
-				case 'F':useSamFlag=true;break;
-				case 'C':useCigar=true;break;
-				case 'n': sortingFactory.setMaxRecordsInRAM(Integer.parseInt(opt.getOptArg()));break;
-				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		this.sortingFactory.setTmpDirs(this.getTmpDirectories());
-		for(int i=opt.getOptInd();i< args.length;++i)
-			{
-			this.IN.add(new File(args[i]));
+			this.IN.add(new File(s));
 			}
 		
 		try
 			{
 			return doWork();
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-			
+			this.IN.clear();
 			}
 		}
 
-	private int doWork()
+	private Collection<Throwable> doWork()
 		{
+		SortingCollection<Match> database = null;
 		SamReader samFileReader=null;
+		CloseableIterator<Match> iter=null;
 		try
 			{
 			if(this.IN.size() <2)
 				{
-				error("Need more bams please");
-				return -1;
+				return wrapException("Need more bams please");
 				}
 			
-			
-			
-			this.sortingFactory.setComparator(new MatchOrderer());
-			this.sortingFactory.setCodec(new MatchCodec());
-			this.sortingFactory.setComponentType(Match.class);
+			database = SortingCollection.newInstance(
+					Match.class,
+					new MatchCodec(),
+					new MatchOrderer(),
+					super.getMaxRecordsInRam(),
+					super.getTmpDirectories()
+					);
 			this.samSequenceDictAreTheSame=true;
-			SortingCollection<Match> database=this.sortingFactory.make();
 			database.setDestructiveIteration(true);
 	
 			
@@ -362,58 +313,62 @@ public class CompareBams2  extends AbstractCommandLineProgram
 					currentSamFileIndex++ )
 				{
 				File samFile=this.IN.get(currentSamFileIndex);
-				info("Opening "+samFile);
-				samFileReader=SamFileReaderFactory.mewInstance().open(samFile);
-				SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
-				if(dict.isEmpty())
+				LOG.info("Opening "+samFile);
+				samFileReader= super.createSamReaderFactory().open(samFile);
+				final SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
+				if(dict==null || dict.isEmpty())
 					{
-					error("Empty Dict  in "+samFile);
-					return -1;
+					return wrapException("Empty Dict  in "+samFile);
 					}
 				
 				if(!this.sequenceDictionaries.isEmpty() && !SequenceUtil.areSequenceDictionariesEqual(this.sequenceDictionaries.get(0), dict))
 					{
 					this.samSequenceDictAreTheSame=false;
-					warning("FOOL !! THE SEQUENCE DICTIONARIES ARE **NOT** THE SAME. I will try to compare anyway but it will be slower.");
+					LOG.warn("FOOL !! THE SEQUENCE DICTIONARIES ARE **NOT** THE SAME. I will try to compare anyway but it will be slower.");
 					}
-				sequenceDictionaries.add(dict);
+				this.sequenceDictionaries.add(dict);
 				
 				
-				Interval interval=null;
-				if(REGION!=null)
+				final Optional<Interval> interval;
+				if(REGION!=null && !REGION.trim().isEmpty())
 					{
-					interval=IntervalUtils.parseOne(dict, REGION);
-					if(interval==null && REGION.startsWith("chr"))
-						interval=IntervalUtils.parseOne(dict, REGION.substring(3));
-					if(interval==null)
-						interval=IntervalUtils.parseOne(dict, "chr"+REGION);
-					if(interval==null)
+					final SAMSequenceDictionaryHelper dix = new SAMSequenceDictionaryHelper();
+					interval = dix.parseInterval(REGION);
+					
+					if(!interval.isPresent())
 						{
-						System.err.println("Cannot parse "+REGION+" (bad syntax or not in dictionary)");
-						return -1;
+						return wrapException("Cannot parse "+REGION+" (bad syntax or not in dictionary)");
 						}
-					}
-				
-				SAMRecordIterator iter=null;
-				if(interval==null)
-					{
-					iter=samFileReader.iterator();
 					}
 				else
 					{
-					iter=samFileReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd());
+					interval = Optional.empty();
 					}
-				SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-				while(iter.hasNext() )
+				
+				
+				SAMRecordIterator it=null;
+				if(!interval.isPresent())
 					{
-					SAMRecord rec=iter.next();
-					progress.watch(rec);
-					if(rec.getReadUnmappedFlag())
+					it=samFileReader.iterator();
+					}
+				else
+					{
+					it=samFileReader.queryOverlapping(
+							interval.get().getContig(),
+							interval.get().getStart(),
+							interval.get().getEnd()
+							);
+					}
+				final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
+				while(it.hasNext() )
+					{
+					final SAMRecord rec=progress.watch(it.next());
+					if(!rec.getReadUnmappedFlag())
 						{
 						if(rec.getMappingQuality() < this.min_mapq) continue;
 						if(rec.isSecondaryOrSupplementary()) continue;
 						}
-					Match m=new Match();
+					final Match m=new Match();
 					if(rec.getReadPairedFlag())
 						{
 						m.num_in_pair=(rec.getFirstOfPairFlag()?1:2);
@@ -426,7 +381,7 @@ public class CompareBams2  extends AbstractCommandLineProgram
 					m.bamIndex=currentSamFileIndex;
 					m.flag=rec.getFlags();
 					m.cigar=rec.getCigarString();
-					if(m.cigar==null) m.cigar="";
+					if(m.cigar==null ) m.cigar="";
 					if(rec.getReadUnmappedFlag())
 						{
 						m.tid=-1;
@@ -439,41 +394,43 @@ public class CompareBams2  extends AbstractCommandLineProgram
 						}
 					database.add(m);
 					}
-				iter.close();
+				it.close();
 				samFileReader.close();
 				samFileReader=null;
-				info("Close "+samFile);
+				LOG.info("Close "+samFile);
 				}
 			database.doneAdding();
-			info("Writing results....");
+			LOG.info("Writing results....");
+			
+			this.out = super.openFileOrStdoutAsPrintWriter();
 			
 			//compute the differences for each read
-			System.out.print("#READ-Name\t");
+			this.out.print("#READ-Name\t");
 			for(int x=0;x<this.IN.size();++x)
 				{
 				for(int y=x+1;y<this.IN.size();++y)
 					{
-					if(!(x==0 && y==1)) System.out.print("|");
-					System.out.print(IN.get(x));
-					System.out.print(" ");
-					System.out.print(IN.get(y));
+					if(!(x==0 && y==1)) this.out.print("|");
+					this.out.print(IN.get(x));
+					this.out.print(" ");
+					this.out.print(IN.get(y));
 					}
 				}
 			for(int x=0;x<this.IN.size();++x)
 				{
-				System.out.print("\t"+IN.get(x));
+				this.out.print("\t"+IN.get(x));
 				}
-			System.out.println();
+			this.out.println();
 			
 			/* create an array of set<Match> */
 			final MatchComparator match_comparator=new MatchComparator();
-			List<Set<Match>> matches=new ArrayList<Set<CompareBams2.Match>>(this.IN.size());
+			final List<Set<Match>> matches=new ArrayList<Set<CompareBams2.Match>>(this.IN.size());
 			while(matches.size() < this.IN.size())
 				{
 				matches.add(new TreeSet<CompareBams2.Match>(match_comparator));
 				}
 			
-			CloseableIterator<Match> iter=database.iterator();
+			iter = database.iterator();
 			String currReadName=null;
 			int curr_num_in_pair=-1;
 			for(;;)
@@ -489,40 +446,40 @@ public class CompareBams2  extends AbstractCommandLineProgram
 					{
 					if(currReadName!=null)
 						{
-						System.out.print(currReadName);
+						this.out.print(currReadName);
 						if(curr_num_in_pair>0)
 							{
-							System.out.print("/");
-							System.out.print(curr_num_in_pair);
+							this.out.print("/");
+							this.out.print(curr_num_in_pair);
 							}
-						System.out.print("\t");
+						this.out.print("\t");
 						
 						
 						for(int x=0;x<this.IN.size();++x)
 							{
-							Set<Match> first=matches.get(x);
+							final Set<Match> first=matches.get(x);
 							for(int y=x+1;y<this.IN.size();++y)
 								{
-								if(!(x==0 && y==1)) System.out.print("|");
+								if(!(x==0 && y==1)) this.out.print("|");
 								Set<Match> second=matches.get(y);
 								if(same(first,second))
 									{
-									System.out.print("EQ");
+									this.out.print("EQ");
 									}
 								else
 									{
-									System.out.print("NE");
+									this.out.print("NE");
 									}
 								}
 							}
 	
 						for(int x=0;x<this.IN.size();++x)
 							{
-							System.out.print("\t");
+							this.out.print("\t");
 							print(matches.get(x),sequenceDictionaries.get(x));
 							}
 						
-						System.out.println();
+						this.out.println();
 						}
 					if(nextMatch==null) break;
 					for(Set<Match> set:matches) set.clear();
@@ -530,21 +487,23 @@ public class CompareBams2  extends AbstractCommandLineProgram
 				currReadName=nextMatch.readName;
 				curr_num_in_pair=nextMatch.num_in_pair;
 				matches.get(nextMatch.bamIndex).add(nextMatch);
-				if(System.out.checkError()) break;
+				if(this.out.checkError()) break;
 				}
 			
 			iter.close();
+			this.out.flush();
+			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			err.printStackTrace();
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
+			if(database!=null) database.cleanup();
 			CloserUtil.close(samFileReader);
+			CloserUtil.close(this.out);this.out=null;
 			}
-		return 0;
 		}
 		
 	public static void main(String[] args) throws Exception

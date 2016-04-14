@@ -135,7 +135,7 @@ public class BamToSql
 			out.println("sequence TEXT NOT NULL,");
 			out.println("qualities TEXT NOT NULL,");
 			out.println("samfile_id INT NOT NULL,");
-			out.println("group_id INT NOT NULL,");
+			out.println("group_id INT,");
 			out.println("FOREIGN KEY(samfile_id) REFERENCES SamFile(id),");
 			out.println("FOREIGN KEY(group_id) REFERENCES ReadGroup(id)");
 			out.println(");");
