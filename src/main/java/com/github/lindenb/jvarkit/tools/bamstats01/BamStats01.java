@@ -33,20 +33,21 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -56,11 +57,13 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
 public class BamStats01
-	extends AbstractCommandLineProgram
+	extends AbstractBamStats01
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamStats01.class);
+
 	private PrintStream out=System.out;
-	private File bedFile=null;
-	private double minMappingQuality=30.0;
+	//private File bedFile=null;
+	//private double minMappingQuality=30.0;
 	private int chrX_index=-1;
 	private int chrY_index=-1;
 	private SAMSequenceDictionary samSequenceDictionary=null;
@@ -262,8 +265,8 @@ public class BamStats01
 				if(intervals==null)
 					{
 					intervals=new SamSequenceRecordTreeMap<Boolean>(currDict);
-					info("opening "+this.bedFile);
-					Pattern tab=Pattern.compile("[\t]");
+					LOG.info("opening "+this.bedFile);
+					final Pattern tab=Pattern.compile("[\t]");
 					String line;
 					BufferedReader bedIn=IOUtils.openFileForBufferedReading(bedFile);
 					while((line=bedIn.readLine())!=null)
@@ -281,7 +284,7 @@ public class BamStats01
 						intervals.put(seqIndex, chromStart1, chromEnd1,Boolean.TRUE);
 						}
 					bedIn.close();
-					info("done reading "+this.bedFile);
+					LOG.info("done reading "+this.bedFile);
 					}
 				}
 			this.chrX_index=-1;
@@ -372,61 +375,12 @@ public class BamStats01
 				out.println();
 				}
 		}
-	
 	@Override
-	public String getProgramDescription()
-		{
-		return "Statistics about the reads in a BAM.";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BamStats01";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-o (file) output. Default: stdout");
-		out.println("-q (qual) min mapping quality: default: "+this.minMappingQuality);
-		out.println("-B (file) capture bed file.  Optional");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		File OUT=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:q:B:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': OUT=new File(opt.getOptArg());break;
-				case 'B': this.bedFile=new File(opt.getOptArg());break;
-				case 'q': minMappingQuality=Double.parseDouble(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public Collection<Throwable> call() throws Exception {
 		
-		SamReader samFileReader=null;		
-		try
-			{
-			if(OUT!=null)
-				{
-				info("opening "+OUT+" for writing.");
-				out=new PrintStream(IOUtils.openFileForWriting(OUT));
-				}
-			
+		final List<String> args= new ArrayList<>(IOUtils.unrollFiles(this.getInputFiles())); 
+		try {
+			this.out = super.openFileOrStdoutAsPrintStream();
 			
 			out.print("#Filename\tSample");
 			for(Category2 cat2: Category2.values())
@@ -439,40 +393,36 @@ public class BamStats01
 				}
 			out.println();
 			
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+			final SamReaderFactory srf= super.createSamReaderFactory();
 			
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				SamReader r= srf.open(SamInputResource.of(System.in));
+				final SamReader r= srf.open(SamInputResource.of(stdin()));
 				run("stdin",r);
 				r.close();
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(final String filename:args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
-					SamReader sfr=srf.open(new File(filename));
+					LOG.info("Reading from "+filename);
+					final SamReader sfr=srf.open(new File(filename));
 					run(filename,sfr);
 					sfr.close();
 					}
 				}
-			out.flush();
-			return 0;
-			}
-		catch(Exception err)
+			out.flush();			
+			this.out.flush();
+			this.out.close();
+			return RETURN_OK;
+		} catch (Exception e) {
+			return wrapException(e);
+		} finally
 			{
-			error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(samFileReader);
 			CloserUtil.close(out);
 			}
 		}
+	
 	
 	public static void main(String[] args)
 		{

@@ -34,17 +34,18 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -83,6 +84,7 @@ public class VcfBurdenSplitter
 	//public for knime
 	public static final String VCF_HEADER_FISHER_VALUE="VCFBurdenSplitFisher";
 	public static final String VCF_HEADER_SPLITKEY="VCFBurdenSplitName";
+	public static final String VCF_HEADER_SKAT_VALUE="VCFBurdenSplitSkat";
 	
 	private enum SuperVariant
 		{
@@ -484,7 +486,7 @@ public class VcfBurdenSplitter
 			tmpReportFile.deleteOnExit();
 			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
 			pw.println("track name=\"burden\" description=\""
-					+ "chrom(tab)start(tab)end(tab)key(tab)Fisher(tab)Count_Variants(tab)Count_non_filtered_Variants"
+					+ "chrom(tab)start(tab)end(tab)key(tab)Fisher(tab)SKAT(tab)Count_Variants(tab)Count_non_filtered_Variants"
 					+ "(tab)Count_non_filtered_Variants_not_case_nor_control"
 					+ "(tab)case_sv0(tab)ctrl_sv0(tab)case_sv1(tab)ctrl_sv1"
 					+ "\"");
@@ -548,6 +550,7 @@ public class VcfBurdenSplitter
 			int count_ctrl_sv0=0;
 			int count_case_sv1=0;
 			int count_ctrl_sv1=0;
+			Optional<String> skatResult = Optional.empty();
 
 			/** there are some samples that are NOT in the control list and NOT in the sample list
 			 * if those samples carry the only variants, while case/control are all uncalled/homref
@@ -573,45 +576,116 @@ public class VcfBurdenSplitter
 					}
 				}
 			
-				if (!super.ignoreSkat) {
-					/**
-					 mail matile April 11: requires calling R for SKAT: needs
-					 matrix of samples and genotypes */
-					final List<Integer> skatRSampleList = new ArrayList<>();
-					final List<Integer> skatRGenotypes = new ArrayList<>();
-					
-					/** fill skatRSampleList */
-					for (int pop = 0; pop < 2; ++pop) {
-						for (final Pedigree.Person person : (pop == 0 ?controlSamples  : caseSamples)) {
-							skatRSampleList.add(pop==0?0:1);
-							}
+			if (!super.ignoreSkat) {
+				/**
+				 mail matile April 11: requires calling R for SKAT: needs
+				 matrix of samples and genotypes */
+				final List<Integer> skatRSampleList = new ArrayList<>();
+				final List<Integer> skatRGenotypes = new ArrayList<>();
+				
+				/** fill skatRSampleList */
+				for (int pop = 0; pop < 2; ++pop) {
+					for (final Pedigree.Person person : (pop == 0 ?controlSamples  : caseSamples)) {
+						skatRSampleList.add(pop==0?0:1);//in SKAT control=0, case=1
 						}
-					
-					/** fill skatRGenotypes */
-					for (final VariantContext ctx : variants) {
-						if (ctx.isFiltered() && !super.acceptFiltered)
+					}
+				
+				/** fill skatRGenotypes */
+				for (final VariantContext ctx : variants) {
+					if (ctx.isFiltered() && !super.acceptFiltered)
+						{
+						continue;
+						}
+
+					for (int pop = 0; pop < 2; ++pop) {
+						for (final Pedigree.Person person : (pop == 0 ? controlSamples : caseSamples)) {
 							{
-							continue;
-							}
-	
-						for (int pop = 0; pop < 2; ++pop) {
-							for (final Pedigree.Person person : (pop == 0 ? caseSamples : controlSamples)) {
-								{
-									final Genotype g = ctx.getGenotype(person.getId());
-									if (g.isHomRef()) {
-										skatRGenotypes.add(0);
-									} else if (g.isHomVar()) {
-										skatRGenotypes.add(2);
-									} else if (g.isHet()) {
-										skatRGenotypes.add(1);
-									} else {
-										skatRGenotypes.add(-9);
-									}
+								final Genotype g = ctx.getGenotype(person.getId());
+								if (g.isHomRef()) {
+									skatRGenotypes.add(0);
+								} else if (g.isHomVar()) {
+									skatRGenotypes.add(2);
+								} else if (g.isHet()) {
+									skatRGenotypes.add(1);
+								} else {
+									skatRGenotypes.add(-9);
 								}
 							}
 						}
 					}
 				}
+			if(skatRGenotypes.size()%skatRSampleList.size() !=0 ) throw new IllegalStateException();
+			
+			final StringWriter Rsw= new StringWriter();
+			final PrintWriter writeR = new PrintWriter(Rsw); 
+			writeR.println("library(SKAT)");
+			writeR.print("posV2<-c(");
+			for(int i=0;i< skatRSampleList.size();i++)
+				{
+				if(i>0) writeR.print(",");
+				writeR.print(skatRSampleList.get(i));
+				}
+			writeR.println(")");
+			writeR.println("obj=SKAT_Null_Model(posV2~1, out_type=\"D\",Adjustment=F)");
+			writeR.print("data_pr_test1 <-c(");
+			for(int i=0;i< skatRGenotypes.size();i++)
+				{
+				if(i>0) writeR.print(",");
+				writeR.print(skatRGenotypes.get(i));
+				}
+			writeR.println(")");
+			writeR.println("genot=matrix(data_pr_test1,nrow=length(posV2),ncol="+(skatRGenotypes.size()/skatRSampleList.size()) +") ");
+			writeR.println("cat(SKAT(Z=genot,weights=1/sqrt(n*MAFs*(1-MAFs)), obj=obj, kernel=\"linear.weighted\", method=\"davies\")$p.value)");
+			writeR.flush();
+			writeR.close();
+			
+			final ProcessBuilder procBuilder = new ProcessBuilder(
+					(super.RPath==null|| super.RPath.trim().isEmpty()?"R":super.RPath),
+					"--vanilla",
+					"--slave",
+					"--no-readline"
+					);
+			final Process proc = procBuilder.start();
+			
+			final InputStream rStderr=proc.getErrorStream();
+			final InputStream stdout=proc.getErrorStream();
+			final StringBuilder skatOutput=new StringBuilder();
+			
+			/* consumme stderr */
+			new Thread(){ public void run() {
+				try { int c;
+				while((c=rStderr.read())!=-1)
+					{
+					stderr().print((char)c);
+					}
+				} catch(IOException err) {err.printStackTrace();}
+				};}.start();
+				
+			/* consumme stdout */
+			new Thread(){ public void run() {
+				try { int c;
+				while((c=stdout.read())!=-1)
+					{
+					skatOutput.append((char)c);
+					}
+				} catch(IOException err) {err.printStackTrace();}
+				};}.start();
+				
+			final OutputStream procOut= proc.getOutputStream();	
+			procOut.write(Rsw.toString().getBytes());
+			procOut.flush();
+			procOut.close();
+			
+			
+			if(proc.waitFor()!=0) {
+				LOG.error("RScript was "+Rsw.toString());
+				LOG.error("skatOutput is "+skatOutput);
+				throw new RuntimeException("R/SKAT failed for "+super.RPath);
+			}
+			
+			
+			skatResult = Optional.of(skatOutput.toString().trim());
+			}
 			
 			
 			//loop over case control
@@ -664,6 +738,7 @@ public class VcfBurdenSplitter
 						chromEnd+"\t"+
 						first.key+"\t"+
 						fisher.getAsDouble()+"\t"+
+						(skatResult.isPresent()?skatResult.get():"N/A")+"\t"+
 						variants.size()+"\t"+
 						(count_non_filtered - count_unfiltered_not_in_pedigrees_variants )+"\t"+
 						count_unfiltered_not_in_pedigrees_variants+"\t"+
@@ -710,6 +785,10 @@ public class VcfBurdenSplitter
 				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE,
 						String.valueOf(fisher.getAsDouble())));
 				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_SPLITKEY,first.key));
+				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_SKAT_VALUE,
+						skatResult.isPresent()?skatResult.get():"N/A"
+						));
+				
 				out.writeHeader(header2);
 				for(final VariantContext ctx:variants) {
 					out.add(ctx);

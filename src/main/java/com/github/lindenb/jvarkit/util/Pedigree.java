@@ -31,12 +31,19 @@ package com.github.lindenb.jvarkit.util;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 
 
 public class Pedigree
@@ -79,6 +86,7 @@ public class Pedigree
 		public String getId();
 		public Person getPersonById(String s);
 		public java.util.Collection<? extends Person> getIndividuals();
+		public Family validate() throws IllegalStateException;
 		}
 	
 	private class FamilyImpl
@@ -122,6 +130,15 @@ public class Pedigree
 		public String toString() {
 			return this.id;
 			}
+		
+		@Override
+		public Family validate() throws IllegalStateException {
+			for(final PersonImpl p: this.individuals.values()) {
+				p.validate();
+				}
+			return this;
+			}
+		
 		}
 	
 	public interface Person
@@ -132,6 +149,9 @@ public class Pedigree
 		public Person getMother();
 		public Sex getSex();
 		public Status getStatus();
+		/** return i-th parent 0=father 1=mother */
+		public Person getParent( int zeroOrOne);
+		public Person validate() throws IllegalStateException;
 		}
 	
 	
@@ -157,11 +177,19 @@ public class Pedigree
 			return this.id;
 			}
 		
-		private Person getParent(String s)
+		private Person getParent(final String s)
 			{
 			if(s==null || s.isEmpty() || s.equals("0")) return null;
 			return getFamily().getPersonById(s);
 			}
+		
+		public Person getParent( int zeroOrOne) {
+			switch(zeroOrOne) {
+			case 0: return getFather();
+			case 1: return getMother();
+			default: throw new IllegalArgumentException("0 or 1 but got "+zeroOrOne);
+			}
+		}
 		
 		public Person getFather()
 			{
@@ -206,6 +234,33 @@ public class Pedigree
 			}
 
 		@Override
+		public Person validate() throws IllegalStateException {
+			if(this.fatherId!=null && !this.fatherId.equals("0")) {
+				final PersonImpl parent = this.family.individuals.get(this.fatherId);
+				if(parent==null) throw new IllegalStateException(
+					"Individual "+this.toString()+" has father "+this.fatherId+" "+
+					"but he is missing in family."
+					);
+				if(parent.sex == Sex.female) throw new IllegalStateException(
+					"Individual "+this.toString()+" has father "+this.fatherId+" "+
+					"but he is declared as a woman."
+					);
+			}
+			if(this.motherId!=null && !this.motherId.equals("0")) {
+				final PersonImpl parent = this.family.individuals.get(this.motherId);
+				if(parent==null) throw new IllegalStateException(
+					"Individual "+this.toString()+" has mother "+this.motherId+" "+
+					"but she is missing in family."
+					);
+				if(parent.sex == Sex.male) throw new IllegalStateException(
+					"Individual "+this.toString()+" has mother "+this.motherId+" "+
+					"but she is declared as a man."
+					);
+			}
+			return this;
+		}
+		
+		@Override
 		public String toString() {
 			return family+":"+this.id;
 			}
@@ -215,11 +270,27 @@ public class Pedigree
 		{
 		
 		}
+	
+	public boolean isEmpty() {
+		return this.families.isEmpty();
+	}
+		
+	/** validate pedigree */
+	public Pedigree validate() throws IllegalStateException {
+		for(final Family f: getFamilies()) f.validate();
+		return this;
+		}
+
+	
 	/** get all the families in this pedigree */
 	public java.util.Collection<? extends Family> getFamilies()
 		{
 		return this.families.values();
 		}
+	
+	public Family getFamilyById(final String famId) {
+		return this.families.get(famId);
+	}
 	
 	/** get all the individuals in this pedigree */
 	public java.util.Set<Person> getPersons()
@@ -232,41 +303,57 @@ public class Pedigree
 		return set;
 		}
 	
+	/** get affected individuals */
+	public java.util.Set<Person> getAffected()
+		{
+		return getPersons().stream().filter(P->P.getStatus()==Status.affected).collect(Collectors.toSet());
+		}
+
+	/** get unaffected individuals */
+	public java.util.Set<Person> getUnaffected()
+		{
+		return getPersons().stream().filter(P->P.getStatus()==Status.unaffected).collect(Collectors.toSet());
+		}
+
+	
+	private void read(final String tokens[])
+		{
+		FamilyImpl fam=this.families.get(tokens[0]);
+		if(fam==null)
+			{
+			fam=new FamilyImpl();
+			fam.id = tokens[0];
+			this.families.put(tokens[0], fam);
+			}
+		if(fam.getPersonById(tokens[1])!=null) throw new IllegalArgumentException("duplicate individual: "+String.join(" ; ", tokens));
+		final PersonImpl p=new PersonImpl();
+		p.family=fam;
+		p.id=tokens[1];
+		p.fatherId=tokens[2];
+		p.motherId=tokens[3];
+		
+		if(tokens.length>4)
+			{
+			if(tokens[4].equals("1")) p.sex=Sex.male;
+			else if(tokens[4].equals("2")) p.sex=Sex.female;
+			}
+		
+		if(tokens.length>5)
+			{
+			if(tokens[5].equals("1")) p.status=Status.affected;
+			else if(tokens[5].equals("0")) p.status=Status.unaffected;
+			}
+		
+		fam.individuals.put(p.id, p);		}
+	
 	private void read(final BufferedReader r) throws IOException
 		{
-		Pattern tab = Pattern.compile("[\t]");
+		final Pattern tab = Pattern.compile("[\t]");
 		String line;
 		while((line=r.readLine())!=null)
 			{
 			if(line.isEmpty() || line.startsWith("#")) continue;
-			final String tokens[]=tab.split(line);
-			FamilyImpl fam=this.families.get(tokens[0]);
-			if(fam==null)
-				{
-				fam=new FamilyImpl();
-				fam.id = tokens[0];
-				this.families.put(tokens[0], fam);
-				}
-			if(fam.getPersonById(tokens[1])!=null) throw new IOException("duplicate individual: "+line);
-			PersonImpl p=new PersonImpl();
-			p.family=fam;
-			p.id=tokens[1];
-			p.fatherId=tokens[2];
-			p.motherId=tokens[3];
-			
-			if(tokens.length>4)
-				{
-				if(tokens[4].equals("1")) p.sex=Sex.male;
-				else if(tokens[4].equals("2")) p.sex=Sex.female;
-				}
-			
-			if(tokens.length>5)
-				{
-				if(tokens[5].equals("1")) p.status=Status.affected;
-				else if(tokens[5].equals("0")) p.status=Status.unaffected;
-				}
-			
-			fam.individuals.put(p.id, p);
+			read(tab.split(line));
 			}
 		}
 	
@@ -283,4 +370,44 @@ public class Pedigree
 		ped.read(r);
 		return ped;
 		}	
+	
+	public static final String VcfHeaderKey="Sample";
+	public static Pedigree readPedigree(final VCFHeader header) {
+		return readPedigree(header.getOtherHeaderLines());
+		}
+	public static Pedigree readPedigree(final Collection<VCFHeaderLine> metadata) {
+		final Pattern pipe = Pattern.compile("[\\|]");
+		final Pedigree ped=new Pedigree();
+		for(final VCFHeaderLine h:metadata) {
+			final String key = h.getKey();
+			if(!VcfHeaderKey.equals(key)) continue;
+			final String value =h.getValue();
+			ped.read(pipe.split(value));
+			}
+		return ped;
+		}
+	
+	public Set<VCFHeaderLine> toVCFHeaderLines()  {
+		final Set<VCFHeaderLine> set = new LinkedHashSet<>();
+		for(final Family f:families.values())
+			{
+			for(final Person p:f.getIndividuals()) {
+				final StringBuilder sb=new StringBuilder();
+				sb.append(f.getId());
+				sb.append("|");
+				sb.append(p.getId());
+				sb.append("|");
+				sb.append(p.getFather()==null?"0":p.getFather().getId());
+				sb.append("|");
+				sb.append(p.getMother()==null?"0":p.getMother().getId());
+				sb.append("|");
+				sb.append(p.getSex().intValue());
+				sb.append("|");
+				sb.append(p.getStatus().intValue());
+				set.add(new VCFHeaderLine(VcfHeaderKey, sb.toString()));
+				}
+			}
+		
+		return set;
+		}
 	}
