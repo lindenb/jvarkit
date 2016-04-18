@@ -21,12 +21,7 @@
 <snippet id="write-vcf"/>
 
 <options>
-	<option name="casesFile" type="input-file" longopt="cases" opt="cas">
-		<description>Path to a pedigree containing the names of the CASES. <doc id="pedigree-file"/></description>
-	</option>
-	<option name="controlsFile" type="input-file" longopt="controls" opt="ctrl">
-		<description>Path to a pedigree containing the names of the CONTROLS. <doc id="pedigree-file"/></description>
-	</option>
+	
 	<option galaxy:ignore="true" name="baseZipDir" type="string" longopt="zipdir" opt="zipdir" default="burden">
 		<description>Base zip entry</description>
 	</option>
@@ -83,13 +78,6 @@
 		<description>Ignore grouping by all transcript for a gene</description>
 	</option>
 	
-	<option name="RPath" opt="rpath" longopt="rpath" type="string" default="/usr/bin/R">
-		<description>Path to #Rstat (required for SKAT...)</description>
-	</option>
-	
-	<option name="ignoreSkat" opt="noSkat" longopt="noSkat" type="boolean" default="false">
-		<description>Ignore SKAT test</description>
-	</option>
 </options>
 
 <galaxy:galaxy>

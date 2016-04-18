@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!DOCTYPE app [
- <!ENTITY name "VcfBurdenFilter3">
+ <!ENTITY name "VcfBurdenFilterExac">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.burden">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/"
@@ -48,11 +48,11 @@ Variant in that VCF should have one and <h:b>only one</h:b> ALT allele. Use <h:a
 
 <h:h4>FILTER column</h:h4>
 <h:ul>
-	<h:li><h:b>BurdenF3</h:b> : if FreqExac doesn't fit the criteria <h:b>maxFreq</h:b></h:li>
+	<h:li><h:b>BurdenExac</h:b> : if FreqExac doesn't fit the criteria <h:b>maxFreq</h:b></h:li>
 </h:ul>
 <h:h3>see also</h:h3>
 <h:ul>
-	<h:li><h:a>VcfBurdenFilter2</h:a></h:li>
+	<h:li><h:a>VcfBurdenMAF</h:a></h:li>
 </h:ul>
 </documentation>
 

@@ -61,7 +61,7 @@ public class VcfInjectPedigree
 	@Override
 	public Collection<Throwable> initializeKnime() {
 		if(super.pedigreeFile==null || !super.pedigreeFile.exists()) {
-			return wrapException("Undefined Case file option -"+OPTION_PEDIGREEFILE);
+			return wrapException("Undefined Pedigree file option -"+OPTION_PEDIGREEFILE);
 			}
 		return super.initializeKnime();
 	 	}

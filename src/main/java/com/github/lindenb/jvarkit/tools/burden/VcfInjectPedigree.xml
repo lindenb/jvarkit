@@ -40,9 +40,18 @@
 
 
 <documentation>
-This tools reads a VCF  
+This tools reads a pedigree file and inject it in the VCF header  
 
-<h:pre><![CDATA[$ 
+<h:pre><![CDATA[$ java -jar dist/vcfinjectpedigree.jar \
+	-imih -imip -p input.ped \
+	input.vcf.gz > out.vcf
+
+$ grep Sample out.vcf
+(...)
+##Sample=<Family=F1,ID=INDI1,Father=0,Mother=0,Sex=1,Status=1>
+##Sample=<Family=F2,ID=INDI2,Father=0,Mother=0,Sex=2,Status=1>
+##Sample=<Family=F3,ID=INDI3,Father=INDI1,Mother=INDI2,Sex=1,Status=1>
+(...)
 ]]></h:pre>
 
 </documentation>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "VcfBurdenFisherV">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.burden">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 xmlns:h="http://www.w3.org/1999/xhtml"
+	 xmlns:svg="http://www.w3.org/2000/svg"
+	 xmlns:galaxy="https://usegalaxy.org/"
+	 app="&name;"
+	 package="&package;"
+	 __placeholder__="1"
+	>
+
+<description>Fisher Case / Controls per VCF</description>
+<input type="vcf"/>
+<output type="vcf"/>
+<snippet id="tmp-dir"/>
+
+<options>
+		<option name="acceptFiltered" type="boolean" longopt="ignorefilter" opt="if" default="false">
+		<description>accept variants having a FILTER column. Default is ignore variants with a FILTER column</description>
+	</option>
+	
+</options>
+
+<documentation>
+Variant in that VCF should have one and <h:b>only one</h:b> ALT allele. Use <h:a>https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele</h:a> if needed.
+<h:h3>Output</h:h3>
+
+<h:h4>INFO column</h:h4>
+<h:ul>
+	<h:li><h:b>BurdenF1Fisher</h:b> : Fisher test</h:li>
+</h:ul>
+
+<h:h4>FILTER column</h:h4>
+<h:ul>
+	<h:li><h:b>BurdenF1Fisher</h:b> :Fisher test doesn't meet  user's requirements</h:li>
+</h:ul>
+
+<h:h3>see also</h:h3>
+<h:ul>
+	<h:li><h:a>VcfBurdenFilter3</h:a></h:li>
+</h:ul>
+
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>

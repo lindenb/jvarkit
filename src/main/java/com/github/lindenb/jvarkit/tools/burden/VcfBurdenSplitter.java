@@ -35,18 +35,16 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -65,7 +63,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
@@ -82,14 +79,8 @@ public class VcfBurdenSplitter
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenSplitter.class);
 	
 	//public for knime
-	public static final String VCF_HEADER_FISHER_VALUE="VCFBurdenSplitFisher";
 	public static final String VCF_HEADER_SPLITKEY="VCFBurdenSplitName";
-	public static final String VCF_HEADER_SKAT_VALUE="VCFBurdenSplitSkat";
 	
-	private enum SuperVariant
-		{
-		SV0,AT_LEAST_ONE_VARIANT
-		}
 	
 	private static class KeyAndLine {
 		final String key;
@@ -376,12 +367,7 @@ public class VcfBurdenSplitter
 		
 		if(!super.listSplitter) {
 			
-			if(super.casesFile==null || !super.casesFile.exists()) {
-				return wrapException("Undefined Case file option -"+OPTION_CASESFILE);
-				}
-				if(super.controlsFile==null || !super.controlsFile.exists()) {
-				return wrapException("Undefined Control file option -"+OPTION_CONTROLSFILE);
-				}
+			
 				if(super.outputFile==null || !outputFile.getName().endsWith(".zip")) {
 					return wrapException("output file option -"+OPTION_OUTPUTFILE+" must be declared and must en with .zip");
 				}
@@ -423,19 +409,33 @@ public class VcfBurdenSplitter
 					;
 			
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
-			final Set<Pedigree.Person> caseSamples = Pedigree.readPedigree(super.casesFile).getPersons();
-			final Set<Pedigree.Person> controlSamples = Pedigree.readPedigree(super.controlsFile).getPersons();
-			for(int pop=0;pop<2;++pop)
+			final Pedigree pedigree = Pedigree.readPedigree(cah.header);
+			final Set<Pedigree.Person> persons;
+			if(pedigree.isEmpty()) {
+					persons = Collections.emptySet();
+					LOG.warn("No pedigree defined in "+inputName+" use VcfinjectPedigree to inject pedigree");
+				}
+			else 
 				{
-				Iterator<Pedigree.Person> it = (pop==0?caseSamples:controlSamples).iterator();
+				if(!pedigree.verifyPersonsHaveUniqueNames()) {
+					return wrapException("Cannot use this pedigree because two samples have the same Id (but different family)");
+				}
+				
+				persons = new TreeSet<>(pedigree.getPersons());
+				Iterator<Pedigree.Person> it =persons.iterator();
 				while(it.hasNext()) {
 					Pedigree.Person p = it.next();
 					if(!cah.header.getSampleNamesInOrder().contains(p.getId())) {
 						LOG.warn("REMOVING "+p+" as it is not in vcf header");
 						it.remove();
 					}
+					else if(!(p.isAffected() || p.isUnaffected())) {
+						LOG.warn("REMOVING "+p+" as its status is undefined");
+						it.remove();
+					}
+					}
 				}
-				}
+				
 			/** find splitter by name */
 			Splitter splitter = null;
 			for(final Splitter s: this.splitters)
@@ -486,9 +486,8 @@ public class VcfBurdenSplitter
 			tmpReportFile.deleteOnExit();
 			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
 			pw.println("track name=\"burden\" description=\""
-					+ "chrom(tab)start(tab)end(tab)key(tab)Fisher(tab)SKAT(tab)Count_Variants(tab)Count_non_filtered_Variants"
+					+ "chrom(tab)start(tab)end(tab)key(tab)Count_Variants(tab)Count_non_filtered_Variants"
 					+ "(tab)Count_non_filtered_Variants_not_case_nor_control"
-					+ "(tab)case_sv0(tab)ctrl_sv0(tab)case_sv1(tab)ctrl_sv1"
 					+ "\"");
 			
 			
@@ -545,207 +544,41 @@ public class VcfBurdenSplitter
 			// all ctx are filtered			
 			if( count_non_filtered == 0)  continue;
 			
-			/* initialize supervariants */
-			int count_case_sv0=0;
-			int count_ctrl_sv0=0;
-			int count_case_sv1=0;
-			int count_ctrl_sv1=0;
-			Optional<String> skatResult = Optional.empty();
 
 			/** there are some samples that are NOT in the control list and NOT in the sample list
 			 * if those samples carry the only variants, while case/control are all uncalled/homref
 			 * we're overestimating the number of variants
 			 * */
 			int count_unfiltered_not_in_pedigrees_variants=0;
-			for(final VariantContext ctx : variants)
-				{
-				if(ctx.isFiltered() && !super.acceptFiltered) continue;
-				boolean called_in_case_control=false;
-				for(int pop=0;pop<2 && called_in_case_control==false ;++pop) {
-					for(final Pedigree.Person person : (pop==0?caseSamples:controlSamples)) {
-						final Genotype g = ctx.getGenotype(person.getId());	
-						if(g==null || g.isNoCall()) continue;//not in vcf header
-						if(g.isCalled() && !g.isHomRef()) {
-							called_in_case_control=true;
-							break;
-							}
-						}
-					}
-				if(!called_in_case_control) {
-					count_unfiltered_not_in_pedigrees_variants++;
-					}
-				}
-			
-			if (!super.ignoreSkat) {
-				/**
-				 mail matile April 11: requires calling R for SKAT: needs
-				 matrix of samples and genotypes */
-				final List<Integer> skatRSampleList = new ArrayList<>();
-				final List<Integer> skatRGenotypes = new ArrayList<>();
-				
-				/** fill skatRSampleList */
-				for (int pop = 0; pop < 2; ++pop) {
-					for (final Pedigree.Person person : (pop == 0 ?controlSamples  : caseSamples)) {
-						skatRSampleList.add(pop==0?0:1);//in SKAT control=0, case=1
-						}
-					}
-				
-				/** fill skatRGenotypes */
-				for (final VariantContext ctx : variants) {
-					if (ctx.isFiltered() && !super.acceptFiltered)
-						{
-						continue;
-						}
-
-					for (int pop = 0; pop < 2; ++pop) {
-						for (final Pedigree.Person person : (pop == 0 ? controlSamples : caseSamples)) {
-							{
-								final Genotype g = ctx.getGenotype(person.getId());
-								if (g.isHomRef()) {
-									skatRGenotypes.add(0);
-								} else if (g.isHomVar()) {
-									skatRGenotypes.add(2);
-								} else if (g.isHet()) {
-									skatRGenotypes.add(1);
-								} else {
-									skatRGenotypes.add(-9);
-								}
-							}
-						}
-					}
-				}
-			if(skatRGenotypes.size()%skatRSampleList.size() !=0 ) throw new IllegalStateException();
-			
-			final StringWriter Rsw= new StringWriter();
-			final PrintWriter writeR = new PrintWriter(Rsw); 
-			writeR.println("library(SKAT)");
-			writeR.print("posV2<-c(");
-			for(int i=0;i< skatRSampleList.size();i++)
-				{
-				if(i>0) writeR.print(",");
-				writeR.print(skatRSampleList.get(i));
-				}
-			writeR.println(")");
-			writeR.println("obj=SKAT_Null_Model(posV2~1, out_type=\"D\",Adjustment=F)");
-			writeR.print("data_pr_test1 <-c(");
-			for(int i=0;i< skatRGenotypes.size();i++)
-				{
-				if(i>0) writeR.print(",");
-				writeR.print(skatRGenotypes.get(i));
-				}
-			writeR.println(")");
-			writeR.println("genot=matrix(data_pr_test1,nrow=length(posV2),ncol="+(skatRGenotypes.size()/skatRSampleList.size()) +") ");
-			writeR.println("cat(SKAT(Z=genot,weights=1/sqrt(n*MAFs*(1-MAFs)), obj=obj, kernel=\"linear.weighted\", method=\"davies\")$p.value)");
-			writeR.flush();
-			writeR.close();
-			
-			final ProcessBuilder procBuilder = new ProcessBuilder(
-					(super.RPath==null|| super.RPath.trim().isEmpty()?"R":super.RPath),
-					"--vanilla",
-					"--slave",
-					"--no-readline"
-					);
-			final Process proc = procBuilder.start();
-			
-			final InputStream rStderr=proc.getErrorStream();
-			final InputStream stdout=proc.getErrorStream();
-			final StringBuilder skatOutput=new StringBuilder();
-			
-			/* consumme stderr */
-			new Thread(){ public void run() {
-				try { int c;
-				while((c=rStderr.read())!=-1)
+			if(!persons.isEmpty()) {
+				for(final VariantContext ctx : variants)
 					{
-					stderr().print((char)c);
-					}
-				} catch(IOException err) {err.printStackTrace();}
-				};}.start();
-				
-			/* consumme stdout */
-			new Thread(){ public void run() {
-				try { int c;
-				while((c=stdout.read())!=-1)
-					{
-					skatOutput.append((char)c);
-					}
-				} catch(IOException err) {err.printStackTrace();}
-				};}.start();
-				
-			final OutputStream procOut= proc.getOutputStream();	
-			procOut.write(Rsw.toString().getBytes());
-			procOut.flush();
-			procOut.close();
-			
-			
-			if(proc.waitFor()!=0) {
-				LOG.error("RScript was "+Rsw.toString());
-				LOG.error("skatOutput is "+skatOutput);
-				throw new RuntimeException("R/SKAT failed for "+super.RPath);
-			}
-			
-			
-			skatResult = Optional.of(skatOutput.toString().trim());
-			}
-			
-			
-			//loop over case control
-			for(int pop=0;pop<2;++pop) {
-				for(final Pedigree.Person person : (pop==0?caseSamples:controlSamples)) {
-					SuperVariant superVariant = SuperVariant.SV0;
-					
-					
-					for(final VariantContext ctx : variants)
-						{
-						if(ctx.isFiltered() && !super.acceptFiltered) continue;
-
-						
-						final Genotype g = ctx.getGenotype(person.getId());	
-						if(g==null) continue;//not in vcf header
-						if(g.isFiltered()) continue;//ignore this genotype
-						final Allele alt = ctx.getAlternateAlleles().get(0);
-
-						for(final Allele a:g.getAlleles())
-							{
-							if(a.equals(alt)) {
-								superVariant = SuperVariant.AT_LEAST_ONE_VARIANT;
+					if(ctx.isFiltered() && !super.acceptFiltered) continue;
+					boolean called_in_case_control=false;
+						for(final Pedigree.Person person :persons ) {
+							final Genotype g = ctx.getGenotype(person.getId());	
+							if(g==null || g.isNoCall()) continue;//not in vcf header
+							if(g.isCalled() && !g.isHomRef()) {
+								called_in_case_control=true;
 								break;
 								}
-							}//end of allele
-						if(superVariant!=SuperVariant.SV0 ) break;
-						}//end of variant
-					
-					if(superVariant==SuperVariant.SV0 ) {
-						if(pop==0 ) count_case_sv0++;
-						else count_ctrl_sv0++;
-					} else // AT_LEAST_ONE_VARIANT 
-						{
-						if(pop==0 ) count_case_sv1++;
-						else count_ctrl_sv1++;
-						}
+							}
 						
-					}//end of case/ctrl
-				}//end of pop
+					if(!called_in_case_control) {
+						count_unfiltered_not_in_pedigrees_variants++;
+						}
+					}
+				}
+			//loop over case control
 				
-				
-	
-				final FisherExactTest fisher = FisherExactTest.compute(
-						count_case_sv0, count_case_sv1,
-						count_ctrl_sv0, count_ctrl_sv1
-						);
 				pw.println(
 						contig+"\t"+
 						(chromStart-1)+"\t"+//-1 for bed compatibility
 						chromEnd+"\t"+
 						first.key+"\t"+
-						fisher.getAsDouble()+"\t"+
-						(skatResult.isPresent()?skatResult.get():"N/A")+"\t"+
 						variants.size()+"\t"+
 						(count_non_filtered - count_unfiltered_not_in_pedigrees_variants )+"\t"+
-						count_unfiltered_not_in_pedigrees_variants+"\t"+
-						count_case_sv0+"\t"+
-						count_ctrl_sv0+"\t"+
-						count_case_sv1+"\t"+
-						count_ctrl_sv1
+						count_unfiltered_not_in_pedigrees_variants
 						);
 				
 				if( galaxyw !=null) {
@@ -762,9 +595,6 @@ public class VcfBurdenSplitter
 					galaxyw.writeEndElement();//a
 					galaxyw.writeEndElement();//td
 					
-					galaxyw.writeStartElement("td");
-					galaxyw.writeCharacters(String.valueOf(fisher.getAsDouble()));
-					galaxyw.writeEndElement();//td
 					
 					galaxyw.writeStartElement("td");
 					galaxyw.writeCharacters(String.valueOf(variants.size()));
@@ -782,12 +612,8 @@ public class VcfBurdenSplitter
 				zout.putNextEntry(ze);
 				final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(IOUtils.uncloseableOutputStream(zout));
 				final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
-				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE,
-						String.valueOf(fisher.getAsDouble())));
 				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_SPLITKEY,first.key));
-				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_SKAT_VALUE,
-						skatResult.isPresent()?skatResult.get():"N/A"
-						));
+				
 				
 				out.writeHeader(header2);
 				for(final VariantContext ctx:variants) {

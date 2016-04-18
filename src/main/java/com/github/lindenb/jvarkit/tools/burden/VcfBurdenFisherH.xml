@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "VcfBurdenFisherH">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.burden">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 xmlns:h="http://www.w3.org/1999/xhtml"
+	 xmlns:svg="http://www.w3.org/2000/svg"
+	 xmlns:galaxy="https://usegalaxy.org/"
+	 app="&name;"
+	 package="&package;"
+	 __placeholder__="1"
+	>
+
+<description>Fisher Case /Controls per Variant</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+
+<options>
+	<option name="minFisherPValue" type="double" longopt="minFisherPValue" opt="fisher" default="0.05">
+		<description>if p-value fisher(case/control vs have alt/have not alt) lower than 'fisher' the FILTER Column is Filled </description>
+	</option>
+</options>
+
+<documentation>
+Variant in that VCF should have one and <h:b>only one</h:b> ALT allele. Use <h:a>https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele</h:a> if needed.
+VCF header must contain a pedigree ( see VCFinjectPedigree ).
+
+
+<h:h3>Output</h:h3>
+
+<h:h4>INFO column</h:h4>
+<h:ul>
+	<h:li><h:b>BurdenFisher</h:b> : Fisher test</h:li>
+</h:ul>
+
+<h:h4>FILTER column</h:h4>
+<h:ul>
+	<h:li><h:b>BurdenFisher</h:b> :Fisher test doesn't meet  user's requirements</h:li>
+</h:ul>
+
+<h:h3>see also</h:h3>
+<h:ul>
+	<h:li><h:a>VcfBurdenMAF</h:a></h:li>
+	<h:li><h:a>VcfBurdenFilterExac</h:a></h:li>
+</h:ul>
+
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>

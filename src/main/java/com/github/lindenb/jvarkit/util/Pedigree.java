@@ -48,6 +48,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 
 public class Pedigree
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Pedigree.class);
 	private Map<String,FamilyImpl > families=new TreeMap<String, Pedigree.FamilyImpl>();
 	
 	public enum Status
@@ -81,12 +82,16 @@ public class Pedigree
 		
 		}
 	
-	public interface Family
+	public interface Family extends Comparable<Family>
 		{
 		public String getId();
 		public Person getPersonById(String s);
 		public java.util.Collection<? extends Person> getIndividuals();
 		public Family validate() throws IllegalStateException;
+		@Override
+		default int compareTo(final Family o) {
+			return this.getId().compareTo(o.getId());
+			}
 		}
 	
 	private class FamilyImpl
@@ -142,16 +147,32 @@ public class Pedigree
 		}
 	
 	public interface Person
+		extends Comparable<Person>
 		{
 		public String getId();
 		public Family getFamily();
+		public boolean hasFather();
 		public Person getFather();
+		public boolean hasMother();
 		public Person getMother();
 		public Sex getSex();
+		public boolean isMale();
+		public boolean isFemale();
 		public Status getStatus();
 		/** return i-th parent 0=father 1=mother */
 		public Person getParent( int zeroOrOne);
 		public Person validate() throws IllegalStateException;
+		
+		public boolean isAffected();
+		public boolean isUnaffected();
+		
+		@Override
+		default int compareTo(final Person o) {
+			int i= getFamily().compareTo(o.getFamily());
+			if(i!=0) return i;
+			return this.getId().compareTo(o.getId());
+			}
+		
 		}
 	
 	
@@ -177,6 +198,18 @@ public class Pedigree
 			return this.id;
 			}
 		
+		@Override
+		public boolean isMale() { return Sex.male.equals(this.getSex());}
+		@Override
+		public boolean isFemale() { return Sex.female.equals(this.getSex());}
+
+		@Override
+		public boolean isAffected() { return Status.affected.equals(this.getStatus());}
+		@Override
+		public boolean isUnaffected() { return Status.unaffected.equals(this.getStatus());}
+
+		
+		
 		private Person getParent(final String s)
 			{
 			if(s==null || s.isEmpty() || s.equals("0")) return null;
@@ -189,6 +222,21 @@ public class Pedigree
 			case 1: return getMother();
 			default: throw new IllegalArgumentException("0 or 1 but got "+zeroOrOne);
 			}
+		}
+		
+		private boolean hasParent(final String s)
+			{
+			return !(s==null || s.isEmpty() || s.equals("0"));
+			}
+		
+		@Override
+		public boolean hasFather() {
+			return hasParent(this.fatherId);
+		}
+		
+		@Override
+		public boolean hasMother() {
+			return hasParent(this.motherId);
 		}
 		
 		public Person getFather()
@@ -274,7 +322,45 @@ public class Pedigree
 	public boolean isEmpty() {
 		return this.families.isEmpty();
 	}
-		
+	
+	/** utility function for vcf, returns true if all person's ID in the pedigree
+	 * are unique (no same ID shared by two families 
+	 */
+	public boolean verifyPersonsHaveUniqueNames() {
+		final Set<String> m = new HashSet<String>();
+		for(final Family f:families.values())
+			{
+			for(final Person p:f.getIndividuals()) {
+				if(m.contains(p.getId())) {
+					return false;
+					}
+				m.add(p.getId());
+				}
+			}
+		return true;
+		}
+	
+	/** utility function for vcf, return a Map<person.id,Person>
+	 * will throw an illegalState if two individual have the same ID (but ! families )
+	 * @return Map<person.id,Person>
+	 */
+	public Map<String, Person> getPersonsMap() {
+		final Map<String, Person> m = new TreeMap<String, Person>();
+		for(final Family f:families.values())
+			{
+			for(final Person p:f.getIndividuals()) {
+				final Person prev = m.get(p.getId());
+				if(prev!=null) {
+					throw new IllegalStateException(
+						"Cannot create a Map<String, Person> because "+prev+" and "+p + " share the same ID : "+p.getId()	
+						);
+					}
+				m.put(p.getId(), p);
+				}
+			}
+		return m;
+	}
+	
 	/** validate pedigree */
 	public Pedigree validate() throws IllegalStateException {
 		for(final Family f: getFamilies()) f.validate();
@@ -314,37 +400,47 @@ public class Pedigree
 		{
 		return getPersons().stream().filter(P->P.getStatus()==Status.unaffected).collect(Collectors.toSet());
 		}
-
-	
 	private void read(final String tokens[])
 		{
-		FamilyImpl fam=this.families.get(tokens[0]);
+		final String fam= tokens[0];
+		final String indi = tokens[1];
+		final String father = tokens[2];
+		final String mother = tokens[3];
+		final String sex = (tokens.length>4?tokens[4]:"");
+		final String status = (tokens.length>5?tokens[5]:"");
+		build(fam,indi,father,mother,sex,status);
+		}
+	
+	private void build(final String famId,final String indiId,final String fatherId,final String motherId,final String sexxx,final String status)
+		{
+		FamilyImpl fam=this.families.get(famId);
 		if(fam==null)
 			{
 			fam=new FamilyImpl();
-			fam.id = tokens[0];
-			this.families.put(tokens[0], fam);
+			fam.id = famId;
+			this.families.put(famId, fam);
 			}
-		if(fam.getPersonById(tokens[1])!=null) throw new IllegalArgumentException("duplicate individual: "+String.join(" ; ", tokens));
+		if(fam.getPersonById(indiId)!=null) throw new IllegalArgumentException("duplicate individual: "+String.join(" ; ", famId,indiId,fatherId,motherId,sexxx,status));
 		final PersonImpl p=new PersonImpl();
 		p.family=fam;
-		p.id=tokens[1];
-		p.fatherId=tokens[2];
-		p.motherId=tokens[3];
+		p.id=indiId;
+		p.fatherId=fatherId;
+		p.motherId=motherId;
 		
-		if(tokens.length>4)
+		if(sexxx!=null)
 			{
-			if(tokens[4].equals("1")) p.sex=Sex.male;
-			else if(tokens[4].equals("2")) p.sex=Sex.female;
+			if(sexxx.equals("1")) p.sex=Sex.male;
+			else if(sexxx.equals("2")) p.sex=Sex.female;
 			}
 		
-		if(tokens.length>5)
+		if(status!=null)
 			{
-			if(tokens[5].equals("1")) p.status=Status.affected;
-			else if(tokens[5].equals("0")) p.status=Status.unaffected;
+			if(status.equals("1")) p.status=Status.affected;
+			else if(status.equals("0")) p.status=Status.unaffected;
 			}
 		
-		fam.individuals.put(p.id, p);		}
+		fam.individuals.put(p.id, p);		
+		}
 	
 	private void read(final BufferedReader r) throws IOException
 		{
@@ -373,16 +469,68 @@ public class Pedigree
 	
 	public static final String VcfHeaderKey="Sample";
 	public static Pedigree readPedigree(final VCFHeader header) {
-		return readPedigree(header.getOtherHeaderLines());
+		return readPedigree(header.getMetaDataInInputOrder());
 		}
+	/** should be readPedigree(header.getMetaDataInInputOrder()) */
 	public static Pedigree readPedigree(final Collection<VCFHeaderLine> metadata) {
-		final Pattern pipe = Pattern.compile("[\\|]");
+		final Pattern comma = Pattern.compile("[,]");
 		final Pedigree ped=new Pedigree();
 		for(final VCFHeaderLine h:metadata) {
 			final String key = h.getKey();
 			if(!VcfHeaderKey.equals(key)) continue;
 			final String value =h.getValue();
-			ped.read(pipe.split(value));
+			if(!value.startsWith("<")) {
+				LOG.warn("in "+VcfHeaderKey+" value doesn't start with '<' "+value);
+				continue;
+			}
+			if(!value.endsWith(">")) {
+				LOG.warn("in "+VcfHeaderKey+" value doesn't end with '>' "+value);
+				continue;
+			}
+			
+			String familyId=null;
+			String indiId=null;
+			String fatherId=null;
+			String motherId=null;
+			String sexx=null;
+			String status=null;
+
+			for(final String t:comma.split(value.substring(1, value.length()-1))) {
+				final int eq = t.indexOf("=");
+				if(eq==-1) 
+					{
+					LOG.warn("'=' missing in "+t+" of "+value);
+					continue;
+					}
+				final String left = t.substring(0,eq);
+				if(left.equals("Family")) {
+					if(familyId!=null) throw new IllegalArgumentException("Family defined twice in " +value);
+					familyId= t.substring(eq+1).trim();
+					}
+				else if(left.equals("ID")) {
+					if(indiId!=null) throw new IllegalArgumentException("ID defined twice in " +value);
+					indiId= t.substring(eq+1).trim();
+					}
+				else if(left.equals("Father")) {
+					if(fatherId!=null) throw new IllegalArgumentException("fatherId defined twice in " +value);
+					fatherId= t.substring(eq+1).trim();
+					}
+				else if(left.equals("Mother")) {
+					if(motherId!=null) throw new IllegalArgumentException("mother defined twice in " +value);
+					motherId= t.substring(eq+1).trim();
+					}
+				else if(left.equals("Sex")) {
+					if(sexx!=null) throw new IllegalArgumentException("sex defined twice in " +value);
+					sexx= t.substring(eq+1).trim();
+					}
+				else if(left.equals("Status")) {
+					if(status!=null) throw new IllegalArgumentException("status defined twice in " +value);
+					status= t.substring(eq+1).trim();
+					}
+				}
+			if(familyId==null) throw new IllegalArgumentException("Family undefined  in " +value);
+			if(indiId==null) throw new IllegalArgumentException("ID undefined in " +value);
+			ped.build(familyId,indiId,fatherId,motherId,sexx,status);
 			}
 		return ped;
 		}
@@ -393,17 +541,19 @@ public class Pedigree
 			{
 			for(final Person p:f.getIndividuals()) {
 				final StringBuilder sb=new StringBuilder();
+				sb.append("<Family=");
 				sb.append(f.getId());
-				sb.append("|");
+				sb.append(",ID=");
 				sb.append(p.getId());
-				sb.append("|");
+				sb.append(",Father=");
 				sb.append(p.getFather()==null?"0":p.getFather().getId());
-				sb.append("|");
+				sb.append(",Mother=");
 				sb.append(p.getMother()==null?"0":p.getMother().getId());
-				sb.append("|");
+				sb.append(",Sex=");
 				sb.append(p.getSex().intValue());
-				sb.append("|");
+				sb.append(",Status=");
 				sb.append(p.getStatus().intValue());
+				sb.append(">");
 				set.add(new VCFHeaderLine(VcfHeaderKey, sb.toString()));
 				}
 			}

@@ -50,12 +50,12 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
-public class VcfBurdenFilter3
-	extends AbstractVcfBurdenFilter3
+public class VcfBurdenFilterExac
+	extends AbstractVcfBurdenFilterExac
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFilter3.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFilterExac.class);
 	
-	public VcfBurdenFilter3()
+	public VcfBurdenFilterExac()
 		{
 		}
 	 
@@ -83,8 +83,8 @@ public class VcfBurdenFilter3
 			exacIn = VCFUtils.createVcfIteratorFromFile(super.exacFile);
 			equalRange = new EqualRangeVcfIterator(exacIn, VCFUtils.createTidPosComparator(exacIn.getHeader().getSequenceDictionary()));
 			final VCFHeader header=in.getHeader();
-			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine("BurdenF3",
-					"Freq:"+this.maxFreq+"% Pop:"+super.exacPopulationStr);
+			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine("BurdenExac",
+					"Freq:"+this.maxFreq+" Pop:"+super.exacPopulationStr);
 			final VCFInfoHeaderLine freqExacInfoHeader = new VCFInfoHeaderLine(
 					"FreqExac",1,VCFHeaderLineType.Float,"Freq in Exac AC/AN"
 					);
@@ -181,6 +181,6 @@ public class VcfBurdenFilter3
 	
 	public static void main(String[] args)
 		{
-		new VcfBurdenFilter3().instanceMainWithExit(args);
+		new VcfBurdenFilterExac().instanceMainWithExit(args);
 		}
 	}

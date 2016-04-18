@@ -36,6 +36,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,6 +45,8 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.PushbackInputStream;
+import java.io.Reader;
+import java.io.Writer;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.LinkedHashSet;
@@ -65,10 +68,26 @@ public class IOUtils {
 	
 	public static void copyTo(final File f,final OutputStream fous) throws IOException
 		{
-		final FileInputStream fin=new FileInputStream(f);
-		copyTo(fin,fous);
-		fous.flush();
-		fin.close();
+		FileInputStream fin=null;
+		try {
+			fin =new FileInputStream(f);
+			copyTo(fin,fous);
+			fous.flush();
+		} finally {
+			CloserUtil.close(fin);
+			}
+		}
+	
+	public static void copyTo(final File f,final Writer fous) throws IOException
+		{
+		FileReader fin=null;
+		try {
+			fin =new FileReader(f);
+			copyTo(fin,fous);
+			fous.flush();
+		} finally {
+			CloserUtil.close(fin);
+			}
 		}
 	
 	public static void copyTo(InputStream in,File f) throws IOException
@@ -89,7 +108,16 @@ public class IOUtils {
 		out.flush();
 		}
 
-	
+	public static void copyTo(Reader in,Writer out) throws IOException
+		{
+		char buffer[]=new char[2048];
+		int nRead;
+		while((nRead=in.read(buffer))!=-1)
+			{
+			out.write(buffer,0,nRead);
+			}
+		out.flush();
+		}
 	
 	public static boolean isRemoteURI(String uri)
 		{	
