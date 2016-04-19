@@ -188,7 +188,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
-	bam2sql vcfinjectpedigree vcfburdenrscriptv
+	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree
 	
 
 .PHONY: all tests $(APPS) clean download_all_maven library top ${dist.dir}/jvarkit-${htsjdk.version}.jar galaxy burden
@@ -212,7 +212,7 @@ galaxy: ${GALAXY_APPS}
 	-planemo  lint --skip "tests"  ${galaxy.dir}/*.xml
 	
 
-burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv
+burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree
 
 tests: 
 	(cd ${this.dir}tests && $(MAKE))
@@ -453,6 +453,7 @@ $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burd
 $(eval $(call compile-htsjdk-cmd,vcfburdenfisherh,${jvarkit.package}.tools.burden.VcfBurdenFisherH,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenfisherv,${jvarkit.package}.tools.burden.VcfBurdenFisherV,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenrscriptv,${jvarkit.package}.tools.burden.VcfBurdenRscriptV,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcffilternotinpedigree,${jvarkit.package}.tools.burden.VcfFilterNotInPedigree,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenmaf,${jvarkit.package}.tools.burden.VcfBurdenMAF,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenexac,${jvarkit.package}.tools.burden.VcfBurdenFilterExac,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfgenesplitter,${jvarkit.package}.tools.misc.VcfGeneSplitter,wiki_flag))
