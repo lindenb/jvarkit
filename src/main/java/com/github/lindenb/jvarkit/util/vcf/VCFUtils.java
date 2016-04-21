@@ -392,13 +392,13 @@ public class VCFUtils
 		return s.endsWith(".vcf") || s.endsWith(".vcf.gz");
 		}
 	
-	
-	public static boolean isTabixVcfFile(File f)
+	/** returns true if file ends with .vcf.gz and a .tbi file is associated */
+	public static boolean isTabixVcfFile(final File f)
 		{
 		if(!isVcfFile(f)) return false;
-		String filename=f.getName();
-		if(!filename.endsWith(".gz")) return false;
-		File index=new File(f.getParentFile(),
+		final String filename=f.getName();
+		if(!filename.endsWith(".vcf.gz")) return false;
+		final File index=new File(f.getParentFile(),
 				filename+ TabixUtils.STANDARD_INDEX_EXTENSION
 				);
 		return index.exists() &&  index.isFile();

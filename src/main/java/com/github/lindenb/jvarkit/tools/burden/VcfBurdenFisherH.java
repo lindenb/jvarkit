@@ -30,8 +30,6 @@ package com.github.lindenb.jvarkit.tools.burden;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -82,33 +80,7 @@ public class VcfBurdenFisherH
 			final VariantContextWriter out
 			) throws IOException {
 		final VCFHeader header=in.getHeader();
-		final Pedigree pedigree = Pedigree.readPedigree(header);
-		if(pedigree.isEmpty())
-			{
-			return wrapException("No pedigree found in header "+inputName+". use VcfInjectPedigree to add it");
-			}
-		if(!pedigree.verifyPersonsHaveUniqueNames()) {
-			return wrapException("I can't use this pedigree in VCF because two samples have the same ID in  "+inputName);
-		}
-
-		final Set<String> samplesNames= new HashSet<>(header.getSampleNamesInOrder());
-		final Set<Pedigree.Person> individuals = new HashSet<>(pedigree.getPersons());
-		
-		
-		Iterator<Pedigree.Person> iter= individuals.iterator();
-		while(iter.hasNext())
-		{
-			final Pedigree.Person person = iter.next();
-			if(!(samplesNames.contains(person.getId()) && (person.isAffected() || person.isUnaffected()))) {
-				LOG.warn("Ignoring "+person+" because not in VCF header or status is unknown");
-				iter.remove();
-			}
-		}
-
-		LOG.info("Individuals :"+individuals.size());
-		LOG.info("Individuals affected :"+individuals.stream().filter(P->P.isAffected()).count());
-		LOG.info("Individuals unaffected :"+individuals.stream().filter(P->P.isUnaffected()).count());
-		
+		final Set<Pedigree.Person> individuals = super.getCasesControlsInPedigree(header);
 		
 		try {
 			final VCFHeader h2=addMetaData(new VCFHeader(header));

@@ -35,6 +35,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -85,10 +86,28 @@ public class VcfBurdenSplitter
 	private static class KeyAndLine {
 		final String key;
 		final String ctx;
-		KeyAndLine(String key,String ctx) {
+		
+		//volatile members used for fast comparaison
+		String contig=null;
+		int pos=-1;
+		Allele ref=null;
+		Allele alt=null;
+		
+		KeyAndLine(final String key,final String ctx) {
 			this.key = key;
 			this.ctx = ctx;
 		}
+		
+		void build(final Pattern tab) {
+			if(contig!=null) return;
+			
+			final String tokens1[] =  tab.split(this.ctx,6);
+			this.contig=tokens1[0];
+			this.pos=Integer.parseInt(tokens1[1]);
+			this.ref = Allele.create(tokens1[3],true);
+			this.alt = Allele.create(tokens1[4],false);
+		}
+		
 	}
 	
 	private static class KeyAndLineComparator
@@ -99,22 +118,23 @@ public class VcfBurdenSplitter
 		public int compare(final KeyAndLine o1, final KeyAndLine o2) {
 			int i = o1.key.compareTo(o2.key);
 			if(i!=0) return i;
-			final String tokens1[] = this.tab.split(o1.ctx,6);
-			final String tokens2[] = this.tab.split(o2.ctx,6);
-			if(!tokens1[0].equals(tokens2[0])) {
+			o1.build(tab);
+			o2.build(tab);
+			
+			if(!o1.contig.equals(o2.contig)) {
 				throw new IllegalStateException("not same contig???");
 			}
-			i = Integer.parseInt(tokens1[1]) - Integer.parseInt(tokens2[1]);
+			i =o1.pos - o2.pos;
 			if(i!=0) return i;
-			i = Allele.create(tokens1[3],true).compareTo( Allele.create(tokens2[3],true));
+			i = o1.ref.compareTo(o2.ref);
 			if(i!=0) return i;
-			return Allele.create(tokens1[4],false).compareTo( Allele.create(tokens2[4],false));
+			return o1.alt.compareTo(o2.alt);
 			}
 		}
 	private static class KeyAndLineCodec extends AbstractDataCodec<KeyAndLine>
 		{
 		@Override
-		public KeyAndLine decode(DataInputStream dis) throws IOException {
+		public KeyAndLine decode(final DataInputStream dis) throws IOException {
 			String k;
 			try {
 				k=dis.readUTF();
@@ -123,7 +143,7 @@ public class VcfBurdenSplitter
 			return new KeyAndLine(k, v);
 		}
 		@Override
-		public void encode(DataOutputStream dos, KeyAndLine object) throws IOException {
+		public void encode(final DataOutputStream dos, final KeyAndLine object) throws IOException {
 			dos.writeUTF(object.key);
 			AbstractDataCodec.writeString(dos, object.ctx);
 			}
@@ -176,18 +196,18 @@ public class VcfBurdenSplitter
 					final String transcriptName =  pred.getFeature();
 					
 					if(!isEmpty(geneName) && !isEmpty(transcriptName)) {
-						if(!isIgnoreAllNM() && transcriptName.startsWith("NM_")) {
+						if(isEnableAllNM() && transcriptName.startsWith("NM_")) {
 							keys.add(String.format("ALL_NM_%s_%s",ctx.getContig(),geneName));
 							}
-						if(!isIgnoreAllRefSeq() && !transcriptName.startsWith("ENST"))
+						if(isEnableAllRefSeq() && !transcriptName.startsWith("ENST"))
 							{
 							keys.add(String.format("ALL_REFSEQ_%s_%s",ctx.getContig(),geneName));
 							}
-						if(!isIgnoreAllEnst() && transcriptName.startsWith("ENST"))
+						if(isEnableAllEnst() && transcriptName.startsWith("ENST"))
 							{
 							keys.add(String.format("ALL_ENST_%s_%s",ctx.getContig(),geneName));
 							}
-						if(!isIgnoreAllTranscript())
+						if(isEnableAllTranscript())
 							{
 							keys.add(String.format("ALL_TRANSCRIPTS_%s_%s",ctx.getContig(),geneName));
 							}
@@ -195,14 +215,14 @@ public class VcfBurdenSplitter
 					}
 				
 				String s;
-				if(!isIgnoreVepHgnc()) {
+				if(isEnableVepHgnc()) {
 					s= pred.getHGNC();
 					if(!isEmpty(s)) {
 						keys.add(String.format("HGNC_%s_%s",ctx.getContig(),s));
 						}
 					}
 				
-				if(!isIgnoreVepEnsg()) {
+				if(isEnableVepEnsg()) {
 					s= pred.getEnsemblGene();
 					if(!isEmpty(s)) {
 						keys.add(String.format("ENSG_%s_%s",ctx.getContig(),s));
@@ -214,30 +234,30 @@ public class VcfBurdenSplitter
 					keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
 					}*/
 				
-				if(!isIgnoreVepFeature()) {
+				if(isEnableVepFeature()) {
 					s= pred.getFeature();
 					if(!isEmpty(s)) {
 						keys.add(String.format("FEATURE_%s_%s",ctx.getContig(),s));
 						
-						if(!isIgnoreVepRefSeq() && (s.startsWith("XM_") || s.startsWith("NM_")))
+						if(isEnableVepRefSeq() && (s.startsWith("XM_") || s.startsWith("NM_")))
 							{
 							keys.add(String.format("REFSEQ_%s_%s",ctx.getContig(),s));
 							}
-						else if(!isIgnoreVepEnst() && s.startsWith("ENST_"))
+						else if(isEnableVepEnst() && s.startsWith("ENST_"))
 							{
 							keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
 							}
 						}
 					}
 				
-				if(!isIgnoreVepSymbol()) {
+				if(isEnableVepSymbol()) {
 					s= pred.getSymbol();
 					if(!isEmpty(s)) {
 						keys.add(String.format("SYMBOL_%s_%s",ctx.getContig(),s));
 						}
 					}
 				
-				if(!isIgnoreVepEnsp()) {
+				if(isEnableVepEnsp()) {
 					s= pred.getENSP();
 					if(!isEmpty(s)) {
 						keys.add(String.format("ENSP_%s_%s",ctx.getContig(),s));
@@ -266,15 +286,14 @@ public class VcfBurdenSplitter
 			}
 		@Override
 		public boolean accept(final VepPrediction pred) {
-			boolean ok=false;
-			for(SequenceOntologyTree.Term so:pred.getSOTerms())
+			for(final SequenceOntologyTree.Term so:pred.getSOTerms())
 				{
 				if(acns.contains(so))
 					{
-					ok=true;
+					return true;
 					}
 				}
-			return ok;
+			return false;
 			}
 	}
 	
@@ -366,11 +385,12 @@ public class VcfBurdenSplitter
 	public Collection<Throwable> initializeKnime() {
 		
 		if(!super.listSplitter) {
-			
-			
-				if(super.outputFile==null || !outputFile.getName().endsWith(".zip")) {
-					return wrapException("output file option -"+OPTION_OUTPUTFILE+" must be declared and must en with .zip");
-				}
+			if(super.outputFile==null) {
+				LOG.warn("output file option -"+OPTION_OUTPUTFILE+" was not be declared. Zip will be printed to stdout.");
+			}
+			else if(!outputFile.getName().endsWith(".zip")) {
+				return wrapException("output file option -"+OPTION_OUTPUTFILE+" is not be declared a en with .zip");
+			}
 			
 			
 			if(super.splitterName.isEmpty()) {
@@ -396,7 +416,7 @@ public class VcfBurdenSplitter
 	public Collection<Throwable> doVcfToVcf(final String inputName) throws Exception {
 		SortingCollection<KeyAndLine> sortingcollection=null;
 		BufferedReader in = null;
-		FileOutputStream fos = null;
+		OutputStream fos = null;
 		ZipOutputStream zout=null;
 		CloseableIterator<KeyAndLine> iter=null;
 		PrintWriter pw = null;
@@ -477,10 +497,17 @@ public class VcfBurdenSplitter
 			progess.finish();
 			sortingcollection.doneAdding();
 			
-			LOG.info("creating zip "+super.outputFile);
-			fos = new FileOutputStream(super.outputFile);
-			zout = new ZipOutputStream(fos);
-			
+			if(getOutputFile()!=null) {
+				LOG.info("creating zip "+super.outputFile);
+				fos = new FileOutputStream(super.outputFile);
+				zout = new ZipOutputStream(fos);
+				}
+			else
+				{
+				LOG.warn("creating zip to stdout");
+				fos = stdout();
+				zout = new ZipOutputStream(fos);
+				}
 
 			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", super.getTmpdir());
 			tmpReportFile.deleteOnExit();
@@ -541,8 +568,8 @@ public class VcfBurdenSplitter
 					chromEnd = Math.max( chromEnd , ctx.getEnd() );
 					}
 				
-			// all ctx are filtered			
-			if( count_non_filtered == 0)  continue;
+				// all ctx are filtered			
+				if( count_non_filtered == 0)  continue;
 			
 
 			/** there are some samples that are NOT in the control list and NOT in the sample list
@@ -630,7 +657,7 @@ public class VcfBurdenSplitter
 			LOG.info("saving BED report");
 			pw.flush();
 			pw.close();
-			ZipEntry entry = new ZipEntry(super.baseZipDir+"/fisher.bed");
+			ZipEntry entry = new ZipEntry(super.baseZipDir+"/manifest.bed");
 			zout.putNextEntry(entry);
 			IOUtils.copyTo(tmpReportFile,zout);
 			zout.closeEntry();

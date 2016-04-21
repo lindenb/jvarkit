@@ -18,6 +18,7 @@
 <input type="vcf"/>
 <output type="vcf"/>
 <snippet id="tmp-dir"/>
+<snippet id="case-ctrl"/>
 
 <options>
 		<option name="acceptFiltered" type="boolean" longopt="ignorefilter" opt="if" default="false">

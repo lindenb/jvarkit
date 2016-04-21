@@ -159,6 +159,43 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 
 	</xsl:if>
 	
+	
+	<xsl:if test="c:snippet[@id='case-ctrl']">
+	
+	/** extract case controls in VCF header injected with VcfInjectPedigree */
+	protected java.util.Set&lt;com.github.lindenb.jvarkit.util.Pedigree.Person&gt; getCasesControlsInPedigree(final htsjdk.variant.vcf.VCFHeader header) {
+		final com.github.lindenb.jvarkit.util.Pedigree pedigree = com.github.lindenb.jvarkit.util.Pedigree.readPedigree(header);
+		if(pedigree.isEmpty())
+			{
+			throw new IllegalArgumentException("No pedigree found in header. use VcfInjectPedigree to add it");
+			}
+		if(!pedigree.verifyPersonsHaveUniqueNames()) {
+			throw new IllegalArgumentException("I can't use this pedigree in VCF because two samples have the same ID.");
+		}
+
+		final java.util.Set&lt;String&gt; samplesNames= new java.util.HashSet&lt;&gt;(header.getSampleNamesInOrder());
+		final java.util.Set&lt;com.github.lindenb.jvarkit.util.Pedigree.Person&gt; individuals = new java.util.HashSet&lt;&gt;(pedigree.getPersons());
+		
+		
+		final java.util.Iterator&lt;com.github.lindenb.jvarkit.util.Pedigree.Person&gt; iter= individuals.iterator();
+		while(iter.hasNext())
+		{
+			final com.github.lindenb.jvarkit.util.Pedigree.Person person = iter.next();
+			if(!(samplesNames.contains(person.getId()) &amp;&amp; (person.isAffected() || person.isUnaffected()))) {
+				LOG.warn("Ignoring "+person+" because it is not present in VCF header or status is unknown");
+				iter.remove();
+			}
+		}
+		
+		LOG.info("Individuals :"+individuals.size());
+		LOG.info("Individuals affected :"+individuals.stream().filter(P->P.isAffected()).count());
+		LOG.info("Individuals unaffected :"+individuals.stream().filter(P->P.isUnaffected()).count());
+
+		return java.util.Collections.unmodifiableSet( individuals );
+	}	
+	
+	
+	</xsl:if>
 
 	<xsl:if test="c:snippet[@id='md5']">
 	

@@ -16,6 +16,7 @@
 
 <description>Prepare R Script from VCF file.</description>
 <input type="vcf"/>
+<snippet id="case-ctrl"/>
 
 <options>
 	<option name="acceptFiltered" type="boolean" longopt="ignorefilter" opt="if" default="false">

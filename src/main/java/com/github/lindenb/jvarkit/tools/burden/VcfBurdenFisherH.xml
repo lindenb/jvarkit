@@ -17,6 +17,7 @@
 <description>Fisher Case /Controls per Variant</description>
 <input type="vcf"/>
 <output type="vcf"/>
+<snippet id="case-ctrl"/>
 
 
 <options>

@@ -33,6 +33,9 @@
 	<option name="exacPopulationStr" type="string" longopt="population" opt="pop" default="AFR,AMR,EAS,FIN,NFE,SAS">
 		<description>comma separated populations in exac</description>
 	</option>
+	<option name="useTabixIndex" type="boolean" longopt="tabix" opt="tabix" default="false">
+		<description>use tabix index for Exac it is present. Might speed up things if the number of variant is low.</description>
+	</option>
 </options>
 
 <documentation>

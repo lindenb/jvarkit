@@ -30,12 +30,8 @@ package com.github.lindenb.jvarkit.tools.burden;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
-
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -73,36 +69,15 @@ public class VcfBurdenRscriptV
 			in = super.openVcfIterator(inputName);
 			
 			final VCFHeader header=in.getHeader();
+			final Set<Pedigree.Person> samples = super.getCasesControlsInPedigree(header);
 			
-			
-			final Set<String> samplesNames= new HashSet<>(header.getSampleNamesInOrder());
-			final Pedigree pedigree = Pedigree.readPedigree(header);
-			if(pedigree.isEmpty()) {
-				return wrapException("No pedigree found in header "+inputName+". use VcfInjectPedigree to add it");
-				}
-			
-			if(!pedigree.verifyPersonsHaveUniqueNames()) {
-				return wrapException("I can't use this pedigree in VCF because two samples have the same ID in  "+inputName);
-			}
-			
-			//cleanup individuals
-			final Set<Pedigree.Person> samples = new TreeSet<>(pedigree.getPersons());
-			Iterator<Pedigree.Person> iter= samples.iterator();
-			while(iter.hasNext())
-			{
-				final Pedigree.Person person = iter.next();
-				if(!(samplesNames.contains(person.getId()) && (person.isAffected() || person.isUnaffected()))) {
-					LOG.warn("Ignoring "+person+" because not in VCF header or status is unknown");
-					iter.remove();
-				}
-			}
 
 			pw = super.openFileOrStdoutAsPrintWriter();
 
 			
 			boolean first=true;
-			pw.print("# samples ( 0: unaffected 1:affected)");
-			pw.print("population <- c( ");
+			pw.println("# samples ( 0: unaffected 1:affected)");
+			pw.print("population <- c(");
 			for(final Pedigree.Person person : samples) {
 				if(!first) pw.print(",");
 				pw.print(person.isUnaffected()?0:1);
@@ -115,9 +90,9 @@ public class VcfBurdenRscriptV
 			first=true;
 			pw.println();
 			pw.println("# genotypes as vector. Should be a multiple of length(samples).");
-			pw.println("# 0 is homref (0/0), 1 is het (0/1), 2 is homvar (1/2)");
+			pw.println("# 0 is homref (0/0), 1 is het (0/1), 2 is homvar (1/1)");
 			pw.println("# if the variant contains another ALT allele: (0/2) and (2/2) are considered 0 (homref)");
-			pw.println("genotypes <- c(");
+			pw.print("genotypes <- c(");
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			while(in.hasNext()) {
 				final VariantContext ctx = progess.watch(in.next());
@@ -199,7 +174,8 @@ public class VcfBurdenRscriptV
 					listOfMafs.add(null);
 					}
 				}
-			pw.println(")");	
+			pw.println(")");
+			pw.println("stopifnot( length(genotypes) %% length(population) == 0 )");
 			first = true;
 			
 			pw.println();
@@ -212,6 +188,8 @@ public class VcfBurdenRscriptV
 				first=false;
 			}
 			pw.println(")");
+			pw.println("# assert sizes");
+			pw.println("stopifnot(length(MAFs) * length(population) == length(genotypes) )");
 			
 			
 			progess.finish();

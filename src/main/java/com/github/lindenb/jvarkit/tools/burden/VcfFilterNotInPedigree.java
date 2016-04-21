@@ -83,7 +83,7 @@ public class VcfFilterNotInPedigree
 			while(iter.hasNext())
 			{
 				final Pedigree.Person person = iter.next();
-				if(!(samplesNames.contains(person.getId()) && (person.isAffected() || person.isUnaffected()))) {
+				if(!(samplesNames.contains(person.getId()))) {
 					LOG.warn("Ignoring "+person+" because not in VCF header or status is unknown");
 					iter.remove();
 				}
