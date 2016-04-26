@@ -27,7 +27,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
@@ -43,7 +42,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -86,14 +85,11 @@ public class VcfBurdenFisherV
 		
 		
 		
-		File tmpFile = null;
-		VariantContextWriter tmpw = null;
+		VCFBuffer tmpw = null;
 		VcfIterator in2=null;
 		try {
 			final VCFHeader h2=addMetaData(new VCFHeader(header));
-			tmpFile = File.createTempFile("_tmp.", ".vcf",this.getTmpdir());
-			tmpFile.deleteOnExit();
-			tmpw = VCFUtils.createVariantContextWriter(tmpFile);
+			tmpw = new VCFBuffer(1000,this.getTmpdir());
 			tmpw.writeHeader(header);
 			final Count count= new Count();
 			
@@ -158,7 +154,7 @@ public class VcfBurdenFisherV
 					"CTRL_SV1="+count.count_ctrl_sv1		
 					)));
 
-			in2 = VCFUtils.createVcfIteratorFromFile(tmpFile);
+			in2 = tmpw.iterator();
 			final SAMSequenceDictionaryProgress progess2=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
 			while(in2.hasNext() &&  !out.checkError()) {
@@ -173,7 +169,7 @@ public class VcfBurdenFisherV
 				return wrapException(err);
 			} finally {
 				CloserUtil.close(tmpw);
-				if(tmpFile!=null) tmpFile.delete();
+				if(tmpw!=null) tmpw.dispose();
 				CloserUtil.close(in);
 				CloserUtil.close(in2);
 			}

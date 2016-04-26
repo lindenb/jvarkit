@@ -50,6 +50,7 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -199,7 +200,21 @@ public class VcfToRdf extends AbstractVcfToRdf
 					"dc:description",h.getValue()
 					);
 			}
-		
+		final Pedigree pedigree = Pedigree.readPedigree(header);
+		for(final Pedigree.Person pe:pedigree.getPersons()) {
+			final URI sample = URI.create("urn:sample/"+pe.getId());
+			emit(sample,
+				"rdf:type","foaf:Person",
+				"foaf:name",pe.getId(),
+				"foaf:family",pe.getFamily().getId()
+				);
+			if(pe.isMale())  emit(sample,"idt:gender","male");
+			if(pe.isFemale())  emit(sample,"idt:gender","female");
+			if(pe.isAffected())  emit(sample,"idt:status","affected");
+			if(pe.isUnaffected())  emit(sample,"idt:status","unaffected");
+			
+		}
+
 		//Sample
 		for(final String sample:header.getSampleNamesInOrder())
 			{
@@ -222,6 +237,8 @@ public class VcfToRdf extends AbstractVcfToRdf
 			if(filein!=null) source= filein.toURI();
 			in=(filein==null?VCFUtils.createVcfIteratorStdin():VCFUtils.createVcfIteratorFromFile(filein));
 			final VCFHeader header = in.getHeader();
+			
+			
 			final VepPredictionParser vepPredictionParser=new VepPredictionParser(header);
 			writeHeader(header,source);
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
@@ -248,17 +265,21 @@ public class VcfToRdf extends AbstractVcfToRdf
 					"vcf:qual",(ctx.hasLog10PError()?ctx.getPhredScaledQual():null)
 					);
 				
-				for(final Allele alt: ctx.getAlternateAlleles())
-					{
-					emit(variant,"vcf:alt",alt.getBaseString());
-					}
+				if(super.printAlleles) {
+					for(final Allele alt: ctx.getAlternateAlleles())
+						{
+						emit(variant,"vcf:alt",alt.getBaseString());
+						}
+				}
 				
+				if(super.printFilters) {
 				for(final String f:ctx.getFilters())
 					{
 					emit(variant,"vcf:filter",URI.create("urn:filter/"+f));
 					}
+				}
 				
-				
+				if(super.printVep) {
 				for(final VepPrediction prediction : vepPredictionParser.getPredictions(ctx))
 					{
 					final List<Object> L=new ArrayList<>();
@@ -302,12 +323,13 @@ public class VcfToRdf extends AbstractVcfToRdf
 						L.toArray()
 						);
 					}
+				}
 				
+				
+			if(super.printGenotypes) {
 				for(final String sample: ctx.getSampleNames())
 					{
 					final Genotype g = ctx.getGenotype(sample);
-					
-					
 					final List<Object> L=new ArrayList<>();
 					L.add("vcf:sample");  L.add(URI.create("urn:sample/"+sample));
 					L.add("vcf:variant"); L.add(variant);
@@ -358,7 +380,7 @@ public class VcfToRdf extends AbstractVcfToRdf
 						L.toArray()
 						);
 					}
-				
+			}
 				
 				}
 			in.close(); in = null;

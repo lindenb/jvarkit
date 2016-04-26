@@ -9,7 +9,20 @@
 <description>convert VCF to RDF (N3 notation)</description>
 
 
-<options> </options>
+<options>
+	<option name="printAlleles" opt="a" longopt="alleles" type="boolean" default="false">
+		<description>print ALT alleles</description>
+	</option>
+	<option name="printFilters" opt="f" longopt="filters" type="boolean" default="false">
+		<description>print FILTERs</description>
+	</option>
+	<option name="printVep" opt="vep" longopt="vep" type="boolean" default="false">
+		<description>print VEP informations</description>
+	</option>
+	<option name="printGenotypes" opt="g" longopt="genotypes" type="boolean" default="false">
+		<description>print Genotypes informations</description>
+	</option>
+</options>
 
 <documentation>
 

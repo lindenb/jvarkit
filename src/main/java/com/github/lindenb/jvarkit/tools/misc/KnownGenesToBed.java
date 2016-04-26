@@ -38,7 +38,6 @@ import htsjdk.samtools.util.CloserUtil;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 public class KnownGenesToBed extends AbstractKnownGenesToBed

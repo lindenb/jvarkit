@@ -86,6 +86,20 @@ public class VcfBurdenRscriptV
 			
 			pw.println(")");
 			
+			first=true;
+			pw.println("# samples names");
+			pw.print("population.names <- c(");
+			for(final Pedigree.Person person : samples) {
+				if(!first) pw.print(",");
+				pw.print("\"");
+				pw.print(person.getId());
+				pw.print("\"");
+				first=false;
+			}
+			
+			pw.println(")");
+			
+			
 			List<Double> listOfMafs= new ArrayList<>();
 			first=true;
 			pw.println();

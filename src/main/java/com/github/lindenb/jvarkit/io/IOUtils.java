@@ -63,6 +63,7 @@ import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 
 public class IOUtils {
 	
@@ -355,7 +356,7 @@ public class IOUtils {
 	public static LinkedHashSet<File> unrollFileCollection(java.util.Collection<File> inputs)
 		{
 		LinkedHashSet<File> vcfFiles= new LinkedHashSet<>(inputs.size()+1);
-		for(File file : inputs)
+		for(final File file : inputs)
 			{
 			if(file.getName().endsWith(".list"))
 				{
@@ -387,7 +388,7 @@ public class IOUtils {
 		implements LineIterator
 		{
 		private BufferedReader in;
-		BuffReadIter(BufferedReader in)
+		BuffReadIter(final BufferedReader in)
 			{
 			this.in=in;
 			}
@@ -395,13 +396,13 @@ public class IOUtils {
 		protected String advance()
 			{
 			if(in==null) return null;
-			String s;
+			final String s;
 			try {
 				s = in.readLine();
 				if(s==null) {CloserUtil.close(this.in);this.in=null;}
 				return s;
-			} catch (Exception e) {
-				throw new RuntimeException(e);
+			} catch (final IOException e) {
+				throw new RuntimeIOException(e);
 				}
 			}
 		}

@@ -47,6 +47,8 @@ import java.util.TreeSet;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -124,7 +126,7 @@ public class VCFUtils
 			}
 		}
 	
-	public static List<String> parseHeaderLines(LineReader r) throws IOException
+	public static List<String> parseHeaderLines(final LineReader r) throws IOException
 		{
 		LinkedList<String> stack=new LinkedList<String>();
 		String line;
@@ -137,14 +139,14 @@ public class VCFUtils
 		}
 
 	
-	public static CodecAndHeader parseHeader(LineReader r) throws IOException
+	public static CodecAndHeader parseHeader(final LineReader r) throws IOException
 		{
 		return parseHeader(parseHeaderLines(r));
 		}
 	
-	public static List<String> parseHeaderLines(BufferedReader r) throws IOException
+	public static List<String> parseHeaderLines(final BufferedReader r) throws IOException
 		{
-		LinkedList<String> stack=new LinkedList<String>();
+		final LinkedList<String> stack=new LinkedList<String>();
 		String line;
 		while((line=r.readLine())!=null && line.startsWith("#"))
 			{
@@ -155,13 +157,13 @@ public class VCFUtils
 		}
 
 	
-	public static CodecAndHeader parseHeader(BufferedReader r) throws IOException
+	public static CodecAndHeader parseHeader(final BufferedReader r) throws IOException
 		{
 		return parseHeader(parseHeaderLines(r));
 		}
 		
 	
-	public static CodecAndHeader parseHeader(LineIterator r)
+	public static CodecAndHeader parseHeader(final LineIterator r)
 		{
 		CodecAndHeader vh=new CodecAndHeader();
 		vh.codec=null;
@@ -214,17 +216,23 @@ public class VCFUtils
 		return vh;
 		}
 	
-	/** convert a VCF header to line iterator. Created for serialization */
-	public static LineIterator convertVCFHeaderToLineIterator(VCFHeader header)
+	/** convert a VCF header to List of String. Created for serialization */
+	public static List<String> convertVCFHeaderToList(final VCFHeader header)
 		{	
-		ByteArrayOutputStream baos=new ByteArrayOutputStream(1000);
-		VariantContextWriter vcw=createVariantContextWriterToOutputStream(baos);
+		final ByteArrayOutputStream baos=new ByteArrayOutputStream(1000);
+		final VariantContextWriter vcw=createVariantContextWriterToOutputStream(baos);
 		vcw.writeHeader(header);
 		vcw.close();
-		return new LIT(new LinkedList<String>(
-				Arrays.asList(
+		return  Arrays.asList(
 						new String(baos.toByteArray()).split("\n")
-				)));
+				);
+		}
+
+	
+	/** convert a VCF header to line iterator. Created for serialization */
+	public static LineIterator convertVCFHeaderToLineIterator(final VCFHeader header)
+		{	
+		return new LIT(new LinkedList<String>(convertVCFHeaderToList(header)));
 		}
 	
 	/** create a default VCF codec */
@@ -247,17 +255,18 @@ public class VCFUtils
 	 * 
 	 * @param IN input vcf file
 	 * */
-	public static  VcfIterator createVcfIteratorFromFile(File f) throws IOException
+	public static  VcfIterator createVcfIteratorFromFile(final File f) throws IOException
 		{
 		LOG.info("reading vcf from "+f);
-		return new VcfIteratorImpl(IOUtils.openFileForReading(f));	
+		IOUtil.assertFileIsReadable(f);
+		return new VcfIteratorImpl(IOUtils.openFileForBufferedReading(f));	
 		}
 	
 	/** create a VCF iterator
 	 * 
 	 * @param IN input vcf file
 	 * */
-	public static  VcfIterator createVcfIteratorFromInputStream(InputStream in) throws IOException
+	public static  VcfIterator createVcfIteratorFromInputStream(final InputStream in) throws IOException
 		{
 		LOG.info("reading vcf from stream");
 		return new VcfIteratorImpl(in);	
@@ -268,7 +277,7 @@ public class VCFUtils
 	 * 
 	 * @param IN : input uri or null for stdin
 	 * */
-	public static  VcfIterator createVcfIterator(String IN) throws IOException
+	public static  VcfIterator createVcfIterator(final String IN) throws IOException
 		{
 		if(IN==null)
 			{
@@ -297,7 +306,7 @@ public class VCFUtils
 	
 	public static  VariantContextWriter createVariantContextWriterToOutputStream(OutputStream ostream)
 		{
-		VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+		final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
 		vcwb.setCreateMD5(false);
 		vcwb.setOutputStream(ostream);
 		vcwb.setReferenceDictionary(null);
@@ -314,7 +323,7 @@ public class VCFUtils
 	 */
 	public static  VariantContextWriter createVariantContextWriter(File OUT) throws IOException
 		{
-		VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+		final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
 		vcwb.setCreateMD5(false);
 		vcwb.setReferenceDictionary(null);
 		vcwb.clearOptions();
@@ -437,6 +446,13 @@ public class VCFUtils
 		if(chromName.equals("chrM") &&  dict.getSequence("MT")!=null) return "MT";
 		return null;
 		}
+	
+	/**
+	 * 
+	 */
+	public CloseableIterator<VcfIterator> readConcatenatedVcfFile(final BufferedReader r) throws IOException {
+		return new VcfFileIterator(IOUtils.toLineIterator(r));
+	}
 	
 	/** escape String for a VALUE in the INFO column 
 	 * From the spec : no white-space, semi-colons, or equals-signs permitted; 
@@ -724,6 +740,45 @@ public class VCFUtils
     		}
     	}
     
+    
+    private static class VcfFileIterator extends AbstractIterator<VcfIterator>
+    	implements CloseableIterator<VcfIterator>{
+    	private  LineIterator lr;
+    	public VcfFileIterator(final LineIterator lr) {
+		this.lr = lr;
+    	}
+    	
+    	@Override
+    	protected VcfIterator advance() {
+    		if(lr==null) return null;
+    		if(!lr.hasNext()) { CloserUtil.close(lr);lr=null; return null;}
+    		return new MyVcfIterator() ;
+    		}
+    	
+    	@Override
+    	public void close() {
+    		if(lr==null) return;
+    		CloserUtil.close(lr);
+    		lr=null;
+    		}
+    	
+    	private class MyVcfIterator extends VcfIteratorImpl
+    		{
+    		MyVcfIterator() {
+    			super(VcfFileIterator.this.lr);
+    			}
+    		
+    		@Override
+    		public void close() {
+    			if(lr==null) return;
+    			while(lr.hasNext() && !lr.peek().startsWith("#"))
+    				{
+    				lr.next();
+    				}
+    			}
+    		
+    		}
+    }
     
 	/*
 	private Pattern semicolon=Pattern.compile("[;]");

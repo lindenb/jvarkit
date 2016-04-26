@@ -35,7 +35,10 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
@@ -95,26 +98,22 @@ public class BamStats04 extends AbstractCommandLineProgram
 			{
 			System.out.println("#chrom\tstart\tend\tlength\tmincov\tmaxcov\tmean\tnocoveragepb\tpercentcovered");
 			LOG.info("Scanning "+IN);
-			Pattern tab=Pattern.compile("[\t]");
-			String tokens[];
 			bedIn=IOUtils.openFileForBufferedReading(BEDILE);
 			
+			final BedLineCodec codec= new BedLineCodec();
 			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(super.VALIDATION_STRINGENCY);
 			samReader = srf.open(IN);
 			String line=null;
 			while((line=bedIn.readLine())!=null)
 				{
 				if(line.isEmpty() || line.startsWith("#")) continue;
-				LOG.debug(line);
-				tokens=tab.split(line,5);
-				if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.BEDILE);
-				String chrom=tokens[0];
-				int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
-				int chromEnd1= Integer.parseInt(tokens[2]);
+				final BedLine bedLine = codec.decode(line);
+				if(bedLine==null) continue;
+				
 				/* picard javadoc:  - Sequence name - Start position (1-based) - End position (1-based, end inclusive)  */
 				
 				
-				int counts[]=new int[chromEnd1-chromStart1+1];
+				int counts[]=new int[bedLine.getEnd()-bedLine.getStart()+1];
 				if(counts.length==0) continue;
 				Arrays.fill(counts, 0);
 				
@@ -122,10 +121,14 @@ public class BamStats04 extends AbstractCommandLineProgram
 				 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
 	    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
 				 */
-				SAMRecordIterator r=samReader.queryOverlapping(chrom, chromStart1, chromEnd1);
+				final SAMRecordIterator r=samReader.queryOverlapping(
+						bedLine.getContig(),
+						bedLine.getStart(),
+						bedLine.getEnd()
+						);
 				while(r.hasNext())
 					{
-					SAMRecord rec=r.next();
+					final SAMRecord rec=r.next();
 					if(rec.getReadUnmappedFlag()) continue;
 					if(NO_VENDOR && rec.getReadFailsVendorQualityCheckFlag()) continue;
 					if(NO_DUP && rec.getDuplicateReadFlag() ) continue;
@@ -134,27 +137,27 @@ public class BamStats04 extends AbstractCommandLineProgram
 						if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
 						}
 					if(rec.isSecondaryOrSupplementary()) continue;
-					if(!rec.getReferenceName().equals(chrom)) continue;
+					if(!rec.getReferenceName().equals(bedLine.getContig())) continue;
 					if(rec.getMappingQuality()==255 ||
 						rec.getMappingQuality()==0 ||
 						rec.getMappingQuality()< this.MMQ)
 						{
 						continue;
 						}
-					Cigar cigar=rec.getCigar();
+					final Cigar cigar=rec.getCigar();
 					if(cigar==null) continue;
 		    		int refpos1=rec.getAlignmentStart();
-		    		for(CigarElement ce:cigar.getCigarElements())
+		    		for(final CigarElement ce:cigar)
 		    			{
-		    			CigarOperator op=ce.getOperator();
+		    			final CigarOperator op=ce.getOperator();
 		    			if(!op.consumesReferenceBases()) continue;
 		    			if(op.consumesReadBases())
 		    				{
 		    				for(int i=0;i< ce.getLength();++i)
 	    		    			{
-								if(refpos1+i>= chromStart1 && refpos1+i<=chromEnd1)
+								if(refpos1+i>= bedLine.getStart() && refpos1+i<=bedLine.getEnd())
 									{
-									counts[refpos1+i-chromStart1]++;
+									counts[refpos1+i-bedLine.getStart()]++;
 									}
 			    				}
 		    				}
@@ -168,7 +171,7 @@ public class BamStats04 extends AbstractCommandLineProgram
 				
 				int count_no_coverage=0;
 				double mean=0;
-				for(int cov:counts)
+				for(final int cov:counts)
 					{
 					if(cov<=MIN_COVERAGE) ++count_no_coverage;
 					mean+=cov;
@@ -176,7 +179,9 @@ public class BamStats04 extends AbstractCommandLineProgram
 				mean/=counts.length;
 				
 				System.out.println(
-						tokens[0]+"\t"+tokens[1]+"\t"+tokens[2]+"\t"+
+						bedLine.getContig()+"\t"+
+						(bedLine.getStart()-1)+"\t"+
+						(bedLine.getEnd())+"\t"+
 						counts.length+"\t"+
 						counts[0]+"\t"+
 						counts[counts.length-1]+"\t"+

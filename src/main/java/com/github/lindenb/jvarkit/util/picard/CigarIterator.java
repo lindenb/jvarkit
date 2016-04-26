@@ -15,7 +15,7 @@ public class CigarIterator
 	private int cigardElementIndex=0;
 	private int indexInCigarElement=-1;
 	private ReferenceSequenceFile referenceSequenceFile;
-	
+	 
 	
 	public boolean next()
 		{
