@@ -37,7 +37,8 @@ slf4j.jars = \
 	$(lib.dir)/org/slf4j/slf4j-simple/1.7.13/slf4j-simple-1.7.13.jar
 
 derby.jars  =  \
-	$(lib.dir)/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar
+	$(lib.dir)/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar \
+	$(lib.dir)/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar
 
 jetty.jars  =  \
 	$(lib.dir)/javax/servlet/javax.servlet-api/4.0.0-b01/javax.servlet-api-4.0.0-b01.jar \
