@@ -30,6 +30,7 @@ History:
 package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.sql.Clob;
@@ -45,7 +46,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -158,19 +163,130 @@ public class VcfDerby01
 			
 			}
 		}
-	
-	private Collection<Throwable> doCommandDump(){
+	private Collection<Throwable> doCommandDumpAll(){
+		Statement stmt = null;
+		ResultSet row = null;
+		final Set<Long> vcfids = new TreeSet<>();
+		if(!getInputFiles().isEmpty()) {
+			return wrapException("Too many arguments");
+		}
+		try {
+			stmt = this.conn.createStatement();
+			row = stmt.executeQuery("SELECT ID from VCF");
+			while(row.next()) {
+				vcfids.add(row.getLong(1));
+			}
+			row.close();row=null;
+			stmt.close();stmt=null;
+			return dump(vcfids);
+		} catch (final Exception e) {
+			return wrapException(e);
+		} finally {
+			CloserUtil.close(row);
+			CloserUtil.close(stmt);
+		}
+	}
+
+	private Collection<Throwable> dump(final Set<Long> vcfIds){
 		PreparedStatement pstmt = null;
 		PreparedStatement pstmt2 = null;
 		ResultSet row = null;
-		PrintWriter pw = null;
-		final Pattern comma = Pattern.compile("[,]");
-		final List<String> args = getInputFiles();
+		PrintWriter pwOut = null;
+		FileOutputStream fout = null;
+		ZipOutputStream zout= null;
 		int num_vcf_exported=0;
 		try {
 			pstmt = this.conn.prepareStatement("SELECT NAME from VCF where ID=?");
 			pstmt2 = this.conn.prepareStatement("SELECT ROWCONTENT.CONTENT FROM VCF,VCFROW,ROWCONTENT WHERE VCFROW.VCF_ID=VCF.ID AND VCFROW.ROW_ID = ROWCONTENT.ID AND VCF.ID=? ORDER BY VCFROW.ID ");
-			pw = openFileOrStdoutAsPrintWriter();
+			
+			if(getOutputFile()!=null && getOutputFile().getName().endsWith("*.zip")) {
+				fout = new FileOutputStream(getOutputFile());
+				zout =new ZipOutputStream(fout);
+			} else
+			{
+			pwOut = openFileOrStdoutAsPrintWriter();
+			}
+			
+			for(final long vcf_id : vcfIds)
+				{
+				LOG.info("Getting VCF "+vcf_id);
+				
+				pstmt.setLong(1, vcf_id);
+				String vcfName=null;
+				row = pstmt.executeQuery();
+				while(row.next()) {
+					vcfName = row.getString(1);
+				}
+				row.close();
+				if(vcfName==null) 
+					{
+					return wrapException("Cannot find VCF ID "+vcf_id);
+					}
+				LOG.info("dumping "+vcfName+" ID:"+vcf_id);
+				pstmt2.setLong(1, vcf_id);
+				row =  pstmt2.executeQuery();
+				
+				ZipEntry entry=null;
+				if(zout!=null)
+					{
+					entry = new ZipEntry(vcfName+(vcfName.endsWith(".vcf.")?"":".vcf"));
+					zout.putNextEntry(entry);
+					pwOut = new PrintWriter(zout);
+					}
+				
+				while(row.next()) {
+					final Clob clob = row.getClob(1);
+					final Reader r=clob.getCharacterStream();
+					IOUtils.copyTo(r,pwOut);
+					r.close();
+					pwOut.println();
+				}
+				
+				if(zout!=null) {
+					pwOut.flush();
+					pwOut=null;
+					zout.closeEntry();
+				}
+				
+				row.close();
+				num_vcf_exported++;
+				}
+				
+			pstmt.close();
+			pstmt2.close();
+			if(zout!=null){
+				zout.finish();
+				zout.flush();
+				fout.close();
+			} else
+			{
+				pwOut.flush();
+				pwOut.close();
+			}
+			if(num_vcf_exported==0 && zout==null) {
+				return wrapException("NO VCF WAS EXPORTED");
+			}
+			LOG.info("count(VCF) exported "+num_vcf_exported);
+			return RETURN_OK;
+		} catch (final Exception e) {
+			return wrapException(e);
+		} finally {
+			CloserUtil.close(fout);
+			CloserUtil.close(zout);
+			CloserUtil.close(pwOut);
+			CloserUtil.close(row);
+			CloserUtil.close(pstmt);
+			CloserUtil.close(pstmt2);
+		}
+	}
+
+	
+	
+	private Collection<Throwable> doCommandDump(){
+		final Pattern comma = Pattern.compile("[,]");
+		final List<String> args = getInputFiles();
+		final Set<Long> vcfIds = new TreeSet<>();
+		try {
 			for(final String token: args) {
 				for(final String idStr: comma.split(token))
 					{
@@ -182,47 +298,13 @@ public class VcfDerby01
 					} catch(final NumberFormatException err) {
 						return wrapException("Bad VCF ID :"+idStr);
 					}
-					pstmt.setLong(1, vcf_id);
-					String vcfName=null;
-					row = pstmt.executeQuery();
-					while(row.next()) {
-						vcfName = row.getString(1);
-					}
-					row.close();
-					if(vcfName==null) 
-						{
-						return wrapException("Cannot find VCF ID "+idStr);
-						}
-					LOG.info("dumping "+vcfName+" ID:"+vcf_id);
-					pstmt2.setLong(1, vcf_id);
-					row =  pstmt2.executeQuery();
-					while(row.next()) {
-						final Clob clob = row.getClob(1);
-						final Reader r=clob.getCharacterStream();
-						IOUtils.copyTo(r, pw);
-						r.close();
-						pw.println();
-					}
-					row.close();
-					num_vcf_exported++;
+					vcfIds.add(vcf_id);
 					}
 				}
-			pstmt.close();
-			pstmt2.close();
-			pw.flush();
-			pw.close();
-			if(num_vcf_exported==0) {
-				return wrapException("NO VCF WAS EXPORTED");
-			}
-			LOG.info("count(VCF) exported "+num_vcf_exported);
-			return RETURN_OK;
+			return dump(vcfIds);
 		} catch (final Exception e) {
 			return wrapException(e);
 		} finally {
-			CloserUtil.close(pw);
-			CloserUtil.close(row);
-			CloserUtil.close(pstmt);
-			CloserUtil.close(pstmt2);
 		}
 	}
 
@@ -453,6 +535,9 @@ public class VcfDerby01
 				return doCommandList();
 			}else if(command.equals("dump")) {
 				return doCommandDump();
+			}
+			else if(command.equals("dumpall")) {
+				return doCommandDumpAll();
 			}
 			else {
 				return wrapException("unknown command : "+command);
