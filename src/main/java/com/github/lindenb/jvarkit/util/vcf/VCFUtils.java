@@ -208,9 +208,9 @@ public class VCFUtils
 		return createDefaultVCFCodec();
 		}
 	
-	public static CodecAndHeader parseHeader(List<String> list)
+	public static CodecAndHeader parseHeader(final List<String> list)
 		{
-		CodecAndHeader vh=new CodecAndHeader();
+		final CodecAndHeader vh=new CodecAndHeader();
 		vh.codec=findCodecFromLines(list);
 		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(new LinkedList<String>(list)));
 		return vh;
@@ -245,7 +245,7 @@ public class VCFUtils
 	 * 
 	 * @param IN input stream
 	 * */
-	public static  VcfIterator createVcfIteratorFromStream(InputStream in) throws IOException
+	public static  VcfIterator createVcfIteratorFromStream(final InputStream in) throws IOException
 		{
 		LOG.info("reading vcf from stream");
 		return new VcfIteratorImpl(in);	
@@ -270,6 +270,19 @@ public class VCFUtils
 		{
 		LOG.info("reading vcf from stream");
 		return new VcfIteratorImpl(in);	
+		}
+
+	/** create a VCF iterator from LineReader
+	 * 
+	 * @param IN input vcf file
+	 * */
+	public static  VcfIterator createVcfIteratorFromLineIterator(
+			final LineIterator lineIterator,
+			boolean allowConcatenatedVcf
+			) throws IOException
+		{
+		LOG.info("reading vcf from stream");
+		return new VcfIteratorLineIterator(lineIterator,allowConcatenatedVcf);	
 		}
 
 	
@@ -780,89 +793,76 @@ public class VCFUtils
     		}
     }
     
+    private static class VcfIteratorLineIterator implements VcfIterator {
+    	private final CodecAndHeader cah;
+    	final LineIterator lineIter;
+    	final boolean allowConcatenatedVcf;
+    	private boolean closed=false;
+    	VcfIteratorLineIterator(final LineIterator lineIter,
+    			boolean allowConcatenatedVcf
+    			)
+    		{
+    		this.lineIter = lineIter;
+    		this.allowConcatenatedVcf = allowConcatenatedVcf;
+			/* parse VCF header lines */
+			final java.util.List<String> headerLines = new java.util.ArrayList<String>();
+			while(lineIter.hasNext() && lineIter.peek().startsWith(VCFHeader.HEADER_INDICATOR)) {
+				headerLines.add(lineIter.next());
+			}
+			/* parse VCF header */
+			this.cah = com.github.lindenb.jvarkit.util.vcf.VCFUtils.parseHeader(headerLines);
+    		}
+    	
+    	@Override
+    	public AbstractVCFCodec getCodec() {
+    		return this.cah.codec;
+    		}
+    	@Override
+    	public VCFHeader getHeader() {
+    		return this.cah.header;
+    		}
+    	
+    	@Override
+    	public boolean hasNext() {
+    		if(closed || !this.lineIter.hasNext()) return false;
+    		if(this.allowConcatenatedVcf && this.lineIter.peek().startsWith(VCFHeader.HEADER_INDICATOR)) {
+    			return false;
+    		}
+    		return true;
+    		}
+    	
+    	@Override
+    	public VariantContext next() {
+    		if(!hasNext()) throw new IllegalStateException("no such variant");
+    		return getCodec().decode(this.lineIter.next());
+    		}
+    	
+    	@Override
+    	public VariantContext peek() {
+    		if(!hasNext()) throw new IllegalStateException("no such variant");
+    		return getCodec().decode(this.lineIter.peek());
+    		}
+    	
+    	@Override
+    	public void close() throws IOException {
+    		if(closed) return;
+    		closed=true;
+    		/* consumme remaining variants */
+    		if(this.allowConcatenatedVcf) {
+    			while(this.lineIter.hasNext() && !this.lineIter.peek().startsWith(VCFHeader.HEADER_INDICATOR)) {
+    				this.lineIter.next();
+    			}
+    		} else 
+    			{
+    			CloserUtil.close(this.lineIter);
+    			}
+    		}
+    	
+    	
+    	}
+    
+    
 	/*
-	private Pattern semicolon=Pattern.compile("[;]");
-	public VCFUtils()
-		{
-		
-		}
 	
-	
-	public String joinInfo( Map<String,String> infoMap)
-		{
-		StringBuilder b=new StringBuilder();
-		for(String key:infoMap.keySet())
-			{
-			if(isEmpty(key)) continue;
-			String v=infoMap.get(key);
-			if(b.length()!=0) b.append(";");
-			if(isEmpty(v))
-				{
-				b.append(key);
-				}
-			else
-				{
-				b.append(key).append("=").append(v);
-				}
-			}
-		return b.toString();
-		}
-	
-	public String joinFilters( Set<String> s)
-		{
-		StringBuilder b=new StringBuilder();
-		for(String f:s)
-			{
-			if(isEmpty(f)) continue;
-			if(b.length()!=0) b.append(";");
-			b.append(f);
-			}
-		if(b.length()==0) return ".";
-		return b.toString();
-		}
-	
-	public Set<String> parseFilters(String filterField)
-		{
-		Set<String> S=new LinkedHashSet<String>();
-		if(isEmpty(filterField)) return S;
-		for(String f:semicolon.split(filterField))
-			{
-			if(isEmpty(f)) continue;
-			S.add(f);
-			}
-		return S;
-		}
-		
-	
-	public Map<String,String> parseInfo(String infoField)
-		{
-		Map<String,String> m=new LinkedHashMap<String,String>();
-		if(isEmpty(infoField)) return m;
-		for(String info:semicolon.split(infoField))
-			{
-			if(info.isEmpty()) continue;
-			int eq=info.indexOf('=');
-			String key;
-			String value;
-			if(eq!=-1)
-				{
-				key=info.substring(0,eq);
-				value=info.substring(eq+1);
-				}
-			else
-				{
-				key=info;
-				value="";
-				}
-			m.put(key,value);
-			}
-	
-		return m;
-		}
-	
-	public boolean isEmpty(String s)
-		{
-		return s==null || s.equals(".") || s.isEmpty();
-		}
 		*/
 	}

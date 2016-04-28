@@ -27,9 +27,16 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
+
+import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -38,12 +45,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-
-import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
-import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
  *     
@@ -174,6 +175,7 @@ public class VcfBurdenFisherV
 				CloserUtil.close(in2);
 			}
 		}
+	
 	
 	@Override
 	protected Collection<Throwable> call(String inputName) throws Exception {

@@ -17,6 +17,7 @@
 <description>Adds a FILTER NotInPedigree if the only not(homref) genotypes are not in a pedigree</description>
 <input type="vcf"/>
 <output type="vcf"/>
+<snippet id="concatenated-vcf"/>
 
 
 <options>

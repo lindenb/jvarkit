@@ -188,7 +188,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
-	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree
+	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01
 	
 
 .PHONY: all tests $(APPS) clean download_all_maven library top ${dist.dir}/jvarkit-${htsjdk.version}.jar galaxy burden
@@ -212,7 +212,7 @@ galaxy: ${GALAXY_APPS}
 	-planemo  lint --skip "tests"  ${galaxy.dir}/*.xml
 	
 
-burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree
+burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01
 
 tests: 
 	(cd ${this.dir}tests && $(MAKE))

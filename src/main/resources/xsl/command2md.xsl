@@ -74,6 +74,29 @@ $ java -jar dist/<xsl:value-of select="@jarname"/>.jar  [options] (stdin|file<xs
 	<xsl:otherwise></xsl:otherwise>
 </xsl:choose>) 
 ```
+</xsl:if>
+
+
+<xsl:if test="c:snippet[@id='concatenated-vcf']">
+## VCF Concatenation
+
+This tool supports concatenated VCF on input.
+For each VCf on input, a VCF will be printed in the output.
+If there is more than one VCF on input, the output will be **NOT** a valid VCF but a file containing concatenated VCFs.
+
+
+```bash
+$ gunzip -c f1.vcf.gz f2.vcf.gz f3.vcf.gz |\
+	java -jar dist/<xsl:value-of select="@jarname"/>.jar > out_3_vcfs.txt
+```
+
+If the filename is defined and ends with '.zip': each output VCF will be stored into one zip entry.
+
+```bash
+$ gunzip -c f1.vcf.gz f2.vcf.gz f3.vcf.gz |\
+	java -jar dist/<xsl:value-of select="@jarname"/>.jar -o result.zip
+```
+
 
 </xsl:if>
 

@@ -14,11 +14,13 @@
 	 __placeholder__="1"
 	>
 
-<description>Fisher Case / Controls per VCF</description>
+<description>Fisher Case / Controls per Variant (Vertical)</description>
 <input type="vcf"/>
 <output type="vcf"/>
 <snippet id="tmp-dir"/>
 <snippet id="case-ctrl"/>
+<snippet id="concatenated-vcf"/>
+
 
 <options>
 		<option name="acceptFiltered" type="boolean" longopt="ignorefilter" opt="if" default="false">

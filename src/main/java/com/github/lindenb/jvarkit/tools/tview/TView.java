@@ -16,78 +16,100 @@ import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.util.SamLocusIterator.RecordAndOffset;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamReader;
 
 
 public class TView
 	{
 	//private static final Log LOG = Log.getInstance(TView.class);
+    private boolean showClip=false;
+	private Interval interval;
+	private int distance_between_reads=1;
+    private List<Row> screen = new ArrayList<>();
+	
+    private static class Row {
+    private ArrayList<Pixel> columns = new ArrayList<>();
+	}
     
-    private static class SamPixel
+	private static class Pixel {
+	}
+	
+    private static class SamPixel extends Pixel
     	{
-    	int refPos=-1;
-    	int readPos=-1;
-    	SamPixel next=null;
-    	}
-    
-    private static class Read
-    	{
+    	int refpos=-1;
+    	int readpos=-1;
+    	CigarOperator op;
     	SAMRecord record;
-    	SamPixel first=null;
-    	SamPixel last()
-			{
-			SamPixel last=first;
-			while(last.next!=null)last=last.next;
-			return last;
-			}
-
     	}
     
+    private int left(final SAMRecord rec) {
+    	return(showClip?rec.getUnclippedStart():rec.getAlignmentStart());
+    }
     
-	public int execute(
-			final SAMFileReader samReader,
+    private int right(final SAMRecord rec) {
+    	return(showClip?rec.getUnclippedEnd():rec.getAlignmentEnd());
+    }
+
+    
+	private int execute(
+			final SamReader samReader,
 			final IndexedFastaSequenceFile reference,
 			Interval interval,
 			final TViewHandler handler
 			)
 		{   
+		this.interval = interval;
 		
-		if(samReader==null) throw new NullPointerException("undefined samReader");
-		if(interval==null)
-			{
-			SAMSequenceRecord ssr=samReader.getFileHeader().getSequence(0);
-			interval=new Interval(ssr.getSequenceName(), 1, 80);
-			}
 		
-		List<List<SAMRecord>> rows=new ArrayList<List<SAMRecord>>();
-		SamLocusIterator slit=null;
-		Iterator<SamLocusIterator.LocusInfo> iter=null;
+		
+		final List<List<SAMRecord>> rows = new ArrayList<List<SAMRecord>>();
+		SAMRecordIterator sri=null;
 		try {
 	        
             //loop over reads overlaping region
-            SAMRecordIterator sri=samReader.queryOverlapping(
-            		interval.getSequence(),
+             sri=samReader.queryOverlapping(
+            		interval.getContig(),
             		interval.getStart(), 
             		interval.getEnd()
             		);
             while(sri.hasNext())
             	{
-            	SAMRecord rec=sri.next();
+            	final SAMRecord rec=sri.next();
             	if(rec.getReadUnmappedFlag()) continue;
-                if(rec.getAlignmentEnd() < interval.getStart() ) continue;
-                if(rec.getAlignmentStart() > interval.getEnd() ) continue;
-            	
-                Cigar c=rec.getCigar();
-                if(c==null) continue;
+                if(right(rec) < this.interval.getStart() ) continue;
+                if(left(rec) > this.interval.getEnd() ) continue;
+            	int y=0;
+            	while(y< rows.size())
+            		{
+            		final List<SAMRecord> row= rows.get(y);
+            		final SAMRecord last = row.get(row.size()-1);
+            		if(right(last)+distance_between_reads < left(rec)) {
+            			row.add(rec);
+            			break;
+            		}
+            		++y;
+            		}
+                if(y==rows.size()) {
+                	final List<SAMRecord> row=  new ArrayList<>();
+                	row.add(rec);
+                	rows.add(row);
+                }
                 
-                
+            	}
+            
+            
+            {
+                final Cigar cigar=rec.getCigar();
+                if(cigar==null) continue;
                 
                 int readpos0=0;
-                int refpos1=rec.getAlignmentStart();
-                for(CigarElement ce:c.getCigarElements())
+                int refpos1=rec.getUnclippedStart();
+                for(final CigarElement ce:cigar)
                 	{
                 	switch(ce.getOperator())
                 		{

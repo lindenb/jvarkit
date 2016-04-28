@@ -13,9 +13,10 @@
 	 __placeholder__="1"
 	 ui-swing="true"
 	>
+<description>Print the last variants of a VCF.</description>
 <input type="vcf"/>
 <output type="vcf"/>
-<description>Print the last variants of a VCF.</description>
+<snippet id="concatenated-vcf"/>
 
 <options>
 	<option name="count" type="int" opt="n" longopt="count" min-inclusive="0" default="10">

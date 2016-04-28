@@ -17,7 +17,7 @@
 <description>Injects a pedigree (.ped) file in the VCF header</description>
 <input type="vcf"/>
 <output type="vcf"/>
-
+<snippet id="concatenated-vcf"/>
 
 <options>
 	<option name="pedigreeFile" type="input-file" longopt="pedigree" opt="p" argname="PEDIGREE">

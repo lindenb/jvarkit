@@ -504,7 +504,108 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			throw new RuntimeException("No implemented!!!");
 			}
 		
-		protected java.util.Collection&lt;Throwable&gt; doVcfToVcf(final String inputName) throws Exception
+		/** does this software handle concatenated VCFs (cat *.vcf | tool -o out.zip ) ? 
+		 * @param inputName input name , may be null (stdin). could be something that is not vcf. Eg. bcf 
+		 */
+		protected boolean isSupportingConcatenatedVcf(final String inputName) {
+		return <xsl:choose>
+				<xsl:when test="c:snippet[@id='concatenated-vcf']">true</xsl:when>
+				<xsl:otherwise>false</xsl:otherwise>
+			</xsl:choose>;
+		}
+		
+		/** open inputName (null= stdin()) as VCfInput, create a VariantContextWriter and process data */
+		protected java.util.Collection&lt;Throwable&gt; doVcfToVcf(final String inputName) throws Exception {
+			if(isSupportingConcatenatedVcf(inputName)) {
+			return doVcfToVcfMultipleStream(inputName);
+			} else {
+			return doVcfToVcfOneStream(inputName);
+			}
+		}
+    
+	protected String getVcfMultipleStreamZipDirectory() {
+		return getName();
+	}
+	
+	protected java.util.Collection&lt;Throwable&gt; doVcfToVcfMultipleStream(final String inputName) throws Exception {
+		java.io.FileOutputStream fout = null;
+		java.util.zip.ZipOutputStream zout = null;
+		htsjdk.tribble.readers.LineIterator lineIter = null;
+		java.io.PrintStream pw = null;
+		htsjdk.variant.variantcontext.writer.VariantContextWriter vcw=null;
+		try {
+			if(inputName==null) {
+				lineIter = com.github.lindenb.jvarkit.io.IOUtils.openStreamForLineIterator(stdin());
+			} else {
+				lineIter = com.github.lindenb.jvarkit.io.IOUtils.openURIForLineIterator(inputName);
+			}
+			if(!lineIter.hasNext()) {
+				return wrapException("No input found. Couldn't read any VCF header file");
+			}
+			
+			if(getOutputFile()!=null &amp;&amp; getOutputFile().getName().endsWith(".zip")) {
+				fout = new java.io.FileOutputStream(getOutputFile());
+				zout = new java.util.zip.ZipOutputStream(fout);
+			} else {
+				pw = openFileOrStdoutAsPrintStream();
+			}
+			
+			int n_vcf=0;
+			do {
+			final String filename = String.format("%04d.vcf",(++n_vcf));
+				
+			/* create VCF iterator */
+			final com.github.lindenb.jvarkit.util.vcf.VcfIterator in = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVcfIteratorFromLineIterator(lineIter, true);
+			
+				
+			/* if zip: add new entry */
+			if(zout!=null) {
+				final java.util.zip.ZipEntry entry = new java.util.zip.ZipEntry(getVcfMultipleStreamZipDirectory()+"/"+filename);
+				entry.setComment("Generated with "+getName()+" v."+getVersion());
+				zout.putNextEntry(entry);
+				pw = new java.io.PrintStream(zout);
+			}
+			
+			/* create VariantWriter */
+			vcw = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVariantContextWriterToOutputStream(
+			  com.github.lindenb.jvarkit.io.IOUtils.uncloseableOutputStream(pw));
+			
+			final java.util.Collection&lt;Throwable&gt; errors = doVcfToVcf(filename, in, vcw);
+			if(errors!=null &amp;&amp; !errors.isEmpty()) {
+				return errors;
+			}
+			in.close();
+			vcw.close();
+			vcw=null;
+			if(zout!=null)   {
+				zout.closeEntry();
+				pw=null;
+			}
+			} while(lineIter.hasNext());			
+			
+			if(zout!=null) {
+				zout.finish();
+				zout.flush(); zout=null;
+				fout.close(); fout=null;
+			}
+			else {
+				pw.flush();
+				}
+			return RETURN_OK;
+		} catch(Exception err) {
+			return wrapException(err);
+		} finally {
+			htsjdk.samtools.util.CloserUtil.close(zout);
+			htsjdk.samtools.util.CloserUtil.close(fout);
+			htsjdk.samtools.util.CloserUtil.close(lineIter);
+			htsjdk.samtools.util.CloserUtil.close(pw);
+		}
+		
+	}
+
+
+		
+		protected java.util.Collection&lt;Throwable&gt; doVcfToVcfOneStream(final String inputName) throws Exception
 			{
 			com.github.lindenb.jvarkit.util.vcf.VcfIterator in = null;
 			htsjdk.variant.variantcontext.writer.VariantContextWriter w=null;

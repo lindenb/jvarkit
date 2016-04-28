@@ -40,6 +40,9 @@ derby.jars  =  \
 	$(lib.dir)/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar \
 	$(lib.dir)/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar
 
+derby-tools.jar = \
+	$(lib.dir)/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar \
+
 jetty.jars  =  \
 	$(lib.dir)/javax/servlet/javax.servlet-api/4.0.0-b01/javax.servlet-api-4.0.0-b01.jar \
 	$(lib.dir)/org/eclipse/jetty/jetty-webapp/9.3.7.v20160115/jetty-webapp-9.3.7.v20160115.jar \
@@ -66,7 +69,7 @@ gson.jar = \
 	$(lib.dir)/com/google/code/gson/gson/2.6.2/gson-2.6.2.jar
 
 
-all_maven_jars = $(sort ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar})
+all_maven_jars = $(sort ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
 
 download_all_maven : ${all_maven_jars}
 

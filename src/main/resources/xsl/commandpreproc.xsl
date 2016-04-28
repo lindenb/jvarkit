@@ -94,7 +94,7 @@
 
 	<xsl:if test="/c:app[not(@generate-output-option='false')]">
 		<c:option name="outputFile" type="output-file" arg-name="OUTPUT-FILE" opt="o" longopt="output" label="Output">
-			<c:description>Output file. Default:stdout</c:description>
+			<c:description>Output file. Default:stdout. <xsl:if test="c:snippet[@id='concatenated-vcf']">This tool supports concatenated VCF on input. For each VCf on input, a VCF will be printed in the output. If the filename is defined and ends with 'zip'. Each output VCF will be stored into one zip entry.</xsl:if></c:description>
 		</c:option>
 	</xsl:if>
 

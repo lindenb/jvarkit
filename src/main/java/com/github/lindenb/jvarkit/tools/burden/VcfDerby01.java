@@ -44,6 +44,7 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -195,13 +196,15 @@ public class VcfDerby01
 		FileOutputStream fout = null;
 		ZipOutputStream zout= null;
 		int num_vcf_exported=0;
+		Set<String> seen_names=null;
 		try {
 			pstmt = this.conn.prepareStatement("SELECT NAME from VCF where ID=?");
 			pstmt2 = this.conn.prepareStatement("SELECT ROWCONTENT.CONTENT FROM VCF,VCFROW,ROWCONTENT WHERE VCFROW.VCF_ID=VCF.ID AND VCFROW.ROW_ID = ROWCONTENT.ID AND VCF.ID=? ORDER BY VCFROW.ID ");
 			
-			if(getOutputFile()!=null && getOutputFile().getName().endsWith("*.zip")) {
+			if(getOutputFile()!=null && getOutputFile().getName().endsWith(".zip")) {
 				fout = new FileOutputStream(getOutputFile());
 				zout =new ZipOutputStream(fout);
+				seen_names=new HashSet<>();
 			} else
 			{
 			pwOut = openFileOrStdoutAsPrintWriter();
@@ -229,7 +232,13 @@ public class VcfDerby01
 				ZipEntry entry=null;
 				if(zout!=null)
 					{
-					entry = new ZipEntry(vcfName+(vcfName.endsWith(".vcf.")?"":".vcf"));
+					int t=0;
+					String entryName=vcfName+(vcfName.endsWith(".vcf.")?"":".vcf");
+					while(seen_names.contains(entryName)) {
+						entryName=String.format("%05d.ID%d.vcf",++t, vcf_id);
+					}
+					seen_names.add(entryName);
+					entry = new ZipEntry(entryName);
 					zout.putNextEntry(entry);
 					pwOut = new PrintWriter(zout);
 					}
@@ -316,6 +325,7 @@ public class VcfDerby01
 		ResultSet row = null;
 		PrintWriter pw = null;
 		final List<String> args = new ArrayList<>(IOUtils.unrollFiles(getInputFiles()));
+		LOG.info(args.toString());
 		LineIterator lineIter=null;
 		try {
 			int fileidx=0;
@@ -440,11 +450,11 @@ public class VcfDerby01
 					pstmt2.close();
 					pstmt3.close();
 					pstmt.close();
-					fileidx++;
 					num_vcf_in_this_stream++;
 					} /* end of while iter has next */
 				CloserUtil.close(lineIter);
 				lineIter=null;
+				fileidx++;
 			} while(fileidx < args.size());
 			
 			pw.flush();
