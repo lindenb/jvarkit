@@ -127,7 +127,7 @@ public class IOUtils {
 				uri.startsWith("ftp://")
 				;
 		}
-	private static InputStream tryBGZIP(InputStream in) throws IOException
+	private static InputStream tryBGZIP(final InputStream in) throws IOException
 		{
 		byte buffer[]=new byte[2048];
 		
@@ -376,7 +376,32 @@ public class IOUtils {
 			}
 		return vcfFiles;
 		}
-
+	
+	/** test wether the two first bytes are gzip */
+	public static boolean isGZipCompressed(final byte[] twoBytes) {
+		if ((twoBytes == null) || (twoBytes.length < 2)) {
+			return false;
+		} else {
+			return    ((twoBytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
+					&& (twoBytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
+		}
+	}
+	
+	//http://stackoverflow.com/a/4818946/58082
+	/** uncompress IF needed if the input stream is a gzipped stream */
+	public static InputStream uncompress(final InputStream input) throws IOException {
+		 if(input==null) throw new NullPointerException("input is null");
+		 if(input instanceof GZIPInputStream) return input;
+	     final PushbackInputStream pb = new PushbackInputStream( input, 2 ); //we need a pushbackstream to look ahead
+	     final byte [] signature = new byte[2];
+	     pb.read( signature ); //read the signature
+	     pb.unread( signature ); //push back the signature to the stream
+	     if(isGZipCompressed(signature)) //check if matches standard gzip magic number
+	       return new GZIPInputStream( pb );
+	     else 
+	       return pb;
+	}
+	
 	
 	/** converts a BufferedReader to a line Iterator */
 	public static  LineIterator toLineIterator(BufferedReader r)

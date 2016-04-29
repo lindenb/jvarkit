@@ -29,11 +29,14 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.io.Reader;
-import java.sql.Clob;
+import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -50,6 +53,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -57,7 +61,6 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
-
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -96,6 +99,27 @@ public class VcfDerby01
 		return new File(this.derbyFilePath);
 	}
 	
+	private Blob makeBlob(final String s) throws IOException,SQLException {
+		 byte array[] = s.getBytes();
+		 if(super.doZipLine)
+			 {
+			 final ByteArrayOutputStream obj=new ByteArrayOutputStream(array.length);
+		     final GZIPOutputStream gzip = new GZIPOutputStream(obj);
+		     gzip.write(array);
+		     gzip.finish();
+		     gzip.flush();
+		     gzip.close();	
+		     obj.close();
+		
+		     final byte compressed[] = obj.toByteArray();
+			 if( compressed.length< array.length)
+					array= compressed;
+			 }
+		 final Blob b = this.conn.createBlob();
+		 b.setBytes(1, array);
+		 return b;
+		}
+	
 	private void openDerby() {
 		try {
 			boolean create;
@@ -119,7 +143,7 @@ public class VcfDerby01
 				final String tableId = "ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY";
 				final Statement stmt= this.conn.createStatement();
 				final String sqls[]={
-						"CREATE TABLE ROWCONTENT("+tableId+",MD5SUM CHAR(32) UNIQUE,CONTENT CLOB,CONTIG VARCHAR(20),START INT,STOP INT,ALLELE_REF VARCHAR("+MAX_REF_BASE_LENGTH+"))",
+						"CREATE TABLE ROWCONTENT("+tableId+",MD5SUM CHAR(32) UNIQUE,CONTENT BLOB,CONTIG VARCHAR(20),START INT,STOP INT,ALLELE_REF VARCHAR("+MAX_REF_BASE_LENGTH+"))",
 						"CREATE TABLE VCF("+tableId+",NAME VARCHAR(255))",
 						"CREATE TABLE VCFROW("+tableId+",VCF_ID INTEGER CONSTRAINT row2vcf REFERENCES VCF,ROW_ID INTEGER CONSTRAINT row2content REFERENCES ROWCONTENT)"
 						};
@@ -226,7 +250,7 @@ public class VcfDerby01
 		PreparedStatement pstmt = null;
 		PreparedStatement pstmt2 = null;
 		ResultSet row = null;
-		PrintWriter pwOut = null;
+		PrintStream pwOut = null;
 		FileOutputStream fout = null;
 		ZipOutputStream zout= null;
 		int num_vcf_exported=0;
@@ -241,7 +265,7 @@ public class VcfDerby01
 				seen_names=new HashSet<>();
 			} else
 			{
-			pwOut = openFileOrStdoutAsPrintWriter();
+			pwOut = openFileOrStdoutAsPrintStream();
 			}
 			
 			for(final long vcf_id : vcfIds)
@@ -274,18 +298,19 @@ public class VcfDerby01
 					seen_names.add(entryName);
 					entry = new ZipEntry(entryName);
 					zout.putNextEntry(entry);
-					pwOut = new PrintWriter(zout);
+					pwOut = new PrintStream(zout);
 					}
 				final String CHROM_prefix="#CHROM\t";
 				while(row.next()) {
-					final Clob clob = row.getClob(1);
-					final Reader r=clob.getCharacterStream();
+					final Blob blob = row.getBlob(1);
+					final InputStream r= IOUtils.uncompress(blob.getBinaryStream());
 					/* read the first bytes to check if it's the #CHROM line
 					 * if true, add a VCF header line with VCF ID and NAME
 					 *  */
-					final StringBuilder chrom_header_line = new StringBuilder(CHROM_prefix);
+					final StringBuilder chrom_header_line = new StringBuilder(CHROM_prefix.length());
 					int c;
-					while(((c=r.read())!=1) && chrom_header_line.length()< CHROM_prefix.length())
+					while(chrom_header_line.length()< CHROM_prefix.length() &&
+						((c=r.read())!=1) )
 						{
 						chrom_header_line.append((char)c);
 						}
@@ -378,6 +403,11 @@ public class VcfDerby01
 		final List<String> args = new ArrayList<>(IOUtils.unrollFiles(getInputFiles()));
 		LOG.info(args.toString());
 		LineIterator lineIter=null;
+		final String titleHeaderTag = (
+				super.titleHeaderStr==null || super.titleHeaderStr.trim().isEmpty()?
+				null:
+				"##"+titleHeaderStr+"="
+				);
 		try {
 			int fileidx=0;
 			
@@ -406,6 +436,13 @@ public class VcfDerby01
 							LOG.info("Ignoring line "+h);
 							continue;
 						}
+						/* find filename in vcf header */
+						if( titleHeaderTag!=null &&
+							h.startsWith(titleHeaderTag) &&
+							h.trim().length()>titleHeaderTag.length()) {
+							filename = h.substring(titleHeaderTag.length()).trim();
+						}
+						
 						headerLines.add(h);
 					}
 					final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(headerLines);
@@ -443,7 +480,8 @@ public class VcfDerby01
 						/* vcf content was not found, create it */
 						if(content_id==-1L) {
 							pstmt2.setString(1, md5);
-							pstmt2.setString(2, line);
+							
+							pstmt2.setBlob(2,makeBlob(line));
 							pstmt2.setNull(3,Types.VARCHAR);
 							pstmt2.setNull(4,Types.INTEGER);
 							pstmt2.setNull(5,Types.INTEGER);
@@ -479,7 +517,8 @@ public class VcfDerby01
 							final VariantContext ctx = progress.watch(cah.codec.decode(line));
 							
 							pstmt2.setString(1, md5);
-							pstmt2.setString(2, line);
+							
+							pstmt2.setBlob(2,makeBlob(line));							
 							pstmt2.setString(3, ctx.getContig());
 							pstmt2.setInt(4, ctx.getStart());
 							pstmt2.setInt(5, ctx.getEnd());
