@@ -57,19 +57,21 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 
 public class VcfDerby01
 	extends AbstractVcfDerby01
 	{
+	private static int MAX_REF_BASE_LENGTH=50;
 	private long ID_GENERATOR = System.currentTimeMillis();
-	public static final String VCF_HEADER_FILE_IDENTIFIER="VcfFileIdentifier";
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfDerby01.class);
 	private Connection conn=null;
+	private static final String VCF_HEADER_FILE_ID="##VcfDerby01VcfId=";
+	private static final String VCF_HEADER_FILE_NAME="##VcfDerby01VcfName=";
 	public VcfDerby01()
 		{
 		}
@@ -117,7 +119,7 @@ public class VcfDerby01
 				final String tableId = "ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY";
 				final Statement stmt= this.conn.createStatement();
 				final String sqls[]={
-						"CREATE TABLE ROWCONTENT("+tableId+",MD5SUM CHAR(32) UNIQUE,CONTENT CLOB,CONTIG VARCHAR(20),START INT,STOP INT,ALLELE_REF VARCHAR(50))",
+						"CREATE TABLE ROWCONTENT("+tableId+",MD5SUM CHAR(32) UNIQUE,CONTENT CLOB,CONTIG VARCHAR(20),START INT,STOP INT,ALLELE_REF VARCHAR("+MAX_REF_BASE_LENGTH+"))",
 						"CREATE TABLE VCF("+tableId+",NAME VARCHAR(255))",
 						"CREATE TABLE VCFROW("+tableId+",VCF_ID INTEGER CONSTRAINT row2vcf REFERENCES VCF,ROW_ID INTEGER CONSTRAINT row2content REFERENCES ROWCONTENT)"
 						};
@@ -164,6 +166,38 @@ public class VcfDerby01
 			
 			}
 		}
+	
+	private void compress() {
+		PreparedStatement pstmt =null;
+		
+		for(final String sqlStmt :new String[]{
+				"call SYSCS_UTIL.SYSCS_COMPRESS_TABLE(?,?, 1)",	
+				"call SYSCS_UTIL.SYSCS_INPLACE_COMPRESS_TABLE(?,?, 1, 1, 1)"
+		}) {
+		try {
+		/* compress data */
+		pstmt = this.conn.prepareStatement(sqlStmt);
+		pstmt.setString(1, "APP");
+		for(final String table: new String[]{"ROWCONTENT","VCF","VCFROW"}) {
+			LOG.info("compressing "+table+" with "+sqlStmt);
+			pstmt.setString(2,table);
+			pstmt.execute();
+		}
+		pstmt.close();
+		} catch(Exception err) {
+			LOG.warn("Cannot compress", err);
+		}
+		finally 
+		{
+			CloserUtil.close(pstmt);
+		}
+		}
+
+		
+		
+		
+	}
+	
 	private Collection<Throwable> doCommandDumpAll(){
 		Statement stmt = null;
 		ResultSet row = null;
@@ -242,10 +276,26 @@ public class VcfDerby01
 					zout.putNextEntry(entry);
 					pwOut = new PrintWriter(zout);
 					}
-				
+				final String CHROM_prefix="#CHROM\t";
 				while(row.next()) {
 					final Clob clob = row.getClob(1);
 					final Reader r=clob.getCharacterStream();
+					/* read the first bytes to check if it's the #CHROM line
+					 * if true, add a VCF header line with VCF ID and NAME
+					 *  */
+					final StringBuilder chrom_header_line = new StringBuilder(CHROM_prefix);
+					int c;
+					while(((c=r.read())!=1) && chrom_header_line.length()< CHROM_prefix.length())
+						{
+						chrom_header_line.append((char)c);
+						}
+					final String amorce = chrom_header_line.toString();
+					if(amorce.equals(CHROM_prefix))
+						{
+						pwOut.println(VCF_HEADER_FILE_ID+vcf_id);
+						pwOut.println(VCF_HEADER_FILE_NAME+vcfName);
+						}
+					pwOut.print(amorce);
 					IOUtils.copyTo(r,pwOut);
 					r.close();
 					pwOut.println();
@@ -319,6 +369,7 @@ public class VcfDerby01
 
 	
 	private Collection<Throwable> doReadConcatenatedVcf(){
+		int number_of_ref_allele_truncated=0;
 		PreparedStatement pstmt = null;
 		PreparedStatement pstmt2 = null;
 		PreparedStatement pstmt3 = null;
@@ -350,13 +401,15 @@ public class VcfDerby01
 					
 					final List<String> headerLines = new ArrayList<>();
 					while(lineIter.hasNext() && lineIter.peek().startsWith("#")) {
-						headerLines.add(lineIter.next());
+						final String h= lineIter.next();
+						if( h.startsWith(VCF_HEADER_FILE_ID) ||h.startsWith(VCF_HEADER_FILE_NAME)) {
+							LOG.info("Ignoring line "+h);
+							continue;
+						}
+						headerLines.add(h);
 					}
 					final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(headerLines);
-					final VCFHeaderLine nameLine=cah.header.getOtherHeaderLine(VCF_HEADER_FILE_IDENTIFIER);
-					if(nameLine!=null && !nameLine.getValue().trim().isEmpty()) {
-						filename = nameLine.getValue().trim();
-					}
+					
 					pstmt = this.conn.prepareStatement("INSERT INTO VCF(NAME) VALUES(?)",PreparedStatement.RETURN_GENERATED_KEYS);
 					pstmt.setString(1, filename);
 					if(pstmt.executeUpdate()!=1) {
@@ -375,6 +428,7 @@ public class VcfDerby01
 					pstmt3 = this.conn.prepareStatement("INSERT INTO VCFROW(VCF_ID,ROW_ID) VALUES (?,?)");
 					pstmt3.setLong(1, vcf_id);
 					
+					final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(cah.header);
 					/* insert VCF header lines */
 					for(final String line:headerLines) {
 						final String md5=super.md5(line);
@@ -422,17 +476,19 @@ public class VcfDerby01
 						/* vcf variants content was not found, create it */
 						if(content_id==-1L) {
 							/* decode to get chrom/start/end/ref */
-							final VariantContext ctx = cah.codec.decode(line);
+							final VariantContext ctx = progress.watch(cah.codec.decode(line));
+							
 							pstmt2.setString(1, md5);
 							pstmt2.setString(2, line);
 							pstmt2.setString(3, ctx.getContig());
 							pstmt2.setInt(4, ctx.getStart());
 							pstmt2.setInt(5, ctx.getEnd());
 							String refBase =ctx.getReference().getBaseString();
-							/* sql table for Ref_allele is a varchar(50) */
+							/* sql table for Ref_allele is a varchar(MAX_REF_BASE_LENGTH) */
 							if(refBase.length()>50) {
-								LOG.warn("Warning: TRUNCATING LARGE REF BASE TO 50 characters:"+refBase);
-								refBase = refBase.substring(0,50);
+								LOG.warn("Warning: TRUNCATING LARGE REF BASE TO FIT IN DATABASE : VARCHAR("+MAX_REF_BASE_LENGTH+") characters:"+refBase);
+								refBase = refBase.substring(0,MAX_REF_BASE_LENGTH);
+								++number_of_ref_allele_truncated;
 							}
 							pstmt2.setString(6,refBase );
 							if(pstmt2.executeUpdate()!=1) {
@@ -450,6 +506,7 @@ public class VcfDerby01
 					pstmt2.close();
 					pstmt3.close();
 					pstmt.close();
+					progress.finish();
 					num_vcf_in_this_stream++;
 					} /* end of while iter has next */
 				CloserUtil.close(lineIter);
@@ -459,6 +516,9 @@ public class VcfDerby01
 			
 			pw.flush();
 			pw.close();
+			
+			compress();
+			LOG.warn("Number of REF alleles length(REF)> VARCHAR("+MAX_REF_BASE_LENGTH+") truncated:"+number_of_ref_allele_truncated);
 			return RETURN_OK;
 		} catch (final Exception e) {
 			return wrapException(e);
@@ -533,6 +593,46 @@ public class VcfDerby01
 		}
 	}
 	
+	private Collection<Throwable> doCommandDelete(){
+		final Pattern comma = Pattern.compile("[,]");
+		final List<String> args = getInputFiles();
+		PreparedStatement pstmt1=null;
+		PreparedStatement pstmt2=null;
+		try {
+			pstmt1 = this.conn.prepareStatement("DELETE FROM VCFROW WHERE VCF_ID=?");
+			pstmt2 = this.conn.prepareStatement("DELETE FROM VCF WHERE ID=?");
+			for(final String token: args) {
+				for(final String idStr: comma.split(token))
+					{
+					if(idStr.trim().isEmpty()) continue;
+					long vcf_id=-1L;
+					try {
+						vcf_id = Long.parseLong(idStr);
+					} catch (NumberFormatException e) {
+						vcf_id=-1L;
+					}
+					if(vcf_id<1L) {
+						LOG.warn("Bad VCF ID :"+idStr);
+						continue;
+					}
+					pstmt1.setLong(1, vcf_id);
+					pstmt2.setLong(1, vcf_id);
+					LOG.info("deleting vcf id:"+vcf_id);
+					pstmt1.executeUpdate();
+					pstmt2.executeUpdate();
+					}
+				}
+			compress();
+			return RETURN_OK;
+		} catch (final Exception e) {
+			return wrapException(e);
+		} finally {
+			CloserUtil.close(pstmt1);
+			CloserUtil.close(pstmt2);
+		}
+	}
+
+	
 	@Override
 	public Collection<Throwable> call() throws Exception {
 		try {
@@ -548,6 +648,9 @@ public class VcfDerby01
 			}
 			else if(command.equals("dumpall")) {
 				return doCommandDumpAll();
+			}
+			else if(command.equals("delete")) {
+				return doCommandDelete();
 			}
 			else {
 				return wrapException("unknown command : "+command);

@@ -23,6 +23,9 @@
 	<option name="count" type="int" opt="n" longopt="count" min-inclusive="0" default="10">
 		<description>number of variants to be printed</description>
 	</option>
+	<option name="supportConcatenation" type="boolean" opt="c" longopt="cat" default="false">
+		<description>supports a stream of concatenated VCF (cat *.vcf | vcfhead )</description>
+	</option>
 </options>
 
 <documentation>

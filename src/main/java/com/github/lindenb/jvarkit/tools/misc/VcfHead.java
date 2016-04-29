@@ -45,11 +45,19 @@ public class VcfHead
 		{
 		}
 	 
+	@Override
+	protected boolean isSupportingConcatenatedVcf(final String inputName) {
+		return this.supportConcatenation;
+		}
+	
+	
 		 @Override
 		public Collection<Throwable> initializeKnime() {
 			if(this.count<0) return wrapException("bad value found count "+this.count);
 			return super.initializeKnime();
 		 	}
+		 
+		 
 		/* public for knime */
 		@Override
 		public Collection<Throwable> doVcfToVcf(

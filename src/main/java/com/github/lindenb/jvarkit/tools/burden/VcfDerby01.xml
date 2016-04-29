@@ -24,17 +24,17 @@
 		<description>REQUIRED. path to Derby database storage directory.</description>
 	</option>
 	<option name="actionStr" type="string" longopt="action" opt="a" default="">
-		<description>REQUIRED. action to perform. 'read': read a zip or a concatenated stream of vcf files and insert it into a derby database. 'list': list the available vcf. 'dump' dump one or more VCF. 'dumpall' dump all VCFs.</description>
+		<description>REQUIRED. action to perform. 'read': read a zip or a concatenated stream of vcf files and insert it into a derby database. 'list': list the available vcf. 'dump' dump one or more VCF. 'dumpall' dump all VCFs. 'delete' : delete one or more VCF by ID</description>
 	</option>
 </options>
 
 
 
 <documentation>
-<h3>Input VCF</h3>
+<h:h3>Input VCF</h:h3>
 The tool is optimized for storing very similar VCF files into an apache derby database , for example a big VCF file which would have been splitted into one VCF per transcript.
 
-<h3>Schema</h3>
+<h:h3>Schema</h:h3>
 At the time of writing this document, the current schema is:
 <h:pre>
 CREATE TABLE ROWCONTENT(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,MD5SUM CHAR(32) UNIQUE,CONTENT CLOB,CONTIG VARCHAR(20),START INT,STOP INT,ALLELE_REF VARCHAR(50));
@@ -44,7 +44,7 @@ CREATE TABLE VCFROW(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH
 The database is created the first time the database is created. It can be a slow process.
 The embedded database is local and can be removed by a simple <h:pre>rm -rf database.db </h:pre>
 
-<h3>Inserting VCFs into the database</h3>
+<h:h3>Inserting VCFs into the database</h:h3>
 Inserting one VCF:
 <h:pre>$ java -jar dist/vcfderby01.jar -a read -d database.db input.vcf input2.vcf.gz
 
@@ -66,7 +66,7 @@ The program also accepts <h:b>concatenated</h:b> VCF files:
 7	vcf1461860749177
 8	vcf1461860749178</h:pre>
 
-<h3>Listing the available VCFs</h3>
+<h:h3>Listing the available VCFs</h:h3>
 <h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a list
 #ID	NAME	COUNT_VARIANTS
 1	input.vcf	35
@@ -79,7 +79,7 @@ The program also accepts <h:b>concatenated</h:b> VCF files:
 8	vcf1461860749178	35
 </h:pre>
 
-<h3>Export one or more VCFs by ID</h3>
+<h:h3>Export one or more VCFs by ID</h:h3>
 if more that one ID is given, the output is a stream of concatenated VCF.
 <h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a dump 5 8 3 2> /dev/null | grep "CHROM"
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
@@ -96,7 +96,7 @@ Archive:  out.zip
     testing: vcf1461860749178.vcf     OK
 No errors detected in compressed data of out.zip.
 </h:pre>
-<h3>Dumping all VCFs</h3>
+<h:h3>Dumping all VCFs</h:h3>
 In a zip:
 <h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a dumpall -o out.zip
 $ unzip -t out.zip
@@ -125,7 +125,12 @@ as a concatenated stream of VCFs:
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
 </h:pre>
 
-<h3>Accessing the database using ij</h3>
+<h:h3>Delete some VCFs by ID</h:h3>
+<h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a delete 1 8 10 </h:pre>
+
+<h:h3>Dumping all VCFs</h:h3>
+
+<h:h3>Accessing the database using ij</h:h3>
 <h:b>ij</h:b> is an interactive SQL scripting tool that comes with Derby.
 The libraries for <h:b>ij</h:b> is available in <h:a>http://mvnrepository.com/artifact/org.apache.derby/derbytools</h:a> or you can use something like:
 <h:pre>sudo apt-get install derby-tools</h:pre>

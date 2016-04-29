@@ -32,32 +32,20 @@ package com.github.lindenb.jvarkit.tools.burden;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-
-import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamWriter;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -65,7 +53,6 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
-import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -416,12 +403,8 @@ public class VcfBurdenSplitter
 	public Collection<Throwable> doVcfToVcf(final String inputName) throws Exception {
 		SortingCollection<KeyAndLine> sortingcollection=null;
 		BufferedReader in = null;
-		OutputStream fos = null;
-		ZipOutputStream zout=null;
 		CloseableIterator<KeyAndLine> iter=null;
-		PrintWriter pw = null;
-		FileOutputStream galaxyf= null;
-		XMLStreamWriter galaxyw= null;
+		PrintStream pw = null;
 		try {
 			in = inputName==null?
 					IOUtils.openStreamForBufferedReader(stdin()):
@@ -429,32 +412,6 @@ public class VcfBurdenSplitter
 					;
 			
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
-			final Pedigree pedigree = Pedigree.readPedigree(cah.header);
-			final Set<Pedigree.Person> persons;
-			if(pedigree.isEmpty()) {
-					persons = Collections.emptySet();
-					LOG.warn("No pedigree defined in "+inputName+" use VcfinjectPedigree to inject pedigree");
-				}
-			else 
-				{
-				if(!pedigree.verifyPersonsHaveUniqueNames()) {
-					return wrapException("Cannot use this pedigree because two samples have the same Id (but different family)");
-				}
-				
-				persons = new TreeSet<>(pedigree.getPersons());
-				Iterator<Pedigree.Person> it =persons.iterator();
-				while(it.hasNext()) {
-					Pedigree.Person p = it.next();
-					if(!cah.header.getSampleNamesInOrder().contains(p.getId())) {
-						LOG.warn("REMOVING "+p+" as it is not in vcf header");
-						it.remove();
-					}
-					else if(!(p.isAffected() || p.isUnaffected())) {
-						LOG.warn("REMOVING "+p+" as its status is undefined");
-						it.remove();
-					}
-					}
-				}
 				
 			/** find splitter by name */
 			Splitter splitter = null;
@@ -470,215 +427,106 @@ public class VcfBurdenSplitter
 			}
 			splitter.initialize(cah.header);
 			LOG.info("splitter is "+splitter);
-			sortingcollection = SortingCollection.newInstance(
-					KeyAndLine.class,
-					new KeyAndLineCodec(),
-					new KeyAndLineComparator(),
-					super.maxRecordsInRam,
-					super.getTmpDirectories()
-					);
-			sortingcollection.setDestructiveIteration(true);
+			
+			
+			pw= super.openFileOrStdoutAsPrintStream();
 			
 			// read variants
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(cah.header);
-			String line;
-			while((line=in.readLine())!=null)
+			String prev_contig=null;
+			for(;;)
 				{
-				final VariantContext ctx = progess.watch(cah.codec.decode(line));
-				if(	ctx.getAlternateAlleles().size()!=1) {
+				final String line=in.readLine();
+				final VariantContext variant = (line==null?null:progess.watch(cah.codec.decode(line)));
+						
+				if(	variant.getAlternateAlleles().size()!=1) {
 					return wrapException("Expected only one allele per variant. Please use VcfMultiToOneAllele https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele.");
 					}
 				
+				
+				
+				if(variant==null || !variant.getContig().equals(prev_contig)) {
+					if(sortingcollection!=null) {
+						sortingcollection.doneAdding();
+						iter = sortingcollection.iterator();
+						LOG.info("dumping data for CONTIG: \""+prev_contig+"\"");
+						
+						final EqualRangeIterator<KeyAndLine> eqiter = new EqualRangeIterator<>(iter, new Comparator<KeyAndLine>() {
+							@Override
+							public int compare(final KeyAndLine o1, final KeyAndLine o2) {
+								return o1.key.compareTo(o2.key);
+								}
+							});
+						while(eqiter.hasNext())
+							{
+							final List<KeyAndLine> buffer = eqiter.next();
+							
+							final KeyAndLine first =  buffer.get(0);
+							LOG.info(first.key);
+							
+							final List<VariantContext> variants = new ArrayList<>(buffer.size());
+							boolean has_only_filtered=true;
+							for(final KeyAndLine kal:buffer) {
+								final VariantContext ctx = cah.codec.decode(kal.ctx);
+								variants.add(ctx);
+								
+								if(!ctx.getContig().equals(prev_contig)) {
+									return wrapException("illegal state");
+									}
+								if(!ctx.isFiltered() || super.acceptFiltered) {
+									has_only_filtered=false;
+									break;
+									}
+								}
+							
+							// all ctx are filtered			
+							if(has_only_filtered)  continue;
+							
+							// save vcf file
+							final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(IOUtils.uncloseableOutputStream(pw));
+							final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
+							header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_SPLITKEY,first.key));
+							
+							out.writeHeader(header2);
+							for(final VariantContext ctx:variants) {
+								out.add(ctx);
+							}
+							out.close();//yes because wrapped into IOUtils.encloseableOutputSream
+							}
+						eqiter.close();
+						iter.close();iter=null;
+						//dispose sorting collection
+						sortingcollection.cleanup();
+						sortingcollection=null;
+						}
+					//EOF met
+					if(variant==null) break;
+					prev_contig = variant.getContig();
+					}
+				
+				if(sortingcollection==null) {
+					/* create sorting collection for new contig */
+					sortingcollection = SortingCollection.newInstance(
+							KeyAndLine.class,
+							new KeyAndLineCodec(),
+							new KeyAndLineComparator(),
+							super.maxRecordsInRam,
+							super.getTmpDirectories()
+							);
+					sortingcollection.setDestructiveIteration(true);
+					}
+				
 				//no check for ctx.ifFiltered here, we do this later.
-				for(final String key: splitter.keys(ctx)) {
+				for(final String key: splitter.keys(variant)) {
 					sortingcollection.add(new KeyAndLine(key, line));
 					}
 				}
 			progess.finish();
-			sortingcollection.doneAdding();
-			
-			if(getOutputFile()!=null) {
-				LOG.info("creating zip "+super.outputFile);
-				fos = new FileOutputStream(super.outputFile);
-				zout = new ZipOutputStream(fos);
-				}
-			else
-				{
-				LOG.warn("creating zip to stdout");
-				fos = stdout();
-				zout = new ZipOutputStream(fos);
-				}
-
-			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", super.getTmpdir());
-			tmpReportFile.deleteOnExit();
-			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
-			pw.println("track name=\"burden\" description=\""
-					+ "chrom(tab)start(tab)end(tab)key(tab)Count_Variants(tab)Count_non_filtered_Variants"
-					+ "(tab)Count_non_filtered_Variants_not_case_nor_control"
-					+ "\"");
 			
 			
-			// galaxy stuff 
-			final File galaxyReportFile;
-			if(super.galaxyHtmlPath.trim().isEmpty()) {
-				galaxyReportFile = null;
-			} else
-				{
-				galaxyReportFile = File.createTempFile("_tmp.", ".html", super.getTmpdir());
-				galaxyReportFile.deleteOnExit();
-				galaxyf = new FileOutputStream(galaxyReportFile);
-				galaxyw = XMLOutputFactory.newInstance().createXMLStreamWriter(galaxyf, "UTF-8");
-				galaxyw.writeStartElement("html");
-				galaxyw.writeStartElement("head");
-				galaxyw.writeStartElement("title");
-				galaxyw.writeCharacters(getName());
-				galaxyw.writeEndElement();//title
-				galaxyw.writeEndElement();//head
-				galaxyw.writeStartElement("body");
-				galaxyw.writeStartElement("table");
-				}
-			
-			iter = sortingcollection.iterator();
-			final EqualRangeIterator<KeyAndLine> eqiter = new EqualRangeIterator<>(iter, new Comparator<KeyAndLine>() {
-				@Override
-				public int compare(final KeyAndLine o1, final KeyAndLine o2) {
-					return o1.key.compareTo(o2.key);
-					}
-				});
-			while(eqiter.hasNext())
-				{
-				final List<KeyAndLine> buffer = eqiter.next();
-				
-				final KeyAndLine first =  buffer.get(0);
-				LOG.info(first.key);
-				
-				final List<VariantContext> variants = new ArrayList<>(buffer.size());
-				String contig=null;
-				int chromStart=Integer.MAX_VALUE;
-				int chromEnd=0;
-				int count_non_filtered=0;
-				for(final KeyAndLine kal:buffer) {
-					final VariantContext ctx = cah.codec.decode(kal.ctx);
-					variants.add(ctx);
-					if(!ctx.isFiltered() || super.acceptFiltered) {
-						count_non_filtered++;
-						}
-					contig = ctx.getContig();
-					chromStart = Math.min( chromStart , ctx.getStart() );
-					chromEnd = Math.max( chromEnd , ctx.getEnd() );
-					}
-				
-				// all ctx are filtered			
-				if( count_non_filtered == 0)  continue;
-			
-
-			/** there are some samples that are NOT in the control list and NOT in the sample list
-			 * if those samples carry the only variants, while case/control are all uncalled/homref
-			 * we're overestimating the number of variants
-			 * */
-			int count_unfiltered_not_in_pedigrees_variants=0;
-			if(!persons.isEmpty()) {
-				for(final VariantContext ctx : variants)
-					{
-					if(ctx.isFiltered() && !super.acceptFiltered) continue;
-					boolean called_in_case_control=false;
-						for(final Pedigree.Person person :persons ) {
-							final Genotype g = ctx.getGenotype(person.getId());	
-							if(g==null || g.isNoCall()) continue;//not in vcf header
-							if(g.isCalled() && !g.isHomRef()) {
-								called_in_case_control=true;
-								break;
-								}
-							}
-						
-					if(!called_in_case_control) {
-						count_unfiltered_not_in_pedigrees_variants++;
-						}
-					}
-				}
-			//loop over case control
-				
-				pw.println(
-						contig+"\t"+
-						(chromStart-1)+"\t"+//-1 for bed compatibility
-						chromEnd+"\t"+
-						first.key+"\t"+
-						variants.size()+"\t"+
-						(count_non_filtered - count_unfiltered_not_in_pedigrees_variants )+"\t"+
-						count_unfiltered_not_in_pedigrees_variants
-						);
-				
-				if( galaxyw !=null) {
-					galaxyw.writeStartElement("tr");
-					
-					galaxyw.writeStartElement("td");
-					galaxyw.writeCharacters(contig+":"+chromStart+"-"+chromEnd);
-					galaxyw.writeEndElement();//td
-					
-					galaxyw.writeStartElement("td");
-					galaxyw.writeStartElement("a");
-					galaxyw.writeAttribute("href",super.galaxyHtmlPath+"/"+ super.baseZipDir+"/"+first.key+".vcf");
-					galaxyw.writeCharacters(first.key);
-					galaxyw.writeEndElement();//a
-					galaxyw.writeEndElement();//td
-					
-					
-					galaxyw.writeStartElement("td");
-					galaxyw.writeCharacters(String.valueOf(variants.size()));
-					galaxyw.writeEndElement();//td
-
-					galaxyw.writeStartElement("td");
-					galaxyw.writeCharacters(String.valueOf(count_non_filtered));
-					galaxyw.writeEndElement();//td
-
-					
-					galaxyw.writeEndElement();//tr
-					}
-				// save vcf file
-				final ZipEntry ze = new ZipEntry(super.baseZipDir+"/"+first.key+".vcf");
-				zout.putNextEntry(ze);
-				final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(IOUtils.uncloseableOutputStream(zout));
-				final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
-				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_SPLITKEY,first.key));
-				
-				
-				out.writeHeader(header2);
-				for(final VariantContext ctx:variants) {
-					out.add(ctx);
-				}
-				out.close();//yes because wrapped into IOUtils.encloseableOutputSream
-				zout.closeEntry();
-				}
-			eqiter.close();
-			iter.close();iter=null;
-			
-			progess.finish();
-			
-			LOG.info("saving BED report");
 			pw.flush();
-			pw.close();
-			ZipEntry entry = new ZipEntry(super.baseZipDir+"/manifest.bed");
-			zout.putNextEntry(entry);
-			IOUtils.copyTo(tmpReportFile,zout);
-			zout.closeEntry();
+			pw.close();pw=null;
 			
-			if(galaxyw!=null) {
-				LOG.info("saving galaxy report");
-				galaxyw.writeEndElement();//table
-				galaxyw.writeEndElement();//body
-				galaxyw.writeEndElement();//html
-				galaxyw.flush();
-				galaxyw.close();galaxyw=null;
-				galaxyf.flush();
-				galaxyf.close();galaxyf=null;
-				entry = new ZipEntry(super.baseZipDir+"/galaxy.html");
-				zout.putNextEntry(entry);
-				IOUtils.copyTo(galaxyReportFile,zout);
-				zout.closeEntry();
-				}
-			
-			zout.finish();
-			zout.close();
 			return RETURN_OK;
 			}
 		catch(final Exception err) 
@@ -690,15 +538,12 @@ public class VcfBurdenSplitter
 			CloserUtil.close(iter);
 			if(sortingcollection!=null) sortingcollection.cleanup();
 			CloserUtil.close(in);
-			CloserUtil.close(fos);
 			CloserUtil.close(pw);
-			CloserUtil.close(galaxyw);
-			CloserUtil.close(galaxyf);
 			}
 		}
 		
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 		if(super.listSplitter) {
 			for(final Splitter splitter:this.splitters) {
 				stdout().println(splitter.getName()+"\t"+splitter.getDescription());

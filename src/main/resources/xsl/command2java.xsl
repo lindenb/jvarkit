@@ -504,6 +504,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			throw new RuntimeException("No implemented!!!");
 			}
 		
+		
 		/** does this software handle concatenated VCFs (cat *.vcf | tool -o out.zip ) ? 
 		 * @param inputName input name , may be null (stdin). could be something that is not vcf. Eg. bcf 
 		 */

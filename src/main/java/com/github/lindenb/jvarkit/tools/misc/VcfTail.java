@@ -48,6 +48,13 @@ public class VcfTail
 	public VcfTail()
 		{
 		}
+
+	@Override
+	protected boolean isSupportingConcatenatedVcf(final String inputName) {
+		return this.supportConcatenation;
+		}
+	
+
 	@Override
 	public Collection<Throwable> initializeKnime()
 		{
@@ -56,7 +63,7 @@ public class VcfTail
 	 	}
 	/* public for knime */
 	@Override
-	public Collection<Throwable> doVcfToVcf(String inputName,
+	public Collection<Throwable> doVcfToVcf(final String inputName,
 			VcfIterator in, VariantContextWriter out) throws IOException
 			{
 			try {
