@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "VcfToZip">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.vcfconcat">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<description>Reads a stream of concatenated VCFs and insert them into a Zip file</description>
+
+<snippet id="concatenated-vcf"/>
+<snippet id="read-vcf"/>
+
+<options>
+	<option name="zipPrefix" opt="p" longopt="prefix" type="string" default="VCF">
+		<description>Prefix all zip entrues with this prefix</description>
+	</option>
+	<option name="titleHeaderStr" type="string" longopt="title" argname="TITLE" opt="t" default="">
+		<description>Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the name of the inserted VCF file</description>
+	</option>
+</options>
+
+<documentation>
+<h:h3>Motivation</h:h3>
+This tool was used to create a zip from the output of VCFburdensplitter which is a stream of VCFs.
+
+<h:h3>Example</h:h3>
+<h:pre><![CDATA[
+$ cat ~/input.vcf ~/input.vcf ~/input.vcf | java -jar dist/vcf2zip.jar -o jeter.zip
+[main] INFO jvarkit - Command Line args : -o jeter.zip
+[main] INFO jvarkit - Executing as lindenb@kaamelot-master01 on Linux 2.6.32-431.17.1.el6.x86_64 amd64; Java HotSpot(TM) 64-Bit Server VM 1.8.0_60-b27
+[main] INFO jvarkit - reading concatenated vcf from stdin
+[main] INFO jvarkit - VCF/vcf2zip.00001.vcf
+[main] INFO jvarkit - Count: 499 Elapsed: 10 seconds(0.05%) Remains: 6 hours(99.95%) Last: 1:1431105
+[main] INFO jvarkit - done: N=870
+[main] INFO jvarkit - VCF/vcf2zip.00002.vcf
+[main] INFO jvarkit - Count: 530 Elapsed: 10 seconds(0.05%) Remains: 5 hours(99.95%) Last: 1:1510577
+[main] INFO jvarkit - done: N=870
+[main] INFO jvarkit - VCF/vcf2zip.00003.vcf
+[main] INFO jvarkit - Count: 530 Elapsed: 10 seconds(0.05%) Remains: 5 hours(99.95%) Last: 1:1510577
+[main] INFO jvarkit - done: N=870
+[main] INFO jvarkit - done. Number of VCFs:3
+[main] INFO jvarkit - End JOB  [Mon May 02 12:30:24 CEST 2016] VcfToZip done. Elapsed time: 0.85 minutes.
+$ unzip -t jeter.zip 
+Archive:  jeter.zip
+    testing: VCF/vcf2zip.00001.vcf    OK
+    testing: VCF/vcf2zip.00002.vcf    OK
+    testing: VCF/vcf2zip.00003.vcf    OK
+No errors detected in compressed data of jeter.zip.
+]]></h:pre>
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>
