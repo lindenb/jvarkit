@@ -11,7 +11,7 @@
 
 <options>
 	<option name="zipPrefix" opt="p" longopt="prefix" type="string" default="VCF">
-		<description>Prefix all zip entrues with this prefix</description>
+		<description>Prefix all zip entries with this prefix</description>
 	</option>
 	<option name="titleHeaderStr" type="string" longopt="title" argname="TITLE" opt="t" default="">
 		<description>Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the name of the inserted VCF file</description>

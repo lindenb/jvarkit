@@ -31,6 +31,7 @@ package com.github.lindenb.jvarkit.io;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -119,6 +120,25 @@ public class IOUtils {
 			}
 		out.flush();
 		}
+	
+	/** compressed a String with gzip */
+	public static byte[] gzipString(final String s) {
+		byte array[] = s.getBytes();
+		try
+			 {
+			 final ByteArrayOutputStream obj=new ByteArrayOutputStream(array.length);
+		     final GZIPOutputStream gzip = new GZIPOutputStream(obj);
+		     gzip.write(array);
+		     gzip.finish();
+		     gzip.flush();
+		     gzip.close();	
+		     obj.close();
+		     return obj.toByteArray();
+			 }
+		catch(final IOException err) {
+			throw new RuntimeIOException(err);
+		}
+	}
 	
 	public static boolean isRemoteURI(String uri)
 		{	

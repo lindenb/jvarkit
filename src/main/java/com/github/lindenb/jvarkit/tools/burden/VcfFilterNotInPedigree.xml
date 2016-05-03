@@ -27,6 +27,13 @@
 	<option name="dicardVariant" type="boolean" longopt="remove" opt="r" default="false">
 		<description>remove the variant instead of setting the FILTER</description>
 	</option>
+	<option name="singleton" type="int" longopt="singleton" opt="s" default="1">
+		<description>Variant is flagged/FILTERed as SingletonAlt if the ALT if found in less or equal times 'singleton-times' in the genotypes</description>
+	</option>
+	<option name="singletonfilterName" type="string" longopt="sfilter" opt="sf" default="SingletonAlt">
+		<description>FILTER name for option singleton</description>
+	</option>
+
 </options>
 
 

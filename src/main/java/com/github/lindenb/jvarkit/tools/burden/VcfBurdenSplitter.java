@@ -439,12 +439,6 @@ public class VcfBurdenSplitter
 				final String line=in.readLine();
 				final VariantContext variant = (line==null?null:progess.watch(cah.codec.decode(line)));
 						
-				if(	variant.getAlternateAlleles().size()!=1) {
-					return wrapException("Expected only one allele per variant. Please use VcfMultiToOneAllele https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele.");
-					}
-				
-				
-				
 				if(variant==null || !variant.getContig().equals(prev_contig)) {
 					if(sortingcollection!=null) {
 						sortingcollection.doneAdding();
@@ -471,11 +465,12 @@ public class VcfBurdenSplitter
 								variants.add(ctx);
 								
 								if(!ctx.getContig().equals(prev_contig)) {
+									eqiter.close();
 									return wrapException("illegal state");
 									}
 								if(!ctx.isFiltered() || super.acceptFiltered) {
 									has_only_filtered=false;
-									break;
+									//break; NOOOONNN !!!
 									}
 								}
 							
@@ -492,6 +487,7 @@ public class VcfBurdenSplitter
 								out.add(ctx);
 							}
 							out.close();//yes because wrapped into IOUtils.encloseableOutputSream
+							pw.flush();
 							}
 						eqiter.close();
 						iter.close();iter=null;
@@ -515,6 +511,12 @@ public class VcfBurdenSplitter
 							);
 					sortingcollection.setDestructiveIteration(true);
 					}
+				
+				if( variant.getAlternateAlleles().size()!=1) {
+					return wrapException("Expected only one allele per variant. Please use VcfMultiToOneAllele https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele.");
+					}
+								
+
 				
 				//no check for ctx.ifFiltered here, we do this later.
 				for(final String key: splitter.keys(variant)) {

@@ -34,6 +34,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -93,10 +94,14 @@ public class VcfFilterNotInPedigree
 					super.filterName,
 					"Will be set for variant where the only genotypes non-homref are NOT in the pedigree "
 					);
-			
+			final VCFFilterHeaderLine singletonFilter = new VCFFilterHeaderLine(
+					super.singletonfilterName,
+					"The ALT allele is found in less or equals than "+super.singleton+" individuals in the cases/controls"
+					);
 			
 			final VCFHeader h2= new VCFHeader(header);
 			h2.addMetaDataLine(filter);
+			h2.addMetaDataLine(singletonFilter);
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
@@ -110,6 +115,7 @@ public class VcfFilterNotInPedigree
 								g.isNoCall() ||
 								g.isHomRef())))
 								;
+				
 								
 				if(!in_pedigree) {
 					if(super.dicardVariant) continue;
@@ -119,7 +125,27 @@ public class VcfFilterNotInPedigree
 					}
 				else
 					{
-					out.add(ctx);
+					boolean is_singleton=true;
+					for(final Allele alt:ctx.getAlternateAlleles()) {
+						if( individuals.stream().
+							map(P->ctx.getGenotype(P.getId())).
+							filter(g->g.isCalled()&& g.getAlleles().contains(alt)).
+							count() > super.singleton) 
+							{
+							is_singleton =false;
+							break;
+							}
+						}
+					if(is_singleton) {
+						if(super.dicardVariant) continue;
+						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+						vcb.filter(singletonFilter.getID());
+						out.add(vcb.make());
+						}
+					else
+						{
+						out.add(ctx);
+						}
 					}
 				}
 			progess.finish();

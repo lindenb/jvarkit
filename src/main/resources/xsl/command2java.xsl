@@ -541,7 +541,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				lineIter = com.github.lindenb.jvarkit.io.IOUtils.openURIForLineIterator(inputName);
 			}
 			if(!lineIter.hasNext()) {
-				return wrapException("No input found. Couldn't read any VCF header file");
+				LOG.warn("No input found. Couldn't read any VCF header file");
 			}
 			
 			if(getOutputFile()!=null &amp;&amp; getOutputFile().getName().endsWith(".zip")) {
@@ -552,7 +552,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 			
 			int n_vcf=0;
-			do {
+			while(lineIter.hasNext()) {
 			final String filename = String.format("%04d.vcf",(++n_vcf));
 				
 			/* create VCF iterator */
@@ -582,7 +582,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				zout.closeEntry();
 				pw=null;
 			}
-			} while(lineIter.hasNext());			
+			}			
 			
 			if(zout!=null) {
 				zout.finish();

@@ -29,14 +29,10 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.sql.Blob;
+import java.io.Reader;
+import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -47,15 +43,11 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
-import java.util.zip.GZIPOutputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -99,26 +91,6 @@ public class VcfDerby01
 		return new File(this.derbyFilePath);
 	}
 	
-	private Blob makeBlob(final String s) throws IOException,SQLException {
-		 byte array[] = s.getBytes();
-		 if(super.doZipLine)
-			 {
-			 final ByteArrayOutputStream obj=new ByteArrayOutputStream(array.length);
-		     final GZIPOutputStream gzip = new GZIPOutputStream(obj);
-		     gzip.write(array);
-		     gzip.finish();
-		     gzip.flush();
-		     gzip.close();	
-		     obj.close();
-		
-		     final byte compressed[] = obj.toByteArray();
-			 if( compressed.length< array.length)
-					array= compressed;
-			 }
-		 final Blob b = this.conn.createBlob();
-		 b.setBytes(1, array);
-		 return b;
-		}
 	
 	private void openDerby() {
 		try {
@@ -143,7 +115,7 @@ public class VcfDerby01
 				final String tableId = "ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY";
 				final Statement stmt= this.conn.createStatement();
 				final String sqls[]={
-						"CREATE TABLE ROWCONTENT("+tableId+",MD5SUM CHAR(32) UNIQUE,CONTENT BLOB,CONTIG VARCHAR(20),START INT,STOP INT,ALLELE_REF VARCHAR("+MAX_REF_BASE_LENGTH+"))",
+						"CREATE TABLE ROWCONTENT("+tableId+",MD5SUM CHAR(32) UNIQUE,CONTENT CLOB,CONTIG VARCHAR(20),FILTERED SMALLINT NOT NULL,START INT,STOP INT,ALLELE_REF VARCHAR("+MAX_REF_BASE_LENGTH+"))",
 						"CREATE TABLE VCF("+tableId+",NAME VARCHAR(255))",
 						"CREATE TABLE VCFROW("+tableId+",VCF_ID INTEGER CONSTRAINT row2vcf REFERENCES VCF,ROW_ID INTEGER CONSTRAINT row2content REFERENCES ROWCONTENT)"
 						};
@@ -250,23 +222,15 @@ public class VcfDerby01
 		PreparedStatement pstmt = null;
 		PreparedStatement pstmt2 = null;
 		ResultSet row = null;
-		PrintStream pwOut = null;
-		FileOutputStream fout = null;
-		ZipOutputStream zout= null;
+		PrintWriter pwOut = null;
 		int num_vcf_exported=0;
-		Set<String> seen_names=null;
 		try {
 			pstmt = this.conn.prepareStatement("SELECT NAME from VCF where ID=?");
 			pstmt2 = this.conn.prepareStatement("SELECT ROWCONTENT.CONTENT FROM VCF,VCFROW,ROWCONTENT WHERE VCFROW.VCF_ID=VCF.ID AND VCFROW.ROW_ID = ROWCONTENT.ID AND VCF.ID=? ORDER BY VCFROW.ID ");
 			
-			if(getOutputFile()!=null && getOutputFile().getName().endsWith(".zip")) {
-				fout = new FileOutputStream(getOutputFile());
-				zout =new ZipOutputStream(fout);
-				seen_names=new HashSet<>();
-			} else
-			{
-			pwOut = openFileOrStdoutAsPrintStream();
-			}
+			
+			pwOut = openFileOrStdoutAsPrintWriter();
+			
 			
 			for(final long vcf_id : vcfIds)
 				{
@@ -287,23 +251,10 @@ public class VcfDerby01
 				pstmt2.setLong(1, vcf_id);
 				row =  pstmt2.executeQuery();
 				
-				ZipEntry entry=null;
-				if(zout!=null)
-					{
-					int t=0;
-					String entryName=vcfName+(vcfName.endsWith(".vcf.")?"":".vcf");
-					while(seen_names.contains(entryName)) {
-						entryName=String.format("%05d.ID%d.vcf",++t, vcf_id);
-					}
-					seen_names.add(entryName);
-					entry = new ZipEntry(entryName);
-					zout.putNextEntry(entry);
-					pwOut = new PrintStream(zout);
-					}
 				final String CHROM_prefix="#CHROM\t";
 				while(row.next()) {
-					final Blob blob = row.getBlob(1);
-					final InputStream r= IOUtils.uncompress(blob.getBinaryStream());
+					final Clob clob = row.getClob(1);
+					final Reader r= clob.getCharacterStream();
 					/* read the first bytes to check if it's the #CHROM line
 					 * if true, add a VCF header line with VCF ID and NAME
 					 *  */
@@ -326,11 +277,6 @@ public class VcfDerby01
 					pwOut.println();
 				}
 				
-				if(zout!=null) {
-					pwOut.flush();
-					pwOut=null;
-					zout.closeEntry();
-				}
 				
 				row.close();
 				num_vcf_exported++;
@@ -338,25 +284,18 @@ public class VcfDerby01
 				
 			pstmt.close();
 			pstmt2.close();
-			if(zout!=null){
-				zout.finish();
-				zout.flush();
-				fout.close();
-			} else
-			{
-				pwOut.flush();
-				pwOut.close();
-			}
-			if(num_vcf_exported==0 && zout==null) {
-				return wrapException("NO VCF WAS EXPORTED");
+			
+			pwOut.flush();
+			pwOut.close();
+			
+			if(num_vcf_exported==0 ) {
+				LOG.warn("NO VCF WAS EXPORTED");
 			}
 			LOG.info("count(VCF) exported "+num_vcf_exported);
 			return RETURN_OK;
 		} catch (final Exception e) {
 			return wrapException(e);
 		} finally {
-			CloserUtil.close(fout);
-			CloserUtil.close(zout);
 			CloserUtil.close(pwOut);
 			CloserUtil.close(row);
 			CloserUtil.close(pstmt);
@@ -461,7 +400,7 @@ public class VcfDerby01
 					pw.flush();
 					
 					pstmt = this.conn.prepareStatement("SELECT ID FROM ROWCONTENT WHERE MD5SUM=?");
-					pstmt2 = this.conn.prepareStatement("INSERT INTO ROWCONTENT(MD5SUM,CONTENT,CONTIG,START,STOP,ALLELE_REF) VALUES (?,?,?,?,?,?)",PreparedStatement.RETURN_GENERATED_KEYS);
+					pstmt2 = this.conn.prepareStatement("INSERT INTO ROWCONTENT(MD5SUM,CONTENT,CONTIG,START,STOP,ALLELE_REF,FILTERED) VALUES (?,?,?,?,?,?,?)",PreparedStatement.RETURN_GENERATED_KEYS);
 					pstmt3 = this.conn.prepareStatement("INSERT INTO VCFROW(VCF_ID,ROW_ID) VALUES (?,?)");
 					pstmt3.setLong(1, vcf_id);
 					
@@ -481,11 +420,12 @@ public class VcfDerby01
 						if(content_id==-1L) {
 							pstmt2.setString(1, md5);
 							
-							pstmt2.setBlob(2,makeBlob(line));
+							pstmt2.setString(2,line);
 							pstmt2.setNull(3,Types.VARCHAR);
 							pstmt2.setNull(4,Types.INTEGER);
 							pstmt2.setNull(5,Types.INTEGER);
 							pstmt2.setNull(6,Types.VARCHAR);
+							pstmt2.setShort(7, (short)1);
 							if(pstmt2.executeUpdate()!=1) {
 								return wrapException("Cannot insert ROWCONTENT ?");
 							}
@@ -518,7 +458,7 @@ public class VcfDerby01
 							
 							pstmt2.setString(1, md5);
 							
-							pstmt2.setBlob(2,makeBlob(line));							
+							pstmt2.setString(2,line);
 							pstmt2.setString(3, ctx.getContig());
 							pstmt2.setInt(4, ctx.getStart());
 							pstmt2.setInt(5, ctx.getEnd());
@@ -530,6 +470,7 @@ public class VcfDerby01
 								++number_of_ref_allele_truncated;
 							}
 							pstmt2.setString(6,refBase );
+							pstmt2.setShort(7, (short)(ctx.isFiltered()?1:0));
 							if(pstmt2.executeUpdate()!=1) {
 								return wrapException("Cannot insert ROWCONTENT ?");
 							}

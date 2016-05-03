@@ -29,9 +29,7 @@
 	<option name="titleHeaderStr" type="string" longopt="title" argname="TITLE" opt="t" default="">
 		<description>Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the name of the inserted VCF file</description>
 	</option>
-	<option name="doZipLine" type="boolean" longopt="zip" opt="z" default="false">
-		<description>internally compress VCF lines</description>
-	</option>
+	
 </options>
 
 
@@ -43,12 +41,12 @@ The tool is optimized for storing very similar VCF files into an apache derby da
 <h:h3>Schema</h:h3>
 At the time of writing this document, the current schema is:
 <h:pre>
-CREATE TABLE ROWCONTENT(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,MD5SUM CHAR(32) UNIQUE,CONTENT BLOB,CONTIG VARCHAR(20),START INT,STOP INT,ALLELE_REF VARCHAR(50));
+CREATE TABLE ROWCONTENT(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,MD5SUM CHAR(32) UNIQUE,CONTENT CLOB,CONTIG VARCHAR(20),FILTERED SMALLINT NOT NULL,START INT,STOP INT,ALLELE_REF VARCHAR(50));
 CREATE TABLE VCF(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,NAME VARCHAR(255));
 CREATE TABLE VCFROW(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,VCF_ID INTEGER CONSTRAINT row2vcf REFERENCES VCF,ROW_ID INTEGER CONSTRAINT row2content REFERENCES ROWCONTENT);
 </h:pre>
 The database is created the first time the database is created. It can be a slow process.
-VCF lines are stored in a CBLOB that might be gzip-compressed.s
+Whole VCF lines are stored in a CBLOB.
 The embedded database is local and can be removed by a simple <h:pre>rm -rf database.db </h:pre>
 
 <h:h3>Inserting VCFs into the database</h:h3>
