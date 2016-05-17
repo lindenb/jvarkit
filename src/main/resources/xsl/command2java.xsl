@@ -279,7 +279,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		</xsl:if>
 		<xsl:if test="c:output/@type='sam' or c:output/@type='bam' or c:snippet[@id='write-sam']">
-		if(opt.getOpt().equals("formatout"))
+		if(opt.getOpt().equals(OPTION_FORMATOUT))
 			{
 			String formatout= opt.getValue().toLowerCase();
 			if(!formatout.startsWith(".")) formatout="."+formatout;
@@ -403,15 +403,15 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			final htsjdk.samtools.SAMFileWriterFactory sfw= this.createSAMFileWriterFactory();
 			if(getOutputFile()==null)
 				{
-				if(this.samoutputformat==null || this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.SAM_TYPE))
-					{
-					LOG.info("Saving as SAM");
-					return sfw.makeSAMWriter(header, presorted, stdout());
-					}
-				else if( this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.BAM_TYPE))
+				if( this.samoutputformat!=null &amp;&amp; this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.BAM_TYPE))
 					{
 					LOG.info("Saving as BAM");
 					return sfw.makeBAMWriter(header, presorted, stdout());
+					}
+				else if(this.samoutputformat==null || this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.SAM_TYPE))
+					{
+					LOG.info("Saving as SAM");
+					return sfw.makeSAMWriter(header, presorted, stdout());
 					}
 				else
 					{

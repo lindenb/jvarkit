@@ -1,12 +1,37 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.blast2sam;
 
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
 
-import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import javax.xml.bind.JAXBContext;
@@ -36,15 +61,15 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.blast.BlastHspAlignment;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
-public class BlastToSam extends AbstractCommandLineProgram
+public class BlastToSam extends AbstractBlastToSam
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BlastToSam.class);
+
 	private SAMSequenceDictionary dictionary;
 	private Unmarshaller unmarshaller;
-	private int EXPECTED_SIZE=500;
 	//fool javac
 	@SuppressWarnings("unused")
 	private final static gov.nih.nlm.ncbi.blast.ObjectFactory _foolJavac=null;
@@ -161,11 +186,7 @@ public class BlastToSam extends AbstractCommandLineProgram
 		
 		}
 	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Blast2Sam";
-		}
+	
 	
 
 	private Iteration peekIteration(XMLEventReader r) throws XMLStreamException,JAXBException
@@ -210,10 +231,10 @@ public class BlastToSam extends AbstractCommandLineProgram
 			}
 		}
 	
-	private void dumpSingle(SAMFileWriter w,SequenceIteration si)
+	private void dumpSingle(final SAMFileWriter w,final SequenceIteration si)
 		{
 		boolean first=true;
-		for(SAMRecord rec:si.records)
+		for(final SAMRecord rec:si.records)
 			{
 			rec.setNotPrimaryAlignmentFlag(!first);
 			first=false;
@@ -223,20 +244,20 @@ public class BlastToSam extends AbstractCommandLineProgram
 		}
 	
 	private void run_single(
-			SAMFileWriter w,
-			XMLEventReader r,
-			SAMFileHeader header
+			final SAMFileWriter w,
+			final XMLEventReader r,
+			final SAMFileHeader header
 			)
 			throws XMLStreamException,JAXBException
 		{
-		List<Iteration> stack=new ArrayList<Iteration>();
+		final List<Iteration> stack=new ArrayList<Iteration>();
 		String prev=null;
 		for(;;)
 			{
-			Iteration iter1=peekIteration(r);
+			final Iteration iter1=peekIteration(r);
 			if(iter1==null || !(iter1.getIterationQueryDef().equals(prev)))
 				{
-				SequenceIteration si=convertIterationToSequenceIteration(stack,header);
+				final SequenceIteration si=convertIterationToSequenceIteration(stack,header);
 				dumpSingle(w,si);
 				if(iter1==null) break;
 				stack.clear();
@@ -247,37 +268,35 @@ public class BlastToSam extends AbstractCommandLineProgram
 		}
 	
 	private SequenceIteration convertIterationToSequenceIteration(
-			List<Iteration> stack,
+			final List<Iteration> stack,
 			final SAMFileHeader header
 			)
 			throws XMLStreamException,JAXBException
 			{
-			SequenceIteration sequenceIteration=new SequenceIteration(); 
+			final SequenceIteration sequenceIteration=new SequenceIteration(); 
 			if(stack.isEmpty()) return sequenceIteration;
 			
-			SAMReadGroupRecord rg1=header.getReadGroup("g1");
+			final SAMReadGroupRecord rg1=header.getReadGroup("g1");
 			//sequenceIteration.iteration=iter1;
 			
-			SAMRecordFactory samRecordFactory=new DefaultSAMRecordFactory();
+			final SAMRecordFactory samRecordFactory=new DefaultSAMRecordFactory();
 
 			
 			
 			final StringBuilder readContent=new StringBuilder();
 			final int iterLength=Integer.parseInt(stack.get(0).getIterationQueryLen());
 			
-			for(Iteration iter1:stack)
+			for(final Iteration iter1:stack)
 				{
-				for(Hit hit: iter1.getIterationHits().getHit())
+				for(final Hit hit: iter1.getIterationHits().getHit())
 					{
-					
-					for(Hsp hsp: hit.getHitHsps().getHsp())
+					for(final Hsp hsp: hit.getHitHsps().getHsp())
 						{
-						
-						for(BlastHspAlignment.Align a:new BlastHspAlignment(hsp))
+						for(final BlastHspAlignment.Align a:new BlastHspAlignment(hsp))
 							{
 							char c=a.getQueryChar();
 							if(!Character.isLetter(c)) continue;
-							int queryIndex0=a.getQueryIndex1()-1;
+							final int queryIndex0=a.getQueryIndex1()-1;
 							while(readContent.length()<=queryIndex0) readContent.append('N');
 							if(readContent.charAt(queryIndex0)=='N')
 								{
@@ -313,10 +332,10 @@ public class BlastToSam extends AbstractCommandLineProgram
 							{
 							rec.setReferenceName(hit.getHitDef());
 							}
-						SAMSequenceRecord ssr=this.dictionary.getSequence(hit.getHitDef());
+						final SAMSequenceRecord ssr=this.dictionary.getSequence(hit.getHitDef());
 						if(ssr==null)
 							{
-							warning("Hit is not in SAMDictionary "+hit.getHitDef());
+							LOG.warn("Hit is not in SAMDictionary "+hit.getHitDef());
 							rec.setReferenceIndex(-1);
 							}
 						else
@@ -324,11 +343,11 @@ public class BlastToSam extends AbstractCommandLineProgram
 							rec.setReferenceIndex(ssr.getSequenceIndex());
 							}
 						
-						BlastHspAlignment blastHspAlignment=new BlastHspAlignment(hsp);
+						final BlastHspAlignment blastHspAlignment=new BlastHspAlignment(hsp);
 						rec.setReadNegativeStrandFlag(blastHspAlignment.isPlusMinus());
 	
 						
-						List<CigarOperator> cigarL=new ArrayList<CigarOperator>();
+						final List<CigarOperator> cigarL=new ArrayList<CigarOperator>();
 						for(BlastHspAlignment.Align a:blastHspAlignment)
 							{
 							//System.err.println("##"+a);
@@ -618,62 +637,34 @@ public class BlastToSam extends AbstractCommandLineProgram
 		out.println(" -p (int expected size) input is an interleaved list of sequences forward and reverse (paired-ends)");
 		super.printOptions(out);
 		}
-
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		boolean interleaved_input=false;
-		int maxRecordsInRam=10000;
-		File fileout=null;
-		String faidx=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args, super.getGetOptDefault()+ "r:o:p:"))!=-1)
-			{
-			switch(c)
-				{	
-				case 'p':
-					interleaved_input=true;
-						EXPECTED_SIZE=Integer.parseInt(getopt.getOptArg());
-						break;
-				case 'r': faidx=getopt.getOptArg();break;
-				case 'o': fileout=new File(getopt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, getopt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(faidx==null)
-			{
-			error("Indexed fasta file missing.");
-			return -1;
-			}
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		if(super.faidx==null || !super.faidx.exists() || super.faidx.isFile()) {
+			return wrapException("Option "+OPTION_FAIDX+" was not defined ot dictionary missing");
+		}
+		final boolean interleaved_input=super.EXPECTED_SIZE>0;
+		final int maxRecordsInRam=5000;
 		SAMFileWriter sfw=null;
 		XMLEventReader rx=null;
-		SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
+		final SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
 		sfwf.setCreateIndex(false);
 		sfwf.setMaxRecordsInRam(maxRecordsInRam);
 		sfwf.setCreateMd5File(false);
 		sfwf.setUseAsyncIo(false);
-		SAMFileHeader header=new SAMFileHeader();
+		final SAMFileHeader header=new SAMFileHeader();
+		final List<String> args = super.getInputFiles();
 		try
 			{
-			info("opening "+faidx);
-			this.dictionary=new SAMSequenceDictionaryFactory().load(new File(faidx));
+			LOG.info("opening "+faidx);
+			this.dictionary=new SAMSequenceDictionaryFactory().load(super.faidx);
 			header.setSortOrder(SortOrder.unsorted);
 			header.setSequenceDictionary(this.dictionary);
 			
 			
-			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
+			final JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
 			this.unmarshaller=jc.createUnmarshaller();
-			XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
+			final XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
 			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
@@ -684,51 +675,40 @@ public class BlastToSam extends AbstractCommandLineProgram
 				public Object resolveEntity(String arg0, String arg1, String arg2,
 						String arg3) throws XMLStreamException
 					{
-					info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
+					LOG.info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
 					return null;
 					}
 				});
-			if(getopt.getOptInd()==args.length)
+			if(inputName==null)
 				{
-				info("Reading from stdin");
-				rx=xmlInputFactory.createXMLEventReader(System.in);
+				LOG.info("Reading from stdin");
+				rx=xmlInputFactory.createXMLEventReader(stdin());
 				}
-			else if(getopt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				info("Reading from "+args[getopt.getOptInd()]);
-				rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(args[getopt.getOptInd()]));
+				LOG.info("Reading from "+inputName);
+				rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(inputName));
 				}
 			else
 				{
-				error("Illegal number of args");
-				return -1;
+				return wrapException("Illegal number of args");
 				}
 			
 			
-			SAMProgramRecord prg2=header.createProgramRecord();
+			final SAMProgramRecord prg2=header.createProgramRecord();
 			fillHeader(rx,prg2);
-			SAMProgramRecord prg1=header.createProgramRecord();
+			final SAMProgramRecord prg1=header.createProgramRecord();
 			prg1.setCommandLine(getProgramCommandLine());
 			prg1.setProgramVersion(getVersion());
-			prg1.setProgramName(getProgramName());
+			prg1.setProgramName(getName());
 			prg1.setPreviousProgramGroupId(prg2.getId());
-			SAMReadGroupRecord rg1=new SAMReadGroupRecord("g1");
+			final SAMReadGroupRecord rg1=new SAMReadGroupRecord("g1");
 			rg1.setLibrary("blast");
 			rg1.setSample("blast");
 			rg1.setDescription("blast");
 			header.addReadGroup(rg1);
 			
-			
-
-			if(fileout==null)
-				{
-				sfw=sfwf.makeSAMWriter(header, false, System.out);
-				}
-			else
-				{
-				sfw=sfwf.makeSAMOrBAMWriter(header, false, fileout);
-				}
-
+			sfw = super.openSAMFileWriter(header, true);
 			
 			if(interleaved_input)
 				{
@@ -738,13 +718,11 @@ public class BlastToSam extends AbstractCommandLineProgram
 				{
 				run_single(sfw,rx,header);
 				}
-			
-			return 0;
+			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}	
 		finally
 			{

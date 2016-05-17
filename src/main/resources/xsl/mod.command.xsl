@@ -477,11 +477,23 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 </xsl:template>
 
 
-<xsl:template match="c:option" mode="visit">if(opt.getOpt().equals(<xsl:apply-templates select="." mode="OPTION_OPT"/>))
+<xsl:template match="c:option" mode="visit">
+<xsl:variable name="process_option">
+<xsl:choose>
+		<xsl:when test="@name='formatout'  and ((//c:output/@type='sam' or //c:output/@type='bam' or //c:snippet[@id='write-sam']))">
+			<xsl:text>false</xsl:text>
+		</xsl:when>
+	<xsl:otherwise>true</xsl:otherwise>
+</xsl:choose>
+</xsl:variable>
+<xsl:choose>
+<xsl:when test="$process_option = 'false'">
+/** option  <xsl:value-of select="@name"/> will be processed elsewhere */
+</xsl:when>
+<xsl:otherwise>if(opt.getOpt().equals(<xsl:apply-templates select="." mode="OPTION_OPT"/>))
 	{
 	/* <xsl:value-of select="@name"/> : <xsl:value-of select="@type"/> */
 	<xsl:choose>
-	
 		<xsl:when test="@name='http_proxy_str' and ../../c:snippet[@id='http.proxy']">
 		
 			final String <xsl:value-of select="generate-id()"/> = opt.getValue();
@@ -629,6 +641,8 @@ final javafx.scene.control.Label <xsl:value-of select="concat('lbl',generate-id(
 	this.<xsl:apply-templates select="." mode="setter"/>(<xsl:value-of select="generate-id()"/>);
 	return com.github.lindenb.jvarkit.util.command.Command.Status.OK;
 	}
+</xsl:otherwise>
+</xsl:choose>
 </xsl:template>
 
 <xsl:template match="c:option" mode="height">

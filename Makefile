@@ -162,7 +162,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	bamviewgui	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
-	biostar86480	biostar90204	msa2vcf	biostar95652 biostar139647	biostar145820 blast2sam	blastmapannots \
+	biostar86480	biostar90204	msa2vcf	biostar95652 biostar139647	biostar145820 blast2sam reduceblast	blastmapannots \
 	blastn2snp	buildwpontology	bwamemdigest	bwamemnop	cmpbams	cmpbamsandbuild	coveragenormalizer \
 	deseqcount	downsamplevcf	evs2bed	evs2vcf	evs2xml	extendbed	fastq2fasta kg2bed \
 	fastqentropy	fastqgrep	fastqjs	fastqphred64to33	fastqrecordtreepack	fastqrevcomp	fastqshuffle \
@@ -281,10 +281,11 @@ $(eval $(call compile_biostar_cmd,172515))
 $(eval $(call compile_biostar_cmd,173114))
 $(eval $(call compile_biostar_cmd,175929,wiki_flag))
 $(eval $(call compile_biostar_cmd,178713))
-$(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast))
+$(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast wiki_flag))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,blastmapannots, ${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations, api.ncbi.blast api.ncbi.gb ${generated.dir}/java/org/uniprot/package-info.java))
-$(eval $(call compile-htsjdk-cmd,blastn2snp,${jvarkit.package}.tools.blast.BlastNToSnp,api.ncbi.blast))
+$(eval $(call compile-htsjdk-cmd,blastn2snp,${jvarkit.package}.tools.blast.BlastNToSnp,api.ncbi.blast wiki_flag))
+$(eval $(call compile-htsjdk-cmd,reduceblast,${jvarkit.package}.tools.blast.ReduceBlast,api.ncbi.blast wiki_flag))
 $(eval $(call compile-htsjdk-cmd,buildwpontology,${jvarkit.package}.tools.misc.BuildWikipediaOntology))
 $(eval $(call compile-htsjdk-cmd,bwamemdigest,${jvarkit.package}.tools.mem.BWAMemDigest))
 $(eval $(call compile-htsjdk-cmd,bwamemnop,${jvarkit.package}.tools.mem.BWAMemNOp))

@@ -56,7 +56,7 @@ import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 
 public class BlastNToSnp extends AbstractBlastNToSnp
 {
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractBlastNToSnp.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BlastNToSnp.class);
 
 	private Unmarshaller unmarshaller;
 	private Marshaller marshaller;
@@ -274,12 +274,13 @@ private void run(
 					}
 				if(hit_index-hit_shift!=hsp_hit_to)
 					{
-					marshaller.marshal(new JAXBElement<Hsp>(new QName("Hsp"), Hsp.class, hsp), System.err);
-					throw new IllegalStateException("boum "+hit_index+" vs "+hsp_hit_to);
+					marshaller.marshal(new JAXBElement<Hsp>(new QName("Hsp"), Hsp.class, hsp),stderr());
+					throw new IllegalStateException("Error expected hit-index= "+hit_index+"-"+hit_shift+" == hsp-hit-to="+hsp_hit_to);
 					}
 				if(query_index-1!=hsp_query_to)
 					{
-					throw new IllegalStateException("boum "+query_index+" vs "+hsp_query_to);
+					marshaller.marshal(new JAXBElement<Hit>(new QName("Hit"), Hit.class, hit),stderr());
+					throw new IllegalStateException("query_index "+query_index+"(1 != hsp_query_to:"+hsp_query_to);
 					}
 				if(pw.checkError()) break;
 				}
