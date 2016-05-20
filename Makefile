@@ -170,7 +170,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	fixvcf	fixvcfformat	fixvcfmissinggenotypes	gcanddepth	genomicjaspar	genscan	 \
 	howmanybamdict	illuminadir	ilmnfastqstats	impactofduplicates	jeter \
 	liftover2svg	mapuniprot	mergesplittedblast	metrics2xml	ncbitaxonomy2xml	ngsfilessummary	noemptyvcf \
-	nozerovariationvcf	pademptyfastq	paintcontext	pubmeddump	pubmedfilterjs	referencetovcf	sam2json \
+	nozerovariationvcf	pademptyfastq	paintcontext	pubmeddump	pubmedorcidgraph pubmedfilterjs	referencetovcf	sam2json \
 	sam2psl	sam2tsv	sam4weblogo	samclipindelfraction	samextractclip	samfindclippedregions	samfixcigar \
 	samgrep	samjs	samshortinvert	samstats01	sigframe	sortvcfoninfo \
 	sortvcfonref2	splitbam3	splitbytile	splitread	tview	tview.cgi \
@@ -338,6 +338,7 @@ $(eval $(call compile-htsjdk-cmd,pademptyfastq,${jvarkit.package}.tools.misc.Pad
 $(eval $(call compile-htsjdk-cmd,paintcontext,${jvarkit.package}.tools.bam2graphics.PaintContext))
 $(eval $(call compile-htsjdk-cmd,pubmeddump,${jvarkit.package}.tools.pubmed.PubmedDump,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,pubmedgraph,${jvarkit.package}.tools.pubmed.PubmedGraph))
+$(eval $(call compile-htsjdk-cmd,pubmedorcidgraph,${jvarkit.package}.tools.pubmed.PubmedOrcidGraph,wiki_flag ${derby.jars}))
 $(eval $(call compile-htsjdk-cmd,pubmedfilterjs,${jvarkit.package}.tools.pubmed.PubmedFilterJS,api.ncbi.pubmed))
 $(eval $(call compile-htsjdk-cmd,referencetovcf,${jvarkit.package}.tools.misc.ReferenceToVCF))
 $(eval $(call compile-htsjdk-cmd,sam2json,${jvarkit.package}.tools.misc.SamToJson,wiki_flag))

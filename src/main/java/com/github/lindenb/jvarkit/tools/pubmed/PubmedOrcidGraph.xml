@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "PubmedOrcidGraph">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.pubmed">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<description>Creates a graph from Pubmed and Authors' Orcid identifiers</description>
+
+<options>
+	<option name="derbyFilePath" type="string" longopt="derby" opt="d"  default="">
+		<description>REQUIRED. path to Derby database storage directory.</description>
+	</option>
+	<option name="actionStr" type="string" longopt="action" opt="a" default="">
+		<description>REQUIRED. action to perform. 'pmid': specify one or more Pubmed identifiers (PMID) to insert</description>
+	</option>
+	<option name="maxDepth" type="int" longopt="maxdepth" opt="m" default="3">
+		<description>max depth for of searching. -1: infinite</description>
+	</option>
+
+
+</options>
+
+
+
+<documentation>
+
+</documentation>
+<!-- __PLACEHOLDER__ -->
+
+</app>
