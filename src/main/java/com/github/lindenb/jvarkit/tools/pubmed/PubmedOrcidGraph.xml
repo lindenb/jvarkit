@@ -5,16 +5,11 @@
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
 <description>Creates a graph from Pubmed and Authors' Orcid identifiers</description>
+<input type="stdin-or-one"/>
 
 <options>
-	<option name="derbyFilePath" type="string" longopt="derby" opt="d"  default="">
-		<description>REQUIRED. path to Derby database storage directory.</description>
-	</option>
-	<option name="actionStr" type="string" longopt="action" opt="a" default="">
-		<description>REQUIRED. action to perform. 'pmid': specify one or more Pubmed identifiers (PMID) to insert</description>
-	</option>
-	<option name="maxDepth" type="int" longopt="maxdepth" opt="m" default="3">
-		<description>max depth for of searching. -1: infinite</description>
+	<option name="format" type="string" longopt="format" opt="f" default="txt">
+		<description>Optional: 'txt',  'xml' </description>
 	</option>
 
 
@@ -23,8 +18,9 @@
 
 
 <documentation>
+<h:h3>Example</h:h3>
+<h:pre> java -jar dist/pubmeddump.jar "orcid[AUID]"</h:pre>
 
 </documentation>
 <!-- __PLACEHOLDER__ -->
-
 </app>
