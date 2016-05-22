@@ -100,7 +100,7 @@ public class PubmedOrcidGraph
 		void print(PrintWriter pw) {
 			pw.println("#Author");
 			pw.println("ORCID\t"+orcid);
-			if(foreName!=null) pw.println("FirstName\t"+foreName);
+			if(foreName!=null) pw.println("ForeName\t"+foreName);
 			if(lastName!=null) pw.println("LastName\t"+lastName);
 			if(initials!=null) pw.println("Initials\t"+initials);
 			if(affiliation!=null) pw.println("Affiliation\t"+affiliation);
@@ -108,7 +108,7 @@ public class PubmedOrcidGraph
 		}
 		}
 	
-	private Author parseAuthor(XMLEventReader r)  throws XMLStreamException
+	private Author parseAuthor(XMLEventReader r,final String pmid)  throws XMLStreamException
 		{
 		final Author au = new Author();
 		while(r.hasNext()) {
@@ -126,17 +126,23 @@ public class PubmedOrcidGraph
 					au.initials=r.getElementText().trim();
 				} else if(eltName.equals("Identifier")) {
 					final Attribute source= start.getAttributeByName(new QName("Source"));
-					if(source!=null && source.getValue().equalsIgnoreCase("ORCID")) {
+					
+					if(source!=null && !source.getValue().equalsIgnoreCase("ORCID")) {
+						LOG.warn("interesting, a non-orcid Identifier in pmid:"+pmid+" "+source.getValue());
+						}
+					else if(source!=null && source.getValue().equalsIgnoreCase("ORCID")) {
 						au.orcid=r.getElementText().trim();
 						final int slash = au.orcid.lastIndexOf('/');
 						if(slash!=-1) au.orcid=au.orcid.substring(slash+1);
 						au.orcid=au.orcid.trim();
 						
 						if(au.orcid.startsWith("orcid.org.")) {
+							LOG.warn("Ugly orcid in "+au.orcid +" pmid:"+ pmid);
 							final int dot= au.orcid.lastIndexOf('.');
 							au.orcid=au.orcid.substring(dot+1);
 						}
 						else if(au.orcid.startsWith("orcid.org") ) {
+							LOG.warn("Ugly orcid in "+au.orcid +" pmid:"+ pmid);
 							au.orcid=au.orcid.substring(9);
 						}
 						
@@ -204,7 +210,7 @@ public class PubmedOrcidGraph
 					Year=r.getElementText();
 				}
 				else if(eltName.equals("Author")) {
-					final Author author = parseAuthor(r);
+					final Author author = parseAuthor(r,pmid);
 					if(author.orcid!=null) authors.add(author);
 				}
 				}
@@ -299,6 +305,7 @@ public class PubmedOrcidGraph
 				w = xof.createXMLStreamWriter(pw);
 				w.writeStartDocument( "UTF-8","1.0");
 				w.writeStartElement("PubmedArticleSet");
+				w.writeComment("Generated with "+getName()+" "+getOnlineDocUrl()+" - Pierre Lindenbaum.");
 			}
 			while(r.hasNext()) {
 				final XMLEvent evt= r.nextEvent();
