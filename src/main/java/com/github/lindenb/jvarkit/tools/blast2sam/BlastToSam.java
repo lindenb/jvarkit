@@ -629,19 +629,11 @@ public class BlastToSam extends AbstractBlastToSam
 		
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -r (file)  fasta sequence file indexed with picard. Required.");
-		out.println(" -o (file.bam) filename out . Default: SAM stdout");
-		out.println(" -p (int expected size) input is an interleaved list of sequences forward and reverse (paired-ends)");
-		super.printOptions(out);
-		}
 	
 	@Override
 	protected Collection<Throwable> call(String inputName) throws Exception {
-		if(super.faidx==null || !super.faidx.exists() || super.faidx.isFile()) {
-			return wrapException("Option "+OPTION_FAIDX+" was not defined ot dictionary missing");
+		if(super.faidx==null || !super.faidx.exists() || !super.faidx.isFile()) {
+			return wrapException("Option "+OPTION_FAIDX+" was not defined or dictionary missing");
 		}
 		final boolean interleaved_input=super.EXPECTED_SIZE>0;
 		final int maxRecordsInRam=5000;
