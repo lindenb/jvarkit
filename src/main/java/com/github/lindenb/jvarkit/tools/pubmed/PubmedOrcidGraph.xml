@@ -9,7 +9,7 @@
 
 <options>
 	<option name="format" type="string" longopt="format" opt="f" default="txt">
-		<description>Optional: 'txt',  'xml' </description>
+		<description>Optional: 'txt',  'xml' , 'json'</description>
 	</option>
 
 
@@ -18,9 +18,106 @@
 
 
 <documentation>
-<h:h3>Example</h:h3>
-<h:pre> java -jar dist/pubmeddump.jar "orcid[AUID]"</h:pre>
+<h:h3>About Orcid</h:h3>
+<h:a href="http://orcid.org">ORCID</h:a> provides a persistent digital identifier that distinguishes you from every other researcher and, through integration in key research workflows such as manuscript and grant submission, supports automated linkages between you and your professional activities ensuring that your work is recognized.""
 
+You can download the papers containing some orcid Identifiers using the entrez query
+<h:a>http://www.ncbi.nlm.nih.gov/pubmed/?term=orcid[AUID]</h:a>.
+I've used one of my tools pubmeddump to download the articles asXML and I wrote PubmedOrcidGraph to extract the author's orcid.
+
+<h:h3>Example</h:h3>
+<h:pre>java -jar dist/pubmeddump.jar "orcid[AUID] Dina[AU]" |\
+java -jar dist/pubmedorcidgraph.jar -f xml | xmllint --format -
+</h:pre>
+
+<h:pre>ava -jar dist/pubmeddump.jar "orcid[AUID] Dina[AU]"  |\
+java -jar dist/pubmedorcidgraph.jar -f json | python -m json.tool
+</h:pre>
+
+Now, I want to insert those data into a sqlite3 database. I use the XSLT stylesheet below to convert the XML into some SQL statements:
+<h:pre><![CDATA[<?xml version="1.0"?>
+<xsl:stylesheet
+ xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+ version="1.0"
+    xmlns:xalan="http://xml.apache.org/xalan"
+    xmlns:str="xalan://com.github.lindenb.xslt.strings.Strings"
+    exclude-result-prefixes="xalan str"
+ >
+<xsl:output method="text"/>
+<xsl:variable name="q">'</xsl:variable>
+
+<xsl:template match="/">
+create table author(orcid text unique,name text,affiliation text);
+create table collab(orcid1 text,orcid2 text,unique(orcid1,orcid2));
+begin transaction;
+<xsl:apply-templates select="PubmedArticleSet/PubmedArticle"/>
+commit;
+</xsl:template>
+
+<xsl:template match="PubmedArticle">
+<xsl:for-each select="Author">
+<xsl:variable name="o1" select="@orcid"/>insert or ignore into author(orcid,name,affiliation) values ('<xsl:value-of select="$o1"/>','<xsl:value-of select="translate(concat(lastName,' ',foreName),$q,' ')"/>','<xsl:value-of select="translate(affiliation,$q,' ')"/>');
+<xsl:for-each select="following-sibling::Author">insert or ignore into collab(orcid1,orcid2) values('<xsl:value-of select='$o1'/>','<xsl:value-of select='@orcid'/>');
+</xsl:for-each>
+</xsl:for-each>
+</xsl:template>
+</xsl:stylesheet>]]></h:pre>
+
+
+<h:pre><![CDATA[./src/xslt-sandbox/xalan/dist/xalan -XSL orcid2sqlite.xsl -IN orcid.xml
+
+create table author(orcid text unique,name text,affiliation text);
+create table collab(orcid1 text,orcid2 text,unique(orcid1,orcid2));
+begin transaction;
+insert or ignore into author(orcid,name,affiliation) values ('0000-0002-4078-7413','Bussotti Giovanni','EMBL, European Bioinformatics Institute, Cambridge, CB10 1SD, United Kingdom;');
+insert or ignore into collab(orcid1,orcid2) values('0000-0002-4078-7413','0000-0002-4449-1863');
+insert or ignore into collab(orcid1,orcid2) values('0000-0002-4078-7413','0000-0002-6090-3100');
+insert or ignore into author(orcid,name,affiliation) values ('0000-0002-4449-1863','Leonardi Tommaso','EMBL, European Bioinformatics Institute, Cambridge, CB10 1SD, United Kingdom;');
+insert or ignore into collab(orcid1,orcid2) values('0000-0002-4449-1863','0000-0002-6090-3100');
+insert or ignore into author(orcid,name,affiliation) values ('0000-0002-6090-3100','Enright Anton J','EMBL, European Bioinformatics Institute, Cambridge, CB10 1SD, United Kingdom;');
+(...)]]></h:pre>
+
+and those sql statetements are loaded into sqlite3:
+<h:pre><![CDATA[xsltproc orcid2sqlite.xsl orcid.xml |\
+ sqlite3 orcid.sqlite]]></h:pre>
+ 
+The next step is to produce a gexf+xml file to play with the orcid graph in http://gephi.org .
+I use the following bash script to convert the sqlite3 database to gexf+xml.
+
+<h:pre><![CDATA[
+DB=orcid.sqlite
+
+cat << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<gexf xmlns="http://www.gexf.net/1.2draft" xmlns:viz="http://www.gexf.net/1.1draft/viz" version="1.2">
+<meta>
+<creator>Pierre Lindenbaum</creator>
+<description>Orcid Graph</description>
+</meta>
+<graph defaultedgetype="undirected" mode="static">
+
+<attributes class="node">
+<attribute type="string" title="affiliation" id="0"/>
+</attributes>
+<nodes>
+EOF
+
+sqlite3 -separator ' ' -noheader  ${DB} 'select orcid,name,affiliation from author' |\
+ sed  -e 's/&/&/g' -e "s/</\</g" -e "s/>/\>/g" -e "s/'/\'/g"  -e 's/"/\"/g' |\
+ awk -F ' ' '{printf("<node id=\"%s\" label=\"%s\"><attvalue for=\"0\" value=\"%s\"/></node>\n",$1,$2,$3);}'
+
+echo "</nodes><edges>"
+sqlite3 -separator ' ' -noheader  ${DB} 'select orcid1,orcid2 from collab' |\
+ awk -F ' ' '{printf("<edge source=\"%s\" target=\"%s\"/>\n",$1,$2);}'
+echo "</edges></graph></gexf>"
+]]></h:pre>
+
+<h:p><h:img src="https://pbs.twimg.com/media/Ci-h0MJWUAAvJjw.jpg"/></h:p>
+
+<h:h3>See also</h:h3>
+<h:ul>
+<h:li>http://plindenbaum.blogspot.fr/2016/05/playing-with-orcidorg-ncbipubmed-graph.html</h:li>
+</h:ul>
 </documentation>
 <!-- __PLACEHOLDER__ -->
 </app>

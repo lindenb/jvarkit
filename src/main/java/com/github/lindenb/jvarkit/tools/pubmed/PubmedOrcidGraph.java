@@ -35,6 +35,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import javax.xml.namespace.QName;
@@ -48,6 +49,7 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
+import com.google.gson.stream.JsonWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
@@ -60,13 +62,38 @@ public class PubmedOrcidGraph
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PubmedOrcidGraph.class);
 
 	
-	private static class Author
+	private static class Author implements Comparable<Author>
 		{
 		String foreName = null;
 		String lastName = null ;
 		String orcid = null;
 		String initials=null;
 		String affiliation =null;
+		
+		/** idea: in xml+xslt , used to presort orcid indentifiers
+		 * in order to produce unique pairs of collab(orcid1,orcid2) */
+		@Override
+		public int compareTo(final Author o) {
+			return this.orcid.compareTo(o.orcid);
+			}
+		
+		void json(final JsonWriter w) throws IOException {
+			w.beginObject();
+			w.name("orcid");w.value(this.orcid);
+			if(foreName!=null) {
+				w.name("foreName");w.value(this.foreName);
+			}
+			if(lastName!=null) {
+				w.name("lastName");w.value(this.lastName);
+			}
+			if(initials!=null) {
+				w.name("initials");w.value(this.initials);
+			}
+			if(affiliation!=null) {
+				w.name("affiliation");w.value(this.affiliation);
+			}
+			w.endObject();
+		}
 		
 		void xml(final XMLStreamWriter w) throws XMLStreamException {
 			w.writeStartElement("Author");
@@ -172,7 +199,8 @@ public class PubmedOrcidGraph
 			final String rootName,
 			final XMLEventReader r,
 			final PrintWriter pw,
-			final XMLStreamWriter w
+			final XMLStreamWriter w,
+			final JsonWriter jsw
 			) throws XMLStreamException,IOException {
 		try {
 			String pmid=null;
@@ -223,7 +251,7 @@ public class PubmedOrcidGraph
 				if(eltName.equals(rootName)) break;
 			}
 			}//end of xml read
-			
+		Collections.sort(authors);
 		if(authors.isEmpty()) {
 			//do nothing
 		}
@@ -253,6 +281,39 @@ public class PubmedOrcidGraph
 				au.xml(w);
 			}
 			w.writeEndElement();
+		}
+		else if(jsw!=null) {
+			jsw.beginObject();
+			
+			jsw.name("pmid");
+			jsw.value(pmid);
+			if(doi!=null){
+				jsw.name("doi");
+				jsw.value(doi);
+			}
+			if(Year!=null)
+			{
+				jsw.name("year");
+				jsw.value(Year);
+			}
+			if(ISOAbbreviation!=null)
+			{
+				jsw.name("journal");
+				jsw.value(ISOAbbreviation);
+			}
+			if(ArticleTitle!=null)
+			{
+				jsw.name("title");
+				jsw.value(ArticleTitle);
+			}
+			
+			jsw.name("authors");
+			jsw.beginArray();
+				for(final Author au:authors) {
+					au.json(jsw);
+				}
+			jsw.endArray();
+			jsw.endObject();
 		}
 		else
 			{
@@ -286,6 +347,7 @@ public class PubmedOrcidGraph
 		XMLEventReader r = null;
 		XMLStreamWriter w=null;
 		PrintWriter pw=null;
+		JsonWriter jsw=null;
 		try {
 			final XMLInputFactory xmlInputFactory = XMLInputFactory.newFactory();
 			xmlInputFactory.setXMLResolver(new XMLResolver() {
@@ -306,6 +368,9 @@ public class PubmedOrcidGraph
 				w.writeStartDocument( "UTF-8","1.0");
 				w.writeStartElement("PubmedArticleSet");
 				w.writeComment("Generated with "+getName()+" "+getOnlineDocUrl()+" - Pierre Lindenbaum.");
+			} else if("json".equalsIgnoreCase(super.format)) {
+				jsw = new JsonWriter(pw);
+				jsw.beginArray();
 			}
 			while(r.hasNext()) {
 				final XMLEvent evt= r.nextEvent();
@@ -313,12 +378,15 @@ public class PubmedOrcidGraph
 					final String localName= evt.asStartElement().getName().getLocalPart();
 					if(localName.equals("PubmedArticle") || localName.equals("PubmedBookArticle"))
 						{
-						scanArticle(localName,r,pw,w);
+						scanArticle(localName,r,pw,w,jsw);
 						}
 				}
 			}
 			
-			
+			if(jsw!=null) {
+				jsw.endArray();
+				jsw.close();
+			}
 			if(w!=null) {
 				w.writeEndElement();
 				w.writeEndDocument();
