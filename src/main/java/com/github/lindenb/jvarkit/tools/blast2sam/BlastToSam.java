@@ -304,7 +304,12 @@ public class BlastToSam extends AbstractBlastToSam
 								}
 							else if(readContent.charAt(queryIndex0)!=c)
 								{
-								throw new IllegalStateException();
+								throw new IllegalStateException(
+									"Expected character '"+readContent.charAt(queryIndex0)+"' but got '"+c+"' at "+queryIndex0+"\n"+
+									hsp.getHspQseq()+"\n"+
+									hsp.getHspMidline()+"\n"+
+									hsp.getHspHseq()+"\n"
+									);
 								}
 							}
 						}
