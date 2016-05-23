@@ -308,7 +308,8 @@ public class BlastToSam extends AbstractBlastToSam
 									"Expected character '"+readContent.charAt(queryIndex0)+"' but got '"+c+"' at "+queryIndex0+"\n"+
 									hsp.getHspQseq()+"\n"+
 									hsp.getHspMidline()+"\n"+
-									hsp.getHspHseq()+"\n"
+									hsp.getHspHseq()+"\n"+
+									readContent+"\n"
 									);
 								}
 							}
