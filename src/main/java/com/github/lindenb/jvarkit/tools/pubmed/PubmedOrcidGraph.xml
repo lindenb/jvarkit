@@ -26,13 +26,178 @@ You can download the papers containing some orcid Identifiers using the entrez q
 I've used one of my tools pubmeddump to download the articles asXML and I wrote PubmedOrcidGraph to extract the author's orcid.
 
 <h:h3>Example</h:h3>
-<h:pre>java -jar dist/pubmeddump.jar "orcid[AUID] Dina[AU]" |\
-java -jar dist/pubmedorcidgraph.jar -f xml | xmllint --format -
-</h:pre>
 
-<h:pre>ava -jar dist/pubmeddump.jar "orcid[AUID] Dina[AU]"  |\
+<h:pre><![CDATA[java -jar dist/pubmeddump.jar "orcid[AUID]" |\
+java -jar dist/pubmedorcidgraph.jar 
+#PubmedArticle
+PMID	24549058
+doi	10.1038/ejhg.2014.1
+Year	2014
+Journal	Eur. J. Hum. Genet.
+Title	Using ancestry-informative markers to identify fine structure across 15 populations of European origin.
+Author	0000-0002-6619-873X
+
+#Author
+ORCID	0000-0002-6619-873X
+ForeName	Patrick F
+LastName	Sullivan
+Initials	PF
+Affiliation	University of North Carolina, Chapel Hill, NC, USA.
+
+#PubmedArticle
+PMID	23872634
+doi	10.1038/ng.2712
+Year	2013
+Journal	Nat. Genet.
+Title	Common variants at SCN5A-SCN10A and HEY2 are associated with Brugada syndrome, a rare disease with high risk of sudden cardiac death.
+Author	0000-0001-7751-2280
+Author	0000-0002-7722-7348
+
+#Author
+ORCID	0000-0001-7751-2280
+ForeName	Richard
+LastName	Redon
+Initials	R
+
+#Author
+ORCID	0000-0002-7722-7348
+ForeName	Christian
+LastName	Dina
+Initials	C
+
+
+]]></h:pre>
+
+<h:pre><![CDATA[java -jar dist/pubmeddump.jar "orcid[AUID]" |\
+java -jar dist/pubmedorcidgraph.jar -f xml | xmllint --format -
+
+  <PubmedArticle pmid="26301497" doi="10.1038/ng.3383">
+    <year>2015</year>
+    <journal>Nat. Genet.</journal>
+    <title>Genetic association analyses highlight biological pathways underlying mitral valve prolapse.</title>
+    <Author orcid="0000-0001-5925-381X">
+      <foreName>Xavier</foreName>
+      <lastName>Jeunemaitre</lastName>
+      <initials>X</initials>
+      <affiliation>AP-HP, Department of Genetics, Hôpital Européen Georges Pompidou, Paris, France.</affiliation>
+    </Author>
+    <Author orcid="0000-0002-2067-0533">
+      <foreName>Patrick T</foreName>
+      <lastName>Ellinor</lastName>
+      <initials>PT</initials>
+      <affiliation>Program in Medical and Population Genetics, Broad Institute, Cambridge, Massachusetts, USA.</affiliation>
+    </Author>
+    <Author orcid="0000-0002-4227-7062">
+      <foreName>Jorge</foreName>
+      <lastName>Solis</lastName>
+      <initials>J</initials>
+      <affiliation>Centro Nacional de Investigaciones Cardiovasculares, Carlos III (CNIC), Madrid, Spain.</affiliation>
+    </Author>
+    <Author orcid="0000-0002-7722-7348">
+      <foreName>Christian</foreName>
+      <lastName>Dina</lastName>
+      <initials>C</initials>
+      <affiliation>Centre Hospitalier Universitaire (CHU) Nantes, Université de Nantes, Nantes, France.</affiliation>
+    </Author>
+    <Author orcid="0000-0003-4076-2336">
+      <foreName>Emelia J</foreName>
+      <lastName>Benjamin</lastName>
+      <initials>EJ</initials>
+      <affiliation>Department of Medicine (Cardiovascular Division), Beth Israel Deaconess Medical Center, Harvard Medical School, Boston, Massachusetts, USA.</affiliation>
+    </Author>
+  </PubmedArticle>
+  <PubmedArticle pmid="23872634" doi="10.1038/ng.2712">
+    <year>2013</year>
+    <journal>Nat. Genet.</journal>
+    <title>Common variants at SCN5A-SCN10A and HEY2 are associated with Brugada syndrome, a rare disease with high risk of sudden cardiac death.</title>
+    <Author orcid="0000-0001-7751-2280">
+      <foreName>Richard</foreName>
+      <lastName>Redon</lastName>
+      <initials>R</initials>
+    </Author>
+    <Author orcid="0000-0002-7722-7348">
+      <foreName>Christian</foreName>
+      <lastName>Dina</lastName>
+      <initials>C</initials>
+    </Author>
+  </PubmedArticle>
+
+]]></h:pre>
+
+<h:pre><![CDATA[java -jar dist/pubmeddump.jar "orcid[AUID]"  |\
 java -jar dist/pubmedorcidgraph.jar -f json | python -m json.tool
-</h:pre>
+
+
+
+[
+(...)
+    {
+        "authors": [
+            {
+                "affiliation": "AP-HP, Department of Genetics, H\u00f4pital Europ\u00e9en Georges Pompidou, Paris, France.", 
+                "foreName": "Xavier", 
+                "initials": "X", 
+                "lastName": "Jeunemaitre", 
+                "orcid": "0000-0001-5925-381X"
+            }, 
+            {
+                "affiliation": "Program in Medical and Population Genetics, Broad Institute, Cambridge, Massachusetts, USA.", 
+                "foreName": "Patrick T", 
+                "initials": "PT", 
+                "lastName": "Ellinor", 
+                "orcid": "0000-0002-2067-0533"
+            }, 
+            {
+                "affiliation": "Centro Nacional de Investigaciones Cardiovasculares, Carlos III (CNIC), Madrid, Spain.", 
+                "foreName": "Jorge", 
+                "initials": "J", 
+                "lastName": "Solis", 
+                "orcid": "0000-0002-4227-7062"
+            }, 
+            {
+                "affiliation": "Centre Hospitalier Universitaire (CHU) Nantes, Universit\u00e9 de Nantes, Nantes, France.", 
+                "foreName": "Christian", 
+                "initials": "C", 
+                "lastName": "Dina", 
+                "orcid": "0000-0002-7722-7348"
+            }, 
+            {
+                "affiliation": "Department of Medicine (Cardiovascular Division), Beth Israel Deaconess Medical Center, Harvard Medical School, Boston, Massachusetts, USA.", 
+                "foreName": "Emelia J", 
+                "initials": "EJ", 
+                "lastName": "Benjamin", 
+                "orcid": "0000-0003-4076-2336"
+            }
+        ], 
+        "doi": "10.1038/ng.3383", 
+        "journal": "Nat. Genet.", 
+        "pmid": "26301497", 
+        "title": "Genetic association analyses highlight biological pathways underlying mitral valve prolapse.", 
+        "year": "2015"
+    }, 
+    {
+        "authors": [
+            {
+                "foreName": "Richard", 
+                "initials": "R", 
+                "lastName": "Redon", 
+                "orcid": "0000-0001-7751-2280"
+            }, 
+            {
+                "foreName": "Christian", 
+                "initials": "C", 
+                "lastName": "Dina", 
+                "orcid": "0000-0002-7722-7348"
+            }
+        ], 
+        "doi": "10.1038/ng.2712", 
+        "journal": "Nat. Genet.", 
+        "pmid": "23872634", 
+        "title": "Common variants at SCN5A-SCN10A and HEY2 are associated with Brugada syndrome, a rare disease with high risk of sudden cardiac death.", 
+        "year": "2013"
+    }
+]
+]]></h:pre>
 
 Now, I want to insert those data into a sqlite3 database. I use the XSLT stylesheet below to convert the XML into some SQL statements:
 <h:pre><![CDATA[<?xml version="1.0"?>

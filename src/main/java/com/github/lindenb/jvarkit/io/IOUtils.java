@@ -195,6 +195,15 @@ public class IOUtils {
 		return  new BufferedReader(new InputStreamReader(openURIForReading(uri), Charset.forName("UTF-8")));
 		}
 
+	public static Reader openFileForReader(File file) throws IOException
+		{
+		IOUtil.assertFileIsReadable(file);
+		if(file.getName().endsWith(".gz"))
+			{
+			return new InputStreamReader(openFileForReading(file));
+			}
+		return new FileReader(file);
+		}
 
 	
 	@SuppressWarnings("resource")

@@ -23,10 +23,9 @@
 
 
 <options>
-		<option name="acceptFiltered" type="boolean" longopt="ignorefilter" opt="if" default="false">
+	<option name="acceptFiltered" type="boolean" longopt="ignorefilter" opt="if" default="false">
 		<description>accept variants having a FILTER column. Default is ignore variants with a FILTER column</description>
 	</option>
-	
 </options>
 
 <documentation>

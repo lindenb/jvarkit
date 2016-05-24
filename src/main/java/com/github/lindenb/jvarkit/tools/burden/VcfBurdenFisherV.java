@@ -29,7 +29,10 @@ package com.github.lindenb.jvarkit.tools.burden;
 
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
@@ -82,8 +85,11 @@ public class VcfBurdenFisherV
 			final VariantContextWriter out
 			) throws IOException {
 		final VCFHeader header=in.getHeader();
-		final Set<Pedigree.Person> individuals =super.getCasesControlsInPedigree(header);
 		
+		final Map<Pedigree.Person,SuperVariant> indi2supervariant = new HashMap<>();
+		for(final Pedigree.Person  person: super.getCasesControlsInPedigree(header)) {
+			indi2supervariant.put(person, SuperVariant.SV0);
+		}
 		
 		
 		VCFBuffer tmpw = null;
@@ -93,6 +99,7 @@ public class VcfBurdenFisherV
 			tmpw = new VCFBuffer(1000,this.getTmpdir());
 			tmpw.writeHeader(header);
 			final Count count= new Count();
+		
 			
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			while(in.hasNext()) {
@@ -112,20 +119,31 @@ public class VcfBurdenFisherV
 					LOG.warn("variant with more than one ALT. Using getAltAlleleWithHighestAlleleCount.");
 				}
 				
-				SuperVariant superVariant = SuperVariant.SV0;
 				final Allele observed_alt = ctx.getAltAlleleWithHighestAlleleCount();
+				
 				//loop over person in this pedigree
-				for(final Pedigree.Person person : individuals) {
+				for(final Pedigree.Person person : indi2supervariant.keySet() ) {
+					if(indi2supervariant.get(person)==SuperVariant.AT_LEAST_ONE_VARIANT) continue;
 					final Genotype g = ctx.getGenotype(person.getId());	
-					if(g==null) continue;//not in vcf header
-					if(g.isFiltered()) continue;//ignore this genotype
+					if(g==null) {
+						continue;//not in vcf header
+					}
+					if(g.isFiltered()) {
+						continue;//not in vcf header
+					}
 					for(final Allele alt : g.getAlleles()) {
 						if(observed_alt.equals(alt)) {
-							superVariant = SuperVariant.AT_LEAST_ONE_VARIANT;
+							indi2supervariant.put(person,SuperVariant.AT_LEAST_ONE_VARIANT);
 							break;
 							}
 						}//end of allele
-					
+					}//en dof for[person]
+				} //end variant iteration
+			tmpw.close();
+			progess.finish();
+			
+			for(final Pedigree.Person person : indi2supervariant.keySet() ) {
+					final SuperVariant superVariant = indi2supervariant.get(person);
 					if(superVariant==SuperVariant.SV0 ) {
 						if(person.isAffected()) count.count_case_sv0++;
 						else count.count_ctrl_sv0++;
@@ -134,10 +152,9 @@ public class VcfBurdenFisherV
 						if(person.isAffected()) count.count_case_sv1++;
 						else count.count_ctrl_sv1++;
 						}
-					}//end of person
-				}
-			tmpw.close();
-			progess.finish();
+				}//end of person
+			
+			
 			
 			
 			final FisherExactTest fisher = FisherExactTest.compute(
@@ -145,6 +162,10 @@ public class VcfBurdenFisherV
 					count.count_ctrl_sv0, count.count_ctrl_sv1
 					);
 			LOG.info("Fisher "+fisher.getAsDouble());
+			if(h2.getMetaDataLine(VCF_HEADER_FISHER_VALUE)!=null)
+				{
+				return wrapException("VCF Header "+VCF_HEADER_FISHER_VALUE+" already specified in input");
+				}
 			h2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE,
 					String.valueOf(fisher.getAsDouble())));
 			h2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE+".count",

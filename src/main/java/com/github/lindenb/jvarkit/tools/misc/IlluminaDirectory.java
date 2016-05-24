@@ -31,7 +31,8 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.PrintStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,6 +47,7 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
+import com.google.gson.stream.JsonWriter;
 
 import htsjdk.samtools.util.CloserUtil;
 
@@ -109,25 +111,25 @@ public class IlluminaDirectory
     			
     		}
     	
-    	void json(PrintStream out)
+    	void json(final JsonWriter out)  throws IOException
     		{
-    		boolean first=true;
-    		out.print("{\"samples\":[");
-    		for(Sample S:this.sampleMap.values())
+    		out.beginObject();
+    		out.name("samples");
+    		out.beginArray();
+
+    		for(final Sample S:this.sampleMap.values())
 				{
-    			if(!first) out.print(',');
-    			first=false;
 				S.json(out);
 				}
-    		out.print("],\"undetermined\":[");
-    		first=true;
+    		out.endArray();
+    		out.name("undetermined");
+    		out.beginArray();
     		for(final Pair p:undetermined)
 				{
-    			if(!first) out.print(',');
-    			first=false;
 				p.json(out);
 				}
-    		out.print("]}");
+    		out.endArray();
+    		out.endObject();
     		}
     	
     	void write(final XMLStreamWriter w) throws XMLStreamException
@@ -189,55 +191,68 @@ public class IlluminaDirectory
     		return false;
     		}
     	
-    	void json(final PrintStream out)
+    	void json(final JsonWriter out) throws IOException
     		{
     		if(forward!=null && reverse!=null)
 				{
-	    		
-	    		out.print("{");
-	    		out.print("\"id\":\"p"+this.id+"\",");
-	    		out.print("\"md5pair\":\""+md5(forward.getFile().getPath()+reverse.getFile().getPath())+"\",");
-	    		out.print("\"lane\":"+forward.getLane()+",");
-    			if(forward.getSeqIndex()!=null)
+	    		out.beginObject();
+	    		out.name("id");out.value("p"+this.id);
+	    		out.name("md5pair");out.value(md5(forward.getFile().getPath()+reverse.getFile().getPath()));
+	    		out.name("lane");out.value(""+forward.getLane());
+	    		out.name("index");
+	    		if(forward.getSeqIndex()!=null)
     				{
-    				out.print("\"index\":\""+forward.getSeqIndex()+"\",");
+    				out.value(forward.getSeqIndex());
     				}
     			else
     				{
-    				out.print("\"index\":null,");
+    				out.nullValue();
     				}
-	    		out.print("\"split\":"+forward.getSplit()+",");
-	    		out.print("\"forward\":{");
-	    		out.print("\"md5filename\":\""+md5(forward.getFile().getPath())+"\",");
-	    		out.print("\"path\":\""+forward.getFile().getPath()+"\",");
-	    		out.print("\"side\":"+forward.getSide().ordinal()+",");
-	    		out.print("\"file-size\":"+forward.getFile().length());
-	    		out.print("},\"reverse\":{");
-	    		out.print("\"md5filename\":\""+md5(reverse.getFile().getPath())+"\",");
-	    		out.print("\"path\":\""+reverse.getFile().getPath()+"\",");
-	    		out.print("\"side\":"+reverse.getSide().ordinal()+",");
-	    		out.print("\"file-size\":"+reverse.getFile().length());
-	    		out.print("}}");
+	    		out.name("split");out.value(""+forward.getSplit());
+	    		
+	    		
+	    		out.name("forward");
+	    		
+	    		out.beginObject();
+	    		out.name("md5filename");out.value(md5(forward.getFile().getPath()));
+	    		out.name("path");out.value(forward.getFile().getPath());
+	    		out.name("side");out.value(forward.getSide().ordinal());
+	    		out.name("file-size");out.value(forward.getFile().length());	    		
+	    		out.endObject();
+	    		
+	    		out.name("reverse");
+	    		
+	    		out.beginObject();
+	    		out.name("md5filename");out.value(md5(reverse.getFile().getPath()));
+	    		out.name("path");out.value(reverse.getFile().getPath());
+	    		out.name("side");out.value(reverse.getSide().ordinal());
+	    		out.name("file-size");out.value(reverse.getFile().length());	    		
+	    		out.endObject();
+
+	    		out.endObject();
 				}
     		else
     			{
-    			FastQName F=(forward==null?reverse:forward);
-    			out.print("{");
-    			out.print("\"id\":\"p"+this.id+"\",");
-    			out.print("\"md5filename\":\""+md5(F.getFile().getPath())+"\",");
-	    		out.print("\"lane\":"+F.getLane()+",");
-    			if(forward.getSeqIndex()!=null)
+    			final FastQName F=(forward==null?reverse:forward);
+    			out.beginObject();
+	    		out.name("id");out.value("p"+this.id);
+	    		out.name("md5filename");out.value(md5(F.getFile().getPath()));
+	    		out.name("lane");out.value(""+F.getLane());
+	    		out.name("index");
+	    		if(F.getSeqIndex()!=null)
     				{
-    				out.print("\"index\":\""+F.getSeqIndex()+"\",");
+    				out.value(F.getSeqIndex());
     				}
     			else
     				{
-    				out.print("\"index\":null,");
+    				out.nullValue();
     				}
-	    		out.print("\"split\":"+F.getSplit()+",");
-	    		out.print("\"path\":\""+F.getFile().getPath()+"\",");
-	    		out.print("\"side\":"+F.getSide()+",");
-    			out.print("}");
+	    		out.name("split");out.value(""+F.getSplit());
+	    		out.name("path");out.value(F.getFile().getPath());
+	    		out.name("side");out.value(F.getSide().ordinal());
+
+	    		
+    			out.endObject();
     			}
 			}
     	
@@ -324,22 +339,28 @@ public class IlluminaDirectory
 			w.writeEndElement();
 			}
     	
-    	void json(PrintStream out)
+    	void json(final JsonWriter out)  throws IOException
     		{
-    		out.print("{\"sample\":\""+ this.name +"\",\"files\":[");
-    		for(int i=0;i< pairs.size();++i)
+    		out.beginObject();
+    		out.name("sample");
+    		out.value(this.name);
+    		out.name("files");
+    		out.beginArray();
+    		
+    		for(final Pair p: this.pairs)
     			{
-    			if(i>0) out.print(",");
-    			pairs.get(i).json(out);
+    			p.json(out);
     			}
-    		out.print("]}");
+    		
+    		out.endArray();
+    		out.endObject();
     		}
     	
     	
 		}
     
 	    @Override
-	    protected Collection<Throwable> call(String inputName) throws Exception {
+	    protected Collection<Throwable> call(final String inputName) throws Exception {
 	    	BufferedReader in=null;;
 			try
 				{
@@ -375,29 +396,31 @@ public class IlluminaDirectory
 					}
 				in.close();
 		    	
-				PrintStream pw = this.openFileOrStdoutAsPrintStream();
+				final PrintWriter pw = this.openFileOrStdoutAsPrintWriter();
 
 		    	if(super.isJSON())
 		    		{
-		    		folder.json(pw);
+		    		final JsonWriter js=new JsonWriter(pw);
+		    		folder.json(js);
+		    		CloserUtil.close(js);
 		    		}
 		    	else
 		    		{
-	    			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-	    			XMLStreamWriter w= xmlfactory.createXMLStreamWriter(pw);
+		    		final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
+		    		final XMLStreamWriter w= xmlfactory.createXMLStreamWriter(pw);
 	    			w.writeStartDocument("UTF-8","1.0");
 	    			folder.write(w);
 	    			w.writeEndDocument();
 	    			w.flush();
-	    			w.close();
+	    			CloserUtil.close(w);
 		    		}
 		    	pw.flush();
-		    	int ret = pw.checkError()?-1:0;
-		    	pw.close();
+		    	final int ret = pw.checkError()?-1:0;
+		    	CloserUtil.close(pw);
 		    	if(ret!=0) return wrapException("I/O error on out (checkError)");
 				return RETURN_OK;
 				}
-			catch(Exception err)
+			catch(final Exception err)
 				{
 				return wrapException(err);
 				}

@@ -67,6 +67,7 @@ public class VcfFilterNotInPedigree
 			final VcfIterator in,
 			final VariantContextWriter out
 			) throws IOException {
+		final int IGNORE_SINGLETON=-1;
 		final VCFHeader header = in.getHeader();
 		
 		try {
@@ -101,7 +102,10 @@ public class VcfFilterNotInPedigree
 			
 			final VCFHeader h2= new VCFHeader(header);
 			h2.addMetaDataLine(filter);
-			h2.addMetaDataLine(singletonFilter);
+			if(super.singleton!=IGNORE_SINGLETON) {
+				h2.addMetaDataLine(singletonFilter);
+			}
+			
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
@@ -125,16 +129,23 @@ public class VcfFilterNotInPedigree
 					}
 				else
 					{
-					boolean is_singleton=true;
-					for(final Allele alt:ctx.getAlternateAlleles()) {
-						if( individuals.stream().
-							map(P->ctx.getGenotype(P.getId())).
-							filter(g->g.isCalled()&& g.getAlleles().contains(alt)).
-							count() > super.singleton) 
-							{
-							is_singleton =false;
-							break;
+					boolean is_singleton;
+					if(super.singleton!=IGNORE_SINGLETON) {
+						is_singleton = true;
+						for(final Allele alt:ctx.getAlternateAlleles()) {
+							if( individuals.stream().
+									map(P->ctx.getGenotype(P.getId())).
+									filter(g->g.isCalled()&& g.getAlleles().contains(alt)).
+									count() > super.singleton) 
+								{
+								is_singleton =false;
+								break;
+								}
 							}
+						}
+					else
+						{
+						is_singleton=false;
 						}
 					if(is_singleton) {
 						if(super.dicardVariant) continue;
