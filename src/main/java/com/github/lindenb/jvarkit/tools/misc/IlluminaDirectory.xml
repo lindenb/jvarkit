@@ -4,8 +4,7 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.
-</description>
+<description>Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.</description>
 <input type="stdin-or-one"/>
 <snippet id="md5"/>
 
