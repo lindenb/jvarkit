@@ -14,13 +14,19 @@
 	 __placeholder__="1"
 	>
 
-<description>Prepare R Script from VCF file.</description>
+<description>Prepare R Script from a stream of VCF files.</description>
 <input type="vcf"/>
 <snippet id="case-ctrl"/>
 
 <options>
 	<option name="acceptFiltered" type="boolean" longopt="ignorefilter" opt="if" default="false">
 		<description>accept variants having a FILTER column. Default is ignore variants with a FILTER column</description>
+	</option>
+	<option name="userDefinedFunName" type="string" longopt="function" opt="f" default="">
+		<description>User defined R function to be called after each VCF</description>
+	</option>
+	<option name="titleHeaderStr" type="string" longopt="title" argname="TITLE" opt="t" default="">
+		<description>Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the name of the VCF chunk</description>
 	</option>
 </options>
 
