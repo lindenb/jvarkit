@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.PushbackReader;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.BiFunction;
 
@@ -79,6 +80,11 @@ public CloseableIterator<FastaSequence> iterator(final Reader r) throws IOExcept
 public CloseableIterator<FastaSequence> iterator(final File file) throws IOException {
 	return iterator(IOUtils.openFileForReader(file));
 	}
+
+public Iterable<FastaSequence> getSequencesIn(final File file)  {
+	return new FastaIterable(file);
+	}
+
 
 public FastaSequence readOne(final File file) throws IOException {
 	CloseableIterator<FastaSequence> r= iterator(file);
@@ -204,4 +210,20 @@ private static class SequenceImpl
 		return (char)seq[index];
 		}
 	}
+
+	public class FastaIterable implements Iterable<FastaSequence> {
+		final File fastaFile;
+		FastaIterable(final File fastaFile) {
+			this.fastaFile = fastaFile;
+		}
+		@Override
+		public CloseableIterator<FastaSequence> iterator() {
+			try {
+				return FastaSequenceReader.this.iterator(this.fastaFile);
+			} catch (IOException e) {
+				throw new RuntimeIOException(e);
+			}
+		}
+	}
+
 }

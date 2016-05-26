@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "PubmedGender">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.pubmed">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<description>Add gender-related attributes in the Author tag of pubmed xml. </description>
+<output type="xml"/>
+<input type="stdin-or-one"/>
+
+
+<options>
+	<option name="dataFile" opt="d" longopt="database" type="input-file">
+		<description>REQUIRED: A comma delimited file containing the following columns: 1) Name 2) sex (M/F) 3) Score. See http://cpansearch.perl.org/src/EDALY/Text-GenderFromName-0.33/GenderFromName.pm or https://www.ssa.gov/oact/babynames/names.zip</description>
+	</option>
+</options>
+<documentation>
+<h:h3>Building the database</h:h3>
+<pre>$ wget -O jeter.zip "https://www.ssa.gov/oact/babynames/names.zip"
+$ unzip -t jeter.zip | tail
+    testing: yob2009.txt              OK
+    testing: yob2010.txt              OK
+    testing: yob2011.txt              OK
+    testing: yob2012.txt              OK
+    testing: yob2013.txt              OK
+    testing: yob2014.txt              OK
+    testing: yob2015.txt              OK
+    testing: yob1880.txt              OK
+    testing: NationalReadMe.pdf       OK
+No errors detected in compressed data of jeter.zip.
+$ unzip -p jeter.zip yob2015.txt &gt; database.csv
+</pre>
+
+<h:h3>Example</h:h3>
+<h:pre><![CDATA[$ java -jar dist/pubmeddump.jar "Lindenbaum[Author] Nantes" 2> /dev/null  | java -jar dist/pubmedgender.jar  -d jeter.csv 2> /dev/null | grep Lindenbaum -A 2 -B 1
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+]]></h:pre>
+<h:h3>See also</h:h3>
+<h:ul>
+	<h:li>
+A Simple tool to get the sex ratio in pubmed : <h:a>http://plindenbaum.blogspot.fr/2010/09/simple-tool-to-get-sex-ratio-in-pubmed.html</h:a></h:li>
+</h:ul>
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>

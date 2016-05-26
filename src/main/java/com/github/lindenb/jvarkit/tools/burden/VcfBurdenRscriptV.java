@@ -225,6 +225,7 @@ public class VcfBurdenRscriptV
 						}
 						first=false;
 					}
+				
 				final Variant variant = new Variant();
 				variant.contig = ctx.getContig();
 				variant.start = ctx.getStart();

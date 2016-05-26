@@ -25,10 +25,12 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
@@ -65,10 +67,10 @@ public class PaintContext extends AbstractCommandLineProgram
 	private class BamFile
 		{
 		File file;
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		public void close()
 			{
-			sfr.close();
+			CloserUtil.close(sfr);
 			}
 		}
 	
@@ -1029,12 +1031,11 @@ public class PaintContext extends AbstractCommandLineProgram
 				dict=this.indexedFastaSequenceFile.getSequenceDictionary();
 				}
 			
-			
+			final SamReaderFactory srf= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT); 
 			for(BamFile input: samFileReaders)
 				{
 				info("Opening "+input.file);
-				input.sfr=new SAMFileReader(input.file);
-				input.sfr.setValidationStringency(htsjdk.samtools.ValidationStringency.LENIENT);
+				input.sfr=srf.open(input.file);
 				if(dict!=null && !SequenceUtil.areSequenceDictionariesEqual(
 						input.sfr.getFileHeader().getSequenceDictionary(),
 						dict))

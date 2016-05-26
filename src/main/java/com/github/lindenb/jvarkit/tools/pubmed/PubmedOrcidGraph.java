@@ -60,8 +60,7 @@ public class PubmedOrcidGraph
 	extends AbstractPubmedOrcidGraph
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PubmedOrcidGraph.class);
-
-	
+		
 	private static class Author implements Comparable<Author>
 		{
 		String foreName = null;
@@ -135,6 +134,8 @@ public class PubmedOrcidGraph
 		}
 		}
 	
+	
+	
 	private Author parseAuthor(XMLEventReader r,final String pmid)  throws XMLStreamException
 		{
 		final Author au = new Author();
@@ -145,7 +146,7 @@ public class PubmedOrcidGraph
 				String eltName = start.getName().getLocalPart();
 				if(eltName.equals("LastName")) {
 					au.lastName=r.getElementText().trim();
-				} else if(eltName.equals("ForeName")) {
+				} else if(eltName.equals("ForeName") || eltName.equals("FirstName")) {
 					au.foreName=r.getElementText().trim();
 				} else if(eltName.equals("Affiliation")) {
 					au.affiliation=r.getElementText().trim();

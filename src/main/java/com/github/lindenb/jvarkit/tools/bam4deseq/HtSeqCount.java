@@ -16,11 +16,13 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
@@ -179,9 +181,8 @@ public class HtSeqCount extends AbstractCommandLineProgram
 			}
 		}
 	
-	private void run(SAMFileReader sfr) throws IOException
+	private void run(final SamReader sfr) throws IOException
 		{
-		sfr.setValidationStringency(ValidationStringency.LENIENT);
 		SAMFileHeader header=sfr.getFileHeader();
 		
 		if(this.file_index==0)
@@ -289,16 +290,16 @@ public class HtSeqCount extends AbstractCommandLineProgram
 			}
 		
 		
-		SAMFileReader sfr=null;
+		SamReader sfr=null;
 		try
 			{
 			this.file_index=0;
-			
+			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
 			if(opt.getOptInd()==args.length)
 				{
 				info("Opening stdin");
 				filenames.add("stdin");
-				sfr=new SAMFileReader(System.in);
+				sfr=srf.open(SamInputResource.of(System.in));
 				run(sfr);
 				sfr.close();
 				}
@@ -313,7 +314,7 @@ public class HtSeqCount extends AbstractCommandLineProgram
 				for(String filename:filenames)
 					{
 					info("Opening "+filename);
-					sfr=new SAMFileReader(new File(filename));
+					sfr=srf.open(new File(filename));
 					run(sfr);
 					sfr.close();
 					this.file_index++;

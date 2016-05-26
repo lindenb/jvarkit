@@ -24,9 +24,11 @@ import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.RuntimeEOFException;
 import htsjdk.samtools.util.SamRecordIntervalIteratorFactory;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
@@ -242,14 +244,13 @@ public class ImpactOfDuplicates extends CommandLineProgram
             	File inFile=this.INPUT.get(this.bamIndex);
             	log.info("Processing "+inFile);
                 IOUtil.assertFileIsReadable(inFile);
-                SAMFileReader samReader=null;
+                SamReader samReader=null;
                 CloseableIterator<SAMRecord> iter=null;
                 try
 	                {
-	                samReader=new SAMFileReader(inFile);
+	                samReader= SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).open(inFile);
 	                final SAMFileHeader header=samReader.getFileHeader();
 	                this.samFileDicts.add(header.getSequenceDictionary());
-	                samReader.setValidationStringency(super.VALIDATION_STRINGENCY);
 	                if(BEDFILE==null)
 		                {
 		                iter=samReader.iterator();
