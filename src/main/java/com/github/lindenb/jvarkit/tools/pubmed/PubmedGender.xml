@@ -16,7 +16,7 @@
 </options>
 <documentation>
 <h:h3>Building the database</h:h3>
-<pre>$ wget -O jeter.zip "https://www.ssa.gov/oact/babynames/names.zip"
+<h:pre>$ wget -O jeter.zip "https://www.ssa.gov/oact/babynames/names.zip"
 $ unzip -t jeter.zip | tail
     testing: yob2009.txt              OK
     testing: yob2010.txt              OK
@@ -29,7 +29,7 @@ $ unzip -t jeter.zip | tail
     testing: NationalReadMe.pdf       OK
 No errors detected in compressed data of jeter.zip.
 $ unzip -p jeter.zip yob2015.txt &gt; database.csv
-</pre>
+</h:pre>
 
 <h:h3>Example</h:h3>
 <h:pre><![CDATA[$ java -jar dist/pubmeddump.jar "Lindenbaum[Author] Nantes" 2> /dev/null  | java -jar dist/pubmedgender.jar  -d jeter.csv 2> /dev/null | grep Lindenbaum -A 2 -B 1

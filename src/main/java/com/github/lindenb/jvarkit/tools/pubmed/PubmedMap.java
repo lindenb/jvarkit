@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2016 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,12 +31,14 @@ package com.github.lindenb.jvarkit.tools.pubmed;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventFactory;
@@ -99,7 +101,7 @@ public class PubmedMap
 		build("ba","Bosnia and Herzegovina"),
 		build("bb","Barbados"),
 		build("bd","Bangladesh"),
-		build("be","Belgium"),
+		build("be","Belgium"),build("be","Gent"),
 		build("bf","Burkina Faso"),
 		build("bg","Bulgaria"),
 		build("bh","Bahrain"),
@@ -108,7 +110,7 @@ public class PubmedMap
 		build("bm","Bermuda"),
 		build("bn","Brunei Darussalam"),
 		build("bo","Bolivia"),
-		build("br","Brazil"),
+		build("br","Brazil"),build("br","Buenos Aires"),
 		build("bs","Bahamas"),
 		build("bt","Bhutan"),
 		build("bv","Bouvet Island"),
@@ -119,13 +121,13 @@ public class PubmedMap
 		build("cc","Cocos (Keeling) Islands"),
 		build("cd","Congo, The Democratic Republic of the"),
 		build("cf","Central African Republic"),
-		build("cg","Congo, Republic of"),
+		build("cg","Congo"),
 		build("ch","Switzerland"),
 		build("ci","Cote d'Ivoire"),
 		build("ck","Cook Islands"),
 		build("cl","Chile"),
 		build("cm","Cameroon"),
-		build("cn","China"),
+		build("cn","China"),build("cn","Beijing"),build("cn","Pekin"),
 		build("co","Colombia"),
 		build("cr","Costa Rica"),
 		build("cu","Cuba"),
@@ -133,7 +135,7 @@ public class PubmedMap
 		build("cx","Christmas Island"),
 		build("cy","Cyprus"),
 		build("cz","Czech Republic"),
-		build("de","Germany"),
+		build("de","Germany"), build("de","Berlin"),build("de","Max Planck"),build("de","Heidelberg"),
 		build("dj","Djibouti"),
 		build("dk","Denmark"),
 		build("dm","Dominica"),
@@ -175,24 +177,23 @@ public class PubmedMap
 		build("hk","Hong Kong"),
 		build("hm","Heard and McDonald Islands"),
 		build("hn","Honduras"),
-		build("hr","Croatia/Hrvatska"),
+		build("hr","Croatia"),build("hr","Hrvatska"),
 		build("ht","Haiti"),
 		build("hu","Hungary"),
 		build("id","Indonesia"),
 		build("ie","Ireland"),
-		build("il","Israel"),
+		build("il","Israel"),build("il","Tel-Aviv"),
 		build("im","Isle of Man"),
-		build("in","India"),
+		build("in","India"),build("in","Delhi"),
 		build("io","British Indian Ocean Territory"),
 		build("iq","Iraq"),
-		build("ir","Iran, Islamic Republic of"),
-		build("ir","Iran"),
+		build("ir","Islamic Republic of Iran"),build("ir","Iran"),
 		build("is","Iceland"),
 		build("it","Italy"),
 		build("je","Jersey"),
 		build("jm","Jamaica"),
 		build("jo","Jordan"),
-		build("jp","Japan"),
+		build("jp","Japan"),build("jp","Kobe"),build("jp","Tokyo"),build("jp","Kyoto"),
 		build("ke","Kenya"),
 		build("kg","Kyrgyzstan"),
 		build("kh","Cambodia"),
@@ -200,8 +201,7 @@ public class PubmedMap
 		build("km","Comoros"),
 		build("kn","Saint Kitts and Nevis"),
 		build("kp","Korea, Democratic People's Republic"),
-		build("kr","Korea, Republic of"),
-		build("kr","South Korea"),
+		build("kr","Republic of Korea"),build("kr","Korea"),build("kr","South Korea"),
 		
 		build("kw","Kuwait"),
 		build("ky","Cayman Islands"),
@@ -220,11 +220,11 @@ public class PubmedMap
 		build("ly","Libya"),
 		build("ma","Morocco"),
 		build("mc","Monaco"),
-		build("md","Moldova, Republic of"),
+		build("md","Moldova"),
 		build("me","Montenegro"),
 		build("mg","Madagascar"),
 		build("mh","Marshall Islands"),
-		build("mk","Macedonia, The Former Yugoslav Republic of"),
+		build("mk","Macedonia"),
 		build("ml","Mali"),
 		build("mm","Myanmar"),
 		build("mn","Mongolia"),
@@ -291,7 +291,7 @@ public class PubmedMap
 		build("so","Somalia"),
 		build("sr","Suriname"),
 		build("st","Sao Tome and Principe"),
-		build("su","Soviet Union (being phased out)"),
+		build("su","Soviet Union"),
 		build("sv","El Salvador"),
 		build("sy","Syrian Arab Republic"),
 		build("sz","Swaziland"),
@@ -339,14 +339,13 @@ public class PubmedMap
 		build("zw","Zimbabwe"),
 		
 		build("ge","Georgia"),
-		build("uk"," UK."),
-		build("uk"," UK,"),
-		build("uk"," UK,"),
-		build("us"," england."),
-		build("us"," u.s.a."),
-		build("us"," usa,"),
-		build("us"," usa."),
-		build("us",",usa,"),
+		build("uk","UK"),
+		build("us","England"),
+		build("us","USA"),
+		build("us","U.S.A"),
+		build("us"," usa"),
+		build("us"," usa"),
+		build("us",",usa"),
 		build("us"," new york"),
 		build("ru","Russia"),
 		build("br","Brasil"),
@@ -355,15 +354,17 @@ public class PubmedMap
 		build("us","cornell"),
 		build("us","san-francisco"),
 		build("us","san francisco"),
-		build("us","calfornia"),
-		build("us","boston"),build("us","atlanta"),build("us","chicago"),
+		build("us","california"),
+		build("us","boston"),build("us","Atlanta"),build("us","Chicago"),build("us","Seattle"),build("us","Texas"),
 		build("fr","cedex"),
 		build("kr","Korea")
 		};
 		
-	
+	final Collator collator;
 	public PubmedMap()
 		{
+		this.collator= Collator.getInstance(Locale.US);
+		this.collator.setStrength(Collator.PRIMARY);
 		}
 	
 	private Country decodeAffiliation(final String affiliation) {
@@ -396,16 +397,20 @@ public class PubmedMap
 			
 			for(final Country country:Countries)
 				{
-				if(country.name.contains(" ") && affiliation.contains(country.name)) {
+				if((country.name.contains(" ") || country.name.contains(".")) && affiliation.contains(country.name)) {
 					return country;
-				}
-				
-				for(String token: tokens) //ok starting from end because list is reversed
-					{
-					if(token.endsWith(".")) token= token.substring(0,token.length()-1);
-					if(token.equals(country.name)) return country;
 					}
 				}
+			
+			for(String token: tokens) //ok starting from end because list is reversed
+					{
+					if(token.endsWith(".")) token= token.substring(0,token.length()-1);
+					for(final Country country:Countries)
+						{
+						if(collator.compare(token,country.name)==0) return country;
+						}
+					}
+				
 				
 			LOG.info("Cannot find country for "+affiliation+" "+Affiliation);
 			return null;
@@ -458,7 +463,9 @@ public class PubmedMap
 				final Country country = decodeAffiliation(affiliation);
 				
 				if(country!=null) {
-					attributes.add(xmlEventFactory.createAttribute(attDomainSuffix, country.suffix));
+					String suffix = country.suffix;
+					if(suffix.equals("gov")) suffix="us";
+					attributes.add(xmlEventFactory.createAttribute(attDomainSuffix, suffix));
 					attributes.add(xmlEventFactory.createAttribute(attPlaceSuffix, country.name));
 					}
 				w.add(xmlEventFactory.createStartElement(
