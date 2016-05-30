@@ -25,11 +25,13 @@
 
 ### Requirements / Dependencies
 
-* java 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+Since 2016-05-30 the compilation of the "Java API for high-throughput sequencing data (HTS) formats" (htsjdk) library requires gradle http://gradle.org
+
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make > 3.81
 * curl/wget
 * git
-* apache ant is only required to compile htsjdk
+* gradle http://gradle.org is only required to compile the "Java API for high-throughput sequencing data (HTS) formats" (htsjdk)
 * xsltproc http://xmlsoft.org/XSLT/xsltproc2.html
 
 
@@ -54,13 +56,19 @@ The required libraries will be downloaded and installed in the `dist` directory.
 
 ### edit 'local.mk' (optional)
 
-The a file **local.mk** can be created edited to override/add some paths.
+The a file **local.mk** can be created edited to override/add some definitions.
 
 For example it can be used to set the HTTP proxy:
 
 ```
 http.proxy.host=your.host.com
 http.proxy.port=124567
+```
+
+to set the gradle user home ( https://docs.gradle.org/current/userguide/build_environment.html#sec:gradle_properties_and_system_properties )
+
+```
+gradle.user.home=/dir1/dir2/gradle_user_home
 ```
 
 <xsl:if test="not(documentation/h:h3[text() = 'Synopsis'])">
