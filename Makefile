@@ -24,7 +24,7 @@ XJC?=xjc
 
 export htsjdk.hash?=5196d09b3e9cc72f73d7bf08f0154f50bdadd475
 export htsjdk.home?=${this.dir}htsjdk-${htsjdk.hash}
-htsjdk.snapshot.jar=${htsjdk.home}/build/libs/master-2.1.1-102-g5196d09-SNAPSHOT.jar
+htsjdk.snapshot.jar?=${htsjdk.home}/build/libs/htsjdk-${htsjdk.hash}-unspecified-SNAPSHOT.jar
 gradle.user.home?=$(if ${GRADLE_USER_HOME},${GRADLE_USER_HOME},${HOME}/.gradle)
 
 
