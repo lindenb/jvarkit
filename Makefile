@@ -663,7 +663,7 @@ ${htsjdk.snapshot.jar} : ${htsjdk.home}/build.gradle
 	echo "And $${JAVA_HOME}/bin/javac should be >=1.8"
 	(cd ${htsjdk.home} && ./gradlew --gradle-user-home "${gradle.user.home}" )
 
-${htsjdk.home}/build.xml : 
+${htsjdk.home}/build.gradle : 
 	mkdir -p $(dir ${htsjdk.home})
 	rm -rf "$(dir ${htsjdk.home})${htsjdk.hash}.zip" "$(dir $@)"  "${tmp.dir}"
 	mkdir -p "${tmp.dir}"
