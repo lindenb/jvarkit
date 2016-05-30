@@ -9,10 +9,10 @@
 <output type="vcf"/>
 
 <options>
-	<option name="TABIX" type="string" opt="f" longop="source" required="true" default="">
+	<option name="TABIX" type="string" opt="f" longop="source"  default="">
 		<description>The VCF file indexed with TABIX or tribble. Source of the annotations</description>
 	</option>
-	<option name="tagsAsString" type="string" opt="t" longop="tag" required="true">
+	<option name="tagsAsString" type="string" opt="t" longop="tag" >
 		<description>tag1,tag2,tag... the INFO keys to peek from the indexed file</description>
 	</option>
 	<option name="peekTagPrefix" type="string" opt="p" longop="prefix" required="false" default="">

@@ -32,6 +32,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -42,11 +43,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -66,30 +68,29 @@ public class BamStats05 extends AbstractBamStats05
 	{
 	private static final Logger LOG= com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractBamStats05.class);
 
-    @SuppressWarnings("resource")
 	private Map<String, List<Interval>> readBedFile(File bedFile) throws IOException
     	{
     	final Map<String, List<Interval>> gene2interval=new TreeMap<String, List<Interval>>();
     	
     	BufferedReader bedIn=null;
-    	Pattern tab=Pattern.compile("[\t]");
-    	String tokens[];
     	try
     		{
     		bedIn=IOUtils.openFileForBufferedReading(bedFile);
+    		final BedLineCodec codec = new BedLineCodec();
     		String line=null;
 			while((line=bedIn.readLine())!=null)
 				{
 				if(line.isEmpty() || line.startsWith("#")) continue;
-				tokens=tab.split(line,6);
-				if(tokens.length<4)
+				final BedLine bedLine = codec.decode(line);
+				if(bedLine==null) continue;
+				if(bedLine.getColumnCount()<4)
 					{
 					throw new IOException("bad bed line in "+line+" "+bedFile);
 					}
-				String chrom=tokens[0];
-				int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
-				int chromEnd1= Integer.parseInt(tokens[2]);
-				String gene = tokens[3];
+				final String chrom = bedLine.getContig();
+				final int chromStart1= bedLine.getStart();
+				final int chromEnd1= bedLine.getEnd();
+				final String gene = bedLine.get(4);
 				if(gene.isEmpty())  throw new IOException("bad bed gene in "+line+" "+bedFile);
 				 List<Interval> intervals = gene2interval.get(gene);
 				 if(intervals==null)
@@ -103,7 +104,7 @@ public class BamStats05 extends AbstractBamStats05
 				 	}
 				else
 				 	{
-					for(Interval interval:intervals)
+					for(final Interval interval:intervals)
 						{
 						if(interval.getEnd()<chromStart1) continue;
 						if(interval.getStart()>chromEnd1) continue;
@@ -122,10 +123,12 @@ public class BamStats05 extends AbstractBamStats05
     	}
 	
 	protected  Collection<Throwable> doWork(
+			final PrintWriter pw,
 			final Map<String, List<Interval>> gene2interval,
 			final String filename,
 			final SamReader IN) throws Exception
 		{
+		
 		try
 			{
 			LOG.info("Scanning "+filename);
@@ -133,8 +136,8 @@ public class BamStats05 extends AbstractBamStats05
 			List<SAMReadGroupRecord> rgs = header.getReadGroups();
 			if(rgs==null || rgs.isEmpty())
 				throw new IOException("No read groups in "+filename);
-			Set<String> samples = new TreeSet<>();
-			for(SAMReadGroupRecord rg:rgs)
+			final Set<String> samples = new TreeSet<>();
+			for(final SAMReadGroupRecord rg:rgs)
 				{
 				String sample = rg.getSample();
 				if(sample==null || sample.trim().isEmpty())
@@ -143,9 +146,9 @@ public class BamStats05 extends AbstractBamStats05
 					}
 				samples.add(sample);
 				}
-			for(String sample : samples)
+			for(final String sample : samples)
 				{
-				for(String gene: gene2interval.keySet())
+				for(final String gene: gene2interval.keySet())
 					{
 					int geneStart = Integer.MAX_VALUE;
 					int geneEnd = 0;
@@ -239,7 +242,7 @@ public class BamStats05 extends AbstractBamStats05
 							}
 						mean/=counts.size();
 						
-					System.out.println(
+					pw.println(
 							gene2interval.get(gene).get(0).getContig()+"\t"+
 							geneStart+"\t"+geneEnd+"\t"+gene+"\t"+sample+"\t"+
 							counts.size()+"\t"+
@@ -273,12 +276,14 @@ public class BamStats05 extends AbstractBamStats05
 			}
 		SamReader in=null;
 		BufferedReader r=null;
+		PrintWriter pw=null;
 		try
 			{
 			Map<String, List<Interval>> gene2interval = readBedFile(BEDILE);
-			System.out.println("#chrom\tstart\tend\tgene\tsample\tlength\tmincov\tmaxcov\tmean\tnocoverage.bp\tpercentcovered");
+			pw = super.openFileOrStdoutAsPrintWriter();
+			pw.println("#chrom\tstart\tend\tgene\tsample\tlength\tmincov\tmaxcov\tmean\tnocoverage.bp\tpercentcovered");
 			SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-			Set<String> files = new  HashSet<>();
+			final Set<String> files = new  HashSet<>();
 			if(args.isEmpty())
 				{
 				LOG.info("reading BAM path from stdin");
@@ -305,15 +310,17 @@ public class BamStats05 extends AbstractBamStats05
 					}
 				}
 			
-			for(String f:files)
+			for(final String f:files)
 				{
 				in = srf.open(new File(f));
-				 Collection<Throwable> tl =doWork(gene2interval,f,in);
+				final Collection<Throwable> tl =doWork(pw,gene2interval,f,in);
 				CloserUtil.close(in);
 				in=null;
 				if(!tl.isEmpty()) return tl;
 				}
-			
+			pw.flush();
+			pw.close();
+			pw=null;
 			return RETURN_OK;
 			}
 		catch (Exception e) {
@@ -323,6 +330,7 @@ public class BamStats05 extends AbstractBamStats05
 			{
 			CloserUtil.close(in);
 			CloserUtil.close(r);
+			CloserUtil.close(pw);
 			}
 		}
 

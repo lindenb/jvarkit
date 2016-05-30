@@ -11,8 +11,14 @@
 	<option name="MIN_COVERAGE" type="int" opt="cov" longopt="cov" argname="COV" default="0">
 		<description>min coverage to say the position is not covered</description>
 	</option>
-	<option name="BEDILE" type="input-file" opt="B" longopt="bed" argname="FILE.BED" >
-		<description>Bed File</description>
+	<option name="MMQ" type="int" opt="mmq" longopt="mmq" argname="MAPQ" default="0">
+		<description>min mapping quality</description>
+	</option>
+	<option name="NO_ORPHAN" type="boolean" opt="keeporphan" longopt="keeporphan" default="false">
+		<description>if defined and true: Ignore no properly aligned pairs.</description>
+	</option>
+	<option name="bedFile" type="input-file" opt="B" longopt="bed" argname="FILE.BED" >
+		<description>Bed File. Required</description>
 	</option>
 
 </options><!-- __PLACEHOLDER__ -->

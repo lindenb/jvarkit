@@ -29,80 +29,45 @@ History:
 package com.github.lindenb.jvarkit.tools.bamstats04;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Arrays;
-import java.util.regex.Pattern;
+import java.util.Collection;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Log;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
 
-public class BamStats04 extends AbstractCommandLineProgram
+public class BamStats04 extends AbstractBamStats04
 	{
-	private static final Log LOG=Log.getInstance(BamStats04.class);
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Coverage statistics for a BED file. It uses the Cigar string instead of the start/end to get the voverage";
-
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM file to process.",
-    		optional=false)
-	public File IN=null;
-
-    @Option(shortName= "BED", doc="BED File.",
-    		optional=false)
-	public File BEDILE=null;
-
-    @Option(shortName= "NODUP", doc="discard duplicates", optional=false)
-    public boolean NO_DUP=true;
-    
-    @Option(shortName= "NOORPHAN", doc="discard not properly paired", optional=false)
-	public boolean NO_ORPHAN=true;
-    
-    @Option(shortName= "NOVENDOR", doc="discard failing Vendor Quality", optional=false)
-	public boolean NO_VENDOR=true;
-    
-    @Option(shortName= "MIN_MAPING_QUALITY", doc="min mapping quality", optional=false)
-	public int MMQ=0;
-
-    @Option(shortName= "MIN_COV", doc="min coverage to say the position is not covered", optional=false)
-	public int MIN_COVERAGE=0;
-
-    
-    ///private boolean skipDuplicates=true;
-	//private int minQual=0;
-	//private int basesperbin=10;
-	//private int num_bin=20;
-	//private boolean cumulative=true;
-	
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamStats04.class);
 	@Override
-	protected int doWork()
-		{
+	protected Collection<Throwable> call(String inputName) throws Exception {
+		if(super.bedFile==null || !super.bedFile.exists()) {
+			return wrapException("undefined option -"+OPTION_BEDFILE);
+		}
 		BufferedReader bedIn=null;
 		SamReader samReader = null;
+		PrintWriter pw = null;
 		try
 			{
-			System.out.println("#chrom\tstart\tend\tlength\tmincov\tmaxcov\tmean\tnocoveragepb\tpercentcovered");
-			LOG.info("Scanning "+IN);
-			bedIn=IOUtils.openFileForBufferedReading(BEDILE);
 			
 			final BedLineCodec codec= new BedLineCodec();
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(super.VALIDATION_STRINGENCY);
-			samReader = srf.open(IN);
+			
+			bedIn=IOUtils.openFileForBufferedReading(super.bedFile);
+			samReader = super.openSamReader(inputName);
+			
+			pw = super.openFileOrStdoutAsPrintWriter();
+			pw.println("#chrom\tstart\tend\tlength\tmincov\tmaxcov\tmean\tnocoveragepb\tpercentcovered");
+
+		
 			String line=null;
 			while((line=bedIn.readLine())!=null)
 				{
@@ -130,11 +95,11 @@ public class BamStats04 extends AbstractCommandLineProgram
 					{
 					final SAMRecord rec=r.next();
 					if(rec.getReadUnmappedFlag()) continue;
-					if(NO_VENDOR && rec.getReadFailsVendorQualityCheckFlag()) continue;
-					if(NO_DUP && rec.getDuplicateReadFlag() ) continue;
-					if(rec.getReadPairedFlag())
+					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+					if(rec.getDuplicateReadFlag() ) continue;
+					if(NO_ORPHAN && rec.getReadPairedFlag() && !rec.getProperPairFlag())
 						{
-						if(NO_ORPHAN && !rec.getProperPairFlag()) continue;
+						continue;
 						}
 					if(rec.isSecondaryOrSupplementary()) continue;
 					if(!rec.getReferenceName().equals(bedLine.getContig())) continue;
@@ -178,7 +143,7 @@ public class BamStats04 extends AbstractCommandLineProgram
 					}
 				mean/=counts.length;
 				
-				System.out.println(
+				pw.println(
 						bedLine.getContig()+"\t"+
 						(bedLine.getStart()-1)+"\t"+
 						(bedLine.getEnd())+"\t"+
@@ -190,15 +155,18 @@ public class BamStats04 extends AbstractCommandLineProgram
 						(int)(((counts.length-count_no_coverage)/(double)counts.length)*100.0)
 						);
 				}
-			return 0;
+			pw.flush();
+			pw.close();pw=null;
+			LOG.info("done");
+			return RETURN_OK;
 			}
-	catch(Exception err)
+	catch(final Exception err)
 		{
-		LOG.error(err);
-		return -1;
+		return wrapException(err);
 		}
 	finally
 		{
+		CloserUtil.close(pw);
 		CloserUtil.close(bedIn);
 		CloserUtil.close(samReader);
 		}
