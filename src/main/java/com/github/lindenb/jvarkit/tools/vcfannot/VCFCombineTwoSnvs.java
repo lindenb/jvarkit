@@ -80,7 +80,7 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFCombineTwoSnvs.class);
 	/** known Gene collection */
-	private final IntervalTreeMap<KnownGene> knownGenes=new IntervalTreeMap<KnownGene>();
+	private final IntervalTreeMap<List<KnownGene>> knownGenes=new IntervalTreeMap<>();
 	/** reference genome */
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	/** current genomic sequence */
@@ -190,7 +190,13 @@ public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
 						g.getTxStart()+1,
 						g.getTxEnd()
 						);
-				this.knownGenes.put(interval, g);
+				List<KnownGene> lkg= this.knownGenes.get(interval);
+				if(lkg==null) {
+					lkg=new ArrayList<>(2);
+					this.knownGenes.put(interval, lkg);
+				}
+				
+				lkg.add(g);
 				}
 			CloserUtil.close(in);in=null;
 			LOG.info("genes:"+knownGenes.size());
@@ -559,11 +565,16 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 					}
 				
 				/* find the overlapping genes : extend the interval of the variant to include the stop codon */
-				final Collection<KnownGene> genes= this.knownGenes.getOverlapping(
+				final Collection<KnownGene> genes= new ArrayList<>();
+				
+				for(List<KnownGene> lkg:this.knownGenes.getOverlapping(
 						new Interval(ctx.getContig(),
 						Math.max(1,ctx.getStart()-3),
 						ctx.getEnd()+3
-						));
+						)))
+					{
+					genes.addAll(lkg);
+					}
 				
 				final List<Allele> alternateAlleles =  ctx.getAlternateAlleles();
 				

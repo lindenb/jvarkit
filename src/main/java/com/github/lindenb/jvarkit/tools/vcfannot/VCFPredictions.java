@@ -68,7 +68,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VCFPredictions extends AbstractVCFPredictions
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFPredictions.class);
-	private IntervalTreeMap<KnownGene> knownGenes=null;
+	private IntervalTreeMap<List<KnownGene>> knownGenes=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
 	
@@ -205,7 +205,7 @@ public class VCFPredictions extends AbstractVCFPredictions
 						"Cannot get sequence dictionary for REF : " + getMessageBundle("picard.dictionary.needed"));
 			}
 			int n_genes = 0;
-			this.knownGenes = new IntervalTreeMap<KnownGene>();
+			this.knownGenes = new IntervalTreeMap<>();
 			LOG.info("loading genes");
 			in = IOUtils.openURIForBufferedReading(this.kgURI);
 			String line;
@@ -223,7 +223,13 @@ public class VCFPredictions extends AbstractVCFPredictions
 
 				final Interval interval = new Interval(g.getContig(),
 						Math.max(1, g.getTxStart() + 1 - extend_gene_search), g.getTxEnd() + extend_gene_search);
-				this.knownGenes.put(interval, g);
+				List<KnownGene> L= this.knownGenes.get(interval);
+				if(L==null) {
+					L=new ArrayList<>(2);
+					this.knownGenes.put(interval, L);
+				}
+				
+				L.add(g);
 			}
 			in.close();
 			in = null;
@@ -324,11 +330,16 @@ public class VCFPredictions extends AbstractVCFPredictions
 			{
 			final VariantContext ctx=progress.watch(r.next());
 			
-			final Collection<KnownGene> genes=this.knownGenes.getOverlapping(new Interval(
+			final List<KnownGene> genes=new ArrayList<>();
+			
+			for(final List<KnownGene> l2: this.knownGenes.getOverlapping(new Interval(
 					ctx.getContig(),
 					ctx.getStart(),
 					ctx.getEnd() //1-based
-					));
+					)))
+				{
+				genes.addAll(l2);
+				}
 			final List<Annotation> ctx_annotations=new ArrayList<Annotation>();
 			if(genes==null || genes.isEmpty())
 				{

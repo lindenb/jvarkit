@@ -1,7 +1,9 @@
 package com.github.lindenb.jvarkit.tools.rnaseq;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -33,7 +35,7 @@ import com.github.lindenb.jvarkit.util.ucsc.KnownGene.Exon;
 
 public class FindNewSpliceSites extends AbstractCommandLineProgram
 	{
-	private IntervalTreeMap<KnownGene> knownGenesMap=new IntervalTreeMap<KnownGene>();
+	private IntervalTreeMap<List<KnownGene>> knownGenesMap=new IntervalTreeMap<>();
 	private int max_distance=10;
 	private SAMFileWriter sfw=null;
 	private SAMFileWriter weird=null;
@@ -88,8 +90,12 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 
 		
 			
-			Interval interval=new Interval(rec.getReferenceName(), rec.getAlignmentStart(), rec.getAlignmentEnd());
-			Collection<KnownGene> genes=this.knownGenesMap.getOverlapping(interval);
+			final Interval interval=new Interval(rec.getReferenceName(), rec.getAlignmentStart(), rec.getAlignmentEnd());
+			final List<KnownGene> genes=new ArrayList<>();
+			for(final List<KnownGene> list:this.knownGenesMap.getOverlapping(interval))
+				{
+				genes.addAll(list);
+				}
 			if(genes.isEmpty())
 				{
 				return;
@@ -252,9 +258,15 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 				LineIterator r=IOUtils.openURIForLineIterator(kgUri);
 				while(r.hasNext())
 					{
-					KnownGene g=new KnownGene(tab.split(r.next()));
+					final KnownGene g=new KnownGene(tab.split(r.next()));
 					if(g.getExonCount()==1) continue;//need spliced one
-					this.knownGenesMap.put(new Interval(g.getContig(), g.getTxStart()+1, g.getTxEnd()), g);
+					final Interval interval = new Interval(g.getContig(), g.getTxStart()+1, g.getTxEnd());
+					List<KnownGene> L = this.knownGenesMap.get(interval);
+					if(L==null) {
+						L= new ArrayList<>();
+						this.knownGenesMap.put(interval,L);
+					}
+					L.add(g);
 					}
 				info("Done reading: "+kgUri);
 				}

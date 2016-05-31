@@ -25,8 +25,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.biostar;
 import java.io.BufferedReader;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -41,7 +43,7 @@ import htsjdk.samtools.util.IntervalTreeMap;
 public class Biostar81455 extends AbstractBiostar81455
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar81455.class);
-	private IntervalTreeMap<KnownGene> kgMap=null;
+	private IntervalTreeMap<List<KnownGene>> kgMap=null;
 	
     private static int distance(int pos0,KnownGene kg)
 		{
@@ -67,26 +69,24 @@ public class Biostar81455 extends AbstractBiostar81455
     			{
     			return wrapException("undefined kguri");
     			}
-    		this.kgMap = new IntervalTreeMap<KnownGene>();
+    		this.kgMap = new IntervalTreeMap<List<KnownGene>>();
 			LOG.info("readubf "+kgUri);
 			String line;
 			Pattern tab=Pattern.compile("[\t]");
 			r=IOUtils.openURIForBufferedReading(this.kgUri);
 			while((line=r.readLine())!=null)
 				{
-				String tokens[]=tab.split(line);
+				final String tokens[]=tab.split(line);
 				
-				KnownGene kg=new KnownGene();
-				kg.setName(tokens[0]);
-				kg.setChrom(tokens[1]);
-				kg.setStrand(tokens[2].charAt(0));
-				kg.setTxStart(Integer.parseInt(tokens[3]));
-				kg.setTxEnd(Integer.parseInt(tokens[4]));
-				kg.setCdsStart(Integer.parseInt(tokens[5]));
-				kg.setCdsEnd(Integer.parseInt(tokens[6]));
-				kg.setExonBounds(Integer.parseInt(tokens[7]), tokens[8], tokens[9]);
+				KnownGene kg=new KnownGene(tokens);
 				if(kg.getExonCount()==0) continue;
-				kgMap.put(new Interval(kg.getChromosome(), kg.getTxStart()+1, kg.getTxEnd()), kg);
+				final Interval interval = new Interval(kg.getChromosome(), kg.getTxStart()+1, kg.getTxEnd());
+				List<KnownGene> L = this.kgMap.get(interval);
+				if(L==null) {
+					L=new ArrayList<>();
+					kgMap.put(interval,L);
+				}
+				L.add(kg);
 				}
 			}
     	catch(Exception err)
@@ -132,7 +132,7 @@ public class Biostar81455 extends AbstractBiostar81455
 				boolean found=false;
 				String tokens[]=tab.split(line);
 				int pos0=Integer.parseInt(tokens[1]);
-			    IntervalTree<KnownGene> kgs=kgMap.debugGetTree(tokens[0]);
+			    final IntervalTree<List<KnownGene>> kgs=kgMap.debugGetTree(tokens[0]);
 			    if(kgs==null)
 			    	{
 			    	LOG.info("no gene found in chromosome "+tokens[0]+" (check chrom prefix?)");
@@ -141,23 +141,30 @@ public class Biostar81455 extends AbstractBiostar81455
 					{
 			    	KnownGene bestGene=null;
 					
-					for(Iterator<IntervalTree.Node<KnownGene>> iter=kgs.iterator();iter.hasNext();)
+					for(Iterator<IntervalTree.Node<List<KnownGene>>> iter=kgs.iterator();iter.hasNext();)
 						{
-						KnownGene kg=iter.next().getValue();
-						if(bestGene==null|| Math.abs(distance(pos0,kg))< Math.abs(distance(pos0,bestGene)))
+						for(KnownGene kg:iter.next().getValue())
 							{
-							bestGene=kg;
+							if(bestGene==null|| Math.abs(distance(pos0,kg))< Math.abs(distance(pos0,bestGene)))
+								{
+								bestGene=kg;
+								}
 							}
 						}
 					if(bestGene!=null)
 						{
 						//get all transcritpts
-						Collection<KnownGene> overlapKg=kgMap.getOverlapping(new Interval(
+						final List<KnownGene> overlapKg =new ArrayList<>();
+						for(final List<KnownGene> lkg:kgMap.getOverlapping(new Interval(
 								bestGene.getChromosome(),
 								bestGene.getTxStart()+1,
 								bestGene.getTxEnd()
-								));
-						for(KnownGene kg:overlapKg)
+								)))
+								{
+								overlapKg.addAll(lkg);
+								}
+						
+						for(final KnownGene kg:overlapKg)
 							{
 							KnownGene.Exon bestExon=null;
 							for(KnownGene.Exon exon:kg.getExons())
