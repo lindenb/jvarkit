@@ -1,90 +1,55 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-
-import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Log;
 
 
-public class Biostar76892 extends CommandLineProgram
+public class Biostar76892 extends AbstractBiostar76892
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" fix strand of two paired reads close but on the same strand. See http://www.biostars.org/p/76892/ .";
-
-	@Option(shortName= "osf", doc="only save pairs of reads fixed.",
-    		optional=true)
-	public boolean onlySaveFixed=false;
-	
-	@Option(shortName= "d", doc="distance beween two reads.",
-    		optional=true)
-	public int distance=500;
-	
-
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="BAM file to process.",
-    		optional=false)
-	public File IN=null;
-
-    @Option(shortName= StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="BAM file fixed.",
-    		optional=false)
-	public File OUT=null;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar76892.class);
 
     
-	private Log LOG=Log.getInstance(Biostar76892.class);
 	
 	@Override
-	public String getProgramVersion() {
-		return "1.0";
-		}
-	
-	@Override
-	protected int doWork()
-		{
+	protected Collection<Throwable> call(String inputName) throws Exception {
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
-		
-			LOG.info("opening "+IN);
-			sfr=SamFileReaderFactory.mewInstance().stringency(super.VALIDATION_STRINGENCY).open(IN);
-			if(sfr.getFileHeader().getSortOrder()!=SortOrder.coordinate)
-				{
-				LOG.error("input must be sorted on coordinate ? got: "+sfr.getFileHeader().getSortOrder() );
-				return -1;
-				}
-			
-			
-			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
-			sfwf.setCreateIndex(super.CREATE_INDEX);
-			sfwf.setCreateMd5File(super.CREATE_MD5_FILE);
-			sfwf.setMaxRecordsInRam(super.MAX_RECORDS_IN_RAM);
-			if(super.TMP_DIR.isEmpty()) sfwf.setTempDirectory(super.TMP_DIR.get(0));
-	
-			
-			LOG.info("opening "+OUT);
-			SAMProgramRecord sp=new SAMProgramRecord(getClass().getSimpleName());
-			sp.setProgramName(getClass().getSimpleName());
-			sp.setProgramVersion(String.valueOf(getProgramVersion()));
-			sp.setPreviousProgramGroupId(getClass().getSimpleName());
-			sp.setCommandLine(getCommandLine().replace('\t', ' '));
-			
-			sfr.getFileHeader().addProgramRecord(sp);
-			sfw=sfwf.makeBAMWriter(sfr.getFileHeader(), false, OUT);
+			sfr= super.openSamReader(inputName);
+			sfw = super.openSAMFileWriter(sfr.getFileHeader(), true);
 			long nRecords=0;
-			List<SAMRecord> buffer=new ArrayList<SAMRecord>();
+			final List<SAMRecord> buffer=new ArrayList<SAMRecord>();
 			SAMRecordIterator iter=sfr.iterator();
 			for(;;)
 				{
@@ -142,8 +107,7 @@ public class Biostar76892 extends CommandLineProgram
 						}
 					else
 						{
-						
-						SAMRecord mate=buffer.get(mate_index);
+						final SAMRecord mate=buffer.get(mate_index);
 						buffer.remove(mate_index);
 						LOG.info("changing "+rec+" "+mate);
 						
@@ -171,7 +135,7 @@ public class Biostar76892 extends CommandLineProgram
 					}
 				else
 					{
-					for(SAMRecord r:buffer)
+					for(final SAMRecord r:buffer)
 						{
 						if(!onlySaveFixed)  sfw.addAlignment(r);
 						}
@@ -179,16 +143,16 @@ public class Biostar76892 extends CommandLineProgram
 					}
 				}
 			LOG.info("done");
-			return 0;
+			sfw.close();
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			LOG.error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
-			if(sfw!=null)sfw.close();
+			CloserUtil.close(sfw);
 			CloserUtil.close(sfr);
 			}
 		}

@@ -19,6 +19,7 @@ xjc.proxy=$(if ${http.proxy.host}${http.proxy.port}, -httpproxy "${http.proxy.ho
 ANT?=ant
 JAVAC?=javac
 JAVA?=java
+JAVACC?=javacc
 JAR?=jar
 XJC?=xjc
 
@@ -201,10 +202,10 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
-	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap
+	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest
 	
 
-.PHONY: all tests $(APPS) clean download_all_maven library top ${htsjdk.snapshot.jar} galaxy burden
+.PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden
 
 top:
 	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
@@ -255,7 +256,7 @@ $(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wi
 $(eval $(call compile-htsjdk-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage))
 $(eval $(call compile-htsjdk-cmd,bamgenscan,${jvarkit.package}.tools.genscan.BamGenScan))
 $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bamindexnames.BamIndexReadNames))
-$(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver))
+$(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,bamqueryreadnames,${jvarkit.package}.tools.bamindexnames.BamQueryReadNames))
 $(eval $(call compile-htsjdk-cmd,bamrenamechr,${jvarkit.package}.tools.misc.ConvertBamChromosomes))
 $(eval $(call compile-htsjdk-cmd,bamstats02,${jvarkit.package}.tools.bamstats01.BamStats02,wiki_flag))
@@ -472,6 +473,7 @@ $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burd
 $(eval $(call compile-htsjdk-cmd,vcfburdenfisherh,${jvarkit.package}.tools.burden.VcfBurdenFisherH,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenfisherv,${jvarkit.package}.tools.burden.VcfBurdenFisherV,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenrscriptv,${jvarkit.package}.tools.burden.VcfBurdenRscriptV,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcfdoest,${jvarkit.package}.tools.burden.VcfDoest,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcffilternotinpedigree,${jvarkit.package}.tools.burden.VcfFilterNotInPedigree,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenmaf,${jvarkit.package}.tools.burden.VcfBurdenMAF,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfburdenexac,${jvarkit.package}.tools.burden.VcfBurdenFilterExac,galaxy_flag wiki_flag))
@@ -571,9 +573,14 @@ api.ensembl.vep :
 
 	
 api.printf:
-	mkdir -p ${generated.dir}/java/com/github/lindenb/jvarkit/util/printf
-	javacc -OUTPUT_DIRECTORY=${generated.dir}/java/com/github/lindenb/jvarkit/util/printf \
+	mkdir -p ${generated.dir}/java/com/github/lindenb/jvarkit/util/printf && \
+	${JAVACC} -OUTPUT_DIRECTORY=${generated.dir}/java/com/github/lindenb/jvarkit/util/printf \
 		src/main/resources/javacc/com/github/lindenb/jvarkit/util/printf/Printf.jj
+
+api.samfilter:
+	mkdir -p ${src.dir}/java/com/github/lindenb/jvarkit/util/bio/samfilter && \
+	${JAVACC} -OUTPUT_DIRECTORY=${src.dir}/com/github/lindenb/jvarkit/util/bio/samfilter \
+		src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj
 
 copy.opendoc.odp.resources : 
 	mkdir -p ${tmp.dir}/META-INF/opendocument/odp

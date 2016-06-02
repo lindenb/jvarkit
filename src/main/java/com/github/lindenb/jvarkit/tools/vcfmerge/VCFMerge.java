@@ -19,7 +19,7 @@ import java.util.TreeSet;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -267,7 +267,7 @@ public class VCFMerge extends AbstractCommandLineProgram
 					if(handler.header==null)
 						{
 						ByteArrayInputStream bais=new ByteArrayInputStream(sw.toString().getBytes());
-						LineIterator li=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(bais));
+						LineIterator li=new LineIteratorImpl(new SynchronousLineReader(bais));
 						handler.header=(VCFHeader)handler.vcfCodec.readActualHeader(li);
 						bais.close();
 						}

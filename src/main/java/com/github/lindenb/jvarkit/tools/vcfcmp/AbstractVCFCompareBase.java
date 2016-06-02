@@ -41,7 +41,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
@@ -219,7 +219,7 @@ public abstract class AbstractVCFCompareBase extends AbstractCommandLineProgram
 		if(vcfUri==null)
 			{
 			vcfUri="stdin";
-			iter=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(System.in));
+			iter=new LineIteratorImpl(new SynchronousLineReader(System.in));
 			}
 		else
 			{

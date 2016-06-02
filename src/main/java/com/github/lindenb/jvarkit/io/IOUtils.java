@@ -57,7 +57,7 @@ import java.util.zip.GZIPOutputStream;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.samtools.Defaults;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
@@ -260,7 +260,7 @@ public class IOUtils {
     
     public static LineReader openFileForLineReader(File file) throws IOException
 		{
-		return  LineReaderUtil.fromBufferedStream(openFileForReading(file));
+    	return new SynchronousLineReader(openFileForReading(file));
 		}
     /** @return a LineIterator that should be closed with CloserUtils */
     public static LineIterator openFileForLineIterator(File file) throws IOException
@@ -270,7 +270,7 @@ public class IOUtils {
     
     public static LineReader openStdinForLineReader() throws IOException
 		{
-		return  LineReaderUtil.fromBufferedStream(System.in);
+		return  new SynchronousLineReader(System.in);
 		}
     
     public static BufferedReader openStdinForBufferedReader() throws IOException
@@ -296,13 +296,13 @@ public class IOUtils {
 
     public static LineReader openStreamForLineReader(final InputStream in) throws IOException
 		{
-		return  LineReaderUtil.fromBufferedStream(in);
+		return  new SynchronousLineReader(in);
 		}
 
     
     public static LineReader openURIForLineReader(String uri) throws IOException
 		{
-		return  LineReaderUtil.fromBufferedStream(openURIForReading(uri));
+		return  new SynchronousLineReader(openURIForReading(uri));
 		}
     /** @return a LineIterator that should be closed with CloserUtils */
     public static LineIterator openURIForLineIterator(String uri) throws IOException

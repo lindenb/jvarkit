@@ -1,194 +1,127 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.liftover;
 
-import java.io.File;
-import java.io.PrintStream;
+import java.util.Collection;
 
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-public class BamLiftOver extends AbstractCommandLineProgram
+public class BamLiftOver extends AbstractBamLiftOver
 	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamLiftOver.class);
 
 	@Override
-	public String getProgramDescription() {
-		return "Lift-over a VCF file.";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfLiftOver";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -f (chain-file) LiftOver file. Required.");
-		out.println(" -m (double) lift over min-match. default:"+LiftOver.DEFAULT_LIFTOVER_MINMATCH);
-		out.println(" -D (reference) indexed REFerence file for the new sequence dictionary. Required.");
-		out.println(" -o (file.bam) file-out. Optional. Default stdout.");
-		super.printOptions(out);
-		}
-
-
-	@Override
-	public int doWork(String[] args)
-		{
-		
-		File fileout=null;
-		SAMSequenceDictionary newDict=null;
-		double minMatch=LiftOver.DEFAULT_LIFTOVER_MINMATCH;
-		File liftOverFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "f:m:X:D:o:"))!=-1)
+	protected Collection<Throwable> call(final String inputName) throws Exception {
+		final double minMatch=(super.userMinMatch<=0.0?LiftOver.DEFAULT_LIFTOVER_MINMATCH:super.userMinMatch);
+		if(super.liftOverFile==null)
 			{
-			switch(c)
-				{
-				case 'o': fileout=new File(opt.getOptArg());break;
-				case 'D': 
-					{
-					try
-						{
-						newDict=new SAMSequenceDictionaryFactory().load(new File(opt.getOptArg()));
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
-					break;
-					}
-				case 'f': liftOverFile=new File(opt.getOptArg()); break;
-				case 'm': minMatch=Double.parseDouble(opt.getOptArg()); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			return wrapException("LiftOver file is undefined.");
 			}
-		if(liftOverFile==null)
+		if(super.faidx==null)
 			{
-			error("LiftOver file is undefined.");
-			return -1;
-			}
-		if(newDict==null)
-			{
-			error("New Sequence Dictionary file is undefined.");
-			return -1;
+			return wrapException("New Sequence Dictionary file is undefined.");
 			}
 		SAMRecordIterator iter=null;
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				File filein=new File(args[opt.getOptInd()]);
-				sfr=SamFileReaderFactory.mewInstance().open(filein);
-				}
-			else
-				{
-				error("Illegal number of arguments");
-				return -1;
-				}
-			info("Reading "+liftOverFile);
+			LOG.info("Reading "+liftOverFile);
 			LiftOver liftOver=new LiftOver(liftOverFile);
 			liftOver.setLiftOverMinMatch(minMatch);
 
-			SAMFileHeader headerIn=sfr.getFileHeader();
 			
-			SAMFileHeader headerOut=headerIn.clone();
-			SAMProgramRecord prg=headerOut.createProgramRecord();
-			prg.setProgramName(getProgramName());
-			prg.setPreviousProgramGroupId(getProgramDescription());
-			prg.setCommandLine(getProgramCommandLine());
-			prg.setProgramName(getVersion());
+			final SAMSequenceDictionary newDict=new SAMSequenceDictionaryFactory().load(super.faidx);
+			
+			
+			sfr=super.openSamReader(inputName);
+			
+
+			final SAMFileHeader headerIn=sfr.getFileHeader();
+			final SAMFileHeader headerOut=headerIn.clone();
 			headerOut.setSortOrder(SortOrder.unsorted);
 			
-			SAMFileWriterFactory  sfwf=new SAMFileWriterFactory();
-			sfwf.setCreateIndex(false);
-			sfwf.setCreateMd5File(false);
+			sfw = openSAMFileWriter(headerOut, true);
 			
-			if(fileout==null)
-				{
-				info("Writing to stdout");
-				sfwf.setTempDirectory(getTmpDirectories().get(0));
-				sfw=sfwf.makeSAMWriter(headerOut, false, System.out);
-				}
-			else
-				{
-				info("Writing to "+fileout);
-				super.addTmpDirectory(fileout);
-				sfwf.setTempDirectory(super.getTmpDirectories().get(0));
-				sfw=sfwf.makeSAMWriter(headerOut, false, fileout);
-				}
 			
 			iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
-				SAMRecord copy=(SAMRecord)rec.clone();
+				final SAMRecord rec=iter.next();
+				final SAMRecord copy=(SAMRecord)rec.clone();
 				copy.setHeader(headerOut);
-				StringBuilder sb=new StringBuilder();
+				final StringBuilder sb=new StringBuilder();
 				if(!rec.getReadUnmappedFlag())
 					{
-					String chrom=rec.getReferenceName();
+					final String chrom=rec.getReferenceName();
 					int pos=rec.getAlignmentStart();
-					Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,rec.getReadNegativeStrandFlag(),null));
+					final Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,rec.getReadNegativeStrandFlag(),null));
 					if(interval!=null)
 						{
 						sb.append(chrom+":"+pos+":"+(rec.getReadNegativeStrandFlag()?"-":"+"));
-						SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
+						final SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
 						if(ssr==null)
 							{
 							sfr.close();
 							sfr=null;
-							throw new SAMException("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
+							return wrapException("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
 							}
 						copy.setReferenceName(ssr.getSequenceName());
 						copy.setReferenceIndex(ssr.getSequenceIndex());
 						copy.setAlignmentStart(interval.getStart());
 						copy.setReadNegativeStrandFlag(interval.isNegativeStrand());
-						
+						if(rec.getReadNegativeStrandFlag()!=copy.getReadNegativeStrandFlag()) {
+							copy.setReadString(AcidNucleics.reverseComplement(rec.getReadString()));
+							
+							byte qual[]= rec.getBaseQualities();
+							byte quals2[]=  new byte[qual.length];
+							for(int i=0;i< qual.length;++i) {
+								quals2[i]=qual[(qual.length-1)-i];
+							}
+							copy.setBaseQualities(quals2);
+							}
 						}
 					else
 						{
 						sb.append(".");
-						copy.setReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
-						copy.setReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX);
-						copy.setAlignmentStart(0);
-						copy.setMappingQuality(0);
-						copy.setReadUnmappedFlag(true);
-						copy.setSupplementaryAlignmentFlag(false);
-						if(rec.getReadPairedFlag())
-							{
-							copy.setProperPairFlag(false);
-							copy.setInferredInsertSize(0);
-							}
+						SAMUtils.makeReadUnmapped(copy);
 						}
 					}
 				
@@ -198,16 +131,16 @@ public class BamLiftOver extends AbstractCommandLineProgram
 					sb.append("/");
 					String chrom=rec.getMateReferenceName();
 					int pos=rec.getMateAlignmentStart();
-					Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,rec.getMateNegativeStrandFlag(),null));
+					final Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,rec.getMateNegativeStrandFlag(),null));
 					if(interval!=null)
 						{
 						sb.append(chrom+":"+pos+":"+(rec.getMateNegativeStrandFlag()?"-":"+"));
-						SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
+						final SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
 						if(ssr==null)
 							{
 							sfr.close();
 							sfr=null;
-							throw new SAMException("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
+							return wrapException("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
 							}
 						copy.setMateReferenceName(ssr.getSequenceName());
 						copy.setMateReferenceIndex(ssr.getSequenceIndex());
@@ -230,23 +163,17 @@ public class BamLiftOver extends AbstractCommandLineProgram
 					else
 						{
 						sb.append(".");
-						copy.setMateReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
-						copy.setMateReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX);
-						copy.setMateAlignmentStart(0);
-						copy.setMateUnmappedFlag(true);
-						copy.setProperPairFlag(false);
-						copy.setInferredInsertSize(0);
+						SAMUtils.makeReadUnmapped(copy);
 						}
 					}
 				if(sb.length()>0) copy.setAttribute("LO", sb.toString());
 				sfw.addAlignment(copy);
 				}
-			return 0;
+			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{

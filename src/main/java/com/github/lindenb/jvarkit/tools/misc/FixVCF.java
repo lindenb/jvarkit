@@ -19,7 +19,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.AbstractVCFCodec;
@@ -140,10 +140,10 @@ public class FixVCF
 			throws IOException
 		{
 		
-		AbstractVCFCodec vcfCodec = VCFUtils.createDefaultVCFCodec();
+		final AbstractVCFCodec vcfCodec = VCFUtils.createDefaultVCFCodec();
 		
-		LineIterator r= new LineIteratorImpl(LineReaderUtil.fromBufferedStream(vcfStream));
-		VCFHeader header=(VCFHeader) vcfCodec.readActualHeader(r);
+		LineIterator r= new LineIteratorImpl(new SynchronousLineReader(vcfStream));
+		final VCFHeader header=(VCFHeader) vcfCodec.readActualHeader(r);
 		
 		//samples names have been changed by picard api and reordered !!!
 		//re-create the original order

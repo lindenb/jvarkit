@@ -44,8 +44,7 @@ import javax.xml.transform.stream.StreamSource;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReaderUtil;
-
+import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -392,7 +391,7 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 		{
 		Set<String> unknownC=new HashSet<String>();
 		Pattern tab=Pattern.compile("[\t]");
-		LineIterator in=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(input));
+		LineIterator in=new LineIteratorImpl(new SynchronousLineReader(input));
 		while(in.hasNext())
 			{	
 			String line=in.next();

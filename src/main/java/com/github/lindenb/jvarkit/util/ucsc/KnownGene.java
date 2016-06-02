@@ -86,6 +86,59 @@ public class KnownGene implements Iterable<Integer>,Feature
 		return getCdsStart()==getCdsEnd();
 		}
 	
+	/** get transcript length (cumulative exons sizes )*/
+	public int getTranscriptLength() {
+		return getExons().stream().
+				mapToInt(T->(T.getEnd()-T.getStart())).
+				sum();
+		}
+	
+	/** get UTR5 + UTR3 size */
+	public int getUTRLength() {
+		return getUTR5Length()+getUTR3Length();
+	}
+	
+	/** get UTR5 size */
+	public int getUTR5Length() {
+		int n=0;
+		for(int i=0;i< getExonCount();++i) {
+			if(getExonEnd(i)< getCdsStart()) {
+				n += getExonEnd(i)-getExonStart(i);
+				}
+			else if(getCdsStart()< getExonStart(i))
+				{
+				break;
+				}
+			else
+				{
+				n+= getCdsStart()-getExonStart(i);
+				break;
+				}
+			}
+		return n;
+		}
+
+	/** get UTR3 size */
+	public int getUTR3Length() {
+		int n=0;
+		for(int i= getExonCount()-1;i>=0;--i) {
+			if(getCdsEnd()<getExonStart(i) ) {
+				n += getExonEnd(i)-getExonStart(i);
+				}
+			else if(getExonEnd(i)< getCdsEnd())
+				{
+				break;
+				}
+			else
+				{
+				n+= getExonEnd(i)-getCdsEnd();
+				break;
+				}
+			}
+		return n;
+		}
+
+	
 	public abstract class Segment implements Iterable<Integer>
 		{
 		private int index;

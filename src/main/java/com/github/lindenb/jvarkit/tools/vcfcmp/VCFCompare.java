@@ -24,7 +24,7 @@ import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -429,7 +429,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 				this.inputs[i].filename= args[getopt.getOptInd()+i];
 				info("Opening "+this.inputs[i].filename);
 				in=IOUtils.openURIForReading(this.inputs[i].filename);
-				LineReader lr=LineReaderUtil.fromBufferedStream(in);
+				LineReader lr= new SynchronousLineReader(in);
 				LineIterator li=new LineIteratorImpl(lr);
 				this.inputs[i].header=(VCFHeader)this.inputs[i].codec.readActualHeader(li);
 				

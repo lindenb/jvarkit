@@ -24,7 +24,7 @@
 		<description>REQUIRED. path to Derby database storage directory.</description>
 	</option>
 	<option name="actionStr" type="string" longopt="action" opt="a" default="">
-		<description>REQUIRED. action to perform. 'read': read a zip or a concatenated stream of vcf files and insert it into a derby database. 'list': list the available vcf. 'dump' dump one or more VCF. 'dumpall' dump all VCFs. 'delete' : delete one or more VCF by ID</description>
+		<description>REQUIRED. action to perform. 'read': read a zip or a concatenated stream of vcf files and insert it into a derby database. 'list': list the available vcf. 'dump' dump one or more VCF. 'dumpall' dump all VCFs. 'dumpuniq' dum all as a one and only uniq vcf. 'delete' : delete one or more VCF by ID</description>
 	</option>
 	<option name="titleHeaderStr" type="string" longopt="title" argname="TITLE" opt="t" default="">
 		<description>Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the name of the inserted VCF file</description>

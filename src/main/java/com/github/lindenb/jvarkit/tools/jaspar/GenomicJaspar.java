@@ -11,9 +11,7 @@ import java.util.List;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.readers.LineReaderUtil;
-
-
+import htsjdk.tribble.readers.SynchronousLineReader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SubSequence;
@@ -186,7 +184,7 @@ public class GenomicJaspar extends AbstractCommandLineProgram
 		try
 			{
 			info("Reading "+jasparUri);
-			LineReader lr=LineReaderUtil.fromBufferedStream(IOUtils.openURIForReading(jasparUri));
+			LineReader lr=new SynchronousLineReader(IOUtils.openURIForReading(jasparUri));
 			LineIterator liter=new LineIteratorImpl(lr);
 			Iterator<Matrix> miter=Matrix.iterator(liter);
 			while(miter.hasNext())

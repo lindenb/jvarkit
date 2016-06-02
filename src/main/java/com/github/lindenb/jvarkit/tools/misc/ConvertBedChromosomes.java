@@ -13,8 +13,7 @@ import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReaderUtil;
-
+import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.samtools.util.CloserUtil;
 
 
@@ -53,7 +52,7 @@ public class ConvertBedChromosomes
 			throws IOException
 		{
 		Pattern tab=Pattern.compile("[\t]");
-		LineIterator lr=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(in));
+		LineIterator lr=new LineIteratorImpl(new SynchronousLineReader(in));
 		while(lr.hasNext())
 			{	
 			String line=lr.next();

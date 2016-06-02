@@ -4,4 +4,32 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.liftover">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Lift-over a BAM file.</description>
+<input type="sam"/>
+<output type="sam"/>
+
+
+<options>
+	<option name="liftOverFile" opt="f" longopt="chain" type="input-file">
+		<description>LiftOver file. Require</description>
+	</option>
+	<option name="userMinMatch" opt="m" longopt="minmatch" type="double" default="-1">
+		<description>lift over min-match. default:-1 == use default value from htsjdk LiftOver.DEFAULT_LIFTOVER_MINMATCH</description>
+	</option>
+	<option name="faidx" opt="D" longopt="reference" type="input-file">
+		<description> indexed REFerence file for the new sequence dictionary. Required</description>
+	</option>
+</options>
+
+
+
+
+
+
+
+
+
+
+
+
+<arguments> </arguments><!-- __PLACEHOLDER__ --></app>

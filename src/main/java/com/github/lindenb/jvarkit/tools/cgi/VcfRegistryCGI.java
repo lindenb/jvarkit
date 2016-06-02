@@ -18,7 +18,7 @@ import javax.xml.stream.XMLStreamWriter;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -355,7 +355,7 @@ public class VcfRegistryCGI extends AbstractCGI {
 		        			{
 			        		bgzin=new BlockCompressedInputStream(f.file);
 	
-		        			lineIterator=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(bgzin));
+		        			lineIterator=new LineIteratorImpl(new SynchronousLineReader(bgzin));
 		        			header=(VCFHeader) vcfCodec.readActualHeader(lineIterator);
 		        			allSamples.addAll(header.getGenotypeSamples());
 		        			}
@@ -389,7 +389,7 @@ public class VcfRegistryCGI extends AbstractCGI {
 	        						w.writeStartElement("tr");
 	        						
 	        						w.writeStartElement("td");
-	        						w.writeCharacters(var.getChr());
+	        						w.writeCharacters(var.getContig());
 	        						w.writeEndElement();
 
 	        						

@@ -48,7 +48,7 @@ import java.util.TreeSet;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -584,7 +584,7 @@ public class VCFMerge2
 				vcfHandlers.add(handler);
 	
 				in=IOUtils.openURIForReading(vcfFile);
-				final LineReader lr=LineReaderUtil.fromBufferedStream(in);
+				final LineReader lr=new SynchronousLineReader(in);
 				final LineIterator lit=new LineIteratorImpl(lr);
 				handler.header=(VCFHeader)handler.vcfCodec.readActualHeader(lit);
 	

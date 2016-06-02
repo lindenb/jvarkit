@@ -23,7 +23,7 @@ import javax.imageio.ImageIO;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.LineReaderUtil;
+import htsjdk.tribble.readers.SynchronousLineReader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
@@ -284,7 +284,7 @@ public class GenScan extends AbstractGeneScan
 		Pattern tab=Pattern.compile("[\t]");
 		
 		@SuppressWarnings("resource")
-		LineIterator r=new LineIteratorImpl(LineReaderUtil.fromBufferedStream(in));
+		LineIterator r=new LineIteratorImpl(new SynchronousLineReader(in));
 		boolean foundHeader=false;
 		if(firstLineIsHeader)
 			{

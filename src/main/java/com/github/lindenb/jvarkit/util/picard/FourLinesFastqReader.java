@@ -6,12 +6,12 @@ import java.io.InputStream;
 
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.readers.LineReaderUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
@@ -23,20 +23,24 @@ public class FourLinesFastqReader
 	extends AbstractFastqReader
 	{
 	//private static final java.util.logging.Logger LOG=java.util.logging.Logger.getLogger("jvarkit");
-    private LineReader lineReader;
+    private final LineReader lineReader;
     private long nLines=0;
    
     
     public FourLinesFastqReader(final File file) throws IOException
     	{
     	super(file);
-    	this.lineReader=LineReaderUtil.fromBufferedStream(IOUtils.openFileForReading(file));
+    	this.lineReader= IOUtils.openFileForLineReader(file);
     	}
     
-    public FourLinesFastqReader(InputStream in)
+    public FourLinesFastqReader(final InputStream in)
 		{
 		super(null);
-		this.lineReader=LineReaderUtil.fromBufferedStream(in);
+		try {
+			this.lineReader= IOUtils.openStreamForLineReader(in);
+		} catch (IOException e) {
+			throw new RuntimeIOException(e);
+			}
 		}
     
 

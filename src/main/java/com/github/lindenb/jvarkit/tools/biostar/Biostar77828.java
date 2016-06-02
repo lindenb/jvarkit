@@ -1,46 +1,27 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-import java.util.regex.Pattern;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
+import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 
-public class Biostar77828 extends AbstractCommandLineProgram
+public class Biostar77828 extends AbstractBiostar77828
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+
-		" Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ .";
-	private static final Log LOG=Log.getInstance(Biostar77828.class);
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar77828.class);
 
 
 
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,doc="Bed file input (default stdin)",optional=true)
-    public File IN=null;
-    
-    @Option(shortName="MINC",doc="min_core",optional=true)
-    public int MIN_CORE=20;
-    @Option(shortName="MAXC",doc="max_core",optional=true)
-    public int MAX_CORE=30;
-
-    @Option(shortName="ITER",doc="number of iterations",optional=true)
-    public long N_ITERATIONS=1000000;
-
-    
     
     private List<Segment> all_segments=new ArrayList<Segment>();
     private final Random random=new Random(System.currentTimeMillis());
@@ -183,7 +164,7 @@ public class Biostar77828 extends AbstractCommandLineProgram
     private Solution createSolution()
     	{
     	int n_cores=
-    			MIN_CORE+(MIN_CORE>=MAX_CORE?0:this.random.nextInt(MAX_CORE-MIN_CORE))
+    			super.MINC+(super.MINC>=super.MAXC?0:this.random.nextInt(super.MAXC-super.MINC))
     			;
     	long optimal_size= (this.effective_genome_size/n_cores);
     	
@@ -260,42 +241,45 @@ public class Biostar77828 extends AbstractCommandLineProgram
     	
     	return sol;
     	}
-    
-    
-    
-    @Override
-    protected int doWork()
-    	{
+	@Override
+	protected Collection<Throwable> call(String inputName) throws Exception
+		{
+		PrintStream pw =null;
     	try
 	    	{
 	    	LOG.info("load BED");
 	    	BufferedReader in=null;
-	    	if(IN==null)
+	    	if(inputName==null)
 	    		{
 	    		LOG.info("read stdin");
-	    		in=new BufferedReader(new InputStreamReader(System.in));
+	    		in=new BufferedReader(new InputStreamReader(stdin()));
 	    		}
 	    	else
 	    		{
-	    		LOG.info("read "+IN);
-	    		in=new BufferedReader(new FileReader(IN));
+	    		LOG.info("read "+inputName);
+	    		in= IOUtils.openURIForBufferedReading(inputName);
 	    		}
-	    	Pattern tab=Pattern.compile("[\t]");
+	    	final BedLineCodec codec = new BedLineCodec();
 	    	String line;
 	    	while((line=in.readLine())!=null)
 				{		
 	    		if(line.isEmpty() || line.startsWith("#")) continue;
-	    		String tokens[]=tab.split(line,5);
-    			if(tokens.length<3) throw new IOException("bad BED input "+Arrays.asList(tokens));
-    			Segment seg=new Segment(
-    					tokens[0],
-    					Integer.parseInt(tokens[1]),
-    					Integer.parseInt(tokens[2]))
+	    		final BedLine bedLine = codec.decode(line);
+	    		if(bedLine==null) continue;
+    			if(bedLine.getColumnCount()<3) throw new IOException("bad BED input "+bedLine);
+    			final Segment seg=new Segment(
+    					bedLine.getContig(),
+    					bedLine.getStart()-1,
+    					bedLine.getEnd()
+    					)
     					;
     			if(seg.size()==0) continue;
     			this.effective_genome_size+=seg.size();
     			this.all_segments.add(seg);
 				}
+	    	
+	    	pw = super.openFileOrStdoutAsPrintStream();
+	    	
 	    	Solution best=null;
 	    	for(long generation=0;generation< this.N_ITERATIONS;++generation)
 	    		{
@@ -306,25 +290,28 @@ public class Biostar77828 extends AbstractCommandLineProgram
 	    		if(best==null || sol.compareTo(best)<0)
 	    			{
 	    			best=sol;
-	    			if(super.VERBOSITY==Log.LogLevel.DEBUG)
+	    			if(LOG.isDebugEnabled())
 	    				{
-	    				System.err.println("%%generation:"+generation);
-	    				best.print(System.err);
+	    				LOG.info("%%generation:"+generation);
+	    				best.print(stderr());
 	    				}
 	    			}
 	    		}
 	    	if(best!=null)
 	    		{
-	    		best.print(System.out);
+	    		best.print(pw);
 	    		}
-	    	
+	    	pw.flush();
+	    	pw.close();
+	    	return RETURN_OK;
 	    	}
     	catch(Exception err)
     		{
-    		LOG.error(err);
-    		return -1;
+    		return wrapException(err);
     		}
-    	return 0;
+    	finally {
+    		CloserUtil.close(pw);
+    	}
     	}
 
 	/**

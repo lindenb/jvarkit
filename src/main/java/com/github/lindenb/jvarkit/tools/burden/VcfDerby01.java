@@ -217,6 +217,56 @@ public class VcfDerby01
 			CloserUtil.close(stmt);
 		}
 	}
+	
+	private Collection<Throwable> doCommandDumpUniq(){
+		if(!getInputFiles().isEmpty()) {
+			return wrapException("Too many arguments");
+		}
+		PreparedStatement pstmt2 = null;
+		ResultSet row = null;
+		PrintWriter pwOut = null;
+		try {
+			pstmt2 = this.conn.prepareStatement("SELECT ROWCONTENT.CONTENT FROM ROWCONTENT GROUP BY ROWCONTENT.MD5SUM ORDER BY ROWCONTENT.ID ");
+			pwOut = openFileOrStdoutAsPrintWriter();
+			row =  pstmt2.executeQuery();
+			boolean variant_found=false;
+			while(row.next()) {
+				final Clob clob = row.getClob(1);
+				final Reader r= clob.getCharacterStream();
+				int c= r.read();
+				if(c=='#' ) {
+					if(variant_found) {
+						r.close();
+						continue;
+						}
+					}
+				else
+					{
+					variant_found=true;
+					}
+				if(c!=-1) pwOut.print((char)c);
+				IOUtils.copyTo(r,pwOut);
+				r.close();
+				pwOut.println();
+				}
+			row.close();
+				
+			pstmt2.close();pstmt2=null;
+			
+			pwOut.flush();
+			pwOut.close();pwOut=null;
+			
+			return RETURN_OK;
+		} catch (final Exception e) {
+			return wrapException(e);
+		} finally {
+			CloserUtil.close(pwOut);
+			CloserUtil.close(row);
+			CloserUtil.close(pstmt2);
+		}
+	}
+
+	
 
 	private Collection<Throwable> dump(final Set<Long> vcfIds){
 		PreparedStatement pstmt = null;
@@ -628,6 +678,9 @@ public class VcfDerby01
 			}
 			else if(command.equals("dumpall")) {
 				return doCommandDumpAll();
+			}
+			else if(command.equals("dumpuniq")) {
+				return doCommandDumpUniq();
 			}
 			else if(command.equals("delete")) {
 				return doCommandDelete();
