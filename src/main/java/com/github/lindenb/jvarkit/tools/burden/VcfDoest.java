@@ -1,0 +1,558 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+
+*/
+package com.github.lindenb.jvarkit.tools.burden;
+
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
+
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.SortingCollection;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.EqualRangeIterator;
+import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
+public class VcfDoest
+	extends AbstractVcfDoest
+	{
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfDoest.class);
+	private IntervalTreeMap<List<KnownGene>> knownGenesMap = null;
+	
+	private static class TranscriptInfo implements Comparable<TranscriptInfo>
+		{
+		String contig;
+		int txStart;
+		int txEnd;
+		String transcriptName;
+		byte strand;
+		int exonCount;
+		int transcriptLength;
+		String archetypeName;
+		int archetypeLength;
+		int ctxStart;
+		Allele ref;
+		Allele alt;
+		int indexInTranscript0;
+		String overlapName;
+		byte genotypes[];
+
+		
+		
+		@Override
+		public int compareTo(final TranscriptInfo o)
+			{
+			int i= contig.compareTo(o.contig);
+			if(i!=0) return i;
+			i= transcriptName.compareTo(o.transcriptName);
+			if(i!=0) return i;
+			i= ctxStart - o.ctxStart;
+			if(i!=0) return i;
+			i= ref.compareTo(o.ref);
+			if(i!=0) return i;
+			i= alt.compareTo(o.alt);
+			if(i!=0) return i;
+			return 0;
+			}
+		}
+	
+	private static class TranscriptInfoCmp implements Comparator<TranscriptInfo> {
+		@Override
+		public int compare(TranscriptInfo o1, TranscriptInfo o2) {
+			return o1.compareTo(o2);
+			}
+		}
+		
+	private static class TranscriptInfoCodec extends AbstractDataCodec<TranscriptInfo> {
+		@Override
+		public TranscriptInfo decode(DataInputStream dis) throws IOException {
+			final TranscriptInfo o=new TranscriptInfo();
+			try {
+				o.contig = dis.readUTF();
+			} catch (Exception e) {
+				return null;
+				}
+			o.txStart = dis.readInt();
+			o.txEnd = dis.readInt();
+			o.transcriptName = dis.readUTF();
+			o.strand = dis.readByte();
+			o.exonCount = dis.readInt();
+			o.transcriptLength = dis.readInt();
+			o.archetypeName = dis.readUTF();
+			o.archetypeLength = dis.readInt();
+			
+			o.ctxStart = dis.readInt();
+			o.ref= Allele.create(TranscriptInfoCodec.readString(dis), true);
+			o.alt= Allele.create(TranscriptInfoCodec.readString(dis), false);
+			
+			o.indexInTranscript0 =  dis.readInt();
+			o.overlapName = dis.readUTF();
+			
+			int n = dis.readInt();
+		
+			o.genotypes = new byte[n];
+			for(int i=0;i<n;++i) 
+				{
+				o.genotypes[i] = dis.readByte();
+				}
+
+			return o;
+			}
+		
+		@Override
+		public void encode(final DataOutputStream dos, final TranscriptInfo o) throws IOException {
+			dos.writeUTF(o.contig);
+			dos.writeInt(o.txStart);
+			dos.writeInt(o.txEnd);
+			dos.writeUTF(o.transcriptName);
+			dos.writeByte(o.strand);
+			dos.writeInt(o.exonCount);
+			dos.writeInt(o.transcriptLength);
+			dos.writeInt(o.txStart);
+
+			dos.writeUTF(o.archetypeName);
+			dos.writeInt(o.archetypeLength);
+			
+			dos.writeInt(o.ctxStart);
+			TranscriptInfoCodec.writeString(dos, o.ref.getDisplayString());
+			TranscriptInfoCodec.writeString(dos, o.alt.getDisplayString());
+			dos.writeInt(o.indexInTranscript0);
+			
+			dos.writeUTF(o.overlapName);
+			
+			dos.writeInt(o.genotypes.length);
+			for(byte g : o.genotypes) {
+				dos.writeByte(g);
+			}
+		
+			}
+		
+		@Override
+		public AbstractDataCodec<TranscriptInfo> clone() {
+			return new TranscriptInfoCodec();
+			}
+		}
+	
+	
+	public VcfDoest()
+		{
+		}
+	 
+
+	private List<KnownGene> overlap(final Interval interval) {
+		final List<KnownGene> genes= new ArrayList<>();
+		for(final List<KnownGene> L:this.knownGenesMap.getOverlapping(interval)) {
+			genes.addAll(L);
+		}
+		return genes;
+		}
+	
+	
+
+	
+	private void run(
+			final VcfIterator in,
+			final PrintWriter pw
+			) throws IOException
+		
+		{
+		SortingCollection<TranscriptInfo> sorting = null;
+		CloseableIterator<TranscriptInfo> iter2=null;
+		try {
+			
+			
+		final VCFHeader header=in.getHeader();
+		
+		final Pedigree pedigree = Pedigree.readPedigree(header);
+		if(pedigree.isEmpty())
+			{
+			throw new IOException("No pedigree found in header VCF header. use VcfInjectPedigree to add it");
+			}
+		
+		final SortedSet<Pedigree.Person> individuals = new TreeSet<>();
+		
+		for(final Pedigree.Person individual:pedigree.getPersons()) {
+			if(individual.isAffected() || individual.isUnaffected())
+				{
+				individuals.add(individual);
+				}
+			}
+		boolean first=true;
+		pw.println("# samples ( 0: unaffected 1:affected)");
+		pw.print("population <- data.frame(family=c(");			
+		first=true;for(final Pedigree.Person person : individuals) { if(!first) pw.print(","); pw.print("\""+person.getFamily().getId()+"\"");first=false;}
+		pw.print("),name=c(");
+		first=true;for(final Pedigree.Person person : individuals) { if(!first) pw.print(","); pw.print("\""+person.getId()+"\"");first=false;}
+		pw.print("),status=c(");
+		first=true;for(final Pedigree.Person person : individuals) { if(!first) pw.print(","); pw.print(person.isUnaffected()?0:1);first=false;}
+		pw.println("))");
+		
+		sorting = SortingCollection.newInstance(TranscriptInfo.class,
+				new TranscriptInfoCodec(),
+				new TranscriptInfoCmp(),
+				super.getMaxRecordsInRam(),
+				super.getTmpDirectories()
+				);
+		
+		sorting.setDestructiveIteration(true);
+
+		
+		final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+		
+		while(in.hasNext() &&  !pw.checkError())
+			{
+			final VariantContext ctx = progess.watch(in.next());
+			if(ctx.isFiltered()) continue;
+			if(ctx.getAlternateAlleles().isEmpty()) continue;
+			final Allele altAllele=ctx.getAltAlleleWithHighestAlleleCount();
+			
+			boolean genotyped=false;
+			for(final Pedigree.Person p:pedigree.getPersons())
+				{
+				if(!(p.isAffected() || p.isUnaffected())) continue;
+				final Genotype g= ctx.getGenotype(p.getId());
+				if(g.isHet() || g.isHomVar()) {
+					if(!g.getAlleles().contains(altAllele)) continue;
+					genotyped=true;
+					break;
+					}
+				}
+			if(!genotyped) continue;
+			
+			
+			
+			
+			final Interval interval= new Interval(
+					ctx.getContig(), 
+					ctx.getStart(),
+					ctx.getEnd()
+					);
+			
+			final List<KnownGene> genes = this.overlap(interval);
+			if(genes.isEmpty())  continue;
+			/* find gene archetype = longest */
+			
+			for(final KnownGene kg:genes) {
+				final TranscriptInfo trInfo = new TranscriptInfo();
+				trInfo.contig = kg.getContig();
+				trInfo.txStart = kg.getTxStart();
+				trInfo.txEnd = kg.getTxEnd();
+				trInfo.transcriptName = kg.getName();
+				trInfo.strand = (byte)(kg.isPositiveStrand()?'+':'-');
+				trInfo.exonCount = kg.getExonCount();
+				trInfo.transcriptLength = kg.getTranscriptLength();
+				
+				trInfo.ctxStart = ctx.getStart();
+				trInfo.ref = ctx.getReference();
+				trInfo.alt = altAllele;
+				
+				trInfo.genotypes = new byte[individuals.size()];
+				
+				
+				int idx=0;
+				for(final Pedigree.Person individual:individuals) {
+					final Genotype genotype=ctx.getGenotype(individual.getId());
+					final byte b ;
+					if (genotype.isHomRef()) {
+						b=0;
+					} else if (genotype.isHomVar() && genotype.getAlleles().contains(altAllele)) {
+						b=2;
+					} else if (genotype.isHet() && 
+							genotype.getAlleles().contains(altAllele) &&
+							genotype.getAlleles().contains(ctx.getReference())) {
+						b=1;
+					}
+					/* we treat 0/2 has hom-ref */
+					else if (genotype.isHet() && 
+							!genotype.getAlleles().contains(altAllele) &&
+							genotype.getAlleles().contains(ctx.getReference())) {
+						LOG.warn("Treating "+genotype+" as hom-ref (0) alt="+altAllele);
+						b=0;
+						
+					} 
+					/* we treat 2/2 has hom-ref */
+					else if (genotype.isHomVar() && !genotype.getAlleles().contains(altAllele)) {
+						LOG.warn("Treating "+genotype+" as hom-ref (0) alt="+altAllele);
+						b=0;
+					}
+					else {
+						b=-9;
+					}
+					trInfo.genotypes[idx]=b;
+					++idx;
+				}
+
+				
+				
+				
+				KnownGene archetype=kg;
+				/* find gene archetype = longest overlapping */
+				for(final KnownGene kg2:genes) {
+					if(kg2==kg) continue;
+					if(archetype.getStrand().equals(kg2.getStrand()) && archetype.getTranscriptLength()< kg2.getTranscriptLength()) {
+						archetype=kg2;
+					}
+				}
+				
+				trInfo.archetypeName = archetype.getName();
+				trInfo.archetypeLength = archetype.getTranscriptLength();
+				
+				
+				
+				boolean ctxWasFoundInExon=false;
+				final int ctxPos0=ctx.getStart()-1;
+				int indexInTranscript0=0;
+				
+				for(final KnownGene.Exon exon:kg.getExons()) {
+					//variant in exon ?
+					if(!(exon.getStart()>(ctx.getEnd()-1)  || (ctx.getStart()-1)>=exon.getEnd())) {
+						ctxWasFoundInExon=true;
+						indexInTranscript0+=(ctxPos0-exon.getStart());
+						
+						if(kg.isNegativeStrand()) {
+							indexInTranscript0 =  (kg.getTranscriptLength()-1)-indexInTranscript0;
+						}
+						trInfo.indexInTranscript0=indexInTranscript0;
+						trInfo.overlapName = exon.getName();
+						sorting.add(trInfo);
+						break;
+					} else
+					{
+						indexInTranscript0+= (exon.getEnd()-exon.getStart());
+					}
+				}
+			
+			if(ctxWasFoundInExon) {
+				continue;
+			}
+			
+			
+			indexInTranscript0=0;
+			//search closest intron/exon junction
+			for(int ex=0;ex+1<kg.getExonCount();++ex) {
+				final KnownGene.Exon exon1= kg.getExon(ex  );
+				indexInTranscript0+= (exon1.getEnd()-exon1.getStart());
+				
+				final KnownGene.Exon exon2= kg.getExon(ex+1);
+				if(exon1.getEnd()<=ctxPos0 && ctxPos0<exon2.getStart())
+					{
+					final int dist_to_exon1 = ctxPos0 - exon1.getEnd();
+					final int dist_to_exon2 = exon2.getStart() - ctxPos0;
+					if(dist_to_exon2<dist_to_exon1) {
+						indexInTranscript0++;
+					}
+					
+					
+					if(kg.isNegativeStrand()) {
+						indexInTranscript0 =  (kg.getTranscriptLength()-1)-indexInTranscript0;
+						}
+					trInfo.indexInTranscript0=indexInTranscript0;
+					trInfo.overlapName = exon1.getNextIntron().getName();
+					sorting.add(trInfo);
+					break;
+					}
+				}
+			} // end loop over genes
+		}//end while iter
+		progess.finish();
+		sorting.doneAdding();
+		LOG.info("done adding");
+		iter2 = sorting.iterator();
+		final EqualRangeIterator<TranscriptInfo> eqiter = new EqualRangeIterator<TranscriptInfo>(
+				iter2,
+				new Comparator<TranscriptInfo>() {
+					@Override
+					public int compare(final TranscriptInfo o1,final TranscriptInfo o2) {
+						int i= o1.contig.compareTo(o2.contig);
+						if(i!=0) return i;
+						i= o1.transcriptName.compareTo(o2.transcriptName);
+						return i;
+						}
+					}
+				);
+		while(eqiter.hasNext()) {
+			final List<TranscriptInfo> list = eqiter.next();
+			final TranscriptInfo front = list.get(0);
+			
+			pw.println("# BEGIN TRANSCRIPT "+front.transcriptName+" ##########################################");
+
+			
+			pw.println("transcript.chrom <- \""+front.contig+"\"");
+			pw.println("transcript.txStart0 <- "+front.txStart+"");
+			pw.println("transcript.txEnd0 <- "+front.txEnd+"");
+			pw.println("transcript.name <- \""+front.transcriptName+"\"");
+			pw.println("transcript.strand <- \""+((char)front.strand)+"\"");
+			pw.println("transcript.length <- "+front.transcriptLength+"");
+			pw.println("transcript.exonCount <- "+front.exonCount+"");
+			pw.println("archetype.name <- \""+front.archetypeName+"\"");
+			pw.println("archetype.length <- "+front.archetypeLength+"");
+
+			
+			pw.print("variants <- data.frame(chrom=c(");
+			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print("\""+v.contig+"\"");first=false;}
+			pw.print("),chromStart=c(");
+			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print(v.ctxStart);first=false;}
+			pw.print("),chromEnd=c(");
+			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print(v.ctxStart+v.ref.length()-1);first=false;}
+			pw.print("),refAllele=c(");
+			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print("\""+v.ref.getDisplayString()+"\"");first=false;}
+			pw.print("),altAllele=c(");
+			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print("\""+v.alt.getDisplayString()+"\"");first=false;}
+			pw.print("),positionInTranscript1=c(");
+			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print(v.indexInTranscript0+1);first=false;}
+			pw.print("),overlapName=c(");
+			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print("\""+v.overlapName+"\"");first=false;}
+			pw.println("))");
+
+			pw.println("# genotypes as a list. Should be a multiple of length(samples).");
+			pw.println("# 0 is homref (0/0), 1 is het (0/1), 2 is homvar (1/1)");
+			pw.println("# if the variant contains another ALT allele: (0/2) and (2/2) are considered 0 (homref)");
+			pw.print("genotypes <- c(");
+			first=true;
+			for(final TranscriptInfo tr:list) {
+				for(byte g: tr.genotypes) {
+					if(!first) pw.print(","); first=false;
+					pw.print((int)g);
+				}
+			}
+			pw.println(")");
+			pw.println("stopifnot(NROW(variants) * NROW(population) == length(genotypes) )");
+
+			if(super.userDefinedFunName==null || super.userDefinedFunName.trim().isEmpty()) {
+				pw.println("## WARNING not user-defined R function was defined");
+				}
+			else
+				{
+				pw.println("# consumme data with user-defined R function ");
+				pw.println(super.userDefinedFunName+"()");
+				}
+			
+			pw.println("# END TRANSCRIPT "+front.transcriptName+" ##########################################");
+
+		}
+		
+		
+		eqiter.close();
+		iter2.close();iter2=null;
+		sorting.cleanup();sorting=null;
+		}
+	finally 
+		{
+		CloserUtil.close(iter2);
+		if(sorting!=null) sorting.cleanup();
+		}
+	}
+	
+	
+	@Override
+	public void disposeKnime() {
+		this.knownGenesMap=null;
+		super.disposeKnime();
+		}
+	
+	@Override
+	protected Collection<Throwable> call(final String inputName) throws Exception {
+		if(super.knownGeneURI==null || super.knownGeneURI.trim().isEmpty())
+		{
+		return wrapException("undefined option -"+OPTION_KNOWNGENEURI);
+		}
+		
+		LOG.info("reading "+super.knownGeneURI);
+		BufferedReader r=null;
+		VcfIterator in=null;
+		PrintWriter pw=null;
+		try {
+			int nKG=0;
+			final Pattern delim=Pattern.compile("[\t]");
+			r = IOUtils.openURIForBufferedReading(super.knownGeneURI);
+			
+			this.knownGenesMap = new IntervalTreeMap<>();
+			String line ;
+			while((line=r.readLine())!=null) {
+				final KnownGene kg=new KnownGene(delim.split(line));
+				if(kg.isNonCoding() && !super.keepNonCoding) continue;
+				
+				final Interval interval  = new Interval(kg.getContig(), kg.getTxStart()+1, kg.getTxEnd());
+				List<KnownGene> L = this.knownGenesMap.get(interval);
+				if(L==null) {
+					L=new ArrayList<>(2);
+					this.knownGenesMap.put(interval,L);
+				}
+				nKG++;
+				L.add(kg);
+				}
+			r.close();r=null;
+			LOG.info("known Gene size:"+nKG);
+			
+			in=super.openVcfIterator(inputName);
+			pw=super.openFileOrStdoutAsPrintWriter();
+			
+			
+			run(in,pw);
+			in.close();in=null;
+			pw.flush();pw.close();pw=null;
+			LOG.info("done");
+			return RETURN_OK;
+		} catch (Exception e) {
+			return wrapException(e);
+		} finally 
+		{
+			CloserUtil.close(r);
+			CloserUtil.close(in);
+			CloserUtil.close(pw);
+			this.knownGenesMap=null;
+		}
+		
+		}
+	 	
+	
+	public static void main(String[] args)
+		{
+		new VcfDoest().instanceMainWithExit(args);
+		}
+	}

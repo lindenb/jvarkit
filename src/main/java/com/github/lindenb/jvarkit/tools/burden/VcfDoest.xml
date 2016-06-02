@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "VcfDoest">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.burden">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 xmlns:h="http://www.w3.org/1999/xhtml"
+	 xmlns:svg="http://www.w3.org/2000/svg"
+	 xmlns:galaxy="https://usegalaxy.org/"
+	 app="&name;"
+	 package="&package;"
+	 __placeholder__="1"
+	>
+
+<description>generate Transcript information for DOEST test</description>
+<input type="vcf"/>
+<snippet id="sorting-collection"/>
+
+
+<options>
+	<option name="knownGeneURI" type="string" opt="k" longopt="kg" default="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" argname="FILE-OR-URL">
+		<description>UCSC knownGene URI</description>
+	</option>
+	<option name="keepNonCoding" type="boolean" opt="knc" longopt="keepnoncoding" default="false" >
+		<description>keep non coding transcripts</description>
+	</option>
+	<option name="userDefinedFunName" type="string" longopt="function" opt="f" default="">
+		<description>User defined R function to be called after each VCF</description>
+	</option>
+	
+</options>
+
+<documentation>
+
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>
