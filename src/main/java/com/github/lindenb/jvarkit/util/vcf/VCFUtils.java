@@ -69,6 +69,7 @@ import htsjdk.variant.vcf.VCFContigHeaderLine;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -165,12 +166,12 @@ public class VCFUtils
 	
 	public static CodecAndHeader parseHeader(final LineIterator r)
 		{
-		CodecAndHeader vh=new CodecAndHeader();
+		final CodecAndHeader vh=new CodecAndHeader();
 		vh.codec=null;
 		LinkedList<String> stack=new LinkedList<String>();
 		while(r.hasNext())
 			{
-			String line=r.peek();
+			final String line=r.peek();
 			if(!line.startsWith("#")) break;
 			stack.add(r.next());
 			if(line.startsWith("#CHROM\t")) break;
@@ -179,10 +180,21 @@ public class VCFUtils
 		vh.header=  (VCFHeader)vh.codec.readActualHeader(new LIT(stack));
     	return vh;
 		}
+	
+	
+	/** stringent insertion in VCF header */
+	public static void safeAddMetaDataHeaderLine(final VCFHeader header,final VCFHeaderLine hl){
+		final VCFHeaderLine prev =header.getMetaDataLine(hl.getKey());
+		if(prev!=null && !prev.getValue().equals(hl.getValue())) {
+			throw new IllegalArgumentException("Cannot insert vcf header "+hl.getKey()+" because it is already defined in VCF header");
+		}
+		header.addMetaDataLine(hl);
+	}
+	
 	/** find a codec from the lines header. if not found, return default codec */
 	public static AbstractVCFCodec findCodecFromLines(final List<String> list)
 		{
-		for(String line: list)
+		for(final String line: list)
 			{
 			String formatString = line;
 			if(formatString.startsWith("##"))

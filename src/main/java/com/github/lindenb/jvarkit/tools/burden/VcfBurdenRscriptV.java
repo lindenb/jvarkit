@@ -167,10 +167,8 @@ public class VcfBurdenRscriptV
 				if( n_alts > 1) {
 					LOG.warn("variant with more than one ALT. Using getAltAlleleWithHighestAlleleCount.");
 				}
-				final boolean is_chrom_X = (ctx.getContig().equals("X") ||  ctx.getContig().equals("chrX"));
 				final Allele observed_alt = ctx.getAltAlleleWithHighestAlleleCount();
-				double count_total = 0.0;
-				double count_alt = 0.0;
+				final MafCalculator mafCalculator= new MafCalculator(observed_alt,ctx.getContig());
 				for (final Pedigree.Person person : samples) {
 						final Genotype genotype = ctx.getGenotype(person.getId());
 						if(genotype==null) {
@@ -179,21 +177,7 @@ public class VcfBurdenRscriptV
 							throw new IllegalStateException();
 						}
 						
-						/* loop over alleles */
-						for(final Allele a: genotype.getAlleles()) {
-							/* chromosome X and male ? count half */
-							if( is_chrom_X && person.isMale()) {
-								count_total+=0.5;
-								}
-							else
-								{
-								count_total+=1.0;
-								}
-							if(a.equals(observed_alt))
-								{
-								count_alt++;
-								}
-							}
+						mafCalculator.add(genotype,  person.isMale());
 						
 						
 						
@@ -206,6 +190,7 @@ public class VcfBurdenRscriptV
 								genotype.getAlleles().contains(observed_alt) &&
 								genotype.getAlleles().contains(ctx.getReference())) {
 							pw.print('1');
+
 						}
 						/* we treat 0/2 has hom-ref */
 						else if (genotype.isHet() && 
@@ -232,9 +217,9 @@ public class VcfBurdenRscriptV
 				variant.end = ctx.getEnd();
 				variant.ref = ctx.getReference();
 				variant.alt = observed_alt;
-				if(count_total>0)
+				if(!mafCalculator.isEmpty())
 					{
-					variant.maf =(double)count_alt/(double)count_total;
+					variant.maf = mafCalculator.getMaf();
 					}
 				else
 					{

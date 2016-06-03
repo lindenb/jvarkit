@@ -127,7 +127,8 @@ public class VcfBurdenFisherV
 						continue;//not in vcf header
 					}
 					if(g.isFiltered()) {
-						continue;//not in vcf header
+						LOG.warn("ignoring filtered genotype");
+						continue;//not filter.
 					}
 					for(final Allele alt : g.getAlleles()) {
 						if(observed_alt.equals(alt)) {

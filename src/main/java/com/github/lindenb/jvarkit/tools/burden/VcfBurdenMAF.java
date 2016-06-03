@@ -118,7 +118,6 @@ public class VcfBurdenMAF
 			while(in.hasNext() &&  !out.checkError())
 				{
 				final VariantContext ctx = progess.watch(in.next());
-				final boolean is_chrom_X = (ctx.getContig().equals("X") ||  ctx.getContig().equals("chrX"));
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				final List<Double> mafCasList = new ArrayList<>(); 
 				final List<Double> mafCtrlList = new ArrayList<>(); 
@@ -130,42 +129,23 @@ public class VcfBurdenMAF
 					{
 					/* loop over two populations : 0 = case, 1=controls */
 					for(int pop=0;pop<2;++pop) {
-						int count_alt = 0;
-						double count_total=0.0;/* total number of alleles */
+						final MafCalculator mafCalculator = new MafCalculator(observed_alt, ctx.getContig());
+
 						/* loop over persons in this pop */
-						for(final Pedigree.Person p:(pop==CASE_POP?caseSamples:controlSamples)) 	{
-						/* get genotype for this individual */
-						final Genotype genotype = ctx.getGenotype(p.getId());
-						/* individual is not in vcf header */
-						if(genotype==null || !genotype.isCalled() ) {						
-							continue;
-						}
-						
-						
-						/* loop over alleles */
-						for(final Allele a: genotype.getAlleles()) {
-							/* chromosome X and male ? count half */
-							if( is_chrom_X && p.isMale()) {
-								count_total+=0.5;
-								}
-							else
-								{
-								count_total+=1.0;
-								}
-							if(a.equals(observed_alt))
-								{
-								count_alt++;
-								}
-							}
-						}/* end of loop over persons */
+						for(final Pedigree.Person p:(pop==CASE_POP?caseSamples:controlSamples)) 
+							{
+							/* get genotype for this individual */
+							final Genotype genotype = ctx.getGenotype(p.getId());
+							mafCalculator.add(genotype, p.isMale());
+							}/* end of loop over persons */
 						
 						/* at least one genotype found */
-						if(count_total!=0)
+						if(!mafCalculator.isEmpty())
 							{
 							seen_data=true;
 							
 							/* get MAF */
-							final double maf = (double)count_alt/(double)count_total;
+							final double maf = mafCalculator.getMaf();
 							
 							if(pop == CASE_POP) {
 								/* add INFO attribute */
@@ -191,7 +171,7 @@ public class VcfBurdenMAF
 							}
 							}
 						}/* end of loop over pop */
-					}
+					}/* end loop over alt allele */
 				
 				
 				vcb.attribute(mafCasInfoHeader.getID(),mafCasList);

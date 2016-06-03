@@ -78,6 +78,7 @@ public class VcfDoest
 		int ctxStart;
 		Allele ref;
 		Allele alt;
+		double maf=MafCalculator.NODATA;
 		int indexInTranscript0;
 		String overlapName;
 		byte genotypes[];
@@ -129,6 +130,7 @@ public class VcfDoest
 			o.ctxStart = dis.readInt();
 			o.ref= Allele.create(TranscriptInfoCodec.readString(dis), true);
 			o.alt= Allele.create(TranscriptInfoCodec.readString(dis), false);
+			o.maf = dis.readDouble();
 			
 			o.indexInTranscript0 =  dis.readInt();
 			o.overlapName = dis.readUTF();
@@ -161,6 +163,7 @@ public class VcfDoest
 			dos.writeInt(o.ctxStart);
 			TranscriptInfoCodec.writeString(dos, o.ref.getDisplayString());
 			TranscriptInfoCodec.writeString(dos, o.alt.getDisplayString());
+			dos.writeDouble(o.maf);
 			dos.writeInt(o.indexInTranscript0);
 			
 			dos.writeUTF(o.overlapName);
@@ -251,11 +254,18 @@ public class VcfDoest
 			if(ctx.getAlternateAlleles().isEmpty()) continue;
 			final Allele altAllele=ctx.getAltAlleleWithHighestAlleleCount();
 			
+			
+			final MafCalculator mafCalculator= new MafCalculator(altAllele,ctx.getContig());
 			boolean genotyped=false;
 			for(final Pedigree.Person p:pedigree.getPersons())
 				{
 				if(!(p.isAffected() || p.isUnaffected())) continue;
 				final Genotype g= ctx.getGenotype(p.getId());
+				
+				if(g.isCalled()) {
+					mafCalculator.add(g, p.isMale());
+				}
+				
 				if(g.isHet() || g.isHomVar()) {
 					if(!g.getAlleles().contains(altAllele)) continue;
 					genotyped=true;
@@ -290,6 +300,7 @@ public class VcfDoest
 				trInfo.ctxStart = ctx.getStart();
 				trInfo.ref = ctx.getReference();
 				trInfo.alt = altAllele;
+				trInfo.maf = mafCalculator.getMaf();
 				
 				trInfo.genotypes = new byte[individuals.size()];
 				
@@ -445,6 +456,8 @@ public class VcfDoest
 			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print("\""+v.alt.getDisplayString()+"\"");first=false;}
 			pw.print("),positionInTranscript1=c(");
 			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print(v.indexInTranscript0+1);first=false;}
+			pw.print("),maf=c(");
+			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print(v.maf);first=false;}
 			pw.print("),overlapName=c(");
 			first=true; for(final TranscriptInfo v: list) {if(!first) pw.print(",");pw.print("\""+v.overlapName+"\"");first=false;}
 			pw.println("))");

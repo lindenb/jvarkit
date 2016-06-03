@@ -53,6 +53,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
+
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -226,34 +227,53 @@ public class VcfDerby01
 		ResultSet row = null;
 		PrintWriter pwOut = null;
 		try {
-			pstmt2 = this.conn.prepareStatement("SELECT ROWCONTENT.CONTENT FROM ROWCONTENT GROUP BY ROWCONTENT.MD5SUM ORDER BY ROWCONTENT.ID ");
-			pwOut = openFileOrStdoutAsPrintWriter();
-			row =  pstmt2.executeQuery();
-			boolean variant_found=false;
-			while(row.next()) {
-				final Clob clob = row.getClob(1);
-				final Reader r= clob.getCharacterStream();
-				int c= r.read();
-				if(c=='#' ) {
-					if(variant_found) {
-						r.close();
-						continue;
+			boolean chrom_line_seen=false;
+			for(int side=0;side<2;++side)
+				{
+				final String sql=(side==0?
+						"SELECT ROWCONTENT.CONTENT FROM ROWCONTENT WHERE ROWCONTENT.CONTIG IS NULL ORDER BY ROWCONTENT.ID " :
+						"SELECT ROWCONTENT.CONTENT FROM ROWCONTENT WHERE ROWCONTENT.CONTIG IS NOT NULL ORDER BY ROWCONTENT.CONTIG,ROWCONTENT.START,ROWCONTENT.ALLELE_REF "
+						);
+				LOG.info(sql);
+				pstmt2 = this.conn.prepareStatement(sql);
+				pwOut = openFileOrStdoutAsPrintWriter();
+				row =  pstmt2.executeQuery();
+				while(row.next()) {
+					final Clob clob = row.getClob(1);
+					final Reader r= clob.getCharacterStream();
+					if(side==0)
+						{
+						final String s = IOUtils.copyToString(r);
+						if(s.startsWith("#CHROM")) {
+							if(chrom_line_seen) {
+								r.close();
+								continue;
+							}
+							chrom_line_seen=true;
+						} else
+							{
+							if(chrom_line_seen) {
+								r.close();
+								continue;
+								}
+							}
+						pwOut.print(s);
 						}
+					else
+						{
+						IOUtils.copyTo(r,pwOut);
+						}	
+					
+					
+					r.close();
+					pwOut.println();
 					}
-				else
-					{
-					variant_found=true;
-					}
-				if(c!=-1) pwOut.print((char)c);
-				IOUtils.copyTo(r,pwOut);
-				r.close();
-				pwOut.println();
-				}
-			row.close();
+				row.close();
+					
+				pstmt2.close();pstmt2=null;
 				
-			pstmt2.close();pstmt2=null;
-			
-			pwOut.flush();
+				pwOut.flush();
+				}
 			pwOut.close();pwOut=null;
 			
 			return RETURN_OK;

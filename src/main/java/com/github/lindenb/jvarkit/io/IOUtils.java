@@ -47,6 +47,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.PushbackInputStream;
 import java.io.Reader;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -67,6 +68,46 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class IOUtils {
+	/*
+	private static abstract class AbstractErrorChecker implements BooleanSupplier
+		{
+		private final long intervalMillis=10*1000;//10 sec
+		private long last = System.currentTimeMillis();
+		protected abstract boolean checkNoError();
+		private boolean is_ok=true;
+		
+		@Override
+		public boolean getAsBoolean() {
+			final long now = System.currentTimeMillis();
+			if(is_ok && last+intervalMillis>now) {
+				last=now;
+				is_ok=checkNoError();
+			}
+			
+			return is_ok;
+			}
+		
+		}
+	private static class PrintStreamChecker extends AbstractErrorChecker {
+		private final PrintStream p;
+		PrintStreamChecker(final PrintStream p) {
+			this.p=p;
+		}
+		@Override
+		protected boolean checkNoError() {
+			return !p.checkError();
+			}
+		}
+	private static class PrintWriterChecker extends AbstractErrorChecker {
+		private final PrintWriter p;
+		PrintWriterChecker(final PrintWriter p) {
+			this.p=p;
+		}
+		@Override
+		protected boolean checkNoError() {
+			return !p.checkError();
+			}
+		}*/
 	
 	public static void copyTo(final File f,final OutputStream fous) throws IOException
 		{
@@ -92,16 +133,16 @@ public class IOUtils {
 			}
 		}
 	
-	public static void copyTo(InputStream in,File f) throws IOException
+	public static void copyTo(final InputStream in,final File f) throws IOException
 		{
-		FileOutputStream fous=new FileOutputStream(f);
+		final FileOutputStream fous=new FileOutputStream(f);
 		copyTo(in,fous);
 		fous.flush();
 		fous.close();
 		}
-	public static void copyTo(InputStream in,OutputStream out) throws IOException
+	public static void copyTo(final InputStream in,final OutputStream out) throws IOException
 		{
-		byte buffer[]=new byte[2048];
+		final byte buffer[]=new byte[2048];
 		int nRead;
 		while((nRead=in.read(buffer))!=-1)
 			{
@@ -110,9 +151,9 @@ public class IOUtils {
 		out.flush();
 		}
 
-	public static void copyTo(Reader in,Writer out) throws IOException
+	public static void copyTo(final Reader in,final Writer out) throws IOException
 		{
-		char buffer[]=new char[2048];
+		final char buffer[]=new char[2048];
 		int nRead;
 		while((nRead=in.read(buffer))!=-1)
 			{
@@ -120,6 +161,15 @@ public class IOUtils {
 			}
 		out.flush();
 		}
+	
+	/** copy content of 'in' into String */
+	public static String copyToString(final Reader in) throws IOException
+		{
+		final StringWriter sw = new StringWriter();
+		copyTo(in, sw);
+		return sw.toString();
+		}
+	
 	
 	/** compressed a String with gzip */
 	public static byte[] gzipString(final String s) {
