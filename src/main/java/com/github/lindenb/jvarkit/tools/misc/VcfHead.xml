@@ -16,7 +16,7 @@
 
 <description>Print the first variants of a VCF.</description>
 <input type="vcf"/>
-<output type="vcf"/>"
+<output type="vcf"/>
 <snippet id="concatenated-vcf"/>
 
 <options>

@@ -19,7 +19,7 @@
 
 <options>
 	<option name="userTermsAsString" opt="A" type="string-list" longopt="acn" argname="SO:ACN">
-		<description>add this SO:ACN</description>
+		<description>add this SO:ACN. </description>
 	</option>
 	<option galaxy:ignore="true" name="userAcnFile" opt="f" type="input-file" longopt="acnfile" argname="ACN.FILE">
 		<description>file of SO accession numbers</description>
