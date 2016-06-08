@@ -524,4 +524,14 @@ public class IOUtils {
 		};
 	}
 	
+	/** safe flusher */
+	public static void flush(final Writer w) {
+		if(w==null) return;
+		try { w.flush();} catch(Throwable err) {}
+	}
+	/** safe flusher */
+	public static void flush(final OutputStream w) {
+		if(w==null) return;
+		try { w.flush();} catch(Throwable err) {}
+	}
 	}

@@ -50,7 +50,6 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -60,11 +59,9 @@ import htsjdk.samtools.SAMSequenceRecord;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.Function;
 import com.github.lindenb.jvarkit.util.biomart.BiomartQuery;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.doid.DiseaseOntoglogyTree;
-import com.github.lindenb.jvarkit.util.picard.IntervalTreeMapFactory;
 import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 
 public abstract class AbstractVCFDiseaseOntology
@@ -82,7 +79,6 @@ public abstract class AbstractVCFDiseaseOntology
 	protected Map<Integer,Set<DiseaseOntoglogyTree.Term>> gene2doid=new HashMap<Integer,Set<DiseaseOntoglogyTree.Term>>();
 	protected Map<String,Set<DiseaseOntoglogyTree.Term>> ensemblProtein2doid=new HashMap<String,Set<DiseaseOntoglogyTree.Term>>();
 	private IntervalTreeMap<Integer> ncbiGeneMap=null;
-	@SuppressWarnings("unused")
 	private IntervalTreeMap<String> ensemblProteinMap;
 	
 	
@@ -224,28 +220,20 @@ public abstract class AbstractVCFDiseaseOntology
 				);
 		q.setUniqRows(true);
 		this.info("sending "+q);
-		
-		IntervalTreeMapFactory<String> itf=new IntervalTreeMapFactory<String>();
-		if(REF!=null)
-			{
-			itf.setSamSequenceDictionary(new IndexedFastaSequenceFile(REF).getSequenceDictionary());
-			}
-		itf.setValueFunction(new Function<String[], String>()
-			{
-			@Override
-			public String apply(String[] param)
-				{
-				if(param.length<4 || param[3].isEmpty()) return null;
-				String ensp=param[3];
-				
-				if(!ensemblProtein2doid.containsKey(ensp)) return null;
-				return ensp;
-				}
-			});
 		this.info("invoking biomart "+q);
 		LineReader r=q.execute();
+		LineIterator iter = new LineIteratorImpl(r);
+		while(iter.hasNext()) {
+			String line=iter.next();
+			String param[]=line.split("[\t]");
+			if(param.length<4 || param[3].isEmpty()) continue;
+			String ensp=param[3];
+			
+			if(!ensemblProtein2doid.containsKey(ensp)) continue;
+			ensemblProteinMap.put(new Interval(param[0],Integer.parseInt(param[1]),Integer.parseInt(param[2])),ensp);
+		}
 		
-		this.ensemblProteinMap=itf.createIntervalMap(r);
+		
 		r.close();
 		}
 	

@@ -201,7 +201,7 @@ public class BamStats01
     
     private  class Histogram
     	{
-    	Histogram2 histograms[]=new Histogram2[]{
+    	final Histogram2 histograms[]=new Histogram2[]{
     			new Histogram2(),//ALL
     			new Histogram2(),//in capture
     			new Histogram2()//off capture
@@ -242,7 +242,7 @@ public class BamStats01
 		
 		}
 		
-	private void run(String filename,SamReader samFileReader) throws IOException
+	private void run(final String filename,SamReader samFileReader) throws IOException
 		{	
 		Map<String,Histogram> sample2hist=new HashMap<String, BamStats01.Histogram>();
 			
@@ -268,11 +268,11 @@ public class BamStats01
 					LOG.info("opening "+this.bedFile);
 					final Pattern tab=Pattern.compile("[\t]");
 					String line;
-					BufferedReader bedIn=IOUtils.openFileForBufferedReading(bedFile);
+					final BufferedReader bedIn=IOUtils.openFileForBufferedReading(bedFile);
 					while((line=bedIn.readLine())!=null)
 						{
 						if(line.isEmpty() || line.startsWith("#")) continue;
-						String tokens[]=tab.split(line,5);
+						final String tokens[]=tab.split(line,5);
 						if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.bedFile);
 						int seqIndex=currDict.getSequenceIndex(tokens[0]);
 						if(seqIndex==-1)
@@ -291,9 +291,9 @@ public class BamStats01
 			this.chrY_index=-1;
 			
 			
-			for(SAMSequenceRecord rec:currDict.getSequences())
+			for(final SAMSequenceRecord rec:currDict.getSequences())
 				{
-				String chromName=rec.getSequenceName().toLowerCase();
+				final String chromName=rec.getSequenceName().toLowerCase();
 				if(chromName.equals("x") || chromName.equals("chrx"))
 					{
 					this.chrX_index=rec.getSequenceIndex();
@@ -305,16 +305,16 @@ public class BamStats01
 				}
 			
 			
-			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(currDict);
-			SAMRecordIterator iter=samFileReader.iterator();
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(currDict);
+			final SAMRecordIterator iter=samFileReader.iterator();
 			while(iter.hasNext())
 				{
 				String sampleName=null;
-				SAMRecord rec=iter.next();
+				final SAMRecord rec=iter.next();
 				
 				progess.watch(rec);
 				
-				SAMReadGroupRecord grp=rec.getReadGroup();
+				final SAMReadGroupRecord grp=rec.getReadGroup();
 				if(grp!=null)
 					{
 					sampleName=grp.getSample();
@@ -358,14 +358,14 @@ public class BamStats01
 			samFileReader.close();
 			samFileReader=null;
 		
-			for(String sampleName: sample2hist.keySet())
+			for(final String sampleName: sample2hist.keySet())
 				{
-				Histogram hist=sample2hist.get(sampleName);
+				final Histogram hist=sample2hist.get(sampleName);
 				out.print(filename+"\t"+sampleName);
 				
-				for(Category2 cat2: Category2.values())
+				for(final Category2 cat2: Category2.values())
 					{
-					for(Category cat1: Category.values())//je je suis libertineuuh, je suis une cat1
+					for(final Category cat1: Category.values())//je je suis libertineuuh, je suis une cat1
 						{
 						out.print("\t");
 						out.print(hist.histograms[cat2.ordinal()].counts[cat1.ordinal()]);

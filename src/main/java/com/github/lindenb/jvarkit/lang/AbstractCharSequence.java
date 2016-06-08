@@ -49,7 +49,7 @@ public abstract class AbstractCharSequence
 	
 	public String getString()
 		{
-		StringBuilder b=new StringBuilder(length());
+		final StringBuilder b=new StringBuilder(length());
 		for(int i=0;i< length();++i) b.append(charAt(i));
 		return b.toString();
 		}

@@ -6,7 +6,7 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.tribble.readers.LineReader;
 
-
+@Deprecated
 public class IntervalTreeMapFactory<T>
 	extends AbstractIntervalMapFactory<T>
 	{

@@ -92,7 +92,8 @@ public class SplitBam3 extends AbstractSplitBam3
 		public File getFile()
 			{
 			return new File(
-					SplitBam3.this.OUT_FILE_PATTERN.replaceAll(
+					SplitBam3.this.getOutputFile().getParentFile(),
+					SplitBam3.this.getOutputFile().getName().replaceAll(
 							SplitBam3.REPLACE_GROUPID,
 							this.groupName
 							));
@@ -381,11 +382,11 @@ public class SplitBam3 extends AbstractSplitBam3
 		SamReader sfr=null;
 		try
 			{
-			if(!OUT_FILE_PATTERN.contains(REPLACE_GROUPID))
+			if(getOutputFile()==null || !getOutputFile().getName().contains(REPLACE_GROUPID))
 				{
-				return wrapException("output file pattern undefined or doesn't contain "+REPLACE_GROUPID+" : "+this.OUT_FILE_PATTERN);
+				return wrapException("output file pattern undefined or doesn't contain "+REPLACE_GROUPID+" : "+this.getOutputFile());
 				}
-			if(!OUT_FILE_PATTERN.endsWith(".bam"))
+			if(!getOutputFile().getName().endsWith(".bam"))
 				{
 				return wrapException("output file must end with '.bam'");
 				}

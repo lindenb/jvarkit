@@ -6,7 +6,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import com.github.lindenb.jvarkit.lang.Function;
 
 
-
+@Deprecated
 public abstract class AbstractIntervalMapFactory<T>
 	{
 	

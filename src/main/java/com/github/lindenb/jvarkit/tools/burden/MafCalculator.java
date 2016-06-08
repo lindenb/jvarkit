@@ -1,16 +1,44 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+
+*/
 package com.github.lindenb.jvarkit.tools.burden;
 
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
 
 public class MafCalculator {
 	public static final double NODATA=-1.0;
-	private int count_total = 0;
-	private int count_alt = 0;
+	private double count_total = 0;
+	private double count_alt = 0;
 	private boolean is_chrom_X;
 	private final Allele observed_alt;
-	public MafCalculator(final Allele observed_alt,boolean is_chrom_X) {
+	public MafCalculator(final Allele observed_alt,final boolean is_chrom_X) {
 		this.is_chrom_X = is_chrom_X;
 		this.observed_alt = observed_alt;
 		if(this.observed_alt==null) throw new IllegalArgumentException(
@@ -24,14 +52,14 @@ public class MafCalculator {
 				);
 	}
 	
-	public MafCalculator(final Allele observed_alt,String contig) {
+	public MafCalculator(final Allele observed_alt,final String contig) {
 		this(observed_alt,contig.equalsIgnoreCase("chrX") || contig.equalsIgnoreCase("X"));
 	}
 	
-	public int getCountTotal() {
+	public double getCountTotal() {
 		return this.count_total;
 	}
-	public int getCountAlt() {
+	public double getCountAlt() {
 		return this.count_alt;
 	}
 	
@@ -66,15 +94,25 @@ public class MafCalculator {
 		{
 		/* chromosome X and male ? count half */
 		if( this.is_chrom_X && sample_is_male) {
-			count_total+=0.5;
+			this.count_total+=0.5;
 			}
 		else
 			{
-			count_total+=1.0;
+			this.count_total+=1.0;
 			}
 		if(a.equals(observed_alt))
 			{
-			count_alt++;
+			this.count_alt++;
 			}
 		}
+	
+	/** calculate MAF for all genotypes of this ctx with most frequent Allele . male=false*/
+	public static MafCalculator get(final VariantContext ctx) {
+		final MafCalculator mc = new MafCalculator(ctx.getAltAlleleWithHighestAlleleCount(),ctx.getContig());
+		for(int i=0;i< ctx.getNSamples();++i) {
+				mc.add(ctx.getGenotype(i), false);
+			}
+		return mc;
+		}
+	
 }

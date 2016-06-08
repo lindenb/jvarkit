@@ -286,9 +286,70 @@ public class VcfDerby01
 		}
 	}
 
+	private Collection<Throwable> dumpAll(){
+		PreparedStatement pstmt2 = null;
+		ResultSet row = null;
+		PrintWriter pwOut = null;
+		int num_vcf_exported=0;
+		try {
+			pstmt2 = this.conn.prepareStatement(
+					"SELECT ROWCONTENT.CONTENT,VCF.ID,VCF.NAME FROM VCF,VCFROW,ROWCONTENT WHERE VCFROW.VCF_ID=VCF.ID AND VCFROW.ROW_ID = ROWCONTENT.ID AND ORDER BY VCF.ID,VCFROW.ID ");
+			pwOut = openFileOrStdoutAsPrintWriter();
+			row =  pstmt2.executeQuery();
+			final String CHROM_prefix="#CHROM\t";
+			final StringBuilder chrom_header_line = new StringBuilder(CHROM_prefix.length());
+			while(row.next()) {
+				final Clob clob = row.getClob(1);
+				final Reader r= clob.getCharacterStream();
+				/* read the first bytes to check if it's the #CHROM line
+				 * if true, add a VCF header line with VCF ID and NAME
+				 *  */
+				chrom_header_line.setLength(0);
+				int c;
+				while(chrom_header_line.length()< CHROM_prefix.length() &&
+					((c=r.read())!=1) )
+					{
+					chrom_header_line.append((char)c);
+					}
+				final String amorce = chrom_header_line.toString();
+				if(amorce.equals(CHROM_prefix))
+					{
+					num_vcf_exported++;
+					final long vcf_id = row.getLong(2);
+					final String vcfName= row.getString(3);
+					pwOut.println(VCF_HEADER_FILE_ID+vcf_id);
+					pwOut.println(VCF_HEADER_FILE_NAME+vcfName);
+					}
+				pwOut.print(amorce);
+				IOUtils.copyTo(r,pwOut);
+				r.close();
+				pwOut.println();
+			}
+			row.close();
+				
+			pstmt2.close();
+			
+			pwOut.flush();
+			pwOut.close();
+			
+			if(num_vcf_exported==0 ) {
+				LOG.warn("NO VCF WAS EXPORTED");
+				}
+			LOG.info("count(VCF) exported "+num_vcf_exported);
+			return RETURN_OK;
+		} catch (final Exception e) {
+			return wrapException(e);
+		} finally {
+			CloserUtil.close(pwOut);
+			CloserUtil.close(row);
+			CloserUtil.close(pstmt2);
+		}
+	}
 	
 
 	private Collection<Throwable> dump(final Set<Long> vcfIds){
+		final double timeStart = System.currentTimeMillis();
+
 		PreparedStatement pstmt = null;
 		PreparedStatement pstmt2 = null;
 		ResultSet row = null;
@@ -304,7 +365,9 @@ public class VcfDerby01
 			
 			for(final long vcf_id : vcfIds)
 				{
-				LOG.info("Getting VCF "+vcf_id);
+				final double remain = ((((System.currentTimeMillis()-timeStart)/(1+num_vcf_exported)))*(vcfIds.size()-(1+num_vcf_exported)))/1000.0;
+				
+				LOG.info("Getting VCF "+vcf_id+" "+(num_vcf_exported)+"/"+vcfIds+" . Remains "+(long)remain+" seconds.");
 				
 				pstmt.setLong(1, vcf_id);
 				String vcfName=null;
@@ -350,6 +413,7 @@ public class VcfDerby01
 				
 				row.close();
 				num_vcf_exported++;
+				
 				}
 				
 			pstmt.close();

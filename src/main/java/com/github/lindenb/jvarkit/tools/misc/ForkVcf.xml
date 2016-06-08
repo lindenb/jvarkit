@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "ForkVcf">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 xmlns:h="http://www.w3.org/1999/xhtml"
+	 xmlns:svg="http://www.w3.org/2000/svg"
+	 app="&name;"
+	 package="&package;"
+	 __placeholder__="1"
+	>
+
+<description>Fork a VCF.</description>
+<input type="vcf"/>
+<snippet xmlns="http://github.com/lindenb/jvarkit/" id="sorting-collection"/>
+
+<options>
+		<option name="chromGroupFile" opt="g" longopt="groupfile" argname="GROUP" type="input-file">
+			<description>Chromosome group file. Intervals are 1-based. If undefined, splitvcf will use the sequence dictionary to output one vcf per contig.</description>
+		</option>
+		<option name="number_of_files" opt="n" longopt="count"  type="int" default="2">
+			<description>number of vcf files to generate</description>
+		</option>
+		<option name="split_by_chunk" opt="c" longopt="splitbychunk"  type="boolean" default="false">
+			<description>When this option is used, the variant are first saved in a temporary file, the number of variant is dividided by 'count' and the output files are lineray produced. The default is to dispatch the variants as they are coming in the stream.</description>
+		</option>
+		<option name="manifestFile" opt="m" longopt="manifest"  type="output-file">
+			<description>optional save produced vcf filenames in this file.</description>
+		</option>
+	</options>
+<documentation>
+<h:h3>Output</h:h3>
+Output filename (option -o) MUST contain the word __GROUPID__.
+
+<h:h3>Example</h:h3>
+<h:pre class="bash">$ 
+</h:pre>
+
+
+<h:pre class="bash">
+</h:pre>cat input.vcf | java -jar dist/forkvcf.jar -n 3 -o "_tmp.__GROUPID__.vcf"
+[main] INFO jvarkit - opening VCF file "_tmp.00001.vcf" for writing
+[main] INFO jvarkit - opening VCF file "_tmp.00002.vcf" for writing
+[main] INFO jvarkit - opening VCF file "_tmp.00003.vcf" for writing
+
+$ wc _tmp.0000*
+   226   6819 143947 _tmp.00001.vcf
+   226   6819 140792 _tmp.00002.vcf
+   225   6161 125219 _tmp.00003.vcf
+   
+   
+   
+<h:h3>See also</h:h3>
+<h:ul>
+<h:li><h:a>https://github.com/lindenb/jvarkit/wiki/SplitVcf</h:a></h:li>
+</h:ul>
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>

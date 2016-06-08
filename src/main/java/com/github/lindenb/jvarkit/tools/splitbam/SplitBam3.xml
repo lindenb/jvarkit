@@ -10,11 +10,9 @@
 
 
 <options>
-		<option name="OUT_FILE_PATTERN" opt="p" longopt="pattern" argname="PATTERN" type="string">
-			<description>output file pattern. MUST contain __GROUPID__ and must end with '.bam'</description>
-		</option>
+		
 		<option name="chromGroupFile" opt="g" longopt="groupfile" argname="GROUP" type="input-file">
-			<description>Chromosome group file</description>
+			<description>Chromosome group file. Interval are 1 based</description>
 		</option>
 		<option name="ADD_MOCK_RECORD" opt="m" longopt="mock"  type="boolean" default="false">
 			<description>add mock record if no samRecord saved in bam</description>
@@ -31,6 +29,8 @@
 Split a BAM by chromosome group. Create EMPTY bams if no reads was found for a given group.
 <h:img src="https://chart.googleapis.com/chart?chl=+digraph+G+%7B%0D%0ABWA+-%3E+SPLITBAM%5Blabel%3D%22stdout%22%5D%3B%0D%0A+++SPLITBAM-%3ECHR1_bam%3B%0D%0A+++SPLITBAM-%3ECHR2_bam%3B%0D%0A+++SPLITBAM-%3ECHR3_bam%3B+%0D%0A+++CHR1_bam+-%3E+CHR1_vcf%3B%0D%0A+++CHR2_bam+-%3E+CHR2_vcf%3B%0D%0A+++CHR3_bam+-%3E+CHR3_vcf%3B%0D%0A+++CHR1_vcf+-%3E+merged_vcf%3B%0D%0A+++CHR2_vcf+-%3E+merged_vcf%3B%0D%0A+++CHR3_vcf+-%3E+merged_vcf%3B%0D%0A+%7D%0D%0A++++++++&amp;cht=gv"/>
 
+file output MUST contain the word '__GROUPID__'
+
 <h:h3>Example</h:h3>
 
 the content of 'split_g1k_v37_01.txt'
@@ -46,7 +46,7 @@ split the output of bwa sampe on the fly:
 <h:pre>
 bwa mem (...) | samtools sort (...) | \
 java -jar dist/splitbam3.jar \
-	-p TESTSPLITBAM/ __GROUPID__.bam \
+	-o TESTSPLITBAM/__GROUPID__.bam \
 	-m \
 	-g split_g1k_v37_01.txt 
 

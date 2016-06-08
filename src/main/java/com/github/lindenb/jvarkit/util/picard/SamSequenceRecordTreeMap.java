@@ -12,7 +12,7 @@ public class SamSequenceRecordTreeMap<T>
 	{
 	private SAMSequenceDictionary dict=null;
 	private List<IntervalTree<T>> chroms;
-	public SamSequenceRecordTreeMap(SAMSequenceDictionary dict)
+	public SamSequenceRecordTreeMap(final SAMSequenceDictionary dict)
 		{
 		this.dict=dict;
 		this.chroms=new ArrayList<IntervalTree<T>>(this.dict.size());
