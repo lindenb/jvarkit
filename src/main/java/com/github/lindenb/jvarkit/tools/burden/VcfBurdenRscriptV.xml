@@ -28,6 +28,9 @@
 	<option name="titleHeaderStr" type="string" longopt="title" argname="TITLE" opt="t" default="">
 		<description>Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the name of the VCF chunk</description>
 	</option>
+	<option name="nocalliszero" type="boolean" longopt="minusnineiszero" opt="minusnineiszero" default="false">
+		<description>No Call is '0' (default is -9)</description>
+	</option>
 </options>
 
 <documentation>

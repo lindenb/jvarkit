@@ -165,9 +165,11 @@ public class VcfBurdenMAF
 							{
 							if(pop == CASE_POP) {
 								mafCasList.add(-1.0);
+								set_max_maf_cas=false;
 							} else
 							{
 								mafCtrlList.add(-1.0);
+								set_max_maf_control=false;
 							}
 							}
 						}/* end of loop over pop */

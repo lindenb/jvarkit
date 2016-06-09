@@ -206,7 +206,7 @@ public class VcfBurdenRscriptV
 							pw.print('0');
 						}
 						else {
-							pw.print("-9");
+							pw.print(super.nocalliszero?"0":"-9");
 						}
 						first=false;
 					}
