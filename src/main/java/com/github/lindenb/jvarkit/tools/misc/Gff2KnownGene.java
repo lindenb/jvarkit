@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import htsjdk.samtools.GenomicIndexUtil;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -40,11 +39,12 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 
@@ -54,7 +54,8 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
 public class Gff2KnownGene extends AbstractGff2KnownGene {
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Gff2KnownGene.class);
-
+	private static final String NO_TRANSCRIPT_NAME="\0\0NOTRANSCRIPT";
+	
 	private static class GffLine {
 		final String line;
 		private Interval interval = null;
@@ -63,7 +64,13 @@ public class Gff2KnownGene extends AbstractGff2KnownGene {
 			this.line=line;
 		}
 		
-		private void decode() {
+		boolean hasTranscript()
+		{
+			return !(getTranscript()==null || NO_TRANSCRIPT_NAME.equals(getTranscript()));
+		}
+		
+		
+		private boolean decode() {
 			final Pattern tab=Pattern.compile("[\t]");
 			
 			final String tokens[]=tab.split(line);
@@ -73,15 +80,21 @@ public class Gff2KnownGene extends AbstractGff2KnownGene {
 					Integer.parseInt(tokens[4])
 					);
 			final Pattern semicolon=Pattern.compile(";");
-			for(final String meta:semicolon.split(tokens[8])) {
-				if(meta.startsWith("transcript_id=")) {
-					this.transcript = meta.substring(14).trim();
+			final String metainfo[] = semicolon.split(tokens[8]);
+			for(final String meta:metainfo) {
+				 Map.Entry<String,String> kv = split(meta);
+				
+				if(kv.getKey().equals("transcript_id")) {
+					this.transcript = kv.getValue();
 					break;
 				}
 			}
 			if(transcript==null) {
-				throw new RuntimeIOException("no transcript_id found in gff3 line "+line);
+				//LOG.warn("no transcript_id found in gff3 line "+line+" meta:\n\t"+String.join("\n\t",metainfo));
+				this.transcript=NO_TRANSCRIPT_NAME;
+				return false;
 			}
+			return true;
 		}
 		
 		public String getContig() {
@@ -144,7 +157,52 @@ public class Gff2KnownGene extends AbstractGff2KnownGene {
         return 0;
     }
 
-	
+	private  static Map.Entry<String,String> split(String s){
+		s=s.trim();
+		int x=0;
+		final StringBuilder key = new StringBuilder();
+		while(x<s.length() && (s.charAt(x)=='_' || Character.isLetter(s.charAt(x)) || Character.isDigit(s.charAt(x))))
+			{
+			key.append(s.charAt(x));
+			x++;
+			}
+		while(x<s.length() && Character.isWhitespace(s.charAt(x))) {
+			if(s.charAt(x)=='=') {
+				++x;
+				break;
+			}
+			++x;
+			}
+		
+		String value = s.substring(x).trim();
+		if(value.startsWith("\"") && value.endsWith("\"")) {
+			final StringBuilder sb=new StringBuilder(value.length());
+			
+			for(int i=1;i<value.length()-1;++i){
+				if(value.charAt(i)=='\\') {
+					if(i+1<value.length()-1)
+						{
+						i++;
+						switch(value.charAt(i)) {
+						case '"': sb.append("\"");break;
+						case '\'': sb.append("\'");break;
+						case 't': sb.append("\t");break;
+						case 'n': sb.append("\n");break;
+						default:break;
+						}
+						}
+					continue;
+				} else
+				{
+					 sb.append(value.charAt(i));
+				}
+			}
+			
+			value=sb.toString();
+		}
+		return new AbstractMap.SimpleEntry<String,String>(key.toString(),value);
+	}
+
 	/*
 	private abstract class GffCodec
 		{
@@ -224,7 +282,9 @@ public class Gff2KnownGene extends AbstractGff2KnownGene {
 			{
 				++nRead;
 				if(line.isEmpty() || line.startsWith("#")) continue;
-				sorting.add(new GffLine(line));
+				final GffLine gffLine = new GffLine(line);
+				if(!gffLine.hasTranscript()) continue;
+				sorting.add(gffLine);
 				if(nRead %50000==0) LOG.info("Read "+nRead+" lines. Last: "+line);
 
 			}
@@ -301,8 +361,11 @@ public class Gff2KnownGene extends AbstractGff2KnownGene {
 				LOG.warn("tx is null for "+name+" "+first);
 				continue;
 				}
-			pw.print(reg2bin(tx.getStart()-1, tx.getEnd()));
-			pw.print("\t");
+			
+			if(super.writeBin) {
+				pw.print(reg2bin(tx.getStart()-1, tx.getEnd()));
+				pw.print("\t");
+				}
 			pw.print(name);
 			pw.print("\t");
 			pw.print(contig);
@@ -345,20 +408,23 @@ public class Gff2KnownGene extends AbstractGff2KnownGene {
 			}
 			pw.print("\t");
 			
-			for(final String s:semicolon.split(meta)) {
-				if(s.startsWith("gene_id=") ||
-				   s.startsWith("transcript_type=") ||
-				   s.startsWith("gene_name=") ||
-				   s.startsWith("gene_status=") ||
-				   s.startsWith("gene_type=") ||
-				   s.startsWith("transcript_id=") ||
-				   s.startsWith("havana_gene=") ||
-				   s.startsWith("havana_transcript=") ||
-				   s.startsWith("transcript_name=") ||
-				   s.startsWith("protein_id=") ||
-				   s.startsWith("ccdsid=")
+			for(final String metainfo:semicolon.split(meta)) {
+				final Map.Entry<String, String> entry = split(metainfo);
+				if(entry==null) continue;
+				final String s=entry.getKey();
+				if(s.equals("gene_id") ||
+				   s.equals("transcript_type") ||
+				   s.equals("gene_name") ||
+				   s.equals("gene_status") ||
+				   s.equals("gene_type") ||
+				   s.equals("transcript_id") ||
+				   s.equals("havana_gene") ||
+				   s.equals("havana_transcript") ||
+				   s.equals("transcript_name") ||
+				   s.equals("protein_id") ||
+				   s.equals("ccdsid")
 				   ) {
-					pw.print(s);
+					pw.print(entry.getValue());
 					pw.print(";");
 				}
 			}

@@ -167,6 +167,7 @@ public class VCFStripAnnotations extends AbstractVCFStripAnnotations
 			if(w.checkError()) break;
 			}	
 		progress.finish();
+		LOG.info("done");
 		return RETURN_OK;
 		}
 	

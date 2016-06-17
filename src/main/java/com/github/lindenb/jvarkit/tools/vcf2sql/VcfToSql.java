@@ -1,5 +1,5 @@
 /*
-The MIT License (MIT)
+ The MIT License (MIT)
 
 Copyright (c) 2014 Pierre Lindenbaum
 
@@ -64,12 +64,12 @@ public class VcfToSql extends AbstractVcfToSql
     	{
     	String sql;
     	
-    	SelectStmt(Table t,String field,Object o)
+    	SelectStmt(final Table t,final String field,final Object o)
 			{
-    		Column c=t.getColumnByBame(field);
+    		final Column c=t.getColumnByBame(field);
 			this.sql="SELECT id from "+t.getAntiquote()+" where "+c.getAntiquote()+"="+c.escape(o);
 			}
-    	SelectStmt(Table t)
+    	SelectStmt(final Table t)
 			{
 			this.sql="SELECT max(id) from "+t.getAntiquote();
 			}
@@ -793,6 +793,7 @@ public class VcfToSql extends AbstractVcfToSql
 			this.outputWriter.flush();
 			this.outputWriter.close();
 			this.outputWriter=null;
+			LOG.info("done");
 			return RETURN_OK;
 			}
 		catch(Exception err)

@@ -137,8 +137,8 @@ public class VcfBurdenMAF
 							/* get genotype for this individual */
 							final Genotype genotype = ctx.getGenotype(p.getId());
 							mafCalculator.add(genotype, p.isMale());
+							/* if(pop==CASE_POP && genotype.isCalled()) LOG.info("DEBUGMAF: "+p+" "+genotype); */
 							}/* end of loop over persons */
-						
 						/* at least one genotype found */
 						if(!mafCalculator.isEmpty())
 							{

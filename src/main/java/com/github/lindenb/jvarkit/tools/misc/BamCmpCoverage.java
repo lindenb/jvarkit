@@ -41,7 +41,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.filter.FilteringIterator;
+import htsjdk.samtools.filter.FilteringSamIterator;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -507,7 +507,7 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 					reciterator=r.query(queryIntervalArray, false);
 					}
 					
-				reciterator = new FilteringIterator(reciterator,filter);
+				reciterator = new FilteringSamIterator(reciterator,filter);
 				iterators.add(reciterator);
 				}
 			//free GC
@@ -536,7 +536,7 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 			g.fillRect(0, 0, this.imgageSize, this.imgageSize);
 			g.setColor(Color.BLACK);
 			Hershey hershey =new Hershey();
-			for(String sample_x:samples)
+			for(final String sample_x:samples)
 				{
 				double labelHeight=marginWidth;
 				if(labelHeight>50) labelHeight=50;

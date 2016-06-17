@@ -329,16 +329,41 @@ public class VCFUtils
 		return createVariantContextWriterToOutputStream(System.out);
 		}
 	
-	public static  VariantContextWriter createVariantContextWriterToOutputStream(OutputStream ostream)
+	public static  VariantContextWriter createVariantContextWriterToOutputStream(final OutputStream ostream)
 		{
 		final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
 		vcwb.setCreateMD5(false);
 		vcwb.setOutputStream(ostream);
 		vcwb.setReferenceDictionary(null);
 		vcwb.clearOptions();
-		return vcwb.build();
+		return new VariantContextWriterDelayedFlush(vcwb.build());
 		}
 
+	/** checkError but don't flush everything each time */
+	private static class VariantContextWriterDelayedFlush
+		extends DelegateVariantContextWriter
+		{
+		boolean lastCheckError=false;
+		long lastCheck=System.currentTimeMillis();
+		VariantContextWriterDelayedFlush(final VariantContextWriter delegate) {
+			super(delegate);
+		}
+		
+		@Override
+		public boolean checkError() {
+			if(!this.lastCheckError ) {
+				final long now = System.currentTimeMillis();
+				if((now-lastCheck)>10*1000) //10sec
+					{
+					this.lastCheckError =  getDelegate().checkError();
+					this.lastCheck=now;
+					}
+				}
+			return this.lastCheckError;
+			}
+		}
+	
+	
 	
 	/**
 	 * create a VariantContextWriter
@@ -346,13 +371,8 @@ public class VCFUtils
 	 * @return
 	 * @throws IOException
 	 */
-	public static  VariantContextWriter createVariantContextWriter(File OUT) throws IOException
+	public static  VariantContextWriter createVariantContextWriter(final File OUT) throws IOException
 		{
-		final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
-		vcwb.setCreateMD5(false);
-		vcwb.setReferenceDictionary(null);
-		vcwb.clearOptions();
-		
 		if(OUT==null)
 			{
 			LOG.info("writing to stdout");
@@ -361,8 +381,12 @@ public class VCFUtils
 		else
 			{
 			IOUtil.assertFileIsWritable(OUT);
+			final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+			vcwb.setCreateMD5(false);
+			vcwb.setReferenceDictionary(null);
+			vcwb.clearOptions();
 			vcwb.setOutputFile(OUT);
-			return vcwb.build();
+			return new VariantContextWriterDelayedFlush(vcwb.build());
 			}
 		}
 	

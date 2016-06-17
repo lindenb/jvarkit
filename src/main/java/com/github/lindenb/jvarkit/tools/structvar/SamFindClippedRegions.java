@@ -72,7 +72,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.Predicate;
+import java.util.function.Predicate;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
@@ -108,7 +108,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 			while(delegate.hasNext())
 				{
 				T o=delegate.next();
-				if(filter.apply(o))
+				if(filter.test(o))
 					{
 					_next=o;
 					break;
@@ -367,7 +367,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 			final Predicate<SAMRecord> filterSamRecords=new Predicate<SAMRecord>()
 				{
 				@Override
-				public boolean apply(SAMRecord rec)
+				public boolean test(SAMRecord rec)
 					{
 					if(rec.getReadUnmappedFlag()) return false;
 					if(rec.isSecondaryOrSupplementary()) return false;

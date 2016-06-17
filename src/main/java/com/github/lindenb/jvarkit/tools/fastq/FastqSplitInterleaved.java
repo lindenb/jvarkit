@@ -156,6 +156,8 @@ public class FastqSplitInterleaved extends AbstractCommandLineProgram
 				records[0]=r1.next();
 				if(!r1.hasNext())
 					{
+					r1.close();
+					r1=null;
 					throw new IOException(getMessageBundle("fastq.paired.read.missing"));
 					}
 				records[1]=r1.next();
