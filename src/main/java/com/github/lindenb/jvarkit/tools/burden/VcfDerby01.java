@@ -30,6 +30,7 @@ History:
 package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.sql.Clob;
@@ -103,6 +104,23 @@ public class VcfDerby01
 				if(!derbyDir.isDirectory()) {
 					throw new RuntimeIOException("derby database is not a directory : "+derbyDir);
 					}
+				
+				if( derbyDir.listFiles(new FileFilter() {
+					@Override
+					public boolean accept(File pathname) {
+						if(pathname.isFile()){
+							if( pathname.getName().equals("service.properties")) return true;
+							if( pathname.getName().equals("README_DO_NOT_TOUCH_FILES.txt")) return true;
+							}
+						if(pathname.isDirectory()){
+							if( pathname.getName().startsWith("log")) return true;
+						}
+						return false;
+					}
+				}).length==0) {
+					throw new RuntimeIOException("derby database exist but doesn't look like a derby directory : "+derbyDir);
+				}
+				
 				create=false;
 				}
 			else
@@ -367,7 +385,7 @@ public class VcfDerby01
 				{
 				final double remain = ((((System.currentTimeMillis()-timeStart)/(1+num_vcf_exported)))*(vcfIds.size()-(1+num_vcf_exported)))/1000.0;
 				
-				LOG.info("Getting VCF "+vcf_id+" "+(num_vcf_exported)+"/"+vcfIds+" . Remains "+(long)remain+" seconds.");
+				LOG.info("Getting VCF "+vcf_id+" "+(num_vcf_exported)+"/"+vcfIds.size() +" . Remains "+(long)remain+" seconds.");
 				
 				pstmt.setLong(1, vcf_id);
 				String vcfName=null;

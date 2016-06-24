@@ -187,9 +187,10 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 			}
 		}
 		
-		LOG.info("Individuals :"+individuals.size());
-		LOG.info("Individuals affected :"+individuals.stream().filter(P->P.isAffected()).count());
-		LOG.info("Individuals unaffected :"+individuals.stream().filter(P->P.isUnaffected()).count());
+		LOG.info("Individuals :"+individuals.size() +
+			" affected :"+individuals.stream().filter(P->P.isAffected()).count() +
+			" unaffected :"+individuals.stream().filter(P->P.isUnaffected()).count()
+			);
 
 		return java.util.Collections.unmodifiableSet( individuals );
 	}	

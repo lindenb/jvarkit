@@ -259,7 +259,6 @@ public class VCFUtils
 	 * */
 	public static  VcfIterator createVcfIteratorFromStream(final InputStream in) throws IOException
 		{
-		LOG.info("reading vcf from stream");
 		return new VcfIteratorImpl(in);	
 		}
 	
@@ -269,7 +268,6 @@ public class VCFUtils
 	 * */
 	public static  VcfIterator createVcfIteratorFromFile(final File f) throws IOException
 		{
-		LOG.info("reading vcf from "+f);
 		IOUtil.assertFileIsReadable(f);
 		return new VcfIteratorImpl(IOUtils.openFileForBufferedReading(f));	
 		}
@@ -293,7 +291,6 @@ public class VCFUtils
 			boolean allowConcatenatedVcf
 			) throws IOException
 		{
-		LOG.info("reading vcf from stream");
 		return new VcfIteratorLineIterator(lineIterator,allowConcatenatedVcf);	
 		}
 

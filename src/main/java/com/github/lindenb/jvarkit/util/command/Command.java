@@ -63,6 +63,8 @@ import org.slf4j.Logger;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 
+import htsjdk.samtools.util.CloserUtil;
+
 
 
 public abstract class Command
@@ -97,7 +99,7 @@ public abstract class Command
 		try {
 			this.messagesBundle=ResourceBundle.getBundle("messages");
 			} 
-		catch (Exception e)
+		catch (final Exception e)
 			{
 			LOG.warn("Cannot get messages bundle ",e);
 			}
@@ -188,11 +190,11 @@ public abstract class Command
 		{
 		try
 			{
-			Enumeration<URL> resources = getClass().getClassLoader()
+			final Enumeration<URL> resources = getClass().getClassLoader()
 					  .getResources("META-INF/MANIFEST.MF");//not '/META-INF'
 			while (resources.hasMoreElements())
 				{
-				URL url=resources.nextElement();
+				final URL url=resources.nextElement();
 				InputStream in=url.openStream();
 				if(in==null)
 					{
@@ -202,7 +204,7 @@ public abstract class Command
 				Manifest m=new Manifest(in);
 				in.close();
 				in=null;
-				java.util.jar.Attributes attrs=m.getMainAttributes();
+				final java.util.jar.Attributes attrs=m.getMainAttributes();
 				if(attrs==null)
 					{
 					continue;
@@ -279,7 +281,7 @@ public abstract class Command
 	@Deprecated
 	public void error(final Object o,final  Throwable err) { getLog().error(String.valueOf(o),err);}
 	
-	public String getMessageBundle(String key)
+	public String getMessageBundle(final String key)
 		{
 		if(key==null) return "(null)";
 		if(this.messagesBundle==null) return key;
@@ -550,11 +552,31 @@ public abstract class Command
 			if(!(errors==null || errors.isEmpty()))
 				{
 				putExceptionsHere.addAll(initErrors);
-				for(Throwable err:errors)
+				for(final Throwable err:errors)
 					{
 					LOG.error(err.getMessage());
 					}
 				LOG.error("Command failed ");
+				
+				PrintWriter dumpF=null;
+				try {
+					if("true".equals(System.getProperty("jvarkit.dump.error","false"))) {
+						//save exception to file
+						dumpF=new PrintWriter("__"+this.getName()+".errors");
+						if(args!=null) dumpF.println(String.join(" ", args));
+						if(this._cliCommand!=null) dumpF.println(this._cliCommand);
+						for(final Throwable err:errors)
+							{
+							err.printStackTrace(dumpF);
+							}
+						dumpF.flush();
+					}
+				} catch (final Exception e) {
+				} finally
+				{
+					CloserUtil.close(dumpF);
+				}
+				
 				return -1;
 				}
 			LOG.debug("success ");

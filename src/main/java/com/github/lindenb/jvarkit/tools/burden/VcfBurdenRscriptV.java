@@ -270,7 +270,7 @@ public class VcfBurdenRscriptV
 			
 			pw.flush();
 			if(pw.checkError()) {
-				return wrapException("I/O error");
+				return wrapException(this.getName()+" : pw.checkError(): I/O error ###### ");
 			}
 			pw.close();pw=null;
 			
@@ -279,7 +279,7 @@ public class VcfBurdenRscriptV
 			
 			LOG.info("done");
 			return RETURN_OK;
-			} catch(Exception err) {
+			} catch(final Exception err) {
 				return wrapException(err);
 			} finally {
 				CloserUtil.close(pw);
