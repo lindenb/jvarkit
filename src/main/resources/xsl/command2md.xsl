@@ -25,14 +25,14 @@
 
 ### Requirements / Dependencies
 
-Since 2016-05-30 the compilation of the "Java API for high-throughput sequencing data (HTS) formats" (htsjdk) library requires gradle http://gradle.org
+Since 2016-05-30 the compilation of the "Java API for high-throughput sequencing data (HTS) formats" (htsjdk) library requires gradle http://gradle.org.
 
 * java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-* GNU Make > 3.81
+* GNU Make >= 3.81
 * curl/wget
 * git
-* gradle http://gradle.org is only required to compile the "Java API for high-throughput sequencing data (HTS) formats" (htsjdk)
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html
+* gradle http://gradle.org is only required to compile the "Java API for high-throughput sequencing data (HTS) formats" (htsjdk). And I think htsjdk installs it.
+* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -43,7 +43,7 @@ $ cd jvarkit
 $ make <xsl:value-of select="@jarname"/>
 ```
 
-by default, the libraries are not included in the jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ). You can create a bigger but standalone executable jar by addinging `standalone=yes` on the command line:
+by default, the libraries are not included in the jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ). You can create a bigger but standalone executable jar by adding `standalone=yes` on the command line:
 
 
 ```bash
@@ -196,7 +196,7 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 </xsl:text>
 </xsl:template>
 
-<xsl:template match="h:ul">
+<xsl:template match="h:ul|h:ol">
 <xsl:text>
 </xsl:text>
 <xsl:apply-templates select="h:li"/>
@@ -208,6 +208,11 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 <xsl:text>`</xsl:text>
 <xsl:apply-templates/>
 <xsl:text>`</xsl:text>
+</xsl:template>
+
+
+<xsl:template match="h:span">
+<xsl:apply-templates/>
 </xsl:template>
 
 <xsl:template match="h:br">

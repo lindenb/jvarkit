@@ -11,14 +11,21 @@
 	<option name="print_header" opt="H" longopt="header" type="boolean" default="false">
 		<description>don't print SAM HEADER</description>
 	</option>
-	<option name="crlf" opt="H" longopt="header" type="boolean" default="false">
-		<description>add a carriage return after each read</description>
+	<option name="disable_readName" opt="name" longopt="name" type="boolean" default="false">
+		<description>do not print read name</description>
 	</option>
-
+	<option name="disable_atts" opt="atts" longopt="atts" type="boolean" default="false">
+		<description>do not print attributes</description>
+	</option>
+	<option name="expflag" opt="flag" longopt="flag" type="boolean" default="false">
+		<description>expand SAm Flags</description>
+	</option>
+	<option name="excigar" opt="cigar" longopt="cigar" type="boolean" default="false">
+		<description>expand cigar</description>
+	</option>
 </options>
 
 <documentation>
-This tool is deprecated, you should have a look at the GA4GH specification.
 
 </documentation>
 

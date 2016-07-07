@@ -444,6 +444,10 @@ public class Bam2Raster extends AbstractBam2Raster
 											c1=' ';
 											}
 										}
+									else if(!super.disablePrintBases)
+										{
+										c1=' ';
+										}
 									this.hersheyFont.paint(g,String.valueOf(c1),mut);
 									
 									readpos++;

@@ -27,11 +27,13 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.PrintWriter;
 import java.util.Collection;
 
+import com.github.lindenb.jvarkit.util.samtools.SamJsonWriterFactory;
+
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.picard.SamJsonWriter;
 
 public class SamToJson extends AbstractSamToJson {
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamToJson.class);
@@ -40,14 +42,19 @@ public class SamToJson extends AbstractSamToJson {
 	protected Collection<Throwable> call(final String inputName) throws Exception {
 		PrintWriter out=null;
 		SamReader sfr=null;
-		SamJsonWriter swf=null;
+		final SamJsonWriterFactory factory =SamJsonWriterFactory.newInstance().
+				printHeader(super.print_header).
+				printReadName(!super.disable_readName).
+				printAttributes(!super.disable_atts).
+				expandFlag(super.expflag).
+				expandCigar(super.excigar)
+				;
+		SAMFileWriter swf=null;
 		try
 			{
 			sfr = super.openSamReader(inputName);
 			out = super.openFileOrStdoutAsPrintWriter();
-			swf=new SamJsonWriter(out, sfr.getFileHeader());
-			swf.setAddCarriageReturn(super.crlf);
-			swf.setPrintHeader(super.print_header);
+			swf = factory.open(sfr.getFileHeader(), out);
 			final SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext() && !out.checkError())
 				{

@@ -172,20 +172,25 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 							int refPos=rec.getAlignmentStart();
 							for(final CigarElement ce:cigar.getCigarElements())
 								{
+								if( refPos > ctx.getEnd() ) break;
 								if(!ce.getOperator().consumesReferenceBases()) continue;
-								if( ce.getOperator().consumesReadBases() &&
-									refPos<= ctx.getStart() &&
-									ctx.getStart() <= refPos+ce.getLength()
-									)
+								if( ce.getOperator().consumesReadBases())
 									{
-									depth++;
-									break;
+									for(int n=0;n< ce.getLength();++n )
+										{
+										if( refPos+n < ctx.getStart() ) continue;
+										if( refPos+n > ctx.getEnd()) break;
+										depth++;
+										}
+									
 									}
-								refPos= ce.getLength();
+								refPos+= ce.getLength();
 								}
 							}
 						iter.close();
 						}
+					depth /= ( 1 + ctx.getEnd() - ctx.getStart() );
+					
 					if(depth< this.minDepth)
 						{	
 						countNonFixed++;
