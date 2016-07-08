@@ -86,7 +86,7 @@ function ReferenceSequence(name,index1,bases) {
 ReferenceSequence.prototype.getSequenceName =  function() { return this.getContig(); }
 ReferenceSequence.prototype.getName =  function() { return this.getContig(); }
 ReferenceSequence.prototype.getContig =  function() { return this.name; }
-ReferenceSequence.prototype.charAt = function(idx1)
+ReferenceSequence.prototype.charAt1 = function(idx1)
 			{
 			if(this.bases==null) return 'N';
 			if(idx1<this.contigIndex1) return 'N';
@@ -94,6 +94,9 @@ ReferenceSequence.prototype.charAt = function(idx1)
 			if(idx1>= this.bases.length ) return 'N';
 			return this.str[idx1];
 			}
+ReferenceSequence.prototype.charAt0 = function(idx0) {
+		return this.charAt1(idx0_1);
+}
 
 /***************************************************************************/
 /***************************************************************************/
@@ -200,7 +203,7 @@ Cigar.prototype.getUnclippedStart = function(pos) {
         }
         return pos;
     };
-    
+
 Cigar.prototype.getUnclippedEnd = function(pos) {
         var i=0;
         for (i = this.getNumElements() - 1; i >= 0; --i) {
@@ -230,11 +233,14 @@ function SamRecord()
 	this.alignEnd = null;
 	this.sequence = SamRecord.NULL_SEQUENCE_STRING;
 	this.qualities = null;
-	
-	if(arguments.length == 1) 
+	this.mateContig = null ;
+	this.matePos = SamRecord.NO_ALIGNMENT_START ;
+
+	if(arguments.length == 1)
 		{
 		var read = arguments[0];
 		if("name" in read) this.name = read.name;
+		if("ref" in read) this.contig = read.ref;
 		if("flag" in read) this.flags = read.flag;
 		if("mapq" in read) this.mapq = read.mapq;
 		if("pos" in read) this.pos = read.pos;
@@ -242,9 +248,9 @@ function SamRecord()
 		if("qualities" in read) this.qualities = read.qualities;
 		if("cigar" in read) this.cigarStr = read.cigar;
 		}
-	
+
 	};
-	
+
 SamRecord.NO_MAPPING_QUALITY = 0;
 SamRecord.NO_ALIGNMENT_START = 0;
 SamRecord.NULL_SEQUENCE_STRING = "*";
@@ -282,6 +288,32 @@ SamRecord.prototype.getReferenceName=function()
 	{
 	return this.contig;
 	};
+
+SamRecord.prototype.setMateReferenceName=function(c)
+		{
+		this.mateContig = c;
+		return this;
+		};
+
+
+SamRecord.prototype.getMateReferenceName=function()
+		{
+		return this.mateContig;
+		};
+
+SamRecord.prototype.setMateAlignmentStart=function(c)
+		{
+		this.matePos = c;
+		return this;
+		};
+
+
+SamRecord.prototype.getMateAlignmentStart=function()
+		{
+		return this.matePos;
+		};
+
+
 
 SamRecord.prototype.setFlags=function(f)
 	{
@@ -335,7 +367,7 @@ SamRecord.prototype.getMateUnmappedFlag=function()
 	if(!this.getReadPairedFlag() ) return false;
 	return   this.isFlagSet(0x8);
 	};
-	
+
 SamRecord.prototype.getReadNegativeStrandFlag=function()
 	{
 	return this.isFlagSet(0x10);
@@ -350,18 +382,18 @@ SamRecord.prototype.getNotPrimaryAlignmentFlag=function()
 SamRecord.prototype.isSupplementaryAlignmentFlag=function()
 	{
 	return this.isFlagSet(0x200);
-	};	
+	};
 
 SamRecord.prototype.getSupplementaryAlignmentFlag=function()
 	{
 	return this.isSupplementaryAlignmentFlag();
-	};	
+	};
 
 SamRecord.prototype.getDuplicateReadFlag=function()
 	{
 	return this.isFlagSet(0x400);
 	};
-	
+
 
 SamRecord.prototype.getReadFailsVendorQualityCheckFlag=function()
 	{
@@ -385,7 +417,7 @@ SamRecord.prototype.getStart=function()
 	return this.getAlignmentStart();
 	};
 
-	
+
 SamRecord.prototype.getAlignmentEnd=function()
 	{
 	if(this.getReadUnmappedFlag()) return SamRecord.NO_ALIGNMENT_START;
@@ -410,8 +442,8 @@ SamRecord.prototype.getEnd = function()
 	{
 	return this.getAlignmentEnd();
 	};
-	
-	
+
+
 SamRecord.prototype.getUnclippedStart=function() {
         return this.getCigar().getUnclippedStart(this.getAlignmentStart());
     }
@@ -419,7 +451,7 @@ SamRecord.prototype.getUnclippedStart=function() {
 SamRecord.prototype.getUnclippedEnd=function() {
         return this.getCigar().getUnclippedEnd(this.getAlignmentEnd());
     };
-	
+
 SamRecord.prototype.getCigarString=function() {
 	return this.cigarStr;
 	}
@@ -429,9 +461,9 @@ SamRecord.prototype.getCigar=function()
 	if(this.cigar!=null) return this.cigar;
 	if(this.isReadUnmappedFlag()) return null;
 	var s = this.getCigarString();
-	
+
 	if(s  == null || s == SamRecord.NO_ALIGNMENT_CIGAR ) return null;
-	
+
 	this.cigar = new Cigar(this.getCigarString());
 	return this.cigar;
 	};
