@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:svg="http://www.w3.org/2000/svg"
+      xmlns:xlink="http://www.w3.org/1999/xlink"
+      >
+<!--
+Author: Pierre Lindenbaum PhD
+	@yokofakun http://github.com/lindenb/jvarkit
+
+Date:	April 2016
+
+License: The MIT License.
+
+-->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="author" content="Pierre Lindenbaum PhD"/>
+<title>JVARKIT Genome Browser</title>
+<style type='text/css'>
+body	{
+	color:rgb(50,50,50);
+	margin:20px;
+	padding:20px;
+	font: 12pt Arial, Helvetica, sans-serif;
+	}
+label	{
+	text-align:right;	
+	}
+button	{
+	border: 1px solid;
+	background-image:-moz-linear-gradient( top, gray, lightgray );
+	}
+button:hover	{
+	background-image:-moz-linear-gradient( top, lightgray, gray );
+	}
+.me 	{
+	padding-top:100px; font-size:80%;
+	}
+canvas {
+	image-rendering:-moz-optimizeQuality;
+	}
+</style>
+<script type="text/javascript" language="javascript" src="hershey.js"></script>
+<script type="text/javascript" language="javascript" src="samtools.js"></script>
+<script type="text/javascript" language="javascript" src="gbrowse.js"></script>
+<script type="text/javascript" language="javascript">
+function showAlign()
+	{
+	var xmlhttp = new XMLHttpRequest();
+	xmlhttp.onreadystatechange = function() {
+		if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+		    var reads = JSON.parse(xmlhttp.responseText);
+		    var params = {"reads":[],"canvasid":"canvasdoc"};
+			for(var i in reads) {
+				var rec = new SamRecord(reads[i]);
+				if( rec.isReadUnmappedFlag()) continue;
+				params.reads.push(rec);
+				}
+				
+			var browser = new GenomeBrowser();
+			browser.paint(params);
+			}
+		};
+	xmlhttp.open("GET", "test.json", true);
+	/** https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/Using_XMLHttpRequest */
+	xmlhttp.overrideMimeType("tapplication/json;charset=UTF-8");
+	xmlhttp.send();
+	}
+
+window.addEventListener("load",showAlign,false);
+</script>
+</head> 
+<body>
+
+<div style="text-align:center;">
+<div style="font-size:200%;margin:10px;" id="browserTitle"></div>
+<div>Position:<span id="interval" size="12"></span></div>
+<br/>
+<div style="text-align:center;"><canvas id="canvasdoc" width="1000" height="300"></canvas></div>
+</div>
+<div class="me"><a href="http://plindenbaum.blogspot.com">Pierre Lindenbaum PhD.</a> 2016. <a href="https://github.com/lindenb/jvarkit">https://github.com/lindenb/jvarkit</a>. Tested with Firefox 45.0.</div>
+</body>
+</html>
