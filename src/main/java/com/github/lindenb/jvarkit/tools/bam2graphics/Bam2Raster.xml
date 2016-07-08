@@ -21,6 +21,9 @@
 	<option name="printName" type="boolean" opt="N" longopt="name" default="false">
 		<description>print read name</description>
 	</option>
+	<option name="disablePrintBases" type="boolean" opt="printBases" longopt="printBases" default="false">
+		<description>do not print Bases</description>
+	</option>
 </options>
 
 

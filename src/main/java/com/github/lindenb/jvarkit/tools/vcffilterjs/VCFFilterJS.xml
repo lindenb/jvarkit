@@ -18,10 +18,21 @@
 <input type="vcf"/>
 <output type="vcf"/>
 <snippet id="javascript"/>
+<snippet id="case-ctrl"/>
 
 <options>
 	<option name="filteredTag" type="string" opt="F" longopt="filter" arname="FILTER" label="Filter" default="" galaxy:optional='true'>
 		<description>If not empty, variants won't be discarded and this name will be used in the FILTER column</description>
+	</option>
+	
+	<option name="use_vep" type="boolean" opt="vep" longopt="vep" label="snpeff" default="false" galaxy:optional='true'>
+		<description>Decode prediction tag of ensembl VEP</description>
+	</option>
+	<option name="use_snpeff" type="boolean" opt="snpeff" longopt="snpeff" label="snpeff" default="false" galaxy:optional='true'>
+		<description>Decode prediction tag of SNPEFF</description>
+	</option>
+	<option name="use_casecontrol" type="boolean" opt="casecontrol" longopt="casecontrol" label="Case-Control" default="false" galaxy:optional='true'>
+		<description>Decode Case-Control injected with VcfInjectPedigree</description>
 	</option>
 </options>
 
@@ -35,10 +46,22 @@ the script binds the following variables:
 <h:ul>
 <h:li> <h:b>variant</h:b> : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html )</h:li>
 <h:li> <h:b>header</h:b> : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html ).</h:li>
+</h:ul>
+
+if option <h:b>snpeff</h:b> is defined:
+<h:ul>
 <h:li> <h:b>snpEff</h:b> (new 2015-02-20 ) a java.util.List of SnpEffPredictionParser$SnpEffPrediction (  https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/SnpEffPredictionParser.java )</h:li>
+</h:ul>
+
+if option <h:b>vep</h:b> is defined:
+<h:ul>
 <h:li> <h:b>vep</h:b> (new 2015-02-20 )  a java.util.List of VepPredictionParser$VepPrediction  ( https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/VepPredictionParser.java  ) .</h:li>
 </h:ul>
 
+if option <h:b>casecontrol</h:b> is defined:
+<h:ul>
+<h:li> <h:b>individuals</h:b> (new 2015-02-20 )  a List&lt;Pedigree.Person&gt;.</h:li>
+</h:ul>
 
 <h:h3> Examples</h:h3>
 

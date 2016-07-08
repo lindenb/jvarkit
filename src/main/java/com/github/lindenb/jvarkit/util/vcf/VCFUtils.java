@@ -75,6 +75,7 @@ import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 public class VCFUtils
 	{
@@ -336,6 +337,12 @@ public class VCFUtils
 		return new VariantContextWriterDelayedFlush(vcwb.build());
 		}
 
+	/** wrap delegate into a VCF iterator printing progress */
+	public static VcfIterator wrapInProgress(final VcfIterator delegate)
+		{
+		return new VcfIteratorProgress(delegate);
+		}
+	
 	/** checkError but don't flush everything each time */
 	private static class VariantContextWriterDelayedFlush
 		extends DelegateVariantContextWriter
@@ -359,6 +366,8 @@ public class VCFUtils
 			return this.lastCheckError;
 			}
 		}
+	
+	
 	
 	
 	
@@ -894,6 +903,49 @@ public class VCFUtils
     	
     	}
     
+    private static class VcfIteratorProgress  implements VcfIterator
+    	{
+    	private final VcfIterator delegate;
+    	private SAMSequenceDictionaryProgress progress;
+    	
+    	VcfIteratorProgress(final VcfIterator delegate) {
+    		this.delegate=delegate;
+    		this.progress = new SAMSequenceDictionaryProgress(delegate.getHeader());
+    	}
+    	
+		@Override
+		public boolean hasNext() {
+			return delegate.hasNext();
+		}
+
+		@Override
+		public VariantContext next() {
+			return this.progress.watch(this.delegate.next());
+		}
+
+		@Override
+		public void close() throws IOException {
+			this.delegate.close();
+			this.progress.finish();
+			
+		}
+
+		@Override
+		public AbstractVCFCodec getCodec() {
+			return this.delegate.getCodec();
+		}
+
+		@Override
+		public VCFHeader getHeader() {
+			return this.delegate.getHeader();
+		}
+
+		@Override
+		public VariantContext peek() {
+			return this.delegate.peek();
+		}
+    	
+    	}
     
 	/*
 	

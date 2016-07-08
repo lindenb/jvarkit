@@ -32,12 +32,15 @@ package com.github.lindenb.jvarkit.tools.vcffilterjs;
 
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
 
+import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
@@ -76,13 +79,22 @@ public class VCFFilterJS
 		try
 			{
 			final VCFHeader header = r.getHeader();
-			final SnpEffPredictionParser snpEffPredictionParser = new SnpEffPredictionParser(
-					header);
-			final VepPredictionParser vepPredictionParser = new VepPredictionParser(
-					header);
+			final SnpEffPredictionParser snpEffPredictionParser =(super.use_snpeff ?
+					new SnpEffPredictionParser(header):
+					null
+					);
+			final VepPredictionParser vepPredictionParser = (super.use_vep?
+					new VepPredictionParser(header):
+					null
+					);
 
 			final  VCFHeader h2 = new VCFHeader(header);
 			addMetaData(h2);
+			
+			final List<Pedigree.Person> individuals =(super.use_casecontrol?
+						new ArrayList<>(super.getCasesControlsInPedigree(header)):
+						null
+						);
 			
 			final VCFFilterHeaderLine filterHeaderLine = (filteredTag.trim().isEmpty()?null:
 				new VCFFilterHeaderLine(super.filteredTag.trim(),"Filtered with "+getName())
@@ -96,6 +108,11 @@ public class VCFFilterJS
 			final  Bindings bindings = this.compiledScript.getEngine()
 					.createBindings();
 			bindings.put("header", header);
+			if(super.use_casecontrol) {
+				bindings.put("individuals", individuals);
+			}
+			
+			
 
 			w.writeHeader(h2);
 			while (r.hasNext() && !w.checkError())
@@ -103,10 +120,15 @@ public class VCFFilterJS
 				final  VariantContext variation = progress.watch(r.next());
 
 				bindings.put("variant", variation);
-				bindings.put("snpEff",
+				if(super.use_snpeff)
+					{
+					bindings.put("snpEff",
 						snpEffPredictionParser.getPredictions(variation));
-				bindings.put("vep",
+					}
+				if(super.use_vep) {
+					bindings.put("vep",
 						vepPredictionParser.getPredictions(variation));
+					}
 
 				if (!evalJavaScriptBoolean(this.compiledScript, bindings) )
 					{
@@ -154,8 +176,8 @@ public class VCFFilterJS
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		LOG.info("NPUT ="+inputName+" "+getInputFiles());
+	protected Collection<Throwable> call(final String inputName) throws Exception {
+		LOG.info("INPUT ="+inputName+" "+getInputFiles());
 		return doVcfToVcf(inputName);
 		}
 	
