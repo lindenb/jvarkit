@@ -203,7 +203,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
-	forkvcf 
+	forkvcf gbrowserhtml
 	
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden
@@ -489,7 +489,7 @@ $(eval $(call compile-htsjdk-cmd,miniassembly,${jvarkit.package}.tools.misc.Mini
 $(eval $(call compile-htsjdk-cmd,haloplexparasite,${jvarkit.package}.tools.haloplex.HaloplexParasite,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,bam2sql,${jvarkit.package}.tools.misc.BamToSql,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfinjectpedigree,${jvarkit.package}.tools.burden.VcfInjectPedigree,wiki_flag))
-$(eval $(call compile-htsjdk-cmd,lumpysv2html,${jvarkit.package}.tools.lumpysv.LumpySvgToHtml,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,gbrowserhtml,${jvarkit.package}.tools.misc.GBrowserHtml,wiki_flag ${gson.jar} copy.samtools.js))
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
 	 ./src/main/resources/jnlp/generic.jnlp .secret.keystore 
@@ -590,6 +590,11 @@ copy.opendoc.odp.resources :
 	mkdir -p ${tmp.dir}/META-INF/opendocument/odp
 	cp src/main/resources/opendocument/thumbnail.png ${tmp.dir}/META-INF/opendocument/odp/
 	cp $(addprefix src/main/resources/opendocument/odp/, meta.xml content.xml settings.xml styles.xml mimetype ) ${tmp.dir}/META-INF/opendocument/odp/
+
+copy.samtools.js:
+	mkdir -p ${tmp.dir}/META-INF/js
+	$(foreach J,gbrowse.js hershey.js samtools.js,cp src/main/js/${J} ${tmp.dir}/META-INF/js/ ; )
+	
 
 
 ## jvarkit-library (used in knime)
