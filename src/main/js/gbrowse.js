@@ -41,6 +41,8 @@ function GenomeBrowser()
 	this.genomicSequence = null;
 	this.printReferenseSequence = true;
 	this.printReadBases = true;
+	this.printDeletions = false;
+	this.printInsertions = false;
 	this.hershey=new Hershey();
 	}
 
@@ -163,7 +165,7 @@ GenomeBrowser.prototype.paint=function(params)
 			);
 		}
 	
-	console.log("interval "+this.interval );
+
 	if(this.interval.start > this.interval.end )
 		{
 		throw "bad interval "+this.interval;
@@ -229,7 +231,12 @@ GenomeBrowser.prototype.paint=function(params)
 	
 	
 	/* draw reference sequence */
-		
+	var vticks = parseInt(Math.ceil((this.interval.distance()/10.0)));
+	if( vticks< 1)   vticks =1;
+	vticks = Math.pow(10,Math.floor(Math.log10(vticks)));
+	
+	
+	
 	for(var x= this.interval.start;
 		x<=  this.interval.end;
 		++x)
@@ -239,11 +246,11 @@ GenomeBrowser.prototype.paint=function(params)
 		var oneBaseWidth = this.baseToPixel(x+1)-this.baseToPixel(x);
 		
 	
-		if( oneBaseWidth > 4.0 )
+		if( oneBaseWidth > 4.0 || x%vticks==0)
 			{
 			//draw vertical line
 			ctx.lineWidth=0.5;
-			ctx.strokeStyle=(x%10==0?"black":"gray");
+			ctx.strokeStyle=(x%vticks==0?"black":"gray");			
 			ctx.beginPath();
 			ctx.moveTo(this.baseToPixel(x), 0);
 			ctx.lineTo(this.baseToPixel(x), imageSize.height);
@@ -254,14 +261,15 @@ GenomeBrowser.prototype.paint=function(params)
 		
 		
 		//draw base position
-		if((x)%10==0 && oneBaseWidth >= this.minFontSize)
+		if((x)%vticks==0 || oneBaseWidth >= this.minFontSize)
 			{
 			ctx.strokeStyle="black";
 			var xStr=this.niceNumber(x);
 			ctx.save();
 			
+			var numHeight = ((x)%vticks==0 && oneBaseWidth < this.minFontSize?7:oneBaseWidth-2);
 			
-			ctx.translate(this.baseToPixel(x+1), 0);
+			ctx.translate(this.baseToPixel(x)+numHeight,0);
 			ctx.rotate(Math.PI/2.0);
 			
 			ctx.beginPath();
@@ -270,7 +278,7 @@ GenomeBrowser.prototype.paint=function(params)
 					0,
 					0,
 					ruler_height,
-					oneBaseWidth
+					numHeight
 					);
 			ctx.stroke();
 			ctx.restore();
@@ -411,24 +419,28 @@ GenomeBrowser.prototype.paint=function(params)
 						case 'N':
 						case 'D':
 							{
-							ctx.fillStyle="red";
-							ctx.beginPath();
-							ctx.fillRect(
-								this.baseToPixel(refpos),y0,
-								mutW,y1-y0
-								);
-							ctx.closePath();
+							if( this.printDeletions ) {
+								ctx.fillStyle="red";
+								ctx.beginPath();
+								ctx.fillRect(
+									this.baseToPixel(refpos),y0,
+									mutW,y1-y0
+									);
+								ctx.closePath();
+								}
 							next_refpos++;
 							break;
 							}
 						case 'I':
 							{
-							ctx.lineWidth=4;
-							ctx.strokeStyle="yellow";
-							ctx.beginPath();
-							ctx.moveTo(this.baseToPixel(refpos),y0);
-							ctx.lineTo(this.baseToPixel(refpos),y1);
-							ctx.stroke();
+							if( this.printInsertions ) {
+								ctx.lineWidth=4;
+								ctx.strokeStyle="yellow";
+								ctx.beginPath();
+								ctx.moveTo(this.baseToPixel(refpos),y0);
+								ctx.lineTo(this.baseToPixel(refpos),y1);
+								ctx.stroke();
+								}
 							next_readpos++;
 							break;
 							}
@@ -448,22 +460,22 @@ GenomeBrowser.prototype.paint=function(params)
 						case 'X':
 						case '=':
 							{
+							if( rec.hasReadString() && this.printReadBases && mutW>=this.minFontSize ) {
+								
+								var c1 = rec.getBaseAt(readpos);
+								var c2= this.genomicSequence.charAt(refpos);
 							
-							var c1 = ( rec.hasReadString() ? rec.getBaseAt(readpos) : 'N');
-							var c2= this.genomicSequence.charAt(refpos);
+								if(ce.getOperator().name == 'X' || (c1!='N' && c1!='n'  && c1.toUpperCase()!=c2.toUpperCase()))
+									{
+									ctx.lineWidth=1;
+									ctx.strokeStyle="red";
+									}
+								else
+									{
+									ctx.lineWidth=0.3;
+									ctx.strokeStyle="gray";
+									}
 							
-							if(ce.getOperator().name == 'X' || (c1!='N' && c1!='n'  && c1.toUpperCase()!=c2.toUpperCase()))
-								{
-								ctx.lineWidth=1;
-								ctx.strokeStyle="red";
-								}
-							else
-								{
-								ctx.lineWidth=0.3;
-								ctx.strokeStyle="gray";
-								}
-							
-							if( rec.hasReadString() && this.printReadBases ) {
 								ctx.beginPath();
 								this.hershey.paint(
 									ctx,c1,

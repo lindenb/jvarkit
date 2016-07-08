@@ -57,7 +57,7 @@ Interval.prototype.getContig = function() { return this.contig;}
 Interval.prototype.getChrom = function() { return this.getContig();}
 Interval.prototype.getStart = function() { return this.start;}
 Interval.prototype.getEnd = function() { return this.end;}
-Interval.prototype.distance = function() { return 1+(this.getStart()-this.getEnd());}
+Interval.prototype.distance = function() { return 1+(this.getEnd()-this.getStart());}
 Interval.prototype.overlap = function(p) {
 		return this.getContig()==p.getContig() && !(this.getEnd()<p.getStart() || p.getEnd()<this.getStart());
 		}
@@ -228,7 +228,7 @@ function SamRecord()
 	this.cigarStr = null;
 	this.cigar = null;
 	this.alignEnd = null;
-	this.sequence = null;
+	this.sequence = SamRecord.NULL_SEQUENCE_STRING;
 	this.qualities = null;
 	
 	if(arguments.length == 1) 
@@ -247,6 +247,8 @@ function SamRecord()
 	
 SamRecord.NO_MAPPING_QUALITY = 0;
 SamRecord.NO_ALIGNMENT_START = 0;
+SamRecord.NULL_SEQUENCE_STRING = "*";
+SamRecord.NO_ALIGNMENT_CIGAR = "*";
 
 SamRecord.prototype.getReadName=function()
 	{
@@ -425,15 +427,18 @@ SamRecord.prototype.getCigarString=function() {
 SamRecord.prototype.getCigar=function()
 	{
 	if(this.cigar!=null) return this.cigar;
-	if(this.getCigarString() == null) return null;
 	if(this.isReadUnmappedFlag()) return null;
+	var s = this.getCigarString();
+	
+	if(s  == null || s == SamRecord.NO_ALIGNMENT_CIGAR ) return null;
+	
 	this.cigar = new Cigar(this.getCigarString());
 	return this.cigar;
 	};
 
 SamRecord.prototype.hasReadString = function() {
 	var s= this.getReadString();
-	return s!=null && s.length>0;
+	return s!=null && s != SamRecord.NULL_SEQUENCE_STRING &&  s.length>0;
 	};
 
 SamRecord.prototype.getReadString = function() {
