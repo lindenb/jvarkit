@@ -341,6 +341,7 @@ SamRecord.prototype.isReadPairedFlag=function()
 	return this.isFlagSet(0x1);
 	};
 
+
 SamRecord.prototype.getProperPairFlag=function()
 	{
 	return this.isProperPairFlag();
@@ -351,6 +352,17 @@ SamRecord.prototype.isProperPairFlag=function()
 	if(!this.getReadPairedFlag() ) return false;
 	return this.isFlagSet(0x2);
 	};
+
+SamRecord.prototype.getFirstInPairFlag=function()
+	{
+	return this.isFlagSet(0x40);
+	};
+
+SamRecord.prototype.getSecondInPairFlag=function()
+	{
+	return this.isFlagSet(0x80);
+	};
+
 
 SamRecord.prototype.isReadUnmappedFlag=function()
 	{

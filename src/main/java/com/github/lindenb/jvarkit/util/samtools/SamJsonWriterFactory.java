@@ -51,6 +51,7 @@ public class SamJsonWriterFactory {
 	private boolean printAttributes = true;
 	private boolean expandflag = false;
 	private boolean expandcigar = false;
+	private boolean closeStream = true;
 	
 	
 	public SamJsonWriterFactory printHeader(boolean v) { this.printHeader=v; return this;}
@@ -61,7 +62,7 @@ public class SamJsonWriterFactory {
 	public SamJsonWriterFactory printAttributes(boolean v) { this.printAttributes=v; return this;}
 	public SamJsonWriterFactory expandFlag(boolean v) { this.expandflag=v; return this;}
 	public SamJsonWriterFactory expandCigar(boolean v) { this.expandcigar=v; return this;}
-	
+	public SamJsonWriterFactory closeStreamAtEnd(boolean v) { this.closeStream=v; return this;}	
 	
 	public SamJsonWriterFactory() {
 	}
@@ -87,6 +88,7 @@ private class JSONWriter implements SAMFileWriter
 	private final boolean printAttributes = SamJsonWriterFactory.this.printAttributes;
 	private final boolean expandflag = SamJsonWriterFactory.this.expandflag;
 	private final boolean expandcigar = SamJsonWriterFactory.this.expandcigar;
+	private final boolean closeStream = SamJsonWriterFactory.this.closeStream;
 	private SAMFileHeader header = null;
 	private ProgressLoggerInterface progress;
 	private JsonWriter w;
@@ -378,7 +380,7 @@ private class JSONWriter implements SAMFileWriter
 		} catch(IOException err) {
 			throw new RuntimeIOException();
 		}
-		CloserUtil.close(this.w);
+		if(this.closeStream) CloserUtil.close(this.w);
 		}
 	
 	}

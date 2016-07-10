@@ -80,7 +80,8 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			final SamJsonWriterFactory samJsonWriterFactory=SamJsonWriterFactory.newInstance().
 					printHeader(false).
 					printAttributes(false).
-					printMate(false)
+					printMate(false).
+					closeStreamAtEnd(false)
 					;
 			if(super.getOutputFile()!=null)
 				{
@@ -140,7 +141,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 					{
 					extend_interval= (value.isEmpty()?DEFAULT_EXTEND_INTERVAL:Integer.parseInt(value));
 					}
-				else if(key.equals("position") || key.equals("interval")|| key.equals("goto"))
+				else if(key.equals("position") || key.equals("location") || key.equals("interval")|| key.equals("goto"))
 					{
 					Pattern pat1 = Pattern.compile("([^\\:]+)\\:([\\d,]+)");
 					Matcher matcher = pat1.matcher(value);
@@ -193,13 +194,31 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 					
 					LOG.info("open samFile "+bamFile);
 					samReader  =super.createSamReaderFactory().open(bamFile);
-					FileWriter jsonfw = new FileWriter(tmpFile1);
-					JsonWriter jsw = new JsonWriter(jsonfw);
+					FileWriter jsonFileWriter = new FileWriter(tmpFile1);
+					JsonWriter jsw = new JsonWriter(jsonFileWriter);
 					jsw.beginObject();
+					jsw.name("interval");
+					jsw.beginObject();
+						jsw.name("contig");
+						jsw.value(interval.getContig());
+						jsw.name("start");
+						jsw.value(interval.getStart());
+						jsw.name("end");
+						jsw.value(interval.getEnd());
+					jsw.endObject();
+
+					if(faidxFile!=null)  {
+						IndexedFastaSequenceFile faidx= new IndexedFastaSequenceFile(faidxFile);
+						ReferenceSequence dna =faidx.getSubsequenceAt(interval.getContig(), interval.getStart(), interval.getEnd());
+						jsw.name("reference");
+						jsw.value(dna.getBaseString());
+						faidx.close();
+					}
+
+
 					jsw.name("reads");
 					
-					SAMFileWriter samFileWriter=samJsonWriterFactory.open(samReader.getFileHeader(), jsw);
-					
+					SAMFileWriter samFileWriter=samJsonWriterFactory.open(samReader.getFileHeader(), jsw);				
 					SAMRecordIterator samRecIter = samReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd());
 					while(samRecIter.hasNext()) {
 						final SAMRecord rec= samRecIter.next();
@@ -210,20 +229,18 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 							if(!sampleName.equals(srg.getSample())) continue;
 							}
 						if(rec.getReadUnmappedFlag()) continue;
-						if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-						if(rec.getNotPrimaryAlignmentFlag()) continue;
-						if(rec.getDuplicateReadFlag()) continue;
+						
 						samFileWriter.addAlignment(rec);
 					}
 					samRecIter.close();
-					//samFileWriter.close(); NON !!
+					samFileWriter.close();
 					
 					jsw.endObject();
 					jsw.flush();
 					jsw.close();
-					jsonfw.close();
+					jsonFileWriter.close();
 					
-					ZipEntry entry = new ZipEntry(super.prefix+"snapshot."+snapshot_id+".json");
+					ZipEntry entry = new ZipEntry(super.prefix+"_snapshot."+String.format("%05d",snapshot_id)+".json");
 					zout.putNextEntry(entry);
 					IOUtils.copyTo(tmpFile1, zout);
 					zout.closeEntry();
@@ -231,7 +248,9 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 					
 					paramsJsonWriter.beginObject();
 					paramsJsonWriter.name("title");
-					paramsJsonWriter.value(title==null?interval.toString():title);
+					paramsJsonWriter.value(title==null?
+						interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd()+(sampleName==null?"":" "+sampleName)
+						:title);
 					paramsJsonWriter.name("interval");
 					paramsJsonWriter.beginObject();
 						paramsJsonWriter.name("contig");
@@ -242,21 +261,13 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 						paramsJsonWriter.value(interval.getEnd());
 					paramsJsonWriter.endObject();
 					
-					if(faidxFile!=null)  {
-						IndexedFastaSequenceFile faidx= new IndexedFastaSequenceFile(faidxFile);
-						ReferenceSequence dna =faidx.getSubsequenceAt(interval.getContig(), interval.getStart(), interval.getEnd());
-						paramsJsonWriter.name("reference");
-						paramsJsonWriter.value(dna.getBaseString());
-						faidx.close();
-					}
-					
-					paramsJsonWriter.value(interval.toString());
+
 					if(sampleName!=null && !sampleName.isEmpty()) {
 						paramsJsonWriter.name("sample");
 						paramsJsonWriter.value(sampleName);
 					}
 					paramsJsonWriter.name("href");
-					paramsJsonWriter.value("snapshot."+snapshot_id+".json");
+					paramsJsonWriter.value("_snapshot."+String.format("%05d",snapshot_id)+".json");
 					
 					paramsJsonWriter.endObject();
 					}
@@ -272,7 +283,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			
 
 			
-			for(final String jssrc:new String[]{"gbrowse","hershey","samtools"}) {
+			for(final String jssrc:new String[]{"gbrowse","hershey","samtools","com.github.lindenb.jvarkit.tools.misc.GBrowserHtml"}) {
 				InputStream is = this.getClass().getResourceAsStream("/META-INF/js/"+jssrc+".js");
 				if(is==null) {
 					return wrapException("Cannot read resource /META-INF/js/"+jssrc+".js");
@@ -319,7 +330,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 				w.writeAttribute("type", "text/css");
 			w.writeEndElement();//style
 			
-			for(final String src:new String[]{"samtools","gbrowse","hershey","config"}) {
+			for(final String src:new String[]{"samtools","gbrowse","hershey","config","com.github.lindenb.jvarkit.tools.misc.GBrowserHtml"}) {
 				w.writeStartElement("script");
 				w.writeAttribute("type", "text/javascript");
 				w.writeAttribute("language", "text/javascript");
@@ -328,23 +339,41 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 				w.writeEndElement();//script
 				}
 			
-			w.writeStartElement("script");
-			w.writeAttribute("type", "text/javascript");
-			w.writeAttribute("language", "text/javascript");
-			w.writeCharacters("function init() {}");
-			w.writeCharacters("window.addEventListener(\"load\",init,false);");
-			w.writeEndElement();//script
 			
 			w.writeEndElement();//head
 			
 			
 			w.writeStartElement("body");
 			
+			w.writeStartElement("div");
+			w.writeStartElement("button");
+				w.writeAttribute("onclick", "changemenu(-1)");
+				w.writeCharacters("prev");
+			w.writeEndElement();//button
+			
+			w.writeStartElement("select");
+			w.writeAttribute("id", "menu");
+			w.writeEndElement();//menu
+			
+			w.writeStartElement("button");
+				w.writeAttribute("onclick", "changemenu(+1)");
+				w.writeCharacters("next");
+			w.writeEndElement();//button
+			w.writeEndElement();//div
+			
+			w.writeStartElement("div");
+			w.writeAttribute("id", "flags");
+			w.writeEndElement();//menu
 			
 			w.writeEmptyElement("canvas");
 				w.writeAttribute("id", "canvasdoc");
 				w.writeAttribute("width", "100");
 				w.writeAttribute("height", "100");
+			
+			w.writeEmptyElement("hr");
+			w.writeStartElement("div");
+			w.writeCharacters("Pierre Lindenbaum PhD. https://github.com/lindenb/jvarkit. Tested with Firefox 45.0");
+			w.writeEndElement();
 			
 			
 			w.writeEndElement();//body

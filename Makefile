@@ -593,7 +593,7 @@ copy.opendoc.odp.resources :
 
 copy.samtools.js:
 	mkdir -p ${tmp.dir}/META-INF/js
-	$(foreach J,gbrowse.js hershey.js samtools.js,cp src/main/js/${J} ${tmp.dir}/META-INF/js/ ; )
+	$(foreach J,gbrowse.js hershey.js samtools.js com.github.lindenb.jvarkit.tools.misc.GBrowserHtml.js,cp src/main/js/${J} ${tmp.dir}/META-INF/js/ ; )
 	
 
 

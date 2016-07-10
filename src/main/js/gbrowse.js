@@ -110,6 +110,75 @@ GenomeBrowser.prototype.getReadColor=function(rec)
 	return "black";
 	}
 
+GenomeBrowser.prototype.paintCigarElement = function(r) {
+	var y0=r.y;
+	var y1=y0+this.featureHeight;
+	var midY=y0+this.featureHeight/2.0;
+
+	/* draw horizontal line */
+	ctx.strokeStyle="black";
+
+	ctx.moveTo(r.x0,midY);
+	ctx.lineTo(r.x1,midY);
+	ctx.stroke();
+
+
+
+	/* draw record shape */
+	ctx.beginPath();
+
+	if(r.x1-r.x0 < this.minArrowWidth)
+		{
+		ctx.moveTo(r.x0,y0);
+		ctx.lineTo(r.x1,y0);
+		ctx.lineTo(r.x1,y1);
+		ctx.lineTo(r.x0,y1);
+		ctx.lineTo(r.x0,y0);
+		}
+	else
+		{
+
+		var arrow=Math.max(this.minArrowWidth,Math.min(this.maxArrowWidth, r.x1-r.x0));
+		if(!rec.getReadNegativeStrandFlag())
+			{
+			ctx.moveTo(r.x0,y0);
+			ctx.lineTo(r.x1-arrow,y0);
+			ctx.lineTo(r.x1,midY);
+			ctx.lineTo(r.x1-arrow,y1);
+			ctx.lineTo(r.x0,y1);
+			}
+		else
+			{
+			ctx.moveTo(r.x0+arrow, y0);
+			ctx.lineTo(r.x0,midY);
+			ctx.lineTo(r.x0+arrow,y1);
+			ctx.lineTo(r.x1,y1);
+			ctx.lineTo(r.x1,y0);
+			}
+
+
+		}
+	ctx.closePath();
+	if(!rec.isReadPairedFlag() || rec.isProperPairFlag())
+		{
+		var grd=ctx.createLinearGradient(r.x0,y0,r.x0,y1);
+		grd.addColorStop(0,"gray");
+		grd.addColorStop(0.5,"white");
+		grd.addColorStop(1.0,"gray");
+
+		ctx.fillStyle=grd;
+		}
+	else
+		{
+		ctx.fillStyle="white";
+		}
+	ctx.fill();
+
+
+	ctx.lineWidth=1;
+	ctx.strokeStyle=this.getReadColor(rec);
+	ctx.stroke();
+	}
 
 GenomeBrowser.prototype.paint=function(params)
 	{
@@ -396,13 +465,17 @@ GenomeBrowser.prototype.paint=function(params)
 				}
 			var refpos=rec.getAlignmentStart();
 			var readpos=0;
-
+			var cigarcomponents=[];
+			
 			/* loop over all cigar */
 			for(cigarindex=0; cigarindex< cigar.getNumElements(); ++cigarindex)
 				{
 				var ce=cigar.get(cigarindex);
 				var k=0;
 				var mutW= this.baseToPixel(refpos+1) - this.baseToPixel(refpos);
+				var cigarcomponent={"y":y,"x0":0,"x1":0,"ce":ce};
+				cigarcomponents.push( 	cigarcomponent );		
+
 
 				/* loop over this cigar-element */
 				for(k=0;k< ce.getLength() ;++k)
