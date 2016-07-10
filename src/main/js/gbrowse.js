@@ -43,6 +43,7 @@ function GenomeBrowser()
 	this.printReadBases = true;
 	this.printDeletions = false;
 	this.printInsertions = false;
+	this.expandInsertions = true;
 	this.hershey=new Hershey();
 	}
 
@@ -110,63 +111,78 @@ GenomeBrowser.prototype.getReadColor=function(rec)
 	return "black";
 	}
 
-GenomeBrowser.prototype.paintCigarElement = function(r) {
+GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
+	var mutW= this.baseToPixel(r.refpos+1) - this.baseToPixel(r.refpos);
+	var x0 = this.baseToPixel(r.refpos);
+	var x1 = this.baseToPixel(r.next_refpos);
 	var y0=r.y;
-	var y1=y0+this.featureHeight;
-	var midY=y0+this.featureHeight/2.0;
-
+	var y1= y0 + this.featureHeight;
+	var midY= y0 + this.featureHeight/2.0;
+	
+	if(r.ce.getOperator().name=="D" || r.ce.getOperator().name=="N")
+		{
+		y0 = midY;
+		y1 = midY;
+		}
+	
 	/* draw horizontal line */
+	ctx.lineWidth=1;
 	ctx.strokeStyle="black";
-
-	ctx.moveTo(r.x0,midY);
-	ctx.lineTo(r.x1,midY);
+	ctx.fillStyle="black";
+	ctx.beginPath();
+	ctx.moveTo(x0,midY);
+	ctx.lineTo(x1,midY);
+	ctx.closePath();
 	ctx.stroke();
-
-
-
+	
 	/* draw record shape */
 	ctx.beginPath();
 
-	if(r.x1-r.x0 < this.minArrowWidth)
+	if(r.arrow==0 || mutW < this.minArrowWidth)
 		{
-		ctx.moveTo(r.x0,y0);
-		ctx.lineTo(r.x1,y0);
-		ctx.lineTo(r.x1,y1);
-		ctx.lineTo(r.x0,y1);
-		ctx.lineTo(r.x0,y0);
+		ctx.moveTo(x0,y0);
+		ctx.lineTo(x1,y0);
+		ctx.lineTo(x1,y1);
+		ctx.lineTo(x0,y1);
+		ctx.lineTo(x0,y0);
 		}
 	else
 		{
-
-		var arrow=Math.max(this.minArrowWidth,Math.min(this.maxArrowWidth, r.x1-r.x0));
-		if(!rec.getReadNegativeStrandFlag())
+		var arrow=Math.max(this.minArrowWidth,Math.min(this.maxArrowWidth, x1 - x0));
+		if(r.arrow==1)
 			{
-			ctx.moveTo(r.x0,y0);
-			ctx.lineTo(r.x1-arrow,y0);
-			ctx.lineTo(r.x1,midY);
-			ctx.lineTo(r.x1-arrow,y1);
-			ctx.lineTo(r.x0,y1);
+			ctx.moveTo(x0,y0);
+			ctx.lineTo(x1-arrow,y0);
+			ctx.lineTo(x1,midY);
+			ctx.lineTo(x1-arrow,y1);
+			ctx.lineTo(x0,y1);
 			}
 		else
 			{
-			ctx.moveTo(r.x0+arrow, y0);
-			ctx.lineTo(r.x0,midY);
-			ctx.lineTo(r.x0+arrow,y1);
-			ctx.lineTo(r.x1,y1);
-			ctx.lineTo(r.x1,y0);
+			ctx.moveTo(x0+arrow, y0);
+			ctx.lineTo(x0,midY);
+			ctx.lineTo(x0+arrow,y1);
+			ctx.lineTo(x1,y1);
+			ctx.lineTo(x1,y0);
 			}
-
-
 		}
 	ctx.closePath();
-	if(!rec.isReadPairedFlag() || rec.isProperPairFlag())
+	if(r.ce.getOperator().name=="M" && r.rec.isReadPairedFlag() && r.rec.isProperPairFlag())
 		{
-		var grd=ctx.createLinearGradient(r.x0,y0,r.x0,y1);
+		var grd=ctx.createLinearGradient(x0,y0,x0,y1);
 		grd.addColorStop(0,"gray");
 		grd.addColorStop(0.5,"white");
 		grd.addColorStop(1.0,"gray");
 
 		ctx.fillStyle=grd;
+		}
+	else if(r.ce.getOperator().name=="S")
+		{
+		ctx.fillStyle="yellow";
+		}
+	else if(r.ce.getOperator().name=="I")
+		{
+		ctx.fillStyle="orange";
 		}
 	else
 		{
@@ -176,8 +192,45 @@ GenomeBrowser.prototype.paintCigarElement = function(r) {
 
 
 	ctx.lineWidth=1;
-	ctx.strokeStyle=this.getReadColor(rec);
+	ctx.strokeStyle=this.getReadColor(r.rec);
 	ctx.stroke();
+	
+	var printBases = this.printReadBases && mutW>=this.minFontSize && r.readpos < r.next_readpos &&
+					(r.ce.getOperator().name == 'X' || r.ce.getOperator().name == '=' || r.ce.getOperator().name == 'M' || r.ce.getOperator().name == 'S' || (r.ce.getOperator().name == 'I' && this.expandInsertions));
+			
+	
+	
+	if( printBases )
+		{
+		for(var x=0 ; x < r.ce.getLength();++x) {
+			var c1 = r.rec.getBaseAt(r.readpos + x );
+			
+			var c2=  this.genomicSequence.charAt1(r.refpos + x);
+			ctx.lineWidth=1;
+			
+			if(r.ce.getOperator().name == 'X' || (c1!='N' && c1!='n' && c2!='N' && c2!='n'  && c1.toUpperCase()!=c2.toUpperCase()))
+				{
+				ctx.strokeStyle="red";
+				}
+			else
+				{
+				ctx.strokeStyle=this.base2color(c1);
+				}
+
+			ctx.beginPath();
+
+			this.hershey.paint(
+				ctx,c1,
+				this.baseToPixel(r.refpos+ x),
+				y0+2,
+				mutW,
+				(y1-y0)-4
+				);
+			ctx.closePath();
+			ctx.stroke();
+			}
+		}
+	
 	}
 
 GenomeBrowser.prototype.paint=function(params)
@@ -311,7 +364,6 @@ GenomeBrowser.prototype.paint=function(params)
 		++x)
 		{
 
-
 		var oneBaseWidth = this.baseToPixel(x+1)-this.baseToPixel(x);
 
 
@@ -383,101 +435,99 @@ GenomeBrowser.prototype.paint=function(params)
 		for(x in row)
 			{
 			var rec=row[x];
-			var x0=this.left(rec);
-
-			var x1=this.right(rec);
-
-			var y0=y;
-			var y1=y0+this.featureHeight;
-			var midY=y0+this.featureHeight/2.0;
-
-			/* draw horizontal line */
-			ctx.strokeStyle="black";
-
-			ctx.moveTo(x0,midY);
-			ctx.lineTo(x1,midY);
-			ctx.stroke();
-
-
-
-			/* draw record shape */
-			ctx.beginPath();
-
-
-
-			if(x1-x0 < this.minArrowWidth)
-				{
-				ctx.moveTo(x0,y0);
-				ctx.lineTo(x1,y0);
-				ctx.lineTo(x1,y1);
-				ctx.lineTo(x0,y1);
-				ctx.lineTo(x0,y0);
-				}
-			else
-				{
-
-				var arrow=Math.max(this.minArrowWidth,Math.min(this.maxArrowWidth, x1-x0));
-				if(!rec.getReadNegativeStrandFlag())
-					{
-					ctx.moveTo(x0, y0);
-					ctx.lineTo(x1-arrow,y0);
-					ctx.lineTo(x1,midY);
-					ctx.lineTo(x1-arrow,y1);
-					ctx.lineTo(x0,y1);
-					}
-				else
-					{
-					ctx.moveTo(x0+arrow, y0);
-					ctx.lineTo(x0,midY);
-					ctx.lineTo(x0+arrow,y1);
-					ctx.lineTo(x1,y1);
-					ctx.lineTo(x1,y0);
-					}
-
-
-				}
-			ctx.closePath();
-			if(!rec.isReadPairedFlag() || rec.isProperPairFlag())
-				{
-				var grd=ctx.createLinearGradient(x0,y0,x0,y1);
-				grd.addColorStop(0,"gray");
-				grd.addColorStop(0.5,"white");
-				grd.addColorStop(1.0,"gray");
-
-				ctx.fillStyle=grd;
-				}
-			else
-				{
-				ctx.fillStyle="white";
-				}
-			ctx.fill();
-
-
-			ctx.lineWidth=1;
-			ctx.strokeStyle=this.getReadColor(rec);
-			ctx.stroke();
-
-			var cigarinder=0;
+			var cigarindex=0;
 			var cigar = rec.getCigar();
 			if(cigar==null || cigar.isEmpty())
 				{
 				continue;
 				}
-			var refpos=rec.getAlignmentStart();
-			var readpos=0;
+			var refpos = rec.getUnclippedStart();
+			var readpos = 0;
 			var cigarcomponents=[];
 			
 			/* loop over all cigar */
 			for(cigarindex=0; cigarindex< cigar.getNumElements(); ++cigarindex)
 				{
 				var ce=cigar.get(cigarindex);
+				if( ce.getOperator().name == 'P') continue;
+				var next_refpos=refpos;
+				var next_readpos=readpos;
 				var k=0;
-				var mutW= this.baseToPixel(refpos+1) - this.baseToPixel(refpos);
-				var cigarcomponent={"y":y,"x0":0,"x1":0,"ce":ce};
-				cigarcomponents.push( 	cigarcomponent );		
-
-
-				/* loop over this cigar-element */
+				
+				var cigarcomponent={
+					"y":y,
+					"ce":ce,
+					"rec":rec,
+					"refpos":refpos,
+					"readpos":readpos,
+					"next_refpos": refpos,
+					"next_readpos": readpos,
+					"seq":"",
+					"arrow":0
+					};
+				
+				
+				
+				switch(ce.getOperator().name)
+					{
+					case 'P': break;
+					case 'N':
+					case 'D':
+						{
+						next_refpos += ce.getLength();
+						break;
+						}
+					case 'I':
+						{
+						if( this.expandInsertions )
+							{
+							next_refpos += ce.getLength();
+							}
+						next_readpos += ce.getLength();
+						break;
+						}
+					case 'S':
+						{
+						next_refpos += ce.getLength();
+						next_readpos += ce.getLength();
+						break;
+						}
+					case 'H':
+						{
+						next_refpos += ce.getLength();
+						break;
+						}
+					case 'M':
+					case 'X':
+					case '=':
+						{
+						next_refpos += ce.getLength();
+						next_readpos += ce.getLength();
+						break;
+						}
+					default: console.log("unknown operator "+ce.getOperator().name);break;
+					}
+				cigarcomponent.next_readpos = next_readpos;
+				cigarcomponent.next_refpos = next_refpos;
+				readpos = next_readpos;
+				refpos = next_refpos;
+				//if( !this.printDeletions && ( ce.getOperator().name == 'D' ||  ce.getOperator().name == 'N')) continue;
+				if( !this.useClip && ( ce.getOperator().name == 'S' ||  ce.getOperator().name == 'H')) continue;
+				cigarcomponents.push( 	cigarcomponent );
+				}
+			if( rec.isReadNegativeStrandFlag() )
+				{
+				cigarcomponents[ 0 ].arrow = -1;
+				}
+			else
+				{
+				cigarcomponents[ cigarcomponents.length-1 ].arrow = 1;
+				}
+			for(cigarindex in cigarcomponents)
+				{
+				this.paintCigarComponent(ctx,cigarcomponents[cigarindex]);
+				}
+			/*		
 				for(k=0;k< ce.getLength() ;++k)
 					{
 					var next_readpos=readpos;
@@ -571,7 +621,7 @@ GenomeBrowser.prototype.paint=function(params)
 
 					}
 				}
-
+			*/
 			}
 		y+=this.featureHeight+this.spaceYbetweenFeatures;
 		}
@@ -580,6 +630,7 @@ GenomeBrowser.prototype.paint=function(params)
 	ctx.strokeStyle="black";
 	ctx.rect(0,0,imageSize.width,imageSize.height);
 	ctx.stroke();
+	
 	}
 
 

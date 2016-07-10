@@ -277,6 +277,17 @@ SamRecord.prototype.toString=function()
 	return this.getName()+" "+this.getReferenceName()+":"+this.getAlignmentStart()+"-"+this.getAlignmentEnd();
 	};
 
+SamRecord.prototype.setMappingQuality = function(c)
+	{
+	this.mapq = c;
+	return this;
+	};
+
+SamRecord.prototype.getMappingQuality = function()
+	{
+	return this.mapq;
+	};
+	
 SamRecord.prototype.setReferenceName=function(c)
 	{
 	this.contig = c;
@@ -380,9 +391,14 @@ SamRecord.prototype.getMateUnmappedFlag=function()
 	return   this.isFlagSet(0x8);
 	};
 
-SamRecord.prototype.getReadNegativeStrandFlag=function()
+SamRecord.prototype.isReadNegativeStrandFlag=function()
 	{
 	return this.isFlagSet(0x10);
+	};
+
+SamRecord.prototype.getReadNegativeStrandFlag=function()
+	{
+	return this.isReadNegativeStrandFlag();
 	};
 
 SamRecord.prototype.getNotPrimaryAlignmentFlag=function()

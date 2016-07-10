@@ -76,19 +76,21 @@ Hershey.LINETO=1;
 	
 Hershey.prototype.charToHersheyString=function(c)
 		{
-		
-		if(	c.toUpperCase().charCodeAt(0)>="A".charCodeAt(0) && 
+		var codeA = "A".charCodeAt(0);
+		var code0 = "0".charCodeAt(0);
+		if(	c.toUpperCase().charCodeAt(0)>= codeA && 
 			c.toUpperCase().charCodeAt(0)<="Z".charCodeAt(0)
 			)
 			{
-			var idx=c.toUpperCase().charCodeAt(0)-'A'.charCodeAt(0);
+		
+			var idx=c.toUpperCase().charCodeAt(0)-codeA;
 			return this.LETTERS[idx];
 			}
-		if(	c.charCodeAt(0)>="0".charCodeAt(0) && 
+		if(	c.charCodeAt(0)>=code0 && 
 			c.charCodeAt(0)<="9".charCodeAt(0)
 			)
 			{
-			return this.DIGITS[c.charCodeAt(0) -'0'.charCodeAt(0)];
+			return this.DIGITS[c.charCodeAt(0) - code0];
 			}
 		switch(c)
 			{

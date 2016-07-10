@@ -1,13 +1,6 @@
 
 var gbrowser = new GenomeBrowser();
 
-	createCheckbox({"id":"properpair","text":"Proper Pairs","checked":true});
-	createCheckbox({"id":"firstinpair","text":"First In Pair","checked":true});
-	createCheckbox({"id":"secondinpair","text":"Second In Pair","checked":true});
-	createCheckbox({"id":"","text":"Not primary alignment","checked":false});
-	createCheckbox({"id":"","text":"Fails Quality Check","checked":false});
-	createCheckbox({"id":"showdup","text":"Duplicates","checked":false});
-	createCheckbox({"id":"","text":"Supplementary Align","checked":false});
 
 function paintConfigIndex(idx) {
 	if(idx<0 || idx >= config.length) return;
@@ -24,13 +17,14 @@ function paintConfigIndex(idx) {
 		    var secondaryalign = document.getElementById("secondaryalign").checked;
 		    var failsqc = document.getElementById("failsqc").checked;
 		    var supalign = document.getElementById("supalign").checked;
-		    
+		    var minmapq = parseInt(document.getElementById("mapq").value);
 		      
 		    
 		    
 			for(var i in responseText.reads) {
 				var rec = new SamRecord(responseText.reads[i]);
 				if( rec.isReadUnmappedFlag()) continue;
+				if( rec.getMappingQuality() < minmapq)  continue;
 				/*
 				if( !showdup && rec.getDuplicateReadFlag()) continue;
 				if( !properpair && !rec.isProperPairFlag()) continue;
@@ -67,7 +61,6 @@ function changemenu(shift) {
 	}
 
 function createCheckbox(cb) {
-
 	var div = document.getElementById("flags");
 	if( div == null) { console.log(cb.text+" "+cb.id); return; }
 	var span = document.createElement("span");
@@ -82,7 +75,23 @@ function createCheckbox(cb) {
 	e.setAttribute("id",cb.id);
 	e.setAttribute("checked",cb.checked);
 	e.addEventListener("change",repaintConfig,false);
-	
+}
+
+function createTextField(cb) {
+	var div = document.getElementById("flags");
+	if( div == null) { console.log(cb.text+" "+cb.id); return; }
+	var span = document.createElement("span");
+	div.appendChild(span);
+	var e = document.createElement("label");
+	e.setAttribute("for",cb.id);
+	e.appendChild(document.createTextNode(cb.text+":"));
+	span.appendChild(e);
+	e = document.createElement("input");
+	span.appendChild(e);
+	e.setAttribute("type","text");
+	e.setAttribute("id",cb.id);
+	e.setAttribute("value",cb.value);
+	e.addEventListener("change",repaintConfig,false);
 }
 
 function init()
@@ -96,6 +105,7 @@ function init()
 	createCheckbox({"id":"failsqc","text":"Fails Quality Check","checked":false});
 	createCheckbox({"id":"showdup","text":"Duplicates","checked":false});
 	createCheckbox({"id":"supalign","text":"Supplementary Align","checked":false});
+	createTextField({"id":"mapq","text":"Min Mapq","value":0});
 	
 	
 	var menu= document.getElementById("menu");
