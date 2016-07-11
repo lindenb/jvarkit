@@ -110,7 +110,7 @@ private class JSONWriter implements SAMFileWriter
 				w.name("sortorder");
 				w.value(header.getSortOrder().name());
 				w.name("dict");
-				SAMSequenceDictionary dict=header.getSequenceDictionary();
+				final SAMSequenceDictionary dict=header.getSequenceDictionary();
 				if(dict==null)
 					{
 					w.nullValue();
@@ -126,6 +126,11 @@ private class JSONWriter implements SAMFileWriter
 						w.value(rec.getSequenceName());
 						w.name("length");
 						w.value(rec.getSequenceLength());
+						if(rec.getAssembly()!=null)
+							{
+							w.name("assembly");
+							w.value(rec.getAssembly());
+							}
 						w.endObject();
 						}
 					w.endArray();

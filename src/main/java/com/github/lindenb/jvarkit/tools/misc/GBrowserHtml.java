@@ -75,12 +75,14 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 		PrintWriter paramsWriter=null;
 		JsonWriter paramsJsonWriter=null;
 		String line;
+		IndexedFastaSequenceFile faidx = null;
 		long snapshot_id=0L;
 		try {
 			final SamJsonWriterFactory samJsonWriterFactory=SamJsonWriterFactory.newInstance().
-					printHeader(false).
+					printHeader(true).
 					printAttributes(false).
 					printMate(true).
+					printReadQualities(false).
 					closeStreamAtEnd(false)
 					;
 			if(super.getOutputFile()!=null)
@@ -123,6 +125,8 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 				
 				if(key.equals("bam"))
 					{
+					if(samReader!=null) samReader.close();
+					samReader=null;
 					bamFile= (value.isEmpty()?null:new File(value));
 					}
 				else if(key.equals("sample"))
@@ -135,6 +139,8 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 					}
 				else if(key.equals("ref") || key.equals("fasta"))
 					{
+					if( faidx != null) faidx.close();
+					faidx=null;
 					faidxFile= (value.isEmpty()?null:new File(value));
 					}
 				else if(key.equals("extend"))
@@ -193,7 +199,10 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 					++snapshot_id;
 					
 					LOG.info("open samFile "+bamFile);
-					samReader  =super.createSamReaderFactory().open(bamFile);
+					if(samReader==null) 
+						{
+						samReader  =super.createSamReaderFactory().open(bamFile);
+						}
 					FileWriter jsonFileWriter = new FileWriter(tmpFile1);
 					JsonWriter jsw = new JsonWriter(jsonFileWriter);
 					jsw.beginObject();
@@ -208,15 +217,17 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 					jsw.endObject();
 
 					if(faidxFile!=null)  {
-						IndexedFastaSequenceFile faidx= new IndexedFastaSequenceFile(faidxFile);
+						if( faidx == null) {
+							faidx= new IndexedFastaSequenceFile(faidxFile);
+							}
 						ReferenceSequence dna =faidx.getSubsequenceAt(interval.getContig(), interval.getStart(), interval.getEnd());
 						jsw.name("reference");
 						jsw.value(dna.getBaseString());
-						faidx.close();
+						
 					}
 
 
-					jsw.name("reads");
+					jsw.name("sam");
 					
 					SAMFileWriter samFileWriter=samJsonWriterFactory.open(samReader.getFileHeader(), jsw);				
 					SAMRecordIterator samRecIter = samReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd());
@@ -417,6 +428,8 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			CloserUtil.close(paramsWriter);
 			CloserUtil.close(zout);
 			CloserUtil.close(bufReader);
+			CloserUtil.close(samReader);
+			CloserUtil.close(faidx);
 			}
 		}
 	

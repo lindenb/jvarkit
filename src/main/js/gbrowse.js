@@ -22,6 +22,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+
+function Consensus()
+	{
+	this.depth=0;
+	this.bases={};
+	}
+Consensus.prototype.watch = function(base) {
+	if(!(base in this.bases)) {
+		this.bases[base]=1;
+		}
+	else
+		{
+		this.bases[base]++;
+		}
+	this.depth++;
+	}
+
+
 function GenomeBrowser()
 	{
 	this.minFontSize = 7;
@@ -37,6 +55,8 @@ function GenomeBrowser()
 	this.maxArrowWidth=5;
 	this.interval= null;
 	this.genomicSequence = null;
+	this.coverageHeight=100;
+	this.consensusHeight=this.featureHeight,
 	this.printReferenseSequence = true;
 	this.printReadBases = true;
 	this.printReadName = false;
@@ -45,6 +65,7 @@ function GenomeBrowser()
 	this.expandInsertions = false;
 	this.expandDeletions = true;
 	this.hershey=new Hershey();
+	this.base2consensus={};
 	}
 
 /* pretty print a number, with commas */
@@ -245,6 +266,9 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 				ctx.fill();
 				ctx.stroke();
 				}
+
+			this.consensus(r.refpos+x,c1);
+			
 			if( !printBases ) continue;
 			ctx.strokeStyle=this.base2color(c1);
 			
@@ -272,13 +296,27 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 	ctx.restore();
 	}
 
+GenomeBrowser.prototype.consensus = function(pos,base) {
+	var posstr=""+pos,c;
+	if(!(posstr in this.base2consensus)) {
+		c = new Consensus();
+		this.base2consensus[posstr] = c;
+		}
+	else
+		{
+		c= this.base2consensus[posstr] ;
+		}
+	c.watch(base);
+	}
+
 GenomeBrowser.prototype.paint=function(params)
 	{
 
 	var iter,rows=[];
 
 	this.interval = null;
-
+	this.base2consensus={};
+	
 	if( !("canvasid" in params) )
 		{
 		throw "no @canvasid in params";
@@ -378,7 +416,7 @@ GenomeBrowser.prototype.paint=function(params)
 	var margin_top=10+(refw*2)+ruler_height;
 	var imageSize=	{
 			width:  this.width,
-			height: margin_top+ rows.length*(this.spaceYbetweenFeatures+this.featureHeight)+this.spaceYbetweenFeatures
+			height: margin_top+ this.coverageHeight + this.consensusHeight + rows.length*(this.spaceYbetweenFeatures+this.featureHeight)+this.spaceYbetweenFeatures
 			};
 
 	var canvasdoc=document.getElementById(params.canvasid);
@@ -412,8 +450,8 @@ GenomeBrowser.prototype.paint=function(params)
 			ctx.beginPath();
 			ctx.lineWidth=(x%vticks==0?0.5:0.2);
 			ctx.strokeStyle=(x%vticks==0?"black":"gray");
-			ctx.moveTo(this.baseToPixel(x), 0);
-			ctx.lineTo(this.baseToPixel(x), imageSize.height);
+			ctx.moveTo( this.baseToPixel(x), 0);
+			ctx.lineTo( this.baseToPixel(x), imageSize.height);
 			ctx.closePath();
 			ctx.stroke();
 			}
@@ -465,7 +503,7 @@ GenomeBrowser.prototype.paint=function(params)
 		}
 
 	ctx.lineWidth=1;
-	var y=margin_top+this.spaceYbetweenFeatures;
+	var y=margin_top+ this.spaceYbetweenFeatures + this.coverageHeight + this.consensusHeight;
 	/** loop over each row */
 	for(var rowY in rows)
 		{
@@ -569,6 +607,53 @@ GenomeBrowser.prototype.paint=function(params)
 			}
 		y+=this.featureHeight+this.spaceYbetweenFeatures;
 		}
+	
+	for(var x= this.interval.start;
+		x<=  this.interval.end;
+		++x)
+		{
+		var x0 = this.baseToPixel(x);
+		var oneBaseWidth = this.baseToPixel(x+1)-x0;
+		if( oneBaseWidth < this.minFontSize ) break;
+		var xstr = ""+x;
+		if(!(xstr in this.base2consensus)) continue;
+		var c= this.base2consensus[xstr].consensus();
+		
+		//todo
+		}
+		
+		
+	/* draw coverage */
+	ctx.beginPath();
+	var maxdepth = 0.0;
+	for(var x in this.base2consensus) {
+		maxdepth= Math.max( maxdepth, this.base2consensus[x].depth );
+		}
+	
+	y= margin_top+ this.spaceYbetweenFeatures + this.coverageHeight + this.consensusHeight;
+	
+	ctx.moveTo(0,y);
+	for(var x= this.interval.start;
+		maxdepth>0 && x<=  this.interval.end;
+		++x)
+		{
+		var xstr= ""+x;
+		var dp = ((( xstr in this.base2consensus ?this.base2consensus[xstr].depth : 0.0)*1.0 )/ maxdepth)*this.coverageHeight;
+		ctx.lineTo(  this.baseToPixel(x),y);
+		ctx.lineTo(  this.baseToPixel(x), y-dp);
+		ctx.lineTo(  this.baseToPixel(x+1), y-dp);
+		ctx.lineTo(  this.baseToPixel(x+1), y);
+		}
+	
+	ctx.fillStyle="gray";
+	ctx.strokeStyle="lightgray";
+	ctx.closePath();
+	ctx.fill();
+	ctx.stroke();
+	ctx.fillStyle="black";
+	ctx.font = "12px serif";
+	ctx.fillText("Max Depth:"+maxdepth, 10, y-12);
+		
 
 	/* draw frame */
 	ctx.beginPath();
@@ -576,6 +661,9 @@ GenomeBrowser.prototype.paint=function(params)
 	ctx.rect(0,0,imageSize.width,imageSize.height);
 	ctx.stroke();
 	
+	
+	
+	this.base2consensus={};
 	}
 
 

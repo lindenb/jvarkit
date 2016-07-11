@@ -10,7 +10,8 @@ function paintConfigIndex(idx) {
 		if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
 		    var responseText = JSON.parse(xmlhttp.responseText);
 		    var params = {"reads":[],"canvasid":"canvasdoc",
-		    	"interval": new Interval(responseText.interval)
+		    	"interval": new Interval(responseText.interval),
+				"header":null
 		    	};
 		    if( "reference" in  responseText)
 		    	{
@@ -48,8 +49,22 @@ function paintConfigIndex(idx) {
 		    gbrowser.printReadName =  document.getElementById("printreadname").checked;
 		    gbrowser.expandDeletions =  document.getElementById("expandeletion").checked;
 		    
-			for(var i in responseText.reads) {
-				var rec = new SamRecord(responseText.reads[i]);
+		    var responsereads;
+		    if( "reads" in responseText)
+				{
+				responsereads = responseText.reads;
+				}
+		    else if( "sam" in responseText) {
+				params.header = new SAMFileHeader(responseText.sam.header);
+				responsereads = responseText.sam.reads;
+				}
+		    else {
+				responsereads=[];
+				}
+
+
+			for(var i in responsereads) {
+				var rec = new SamRecord(responsereads[i]);
 				if( rec.isReadUnmappedFlag()) continue;
 				
 				if( rec.getMappingQuality() < minmapq)  continue;

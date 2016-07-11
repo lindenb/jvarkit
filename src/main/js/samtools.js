@@ -71,15 +71,99 @@ Interval.prototype.toString = function() { return this.getContig()+":"+this.getS
 /***************************************************************************/
 /***************************************************************************/
 /***************************************************************************/
-function SamSequenceRecord(name,length,idx) {
-	this.mSequenceName = name;
-	this.mSequenceLength = length;
-	this.mSequenceIndex = idx;
+function SamSequenceRecord() {
+	this.mSequenceIndex = -1;
+	if(arguments.length==2) {
+		this.name = arguments[0];
+		this.length = arguments[1];
+		}
+	else if(arguments.length==1 &&
+		("name" in arguments[0]) &&
+		("length" in arguments[0])
+		) {
+		this.name = arguments[0].name;
+		this.length = arguments[0].length;
+		}
+	else
+		{
+		throw "boum SamSequenceRecord";
+		}
 	}
-SamSequenceRecord.prototype.getSequenceName =  function() { return this.mSequenceName; }
-SamSequenceRecord.prototype.getSequenceLength =  function() { return this.mSequenceLength; }
+SamSequenceRecord.prototype.getSequenceName =  function() { return this.name; }
+SamSequenceRecord.prototype.getSequenceLength =  function() { return this.length; }
 SamSequenceRecord.prototype.getSequenceIndex =  function() { return this.mSequenceIndex; }
 SamSequenceRecord.prototype.toString = function() { return this.getSequenceName()+":"+this.getSequenceLength();}
+
+
+/***************************************************************************/
+/***************************************************************************/
+/***************************************************************************/
+function SAMSequenceDictionary() {
+ this.mSequences = [];
+ this.mSequenceMap={};
+ if(arguments.length==1) {
+	 var i,ssrs = arguments[0];
+	 for(i=0;i< ssrs.length;++i) {
+		 this.addSequence(new SamSequenceRecord(ssrs[i]));
+		 }
+ 	}
+ }
+
+SAMSequenceDictionary.prototype.addSequence = function(ssr) {
+	 if( ssr.getSequenceIndex() != -1) throw "boum index of "+ssr+" should be -1, but got "+ssr.getSequenceIndex();
+	 if( ssr.getSequenceName() in this.mSequenceMap) throw "boum duplicate contig:"+ ssr.getSequenceName() ;
+	 ssr.index = this.size();
+	 this.mSequences.push(ssr);
+	 this.mSequenceMap[ ssr.getSequenceName() ] = ssr;
+	 return this;
+	};
+
+SAMSequenceDictionary.prototype.size = function() {
+	return this.mSequences.length ;
+	};
+
+SAMSequenceDictionary.prototype.isEmpty = function() {
+	return this.size() == 0;
+	};
+
+
+SAMSequenceDictionary.prototype.get = function(idx) {
+	return this.mSequences[ idx ];
+	};
+
+SAMSequenceDictionary.prototype.getReferenceLength = function() {
+	var i,len=0;
+	for(i=0;i< this.size();++i) {
+            len += get(i).getSequenceLength();
+        }
+    return len;
+	};
+
+/***************************************************************************/
+/***************************************************************************/
+/***************************************************************************/
+
+function SAMFileHeader()
+	{
+	this.dict = null;
+	if(arguments.length==1) {
+		var json = arguments[0];
+		if( "dict" in json )
+			{
+			this.setSequenceDictionary( new SAMSequenceDictionary(json.dict));
+			}
+		}
+	}
+
+SAMFileHeader.prototype.getSequenceDictionary = function() {
+	return this.dict;
+	};
+	
+SAMFileHeader.prototype.setSequenceDictionary = function(v) {
+	this.dict = v;
+	return this;
+	};
+
 
 /***************************************************************************/
 /***************************************************************************/
