@@ -35,6 +35,12 @@ function Interval()
 		this.start = arguments[1];
 		this.end = arguments[2];
 		}
+	else if( "contig" in arguments[0] &&  "start" in arguments[0] &&  "end" in arguments[0] )
+		{
+		this.contig = arguments[0].contig;
+		this.start = arguments[0].start;
+		this.end = arguments[0].end;
+		}
 	else
 		{
 		var s= arguments[0];
@@ -92,11 +98,13 @@ ReferenceSequence.prototype.charAt1 = function(idx1)
 			if(idx1<this.contigIndex1) return 'N';
 			idx1 -= this.contigIndex1;
 			if(idx1>= this.bases.length ) return 'N';
-			return this.str[idx1];
-			}
+			return this.bases[idx1];
+			};
 ReferenceSequence.prototype.charAt0 = function(idx0) {
-		return this.charAt1(idx0_1);
-}
+		return this.charAt1(idx0+1);
+};
+
+ReferenceSequence.prototype.toString = function() { this.getSequenceName()+":"+this.contigIndex+" : "+ this.bases;};
 
 /***************************************************************************/
 /***************************************************************************/
@@ -138,6 +146,9 @@ CigarOperator.prototype.isClip = function() {
 CigarOperator.prototype.isIndel = function() {
 	return this.name=="I" || this.name=="D";
 	}
+CigarOperator.prototype.isOneOf = function(choice) {
+	return choice.toUpperCase().indexOf(this.name)!=-1;
+	}
 /***************************************************************************/
 /***************************************************************************/
 /***************************************************************************/
@@ -151,7 +162,10 @@ CigarElement.prototype.toString = function() { return ""+this.length+this.op.nam
 CigarElement.prototype.getOperator = function() { return this.op;}
 CigarElement.prototype.getLength = function() { return this.length;}
 CigarElement.prototype.size = function() { return this.getLength();}
-
+CigarElement.prototype.hasOperatorIn = function(op)
+	{
+	return this.getOperator().isOneOf(op);
+	} 
 /***************************************************************************/
 /***************************************************************************/
 /***************************************************************************/
@@ -204,8 +218,8 @@ Cigar.prototype.getUnclippedStart = function(pos) {
         return pos;
     };
 
-Cigar.prototype.getUnclippedEnd = function(pos) {
-        var i=0;
+Cigar.prototype.getUnclippedEnd = function(clippedend) {
+        var i=0,pos=clippedend;
         for (i = this.getNumElements() - 1; i >= 0; --i) {
             if(this.get(i).getOperator().isClip()) {
                 pos += this.get(i).getLength();
@@ -215,6 +229,15 @@ Cigar.prototype.getUnclippedEnd = function(pos) {
         }
         return pos;
     };
+
+Cigar.prototype.hasOperatorIn = function(op)
+	{
+	for (i=0;i< this.getNumElements();++i) {
+		if( this.get(i).hasOperatorIn(op) ) return true;
+		}
+	return false;
+	} 
+	
 
 /***************************************************************************/
 /***************************************************************************/
@@ -393,13 +416,19 @@ SamRecord.prototype.getMateUnmappedFlag=function()
 
 SamRecord.prototype.isReadNegativeStrandFlag=function()
 	{
-	return this.isFlagSet(0x10);
+	return !this.isReadUnmappedFlag() && this.isFlagSet(0x10);
 	};
 
 SamRecord.prototype.getReadNegativeStrandFlag=function()
 	{
 	return this.isReadNegativeStrandFlag();
 	};
+
+SamRecord.prototype.isReadPositiveStrandFlag=function()
+	{
+	return !this.isReadUnmappedFlag() && !this.isReadNegativeStrandFlag();
+	};
+
 
 SamRecord.prototype.getNotPrimaryAlignmentFlag=function()
 	{
@@ -453,7 +482,7 @@ SamRecord.prototype.getAlignmentEnd=function()
 		{
 		var cigar = this.getCigar();
 		if( cigar==null) throw "cigar == null";
-		this.alignEnd=this.getAlignmentStart();
+		this.alignEnd = this.getAlignmentStart();
 		for (var i =0;i< cigar.getNumElements();++i)
 		  	{
 		  	var ce = cigar.get(i);
@@ -514,7 +543,7 @@ SamRecord.prototype.getBaseAt  = function(idx)
 	{
 	if(!this.hasReadString()) return '?';
 	var s = this.getReadString();
-	if(idx<0 || idx>= s.length) return '?';
+	if(s==null || idx<0 || idx>= s.length) return '?';
     return s.charAt(idx);
 	};
 

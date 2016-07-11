@@ -41,9 +41,11 @@ function GenomeBrowser()
 	this.genomicSequence = null;
 	this.printReferenseSequence = true;
 	this.printReadBases = true;
+	this.printReadName = false;
 	this.printDeletions = false;
 	this.printInsertions = false;
-	this.expandInsertions = true;
+	this.expandInsertions = false;
+	this.expandDeletions = true;
 	this.hershey=new Hershey();
 	}
 
@@ -112,20 +114,25 @@ GenomeBrowser.prototype.getReadColor=function(rec)
 	}
 
 GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
+	if( r.next_refpos < this.interval.start) return;
+	if( r.refpos > this.interval.end) return;
+	
+	
 	var mutW= this.baseToPixel(r.refpos+1) - this.baseToPixel(r.refpos);
 	var x0 = this.baseToPixel(r.refpos);
 	var x1 = this.baseToPixel(r.next_refpos);
-	var y0=r.y;
-	var y1= y0 + this.featureHeight;
+	var y0 = r.y;
+	var y1 = y0 + this.featureHeight;
 	var midY= y0 + this.featureHeight/2.0;
 	
-	if(r.ce.getOperator().name=="D" || r.ce.getOperator().name=="N")
+	if(r.ce.getOperator().isOneOf("DN"))
 		{
 		y0 = midY;
 		y1 = midY;
 		}
 	
 	/* draw horizontal line */
+	ctx.globalAlpha = 1;
 	ctx.lineWidth=1;
 	ctx.strokeStyle="black";
 	ctx.fillStyle="black";
@@ -134,6 +141,8 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 	ctx.lineTo(x1,midY);
 	ctx.closePath();
 	ctx.stroke();
+
+	
 	
 	/* draw record shape */
 	ctx.beginPath();
@@ -167,7 +176,8 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 			}
 		}
 	ctx.closePath();
-	if(r.ce.getOperator().name=="M" && r.rec.isReadPairedFlag() && r.rec.isProperPairFlag())
+	
+	if(r.ce.getOperator().isOneOf("M=") && r.rec.isReadPairedFlag() && r.rec.isProperPairFlag())
 		{
 		var grd=ctx.createLinearGradient(x0,y0,x0,y1);
 		grd.addColorStop(0,"gray");
@@ -175,10 +185,12 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 		grd.addColorStop(1.0,"gray");
 
 		ctx.fillStyle=grd;
+		
+
 		}
 	else if(r.ce.getOperator().name=="S")
 		{
-		ctx.fillStyle="yellow";
+		ctx.fillStyle="pink";
 		}
 	else if(r.ce.getOperator().name=="I")
 		{
@@ -188,37 +200,55 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 		{
 		ctx.fillStyle="white";
 		}
+
 	ctx.fill();
 
 
+	ctx.strokeStyle="gray";
 	ctx.lineWidth=1;
+	if(r.ce.getOperator().isOneOf("IDN"))
+		{
+		ctx.strokeStyle="red";
+		ctx.lineWidth=5;
+		}
+	
 	ctx.strokeStyle=this.getReadColor(r.rec);
 	ctx.stroke();
 	
+	
 	var printBases = this.printReadBases && mutW>=this.minFontSize && r.readpos < r.next_readpos &&
-					(r.ce.getOperator().name == 'X' || r.ce.getOperator().name == '=' || r.ce.getOperator().name == 'M' || r.ce.getOperator().name == 'S' || (r.ce.getOperator().name == 'I' && this.expandInsertions));
+					 ( r.ce.getOperator().isOneOf("X=MS") || (r.ce.getOperator().name == 'I' && this.expandInsertions));
 			
+	ctx.lineWidth=1;
+	//ctx.save();
+	//ctx.clip();
 	
-	
-	if( printBases )
-		{
+		
 		for(var x=0 ; x < r.ce.getLength();++x) {
-			var c1 = r.rec.getBaseAt(r.readpos + x );
-			
+			var c1 =r.rec.getBaseAt(r.readpos + x );
 			var c2=  this.genomicSequence.charAt1(r.refpos + x);
-			ctx.lineWidth=1;
-			
 			if(r.ce.getOperator().name == 'X' || (c1!='N' && c1!='n' && c2!='N' && c2!='n'  && c1.toUpperCase()!=c2.toUpperCase()))
 				{
-				ctx.strokeStyle="red";
+				ctx.beginPath();
+				ctx.fillStyle="coral";
+				ctx.strokeStyle="orange";
+				ctx.rect(this.baseToPixel(r.refpos+ x),y0,mutW,(y1-y0));
+				ctx.fill();
+				ctx.stroke();
 				}
-			else
+			if( !printBases ) continue;
+			ctx.strokeStyle=this.base2color(c1);
+			
+			if( this.printReadName )
 				{
-				ctx.strokeStyle=this.base2color(c1);
+				var readName = r.rec.getReadName();
+				c1 = r.readpos +x<readName.length? readName.charAt(r.readpos +x):' ';
+				ctx.strokeStyle="black";
 				}
-
+		
+			
+			
 			ctx.beginPath();
-
 			this.hershey.paint(
 				ctx,c1,
 				this.baseToPixel(r.refpos+ x),
@@ -226,11 +256,11 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 				mutW,
 				(y1-y0)-4
 				);
-			ctx.closePath();
+			//ctx.closePath(); NO, would could 'C' -> 'O'
 			ctx.stroke();
 			}
-		}
-	
+		
+	//ctx.restore();
 	}
 
 GenomeBrowser.prototype.paint=function(params)
@@ -370,9 +400,9 @@ GenomeBrowser.prototype.paint=function(params)
 		if( oneBaseWidth > 4.0 || x%vticks==0)
 			{
 			//draw vertical line
-			ctx.lineWidth=0.5;
-			ctx.strokeStyle=(x%vticks==0?"black":"gray");
 			ctx.beginPath();
+			ctx.lineWidth=(x%vticks==0?0.5:0.2);
+			ctx.strokeStyle=(x%vticks==0?"black":"gray");
 			ctx.moveTo(this.baseToPixel(x), 0);
 			ctx.lineTo(this.baseToPixel(x), imageSize.height);
 			ctx.closePath();
@@ -452,7 +482,6 @@ GenomeBrowser.prototype.paint=function(params)
 				if( ce.getOperator().name == 'P') continue;
 				var next_refpos=refpos;
 				var next_readpos=readpos;
-				var k=0;
 				
 				var cigarcomponent={
 					"y":y,
@@ -474,7 +503,9 @@ GenomeBrowser.prototype.paint=function(params)
 					case 'N':
 					case 'D':
 						{
-						next_refpos += ce.getLength();
+						if(this.expandDeletions) {
+							next_refpos += ce.getLength();
+							}
 						break;
 						}
 					case 'I':
@@ -511,8 +542,7 @@ GenomeBrowser.prototype.paint=function(params)
 				cigarcomponent.next_refpos = next_refpos;
 				readpos = next_readpos;
 				refpos = next_refpos;
-				//if( !this.printDeletions && ( ce.getOperator().name == 'D' ||  ce.getOperator().name == 'N')) continue;
-				if( !this.useClip && ( ce.getOperator().name == 'S' ||  ce.getOperator().name == 'H')) continue;
+				if( !this.useClip && ce.getOperator().isOneOf("SH")) continue;
 				cigarcomponents.push( 	cigarcomponent );
 				}
 			if( rec.isReadNegativeStrandFlag() )
@@ -527,106 +557,12 @@ GenomeBrowser.prototype.paint=function(params)
 				{
 				this.paintCigarComponent(ctx,cigarcomponents[cigarindex]);
 				}
-			/*		
-				for(k=0;k< ce.getLength() ;++k)
-					{
-					var next_readpos=readpos;
-					var next_refpos=refpos;
-
-
-					ctx.lineWidth=1;
-					ctx.strokeStyle="pink";
-					switch(ce.getOperator().name)
-						{
-						case 'P':break;
-						case 'N':
-						case 'D':
-							{
-							if( this.printDeletions ) {
-								ctx.fillStyle="red";
-								ctx.beginPath();
-								ctx.fillRect(
-									this.baseToPixel(refpos),y0,
-									mutW,y1-y0
-									);
-								ctx.closePath();
-								}
-							next_refpos++;
-							break;
-							}
-						case 'I':
-							{
-							if( this.printInsertions ) {
-								ctx.lineWidth=4;
-								ctx.strokeStyle="yellow";
-								ctx.beginPath();
-								ctx.moveTo(this.baseToPixel(refpos),y0);
-								ctx.lineTo(this.baseToPixel(refpos),y1);
-								ctx.stroke();
-								}
-							next_readpos++;
-							break;
-							}
-						case 'S':
-						case 'H':
-							{
-							ctx.lineWidth=3;
-							ctx.strokeStyle="green";
-							ctx.beginPath();
-							ctx.moveTo(this.baseToPixel(refpos),y0);
-							ctx.lineTo(this.baseToPixel(refpos),y1);
-							ctx.stroke();
-							if(ce.getOperator().name=='S') next_readpos++;
-							break;
-							}
-						case 'M':
-						case 'X':
-						case '=':
-							{
-							if( rec.hasReadString() && this.printReadBases && mutW>=this.minFontSize ) {
-
-								var c1 = rec.getBaseAt(readpos);
-								var c2= this.genomicSequence.charAt1(refpos);
-
-								if(ce.getOperator().name == 'X' || (c1!='N' && c1!='n'  && c1.toUpperCase()!=c2.toUpperCase()))
-									{
-									ctx.lineWidth=1;
-									ctx.strokeStyle="red";
-									}
-								else
-									{
-									ctx.lineWidth=0.3;
-									ctx.strokeStyle="gray";
-									}
-
-								ctx.beginPath();
-								this.hershey.paint(
-									ctx,c1,
-									this.baseToPixel(refpos),
-									y0+2,
-									mutW,
-									(y1-y0)-4
-									);
-								ctx.stroke();
-								}
-							next_readpos++;
-							next_refpos++;
-							break;
-							}
-						default: console.log("unknown operator "+ce.getOperator().name);break;
-						}
-
-					readpos=next_readpos;
-					refpos=next_refpos;
-
-					}
-				}
-			*/
 			}
 		y+=this.featureHeight+this.spaceYbetweenFeatures;
 		}
 
 	/* draw frame */
+	ctx.beginPath();
 	ctx.strokeStyle="black";
 	ctx.rect(0,0,imageSize.width,imageSize.height);
 	ctx.stroke();

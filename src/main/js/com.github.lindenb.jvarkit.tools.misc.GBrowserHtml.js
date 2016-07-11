@@ -9,30 +9,62 @@ function paintConfigIndex(idx) {
 	xmlhttp.onreadystatechange = function() {
 		if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
 		    var responseText = JSON.parse(xmlhttp.responseText);
-		    var params = {"reads":[],"canvasid":"canvasdoc"};
+		    var params = {"reads":[],"canvasid":"canvasdoc",
+		    	"interval": new Interval(responseText.interval)
+		    	};
+		    if( "reference" in  responseText)
+		    	{
+		    	params.reference = new ReferenceSequence(
+		    		params.interval.contig,
+		    		params.interval.start,
+		    		responseText.reference
+		    		);
+		    	}
+		    if( "title" in responseText)
+		    	{
+		    	document.getElementById("browserTitle").innerHTML = responseText.title;
+		    	}
+		    else
+		    	{
+		    	document.getElementById("browserTitle").innerHTML = params.interval.toString();
+		    	}
 		    var showdup = document.getElementById("showdup").checked;
-		    var properpair = document.getElementById("properpair").checked;
-		    var firstinpair = document.getElementById("firstinpair").checked;
-		    var secondinpair = document.getElementById("secondinpair").checked;
+		    var shownonproperpair = document.getElementById("shownonproperpair").checked;
+		    var hidefirstinpair = document.getElementById("hidefirstinpair").checked;
+		    var hidesecondinpair = document.getElementById("hidesecondinpair").checked;
 		    var secondaryalign = document.getElementById("secondaryalign").checked;
-		    var failsqc = document.getElementById("failsqc").checked;
-		    var supalign = document.getElementById("supalign").checked;
+		    var showfailsqc = document.getElementById("showfailsqc").checked;
+		    var showsupalign = document.getElementById("showsupalign").checked;
 		    var minmapq = parseInt(document.getElementById("mapq").value);
+		    var showplusstrand = document.getElementById("showplusstrand").checked;
+		    var showminusstrand = document.getElementById("showminusstrand").checked;
+		    var hidcigarpurem = document.getElementById("hidcigarpurem").checked;
 		      
-		    
+		    gbrowser.useClip =  document.getElementById("showclip").checked;
+		    gbrowser.expandInsertions =  document.getElementById("expandinsert").checked;
+		    gbrowser.printReadBases =  document.getElementById("showreadbases").checked;
+		    gbrowser.printReadName =  document.getElementById("printreadname").checked;
+		    gbrowser.expandDeletions =  document.getElementById("expandeletion").checked;
 		    
 			for(var i in responseText.reads) {
 				var rec = new SamRecord(responseText.reads[i]);
 				if( rec.isReadUnmappedFlag()) continue;
+				
 				if( rec.getMappingQuality() < minmapq)  continue;
-				/*
+				if( !showplusstrand && rec.isReadPositiveStrandFlag()) continue;
+				if( !showminusstrand && rec.isReadNegativeStrandFlag()) continue;
+				
 				if( !showdup && rec.getDuplicateReadFlag()) continue;
-				if( !properpair && !rec.isProperPairFlag()) continue;
-				if( firstinpair && !rec.getFirstInPairFlag()) continue;
-				if( secondinpair && !rec.getSecondInPairFlag()) continue;
-				if( failsqc && !rec.getReadFailsVendorQualityCheckFlag()) continue;
-				if( supalign && rec.isSupplementaryAlignmentFlag()) continue;
-				*/
+				
+				if( !shownonproperpair && !rec.isProperPairFlag()) continue;
+				
+				if( hidefirstinpair && rec.getFirstInPairFlag()) continue;
+				if( hidesecondinpair && rec.getSecondInPairFlag()) continue;
+				if( !showfailsqc && rec.getReadFailsVendorQualityCheckFlag()) continue;
+				if( !showsupalign && rec.isSupplementaryAlignmentFlag()) continue;
+				if( hidcigarpurem && rec.getCigar().getNumElements()==1  && rec.getCigar().get(0).getOperator().isOneOf("M=")) continue;
+				
+				
 				params.reads.push(rec);
 				}
 				
@@ -65,16 +97,20 @@ function createCheckbox(cb) {
 	if( div == null) { console.log(cb.text+" "+cb.id); return; }
 	var span = document.createElement("span");
 	div.appendChild(span);
-	var e = document.createElement("label");
-	e.setAttribute("for",cb.id);
-	e.appendChild(document.createTextNode(cb.text));
-	span.appendChild(e);
-	e = document.createElement("input");
+	
+	var e = document.createElement("input");
 	span.appendChild(e);
 	e.setAttribute("type","checkbox");
+	e.setAttribute("title",cb.text);
 	e.setAttribute("id",cb.id);
-	e.setAttribute("checked",cb.checked);
+	if(cb.checked) e.setAttribute("checked","true");
+	e.setAttribute("value",cb.checked);
 	e.addEventListener("change",repaintConfig,false);
+	
+	e = document.createElement("label");
+	e.setAttribute("for",cb.id);
+	e.appendChild(document.createTextNode(cb.text+". "));
+	span.appendChild(e);
 }
 
 function createTextField(cb) {
@@ -90,6 +126,7 @@ function createTextField(cb) {
 	span.appendChild(e);
 	e.setAttribute("type","text");
 	e.setAttribute("id",cb.id);
+	
 	e.setAttribute("value",cb.value);
 	e.addEventListener("change",repaintConfig,false);
 }
@@ -98,13 +135,25 @@ function init()
 	{
 	if( document.getElementById("flags")==null) console.log("BOUUUMMMM");
 	
-	createCheckbox({"id":"properpair","text":"Only Proper Pairs","checked":false});
-	createCheckbox({"id":"firstinpair","text":"Only First In Pair","checked":false});
-	createCheckbox({"id":"secondinpair","text":"Only Second In Pair","checked":false});
+	createCheckbox({"id":"shownonproperpair","text":"Show non Proper-Pairs","checked":false});
+	createCheckbox({"id":"hidefirstinpair","text":"Hide First In Pair","checked":false});
+	createCheckbox({"id":"hidesecondinpair","text":"Hide Second In Pair","checked":false});
 	createCheckbox({"id":"secondaryalign","text":"Not primary alignment","checked":false});
-	createCheckbox({"id":"failsqc","text":"Fails Quality Check","checked":false});
-	createCheckbox({"id":"showdup","text":"Duplicates","checked":false});
-	createCheckbox({"id":"supalign","text":"Supplementary Align","checked":false});
+	createCheckbox({"id":"showfailsqc","text":"Show Fails Quality Check","checked":false});
+	createCheckbox({"id":"showdup","text":"Show Duplicates","checked":false});
+	createCheckbox({"id":"showsupalign","text":"Show Supplementary Align","checked":false});
+	createCheckbox({"id":"showplusstrand","text":"Show Strand +","checked":true});
+	createCheckbox({"id":"showminusstrand","text":"Show Strand -","checked":true});
+	//
+	createCheckbox({"id":"showclip","text":"Show Clipped Regions","checked":false});
+	createCheckbox({"id":"expandinsert","text":"Expand Insertion","checked":false});
+	createCheckbox({"id":"expandeletion","text":"Expand Deletions","checked":true});
+	
+	createCheckbox({"id":"showreadbases","text":"Show Read Bases","checked":true});
+	createCheckbox({"id":"hidcigarpurem","text":"Hide pure align","checked":false});
+	createCheckbox({"id":"printreadname","text":"Print Read Name","checked":false});
+	
+	
 	createTextField({"id":"mapq","text":"Min Mapq","value":0});
 	
 	

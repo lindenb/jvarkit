@@ -68,7 +68,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 	
 	@Override
 	protected Collection<Throwable> call(final String inputName) throws Exception {
-		final int DEFAULT_EXTEND_INTERVAL=100;
+		final int DEFAULT_EXTEND_INTERVAL=0;
 		SamReader samReader = null;
 		ZipOutputStream zout=null;
 		BufferedReader bufReader = null;
@@ -111,7 +111,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			File bamFile = null;
 			File faidxFile = null;
 			String sampleName = null;
-			int extend_interval = 100;
+			int extend_interval = DEFAULT_EXTEND_INTERVAL;
 			String title=null;
 			Interval interval = null;
 			while( (line=bufReader.readLine())!=null) {
@@ -328,6 +328,12 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			
 			w.writeStartElement("style");
 				w.writeAttribute("type", "text/css");
+			
+			w.writeCharacters("body	{ color:rgb(50,50,50); margin:20px; padding:20px; font: 12pt Arial, Helvetica, sans-serif; }\n");
+			w.writeCharacters("label { text-align:right;	 }\n");
+			w.writeCharacters("button	{ border: 1px solid; background-image:-moz-linear-gradient( top, gray, lightgray ); }\n");
+			w.writeCharacters("canvas { image-rendering:auto;}\n");
+			w.writeCharacters(".me 	{ padding-top:100px; font-size:80%; }\n");
 			w.writeEndElement();//style
 			
 			for(final String src:new String[]{"samtools","gbrowse","hershey","config","com.github.lindenb.jvarkit.tools.misc.GBrowserHtml"}) {
@@ -363,16 +369,34 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			
 			w.writeStartElement("div");
 			w.writeAttribute("id", "flags");
-			w.writeEndElement();//menu
+			w.writeEndElement();//div
 			
+			
+			w.writeStartElement("div");
+			w.writeAttribute("style", "text-align:center;");
+			
+			w.writeStartElement("div");
+			w.writeAttribute("style", "font-size:200%;margin:10px;");
+			w.writeAttribute("id", "browserTitle");
+			w.writeEndElement();//div
+			
+			w.writeStartElement("div");
 			w.writeEmptyElement("canvas");
 				w.writeAttribute("id", "canvasdoc");
 				w.writeAttribute("width", "100");
 				w.writeAttribute("height", "100");
+			w.writeEndElement();//div
+			w.writeEndElement();//div
 			
 			w.writeEmptyElement("hr");
 			w.writeStartElement("div");
-			w.writeCharacters("Pierre Lindenbaum PhD. https://github.com/lindenb/jvarkit. Tested with Firefox 45.0");
+			w.writeAttribute("class", "me");
+			w.writeCharacters("Pierre Lindenbaum PhD. ");
+			w.writeStartElement("a");
+			w.writeAttribute("href", "https://github.com/lindenb/jvarkit");
+			w.writeCharacters("https://github.com/lindenb/jvarkit");
+			w.writeEndElement();
+			w.writeCharacters(". Tested with Firefox 45.0");
 			w.writeEndElement();
 			
 			
