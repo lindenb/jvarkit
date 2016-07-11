@@ -25,7 +25,7 @@ SOFTWARE.
 function GenomeBrowser()
 	{
 	this.minFontSize = 7;
-	this.maxChromLength=100;
+	this.maxChromLength=10000;
 	this.useClip = false;
 	this.width=1000;
 	this.featureHeight=20;
@@ -179,7 +179,7 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 	
 	
 	
-	if(r.ce.getOperator().isOneOf("M=") && r.rec.isReadPairedFlag() && r.rec.isProperPairFlag())
+	if(r.ce.getOperator().isOneOf("M=") && r.rec.isReadPairedFlag() && r.rec.isProperPairFlag() && !r.rec.hasDiscordantContigs())
 		{
 		var grd=ctx.createLinearGradient(x0,y0,x0,y1);
 		grd.addColorStop(0,"gray");
@@ -194,6 +194,10 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 	else if(r.ce.getOperator().name=="I")
 		{
 		ctx.fillStyle="orange";
+		}
+	else if(r.rec.hasDiscordantContigs())
+		{
+		ctx.fillStyle="blue";
 		}
 	else
 		{

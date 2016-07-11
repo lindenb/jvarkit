@@ -39,7 +39,7 @@ function paintConfigIndex(idx) {
 		    var showplusstrand = document.getElementById("showplusstrand").checked;
 		    var showminusstrand = document.getElementById("showminusstrand").checked;
 		    var hidcigarpurem = document.getElementById("hidcigarpurem").checked;
-		      
+		    var discordantchr = document.getElementById("discordantchr").selectedIndex;
 		    gbrowser.useClip =  document.getElementById("showclip").checked;
 		    gbrowser.expandInsertions =  document.getElementById("expandinsert").checked;
 		    gbrowser.printReadBases =  document.getElementById("showreadbases").checked;
@@ -63,7 +63,12 @@ function paintConfigIndex(idx) {
 				if( !showfailsqc && rec.getReadFailsVendorQualityCheckFlag()) continue;
 				if( !showsupalign && rec.isSupplementaryAlignmentFlag()) continue;
 				if( hidcigarpurem && rec.getCigar().getNumElements()==1  && rec.getCigar().get(0).getOperator().isOneOf("M=")) continue;
-				
+				if(discordantchr>0)
+					{
+					var is_discordant= rec.hasDiscordantContigs();
+					if( is_discordant && discordantchr==1) continue;
+					if( !is_discordant && discordantchr==2) continue;
+					}
 				
 				params.reads.push(rec);
 				}
@@ -115,7 +120,6 @@ function createCheckbox(cb) {
 
 function createTextField(cb) {
 	var div = document.getElementById("flags");
-	if( div == null) { console.log(cb.text+" "+cb.id); return; }
 	var span = document.createElement("span");
 	div.appendChild(span);
 	var e = document.createElement("label");
@@ -128,6 +132,33 @@ function createTextField(cb) {
 	e.setAttribute("id",cb.id);
 	
 	e.setAttribute("value",cb.value);
+	e.addEventListener("change",repaintConfig,false);
+}
+
+
+function createShowHide(cb) {
+	var e,x,opts=["","Hide","Only"]
+	var div = document.getElementById("flags");
+	var span = document.createElement("span");
+	div.appendChild(span);
+	
+	e = document.createElement("label");
+	e.setAttribute("for",cb.id);
+	e.appendChild(document.createTextNode(cb.text+":"));
+	span.appendChild(e);
+	
+	e = document.createElement("select");
+	span.appendChild(e);
+	e.setAttribute("title",cb.text);
+	e.setAttribute("id",cb.id);
+	for(x in opts)
+		{
+		var o = document.createElement("option");
+		e.setAttribute("value",opts[x]);
+		if(x==0) e.setAttribute("selected","true");
+		o.appendChild(document.createTextNode(opts[x]));
+		e.appendChild(o);
+		}
 	e.addEventListener("change",repaintConfig,false);
 }
 
@@ -152,6 +183,7 @@ function init()
 	createCheckbox({"id":"showreadbases","text":"Show Read Bases","checked":true});
 	createCheckbox({"id":"hidcigarpurem","text":"Hide pure align","checked":false});
 	createCheckbox({"id":"printreadname","text":"Print Read Name","checked":false});
+	createShowHide({"id":"discordantchr","text":"Discordant Contigs"});
 	
 	
 	createTextField({"id":"mapq","text":"Min Mapq","value":0});

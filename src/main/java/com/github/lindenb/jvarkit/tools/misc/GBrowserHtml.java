@@ -80,7 +80,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			final SamJsonWriterFactory samJsonWriterFactory=SamJsonWriterFactory.newInstance().
 					printHeader(false).
 					printAttributes(false).
-					printMate(false).
+					printMate(true).
 					closeStreamAtEnd(false)
 					;
 			if(super.getOutputFile()!=null)

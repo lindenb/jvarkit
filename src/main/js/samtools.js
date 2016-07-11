@@ -256,9 +256,10 @@ function SamRecord()
 	this.alignEnd = null;
 	this.sequence = SamRecord.NULL_SEQUENCE_STRING;
 	this.qualities = null;
-	this.mateContig = null ;
-	this.matePos = SamRecord.NO_ALIGNMENT_START ;
-
+	this.mMateReferenceName = null ;
+	this.mMateAlignmentStart = SamRecord.NO_ALIGNMENT_START ;
+	this.mInferredInsertSize = 0;
+	
 	if(arguments.length == 1)
 		{
 		var read = arguments[0];
@@ -270,6 +271,9 @@ function SamRecord()
 		if("sequence" in read) this.sequence = read.sequence;
 		if("qualities" in read) this.qualities = read.qualities;
 		if("cigar" in read) this.cigarStr = read.cigar;
+		if("materef" in read) this.mMateReferenceName = read.materef;
+		if("matepos" in read) this.mMateAlignmentStart = read.matepos;
+		if("len" in read) this.mInferredInsertSize = read.len;
 		}
 
 	};
@@ -325,26 +329,26 @@ SamRecord.prototype.getReferenceName=function()
 
 SamRecord.prototype.setMateReferenceName=function(c)
 		{
-		this.mateContig = c;
+		this.mMateReferenceName = c;
 		return this;
 		};
 
 
 SamRecord.prototype.getMateReferenceName=function()
 		{
-		return this.mateContig;
+		return this.mMateReferenceName;
 		};
 
 SamRecord.prototype.setMateAlignmentStart=function(c)
 		{
-		this.matePos = c;
+		this.mMateAlignmentStart = c;
 		return this;
 		};
 
 
 SamRecord.prototype.getMateAlignmentStart=function()
 		{
-		return this.matePos;
+		return this.mMateAlignmentStart;
 		};
 
 
@@ -408,10 +412,15 @@ SamRecord.prototype.getReadUnmappedFlag=function()
 	return this.isReadUnmappedFlag();
 	};
 
-SamRecord.prototype.getMateUnmappedFlag=function()
+SamRecord.prototype.isMateUnmappedFlag=function()
 	{
 	if(!this.getReadPairedFlag() ) return false;
 	return   this.isFlagSet(0x8);
+	};
+
+SamRecord.prototype.getMateUnmappedFlag=function()
+	{
+	return   this.isMateUnmappedFlag();
 	};
 
 SamRecord.prototype.isReadNegativeStrandFlag=function()
@@ -547,6 +556,25 @@ SamRecord.prototype.getBaseAt  = function(idx)
     return s.charAt(idx);
 	};
 
+SamRecord.prototype.setInferredInsertSize = function(v) {
+		this.mInferredInsertSize = v;
+        return this;
+    };
+
+SamRecord.prototype.getInferredInsertSize = function() {
+        return this.mInferredInsertSize;
+    };
+
+SamRecord.prototype.hasDiscordantContigs = function() {
+	return this.isReadPairedFlag() &&
+		!this.isReadUnmappedFlag() && 
+		!this.isMateUnmappedFlag() &&
+		this.mMateReferenceName !=null &&
+		this.contig !=null && 
+		this.getReferenceName() != this.getMateReferenceName()
+		;
+	}   
+   
 /*
 var x = new SamRecord({"name":"HWI-1KL149:110:C8HU4ACXX:8:1216:15251:82595","flag":83,"ref":"1","pos":1647920,"mapq":60,"cigar":"49S2M49S","len":-153,"materef":"1","matepos":1647865,"sequence":"AATGAGAAATAAAGTGTCATGCAAAGAAACCTCACTTCAAAAATTTCACATGAAGCCGGGCACGGAGGCTTATGCCTGTAATCCTAGCACTTTGGGAGGC","qualities":"CBBEGFGGGFGGIHGHFIGHIIGGFGFFEFGEHDGEDGDDDDEDDDFBFEEEDEECBCCDEBABDDBDECCDDDBEDDCCDCBECDDFAFEEEFECC?BB"});
 print(x.getCigar());
