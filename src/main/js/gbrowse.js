@@ -31,8 +31,6 @@ function GenomeBrowser()
 	this.featureHeight=20;
 	this.chromStart=0;
 	this.chromEnd=0;
-	this.bamFile='rf.bam';
-	this.refFile='rf.fa';
 	this.minHDistance=5;
 	this.spaceYbetweenFeatures=2;
 	this.minArrowWidth=2;
@@ -179,13 +177,20 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 	
 	
 	
-	if(r.ce.getOperator().isOneOf("M=") && r.rec.isReadPairedFlag() && r.rec.isProperPairFlag() && !r.rec.hasDiscordantContigs())
+	if(r.ce.getOperator().isOneOf("M=") &&
+			r.rec.isReadPairedFlag() &&
+			r.rec.isProperPairFlag() && 
+			!r.rec.hasDiscordantContigs() &&
+			!r.rec.isNotPrimaryAlignmentFlag() &&
+			!r.rec.isSupplementaryAlignmentFlag()
+			)
 		{
 		var grd=ctx.createLinearGradient(x0,y0,x0,y1);
 		grd.addColorStop(0,"gray");
 		grd.addColorStop(0.5,"white");
 		grd.addColorStop(1.0,"gray");
 		ctx.fillStyle=grd;
+		
 		}
 	else if(r.ce.getOperator().name=="S")
 		{
