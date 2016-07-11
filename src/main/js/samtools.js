@@ -441,9 +441,12 @@ SamRecord.prototype.isReadPositiveStrandFlag=function()
 
 SamRecord.prototype.getNotPrimaryAlignmentFlag=function()
 	{
+	return this.isNotPrimaryAlignmentFlag();
+	};
+SamRecord.prototype.isNotPrimaryAlignmentFlag=function()
+	{
 	return this.isFlagSet(0x100);
 	};
-
 
 SamRecord.prototype.isSupplementaryAlignmentFlag=function()
 	{

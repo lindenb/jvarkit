@@ -28,17 +28,19 @@ function paintConfigIndex(idx) {
 		    	{
 		    	document.getElementById("browserTitle").innerHTML = params.interval.toString();
 		    	}
-		    var showdup = document.getElementById("showdup").checked;
-		    var shownonproperpair = document.getElementById("shownonproperpair").checked;
-		    var hidefirstinpair = document.getElementById("hidefirstinpair").checked;
-		    var hidesecondinpair = document.getElementById("hidesecondinpair").checked;
-		    var secondaryalign = document.getElementById("secondaryalign").checked;
-		    var showfailsqc = document.getElementById("showfailsqc").checked;
-		    var showsupalign = document.getElementById("showsupalign").checked;
+		    var HIDE=1;
+		    var ONLY=2;
+		    var duplicate = document.getElementById("duplicate").selectedIndex;
+		    var shownonproperpair = document.getElementById("shownonproperpair").selectedIndex;
+		    var firstinpair = document.getElementById("firstinpair").selectedIndex;
+		    var secondinpair = document.getElementById("secondinpair").selectedIndex;
+		    var secondaryalign = document.getElementById("secondaryalign").selectedIndex;
+		    var failsqc = document.getElementById("failsqc").selectedIndex;
+		    var supalign = document.getElementById("supalign").selectedIndex;
 		    var minmapq = parseInt(document.getElementById("mapq").value);
-		    var showplusstrand = document.getElementById("showplusstrand").checked;
-		    var showminusstrand = document.getElementById("showminusstrand").checked;
-		    var hidcigarpurem = document.getElementById("hidcigarpurem").checked;
+		    var plusstrand = document.getElementById("plusstrand").selectedIndex;
+		    var minusstrand = document.getElementById("minusstrand").selectedIndex;
+		    var cigarpurem = document.getElementById("cigarpurem").selectedIndex;
 		    var discordantchr = document.getElementById("discordantchr").selectedIndex;
 		    gbrowser.useClip =  document.getElementById("showclip").checked;
 		    gbrowser.expandInsertions =  document.getElementById("expandinsert").checked;
@@ -51,23 +53,69 @@ function paintConfigIndex(idx) {
 				if( rec.isReadUnmappedFlag()) continue;
 				
 				if( rec.getMappingQuality() < minmapq)  continue;
-				if( !showplusstrand && rec.isReadPositiveStrandFlag()) continue;
-				if( !showminusstrand && rec.isReadNegativeStrandFlag()) continue;
 				
-				if( !showdup && rec.getDuplicateReadFlag()) continue;
+				if(plusstrand>0) {
+					if( plusstrand==HIDE && !rec.isReadPositiveStrandFlag()) continue;
+					if( plusstrand==ONLY && rec.isReadPositiveStrandFlag()) continue;
+				}
 				
-				if( !shownonproperpair && !rec.isProperPairFlag()) continue;
+				if(minusstrand>0) {
+					if( minusstrand==HIDE && !rec.isReadNegativeStrandFlag()) continue;
+					if( minusstrand==ONLY && rec.isReadNegativeStrandFlag()) continue;
+					}
 				
-				if( hidefirstinpair && rec.getFirstInPairFlag()) continue;
-				if( hidesecondinpair && rec.getSecondInPairFlag()) continue;
-				if( !showfailsqc && rec.getReadFailsVendorQualityCheckFlag()) continue;
-				if( !showsupalign && rec.isSupplementaryAlignmentFlag()) continue;
-				if( hidcigarpurem && rec.getCigar().getNumElements()==1  && rec.getCigar().get(0).getOperator().isOneOf("M=")) continue;
+				if( duplicate > 0 )
+					{
+					if( duplicate==HIDE && rec.getDuplicateReadFlag()) continue;
+					if( duplicate==ONLY && !rec.getDuplicateReadFlag()) continue;
+					}
+				
+				if( shownonproperpair > 0)
+					{
+					if( shownonproperpair==HIDE && !rec.isProperPairFlag()) continue;
+					if( shownonproperpair==ONLY &&  rec.isProperPairFlag()) continue;
+					}
+				
+				if( secondaryalign > 0)
+					{
+					if( secondaryalign==HIDE && rec.isNotPrimaryAlignmentFlag()) continue;
+					if( secondaryalign==ONLY && !rec.isNotPrimaryAlignmentFlag()) continue;
+					}
+				
+				if( failsqc > 0)
+					{
+					if( failsqc ==HIDE && rec.getReadFailsVendorQualityCheckFlag()) continue;
+					if( failsqc ==ONLY && !rec.getReadFailsVendorQualityCheckFlag()) continue;
+					}
+				
+				if( firstinpair > 0)
+					{
+					if( firstinpair ==HIDE && rec.getFirstInPairFlag()) continue;
+					if( firstinpair ==ONLY && !rec.getFirstInPairFlag()) continue;
+					}
+				
+				if( secondinpair > 0)
+					{
+					if( secondinpair ==HIDE && rec.getSecondInPairFlag()) continue;
+					if( secondinpair ==ONLY && !rec.getSecondInPairFlag()) continue;
+					}
+				if( supalign > 0 )
+					{
+					if( supalign ==HIDE && rec.isSupplementaryAlignmentFlag()) continue;
+					if( supalign ==ONLY && !rec.isSupplementaryAlignmentFlag()) continue;
+					}
+				if( cigarpurem > 0 )
+					{
+					var is_cigarpurem = rec.getCigar().getNumElements()==1  && rec.getCigar().get(0).getOperator().isOneOf("M=");
+					if( cigarpurem == HIDE && is_cigarpurem) continue;
+					if( cigarpurem == ONLY && !is_cigarpurem) continue;
+					}
+					
 				if(discordantchr>0)
 					{
 					var is_discordant= rec.hasDiscordantContigs();
-					if( is_discordant && discordantchr==1) continue;
-					if( !is_discordant && discordantchr==2) continue;
+					if( is_discordant && discordantchr==HIDE) continue;
+					if( !is_discordant && discordantchr==ONLY) continue;
 					}
 				
 				params.reads.push(rec);
@@ -137,15 +185,10 @@ function createTextField(cb) {
 
 
 function createShowHide(cb) {
-	var e,x,opts=["","Hide","Only"]
+	var e,x,opts=["*","Hide","Only"]
 	var div = document.getElementById("flags");
 	var span = document.createElement("span");
 	div.appendChild(span);
-	
-	e = document.createElement("label");
-	e.setAttribute("for",cb.id);
-	e.appendChild(document.createTextNode(cb.text+":"));
-	span.appendChild(e);
 	
 	e = document.createElement("select");
 	span.appendChild(e);
@@ -154,36 +197,38 @@ function createShowHide(cb) {
 	for(x in opts)
 		{
 		var o = document.createElement("option");
-		e.setAttribute("value",opts[x]);
-		if(x==0) e.setAttribute("selected","true");
-		o.appendChild(document.createTextNode(opts[x]));
+		o.setAttribute("value",opts[x]);
+		if( (("index" in cb) && cb.index == x ) || (!("index" in cb) && x==0)) {
+			o.setAttribute("selected","true");
+			}
+		o.appendChild(document.createTextNode(opts[x]+" "+cb.text));
 		e.appendChild(o);
 		}
 	e.addEventListener("change",repaintConfig,false);
-}
+	}
 
 function init()
 	{
 	if( document.getElementById("flags")==null) console.log("BOUUUMMMM");
 	
-	createCheckbox({"id":"shownonproperpair","text":"Show non Proper-Pairs","checked":false});
-	createCheckbox({"id":"hidefirstinpair","text":"Hide First In Pair","checked":false});
-	createCheckbox({"id":"hidesecondinpair","text":"Hide Second In Pair","checked":false});
-	createCheckbox({"id":"secondaryalign","text":"Not primary alignment","checked":false});
-	createCheckbox({"id":"showfailsqc","text":"Show Fails Quality Check","checked":false});
-	createCheckbox({"id":"showdup","text":"Show Duplicates","checked":false});
-	createCheckbox({"id":"showsupalign","text":"Show Supplementary Align","checked":false});
-	createCheckbox({"id":"showplusstrand","text":"Show Strand +","checked":true});
-	createCheckbox({"id":"showminusstrand","text":"Show Strand -","checked":true});
+	createShowHide({"id":"shownonproperpair","text":"Non Proper-Pairs","index":1});
+	createShowHide({"id":"firstinpair","text":"First In Pair","index":0});
+	createShowHide({"id":"secondinpair","text":"Second In Pair","index":0});
+	createShowHide({"id":"secondaryalign","text":"Not primary alignment","index":1});
+	createShowHide({"id":"failsqc","text":"Fails Quality Check","index":1});
+	createShowHide({"id":"duplicate","text":"Duplicates","index":1});
+	createShowHide({"id":"supalign","text":"Supplementary Align","index":1});
+	createShowHide({"id":"plusstrand","text":"Strand (+)","index":0});
+	createShowHide({"id":"minusstrand","text":"Strand (-)","index":0});
 	//
 	createCheckbox({"id":"showclip","text":"Show Clipped Regions","checked":false});
 	createCheckbox({"id":"expandinsert","text":"Expand Insertion","checked":false});
 	createCheckbox({"id":"expandeletion","text":"Expand Deletions","checked":true});
 	
 	createCheckbox({"id":"showreadbases","text":"Show Read Bases","checked":true});
-	createCheckbox({"id":"hidcigarpurem","text":"Hide pure align","checked":false});
+	createShowHide({"id":"cigarpurem","text":"Hide pure align","index":0});
 	createCheckbox({"id":"printreadname","text":"Print Read Name","checked":false});
-	createShowHide({"id":"discordantchr","text":"Discordant Contigs"});
+	createShowHide({"id":"discordantchr","text":"Discordant Contigs","index":1});
 	
 	
 	createTextField({"id":"mapq","text":"Min Mapq","value":0});
