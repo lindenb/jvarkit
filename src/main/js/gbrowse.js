@@ -122,8 +122,8 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 	var x0 = this.baseToPixel(r.refpos);
 	var x1 = this.baseToPixel(r.next_refpos);
 	var y0 = r.y;
-	var y1 = y0 + this.featureHeight;
-	var midY= y0 + this.featureHeight/2.0;
+	var y1 = y0 + this.featureHeight-2;
+	var midY= y0 + (this.featureHeight-2)/2.0;
 	
 	if(r.ce.getOperator().isOneOf("DN"))
 		{
@@ -177,16 +177,15 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 		}
 	ctx.closePath();
 	
+	
+	
 	if(r.ce.getOperator().isOneOf("M=") && r.rec.isReadPairedFlag() && r.rec.isProperPairFlag())
 		{
 		var grd=ctx.createLinearGradient(x0,y0,x0,y1);
 		grd.addColorStop(0,"gray");
 		grd.addColorStop(0.5,"white");
 		grd.addColorStop(1.0,"gray");
-
 		ctx.fillStyle=grd;
-		
-
 		}
 	else if(r.ce.getOperator().name=="S")
 		{
@@ -200,19 +199,17 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 		{
 		ctx.fillStyle="white";
 		}
-
-	ctx.fill();
-
-
-	ctx.strokeStyle="gray";
+	
+	
 	ctx.lineWidth=1;
+	ctx.strokeStyle="black";
 	if(r.ce.getOperator().isOneOf("IDN"))
 		{
 		ctx.strokeStyle="red";
 		ctx.lineWidth=5;
 		}
 	
-	ctx.strokeStyle=this.getReadColor(r.rec);
+	ctx.fill();
 	ctx.stroke();
 	
 	
@@ -220,11 +217,14 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 					 ( r.ce.getOperator().isOneOf("X=MS") || (r.ce.getOperator().name == 'I' && this.expandInsertions));
 			
 	ctx.lineWidth=1;
-	//ctx.save();
-	//ctx.clip();
+	ctx.save();
+	ctx.clip();
 	
 		
 		for(var x=0 ; x < r.ce.getLength();++x) {
+			if( r.refpos + x < this.interval.start) continue;
+			if( r.refpos + x > this.interval.end) break;
+		
 			var c1 =r.rec.getBaseAt(r.readpos + x );
 			var c2=  this.genomicSequence.charAt1(r.refpos + x);
 			if(r.ce.getOperator().name == 'X' || (c1!='N' && c1!='n' && c2!='N' && c2!='n'  && c1.toUpperCase()!=c2.toUpperCase()))
@@ -260,7 +260,7 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 			ctx.stroke();
 			}
 		
-	//ctx.restore();
+	ctx.restore();
 	}
 
 GenomeBrowser.prototype.paint=function(params)
