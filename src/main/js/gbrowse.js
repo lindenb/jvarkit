@@ -26,6 +26,7 @@ SOFTWARE.
 function Consensus()
 	{
 	this.depth=0;
+	this.total=0;
 	this.bases={};
 	}
 Consensus.prototype.watch = function(base) {
@@ -36,8 +37,10 @@ Consensus.prototype.watch = function(base) {
 		{
 		this.bases[base]++;
 		}
-	this.depth++;
-	}
+	this.total++;
+	if(base!='-') this.depth++;
+	};
+	
 
 
 function GenomeBrowser()
@@ -241,6 +244,16 @@ GenomeBrowser.prototype.paintCigarComponent = function(ctx,r) {
 	
 	ctx.fill();
 	ctx.stroke();
+	
+	/* update consensus for deletions */
+	if(r.ce.getOperator().isOneOf("DN"))
+		{
+		for(var x=0 ; x < r.ce.getLength();++x) {
+			if( r.refpos + x < this.interval.start) continue;
+			if( r.refpos + x > this.interval.end) break;
+			this.consensus(r.refpos+x,'-');
+			}
+		}
 	
 	
 	var printBases = this.printReadBases && mutW>=this.minFontSize && r.readpos < r.next_readpos &&
@@ -600,6 +613,13 @@ GenomeBrowser.prototype.paint=function(params)
 				{
 				cigarcomponents[ cigarcomponents.length-1 ].arrow = 1;
 				}
+			//sort so, deletion are sorted first
+			cigarcomponents.sort( function(r1, r2) {
+				var i1=(r1.ce.hasOperatorIn("DN")?0:1);
+				var i2=(r2.ce.hasOperatorIn("DN")?0:1);
+				return i1-i2;
+				});
+			
 			for(cigarindex in cigarcomponents)
 				{
 				this.paintCigarComponent(ctx,cigarcomponents[cigarindex]);
@@ -608,23 +628,39 @@ GenomeBrowser.prototype.paint=function(params)
 		y+=this.featureHeight+this.spaceYbetweenFeatures;
 		}
 	
+	y= margin_top;
 	for(var x= this.interval.start;
 		x<=  this.interval.end;
 		++x)
 		{
-		var x0 = this.baseToPixel(x);
+		var base,c,w,x0 = this.baseToPixel(x);
 		var oneBaseWidth = this.baseToPixel(x+1)-x0;
 		if( oneBaseWidth < this.minFontSize ) break;
 		var xstr = ""+x;
 		if(!(xstr in this.base2consensus)) continue;
-		var c= this.base2consensus[xstr].consensus();
-		
-		//todo
+		var c= this.base2consensus[xstr];
+		x0++;
+		//loop over bases
+		for(base in c.bases)
+			{
+			w = (c.bases[base]/(1.0*c.total))*(oneBaseWidth-2);
+			ctx.strokeStyle= this.base2color(base) ;
+			ctx.beginPath();
+			this.hershey.paint(ctx,
+					base,
+					x0,
+					y,
+					w, oneBaseWidth-2
+					);
+			ctx.stroke();
+			x0+=w;
+			}
+	
 		}
 		
 		
 	/* draw coverage */
-	ctx.beginPath();
+	
 	var maxdepth = 0.0;
 	for(var x in this.base2consensus) {
 		maxdepth= Math.max( maxdepth, this.base2consensus[x].depth );
@@ -632,24 +668,31 @@ GenomeBrowser.prototype.paint=function(params)
 	
 	y= margin_top+ this.spaceYbetweenFeatures + this.coverageHeight + this.consensusHeight;
 	
-	ctx.moveTo(0,y);
+	ctx.fillStyle="gray";
+	ctx.strokeStyle="lightgray";
 	for(var x= this.interval.start;
 		maxdepth>0 && x<=  this.interval.end;
 		++x)
 		{
 		var xstr= ""+x;
 		var dp = ((( xstr in this.base2consensus ?this.base2consensus[xstr].depth : 0.0)*1.0 )/ maxdepth)*this.coverageHeight;
-		ctx.lineTo(  this.baseToPixel(x),y);
-		ctx.lineTo(  this.baseToPixel(x), y-dp);
-		ctx.lineTo(  this.baseToPixel(x+1), y-dp);
-		ctx.lineTo(  this.baseToPixel(x+1), y);
+		
+		var x0 = this.baseToPixel(x);
+		var x1 = this.baseToPixel(x+1);
+		if( (x1-x0) < this.minFontSize ) break;
+		ctx.beginPath();
+		ctx.moveTo(0,y);
+		ctx.lineTo(  x0,y);
+		ctx.lineTo(  x0, y-dp);
+		ctx.lineTo(  x1, y-dp);
+		ctx.lineTo(  x1, y);
+		ctx.closePath();
+		ctx.fill();
+		ctx.stroke();
 		}
 	
-	ctx.fillStyle="gray";
-	ctx.strokeStyle="lightgray";
-	ctx.closePath();
-	ctx.fill();
-	ctx.stroke();
+	
+	
 	ctx.fillStyle="black";
 	ctx.font = "12px serif";
 	ctx.fillText("Max Depth:"+maxdepth, 10, y-12);

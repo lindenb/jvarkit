@@ -41,7 +41,7 @@ function paintConfigIndex(idx) {
 		    var minmapq = parseInt(document.getElementById("mapq").value);
 		    var plusstrand = document.getElementById("plusstrand").selectedIndex;
 		    var minusstrand = document.getElementById("minusstrand").selectedIndex;
-		    var cigarpurem = document.getElementById("cigarpurem").selectedIndex;
+		    var cigarregex = document.getElementById("cigarregex").value.trim(); cigarregex=(cigarregex==""?null:new RegExp(cigarregex));
 		    var discordantchr = document.getElementById("discordantchr").selectedIndex;
 		    gbrowser.useClip =  document.getElementById("showclip").checked;
 		    gbrowser.expandInsertions =  document.getElementById("expandinsert").checked;
@@ -119,11 +119,9 @@ function paintConfigIndex(idx) {
 					if( supalign ==HIDE && rec.isSupplementaryAlignmentFlag()) continue;
 					if( supalign ==ONLY && !rec.isSupplementaryAlignmentFlag()) continue;
 					}
-				if( cigarpurem > 0 )
+				if( cigarregex !=null && rec.getCigarString().search(cigarregex)==-1)
 					{
-					var is_cigarpurem = rec.getCigar().getNumElements()==1  && rec.getCigar().get(0).getOperator().isOneOf("M=");
-					if( cigarpurem == HIDE && is_cigarpurem) continue;
-					if( cigarpurem == ONLY && !is_cigarpurem) continue;
+					continue;
 					}
 					
 				if(discordantchr>0)
@@ -241,7 +239,7 @@ function init()
 	createCheckbox({"id":"expandeletion","text":"Expand Deletions","checked":true});
 	
 	createCheckbox({"id":"showreadbases","text":"Show Read Bases","checked":true});
-	createShowHide({"id":"cigarpurem","text":"Hide pure align","index":0});
+	createTextField({"id":"cigarregex","text":"Cigar Regex","value":""});
 	createCheckbox({"id":"printreadname","text":"Print Read Name","checked":false});
 	createShowHide({"id":"discordantchr","text":"Discordant Contigs","index":1});
 	
