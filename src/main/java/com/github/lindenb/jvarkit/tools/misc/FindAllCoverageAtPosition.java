@@ -36,7 +36,9 @@ import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -54,25 +56,48 @@ import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 
 public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 	{
-	
 	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(FindAllCoverageAtPosition.class);
-
 	private static final char INSERTION_CHAR='^';
 	private static final char DELETION_CHAR='-';
 	private static final char BASES_To_PRINT[]=new char[]{'A','C','G','T','N',INSERTION_CHAR,DELETION_CHAR};
 
 	
-	private static class Mutation
+	private static class Mutation implements Comparable<Mutation>
 		{
-		String chrom;
-		int pos;
+		final String chrom;
+		final int pos;
+		Mutation(final String s) {
+			int colon=s.indexOf(':');
+			if(colon==-1 || colon+1==s.length())
+				{
+				throw new IllegalArgumentException("Bad chrom:pos "+s);
+				}
+			
+			this.chrom=s.substring(0,colon).trim();
+			if(chrom.isEmpty())
+				{
+				throw new IllegalArgumentException("Bad chrom:pos "+s);
+				}
+			this.pos=Integer.parseInt(s.substring(colon+1));
+			}
+		
 		Mutation(String chrom,int pos)
 			{
 			this.chrom=chrom;
 			this.pos=pos;
+			}
+		
+		@Override
+		public int compareTo(Mutation o) {
+			int i=this.chrom.compareTo(o.chrom);
+			if(i!=0) return i;
+			i=this.pos-o.pos;
+			return i;
 			}
 		
 		@Override
@@ -106,8 +131,6 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 		Counter<CigarOperator> operators = new Counter<>();
 		Counter<Character> bases = new Counter<>();
 		}
-	
-	private Mutation mutation=null;
 	private PrintWriter out=null;
 	private SamReaderFactory samReaderFactory;
     public FindAllCoverageAtPosition()
@@ -115,7 +138,7 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
     	samReaderFactory=  SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
     	}		
     
-    private Mutation convertFromSamHeader(File f,SAMFileHeader h)
+    private Mutation convertFromSamHeader(File f,SAMFileHeader h,final Mutation src)
     	{
     	SAMSequenceDictionary dict=h.getSequenceDictionary();
     	if(dict==null)
@@ -123,32 +146,32 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
     		LOG.warn("No dictionary in "+h);
     		return null;
     		}
-    	SAMSequenceRecord rec=dict.getSequence(this.mutation.chrom);
-    	if(rec!=null) return this.mutation;
-    	String chromName=this.mutation.chrom;
+    	SAMSequenceRecord rec=dict.getSequence(src.chrom);
+    	if(rec!=null) return src;
+    	String chromName=src.chrom;
 		if(chromName.startsWith("chr"))
 			{
 			rec=dict.getSequence(chromName.substring(3));
-			if(rec!=null) return new Mutation(rec.getSequenceName(),this.mutation.pos);
+			if(rec!=null) return new Mutation(rec.getSequenceName(),src.pos);
 			}
 		else
 			{
 			rec=dict.getSequence("chr"+chromName);
-			if(rec!=null) return new Mutation(rec.getSequenceName(),this.mutation.pos);
+			if(rec!=null) return new Mutation(rec.getSequenceName(),src.pos);
 			}
 	
 		if(chromName.equals("MT") &&  dict.getSequence("chrM")!=null)
 			{
-			return new Mutation("chrM",this.mutation.pos);
+			return new Mutation("chrM",src.pos);
 			}
 		if(chromName.equals("chrM") &&  dict.getSequence("MT")!=null)
 			{
-			return new Mutation("MT",this.mutation.pos);
+			return new Mutation("MT",src.pos);
 			}
     	return null;
     	}
 
-    private void scan(final BufferedReader in) throws Exception
+    private void scan(final BufferedReader in,final Set<Mutation> mutations) throws Exception
     	{
 
     	final String DEFAULT_SAMPLE_NAME="(undefined)";
@@ -175,138 +198,145 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 					continue;
 					}
 				final SAMFileHeader header=samReader.getFileHeader();
-				final Map<String, CigarAndBases> sample2count=new TreeMap<String,CigarAndBases>();
-				for(SAMReadGroupRecord rg:header.getReadGroups())
+				for(final Mutation src:mutations)
 					{
-					if(rg!=null)
+					final Map<String, CigarAndBases> sample2count=new TreeMap<String,CigarAndBases>();
+					for(SAMReadGroupRecord rg:header.getReadGroups())
 						{
-						String sn= rg.getSample();
-						if(sn!=null && !sn.trim().isEmpty())
+						if(rg!=null)
 							{
-							sample2count.put(sn, new CigarAndBases());
-							}
-						}
-					}
-				
-				if(sample2count.isEmpty())
-					{
-					sample2count.put(DEFAULT_SAMPLE_NAME, new CigarAndBases());
-					}
-				
-				Mutation m = convertFromSamHeader(f,header);
-				if(m==null) continue;
-				iter=samReader.query(m.chrom, m.pos-1, m.pos+1,	false);
-				while(iter.hasNext())
-					{
-					SAMRecord rec=iter.next();
-					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-					if(rec.getNotPrimaryAlignmentFlag()) continue;
-					if(rec.isSecondaryOrSupplementary()) continue;
-					if(rec.getDuplicateReadFlag()) continue;
-					final Cigar cigar=rec.getCigar();
-					if(cigar==null) continue;
-					final String readString = rec.getReadString().toUpperCase();
-					String sampleName=DEFAULT_SAMPLE_NAME;
-					SAMReadGroupRecord rg=rec.getReadGroup();
-					if(rg!=null)
-						{
-						String sn= rg.getSample();
-						if(sn!=null && !sn.trim().isEmpty())
-							{
-							sampleName=sn;
-							}
-						}
-					CigarAndBases counter= sample2count.get(sampleName);
-					if(counter==null)
-						{
-						counter=new CigarAndBases();
-						sample2count.put(sampleName, counter);
-						}	
-					
-					
-					int ref= rec.getUnclippedStart();
-					int readPos = 0;
-					for(int k=0;k<cigar.numCigarElements() && ref< m.pos+1;++k)
-						{
-						CigarElement ce=cigar.getCigarElement(k);
-						CigarOperator op=ce.getOperator();
-						switch(op)
-							{
-							case P: break;
-							case I: 
+							String sn= rg.getSample();
+							if(sn!=null && !sn.trim().isEmpty())
 								{
-								if(ref==m.pos)
-									{
-									counter.operators.incr(op);
-									counter.bases.incr(readString.charAt(INSERTION_CHAR));
-									}
-								readPos += ce.getLength();
-								break;
+								sample2count.put(sn, new CigarAndBases());
 								}
-							case D:case N:
-							case M: case X: case EQ: 
-							case H:
-							case S:
+							}
+						}
+					
+					if(sample2count.isEmpty())
+						{
+						sample2count.put(DEFAULT_SAMPLE_NAME, new CigarAndBases());
+						}
+
+					
+					
+					final Mutation m = convertFromSamHeader(f,header,src);
+					if(m==null) continue;
+					iter=samReader.query(m.chrom, m.pos-1, m.pos+1,	false);
+					while(iter.hasNext())
+						{
+						final SAMRecord rec=iter.next();
+						if(rec.getReadUnmappedFlag()) continue;
+						if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+						if(rec.getNotPrimaryAlignmentFlag()) continue;
+						if(rec.isSecondaryOrSupplementary()) continue;
+						if(rec.getDuplicateReadFlag()) continue;
+						final Cigar cigar=rec.getCigar();
+						if(cigar==null) continue;
+						final String readString = rec.getReadString().toUpperCase();
+						String sampleName=DEFAULT_SAMPLE_NAME;
+						final SAMReadGroupRecord rg=rec.getReadGroup();
+						if(rg!=null)
+							{
+							String sn= rg.getSample();
+							if(sn!=null && !sn.trim().isEmpty())
 								{
-								for(int i=0;i< ce.getLength();++i )
+								sampleName=sn;
+								}
+							}
+						CigarAndBases counter= sample2count.get(sampleName);
+						if(counter==null)
+							{
+							counter=new CigarAndBases();
+							sample2count.put(sampleName, counter);
+							}	
+						
+						
+						int ref= rec.getUnclippedStart();
+						int readPos = 0;
+						for(int k=0;k<cigar.numCigarElements() && ref< m.pos+1;++k)
+							{
+							CigarElement ce=cigar.getCigarElement(k);
+							CigarOperator op=ce.getOperator();
+							switch(op)
+								{
+								case P: break;
+								case I: 
 									{
 									if(ref==m.pos)
 										{
 										counter.operators.incr(op);
-										switch(op)
-											{
-											case M:case X:case EQ:
-												counter.bases.incr(readString.charAt(readPos));
-												break;
-											case D:case N:
-												counter.bases.incr(DELETION_CHAR);
-												break;
-											default:break;
-											}
-										break;
-										}	
-									if(op.consumesReadBases()) ++readPos;
-									ref++;
+										counter.bases.incr(INSERTION_CHAR);
+										}
+									readPos += ce.getLength();
+									break;
 									}
-								break;
+								case D:case N:
+								case M: case X: case EQ: 
+								case H:
+								case S:
+									{
+									for(int i=0;i< ce.getLength();++i )
+										{
+										if(ref==m.pos)
+											{
+											counter.operators.incr(op);
+											switch(op)
+												{
+												case M:case X:case EQ:
+													counter.bases.incr(readString.charAt(readPos));
+													break;
+												case D:case N:
+													counter.bases.incr(DELETION_CHAR);
+													break;
+												default:break;
+												}
+											break;
+											}	
+										if(op.consumesReadBases()) ++readPos;
+										ref++;
+										}
+									break;
+									}
+								default: throw new RuntimeException("unknown operator:"+op);
 								}
-							default: throw new RuntimeException("unknown operator:"+op);
 							}
 						}
-					}
-				
-				
-				for(final String sample:sample2count.keySet())
-					{
-					final CigarAndBases counter= sample2count.get(sample);
+					iter.close();
+					iter=null;
+						
 					
-					out.print(f);
-					out.print('\t');
-					out.print(m.chrom);
-					out.print('\t');
-					out.print(m.pos);
-					out.print('\t');
-					out.print(sample);
-					out.print('\t');
-					out.print(
-							counter.operators.count(CigarOperator.M)+
-							counter.operators.count(CigarOperator.EQ)+
-							counter.operators.count(CigarOperator.X)
-							);
-					for(CigarOperator op:CigarOperator.values())
+					for(final String sample:sample2count.keySet())
 						{
+						final CigarAndBases counter= sample2count.get(sample);
+						
+						out.print(f);
 						out.print('\t');
-						out.print(counter.operators.count(op));
-						}
-					for(char c:BASES_To_PRINT)
-						{
+						out.print(m.chrom);
 						out.print('\t');
-						out.print(counter.bases.count(c));
+						out.print(m.pos);
+						out.print('\t');
+						out.print(sample);
+						out.print('\t');
+						out.print(
+								counter.operators.count(CigarOperator.M)+
+								counter.operators.count(CigarOperator.EQ)+
+								counter.operators.count(CigarOperator.X)
+								);
+						for(CigarOperator op:CigarOperator.values())
+							{
+							out.print('\t');
+							out.print(counter.operators.count(op));
+							}
+						for(char c:BASES_To_PRINT)
+							{
+							out.print('\t');
+							out.print(counter.bases.count(c));
+							}
+						
+						out.println();
 						}
-					
-					out.println();
-					}
+					}//end of loop over mutations
 				}
 			catch(Exception err)
 				{
@@ -330,31 +360,55 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 	@Override
 	public Collection<Throwable> call() throws Exception
 		{
-		final String s = getPositionStr();
-		if(s==null || s.trim().isEmpty())
-			{
-			return wrapException("undefined position \'str\'");
-			}
-		
-		int colon=s.indexOf(':');
-		if(colon==-1 || colon+1==s.length())
-			{
-			return wrapException("Bad chrom:pos "+s);
-			}
-		
-		String chrom=s.substring(0,colon).trim();
-		if(chrom.isEmpty())
-			{
-			return wrapException("Bad chrom:pos "+s);
-			}
-		Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
-		LOG.info("adding "+m);
-		this.mutation = m;
+		final String positionStr = getPositionStr();
+		final File positionFile = getPositionFile();
+		final Set<Mutation> mutations=new TreeSet<>();
+
 		
 		final List<String> args = getInputFiles();
 		BufferedReader r = null;
 		try
 			{
+			for(final String s:positionStr.split("[  ]"))
+				{
+				if(s.trim().isEmpty()) continue;
+				mutations.add(new Mutation(s));
+				}
+			if(positionFile!=null) {
+				String line;
+				r= IOUtils.openFileForBufferedReading(positionFile);
+				if(positionFile.getName().endsWith(".bed")) {
+					final BedLineCodec codec = new BedLineCodec();
+					while((line=r.readLine())!=null) {
+						final BedLine bedLine =codec.decode(line);
+						if(bedLine==null) continue;
+						for(int x=bedLine.getStart();x<=bedLine.getEnd();++x)
+							{
+							mutations.add(new Mutation(bedLine.getContig(),x));
+							}
+						}
+					}
+				else
+					{
+					while((line=r.readLine())!=null) {
+						if(line.trim().isEmpty() || line.startsWith("#")) continue;
+						mutations.add(new Mutation(line));
+					}
+					}
+				
+				r.close();
+				r=null;
+			}
+		
+		
+			if(mutations.isEmpty())
+				{
+				return wrapException("undefined position \'str\'");
+				}
+		
+			LOG.info("number of mutations "+mutations.size());
+			
+			
 			this.out=openFileOrStdoutAsPrintWriter();
 			
 			out.print("#File");
@@ -366,7 +420,7 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 			out.print("SAMPLE");
 			out.print('\t');
 			out.print("DEPTH");
-			for(CigarOperator op:CigarOperator.values())
+			for(final CigarOperator op:CigarOperator.values())
 				{
 				out.print('\t');
 				out.print(op.name());
@@ -384,7 +438,7 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 				{
 				LOG.info("Reading from stdin");
 				r = new BufferedReader(new InputStreamReader(stdin()));
-				scan(r);
+				scan(r,mutations);
 				r.close();
 				r=null;
 				}
@@ -394,7 +448,7 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 					{
 					LOG.info("Reading from "+filename);
 					r=IOUtils.openURIForBufferedReading(filename);
-					scan(r);
+					scan(r,mutations);
 					r.close();
 					r=null;
 					}

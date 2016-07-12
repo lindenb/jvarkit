@@ -11,8 +11,11 @@
 <input type="stdin-or-many"/>
 
 <options>
-	<option name="positionStr" type="string" opt="p" longopt="position">
-		<description>-p chrom:pos . Add this chrom/position. Required</description>
+	<option name="positionStr" type="string" opt="p" longopt="position" default="">
+		<description>-p chrom:pos . Multiple separated by space. Add this chrom/position. Required</description>
+	</option>
+	<option name="positionFile" type="input-file" opt="f" longopt="posfile">
+		<description>File containing positions. if file suffix is  '.bed': all positions in the range will be scanned.</description>
 	</option>
 </options>
 

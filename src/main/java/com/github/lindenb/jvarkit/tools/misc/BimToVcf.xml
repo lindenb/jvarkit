@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "BimToVcf">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.misc">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<input type="stdin-or-one"/>
+<output type="vcf"/>
+<snippet id="ref.faidx" opt="R" name="REF"/>
+<description>convert a .bim to a .vcf</description>
+
+<options>
+</options>
+
+<documentation>
+<h:h3>Contig conversion</h:h3>
+chromosome 23 is converted to X or chrX, chromosome 24 is converted to Y or chrY, chromosome 25 is ignored, chromosome 26 is converted to chrM or MT.
+<h:h3>Example</h:h3>
+<h:pre><![CDATA[$ java -jar dist/bim2vcf.jar -R human_g1k_v37.fasta input.bim 
+
+##fileformat=VCFv4.2
+##INFO=<ID=MORGAN,Number=1,Type=Float,Description="Centimorgan">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Variation type">
+##contig=<ID=1,length=249250621,assembly=human_g1k_v37>
+(...)
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+1	12	rs73422	C	.	.	.	MORGAN=0.5224;SVTYPE=NOVARIATION
+1	13	rs30315	G	A	.	.	MORGAN=0.530874;SVTYPE=SNV
+1	14	rs14325	C	T	.	.	MORGAN=0.532596;SVTYPE=SNV
+1	15	rs31319	A	G	.	.	MORGAN=0.532682;SVTYPE=SNV
+1	16	rs954	C	T	.	.	MORGAN=0.537655;SVTYPE=SNV
+1	17	rs62034	G	A	.	.	MORGAN=0.548645;SVTYPE=SNV
+1	18	rs25996	A	G	.	.	MORGAN=0.575595;SVTYPE=SNV
+1	19	rs12117	G	A	.	.	MORGAN=0.582608;SVTYPE=SNV
+(...)
+]]></h:pre>
+
+
+
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>

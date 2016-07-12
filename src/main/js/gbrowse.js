@@ -613,10 +613,10 @@ GenomeBrowser.prototype.paint=function(params)
 				{
 				cigarcomponents[ cigarcomponents.length-1 ].arrow = 1;
 				}
-			//sort so, deletion are sorted first
+			//sort so, deletion are sorted first, insertions are last
 			cigarcomponents.sort( function(r1, r2) {
-				var i1=(r1.ce.hasOperatorIn("DN")?0:1);
-				var i2=(r2.ce.hasOperatorIn("DN")?0:1);
+				var i1=(r1.ce.hasOperatorIn("DN")?0:r1.ce.hasOperatorIn("I")?2:1);
+				var i2=(r2.ce.hasOperatorIn("DN")?0:r2.ce.hasOperatorIn("I")?2:1);
 				return i1-i2;
 				});
 			
