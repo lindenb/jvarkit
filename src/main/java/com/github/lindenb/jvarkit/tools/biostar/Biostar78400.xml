@@ -4,7 +4,7 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.biostar">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>add the read group info to the sam file on a per lane basis?</description>
+<description>add the read group info to the sam file on a per lane basis</description>
 <input type="sam"/>
 <output type="sam"/>
 
@@ -12,6 +12,71 @@
 	<option name="XML" opt="x" longopt="xmlFile" type="input-file">
 		<description>XML description of the groups.</description>
 	</option>
+	<option name="readNameSignatureStr" opt="p" longopt="regex" type="string" default="([a-zA-Z0-9]+):([0-9]):[0-9]+:[0-9]+:[0-9]+.*">
+		<description>Regular expression that can be used to parse read names in the incoming SAM file. Flowcell: (group 1)and the lane (group 2). Another pattern could be '[a-zA-Z0-9\\-]+:[0-9]+:([a-zA-Z0-9]+):([0-9]):[0-9]+:[0-9]+:[0-9]+.*.' (Highseq)</description>
+	</option>
 </options>
+
+<documentation>
+<h:h3>Read names</h:h3>
+Reads' name should start with the following signature:
+
+
+<h:h3>XML</h:h3>
+the XML should look like this:
+<h:pre class="xml"><![CDATA[
+<read-groups>
+<flowcell name="HS2000-1259_127">
+ <lane index="1">
+   <group ID="X1">
+     <library>L1</library>
+     <platform>P1</platform>
+     <sample>S1</sample>
+     <platformunit>PU1</platformunit>
+     <center>C1</center>
+     <description>blabla</description>
+   </group>
+ </lane>
+</flowcell>
+<flowcell name="HS2000-1259_128">
+ <lane index="2">
+   <group ID="x2">
+     <library>L2</library>
+     <platform>P2</platform>
+     <sample>S2</sample>
+     <platformunit>PU1</platformunit>
+     <center>C1</center>
+     <description>blabla</description>
+   </group>
+ </lane>
+</flowcell>
+</read-groups>
+]]></h:pre>
+<h:h3>Example</h:h3>
+<h:pre ><![CDATA[
+$ cat input.sam 
+@SQ SN:ref  LN:45
+@SQ SN:ref2 LN:40
+HS2000-1259_127:1:1210:15640:52255  163 ref 7   30  8M4I4M1D3M  =   37  39  
+TTAGATAAAGAGGATACTG *   XX:B:S,12561,2,20,112
+HS2000-1259_128:2:1210:15640:52255  0   ref 9   30  1S2I6M1P1I1P1I4M2I  *   0   
+0   AAAAGATAAGGGATAAA   *
+
+$java -jar dist/biostar78400.jar \
+    -x groups.xml \
+    input.sam \
+   
+
+@HD VN:1.4  SO:unsorted
+@SQ SN:ref  LN:45
+@SQ SN:ref2 LN:40
+@RG ID:X1   PL:P1   PU:P1   LB:L1   DS:blabla   SM:S1   CN:C1
+@RG ID:x2   PL:P2   PU:P2   LB:L2   DS:blabla   SM:S2   CN:C1
+@PG ID:Biostar78400 PN:Biostar78400 PP:Biostar78400 VN:1.0  (...)
+HS2000-1259_127:1:1210:15640:52255  163 ref 7   30  8M4I4M1D3M  =   37  39  TTAGATAAAGAGGATACTG *   RG:Z:X1 XX:B:S,12561,2,20,112
+HS2000-1259_128:2:1210:15640:52255  0   ref 9   30  1S2I6M1P1I1P1I4M2I  *   0   0AAAAGATAAGGGATAAA  *   RG:Z:x2
+]]></h:pre>
+</documentation>
+
 
 <!-- __PLACEHOLDER__ --></app>

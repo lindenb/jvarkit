@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.xml.bind.JAXBContext;
@@ -46,7 +47,6 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -106,46 +106,37 @@ public class Biostar78400 extends AbstractBiostar78400
 	
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 		if(this.XML==null)
 			{
-			return wrapException("XML file missing");
+			return wrapException("XML file missing (option -"+OPTION_XML+")");
 			}
 		final Map<String, Map<Integer,String>> flowcell2lane2id = new HashMap<String, Map<Integer,String>>();
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
-			JAXBContext context = JAXBContext.newInstance(ReadGroup.class,ReadGroupList.class);
-			Unmarshaller unmarshaller=context.createUnmarshaller();
-			ReadGroupList rgl=unmarshaller.unmarshal(new StreamSource(XML),ReadGroupList.class).getValue();
+			final Pattern readNameSignature = Pattern.compile(super.readNameSignatureStr);
+			final JAXBContext context = JAXBContext.newInstance(ReadGroup.class,ReadGroupList.class);
+			final Unmarshaller unmarshaller=context.createUnmarshaller();
+			final ReadGroupList rgl=unmarshaller.unmarshal(new StreamSource(XML),ReadGroupList.class).getValue();
 			if(rgl.flowcells.isEmpty())
 				{
-				throw new RuntimeException("empty XML "+XML);
+				return wrapException("empty XML "+XML);
 				}
-			
-			
 			sfr = openSamReader(inputName);
 			
 			final SAMFileHeader header = sfr.getFileHeader().clone();
+			header.addComment("Processed with "+getName());
 			
-			
-			SAMProgramRecord sp=new SAMProgramRecord(getClass().getSimpleName());
-			sp.setProgramName(getClass().getSimpleName());
-			sp.setProgramVersion(String.valueOf(getVersion()));
-			sp.setPreviousProgramGroupId(getClass().getSimpleName());
-			sp.setCommandLine(getProgramCommandLine().replace('\t', ' '));
-			header.addProgramRecord(sp);
-			
-			Set<String> seenids=new HashSet<String>();
-			List<SAMReadGroupRecord> samReadGroupRecords=new ArrayList<SAMReadGroupRecord>();
-			for(FlowCell fc:rgl.flowcells)
+			final Set<String> seenids=new HashSet<String>();
+			final List<SAMReadGroupRecord> samReadGroupRecords=new ArrayList<SAMReadGroupRecord>();
+			for(final FlowCell fc:rgl.flowcells)
 				{
-				Map<Integer,String> lane2id=new HashMap<Integer, String>();
-				for(Lane lane:fc.lanes)
+				final Map<Integer,String> lane2id=new HashMap<Integer, String>();
+				for(final Lane lane:fc.lanes)
 					{
-					
-					for(ReadGroup rg:lane.readGroups)
+					for(final ReadGroup rg:lane.readGroups)
 						{
 						if(seenids.contains(rg.id))
 							{
@@ -153,7 +144,7 @@ public class Biostar78400 extends AbstractBiostar78400
 							}
 						seenids.add(rg.id);
 						 // create the read group we'll be using
-				        SAMReadGroupRecord rgrec = new SAMReadGroupRecord(rg.id);
+						final SAMReadGroupRecord rgrec = new SAMReadGroupRecord(rg.id);
 				        rgrec.setLibrary(rg.library);
 				        rgrec.setPlatform(rg.platform);
 				        rgrec.setSample(rg.sample);
@@ -164,6 +155,10 @@ public class Biostar78400 extends AbstractBiostar78400
 				        samReadGroupRecords.add(rgrec);
 						}
 					}
+				if(flowcell2lane2id.containsKey(fc.name))
+					{
+					return wrapException("FlowCell id "+fc.name +" defined twice in XML");
+					}
 				flowcell2lane2id.put(fc.name,lane2id);
 				}
 			header.setReadGroups(samReadGroupRecords);
@@ -171,34 +166,40 @@ public class Biostar78400 extends AbstractBiostar78400
 		
 			sfw = openSAMFileWriter(header, true);
 			
-			final Pattern colon=Pattern.compile("[\\:]");
-			SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
-			SAMRecordIterator iter=sfr.iterator();
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
+			final SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec= progress.watch(iter.next());
-				
-				String RGID=null;
-				String tokens[]=colon.split(rec.getReadName(),3);
-				if(tokens.length!=3)
+				final SAMRecord rec= progress.watch(iter.next());
+				final Matcher matcher = readNameSignature.matcher(rec.getReadName());
+				final String flowcellStr;
+				final String laneStr;
+				if(matcher.matches())
 					{
-					throw new RuntimeException("Cannot split "+rec.getReadName());
+					flowcellStr = matcher.group(1);
+					laneStr = matcher.group(2);
 					}
+				else
+					{
+					return wrapException("Read name "+rec.getReadName()+" doesn't match regular expression "+readNameSignature.pattern()+". please check option -"+OPTION_READNAMESIGNATURESTR);
+					}
+				String RGID=null;
 				
-				Map<Integer,String> lane2id=flowcell2lane2id.get(tokens[0]);
-				if(lane2id==null) throw new RuntimeException("Cannot get flowcell/readgroup for "+rec.getReadName());
+				final Map<Integer,String> lane2id=flowcell2lane2id.get(flowcellStr);
+				if(lane2id==null) throw new RuntimeException(
+						"Cannot get flowcell/readgroup for "+rec.getReadName());
 				try
 					{
-					RGID=lane2id.get(Integer.parseInt(tokens[1]));
+					RGID=lane2id.get(Integer.parseInt(laneStr));
 					}
-				catch (Exception e)
+				catch (final Exception e)
 					{
-					throw new RuntimeException("bad lane-Id in "+rec.getReadName());
+					return wrapException("bad lane-Id in "+rec.getReadName());
 					}
 				
 				if(RGID==null) 
 					{
-					throw new RuntimeException("Cannot get RGID for "+rec.getReadName());
+					throw new RuntimeException("Cannot get RGID for "+rec.getReadName()+" flowcell:"+flowcellStr +" lane2id:"+laneStr+ " dict:"+lane2id);
 					}
 				rec.setAttribute(SAMTag.RG.name(), RGID);
 				sfw.addAlignment(rec);
