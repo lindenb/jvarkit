@@ -90,6 +90,11 @@ public class QueueToMake extends AbstractQueueToMake
 					this.args.add(sb.toString());
 					}
 				}
+			for(i=0;i< this.args.size();++i) {
+				if(args.get(i).startsWith("-Djava.io.tmpdir=")) {
+					args.set(i,"-Djava.io.tmpdir=$(dir $@)");
+				}
+			}
 			}
 		@Override
 		public int size() {
@@ -99,6 +104,13 @@ public class QueueToMake extends AbstractQueueToMake
 		public String get(int index) {
 			return args.get(index);
 			}
+		
+		 void prepend(String...atts) {
+	        for(int i=atts.length-1;i>=0;--i) {
+	        	this.add(0, atts[i]);
+	        	}
+      		}
+		
 		@Override
 		public String toString() {
 			return String.join(" ", args);
@@ -168,27 +180,44 @@ public class QueueToMake extends AbstractQueueToMake
             	}
             }
         
+      
+        
         void make(PrintWriter out) {
         	if(printed) return;
-        	
+        	if(this.prerequisites.isEmpty() && this.command.isEmpty()) {
+        		printed=true;
+        		return;
+        	}
+        	String firstPrereq = null;
         	out.print(this.file);
         	out.print(" : ");
         	for(Target dep: this.prerequisites) {
+        		if(firstPrereq==null) firstPrereq=dep.file;
         		out.print(" \\\n\t"+dep.file);
         	}
         	if(!this.command.isEmpty()) {
 	        	out.println();
-	        	out.print("\tmkdir -p $(dir $@) && ");
-	        	out.print(String.join(" ", this.command));
+	        	out.print("\tmkdir -p $(dir $@) &&");
+	        	for(String part: this.command) 
+	        		{
+	        		out.print(" ");
+	        		if(firstPrereq!=null && firstPrereq.equals(part)) {
+	        			out.print("$<");
+	        		} else if(this.file.equals(part)) {
+	        			out.print("$@");
+	        		} else {
+	        			out.print(part);
+	        		}
+	        		}
 	        	}
         	out.println();
+        	printed=true;
         	for(Target t:prerequisites) {
         		t.make(out);
         		}
-        	printed=true;
         	}
         
-        void autofill()
+        Target autofill()
         	{
         	for(int x=0; x +1< this.command.size();++x)
         		{
@@ -232,6 +261,7 @@ public class QueueToMake extends AbstractQueueToMake
 	        		this.prerequisites.add(dep);
 	    			}
 	    		}
+        	return this;
         	}
         
         @Override
@@ -298,7 +328,6 @@ public class QueueToMake extends AbstractQueueToMake
     					Target t= mustNotExistsTarget(md.getPath(),args);
     					t.command.add("&&");
     					t.command.add("touch");
-    					t.command.add("-c");
     					t.command.add(t.file);
     					}
     				},
@@ -337,6 +366,7 @@ public class QueueToMake extends AbstractQueueToMake
     					boolean canDecode(final Command args) {
     						return args.contains("org.broadinstitute.sv.main.SVCommandLine") &&
     							   args.contains("-T") &&
+    							   args.contains("-md") &&
     							   args.contains("-depthFile") &&
     							   args.contains("-spanFile") &&
     							   args.contains("-gcProfileFile") &&
@@ -346,8 +376,30 @@ public class QueueToMake extends AbstractQueueToMake
     						}
     					@Override
     					void decode(final Command args) {
-    						Target depth = mustNotExistsTarget(args.requiredValueFor("-depthFile"), args);
-    						depth.autofill();
+    						for(Target t:file2target.values()) {
+    							LOG.info("vailable:\t"+t);
+    							}
+    						Target depth = mustNotExistsTarget(args.requiredValueFor("-depthFile"), args).autofill();
+    						depth.command.prepend("mkdir","-p",
+										"$(dir "+args.requiredValueFor("-depthFile")+")",
+										"$(dir "+args.requiredValueFor("-spanFile")+")",
+    									"$(dir "+args.requiredValueFor("-gcProfileFile")+")",
+    									"$(dir "+args.requiredValueFor("-readCountFile")+")",
+    									"&&"
+    									);
+    						
+    						File bamFile= new File(args.requiredValueFor("-I"));
+    						
+    						
+    						depth.prerequisites.add(mustExistsTarget(
+    								args.requiredValueFor("-md")+"/isd.stats.dat"
+    								));
+    						
+    						depth.prerequisites.add(mustExistsTarget(
+    								args.requiredValueFor("-md")+"/isd/"+
+    								bamFile.getName().replaceAll(".bam$", ".dist.bin")
+    								));
+    						
     						Target span = mustNotExistsTarget(args.requiredValueFor("-spanFile"),
     								new Command("touch -c "+args.requiredValueFor("-spanFile")));
     						span.prerequisites.add(depth);
@@ -388,6 +440,31 @@ public class QueueToMake extends AbstractQueueToMake
     								}
     							}
     						},
+    			new CommandDecoder() {
+    							@Override
+    							boolean canDecode(final Command args) {
+    								return args.contains("-O") &&
+    										args.contains("org.broadinstitute.sv.apps.ComputeDepthProfiles")
+    									   ;
+    								}
+    							@Override
+    							void decode(final Command args) {
+    								final Target t=mustNotExistsTarget(args.requiredValueFor("-O"),args).autofill();
+    								Target rccacheIdx=null;
+    								for(final Target t2:QueueToMake.this.file2target.values()) {
+    									if(t2.file.endsWith("/rccache.bin.idx")) {
+    										if(rccacheIdx!=null){
+    											throw new IllegalArgumentException("multiple "+t2+" and "+rccacheIdx);
+    										}
+    										rccacheIdx=t2;
+    									}
+    									}
+									if(rccacheIdx==null){
+										throw new IllegalArgumentException("cannot find rccache.bin.idx" );
+									}
+									t.prerequisites.add(rccacheIdx);
+    								}
+    							},
     			new CommandDecoder() {
 					@Override
 					boolean canDecode(final Command args) {
