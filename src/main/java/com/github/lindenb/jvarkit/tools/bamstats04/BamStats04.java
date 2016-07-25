@@ -171,10 +171,10 @@ public class BamStats04 extends AbstractBamStats04
 						bedLine.getContig()+"\t"+
 						(bedLine.getStart()-1)+"\t"+
 						(bedLine.getEnd())+"\t"+
+						counts.length+"\t"+
 						(genomicSequence==null?
 							"":
 							String.valueOf((genomicSequence.getGCPercent(bedLine.getStart()-1,bedLine.getEnd())).getGCPercentAsInteger())+"\t")+
-						counts.length+"\t"+
 						counts[0]+"\t"+
 						counts[counts.length-1]+"\t"+
 						mean+"\t"+median_depth+"\t"+

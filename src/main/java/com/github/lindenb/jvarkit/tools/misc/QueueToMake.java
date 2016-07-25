@@ -280,33 +280,46 @@ public class QueueToMake extends AbstractQueueToMake
        
     private Target makeTarget(String file)
         {
-        Target t= file2target.get(file);
+        Target t= this.file2target.get(file);
         if(t==null) {
             t=new Target(file);
-            file2target.put(file,t);
+            this.file2target.put(file,t);
             this.orderedTargets.add(t);
             }
         return t;
         }
     
-    private Target mustExistsTarget(String file)
+    private Target mustExistsTarget(final String file)
 	    {
-	    final Target t= file2target.get(file);
+	    final Target t= this.file2target.get(file);
 	    if(t==null) throw new IllegalStateException("Can't find target that should exists:"+file);
 	    return t;
 	    }
     private Target mustNotExistsTarget(String file,final Command command)
 	    {
-	    if(file2target.containsKey(file)) throw new IllegalStateException("Found target that should NOT exists:"+file);
+	    if(this.file2target.containsKey(file)) throw new IllegalStateException("Found target that should NOT exists:"+file);
 	    final Target t=new Target(file,command);
-        file2target.put(file,t);
+	    this.file2target.put(file,t);
         this.orderedTargets.add(t);
         return t;
 	    }
    
+    private Target mustExistsTargetEndsWith(final String endOfString)
+	    {
+    	Target t2=null;
+    	for(final Target t : this.file2target.values()) {
+    		if(t.file.endsWith(endOfString)) 
+    			{
+    			if(t2!=null)  throw new IllegalStateException("Both "+t+" and "+t2 +" end with "+endOfString);
+    			t2=t;
+    			}
+    		}
+	    if(t2==null) throw new IllegalStateException("Can't find target that should exists:"+endOfString);
+	    return t2;
+	    }
+    
     private abstract class CommandDecoder
         {
-        
         abstract boolean canDecode(final Command args);
         abstract void decode(final Command args);
         }
@@ -469,6 +482,24 @@ public class QueueToMake extends AbstractQueueToMake
 					@Override
 					boolean canDecode(final Command args) {
 						return args.contains("-O") &&
+							   args.contains("org.broadinstitute.sv.apps.CallSampleGender")
+							   ;
+						}
+					@Override
+					void decode(final Command args) {
+						final Target t=mustNotExistsTarget(args.requiredValueFor("-O"),args).autofill();
+						
+						t.prerequisites.add(QueueToMake.this.mustExistsTargetEndsWith("/rccache.bin.idx"));
+						t.prerequisites.add(QueueToMake.this.mustExistsTargetEndsWith("/gcprofiles.zip"));
+						t.prerequisites.add(QueueToMake.this.mustExistsTargetEndsWith("/depth.dat"));
+						t.prerequisites.add(QueueToMake.this.mustExistsTargetEndsWith("/spans.dat"));
+						
+						}
+					},
+    			new CommandDecoder() {
+					@Override
+					boolean canDecode(final Command args) {
+						return args.contains("-O") &&
 							   (
 							   args.contains("org.broadinstitute.sv.apps.ComputeGCProfiles") || 
 							   args.contains("org.broadinstitute.sv.apps.ReduceInsertSizeHistograms") ||
@@ -482,7 +513,6 @@ public class QueueToMake extends AbstractQueueToMake
 							   args.contains("org.broadinstitute.sv.apps.MergeReadCounts") || 
 							   args.contains("org.broadinstitute.sv.apps.ComputeDepthProfiles") || 
 							   args.contains("org.broadinstitute.sv.apps.ComputeDepthProfiles") || 
-							   args.contains("org.broadinstitute.sv.apps.CallSampleGender") ||
 							   ( args.contains("org.broadinstitute.sv.main.SVCommandLine") && args.contains("-T") &&
 									  (
 									  args.requiredValueFor("-T").equals("ComputeInsertSizeHistogramsWalker") 
