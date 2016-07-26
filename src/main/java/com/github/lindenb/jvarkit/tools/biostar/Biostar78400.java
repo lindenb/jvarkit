@@ -148,7 +148,7 @@ public class Biostar78400 extends AbstractBiostar78400
 				        rgrec.setLibrary(rg.library);
 				        rgrec.setPlatform(rg.platform);
 				        rgrec.setSample(rg.sample);
-				        rgrec.setPlatformUnit(rg.platform);
+				        rgrec.setPlatformUnit(rg.platformunit);
 				        if (rg.center != null) rgrec.setSequencingCenter(rg.center);
 				        if (rg.description != null) rgrec.setDescription(rg.description);
 				        lane2id.put(lane.id,rg.id);
