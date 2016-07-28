@@ -321,7 +321,7 @@ public class Biostar95652 extends AbstractCommandLineProgram
 			Unmarshaller unmarshaller=context.createUnmarshaller();
 			for(int i=opt.getOptInd();i<args.length;++i)
 				{
-				String uri="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=protein&rettype=gb&retmode=xml&id="+
+				String uri="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=protein&rettype=gb&retmode=xml&id="+
 						URLEncoder.encode(args[i],"UTF-8");
 				
 				info("Reading from "+uri);

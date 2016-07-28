@@ -99,7 +99,7 @@ public class PubmedDump
 			});
 			
 			String url=
-					"http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term="+
+					"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term="+
 					URLEncoder.encode(query.toString(), "UTF-8")+	
 					"&retstart=0&retmax=0&usehistory=y&retmode=xml"+
 					(email==null?"":"&email="+URLEncoder.encode(email,"UTF-8"))+
@@ -146,7 +146,7 @@ public class PubmedDump
 				{
 				final int ret_max=90000;
 				LOG.info("nFound:"+nFound+"/"+count);
-				url= "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&WebEnv="+
+				url= "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&WebEnv="+
 						URLEncoder.encode(WebEnv,"UTF-8")+
 						"&query_key="+URLEncoder.encode(QueryKey,"UTF-8")+
 						"&retmode=xml&retmax="+ret_max+"&retstart="+nFound+

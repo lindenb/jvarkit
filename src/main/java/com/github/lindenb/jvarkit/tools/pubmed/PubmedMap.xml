@@ -18,7 +18,7 @@ use the Affiliation field in XML pubmed and try to insert some XML attributes de
 
 <h:h3>Example</h:h3>
 <h:pre><![CDATA[
-$ curl -s "http://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=26941271&retmode=xml" |java -jar dist/pubmedmap.jar   |\
+$ curl -s "https://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=26941271&retmode=xml" |java -jar dist/pubmedmap.jar   |\
 grep domain -B 5
 
                  <Author>

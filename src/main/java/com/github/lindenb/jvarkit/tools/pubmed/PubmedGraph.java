@@ -77,7 +77,7 @@ public class PubmedGraph extends AbstractCommandLineProgram
 	private List<String> eLink(String pmid,String linkname) throws IOException,XMLStreamException
 		{
 		List<String> L=new ArrayList<>();
-		String url="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?retmode=xml&db=pubmed&dbfrom=pubmed&" +
+		String url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?retmode=xml&db=pubmed&dbfrom=pubmed&" +
 				"id="+pmid+
 				"&linkname="+linkname;
 		info(url);
@@ -115,7 +115,7 @@ public class PubmedGraph extends AbstractCommandLineProgram
 		{
 		final QName attName=new QName("Name");
 		final QName attType=new QName("Type");
-		String url="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?retmode=xml&db=pubmed&" +
+		String url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?retmode=xml&db=pubmed&" +
 				"id="+a.pmid
 				;
 		info(url);

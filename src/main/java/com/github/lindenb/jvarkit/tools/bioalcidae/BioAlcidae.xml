@@ -235,7 +235,7 @@ Enterobacteria phage phiX174 sensu lato, complete genome Hit: Escherichia coli g
 
 <h:h4>NCBI Sequence INDSeq</h:h4>
 
-<h:pre><![CDATA[$  curl "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=25,26,27&rettype=gbc" |\
+<h:pre><![CDATA[$  curl "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=25,26,27&rettype=gbc" |\
 java -jar dist/bioalcidae.jar  -F INSDSEQ -e 'while(iter.hasNext()) {var seq= iter.next(); out.println(seq.getINSDSeqDefinition()+" LENGTH="+seq.getINSDSeqLength());}']]></h:pre>
 
 output:

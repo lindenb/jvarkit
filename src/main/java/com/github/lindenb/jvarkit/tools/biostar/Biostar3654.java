@@ -294,7 +294,7 @@ public class Biostar3654 extends AbstractKnimeApplication
 		(pipe=name.indexOf('|',3))!=-1)
 			{
 			String gi=name.substring(3,pipe);
-			String uri="http://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db="+database+
+			String uri="https://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db="+database+
 					"&id="+gi+
 					"&rettype=gbc&retmode=xml&seq_start="+start+"&seq_stop="+end;
 			info(uri);
