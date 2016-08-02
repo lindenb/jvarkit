@@ -112,6 +112,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 						Integer.parseInt(tokens[1])+1,
 						Integer.parseInt(tokens[2])
 						);
+				if( interval.getStart() &gt; interval.getEnd() ) continue;
 				intervals.put(interval,true); 
 				}
 			return intervals;
@@ -141,7 +142,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 				{
 				if(line.startsWith("#") ||  com.github.lindenb.jvarkit.util.bio.bed.BedLine.isBedHeader(line) ||  line.isEmpty()) continue; 
 				final com.github.lindenb.jvarkit.util.bio.bed.BedLine bl = codec.decode(line);
-				if(bl==null) continue;
+				if(bl==null || bl.getStart()>bl.getEnd()) continue;
 				final htsjdk.samtools.util.Interval interval=new htsjdk.samtools.util.Interval(
 						bl.getContig(),
 						bl.getStart(),

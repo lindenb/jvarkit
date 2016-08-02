@@ -159,7 +159,7 @@ public class SigFrame
 	class SigDataFileTabixReader extends AbstractTabixObjectReader<SigData>
 		{
 		private File file;
-		SigDataFileTabixReader(File file ) throws IOException
+		SigDataFileTabixReader(final File file ) throws IOException
 			{
 			super(file.getPath());
 			this.file=file;
@@ -169,7 +169,7 @@ public class SigFrame
 			{
 			return file;
 			}
-		public boolean hasDataForChrom(SAMSequenceRecord rec)
+		public boolean hasDataForChrom(final SAMSequenceRecord rec)
 			{
 			return iterator(rec.getSequenceName(), 1, 1+rec.getSequenceLength()).hasNext();
 			}
@@ -184,8 +184,8 @@ public class SigFrame
 	    private class MyIterator
     	extends AbstractMyIterator
 	    	{
-	    	private Pattern tab=Pattern.compile("[\t]");
-	    	MyIterator(Iterator<String> delegate)
+	    	private final Pattern tab=Pattern.compile("[\t]");
+	    	MyIterator(final Iterator<String> delegate)
 	    		{
 	    		super(delegate);
 	    		}
@@ -194,8 +194,8 @@ public class SigFrame
 	    	public SigData next()
 	    		{
 	    		if(!hasNext()) throw new IllegalStateException();
-	    		String tokens[]=this.tab.split(super.delegate.next());
-	    		SigData d=new SigData();
+	    		final String tokens[]=this.tab.split(super.delegate.next());
+	    		final SigData d=new SigData();
 	    		d.chrom=tokens[0];
 	    		d.start=Integer.parseInt(tokens[1]);
 	    		d.end=Integer.parseInt(tokens[2]);
@@ -257,8 +257,8 @@ public class SigFrame
 		void onOpen()
 			{
 			final float ratio=0.9f;
-			Dimension dim= SigFrame.this.desktop.getSize();
-			Dimension d2=new Dimension(dim);
+			final Dimension dim= SigFrame.this.desktop.getSize();
+			final Dimension d2=new Dimension(dim);
 			d2.width=(int)(ratio*dim.width);
 			d2.height=(int)(ratio*dim.height);
 			this.setBounds(

@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfbed;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
@@ -44,6 +45,7 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -61,7 +63,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VCFBed extends AbstractVCFBed
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFBed.class);
-	private IntervalTreeMap<BedLine> intervalTreeMap=null;
+	private IntervalTreeMap<Set<BedLine>> intervalTreeMap=null;
 
 	
 	private IndexedBedReader bedReader =null;
@@ -81,16 +83,24 @@ public class VCFBed extends AbstractVCFBed
 			{
 			return s+(next==null?"":next.toString(tokens));
 			}
+		@Override
+		public String toString() {
+			return "plain-text:\""+this.s+"\""+(this.next==null?"":";"+this.next.toString());
+			}
 		}
 	private static class ColChunk extends Chunk
 		{
 		final int index;
 		ColChunk(final int index){ this.index=index;}
-		public String toString(BedLine tokens)
+		public String toString(final BedLine tokens)
 			{
 			String s= tokens.get(index);
 			if(s==null) s="";
 			return s+(next==null?"":next.toString(tokens));
+			}
+		@Override
+		public String toString() {
+			return "column:${"+(index+1)+"}"+(this.next==null?"":";"+this.next.toString());
 			}
 		}
 
@@ -144,16 +154,29 @@ public class VCFBed extends AbstractVCFBed
 	@Override
 	protected Collection<Throwable> doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w)
 			throws IOException {
+		final File srcbedfile = super.tabixFile==null?super.treeMapFile:super.tabixFile;
 		final VCFHeader h2=new VCFHeader(r.getHeader());
 		final VCFInfoHeaderLine infoHeader= 
 				new VCFInfoHeaderLine(
 						super.infoName,
 						VCFHeaderLineCount.UNBOUNDED,
 						VCFHeaderLineType.String,
-						"metadata added from "+
-						(super.tabixFile==null?super.treeMapFile:super.tabixFile)+
+						"metadata added from "+ srcbedfile+
 						" . Format was "+super.formatPattern
 						);
+		
+		final VCFFilterHeaderLine filterOverlap = 
+				(this.filterOverlapStr==null || this.filterNoOverlapStr.trim().isEmpty()?null:
+				new VCFFilterHeaderLine(this.filterOverlapStr, "Variant overlap with "+srcbedfile)	
+				);
+		
+		final VCFFilterHeaderLine filterNoOverlap = 
+				(this.filterNoOverlapStr==null || this.filterNoOverlapStr.trim().isEmpty()?null:
+				new VCFFilterHeaderLine(this.filterNoOverlapStr, "Variant having NO overlap with "+srcbedfile)	
+				);
+		
+		if(filterOverlap!=null) h2.addMetaDataLine(filterOverlap);
+		if(filterNoOverlap!=null) h2.addMetaDataLine(filterNoOverlap);
 		
 		h2.addMetaDataLine(infoHeader);
 		addMetaData(h2);
@@ -162,15 +185,20 @@ public class VCFBed extends AbstractVCFBed
 		w.writeHeader(h2);
 		while(r.hasNext())
 			{
+			boolean found_overlap=false;
 			final VariantContext ctx= progress.watch(r.next());
 			final Set<String> annotations=new HashSet<String>();
 			
-			
 			if(this.intervalTreeMap!=null) {
-				for(final BedLine bedLine :this.intervalTreeMap.getOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd()))) {
+				for(final Set<BedLine> bedLines :this.intervalTreeMap.getOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd()))) {
+					for(final BedLine bedLine:bedLines) {
 					final String newannot=this.parsedFormat.toString(bedLine);
+					found_overlap=true;
 					if(!newannot.isEmpty())
+						{
 						annotations.add(VCFUtils.escapeInfoField(newannot));
+						}
+					}
 				}
 				
 			}
@@ -189,7 +217,8 @@ public class VCFBed extends AbstractVCFBed
 					if(ctx.getStart() > bedLine.getEnd() ) continue;
 					if(ctx.getEnd() < bedLine.getStart() ) continue;
 	
-					
+					found_overlap=true;
+
 					final String newannot=this.parsedFormat.toString(bedLine);
 					if(!newannot.isEmpty())
 						annotations.add(VCFUtils.escapeInfoField(newannot));
@@ -197,13 +226,30 @@ public class VCFBed extends AbstractVCFBed
 				CloserUtil.close(iter);
 				}
 			
-			if(annotations.isEmpty())
+			final String filterToSet;
+			if(found_overlap && filterOverlap!=null) {
+				filterToSet = filterOverlap.getID();
+				}
+			else if(!found_overlap &&  filterNoOverlap!=null) {
+				filterToSet = filterNoOverlap.getID();
+				}
+			else
+				{
+				filterToSet=null;
+				}
+			
+			if(filterToSet==null && annotations.isEmpty())
 				{
 				w.add(ctx);
 				continue;
 				}
 			final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-			vcb.attribute(infoHeader.getID(), annotations.toArray());
+			if(!annotations.isEmpty()) {
+				vcb.attribute(infoHeader.getID(), annotations.toArray());
+				}
+			if(filterToSet!=null) {
+				vcb.filter(filterToSet);
+				}
 			w.add(vcb.make());
 			if(w.checkError()) break;
 			}
@@ -211,6 +257,39 @@ public class VCFBed extends AbstractVCFBed
 		return RETURN_OK;
 		}
 	
+	/** reads a Bed file and convert it to a IntervalTreeMap<Bedline> */
+	private htsjdk.samtools.util.IntervalTreeMap<Set<com.github.lindenb.jvarkit.util.bio.bed.BedLine>> readBedFileAsIntervalTreeMap(final java.io.File file) throws java.io.IOException
+		{
+		java.io.BufferedReader r=null;
+		try
+			{
+			final  htsjdk.samtools.util.IntervalTreeMap<Set<com.github.lindenb.jvarkit.util.bio.bed.BedLine>> intervals = new
+					 htsjdk.samtools.util.IntervalTreeMap<>();
+			r=com.github.lindenb.jvarkit.io.IOUtils.openFileForBufferedReading(file);
+			String line;
+			final com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec codec = new com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec();
+			while((line=r.readLine())!=null) 
+				{
+				if(line.startsWith("#") ||  com.github.lindenb.jvarkit.util.bio.bed.BedLine.isBedHeader(line) ||  line.isEmpty()) continue; 
+				final com.github.lindenb.jvarkit.util.bio.bed.BedLine bl = codec.decode(line);
+				if(bl==null || bl.getStart()>bl.getEnd()) continue;
+				final htsjdk.samtools.util.Interval interval= bl.toInterval();
+				Set<BedLine> set = intervals.get(interval);
+				if(set==null )
+					{
+					set = new HashSet<>();
+					intervals.put(interval,set); 
+					}
+				set.add(bl);
+				}
+			return intervals;
+			}
+		finally
+			{
+			htsjdk.samtools.util.CloserUtil.close(r);
+			}
+		}
+
 	
 	
 	@Override
@@ -232,9 +311,10 @@ public class VCFBed extends AbstractVCFBed
 			else 
 				{
 				try {
-					this.intervalTreeMap = super.readBedFileAsIntervalTreeMap(super.treeMapFile);
+					this.intervalTreeMap = this.readBedFileAsIntervalTreeMap(super.treeMapFile);
+					LOG.info("Number of items in "+this.treeMapFile+" "+this.intervalTreeMap.size());
 				}
-				catch(Exception err) {
+				catch(final Exception err) {
 					return wrapException(err);
 				}
 				}
@@ -247,8 +327,9 @@ public class VCFBed extends AbstractVCFBed
 			LOG.info("parsing "+this.formatPattern);
 			this.parsedFormat=parseFormat(formatPattern);
 			if(this.parsedFormat==null) this.parsedFormat=new PlainChunk("");
+			LOG.info("format for "+this.formatPattern+" :"+this.parsedFormat);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			return wrapException(err);
 			}

@@ -7,10 +7,9 @@
 <description>Transfer information from a BED to a VCF</description>
 <input type="vcf"/>
 <output type="vcf"/>
-<snippet id="bedline.intervals"/>
 <options>
 	<option name="formatPattern" opt="f" longopt="format" type="string" argname="FORMAT" default="${1}:${2}-${3}">
-		<description>format pattern ${xx} will be replaced by column xx in the bed line</description>
+		<description>format pattern ${xx} will be replaced by column xx in the bed line. Empty lines will be ignored (not tag) but the FILTERs will be set.</description>
 	</option>
 
 	<option name="infoName" opt="T" longopt="tag" type="string" argname="INFO" default="VCFBED">
@@ -23,7 +22,12 @@
 	<option name="treeMapFile" opt="m" longopt="map" argname="FILE.BED" type="input-file" >
 		<description>unindexed bed file, will be loaded in memory (faster than tribble/tabix but memory consumming)</description>
 	</option>
-	
+	<option name="filterOverlapStr" opt="fo" longopt="filteroverlap" argname="FILTERNAME" type="string" >
+		<description>if not empty, set this as a FILTER column if one or more BED line overlap a variant</description>
+	</option>
+	<option name="filterNoOverlapStr" opt="fn" longopt="filternooverlap" argname="FILTERNAME" type="string" >
+		<description>if not empty, set this as a FILTER column if not any BED line overlap a variant</description>
+	</option>
 </options>
 
 <documentation>

@@ -24,33 +24,226 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
 
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.MergingSamRecordIterator;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.SequenceUtil;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
 public class SamShortInvertion extends AbstractSamShortInvertion
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractSamShortInvertion.class);
+	
+	
+	private class SamRecordPair
+		{
+		SAMRecord first;
+		SAMRecord second;
+		SamRecordPair(SAMRecord first,SAMRecord second)
+			{
+			if(second==null) {
+				this.first=first;
+			} else if(first==null) {
+				this.first=second;
+			  } else if(first.getReferenceName().equals(second.getReferenceName())) {
+				  if(first.getAlignmentStart()< second.getAlignmentStart()) {
+					  this.first=first;
+					  this.second=second;
+				  } else
+				  	{
+					  this.first=second;
+					  this.second=first;
+				  	}
+			  } else
+			  	{
+				  this.first=first;
+				  this.second=second;
+			  	}
+			}
+		SamRecordPair(SAMRecord one)
+			{
+			
+			}
+		}
+	
+	
+	private static class SamReaderList
+		implements Closeable
+		{
+		private final List<SamReader> samReaders;
+		private final SAMSequenceDictionary dict;
+		private final String sample ;
+		final File bamFile;
+		SamReaderList(final File bamFile,int n) {
+			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			this.bamFile=bamFile;
+			SamReader samReader1 = srf.open(bamFile);
+			if(!samReader1.hasIndex()) throw new RuntimeIOException("Bam "+bamFile+" is missing an index");
+			SAMFileHeader header= samReader1.getFileHeader();
+			this.dict = header.getSequenceDictionary();
+			if(this.dict==null)  throw new RuntimeIOException("Bam "+bamFile+" is missing a sequence dictionary");
+			String sampleName=null;
+			for(final SAMReadGroupRecord srg : header.getReadGroups()) {
+				if(srg.getSample()==null) throw new RuntimeIOException("SamReadGroup in"+bamFile+" is missing a SAMPLE (SN)");
+				final String indi =srg.getSample();
+				if(sampleName!=null && !sampleName.equals(indi)) throw new RuntimeIOException("SamReadGroup in"+bamFile+" : more than one sample defined");
+				sampleName=indi;
+			}
+			if(sampleName==null)  throw new RuntimeIOException("no SamReadGroup in "+bamFile+" with a SAMPLE (SN)");
+			this.sample = sampleName;
+			List<SamReader> readers = new ArrayList<>();
+			readers.add(samReader1);
+			while(n>1) {
+				readers.add(srf.open(bamFile));
+				--n;
+				}
+			this.samReaders = Collections.unmodifiableList(readers);
+			}
+		
+		public SamReader get(int index)  {
+			return this.samReaders.get(index);
+		}
+		
+		@Override
+		public void close() throws IOException {
+			for(final SamReader r:this.samReaders) r.close();
+			}
+	}
 
+	
+	private void challenge(final SAMRecord rec1, final SAMRecord rec2) {
+		if(rec2!=null) {
+			if(rec2.getReferenceName().equals(rec1.getReferenceName()) &&
+				rec2.getAlignmentStart()<rec1.getAlignmentStart()) {
+				challenge(rec2,rec1);
+				return;
+			}
+			if(rec2.getReferenceName().compareTo(rec1.getReferenceName())<0) {
+				challenge(rec2,rec1);
+				return;
+				}
+			}
+		
+		
+		}
+	
+	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public Collection<Throwable> call() throws Exception {
 		SamReader r=null;
 		PrintStream out = null;
 		//SAMFileWriter w=null;
 		try
 			{
-			r = openSamReader(inputName);
+			final List<SamReaderList> samReaders = new ArrayList<>();
+			final Set<String> args = IOUtils.unrollFiles(super.getInputFiles());
+			if(args.isEmpty()) {
+				return wrapException("No input file");
+				}
+			SAMSequenceDictionary dict=null;
+			for(final String bam: args ) {
+				final SamReaderList samReader = new SamReaderList(new File(bam),2);
+				for(int i=0;i< samReaders.size();++i )
+					{
+					if(samReaders.get(i).sample.equals(samReader.sample))
+						{
+						return wrapException("Sample defined in two bams "+samReader.sample);
+						}
+					if(dict==null) {
+						dict = samReader.dict;
+					} else if(!SequenceUtil.areSequenceDictionariesEqual(dict, samReader.dict))
+						{
+						return wrapException("bam contains two sequence dict.");
+						}
+					}
+				samReaders.add(samReader);
+				}
+			
+			final Predicate<SAMRecord> samRecordFilter = new Predicate<SAMRecord>() {
+				@Override
+				public boolean test(SAMRecord rec) {
+					if(rec.getReadUnmappedFlag()) return false;
+					if(rec.isSecondaryOrSupplementary()) return false;
+					if(rec.getDuplicateReadFlag()) return false;
+					if(rec.getReadFailsVendorQualityCheckFlag()) return false;
+					return true;
+				}
+			};
+			
+			for(SamReaderList samReader : samReaders) {
+				SAMRecordIterator iter = samReader.get(0).iterator();
+				while(iter.hasNext()) {
+					final SAMRecord rec= iter.next();
+					if(!samRecordFilter.test(rec)) continue;
+					boolean skip=true;
+					if(rec.getCigar()!=null && rec.getCigar().isClipped())
+						{	
+						skip=false;
+						}
+					
+					if(skip) continue;
+					
+					if(	rec.getReadPairedFlag()) {
+						if(!rec.getMateUnmappedFlag()) {
+							SAMRecordIterator iter2 = samReader.get(1).query(
+									rec.getMateReferenceName(),
+									rec.getMateAlignmentStart(),
+									rec.getMateAlignmentStart(),
+									false
+									);
+							while(iter2.hasNext()) {
+								final SAMRecord rec2 = iter2.next();
+								if(!samRecordFilter.test(rec2)) continue;
+								if(!rec2.getReadName().equals(rec.getReadName())) continue;
+								if(rec2.getFirstOfPairFlag()==rec.getFirstOfPairFlag()) continue;
+								if(rec2.getSecondOfPairFlag()==rec.getSecondOfPairFlag()) continue;
+								challenge(rec,rec2);
+								break;
+								}
+							iter2.close();
+							}
+						else
+							{
+							challenge(rec,null);
+							}
+						}
+					}
+				iter.close();
+			}
+			
+			
+			
+			r =  null;
 			out =  openFileOrStdoutAsPrintStream();
 			final SAMFileHeader header=r.getFileHeader();
 			OtherCanonicalAlignFactory xpalignFactory=new OtherCanonicalAlignFactory(header);

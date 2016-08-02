@@ -34,6 +34,8 @@ import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 
+import htsjdk.samtools.util.Interval;
+
 
 public abstract class AbstractTabixObjectReader<T> implements Closeable
 	//,Iterable<VariantContext> NO, not a true iterator
@@ -71,6 +73,11 @@ public abstract class AbstractTabixObjectReader<T> implements Closeable
     	{
     	return iterator(tabix.iterator(chrom+":"+start+"-"+end));
     	}
+    
+    public Iterator<T> iterator(final Interval interval)
+		{
+		return iterator(tabix.iterator(interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd()));
+		}
     
     protected  abstract Iterator<T> iterator(Iterator<String> delegate);
     

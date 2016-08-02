@@ -525,7 +525,7 @@ api.uniprot :
 
 api.ncbi.pubmed : 
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_150101.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_150101.dtd"
 	
 
 api.evs:
@@ -534,42 +534,42 @@ api.evs:
 
 api.ncbi.blast:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.blast -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.blast -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd"
 
 api.ncbi.esearch:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.esearch -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/corehtml/query/DTD/eSearch_020511.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.esearch -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/eSearch_020511.dtd"
 
 api.ncbi.elink:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.elink -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/entrez/query/DTD/elink_020122.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.elink -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/entrez/query/DTD/elink_020122.dtd"
 
 
 api.ncbi.gb:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.gb -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.gb -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd"
 
 api.ncbi.taxonomy:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.taxonomy -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/entrez/query/DTD/taxon.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.taxonomy -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/entrez/query/DTD/taxon.dtd"
 
 api.ncbi.tseq:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.tseq -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/NCBI_TSeq.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.tseq -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_TSeq.dtd"
 
 api.ncbi.insdseq:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.insdseq -dtd ${xjc.proxy} "http://www.ncbi.nlm.nih.gov/dtd/INSD_INSDSeq.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.insdseq -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/INSD_INSDSeq.dtd"
 
 api.ncbi.dbsnp.gt:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp.gt ${xjc.proxy} "http://ftp.ncbi.nlm.nih.gov/snp/specs/genoex_1_5.xsd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp.gt ${xjc.proxy} "https://ftp.ncbi.nlm.nih.gov/snp/specs/genoex_1_5.xsd"
 
 
 ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java : api.ncbi.dbsnp
 api.ncbi.dbsnp:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp ${xjc.proxy} "http://ftp.ncbi.nlm.nih.gov/snp/specs/docsum_current.xsd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp ${xjc.proxy} "https://ftp.ncbi.nlm.nih.gov/snp/specs/docsum_current.xsd"
 
 
 ## API Ensembl

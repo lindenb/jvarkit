@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.TabixReader;
 
 /**
@@ -23,21 +24,21 @@ public class TabixFileReader implements Closeable
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 	private TabixReader tabix=null;
-    private String uri;
+    private final String uri;
     
     /** return true if 'f' is a file, path ends with '.gz' and there is an associated .tbi file */
-    public static final boolean isValidTabixFile(File f)
+    public static final boolean isValidTabixFile(final File f)
 		 	{
 			return VCFUtils.isTabixVcfFile(f);
 			}
     
-    public TabixFileReader(String uri) throws IOException
+    public TabixFileReader(final String uri) throws IOException
     	{
     	this.uri=uri;
     	this.tabix=new TabixReader(uri);
     	}
     
-    public TabixFileReader(String uri,String idxFn) throws IOException
+    public TabixFileReader(final String uri,final String idxFn) throws IOException
 		{
 		this.uri=uri;
 		this.tabix=new TabixReader(uri,idxFn);
@@ -64,10 +65,10 @@ public class TabixFileReader implements Closeable
     	return this.tabix.readLine();
     	}
     
-    protected int[] _parseReg(String rgn)
+    protected int[] _parseReg(final  String rgn)
     	{
     	if(isClosed()) return null;
-    	int parseReg[]=this.tabix.parseReg(rgn);
+    	final int parseReg[]=this.tabix.parseReg(rgn);
     	if(parseReg==null || parseReg.length!=3 ||
 				parseReg[0]==-1 || parseReg[1]>parseReg[2])
 			{
@@ -81,18 +82,18 @@ public class TabixFileReader implements Closeable
     	return parseReg;
     	}
     
-    public Iterator<String> iterator(String chrom)
+    public Iterator<String> iterator(final String chrom)
 		{
     	if(isClosed()) return Collections.emptyIterator();
     	return iterator(_parseReg(chrom));
 		}
 
-    public Iterator<String> iterator(String chrom,int start)
+    public Iterator<String> iterator(final String chrom,final int start)
 		{
     	if(isClosed()) return Collections.emptyIterator();
     	return iterator(_parseReg(chrom+":"+start));
 		}
-    public Iterator<String> iterator(String chrom,int start,int end)
+    public Iterator<String> iterator(final String chrom,final int start ,final  int end)
     	{
     	if(isClosed()) return Collections.emptyIterator();
     	return iterator(_parseReg(chrom+":"+start+"-"+end));
@@ -104,7 +105,7 @@ public class TabixFileReader implements Closeable
     		{
 			return Collections.emptyIterator();
 			}
-		TabixReader.Iterator titer=this.tabix.query(parseReg[0], parseReg[1],parseReg[2]);
+		final TabixReader.Iterator titer=this.tabix.query(parseReg[0], parseReg[1],parseReg[2]);
 		if(titer==null)
 			{
 			return Collections.emptyIterator();
@@ -128,7 +129,7 @@ public class TabixFileReader implements Closeable
     	extends AbstractIterator<String>
     	{
     	TabixReader.Iterator delegate;
-    	MyIterator(TabixReader.Iterator delegate)
+    	MyIterator(final TabixReader.Iterator delegate)
     		{
     		this.delegate=delegate;
     		}
@@ -143,9 +144,9 @@ public class TabixFileReader implements Closeable
     			if(s==null ) delegate=null;
     			return s;
     			}
-    		catch(IOException err)
+    		catch(final IOException err)
     			{
-    			throw new RuntimeException(err);
+    			throw new RuntimeIOException(err);
     			}	
     		}
     	}	
