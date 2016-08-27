@@ -257,10 +257,10 @@ public class Bam2Raster extends AbstractBam2Raster
 			if((x-this.interval.getStart())%10==0)
 				{
 				g.setColor(Color.BLACK);
-				String xStr=String.format("%,d",x);
-				AffineTransform tr=g.getTransform();
-				AffineTransform tr2=new AffineTransform(tr);
-				tr2.translate(convertToX(x), 0);
+				final String xStr=String.format("%,d",x);
+				final AffineTransform tr=g.getTransform();
+				final AffineTransform tr2=new AffineTransform(tr);
+				tr2.translate(convertToX( x + 1 ), 0);
 				tr2.rotate(Math.PI/2.0);
 				g.setTransform(tr2);
 				hersheyFont.paint(g,
@@ -568,7 +568,7 @@ public class Bam2Raster extends AbstractBam2Raster
 					{
 					return wrapException("Cannot parse interval "+region+" or chrom doesn't exists in sam dictionary.");
 					}
-				
+				LOG.info("Interval is "+this.interval );
 		
 				BufferedImage img=build(samFileReader);
 				

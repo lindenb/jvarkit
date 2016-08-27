@@ -15,8 +15,8 @@
 	<option name="referenceFile" type="input-file" opt="R" longopt="reference" argname="file.fa">
 		<description> indexed fasta reference</description>
 	</option>
-	<option name="WIDTH" type="int" opt="w" longopt="width" argname="IMAGE-WIDTH">
-		<description> indexed fasta reference</description>
+	<option name="WIDTH" type="int" opt="w" longopt="width" argname="IMAGE-WIDTH" default="1000">
+		<description>Image width</description>
 	</option>
 	<option name="printName" type="boolean" opt="N" longopt="name" default="false">
 		<description>print read name</description>
