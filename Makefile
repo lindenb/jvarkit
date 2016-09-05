@@ -657,7 +657,7 @@ $(addprefix lib/, commons-validator/commons-validator/1.4.0/commons-validator-1.
 
 
 
-${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java : ${htsjdk.home}/build.xml $(realpath .git/refs/heads/master)
+${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java :
 	mkdir -p $(dir $@)
 	echo "package ${jvarkit.package}.util.htsjdk;" > $@
 	echo '@javax.annotation.Generated("jvarkit")' >> $@
