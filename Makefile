@@ -23,25 +23,15 @@ JAVACC?=javacc
 JAR?=jar
 XJC?=xjc
 
-export htsjdk.hash?=5196d09b3e9cc72f73d7bf08f0154f50bdadd475
-export htsjdk.home?=${this.dir}htsjdk-${htsjdk.hash}
-htsjdk.snapshot.jar?=${htsjdk.home}/build/libs/htsjdk-${htsjdk.hash}-unspecified-SNAPSHOT.jar
-gradle.user.home?=$(if ${GRADLE_USER_HOME},${GRADLE_USER_HOME},${HOME}/.gradle)
-
-
-htsjdk.jars=\
-	${gradle.user.home}/caches/modules-2/files-2.1/org.apache.commons/commons-compress/1.4.1/b02e84a993d88568417536240e970c4b809126fd/commons-compress-1.4.1.jar \
-	${gradle.user.home}/caches/modules-2/files-2.1/org.apache.commons/commons-jexl/2.1.1/6ecc181debade00230aa1e17666c4ea0371beaaa/commons-jexl-2.1.1.jar \
-	${gradle.user.home}/caches/modules-2/files-2.1/commons-logging/commons-logging/1.1.1/5043bfebc3db072ed80fbd362e7caf00e885d8ae/commons-logging-1.1.1.jar \
-	${gradle.user.home}/caches/modules-2/files-2.1/gov.nih.nlm.ncbi/ngs-java/1.2.2/a3947107c3ad9ed8f590612673032d12457b75e5/ngs-java-1.2.2.jar \
-	${gradle.user.home}/caches/modules-2/files-2.1/org.xerial.snappy/snappy-java/1.0.3-rc3/e8f9625658fd6ce868363d309dd07c8e77b92f4/snappy-java-1.0.3-rc3.jar \
-	${gradle.user.home}//caches/modules-2/files-2.1/org.tukaani/xz/1.5/9c64274b7dbb65288237216e3fae7877fd3f2bee/xz-1.5.jar \
-	${htsjdk.snapshot.jar}
+#
+# include java libraries from Maven
+#
+include maven.mk
 
 
 src.dir=${this.dir}src/main/java
 generated.dir=${this.dir}src/main/generated-sources
-tmp.dir=${this.dir}_tmp-${htsjdk.hash}
+tmp.dir=${this.dir}_tmp-${htsjdk.version}
 tmp.mft=${tmp.dir}/META-INF/MANIFEST.MF
 export dist.dir?=${this.dir}dist
 wiki.dir?=${this.dir}doc/wiki
@@ -183,7 +173,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	fastqsplitinterleaved	findallcoverageatposition	findavariation	findcorruptedfiles	findmyvirus	findnewsplicesites	fixvarscanmissingheader \
 	fixvcf	fixvcfformat	fixvcfmissinggenotypes	gcanddepth	genomicjaspar	genscan	 \
 	howmanybamdict	illuminadir	ilmnfastqstats	impactofduplicates	jeter \
-	liftover2svg	mapuniprot	mergesplittedblast	metrics2xml	ncbitaxonomy2xml	ngsfilessummary	noemptyvcf \
+	liftover2svg	mapuniprot	mergesplittedblast	ncbitaxonomy2xml	ngsfilessummary	noemptyvcf \
 	nozerovariationvcf	pademptyfastq	paintcontext	pubmeddump	pubmedorcidgraph pubmedfilterjs	referencetovcf	sam2json \
 	sam2psl	sam2tsv	sam4weblogo	samclipindelfraction	samextractclip	samfindclippedregions	samfixcigar \
 	samgrep	samjs	samshortinvert	samstats01	sigframe	sortvcfoninfo \
@@ -212,10 +202,7 @@ top:
 	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
 
 
-#
-# include java libraries from Maven
-#
-include maven.mk
+
 
 all: $(APPS)
 
@@ -344,7 +331,7 @@ $(eval $(call compile-htsjdk-cmd,kg2bed,${jvarkit.package}.tools.misc.KnownGenes
 $(eval $(call compile-htsjdk-cmd,liftover2svg,${jvarkit.package}.tools.liftover.LiftOverToSVG))
 $(eval $(call compile-htsjdk-cmd,mapuniprot,${jvarkit.package}.tools.misc.MapUniProtFeatures,${generated.dir}/java/org/uniprot/package-info.java))
 $(eval $(call compile-htsjdk-cmd,mergesplittedblast,${jvarkit.package}.tools.blast.MergeSplittedBlast,api.ncbi.blast))
-$(eval $(call compile-htsjdk-cmd,metrics2xml,${jvarkit.package}.tools.metrics2xml.PicardMetricsToXML))
+#$(eval $(call compile-htsjdk-cmd,metrics2xml,${jvarkit.package}.tools.metrics2xml.PicardMetricsToXML))
 $(eval $(call compile-htsjdk-cmd,ncbitaxonomy2xml,${jvarkit.package}.tools.misc.NcbiTaxonomyToXml))
 $(eval $(call compile-htsjdk-cmd,ngsfilessummary,${jvarkit.package}.tools.ngsfiles.NgsFilesSummary))
 $(eval $(call compile-htsjdk-cmd,noemptyvcf,${jvarkit.package}.tools.misc.NoEmptyVCF))
@@ -600,8 +587,8 @@ copy.samtools.js:
 
 
 ## jvarkit-library (used in knime)
-library: ${dist.dir}/jvarkit-${htsjdk.hash}.jar
-${dist.dir}/jvarkit-${htsjdk.hash}.jar : ${htsjdk.jars} ${bigwig.jars} \
+library: ${dist.dir}/jvarkit-${htsjdk.version}.jar
+${dist.dir}/jvarkit-${htsjdk.version}.jar : ${htsjdk.jars} ${bigwig.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		${src.dir}/com/github/lindenb/jvarkit/util/Library.java
 	mkdir -p ${tmp.dir}/META-INF $(dir $@)
@@ -669,37 +656,15 @@ $(addprefix lib/, commons-validator/commons-validator/1.4.0/commons-validator-1.
 	
 
 
-##
-## make sure jars from htslib exist
-##
-$(filter-out ${htsjdk.snapshot.jar} ,${htsjdk.jars}) : ${htsjdk.snapshot.jar}
-	touch -c $@
-
-${htsjdk.snapshot.jar} : ${htsjdk.home}/build.gradle
-	echo "Compiling htsjdk with $${JAVA_HOME} = ${JAVA_HOME}"
-	echo "Compiling htsjdk library for java. It requires  Gradle http://gradle.org/ since 2016 May 30. Libraries will be installed in  $$gradle.user.home='${gradle.user.home}' . If it fails here, it's a not a problem with jvarkit."
-	echo "And $${JAVA_HOME}/bin/javac should be >=1.8"
-	(cd ${htsjdk.home} && ./gradlew --gradle-user-home "${gradle.user.home}" )
-
-${htsjdk.home}/build.gradle : 
-	mkdir -p $(dir ${htsjdk.home})
-	rm -rf "$(dir ${htsjdk.home})${htsjdk.hash}.zip" "$(dir $@)"  "${tmp.dir}"
-	mkdir -p "${tmp.dir}"
-	echo "Downloading HTSJDK ${htsjdk.hash} with curl"
-	curl  -k ${curl.proxy} -o $(dir ${htsjdk.home})${htsjdk.hash}.zip -L "https://github.com/samtools/htsjdk/archive/${htsjdk.hash}.zip"
-	unzip $(dir ${htsjdk.home})${htsjdk.hash}.zip -d "${tmp.dir}"
-	mv "${tmp.dir}/htsjdk-${htsjdk.hash}" "${htsjdk.home}" 
-	find ${htsjdk.home} -exec touch '{}'  ';'
-	rm -rf "$(dir ${htsjdk.home})${htsjdk.hash}.zip" "${tmp.dir}"
 
 ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java : ${htsjdk.home}/build.xml $(realpath .git/refs/heads/master)
 	mkdir -p $(dir $@)
 	echo "package ${jvarkit.package}.util.htsjdk;" > $@
 	echo '@javax.annotation.Generated("jvarkit")' >> $@
 	echo 'public class HtsjdkVersion{ private HtsjdkVersion(){}' >> $@
-	echo 'public static String getVersion() {return "${htsjdk.hash}";}' >> $@
-	echo 'public static String getHash() {return "${htsjdk.hash}";}' >> $@
-	echo 'public static String getHome() {return "${htsjdk.home}";}' >> $@
+	echo 'public static String getVersion() {return "${htsjdk.version}";}' >> $@
+	echo 'public static String getHash() {return "${htsjdk.version}";}' >> $@
+	echo 'public static String getHome() {return "$(word 1,${htsjdk.jars})";}' >> $@
 	echo 'public static String getJavadocUrl(Class<?> clazz) {return "https://samtools.github.io/htsjdk/javadoc/htsjdk/"+clazz.getName().replaceAll("\\.","/")+".html";}' >> $@
 	echo '}'  >> $@
 

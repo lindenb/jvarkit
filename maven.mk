@@ -6,6 +6,19 @@ lib.dir?=lib
 avro.tools.version = 1.7.7
 avro.libs = $(lib.dir)/org/apache/avro/avro-tools/${avro.tools.version}/avro-tools-${avro.tools.version}.jar
 
+
+lib.dir?=lib
+
+htsjdk.version=2.6.1
+htsjdk.jars  =  \
+	$(lib.dir)/com/github/samtools/htsjdk/${htsjdk.version}/htsjdk-${htsjdk.version}.jar \
+	$(lib.dir)/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar \
+	$(lib.dir)/gov/nih/nlm/ncbi/ngs-java/1.2.4/ngs-java-1.2.4.jar \
+	$(lib.dir)/org/apache/commons/commons-compress/1.4.1/commons-compress-1.4.1.jar \
+	$(lib.dir)/org/apache/commons/commons-jexl/2.1.1/commons-jexl-2.1.1.jar \
+	$(lib.dir)/org/tukaani/xz/1.5/xz-1.5.jar \
+	$(lib.dir)/org/xerial/snappy/snappy-java/1.0.3-rc3/snappy-java-1.0.3-rc3.jar
+
 commons.loggging.jars = \
 	$(lib.dir)/commons-logging/commons-logging/1.2/commons-logging-1.2.jar
 
@@ -69,7 +82,7 @@ gson.jar = \
 	$(lib.dir)/com/google/code/gson/gson/2.6.2/gson-2.6.2.jar
 
 
-all_maven_jars = $(sort ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
+all_maven_jars = $(sort ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
 
 download_all_maven : ${all_maven_jars}
 

@@ -25,13 +25,10 @@
 
 ### Requirements / Dependencies
 
-Since 2016-05-30 the compilation of the "Java API for high-throughput sequencing data (HTS) formats" (htsjdk) library requires gradle http://gradle.org.
-
 * java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* gradle http://gradle.org is only required to compile the "Java API for high-throughput sequencing data (HTS) formats" (htsjdk). And I think htsjdk installs it.
 * xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
@@ -65,11 +62,6 @@ http.proxy.host=your.host.com
 http.proxy.port=124567
 ```
 
-to set the gradle user home ( https://docs.gradle.org/current/userguide/build_environment.html#sec:gradle_properties_and_system_properties )
-
-```
-gradle.user.home=/dir1/dir2/gradle_user_home
-```
 
 <xsl:if test="not(documentation/h:h3[text() = 'Synopsis'])">
 
