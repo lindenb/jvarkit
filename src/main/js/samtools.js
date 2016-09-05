@@ -35,7 +35,7 @@ function Interval()
 		this.start = arguments[1];
 		this.end = arguments[2];
 		}
-	else if( "contig" in arguments[0] &&  "start" in arguments[0] &&  "end" in arguments[0] )
+	else if(  typeof arguments[0] === 'object' && "contig" in arguments[0] &&  "start" in arguments[0] &&  "end" in arguments[0] )
 		{
 		this.contig = arguments[0].contig;
 		this.start = arguments[0].start;
@@ -134,7 +134,7 @@ SAMSequenceDictionary.prototype.get = function(idx) {
 SAMSequenceDictionary.prototype.getReferenceLength = function() {
 	var i,len=0;
 	for(i=0;i< this.size();++i) {
-            len += get(i).getSequenceLength();
+            len +=this. get(i).getSequenceLength();
         }
     return len;
 	};
