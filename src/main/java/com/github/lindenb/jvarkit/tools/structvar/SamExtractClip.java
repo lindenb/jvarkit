@@ -149,7 +149,7 @@ public class SamExtractClip extends AbstractSamExtractClip
 						}
 					
 					out.write(new FastqRecord(
-							rec.getReadName()+suffix+":"+side+":"+rec.getReferenceName()+":"+rec.getAlignmentStart()+":"+rec.getFlags(),
+							rec.getReadName()+suffix+";"+side+";"+rec.getReferenceName()+";"+rec.getAlignmentStart()+";"+rec.getFlags()+";"+rec.getCigarString()+";"+(side==0?"5'":"3'"),
 							clippedSeq,
 							"",
 							clippedQual

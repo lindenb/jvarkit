@@ -14,7 +14,7 @@
 	<option name="print_clipped_read" opt="c" longopt="clipped" type="boolean" default="false">
 		<description>Print the original Read where the clipped regions have been removed</description>
 	</option>
-	<option name="print_original_read" opt="c" longopt="clipped" type="boolean" default="false">
+	<option name="print_original_read" opt="p" longopt="original" type="boolean" default="false">
 		<description>Print Original whole Read that contained a clipped region.</description>
 	</option>
 </options>

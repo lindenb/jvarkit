@@ -177,7 +177,7 @@ public class PicardMetricsToXML
 		 	}
 		out.writeEndElement();//thead
 		out.writeStartElement("tbody");
-		for(Object key:keys)
+		for(final Object key: keys)
 			{
 			out.writeStartElement("tr");
 			out.writeStartElement("td");
@@ -185,7 +185,7 @@ public class PicardMetricsToXML
 			out.writeEndElement();//td
 			for (final Histogram histo : nonEmptyHistograms)
 				{
-				Histogram.Bin bin = (Histogram.Bin)histo.get(key);
+				Histogram.Bin<? extends Comparable> bin = (Histogram.Bin<? extends Comparable>)histo.get((Comparable)key);
 				if(bin==null)
 					{
 					out.writeEmptyElement("td");

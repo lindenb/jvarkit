@@ -261,7 +261,7 @@ public class VcfDoest
 				{
 				if(!(p.isAffected() || p.isUnaffected())) continue;
 				final Genotype g= ctx.getGenotype(p.getId());
-				
+				if(g==null) throw new IOException("Strange I cannot find individual "+p + " in the pedigree. Aborting.");
 				if(g.isCalled()) {
 					mafCalculator.add(g, p.isMale());
 				}
