@@ -193,7 +193,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
-	forkvcf gbrowserhtml bim2vcf queue2make samreadlengthdistribution
+	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution
 	
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden
@@ -319,6 +319,7 @@ $(eval $(call compile-htsjdk-cmd,fixvcf,${jvarkit.package}.tools.misc.FixVCF))
 $(eval $(call compile-htsjdk-cmd,fixvcfformat,${jvarkit.package}.tools.misc.FixVcfFormat))
 $(eval $(call compile-htsjdk-cmd,fixvcfmissinggenotypes,${jvarkit.package}.tools.misc.FixVcfMissingGenotypes))
 $(eval $(call compile-htsjdk-cmd,gcanddepth,${jvarkit.package}.tools.misc.GcPercentAndDepth))
+$(eval $(call compile-htsjdk-cmd,concatsam,${jvarkit.package}.tools.misc.ConcatSam,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,genomicjaspar,${jvarkit.package}.tools.jaspar.GenomicJaspar))
 $(eval $(call compile-htsjdk-cmd,genscan,${jvarkit.package}.tools.genscan.GenScan))
 $(eval $(call compile-htsjdk-cmd,groupbygene,${jvarkit.package}.tools.groupbygene.GroupByGene))

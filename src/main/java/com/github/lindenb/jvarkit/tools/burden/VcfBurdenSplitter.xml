@@ -71,7 +71,10 @@
 		<description>enable grouping by ALL_ENST: gene starting with ENST</description>
 	</option>
 	<option name="enableAllTranscript" opt="all_transcripts" longopt="all_transcripts" type="boolean" default="false">
-		<description>enable grouping by all transcript for a gene</description>
+		<description>enable grouping by all transcript for a gene using gene name (e.g Nm_12345)</description>
+	</option>
+	<option name="enableAllGenes" opt="all_genes" longopt="all_genes" type="boolean" default="false">
+		<description>enable grouping by all transcript for a gene using transcript name (e.g PRKCB1) </description>
 	</option>
 	
 </options>

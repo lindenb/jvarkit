@@ -194,11 +194,19 @@ public class VcfBurdenSplitter
 							{
 							keys.add(String.format("ALL_ENST_%s_%s",ctx.getContig(),geneName));
 							}
-						if(isEnableAllTranscript())
-							{
-							keys.add(String.format("ALL_TRANSCRIPTS_%s_%s",ctx.getContig(),geneName));
-							}
 						}
+					
+					
+					if(!isEmpty(geneName) && isEnableAllGenes())
+						{
+						keys.add(String.format("ALL_GENES_%s_%s",ctx.getContig(),geneName));
+						}
+					if(!isEmpty(transcriptName) && isEnableAllTranscript())
+						{
+						keys.add(String.format("ALL_TRANSCRIPTS_%s_%s",ctx.getContig(),transcriptName));
+						}
+
+					
 					}
 				
 				String s;
