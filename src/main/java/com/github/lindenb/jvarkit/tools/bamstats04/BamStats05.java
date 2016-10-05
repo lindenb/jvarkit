@@ -90,7 +90,7 @@ public class BamStats05 extends AbstractBamStats05
 				final String chrom = bedLine.getContig();
 				final int chromStart1= bedLine.getStart();
 				final int chromEnd1= bedLine.getEnd();
-				final String gene = bedLine.get(4);
+				final String gene = bedLine.get(3);
 				if(gene.isEmpty())  throw new IOException("bad bed gene in "+line+" "+bedFile);
 				 List<Interval> intervals = gene2interval.get(gene);
 				 if(intervals==null)
