@@ -118,6 +118,7 @@ public class VcfBurdenSplitter
 			return o1.alt.compareTo(o2.alt);
 			}
 		}
+	
 	private static class KeyAndLineCodec extends AbstractDataCodec<KeyAndLine>
 		{
 		@Override
@@ -203,7 +204,9 @@ public class VcfBurdenSplitter
 						}
 					if(!isEmpty(transcriptName) && isEnableAllTranscript())
 						{
-						keys.add(String.format("ALL_TRANSCRIPTS_%s_%s",ctx.getContig(),transcriptName));
+						String k= String.format("ALL_TRANSCRIPTS_%s_%s",ctx.getContig(),transcriptName);
+						if( !isEmpty(geneName) ) k+="_"+geneName;
+						keys.add(k);
 						}
 
 					
