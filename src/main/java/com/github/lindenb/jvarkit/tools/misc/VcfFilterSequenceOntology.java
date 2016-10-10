@@ -66,8 +66,8 @@ public class VcfFilterSequenceOntology
 	
 	/* all sequence terms */
 	private final Set<SequenceOntologyTree.Term> user_terms=new HashSet<SequenceOntologyTree.Term>();
-	/* inverse result */
-	private final SequenceOntologyTree sequenceOntologyTree=SequenceOntologyTree.getInstance();
+	/* SO Treem */
+	private  SequenceOntologyTree sequenceOntologyTree=SequenceOntologyTree.getInstance();
 	
 	
 	/* public : knime needs this*/
@@ -214,7 +214,19 @@ public class VcfFilterSequenceOntology
 		if(super.invert && (!super.filterIn.isEmpty() || !super.filterOut.isEmpty())) {
 			return wrapException("Option -"+OPTION_INVERT+" cannot be used when Option -"+OPTION_FILTERIN+" or  -"+OPTION_FILTEROUT+" is defined.");
 		}
-
+		
+		if( !(super.owluri==null || super.owluri.trim().isEmpty()) ) {
+			LOG.info("loading so tree from "+super.owluri);
+			try
+				{
+				this.sequenceOntologyTree = SequenceOntologyTree.fromUri(super.owluri.trim());
+				}
+			catch (IOException e)
+				{
+				return wrapException(e);
+				}
+			LOG.info("Done.");
+			}
 		
 		final boolean reasoning = !super.disableReasoning;
 		if(super.userAcnFile!=null)
