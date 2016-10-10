@@ -48,6 +48,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -135,10 +136,11 @@ public class VcfFilterSequenceOntology
 			
 			out.writeHeader(h2);
 
-			final VepPredictionParser vepParser=new VepPredictionParser(header);
-			final SnpEffPredictionParser snpEffparser=new SnpEffPredictionParser(header);
-			final MyPredictionParser myPredParser=new MyPredictionParser(header);
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final VepPredictionParser vepParser=new VepPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
+			final SnpEffPredictionParser snpEffparser= new SnpEffPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
+			final MyPredictionParser myPredParser= new MyPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
+			final AnnPredictionParser annPredParser= new AnnPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			while(in.hasNext() )
 				{	
 				final  VariantContext ctx=progress.watch(in.next());
@@ -162,7 +164,13 @@ public class VcfFilterSequenceOntology
 						if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
 						}
 					}
-				
+				if(!keep)
+					{
+					for(final AnnPredictionParser.AnnPrediction pred:annPredParser.getPredictions(ctx))
+						{
+						if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
+						}
+					}
 				addVariant(out,ctx,keep);
 				if(out.checkError()) break;
 				}

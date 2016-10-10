@@ -88,11 +88,17 @@ public class VepPredictionParser implements PredictionParser
 	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
 	private Pattern pipe=Pattern.compile("[\\|]");
 	private String tag;
+	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 
 	
 	public VepPredictionParser(final VCFHeader header)
 		{		
 		this(header,getDefaultTag());
+		}
+	
+	public VepPredictionParser sequenceOntologyTree( final SequenceOntologyTree soTree) {
+		this.soTree = soTree;
+		return this;
 		}
 	
 	@Override
@@ -361,7 +367,7 @@ public class VepPredictionParser implements PredictionParser
 			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
 			String EFF=getByCol(COLS.Consequence);
 			if(EFF==null) return set;
-			for(SequenceOntologyTree.Term t:SequenceOntologyTree.getInstance().getTerms())
+			for(SequenceOntologyTree.Term t: VepPredictionParser.this.soTree.getTerms())
 				{
 				for(String eff:EFF.split("[&]"))
 					{
