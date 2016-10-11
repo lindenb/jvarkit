@@ -79,10 +79,16 @@ public class AnnPredictionParser implements PredictionParser
 	private Pattern pipe=Pattern.compile("[\\|\\(\\)]");
 	private String tag;
 	private boolean valid=false;
+	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 	
 	public AnnPredictionParser(VCFHeader header)
 		{		
 		this(header,getDefaultTag());
+		}
+	
+	public AnnPredictionParser sequenceOntologyTree( final SequenceOntologyTree soTree) {
+		this.soTree = soTree;
+		return this;
 		}
 	
 	public static final String getDefaultTag()
@@ -113,7 +119,7 @@ public class AnnPredictionParser implements PredictionParser
 	@Override
 	public List<AnnPrediction> getPredictions(VariantContext ctx)
 		{
-		 ArrayList<AnnPrediction> preds= new ArrayList<AnnPrediction>();
+		ArrayList<AnnPrediction> preds= new ArrayList<AnnPrediction>();
 		if(!this.valid)
 			{
 			return preds;
@@ -268,7 +274,7 @@ public class AnnPredictionParser implements PredictionParser
 			for(String eff:EFF.split("[&]"))
 				{
 				if(eff.isEmpty()) continue;
-				for(SequenceOntologyTree.Term t:SequenceOntologyTree.getInstance().getTerms())
+				for(final SequenceOntologyTree.Term t: AnnPredictionParser.this.soTree.getTerms())
 					{
 					if(t.getLabel().equals(eff))
 						{

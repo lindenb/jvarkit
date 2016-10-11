@@ -27,7 +27,7 @@ public class MyPredictionParser implements PredictionParser
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 	private Map<VCFPredictions.FORMAT1, Integer> col2col=new HashMap<VCFPredictions.FORMAT1, Integer>();
-
+	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 	private Pattern pipe=Pattern.compile("[\\|]");
 
 	public final String getTag()
@@ -76,7 +76,10 @@ public class MyPredictionParser implements PredictionParser
 			}
 		}
 	
-	
+	public MyPredictionParser sequenceOntologyTree( final SequenceOntologyTree soTree) {
+	this.soTree = soTree;
+	return this;
+	}
 	
 	@Override
 	public List<MyPrediction> getPredictions(VariantContext ctx)
@@ -244,7 +247,7 @@ public class MyPredictionParser implements PredictionParser
 			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
 			String EFF=getByCol(VCFPredictions.FORMAT1.SEQONTOLOGY);
 			if(EFF==null) return set;
-			for(SequenceOntologyTree.Term t:SequenceOntologyTree.getInstance().getTerms())
+			for(SequenceOntologyTree.Term t: MyPredictionParser.this.soTree.getTerms())
 				{
 				for(String eff:EFF.split("[&]"))
 					{

@@ -28,11 +28,29 @@ History:
 */
 package com.github.lindenb.jvarkit.util.so;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.xml.namespace.QName;
+import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.Attribute;
+import javax.xml.stream.events.EndElement;
+import javax.xml.stream.events.StartElement;
+import javax.xml.stream.events.XMLEvent;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
+
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 
 
 
@@ -143,17 +161,17 @@ public class SequenceOntologyTree
 		}
 
 	
-	private void addTerm(String acn,String label,String parent,String children)
+	private void addTerm(final String acn,final String label,final String parent,final String children)
 		{
-		TermImpl t=new TermImpl();
+		final TermImpl t=new TermImpl();
 		t.accession=acn;
 		t.name=label;
-		for(String s:parent.split("[,]"))
+		for(final String s:parent.split("[,]"))
 			{
 			if(s.isEmpty()) continue;
 			t.parents.add(s);
 			}
-		for(String s:children.split("[,]"))
+		for(final String s:children.split("[,]"))
 			{
 			if(s.isEmpty()) continue;
 			t.children.add(s);
@@ -198,6 +216,11 @@ public class SequenceOntologyTree
 		{
 		return "2015-01-23";
 		}
+	
+	public static  SequenceOntologyTree fromUri(final String uri) throws IOException {
+		return new OwlLoader().parse(uri);
+		}
+
 	
 	public static  SequenceOntologyTree getInstance()
 		{
@@ -382,4 +405,112 @@ public class SequenceOntologyTree
 			}
 		return INSTANCE;
 		}
+	
+	private static class OwlLoader
+		{
+		private final String OWL="http://www.w3.org/2002/07/owl#";
+		private final String OBOINOWL="http://www.geneontology.org/formats/oboInOwl#";
+		private final String RDFS="http://www.w3.org/2000/01/rdf-schema#";
+		private final String RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+		private SequenceOntologyTree tree = new SequenceOntologyTree();
+		private final Map<String,TermImpl> uri2terms=new HashMap<>();
+		private final QName rdfAbout=new QName(RDF, "about","rdf");
+		private final QName rdfResource=new QName(RDF, "resource","rdf");
+		private final List<String> uri2sub=new ArrayList<>();
+		private void owlClass(final XMLEventReader r,final StartElement root) throws XMLStreamException {
+			String acn=null;
+			String label=null;
+			final Attribute att = root.getAttributeByName(rdfAbout);
+			if(att==null) throw new XMLStreamException("no rdf:about",root.getLocation());
+			final String uri = att.getValue();
+			boolean deprecated=false;
+			while(r.hasNext()) {
+				final XMLEvent evt= r.nextEvent();
+				if( evt.isStartElement() ) {
+					final StartElement E = evt.asStartElement();
+					final QName qname = E.getName();
+					if(qname.getLocalPart().equals("label") && RDFS.equals(qname.getNamespaceURI())) {
+						label = r.getElementText();
+						}
+					else if(qname.getLocalPart().equals("id") && OBOINOWL.equals(qname.getNamespaceURI())) {
+						acn = r.getElementText();
+						}
+					else if(qname.getLocalPart().equals("deprecated") && OWL.equals(qname.getNamespaceURI())) {
+						if(r.getElementText().equals("true")) deprecated=true;
+						}
+					else if(qname.getLocalPart().equals("subClassOf") && RDFS.equals(qname.getNamespaceURI()) && E.getAttributeByName(rdfResource)!=null) {
+						final Attribute att2 = E.getAttributeByName(rdfResource);
+						if(att2==null) throw new XMLStreamException("no rdf:resource",E.getLocation());
+						this.uri2sub.add(uri);
+						this.uri2sub.add(att2.getValue());
+						}
+					}
+				else if(evt.isEndElement()) {
+					final EndElement E = evt.asEndElement();
+					final QName qname = E.getName();
+					if(qname.getLocalPart().equals("Class") && OWL.equals(qname.getNamespaceURI())) {
+						break;
+						}
+					}
+				}
+			if(deprecated) return;
+			if(acn==null)  throw new XMLStreamException("no acn",root.getLocation());
+			if(label==null)  throw new XMLStreamException("no label",root.getLocation());
+			if(this.uri2terms.containsKey(uri)) throw new XMLStreamException("duplicate uri ?" + uri,root.getLocation());
+			final TermImpl term = tree.new TermImpl();
+			term.accession = acn;
+			term.name = label;
+			this.uri2terms.put(uri,term);
+			this.tree.uri2term.put(term.accession, term);
+			}
+		
+		SequenceOntologyTree parse(final String uri) throws IOException {
+			final XMLInputFactory xif = XMLInputFactory.newFactory();
+			InputStream in = null;
+			XMLEventReader r = null;
+			try
+				{
+				in = IOUtils.openURIForReading(uri);
+				r = xif.createXMLEventReader(in);
+				return parse(r);
+				}
+			catch (final Exception e)
+				{
+				throw new RuntimeIOException(e);
+				}
+			finally  {
+				CloserUtil.close(r);
+				CloserUtil.close(in);
+				}
+			}
+		SequenceOntologyTree parse(final XMLEventReader r) throws XMLStreamException {
+				this.tree = new SequenceOntologyTree();
+				while(r.hasNext()) {
+					final XMLEvent evt= r.nextEvent();
+					if( evt.isStartElement() ) {
+						final StartElement E = evt.asStartElement();
+						final QName qname = E.getName();
+						if(qname.getLocalPart().equals("Class") && OWL.equals(qname.getNamespaceURI())) {
+							this.owlClass(r, E);
+							}
+						}
+					}
+				for(int i=0;i+1<this.uri2sub.size();++i) {
+					final TermImpl child = this.uri2terms.get(this.uri2sub.get(i));
+					if(child==null) throw new  XMLStreamException("cannot get term "+ this.uri2sub.get(i));
+					final TermImpl parent = this.uri2terms.get(this.uri2sub.get(i+1));
+					if(parent==null) throw new  XMLStreamException("cannot get term "+ this.uri2sub.get(i+1));
+					parent.children.add(child.accession);
+					child.parents.add(parent.accession);
+					}
+				final SequenceOntologyTree t2 = this.tree;
+				this.tree = null;
+				this.uri2terms.clear();
+				return t2;
+				}
+	
+		}
+	
+	
+	
 	}

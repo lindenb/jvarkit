@@ -62,10 +62,18 @@ public class SnpEffPredictionParser implements PredictionParser
 	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
 	private Pattern pipe=Pattern.compile("[\\|\\(\\)]");
 	private String tag;
-	public SnpEffPredictionParser(VCFHeader header)
+	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
+
+	public SnpEffPredictionParser(final VCFHeader header)
 		{		
 		this(header,getDefaultTag());
 		}
+	
+	public SnpEffPredictionParser sequenceOntologyTree( final SequenceOntologyTree soTree) {
+		this.soTree = soTree;
+		return this;
+		}
+
 	
 	public static final String getDefaultTag()
 		{
@@ -73,7 +81,7 @@ public class SnpEffPredictionParser implements PredictionParser
 		}
 	
 	
-	public SnpEffPredictionParser(VCFHeader header,String tag)
+	public SnpEffPredictionParser(final VCFHeader header,final String tag)
 		{	
 		this.tag=(tag==null?getDefaultTag():tag);
 		VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
@@ -264,7 +272,7 @@ public class SnpEffPredictionParser implements PredictionParser
 			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
 			String EFF=getByCol(COLS.Effect);
 			if(EFF==null) return set;
-			for(SequenceOntologyTree.Term t:SequenceOntologyTree.getInstance().getTerms())
+			for(final SequenceOntologyTree.Term t: SnpEffPredictionParser.this.soTree.getTerms())
 				{
 				if(t.getLabel().equals(EFF))
 					{
