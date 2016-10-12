@@ -20,6 +20,22 @@ public Arguments() {
 	register(Arguments.class);
 	}
 
+public ArgumentDef findArgumentDefByOpt(final String opt) {
+	if(opt==null) return null;
+	for(final ArgumentDef ad: this.argumentdefs) {
+		if(ad.hasOpt() && opt.equals(ad.getOpt())) return ad;
+	}
+	return null;
+}
+
+public ArgumentDef findArgumentDefByLongOpt(final String longopt) {
+	if(longopt==null) return null;
+	for(final ArgumentDef ad: this.argumentdefs) {
+		if(ad.hasLongOpt() && longopt.equals(ad.getLongOpt())) return ad;
+	}
+	return null;
+}
+
 public Arguments register(final Object obj) {
 	if(obj!=null) {
 		register(obj,obj.getClass());
@@ -49,20 +65,33 @@ public Arguments filter(Predicate<ArgumentDef> filter) {
 
 
 private void register(final Object obj,final Class<?> clazz) {
+	/** loop over the field of the class */
 	for(final Field field: clazz.getDeclaredFields()) {
+		//if no object, we're only looking a static fields
 		if(obj==null && !java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
+		//if real object, we're not looking a static fields
 		if(obj!=null && java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
-		if(java.lang.reflect.Modifier.isFinal(field.getModifiers())) continue;
+		//retrieve argument
 		final Argument argument  = field.getAnnotation(Argument.class);
+		//no argument
 		if(argument==null) continue;
+		//create new argument def
 		final ArgumentDef def = new  ArgumentDef(obj, field,argument);
+		//check we can modify it
+		if(!def.isMultiple() && java.lang.reflect.Modifier.isFinal(field.getModifiers())) {
+			throw new RuntimeException("not a collection and flagged final : "+def);
+			}
+		//discard if a argument filter is set
 		if( argumentFilter!=null && !argumentFilter.test(def)) continue;
+		//discard if already registerd
 		if( argumentdefs.contains(def) ) {
 			System.err.println("Argument already registered: "+def);
 			continue;
 			}
+		//add to list of arguments
 		this.argumentdefs.add(def);
 		}
+	//observe parent class
 	final Class<?> parentClass = clazz.getSuperclass();
 	if(parentClass==null || parentClass == Object.class) return;
 	register(obj,parentClass);
