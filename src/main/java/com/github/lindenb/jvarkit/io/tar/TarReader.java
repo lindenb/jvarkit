@@ -6,8 +6,6 @@ import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.Arrays;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
-
 public class TarReader implements Closeable
 	{
 	private static final int BLOCK_SIZE=512;
@@ -60,10 +58,10 @@ public class TarReader implements Closeable
 	public  class Entry
 		extends InputStream
 		{
-		private long length;
+		private final long length;
 		private long nRead=0L;
-		private TARFileHeader meta;
-		private Entry(TARFileHeader meta)
+		private final TARFileHeader meta;
+		private Entry(final TARFileHeader meta)
 			{
 			this.meta=meta;
 			this.length=meta.getSize();
@@ -188,24 +186,6 @@ public class TarReader implements Closeable
 -rw-r--r-- tm/tm        554847 2014-01-23 14:20 merged.dmp
 -rw-r--r-- tm/tm      96596932 2014-01-23 14:20 names.dmp
  */
-	public static void main(String[] args) {
-		try {
-			System.setProperty("ftp.proxyHost", "proxy-upgrade.univ-nantes.prive");
-			System.setProperty("ftp.proxyPort", "3128");
-			
-			TarReader r=new TarReader(IOUtils.openURIForReading("ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"));
-			Entry E=null;
-			while((E=r.next())!=null)
-				{
-				System.out.println(E.toString());
-				E.skip();
-				}
-			
-			r.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		}
 	
     private static long parseOctalOrBinary(final byte[] buffer, final int offset,
             final int length) {

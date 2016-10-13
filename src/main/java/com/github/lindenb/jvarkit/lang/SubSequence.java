@@ -30,8 +30,8 @@ package com.github.lindenb.jvarkit.lang;
 
 public class SubSequence extends DelegateCharSequence
 	{
-	private int start;
-	private int end;
+	private final int start;
+	private final int end;
 	public SubSequence(final CharSequence delegate,final int start, final int end)
 		{
 		super(delegate);

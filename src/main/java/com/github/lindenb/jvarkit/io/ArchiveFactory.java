@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.io;
 
 import java.io.Closeable;
@@ -17,9 +45,15 @@ public abstract class ArchiveFactory
 	private ArchiveFactory()
 		{
 		}
+	
+	public abstract OutputStream openOuputStream(final String filename) throws IOException;
+	public PrintWriter openWriter(final String filename) throws IOException
+		{
+		return new PrintWriter(openOuputStream(filename), true);
+		}
 
 	
-	public static ArchiveFactory open(File f)  throws IOException
+	public static ArchiveFactory open(final File f)  throws IOException
 		{
 		if(f.getName().toLowerCase().endsWith(".zip"))
 			{
@@ -38,7 +72,7 @@ public abstract class ArchiveFactory
 		FileOutputStream fout;
 		ZipOutputStream zout;
 		
-		ZipInstance(File f) throws IOException
+		ZipInstance(final File f) throws IOException
 			{
 			fout=new FileOutputStream(f);
 			zout=new ZipOutputStream(fout);
@@ -135,7 +169,7 @@ public abstract class ArchiveFactory
 		{
 		private File baseDir;
 		
-		FileInstance(File baseDir) throws IOException
+		FileInstance(final File baseDir) throws IOException
 			{
 			this.baseDir=baseDir;
 			if(baseDir.exists() && !baseDir.isDirectory())
@@ -161,11 +195,5 @@ public abstract class ArchiveFactory
 			{
 			
 			}
-		}
-	
-	public abstract OutputStream openOuputStream(String filename) throws IOException;
-	public PrintWriter openWriter(String filename) throws IOException
-		{
-		return new PrintWriter(openOuputStream(filename), true);
 		}
 }
