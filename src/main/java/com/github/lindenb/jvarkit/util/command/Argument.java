@@ -34,6 +34,7 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.function.Function;
 
 @Retention(RUNTIME)
 @Target(FIELD)
@@ -47,5 +48,6 @@ public @interface Argument {
 	public String regex() default "";
 	public String category() default "";
 	public boolean hidden() default false;
-	public int nargs() default 1;
+	public String env() default "";
+
 }
