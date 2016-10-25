@@ -193,7 +193,7 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
-	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299
+	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 cutgvcf vcfmovefilterstoinfo
 	
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden
@@ -214,7 +214,7 @@ galaxy: ${GALAXY_APPS}
 	-planemo  lint --skip "tests"  ${galaxy.dir}/*.xml
 	
 
-burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01
+burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcfmovefilterstoinfo
 
 tests: 
 	(cd ${this.dir}tests && $(MAKE))
@@ -481,8 +481,10 @@ $(eval $(call compile-htsjdk-cmd,vcfinjectpedigree,${jvarkit.package}.tools.burd
 $(eval $(call compile-htsjdk-cmd,gbrowserhtml,${jvarkit.package}.tools.misc.GBrowserHtml,wiki_flag ${gson.jar} copy.samtools.js))
 $(eval $(call compile-htsjdk-cmd,bim2vcf,${jvarkit.package}.tools.misc.BimToVcf,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,samreadlengthdistribution,${jvarkit.package}.tools.misc.SamReadLengthDistribution,wiki_flag))
-
+$(eval $(call compile-htsjdk-cmd,cutgvcf,${jvarkit.package}.tools.cutgvcf.CutGVcf,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,queue2make,${jvarkit.package}.tools.misc.QueueToMake,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcfmovefilterstoinfo,${jvarkit.package}.tools.burden.VcfMoveFiltersToInfo,wiki_flag))
+
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
 	 ./src/main/resources/jnlp/generic.jnlp .secret.keystore 

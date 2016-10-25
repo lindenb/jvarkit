@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "VcfMoveFiltersToInfo">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.burden">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 xmlns:h="http://www.w3.org/1999/xhtml"
+	 xmlns:svg="http://www.w3.org/2000/svg"
+	 xmlns:galaxy="https://usegalaxy.org/"
+	 app="&name;"
+	 package="&package;"
+	 __placeholder__="1"
+	>
+
+<description>Move any FILTER to the INFO column. reset FILTER to PASS</description>
+<input type="vcf"/>
+<output type="vcf"/>
+
+
+<options>
+	<option name="infoName" type="string" longopt="filter" opt="f" default="PREVIOUSLY_FILTERED_AS">
+		<description>INFO name. This tag will be used to store the previous filters</description>
+	</option>
+</options>
+
+
+
+<documentation>
+For Matilde: move the information in FILTER to the INFO column to keep a trace of the FILTERs.
+<h:pre><![CDATA[$ ]]></h:pre>
+
+</documentation>
+
+<!-- __PLACEHOLDER__ -->
+</app>
