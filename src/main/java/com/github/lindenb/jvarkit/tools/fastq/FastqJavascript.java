@@ -33,21 +33,19 @@ package com.github.lindenb.jvarkit.tools.fastq;
 
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Collection;
+import java.util.List;
 
 import javax.script.Bindings;
-import javax.script.Compilable;
 import javax.script.CompiledScript;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.fastq.BasicFastqWriter;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.fastq.FastqWriter;
@@ -60,15 +58,14 @@ import htsjdk.samtools.util.CloserUtil;
  * filters FASTQ with javascript
  */
 public class FastqJavascript
-	extends AbstractCommandLineProgram
+	extends AbstractFastqJavascript
 	{
-	private long LIMIT=-1L;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(FastqJavascript.class);
 
 	private CompiledScript  script=null;
-	private ScriptEngine engine=null;
-	private File failingReadsFile=null;
+	//private File failingReadsFile=null;
 	private FastqWriter failingReadsWriter=null;
-	private boolean interleaved=false;
+	//
 	
 	/** mutable fastq record */
 	public static class Record
@@ -154,7 +151,38 @@ public class FastqJavascript
 		public String toString() {
 			return get(0).toString()+"\n"+get(1).toString();
 			}
-
+		}
+	
+	private static class InterleavedFastqReader implements FastqReader
+		{
+		private final FastqReader delegates[];
+		private int side=0;
+		public InterleavedFastqReader(final FastqReader R1,final FastqReader R2) {
+			delegates = new FastqReader[]{R1,R2};
+			}
+		@Override
+		public boolean hasNext() {
+			return delegates[side].hasNext();
+			}
+		@Override
+		public ValidationStringency getValidationStringency() {
+			return delegates[0].getValidationStringency();
+			}
+		@Override
+		public FastqRecord next() {
+			final FastqRecord rec =  delegates[side].next();
+			this.side=(side==0?1:0);
+			return rec;
+			}
+		@Override
+		public void close() throws IOException {
+			delegates[0].close();
+			delegates[1].close();
+			}
+		@Override
+		public void setValidationStringency(ValidationStringency validationStringency) {
+			delegates[0].setValidationStringency(validationStringency);
+			}
 		}
 	
 	private FastqJavascript()
@@ -168,7 +196,7 @@ public class FastqJavascript
 		if(this.failingReadsFile==null) return false;
 		if(this.failingReadsWriter==null)
 			{
-			info("Writing failings to "+ this.failingReadsFile);
+			LOG.info("Writing failings to "+ this.failingReadsFile);
 			failingReadsWriter=new BasicFastqWriter(this.failingReadsFile);
 			}
 		return true;
@@ -179,218 +207,164 @@ public class FastqJavascript
 		if(openFailing()) failingReadsWriter.write(rec.toFastqRecord());
 		}
 	
-	private boolean accept(Object result)
-		{
-		if(result==null)
+	private void doWork(final FastqReader r) 
+		throws IOException,ScriptException
 			{
-			return false;
-			}
-		
-		if(result instanceof Boolean)
-			{
-			if(Boolean.FALSE.equals(result))
+			final FastqWriter fastqWriters[]={null,null};
+			try
 				{
-				return false;
-				}
-			}
-		else if(result instanceof Number)
-			{
-			if(((Number)result).intValue()!=1)
-				{
-				return false;
-				}
-			}
-		else
-			{
-			warning("script returned neither a number or a boolean "+result.getClass());
-			return false;
-			}
-		return true;
-		}
-	
-	private int doWork(FastqReader r,FastqWriter w)
-		{
-		try
-			{
-		
-			long count=0L;
-	        Bindings bindings = this.engine.createBindings();
-	        
-			while(r.hasNext())
-				{
-				Record record=new Record(r.next());
-				record.nLine=count;
-				
-				if(interleaved)
+				if(!interleaved)
 					{
-					if(!r.hasNext()) throw new IOException("interleaved: mate missing");
-					Record mate= new Record(r.next());
-					mate.nLine=count;
-					Pair pair=new Pair(record, mate);
-					pair.nLine=count;
-					bindings.put("pair", pair);
-					if(!accept(script.eval(bindings)))
+					if( super.R1FileOut!=null || super.R2FileOut!=null) {
+						throw new IllegalStateException("This is not an interleaved input but option "+OPTION_R1FILEOUT+"/"+OPTION_R2FILEOUT+" were defined.");
+						}
+					if(super.getOutputFile()==null)
 						{
-						failing(pair.get(0));
-						failing(pair.get(1));
+						fastqWriters[0] = new BasicFastqWriter(new PrintStream(stdout()));
 						}
 					else
 						{
-						w.write(pair.get(0).toFastqRecord());
-						w.write(pair.get(1).toFastqRecord());
+						fastqWriters[0] = new BasicFastqWriter(super.getOutputFile());
 						}
+					fastqWriters[1] = fastqWriters[0];
 					}
-				else
+				else /* interleaved */
 					{
-					bindings.put("rec", record);
-					if(!accept(script.eval(bindings)))
-						{
-						failing(record);
+					if( 	(super.R1FileOut==null && super.R2FileOut!=null) ||
+							(super.R1FileOut!=null && super.R2FileOut==null)) {
+							throw new IllegalStateException("Option "+OPTION_R1FILEOUT+" / " + OPTION_R2FILEOUT+" must be both defined");
+						}
+					else if( super.R1FileOut==null && super.R2FileOut==null) {
+						if(super.getOutputFile()==null)
+							{
+							fastqWriters[0] = new BasicFastqWriter(new PrintStream(stdout()));
+							}
+						else
+							{
+							fastqWriters[0] = new BasicFastqWriter(super.getOutputFile());
+							}
+						fastqWriters[1] = fastqWriters[0];
 						}
 					else
 						{
-						w.write(record.toFastqRecord());
+						fastqWriters[0] = new BasicFastqWriter(super.R1FileOut);
+						fastqWriters[1] = new BasicFastqWriter(super.R2FileOut);
 						}
 					}
-				++count;
-				
-				if(this.LIMIT>0L && count>=this.LIMIT) break;
-				if(System.out.checkError()) break;
-				}
 			
-			openFailing();
+				long count=0L;
+				final Bindings bindings = this.script.getEngine().createBindings();
+		        
+				while(r.hasNext())
+					{
+					final Record record=new Record(r.next());
+					record.nLine=count;
+					
+					if(super.interleaved)
+						{
+						if(!r.hasNext()) throw new IOException("interleaved: mate missing");
+						final Record mate= new Record(r.next());
+						mate.nLine=count;
+						final Pair pair=new Pair(record, mate);
+						pair.nLine=count;
+						
+						
+						
+						bindings.put("pair", pair);
+						if(!super.evalJavaScriptBoolean(this.script, bindings))
+							{
+							failing(pair.get(0));
+							failing(pair.get(1));
+							}
+						else
+							{
+							fastqWriters[0].write(pair.get(0).toFastqRecord());
+							fastqWriters[1].write(pair.get(1).toFastqRecord());
+							}
+						}
+					else
+						{
+						bindings.put("rec", record);
+						if(!super.evalJavaScriptBoolean(this.script, bindings))
+							{
+							failing(record);
+							}
+						else
+							{
+							fastqWriters[0].write(record.toFastqRecord());
+							}
+						}
+					++count;
+					if(this.LIMIT>0L && count>=this.LIMIT) break;
+					}
+				openFailing();
+				}
+			finally 
+			
+				{
+				CloserUtil.close(fastqWriters[0]);
+				CloserUtil.close(fastqWriters[1]);
+				}
+			}
+	
 
-			return 0;
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Filters a FASTQ file using javascript( java rhino engine)." +
-				"The script puts 'rec' a FastqRecord, or 'pair' for an interleaved input, into the script context .";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FastqJS";
-		}
 	
 	@Override
 	public void printOptions(PrintStream out) {
-		out.println(" -f (script) script file");
-		out.println(" -e (script) script expression");
-		out.println(" -N (limit:int) limit to 'N' records");
-		out.println(" -X (fail.fastq) Save dicarded reads in that file. Optional. Default: no file.");
-		out.println(" -i interleaved input.");
 
 		super.printOptions(out);
 		}
 
-	
 	@Override
-	public int doWork(String[] args)
-		{
-	
+	public Collection<Throwable> call() throws Exception {
+		final List<String> args = super.getInputFiles();
+		
+		if( (super.R1FileOut==null && super.R2FileOut!=null) ||
+			(super.R1FileOut!=null && super.R2FileOut==null)) {
+			return wrapException("Option "+OPTION_R1FILEOUT+" / " + OPTION_R2FILEOUT+" must be both defined");
+		}
+		
 		try
 			{
-			ScriptEngineManager manager = new ScriptEngineManager();
-			this.engine = manager.getEngineByName("js");
-			if(this.engine==null)
-				{
-				error("not available: javascript. Use the SUN/Oracle JDK ?");
-				return -1;
+			this.script  = super.compileJavascript();
+			
+			
+			
+			if(args.isEmpty())
+				{				
+				final FastqReader in=new FourLinesFastqReader(stdin());
+				doWork(in);
+				in.close();
 				}
-		
-			}
-		catch(Exception err)
-			{
-			error(err);
-			return -1;
-			}
-		String SCRIPT_EXPRESSION=null;
-		File SCRIPT_FILE=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"e:f:N:X:i"))!=-1)
-			{
-			switch(c)
+			else if(args.size()==2)
 				{
-				case 'X':
-					{
-					this.failingReadsFile=new File(opt.getOptArg());
-					break;
-					}
-				case 'i': this.interleaved=true;break;
-				case 'e':SCRIPT_EXPRESSION=opt.getOptArg();break;
-				case 'f':SCRIPT_FILE=new File(opt.getOptArg());break;
-				case 'N': this.LIMIT=Long.parseLong(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				LOG.info("2 fastqs: Reading as interleavel fastqs");
+				final FastqReader in1=new FourLinesFastqReader(new File(args.get(0)));
+				final FastqReader in2=new FourLinesFastqReader(new File(args.get(1)));
+				final FastqReader in=new InterleavedFastqReader(in1,in2);
+				super.interleaved = true;
+				doWork(in);
+				in.close();
 				}
-			}
-		if(SCRIPT_EXPRESSION==null && SCRIPT_FILE==null)
-			{
-			error("undefined script");
-			return -1;
-			}
-		
-		FastqWriter fqw=null;
-		try
-			{
-			Compilable compilingEngine = (Compilable)this.engine;
-			this.script = null;
-			if(SCRIPT_FILE!=null)
+			else if(args.size()==1)
 				{
-				info("Reading script "+SCRIPT_FILE);
-				FileReader r=new FileReader(SCRIPT_FILE);
-				this.script=compilingEngine.compile(r);
-				r.close();
+				final FastqReader in=new FourLinesFastqReader(new File(args.get(0)));
+				doWork(in);
+				in.close();
 				}
 			else
 				{
-				info("Eval script "+SCRIPT_EXPRESSION);
-				this.script=compilingEngine.compile(SCRIPT_EXPRESSION);
+				return wrapException("Illegal number of arguments");
 				}
-			fqw = new BasicFastqWriter(System.out);
-			if(opt.getOptInd()==args.length)
-				{
-				FastqReader in=new FourLinesFastqReader(System.in);
-				doWork(in,fqw);
-				in.close();
-				}
-			else for(int i=opt.getOptInd();i< args.length;++i)
-				{
-				FastqReader in=new FourLinesFastqReader(
-						IOUtils.openURIForReading(args[i])
-						);
-				int ret=doWork(in,fqw);
-				in.close();
-				if(ret!=0) return ret;
-				if(System.out.checkError()) break;
-				}
-			return 0;
+			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{
 			CloserUtil.close(failingReadsWriter);
-			CloserUtil.close(fqw);
 			}
 		}
 	

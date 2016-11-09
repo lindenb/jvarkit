@@ -4,4 +4,33 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.fastq">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Filters a FASTQ file using javascript( java nashorn engine). </description>
+<snippet id="javascript"/>
+
+
+
+<options>
+	<option name="LIMIT" opt="N" longopt="limit" type="long" default="-1L">
+		<description>limit to 'N' records -1:all</description>
+	</option>
+	<option name="interleaved" opt="i" longopt="interleaved" type="boolean" default="false">
+		<description>interleaved input</description>
+	</option>
+	<option name="failingReadsFile" opt="X" longopt="failing" type="output-file" >
+		<description>Save dicarded reads in that file. Optional. Default: no file</description>
+	</option>
+	<option name="R1FileOut" opt="R1" longopt="R1" type="output-file" >
+		<description>for paired/interleaved input, save R1 reads in this file</description>
+	</option>
+	<option name="R2FileOut" opt="R2" longopt="R1" type="output-file" >
+		<description>for paired/interleaved input, save R2 reads in this file</description>
+	</option>
+</options>
+
+<documentation>
+<h:h3>Motivation</h:h3>
+
+The script puts 'rec' a FastqRecord, or 'pair' for an interleaved input, into the script context 
+</documentation>
+
+</app>

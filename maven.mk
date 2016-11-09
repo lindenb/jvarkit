@@ -81,8 +81,12 @@ web.frameworks.jar  =  \
 gson.jar = \
 	$(lib.dir)/com/google/code/gson/gson/2.6.2/gson-2.6.2.jar
 
+velocity.jars  =  \
+	$(lib.dir)/commons-collections/commons-collections/3.2.1/commons-collections-3.2.1.jar \
+	$(lib.dir)/commons-lang/commons-lang/2.4/commons-lang-2.4.jar \
+	$(lib.dir)/org/apache/velocity/velocity/1.7/velocity-1.7.jar
 
-all_maven_jars = $(sort ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
+all_maven_jars = $(sort ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
 
 download_all_maven : ${all_maven_jars}
 

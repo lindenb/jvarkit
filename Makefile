@@ -57,6 +57,26 @@ EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
 
 
+gatk.tools = org_broadinstitute_gatk_engine_CommandLineGATK \
+		org_broadinstitute_gatk_tools_walkers_variantutils_CombineVariants \
+		org_broadinstitute_gatk_tools_walkers_annotator_VariantAnnotator \
+		org_broadinstitute_gatk_tools_walkers_filters_VariantFiltration 
+
+
+define make_gatk_code
+
+${generated.dir}/resources/json/gatk/$$(lastword $$(subst _, ,$(1))).json :
+	mkdir -p $$(dir $$@)
+	curl -Lk $${curl.proxy} -o "$$(addsuffix .tmp,$$@)" "https://software.broadinstitute.org/gatk/gatkdocs/$(1).php.json"
+	mv $$(addsuffix .tmp,$$@) $$@
+
+${generated.dir}/java/com/github/lindenb/jvarkit/gatk/commands/Abstract$$(lastword $$(subst _, ,$(1))).java :${generated.dir}/resources/json/gatk/$$(lastword $$(subst _, ,$(1))).json gatkcodegen ${this.dir}src/main/resources/velocity/gatkcmd.vm
+	mkdir -p $$(dir $$@) && ${JAVA} -jar ${dist.dir}/gatkcodegen.jar -T $$(word 3,$$^) $$< > $$@
+
+endef
+
+
+
 
 define compile-htsjdk-cmd
 
@@ -160,7 +180,10 @@ endef
 GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfmulti2oneallele vcfin vcffilterso vcffilterjs vcfburdensplitter vcfpredictions \
 	vcfpolyx vcfburdenfiltergenes vcfbed vcfbedsetfilter
 
-APPS= ${GALAXY_APPS} vcftrio   groupbygene \
+
+gatk_apps:$(if ${gatk.jar}, ,)
+
+APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
 	bam2xml bam2wig		bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	bamviewgui	batchigvpictures	bedliftover \
@@ -193,8 +216,9 @@ APPS= ${GALAXY_APPS} vcftrio   groupbygene \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
-	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 vcfmovefilterstoinfo
+	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 vcfmovefilterstoinfo gatkcodegen
 	
+
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden
 
@@ -483,6 +507,7 @@ $(eval $(call compile-htsjdk-cmd,bim2vcf,${jvarkit.package}.tools.misc.BimToVcf,
 $(eval $(call compile-htsjdk-cmd,samreadlengthdistribution,${jvarkit.package}.tools.misc.SamReadLengthDistribution,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,queue2make,${jvarkit.package}.tools.misc.QueueToMake,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfmovefilterstoinfo,${jvarkit.package}.tools.burden.VcfMoveFiltersToInfo,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,gatkcodegen,${jvarkit.package}.tools.gatk.codegen.GATKCodeGenerator,${gson.jar} ${velocity.jars} wiki_flag))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
@@ -588,7 +613,11 @@ copy.opendoc.odp.resources :
 copy.samtools.js:
 	mkdir -p ${tmp.dir}/META-INF/js
 	$(foreach J,gbrowse.js hershey.js samtools.js com.github.lindenb.jvarkit.tools.misc.GBrowserHtml.js,cp src/main/js/${J} ${tmp.dir}/META-INF/js/ ; )
-	
+
+## GATK code generation using php.json URLs
+gatk_code: $(foreach U,${gatk.tools},${generated.dir}/java/com/github/lindenb/jvarkit/gatk/commands/Abstract$(lastword $(subst _, ,$U)).java)
+$(eval $(foreach U,${gatk.tools},$(call make_gatk_code,${U})))
+
 
 
 ## jvarkit-library (used in knime)
