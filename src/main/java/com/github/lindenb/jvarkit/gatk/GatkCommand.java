@@ -24,6 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.gatk;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 public abstract class GatkCommand {

@@ -23,6 +23,9 @@
 	<option name="infoName" type="string" longopt="filter" opt="f" default="PREVIOUSLY_FILTERED_AS">
 		<description>INFO name. This tag will be used to store the previous filters</description>
 	</option>
+	<option name="onlyThoseFiltersTagStr" type="string" longopt="t" opt="limitto">
+		<description>If not empty, limit to those FILTERS. Multiple separated by comma/space.</description>
+	</option>
 </options>
 
 

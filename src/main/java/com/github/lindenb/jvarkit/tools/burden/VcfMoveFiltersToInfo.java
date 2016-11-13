@@ -73,6 +73,14 @@ public class VcfMoveFiltersToInfo
 			return wrapException("undefined option -"+OPTION_INFONAME);
 			}
 		final VCFHeader header = in.getHeader();
+		final Set<String> limitToThoseFilters = new HashSet<>();
+		if(!StringUtil.isBlank(super.onlyThoseFiltersTagStr)) {
+			for(final String f:super.onlyThoseFiltersTagStr.split("[, ]"))
+				{
+				if(StringUtil.isBlank(f)) continue;
+				limitToThoseFilters.add(f.trim());
+				}
+		}
 		
 		try {
 			final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
@@ -103,7 +111,8 @@ public class VcfMoveFiltersToInfo
 					}
 				else
 					{
-					final Set<String> filters = new HashSet<>();
+					final Set<String> INFOfilters = new HashSet<>();
+					final Set<String> FILTERfilters = new HashSet<>();
 					for(final String filter : ctx.getFilters()) {
 						if( filter.equals(VCFConstants.UNFILTERED) ||
 							filter.equals(VCFConstants.PASSES_FILTERS_v3) ||
@@ -112,14 +121,26 @@ public class VcfMoveFiltersToInfo
 							{
 							continue;
 							}
-						filters.add(filter);
+						if(!limitToThoseFilters.isEmpty() && !limitToThoseFilters.contains(filter)) {
+							FILTERfilters.add(filter);
+							}
+						else
+							{
+							INFOfilters.add(filter);
+							}
 						}
 					
 					
 					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-					vcb.unfiltered();
-					if(!filters.isEmpty()) {
-						vcb.attribute(infoHeaderLine.getID(), new ArrayList<>(filters));
+					if(FILTERfilters.isEmpty()) {
+						vcb.unfiltered();
+						}
+					else
+						{
+						vcb.filters(FILTERfilters);
+						}
+					if(!INFOfilters.isEmpty()) {
+						vcb.attribute(infoHeaderLine.getID(), new ArrayList<>(INFOfilters));
 						}
 					out.add(vcb.make());
 					}
