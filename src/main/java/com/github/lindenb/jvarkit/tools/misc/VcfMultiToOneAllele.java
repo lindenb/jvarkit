@@ -119,14 +119,13 @@ public class VcfMultiToOneAllele
 				{
 				//Collections.sort(aioulleles); don't sort , for VCFHeaderLineCount.A
 				final Map<String,Object> attributes = ctx.getAttributes();
-				StringBuilder sb=new StringBuilder();
+				final StringBuilder sb=new StringBuilder();
 				for(int i=0;i< alleles.size();++i)
 					{
 					if(sb.length()>0) sb.append("|");
 					sb.append(alleles.get(i).getDisplayString());
 					}
-				String altAsString= sb.toString();
-				
+				final String altAsString= sb.toString();
 				for(int i=0;i< alleles.size();++i)
 					{
 					final Allele the_allele = alleles.get(i);
@@ -136,18 +135,44 @@ public class VcfMultiToOneAllele
 					
 					for(final String attid:attributes.keySet())
 						{
-						VCFInfoHeaderLine info = header.getInfoHeaderLine(attid);
+						final VCFInfoHeaderLine info = header.getInfoHeaderLine(attid);
 						if(info==null) throw new IOException("Cannot get header INFO tag="+attid);
 						if(info.getCountType()!=VCFHeaderLineCount.A) continue;
-						Object o = 	attributes.get(attid);
-						if(!(o instanceof List)) throw new IOException("For INFO tag="+attid+" got "+o.getClass()+" instead of List in "+ctx);
+						final Object o = 	attributes.get(attid);
+						if(!(o instanceof List)) {
+							final String msg="For INFO tag="+attid+" got "+o.getClass()+" instead of List in "+ctx;
+							if(super.rmErrorAttributes)
+								{
+								LOG.warn("remove this attribute : "+msg);
+								vcb.rmAttribute(attid);
+								continue;
+								}
+							else
+								{
+								throw new IOException(msg);
+								}				
+							}
 						@SuppressWarnings("rawtypes")
-						List list = (List)o;
-						if(i>=list.size()) throw new IOException("For INFO tag="+alleles.size()+" got "+alleles.size()+" ALT, incompatible with "+list.toString());
-						vcb.attribute(attid, list.get(i));
-						
-						
+						final List list = (List)o;
+						if(alleles.size()!=list.size()) {
+							final String msg= ctx.getContig()+":"+ctx.getStart()+" : For INFO tag="+attid+" got "+alleles.size()+" ALT, incompatible with "+list.toString();
+							if(super.rmErrorAttributes)
+								{
+								LOG.warn("remove this attribute : "+msg);
+								vcb.rmAttribute(attid);
+								continue;
+								}
+							else
+								{
+								throw new IOException(msg);
+								}
+							}
+						else
+							{	
+							vcb.attribute(attid, list.get(i));	
+							}
 						}
+					
 					vcb.attribute(TAG,altAsString);
 					
 					if(!print_samples)
@@ -156,11 +181,11 @@ public class VcfMultiToOneAllele
 						}
 					else
 						{
-						List<Genotype> genotypes=new ArrayList<>(sample_names.size());
+						final List<Genotype> genotypes=new ArrayList<>(sample_names.size());
 						
-						for(String sampleName: sample_names)
+						for(final String sampleName: sample_names)
 							{							
-							Genotype g= ctx.getGenotype(sampleName);
+							final Genotype g= ctx.getGenotype(sampleName);
 							if(!g.isCalled() || g.isNoCall() )
 								{
 								genotypes.add(g);
@@ -168,15 +193,15 @@ public class VcfMultiToOneAllele
 								}
 							
 							
-							GenotypeBuilder gb =new GenotypeBuilder(g);
-							List<Allele> galist = new ArrayList<>(g.getAlleles());
+							final GenotypeBuilder gb =new GenotypeBuilder(g);
+							final List<Allele> galist = new ArrayList<>(g.getAlleles());
 							
 							if(galist.size()>0)
 								{
 								boolean replace=false;
 								for(int y=0;y< galist.size();++y)
 									{
-									Allele ga = galist.get(y);
+									final Allele ga = galist.get(y);
 									if(ga.isSymbolic()) throw new RuntimeException("How should I handle "+ga);
 									if(!(ga.isNoCall() || 
 										 ga.equals(ctx.getReference()) ||

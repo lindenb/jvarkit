@@ -33,8 +33,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -87,13 +90,23 @@ public class VcfFilterSequenceOntology
 				vcb.filter(this.filterIn);
 				w.add(vcb.make());
 				}
+			else if( !ctx.filtersWereApplied()) {
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.passFilters();
+				w.add(vcb.make());
+				}
 			else
 				{
 				w.add(ctx);
 				}
 			}
 		else  if(!this.filterOut.isEmpty()) {
-			if(keep){
+			if(keep && !ctx.filtersWereApplied()) {
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.passFilters();
+				w.add(vcb.make());
+				}
+			else if(keep){
 				w.add(ctx);
 				}
 			else
@@ -117,14 +130,7 @@ public class VcfFilterSequenceOntology
 	
 	private boolean hasUserTem(final Set<SequenceOntologyTree.Term> ctxTerms)
 		{
-		for(final SequenceOntologyTree.Term ctxTerm:ctxTerms)
-			{
-			if(this.user_terms.contains(ctxTerm))
-				{
-				return true;
-				}
-			}
-		return false;
+		return !Collections.disjoint(ctxTerms, this.user_terms);
 		}
 	
 	@Override
@@ -141,38 +147,129 @@ public class VcfFilterSequenceOntology
 			final MyPredictionParser myPredParser= new MyPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
 			final AnnPredictionParser annPredParser= new AnnPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+			
 			while(in.hasNext() )
 				{	
 				final  VariantContext ctx=progress.watch(in.next());
 				boolean keep=false;
-								
-				for(final SnpEffPredictionParser.SnpEffPrediction pred:snpEffparser.getPredictions(ctx))
-					{
-					if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
-					}
-				if(!keep)
-					{
-					for(final VepPredictionParser.VepPrediction pred:vepParser.getPredictions(ctx))
-						{
-						if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
+				List<Object> snpEffPredStrings = null;
+				List<Object> vepPredStrings = null;
+				List<Object> myPredStrings = null;
+				List<Object> annPredStrings = null;
+				
+				/* handle SNP EFF */
+				if(ctx.hasAttribute(snpEffparser.getTag())) {
+					snpEffPredStrings = new ArrayList<>(ctx.getAttributeAsList(snpEffparser.getTag()));
+					int x=0;
+					while(x<snpEffPredStrings.size()){
+						final Object predStr = snpEffPredStrings.get(x);
+						final SnpEffPredictionParser.SnpEffPrediction pred = snpEffparser.parseOnePrediction(predStr);
+						if(pred!=null && hasUserTem(pred.getSOTerms()))
+							{
+							keep=true;
+							++x;
+							}
+						else
+							{
+							snpEffPredStrings.remove(x);
+							}
 						}
 					}
-				if(!keep)
-					{
-					for(final MyPredictionParser.MyPrediction pred:myPredParser.getPredictions(ctx))
-						{
-						if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
+				
+				/* handle VEP */
+				if(ctx.hasAttribute(vepParser.getTag()) && (super.removeUnusedAttribute || !keep)) {
+					vepPredStrings = new ArrayList<>(ctx.getAttributeAsList(vepParser.getTag()));
+					int x=0;
+					while(x<vepPredStrings.size()){
+						final Object predStr = vepPredStrings.get(x);
+						final VepPredictionParser.VepPrediction pred = vepParser.parseOnePrediction(ctx, predStr);
+						if(pred!=null && hasUserTem(pred.getSOTerms()))
+							{
+							keep=true;
+							++x;
+							}
+						else
+							{
+							vepPredStrings.remove(x);
+							}
 						}
 					}
-				if(!keep)
-					{
-					for(final AnnPredictionParser.AnnPrediction pred:annPredParser.getPredictions(ctx))
-						{
-						if(hasUserTem(pred.getSOTerms())) { keep=true; break;}
+				/* handle MyPredictionParser */
+				if(ctx.hasAttribute(myPredParser.getTag()) && (super.removeUnusedAttribute || !keep)) {
+					myPredStrings = new ArrayList<>(ctx.getAttributeAsList(myPredParser.getTag()));
+					int x=0;
+					while(x<myPredStrings.size()){
+						final Object predStr = myPredStrings.get(x);
+						final MyPredictionParser.MyPrediction pred = myPredParser.parseOnePrediction(predStr);
+						if(pred!=null && hasUserTem(pred.getSOTerms()))
+							{
+							keep=true;
+							++x;
+							}
+						else
+							{
+							myPredStrings.remove(x);
+							}
 						}
 					}
-				addVariant(out,ctx,keep);
-				if(out.checkError()) break;
+				
+				/* handle ANN */
+				if(ctx.hasAttribute(annPredParser.getTag()) && (super.removeUnusedAttribute || !keep)) {
+					annPredStrings = new ArrayList<>(ctx.getAttributeAsList(annPredParser.getTag()));
+					int x=0;
+					while(x<annPredStrings.size()){
+						final Object predStr = annPredStrings.get(x);
+						final AnnPredictionParser.AnnPrediction pred = annPredParser.parseOnePrediction(predStr);
+						if(pred!=null && hasUserTem(pred.getSOTerms()))
+							{
+							keep=true;
+							++x;
+							}
+						else
+							{
+							annPredStrings.remove(x);
+							}
+						}
+					}
+				
+				if(super.removeUnusedAttribute)
+					{
+					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+					int count=0;
+					if(snpEffPredStrings!=null) {
+						vcb.rmAttribute(snpEffparser.getTag());
+						vcb.attribute(snpEffparser.getTag(), snpEffPredStrings);
+						count += snpEffPredStrings.size();
+						}
+					if(vepPredStrings!=null) {
+						vcb.rmAttribute(vepParser.getTag());
+						vcb.attribute(vepParser.getTag(), vepPredStrings);
+						count += vepPredStrings.size();
+						}
+					if(myPredStrings!=null) {
+						vcb.rmAttribute(myPredParser.getTag());
+						vcb.attribute(myPredParser.getTag(), myPredStrings);
+						count += myPredStrings.size();
+						}
+					if(annPredStrings!=null) {
+						vcb.rmAttribute(annPredParser.getTag());
+						vcb.attribute(annPredParser.getTag(), annPredStrings);
+						count += annPredStrings.size();
+						}
+					
+					if( count == 0  && this.removeIfNoMoreAttribute) 
+						{
+						addVariant(out,vcb.make(),false);
+						}
+					else
+						{
+						addVariant(out,vcb.make(),true);
+						}
+					}
+				else
+					{
+					addVariant(out,ctx,keep);
+					}
 				}
 			progress.finish();
 			return RETURN_OK;
@@ -186,7 +283,7 @@ public class VcfFilterSequenceOntology
 	
 	private void parseAccessionsFile(final File f) throws IOException
 		{
-		BufferedReader in=IOUtils.openFileForBufferedReading(f);
+		final BufferedReader in=IOUtils.openFileForBufferedReading(f);
 		String line;
 		while((line=in.readLine())!=null)
 			{
@@ -199,7 +296,7 @@ public class VcfFilterSequenceOntology
 		}
 	
 	@Override
-	protected VCFHeader addMetaData(VCFHeader header) {
+	protected VCFHeader addMetaData(final VCFHeader header) {
 		final String termlist = String.join(", ",this.user_terms.stream().map(S->S.getAcn()).collect(Collectors.toSet()));
 		if(!super.filterIn.isEmpty()) {
 			header.addMetaDataLine(new VCFFilterHeaderLine(super.filterIn,
@@ -215,13 +312,23 @@ public class VcfFilterSequenceOntology
 	
 	@Override
 	public Collection<Throwable> initializeKnime() {
+		if(this.removeIfNoMoreAttribute) {
+			 super.removeUnusedAttribute = true;
+		}
+		
+		if(super.invert && super.removeUnusedAttribute) {
+			return wrapException("Option -"+OPTION_INVERT+" cannot be used when Option -"+OPTION_REMOVEUNUSEDATTRIBUTE);
+		}
+
+		
 		
 		if(!super.filterIn.isEmpty() && !super.filterOut.isEmpty()) {
 			return wrapException("Option -"+OPTION_FILTERIN+"  and  -"+OPTION_FILTEROUT+" both defined.");
 		}
-		if(super.invert && (!super.filterIn.isEmpty() || !super.filterOut.isEmpty())) {
-			return wrapException("Option -"+OPTION_INVERT+" cannot be used when Option -"+OPTION_FILTERIN+" or  -"+OPTION_FILTEROUT+" is defined.");
+		if((super.invert) && (!super.filterIn.isEmpty() || !super.filterOut.isEmpty())) {
+			return wrapException("Option -"+OPTION_INVERT+"cannot be used when Option -"+OPTION_FILTERIN+" or  -"+OPTION_FILTEROUT+" is defined.");
 		}
+		
 		
 		if( !(super.owluri==null || super.owluri.trim().isEmpty()) ) {
 			LOG.info("loading so tree from "+super.owluri);
@@ -229,11 +336,11 @@ public class VcfFilterSequenceOntology
 				{
 				this.sequenceOntologyTree = SequenceOntologyTree.fromUri(super.owluri.trim());
 				}
-			catch (IOException e)
+			catch (final IOException e)
 				{
 				return wrapException(e);
 				}
-			LOG.info("Done.");
+			LOG.info("Done loading SO.");
 			}
 		
 		final boolean reasoning = !super.disableReasoning;
@@ -251,7 +358,7 @@ public class VcfFilterSequenceOntology
 			{
 			acn=acn.trim();
 			if(acn.isEmpty()) continue;
-			SequenceOntologyTree.Term t=sequenceOntologyTree.getTermByAcn(acn);
+			final SequenceOntologyTree.Term t= this.sequenceOntologyTree.getTermByAcn(acn);
 			if(t==null)
 				{
 				return wrapException("Unknown SO:Accession \""+acn+"\"");
@@ -265,7 +372,7 @@ public class VcfFilterSequenceOntology
 			}
 		LOG.info("Will be using :"+this.user_terms.toString());
 		
-		this.userTermsAsString.clear();;//we don't need this anymore
+		this.userTermsAsString.clear();//we don't need this anymore
 		return super.initializeKnime();
 		}
 	@Override

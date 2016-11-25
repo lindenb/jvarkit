@@ -34,14 +34,21 @@
 		<description>disable reasoning, don't use term's children.</description>
 	</option>
 	<option name="filterIn" opt="fi" longopt="filterin" type="string" default="">
-		<description>Do not discard variant but add this FILTER if the variant is found in the database</description>
+		<description>Do not discard variant but add this FILTER its prediction is found in the database</description>
 	</option>
 	<option name="filterOut" opt="fo" longopt="filterout" type="string" default="">
-		<description>Do not discard variant but add this FILTER if the variant is NOT found in the database</description>
+		<description>Do not discard variant but add this FILTER  its prediction is NOT found in the database</description>
 	</option>
 	<option name="owluri" opt="owluri" longopt="owluri" type="string" default="">
 		<description>If not empty, don't use the internal SO ontology but load a OWL description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl </description>
 	</option>
+		<option name="removeUnusedAttribute" opt="r" longopt="rmatt" type="boolean" default="false">
+		<description>Do not remove the variant itself, just remove the mismatching Attribute</description>
+	</option>
+	<option name="removeIfNoMoreAttribute" opt="R" longopt="rmnoatt" type="boolean" default="false">
+		<description>remove the variant if option -r was used and the is no more attribute</description>
+	</option>
+
 </options>
 
 

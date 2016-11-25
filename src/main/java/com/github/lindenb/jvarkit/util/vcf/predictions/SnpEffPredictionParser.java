@@ -152,15 +152,15 @@ public class SnpEffPredictionParser implements PredictionParser
 		preds.add(pred);
 		}
 	
-	public SnpEffPrediction  parseOnePrediction(Object o)
+	public SnpEffPrediction  parseOnePrediction(final Object o)
 		{
 		if(o==null) return null;
 		if(!(o instanceof String))
 			{
 			return parseOnePrediction( o.toString());
 			}
-		String s=String.class.cast(o).trim();
-		String tokens[]=pipe.split(s);
+		final String s=String.class.cast(o).trim();
+		final String tokens[]=pipe.split(s);
 		return new SnpEffPrediction(tokens);
 		}
 	

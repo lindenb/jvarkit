@@ -18,6 +18,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFPredictions;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
 
 /**
  * @author lindenb
@@ -82,7 +83,7 @@ public class MyPredictionParser implements PredictionParser
 	}
 	
 	@Override
-	public List<MyPrediction> getPredictions(VariantContext ctx)
+	public List<MyPrediction> getPredictions(final VariantContext ctx)
 		{
 		ArrayList<MyPrediction> preds= new ArrayList<MyPrediction>();
 		if(col2col.isEmpty()) return preds;
@@ -109,18 +110,23 @@ public class MyPredictionParser implements PredictionParser
 	
 	private void _predictions( List<MyPrediction> preds,Object o)
 		{
-		if(o==null) return;
-		if(!(o instanceof String))
-			{
-			_predictions(preds, o.toString());
-			return;
-			}
-		String s=String.class.cast(o).trim();
-		
-		String tokens[]=pipe.split(s);
-		preds.add(new MyPrediction(tokens));
+		final MyPrediction p= parseOnePrediction(o);
+		if(p==null) return;
+		preds.add(p);
 		}
 			
+	public MyPrediction  parseOnePrediction(final Object o)
+		{
+		if(o==null) return null;
+		if(!(o instanceof String))
+			{
+			return parseOnePrediction( o.toString());
+			}
+		final String s=String.class.cast(o).trim();
+		final String tokens[]=pipe.split(s);
+		return new MyPrediction(tokens);
+		}
+	
 	
 	public class MyPrediction
 		implements Prediction

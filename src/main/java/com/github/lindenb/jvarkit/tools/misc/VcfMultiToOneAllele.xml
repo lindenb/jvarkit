@@ -16,6 +16,9 @@
 	<option name="print_samples" type="boolean" label="Print Samples" opt="p" longopt="samples" default="false">
 			<description>print sample name. set genotype to ./. if both allele of the genotype are in 'ALT'</description>
 	</option>
+	<option name="rmErrorAttributes" type="boolean" label="Remove Attribute with error" opt="r" longopt="rmAtt" default="false">
+			<description>20161110: after merging with GATK CombineVariants there can have problemes with INFO/type='A' present in vcf1 but not in vcf2, and multiallelelic variants. This option delete the attributes having such problems.</description>
+	</option>
 </options>
 
 <arguments> </arguments><!-- __PLACEHOLDER__ --></app>

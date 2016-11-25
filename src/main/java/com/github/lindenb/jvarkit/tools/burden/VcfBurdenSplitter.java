@@ -334,6 +334,24 @@ public class VcfBurdenSplitter
 	}
 
 	
+	/** added for Matilde Nov 25, 2016, because all variants are FILTERed */
+	private class ZeroVepFilter  extends AbstractSoVepSplitter {
+		ZeroVepFilter() {
+			super(new String[0]);
+			}
+		@Override
+		public String getName() {
+			return "vep0";
+			}
+		public boolean accept(final VepPrediction pred) {
+			return true;
+		}
+		@Override
+		public String getDescription() {
+			return "Any Sequence Ontology term";
+			}
+		}
+	
 	
 	private class SlidingWindowSplitter extends Splitter {
 		final int winsize;
@@ -369,6 +387,7 @@ public class VcfBurdenSplitter
 	private final Splitter splitters[]= new Splitter[]{
 			new VepSplitter(),
 			new SoVepSplitter(),
+			new ZeroVepFilter(),
 			new HighDamageVepSplitter(),
 			new SlidingWindowSplitter(1000, 500),
 			new SlidingWindowSplitter(1000, 300),
@@ -486,7 +505,10 @@ public class VcfBurdenSplitter
 								}
 							
 							// all ctx are filtered			
-							if(has_only_filtered)  continue;
+							if(has_only_filtered)  {
+								LOG.warn("ALL IS FILTERED in "+first.key);;
+								continue;
+							}
 							
 							// save vcf file
 							final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(IOUtils.uncloseableOutputStream(pw));
