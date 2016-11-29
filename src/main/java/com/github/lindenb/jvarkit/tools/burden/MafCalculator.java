@@ -38,6 +38,8 @@ public class MafCalculator {
 	private double count_alt = 0;
 	private boolean is_chrom_X;
 	private final Allele observed_alt;
+	private boolean no_call_is_homref=false;
+	
 	public MafCalculator(final Allele observed_alt,final boolean is_chrom_X) {
 		this.is_chrom_X = is_chrom_X;
 		this.observed_alt = observed_alt;
@@ -54,6 +56,15 @@ public class MafCalculator {
 	
 	public MafCalculator(final Allele observed_alt,final String contig) {
 		this(observed_alt,contig.equalsIgnoreCase("chrX") || contig.equalsIgnoreCase("X"));
+	}
+	
+	/** For Matile 2016/11/29 */
+	public void setNoCallIsHomRef(boolean no_call_is_homref) {
+		this.no_call_is_homref = no_call_is_homref;
+	}
+	
+	public boolean isNoCallIsHomRef() {
+		return this.no_call_is_homref;
 	}
 	
 	public double getCountTotal() {
@@ -82,9 +93,16 @@ public class MafCalculator {
 	
 	public void add(final Genotype genotype,boolean sample_is_male) {
 		/* individual is not in vcf header */
-		if(genotype==null || !genotype.isCalled() ) {						
+		if(genotype==null) {						
 			return;
 		}
+		
+		if(!genotype.isCalled() ) {
+			if(!this.isNoCallIsHomRef()) return;
+			this.count_total+=( this.is_chrom_X && sample_is_male?1:2);
+			return;
+		}
+		
 		/* loop over alleles */
 		for(final Allele a: genotype.getAlleles())
 			addAllele(a,sample_is_male);

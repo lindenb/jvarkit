@@ -130,7 +130,9 @@ public class VcfBurdenMAF
 					/* loop over two populations : 0 = case, 1=controls */
 					for(int pop=0;pop<2;++pop) {
 						final MafCalculator mafCalculator = new MafCalculator(observed_alt, ctx.getContig());
-
+						mafCalculator.setNoCallIsHomRef(super.noCallAreHomRef);
+						
+						
 						/* loop over persons in this pop */
 						for(final Pedigree.Person p:(pop==CASE_POP?caseSamples:controlSamples)) 
 							{
