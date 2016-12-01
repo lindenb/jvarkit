@@ -23,7 +23,7 @@
 		<description> min depth</description>
 	</option>
 	<option name="bamList" type="input-file-set" opt="f" longopt="bams" label="BAMS" arg-name="BAM.LIST">
-		<description>path of indexed BAM path with read Groups</description>
+		<description>path of indexed BAM path with read Groups. You can put those paths in a text file having a *.txt suffix.</description>
 	</option>
 </options>
 
