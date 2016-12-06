@@ -4,4 +4,21 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.cmpbams">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Compare two  BAM files mapped on two different builds. Requires a liftover chain file</description>
+<snippet id="sorting-collection"/>
+
+<options>
+	<option name="chainFile" type="input-file" longopt="chain" opt="c">
+		<description>) Lift Over file from bam1 to bam2. REQUIRED</description>
+	</option>
+	<option name="distance_tolerance" type="int" longopt="distance" opt="d" default="10">
+		<description>distance tolerance between two alignments</description>
+	</option>
+	<option name="REGION" type="string" longopt="region" opt="r">
+		<description>restrict to that region chr:start-end</description>
+	</option>
+</options>
+
+
+
+</app>

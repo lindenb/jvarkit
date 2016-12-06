@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!DOCTYPE app [
- <!ENTITY name "CompareBams3">
+ <!ENTITY name "CompareBams4">
  <!ENTITY package "com.github.lindenb.jvarkit.tools.cmpbams">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>Compare two or more BAM files, generate a XML report.</description>
+<description>Compare two BAM files. Print a tab-delimited report</description>
 
 
-<arguments> </arguments><!-- __PLACEHOLDER__ -->
+<options>
+	<option name="chainFile" type="input-file" longopt="chain" opt="c">
+		<description>Lift Over file from bam1 to bam2. Optional</description>
+	</option>
+</options>
 
 </app>
