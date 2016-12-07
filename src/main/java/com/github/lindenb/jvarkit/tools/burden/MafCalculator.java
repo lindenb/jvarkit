@@ -36,12 +36,12 @@ public class MafCalculator {
 	public static final double NODATA=-1.0;
 	private double count_total = 0;
 	private double count_alt = 0;
-	private boolean is_chrom_X;
+	private boolean is_chrom_sexual;
 	private final Allele observed_alt;
 	private boolean no_call_is_homref=false;
 	
-	public MafCalculator(final Allele observed_alt,final boolean is_chrom_X) {
-		this.is_chrom_X = is_chrom_X;
+	public MafCalculator(final Allele observed_alt,final boolean is_chrom_sexual) {
+		this.is_chrom_sexual = is_chrom_sexual;
 		this.observed_alt = observed_alt;
 		if(this.observed_alt==null) throw new IllegalArgumentException(
 				"null allele"
@@ -55,7 +55,9 @@ public class MafCalculator {
 	}
 	
 	public MafCalculator(final Allele observed_alt,final String contig) {
-		this(observed_alt,contig.equalsIgnoreCase("chrX") || contig.equalsIgnoreCase("X"));
+		this(observed_alt,contig.equalsIgnoreCase("chrX") || contig.equalsIgnoreCase("X") ||
+			              contig.equalsIgnoreCase("chrY") || contig.equalsIgnoreCase("Y")
+		);
 	}
 	
 	/** For Matile 2016/11/29 */
@@ -99,7 +101,7 @@ public class MafCalculator {
 		
 		if(!genotype.isCalled() ) {
 			if(!this.isNoCallIsHomRef()) return;
-			this.count_total+=( this.is_chrom_X && sample_is_male?1:2);
+			this.count_total+=( this.is_chrom_sexual && sample_is_male?1:2);
 			return;
 		}
 		
@@ -111,7 +113,7 @@ public class MafCalculator {
 	private void addAllele(final Allele a,boolean sample_is_male)
 		{
 		/* chromosome X and male ? count half */
-		if( this.is_chrom_X && sample_is_male) {
+		if( this.is_chrom_sexual && sample_is_male) {
 			this.count_total+=0.5;
 			}
 		else

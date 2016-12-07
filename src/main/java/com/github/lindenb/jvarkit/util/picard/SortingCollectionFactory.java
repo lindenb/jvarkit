@@ -11,6 +11,7 @@ import htsjdk.samtools.SAMFileWriterImpl;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.SortingCollection.Codec;
 
+@Deprecated
 public class SortingCollectionFactory<T>
 	{
 	private Comparator<T> comparator=null;
