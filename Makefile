@@ -216,7 +216,8 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	biostar173114 samslop biostar175929 vcfcalledwithanothermethod biostar178713 \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
-	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 vcfmovefilterstoinfo gatkcodegen cmpbams4
+	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 \
+	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01
 	
 
 
@@ -509,6 +510,7 @@ $(eval $(call compile-htsjdk-cmd,samreadlengthdistribution,${jvarkit.package}.to
 $(eval $(call compile-htsjdk-cmd,queue2make,${jvarkit.package}.tools.misc.QueueToMake,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfmovefilterstoinfo,${jvarkit.package}.tools.burden.VcfMoveFiltersToInfo,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,gatkcodegen,${jvarkit.package}.tools.gatk.codegen.GATKCodeGenerator,${gson.jar} ${velocity.jars} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.VcfEigen01,wiki_flag))
 
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \

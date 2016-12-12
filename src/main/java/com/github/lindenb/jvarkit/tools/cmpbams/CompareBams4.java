@@ -56,6 +56,7 @@ public class CompareBams4  extends AbstractCompareBams4
 	private enum LiftOverStatus {NoLiftOver,SourceUnmapped,DestNotInDict,LiftOverFailed,DiscordantChrom,SameChrom};
 	private enum CompareContig {BothUnmapped,GainMapping,LostMapping,SameContig,DiscordantContig};
 	private enum Shift {Zero,Le10,Le20,Le100,Gt100};
+	private enum Flag { Discordant,Same};
 	
 	/* see https://github.com/samtools/hts-specs/issues/5 */
 	private static int strnum_cmp(final String _a,final String _b)
@@ -188,6 +189,7 @@ public class CompareBams4  extends AbstractCompareBams4
 		Integer diffNM = null;
 		Couple<Integer> diffFlags = null;
 		Couple<String> diffChrom = null;
+		Flag diffFlag;
 		
 		@Override
 		public int hashCode() {
@@ -200,6 +202,7 @@ public class CompareBams4  extends AbstractCompareBams4
 			h = hash(h,diffNM);
 			h = hash(h,diffFlags);
 			h = hash(h,diffChrom);
+			h = hash(h,diffFlag);
 			return h;
 		}
 		
@@ -215,6 +218,7 @@ public class CompareBams4  extends AbstractCompareBams4
 			i = cmp(this.diffNM,o.diffNM); if(i!=0) return i;
 			i = cmp(this.diffFlags,o.diffFlags); if(i!=0) return i;
 			i = cmp(this.diffChrom,o.diffChrom); if(i!=0) return i;
+			i = cmp(this.diffFlag,o.diffFlag); if(i!=0) return i;
 			return 0;
 			}
 		
@@ -236,6 +240,7 @@ public class CompareBams4  extends AbstractCompareBams4
 			str(sb,this.diffNM);
 			str(sb,this.diffFlags);
 			str(sb,this.diffChrom);
+			str(sb,this.diffFlag);
 			return sb.toString();
 			}
 		}
@@ -392,6 +397,8 @@ public class CompareBams4  extends AbstractCompareBams4
 					
 					diff.onlyIn = OnlyIn.BOTH;
 					diff.diffFlags = new Couple<Integer>(rec0.getFlags(),rec1.getFlags());
+					diff.diffFlag = (rec0.getFlags()==rec1.getFlags()?Flag.Same:Flag.Discordant);
+
 					
 					if(this.liftOver==null) {
 						rgn0b = rgn0a;
@@ -493,6 +500,7 @@ public class CompareBams4  extends AbstractCompareBams4
 			str(sb,"diffNM");
 			str(sb,"diffFlags");
 			str(sb,"diffChroms");
+			str(sb,"diffFlag");
 			sb.append("Count");
 			out = super.openFileOrStdoutAsPrintWriter();
 			out.println(sb);

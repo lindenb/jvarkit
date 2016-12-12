@@ -48,6 +48,7 @@ import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.Feature;
 import htsjdk.tribble.TabixFeatureReader;
 import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -56,6 +57,25 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 public class EigenInfoAnnotator implements InfoAnnotator
 	{
+	private static class KeyAndType
+		{
+		final String key;
+		final VCFHeaderLineCount count;
+		final VCFHeaderLineType type;
+		
+		KeyAndType(final String key,final VCFHeaderLineCount count,VCFHeaderLineType type)
+			{
+			this.key=key;
+			this.count=count;
+			this.type=type;
+			
+			}
+		KeyAndType(final String key)
+			{
+			this(key,VCFHeaderLineCount.A,VCFHeaderLineType.Float);
+			}
+		}
+	
 	private static abstract class AbstractFeature implements Feature
 		{
 		final String contig;
@@ -67,9 +87,18 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			this.contig = tokens[0];
 			this.pos = Integer.parseInt(tokens[1]);
 			this.ref = Allele.create(tokens[2], true);
-			this.alt = Allele.create(tokens[3], true);
+			this.alt = Allele.create(tokens[3], false);
 			this.tokens=tokens;
 			}
+		
+		boolean accept(final VariantContext ctx) {
+			int C1 = contig2eigen(ctx.getContig());
+			int C2 = contig2eigen(this.contig);
+			if(C1==-1 || C2==-1 || C1!=C2) return false;
+			if(!ctx.getReference().equals(this.ref)) return false;
+			if(!ctx.hasAllele(this.alt)) return false;
+			return true;
+ 			}
 		
 		@Override
 		public String getChr()
@@ -91,7 +120,14 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			{
 			return pos;
 			}
+		String get(int i) {
+			return i>=0 && i< this.tokens.length?tokens[i]:null;
+			}
 		
+		@Override
+		public String toString() {
+			return Arrays.toString(this.tokens);
+			}
 		}
 	private  static class CodingFeature extends AbstractFeature
 		{
@@ -106,11 +142,26 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			}
 		}
 	
-	
-	
-	private static class CodingFeatureCodec extends AsciiFeatureCodec<CodingFeature>
+	private static abstract class AbstractFeatureCodec<T extends AbstractFeature>  extends AsciiFeatureCodec<T>
 		{
-		final Pattern tab=Pattern.compile("[\t]");
+		protected final Pattern tab=Pattern.compile("[\t]");
+		protected AbstractFeatureCodec(Class<T> C){
+			super(C);
+			}
+		@Override
+		public boolean canDecode(final String path)
+			{
+			return path.endsWith(".tab.gz");
+			}
+		@Override
+		public Object readActualHeader(LineIterator arg0)
+			{
+			return null;
+			}
+		}
+	
+	private static class CodingFeatureCodec extends AbstractFeatureCodec<CodingFeature>
+		{
 		CodingFeatureCodec() {
 			super(CodingFeature.class);
 			}
@@ -121,20 +172,10 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			return new CodingFeature(tab.split(line));
 			}
 		
-		@Override
-		public boolean canDecode(final String path)
-			{
-			return path.endsWith(".tab.gz");
-			}
-		@Override
-		public Object readActualHeader(LineIterator arg0)
-			{
-			return null;
-			}
+		
 		}
-	private static class NonCodingFeatureCodec extends AsciiFeatureCodec<NonCodingFeature>
+	private static class NonCodingFeatureCodec extends AbstractFeatureCodec<NonCodingFeature>
 		{
-		final Pattern tab=Pattern.compile("[\t]");
 		NonCodingFeatureCodec() {
 			super(NonCodingFeature.class);
 			}
@@ -145,62 +186,69 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			return new NonCodingFeature(tab.split(line));
 			}
 		
-		@Override
-		public boolean canDecode(final String path)
-			{
-			return path.endsWith(".tab.gz");
-			}
-		@Override
-		public Object readActualHeader(LineIterator arg0)
-			{
-			return null;
-			}
 		}
+	
+	
 	private File eigenDirectory = null;
 	private final List<VCFInfoHeaderLine> noncodingheaderlines = new ArrayList<>();
-	private TabixFeatureReader<NonCodingFeature, Object> nonCodingFeatureReader = null;
-	private TabixFeatureReader<CodingFeature, Object> codingFeatureReader = null;
+	private final List<VCFInfoHeaderLine> codingheaderlines = new ArrayList<>();
+	private TabixFeatureReader<NonCodingFeature, PositionalBufferedStream> nonCodingFeatureReader = null;
+	private TabixFeatureReader<CodingFeature, PositionalBufferedStream> codingFeatureReader = null;
 	private int prev_contig=-1;
 		public EigenInfoAnnotator(final File dir) {
 		this.eigenDirectory = dir;
-		final String prefix="";
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"chr", VCFHeaderLineCount.A, VCFHeaderLineType.String, "chr"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"position", VCFHeaderLineCount.A, VCFHeaderLineType.String, "position"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"ref", VCFHeaderLineCount.A, VCFHeaderLineType.String, "ref"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"alt", VCFHeaderLineCount.A, VCFHeaderLineType.String, "alt"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"GERP_NR", VCFHeaderLineCount.A, VCFHeaderLineType.String, "GERP_NR"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"GERP_RS", VCFHeaderLineCount.A, VCFHeaderLineType.String, "GERP_RS"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"PhyloPri", VCFHeaderLineCount.A, VCFHeaderLineType.String, "PhyloPri"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"PhyloPla", VCFHeaderLineCount.A, VCFHeaderLineType.String, "PhyloPla"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"PhyloVer", VCFHeaderLineCount.A, VCFHeaderLineType.String, "PhyloVer"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"PhastPri", VCFHeaderLineCount.A, VCFHeaderLineType.String, "PhastPri"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"PhastPla", VCFHeaderLineCount.A, VCFHeaderLineType.String, "PhastPla"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"PhastVer", VCFHeaderLineCount.A, VCFHeaderLineType.String, "PhastVer"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"H3K4Me1", VCFHeaderLineCount.A, VCFHeaderLineType.String, "H3K4Me1"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"H3K4Me3", VCFHeaderLineCount.A, VCFHeaderLineType.String, "H3K4Me3"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"H3K27ac", VCFHeaderLineCount.A, VCFHeaderLineType.String, "H3K27ac"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"TFBS_max", VCFHeaderLineCount.A, VCFHeaderLineType.String, "TFBS_max"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"TFBS_sum", VCFHeaderLineCount.A, VCFHeaderLineType.String, "TFBS_sum"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"TFBS_num", VCFHeaderLineCount.A, VCFHeaderLineType.String, "TFBS_num"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"OCPval", VCFHeaderLineCount.A, VCFHeaderLineType.String, "OCPval"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"DnaseSig", VCFHeaderLineCount.A, VCFHeaderLineType.String, "DnaseSig"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"DnasePval", VCFHeaderLineCount.A, VCFHeaderLineType.String, "DnasePval"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"FaireSig", VCFHeaderLineCount.A, VCFHeaderLineType.String, "FaireSig"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"FairePval", VCFHeaderLineCount.A, VCFHeaderLineType.String, "FairePval"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"PolIISig", VCFHeaderLineCount.A, VCFHeaderLineType.String, "PolIISig"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"PolIIPval", VCFHeaderLineCount.A, VCFHeaderLineType.String, "PolIIPval"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"ctcfSig", VCFHeaderLineCount.A, VCFHeaderLineType.String, "ctcfSig"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"ctcfPval", VCFHeaderLineCount.A, VCFHeaderLineType.String, "ctcfPval"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"cmycSig", VCFHeaderLineCount.A, VCFHeaderLineType.String, "cmycSig"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"cmycPval", VCFHeaderLineCount.A, VCFHeaderLineType.String, "cmycPval"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"Eigen_raw", VCFHeaderLineCount.A, VCFHeaderLineType.String, "Eigen_raw"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"Eigen_phred", VCFHeaderLineCount.A, VCFHeaderLineType.String, "Eigen_phred"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"Eigen_PC_raw", VCFHeaderLineCount.A, VCFHeaderLineType.String, "Eigen_PC_raw"));
-		this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"Eigen_PC_phred", VCFHeaderLineCount.A, VCFHeaderLineType.String, "Eigen_PC_phred"));		
+		
+		//this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"chr", VCFHeaderLineCount.A, VCFHeaderLineType.String, "chr"));
+		//this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"position", VCFHeaderLineCount.A, VCFHeaderLineType.String, "position"));
+		//this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"ref", VCFHeaderLineCount.A, VCFHeaderLineType.String, "ref"));
+		//this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"alt", VCFHeaderLineCount.A, VCFHeaderLineType.String, "alt"));
+		
+		for(final KeyAndType key : new KeyAndType[]{
+			new KeyAndType("GERP_NR"),	new KeyAndType("GERP_RS"),	new KeyAndType("PhyloPri"),	new KeyAndType("PhyloPla"),
+			new KeyAndType("PhyloVer"),	new KeyAndType("PhastPri"),	new KeyAndType("PhastPla"),	new KeyAndType("PhastVer"),
+			new KeyAndType("H3K4Me1"),	new KeyAndType("H3K4Me3"),	new KeyAndType("H3K27ac"),	new KeyAndType("TFBS_max"),
+			new KeyAndType("TFBS_sum"),	new KeyAndType("TFBS_num"),	new KeyAndType("OCPval"),	new KeyAndType("DnaseSig"),
+			new KeyAndType("DnasePval"),	new KeyAndType("FaireSig"),	new KeyAndType("FairePval"),	new KeyAndType("PolIISig"),
+			new KeyAndType("PolIIPval"),	new KeyAndType("ctcfSig"),	new KeyAndType("ctcfPval"),	new KeyAndType("cmycSig"),
+			new KeyAndType("cmycPval"),	new KeyAndType("Eigen-raw"),	new KeyAndType("Eigen-phred"),	new KeyAndType("Eigen-PC-raw"),
+			new KeyAndType("Eigen-PC-phred")}
+			)
+			{
+			final String prefix="EIGEN_NC_";
+			final VCFInfoHeaderLine vihl = new VCFInfoHeaderLine(
+					prefix+key.key.replace('-', '_'),
+					key.count, 
+					key.type,
+					key.key+ " (Non-Coding)"
+					);
+			this.noncodingheaderlines.add(vihl);
 			}
+		
+		for(final KeyAndType key : new KeyAndType[]{
+				new KeyAndType("SIFT"),	new KeyAndType("PolyPhenDIV"),	new KeyAndType("PolyPhenVar"),	new KeyAndType("MA"),
+				new KeyAndType("GERP_NR"),	new KeyAndType("GERP_RS"),	new KeyAndType("PhyloPri"),	new KeyAndType("PhyloPla"),
+				new KeyAndType("PhyloVer"),	new KeyAndType("PhastPri"),	new KeyAndType("PhastPla"),	new KeyAndType("PhastVer"),
+				new KeyAndType("Consequence",VCFHeaderLineCount.A,VCFHeaderLineType.String),
+				new KeyAndType("Eigen-raw"),	new KeyAndType("Eigen-phred"),	new KeyAndType("Eigen-PC-raw"),
+				new KeyAndType("Eigen-PC-phred")
+				}
+				)
+				{
+				final String prefix="EIGEN_CODING_";
+				final VCFInfoHeaderLine vihl = new VCFInfoHeaderLine(
+						prefix+key.key.replace('-', '_'),
+						key.count, 
+						key.type,
+						key.key+ " (Coding)"
+						);
+				this.codingheaderlines.add(vihl);
+				}
+		
+		}
 	
 	private static int contig2eigen(String chr) {
 		if(chr.toLowerCase().startsWith("chr")) chr=chr.substring(3);
+		if(chr.isEmpty() || !Character.isDigit(chr.charAt(0))) return -1;
 		try {
 			int c=Integer.parseInt(chr.trim());
 			if(c<1 || c>22) return -1;
@@ -211,12 +259,11 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			}
 		}
 	
-	private File getNonCodingFileForContig(final String contig)
+	private File getNonCodingFileForContig(final int C)
 		{
-		if(this.eigenDirectory==null) throw new IllegalStateException("Eigein directory was not define");
-		int c = contig2eigen(contig);
-		if(c<1) return null;
-		return new File(this.eigenDirectory,"Eigen_hg19_noncoding_annot_chr"+c+".tab.bgz");
+		if(this.eigenDirectory==null) throw new IllegalStateException("Eigein directory was not defined");
+		
+		return new File(this.eigenDirectory,"Eigen_hg19_noncoding_annot_chr"+C+".tab.bgz");
 		}
 	
 	@Override
@@ -235,9 +282,9 @@ public class EigenInfoAnnotator implements InfoAnnotator
 	public Set<VCFInfoHeaderLine> getInfoHeaderLines()
 		{
 		
-		return new HashSet<>(Arrays.asList(
-				
-				));
+		final Set<VCFInfoHeaderLine> set = new HashSet<>(this.noncodingheaderlines);
+		set.addAll(this.codingheaderlines);
+		return set;
 		}
 
 	@Override
@@ -246,32 +293,96 @@ public class EigenInfoAnnotator implements InfoAnnotator
 		if(!ctx.isVariant()) return Collections.emptyMap();
 		final int  contig = contig2eigen(ctx.getContig());
 		if( contig < 1) return Collections.emptyMap();
-		final Map<String, Object> map =new HashMap<>();
+	
 		try {
-			if( prev_contig==-1 || prev_contig!=contig)
+			if(this.codingFeatureReader == null) {
+				this.codingFeatureReader = new TabixFeatureReader<>(
+						new File(this.eigenDirectory,"Eigen_hg19_coding_annot_04092016.tab.bgz").getPath(),
+						new CodingFeatureCodec());
+				}
+			
+			if( this.prev_contig==-1 || prev_contig!=contig)
 				{
 				CloserUtil.close(this.nonCodingFeatureReader);
 				this.nonCodingFeatureReader = new TabixFeatureReader<>(
-						"",new NonCodingFeatureCodec());
-				prev_contig = contig;
+						getNonCodingFileForContig(contig).getPath(),
+						new NonCodingFeatureCodec());
+				this.prev_contig = contig;
 				}
+			final Map<Allele,NonCodingFeature> alt2nonCoding= new HashMap<>();
 			CloseableTribbleIterator<NonCodingFeature> iter1= this.nonCodingFeatureReader.query(
 						String.valueOf(contig), ctx.getStart(),ctx.getEnd());
 			while(iter1.hasNext()) {
 				NonCodingFeature feat = iter1.next();
-				if(feat==null) continue;
+				if(feat==null || !feat.accept(ctx)) continue;
+				alt2nonCoding.put(feat.alt, feat);
 				}
 			iter1.close();
 			
-			
+			final Map<Allele,CodingFeature> alt2coding= new HashMap<>();
 			CloseableTribbleIterator<CodingFeature> iter2= this.codingFeatureReader.query(
 					String.valueOf(contig), ctx.getStart(),ctx.getEnd());
 			while(iter2.hasNext()) {
 				CodingFeature feat = iter2.next();
-				if(feat==null) continue;
+				if(feat==null || !feat.accept(ctx)) continue;
+				alt2coding.put(feat.alt, feat);
 				}
 			iter2.close();
-
+			
+			if( alt2nonCoding.isEmpty() && alt2coding.isEmpty() ) return Collections.emptyMap();
+			
+			final List<Allele> alternateAlleles =  ctx.getAlternateAlleles();
+			final Map<String, Object> map =new HashMap<>();
+			for(int side=0;side<2;++side)
+				{
+				for(int i=0;i< (side==0?noncodingheaderlines.size():codingheaderlines.size());++i)
+					{
+					final VCFInfoHeaderLine vihl = (side==0?noncodingheaderlines.get(i):codingheaderlines.get(i));
+					final List<Object> atts = new ArrayList<>(alternateAlleles.size());
+					boolean found_one=false;
+					for(int altn=0;altn<alternateAlleles.size();++altn)
+						{
+						final Allele alt= alternateAlleles.get(altn);
+						final AbstractFeature feat = (side==0?alt2nonCoding.get(alt):alt2coding.get(alt));
+						if( feat == null) {
+							atts.add(".");
+							continue;
+							}
+						final String token = feat.get(4+i);
+						if(token==null || token.isEmpty() || token.equals("."))
+							{
+							atts.add(".");
+							continue;
+							}
+						else if( vihl.getType()==VCFHeaderLineType.String) {
+							found_one=true;
+							atts.add(token.replace(',', '|'));
+							}
+						else
+							{
+							try {
+								Float dbl = new Float(token);
+								atts.add(dbl);
+								found_one=true;
+							} catch (NumberFormatException err) {
+								throw new IOException("Cannot cast "+token+" to float for "+vihl);
+								}
+							}
+						}
+					if(!found_one)
+						{
+						//nothing
+						}
+					else if(vihl.getCountType()!=VCFHeaderLineCount.R)
+						{
+						map.put(vihl.getID(),new ArrayList<>(new HashSet<>(atts)));
+						}
+					else
+						{
+						map.put(vihl.getID(), atts);
+						}
+					}
+				}
 			
 			return map;
 			}
@@ -280,7 +391,7 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			}
 		}
 	@Override
-	public void dispose()
+	public void close()
 		{
 		prev_contig=-1;
 		CloserUtil.close(this.nonCodingFeatureReader);

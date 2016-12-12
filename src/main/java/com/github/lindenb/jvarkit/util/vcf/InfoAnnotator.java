@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.util.vcf;
 
+import java.io.Closeable;
 import java.util.Map;
 import java.util.Set;
 
@@ -35,7 +36,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /** interface describing a genetic way to add some new INFO in a VCF */
-public interface InfoAnnotator
+public interface InfoAnnotator extends Closeable
 	{
 	/** name of this annotator */
 	public String getName();
@@ -45,6 +46,4 @@ public interface InfoAnnotator
 	public Set<VCFInfoHeaderLine> getInfoHeaderLines();
 	/** @return a map key-> data for the variant */
 	public Map<String,Object> getAnnotations(final VariantContext ctx);
-	/** dispose resources associated to this annotator */
-	public void dispose();
 	}

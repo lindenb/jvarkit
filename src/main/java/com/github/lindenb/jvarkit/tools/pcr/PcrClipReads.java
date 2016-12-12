@@ -123,7 +123,7 @@ public class PcrClipReads extends AbstractPcrClipReads
 					sw.addAlignment(rec);
 					continue;
 					}
-				Interval fragment = findInterval(rec);
+				final Interval fragment = findInterval(rec);
 				if(fragment==null)
 					{
 					rec.setMappingQuality(0);
