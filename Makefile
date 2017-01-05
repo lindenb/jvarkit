@@ -6,6 +6,10 @@ this.makefile=$(lastword $(MAKEFILE_LIST))
 this.dir=$(dir $(realpath ${this.makefile}))
 
 
+top:
+	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
+
+
 #need local settings ? create a file 'local.mk' in this directory
 ifneq ($(realpath local.mk),)
 include $(realpath local.mk)
@@ -223,8 +227,6 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden
 
-top:
-	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
 
 
 
