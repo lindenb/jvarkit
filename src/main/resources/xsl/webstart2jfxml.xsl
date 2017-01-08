@@ -25,7 +25,7 @@
   </MenuBar>
   <BorderPane>
   	<top>
-  		<Label  style="-fx-font-weight:bold;-fx-font-size:150%"  maxWidth="1000" wrapText="true">
+  		<Label  style="-fx-font-weight:bold;-fx-font-size:150%;"  maxWidth="1000" wrapText="true">
   			<xsl:attribute name="text">
   				<xsl:value-of select="description"/>
 			</xsl:attribute>
@@ -56,13 +56,14 @@
 	<bottom>
 		<BorderPane>
 			<top>
-				<HBox>
-					<Button text="Run" onAction="#doCommandStart" id="runbutton"/>
-				</HBox>
+				<FlowPane  alignment="CENTER_RIGHT">
+					<Button style="-fx-font-weight:bold;-fx-font-size:150%; -fx-background-color: red;" text="STOP" fx:id="cancelCommandButton"/>
+					<Button style="-fx-font-weight:bold;-fx-font-size:150%; -fx-background-color: green;" text="GO  !"  fx:id="runCommandButton"/>
+				</FlowPane>
 			</top>
 			<center>
 				<ScrollPane>
-					<TextArea fx:id="console" text="Hello"/>
+					<TextArea fx:id="console" text="" editable="false"/>
 				</ScrollPane>
 			</center>
 		</BorderPane>

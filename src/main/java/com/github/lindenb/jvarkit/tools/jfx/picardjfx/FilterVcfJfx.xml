@@ -19,13 +19,71 @@
      	 	label="The OUTPUT VCF or BCF file"
      	 	description="The OUTPUT VCF or BCF file"
      	 	/> 	
+     	 	
   	 	 <Spinner fx:id="min_ab" >
   	 	 	<label>Min. Allele Balance</label>
   	 	 	<description>The minimum allele balance acceptable before filtering a site. Allele balance is calculated for heterozygotes as the number of bases supporting the least-represented allele over the total number of base observations. Different heterozygote genotypes at the same locus are measured independently. The locus is filtered if any allele balance is below the limit</description>
   	 	 	
      	 	 <valueFactory>
-		        <SpinnerValueFactory.DoubleSpinnerValueFactory initialValue="0" min="0" max="100000"/>
+		        <SpinnerValueFactory.DoubleSpinnerValueFactory initialValue="0" min="0" >
+		        		<max><java.lang.Integer fx:constant="MAX_VALUE"/></max>
+		        </SpinnerValueFactory.DoubleSpinnerValueFactory>
 		     </valueFactory>
      	 </Spinner>
+     	 
+     	 <Spinner fx:id="min_dp" >
+  	 	 	<label>Min. DP</label>
+  	 	 	<description>The minimum sequencing depth supporting a genotype before the genotype will be filtered out.</description>
+  	 	 	
+     	 	 <valueFactory>
+		        <SpinnerValueFactory.IntegerSpinnerValueFactory initialValue="0" min="0" >
+		        		<max><java.lang.Integer fx:constant="MAX_VALUE"/></max>
+		        </SpinnerValueFactory.IntegerSpinnerValueFactory>
+		     </valueFactory>
+     	 </Spinner>
+     	 
+      	 <Spinner fx:id="min_gq" >
+  	 	 	<label>Min. GQ</label>
+  	 	 	<description>The minimum genotype quality that must be achieved for a sample otherwise the genotype.</description>
+  	 	 	
+     	 	 <valueFactory>
+		        <SpinnerValueFactory.IntegerSpinnerValueFactory initialValue="0" min="0">
+		        	<max><java.lang.Integer fx:constant="MAX_VALUE"/></max>
+		        </SpinnerValueFactory.IntegerSpinnerValueFactory>
+		     </valueFactory>
+     	 </Spinner>    	 
+     	 
+     	 <Spinner fx:id="max_fs" >
+  	 	 	<label>Max. FS</label>
+  	 	 	<description>The maximum phred scaled fisher strand value before a site will be filtered out.</description>
+  	 	 	
+     	 	 <valueFactory>
+		        <SpinnerValueFactory.DoubleSpinnerValueFactory  min="0">
+		        	<initialValue><java.lang.Double fx:constant="MAX_VALUE"/></initialValue>
+		        	<max><java.lang.Double fx:constant="MAX_VALUE"/></max>
+		        </SpinnerValueFactory.DoubleSpinnerValueFactory>
+		     </valueFactory>
+     	 </Spinner>
+     	 
+     	 <Spinner fx:id="min_qd" >
+  	 	 	<label>Min. QD</label>
+  	 	 	<description>The minimum QD value to accept or otherwise filter out the variant.</description>
+  	 	 	
+     	 	 <valueFactory>
+		        <SpinnerValueFactory.DoubleSpinnerValueFactory initialValue="0" min="0" >
+		        	<max><java.lang.Double fx:constant="MAX_VALUE"/></max>
+		        </SpinnerValueFactory.DoubleSpinnerValueFactory>
+		     </valueFactory>
+     	 </Spinner>
+     	 
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="javascript"
+	     	 	filter="Javascript Files: js javascript"
+	     	 	saveKey="filtervcf.js"
+	     	 	required="false"
+	     	 	label="Javascript file"
+	     	 	>
+	     	 <description>Filters a VCF file with a javascript expression interpreted by the java javascript  engine.</description>
+     	 </com.github.lindenb.jvarkit.jfx.components.FileChooserPane>
 	</options>
 </command>

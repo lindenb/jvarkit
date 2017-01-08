@@ -10,17 +10,18 @@ import picard.cmdline.CommandLineProgram;
 public abstract class AbstractPicardJfxApplication
 	extends AbstractJfxApplication
 	{
+	
 	private final Class<? extends CommandLineProgram> commandLine;
 	protected AbstractPicardJfxApplication(final Class<? extends CommandLineProgram> commandLine)
 		{
 		this.commandLine = commandLine;
 		}
 	
-	protected abstract List<String> buildArgs();
+	protected abstract List<String> buildArgs() throws JFXException;
 
 	
 	@Override
-	protected Runnable createRunnable()
+	protected Runnable createRunnable() throws JFXException
 		{
 		final CommandLineProgram picardApp ;
 		try
@@ -33,6 +34,8 @@ public abstract class AbstractPicardJfxApplication
 			}
 		
 		final List<String> args = buildArgs();
+			
+		realStderr.println("ARGS="+args);
 		if(args==null) return null;
 		final String array[] = args.toArray(new String[args.size()]);
 		return new Runnable()

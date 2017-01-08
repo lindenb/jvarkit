@@ -1,30 +1,17 @@
 package com.github.lindenb.jvarkit.tools.jfx.picardjfx;
 
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Spinner;
-import javafx.scene.control.TextArea;
-import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import picard.vcf.filter.FilterVcf;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ResourceBundle;
 
 import com.github.lindenb.jvarkit.jfx.components.FileChooserPane;
 
 import javafx.fxml.*;
 import javafx.scene.*;
-import javafx.geometry.Rectangle2D;
-import javafx.stage.Screen;
 
 
 public class FilterVcfJfx extends AbstractPicardJfxApplication
@@ -35,7 +22,16 @@ public class FilterVcfJfx extends AbstractPicardJfxApplication
 	private FileChooserPane outputvcf;
 	@FXML
 	private Spinner<Double> min_ab;
-	
+	@FXML
+	private Spinner<Integer> min_dp;
+	@FXML
+	private Spinner<Integer> min_gq;
+	@FXML
+	private Spinner<Double> max_fs;
+	@FXML
+	private Spinner<Double> min_qd;
+	@FXML
+	private FileChooserPane javascript;
 	
 	public FilterVcfJfx() {
 		super(FilterVcf.class);
@@ -53,6 +49,8 @@ public class FilterVcfJfx extends AbstractPicardJfxApplication
 			loader.setController(this);
 			root = loader.load();
     		
+			if( inputvcf==null) throw new java.io.IOException("inputvcf is null");
+			
 			}
     	catch(Exception err)
     		{
@@ -76,12 +74,16 @@ public class FilterVcfJfx extends AbstractPicardJfxApplication
 		}
 	
 	@Override
-	protected  List<String> buildArgs() {
+	protected  List<String> buildArgs() throws JFXException {
 		final List<String> args= new ArrayList<>();
 		new OptionBuilder(inputvcf,"I=").fill(args);
 		new OptionBuilder(outputvcf,"O=").fill(args);
 		new OptionBuilder(min_ab,"MIN_AB=").fill(args);
-		
+		new OptionBuilder(min_dp,"MIN_DP=").fill(args);
+		new OptionBuilder(min_gq,"MIN_GQ=").fill(args);
+		new OptionBuilder(max_fs,"MAX_FS=").fill(args);
+		new OptionBuilder(min_qd,"MIN_QD=").fill(args);
+		new OptionBuilder(javascript,"JS=").fill(args);
 		return args;
 	}
 	
