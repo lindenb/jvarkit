@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<fx:root type="javafx.scene.layout.HBox" xmlns:fx="http://javafx.com/fxml">
+    <BorderPane>
+	    <center>
+	    	<ScrollPane>
+	    		<ListView  fx:id="files" />
+	    	</ScrollPane>
+	    </center>
+	    <right>
+	    	<VBox>
+	    		 <Button text="Select..." onAction="#doSelectFile">
+			        <tooltip>
+			          <Tooltip text="Select File... " />
+			         </tooltip>
+			    </Button>
+			    <Button fx:id="eraseButton" text="&#x232b;" onAction="#doClear" >
+			        <tooltip>
+			          <Tooltip text="Remove File" />
+			        </tooltip>
+			    </Button>
+	    	</VBox>
+	    </right>
+    </BorderPane>
+</fx:root>
+

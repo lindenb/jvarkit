@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<fx:root type="javafx.scene.layout.HBox" xmlns:fx="http://javafx.com/fxml">
+    <TextField editable="false" fx:id="textField" />
+    <Button text="Select..." onAction="#doSelectFile">
+        <tooltip>
+          <Tooltip text="Select File... " />
+        </tooltip>
+    </Button>
+    <Button text="&#x232b;" onAction="#doClear" >
+        <tooltip>
+          <Tooltip text="Remove File" />
+        </tooltip>
+    </Button>
+</fx:root>
+

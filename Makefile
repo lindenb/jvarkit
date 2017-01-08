@@ -535,9 +535,9 @@ all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology 
 
 .secret.keystore : 
 	 -keytool -genkeypair -keystore $@ -alias secret \
-	 		-keypass $(if ${keytool.keypass},${keytool.keypass},KEYTOOLPASS) \
-	 		-storepass $(if ${keytool.storepass},${keytool.storepass},KEYTOOLSTOREPASS) \
-	 		-dname CN=Pierre Lindenbaum, OU=INSERM, O=INSERM, L=Nantes, ST=Nantes, C=Fr
+	 		-keypass "$(if ${keytool.keypass},${keytool.keypass},KEYTOOLPASS)" \
+	 		-storepass "$(if ${keytool.storepass},${keytool.storepass},KEYTOOLSTOREPASS)" \
+	 		-dname "CN=Pierre Lindenbaum, OU=INSERM, O=INSERM, L=Nantes, ST=Nantes, C=Fr"
 
 ${generated.dir}/java/org/uniprot/package-info.java : api.uniprot
 api.uniprot :
@@ -750,6 +750,8 @@ $(word 1,${ga4gh.schemas.avpr}) : ${avro.libs}
 # end of ga4gh schema
 #
 #
+
+include jfx.mk
 
 clean:
 	rm -rf ${dist.dir}

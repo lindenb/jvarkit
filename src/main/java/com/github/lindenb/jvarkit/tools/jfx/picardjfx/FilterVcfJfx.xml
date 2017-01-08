@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description>Applies one or more hard filters to a VCF file to filter out genotypes and variants.</description>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+  	 	 <Spinner fx:id="min_ab" >
+  	 	 	<label>Min. Allele Balance</label>
+  	 	 	<description>The minimum allele balance acceptable before filtering a site. Allele balance is calculated for heterozygotes as the number of bases supporting the least-represented allele over the total number of base observations. Different heterozygote genotypes at the same locus are measured independently. The locus is filtered if any allele balance is below the limit</description>
+  	 	 	
+     	 	 <valueFactory>
+		        <SpinnerValueFactory.DoubleSpinnerValueFactory initialValue="0" min="0" max="100000"/>
+		     </valueFactory>
+     	 </Spinner>
+	</options>
+</command>
