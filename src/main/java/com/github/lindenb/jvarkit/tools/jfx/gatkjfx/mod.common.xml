@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ <options xmlns:fx="http://javafx.com/fxml">
+<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+		xmlns:fx="http://javafx.com/fxml"
+ 	 	fx:id="referenceFile"
+ 	 	filter="Fasta Files: fa fasta"
+ 	 	saveKey="gatk.reference"
+ 	 	required="true"
+ 	 	label="Reference sequence file"
+ 	 	remember="true"
+ 	 	>
+ 	 	<description>The reference genome against which the sequence data was mapped. The GATK requires an index file and a dictionary file accompanying the reference (please see the online documentation FAQs for more details on these files). Although this argument is indicated as being optional, almost all GATK tools require a reference in order to run. Note also that while GATK can in theory process genomes from any organism with any number of chromosomes or contigs, it is not designed to process draft genome assemblies and performance will decrease as the number of contigs in the reference increases. We strongly discourage the use of unfinished genome assemblies containing more than a few hundred contigs. Contig numbers in the thousands will most probably cause memory-related crashes. </description>
+</com.github.lindenb.jvarkit.jfx.components.FileChooserPane>
+
+
+<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+   	 	fx:id="intervalFile"
+   	 	filter="ROD Files: vcf vcf.gz bcf bed interval"
+   	 	saveKey="gatk.location.file"
+   	 	label="A genomic intervals file over which to operate"
+   	 	description="Use this option to perform the analysis over only part of the genome"
+   	 	/>
+   	 	
+ <TextField
+   	 	fx:id="intervalStr"
+   	 	label="One or more genomic intervals over which to operate (e.g: chrX  chr1:1234-567 )"
+   	 	description="Use this option to perform the analysis over only part of the genome"
+   	 	/>  	 	
+   <CheckBox
+   	 	fx:id="inverseInterval"
+   	 	label="Exclude intervals instead of including"
+   	 	selected="false"
+   	 	/>  	 	
+   	 
+   	 	
+
+</options>

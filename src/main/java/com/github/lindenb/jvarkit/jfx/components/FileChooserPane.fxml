@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 
 <fx:root type="javafx.scene.layout.HBox" xmlns:fx="http://javafx.com/fxml">
-    <TextField editable="false" fx:id="textField" />
+    <TextField editable="false" fx:id="textField"  prefWidth="700" />
     <Button text="Select..." onAction="#doSelectFile">
         <tooltip>
           <Tooltip text="Select File... " />

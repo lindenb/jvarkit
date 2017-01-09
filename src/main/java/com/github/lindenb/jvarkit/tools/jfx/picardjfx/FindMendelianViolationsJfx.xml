@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description>Finds mendelian violations of all types within a VCF. Takes in VCF or BCF and a pedigree file and looks for high confidence calls where the genotype of the offspring is incompatible with the genotypes of the parents. Assumes the existence of format fields AD, DP, GT, GQ, and PL fields.  Take note that the implementation assumes that reads from the PAR will be mapped to the female chromosomerather than the male. This requires that the PAR in the male chromosome be masked so that the aligner has a single coting to map to. This is normally done for the public releases of the human reference.</description>
+  	<libraries>
+  		<library href="picard.jar" />
+  		<library href="picardjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	/>
+	     	 	
+	     <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="pedigree"
+	     	 	filter="Pedigree Files: ped pedigree"
+	     	 	saveKey="pedigree.in"
+	     	 	required="true"
+	     	 	label="Pedigree"
+	     	 	description=" File of Trio information in PED format (with no genotype columns)."
+	     	 	/> 	
+	     	
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outmetrics"
+     	 	saveKey="metrics"
+     	 	required="true"
+     	 	open="false"
+     	 	label="Output metrics file."
+     	 	/> 	
+     	 
+     	 <Spinner fx:id="min_gq" >
+  	 	 	<label>Min. GQ</label>
+  	 	 	<description>Minimum genotyping quality (or non-ref likelihood) to perform tests</description>
+     	 	 <valueFactory>
+		        <SpinnerValueFactory.IntegerSpinnerValueFactory initialValue="30" min="0">
+		        	<max><java.lang.Integer fx:constant="MAX_VALUE"/></max>
+		        </SpinnerValueFactory.IntegerSpinnerValueFactory>
+		     </valueFactory>
+     	 </Spinner>  
+     	 
+     	 
+     	  <Spinner fx:id="min_dp" >
+  	 	 	<label>Min. DP</label>
+  	 	 	<description> Minimum depth in each sample to consider possible mendelian violations.</description>
+  	 	 	
+     	 	 <valueFactory>
+		        <SpinnerValueFactory.IntegerSpinnerValueFactory initialValue="0" min="0" >
+		        		<max><java.lang.Integer fx:constant="MAX_VALUE"/></max>
+		        </SpinnerValueFactory.IntegerSpinnerValueFactory>
+		     </valueFactory>
+     	 </Spinner> 
+     	 
+     	 <Spinner fx:id="min_het_fraction" >
+  	 	 	<label>Minimum allele balance</label>
+  	 	 	<description>Minimum allele balance at sites that are heterozygous in the offspring</description>
+  	 	 	
+     	 	 <valueFactory>
+		        <SpinnerValueFactory.DoubleSpinnerValueFactory initialValue="0.3" min="0" >
+		        		<max><java.lang.Integer fx:constant="MAX_VALUE"/></max>
+		        </SpinnerValueFactory.DoubleSpinnerValueFactory>
+		     </valueFactory>
+     	 </Spinner>
+     	 
+     	 
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="vcfdir"
+	     	 	saveKey="vcfdir"
+	     	 	directory="true"
+	     	 	label="VCF Directory"
+	     	 	description="If provided, output per-family VCFs of mendelian violations into this directory"
+	     	 	/>
+     	 
+  	 	 
+     	 <TextField fx:id="skipchroms" text="MT chrM">
+     	 	<label>Skip Chromosomes</label>
+     	 	<description>List of chromosome names to skip entirely</description>
+     	 </TextField>
+     	 
+     	 <TextField fx:id="malechroms" text="chrY Y">
+     	 	<label>Male Chromosomes</label>
+     	 	<description>List of possible names for male sex chromosome(s)</description>
+     	 </TextField>
+     	
+     	  <TextField fx:id="femalechroms" text="chrX X">
+     	 	<label>Female Chromosomes</label>
+     	 	<description>List of possible names for female sex chromosome(s)</description>
+     	 </TextField>
+      	  	 
+      	  <TextArea fx:id="par_regions" text="chrX:10000-2781479&#10;X:10001-2649520&#10;chrX:155701382-156030895&#10;X:59034050-59373566">
+     	 	<label>Ppseudo-autosomal regions</label>
+     	 	<description>List of chr:start-end for pseudo-autosomal regions on the female sex chromosome)</description>
+     	  </TextArea>
+     	 
+	</options>
+</command>

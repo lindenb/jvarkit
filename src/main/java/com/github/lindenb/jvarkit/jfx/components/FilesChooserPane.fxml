@@ -2,28 +2,40 @@
 <?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
 
 <fx:root type="javafx.scene.layout.HBox" xmlns:fx="http://javafx.com/fxml">
     <BorderPane>
 	    <center>
 	    	<ScrollPane>
-	    		<ListView  fx:id="files" />
+	    		<ListView  fx:id="files" prefWidth="700" prefHeight="300">
+	    			<padding>
+	    				<Insets bottom="5" left="5" right="5" top="5" />
+	    			</padding>
+	    			
+	    		</ListView>
+	    		<padding>
+	    				<Insets bottom="5" left="5" right="5" top="5" />
+	    		</padding>
 	    	</ScrollPane>
 	    </center>
 	    <right>
 	    	<VBox>
-	    		 <Button text="Select..." onAction="#doSelectFile">
+	    		 <Button text="[+]" onAction="#doSelectFile">
 			        <tooltip>
 			          <Tooltip text="Select File... " />
 			         </tooltip>
 			    </Button>
-			    <Button fx:id="eraseButton" text="&#x232b;" onAction="#doClear" >
+			    <Button fx:id="eraseButton" text="&#x232b;"  >
 			        <tooltip>
 			          <Tooltip text="Remove File" />
 			        </tooltip>
 			    </Button>
 	    	</VBox>
 	    </right>
+	    <padding>
+				<Insets bottom="5" left="5" right="5" top="5" />
+		</padding>
     </BorderPane>
 </fx:root>
 

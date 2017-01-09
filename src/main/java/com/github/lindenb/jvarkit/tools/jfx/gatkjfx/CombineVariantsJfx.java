@@ -21,47 +21,43 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-package com.github.lindenb.jvarkit.tools.jfx.picardjfx;
+package com.github.lindenb.jvarkit.tools.jfx.gatkjfx;
 
 import javafx.scene.Scene;
-import javafx.scene.control.Spinner;
+import javafx.scene.control.ComboBox;
 import javafx.stage.Stage;
-import picard.vcf.filter.FilterVcf;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.jfx.components.FileChooserPane;
+import com.github.lindenb.jvarkit.jfx.components.FilesChooserPane;
 
 import javafx.fxml.*;
 
 
-public class FilterVcfJfx extends AbstractPicardJfxApplication
+public class CombineVariantsJfx extends AbstractGatkJfxApplication
 	{
 	@FXML
-	private FileChooserPane inputvcf;
+	private FilesChooserPane inputvcfs;
 	@FXML
 	private FileChooserPane outputvcf;
 	@FXML
-	private Spinner<Double> min_ab;
-	@FXML
-	private Spinner<Integer> min_dp;
-	@FXML
-	private Spinner<Integer> min_gq;
-	@FXML
-	private Spinner<Double> max_fs;
-	@FXML
-	private Spinner<Double> min_qd;
-	@FXML
-	private FileChooserPane javascript;
+	private ComboBox<String> genotypeMergeOptions;
 	
-	public FilterVcfJfx() {
-		super(FilterVcf.class);
+	
+	public CombineVariantsJfx() {
 	}
 	
 	@Override
+	protected String getAnalysisType() {
+		return "CombineVariants";
+		}
+	
+	@Override
 	public void start(Stage stage) throws Exception {
-		final Scene scene = new Scene(fxmlLoad("FilterVcfJfx.fxml"));
+		final Scene scene = new Scene(fxmlLoad("CombineVariantsJfx.fxml"));
         stage.setScene(scene);
         super.start(stage);
     	}
@@ -74,15 +70,30 @@ public class FilterVcfJfx extends AbstractPicardJfxApplication
 	
 	@Override
 	protected  List<String> buildArgs() throws JFXException {
-		final List<String> args= new ArrayList<>();
-		new OptionBuilder(inputvcf,"I=").fill(args);
-		new OptionBuilder(outputvcf,"O=").fill(args);
-		new OptionBuilder(min_ab,"MIN_AB=").fill(args);
-		new OptionBuilder(min_dp,"MIN_DP=").fill(args);
-		new OptionBuilder(min_gq,"MIN_GQ=").fill(args);
-		new OptionBuilder(max_fs,"MAX_FS=").fill(args);
-		new OptionBuilder(min_qd,"MIN_QD=").fill(args);
-		new OptionBuilder(javascript,"JS=").fill(args);
+		final List<String> args= super.buildArgs();
+		
+		List<File> selectFiles= this.inputvcfs.getSelectedFiles();
+		List<String> priorityList=new ArrayList<>();
+		int idx=0;
+		for(final File f:selectFiles)
+			{
+			String p="v"+(idx);
+			priorityList.add(p);
+			args.add("--variant:"+p);
+			args.add(f.getPath());
+			idx++;
+			}
+		
+		new OptionBuilder(outputvcf,"-o").fill(args);		
+		new OptionBuilder(genotypeMergeOptions,"-genotypeMergeOptions").fill(args);		
+		
+		if("PRIORITIZE".equals(this.genotypeMergeOptions.getValue()))
+			{
+			args.add("-priority");
+			args.add(String.join(",", priorityList));
+			
+			}
+		
 		return args;
 	}
 	

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Select a subset of variants from a larger callset</description>
+  	<libraries>
+  		<library href="gatkjfx.jat" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FilesChooserPane
+	     	 	fx:id="inputvcfs"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	 	
+     	<ComboBox fx:id="genotypeMergeOptions">
+     		<label> Determines how we should merge genotype records for samples shared across the ROD files</label>
+     		 <options>
+	     		 <option value="UNIQUIFY">Make all sample genotypes unique by file. Each sample shared across RODs gets named sample.ROD.</option>
+	     		 <option value="PRIORITIZE">Take genotypes in priority order (see the priority argument).</option>
+	     		 <option value="UNSORTED"> Take the genotypes in any order.</option>
+	     		 <option value="REQUIRE_UNIQUE">Require that all samples/genotypes be unique between all inputs</option>
+     		</options>
+     	</ComboBox>
+	</options>
+</command>

@@ -24,44 +24,32 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.jfx.picardjfx;
 
 import javafx.scene.Scene;
-import javafx.scene.control.Spinner;
 import javafx.stage.Stage;
-import picard.vcf.filter.FilterVcf;
+import picard.vcf.GatherVcfs;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.jfx.components.FileChooserPane;
+import com.github.lindenb.jvarkit.jfx.components.FilesChooserPane;
 
 import javafx.fxml.*;
 
 
-public class FilterVcfJfx extends AbstractPicardJfxApplication
+public class GatherVcfsJfx extends AbstractPicardJfxApplication
 	{
 	@FXML
-	private FileChooserPane inputvcf;
+	private FilesChooserPane inputvcfs;
 	@FXML
 	private FileChooserPane outputvcf;
-	@FXML
-	private Spinner<Double> min_ab;
-	@FXML
-	private Spinner<Integer> min_dp;
-	@FXML
-	private Spinner<Integer> min_gq;
-	@FXML
-	private Spinner<Double> max_fs;
-	@FXML
-	private Spinner<Double> min_qd;
-	@FXML
-	private FileChooserPane javascript;
 	
-	public FilterVcfJfx() {
-		super(FilterVcf.class);
+	public GatherVcfsJfx() {
+		super(GatherVcfs.class);
 	}
 	
 	@Override
 	public void start(Stage stage) throws Exception {
-		final Scene scene = new Scene(fxmlLoad("FilterVcfJfx.fxml"));
+		final Scene scene = new Scene(fxmlLoad("GatherVcfsJfx.fxml"));
         stage.setScene(scene);
         super.start(stage);
     	}
@@ -75,14 +63,8 @@ public class FilterVcfJfx extends AbstractPicardJfxApplication
 	@Override
 	protected  List<String> buildArgs() throws JFXException {
 		final List<String> args= new ArrayList<>();
-		new OptionBuilder(inputvcf,"I=").fill(args);
+		new OptionBuilder(inputvcfs,"I=").fill(args);
 		new OptionBuilder(outputvcf,"O=").fill(args);
-		new OptionBuilder(min_ab,"MIN_AB=").fill(args);
-		new OptionBuilder(min_dp,"MIN_DP=").fill(args);
-		new OptionBuilder(min_gq,"MIN_GQ=").fill(args);
-		new OptionBuilder(max_fs,"MAX_FS=").fill(args);
-		new OptionBuilder(min_qd,"MIN_QD=").fill(args);
-		new OptionBuilder(javascript,"JS=").fill(args);
 		return args;
 	}
 	

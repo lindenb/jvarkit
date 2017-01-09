@@ -48,12 +48,13 @@ public abstract class AbstractFileChooserPane extends HBox
  	    return new FileChooser.ExtensionFilter(key,exts);
 		}
     
+    
     protected void setLastSaved(File f) {
     	String k = getSaveKey();
 		if(k==null || k.trim().isEmpty() || f==null) return;
 		try {
 			Preferences prefs = Preferences.userNodeForPackage(getClass());
-			prefs.put(k, f.getParentFile().getPath());
+			prefs.put(k, f.getPath());
 			prefs.sync();
 			}
 		catch(Exception err){

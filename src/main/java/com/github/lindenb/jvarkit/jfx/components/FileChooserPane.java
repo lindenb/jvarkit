@@ -1,9 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 package com.github.lindenb.jvarkit.jfx.components;
 
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Optional;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -13,11 +35,9 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
 
 public class FileChooserPane extends AbstractFileChooserPane {
@@ -26,7 +46,12 @@ public class FileChooserPane extends AbstractFileChooserPane {
         private final ObjectProperty<File> selectedFile = new SimpleObjectProperty<File>();        
         private BooleanProperty forReading = new SimpleBooleanProperty(true);
         private BooleanProperty required = new SimpleBooleanProperty(false);
+        private BooleanProperty directory = new SimpleBooleanProperty(false);
+        private final DirectoryChooser directoryChooser = new DirectoryChooser();
+        private BooleanProperty remember = new SimpleBooleanProperty(false);
 
+        
+        
         public FileChooserPane() {
                 final FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("FileChooserPane.fxml"));
                 fxmlLoader.setRoot(this);
@@ -66,6 +91,19 @@ public class FileChooserPane extends AbstractFileChooserPane {
                                 updateTextFieldColor();
                                 }
                         });
+               this.remember.addListener(new ChangeListener<Boolean>()
+					{
+					@Override
+					public void changed(
+							ObservableValue<? extends Boolean> observable,
+							Boolean oldValue, Boolean newValue)
+						{
+						if(!Boolean.TRUE.equals(newValue)) return;
+						File f= getLastSaved();
+						if(f==null) return;
+						selectedFile.set(f);
+						}
+					});
                 updateTextFieldColor();
         		}
 
@@ -77,9 +115,9 @@ public class FileChooserPane extends AbstractFileChooserPane {
     			);
     	}
         
-    public final File getSelectedFile() {  return selectedFileProperty().get();  }
-    public final void setSelectedFile(File f) { this.selectedFileProperty().set(f);  }
-    public ObjectProperty<File> selectedFileProperty() { return selectedFile ;  }
+	    public final File getSelectedFile() {  return selectedFileProperty().get();  }
+	    public final void setSelectedFile(File f) { this.selectedFileProperty().set(f);  }
+	    public ObjectProperty<File> selectedFileProperty() { return selectedFile ;  }
 
     
     
@@ -94,32 +132,66 @@ public class FileChooserPane extends AbstractFileChooserPane {
 		public void setRequired(boolean b) {  this.requiredProperty().set(b); }
 		public boolean isRequired() { return this.requiredProperty().get(); }
 	
+        public BooleanProperty directoryProperty() { return this.directory;}
+		public void setDirectory(boolean b) {  this.directoryProperty().set(b); }
+		public boolean isDirectory() { return this.directoryProperty().get(); }
 	        
+        public BooleanProperty rememberProperty() { return this.remember;}
+		public void setRemember(boolean b) {  this.rememberProperty().set(b); }
+		public boolean isRemember() { return this.rememberProperty().get(); }
         
 
         @FXML
         protected void doSelectFile() {
-                if (getSelectedFile() != null)
-                        {
-                        fc.setInitialDirectory(getSelectedFile().getParentFile());
-                        }
-                else 	{
-                	File prev = super.getLastSaved();
-                	if(prev!=null && prev.exists() ) {
-                		fc.setInitialDirectory(prev.isDirectory()?prev:prev.getParentFile());
-                		}
-                	}
-              
+        	
+        		if(isDirectory())
+        			{
+        			 if (getSelectedFile() != null && getSelectedFile().isDirectory())
+	                     {
+	                     directoryChooser.setInitialDirectory(getSelectedFile());
+	                     }
+        			 else
+        			 	{
+        				File prev = super.getLastSaved();
+ 	                	if(prev!=null && prev.exists()) {
+ 	                		directoryChooser.setInitialDirectory(prev.isDirectory()?prev:prev.getParentFile());
+ 	                		
+ 	                		}
+        			 	}
+        			}
+        		else
+	        		{
+	                if (getSelectedFile() != null)
+	                        {
+	                        fc.setInitialDirectory(
+	                        		getSelectedFile().isDirectory()?
+	                        		getSelectedFile():
+	                        		getSelectedFile().getParentFile()
+	                        		);
+	                        }
+	                else 
+	                	{
+	                	File prev = super.getLastSaved();
+	                	if(prev!=null && prev.exists() ) {
+	                		fc.setInitialDirectory(prev.isDirectory()?prev:prev.getParentFile());
+	                		}
+	                	}
+	                updateExtensionFilter();
+	        		}
                 
-                updateExtensionFilter();
+                
                 
                 final Window win = this.getScene().getWindow();
                 final File f ;
-                if(isOpen()) {
+                if(isDirectory()) {
+                	f= this.directoryChooser.showDialog(win);
+                	}
+                else  if(isOpen()) {
                         f = this.fc.showOpenDialog(win);
                 } else
                         {
                         f = this.fc.showSaveDialog(win);
+                        /* no, save does this 
                         if(f!=null && f.exists()) {
                                 final Alert alert = new Alert(AlertType.WARNING);
                                 alert.setTitle("Confirmation Dialog");
@@ -132,6 +204,7 @@ public class FileChooserPane extends AbstractFileChooserPane {
                                         }
                                         }
                                 }
+                        */
                         }
                 if( f == null) return;
                 setLastSaved(f);

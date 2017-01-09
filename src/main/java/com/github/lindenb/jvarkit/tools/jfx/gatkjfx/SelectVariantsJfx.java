@@ -21,14 +21,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-package com.github.lindenb.jvarkit.tools.jfx.picardjfx;
+package com.github.lindenb.jvarkit.tools.jfx.gatkjfx;
 
 import javafx.scene.Scene;
-import javafx.scene.control.Spinner;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
-import picard.vcf.filter.FilterVcf;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.jfx.components.FileChooserPane;
@@ -36,32 +35,36 @@ import com.github.lindenb.jvarkit.jfx.components.FileChooserPane;
 import javafx.fxml.*;
 
 
-public class FilterVcfJfx extends AbstractPicardJfxApplication
+public class SelectVariantsJfx extends AbstractGatkJfxApplication
 	{
 	@FXML
 	private FileChooserPane inputvcf;
 	@FXML
 	private FileChooserPane outputvcf;
-	@FXML
-	private Spinner<Double> min_ab;
-	@FXML
-	private Spinner<Integer> min_dp;
-	@FXML
-	private Spinner<Integer> min_gq;
-	@FXML
-	private Spinner<Double> max_fs;
-	@FXML
-	private Spinner<Double> min_qd;
-	@FXML
-	private FileChooserPane javascript;
 	
-	public FilterVcfJfx() {
-		super(FilterVcf.class);
+	/* samples */
+	@FXML
+	private TextArea sampleNamesStr;
+	@FXML
+	private FileChooserPane sampleNamesFile;
+	@FXML
+	private TextArea sampleExpr;
+	@FXML
+	private CheckBox inverseSamples;
+	
+	
+	
+	public SelectVariantsJfx() {
 	}
 	
 	@Override
+	protected String getAnalysisType() {
+		return "SelectVariants";
+		}
+	
+	@Override
 	public void start(Stage stage) throws Exception {
-		final Scene scene = new Scene(fxmlLoad("FilterVcfJfx.fxml"));
+		final Scene scene = new Scene(fxmlLoad("SelectVariantsJfx.fxml"));
         stage.setScene(scene);
         super.start(stage);
     	}
@@ -74,15 +77,18 @@ public class FilterVcfJfx extends AbstractPicardJfxApplication
 	
 	@Override
 	protected  List<String> buildArgs() throws JFXException {
-		final List<String> args= new ArrayList<>();
-		new OptionBuilder(inputvcf,"I=").fill(args);
-		new OptionBuilder(outputvcf,"O=").fill(args);
-		new OptionBuilder(min_ab,"MIN_AB=").fill(args);
-		new OptionBuilder(min_dp,"MIN_DP=").fill(args);
-		new OptionBuilder(min_gq,"MIN_GQ=").fill(args);
-		new OptionBuilder(max_fs,"MAX_FS=").fill(args);
-		new OptionBuilder(min_qd,"MIN_QD=").fill(args);
-		new OptionBuilder(javascript,"JS=").fill(args);
+		final List<String> args= super.buildArgs();
+		new OptionBuilder(inputvcf,"--variant").fill(args);
+		new OptionBuilder(outputvcf,"-o").fill(args);
+		final String prefix= (this.inverseSamples.isSelected()?"--exclude_sample":"--sample");
+		
+		new OptionBuilder(sampleNamesFile,prefix+"file").fill(args);
+		new OptionBuilder(sampleNamesStr,prefix+"name").fill(args);
+		new OptionBuilder(sampleExpr,prefix+"expressions").fill(args);
+		
+		
+		
+		
 		return args;
 	}
 	

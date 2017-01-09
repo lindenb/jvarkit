@@ -8,34 +8,54 @@
 <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
 <xsl:param name="name"></xsl:param>
 <xsl:param name="codebase"></xsl:param>
+<xsl:param name="mainclass"></xsl:param>
 
 <xsl:template match="/">
 <xsl:apply-templates select="command"/>
 </xsl:template>
 
 <xsl:template match="command">
-<jnlp spec="6.0+" codebase="__WEBSTART__/ped" href="ped.jnlp" >
+<jnlp spec="6.0+">
 	<xsl:attribute name="codebase">
 		<xsl:value-of select="$codebase"/>
 	</xsl:attribute>
+	<xsl:attribute name="href">
+		<xsl:value-of select="$name"/>
+		<xsl:text>.jnlp</xsl:text>
+	</xsl:attribute>
    <information>
       <title><xsl:value-of select="$name"/></title>
-      <vendor>http://www.inserm.f</vendor>
-      <description><xsl:value-of select="descritpion"/></description>
-      <description kind="short">Pedigree Drawer</description>
+      <vendor>http://www.umr1087.univ-nantes.fr/</vendor>
+      <description><xsl:value-of select="description"/></description>
+      <description kind="short"><xsl:value-of select="description"/></description>
+      <offline-allowed/>
    </information>
    <security>
       <all-permissions/>
    </security>
    <update check="always" policy="prompt-run" />
    <resources>
-      <j2se version="1.6+" />
-      <jar href="ped.jar" />
-      <jar href="codec.jar" />
-      <jar href="httpclient.jar" />
-      <jar href="logging.jar" />
+      <j2se version="1.8+" />
+      <xsl:for-each select="libraries/library">
+      	<jar download="null">
+      	<xsl:attribute name="href">
+			<xsl:value-of select="@href"/>
+		</xsl:attribute>
+		<xsl:if test="@main = 'true'">
+			<xsl:attribute name="main">true</xsl:attribute>
+		</xsl:if>
+      	</jar>
+      </xsl:for-each>
    </resources>
-   <application-desc main-class="fr.inserm.umr915.bomcat.ped.PedigreeDrawer"/>
+   <application-desc width="1000" height="800">
+   		<xsl:attribute name="name">
+			<xsl:value-of select="$name"/>
+		</xsl:attribute>
+   		<xsl:attribute name="main-class">
+			<xsl:value-of select="$mainclass"/>
+		</xsl:attribute>
+   </application-desc>
+   <update check="background"/>
 </jnlp>
 </xsl:template>
 

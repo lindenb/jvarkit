@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Select a subset of variants from a larger callset</description>
+  	<libraries>
+  		<library href="gatkjfx.jat" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	 	
+     	 <TextArea fx:id="sampleNamesStr"
+     	 	label="Include genotypes from those samples"
+     	 	/>
+     	 <TextArea fx:id="sampleExpr"
+     	 	label="Regular expression to select multiple samples"
+     	 	description="Using a regular expression allows you to match multiple sample names that have that pattern in common. One expression per line "
+     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="sampleNamesFile"
+     	 	saveKey="gatk.selectsamples"
+     	 	label=" File containing a list of samples to include"
+     	 	/>
+	     <CheckBox fx:id="inverseSamples"
+	     		selected="false"
+	     		label="Inverse Sample Selection"
+	      		description="When checked, exclude the samples instead of include">
+	     </CheckBox>
+	</options>
+</command>

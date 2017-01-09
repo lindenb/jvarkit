@@ -24,11 +24,17 @@
     </Menu>
   </MenuBar>
   <BorderPane>
+	<padding>
+			<Insets bottom="5" left="5" right="5" top="5" />
+	</padding>
   	<top>
-  		<Label  style="-fx-font-weight:bold;-fx-font-size:150%;"  maxWidth="1000" wrapText="true">
+  		<Label  style="-fx-font-weight:bold;-fx-font-size:150%; -fx-text-fill: white; -fx-background-color:darkgray;"  wrapText="true">
   			<xsl:attribute name="text">
   				<xsl:value-of select="description"/>
 			</xsl:attribute>
+			<padding>
+				<Insets bottom="5" left="5" right="5" top="5" />
+			</padding>
   		</Label>
   	</top>
   	<center>
@@ -36,9 +42,11 @@
 	    <VBox alignment="CENTER_RIGHT" style="-fx-padding: 15px;">
 			<xsl:for-each select="options/*">
 				<BorderPane style="-fx-padding: 5 5 5 5;" xmlns:fx="http://javafx.com/fxml">
+					<xsl:if test="local-name(.)!='CheckBox'">
 					<top>
 						<xsl:apply-templates select="." mode="labelt"/>
 					</top>
+					</xsl:if>
 					<center>
 						 <FlowPane style="-fx-padding: 5 0 5 20;">
 							<xsl:apply-templates select="."/>
@@ -57,14 +65,30 @@
 		<BorderPane>
 			<top>
 				<FlowPane  alignment="CENTER_RIGHT">
-					<Button style="-fx-font-weight:bold;-fx-font-size:150%; -fx-background-color: red;" text="STOP" fx:id="cancelCommandButton"/>
-					<Button style="-fx-font-weight:bold;-fx-font-size:150%; -fx-background-color: green;" text="GO  !"  fx:id="runCommandButton"/>
+					<Button style="-fx-font-weight:bold;-fx-font-size:150%; -fx-background-color: red; -fx-text-fill: white;" text="STOP" fx:id="cancelCommandButton"/>
+					<Button style="-fx-font-weight:bold;-fx-font-size:150%; -fx-background-color: green; -fx-text-fill: white;" text="GO  !"  fx:id="runCommandButton"/>
+					<padding>
+						<Insets bottom="5" left="5" right="5" top="5" />
+					</padding>
 				</FlowPane>
 			</top>
 			<center>
-				<ScrollPane>
-					<TextArea fx:id="console" text="" editable="false"/>
-				</ScrollPane>
+				<BorderPane>
+					<padding>
+						<Insets bottom="5" left="5" right="5" top="5" />
+					</padding>
+					<top>
+						<Label text="Console:"/>
+					</top>
+					<center>
+						<ScrollPane>
+							<TextArea fx:id="console" text="" editable="false"  prefColumnCount="1000" 
+									prefRowCount="15" 
+									promptText="console"
+									style="-fx-text-fill: white; -fx-background-color:lightgray; -fx-text-fill: black; -fx-font-size:10px; -fx-font-family:monospaced;"/>
+						</ScrollPane>
+					</center>
+				</BorderPane>
 			</center>
 		</BorderPane>
 	</bottom>
@@ -82,6 +106,15 @@
 			<xsl:when test="label"><xsl:value-of select="label"/></xsl:when>
 			<xsl:otherwise><xsl:value-of select="@label"/></xsl:otherwise>
 		</xsl:choose>
+		<xsl:if test="local-name(.)='ComboBox'">
+			<xsl:text> Available options: </xsl:text>
+			<xsl:for-each select="options/option">
+	 	 		<xsl:value-of select="@value"/>
+	 	 		<xsl:text> : </xsl:text>
+	 	 		<xsl:value-of select="text()"/>
+	 	 		<xsl:text>. </xsl:text>
+	 	 	</xsl:for-each>
+		</xsl:if>
 	</xsl:attribute>
 </Label>
 </xsl:template>
@@ -109,11 +142,19 @@
 </Label>
 </xsl:template>
 
+
 <xsl:template match="FileChooserPane|com.github.lindenb.jvarkit.jfx.components.FileChooserPane">
  <com.github.lindenb.jvarkit.jfx.components.FileChooserPane>
-	 <xsl:copy-of select="@id|@fx:id|@filter|@saveKey|@required|@open" />
+	 <xsl:copy-of select="@id|@fx:id|@filter|@saveKey|@required|@open|@directory|@remember" />
  </com.github.lindenb.jvarkit.jfx.components.FileChooserPane>
 </xsl:template>
+
+<xsl:template match="FilesChooserPane|com.github.lindenb.jvarkit.jfx.components.FilesChooserPane">
+ <com.github.lindenb.jvarkit.jfx.components.FilesChooserPane>
+	 <xsl:copy-of select="@id|@fx:id|@filter|@saveKey|@minCardinality|@maxCardinality" />
+ </com.github.lindenb.jvarkit.jfx.components.FilesChooserPane>
+</xsl:template>
+
 
 <xsl:template match="Spinner">
  <Spinner>
@@ -122,10 +163,62 @@
  </Spinner>
 </xsl:template>
 			
+<xsl:template match="TextArea">
+<ScrollPane>
+	 <TextArea>
+		 <xsl:copy-of select="@id|@fx:id|@text|@promptText|@prefColumnCount|@prefRowCount|@wrapText" />
+	 </TextArea>
+</ScrollPane>
+</xsl:template>
 
+<xsl:template match="TextField">
+ <TextField>
+	 <xsl:copy-of select="@id|@fx:id|@text|@promptText|@prefColumnCount" />
+ </TextField>
+</xsl:template>
 			
-			
+<xsl:template match="CheckBox|Checkbox">
+ <CheckBox>
+	 <xsl:copy-of select="@id|@fx:id|@selected|@allowIndeterminate" />
+	 <xsl:attribute name="text">
+	 		<xsl:choose>
+				<xsl:when test="label"><xsl:value-of select="label"/></xsl:when>
+				<xsl:otherwise><xsl:value-of select="@label"/></xsl:otherwise>
+			</xsl:choose>
+	 </xsl:attribute>
+ </CheckBox>
+</xsl:template>
 
+<xsl:template match="Combobox|ComboBox">
+ <ComboBox>
+	 <xsl:copy-of select="@id|@fx:id" />
+	 <items>
+	 	 <javafx.collections.FXCollections fx:factory="observableArrayList">
+	 	 	<xsl:for-each select="options/option">
+	 	 		<java.lang.String>
+	 	 			<xsl:attribute name="fx:value">
+	 	 				<xsl:value-of select="@value"/>
+	 	 			</xsl:attribute>
+	 	 		</java.lang.String>
+	 	 	</xsl:for-each>
+	 	 </javafx.collections.FXCollections>
+	 </items>
+	 <value>
+	 	<java.lang.String>
+	 		<xsl:attribute name="fx:value">
+			 <xsl:choose>
+			 	<xsl:when test="options/option[@selected='true']">
+			 		<xsl:value-of select="options/option[@selected='true']/@value"/>
+			 	</xsl:when>
+			 	<xsl:otherwise>
+			 		<xsl:value-of select="options/option[1]/@value"/>
+			 	</xsl:otherwise>
+			 </xsl:choose>
+	 	</xsl:attribute>
+	 	 </java.lang.String>
+	</value>
+ </ComboBox>
+</xsl:template>
 
 
 
