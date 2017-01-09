@@ -25,6 +25,7 @@ package com.github.lindenb.jvarkit.tools.jfx.gatkjfx;
 
 import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.CheckBox;
 import javafx.stage.Stage;
 
 import java.io.File;
@@ -45,6 +46,30 @@ public class CombineVariantsJfx extends AbstractGatkJfxApplication
 	private FileChooserPane outputvcf;
 	@FXML
 	private ComboBox<String> genotypeMergeOptions;
+	@FXML
+	private ComboBox<String> filteredRecordsMergeType;
+ 	
+ 	@FXML
+ 	private CheckBox assumeIdenticalSamples;
+
+ 	@FXML
+ 	private CheckBox excludeNonVariants;
+
+ 	@FXML
+ 	private CheckBox filteredAreUncalled;
+
+ 	@FXML
+ 	private CheckBox mergeInfoWithMaxAC;
+
+ 	@FXML
+ 	private CheckBox minimalVCF;
+
+ 	@FXML
+ 	private CheckBox printComplexMerges;
+
+ 	@FXML
+ 	private CheckBox suppressCommandLineHeader;
+	
 	
 	
 	public CombineVariantsJfx() {
@@ -93,6 +118,23 @@ public class CombineVariantsJfx extends AbstractGatkJfxApplication
 			args.add(String.join(",", priorityList));
 			
 			}
+		new OptionBuilder(filteredRecordsMergeType,"-filteredRecordsMergeType").fill(args);	
+		
+		
+		 	new OptionBuilder(assumeIdenticalSamples,"--assumeIdenticalSamples").fill(args);		
+
+ 			new OptionBuilder(excludeNonVariants,"--excludeNonVariants").fill(args);		
+
+ 			new OptionBuilder(filteredAreUncalled,"--filteredAreUncalled").fill(args);		
+
+ 			new OptionBuilder(mergeInfoWithMaxAC,"--mergeInfoWithMaxAC").fill(args);		
+
+ 			new OptionBuilder(minimalVCF,"--minimalVCF").fill(args);
+
+ 			new OptionBuilder(printComplexMerges,"--printComplexMerges").fill(args);		
+
+ 			new OptionBuilder(suppressCommandLineHeader,"--suppressCommandLineHeader").fill(args);		
+
 		
 		return args;
 	}

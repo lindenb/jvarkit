@@ -37,5 +37,53 @@
 	     		 <option value="REQUIRE_UNIQUE">Require that all samples/genotypes be unique between all inputs</option>
      		</options>
      	</ComboBox>
+     	
+        <ComboBox fx:id="filteredRecordsMergeType">
+     		<label> Determines how we should handle records seen at the same site in the VCF, but with different FILTER fields</label>
+     		 <options>
+	     		 <option value="KEEP_IF_ANY_UNFILTERED" selected="true">Union - leaves the record if any record is unfiltered</option>
+	     		 <option value="KEEP_IF_ALL_UNFILTERED">Requires all records present at site to be unfiltered. VCF files that don't contain the record don't influence this</option>
+	     		 <option value="KEEP_UNCONDITIONAL" >If any record is present at this site (regardless of possibly being filtered), then all such records are kept and the filters are reset.</option>
+     		</options>
+     	</ComboBox>
+     	  	
+  <CheckBox fx:id="assumeIdenticalSamples" selected="false">
+    <label>Assume input VCFs have identical sample sets and disjoint calls</label>
+    <description>This option allows you to perform a simple merge (concatenation) to combine the VCFs, drastically reducing
+ runtime. Note that in many cases where you think you want to use this option, you may want to check out the
+ CatVariants tool instead, because CatVariants provides the same functionality, but does so even more efficiently.</description>
+  </CheckBox>
+  <CheckBox fx:id="excludeNonVariants" selected="false">
+    <label>Exclude sites where no variation is present after merging</label>
+    <description>Exclude sites that do not contain any called ALT alleles in the merged callset. The evaluation is made after the
+ merging procedure is complete.</description>
+  </CheckBox>
+  <CheckBox fx:id="filteredAreUncalled" selected="false">
+    <label>Treat filtered variants as uncalled</label>
+    <description>If enabled, this flag causes filtered variants (i.e. variant records where the FILTER field is populated by
+ something other than PASS or a dot) to be omitted from the output.</description>
+  </CheckBox>
+  <CheckBox fx:id="mergeInfoWithMaxAC" selected="false">
+    <label>Use the INFO content of the record with the highest AC</label>
+    <description>By default, the INFO field of the merged variant record only contains the INFO field attributes for which all
+ original overlapping records had the same values. Discordant attributes are therefore discarded. This flag allows you to
+ override that behavior and simply copy over the INFO field contents of whichever record had the highest AC value.</description>
+  </CheckBox>
+  <CheckBox fx:id="minimalVCF" selected="false">
+    <label>Emit a sites-only file</label>
+    <description>If this flag is enabled, the INFO, FORMAT and sample-level (genotype) fields will not be emitted to the output file.</description>
+  </CheckBox>
+  <CheckBox fx:id="printComplexMerges" selected="false">
+    <label>Emit interesting sites requiring complex compatibility merging to file</label>
+  </CheckBox>
+  <CheckBox fx:id="suppressCommandLineHeader" selected="false">
+    <label>Do not output the command line to the header</label>
+    <description>By default, this tool writes the command line that was used in the header of the output VCF file. This flag
+ enables you to override that behavior . This is most often useful when combining variants for dozens or
+ hundreds of smaller VCFs iteratively, to avoid cluttering the header with a lot of command lines.</description>
+  </CheckBox>
+
+     	
+     	
 	</options>
 </command>
