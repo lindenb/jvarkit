@@ -69,17 +69,7 @@
 		  
 		 <!--  mendelian variations -->
 		 
-		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
-	     	 	fx:id="pedigreeFile"
-	     	 	filter="Pedigree Files: ped pedigree"
-	     	 	saveKey="gatk.pedigree"
-	     	 	label="Pedigree files for samples"
-	     	 	description="Reads PED file-formatted tabular text files describing meta-data about the samples being processed in the GATK"
-	     	 	/>
-	      <CheckBox selected="false" fx:id="noPedigreeValidation">
-		    <label> Validation strictness for pedigree</label>
-		    <description>Do not enforce any overlap between the VCF samples and the pedigree data</description>
-		  </CheckBox>	
+			<xi:include href="mod.pedigree.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
 	     	 	
 	     	 	
 	     

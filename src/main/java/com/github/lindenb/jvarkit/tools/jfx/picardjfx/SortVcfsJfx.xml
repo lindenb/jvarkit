@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description>Sorts one or more VCF files.  This tool sorts the records in VCF files according to the order of the contigs in the header/sequence dictionary and then by coordinate. It can accept an external sequence dictionary. If no external dictionary is supplied, the VCF file headers of multiple inputs must have the same sequence dictionaries</description>
+  	<libraries>
+  		<library href="picard.jar" />
+  		<library href="picardjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FilesChooserPane
+	     	 	fx:id="inputvcfs"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF files"
+	     	 	description="The INPUT VCF or BCF files"
+	     	 	minCardinality="1"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	 	
+     	  <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="dictFile"
+     	 	filter="Dict Files: dict"
+     	 	saveKey="picard.ref.dict"
+     	 	label="Reference dictionary"
+     	 	description="The index sequence dictionary to use instead of the sequence dictionary in the input file"
+     	 	/> 		
+     	 
+	</options>
+</command>

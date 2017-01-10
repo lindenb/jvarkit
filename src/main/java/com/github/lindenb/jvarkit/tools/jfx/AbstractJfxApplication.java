@@ -225,6 +225,9 @@ public abstract class AbstractJfxApplication
 			}
 		}
 	
+	
+	
+	
 	protected class OptionBuilder
 		{
 		protected final Parent component;
@@ -240,6 +243,8 @@ public abstract class AbstractJfxApplication
 			if(this.component==null) throw new JFXException("component is null in ctor ("+option+")");
 			if(this.option==null) throw new JFXException("opt is null in ctor");
 			}
+		
+		
 		
 		
 		protected void fill(final List<String> args,String s) {

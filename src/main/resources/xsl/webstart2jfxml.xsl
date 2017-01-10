@@ -160,6 +160,36 @@
 </xsl:template>
 
 
+<xsl:template match="GatkResource">
+	<HBox spacing="5">
+		<Label>
+			<xsl:attribute name="text">
+				<xsl:text>Resource </xsl:text>
+				<xsl:value-of select="@suffix"/>
+				<xsl:text> name:</xsl:text>
+			</xsl:attribute>
+		</Label>
+		<TextField >
+				<xsl:attribute name="fx:id">
+				<xsl:value-of select="@fx:id"/>
+				<xsl:text>_name</xsl:text>
+				<xsl:value-of select="@suffix"/>
+			</xsl:attribute>		
+		</TextField>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane >
+				<xsl:attribute name="fx:id">
+				<xsl:value-of select="@fx:id"/>
+				<xsl:text>_file</xsl:text>
+				<xsl:value-of select="@suffix"/>
+			</xsl:attribute>		
+			<xsl:copy-of select="@filter|@saveKey|@required|@remember" />
+		</com.github.lindenb.jvarkit.jfx.components.FileChooserPane>
+	</HBox>
+</xsl:template>
+
+
+
+
 <xsl:template match="Spinner">
  <Spinner>
 	 <xsl:copy-of select="@fx:id" />

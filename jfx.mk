@@ -34,11 +34,11 @@ endef
 
 ifneq (${gatk.jar},)	
 
-PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolationsJfx)
-GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx DepthOfCoverageJfx)
+PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolationsJfx MergeVcfsJfx SortVcfsJfx)
+GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx DepthOfCoverageJfx VariantAnnotatorJfx)
 
 test-webstart: compile-webstart 
-	java -cp webstart/gatkjfx.jar com.github.lindenb.jvarkit.tools.jfx.gatkjfx.DepthOfCoverageJfx
+	java -cp webstart/gatkjfx.jar com.github.lindenb.jvarkit.tools.jfx.gatkjfx.VariantAnnotatorJfx
 
 scp-webstart: compile-webstart
 	scp -r webstart/* "${webstart.remotedir}"

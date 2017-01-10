@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Annotate variant calls with context information</description>
+  	<libraries>
+  		<library href="gatkjfx.jat" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	 
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="dbsnp"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="gatk.dbsnp"
+	     	 	remember="true"
+	     	 	label="dbSNP file"
+	     	 	description=" rsIDs from this file are used to populate the ID column of the output. Also, the DB INFO flag will be set when appropriate. "
+	     	 	/>
+     	   <CheckBox selected="false" fx:id="alwaysAppendDbsnpId">
+		    <label>Add dbSNP ID even if one is already present</label>
+		    <description>By default, a dbSNP ID is added only when the ID field in the variant record is empty (not already annotated). This argument allows you to override that behavior, and appends the new ID to the existing one. This is used in conjunction with the -dbsnp argument.</description>
+		  </CheckBox>
+     	 
+     	 
+     	   <CheckBox selected="false" fx:id="resourceAlleleConcordance" >
+			    <label>Check for allele concordances when using an external resource VCF file</label>
+			    <description>If this argument is specified, add annotations (specified by --expression) from an external resource (specified by --resource) to the input VCF (specified by --variant) only if the alleles are concordant between input and the resource VCFs. Otherwise, always add the annotations.</description>
+		    </CheckBox>
+     	 
+     	 <xi:include href="mod.pedigree.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+     	   <TextField fx:id="mendelianViolationQualThreshold" text="" promptText="double value">
+		    <label>GQ threshold for annotating MV ratio</label>
+		    <description>The genotype quality (GQ) threshold above which the mendelian violation ratio should be annotated. </description>
+		  </TextField>
+     	 
+     	 
+     	 <GatkResource fx:id="resource" suffix="1">
+     	 	<label>External resource VCF file 1</label>
+     	 	<description>An external resource VCF file or files from which to annotate. Use this option to add annotations from a resource file to the output.</description>
+     	 </GatkResource>
+     	 <GatkResource fx:id="resource" suffix="2">
+     	 	<label>External resource VCF file 2</label>
+     	 	<description>An external resource VCF file or files from which to annotate. Use this option to add annotations from a resource file to the output.</description>
+     	 </GatkResource>
+     	 <GatkResource fx:id="resource" suffix="3">
+     	 	<label>External resource VCF file 3</label>
+     	 	<description>An external resource VCF file or files from which to annotate. Use this option to add annotations from a resource file to the output.</description>
+     	 </GatkResource>
+		
+		 <TextArea fx:id="expression">
+		 	<label> One or more specific expressions to apply to variant calls</label>
+		 	<description>This option enables you to add annotations from one VCF to another. For example, if you want to annotate your callset with the AC field value from a VCF file named 'resource_file.vcf', you tag it with '-resource:my_resource resource_file.vcf' (see the -resource argument, also documented on this page) and you specify '-E my_resource.AC'. In the resulting output VCF, any records for which there is a record at the same position in the resource file will be annotated with 'my_resource.AC=N'. INFO field data, ID, ALT, and FILTER fields may be used as expression values. Note that if there are multiple records in the resource file that overlap the given position, one is chosen randomly. </description>
+		 </TextArea>
+			     
+			     
+     	 <GatkResource fx:id="comp" suffix="1">
+     	 	<label>Comparison VCF file 1</label>
+     	 	<description>If a record in the 'variant' track overlaps with a record from the provided comp track, the INFO field will be annotated as such in the output with the track name (e.g. name=FOO will have 'FOO' in the INFO field).</description>
+     	 </GatkResource>
+     	 <GatkResource fx:id="comp" suffix="2">
+     	 	<label>Comparison VCF file 2</label>
+     	 	<description>If a record in the 'variant' track overlaps with a record from the provided comp track, the INFO field will be annotated as such in the output with the track name (e.g. name=FOO will have 'FOO' in the INFO field).</description>
+     	 </GatkResource>
+     	 <GatkResource fx:id="comp" suffix="3">
+     	 	<label>Comparison VCF file 3</label>
+     	 	<description>If a record in the 'variant' track overlaps with a record from the provided comp track, the INFO field will be annotated as such in the output with the track name (e.g. name=FOO will have 'FOO' in the INFO field).</description>
+     	 </GatkResource>
+     	 
+     	 <CheckBox selected="false" fx:id="gcContent" >
+			    <label>Add Annotation: GCContent</label>
+			    <description>GC content of the reference around the given site</description>
+		  </CheckBox>
+     	  <CheckBox selected="false" fx:id="homopolymerRun" >
+			    <label>Add Annotation: HomopolymerRun</label>
+			    <description>Largest contiguous homopolymer run of the variant allele</description>
+		  </CheckBox>
+	</options>
+</command>

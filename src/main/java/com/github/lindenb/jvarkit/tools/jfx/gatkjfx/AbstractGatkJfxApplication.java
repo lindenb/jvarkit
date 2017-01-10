@@ -23,12 +23,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.jfx.gatkjfx;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.jfx.components.FileChooserPane;
 import com.github.lindenb.jvarkit.tools.jfx.AbstractJfxApplication;
+import com.github.lindenb.jvarkit.tools.jfx.AbstractJfxApplication.JFXException;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -246,6 +248,35 @@ public abstract class AbstractGatkJfxApplication
 					e.printStackTrace(AbstractGatkJfxApplication.realStderr);
 					}
 				}
+			}
+		}
+	protected static class GatkResourceOptionBuilder
+		{
+		private boolean name_is_required=true;
+		private final TextField name;
+		private final FileChooserPane fileChooser;
+		private final String opt;
+		public GatkResourceOptionBuilder(final TextField name,final FileChooserPane fileChooser,String opt) throws JFXException
+			{
+			this.name=name;
+			this.fileChooser=fileChooser;
+			this.opt=opt;
+			if(this.name==null) throw new JFXException("name is null for option "+this.opt);
+			if(this.fileChooser==null) throw new JFXException("file is null for option "+this.opt);
+			}
+		public void fill(final List<String> args)  throws JFXException {
+			final String prefix=name.getText().trim();
+			final File f=this.fileChooser.getSelectedFile();
+			if(f==null && prefix.isEmpty()) return;
+			if(!prefix.isEmpty() && f==null) {
+				 throw new JFXException("prefix is defined but no file for option "+this.opt);
+				}
+			else if(prefix.isEmpty() && name_is_required && f!=null)
+				{
+				 throw new JFXException("prefix is not defined but file defined for option "+this.opt);
+				}
+			args.add(this.opt+(prefix.isEmpty()?"":":"+prefix));
+			args.add(f.getPath());
 			}
 		}
 	

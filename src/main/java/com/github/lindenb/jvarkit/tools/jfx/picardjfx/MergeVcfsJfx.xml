@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description>Merges multiple VCF or BCF files into one VCF file. Input files must be sorted by their contigs and, within contigs, by start position. The input files must have the same sample and contig lists. An index file is created and a sequence dictionary is required by default.</description>
+  	<libraries>
+  		<library href="picard.jar" />
+  		<library href="picardjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FilesChooserPane
+	     	 	fx:id="inputvcfs"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF files"
+	     	 	description="The INPUT VCF or BCF files"
+	     	 	minCardinality="1"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	 	
+     	  <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="dictFile"
+     	 	filter="Dict Files: dict"
+     	 	saveKey="picard.ref.dict"
+     	 	label="Reference dictionary"
+     	 	description="The index sequence dictionary to use instead of the sequence dictionary in the input file"
+     	 	/> 		
+     	 
+	</options>
+</command>
