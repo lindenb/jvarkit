@@ -159,6 +159,10 @@
  </com.github.lindenb.jvarkit.jfx.components.FilesChooserPane>
 </xsl:template>
 
+<xsl:template match="verbatim">
+	  <xsl:copy-of select="*[not(name()='label' or name()='description')]"/>
+</xsl:template>
+
 
 <xsl:template match="GatkResource">
 	<HBox spacing="5">

@@ -25,9 +25,11 @@ package com.github.lindenb.jvarkit.tools.jfx.gatkjfx;
 
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
-
+import java.util.ArrayList;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.jfx.components.FileChooserPane;
@@ -52,8 +54,39 @@ public class VariantFiltrationJfx extends AbstractGatkJfxApplication
  	@FXML private CheckBox invertGenotypeFilterExpression;
  	@FXML private CheckBox missingValuesInExpressionsShouldEvaluateAsFailing;
  	@FXML private CheckBox setFilteredGtToNocall;
-
-	
+ 	@FXML private GridPane expressionGridPane;
+ 	@FXML private GridPane gtExpressionGridPane;
+	private List<Expression> expression=new ArrayList<>();
+	private List<Expression> gtexpressions=new ArrayList<>();
+ 	
+ 	private static class Expression
+ 		{
+ 		final TextField expression;
+ 		final TextField name;
+ 		final boolean gtExpr;
+ 		Expression(boolean gtExpr) {
+ 			this.gtExpr=gtExpr;
+ 			this.expression = new  TextField();
+ 			this.expression.setPrefColumnCount(40);
+ 			this.expression.setPromptText("JEXL expression");
+ 			this.name = new  TextField();
+ 			this.name.setPrefColumnCount(10);
+ 			this.name.setPromptText("Filter Name");
+ 			}
+ 		void fill(final List<String> args) throws JFXException
+ 			{
+ 			final String ex=this.expression.getText().trim();
+ 			final String n=this.name.getText().trim();
+ 			if(ex.isEmpty() && n.isEmpty()) return;
+ 			if(ex.isEmpty() && !n.isEmpty())throw new JFXException("No expression for filter ("+n+")");
+ 			if(!ex.isEmpty() && n.isEmpty())throw new JFXException("No name for expression ("+ex+")");
+ 			args.add(gtExpr?"--genotypeFilterName":"--filterName");
+ 			args.add(n);
+ 			args.add(gtExpr?"--genotypeFilterExpression":"--filterExpression");
+ 			args.add(ex);
+ 			}
+ 		}
+ 	
 	public VariantFiltrationJfx() {
 	}
 	
@@ -65,7 +98,34 @@ public class VariantFiltrationJfx extends AbstractGatkJfxApplication
 	@Override
 	public void start(Stage stage) throws Exception {
 		final Scene scene = new Scene(fxmlLoad("VariantFiltrationJfx.fxml"));
-        stage.setScene(scene);
+        
+		stage.setScene(scene);
+		
+		
+		 this.expressionGridPane.add(new Label("Filter Expression"),0,0);
+		 this.expressionGridPane.add(new Label("Filter Name"),1,0);
+		for(int y=1;y<=10;++y){
+		final Expression ex=new Expression(false);
+		this.expression.add(ex);
+		
+		this.expressionGridPane.add(ex.expression,0,y);
+		this.expressionGridPane.add(ex.name,1,y);
+	    
+		}
+		
+		 this.gtExpressionGridPane.add(new Label("GTFilter Expression"),0,0);
+		 this.gtExpressionGridPane.add(new Label("GTFilter Name"),1,0);
+		for(int y=1;y<=10;++y){
+		final Expression ex=new Expression(true);
+		this.gtexpressions.add(ex);
+		
+		this.gtExpressionGridPane.add(ex.expression,0,y);
+		this.gtExpressionGridPane.add(ex.name,1,y);
+	    
+		}
+
+		
+		
         super.start(stage);
     	}
 	
@@ -81,6 +141,15 @@ public class VariantFiltrationJfx extends AbstractGatkJfxApplication
 		new OptionBuilder(inputvcf,"--variant").fill(args);
 		new OptionBuilder(outputvcf,"-o").fill(args);
 		
+		for(final Expression ex:this.expression)
+			{
+			ex.fill(args);
+			}
+		for(final Expression ex:this.gtexpressions)
+			{
+			ex.fill(args);
+			}
+
 		if( mask.getSelectedFile()!=null){
 			final String makName= maskName.getText().trim();
 			if(makName.isEmpty()) throw new JFXException("Mask name is empty");

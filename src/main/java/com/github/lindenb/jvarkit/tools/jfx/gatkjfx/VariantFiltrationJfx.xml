@@ -52,27 +52,36 @@
 		    <label>Remove previous filters applied to the VCF</label>
 		    <description>Invalidate previous filters applied to the {@link VariantContext}, applying only the filters here.</description>
 		  </CheckBox>
-		  <CheckBox selected="false" fx:id="invertFilterExpression">
-		    <label>Invert the selection criteria for --filterExpression</label>
-		    <description>Invert the selection criteria for {@code --filterExpression}.</description>
-		  </CheckBox>
-		  <CheckBox selected="false" fx:id="invertGenotypeFilterExpression">
-		    <label>Invert the selection criteria for --genotypeFilterExpression</label>
-		    <description>Invert the selection criteria for {@code --genotypeFilterExpression}.</description>
-		  </CheckBox>
 			  
 			  
 			  
-		  <CheckBox selected="false" fx:id="missingValuesInExpressionsShouldEvaluateAsFailing">
-		    <label>When evaluating the JEXL expressions, missing values should be considered failing the expression</label>
-		    <description>By default, if JEXL cannot evaluate your expression for a particular record because one of the annotations is not present, the whole expression evaluates as 003cpre003e
-		PASS003c/pre003eing. Use this argument to have it evaluate as failing filters instead for these cases.</description>
-		  </CheckBox>
 		  <CheckBox selected="false" fx:id="setFilteredGtToNocall">
 		    <label>Set filtered genotypes to no-call</label>
 		    <description>If this argument is provided, set filtered genotypes to no-call (./.).</description>
 		  </CheckBox>
-			  
-			     
+		  
+		  <verbatim>
+		  	<GridPane fx:id="expressionGridPane"></GridPane>
+		  		<label>Variants Expressions</label>
+		  </verbatim>
+		  		  <CheckBox selected="false" fx:id="invertFilterExpression">
+		    <label>Invert the selection criteria for --filterExpression</label>
+		    <description>Invert the selection criteria for {@code --filterExpression}.</description>
+		  </CheckBox>
+		  
+		  
+			<verbatim>
+		  	<GridPane fx:id="gtExpressionGridPane"></GridPane>
+		  		<label>Genotypes Expressions</label>
+		  </verbatim>
+		   		  <CheckBox selected="false" fx:id="invertGenotypeFilterExpression">
+		    <label>Invert the selection criteria for --genotypeFilterExpression</label>
+		    <description>Invert the selection criteria for {@code --genotypeFilterExpression}.</description>
+		  </CheckBox>
+		   <CheckBox selected="false" fx:id="missingValuesInExpressionsShouldEvaluateAsFailing">
+		    <label>When evaluating the JEXL expressions, missing values should be considered failing the expression</label>
+		    <description>By default, if JEXL cannot evaluate your expression for a particular record because one of the annotations is not present, the whole expression evaluates as 003cpre003ePASS003c/pre003eing. Use this argument to have it evaluate as failing filters instead for these cases.</description>
+		  </CheckBox>
+		   
 	</options>
 </command>
