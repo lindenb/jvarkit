@@ -35,10 +35,10 @@ endef
 ifneq (${gatk.jar},)	
 
 PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolationsJfx MergeVcfsJfx SortVcfsJfx)
-GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx DepthOfCoverageJfx VariantAnnotatorJfx)
+GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx DepthOfCoverageJfx VariantAnnotatorJfx VariantFiltrationJfx)
 
 test-webstart: compile-webstart 
-	java -cp webstart/gatkjfx.jar com.github.lindenb.jvarkit.tools.jfx.gatkjfx.VariantAnnotatorJfx
+	java -cp webstart/gatkjfx.jar com.github.lindenb.jvarkit.tools.jfx.gatkjfx.VariantFiltrationJfx
 
 scp-webstart: compile-webstart
 	scp -r webstart/* "${webstart.remotedir}"

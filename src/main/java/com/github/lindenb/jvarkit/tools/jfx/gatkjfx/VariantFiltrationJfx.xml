@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Filter variant calls based on INFO and FORMAT annotations</description>
+  	<libraries>
+  		<library href="gatkjfx.jat" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Mask Files: vcf vcf.gz bcf bed bed.gz"
+	     	 	saveKey="gatk.variantfilter.mask"
+	     	 	label="Genomic Region file"
+	     	 	/>
+	       <TextField text="Mask" fx:id="maskName">
+			    <label>The text to put in the FILTER field if a 0027mask0027 rod is provided and overlaps with a variant call</label>
+			    <description>When using the {@code -mask} argument, the {@code maskName} will be annotated in the variant record. Note that when using the {@code -filterNotInMask} argument to reverse the masking logic, it is up to the user to adapt the name of the mask to make it clear that the reverse logic was used (e.g. if masking against Hapmap, use {@code -maskName hapmap} for the normal masking and {@code -maskName003dnot_hapmap} for the reverse masking).</description>
+		   </TextField>
+	     
+		  <CheckBox selected="false" fx:id="filterNotInMask">
+		    <label>Filter records NOT in given input mask.</label>
+		    <description>By default, if the {@code -mask} argument is used, any variant falling in a mask will be filtered. If this argument is used, logic is reversed, and variants falling out side a given mask will be filtered. Use case is, for example, if we have an interval list or BED file with "good" sites. Note that it is up to the user to adapt the name of the mask to make it clear that the reverse logic was used (e.g. if masking against Hapmap, use {@code -maskName003dhapmap} for the normal masking and {@code -maskName003dnot_hapmap} for the reverse masking).</description>
+		  </CheckBox>
+		   <TextField text="Mask" fx:id="maskExtension">
+   				 <description>How many bases beyond records from a provided mask  rod should variants be filtered</description>
+			    <label>Mask extension</label>
+		   </TextField>
+					  
+			  
+		  <CheckBox selected="false" fx:id="invalidatePreviousFilters">
+		    <label>Remove previous filters applied to the VCF</label>
+		    <description>Invalidate previous filters applied to the {@link VariantContext}, applying only the filters here.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="invertFilterExpression">
+		    <label>Invert the selection criteria for --filterExpression</label>
+		    <description>Invert the selection criteria for {@code --filterExpression}.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="invertGenotypeFilterExpression">
+		    <label>Invert the selection criteria for --genotypeFilterExpression</label>
+		    <description>Invert the selection criteria for {@code --genotypeFilterExpression}.</description>
+		  </CheckBox>
+			  
+			  
+			  
+		  <CheckBox selected="false" fx:id="missingValuesInExpressionsShouldEvaluateAsFailing">
+		    <label>When evaluating the JEXL expressions, missing values should be considered failing the expression</label>
+		    <description>By default, if JEXL cannot evaluate your expression for a particular record because one of the annotations is not present, the whole expression evaluates as 003cpre003e
+		PASS003c/pre003eing. Use this argument to have it evaluate as failing filters instead for these cases.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="setFilteredGtToNocall">
+		    <label>Set filtered genotypes to no-call</label>
+		    <description>If this argument is provided, set filtered genotypes to no-call (./.).</description>
+		  </CheckBox>
+			  
+			     
+	</options>
+</command>
