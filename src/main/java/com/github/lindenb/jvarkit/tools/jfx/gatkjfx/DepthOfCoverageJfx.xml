@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Assess sequence coverage by a wide array of metrics, partitioned by sample, read group, or library</description>
+  	<libraries>
+  		<library href="gatkjfx.jat" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FilesChooserPane
+	     	 	fx:id="inputbams"
+	     	 	filter="BAM Files: bam"
+	     	 	saveKey="gatk.bam.in"
+	     	 	required="true"
+	     	 	label="The INPUT BAM file"
+	     	 	 minCardinality="1"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputdepthofcoverage"
+     	 	saveKey="doc.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT Depth Of Coverage base filename"
+     	 	/> 	
+     	 	
+     	
+     	  <CheckBox selected="false" fx:id="ignoreDeletionSites">
+		    <label>Ignore sites consisting only of deletions</label>
+		  </CheckBox>
+		  
+		  
+		  <CheckBox selected="false" fx:id="includeDeletions">
+		    <label>Include information on deletions</label>
+		    <description>Consider a spanning deletion as contributing to coverage. Also enables deletion counts in per-base output.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="includeRefNSites">
+		    <label>Include sites where the reference is N</label>
+		    <description>Normally, sites where the reference is N (or another non-canonical base) are skipped. If this option is enabled, these sites will be included in DoC calculations if there is coverage from neighboring reads.</description>
+		  </CheckBox>
+     	
+     	  <TextField fx:id="maxMappingQuality">
+		    <label>Maximum mapping quality of reads to count towards depth</label>
+		    <description>Reads with mapping quality values higher than this threshold will be skipped. The default value is the largest number that can be represented as an integer by the program.</description>
+		  </TextField>
+		  <TextField fx:id="minMappingQuality">
+		    <label>Minimum mapping quality of reads to count towards depth</label>
+		    <description>Reads with mapping quality values lower than this threshold will be skipped. This is set to -1 by default to disable the evaluation and ignore this threshold.</description>
+		  </TextField>
+     	
+     	  <TextField fx:id="maxBaseQuality">
+		    <label>Maximum quality of bases to count towards depth</label>
+		    <description>Reads with mapping quality values higher than this threshold will be skipped. The default value is the largest number that can be represented as an integer by the program.</description>
+		  </TextField>
+		  
+		  <TextField fx:id="minBaseQuality">
+		    <label>Minimum quality of bases to count towards depth</label>
+		    <description>Bases with quality scores lower than this threshold will be skipped. This is set to -1 by default to disable the evaluation and ignore this threshold.</description>
+		  </TextField>
+     	
+     	<TextField fx:id="summaryCoverageThreshold" text="1 5 10 15">
+		    <label>Coverage threshold (in percent) for summarizing statistics</label>
+		    <description> For summary file outputs, report the percentage of bases covered to an amount equal to or greater than this number (e.g. % bases >= CT for each sample).</description>
+		  </TextField>
+     	
+     	  <CheckBox selected="true" fx:id="omitDepthOutputAtEachBase">
+		    <label>Do not output depth of coverage at each base</label>
+		    <description>Disabling the tabulation of total coverage at every base should speed up processing.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="omitIntervalStatistics">
+		    <label>Do not calculate per-interval statistics</label>
+		    <description>Disabling the tabulation of interval statistics (mean, median, quartiles AND # intervals by sample by coverage) should speed up processing. This option is required in order to use -nt parallelism.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="omitLocusTable">
+		    <label>Do not calculate per-sample per-depth counts of loci</label>
+		    <description>Disabling the tabulation of locus statistics (# loci covered by sample by coverage) should speed up processing.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="omitPerSampleStats">
+		    <label>Do not output the summary files per-sample</label>
+		    <description>This option simply disables writing separate files for per-sample summary statistics (total, mean, median, quartile coverage per sample). These statistics are still calculated internally, so enabling this option will not improve runtime.</description>
+		  </CheckBox>
+     		
+     	<ComboBox fx:id="countType">
+     		<label>How should overlapping reads from the same fragment be handled ?</label>
+     		 <options>
+     		 	<option value="COUNT_READS" selected="true">Count all reads independently (even if from the same fragment).</option>
+     		 	<option value="COUNT_FRAGMENTS">Count all fragments (even if the reads that compose the fragment are not consistent at that base).</option>
+     		 	<option value="COUNT_FRAGMENTS_REQUIRE_SAME_BASE">    Count all fragments (but only if the reads that compose the fragment are consistent at that base).</option>
+     		</options>
+     	</ComboBox>
+     	
+     	<ComboBox fx:id="partitionType">
+     		<label>By default, coverage is partitioning by sample, but it can be any combination of sample, readgroup and/or library. </label>
+     		 <options>
+     		 	<option value="sample" selected="true">sample</option>
+     		 	<option value="readgroup">readgroup.</option>
+     		 	<option value="library">library</option>
+     		</options>
+     	</ComboBox>
+     	
+     	
+	</options>
+</command>

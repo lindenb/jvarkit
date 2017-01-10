@@ -47,6 +47,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
@@ -108,7 +109,7 @@ public abstract class AbstractJfxApplication
 	
 	protected abstract Runnable createRunnable() throws JFXException;
 	
-	protected void displayAlert(Throwable err) {
+	protected void displayAlert(final Throwable err) {
 		final Alert alert = new Alert(AlertType.ERROR);
 		alert.setHeaderText("Cannot create Command.");
 		alert.setContentText(String.valueOf(err.getMessage()));
@@ -129,7 +130,7 @@ public abstract class AbstractJfxApplication
 		
 	}
 	
-	private void doCommandStart(ActionEvent event) {
+	private void doCommandStart(final ActionEvent event) {
 		doCommandEnd(event);
 		final Runnable target;
 		try {
@@ -146,7 +147,7 @@ public abstract class AbstractJfxApplication
 		
 		synchronized(AbstractJfxApplication.class) {
 			try {
-				commandThread=null;
+				this.commandThread=null;
 				this.runCommandButton.setDisable(true);
 				this.cancelCommandButton.setDisable(false);
 				this.commandThread = new Thread(new RunnerDelegate(target));
@@ -162,7 +163,7 @@ public abstract class AbstractJfxApplication
 			}
 		}
 	
-	private void doCommandEnd(ActionEvent event) {
+	private void doCommandEnd(final  ActionEvent event) {
 		synchronized(AbstractJfxApplication.class) {
 			this.runCommandButton.setDisable(false);
 			this.cancelCommandButton.setDisable(true);
@@ -184,9 +185,9 @@ public abstract class AbstractJfxApplication
 		{
 		try
 			{
-			java.net.URL in= getClass().getResource(resource);
-			if(in==null) throw new java.io.IOException("cannot get resource \""+resource+"\"");
-			final FXMLLoader loader = new FXMLLoader(in);
+			java.net.URL url= getClass().getResource(resource);
+			if(url==null) throw new java.io.IOException("cannot get resource \""+resource+"\" for Class:"+this.getClass());
+			final FXMLLoader loader = new FXMLLoader(url);
 			loader.setController(this);
 			return loader.load();
 			}
@@ -296,6 +297,17 @@ public abstract class AbstractJfxApplication
 					fill(args,f.getPath());
 					}
 				}
+			else if(component instanceof CheckBox) {
+				final CheckBox comp = CheckBox.class.cast(component);
+				if(this.option.endsWith("=")) //picard
+					{
+					fill(args,Boolean.toString(comp.isSelected()));
+					}
+				else if(comp.isSelected())
+					{
+					args.add(this.option);
+					}
+				}
 			else if(component instanceof Spinner) {
 				Spinner<?> comp = Spinner.class.cast(component);
 				Object v=comp.getValue();
@@ -347,7 +359,7 @@ public abstract class AbstractJfxApplication
 				}
 			else
 				{
-				throw new JFXException("undefined component ("+this.option+")");
+				throw new JFXException("undefined Class of component ("+this.option+") "+this.component.getClass());
 				}
 			}
 		}

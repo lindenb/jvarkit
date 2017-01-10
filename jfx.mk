@@ -25,7 +25,7 @@ define fun_jfx1
 endef
 
 define sign_jfx1
-	jarsigner -tsa http://timestamp.digicert.com \
+	jarsigner $(if ${FASTJARSIGN},,-tsa http://timestamp.digicert.com ) \
 		-keystore .secret.keystore \
 		-keypass "$(if ${keytool.keypass},${keytool.keypass},KEYTOOLPASS)" \
 		-storepass "$(if ${keytool.storepass},${keytool.storepass},KEYTOOLSTOREPASS)" \
@@ -35,10 +35,10 @@ endef
 ifneq (${gatk.jar},)	
 
 PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolationsJfx)
-GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx)
+GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx DepthOfCoverageJfx)
 
 test-webstart: compile-webstart 
-	java -cp webstart/gatkjfx.jar com.github.lindenb.jvarkit.tools.jfx.gatkjfx.SelectVariantsJfx
+	java -cp webstart/gatkjfx.jar com.github.lindenb.jvarkit.tools.jfx.gatkjfx.DepthOfCoverageJfx
 
 scp-webstart: compile-webstart
 	scp -r webstart/* "${webstart.remotedir}"

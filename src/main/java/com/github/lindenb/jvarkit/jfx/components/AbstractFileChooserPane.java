@@ -71,7 +71,7 @@ public abstract class AbstractFileChooserPane extends HBox
 		}
     
     
-    protected void setLastSaved(File f) {
+    protected void setLastSaved(final File f) {
     	String k = getSaveKey();
 		if(k==null || k.trim().isEmpty() || f==null) return;
 		try {
@@ -85,10 +85,10 @@ public abstract class AbstractFileChooserPane extends HBox
 		
     	}
     protected File getLastSaved() {
-  		String k = getSaveKey();
+  		final String k = getSaveKey();
   		if(k==null || k.trim().isEmpty()) return null;
   		try {
-			Preferences prefs = Preferences.userNodeForPackage(getClass());
+  			final Preferences prefs = Preferences.userNodeForPackage(getClass());
 			String f = prefs.get(k, null);
 			if(f==null || f.isEmpty()) return null;
 			return new File(f);

@@ -115,7 +115,7 @@ public class FilesChooserPane extends AbstractFileChooserPane {
                     if(files.getItems().contains(f)) continue;
                     files.getItems().add(f);
             	}
-            setLastSaved(fs.get(fs.size()-1).getParentFile());
+            setLastSaved(fs.get(fs.size()-1));
 			}
 	
 	@FXML
