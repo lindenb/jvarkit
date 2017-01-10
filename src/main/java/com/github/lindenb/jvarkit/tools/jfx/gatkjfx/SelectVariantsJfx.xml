@@ -45,5 +45,171 @@
 	     		label="Inverse Sample Selection"
 	      		description="When checked, exclude the samples instead of include">
 	     </CheckBox>
+	     
+	     
+	     <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="concordance"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="selectvariant.concordance"
+	     	 	label="Output variants also called in this comparison track"
+	     	 	description="A site is considered concordant if (1) we are not looking for specific samples and there is a variant called  in both the variant and concordance tracks or (2) every sample present in the variant track is present in the concordance track and they have the sample genotype call"
+	     	 	/>
+	     <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="discordance"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="selectvariant.discordance"
+	     	 	label="Output variants not called in this comparison track"
+	     	 	description="A site is considered discordant if there exists some sample in the variant track that has a non-reference genotype and either the site isn0027t present in this track, the sample isn't present in this track, or the sample is called reference in this track."
+	     	 	/>
+	     	 	
+		  <CheckBox selected="false" fx:id="forceValidOutput">
+			    <label>Forces output VCF to be compliant to up-to-date version</label>
+			    <description>If this argument is provided, the output will be compliant with the version in the header, however it will also cause the tool to run slower than without the argument. Without the argument the header will be compliant with the up-to-date version, but the output in the body may not be compliant. If an up-to-date input file is used, then the output will also be up-to-date regardless of this argument.</description>
+		  </CheckBox>
+		  
+		 <!--  mendelian variations -->
+		 
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="pedigreeFile"
+	     	 	filter="Pedigree Files: ped pedigree"
+	     	 	saveKey="gatk.pedigree"
+	     	 	label="Pedigree files for samples"
+	     	 	description="Reads PED file-formatted tabular text files describing meta-data about the samples being processed in the GATK"
+	     	 	/>
+	      <CheckBox selected="false" fx:id="noPedigreeValidation">
+		    <label> Validation strictness for pedigree</label>
+		    <description>Do not enforce any overlap between the VCF samples and the pedigree data</description>
+		  </CheckBox>	
+	     	 	
+	     	 	
+	     
+	      <CheckBox selected="false" fx:id="mendelianViolation">
+		    <label>Output mendelian violation sites only</label>
+		    <description>If this flag is enabled, this tool will select only variants that correspond to a mendelian violation as determined on the basis of family structure. Requires passing a pedigree file using the engine-level `-ped` argument.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="invertMendelianViolation">
+		    <label>Output non-mendelian violation sites only</label>
+		    <description>If this flag is enabled, this tool will select only variants that do not correspond to a mendelian violation as determined on the basis of family structure. Requires passing a pedigree file using the engine-level `-ped` argument.</description>
+		  </CheckBox>
+		  
+	       <TextField fx:id="mendelianViolationQualThreshold" text="" promptText="double value">
+		    <label>Minimum GQ score for each trio member to accept a site as a violation</label>
+		    <description>This argument specifies the genotype quality (GQ) threshold that all members of a trio must have in order for a site to be accepted as a mendelian violation. Note that the `mendelianViolation` flag must be set for this argument to have an effect.</description>
+		  </TextField>
+	     
+	     <!--  ID -->
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="excludeID"
+	     	 	saveKey="gatk.excludeID"
+	     	 	label="List of variant IDs to exclude"
+	     	 	description="If a file containing a list of IDs is provided to this argument, the tool will not select variants whose ID field is present in this list of IDs. The matching is done by exact string matching. The expected file format is simply plain text with one ID per line"
+	     	 	/>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="keepIDs"
+	     	 	saveKey="gatk.keepIDs"
+	     	 	label="List of variant IDs to select"
+	     	 	description="If a file containing a list of IDs is provided to this argument, the tool will only select variants whose ID  field is present in this list of IDs. The matching is done by exact string matching. The expected file format  is simply plain text with one ID per line."
+	     	 	/>
+	     
+	     <!--  select -->
+	       <TextArea fx:id="selectexpressions" text="" >
+		    <label>One or more criteria to use when selecting the data</label>
+		    <description>See GATK manual for detailed usage examples. Note that these expressions are evaluated *after* the specifed samples are extracted and the INFO field annotations are updated.</description>
+		  </TextArea>
+	     
+	      <CheckBox selected="false" fx:id="invertselect">
+		    <label>Invert the selection criteria for -select</label>
+		    <description>Invert the selection criteria for -select.</description>
+		  </CheckBox>
+		  
+	       <TextField fx:id="selectTypeToInclude" text="" >
+		    <label>Select only a certain type of variants from the input file</label>
+		    <description>This argument excludes particular kinds of variants out of a list. If left empty, there is no type selection and all variant types are considered for other selection criteria. Valid types are INDEL, SNP, MIXED, MNP,SYMBOLIC, NO_VARIATION</description>
+		  </TextField>
+
+	       <TextField fx:id="selectTypeToExclude" text="" >
+		    <label>Do not select certain type of variants from the input file</label>
+		    <description>This argument selects particular kinds of variants out of a list. If left empty, there is no type selection and all variant types are considered for other selection criteria. Valid types are INDEL, SNP, MIXED, MNP, SYMBOLIC, NO_VARIATION. Can be specified multiple times.</description>
+		  </TextField>
+
+	     
+	       <TextField fx:id="remove_fraction_genotypes" text="" >
+			    <label>Select a fraction of genotypes at random from the input and sets them to no-call</label>
+			    <description>The value of this argument should be a number between 0 and 1 specifying the fraction of total variants to be randomly selected from the input callset and set to no-call (./). Note that this is done using a probabilistic function, so the final result is not guaranteed to carry the exact fraction requested. Can be used for large fractions.</description>
+		  </TextField>
+	       <TextField fx:id="select_random_fraction" text="" >
+			    <label>Select a fraction of variants at random from the input</label>
+			    <description>The value of this argument should be a number between 0 and 1 specifying the fraction of total variants to be randomly selected from the input callset. Note that this is done using a probabilistic function, so the final result is not guaranteed to carry the exact fraction requested. Can be used for large fractions.</description>
+		  </TextField>
+	     
+	     <TextField fx:id="maxFractionFilteredGenotypes" text="" >
+			    <label>Maximum fraction of samples filtered at the genotype level</label>
+			    <description>If this argument is provided, select sites where a fraction or less of the samples are filtered at the genotype level.</description>
+	     </TextField>
+	      <TextField fx:id="maxFilteredGenotypes" text="" >
+		    <label>Maximum number of samples filtered at the genotype level</label>
+		    <description>If this argument is provided, select sites where at most a maximum number of samples are filtered at the genotype level.</description>
+	     </TextField>
+	     
+	     
+	      <TextField fx:id="minFractionFilteredGenotypes" text="" >
+			    <label>Maximum fraction of samples filtered at the genotype level</label>
+			    <description>If this argument is provided, select sites where a fraction or more of the samples are filtered at the genotype level.</description>
+	     </TextField>
+	      <TextField fx:id="minFilteredGenotypes" text="" >
+			    <label>Minimum number of samples filtered at the genotype level</label>
+			    <description>If this argument is provided, select sites where at least a minimum number of samples are filtered at the genotype level.</description>
+	     </TextField>
+	     
+	      <TextField fx:id="maxNOCALLfraction" text="" >
+		    <label>Maximum fraction of samples with no-call genotypes</label>
+		    <description>If this argument is provided, select sites where at most the given fraction of samples have no-call genotypes.</description>
+	     </TextField>
+	      <TextField fx:id="maxNOCALLnumber" text="" >
+		    <label>Maximum number of samples with no-call genotypes</label>
+		    <description>If this argument is provided, select sites where at most the given number of samples have no-call genotypes.</description>
+	     </TextField>
+	     
+	     
+	       <Spinner fx:id="minIndelSize">
+		    <label>Minimum size of indels to include</label>
+		    <description>If this argument is provided, indels that are smaller than the specified size will be excluded.</description>
+		    <valueFactory>
+		      <SpinnerValueFactory.IntegerSpinnerValueFactory initialValue="0" min="0">
+		        <max>
+		          <java.lang.Integer fx:constant="MAX_VALUE"/>
+		        </max>
+		      </SpinnerValueFactory.IntegerSpinnerValueFactory>
+		    </valueFactory>
+		  </Spinner>
+	     
+	     
+	     <!--  misc flags -->
+	     
+	       <CheckBox selected="false" fx:id="excludeFiltered">
+		    <label>Don't include filtered sites</label>
+		    <description>If this flag is enabled, sites that have been marked as filtered (i.e. have anything other than `.` or `PASS` in the FILTER field) will be excluded from the output.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="excludeNonVariants">
+		    <label>Don't include non-variant sites</label>
+		    <description/>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="keepOriginalAC">
+		    <label>Store the original AC, AF, and AN values after subsetting</label>
+		    <description>When subsetting a callset, this tool recalculates the AC, AF, and AN values corresponding to the contents of the subset. If this flag is enabled, the original values of those annotations will be stored in new annotations called AC_Orig, AF_Orig, and AN_Orig.</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="keepOriginalDP">
+		    <label>Store the original DP value after subsetting</label>
+		    <description>When subsetting a callset, this tool recalculates the site-level (INFO field) DP value corresponding to the contents of the subset. If this flag is enabled, the original value of the DP annotation will be stored in a new annotation called DP_Orig.</description>
+		  </CheckBox>
+	       <CheckBox selected="false" fx:id="setFilteredGtToNocall">
+		    <label>Set filtered genotypes to no-call</label>
+		    <description>If this argument is provided, set filtered genotypes to no-call (./.).</description>
+		  </CheckBox>
+		  <CheckBox selected="false" fx:id="preserveAlleles">
+		    <label>Preserve original alleles, do not trim</label>
+		    <description>The default behavior of this tool is to remove bases common to all remaining alleles after subsetting operations have been completed, leaving only their minimal representation. If this flag is enabled, the original alleles will be preserved as recorded in the input VCF.</description>
+		  </CheckBox>
+	     
 	</options>
 </command>

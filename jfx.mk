@@ -38,7 +38,7 @@ PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolati
 GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx)
 
 test-webstart: compile-webstart 
-	java -cp webstart/gatkjfx.jar com.github.lindenb.jvarkit.tools.jfx.gatkjfx.CombineVariantsJfx
+	java -cp webstart/gatkjfx.jar com.github.lindenb.jvarkit.tools.jfx.gatkjfx.SelectVariantsJfx
 
 scp-webstart: compile-webstart
 	scp -r webstart/* "${webstart.remotedir}"

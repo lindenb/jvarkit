@@ -41,21 +41,7 @@
 	  <ScrollPane>
 	    <VBox alignment="CENTER_RIGHT" style="-fx-padding: 15px;">
 			<xsl:for-each select="options/*">
-				<BorderPane style="-fx-padding: 5 5 5 5;" xmlns:fx="http://javafx.com/fxml">
-					<xsl:if test="local-name(.)!='CheckBox'">
-					<top>
-						<xsl:apply-templates select="." mode="labelt"/>
-					</top>
-					</xsl:if>
-					<center>
-						 <FlowPane style="-fx-padding: 5 0 5 20;">
-							<xsl:apply-templates select="."/>
-						</FlowPane>
-					</center>
-					 <right>
-					 	<xsl:apply-templates select="." mode="labelr"/>
-					 </right>
- 				</BorderPane>
+				<xsl:apply-templates select="." mode="frame"/>
 				<Separator/>
 			</xsl:for-each>
 	   </VBox>
@@ -96,6 +82,23 @@
 </VBox>
 </xsl:template>
 
+<xsl:template match="*" mode="frame">
+<BorderPane style="-fx-padding: 5 5 5 5;" xmlns:fx="http://javafx.com/fxml">
+<xsl:if test="local-name(.)!='CheckBox'">
+<top>
+	<xsl:apply-templates select="." mode="labelt"/>
+</top>
+</xsl:if>
+<center>
+	 <FlowPane style="-fx-padding: 5 0 5 20;">
+		<xsl:apply-templates select="."/>
+	</FlowPane>
+</center>
+ <right>
+ 	<xsl:apply-templates select="." mode="labelr"/>
+ </right>
+</BorderPane>
+</xsl:template>
 
 <xsl:template match="*" mode="labelr">
 <Label maxWidth="500" wrapText="true" textAlignment="JUSTIFY">
@@ -109,8 +112,9 @@
 		<xsl:if test="local-name(.)='ComboBox'">
 			<xsl:text> Available options: </xsl:text>
 			<xsl:for-each select="options/option">
+				<xsl:text>**</xsl:text>
 	 	 		<xsl:value-of select="@value"/>
-	 	 		<xsl:text> : </xsl:text>
+	 	 		<xsl:text>** : </xsl:text>
 	 	 		<xsl:value-of select="text()"/>
 	 	 		<xsl:text>. </xsl:text>
 	 	 	</xsl:for-each>

@@ -17,6 +17,7 @@
 	     	 	required="true"
 	     	 	label="The INPUT VCF or BCF file"
 	     	 	description="The INPUT VCF or BCF file"
+	     	 	 minCardinality="1"
 	     	 	/>
      	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
      	 	fx:id="outputvcf"
@@ -49,25 +50,19 @@
      	  	
   <CheckBox fx:id="assumeIdenticalSamples" selected="false">
     <label>Assume input VCFs have identical sample sets and disjoint calls</label>
-    <description>This option allows you to perform a simple merge (concatenation) to combine the VCFs, drastically reducing
- runtime. Note that in many cases where you think you want to use this option, you may want to check out the
- CatVariants tool instead, because CatVariants provides the same functionality, but does so even more efficiently.</description>
+    <description>This option allows you to perform a simple merge (concatenation) to combine the VCFs, drastically reducing runtime. Note that in many cases where you think you want to use this option, you may want to check out the CatVariants tool instead, because CatVariants provides the same functionality, but does so even more efficiently.</description>
   </CheckBox>
   <CheckBox fx:id="excludeNonVariants" selected="false">
     <label>Exclude sites where no variation is present after merging</label>
-    <description>Exclude sites that do not contain any called ALT alleles in the merged callset. The evaluation is made after the
- merging procedure is complete.</description>
+    <description>Exclude sites that do not contain any called ALT alleles in the merged callset. The evaluation is made after the merging procedure is complete.</description>
   </CheckBox>
   <CheckBox fx:id="filteredAreUncalled" selected="false">
     <label>Treat filtered variants as uncalled</label>
-    <description>If enabled, this flag causes filtered variants (i.e. variant records where the FILTER field is populated by
- something other than PASS or a dot) to be omitted from the output.</description>
+    <description>If enabled, this flag causes filtered variants (i.e. variant records where the FILTER field is populated by something other than PASS or a dot) to be omitted from the output.</description>
   </CheckBox>
   <CheckBox fx:id="mergeInfoWithMaxAC" selected="false">
     <label>Use the INFO content of the record with the highest AC</label>
-    <description>By default, the INFO field of the merged variant record only contains the INFO field attributes for which all
- original overlapping records had the same values. Discordant attributes are therefore discarded. This flag allows you to
- override that behavior and simply copy over the INFO field contents of whichever record had the highest AC value.</description>
+    <description>By default, the INFO field of the merged variant record only contains the INFO field attributes for which all original overlapping records had the same values. Discordant attributes are therefore discarded. This flag allows you to override that behavior and simply copy over the INFO field contents of whichever record had the highest AC value.</description>
   </CheckBox>
   <CheckBox fx:id="minimalVCF" selected="false">
     <label>Emit a sites-only file</label>
@@ -78,10 +73,25 @@
   </CheckBox>
   <CheckBox fx:id="suppressCommandLineHeader" selected="false">
     <label>Do not output the command line to the header</label>
-    <description>By default, this tool writes the command line that was used in the header of the output VCF file. This flag
- enables you to override that behavior . This is most often useful when combining variants for dozens or
- hundreds of smaller VCFs iteratively, to avoid cluttering the header with a lot of command lines.</description>
+    <description>By default, this tool writes the command line that was used in the header of the output VCF file. This flag enables you to override that behavior . This is most often useful when combining variants for dozens or hundreds of smaller VCFs iteratively, to avoid cluttering the header with a lot of command lines.</description>
   </CheckBox>
+
+  <Spinner fx:id="minimumN" >
+    <label>Minimum number of input files the site must be observed in to be included</label>
+    <description>Sites that are present in fewer than this number of inputs will be ignored. This is a convenient way to build a collection of common variants and exclude rare variants.</description>
+    <valueFactory>
+      <SpinnerValueFactory.IntegerSpinnerValueFactory min="0" initialValue="1">
+        <max>
+          <java.lang.Integer fx:constant="MAX_VALUE"/>
+        </max>
+      </SpinnerValueFactory.IntegerSpinnerValueFactory>
+    </valueFactory>
+  </Spinner>
+
+  <TextField text="set" fx:id="setKey">
+    <label>Key name for the set attribute</label>
+    <description>Key used in the INFO key value tag emitted describing which set(s) the combined record came from (e.g. set control). This provides the option to override the default naming, so instead of set control you could have it be origin control, or any other word you want that is not already an INFO field attribute. Set this to 0027null0027 if you don0027t want the set attribute emitted at all.</description>
+  </TextField>
 
      	
      	

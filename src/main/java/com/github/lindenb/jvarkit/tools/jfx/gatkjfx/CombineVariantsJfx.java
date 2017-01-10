@@ -25,6 +25,8 @@ package com.github.lindenb.jvarkit.tools.jfx.gatkjfx;
 
 import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.TextField;
 import javafx.scene.control.CheckBox;
 import javafx.stage.Stage;
 
@@ -70,7 +72,9 @@ public class CombineVariantsJfx extends AbstractGatkJfxApplication
  	@FXML
  	private CheckBox suppressCommandLineHeader;
 	
-	
+ 	@FXML private Spinner<Integer> minimumN;
+ 	@FXML private TextField setKey;
+
 	
 	public CombineVariantsJfx() {
 	}
@@ -119,23 +123,15 @@ public class CombineVariantsJfx extends AbstractGatkJfxApplication
 			
 			}
 		new OptionBuilder(filteredRecordsMergeType,"-filteredRecordsMergeType").fill(args);	
-		
-		
-		 	new OptionBuilder(assumeIdenticalSamples,"--assumeIdenticalSamples").fill(args);		
-
- 			new OptionBuilder(excludeNonVariants,"--excludeNonVariants").fill(args);		
-
- 			new OptionBuilder(filteredAreUncalled,"--filteredAreUncalled").fill(args);		
-
- 			new OptionBuilder(mergeInfoWithMaxAC,"--mergeInfoWithMaxAC").fill(args);		
-
- 			new OptionBuilder(minimalVCF,"--minimalVCF").fill(args);
-
- 			new OptionBuilder(printComplexMerges,"--printComplexMerges").fill(args);		
-
- 			new OptionBuilder(suppressCommandLineHeader,"--suppressCommandLineHeader").fill(args);		
-
-		
+	 	new OptionBuilder(assumeIdenticalSamples,"--assumeIdenticalSamples").fill(args);		
+		new OptionBuilder(excludeNonVariants,"--excludeNonVariants").fill(args);		
+		new OptionBuilder(filteredAreUncalled,"--filteredAreUncalled").fill(args);		
+		new OptionBuilder(mergeInfoWithMaxAC,"--mergeInfoWithMaxAC").fill(args);		
+		new OptionBuilder(minimalVCF,"--minimalVCF").fill(args);
+		new OptionBuilder(printComplexMerges,"--printComplexMerges").fill(args);		
+		new OptionBuilder(suppressCommandLineHeader,"--suppressCommandLineHeader").fill(args);		
+		new OptionBuilder(minimumN,"--minimumN").fill(args);		
+		new OptionBuilder(setKey,"--setKey").fill(args);		
 		return args;
 	}
 	

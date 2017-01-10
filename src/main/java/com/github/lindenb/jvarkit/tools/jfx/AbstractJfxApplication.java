@@ -232,6 +232,7 @@ public abstract class AbstractJfxApplication
 		protected int _maxCardinality=-1;
 		protected Pattern splitPattern=null;
 		protected Class<?> itemClass=null;
+		
 		public OptionBuilder(final Parent component,final String option) throws JFXException {
 			this.component=component;
 			this.option=option;
@@ -251,7 +252,14 @@ public abstract class AbstractJfxApplication
 				}
 			}
 		
-		protected String validateType(String s) {
+		protected String validateType(String s)  throws JFXException {
+			if(itemClass!=null) {
+				try {
+					this.itemClass.getConstructor(String.class).newInstance(s);
+				} catch (Exception e) {
+					throw new  JFXException("Cannot cast "+s +" to "+itemClass,e);
+					}
+				}
 			return s;
 		}
 		
@@ -276,6 +284,7 @@ public abstract class AbstractJfxApplication
 				final File f= comp.getSelectedFile();
 				if(comp.isRequired() && f==null)  throw new JFXException("missing file for "+this.option);
 				if(f==null) return;
+				
 				fill(args,f.getPath());
 				}
 			else if(component instanceof FilesChooserPane){
@@ -318,12 +327,14 @@ public abstract class AbstractJfxApplication
 				final TextField comp = TextField.class.cast(component);
 				if(this.splitPattern==null)
 					{
-					fill(args,validateType(comp.getText()));
+					String s= comp.getText().trim();
+					if(s.isEmpty()) return;
+					fill(args,validateType(s));
 					}
 				else
 					{
 					List<String> list=new ArrayList<>();
-					for(final String s: comp.getText().split("[\n]"))
+					for(final String s: this.splitPattern.split(comp.getText()))
 						{
 						if(s.trim().isEmpty()) continue;
 						list.add(s);
