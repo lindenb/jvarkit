@@ -3,9 +3,9 @@
 	xmlns:fx="http://javafx.com/fxml"
 	 xmlns:xi="http://www.w3.org/2001/XInclude"
 	 >
-  	<description>Select a subset of variants from a larger callset</description>
+  	<description>Combine variant records from different sources</description>
   	<libraries>
-  		<library href="gatkjfx.jat" main="true"/>
+  		<library href="gatkjfx.jar" main="true"/>
   	</libraries>
   	<options>
   		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>

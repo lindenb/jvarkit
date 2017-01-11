@@ -5,7 +5,7 @@
 	 >
   	<description>Select a subset of variants from a larger callset</description>
   	<libraries>
-  		<library href="gatkjfx.jat" main="true"/>
+  		<library href="gatkjfx.jar" main="true"/>
   	</libraries>
   	<options>
   		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>

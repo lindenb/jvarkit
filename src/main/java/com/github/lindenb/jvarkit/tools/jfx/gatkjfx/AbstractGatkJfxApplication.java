@@ -198,7 +198,7 @@ public abstract class AbstractGatkJfxApplication
 						Platform.runLater(new Runnable() {
 							@Override
 							public void run() {
-								if(GATKRunner.this != owner.runningThread) return;
+								//if(GATKRunner.this != owner.runningThread) return;
 								final Alert alert = new Alert(AlertType.CONFIRMATION);
 								alert.setContentText("Completed:"+Arrays.toString(GATKRunner.this.args));
 								
@@ -217,7 +217,7 @@ public abstract class AbstractGatkJfxApplication
 						Platform.runLater(new Runnable() {
 							@Override
 							public void run() {
-								if(GATKRunner.this != owner.runningThread) return;
+								//if(GATKRunner.this != owner.runningThread) return;
 								final Alert alert = new Alert(AlertType.ERROR);
 								alert.setContentText("Failure:"+Arrays.toString(GATKRunner.this.args));
 
@@ -236,7 +236,7 @@ public abstract class AbstractGatkJfxApplication
 					Platform.runLater(new Runnable() {
 						@Override
 						public void run() {
-							if(GATKRunner.this != owner.runningThread) return;
+							//if(GATKRunner.this != owner.runningThread) return;
 							final Alert alert = new Alert(AlertType.ERROR);
 							alert.setContentText("Failure:"+Arrays.toString(GATKRunner.this.args));
 

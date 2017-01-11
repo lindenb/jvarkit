@@ -5,7 +5,7 @@
 	 >
   	<description>Assess sequence coverage by a wide array of metrics, partitioned by sample, read group, or library</description>
   	<libraries>
-  		<library href="gatkjfx.jat" main="true"/>
+  		<library href="gatkjfx.jar" main="true"/>
   	</libraries>
   	<options>
   		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>

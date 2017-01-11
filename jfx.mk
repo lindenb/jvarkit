@@ -47,7 +47,7 @@ SNPEFFJFX=$(addprefix snpeffjfx/,SnpEffJfx SnpSiftFilterJfx)
 
 test-webstart: compile-webstart 
 	#java -cp webstart/snpeffjfx.jar:webstart/SnpSift.jar com.github.lindenb.jvarkit.tools.jfx.snpeffjfx.SnpSiftFilterJfx
-	java -cp webstart/gatkjfx.jar  com.github.lindenb.jvarkit.tools.jfx.gatkjfx.LeftAlignAndTrimVariantsJfx
+	java -cp webstart/gatkjfx.jar  com.github.lindenb.jvarkit.tools.jfx.gatkjfx.VariantFiltrationJfx
 
 scp-webstart: compile-webstart
 	scp -r webstart/* "${webstart.remotedir}"
@@ -84,6 +84,7 @@ compile-webstart : .secret.keystore webstart/picard.jar webstart/SnpSift.jar \
 	$(call sign_jfx1,webstart/gatkjfx.jar)
 	$(call sign_jfx1,webstart/picard.jar)
 	$(call sign_jfx1,webstart/snpEff.jar)
+	$(call sign_jfx1,webstart/SnpSift.jar)
 	echo "</table></body></html>" >> webstart/index.html
 	chmod 755 webstart/*.html webstart/*.jar webstart/*.jnlp 
 	

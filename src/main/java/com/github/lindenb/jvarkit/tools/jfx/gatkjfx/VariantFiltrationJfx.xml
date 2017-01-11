@@ -5,7 +5,7 @@
 	 >
   	<description>Filter variant calls based on INFO and FORMAT annotations</description>
   	<libraries>
-  		<library href="gatkjfx.jat" main="true"/>
+  		<library href="gatkjfx.jar" main="true"/>
   	</libraries>
   	<options>
   		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
@@ -42,7 +42,7 @@
 		    <label>Filter records NOT in given input mask.</label>
 		    <description>By default, if the {@code -mask} argument is used, any variant falling in a mask will be filtered. If this argument is used, logic is reversed, and variants falling out side a given mask will be filtered. Use case is, for example, if we have an interval list or BED file with "good" sites. Note that it is up to the user to adapt the name of the mask to make it clear that the reverse logic was used (e.g. if masking against Hapmap, use {@code -maskName003dhapmap} for the normal masking and {@code -maskName003dnot_hapmap} for the reverse masking).</description>
 		  </CheckBox>
-		   <TextField text="Mask" fx:id="maskExtension">
+		   <TextField fx:id="maskExtension">
    				 <description>How many bases beyond records from a provided mask  rod should variants be filtered</description>
 			    <label>Mask extension</label>
 		   </TextField>

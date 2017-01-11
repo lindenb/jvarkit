@@ -5,7 +5,7 @@
 	 >
   	<description>Simplify multi-nucleotide variants (MNPs) into more basic/primitive alleles.</description>
   	<libraries>
-  		<library href="gatkjfx.jat" main="true"/>
+  		<library href="gatkjfx.jar" main="true"/>
   	</libraries>
   	<options>
   		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
