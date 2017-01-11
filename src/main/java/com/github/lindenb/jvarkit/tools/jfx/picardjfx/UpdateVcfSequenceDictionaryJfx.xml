@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description>Takes a VCF and a second file that contains a sequence dictionary and updates the VCF with the new sequence dictionary.</description>
+  	<libraries>
+  		<library href="picard.jar" />
+  		<library href="picardjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+	     	 	
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	 	
+     	  <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="dictFile"
+     	 	filter="Dict Files: dict"
+     	 	saveKey="picard.ref.dict"
+     	 	label="Reference dictionary"
+     	 	description="The sequence dictionary"
+     	 	/> 		
+     	 
+	</options>
+</command>

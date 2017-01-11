@@ -1,9 +1,11 @@
 ##
 ## JFX applications
 ##
+#-echo "$(notdir $(1))" | groff -Tps | ps2pdf - webstart/$(notdir $(1)).pdf && convert -density 150 webstart/$(notdir $(1)).pdf -quality 90 webstart/$(notdir $(1)).png && rm -f webstart/$(notdir $(1)).pdf
 
 define fun_jfx1
 	mkdir -p webstart/tmp/com/github/lindenb/jvarkit/tools/jfx/$(dir $(1))
+	
 	xsltproc \
 		--xinclude \
 		-o webstart/tmp/com/github/lindenb/jvarkit/tools/jfx/$(1).fxml \
@@ -41,13 +43,14 @@ endef
 
 ifneq (${gatk.jar},)	
 
-PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolationsJfx MergeVcfsJfx SortVcfsJfx )
+PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolationsJfx MergeVcfsJfx SortVcfsJfx CreateSequenceDictionaryJfx UpdateVcfSequenceDictionaryJfx)
 GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx DepthOfCoverageJfx VariantAnnotatorJfx VariantFiltrationJfx VariantsToTableJfx SelectHeadersJfx VariantsToAllelicPrimitivesJfx LeftAlignAndTrimVariantsJfx)
 SNPEFFJFX=$(addprefix snpeffjfx/,SnpEffJfx SnpSiftFilterJfx)
 
 test-webstart: compile-webstart 
 	#java -cp webstart/snpeffjfx.jar:webstart/SnpSift.jar com.github.lindenb.jvarkit.tools.jfx.snpeffjfx.SnpSiftFilterJfx
-	java -cp webstart/gatkjfx.jar  com.github.lindenb.jvarkit.tools.jfx.gatkjfx.VariantFiltrationJfx
+	#java -cp webstart/gatkjfx.jar  com.github.lindenb.jvarkit.tools.jfx.gatkjfx.VariantFiltrationJfx
+	java -cp webstart/picardjfx.jar:webstart/picard.jar  com.github.lindenb.jvarkit.tools.jfx.picardjfx.UpdateVcfSequenceDictionaryJfx
 
 scp-webstart: compile-webstart
 	scp -r webstart/* "${webstart.remotedir}"

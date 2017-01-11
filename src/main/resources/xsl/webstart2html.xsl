@@ -22,7 +22,7 @@
  </a>
 
  </th>
- <td>
+ <td> 
  <xsl:apply-templates select="description"/>
  </td>
 </tr>

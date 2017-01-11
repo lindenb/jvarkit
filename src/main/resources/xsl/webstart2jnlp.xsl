@@ -25,7 +25,8 @@
 	</xsl:attribute>
    <information>
       <title><xsl:value-of select="$name"/></title>
-      <vendor>http://www.umr1087.univ-nantes.fr/</vendor>
+      <vendor>Pierre Lindenbaum PhD</vendor>
+      <homepage href="http://www.umr1087.univ-nantes.fr"/>
       <description><xsl:value-of select="description"/></description>
       <description kind="short"><xsl:value-of select="description"/></description>
       <offline-allowed/>
@@ -35,7 +36,11 @@
    </security>
    <update check="always" policy="prompt-run" />
    <resources>
-      <j2se version="1.8+" />
+      <j2se version="1.8+" >
+      	<xsl:if test="contains($mainclass,'gatk')">
+      		<xsl:attribute name="max-heap-size">3g</xsl:attribute>
+      	</xsl:if>
+      </j2se>
       <xsl:for-each select="libraries/library">
       	<jar download="null">
       	<xsl:attribute name="href">

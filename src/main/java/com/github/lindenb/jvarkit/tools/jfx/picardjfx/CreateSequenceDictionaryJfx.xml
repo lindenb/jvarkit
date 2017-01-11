@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description>Creates a sequence dictionary for a reference sequence</description>
+  	<libraries>
+  		<library href="picard.jar" />
+  		<library href="picardjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputref"
+	     	 	filter="Fasta file: fa fa.gz fasta.gz fa.gz"
+	     	 	saveKey="picard.in.ref.fa"
+	     	 	required="true"
+	     	 	label="Input REF"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputdict"
+     	 	filter="Dictionary file: dict"
+     	 	saveKey="picard.out.dirct"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT Dict"
+     	 	/>
+     	 <TextField fx:id="genomeAssembly">
+     	 	<label>Assembly</label>
+     	 	<description>Put into AS field of sequence dictionary</description>
+     	 </TextField>
+     	 
+     	 <TextField fx:id="uri">
+     	 	<label>URI</label>
+     	 	<description>Put into URI field of sequence dictionary entry.</description>
+     	 </TextField>
+     	 
+     	 <TextField fx:id="species">
+     		 <label>Species</label>
+     	 	<description>Put into SP field of sequence dictionary entry</description>
+     	 </TextField>
+     	  <CheckBox fx:id="truncate" selected="true">
+     	  	<label>Truncate after withespace</label>
+     	 	<description>Make sequence name the first word from the &gt; line in the fasta file</description>
+     	 </CheckBox>
+     	 <TextField fx:id="maxseq">
+     	 	<label>Max. Sequences</label>
+     	 	<description> Stop after writing this many sequences For Testing</description>
+     	 </TextField>
+	</options>
+</command>
