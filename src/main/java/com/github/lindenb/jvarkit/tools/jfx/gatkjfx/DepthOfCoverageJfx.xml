@@ -12,7 +12,7 @@
   		
 		<com.github.lindenb.jvarkit.jfx.components.FilesChooserPane
 	     	 	fx:id="inputbams"
-	     	 	filter="BAM Files: bam"
+	     	 	filter="BAM Files: bam list"
 	     	 	saveKey="gatk.bam.in"
 	     	 	required="true"
 	     	 	label="The INPUT BAM file"

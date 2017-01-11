@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Simplify multi-nucleotide variants (MNPs) into more basic/primitive alleles.</description>
+  	<libraries>
+  		<library href="gatkjfx.jat" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	 	
+    
+     	 	
+    
+	</options>
+</command>

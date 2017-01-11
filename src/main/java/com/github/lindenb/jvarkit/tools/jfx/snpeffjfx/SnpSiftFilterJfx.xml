@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description>Filter VCF files using arbitrary expressions</description>
+  	<libraries>
+  		<library href="SnpSift.jar" />
+  		<library href="snpeffjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz"
+	     	 	saveKey="snpsift.vcf.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF files"
+	     	 	description="The INPUT VCF or BCF files"
+	     	 	/>
+	     
+		   <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="outputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="snpsift.out"
+	     	 	required="true"
+	     	 	open="false"
+	     	 	label="The OUTPUT VCF or BCF file"
+	     	 	description="The OUTPUT VCF or BCF file"
+	     	 	/> 	
+	     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="expressionFile"
+	     	 	saveKey="snpsift.expr.in"
+	     	 	label="Expression file"
+	     	 	description="Read expression from File"
+	     	 	/>	
+	     	 	
+	     <TextArea fx:id="expression" promptText="(ANN[*].EFFECT has 'missense_variant') &amp;&amp; (ANN[*].GENE = 'TRMT2A')">
+	     	<label>SnpEff expression</label>
+	     	<description>See http://snpeff.sourceforge.net/SnpSift.html#filter for example</description>
+	     </TextArea>	
+	     	 	
+	     
+	     
+	     <TextField fx:id="filterId" text="SnpSift">
+	     	<label>FILTER ID</label>
+	     	<description>ID for this filter (##FILTER tag in header and FILTER VCF field).</description>
+	     </TextField>
+	     
+	     <TextField fx:id="addFilter">
+	     	<label>FILTER name</label>
+	     	<description>Add a string to FILTER VCF field if 'expression' is true</description>
+	     </TextField>	
+	     	 	
+	 	 <CheckBox fx:id="inverse">
+	     	<label>Inverse. Show lines that do not match filter expression</label>
+	     </CheckBox>	
+	      <CheckBox fx:id="pass">
+	     	<label>Use 'PASS' field instead of filtering out VCF entries</label>
+	     </CheckBox>		 	
+	     	 	
+	     <TextField fx:id="rmFilter">
+	     	<label>remove Filter</label>
+	     	<description>Remove a string from FILTER VCF field if 'expression' is true </description>
+	     </TextField>
+	     	 		 	
+	     <CheckBox fx:id="errMissing">
+	     	<label> Error is a field is missing</label>
+	     </CheckBox>
+	     	 	
+	     	 	
+	     	
+		  
+	</options>
+</command>

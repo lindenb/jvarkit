@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Extract specific fields from a VCF file to a tab-delimited table</description>
+  	<libraries>
+  		<library href="gatkjfx.jat" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputtable"
+     	 	filter="Variants Files: txt tsv csv"
+     	 	saveKey="gatk.variant2table.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="File to which results should be written"
+     	 	/> 	
+     	 	
+     	 	<TextField fx:id="fields" promptText="e.g: CHROM ID QUAL">
+			    <label>The name of each field to capture for output in the table</label>
+			    <description>NAME can be any standard VCF column (CHROM, ID, QUAL) or any binding in the INFO field (e.g., AC ). Note that to capture GENOTYPE (FORMAT) field values, see the GF argument.</description>
+			 </TextField>
+     	 	
+     	 	<TextField fx:id="genotypeFields" promptText="e.g: GQ PL">
+			    <label>The name of each genotype field to capture for output in the table</label>
+			    <description>-GF NAME can be any binding in the FORMAT field (e.g., GQ, PL). Note this argument accepts any number of inputs.  So -GF GQ -GF PL is allowed.</description>
+			 </TextField>
+     	 	
+     	 	
+     	   <TextField fx:id="maxRecords">
+    <label>If provided, we will emit at most maxRecord records to the table</label>
+    <description>If provided, then this tool will exit with success after this number of VCF records have been emitted to the file.</description>
+  </TextField>
+  
+  <CheckBox selected="false" fx:id="moltenize">
+    <label>If provided, we will produce molten output</label>
+    <description>By default, this tool emits one line per usable VCF record (or per allele if the -SMA flag is provided). Using the -moltenize flag will cause records to be split into multiple lines of output: one for each field provided with -F or one for each  combination of sample and field provided with -GF. Note that the "Sample" column for -F fields will always be "site".</description>
+  </CheckBox>
+  <CheckBox selected="false" fx:id="showFiltered">
+    <label>If provided, field values from filtered records will be included in the output</label>
+    <description>By default this tool only emits values for fields where the FILTER field is either PASS or . (unfiltered). Throwing this flag will cause VariantsToTable to emit values regardless of the FILTER field value.</description>
+  </CheckBox>
+  <CheckBox selected="false" fx:id="splitMultiAllelic">
+    <label>If provided, we will split multi-allelic records into multiple lines of output</label>
+    <description>By default, records with multiple ALT alleles will comprise just one line of output; note that in general this can make your resulting file unreadable/malformed for certain tools like R, as the representation of multi-allelic INFO field values are often comma-separated lists of values. Using the flag will cause multi-allelic records to be split into multiple lines of output  (one for each allele in the ALT field); INFO field values that are not lists are copied for each of the output records while only  the appropriate entry is used for lists.</description>
+  </CheckBox>
+
+  <CheckBox selected="false" fx:id="allowMissingData">
+    <label>If provided, we will not require every record to contain every field</label>
+    <description>By default, this tool throws a UserException when it encounters a field without a value in some record. This is generally useful when you mistype -F CHROM, so that you get a friendly warning about CHROM not being found before the tool runs through 40M 1000G records. However, in some cases you genuinely want to allow such fields (e.g., AC not being calculated for filtered records, if included). When provided, this argument will cause VariantsToTable to write out NA values for missing fields instead of t hrowing an error.</description>
+  </CheckBox>
+     	 
+		   
+	</options>
+</command>

@@ -136,8 +136,11 @@
 
 
 <xsl:template match="j:object" mode="xml">
-	<xsl:message><xsl:value-of select="j:string[@name='name']"/> : t=<xsl:value-of select="j:string[@name='type']"/>;
-	</xsl:message>
+	
+	<TODOTODOTODOTODO>
+		<xsl:apply-templates select="." mode="inner"/>
+	</TODOTODOTODOTODO>
+	
 </xsl:template>
 
 <xsl:template match="j:object" mode="java">

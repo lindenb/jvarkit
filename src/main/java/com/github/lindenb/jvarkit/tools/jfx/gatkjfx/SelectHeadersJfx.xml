@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Selects headers from a VCF source</description>
+  	<libraries>
+  		<library href="gatkjfx.jat" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	 	
+ <TextArea fx:id="exclude_header_name">
+    <label>Exclude header.</label>
+    <description>Note that header exclusion takes precedence over inclusion, so that if a header is in both lists it will be excluded.</description>
+  </TextArea>
+  
+  <TextArea fx:id="header_expression">
+    <label>Regular expression to select many headers from the tracks provided. </label>
+  </TextArea>
+  
+  
+  <TextArea fx:id="header_name">
+    <label>Include header. Can be specified multiple times</label>
+  </TextArea>
+  
+  
+  <CheckBox selected="false" fx:id="include_interval_names">
+    <label>If set the interval file name minus the file extension, or the command line intervals, will be added to the headers</label>
+    <description>Note that interval name inclusion takes precedence over other header matching. If set other interval lines may be excluded but the intervals will still be added.</description>
+  </CheckBox>
+  
+
+     	 	
+     	 	
+     	 	
+	</options>
+</command>

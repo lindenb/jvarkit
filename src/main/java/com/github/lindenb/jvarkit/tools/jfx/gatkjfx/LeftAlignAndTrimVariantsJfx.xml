@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Simplify multi-nucleotide variants (MNPs) into more basic/primitive alleles.</description>
+  	<libraries>
+  		<library href="gatkjfx.jat" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 
+     	 	
+     <CheckBox selected="false" fx:id="dontTrimAlleles">
+	    <label>Do not Trim alleles to remove bases common to all of them</label>
+	    <description>If this argument is set, bases common to all alleles will not be removed and will not leave their minimal representation.</description>
+	  </CheckBox>
+	  <CheckBox selected="false" fx:id="keepOriginalAC">
+	    <label>Store the original AC, AF, and AN values after subsetting</label>
+	    <description>When subsetting a callset, this tool recalculates the AC, AF, and AN values corresponding to the contents of the subset. If this flag is enabled, the original values of those annotations will be stored in new annotations called AC_Orig, AF_Orig, and AN_Orig.</description>
+	  </CheckBox>
+	
+	  <CheckBox selected="false" fx:id="splitMultiallelics">
+	    <label>Split multiallelic records and left-align individual alleles</label>
+	    <description>If this argument is set, split multiallelic records and left-align individual alleles. If this argument is not set, multiallelic records are not attempted to left-align and will be copied as is.</description>
+	  </CheckBox>	
+     	 		
+	</options>
+</command>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description> Genetic variant annotation and effect prediction toolbox. It annotates and predicts the effects of variants on genes (such as amino acid changes). </description>
+  	<libraries>
+  		<library href="snpEff.jar" />
+  		<library href="snpeffjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz"
+	     	 	saveKey="snpeff.vcf.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF files"
+	     	 	description="The INPUT VCF or BCF files"
+	     	 	/>
+	     
+		   <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="outputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="snpeff.out"
+	     	 	required="true"
+	     	 	open="false"
+	     	 	label="The OUTPUT VCF or BCF file"
+	     	 	description="The OUTPUT VCF or BCF file"
+	     	 	/> 	
+	     	 	
+	     <TextField fx:id="genome_version" text="GRCh37">
+	     	<label>Genome Version</label>
+	     </TextField>	 	
+	     	 	
+	     	 	
+	      <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="htmlSummary"
+	     	 	saveKey="snpeff.html"
+	     	 	open="false"
+	     	 	label="HTML summary file"
+	     	 	description="Optional HTML summary file"
+	     	 	/> 	
+	     	 	
+	     <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="configFile"
+	     	 	filter="SNPEFF config File: config"
+	     	 	saveKey="snpeff.vcf.in"
+	     	 	required="true"
+	     	 	remember="true"
+	     	 	label="SNPEFF config file"
+	     	 	/>
+	     
+     	<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="dataDir"
+	     	 	saveKey="snpeff.datadir"
+	     	 	remember="true"	     	 	
+	     	 	label="Override data_dir parameter from config file"
+	     	 	/>
+     	 	
+     	  <CheckBox selected="false" fx:id="chrPrefix">
+		    <label>Prepend 'string' to chromosome name (e.g. 'chr1' instead of '1')</label>
+		  </CheckBox>
+     	  <CheckBox selected="false" fx:id="download">
+		    <label>Download reference genome if not available</label>
+		  </CheckBox>
+		  
+	</options>
+</command>

@@ -28,13 +28,13 @@
      	 	description="The OUTPUT VCF or BCF file"
      	 	/> 	
      	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
-	     	 	fx:id="inputvcf"
+	     	 	fx:id="mask"
 	     	 	filter="Mask Files: vcf vcf.gz bcf bed bed.gz"
 	     	 	saveKey="gatk.variantfilter.mask"
 	     	 	label="Genomic Region file"
 	     	 	/>
 	       <TextField text="Mask" fx:id="maskName">
-			    <label>The text to put in the FILTER field if a 0027mask0027 rod is provided and overlaps with a variant call</label>
+			    <label>The text to put in the FILTER field if a 'mask'VariantsToAllelicPrimitives rod is provided and overlaps with a variant call</label>
 			    <description>When using the {@code -mask} argument, the {@code maskName} will be annotated in the variant record. Note that when using the {@code -filterNotInMask} argument to reverse the masking logic, it is up to the user to adapt the name of the mask to make it clear that the reverse logic was used (e.g. if masking against Hapmap, use {@code -maskName hapmap} for the normal masking and {@code -maskName003dnot_hapmap} for the reverse masking).</description>
 		   </TextField>
 	     
@@ -74,10 +74,12 @@
 		  	<GridPane fx:id="gtExpressionGridPane"></GridPane>
 		  		<label>Genotypes Expressions</label>
 		  </verbatim>
-		   		  <CheckBox selected="false" fx:id="invertGenotypeFilterExpression">
+		   
+		   <CheckBox selected="false" fx:id="invertGenotypeFilterExpression">
 		    <label>Invert the selection criteria for --genotypeFilterExpression</label>
 		    <description>Invert the selection criteria for {@code --genotypeFilterExpression}.</description>
 		  </CheckBox>
+		  
 		   <CheckBox selected="false" fx:id="missingValuesInExpressionsShouldEvaluateAsFailing">
 		    <label>When evaluating the JEXL expressions, missing values should be considered failing the expression</label>
 		    <description>By default, if JEXL cannot evaluate your expression for a particular record because one of the annotations is not present, the whole expression evaluates as 003cpre003ePASS003c/pre003eing. Use this argument to have it evaluate as failing filters instead for these cases.</description>

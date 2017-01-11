@@ -12,7 +12,7 @@
   		
 		<com.github.lindenb.jvarkit.jfx.components.FilesChooserPane
 	     	 	fx:id="inputvcfs"
-	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf list"
 	     	 	saveKey="picard.in"
 	     	 	required="true"
 	     	 	label="The INPUT VCF or BCF file"

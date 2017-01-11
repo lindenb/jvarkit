@@ -68,7 +68,8 @@ public abstract class AbstractJfxApplication
 	private Button cancelCommandButton;
 	@FXML
 	protected TextArea console;
-
+	protected PrintStream printToConsole;
+	
 	protected Thread commandThread=null;
 	protected AbstractJfxApplication()
 		{
@@ -76,9 +77,6 @@ public abstract class AbstractJfxApplication
 	
 	@Override
 	public void start(Stage stage) throws Exception {
-		 final PrintStream pr=new PrintStream(new Console(console),true);
-	     System.setErr(pr);
-	     System.setOut(pr);
 	     
 	     
 	    Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
@@ -105,6 +103,8 @@ public abstract class AbstractJfxApplication
 				}
 			});
         this.cancelCommandButton.setDisable(true);
+		
+        this.printToConsole= new PrintStream(new Console(console),true);
 		}
 	
 	protected abstract Runnable createRunnable() throws JFXException;
@@ -144,7 +144,6 @@ public abstract class AbstractJfxApplication
 			return;
 			}
 		
-		
 		synchronized(AbstractJfxApplication.class) {
 			try {
 				this.commandThread=null;
@@ -153,9 +152,8 @@ public abstract class AbstractJfxApplication
 				this.commandThread = new Thread(new RunnerDelegate(target));
 				this.commandThread.start();
 				
-			} catch(Throwable err)
+			} catch(final Throwable err)
 				{
-				
 				err.printStackTrace(realStderr);
 				System.setErr(realStderr);
 				System.setOut(realStdout);
@@ -208,6 +206,8 @@ public abstract class AbstractJfxApplication
 		public void run()
 			{
 			try {
+				System.setErr(AbstractJfxApplication.this.printToConsole);
+				//not stdout, things like snpeff write to stdout
 				this.delegate.run();
 				}
 			catch(final Throwable err)
