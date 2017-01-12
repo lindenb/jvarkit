@@ -75,6 +75,20 @@ public abstract class AbstractJfxApplication
 		{
 		}
 	
+	
+    @FXML protected void doMenuAbout(final ActionEvent event) {
+    	final Alert alert = new Alert(AlertType.INFORMATION);
+    	alert.setHeaderText("About...");
+    	alert.setContentText("Pierre Lindenbaum PhD. Institut du Thorax. Nantes. France.");
+    	
+    	alert.showAndWait();
+    	}
+    
+    @FXML protected void doMenuQuit(final ActionEvent event) {
+    	// http://stackoverflow.com/questions/12153622
+    	Platform.exit();
+    }
+	
 	@Override
 	public void start(Stage stage) throws Exception {
 	     
@@ -329,7 +343,7 @@ public abstract class AbstractJfxApplication
 				}
 			else if(component instanceof TextArea) {
 				TextArea comp = TextArea.class.cast(component);
-				List<String> list=new ArrayList<>();
+				final List<String> list=new ArrayList<>();
 				for(final String s: comp.getText().split("[\n]"))
 					{
 					if(s.trim().isEmpty() || s.startsWith("#")) continue;

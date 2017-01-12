@@ -34,6 +34,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -435,12 +436,17 @@ public class VcfBurdenSplitter
 		BufferedReader in = null;
 		CloseableIterator<KeyAndLine> iter=null;
 		PrintStream pw = null;
+		PrintWriter allDiscardedLog = null;
 		try {
 			in = inputName==null?
 					IOUtils.openStreamForBufferedReader(stdin()):
 					IOUtils.openURIForBufferedReading(inputName)
 					;
 			
+			if( super.allFilteredFileOut!=null) {
+				allDiscardedLog = IOUtils.openFileForPrintWriter(super.allFilteredFileOut);
+			}
+					
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
 				
 			/** find splitter by name */
@@ -506,7 +512,19 @@ public class VcfBurdenSplitter
 							
 							// all ctx are filtered			
 							if(has_only_filtered)  {
-								LOG.warn("ALL IS FILTERED in "+first.key);;
+								LOG.warn("ALL IS FILTERED in "+first.key);
+								if( allDiscardedLog!=null) {
+									for(final VariantContext ctx:variants) {
+										allDiscardedLog.println(String.join("\t",
+												first.key,
+												ctx.getContig(),
+												String.valueOf(ctx.getStart()),
+												ctx.getReference().getDisplayString(),
+												ctx.getAlternateAllele(0).getDisplayString(),
+												String.valueOf(ctx.getFilters())
+												));
+										}
+									}
 								continue;
 							}
 							
@@ -562,6 +580,13 @@ public class VcfBurdenSplitter
 			pw.flush();
 			pw.close();pw=null;
 			
+			if(allDiscardedLog!=null)
+				{
+				allDiscardedLog.flush();
+				allDiscardedLog.close();
+				allDiscardedLog=null;
+				}
+			
 			return RETURN_OK;
 			}
 		catch(final Exception err) 
@@ -574,6 +599,7 @@ public class VcfBurdenSplitter
 			if(sortingcollection!=null) sortingcollection.cleanup();
 			CloserUtil.close(in);
 			CloserUtil.close(pw);
+			CloserUtil.close(allDiscardedLog);
 			}
 		}
 		

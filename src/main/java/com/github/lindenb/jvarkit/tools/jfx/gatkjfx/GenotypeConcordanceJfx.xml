@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command
+	xmlns:fx="http://javafx.com/fxml"
+	 xmlns:xi="http://www.w3.org/2001/XInclude"
+	 >
+  	<description>Genotype concordance between two callsets</description>
+  	<libraries>
+  		<library href="gatkjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+  		<xi:include href="mod.common.xml" parse="xml"  xpointer="xpointer(/options/node())"/>
+  		
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="eval"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="gatk.genotypeconc.eval"
+	     	 	required="true"
+	     	 	label="The variants and genotypes to compare against"
+	     	 	/>
+	     <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="comp"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="gatk.genotypeconc.comp"
+	     	 	required="true"
+	     	 	label="The variants and genotypes to evaluate"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="output"
+     	 	saveKey="gatk.genotypeconc.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT file"
+     	 	/> 	
+     	 	
+     	  <com.github.lindenb.jvarkit.jfx.components.FileChooserPane fx:id="printInterestingSites"
+     	 	 saveKey="gatk.genotypeconc.printInterestingSites"
+     	 	 open="false"
+     	  	>
+		    <label>File to output the discordant sites and genotypes.</label>
+		    <description>Print sites where genotypes are mismatched between callsets along with annotations giving the genotype of each callset to the given filename</description>
+		  </com.github.lindenb.jvarkit.jfx.components.FileChooserPane>
+		     	
+    
+   <TextArea fx:id="genotypeFilterExpressionComp">
+    <label>One or more criteria to use to set COMP genotypes to no-call. These genotype-level filters are only applied to the COMP rod.</label>
+    <description>Identical to -gfe except the filter is applied to genotypes in the comp rod.</description>
+  </TextArea>
+  <TextArea fx:id="genotypeFilterExpressionEval">
+    <label>One or more criteria to use to set EVAL genotypes to no-call. These genotype-level filters are only applied to the EVAL rod.</label>
+    <description>A genotype level JEXL expression to apply to eval genotypes. Genotypes filtered in this way will be replaced by NO_CALL. For instance: -gfe 0027GQ003c200027 will set to no-call any genotype with genotype quality less than 20.</description>
+  </TextArea>
+  <CheckBox selected="false" fx:id="ignoreFilters">
+    <label>Filters will be ignored</label>
+    <description>The FILTER field of the eval and comp VCFs will be ignored. If this flag is not included, all FILTER sites will be treated as not being present in the VCF. (That is, the genotypes will be assigned UNAVAILABLE, as distinct from NO_CALL).</description>
+  </CheckBox>
+  <CheckBox selected="false" fx:id="moltenize">
+    <label>Molten rather than tabular output</label>
+    <description>Moltenize the count and proportion tables. Rather than moltenizing per-sample data into a 2x2 table, it is fully moltenized into elements. That is, WITHOUT this argument, each row of the table begins with the sample name and proceeds directly with counts/proportions of eval/comp counts (for instance HOM_REF/HOM_REF, HOM_REF/NO_CALL). If the Moltenize argument is given, the output will begin with a sample name, followed by the contrastive genotype type (such as HOM_REF/HOM_REF), followed by the count or proportion. This will significantly increase the number of rows.</description>
+  </CheckBox>
+
+     	 	
+     	 	
+     	 	
+	</options>
+</command>

@@ -5,9 +5,10 @@
 
 define fun_jfx1
 	mkdir -p webstart/tmp/com/github/lindenb/jvarkit/tools/jfx/$(dir $(1))
-	
+	-echo "(notdir $(1))" | pbmtext -builtin fixed  | pnmtopng  > webstart/$(notdir $(1)).png
 	xsltproc \
 		--xinclude \
+		--stringparam mainclass "com.github.lindenb.jvarkit.tools.jfx.$(subst /,.,$(1))" \
 		-o webstart/tmp/com/github/lindenb/jvarkit/tools/jfx/$(1).fxml \
 		src/main/resources/xsl/webstart2jfxml.xsl \
 		src/main/java/com/github/lindenb/jvarkit/tools/jfx/$(1).xml
@@ -44,13 +45,13 @@ endef
 ifneq (${gatk.jar},)	
 
 PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolationsJfx MergeVcfsJfx SortVcfsJfx CreateSequenceDictionaryJfx UpdateVcfSequenceDictionaryJfx)
-GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx DepthOfCoverageJfx VariantAnnotatorJfx VariantFiltrationJfx VariantsToTableJfx SelectHeadersJfx VariantsToAllelicPrimitivesJfx LeftAlignAndTrimVariantsJfx)
+GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx DepthOfCoverageJfx VariantAnnotatorJfx VariantFiltrationJfx VariantsToTableJfx SelectHeadersJfx VariantsToAllelicPrimitivesJfx LeftAlignAndTrimVariantsJfx GenotypeConcordanceJfx)
 SNPEFFJFX=$(addprefix snpeffjfx/,SnpEffJfx SnpSiftFilterJfx)
 
 test-webstart: compile-webstart 
 	#java -cp webstart/snpeffjfx.jar:webstart/SnpSift.jar com.github.lindenb.jvarkit.tools.jfx.snpeffjfx.SnpSiftFilterJfx
-	#java -cp webstart/gatkjfx.jar  com.github.lindenb.jvarkit.tools.jfx.gatkjfx.VariantFiltrationJfx
-	java -cp webstart/picardjfx.jar:webstart/picard.jar  com.github.lindenb.jvarkit.tools.jfx.picardjfx.UpdateVcfSequenceDictionaryJfx
+	java -cp webstart/gatkjfx.jar  com.github.lindenb.jvarkit.tools.jfx.gatkjfx.GenotypeConcordanceJfx
+	#java -cp webstart/picardjfx.jar:webstart/picard.jar  com.github.lindenb.jvarkit.tools.jfx.picardjfx.UpdateVcfSequenceDictionaryJfx
 
 scp-webstart: compile-webstart
 	scp -r webstart/* "${webstart.remotedir}"

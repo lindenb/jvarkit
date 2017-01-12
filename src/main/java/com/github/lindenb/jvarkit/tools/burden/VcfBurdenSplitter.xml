@@ -76,7 +76,9 @@
 	<option name="enableAllGenes" opt="all_genes" longopt="all_genes" type="boolean" default="false">
 		<description>enable grouping by all transcript for a gene using transcript name (e.g PRKCB1) </description>
 	</option>
-	
+	<option name="allFilteredFileOut" opt="all_filtered" longopt="all_filtered" type="output-file" >
+		<description>If defined, the group where ALL the variants are FILTERED will be saved here.</description>
+	</option>
 </options>
 
 <galaxy:galaxy>

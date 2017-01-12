@@ -6,6 +6,7 @@
 	xmlns="http://javafx.com/fxml"
 	>
 <xsl:output method="xml" indent="yes"/>
+<xsl:param name="mainclass"></xsl:param>
 
 <xsl:template match="/">
 <xsl:apply-templates select="command"/>
@@ -20,7 +21,8 @@
 <VBox  xmlns="http://javafx.com/fxml">
   <MenuBar>
     <Menu text="File">
-      <MenuItem text="Quit"/>
+      <MenuItem text="About..." onAction="#doMenuAbout"/>
+      <MenuItem text="Quit" onAction="#doMenuQuit"/>
     </Menu>
   </MenuBar>
   <BorderPane>
@@ -31,6 +33,16 @@
   		<Label  style="-fx-font-weight:bold;-fx-font-size:150%; -fx-text-fill: white; -fx-background-color:darkgray;"  wrapText="true">
   			<xsl:attribute name="text">
   				<xsl:value-of select="description"/>
+  				
+  				<xsl:choose>
+		  			<xsl:when test="contains($mainclass,'gatk')">
+			  			<xsl:text> This is a wrapper for a GATK tool licensed under the Broad Institute software license agreement.</xsl:text>
+			  		</xsl:when>
+			  		<xsl:when test="contains($mainclass,'picard')">
+			  			<xsl:text> This is a wrapper for a picard tool licensed under the MIT license .</xsl:text>
+			  		</xsl:when>
+      			</xsl:choose>
+  				
 			</xsl:attribute>
 			<padding>
 				<Insets bottom="5" left="5" right="5" top="5" />

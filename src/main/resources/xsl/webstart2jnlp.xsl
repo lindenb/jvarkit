@@ -29,7 +29,27 @@
       <homepage href="http://www.umr1087.univ-nantes.fr"/>
       <description><xsl:value-of select="description"/></description>
       <description kind="short"><xsl:value-of select="description"/></description>
+      <icon>
+      	 <xsl:attribute name="href">
+			<xsl:value-of select="$name"/>
+			<xsl:text>.png</xsl:text>
+		</xsl:attribute>
+      </icon>
+      <icon kind="splash">
+      	 <xsl:attribute name="href">
+			<xsl:value-of select="$name"/>
+			<xsl:text>.png</xsl:text>
+		</xsl:attribute>
+      </icon>
       <offline-allowed/>
+	<shortcut online="true">
+	  <desktop/>
+	  <menu>
+	  	<xsl:attribute name="submenu">
+			<xsl:value-of select="$name"/>
+		</xsl:attribute>
+	  </menu>
+	</shortcut>
    </information>
    <security>
       <all-permissions/>
