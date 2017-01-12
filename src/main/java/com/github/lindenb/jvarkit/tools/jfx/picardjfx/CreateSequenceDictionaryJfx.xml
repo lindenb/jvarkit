@@ -8,7 +8,7 @@
   	<options>
 		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
 	     	 	fx:id="inputref"
-	     	 	filter="Fasta file: fa fa.gz fasta.gz fa.gz"
+	     	 	filter="Fasta file: fa fasta fasta.gz fa.gz"
 	     	 	saveKey="picard.in.ref.fa"
 	     	 	required="true"
 	     	 	label="Input REF"

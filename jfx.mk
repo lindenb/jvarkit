@@ -44,20 +44,20 @@ endef
 
 ifneq (${gatk.jar},)	
 
-PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolationsJfx MergeVcfsJfx SortVcfsJfx CreateSequenceDictionaryJfx UpdateVcfSequenceDictionaryJfx)
+PICARDJFX=$(addprefix picardjfx/,FilterVcfJfx GatherVcfsJfx FindMendelianViolationsJfx MergeVcfsJfx SortVcfsJfx CreateSequenceDictionaryJfx UpdateVcfSequenceDictionaryJfx VcfToIntervalListJfx LiftoverVcfJfx)
 GATKJFX=$(addprefix gatkjfx/,SelectVariantsJfx CombineVariantsJfx DepthOfCoverageJfx VariantAnnotatorJfx VariantFiltrationJfx VariantsToTableJfx SelectHeadersJfx VariantsToAllelicPrimitivesJfx LeftAlignAndTrimVariantsJfx GenotypeConcordanceJfx)
 SNPEFFJFX=$(addprefix snpeffjfx/,SnpEffJfx SnpSiftFilterJfx)
 
 test-webstart: compile-webstart 
 	#java -cp webstart/snpeffjfx.jar:webstart/SnpSift.jar com.github.lindenb.jvarkit.tools.jfx.snpeffjfx.SnpSiftFilterJfx
-	java -cp webstart/gatkjfx.jar  com.github.lindenb.jvarkit.tools.jfx.gatkjfx.GenotypeConcordanceJfx
-	#java -cp webstart/picardjfx.jar:webstart/picard.jar  com.github.lindenb.jvarkit.tools.jfx.picardjfx.UpdateVcfSequenceDictionaryJfx
+	#java -cp webstart/gatkjfx.jar  com.github.lindenb.jvarkit.tools.jfx.gatkjfx.GenotypeConcordanceJfx
+	java -cp webstart/picardjfx.jar:webstart/picard.jar  com.github.lindenb.jvarkit.tools.jfx.picardjfx.LiftoverVcfJfx
 
 scp-webstart: compile-webstart
 	scp -r webstart/* "${webstart.remotedir}"
 
 compile-webstart : .secret.keystore webstart/picard.jar webstart/SnpSift.jar \
-	$(addprefix src/main/java/com/github/lindenb/jvarkit/tools/jfx/, $(addsuffix .java,${PICARDJFX} ${GATKJFX} ${SNPEFFJFX}) $(addsuffix .xml,${PICARDJFX} ${GATKJFX} ${SNPEFFJFX}))
+	$(sort $(addprefix src/main/java/com/github/lindenb/jvarkit/tools/jfx/, $(addsuffix .java,${PICARDJFX} ${GATKJFX} ${SNPEFFJFX}) $(addsuffix .xml,${PICARDJFX} ${GATKJFX} ${SNPEFFJFX})))
 	mkdir -p webstart/tmp
 	echo "<html><body><table><tr><th>Name</th><th>Description</th></tr>" > webstart/index.html
 	# compile snpeff tools

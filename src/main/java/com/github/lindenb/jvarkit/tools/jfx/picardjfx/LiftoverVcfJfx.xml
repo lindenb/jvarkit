@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description>Lifts over a VCF file from one reference build to another</description>
+  	<libraries>
+  		<library href="picard.jar" />
+  		<library href="picardjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="outputvcf"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	saveKey="picard.out"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The OUTPUT VCF or BCF file"
+     	 	description="The OUTPUT VCF or BCF file"
+     	 	/> 	
+     	
+     	<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="chain"
+	     	 	filter="Chain file: chain"
+	     	 	saveKey="picard.chain"
+	     	 	required="true"
+	     	 	label="liftover chain file"
+	     	 	description="The liftover chain file. See https://genome.ucsc.edu/goldenPath/help/chain.html"/>
+	     	 	/>
+     	
+     	
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="reject"
+     	 	saveKey="liftover.reject"
+     	 	required="true"
+     	 	open="false"
+     	 	filter="Variants Files: vcf vcf.gz bcf"
+     	 	label="VCF File to which to write rejected records"
+     	 	/> 	
+     	
+  	 	<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="reference"
+	     	 	filter="Fasta file: fa fasta"
+	     	 	saveKey="picard.in.ref.fa"
+	     	 	required="true"
+	     	 	label="Target REF"
+	     	 	description="The reference sequence (fasta) for the TARGET genome build.  The fasta file must have an accompanying sequence dictionary (.dict file)"
+	     	 	/>
+     	 <CheckBox fx:id="warnOnMissingContig" selected="false">
+     	 	<label>Warn on missing contig</label>
+     	 </CheckBox>
+		
+		 <CheckBox fx:id="original"  selected="false">
+     	 	<label>Write the original contig/position for lifted variants to the INFO field</label>
+     	 </CheckBox>
+		
+		<CheckBox fx:id="allowMissingField"  selected="false">
+     	 	<label>Allow INFO and FORMAT in the records that are not found in the header </label>
+     	 </CheckBox>
+		
+		<TextField fx:id="minMatch">
+			<label>The minimum percent match required for a variant to be lifted</label>
+		</TextField>
+		
+	</options>
+</command>

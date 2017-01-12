@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<command xmlns:fx="http://javafx.com/fxml">
+  	<description>Converts a VCF or BCF file to a Picard Interval List.</description>
+  	<libraries>
+  		<library href="picard.jar" />
+  		<library href="picardjfx.jar" main="true"/>
+  	</libraries>
+  	<options>
+		<com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+	     	 	fx:id="inputvcf"
+	     	 	filter="Variants Files: vcf vcf.gz bcf"
+	     	 	saveKey="picard.in"
+	     	 	required="true"
+	     	 	label="The INPUT VCF or BCF file"
+	     	 	description="The INPUT VCF or BCF file"
+	     	 	/>
+	     	 	
+     	 <com.github.lindenb.jvarkit.jfx.components.FileChooserPane
+     	 	fx:id="output"
+     	 	saveKey="picard.out.interval"
+     	 	filter="Picard interval: interval"
+     	 	required="true"
+     	 	open="false"
+     	 	label="The output Picard Interval List"
+     	 	/> 	
+     	 	     	 
+	</options>
+</command>
