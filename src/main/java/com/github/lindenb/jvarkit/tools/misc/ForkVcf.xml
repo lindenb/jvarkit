@@ -18,9 +18,7 @@
 <snippet xmlns="http://github.com/lindenb/jvarkit/" id="sorting-collection"/>
 
 <options>
-		<option name="chromGroupFile" opt="g" longopt="groupfile" argname="GROUP" type="input-file">
-			<description>Chromosome group file. Intervals are 1-based. If undefined, splitvcf will use the sequence dictionary to output one vcf per contig.</description>
-		</option>
+		
 		<option name="number_of_files" opt="n" longopt="count"  type="int" default="2">
 			<description>number of vcf files to generate</description>
 		</option>

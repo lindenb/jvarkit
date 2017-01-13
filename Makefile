@@ -185,7 +185,8 @@ GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenfisherh vcfburdenfisherv vcfbu
 	vcfpolyx vcfburdenfiltergenes vcfbed vcfbedsetfilter
 
 
-gatk_apps:$(if ${gatk.jar}, ,)
+gatk_apps:$(if ${gatk.jar},gatkwalkers,)
+	
 
 APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
@@ -514,6 +515,16 @@ $(eval $(call compile-htsjdk-cmd,vcfmovefilterstoinfo,${jvarkit.package}.tools.b
 $(eval $(call compile-htsjdk-cmd,gatkcodegen,${jvarkit.package}.tools.gatk.codegen.GATKCodeGenerator,${gson.jar} ${velocity.jars} wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.VcfEigen01,wiki_flag))
 
+gatkwalkers:
+	mkdir -p ${tmp.dir} ${dist.dir}
+	${JAVAC} -d ${tmp.dir} -g -classpath ${gatk.jar} -sourcepath ${src.dir}:${generated.dir}/java ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/variants/CountPredictions.java
+	${JAR} cf ${dist.dir}/mygatk.jar -C ${tmp.dir} .
+	rm -rf ${tmp.dir}
+	echo '#!/bin/bash' > ${dist.dir}/mygatk
+	echo -n '${JAVA} -Dfile.encoding=UTF8 -Xmx3g ' >> ${dist.dir}/mygatk
+	echo -n ' -cp "$(realpath ${gatk.jar}):$(realpath ${dist.dir}/mygatk.jar)" org.broadinstitute.gatk.engine.CommandLineGATK '  >> ${dist.dir}/mygatk
+	echo '$$*' >> ${dist.dir}/mygatk
+	chmod  ugo+rx ${dist.dir}/mygatk
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
 	 ./src/main/resources/jnlp/generic.jnlp .secret.keystore 

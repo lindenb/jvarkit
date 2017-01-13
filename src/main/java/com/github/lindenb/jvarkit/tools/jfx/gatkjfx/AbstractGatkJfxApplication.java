@@ -30,8 +30,6 @@ import java.util.List;
 
 import com.github.lindenb.jvarkit.jfx.components.FileChooserPane;
 import com.github.lindenb.jvarkit.tools.jfx.AbstractJfxApplication;
-import com.github.lindenb.jvarkit.tools.jfx.AbstractJfxApplication.JFXException;
-
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;

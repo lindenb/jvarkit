@@ -23,13 +23,14 @@ SOFTWARE.
 
 
 History:
-* 2014 creation
+* 2017 creation
 
 */
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -68,7 +69,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 
  */
-public class AnnPredictionParser implements PredictionParser
+public class AnnPredictionParser
 	{
 	public static enum PutativeImpact 
 		{
@@ -76,12 +77,12 @@ public class AnnPredictionParser implements PredictionParser
 		}
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 
-	private Pattern pipe=Pattern.compile("[\\|\\(\\)]");
-	private String tag;
-	private boolean valid=false;
+	private final Pattern pipe=Pattern.compile("[\\|\\(\\)]");
+	private final String tag;
+	private final boolean valid;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 	
-	public AnnPredictionParser(VCFHeader header)
+	AnnPredictionParser(final VCFHeader header)
 		{		
 		this(header,getDefaultTag());
 		}
@@ -97,75 +98,70 @@ public class AnnPredictionParser implements PredictionParser
 		}
 	
 	
-	public AnnPredictionParser(VCFHeader header,String tag)
+	public AnnPredictionParser(final VCFHeader header,final String tag)
 		{	
 		this.tag=(tag==null?getDefaultTag():tag);
-		VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
+		final VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
 		if(info==null || info.getDescription()==null)
 			{
 			LOG.warning("no INFO["+tag+"] or no description ");
+			this.valid=false;
 			return;
 			}
 		this.valid=true;
 		}
-	
-	@Override
+
 	public String getTag()
 		{
 		return this.tag;
 		}
 	
 
-	@Override
-	public List<AnnPrediction> getPredictions(VariantContext ctx)
+
+	public List<AnnPrediction> getPredictions(final VariantContext ctx)
 		{
-		ArrayList<AnnPrediction> preds= new ArrayList<AnnPrediction>();
 		if(!this.valid)
 			{
-			return preds;
+			return Collections.emptyList();
 			}
-		Object o=ctx.getAttribute(getTag());
-		List<? extends Object> L= VCFUtils.attributeAsList(o);
-		for(Object o2:L)
+		final Object o=ctx.getAttribute(getTag());
+		final List<? extends Object> L= VCFUtils.attributeAsList(o);
+		final ArrayList<AnnPrediction> preds= new ArrayList<AnnPrediction>(L.size());
+
+		for(final Object o2:L)
 			{
-			 _predictions(preds,o2);
+			final AnnPrediction pred= parseOnePrediction(o2);
+			if(pred!=null) preds.add(pred);			
 			}
 		return preds;
 		}
 	
-	private void _predictions( List<AnnPrediction> preds,Object o)
-		{
-		AnnPrediction pred= parseOnePrediction(o);
-		if(pred==null) return;
-		preds.add(pred);
-		}
-	
-	public AnnPrediction  parseOnePrediction(Object o)
+	public AnnPrediction  parseOnePrediction(final Object o)
 		{
 		if(o==null || !this.valid) return null;
 		if(!(o instanceof String))
 			{
 			return parseOnePrediction( o.toString());
 			}
-		String s=String.class.cast(o).trim();
-		String tokens[]=pipe.split(s);
+		final String s=String.class.cast(o).trim();
+		final String tokens[]=pipe.split(s);
 		return new AnnPrediction(tokens);
 		}
 	
-	
+	/*
 	private static class AAChange
 		{
 		String ref;
 		int pos;
 		String alt;
-		}
+		}*/
 			
 	
 	public class AnnPrediction
-		implements Prediction
+		//implements Prediction
 		{
 		private String tokens[];
-		AnnPrediction(String tokens[])
+		private AnnPrediction(final String tokens[])
 			{
 			this.tokens=tokens;
 			}
@@ -175,24 +171,13 @@ public class AnnPredictionParser implements PredictionParser
 			return(i<0 || i>=tokens.length ? null:tokens[i]);
 			}
 		
-		private Integer intAt(int i)
-			{
-			String s=at(i);
-			if(s==null || s.isEmpty()) return null;
-			try {
-				return new Integer(s);
-			} catch (Exception e) {
-				return null;
-				}
-			}
-
-		
 		public String getAllele()
 			{	
 			/* dont user Allele.create because cancer alt don't allow this */
 			return at(0);
 			}
 		
+		/*
 		@Override
 		public String getGeneName()
 			{
@@ -222,7 +207,7 @@ public class AnnPredictionParser implements PredictionParser
 		
 		private AAChange getAAChange()
 			{
-			String aa=null;
+			String aa=null;//TODO
 			if(aa==null || aa.isEmpty()) return null;
 			if(!Character.isLetter(aa.charAt(0))) return null;
 			if(!Character.isDigit(aa.charAt(1))) return null;
@@ -261,10 +246,10 @@ public class AnnPredictionParser implements PredictionParser
 			AAChange aa=getAAChange();
 			return aa==null?null:aa.ref;
 			}
-
+	*/
 		
 		
-		@Override
+		//@Override
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
 			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
