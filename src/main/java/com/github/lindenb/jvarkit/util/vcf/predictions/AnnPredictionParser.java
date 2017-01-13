@@ -29,7 +29,6 @@ History:
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -42,7 +41,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 
 /**
@@ -71,13 +69,14 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
  */
 public class AnnPredictionParser
 	{
-	public static enum PutativeImpact 
+	public static enum Impact 
 		{
-		UNDEFINED,HIGH,MODERATE,LOW,MODIFIER
+		// ordered from worst to lighter, keep this order
+		 HIGH, MODERATE, MODIFIER,LOW, UNDEFINED
 		}
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 
-	private final Pattern pipe=Pattern.compile("[\\|\\(\\)]");
+	private final Pattern pipeRegex=Pattern.compile("[\\|]");
 	private final String tag;
 	private final boolean valid;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
@@ -101,7 +100,7 @@ public class AnnPredictionParser
 	public AnnPredictionParser(final VCFHeader header,final String tag)
 		{	
 		this.tag=(tag==null?getDefaultTag():tag);
-		final VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
+		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(this.tag));
 		if(info==null || info.getDescription()==null)
 			{
 			LOG.warning("no INFO["+tag+"] or no description ");
@@ -115,17 +114,18 @@ public class AnnPredictionParser
 		{
 		return this.tag;
 		}
-	
+	public boolean isValid() {
+		return valid;
+		}
 
 
 	public List<AnnPrediction> getPredictions(final VariantContext ctx)
 		{
-		if(!this.valid)
+		if(!isValid())
 			{
 			return Collections.emptyList();
 			}
-		final Object o=ctx.getAttribute(getTag());
-		final List<? extends Object> L= VCFUtils.attributeAsList(o);
+		final List<? extends Object> L= ctx.getAttributeAsList(getTag());
 		final ArrayList<AnnPrediction> preds= new ArrayList<AnnPrediction>(L.size());
 
 		for(final Object o2:L)
@@ -144,8 +144,8 @@ public class AnnPredictionParser
 			return parseOnePrediction( o.toString());
 			}
 		final String s=String.class.cast(o).trim();
-		final String tokens[]=pipe.split(s);
-		return new AnnPrediction(tokens);
+		final String tokens[]=this.pipeRegex.split(s);
+		return new AnnPrediction(s,tokens);
 		}
 	
 	/*
@@ -160,9 +160,11 @@ public class AnnPredictionParser
 	public class AnnPrediction
 		//implements Prediction
 		{
-		private String tokens[];
-		private AnnPrediction(final String tokens[])
+		private final String originalStr;
+		private final String tokens[];
+		private AnnPrediction(final String originalStr,final String tokens[])
 			{
+			this.originalStr = originalStr;
 			this.tokens=tokens;
 			}
 		
@@ -271,11 +273,11 @@ public class AnnPredictionParser
 			return set;
 			}
 		
-		public PutativeImpact getPutativeImpact()
+		public Impact getPutativeImpact()
 			{
-			if(this.tokens.length<3) return PutativeImpact.UNDEFINED;
+			if(this.tokens.length<3) return Impact.UNDEFINED;
 			String s=this.tokens[2];
-			return PutativeImpact.valueOf(s.toUpperCase().trim());
+			return Impact.valueOf(s.toUpperCase().trim());
 			}
 		public String getGeneId()
 			{
@@ -330,7 +332,7 @@ public class AnnPredictionParser
 		
 		@Override
 		public String toString() {
-			return Arrays.toString(this.tokens);
+			return this.originalStr;
 			}
 		}
 	

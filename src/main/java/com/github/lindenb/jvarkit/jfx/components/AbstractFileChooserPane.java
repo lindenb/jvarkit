@@ -24,12 +24,17 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.jfx.components;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.prefs.Preferences;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 
@@ -41,6 +46,14 @@ public abstract class AbstractFileChooserPane extends HBox
 
 	
 	protected AbstractFileChooserPane() {
+        final FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("FileChooserPane.fxml"));
+        fxmlLoader.setRoot(this);
+        fxmlLoader.setController(this);
+        try {
+            fxmlLoader.load();
+        } catch (IOException exception) {
+                throw new RuntimeException(exception);
+        	}
 		}
 	
     public StringProperty filterProperty() { return this.filterProperty;  }

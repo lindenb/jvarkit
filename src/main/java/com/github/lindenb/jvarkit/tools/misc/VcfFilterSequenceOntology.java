@@ -146,7 +146,7 @@ public class VcfFilterSequenceOntology
 			final VepPredictionParser vepParser=new VepPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
 			final SnpEffPredictionParser snpEffparser= new SnpEffPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
 			final MyPredictionParser myPredParser= new MyPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
-			final AnnPredictionParser annPredParser= new PredictionParserFactory().buildAnnPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
+			final AnnPredictionParser annPredParser= new PredictionParserFactory().header(header).buildAnnPredictionParser().sequenceOntologyTree(this.sequenceOntologyTree);
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			
 			while(in.hasNext() )
