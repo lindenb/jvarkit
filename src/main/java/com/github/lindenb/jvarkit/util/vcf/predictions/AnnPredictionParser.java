@@ -37,8 +37,6 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nonnull;
-
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -253,12 +251,10 @@ public class AnnPredictionParser
 			}
 	*/
 		
-		@Nonnull
 		public String getSOTermsString() {
 			return(this.tokens.length<2 ?"":tokens[1]);
 			}
 		
-		@Nonnull
 		public List<String> getSOTermsStrings() {
 			final String s=getSOTermsString();
 			if(s.isEmpty()) return Collections.emptyList();
@@ -266,7 +262,6 @@ public class AnnPredictionParser
 			}
 		
 		//@Override
-		@Nonnull
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
 			final Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
@@ -285,7 +280,6 @@ public class AnnPredictionParser
 			return set;
 			}
 		
-		@Nonnull
 		public Impact getPutativeImpact()
 			{
 			if(this.tokens.length<3) return Impact.UNDEFINED;

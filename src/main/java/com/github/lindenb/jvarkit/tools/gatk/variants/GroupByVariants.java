@@ -1,5 +1,6 @@
 package com.github.lindenb.jvarkit.tools.gatk.variants;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -10,10 +11,9 @@ import java.util.OptionalInt;
 import java.util.function.ToIntFunction;
 
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.walkers.Allows;
-import org.broadinstitute.gatk.engine.walkers.By;
-import org.broadinstitute.gatk.engine.walkers.DataSource;
-import org.broadinstitute.gatk.engine.walkers.Requires;
+import org.broadinstitute.gatk.engine.walkers.Walker;
+import org.broadinstitute.gatk.utils.classloader.JVMUtils;
+import org.broadinstitute.gatk.utils.classloader.PluginManager;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -21,6 +21,7 @@ import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.report.GATKReportTable;
+import org.reflections.Reflections;
 
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 
@@ -200,6 +201,15 @@ public class GroupByVariants
 		if(byAlleleSize) table.addColumn("ALLELE_SIZE");
 		return table;
 		}
-
+	
+	public static void main(String[] args) {
+		org.broadinstitute.gatk.utils.classloader.PluginManager<Walker> x=null;
+		Reflections.log = org.reflections.util.Utils.findLogger(GroupByVariants.class);
+		org.broadinstitute.gatk.utils.classloader.PluginManager<Walker> pgm=new PluginManager<>(Walker.class,"walker","");
+		
+		for(String k:pgm.getPluginsByName().keySet()) System.out.println(k);
+		
+		  for (URL url: JVMUtils.getClasspathURLs())System.err.println(url);
+	}
 	
 	}

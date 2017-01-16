@@ -52,7 +52,7 @@ import htsjdk.variant.vcf.VCFHeader;
  * AbstractGroupBy
  * 
  */
-abstract class AbstractGroupBy 
+public abstract class AbstractGroupBy 
 	extends RodWalker<Map<AbstractGroupBy.Category,Long>, Map<AbstractGroupBy.Category,Long>> 
 	implements  org.broadinstitute.gatk.engine.walkers.TreeReducible< Map<AbstractGroupBy.Category,Long> >
 	{
