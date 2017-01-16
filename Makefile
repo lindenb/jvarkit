@@ -517,7 +517,7 @@ $(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.Vc
 
 gatkwalkers:
 	mkdir -p ${tmp.dir} ${dist.dir}
-	${JAVAC} -d ${tmp.dir} -g -classpath ${gatk.jar} -sourcepath ${src.dir}:${generated.dir}/java ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/variants/CountPredictions.java
+	${JAVAC} -d ${tmp.dir} -g -classpath ${gatk.jar} -sourcepath ${src.dir}:${generated.dir}/java $(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/GroupByVariants ))
 	${JAR} cf ${dist.dir}/mygatk.jar -C ${tmp.dir} .
 	rm -rf ${tmp.dir}
 	echo '#!/bin/bash' > ${dist.dir}/mygatk

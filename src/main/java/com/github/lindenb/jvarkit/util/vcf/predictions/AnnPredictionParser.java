@@ -29,12 +29,15 @@ History:
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nonnull;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -250,15 +253,24 @@ public class AnnPredictionParser
 			}
 	*/
 		
+		@Nonnull
+		public String getSOTermsString() {
+			return(this.tokens.length<2 ?"":tokens[1]);
+			}
+		
+		@Nonnull
+		public List<String> getSOTermsStrings() {
+			final String s=getSOTermsString();
+			if(s.isEmpty()) return Collections.emptyList();
+			return Arrays.asList(this.getSOTermsString().split("[&]"));
+			}
 		
 		//@Override
+		@Nonnull
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
-			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
-			if(this.tokens.length<2) return set;
-			String EFF=this.tokens[1];
-			if(EFF==null) return set;
-			for(String eff:EFF.split("[&]"))
+			final Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
+			for(final String eff:getSOTermsStrings())
 				{
 				if(eff.isEmpty()) continue;
 				for(final SequenceOntologyTree.Term t: AnnPredictionParser.this.soTree.getTerms())
@@ -273,10 +285,11 @@ public class AnnPredictionParser
 			return set;
 			}
 		
+		@Nonnull
 		public Impact getPutativeImpact()
 			{
 			if(this.tokens.length<3) return Impact.UNDEFINED;
-			String s=this.tokens[2];
+			final String s=this.tokens[2];
 			return Impact.valueOf(s.toUpperCase().trim());
 			}
 		public String getGeneId()

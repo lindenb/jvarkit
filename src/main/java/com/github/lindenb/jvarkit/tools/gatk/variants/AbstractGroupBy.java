@@ -1,7 +1,34 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2017 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.gatk.variants;
 
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -22,15 +49,12 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
 /**
- * Test Documentation
- *
- * 
- * 
+ * AbstractGroupBy
  * 
  */
-public abstract class AbstractVariantCounter 
-	extends RodWalker<Map<AbstractVariantCounter.Category,Long>, Map<AbstractVariantCounter.Category,Long>> 
-	implements  org.broadinstitute.gatk.engine.walkers.TreeReducible< Map<AbstractVariantCounter.Category,Long> >
+abstract class AbstractGroupBy 
+	extends RodWalker<Map<AbstractGroupBy.Category,Long>, Map<AbstractGroupBy.Category,Long>> 
+	implements  org.broadinstitute.gatk.engine.walkers.TreeReducible< Map<AbstractGroupBy.Category,Long> >
 	{
     @Input(fullName="variant", shortName = "V", doc="Input VCF file", required=true)
     public RodBinding<VariantContext> variants;
@@ -39,15 +63,17 @@ public abstract class AbstractVariantCounter
         
     protected AnnPredictionParser annParser= new PredictionParserFactory().buildAnnPredictionParser();
     
-    static class Category
+    static public class Category
     	{
+    	private final int _hash;
     	private final List<Object> labels ;
     	Category(final List<Object> labels) {
-    		this.labels=new ArrayList<>(labels);
+    		this.labels= Collections.unmodifiableList(labels);
+    		this._hash = this.labels.hashCode();
     		}
     	@Override
     	public int hashCode() {
-    		return labels.hashCode();
+    		return this._hash;
     		}
     	@Override
     	public boolean equals(Object o) {
@@ -56,6 +82,12 @@ public abstract class AbstractVariantCounter
     		return this.labels.equals(Category.class.cast(o).labels);
     		}
     	}
+    
+    protected AbstractGroupBy()
+    {
+    	
+    }
+    
     @Override
     public void initialize() {
     	
@@ -68,13 +100,13 @@ public abstract class AbstractVariantCounter
     
 	
 	@Override
-	public Map<AbstractVariantCounter.Category,Long> treeReduce(Map<AbstractVariantCounter.Category,Long> value, Map<AbstractVariantCounter.Category,Long> sum) {
+	public Map<AbstractGroupBy.Category,Long> treeReduce(Map<AbstractGroupBy.Category,Long> value, Map<AbstractGroupBy.Category,Long> sum) {
 		return this.reduce(value,sum);
 		}
 
 	@Override
-	public Map<AbstractVariantCounter.Category,Long> reduce(Map<AbstractVariantCounter.Category,Long> value, Map<AbstractVariantCounter.Category,Long> sum) {
-		final Map<AbstractVariantCounter.Category,Long> newmap = new HashMap<>(sum);
+	public Map<AbstractGroupBy.Category,Long> reduce(Map<AbstractGroupBy.Category,Long> value, Map<AbstractGroupBy.Category,Long> sum) {
+		final Map<AbstractGroupBy.Category,Long> newmap = new HashMap<>(sum);
 		for(final Category cat:value.keySet()) {
 			final Long sv = sum.get(cat);
 			final Long vv = value.get(cat);
@@ -84,13 +116,13 @@ public abstract class AbstractVariantCounter
 	}
 
 	@Override
-	public Map<AbstractVariantCounter.Category,Long> reduceInit() {
+	public Map<AbstractGroupBy.Category,Long> reduceInit() {
 		return Collections.emptyMap();
 	}
 	protected abstract  GATKReportTable createGATKReportTable();
 
 	@Override
-	public void onTraversalDone(final Map<AbstractVariantCounter.Category,Long> counts) {
+	public void onTraversalDone(final Map<AbstractGroupBy.Category,Long> counts) {
 		final GATKReportTable table=createGATKReportTable();
 		table.addColumn("COUNT");
 		
@@ -101,17 +133,15 @@ public abstract class AbstractVariantCounter
 				{
 				table.set(nRows, x, cat.labels.get(x));
 				}
-			
 			table.set(nRows, cat.labels.size(), counts.get(cat));
 			++nRows;
 			}
 		final GATKReport report = new GATKReport();
 		report.addTable(table);
 		report.print(this.out);
-		out.flush();
+		this.out.flush();
 		
 		logger.info("TraversalDone");
-
 		}
 	
 	}
