@@ -1,6 +1,5 @@
 package com.github.lindenb.jvarkit.tools.gatk.variants;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -8,12 +7,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.walkers.Walker;
-import org.broadinstitute.gatk.utils.classloader.JVMUtils;
-import org.broadinstitute.gatk.utils.classloader.PluginManager;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -21,7 +18,6 @@ import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.report.GATKReportTable;
-import org.reflections.Reflections;
 
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 
@@ -71,11 +67,6 @@ public class GroupByVariants
     @Argument(fullName="allelesize",shortName="allelesize",required=false,doc="Group by Max(allele.size)")
     public boolean byAlleleSize = false;
     
-    /*
-    public CountPredictions()
-    	{
-    	
-    	}*/
     
 	@Override
 	public Map<GroupByVariants.Category,Long> map(
@@ -144,7 +135,14 @@ public class GroupByVariants
 				
 				}	
 			if(byAlleleSize) {
-				final OptionalInt longest = ctx.getAlleles().stream().filter(T->!(T.isSymbolic() || T.isNoCall())).sorted(new Comparator<Allele>() {
+				// see http://stackoverflow.com/questions/41678374/
+				final Predicate<Allele> afilter = new Predicate<Allele>() {
+					@Override
+					public boolean test(Allele a) {
+						return !(a.isNoCall() || a.isSymbolic());
+					}
+				};
+				final OptionalInt longest = ctx.getAlleles().stream().filter(afilter).sorted(new Comparator<Allele>() {
 					public int compare(Allele o1, Allele o2)
 						{
 						return o2.length() -o1.length();//biggest first
@@ -162,26 +160,7 @@ public class GroupByVariants
 			}
 		return count;
 	}
-	@Override
-	public Map<GroupByVariants.Category,Long> treeReduce(Map<GroupByVariants.Category,Long> value, Map<GroupByVariants.Category,Long> sum) {
-		return this.reduce(value,sum);
-		}
 
-	@Override
-	public Map<GroupByVariants.Category,Long> reduce(Map<GroupByVariants.Category,Long> value, Map<GroupByVariants.Category,Long> sum) {
-		final Map<GroupByVariants.Category,Long> newmap = new HashMap<>(sum);
-		for(final Category cat:value.keySet()) {
-			final Long sv = sum.get(cat);
-			final Long vv = value.get(cat);
-			newmap.put(cat, sv==null?vv:sv+vv);
-		}
-		return newmap;
-	}
-
-	@Override
-	public Map<GroupByVariants.Category,Long> reduceInit() {
-		return Collections.emptyMap();
-	}
    
 	@Override
 	protected GATKReportTable createGATKReportTable() {
@@ -202,14 +181,5 @@ public class GroupByVariants
 		return table;
 		}
 	
-	public static void main(String[] args) {
-		org.broadinstitute.gatk.utils.classloader.PluginManager<Walker> x=null;
-		Reflections.log = org.reflections.util.Utils.findLogger(GroupByVariants.class);
-		org.broadinstitute.gatk.utils.classloader.PluginManager<Walker> pgm=new PluginManager<>(Walker.class,"walker","");
-		
-		for(String k:pgm.getPluginsByName().keySet()) System.out.println(k);
-		
-		  for (URL url: JVMUtils.getClasspathURLs())System.err.println(url);
-	}
 	
 	}

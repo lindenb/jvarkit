@@ -33,11 +33,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.utils.commandline.Argument;
-import org.broadinstitute.gatk.utils.commandline.Input;
-import org.broadinstitute.gatk.utils.commandline.RodBinding;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
@@ -47,6 +46,7 @@ import org.broadinstitute.gatk.utils.report.GATKReportTable;
 
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 
@@ -58,13 +58,11 @@ import htsjdk.variant.variantcontext.VariantContext;
  * 
  */
 @DocumentedGATKFeature(
-		summary="Count Variants",
+		summary="Group by Genotypes",
 		groupName = HelpConstants.DOCS_CAT_VARMANIP,
 		extraDocs = {CommandLineGATK.class}
 		)
 public class GroupByGenotypes  extends AbstractGroupBy {
-    @Input(fullName="variant", shortName = "V", doc="Input VCF file", required=true)
-    public RodBinding<VariantContext> variants;
     
     @Argument(fullName="minGenotypeQuality",shortName="mgq",required=false,doc="Minimum genotype quality to put a assign a category")
     public int minGenotypeQuality = 0;
@@ -74,7 +72,7 @@ public class GroupByGenotypes  extends AbstractGroupBy {
     public boolean byID = false;
     @Argument(fullName="variantType",shortName="variantType",required=false,doc="Group by VariantType")
     public boolean byType = false;
-    @Argument(fullName="variantType",shortName="genotypeType",required=false,doc="Group by GenotypeType")
+    @Argument(fullName="genotypeType",shortName="genotypeType",required=false,doc="Group by GenotypeType")
     public boolean byGenotypeType = false;
 
     @Argument(fullName="filter",shortName="filter",required=false,doc="Group by FILTER")
@@ -137,10 +135,17 @@ public class GroupByGenotypes  extends AbstractGroupBy {
 					{
 					AnnPredictionParser.Impact impact=null;
 					for(final AnnPredictionParser.AnnPrediction pred: super.annParser.getPredictions(ctx)) {
+						// see http://stackoverflow.com/questions/41678374/
+						final Predicate<Allele> afilter = new Predicate<Allele>() {							
+							@Override
+							public boolean test(final Allele A) {
+								return A.getDisplayString().equals(pred.getAllele());
+							}
+						};
 						
 						if(genotype.getAlleles().
 								stream().
-								filter(A->A.getDisplayString().equals(pred.getAllele())).
+								filter(afilter).
 								findAny().isPresent()==false) continue;
 						
 						final AnnPredictionParser.Impact currImpact = pred.getPutativeImpact();

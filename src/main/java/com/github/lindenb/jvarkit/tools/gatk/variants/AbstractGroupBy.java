@@ -52,7 +52,7 @@ import htsjdk.variant.vcf.VCFHeader;
  * AbstractGroupBy
  * 
  */
-public abstract class AbstractGroupBy 
+public abstract class AbstractGroupBy
 	extends RodWalker<Map<AbstractGroupBy.Category,Long>, Map<AbstractGroupBy.Category,Long>> 
 	implements  org.broadinstitute.gatk.engine.walkers.TreeReducible< Map<AbstractGroupBy.Category,Long> >
 	{
@@ -67,7 +67,7 @@ public abstract class AbstractGroupBy
     	{
     	private final int _hash;
     	private final List<Object> labels ;
-    	Category(final List<Object> labels) {
+    	public Category(final List<Object> labels) {
     		this.labels= Collections.unmodifiableList(labels);
     		this._hash = this.labels.hashCode();
     		}
@@ -81,22 +81,20 @@ public abstract class AbstractGroupBy
     		if(o==null || !(o instanceof Category)) return false;
     		return this.labels.equals(Category.class.cast(o).labels);
     		}
+    	@Override
+    	public String toString() {
+    		return this.labels.toString();
+    		}
     	}
     
-    protected AbstractGroupBy()
-    {
-    	
-    }
+    
     
     @Override
     public void initialize() {
-    	
-        	final VCFHeader vcfHeader  = GATKVCFUtils.getVCFHeadersFromRods(getToolkit()).get(variants.getName());
-	    	this.annParser = new PredictionParserFactory().header(vcfHeader).buildAnnPredictionParser();
-	    	
-    	
+    	final VCFHeader vcfHeader  = GATKVCFUtils.getVCFHeadersFromRods(getToolkit()).get(variants.getName());
+    	this.annParser = new PredictionParserFactory().header(vcfHeader).buildAnnPredictionParser();
     	super.initialize();
-    }
+    	}
     
 	
 	@Override
@@ -143,5 +141,6 @@ public abstract class AbstractGroupBy
 		
 		logger.info("TraversalDone");
 		}
+	
 	
 	}

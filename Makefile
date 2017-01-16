@@ -517,7 +517,7 @@ $(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.Vc
 
 gatkwalkers:
 	mkdir -p ${tmp.dir} ${dist.dir}
-	${JAVAC} -d ${tmp.dir} -g -classpath ${gatk.jar} -sourcepath ${src.dir}:${generated.dir}/java $(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/GroupByVariants ))
+	${JAVAC} -d ${tmp.dir} -g -classpath ${gatk.jar} -sourcepath ${src.dir}:${generated.dir}/java $(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/GroupByVariants variants/GroupByGenotypes))
 	${JAR} cf ${dist.dir}/mygatk.jar -C ${tmp.dir} .
 	rm -rf ${tmp.dir}
 	echo '#!/bin/bash' > ${dist.dir}/mygatk
@@ -525,6 +525,7 @@ gatkwalkers:
 	echo -n ' -cp "$(realpath ${gatk.jar}):$(realpath ${dist.dir}/mygatk.jar)" org.broadinstitute.gatk.engine.CommandLineGATK '  >> ${dist.dir}/mygatk
 	echo '$$*' >> ${dist.dir}/mygatk
 	chmod  ugo+rx ${dist.dir}/mygatk
+
 
 all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
 	 ./src/main/resources/jnlp/generic.jnlp .secret.keystore 
