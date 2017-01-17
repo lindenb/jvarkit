@@ -2,7 +2,6 @@ package com.github.lindenb.jvarkit.tools.gatk.variants;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,14 +26,14 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextUtils;
 
 /**
- * Test Documentation
+ * 
  *
  * 
  * 
  * 
  */
 @DocumentedGATKFeature(
-		summary="Group By Variants",
+		summary="Reads a VCF file and creates a variant summary table",
 		groupName = HelpConstants.DOCS_CAT_VARMANIP,
 		extraDocs = {CommandLineGATK.class} )
 public class GroupByVariants 
@@ -138,19 +137,14 @@ public class GroupByVariants
 				// see http://stackoverflow.com/questions/41678374/
 				final Predicate<Allele> afilter = new Predicate<Allele>() {
 					@Override
-					public boolean test(Allele a) {
-						return !(a.isNoCall() || a.isSymbolic());
+					public boolean test(final Allele a) {
+						return !(a.isNoCall() || a.isSymbolic() );
 					}
 				};
-				final OptionalInt longest = ctx.getAlleles().stream().filter(afilter).sorted(new Comparator<Allele>() {
-					public int compare(Allele o1, Allele o2)
-						{
-						return o2.length() -o1.length();//biggest first
-						}
-					}).mapToInt(new ToIntFunction<Allele>() {
-						public int applyAsInt(Allele value) {return value.length();};
-					}).findAny();
-				labels.add(longest.isPresent()?-9999:longest.getAsInt());
+				final OptionalInt longest = ctx.getAlleles().stream().filter(afilter).mapToInt(new ToIntFunction<Allele>() {
+						public int applyAsInt(final Allele value) {return value.length();};
+					}).max();
+				labels.add(longest.isPresent()?longest.getAsInt():-9999);
 				}
 			
 			final Category cat=new Category(labels);

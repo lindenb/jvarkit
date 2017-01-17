@@ -58,7 +58,7 @@ import htsjdk.variant.variantcontext.VariantContext;
  * 
  */
 @DocumentedGATKFeature(
-		summary="Group by Genotypes",
+		summary="Reads a VCF file and creates a genotype summary table",
 		groupName = HelpConstants.DOCS_CAT_VARMANIP,
 		extraDocs = {CommandLineGATK.class}
 		)
@@ -88,7 +88,10 @@ public class GroupByGenotypes  extends AbstractGroupBy {
     
     @Override
     public Map<com.github.lindenb.jvarkit.tools.gatk.variants.AbstractGroupBy.Category, Long> map(
-    		RefMetaDataTracker tracker, ReferenceContext refctx, AlignmentContext context) {
+    		final RefMetaDataTracker tracker, 
+    		final ReferenceContext refctx,
+    		final AlignmentContext context
+    		) {
     	if ( tracker == null )return Collections.emptyMap();
         final Map<Category, Long> counts = new HashMap<>();
 
@@ -110,11 +113,11 @@ public class GroupByGenotypes  extends AbstractGroupBy {
 				}
 			for(int i=0;i< ctx.getNSamples();++i)
 				{
-				final Genotype genotype=ctx.getGenotype(i);
+				
 				if(onlysingletons && index_singleton!=i) {
 					continue;
 					}
-				
+				final Genotype genotype=ctx.getGenotype(i);
 				final List<Object> labels=new ArrayList<>();
 				labels.add(genotype.getSampleName());
 				if(bychrom) labels.add(ctx.getContig());
@@ -174,9 +177,10 @@ public class GroupByGenotypes  extends AbstractGroupBy {
 		if(byType) table.addColumn("VARIANT_TYPE");
 		if(byGenotypeType) table.addColumn("GENOTYPE_TYPE");
 		if(byFilter) table.addColumn("VARIANT_FILTERED");
-		if(byGFilter) table.addColumn("GENOTYPE_FILTERED");
-		if(byImpact) table.addColumn("IMPACT");
+		if(byGFilter) table.addColumn("GENOTYPE_FILTERED");	
 		if(minGenotypeQuality>=0) table.addColumn("GENOTYPE_QUAL_GE_"+this.minGenotypeQuality);
+		if(byImpact) table.addColumn("IMPACT");
+		
 	return table;	
 	}
 

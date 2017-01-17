@@ -76,10 +76,12 @@ public abstract class AbstractGroupBy
     		return this._hash;
     		}
     	@Override
-    	public boolean equals(Object o) {
+    	public boolean equals(final Object o) {
     		if(o==this) return true;
     		if(o==null || !(o instanceof Category)) return false;
-    		return this.labels.equals(Category.class.cast(o).labels);
+    		final Category other=Category.class.cast(o);
+    		return this._hash==other._hash &&
+    					this.labels.equals(other.labels);
     		}
     	@Override
     	public String toString() {
@@ -98,12 +100,16 @@ public abstract class AbstractGroupBy
     
 	
 	@Override
-	public Map<AbstractGroupBy.Category,Long> treeReduce(Map<AbstractGroupBy.Category,Long> value, Map<AbstractGroupBy.Category,Long> sum) {
+	public Map<AbstractGroupBy.Category,Long> treeReduce(
+			final Map<AbstractGroupBy.Category,Long> value,
+			final Map<AbstractGroupBy.Category,Long> sum) {
 		return this.reduce(value,sum);
 		}
 
 	@Override
-	public Map<AbstractGroupBy.Category,Long> reduce(Map<AbstractGroupBy.Category,Long> value, Map<AbstractGroupBy.Category,Long> sum) {
+	public Map<AbstractGroupBy.Category,Long> reduce(
+		final Map<AbstractGroupBy.Category,Long> value,
+		final Map<AbstractGroupBy.Category,Long> sum) {
 		final Map<AbstractGroupBy.Category,Long> newmap = new HashMap<>(sum);
 		for(final Category cat:value.keySet()) {
 			final Long sv = sum.get(cat);

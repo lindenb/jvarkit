@@ -43,6 +43,7 @@ import java.util.regex.Pattern;
 import com.github.lindenb.jvarkit.util.vcf.InfoAnnotator;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.Feature;
@@ -76,7 +77,7 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			}
 		}
 	
-	private static abstract class AbstractFeature implements Feature
+	public static abstract class AbstractFeature implements Feature
 		{
 		final String contig;
 		final int pos;
@@ -129,20 +130,20 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			return Arrays.toString(this.tokens);
 			}
 		}
-	private  static class CodingFeature extends AbstractFeature
+	public  static class CodingFeature extends AbstractFeature
 		{
 		private CodingFeature(final String tokens[]) {
 			super(tokens);
 			}
 		}
-	private  static class NonCodingFeature extends AbstractFeature
+	public  static class NonCodingFeature extends AbstractFeature
 		{
 		private NonCodingFeature(final String tokens[]) {
 			super(tokens);
 			}
 		}
 	
-	private static abstract class AbstractFeatureCodec<T extends AbstractFeature>  extends AsciiFeatureCodec<T>
+	public static abstract class AbstractFeatureCodec<T extends AbstractFeature>  extends AsciiFeatureCodec<T>
 		{
 		protected final Pattern tab=Pattern.compile("[\t]");
 		protected AbstractFeatureCodec(Class<T> C){
@@ -160,9 +161,10 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			}
 		}
 	
-	private static class CodingFeatureCodec extends AbstractFeatureCodec<CodingFeature>
+	/* public because http://gatkforums.broadinstitute.org/gatk/discussion/8851/ */
+	public static class CodingFeatureCodec extends AbstractFeatureCodec<CodingFeature>
 		{
-		CodingFeatureCodec() {
+		public CodingFeatureCodec() {
 			super(CodingFeature.class);
 			}
 		@Override
@@ -174,9 +176,10 @@ public class EigenInfoAnnotator implements InfoAnnotator
 		
 		
 		}
-	private static class NonCodingFeatureCodec extends AbstractFeatureCodec<NonCodingFeature>
+	/* public because http://gatkforums.broadinstitute.org/gatk/discussion/8851/ */
+	public static class NonCodingFeatureCodec extends AbstractFeatureCodec<NonCodingFeature>
 		{
-		NonCodingFeatureCodec() {
+		public NonCodingFeatureCodec() {
 			super(NonCodingFeature.class);
 			}
 		@Override
@@ -195,8 +198,11 @@ public class EigenInfoAnnotator implements InfoAnnotator
 	private TabixFeatureReader<NonCodingFeature, PositionalBufferedStream> nonCodingFeatureReader = null;
 	private TabixFeatureReader<CodingFeature, PositionalBufferedStream> codingFeatureReader = null;
 	private int prev_contig=-1;
-		public EigenInfoAnnotator(final File dir) {
+	
+	
+	public EigenInfoAnnotator(final File dir) {
 		this.eigenDirectory = dir;
+		IOUtil.assertDirectoryIsReadable(dir);
 		
 		//this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"chr", VCFHeaderLineCount.A, VCFHeaderLineType.String, "chr"));
 		//this.noncodingheaderlines.add(new VCFInfoHeaderLine(prefix+"position", VCFHeaderLineCount.A, VCFHeaderLineType.String, "position"));
@@ -258,12 +264,20 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			return -1;
 			}
 		}
+	private String tabixPrefix="Eigen_hg19_";
+	public void setTabixFilePrefix(String prefix) {
+		this.tabixPrefix = prefix;
+	}
+	
+	public String getTabixPrefix() {
+		return tabixPrefix;
+	}
 	
 	private File getNonCodingFileForContig(final int C)
 		{
 		if(this.eigenDirectory==null) throw new IllegalStateException("Eigein directory was not defined");
 		
-		return new File(this.eigenDirectory,"Eigen_hg19_noncoding_annot_chr"+C+".tab.bgz");
+		return new File(this.eigenDirectory,getTabixPrefix()+"noncoding_annot_chr"+C+".tab.bgz");
 		}
 	
 	@Override
@@ -297,7 +311,7 @@ public class EigenInfoAnnotator implements InfoAnnotator
 		try {
 			if(this.codingFeatureReader == null) {
 				this.codingFeatureReader = new TabixFeatureReader<>(
-						new File(this.eigenDirectory,"Eigen_hg19_coding_annot_04092016.tab.bgz").getPath(),
+						new File(this.eigenDirectory,getTabixPrefix()+"coding_annot_04092016.tab.bgz").getPath(),
 						new CodingFeatureCodec());
 				}
 			
@@ -386,7 +400,7 @@ public class EigenInfoAnnotator implements InfoAnnotator
 			
 			return map;
 			}
-		catch(IOException err) {
+		catch(final IOException err) {
 			throw new RuntimeException(err);
 			}
 		}

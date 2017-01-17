@@ -515,9 +515,13 @@ $(eval $(call compile-htsjdk-cmd,vcfmovefilterstoinfo,${jvarkit.package}.tools.b
 $(eval $(call compile-htsjdk-cmd,gatkcodegen,${jvarkit.package}.tools.gatk.codegen.GATKCodeGenerator,${gson.jar} ${velocity.jars} wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.VcfEigen01,wiki_flag))
 
+
+GATKWALKERS_SRC=$(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/GroupByVariants variants/GroupByGenotypes variants/EigenVariants))
+
 gatkwalkers:
 	mkdir -p ${tmp.dir} ${dist.dir}
-	${JAVAC} -d ${tmp.dir} -g -classpath ${gatk.jar} -sourcepath ${src.dir}:${generated.dir}/java $(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/GroupByVariants variants/GroupByGenotypes))
+	${JAVAC} -d ${tmp.dir} -g -classpath ${gatk.jar} -sourcepath ${src.dir}:${generated.dir}/java ${GATKWALKERS_SRC}
+	##$(foreach F,${GATKWALKERS_SRC}, cp ${F} ${tmp.dir}$(subst ${src.dir},,${F});)
 	${JAR} cf ${dist.dir}/mygatk.jar -C ${tmp.dir} .
 	rm -rf ${tmp.dir}
 	echo '#!/bin/bash' > ${dist.dir}/mygatk

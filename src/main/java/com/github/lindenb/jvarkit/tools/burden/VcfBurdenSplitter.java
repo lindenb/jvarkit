@@ -71,6 +71,13 @@ public class VcfBurdenSplitter
 	public static final String VCF_HEADER_SPLITKEY="VCFBurdenSplitName";
 	
 	
+	private static String shortName(final VariantContext ctx) {
+		return ctx.getContig()+":"+ctx.getStart()+":"+ctx.getID()+":"+ctx.getAlleles();
+	}
+	private boolean isDebuggingVariant(final VariantContext ctx) {
+		return false;
+	}
+	
 	private static class KeyAndLine {
 		final String key;
 		final String ctx;
@@ -166,7 +173,7 @@ public class VcfBurdenSplitter
 		public void initialize(final VCFHeader header) {
 			this.vepPredictionParser = new VepPredictionParser(header);
 			}
-		public boolean accept(final VepPrediction pred) {
+		public boolean accept(final VepPrediction pred,final VariantContext origin) {
 			return true;
 		}
 		private boolean isEmpty(final String s) {
@@ -176,13 +183,24 @@ public class VcfBurdenSplitter
 		public Set<String> keys(final VariantContext ctx) {
 			final Set<String> keys = new HashSet<>();
 			for(final VepPrediction pred: this.vepPredictionParser.getPredictions(ctx)) {
-				if(!accept(pred)) continue;
+				if(!accept(pred,ctx)) {
+					if(isDebuggingVariant(ctx)) {
+						LOG.info("VEP predictions  Ignoring "+shortName(ctx)+".");
+					}
+					continue;
+				} else
+				{
+					if(isDebuggingVariant(ctx)) {
+						LOG.info("VEP predictions  accepted "+shortName(ctx)+".");
+					}
+				}
 				
 				
 				//ALL_NM && ALL_REFSEQ && ALL_ENST && ALL_TRANSCRIPTS
 					{
 					final String geneName =  pred.getSymbol();
 					final String transcriptName =  pred.getFeature();
+					
 					
 					if(!isEmpty(geneName) && !isEmpty(transcriptName)) {
 						if(isEnableAllNM() && transcriptName.startsWith("NM_")) {
@@ -284,17 +302,23 @@ public class VcfBurdenSplitter
 				}
 			}
 		@Override
-		public boolean accept(final VepPrediction pred) {
+		public boolean accept(final VepPrediction pred,final VariantContext origin) {
 			for(final SequenceOntologyTree.Term so:pred.getSOTerms())
 				{
 				if(acns.contains(so))
 					{
+					if(isDebuggingVariant(origin)) {
+						LOG.info("accepting variant "+shortName(origin)+" because SO-TERM "+so+" is in "+this.acns);
+						}
 					return true;
 					}
 				}
+			if(isDebuggingVariant(origin)) {
+				LOG.info("I don't accept variant "+shortName(origin)+" "+pred+" because SO-TERM "+pred.getSOTerms()+" is not in "+this.acns);
+				}
 			return false;
 			}
-	}
+		}
 	
 	private class SoVepSplitter extends AbstractSoVepSplitter {
 		SoVepSplitter() {
@@ -500,6 +524,10 @@ public class VcfBurdenSplitter
 								final VariantContext ctx = cah.codec.decode(kal.ctx);
 								variants.add(ctx);
 								
+								if(isDebuggingVariant(ctx)) {
+									LOG.info("Adding variant to list for key "+kal.key+" "+shortName(ctx));
+									}
+								
 								if(!ctx.getContig().equals(prev_contig)) {
 									eqiter.close();
 									return wrapException("illegal state");
@@ -515,6 +543,10 @@ public class VcfBurdenSplitter
 								LOG.warn("ALL IS FILTERED in "+first.key);
 								if( allDiscardedLog!=null) {
 									for(final VariantContext ctx:variants) {
+										if(isDebuggingVariant(ctx)) {
+											LOG.info("Variant "+shortName(ctx)+" is part of never filtered for "+first.key);
+											}
+										
 										allDiscardedLog.println(String.join("\t",
 												first.key,
 												ctx.getContig(),
@@ -535,6 +567,10 @@ public class VcfBurdenSplitter
 							
 							out.writeHeader(header2);
 							for(final VariantContext ctx:variants) {
+								if(isDebuggingVariant(ctx))
+									{
+									LOG.info("saving variant "+shortName(ctx)+" to final output");
+									}
 								out.add(ctx);
 							}
 							out.close();//yes because wrapped into IOUtils.encloseableOutputSream
@@ -571,6 +607,9 @@ public class VcfBurdenSplitter
 				
 				//no check for ctx.ifFiltered here, we do this later.
 				for(final String key: splitter.keys(variant)) {
+					if(isDebuggingVariant(variant)) {
+						LOG.info("Adding variant with key "+key+" "+shortName(variant));
+						}
 					sortingcollection.add(new KeyAndLine(key, line));
 					}
 				}

@@ -29,7 +29,6 @@ History:
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -173,7 +172,7 @@ public class VepPredictionParser implements PredictionParser
 			}
 		final String s=String.class.cast(o).trim();
 		final String tokens[]=pipe.split(s);
-		return new VepPrediction(tokens,ctx);
+		return new VepPrediction(tokens,s,ctx);
 		}
 	
 	private void _predictions( List<VepPrediction> preds,Object o,VariantContext ctx)
@@ -187,9 +186,11 @@ public class VepPredictionParser implements PredictionParser
 	public class VepPrediction
 		implements Prediction
 		{
+		private final String source;
 		private String tokens[];
-		VepPrediction(String tokens[],VariantContext ctx)
+		VepPrediction(final String tokens[],final String source,final VariantContext ctx)
 			{
+			this.source=source;
 			this.tokens=tokens;
 			/** special case for ALT, can be '-' */
 			Integer idx_allele = col2col.get(COLS.Allele);
@@ -404,7 +405,7 @@ public class VepPredictionParser implements PredictionParser
 		
 	@Override
 	public String toString() {
-		return getMap().toString()+ " "+Arrays.asList(tokens);
+		return this.source;
 		}
 	}
 		
