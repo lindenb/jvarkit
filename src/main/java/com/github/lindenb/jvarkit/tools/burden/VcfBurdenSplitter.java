@@ -368,7 +368,8 @@ public class VcfBurdenSplitter
 		public String getName() {
 			return "vep0";
 			}
-		public boolean accept(final VepPrediction pred) {
+		@Override
+		public boolean accept(final VepPrediction pred,VariantContext ctx) {
 			return true;
 		}
 		@Override

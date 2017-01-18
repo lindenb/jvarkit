@@ -80,11 +80,13 @@ public class VcfCompareCallers
 		common_context_snp,
 		common_context_indel,
 		common_context_discordant_id,
+		common_context_discordant_filter,
 		called_and_same,
 		called_and_same_hom_ref,
 		called_and_same_hom_var,
 		called_and_same_het,
 		called_but_discordant,
+		called_but_discordant_snp,
 		called_but_discordant_hom1_het2,
 		called_but_discordant_het1_hom2,
 		called_but_discordant_hom1_hom2,
@@ -100,18 +102,20 @@ public class VcfCompareCallers
 	
 	
 	private void watch(
-			XMLStreamWriter out,
-			VariantContext ctx0,
-			VariantContext ctx1,
-			Genotype g0,
-			Genotype g1,
-			String sampleName,Counter<Category> count,Category cat
+			final XMLStreamWriter out,
+			final VariantContext ctx0,
+			final VariantContext ctx1,
+			final Genotype g0,
+			final Genotype g1,
+			final String sampleName,
+			final Counter<Category> count,
+			final Category cat
 			) throws XMLStreamException
 		{
 		long n=count.incr(cat);
 		if(out==null || n> super.numberOfExampleVariants) return;
-		VariantContext variants[]=new VariantContext[]{ctx0,ctx1};
-		Genotype gts[]=new Genotype[]{g0,g1};
+		final VariantContext variants[]=new VariantContext[]{ctx0,ctx1};
+		final Genotype gts[]=new Genotype[]{g0,g1};
 		out.writeStartElement("diff");
 		out.writeAttribute("type", cat.name());
 		out.writeAttribute("sample",sampleName);
@@ -121,7 +125,7 @@ public class VcfCompareCallers
 			out.writeStartElement("variant");
 			out.writeAttribute("file",String.valueOf(i+1));
 			out.writeAttribute("type",String.valueOf(variants[i].getType()));
-
+			if(variants[i].isFiltered()) out.writeAttribute("filtered","true");
 			
 			
 			out.writeStartElement("chrom");
@@ -153,6 +157,7 @@ public class VcfCompareCallers
 				{
 				out.writeStartElement("genotype");
 				out.writeAttribute("type",String.valueOf(gts[i].getType()));
+				if(gts[i].isFiltered()) out.writeAttribute("filtered","true");
 
 				for(Allele a:gts[i].getAlleles())
 					{
@@ -194,7 +199,7 @@ public class VcfCompareCallers
 
 	@Override
 	public Collection<Throwable> call() throws Exception {
-		VcfIterator vcfInputs[]=new VcfIterator[]{null,null};
+		final VcfIterator vcfInputs[]=new VcfIterator[]{null,null};
 		final List<String> args = getInputFiles();
 		
 		internalTests();
@@ -218,7 +223,7 @@ public class VcfCompareCallers
 				}
 			return compare(vcfInputs[0],vcfInputs[1]);
 			}
-		catch (Exception err)
+		catch (final Exception err)
 			{
 			return wrapException(err);
 			}
@@ -271,9 +276,9 @@ public class VcfCompareCallers
 				return wrapException(getMessageBundle("not.the.same.sequence.dictionaries"));
 				}
 			/* samples */
-			Set<String> samples0=new HashSet<>(headers[0].getSampleNamesInOrder());
-			Set<String> samples1=new HashSet<>(headers[1].getSampleNamesInOrder());
-			Set<String> samples= new TreeSet<>(samples0);
+			final Set<String> samples0=new HashSet<>(headers[0].getSampleNamesInOrder());
+			final Set<String> samples1=new HashSet<>(headers[1].getSampleNamesInOrder());
+			final Set<String> samples= new TreeSet<>(samples0);
 			samples.retainAll(samples1);
 			
 			if(samples.size()!=samples0.size() || samples.size()!=samples1.size())
@@ -294,7 +299,7 @@ public class VcfCompareCallers
 			if(super.exampleFile!=null)
 				{
 				exampleWriter=new PrintWriter(exampleFile,"UTF-8");
-				XMLOutputFactory xof=XMLOutputFactory.newFactory();
+				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 				exampleOut=xof.createXMLStreamWriter(exampleWriter);
 				exampleOut.writeStartDocument("UTF-8", "1.0");
 				exampleOut.writeStartElement("compare-callers");
@@ -361,13 +366,21 @@ public class VcfCompareCallers
 					interval = new Interval(ctx1.getContig(),ctx1.getStart(),ctx1.getEnd());
 					}
 				
-				//paranoid check
+				if(super.ignoreIndels)
+					{
+					if(ctx0!=null && !ctx0.isSNP()) continue;
+					if(ctx1!=null && !ctx1.isSNP()) continue;
+					}
+				
 				if( buffer[0]!=null && buffer[1]!=null)
 					{
+					
+					//paranoid check
 					if( ctxComparator.compare(buffer[0],buffer[1])!=0) {
 						exampleWriter.close();
 						throw new IllegalStateException();
-						}	
+						}
+					
 					}
 				
 				boolean in_capture=true;
@@ -463,6 +476,12 @@ public class VcfCompareCallers
 							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.common_context_discordant_id);
 							}
 						
+						if( (ctx0.isFiltered() != ctx1.isFiltered())
+							)
+							{
+							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.common_context_discordant_filter);
+							}
+						
 						
 						if(g0.sameGenotype(g1))
 							{
@@ -484,7 +503,11 @@ public class VcfCompareCallers
 						else
 							{
 							watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_but_discordant);
-
+							if(ctx0.isSNP() && ctx1.isSNP())
+								{
+								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_but_discordant_snp);
+								}
+							
 							if(g0.isHom() && g1.isHet())
 								{
 								watch(exampleOut,ctx0,ctx1,g0,g1,sampleName,sampleInfo,Category.called_but_discordant_hom1_het2);

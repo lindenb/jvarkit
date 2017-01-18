@@ -29,8 +29,11 @@ History:
 package com.github.lindenb.jvarkit.util.vcf;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Iterator;
+import java.util.function.Predicate;
 
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
@@ -38,7 +41,42 @@ import htsjdk.variant.vcf.VCFHeader;
 /** net.sf.picard.vcf.VCFIterator deleted from from picard 1.100 */
 public interface VcfIterator extends Iterator<VariantContext>,Closeable
 	{
+	/** get the codec for this vcf */
 	public AbstractVCFCodec getCodec();
+	/** get the VCF header */ 
 	public VCFHeader getHeader();
+	/** peek the next Variant */
     public VariantContext peek();
+    
+    /** wrap as a filtering iterator */
+    public static VcfIterator filter(final VcfIterator delegate,final Predicate<VariantContext> predicate)
+    	{
+         class FilteringVcfIterator
+         	extends AbstractIterator<VariantContext>
+    		implements VcfIterator
+    		{
+        	private final VcfIterator delegate;
+        	private final Predicate<VariantContext> predicate;
+        	FilteringVcfIterator(final VcfIterator delegate,final Predicate<VariantContext> predicate) {
+    			this.delegate = delegate;
+    			this.predicate=predicate;
+    			}
+    		@Override
+    		public AbstractVCFCodec getCodec() { return this.delegate.getCodec();}
+    		@Override
+    		public VCFHeader getHeader() { return this.delegate.getHeader();}
+    		@Override
+    		public void close() throws IOException {this.delegate.close();}
+    		@Override
+    		protected VariantContext advance() {
+    			while(this.delegate.hasNext())
+    				{
+    				final VariantContext ctx=this.delegate.next();
+    				if(this.predicate.test(ctx)) return ctx;;
+    				}
+    			return null;
+    			}
+    		}
+    	return new FilteringVcfIterator(delegate,predicate);
+    	}
     }

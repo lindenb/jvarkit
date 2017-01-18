@@ -22,6 +22,9 @@
 	<option name="homRefIsNoCall" type="boolean" longopt="homref2nocall"  opt="c" default="false">
 		<description>Treat HomRef as No Call (created when comparing merged vcf with GATK: there is no homref, everything is nocall)</description>
 	</option>
+	<option name="ignoreIndels" type="boolean" longopt="noindel"  opt="d" default="false">
+		<description>Ignore indels (SNP only)</description>
+	</option>
 </options>
 
 
@@ -51,11 +54,13 @@ $ java -jar dist/vcfcomparecallers.jar file1.vcf(.gz) file2.vcf(.gz)
 <h:li>common_context_snp:  a genotype is available for this sample for this context in vcf1 and vcf2 and it's a snp.</h:li>
 <h:li>common_context_indel:  a genotype is available for this sample for this context in vcf1 and vcf2 and it's an indel.</h:li>
 <h:li>common_context_discordant_id:  a genotype is available for this sample for this context in vcf1 and vcf2  but the column ID was not the same.</h:li>
+<h:li>common_context_discordant_filter:  a genotype is available for this sample for this context in vcf1 and vcf2  but the column FILTER is set in one and not in the other</h:li>
 <h:li>called_and_same : vcf1 and vcf2 have the same genotype for this sample and variant (chrom/pos/ref).</h:li>
 <h:li>called_and_same_hom_ref :  vcf1 and vcf2 have the same hom-ref genotype for this sample and variant (chrom/pos/ref).</h:li>
 <h:li>called_and_same_hom_var :  vcf1 and vcf2 have the same hom-var genotype for this sample and variant (chrom/pos/ref).</h:li>
 <h:li>called_and_same_het : vcf1 and vcf2 have the same het genotype for this sample and variant (chrom/pos/ref).</h:li>
 <h:li>called_but_discordant : vcf1 and vcf2 don't have the same genotype for this variant and sample.</h:li>
+<h:li>called_but_discordant_snp : vcf1 and vcf2 don't have the same genotype for this variant and sample and the variant is a SNP.</h:li>
 <h:li>called_but_discordant_hom1_het2 :  vcf1 and vcf2 don't have the same genotype for this variant and sample. vcf1 is hom and vcf2 is het</h:li>
 <h:li>called_but_discordant_het1_hom2 :  vcf1 and vcf2 don't have the same genotype for this variant and sample. vcf1 is het and vcf2 is hom</h:li>
 <h:li>called_but_discordant_hom1_hom2 :  vcf1 and vcf2 don't have the same genotype for this variant and sample. vcf1 is hom and vcf2 is hom</h:li>

@@ -36,12 +36,14 @@ import java.util.Map;
 
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
+import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Input;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.utils.commandline.RodBinding;
 import org.broadinstitute.gatk.utils.report.GATKReport;
 import org.broadinstitute.gatk.utils.report.GATKReportTable;
 
+import com.github.lindenb.jvarkit.gatk.GatkReportWriter;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParserFactory;
 
@@ -60,7 +62,10 @@ public abstract class AbstractGroupBy
     public RodBinding<VariantContext> variants;
     @Output(doc="File to which result should be written")
     public PrintStream out = System.out;
-        
+    @Argument(shortName="outputTableFormat",fullName="outputTableFormat", doc="Format for the output table", required=false)
+    protected GatkReportWriter.Format outputTableFormat =  GatkReportWriter.Format.DEFAULT;
+
+    
     protected AnnPredictionParser annParser= new PredictionParserFactory().buildAnnPredictionParser();
     
     static public class Category
@@ -140,9 +145,10 @@ public abstract class AbstractGroupBy
 			table.set(nRows, cat.labels.size(), counts.get(cat));
 			++nRows;
 			}
+		final GatkReportWriter reportWriter = GatkReportWriter.createWriter(this.outputTableFormat);
 		final GATKReport report = new GATKReport();
 		report.addTable(table);
-		report.print(this.out);
+		reportWriter.print(report, this.out);
 		this.out.flush();
 		
 		logger.info("TraversalDone");
