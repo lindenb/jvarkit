@@ -4,4 +4,17 @@
  <!ENTITY package "com.github.lindenb.jvarkit.tools.sortvcfonref">
 ]>
 <app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
-<description>&name;</description><arguments> </arguments><!-- __PLACEHOLDER__ --></app>
+<description>Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.</description>
+<input type="stdin-or-one"/>
+<output type="vcf"/>
+
+<options>
+	<option name="MAX_RECORDS_IN_RAM" type="int" opt="N" label="Buffer size" longopt="buffersize" arg-name="NUMBER" default="1000">
+		<description>max records in ram</description>
+	</option>
+</options>
+
+
+<!-- __PLACEHOLDER__ -->
+
+</app>

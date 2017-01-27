@@ -1,13 +1,40 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+
+*/
 package com.github.lindenb.jvarkit.tools.sortvcfonref;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 
 import htsjdk.tribble.readers.LineIterator;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 
 import htsjdk.samtools.util.CloserUtil;
 
@@ -15,43 +42,29 @@ import htsjdk.samtools.util.CloserUtil;
  * AlmostSortedVcfOnRef
  *
  */
-public class AlmostSortedVcf extends AbstractCommandLineProgram
+public class AlmostSortedVcf extends AbstractAlmostSortedVcf
 	{
-	private PrintWriter out=null;
-    private int MAX_RECORDS_IN_RAM=1000;
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AlmostSortedVcf.class);
+
     
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/AlmostSortedVcf";
-    	}
-	
-    private AlmostSortedVcf()
-    	{
-    	
-    	}
-    
-    @Override
-    public String getProgramDescription() {
-    	return "Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.";
-    	}
     private static class ChromPosLine
     	implements Comparable<ChromPosLine>
     	{
-    	int pos;
-    	String chrom;
-    	String line;
-    	public ChromPosLine(String line)
+    	final int pos;
+    	final String chrom;
+    	final String line;
+    	public ChromPosLine(final String line)
     		{
-    		int tab1=line.indexOf('\t');
+    		final int tab1=line.indexOf('\t');
     		if(tab1==-1) throw new IllegalArgumentException("Bad VCF line in "+line);
     		this.chrom=line.substring(0,tab1);
-			int tab2=line.indexOf('\t',tab1+1);
+    		final int tab2=line.indexOf('\t',tab1+1);
     		if(tab2==-1) throw new IllegalArgumentException("Bad VCF line in "+line);
     		try
     			{
     			this.pos=Integer.parseInt(line.substring(tab1+1, tab2));
     			}
-    		catch(NumberFormatException err)
+    		catch(final NumberFormatException err)
     			{
     			throw new IllegalArgumentException("Bad VCF line in "+line);
     			}
@@ -59,7 +72,7 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
     		this.line=line;
     		}
     	@Override
-    	public int compareTo(ChromPosLine o)
+    	public int compareTo(final  ChromPosLine o)
     		{
     		int i=this.chrom.compareTo(o.chrom);
     		if(i!=0) return i;
@@ -72,7 +85,7 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
     		return line.hashCode();
     		}
     	@Override
-    	public boolean equals(Object obj) {
+    	public boolean equals(final  Object obj) {
     		return line.equals(ChromPosLine.class.cast(obj).line);
     		}
     	@Override
@@ -81,58 +94,23 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
     		}
     	}
 	
-	
-	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -N (int) max records in ram. default: "+MAX_RECORDS_IN_RAM);
-		super.printOptions(out);
-		}
-    
-    @Override
-    public int doWork(String[] args)
-    	{
-    
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"N:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'N': MAX_RECORDS_IN_RAM=Math.max( Integer.parseInt(opt.getOptArg()),10);break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-    	
+	protected Collection<Throwable> call(final  String inputName) throws Exception {
+			
+		PrintWriter out=null;
 		LineIterator in=null;
 		int n_fixed=0;
 		try
 			{
-			this.out=new PrintWriter(System.out);
-		    ArrayList<ChromPosLine> buffer=new ArrayList<ChromPosLine>(this.MAX_RECORDS_IN_RAM);
-			int ret=0;
-			if(opt.getOptInd()==args.length)
+			out= super.openFileOrStdoutAsPrintWriter();
+			final ArrayList<ChromPosLine> buffer=new ArrayList<ChromPosLine>(this.MAX_RECORDS_IN_RAM);
+			if(inputName==null)
 				{
 				in=IOUtils.openStdinForLineIterator();
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else 
 				{
-				String filename=args[opt.getOptInd()];
-				in=IOUtils.openURIForLineIterator(filename);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
+				in=IOUtils.openURIForLineIterator(inputName);
 				}
 			
 			while(in.hasNext() && in.peek().startsWith("#"))
@@ -142,12 +120,13 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
 			
 			while(in.hasNext() && !out.checkError())
 				{
-				String line=in.next();
+				final  String line=in.next();
 				if(line.startsWith("#"))
 					{
+					out.close();
 					throw new IOException("Bad VCF file in "+line);
 					}
-				ChromPosLine cpl=new ChromPosLine(line);
+				final  ChromPosLine cpl=new ChromPosLine(line);
 				
 				if(buffer.isEmpty() )
 					{
@@ -158,9 +137,9 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
 					//not same chrom buffer : flush buffer ?
 					if(!buffer.get(0).chrom.equals(cpl.chrom))
 						{
-						for(ChromPosLine other: buffer)
+						for(final  ChromPosLine other: buffer)
 							{
-							this.out.println(other.line);
+							out.println(other.line);
 							}
 						buffer.clear();
 						buffer.add(cpl);
@@ -172,14 +151,17 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
 							{
 							index--;
 							}
-						if(index==0) throw new IOException("Too many variants misplaced. use a larger 'max-records-in-ram' or use a classic vcf-sorter");
+						if(index==0) {
+							out.close();
+							throw new IOException("Too many variants misplaced. use a larger 'max-records-in-ram' or use a classic vcf-sorter");
+						}
 						if(index!=buffer.size()) ++n_fixed;
 						buffer.add(index, cpl);
 						
 						//flush buffer if needed
 						while(!buffer.isEmpty() &&buffer.size() > MAX_RECORDS_IN_RAM)
 							{
-							this.out.println(buffer.remove(0).line);
+							out.println(buffer.remove(0).line);
 							}
 
 						}
@@ -191,24 +173,23 @@ public class AlmostSortedVcf extends AbstractCommandLineProgram
 			//flush buffer
 			while(!buffer.isEmpty())
 				{
-				this.out.println(buffer.remove(0).line);
+				out.println(buffer.remove(0).line);
 				}
 			
-			this.out.flush();
+			out.flush();
 			if(n_fixed==0)
 				{
-				info("No VCF position was fixed: worth using "+getProgramName()+" !");
+				LOG.info("No VCF position was fixed: worth using "+getName()+" !");
 				}
 			else if(n_fixed>0)
 				{
-				info(""+n_fixed+" VCF positions were fixed: worth using "+getProgramName()+ " !");
+				LOG.info(""+n_fixed+" VCF positions were fixed: worth using "+getName()+ " !");
 				}
-			return ret;
+			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final  Exception err)
 			{
-			error(err);
-			return -1;
+			return wrapException(err);
 			}
 		finally
 			{

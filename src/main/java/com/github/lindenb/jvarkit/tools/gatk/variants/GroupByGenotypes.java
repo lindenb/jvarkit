@@ -44,6 +44,7 @@ import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.report.GATKReportTable;
 
+import com.github.lindenb.jvarkit.gatk.Category;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 
 import htsjdk.variant.variantcontext.Allele;
@@ -87,7 +88,7 @@ public class GroupByGenotypes  extends AbstractGroupBy {
 
     
     @Override
-    public Map<com.github.lindenb.jvarkit.tools.gatk.variants.AbstractGroupBy.Category, Long> map(
+    public Map<Category, Long> map(
     		final RefMetaDataTracker tracker, 
     		final ReferenceContext refctx,
     		final AlignmentContext context

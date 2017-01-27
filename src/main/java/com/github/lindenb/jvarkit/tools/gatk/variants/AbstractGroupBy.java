@@ -29,10 +29,15 @@ History:
 package com.github.lindenb.jvarkit.tools.gatk.variants;
 
 import java.io.PrintStream;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
@@ -43,6 +48,7 @@ import org.broadinstitute.gatk.utils.commandline.RodBinding;
 import org.broadinstitute.gatk.utils.report.GATKReport;
 import org.broadinstitute.gatk.utils.report.GATKReportTable;
 
+import com.github.lindenb.jvarkit.gatk.Category;
 import com.github.lindenb.jvarkit.gatk.GatkReportWriter;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParserFactory;
@@ -55,8 +61,8 @@ import htsjdk.variant.vcf.VCFHeader;
  * 
  */
 public abstract class AbstractGroupBy
-	extends RodWalker<Map<AbstractGroupBy.Category,Long>, Map<AbstractGroupBy.Category,Long>> 
-	implements  org.broadinstitute.gatk.engine.walkers.TreeReducible< Map<AbstractGroupBy.Category,Long> >
+	extends RodWalker<Map<Category,Long>, Map<Category,Long>> 
+	implements  org.broadinstitute.gatk.engine.walkers.TreeReducible< Map<Category,Long> >
 	{
     @Input(fullName="variant", shortName = "V", doc="Input VCF file", required=true)
     public RodBinding<VariantContext> variants;
@@ -68,32 +74,197 @@ public abstract class AbstractGroupBy
     
     protected AnnPredictionParser annParser= new PredictionParserFactory().buildAnnPredictionParser();
     
-    static public class Category
+    /** utility class to get a window/range result for doubles values */
+    protected static class DoubleRangeClassifier implements Function<Object, String>
     	{
-    	private final int _hash;
-    	private final List<Object> labels ;
-    	public Category(final List<Object> labels) {
-    		this.labels= Collections.unmodifiableList(labels);
-    		this._hash = this.labels.hashCode();
+    	static class Window
+    		{
+    		private final double min;
+    		private final double window_size;
+    		Window(
+        			final double min,
+        			final double window_size
+        			)
+        		{
+        		this.min=min;
+        		this.window_size=window_size;
+        		}
+    		@Override
+    		public String toString() {
+    			return "(min:"+min+" size:"+window_size+")";
+    			}
+    		}
+    	
+    	private final List<Window> windows;
+    	private final double max;
+    	private final DecimalFormat decimalFormat;
+    	DoubleRangeClassifier(
+    			List<Window> windows,
+    			final double max,
+    			final DecimalFormat decimalFormat
+    			)
+    		{
+    		List<Window> newins =new ArrayList<>(windows);
+    		newins.sort(new Comparator<Window>() {
+	    			@Override
+	    			public int compare(final Window o1,final Window o2) {
+	    				if(o1.min<o2.min) return -1;
+	    				if(o1.min>o2.min) return 1;
+	    				throw new IllegalStateException("got to windows with same min value");
+	    			}
+	    		});
+    		this.windows=Collections.unmodifiableList(newins);
+    		if(this.windows.isEmpty()) throw new IllegalArgumentException("No window defined");
+    		this.max=max;
+    		for(final Window w:this.windows) if(this.max<=w.min)  throw new IllegalArgumentException("Windows min>=max "+w);
+    		this.decimalFormat = decimalFormat;
     		}
     	@Override
-    	public int hashCode() {
-    		return this._hash;
-    		}
-    	@Override
-    	public boolean equals(final Object o) {
-    		if(o==this) return true;
-    		if(o==null || !(o instanceof Category)) return false;
-    		final Category other=Category.class.cast(o);
-    		return this._hash==other._hash &&
-    					this.labels.equals(other.labels);
-    		}
-    	@Override
-    	public String toString() {
-    		return this.labels.toString();
+    	public String apply(final Object t) {
+    		if(t==null) return "N/A";
+    		else if(t instanceof Double) 
+				{
+    			final double v =Double.class.cast(t);
+				if(v<this.windows.get(0).min) return "LT_"+this.decimalFormat.format(this.windows.get(0).min);
+				if(v>=this.max) return "GE_"+this.decimalFormat.format(this.max);
+
+    			for(int i=0;i< windows.size();++i)
+    				{
+    				//double M = this.max;
+    				if(i+1<windows.size())
+    					{
+    					if( v >=windows.get(i+1).min) continue;
+    					//M = windows.get(i+1).min;
+    					}
+    				final Window win = windows.get(i);
+    				if(v<win.min) continue;
+    				double x= win.min;
+    				for(;;)
+    					{
+    					if(x<= v && v< (x+win.window_size)) {
+							return "[" +
+								this.decimalFormat.format(x) +
+								"-" +
+								this.decimalFormat.format(x+win.window_size) +
+								"["
+								;
+    						}
+    					x+=win.window_size;
+    					}    				
+    				}
+    			throw new IllegalStateException("should never happen "+v + " "+this.windows);
+				}
+    		else
+    			{
+    			try {
+					return this.apply(Double.parseDouble(t.toString()));
+				} catch (NumberFormatException e) {
+					return "NaN";
+					}
+    			}
     		}
     	}
     
+    /** utility class to get a window/range result for integer values */
+    protected static class IntRangeClassifier implements Function<Object, String>
+    {
+    	static class Window
+    	{
+    		private final int min;
+    		private final int window_size;
+    		Window(
+    				final int min,
+    				final int window_size
+    				)
+    		{
+    			this.min=min;
+    			this.window_size=window_size;
+    		}
+    		@Override
+    		public String toString() {
+    			return "(min:"+min+" size:"+window_size+")";
+    			}
+    	}
+
+    	private final List<Window> windows;
+    	private final int max;
+    	private final NumberFormat decimalFormat;
+    	IntRangeClassifier(
+    			List<Window> windows,
+    			final int max,
+    			final NumberFormat decimalFormat
+    			)
+    	{
+    		List<Window> newins =new ArrayList<>(windows);
+    		newins.sort(new Comparator<Window>() {
+    			@Override
+    			public int compare(final Window o1,final Window o2) {
+    				if(o1.min<o2.min) return -1;
+    				if(o1.min>o2.min) return 1;
+    				throw new IllegalStateException("got to windows with same min value");
+    			}
+    		});
+    		this.windows=Collections.unmodifiableList(newins);
+    		if(this.windows.isEmpty()) throw new IllegalArgumentException("No window defined");
+    		this.max=max;
+    		for(final Window w:this.windows) if(this.max<=w.min)  throw new IllegalArgumentException("Windows min>=max "+w);
+    		this.decimalFormat = decimalFormat;
+    	}
+    	@Override
+    	public String apply(final Object t) {
+    		if(t==null) return "N/A";
+    		else if(t instanceof Integer) 
+    			{
+    			final int v =Integer.class.cast(t);
+    			if(v<this.windows.get(0).min) return "LT_"+this.decimalFormat.format(this.windows.get(0).min);
+    			if(v>=this.max) return "GE_"+this.decimalFormat.format(this.max);
+    			for(int i=0;i< windows.size();++i)
+    			{
+    				//int M = this.max;
+    				
+    				if(i+1<windows.size())
+    				{
+    					if( v >=windows.get(i+1).min) continue;
+    					//M = windows.get(i+1).min;
+    				}
+    				final Window win = windows.get(i);
+    				if(v<win.min) continue;
+    				int x= win.min;
+    				
+    				for(;;)
+    					{
+    					//if(v==944) System.err.println("x"+x+" v="+v+" "+ win);
+    					if(x<= v && v< (x+win.window_size)/* && (x+win.window_size)<M*/) 
+    						{	
+    						if(win.window_size==1)
+    							{
+    							return this.decimalFormat.format(x);
+    							}
+    						else
+    							{
+    							return "[" +
+									this.decimalFormat.format(x) +
+									"-" +
+									this.decimalFormat.format(x+win.window_size) +
+									"["
+									;
+    							}
+    						}
+	    				x+=win.window_size;
+	    				}    				
+	    			}
+    			throw new IllegalStateException("should never happen v="+v+" windows="+this.windows);
+    		}
+    		else
+    		{
+    			try {
+    				return this.apply(Integer.parseInt(t.toString()));
+    			} catch (NumberFormatException e) {
+    				return "NaN";
+    			}
+    		}
+    	}
+    }
     
     
     @Override
@@ -105,17 +276,17 @@ public abstract class AbstractGroupBy
     
 	
 	@Override
-	public Map<AbstractGroupBy.Category,Long> treeReduce(
-			final Map<AbstractGroupBy.Category,Long> value,
-			final Map<AbstractGroupBy.Category,Long> sum) {
+	public Map<Category,Long> treeReduce(
+			final Map<Category,Long> value,
+			final Map<Category,Long> sum) {
 		return this.reduce(value,sum);
 		}
 
 	@Override
-	public Map<AbstractGroupBy.Category,Long> reduce(
-		final Map<AbstractGroupBy.Category,Long> value,
-		final Map<AbstractGroupBy.Category,Long> sum) {
-		final Map<AbstractGroupBy.Category,Long> newmap = new HashMap<>(sum);
+	public Map<Category,Long> reduce(
+		final Map<Category,Long> value,
+		final Map<Category,Long> sum) {
+		final Map<Category,Long> newmap = new HashMap<>(sum);
 		for(final Category cat:value.keySet()) {
 			final Long sv = sum.get(cat);
 			final Long vv = value.get(cat);
@@ -125,24 +296,24 @@ public abstract class AbstractGroupBy
 	}
 
 	@Override
-	public Map<AbstractGroupBy.Category,Long> reduceInit() {
+	public Map<Category,Long> reduceInit() {
 		return Collections.emptyMap();
 	}
 	protected abstract  GATKReportTable createGATKReportTable();
 
 	@Override
-	public void onTraversalDone(final Map<AbstractGroupBy.Category,Long> counts) {
+	public void onTraversalDone(final Map<Category,Long> counts) {
 		final GATKReportTable table=createGATKReportTable();
 		table.addColumn("COUNT");
 		
 		int nRows=0;
 		for(final Category cat: counts.keySet())
 			{
-			for(int x=0;x<cat.labels.size();++x)
+			for(int x=0;x<cat.size();++x)
 				{
-				table.set(nRows, x, cat.labels.get(x));
+				table.set(nRows, x, cat.get(x));
 				}
-			table.set(nRows, cat.labels.size(), counts.get(cat));
+			table.set(nRows, cat.size(), counts.get(cat));
 			++nRows;
 			}
 		final GatkReportWriter reportWriter = GatkReportWriter.createWriter(this.outputTableFormat);
