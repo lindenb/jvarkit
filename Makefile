@@ -222,7 +222,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
 	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 \
-	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01
+	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081
 	
 
 
@@ -312,6 +312,7 @@ $(eval $(call compile_biostar_cmd,173114))
 $(eval $(call compile_biostar_cmd,175929,wiki_flag))
 $(eval $(call compile_biostar_cmd,178713))
 $(eval $(call compile_biostar_cmd,214299,wiki_flag))
+$(eval $(call compile_biostar_cmd,234081,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast wiki_flag))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,blastmapannots, ${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations, api.ncbi.blast api.ncbi.gb ${generated.dir}/java/org/uniprot/package-info.java))

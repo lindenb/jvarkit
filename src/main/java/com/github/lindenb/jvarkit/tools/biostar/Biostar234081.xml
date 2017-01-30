@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE app [
+ <!ENTITY name "Biostar234081">
+ <!ENTITY package "com.github.lindenb.jvarkit.tools.biostar">
+]>
+<app xmlns="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg" app="&name;" package="&package;" __placeholder__="1">
+<description>convert extended CIGAR to regular CIGAR (https://www.biostars.org/p/234081/)</description>
+<input type="sam"/>
+<output type="sam"/>
+
+<options>
+</options>
+
+<!-- __PLACEHOLDER__ -->
+</app>
