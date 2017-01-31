@@ -151,7 +151,10 @@ public class Biostar234230 extends AbstractBiostar234230
 					if(rec.getReadUnmappedFlag()) continue;
 					if(!rec.getReadPairedFlag()) continue;
 					if(rec.getMateUnmappedFlag()) continue;
+					if(!rec.getProperPairFlag()) continue;
+					if(!rec.getReferenceName().equals(rec.getMateReferenceName())) continue;
 					if(rec.getMateAlignmentStart()> rec.getAlignmentStart()) continue;
+					
 					}
 				if(rec==null || !rec.getContig().equals(prev_contig))
 					{
