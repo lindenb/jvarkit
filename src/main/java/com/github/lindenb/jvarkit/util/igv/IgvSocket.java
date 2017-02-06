@@ -9,6 +9,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Controlling IGV through a Port
@@ -33,7 +36,7 @@ public class IgvSocket
 		{
 		
 		}
-	private IgvSocket(IgvSocket src)
+	private IgvSocket(final IgvSocket src)
 		{
 		this.host = src.host;
 		this.port = src.port;
@@ -45,7 +48,7 @@ public class IgvSocket
 	public int getPort() {
 		return port;
 		}
-	public void setHost(String host) {
+	public void setHost(final String host) {
 		this.host = host;
 		}
 	public void setPort(int port) {
@@ -99,21 +102,33 @@ public class IgvSocket
 	public void show(final String chrom,int chromStart)
 		{
 		if(chrom==null || chrom.trim().isEmpty() || chromStart<0) return;
-		ShowRunner run=new ShowRunner();
-		run.copy = new IgvSocket(this);//create a copy
-		run.chrom = chrom;
-		run.start = chromStart;
-		Thread thread=new Thread(run);
-		thread.start();
+		execute(Collections.singletonList("goto "+chrom+":"+chromStart));
+		}
+	
+	public Runnable buildRunnable(final List<String> cmds) 
+		{
+		return new ShowRunner(this,cmds);
+		}
+
+	
+	
+	public void execute(final List<String> cmds) 
+		{
+		new Thread(buildRunnable(cmds)).start();
 		}
 	
 	
 	private static class ShowRunner implements Runnable
 		{
-		IgvSocket copy;
-		String chrom;
-		int start;
-
+		final IgvSocket copy;
+		//String chrom;
+		//int start;
+		final List<String> commands;
+		
+		ShowRunner(final IgvSocket socket,final List<String> command) {
+			this.commands = new ArrayList<>(command);
+			this.copy =  new IgvSocket(socket);
+			}
 		@Override
 		public void run() {
 
@@ -122,11 +137,14 @@ public class IgvSocket
 				{
 				out = this.copy.getWriter();
 				this.copy.getReader();
-				out.println("goto "+this.chrom+":"+this.start);
-				try{ Thread.sleep(5*1000);}
-				catch(InterruptedException err2) {}
-				 }
-			catch(Exception err)
+				for(final String command:this.commands)
+					{
+					out.println(command);
+					try{ Thread.sleep(5*1000);}
+					catch(InterruptedException err2) {}
+					 }
+				}
+			catch(final Exception err)
 				{
 				err.printStackTrace();
 				}
