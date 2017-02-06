@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -12,16 +13,21 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFlag;
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.SAMRecordIterator;
@@ -31,11 +37,11 @@ import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.SamReaderFactory.Option;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
@@ -43,10 +49,10 @@ import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -54,14 +60,15 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
@@ -75,10 +82,10 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
@@ -91,7 +98,8 @@ import javafx.util.Callback;
 public class JfxNgs extends Application {
     private static final Logger LOG= Logger.getLogger("JfxNgs");
     private final Preferences preferences ;
-
+    
+    
     /** abstract base class for NGS window */
     private abstract class StageContent
         extends Stage
@@ -104,13 +112,52 @@ public class JfxNgs extends Application {
                     }
                 });
             }
+        @Override
+        protected void finalize() throws Throwable {
+        	closeNgsResource();
+        	super.finalize();
+        	}
+        /** send those command to IGV */
+        protected void openInIgv(final List<String> commands)
+        	{
+        	if(commands==null || commands.isEmpty()) return;
+        	@SuppressWarnings("resource")
+			final IgvSocket socket=new IgvSocket();
+        	final Runnable r=socket.buildRunnable(commands);
+        	new Thread(r).start();
+        	}
+
+        /** send a goto command to IGV */
+        protected void openInIgv(final Locatable feature)
+        	{
+        	if(feature==null) return;
+        	openInIgv(
+        			Collections.singletonList("goto "+feature.getContig()+":"+feature.getStart()+"-"+feature.getEnd())
+        			);
+        	}
+        
+        abstract void openInIgv();
         /** close the NGS resource , even if the window was not opened */
         abstract void closeNgsResource();
         abstract void reloadData();
         
+        
+        protected <T,R> TableColumn<T,R> makeColumn(final String tag,final Function<T,R> supplier)
+        	{
+            final TableColumn<T,R>  col = new TableColumn<>(tag);
+ 	        col.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<T,R>, ObservableValue<R>>() {				
+ 				@Override
+ 				public ObservableValue<R> call(CellDataFeatures<T, R> param) {
+ 					return new ReadOnlyObjectWrapper<R>(supplier.apply(param.getValue()));
+ 					}
+ 				});
+ 	        return col;
+        	}
+        
         /** build a table view for a Dictionary */
         protected Tab buildDictTab(final SAMSequenceDictionary dict)
 	        {
+        	
 			/* build INFO Table */
 			final TableView<SAMSequenceRecord> table=new TableView<>(
 					dict==null?
@@ -118,34 +165,10 @@ public class JfxNgs extends Application {
 					FXCollections.observableArrayList(dict.getSequences())
 					);
 			
-			/* Name */
-	        TableColumn<SAMSequenceRecord,String>  scol = new TableColumn<>("Name");
-	        scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMSequenceRecord,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMSequenceRecord, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().getSequenceName());
-					}
-				});
-	        table.getColumns().add(scol);
+	        table.getColumns().add(makeColumn("Name",SSR->SSR.getSequenceName()));
+	        table.getColumns().add(makeColumn("Length",SSR->SSR.getSequenceLength()));
+	        table.getColumns().add(makeColumn("Assembly",SSR->SSR.getAssembly()));
 	        
-			/* Length */
-	        TableColumn<SAMSequenceRecord,Integer>  lcol = new TableColumn<>("Length");
-	        lcol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMSequenceRecord,Integer>, ObservableValue<Integer>>() {				
-				@Override
-				public ObservableValue<Integer> call(CellDataFeatures<SAMSequenceRecord, Integer> param) {
-					return new ReadOnlyObjectWrapper<Integer>(param.getValue().getSequenceLength());
-					}
-				});
-	        table.getColumns().add(lcol);
-			/* Name */
-	        scol = new TableColumn<>("Assembly");
-	        scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMSequenceRecord,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMSequenceRecord, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().getAssembly());
-					}
-				});
-	        table.getColumns().add(scol);
 	        
 	        final Tab tab=new Tab("Dict", table);
 	        tab.setClosable(false);
@@ -228,7 +251,8 @@ public class JfxNgs extends Application {
             final VBox vbox1 = new VBox();
             vbox1.getChildren().add(menuBar);
             
-            FlowPane top1= new FlowPane();
+            FlowPane top1= new FlowPane(5,5);
+            top1.setPadding(new Insets(10, 10, 10, 10));
             vbox1.getChildren().add(top1);
             top1.getChildren().add(new Label("GoTo:"));
             top1.getChildren().add(this.gotoField = new TextField());
@@ -260,10 +284,18 @@ public class JfxNgs extends Application {
 					reloadData();
 					}
 				});
-            
+            final Button igvButton =new Button("IGV");
+            top1.getChildren().add(igvButton);
+            igvButton.setOnAction(new EventHandler<ActionEvent>() {
+				@Override
+				public void handle(ActionEvent event) {
+					openInIgv();
+				}
+			});
             
             
             TabPane tabbedPane = new TabPane();
+            tabbedPane.setPadding(new Insets(10, 10, 10, 10));
             Tab tab= new Tab("Reads");
             tab.setClosable(false);
             tabbedPane.getTabs().add(tab);
@@ -271,120 +303,17 @@ public class JfxNgs extends Application {
             this.recordTable = new TableView<>();
             /** create columns */
             
-            /* create READ NAME columns */
-            final TableColumn<SAMRecord,String>  readNameCol = new TableColumn<>("Read-Name");
-            readNameCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMRecord, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().getReadName());
-					}
-				});
-            this.recordTable.getColumns().add(readNameCol);
-
-            /* create READ Flag columns */
-            final TableColumn<SAMRecord,Integer>  readFlagCol = new TableColumn<>("Flag");
-            readFlagCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,Integer>, ObservableValue<Integer>>() {				
-				@Override
-				public ObservableValue<Integer> call(CellDataFeatures<SAMRecord, Integer> param) {
-					return new ReadOnlyObjectWrapper<Integer>(param.getValue().getFlags());
-					}
-				});
-            this.recordTable.getColumns().add(readFlagCol);
-
-            /* create READ Reference columns */
-            final TableColumn<SAMRecord,String>  readRefCol = new TableColumn<>("Read-Ref");
-            readRefCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMRecord, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().getReferenceName());
-					}
-				});
-            this.recordTable.getColumns().add(readRefCol);
-            
-            /* create readPos columns */
-            final TableColumn<SAMRecord,Integer>  readPos = new TableColumn<>("Read-Pos");
-            readPos.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,Integer>, ObservableValue<Integer>>() {				
-				@Override
-				public ObservableValue<Integer> call(CellDataFeatures<SAMRecord, Integer> param) {
-					return new ReadOnlyObjectWrapper<Integer>(param.getValue().getAlignmentStart());
-					}
-				});
-            this.recordTable.getColumns().add(readPos);
-
-            
-            /* create Mapq columns */
-            final TableColumn<SAMRecord,Integer>  readMAPQCol = new TableColumn<>("MAPQ");
-            readMAPQCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,Integer>, ObservableValue<Integer>>() {				
-				@Override
-				public ObservableValue<Integer> call(CellDataFeatures<SAMRecord, Integer> param) {
-					return new ReadOnlyObjectWrapper<Integer>(param.getValue().getMappingQuality());
-					}
-				});
-            this.recordTable.getColumns().add(readMAPQCol);
-            
-            
-            /* create Mate Reference columns */
-            final TableColumn<SAMRecord,String>  cigarCol = new TableColumn<>("CIGAR");
-            cigarCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMRecord, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().getCigarString());
-					}
-				});
-            this.recordTable.getColumns().add(cigarCol);
-
-            
-            /* create LEN columns */
-            final TableColumn<SAMRecord,Integer>  readLEN = new TableColumn<>("LEN");
-            readLEN.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,Integer>, ObservableValue<Integer>>() {				
-				@Override
-				public ObservableValue<Integer> call(CellDataFeatures<SAMRecord, Integer> param) {
-					return new ReadOnlyObjectWrapper<Integer>(param.getValue().getInferredInsertSize());
-					}
-				});
-            this.recordTable.getColumns().add(readLEN);
-            
-            /* create Mate Reference columns */
-            final TableColumn<SAMRecord,String>  mateRefCol = new TableColumn<>("Mate-Ref");
-            mateRefCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMRecord, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().getMateReferenceName());
-					}
-				});
-            this.recordTable.getColumns().add(mateRefCol);
-            
-            /* create matePos columns */
-            final TableColumn<SAMRecord,Integer>  matePos = new TableColumn<>("Mate-Pos");
-            matePos.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,Integer>, ObservableValue<Integer>>() {				
-				@Override
-				public ObservableValue<Integer> call(CellDataFeatures<SAMRecord, Integer> param) {
-					return new ReadOnlyObjectWrapper<Integer>(param.getValue().getMateAlignmentStart());
-					}
-				});
-            this.recordTable.getColumns().add(matePos);
-
-            
-            /* create Sequence columns */
-            final TableColumn<SAMRecord,String>  readSequenceCol = new TableColumn<>("SEQ");
-            readSequenceCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMRecord, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().getReadString());
-					}
-				});
-            this.recordTable.getColumns().add(readSequenceCol);
-            
-            /* create QUAL columns */
-            final TableColumn<SAMRecord,String>  readQualCol = new TableColumn<>("QUAL");
-            readQualCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMRecord,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMRecord, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().getBaseQualityString());
-					}
-				});
-            this.recordTable.getColumns().add(readQualCol);
-
+            this.recordTable.getColumns().add(makeColumn("Read-Name",REC->REC.getReadName()));
+            this.recordTable.getColumns().add(makeColumn("Flag",REC->REC.getFlags()));
+            this.recordTable.getColumns().add(makeColumn("Ref",REC->REC.getReferenceName()));
+            this.recordTable.getColumns().add(makeColumn("Read-Pos",REC->REC.getAlignmentStart()));
+            this.recordTable.getColumns().add(makeColumn("MAPQ",REC->REC.getMappingQuality()));
+            this.recordTable.getColumns().add(makeColumn("CIGAR",REC->REC.getCigarString()));
+            this.recordTable.getColumns().add(makeColumn("LEN",REC->REC.getInferredInsertSize()));
+            this.recordTable.getColumns().add(makeColumn("Mate-Ref",REC->REC.getMateReferenceName()));
+            this.recordTable.getColumns().add(makeColumn("Mate-Pos",REC->REC.getMateAlignmentStart()));
+            this.recordTable.getColumns().add(makeColumn("SEQ",REC->REC.getReadString()));
+            this.recordTable.getColumns().add(makeColumn("QUAL",REC->REC.getBaseQualityString()));
             
             VBox borderPane = new VBox();
             borderPane.setPadding(new Insets(10, 10, 10, 10));
@@ -621,10 +550,11 @@ public class JfxNgs extends Application {
             tab.setContent(scroll);
             
             tabbedPane.getTabs().add(buildDictTab( this.samReader.getFileHeader().getSequenceDictionary()));
-            
+            tabbedPane.getTabs().add(createReadGroupPane(this.samReader.getFileHeader()));
+            tabbedPane.getTabs().add(createProgramRecordPane(this.samReader.getFileHeader()));
             
             vbox1.getChildren().add(tabbedPane);
-            this.setScene(new Scene(vbox1,1000,500));
+            this.setScene(new Scene(vbox1,1000,800));
             
             this.setOnShowing(new EventHandler<WindowEvent>() {
 				@Override
@@ -648,6 +578,133 @@ public class JfxNgs extends Application {
         	LOG.info("closing"+samReader.getResourceDescription());
             CloserUtil.close(samReader);
         	}
+        
+        
+        private Tab createReadGroupPane(final SAMFileHeader header)
+        	{
+        	TableView<SAMReadGroupRecord> table=new TableView<>(header==null?
+        			FXCollections.observableArrayList():
+        			FXCollections.observableArrayList(header.getReadGroups())
+        			);
+        	
+            TableColumn<SAMReadGroupRecord,String>  scol = new TableColumn<>("ID");
+            scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMReadGroupRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMReadGroupRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getId());
+					}
+				});
+            table.getColumns().add(scol);
+            
+            scol = new TableColumn<>("Sample");
+            scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMReadGroupRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMReadGroupRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getSample());
+					}
+				});
+            table.getColumns().add(scol);
+
+            scol = new TableColumn<>("SC");
+            scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMReadGroupRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMReadGroupRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getSequencingCenter());
+					}
+				});
+            table.getColumns().add(scol);
+           
+            scol = new TableColumn<>("PF");
+            scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMReadGroupRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMReadGroupRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getPlatform());
+					}
+				});
+            table.getColumns().add(scol);
+            
+           	
+            scol = new TableColumn<>("Desc.");
+            scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMReadGroupRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMReadGroupRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getDescription());
+					}
+				});
+            table.getColumns().add(scol);
+            
+            scol = new TableColumn<>("PU");
+            scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMReadGroupRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMReadGroupRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getPlatformUnit());
+					}
+				});
+            table.getColumns().add(scol);
+        	
+        	Tab tab=new Tab("RG", table);
+        	tab.setClosable(false);
+        	return tab;
+        	}
+        
+        private Tab createProgramRecordPane(final SAMFileHeader header)
+	    	{
+	    	TableView<SAMProgramRecord> table=new TableView<>(header==null?
+	    			FXCollections.observableArrayList():
+	    			FXCollections.observableArrayList(header.getProgramRecords())
+	    			);
+	    	
+	        TableColumn<SAMProgramRecord,String>  scol = new TableColumn<>("ID");
+	        scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMProgramRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMProgramRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getId());
+					}
+				});
+	        table.getColumns().add(scol);
+	        
+	        scol = new TableColumn<>("GroupID");
+	        scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMProgramRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMProgramRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getProgramGroupId());
+					}
+				});
+	        table.getColumns().add(scol);
+	        
+	        scol = new TableColumn<>("Prev-GroupID");
+	        scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMProgramRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMProgramRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getPreviousProgramGroupId());
+					}
+				});
+	        table.getColumns().add(scol);
+
+	        scol = new TableColumn<>("Version");
+	        scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMProgramRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMProgramRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getProgramVersion());
+					}
+				});
+	        table.getColumns().add(scol);
+	        
+	        
+	        scol = new TableColumn<>("Command");
+	        scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMProgramRecord,String>, ObservableValue<String>>() {				
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<SAMProgramRecord, String> param) {
+					return new ReadOnlyObjectWrapper<String>(param.getValue().getCommandLine());
+					}
+				});
+	        table.getColumns().add(scol);
+	        
+	    	Tab tab=new Tab("PG", table);
+	    	tab.setClosable(false);
+	    	return tab;
+	    	}
+        
         
         @Override
         void reloadData() {
@@ -726,7 +783,17 @@ public class JfxNgs extends Application {
         	if(iter!=null) iter.close();
         	this.recordTable.getItems().setAll(L);
         	}
+        @Override
+    	void openInIgv() {
+	    	final SAMRecord ctx=this.recordTable.getSelectionModel().getSelectedItem();
+	    	if(ctx==null) {
+	    		LOG.info("no variant selected");
+	    		}
+	    	if(ctx.getReadUnmappedFlag()) return;
+	    	openInIgv(ctx);
+	    	}
         }
+    
     private static class InfoTableRow
 		{
 		final String key;
@@ -749,6 +816,7 @@ public class JfxNgs extends Application {
     	private TableView<String> filterTableRow;
     	
     	VcfStage(final String path) {
+    		this.setTitle(path);
     		this.vcfFileReader = new VCFFileReader(new File(path),true);
     		final VCFHeader header=this.vcfFileReader.getFileHeader();
     		
@@ -778,7 +846,24 @@ public class JfxNgs extends Application {
             top1.getChildren().add(this.maxReadLimitSpinner=new Spinner<Integer>(0,100000,1000));
             top1.getChildren().add(new Separator(Orientation.VERTICAL));
     		
+            final Button igvButton =new Button("IGV");
+            top1.getChildren().add(igvButton);
+	        igvButton.setOnAction(new EventHandler<ActionEvent>() {
+					@Override
+					public void handle(ActionEvent event) {
+						openInIgv();
+					}
+				});
+            this.gotoField.setOnAction(new EventHandler<ActionEvent>()
+				{
+				@Override
+				public void handle(ActionEvent event)
+					{
+					reloadData();
+					}
+				});
     		final TabPane tabPane=new TabPane();
+    		tabPane.setPadding(new Insets(10, 10, 10, 10));
     		vbox1.getChildren().add(tabPane);
     		
     		
@@ -849,6 +934,7 @@ public class JfxNgs extends Application {
 
     		}
     	
+    	/** build FILTER table */
     	private TableView<String> buildFilterTable()
     		{
 			final TableView<String> table=new TableView<>();
@@ -863,8 +949,20 @@ public class JfxNgs extends Application {
             table.getColumns().add(scol);
 			
             
-			return table;    	}
+			return table;    
+			}
     	
+    	@Override
+    	void openInIgv() {
+	    	final VariantContext ctx=this.variantTable.getSelectionModel().getSelectedItem();
+	    	if(ctx==null) {
+	    		LOG.info("no variant selected");
+	    		}
+	    	openInIgv(ctx);
+	    	}
+    	
+    	
+    	/** build table of variants */
     	private TableView<VariantContext> buildVariantTable()
 			{
 			final TableView<VariantContext> table=new TableView<>();
@@ -944,7 +1042,7 @@ public class JfxNgs extends Application {
 			return table;
 			}
 
-    	
+    	/** build INFO table */
     	private TableView<InfoTableRow> buildInfoTableRow()
     		{
     		TableView<InfoTableRow> table=new TableView<JfxNgs.InfoTableRow>();
@@ -968,8 +1066,9 @@ public class JfxNgs extends Application {
             table.getColumns().add(valuecol);
     		return table;
     		}
-           
-    	private TableView<Genotype> buildGenotypeTableRow(VCFHeader header)
+          
+    	/** build Genotype table */
+    	private TableView<Genotype> buildGenotypeTableRow(final VCFHeader header)
 			{
 			TableView<Genotype> table=new TableView<Genotype>();
 			
@@ -1026,10 +1125,6 @@ public class JfxNgs extends Application {
         		this.filterTableRow.getItems().setAll(
         				ctx.getFilters()
         				);
-        		
-        		
-        		
-        		
         		
         		final List<InfoTableRow> infos=new ArrayList<>();
         		final Map<String,Object> atts = ctx.getAttributes();
@@ -1113,8 +1208,8 @@ public class JfxNgs extends Application {
 				});
             table.getColumns().add(desccol);
             
-            Tab tab=new Tab("INFO",table);
-            tab.setClosable(true);
+            Tab tab=new Tab("FORMAT",table);
+            tab.setClosable(false);
             return tab;
     		}
   
@@ -1167,7 +1262,7 @@ public class JfxNgs extends Application {
             table.getColumns().add(desccol);
             
             Tab tab=new Tab("INFO",table);
-            tab.setClosable(true);
+            tab.setClosable(false);
             return tab;
     		}
     	
@@ -1187,7 +1282,7 @@ public class JfxNgs extends Application {
             table.getColumns().add(formatIDcol);
 
             Tab tab=new Tab("FILTER",table);
-            tab.setClosable(true);
+            tab.setClosable(false);
             return tab;
     		}
    	
@@ -1215,7 +1310,9 @@ public class JfxNgs extends Application {
         		int colon =location.indexOf(":");
         		if(colon==-1)
         			{
+        			
         			contig=location;
+        			LOG.info("VCF query chromosome "+location);
         			iter=this.vcfFileReader.query(contig, 1, Integer.MAX_VALUE);
         			}
         		else
@@ -1225,8 +1322,9 @@ public class JfxNgs extends Application {
         			Integer start=null,end=null;
         			if(hyphen==-1)
         				{
-        				try { start= new Integer(location.substring(colon+1).trim());}
-        				catch(NumberFormatException err ) {start=null;}
+        				final String startStr=location.substring(colon+1).trim();
+        				try { start= new Integer(startStr);end=Integer.MAX_VALUE;}
+        				catch(NumberFormatException err ) {start=null;LOG.warning(startStr);}
         				}
         			else
         				{
@@ -1234,7 +1332,7 @@ public class JfxNgs extends Application {
     						start= new Integer(location.substring(colon+1,hyphen).trim());
     						end= new Integer(location.substring(hyphen+1).trim());
         					}
-        				catch(NumberFormatException err ) {start=null;end=null;}
+        				catch(NumberFormatException err ) {start=null;end=null;LOG.warning(location);}
         				}
         			if(start!=null && end!=null && start.compareTo(end)<=0)
         				{
@@ -1279,6 +1377,7 @@ public class JfxNgs extends Application {
     	super.stop();
     	}
     
+    /*
     private void showPreferenceDialoge(Window parentStage)
 	    {
 	    Stage dialog = new Stage();
@@ -1288,111 +1387,219 @@ public class JfxNgs extends Application {
 		 dialog.initOwner(parentStage);
 		 dialog.initModality(Modality.APPLICATION_MODAL); 
 		 dialog.showAndWait();
-	    }
+	    }*/
     
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(final Stage primaryStage) throws Exception {
         final Parameters params = this.getParameters();
-        List<String> optargs = params.getUnnamed();
-        /*
-        Parent rootNode=null;
-        for(int i=0;i< optargs.size();++i)
-            {
-            Parent node = createNodeForParam(optargs.get(i));
-            if(rootNode==null) {
-                rootNode = node;
-                }
-            else
-                {
-                final Stage stage=new Stage(primaryStage.getStyle());
-                stage.setScene(new Scene(node));
-                stage.show();
-                }
-            }
-        if(rootNode==null) {
-            rootNode = null;//TODO
-            }
-        primaryStage.setScene(new Scene(rootNode));
+        
+        
+       
+       
+        primaryStage.setTitle(getClass().getSimpleName());
+        Menu menu=new Menu("File");
+        MenuItem menuItem=new MenuItem("Open...");
+        menuItem.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				openNgsFiles(primaryStage);
+				
+			}
+		});
+        menu.getItems().add(menuItem);
+        menuItem=new MenuItem("Quit...");
+        menuItem.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				doMenuQuit();
+			}
+		});
+        menu.getItems().add(menuItem);
+        
+        MenuBar bar=new MenuBar(menu);
+        
+        BorderPane pane=new BorderPane();
+        
+        
+        
+        VBox vbox1= new VBox(bar,pane);
+        
+      
+        final Scene scene = new Scene(vbox1,500,300);
+       
+        primaryStage.setScene(scene);
+        primaryStage.setOnHidden(e -> doMenuQuit());
+       
+        Collection<StageContent> newStages=new ArrayList<>();
+        Exception lastException=null;
+        for(final String arg: params.getUnnamed())
+	        {
+	        try 
+		        {
+	        	newStages.addAll(openNgsFiles(arg));
+		        }
+	        catch(final Exception err)
+	        	{
+	        	lastException=err;
+	        	}
+	        }
+        if(lastException!=null)
+        	{
+        	final Exception error=lastException;
+        	primaryStage.setOnShown(new EventHandler<WindowEvent>() {
+				@Override
+				public void handle(WindowEvent event) {
+					showExceptionDialog(primaryStage,error);
+				}
+			});
+        	}
         primaryStage.show();
-        */
-        VcfStage stage= new VcfStage("/commun/data/projects/20161205.JULIEN.DAVD.GT50.W15/VCF/HaloplexDAVD.20161108.GT50.W15.haplotypecaller.annotations.vcf.gz");
-        stage.show();
+        for(StageContent sc:newStages)
+	    	{
+	    	sc.show();
+	    	}
         }
 
     private void unregisterStage(StageContent s) {
 
     }
 
+    private static void showExceptionDialog(final Window owner,Throwable error)
+    	{
+    	final Alert alert = new Alert(AlertType.WARNING);
+		alert.setTitle("Error");
+		alert.setHeaderText("Error");
+		// Create expandable Exception.
+		
+		StringWriter sw = new StringWriter();
+		PrintWriter pw = new PrintWriter(sw);
+		error.printStackTrace(pw);
+		String exceptionText = sw.toString();
+
+		Label label = new Label("The exception stacktrace was:");
+
+		TextArea textArea = new TextArea(exceptionText);
+		textArea.setEditable(false);
+		textArea.setWrapText(true);
+
+		textArea.setMaxWidth(Double.MAX_VALUE);
+		textArea.setMaxHeight(Double.MAX_VALUE);
+		GridPane.setVgrow(textArea, Priority.ALWAYS);
+		GridPane.setHgrow(textArea, Priority.ALWAYS);
+
+		GridPane expContent = new GridPane();
+		expContent.setMaxWidth(Double.MAX_VALUE);
+		expContent.add(label, 0, 0);
+		expContent.add(textArea, 0, 1);
+
+		// Set expandable Exception into the dialog pane.
+		alert.getDialogPane().setExpandableContent(expContent);
+		alert.showAndWait();
+    	}
+    
+    private void doMenuQuit()
+    	{
+    	Platform.exit();
+    	}
+    
     private Collection<StageContent> openNgsFiles(final Window owner)
     	{
     	FileChooser fc=new FileChooser();
-    	fc.setSelectedExtensionFilter(new ExtensionFilter("NGS Files","bam","vcf","vcf.gz","list"));
+    	fc.setSelectedExtensionFilter(new ExtensionFilter("NGS Files","*.bam","*.vcf","*.vcf.gz","list"));
     	List<File> selFiles = fc.showOpenMultipleDialog(owner);
+    	if(selFiles==null || selFiles.isEmpty()) return Collections.emptyList();
     	List<StageContent> stages =new ArrayList<>();
     	try 
     		{
-    		
-	    	for(File f:selFiles)
+	    	for(final File f:selFiles)
 	    		{
 	    		stages.addAll( openNgsFiles(f.getPath()) );
 	    		}
 	    	return stages;
     		}
-    	catch(final IOException err)
+    	catch(final Exception err)
     		{
-    		for(StageContent sc:stages) sc.hide();//TODO dispose stuff
+    		for(StageContent sc:stages) sc.closeNgsResource();
+    		showExceptionDialog(owner, err);
     		return Collections.emptyList();
     		}		
     	}
 
-    private Collection<StageContent> openNgsFiles(String path) throws IOException
+    private Collection<StageContent> openNgsFiles(final String path0) throws Exception
     	{
-    	if(!IOUtil.isUrl(path) && path.endsWith(".list"))
+    	final List<String> pathList;
+    	if(!IOUtil.isUrl(path0) && path0.endsWith(".list"))
     		{
-    		List<StageContent> stages =new ArrayList<>();
-    		for(final String s:Files.lines(Paths.get(path)).filter(L-> ! (L.isEmpty() && L.startsWith("#"))).collect(Collectors.toList()))
-    			{
-    			stages.addAll(openNgsFiles(s));
-    			}
-    		return stages;
+    		pathList = Files.lines(Paths.get(path0)).filter(L-> ! (L.isEmpty() && L.startsWith("#"))).collect(Collectors.toList());
     		}
-    	SamReader samIn=null;
-    	//try as BAM
-    	try
+    	else
     		{
-    		SamReaderFactory srf = SamReaderFactory.makeDefault();
-    		srf.validationStringency(ValidationStringency.LENIENT);
-    		samIn = srf.open(SamInputResource.of(path));
-    		if(samIn.hasIndex())
-    			{
-    			samIn.close();
-    			return Collections.singleton(new BamStageContent(path));
-    			}
+    		pathList = Collections.singletonList(path0);
     		}
-    	finally
-    		{
-    		CloserUtil.close(samIn);
-    		}
-    	//try as VCF
-    	
-    	VCFFileReader vcfIn=null;
-    	try
-    		{
-    		vcfIn = new VCFFileReader(new File(path), true);
-    		vcfIn.getFileHeader();
-    		vcfIn.close();
-    		
-			return Collections.singleton(new VcfStage(path));
-    		}
-    	finally
-    		{
-    		CloserUtil.close(vcfIn);
-    		}
-    	//TODO throw new IOException("Cannot open "+path);
+		final List<StageContent> stages =new ArrayList<>();
+
+    	for(String uri:pathList)
+	    	{
+	    	SamReader samIn=null;
+	    	//try as BAM
+	    	if(IOUtil.isUrl(uri) || uri.endsWith(".bam") )
+		    	{
+		    	try
+		    		{
+		    		SamReaderFactory srf = SamReaderFactory.makeDefault();
+		    		srf.validationStringency(ValidationStringency.LENIENT);
+		    		samIn = srf.open(SamInputResource.of(uri));
+		    		if(samIn.hasIndex())
+		    			{
+		    			samIn.close();
+		    			stages.add(new BamStageContent(uri));
+		    			continue;
+		    			}
+		    		}
+		    	catch(Exception err)
+		    		{
+		    		LOG.info("not an indexed bam file : "+uri);
+		    		}
+		    	finally
+		    		{
+		    		CloserUtil.close(samIn);
+		    		}
+		    	}
+	    	//try as VCF
+	    	
+	    	if(IOUtil.isUrl(uri) || uri.endsWith(".vcf") || uri.endsWith(".bcf")  || uri.endsWith(".vcf.gz") )
+		    	{
+		    	VCFFileReader vcfIn=null;
+		    	try
+		    		{
+		    		vcfIn = new VCFFileReader(new File(uri), true);
+		    		vcfIn.getFileHeader();
+		    		vcfIn.close();
+		    		
+					stages.add(new VcfStage(uri));
+					continue;
+		    		}
+		    	catch(Exception err)
+		    		{
+		    		LOG.info("not an indexed vcf file : "+uri);
+		    		}
+		    	finally
+		    		{
+		    		CloserUtil.close(vcfIn);
+		    		}
+		    	}
+	    	throw new IOException("Not a NGS file : "+uri);
+	    	}
+    	return stages;
     	}
     
 
     public static void main(String[] args) {
+    	args=new String[]{
+    			"/commun/data/users/lindenb/src/gatk-ui/testdata/mutations.vcf",
+    			"/commun/data/users/lindenb/src/gatk-ui/testdata/S1.bam",
+    			"/commun/data/users/lindenb/src/gatk-ui/testdata/S2.bam",
+    			};
         launch(args);
     }
 
