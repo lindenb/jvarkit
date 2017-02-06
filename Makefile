@@ -518,7 +518,7 @@ $(eval $(call compile-htsjdk-cmd,gatkcodegen,${jvarkit.package}.tools.gatk.codeg
 $(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.VcfEigen01,wiki_flag))
 
 
-GATKWALKERS_SRC=$(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/GroupByVariants variants/GroupByGenotypes variants/EigenVariants))
+GATKWALKERS_SRC=$(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/AltVariantAnnotator variants/GroupByVariants variants/GroupByGenotypes variants/EigenVariants))
 
 gatkwalkers:
 	mkdir -p ${tmp.dir} ${dist.dir}
