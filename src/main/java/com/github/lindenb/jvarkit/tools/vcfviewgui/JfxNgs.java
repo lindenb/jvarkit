@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.io.File;
@@ -13,6 +37,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -48,10 +73,13 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
@@ -71,6 +99,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -91,6 +120,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
@@ -106,6 +136,10 @@ public class JfxNgs extends Application {
     private static final Logger LOG= Logger.getLogger("JfxNgs");
     private final Preferences preferences ;
     private final Compilable javascriptEngine;
+    private static final int DEFAULT_BAM_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.sam", "10000"));
+    private static final int DEFAULT_VCF_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.vcf", "1000"));
+    private final List<StageContent> all_opened_stages=new ArrayList<>();
+    private final Random randomMoveWindow=new Random();
     
     /** abstract base class for NGS window */
     private abstract class StageContent
@@ -113,18 +147,37 @@ public class JfxNgs extends Application {
         {
     	/** javascript filtering */
     	protected final TextArea javascriptArea=new TextArea();
+    	/** message stuff */
+    	protected final Label messageLabel=new Label();
+    	/** message stuff */
+    	protected final TextField gotoField=new TextField();
+
     	
         public StageContent() {
         	if(JfxNgs.this.javascriptEngine==null) {
         		this.javascriptArea.setEditable(false);
         		this.javascriptArea.setPromptText("Javascript engine is not available");
         	}
-            this.setOnCloseRequest(new EventHandler<WindowEvent>() {
-                @Override
-                public void handle(WindowEvent event) {
-                    unregisterStage(StageContent.this);
-                    }
-                });
+        	
+        	
+        	this.addEventHandler(
+        			WindowEvent.WINDOW_SHOWING ,new EventHandler<WindowEvent>() {
+                        @Override
+                        public void handle(WindowEvent event) {
+                            JfxNgs.this.registerStage(StageContent.this);
+                            StageContent.this.reloadData();
+                            }
+                        });
+        	this.addEventHandler(
+        			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
+                        @Override
+                        public void handle(WindowEvent event) {
+                        	StageContent.this.closeNgsResource();
+                        	JfxNgs.this.unregisterStage(StageContent.this);
+                            }
+                        });
+           
+            this.gotoField.setPrefColumnCount(15);
             }
         @Override
         protected void finalize() throws Throwable {
@@ -144,7 +197,10 @@ public class JfxNgs extends Application {
         /** send a goto command to IGV */
         protected void openInIgv(final Locatable feature)
         	{
-        	if(feature==null) return;
+        	if(feature==null) {
+        		updateStatusBar(AlertType.WARNING,"No Feature was selected");
+        		return;
+        	}
         	openInIgv(
         			Collections.singletonList("goto "+feature.getContig()+":"+feature.getStart()+"-"+feature.getEnd())
         			);
@@ -155,6 +211,32 @@ public class JfxNgs extends Application {
         abstract void closeNgsResource();
         abstract void reloadData();
         
+        
+        protected void updateStatusBar(final AlertType type,final Object o)
+        	{
+        	final Color textColor;
+        	switch(type)
+        		{
+        		case CONFIRMATION: textColor=Color.BLUE; break;
+        		case ERROR: textColor=Color.RED;break;
+        		case INFORMATION: textColor=Color.GREEN;break;
+        		case NONE: textColor=Color.BLACK; break;
+        		case WARNING: textColor=Color.ORANGE;break;
+        		default: textColor=Color.BLACK; break;
+        		}
+        	this.messageLabel.setTextFill(textColor);
+        	if(o==null) {
+        		this.messageLabel.setText("");
+        		}
+        	else if(o instanceof Throwable )
+        		{
+        		this.messageLabel.setText(String.valueOf(Throwable.class.cast(o).getMessage()));
+        		}
+        	else
+        		{
+        		this.messageLabel.setText(String.valueOf(o));
+        		}
+        	}
         
         protected <T,R> TableColumn<T,R> makeColumn(final String tag,final Function<T,R> supplier)
         	{
@@ -167,7 +249,7 @@ public class JfxNgs extends Application {
  				});
  	        return col;
         	}
-        
+        /** called by javascript filters */
         protected boolean accept(final CompiledScript script,final Bindings bindings)
 			{
 			final Object result;
@@ -177,6 +259,7 @@ public class JfxNgs extends Application {
 			{
 				LOG.severe(err.getMessage());
 				err.printStackTrace();
+				updateStatusBar(AlertType.WARNING,err);
 				return false;
 			}
 			
@@ -191,7 +274,7 @@ public class JfxNgs extends Application {
 				}
 			else
 				{
-				LOG.warning("Script returned something that is not a boolean or a number:"+result.getClass());
+				updateStatusBar(AlertType.WARNING,"Script returned something that is not a boolean or a number:"+result.getClass());
 				return false;
 				}
 			return true;
@@ -211,8 +294,6 @@ public class JfxNgs extends Application {
 	        table.getColumns().add(makeColumn("Name",SSR->SSR.getSequenceName()));
 	        table.getColumns().add(makeColumn("Length",SSR->SSR.getSequenceLength()));
 	        table.getColumns().add(makeColumn("Assembly",SSR->SSR.getAssembly()));
-	        
-	        
 	        final Tab tab=new Tab("Dict", table);
 	        tab.setClosable(false);
 	        
@@ -220,6 +301,93 @@ public class JfxNgs extends Application {
 	        }
         
         
+        protected abstract SAMSequenceDictionary getSAMSequenceDictionary();
+        
+        /** called by main stage: set location box content and call reloadData */
+        protected void moveTo(final String s)
+        	{
+        	this.gotoField.setText(s);
+        	this.reloadData();
+        	}
+        
+        protected Interval parseInterval(final String location)
+        	{
+        	final SAMSequenceDictionary dict=getSAMSequenceDictionary();
+    		final String contig;
+    		int colon =location.indexOf(":");
+    		if(colon==-1)
+    			{
+    			contig=location;
+    			}
+    		else
+    			{
+    			contig=location.substring(0,colon);
+    			}
+    		
+    		SAMSequenceRecord ssr= dict.getSequence(contig);
+    		if(ssr==null && !contig.startsWith("chr"))
+    			{
+    			ssr= dict.getSequence("chr"+contig);
+    			}
+    		if(ssr==null && contig.startsWith("chr"))
+				{
+				ssr= dict.getSequence( contig.substring(3));
+				}
+    		if(ssr==null)
+    			{
+    			updateStatusBar(AlertType.WARNING, "Cannot find contig in dictionary: "+location);
+    			return null;
+    			}
+    		
+    		if(colon!=-1)
+    			{
+    			int hyphen=location.indexOf('-');
+    			Integer start=null,end=null;
+    			if(hyphen==-1)
+    				{
+    				final String startStr=location.substring(colon+1).trim();
+    				try {
+    					start= Math.max(0, Integer.parseInt(startStr));
+    					end=ssr.getSequenceLength();
+    					}
+    				catch(final NumberFormatException err ) {
+    					start=null;
+    					LOG.warning(startStr);
+    					updateStatusBar(AlertType.WARNING, "Bad Start in : "+location);
+    					return null;
+    					}
+    				}
+    			else
+    				{
+    				try {
+						start= Math.max(0, new Integer(location.substring(colon+1,hyphen).trim()));
+						end= Math.min(
+								Integer.parseInt(location.substring(hyphen+1).trim()),
+								ssr.getSequenceLength()
+								);
+    					}
+    				catch(NumberFormatException err )
+    					{
+    					start=null;end=null;
+    					LOG.warning(location);
+    					updateStatusBar(AlertType.WARNING, "Bad Start/End in : "+location);
+    					return null;
+    					}
+    				}
+    			if(start!=null && end!=null && start.compareTo(end)<=0)
+    				{
+    				return new Interval(ssr.getSequenceName(), start, end);
+    				}
+    			else
+    				{
+    				return null;
+    				}
+    			}
+    		else
+    			{
+    			return new Interval(ssr.getSequenceName(), 0, ssr.getSequenceLength());
+    			}
+        	}
         
         }
 
@@ -266,11 +434,11 @@ public class JfxNgs extends Application {
         private final TableView<CigarAndBase> cigarTable;
         private final Map<SAMFlag,CheckMenuItem> flag2filterInMenuItem=new HashMap<>();
         private final Map<SAMFlag,CheckMenuItem> flag2filterOutMenuItem=new HashMap<>();
-        private final TextField gotoField;
         private final Spinner<Integer> maxReadLimitSpinner;
        
         
-        BamStageContent(final String url) {
+        BamStageContent(final String url) throws IOException
+        	{
         	this.setTitle(url);
             final SamReaderFactory srf= SamReaderFactory.makeDefault();
             srf.validationStringency(Level.OFF.equals(LOG.getLevel())?
@@ -279,9 +447,10 @@ public class JfxNgs extends Application {
             		);
             LOG.info("Opening "+url);
             this.samReader=srf.open(SamInputResource.of(url));
-            if(this.samReader.hasIndex())
+            if(!this.samReader.hasIndex())
             	{
-            	
+            	this.samReader.close();
+            	throw new IOException("Bam without index "+url);
             	}
 
             /** Build menu for SAM Flags */
@@ -291,6 +460,19 @@ public class JfxNgs extends Application {
             	flag2filterOutMenuItem.put(flg,new CheckMenuItem("Filter Out "+flg.name()));
             	}
             final Menu fileMenu=new Menu("File");
+            fileMenu.getItems().add(createMenuItem("Open",new Runnable() {
+				@Override
+				public void run() {
+					openNgsFiles(BamStageContent.this);
+				}
+			}));
+            fileMenu.getItems().add(createMenuItem("Close",new Runnable() {
+				@Override
+				public void run() {
+					BamStageContent.this.hide();
+				}
+			}));
+           
             //selectFlagMenu.getItems().addAll(flag2filterOutMenuItem.values());
             final MenuBar menuBar=new MenuBar(fileMenu);
             final VBox vbox1 = new VBox();
@@ -300,7 +482,7 @@ public class JfxNgs extends Application {
             top1.setPadding(new Insets(10, 10, 10, 10));
             vbox1.getChildren().add(top1);
             top1.getChildren().add(new Label("GoTo:"));
-            top1.getChildren().add(this.gotoField = new TextField());
+            top1.getChildren().add(this.gotoField);
             final Button gotoButton=new Button("Go");
             gotoButton.setOnAction(new EventHandler<ActionEvent>()
 				{
@@ -313,7 +495,7 @@ public class JfxNgs extends Application {
             top1.getChildren().add(gotoButton);
             top1.getChildren().add(new Separator(Orientation.VERTICAL));
             top1.getChildren().add(new Label("Limit:"));
-            top1.getChildren().add(this.maxReadLimitSpinner=new Spinner<Integer>(0,100000,1000));
+            top1.getChildren().add(this.maxReadLimitSpinner=new Spinner<Integer>(0,100000,JfxNgs.DEFAULT_BAM_RECORDS_COUNT));
             top1.getChildren().add(new Separator(Orientation.VERTICAL));
             List<CheckMenuItem> menuFlags=new ArrayList<>(flag2filterOutMenuItem.values());
             menuFlags.addAll(flag2filterInMenuItem.values());
@@ -380,26 +562,8 @@ public class JfxNgs extends Application {
             borderPane.getChildren().add(tilePane);
             
             /* define SAM Flag table */
-            this.flagsTable= new TableView<>();
-            /* create SamFlag columns */
-            final TableColumn<SamFlagRow,String>  flagNameCol = new TableColumn<>("FLAG");
-            flagNameCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SamFlagRow,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SamFlagRow, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().flag.name());
-					}
-				});
-            this.flagsTable.getColumns().add(flagNameCol);
-            
-            /* create value set/notset for columns */
-            final TableColumn<SamFlagRow,Boolean>  flagStatusCol = new TableColumn<>("Status");
-            flagStatusCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SamFlagRow,Boolean>, ObservableValue<Boolean>>() {				
-				@Override
-				public ObservableValue<Boolean> call(final CellDataFeatures<SamFlagRow, Boolean> param) {
-					return new ReadOnlyObjectWrapper<Boolean>(param.getValue().flag.isSet(param.getValue().record.getFlags()));
-					}
-				});
-            this.flagsTable.getColumns().add(flagStatusCol);
+            this.flagsTable= createSamFlagTable();
+           
             
             //scroll.setFitToHeight(true);
             GridPane.setConstraints(  this.flagsTable,1, 1); // column=1 row=1
@@ -407,88 +571,16 @@ public class JfxNgs extends Application {
             
             
             /* define Meta Data table */
-            this.metaDataTable = new TableView<>();
-            final TableColumn<SAMTagAndValue,String>  metaDataKey = new TableColumn<>("Key");
-            metaDataKey.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMTagAndValue,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMTagAndValue, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().tag);
-					}
-				});
-            this.metaDataTable.getColumns().add(metaDataKey);
-            final TableColumn<SAMTagAndValue,String>  metaDataValue = new TableColumn<>("Value");
-            metaDataValue.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<SAMTagAndValue,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<SAMTagAndValue, String> param) {
-					return new ReadOnlyObjectWrapper<String>(String.valueOf(param.getValue().value));
-					}
-				});
-            this.metaDataTable.getColumns().add(metaDataValue);
+            this.metaDataTable = createMetaDataTable();
 
             GridPane.setConstraints( this.metaDataTable,2, 1); // column=2 row=1
             tilePane.getChildren().add(this.metaDataTable);
 
             
             /* build the cigar table */
-            this.cigarTable = new TableView<>();
+            this.cigarTable = createCigarTable();
             
-            
-            final TableColumn<CigarAndBase,String>  cigarRefCol = new TableColumn<>("REF");
-            cigarRefCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<CigarAndBase,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<CigarAndBase, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().ref);
-					}
-				});
-            this.cigarTable.getColumns().add(cigarRefCol);
-           
-            final TableColumn<CigarAndBase,Integer>  cigarReadPosCol = new TableColumn<>("Read-Pos");
-            cigarReadPosCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<CigarAndBase,Integer>, ObservableValue<Integer>>() {				
-				@Override
-				public ObservableValue<Integer> call(CellDataFeatures<CigarAndBase, Integer> param) {
-					return new ReadOnlyObjectWrapper<Integer>(param.getValue().posInRead);
-					}
-				});
-            this.cigarTable.getColumns().add(cigarReadPosCol);
-            
-            final TableColumn<CigarAndBase,Integer>  cigarRefPosCol = new TableColumn<>("Ref-Pos");
-            cigarRefPosCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<CigarAndBase,Integer>, ObservableValue<Integer>>() {				
-				@Override
-				public ObservableValue<Integer> call(CellDataFeatures<CigarAndBase, Integer> param) {
-					return new ReadOnlyObjectWrapper<Integer>(param.getValue().posInRef);
-					}
-				});
-            this.cigarTable.getColumns().add(cigarRefPosCol);
-            
-            final TableColumn<CigarAndBase,String>  cigarOpCol = new TableColumn<>("OP");
-            cigarOpCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<CigarAndBase,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<CigarAndBase, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().op==null?null:param.getValue().op.name());
-					}
-				});
-            this.cigarTable.getColumns().add(cigarOpCol);
-            
-            
-            final TableColumn<CigarAndBase,Integer>  cigarLenCol = new TableColumn<>("Len");
-            cigarLenCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<CigarAndBase,Integer>, ObservableValue<Integer>>() {				
-				@Override
-				public ObservableValue<Integer> call(CellDataFeatures<CigarAndBase, Integer> param) {
-					return new ReadOnlyObjectWrapper<Integer>(param.getValue().count);
-					}
-				});
-            this.cigarTable.getColumns().add(cigarLenCol);
-            
-            final TableColumn<CigarAndBase,String>  cigarBaseCol = new TableColumn<>("Read-Bases");
-            cigarBaseCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<CigarAndBase,String>, ObservableValue<String>>() {				
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<CigarAndBase, String> param) {
-					return new ReadOnlyObjectWrapper<String>(param.getValue().base==null?null:String.valueOf((char)param.getValue().base.intValue()));
-					}
-				});
-            this.cigarTable.getColumns().add(cigarBaseCol);
-            
-            
+          
             //scroll = new ScrollPane();
             //scroll.setFitToHeight(true);
             //scroll.setFitToWidth(true);
@@ -600,24 +692,24 @@ public class JfxNgs extends Application {
             tabbedPane.getTabs().add(buildJavascriptPane());
             
             vbox1.getChildren().add(tabbedPane);
-            this.setScene(new Scene(vbox1,1000,800));
             
-            this.setOnShowing(new EventHandler<WindowEvent>() {
-				@Override
-				public void handle(WindowEvent event) {
-					reloadData();
-				}
-			});
+            final FlowPane bottom=new FlowPane(super.messageLabel);
+            vbox1.getChildren().add(bottom);
             
-            this.setOnCloseRequest(new EventHandler<WindowEvent>() {
-                @Override
-                public void handle(WindowEvent event) {
-                	closeNgsResource();
-                    unregisterStage(BamStageContent.this);
-                }
-            });
+            this.setScene(new Scene(vbox1,
+            		1000+randomMoveWindow.nextInt(10),
+            		800+randomMoveWindow.nextInt(10)
+            		));
+            
+            
         }
 
+        
+        @Override
+        protected SAMSequenceDictionary getSAMSequenceDictionary() {
+        	return this.samReader.getFileHeader().getSequenceDictionary();
+        	}
+        
         @Override
         void closeNgsResource()
         	{
@@ -626,6 +718,51 @@ public class JfxNgs extends Application {
         	}
         
         
+        private TableView<SamFlagRow> createSamFlagTable()
+	        {
+	        final TableView<SamFlagRow> table=new TableView<>();
+	    	table.getColumns().add(makeColumn("Flag", O->O.flag.name()));
+	    	table.getColumns().add(makeColumn("Status",new Function<SamFlagRow,Boolean>() {
+	    		@Override
+	    		public Boolean apply(final SamFlagRow param) {
+	    			return param.flag.isSet(param.record.getFlags());
+	    			}
+				} ));
+	    	
+	        return table;
+	        }        
+        
+        private TableView<SAMTagAndValue> createMetaDataTable()
+	        {
+	        final TableView<SAMTagAndValue> table=new TableView<>();
+	    	table.getColumns().add(makeColumn("Key", O->O.tag));
+	    	table.getColumns().add(makeColumn("Value", O->O.value));
+	        return table;
+	        }
+        
+        
+        private TableView<CigarAndBase> createCigarTable() 
+        	{
+        	final TableView<CigarAndBase> table=new TableView<>();
+        	table.getColumns().add(makeColumn("REF", O->O.ref));
+        	table.getColumns().add(makeColumn("Read-Pos", O->O.posInRead));
+        	table.getColumns().add(makeColumn("Ref-Pos", O->O.posInRef));
+        	table.getColumns().add(makeColumn("OP",new Function<CigarAndBase,String>() {
+        		@Override
+        		public String apply(CigarAndBase param) {
+        			return param.op==null?null:param.op.name();
+        		}
+				} ));
+        	table.getColumns().add(makeColumn("Len", O->O.count));
+        	table.getColumns().add(makeColumn("Read-Bases",new Function<CigarAndBase,String>() {
+        		@Override
+        		public String apply(CigarAndBase param) {
+        			return param.base==null?null:String.valueOf((char)param.base.intValue());
+        		}
+				} ));
+            return table;
+        	}
+        
         private Tab buildJavascriptPane()
 			{
 			
@@ -633,6 +770,14 @@ public class JfxNgs extends Application {
 			scroll.setFitToWidth(true);
 			scroll.setFitToHeight(true);
 			final BorderPane pane=new BorderPane(scroll);
+			
+			final Label helpLabel=new Label("The script injects:\n"+
+    				"* header ( htsjdk.samtools.SAMFileHeader )\n"+
+					"* record ( htsjdk.samtools.SAMRecord )\n"+
+    				"The script should return a boolean: true (accept record) or false (reject record)"
+					);
+    		helpLabel.setWrapText(true);
+    		pane.setBottom(helpLabel);
 			
 			final Tab tab=new Tab("Javascript",pane);
 			tab.setClosable(false);
@@ -649,10 +794,15 @@ public class JfxNgs extends Application {
         	table.getColumns().add(makeColumn("Sample", G->G.getSample()));
         	table.getColumns().add(makeColumn("Center", G->G.getSequencingCenter()));
         	table.getColumns().add(makeColumn("Platform", G->G.getPlatform()));
+        	table.getColumns().add(makeColumn("PlatformModel", G->G.getPlatformModel()));
+        	table.getColumns().add(makeColumn("PlatformUnit", G->G.getPlatformUnit()));
+        	table.getColumns().add(makeColumn("MedianInsertSize", G->G.getPredictedMedianInsertSize()));
         	table.getColumns().add(makeColumn("Desc", G->G.getDescription()));
         	table.getColumns().add(makeColumn("PU", G->G.getPlatformUnit()));
+        	table.getColumns().add(makeColumn("Lib", G->G.getLibrary()));
+        	table.getColumns().add(makeColumn("Run-Date", G->G.getRunDate()));
         	
-        	final Tab tab=new Tab("RG", table);
+        	final Tab tab=new Tab("ReadGroups", table);
         	tab.setClosable(false);
         	return tab;
         	}
@@ -706,39 +856,14 @@ public class JfxNgs extends Application {
         		}
         	else
         		{
-        		final String contig;
-        		int colon =location.indexOf(":");
-        		if(colon==-1)
+        		final Interval interval=parseInterval(location);
+        		if(interval==null)
         			{
-        			contig=location;
-        			iter= this.samReader.queryAlignmentStart(contig, 1);
+        			iter=null;
         			}
         		else
         			{
-        			contig=location.substring(0,colon);
-        			int hyphen=location.indexOf('-');
-        			Integer start=null,end=null;
-        			if(hyphen==-1)
-        				{
-        				try { start= new Integer(location.substring(colon+1).trim());}
-        				catch(NumberFormatException err ) {start=null;}
-        				}
-        			else
-        				{
-        				try {
-    						start= new Integer(location.substring(colon+1,hyphen).trim());
-    						end= new Integer(location.substring(hyphen+1).trim());
-        					}
-        				catch(NumberFormatException err ) {start=null;end=null;}
-        				}
-        			if(start!=null && end!=null && start.compareTo(end)<=0)
-        				{
-        				iter=samReader.queryOverlapping(contig, start, end);
-        				}
-        			else
-        				{
-        				iter=null;
-        				}
+        			iter=samReader.queryOverlapping(interval.getContig(),interval.getStart(), interval.getEnd());
         			}
         		}
         	
@@ -755,6 +880,7 @@ public class JfxNgs extends Application {
         		catch(Exception err)
         			{
         			LOG.warning(err.getMessage());
+        			updateStatusBar(AlertType.ERROR, err);
         			compiledScript=null;
         			}
         		}
@@ -780,27 +906,30 @@ public class JfxNgs extends Application {
     	void openInIgv() {
 	    	final SAMRecord ctx=this.recordTable.getSelectionModel().getSelectedItem();
 	    	if(ctx==null) {
-	    		LOG.info("no variant selected");
+	    		updateStatusBar(AlertType.WARNING,"no variant selected");
+	    		return;
 	    		}
 	    	if(ctx.getReadUnmappedFlag()) return;
 	    	openInIgv(ctx);
 	    	}
         }
     
+    /** display item in VCF/INFO */
     private static class InfoTableRow
 		{
 		final String key;
+		final Integer index;
 		final Object value;
-		InfoTableRow(final String key,final Object value)
+		InfoTableRow(final String key,final Integer index,final Object value)
 			{
 			this.key = key;
+			this.index = index;
 			this.value=value;
 			}
 		}
     private class VcfStage extends StageContent
     	{
     	private final TextField javascriptFILTERfield=new TextField("");
-    	private final TextField gotoField;
     	private final VCFFileReader vcfFileReader;
     	private Spinner<Integer> maxReadLimitSpinner;
     	private TableView<VariantContext> variantTable;
@@ -815,6 +944,24 @@ public class JfxNgs extends Application {
     		
     		
             final Menu fileMenu=new Menu("File");
+            fileMenu.getItems().add(createMenuItem("Open",new Runnable() {
+				@Override
+				public void run() {
+					openNgsFiles(VcfStage.this);
+				}
+			}));
+            fileMenu.getItems().add(createMenuItem("Save Filtered VCF as... ",new Runnable() {
+				@Override
+				public void run() {
+					doMenuSaveAs();
+				}
+			}));
+            fileMenu.getItems().add(createMenuItem("Close",new Runnable() {
+				@Override
+				public void run() {
+					VcfStage.this.hide();
+				}
+			}));
             //selectFlagMenu.getItems().addAll(flag2filterOutMenuItem.values());
             final MenuBar menuBar=new MenuBar(fileMenu);
             final VBox vbox1 = new VBox();
@@ -823,7 +970,7 @@ public class JfxNgs extends Application {
             FlowPane top1= new FlowPane();
             vbox1.getChildren().add(top1);
             top1.getChildren().add(new Label("GoTo:"));
-            top1.getChildren().add(this.gotoField = new TextField());
+            top1.getChildren().add(this.gotoField);
             final Button gotoButton=new Button("Go");
             gotoButton.setOnAction(new EventHandler<ActionEvent>()
 				{
@@ -836,7 +983,7 @@ public class JfxNgs extends Application {
             top1.getChildren().add(gotoButton);
             top1.getChildren().add(new Separator(Orientation.VERTICAL));
             top1.getChildren().add(new Label("Limit:"));
-            top1.getChildren().add(this.maxReadLimitSpinner=new Spinner<Integer>(0,100000,1000));
+            top1.getChildren().add(this.maxReadLimitSpinner=new Spinner<Integer>(0,100000,JfxNgs.DEFAULT_VCF_RECORDS_COUNT));
             top1.getChildren().add(new Separator(Orientation.VERTICAL));
     		
             final Button igvButton =new Button("IGV");
@@ -907,42 +1054,114 @@ public class JfxNgs extends Application {
             	});
             
             
+            final FlowPane bottom=new FlowPane(super.messageLabel);
+            vbox1.getChildren().add(bottom);
+            this.setScene(new Scene(vbox1,1000+randomMoveWindow.nextInt(10),500+randomMoveWindow.nextInt(10)));
             
-            this.setScene(new Scene(vbox1,1000,500));
-            
-            this.setOnShowing(new EventHandler<WindowEvent>() {
-				@Override
-				public void handle(WindowEvent event) {
-					reloadData();
-				}
-			});
-            
-            this.setOnCloseRequest(new EventHandler<WindowEvent>() {
-                @Override
-                public void handle(WindowEvent event) {
-                	closeNgsResource();
-                    unregisterStage(VcfStage.this);
-                	}
-            	});
+           
 
     		}
     	
+        @Override
+        protected SAMSequenceDictionary getSAMSequenceDictionary() {
+        	return this.vcfFileReader.getFileHeader().getSequenceDictionary();
+        	}
+
+    	
+    	private void doMenuSaveAs()
+    		{
+    		final FileChooser fc=new FileChooser();
+    		File saveAs=fc.showSaveDialog(this);
+    		if(saveAs==null) return;
+    		if(!saveAs.getName().endsWith(".vcf.gz"))
+    			{
+    			Alert alert=new Alert(AlertType.ERROR, "Output should end with .vcf.gz", ButtonType.OK);
+    			alert.showAndWait();
+    			return;
+    			}
+    		
+        	CompiledScript compiledScript=null;
+        	SimpleBindings binding=null;
+        	if(JfxNgs.this.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
+        		{
+        		try
+        			{
+        			binding=new SimpleBindings();
+        			compiledScript = JfxNgs.this.javascriptEngine.compile(this.javascriptArea.getText());
+        			binding.put("header", this.vcfFileReader.getFileHeader());
+        			}
+        		catch(final Exception err)
+        			{
+        			showExceptionDialog(this, err);
+        			return;
+        			}
+        		}
+
+    		
+    		VariantContextWriter w=null;
+    		CloseableIterator<VariantContext> iter=null;
+    		try
+    			{
+    			final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+    			vcwb.setOutputFile(saveAs);
+    			w= vcwb.build();
+    			VCFHeader header2= new VCFHeader(this.vcfFileReader.getFileHeader());
+            	final String filterName = this.javascriptFILTERfield.getText().trim();
+            	if(!filterName.isEmpty())
+            		{
+            		header2.addMetaDataLine(new VCFFilterHeaderLine(filterName, "Set by User in JfxNgs"));
+            		}
+    			w.writeHeader(header2);
+    			iter=this.vcfFileReader.iterator();
+    			while(iter.hasNext())
+    				{
+    				VariantContext ctx=iter.next();
+    				if(compiledScript!=null)
+	        			{
+	        			binding.put("variant", ctx);
+	        			if(!super.accept(compiledScript,binding))
+	        				{
+	        				if(filterName.isEmpty()) continue;
+	        				ctx=new VariantContextBuilder(ctx).filter(filterName).make();
+	        				}
+	        			}
+    				w.add(ctx);
+    				}
+    			w.close();
+    			}
+    		catch(Exception err)
+    			{
+    			showExceptionDialog(this, err);
+    			return;
+    			}
+    		finally
+    			{
+    			CloserUtil.close(w);
+    			}    		}
+    	
     	private Tab buildJavascriptPane()
     		{
-    		
     		final ScrollPane scroll=new ScrollPane(super.javascriptArea);
     		scroll.setFitToWidth(true);
     		scroll.setFitToHeight(true);
     		final BorderPane pane=new BorderPane(scroll);
     		if(JfxNgs.this.javascriptEngine!=null) {
 	    		final FlowPane flowPane = new FlowPane(
-	    				new Label("Filter"),
+	    				new Label("set following FILTER on rejection:"),
 	    				javascriptFILTERfield
 	    				);
 	    		
 	    		this.javascriptFILTERfield.setPromptText("If not empty , don't discard the variant but set the FILTER");
 	    		pane.setTop(flowPane);
 	    		}
+    		final Label helpLabel=new Label("The script injects:\n"+
+    				"* header ( htsjdk.variant.vcf.VCFHeader )\n"+
+					"* variant ( htsjdk.variant.variantcontext.VariantContext )\n"+
+    				"The script should return a boolean: true (accept variant) or false (reject variant)"
+					);
+    		helpLabel.setWrapText(true);
+    		pane.setBottom(helpLabel);
+    		
     		final Tab tab=new Tab("Javascript",pane);
     		tab.setClosable(false);
     		return tab;
@@ -970,7 +1189,8 @@ public class JfxNgs extends Application {
     	void openInIgv() {
 	    	final VariantContext ctx=this.variantTable.getSelectionModel().getSelectedItem();
 	    	if(ctx==null) {
-	    		LOG.info("no variant selected");
+	    		updateStatusBar(AlertType.WARNING,"no variant selected");
+	    		return;
 	    		}
 	    	openInIgv(ctx);
 	    	}
@@ -994,7 +1214,8 @@ public class JfxNgs extends Application {
     	private TableView<InfoTableRow> buildInfoTableRow()
     		{
     		final TableView<InfoTableRow> table=new TableView<JfxNgs.InfoTableRow>();
-    		table.getColumns().add(makeColumn("KEY", R->R.key));
+    		table.getColumns().add(makeColumn("Key", R->R.key));
+    		table.getColumns().add(makeColumn("Index", R->R.index));
     		table.getColumns().add(makeColumn("Value", R->R.value));
     		return table;
     		}
@@ -1065,9 +1286,10 @@ public class JfxNgs extends Application {
         				{
         				L=Collections.singletonList(v);
         				}
-        			for(final Object o2:L)
+        			for(int x=0;x< L.size();++x)
         				{
-        				infos.add(new InfoTableRow(key,o2));
+        				
+        				infos.add(new InfoTableRow(key,(L.size()==1?null:x+1),L.get(x)));
         				}
         			}
         		this.infoTableRow.getItems().setAll(infos);
@@ -1137,42 +1359,14 @@ public class JfxNgs extends Application {
         		}
         	else
         		{
-        		final String contig;
-        		int colon =location.indexOf(":");
-        		if(colon==-1)
+        		final Interval interval=this.parseInterval(location);
+        		if(interval==null)
         			{
-        			
-        			contig=location;
-        			LOG.info("VCF query chromosome "+location);
-        			iter=this.vcfFileReader.query(contig, 1, Integer.MAX_VALUE);
+        			iter=null;
         			}
         		else
         			{
-        			contig=location.substring(0,colon);
-        			int hyphen=location.indexOf('-');
-        			Integer start=null,end=null;
-        			if(hyphen==-1)
-        				{
-        				final String startStr=location.substring(colon+1).trim();
-        				try { start= new Integer(startStr);end=Integer.MAX_VALUE;}
-        				catch(NumberFormatException err ) {start=null;LOG.warning(startStr);}
-        				}
-        			else
-        				{
-        				try {
-    						start= new Integer(location.substring(colon+1,hyphen).trim());
-    						end= new Integer(location.substring(hyphen+1).trim());
-        					}
-        				catch(NumberFormatException err ) {start=null;end=null;LOG.warning(location);}
-        				}
-        			if(start!=null && end!=null && start.compareTo(end)<=0)
-        				{
-        				iter=this.vcfFileReader.query(contig, start, end);
-        				}
-        			else
-        				{
-        				iter=null;
-        				}
+    				iter=this.vcfFileReader.query(interval.getContig(),interval.getStart(),interval.getEnd());
         			}
         		}
         	CompiledScript compiledScript=null;
@@ -1286,15 +1480,42 @@ public class JfxNgs extends Application {
         menu.getItems().add(menuItem);
         
         MenuBar bar=new MenuBar(menu);
+        FlowPane flow=new FlowPane();
+        flow.getChildren().add(new Label("Set Location to:"));
+        final TextField textField=new TextField();
+        textField.setPrefColumnCount(15);
+        textField.setPromptText("Location");
+        flow.getChildren().add(textField);
+        Button button=new Button("Go");
+        flow.getChildren().add(button);
+        
+        EventHandler<ActionEvent> handler=new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				final String loc=textField.getText().trim();
+				LOG.info("moveTo all to "+loc);
+				for(final StageContent sc:all_opened_stages )
+					{
+					LOG.info("moveTo "+sc.getTitle()+" to "+loc);
+					sc.moveTo(loc);
+					}
+				}
+		};
+        button.setOnAction(handler);
+        textField.setOnAction(handler);
+        
         
         BorderPane pane=new BorderPane();
         
         
         
-        VBox vbox1= new VBox(bar,pane);
+        
+       
+        VBox vbox1= new VBox(bar,flow,pane);
+        
         
       
-        final Scene scene = new Scene(vbox1,500,300);
+        final Scene scene = new Scene(vbox1,500+randomMoveWindow.nextInt(10),300+randomMoveWindow.nextInt(10));
        
         primaryStage.setScene(scene);
         primaryStage.setOnHidden(e -> doMenuQuit());
@@ -1330,9 +1551,16 @@ public class JfxNgs extends Application {
         }
 
     private void unregisterStage(StageContent s) {
+    	this.all_opened_stages.remove(s);
+    	LOG.info("unregister nbr.win"+this.all_opened_stages.size());
 
     }
-
+    private void registerStage(StageContent s) {
+    	this.all_opened_stages.add(s);  
+    	LOG.info("register nbr.win"+this.all_opened_stages.size());
+    }
+    
+    
     private static void showExceptionDialog(final Window owner,Throwable error)
     	{
     	final Alert alert = new Alert(AlertType.WARNING);
@@ -1462,10 +1690,21 @@ public class JfxNgs extends Application {
     	return stages;
     	}
     
+    private MenuItem createMenuItem(final String label,final Runnable runner)
+    	{
+    	final MenuItem menu=new MenuItem(label);
+    	menu.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				runner.run();
+			}
+		});
+    	return menu;
+    	}
 
     public static void main(String[] args) {
-    	final String base="/home/lindenb/src/gatk-ui/";
-    	///commun/data/users/lindenb/src/gatk-ui/
+    	//final String base="/home/lindenb/src/gatk-ui/";
+    	final String base="/commun/data/users/lindenb/src/gatk-ui/";
     	args=new String[]{
     			base+"testdata/mutations.vcf",
     			base+"testdata/S1.bam",
