@@ -22,6 +22,8 @@ import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
+import javafx.scene.canvas.GraphicsContext;
+
 
 public class Hershey
 	{
@@ -241,6 +243,38 @@ public class Hershey
 				}
 			}
 		}
+	
+	public void paint(
+			final GraphicsContext g,
+			final String s,
+			final double x, final double y,
+			final double width, final double height
+			)
+		{
+		if(s.isEmpty() || width==0 || height==0) return;
+		
+		double dx=width/s.length();
+		for(int i=0;i < s.length();++i)
+			{
+			List<PathOp> array=charToPathOp(s.charAt(i));
+			
+			for(int n=0;n< array.size();++n)
+				{
+				PathOp p2=transform(array.get(n));
+				if(p2.operator==Op.MOVETO) continue;
+				PathOp p1=transform(array.get(n-1));
+				
+				double x1=(p1.x/this.scalex)*dx + x+dx*i +dx/2.0;
+				double y1=(p1.y/this.scaley)*height +y +height/2.0 ;
+				
+				double x2=(p2.x/this.scalex)*dx + x+dx*i +dx/2.0;
+				double y2=(p2.y/this.scaley)*height +y +height/2.0 ;
+				
+				g.strokeLine(x1, y1, x2, y2);
+				}
+			}
+		}
+	
 	public String svgPath(
 			String s,
 			Shape shape

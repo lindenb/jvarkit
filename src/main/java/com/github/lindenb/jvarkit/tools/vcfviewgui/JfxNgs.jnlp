@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jnlp	xmlns="http://javafx.com/fxml" xmlns:fx="http://javafx.com/fxml" 
+		xmlns:xi="http://www.w3.org/2001/XInclude"
+		spec="6.0+" codebase="CODEBASEjfxngs/" href="JfxNgs.jnlp">
+  <information>
+    <title>JfxNgs</title>
+    <vendor>Pierre Lindenbaum PhD</vendor>
+    <homepage href="http://www.umr1087.univ-nantes.fr"/>
+    <description>BAM/VCF viewer</description>
+    <description kind="short">BAM/VCF viewer</description>
+    <offline-allowed/>
+    <shortcut online="true">
+      <desktop/>
+      <menu submenu="SnpEffJfx"/>
+    </shortcut>
+  </information>
+  <security>
+    <all-permissions/>
+  </security>
+  <update check="always" policy="prompt-run"/>
+  <xi:include href="resources.xml"/>
+  <application-desc width="1000" height="800" name="JfxNgs" main-class="com.github.lindenb.jvarkit.tools.vcfviewgui.JfxNgs"/>
+  <update check="background"/>
+</jnlp>

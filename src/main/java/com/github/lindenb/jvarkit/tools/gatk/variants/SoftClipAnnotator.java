@@ -188,7 +188,11 @@ public class SoftClipAnnotator
         			if(samRecord.getReadUnmappedFlag() || samRecord.getCigar()==null ||
         					!samRecord.getContig().equals(ctx.getContig()) ||
         					samRecord.getUnclippedEnd() < ctx.getStart() ||
-        					samRecord.getUnclippedStart() > ctx.getEnd()) continue;
+        					samRecord.getUnclippedStart() > ctx.getEnd() ||
+        					samRecord.getReadGroup()==null ||
+        					!g.getSampleName().equals(samRecord.getReadGroup().getSample())
+        					) continue;
+        			
         			boolean ok=true;
         			
         			for(final ReadFilter readFilter:readFilters)

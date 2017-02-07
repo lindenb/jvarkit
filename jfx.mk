@@ -57,9 +57,13 @@ scp-webstart: compile-webstart
 	scp -r webstart/* "${webstart.remotedir}"
 
 compile-webstart : .secret.keystore webstart/picard.jar webstart/SnpSift.jar \
-	$(sort $(addprefix src/main/java/com/github/lindenb/jvarkit/tools/jfx/, $(addsuffix .java,${PICARDJFX} ${GATKJFX} ${SNPEFFJFX}) $(addsuffix .xml,${PICARDJFX} ${GATKJFX} ${SNPEFFJFX})))
+	webstart/jfxngs/jfxngs.jar \
+	$(sort $(addprefix src/main/java/com/github/lindenb/jvarkit/tools/jfx/, $(addsuffix .java,${PICARDJFX} ${GATKJFX} ${SNPEFFJFX}) $(addsuffix .xml,${PICARDJFX} ${GATKJFX} ${SNPEFFJFX}))) \
+	webstart/jfxngs/jfxngs.jar
 	mkdir -p webstart/tmp
 	echo "<html><body><table><tr><th>Name</th><th>Description</th></tr>" > webstart/index.html
+	# previous app
+	echo '<tr><th><a href="jfxngs/JfxNgs.jnlp">JfxNgs</a></th><td>BAM/VCF viewer</td></tr>' >> webstart/index.html
 	# compile snpeff tools
 	mkdir -p webstart/tmp
 	$(foreach P,${SNPEFFJFX},$(call fun_jfx1,$P))
@@ -91,7 +95,18 @@ compile-webstart : .secret.keystore webstart/picard.jar webstart/SnpSift.jar \
 	$(call sign_jfx1,webstart/SnpSift.jar)
 	echo "</table></body></html>" >> webstart/index.html
 	chmod 755 webstart/*.html webstart/*.jar webstart/*.jnlp 
-	
+
+webstart/jfxngs/jfxngs.jar: .secret.keystore ${htsjdk.jars}  src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/JfxNgs.java
+	mkdir -p webstart/tmp webstart/jfxngs
+	javac -d webstart/tmp -sourcepath src/main/java -cp '$(subst $(SPACE),:,$(filter %.jar,$^))' $(filter %.java,$^)
+	jar cvf $@ -C webstart/tmp .
+	echo '<resources><j2se version="1.8+"/>' > $(dir $@)resources.xml
+	$(foreach P,$(filter %.jar,$^), echo '<jar download="null" href="$(notdir $P)"/>'   >>  $(dir $@)resources.xml && cp --verbose "$P" $(dir $@) && $(call sign_jfx1,$(dir $@)$(notdir $P)) ${CRLF} )
+	echo '<jar download="null" href="$(notdir $@)" main="true"/>' >> $(dir $@)resources.xml &&  $(call sign_jfx1,$@)
+	echo '</resources>' >>  $(dir $@)resources.xml
+	xmllint --path $(dir $@) --xinclude src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/JfxNgs.jnlp | sed 's%CODEBASE%${webstart.base}%' > $(dir $@)JfxNgs.jnlp
+	rm -rf webstart/tmp $(dir $@)resources.xml
+
 
 webstart/picard.jar:
 	mkdir -p $(dir $@)

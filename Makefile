@@ -60,6 +60,10 @@ jvarkit.package=com.github.lindenb.jvarkit
 EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
 
+define CRLF
+
+
+endef
 
 gatk.tools = org_broadinstitute_gatk_engine_CommandLineGATK \
 		org_broadinstitute_gatk_tools_walkers_variantutils_CombineVariants \
@@ -191,7 +195,7 @@ gatk_apps:$(if ${gatk.jar},gatkwalkers,)
 APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
 	bam2xml bam2wig		bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
-	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	bamviewgui	batchigvpictures	bedliftover \
+	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
 	biostar86480	biostar90204	msa2vcf	biostar95652 biostar139647	biostar145820 blast2sam reduceblast	blastmapannots \
@@ -212,7 +216,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	vcfjaspar	vcfliftover	vcfmapuniprot	vcfmerge	vcfmulti2one \
 	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats vcfcombinetwosnvs vcfstripannot \
-	vcftabixml	vcftreepack	 vcfvcf	vcfviewgui	worldmapgenome \
+	vcftabixml	vcftreepack	 vcfvcf	worldmapgenome \
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
 	biostar3654 vcfjoinvcfjs bioalcidae vcfburden  vcfreplacetag vcfindextabix \
 	vcfpeekvcf vcfgetvariantbyindex  vcfmulti2oneinfo bedindextabix vcf2bam vcffilterxpath \
@@ -222,7 +226,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
 	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 \
-	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230
+	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs
 	
 
 
@@ -280,7 +284,6 @@ $(eval $(call compile-htsjdk-cmd,bamstats02view,${jvarkit.package}.tools.bamstat
 $(eval $(call compile-htsjdk-cmd,bamstats04,${jvarkit.package}.tools.bamstats04.BamStats04,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,bamstats05,${jvarkit.package}.tools.bamstats04.BamStats05,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,bamtreepack,${jvarkit.package}.tools.treepack.BamTreePack,wiki_flag))
-$(eval $(call compile-htsjdk-cmd,bamviewgui,${jvarkit.package}.tools.bamviewgui.BamViewGui))
 $(eval $(call compile-htsjdk-cmd,batchigvpictures,${jvarkit.package}.tools.batchpicts.BatchIGVPictures,copy.opendoc.odp.resources))
 $(eval $(call compile-htsjdk-cmd,bedliftover,${jvarkit.package}.tools.liftover.BedLiftOver))
 $(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.ConvertBedChromosomes))
@@ -451,7 +454,6 @@ $(eval $(call compile-htsjdk-cmd,vcftail,${jvarkit.package}.tools.misc.VcfTail,g
 $(eval $(call compile-htsjdk-cmd,vcftreepack,${jvarkit.package}.tools.treepack.VcfTreePack,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcftrio,${jvarkit.package}.tools.vcftrios.VCFTrios))
 $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf))
-$(eval $(call compile-htsjdk-cmd,vcfviewgui,${jvarkit.package}.tools.vcfviewgui.VcfViewGui))
 $(eval $(call compile-htsjdk-cmd,worldmapgenome,${jvarkit.package}.tools.circular.WorldMapGenome))
 $(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,${generated.dir}/java/org/uniprot/package-info.java ))
 $(eval $(call compile-htsjdk-cmd,blastfilterjs,${jvarkit.package}.tools.blast.BlastFilterJS,api.ncbi.blast))
@@ -516,7 +518,7 @@ $(eval $(call compile-htsjdk-cmd,queue2make,${jvarkit.package}.tools.misc.QueueT
 $(eval $(call compile-htsjdk-cmd,vcfmovefilterstoinfo,${jvarkit.package}.tools.burden.VcfMoveFiltersToInfo,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,gatkcodegen,${jvarkit.package}.tools.gatk.codegen.GATKCodeGenerator,${gson.jar} ${velocity.jars} wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.VcfEigen01,wiki_flag))
-
+$(eval $(call compile-htsjdk-cmd,jfxngs,${jvarkit.package}.tools.vcfviewgui.JfxNgs,))
 
 GATKWALKERS_SRC=$(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/SoftClipAnnotator variants/GroupByVariants variants/GroupByGenotypes variants/EigenVariants))
 
@@ -533,15 +535,11 @@ gatkwalkers:
 	chmod  ugo+rx ${dist.dir}/mygatk
 
 
-all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar,vcfviewgui buildwpontology batchigvpictures)) ${htsjdk.jars} \
+all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar, buildwpontology batchigvpictures)) ${htsjdk.jars} \
 	 ./src/main/resources/jnlp/generic.jnlp .secret.keystore 
 	mkdir -p ${tmp.dir}
 	cp $(filter %.jar,$^) ${tmp.dir}
 	$(foreach J, $(filter %.jar,$^) , jarsigner ${J} secret ; ) 
-	sed -e 's/__MAIN_JAR__/vcfviewgui/g' \
-		-e 's/__TITLE__/VcfViewGui/g' \
-		-e 's/__MAIN_CLASS__/${jvarkit.package}.tools.vcfviewgui.VcfViewGui/g' \
-		 ./src/main/resources/jnlp/generic.jnlp > ${tmp.dir}/vcfviewgui.jnlp
 	sed -e 's/__MAIN_JAR__/buildwpontology/g' \
 		-e 's/__TITLE__/BuildWikipediaOntology/g' \
 		-e 's/__MAIN_CLASS__/${jvarkit.package}.tools.misc.BuildWikipediaOntology/g' \

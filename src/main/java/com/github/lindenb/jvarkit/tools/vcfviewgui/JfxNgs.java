@@ -35,15 +35,18 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.script.Bindings;
 import javax.script.Compilable;
@@ -52,6 +55,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 
+import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
 import htsjdk.samtools.CigarElement;
@@ -89,6 +93,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
@@ -96,15 +101,19 @@ import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
@@ -157,7 +166,10 @@ public class JfxNgs extends Application {
         	if(JfxNgs.this.javascriptEngine==null) {
         		this.javascriptArea.setEditable(false);
         		this.javascriptArea.setPromptText("Javascript engine is not available");
-        	}
+        	} else
+        		{
+        		this.javascriptArea.setPromptText("Use this area to create a javascript-bases filter to ignore some items");
+        		}
         	
         	
         	this.addEventHandler(
@@ -435,7 +447,9 @@ public class JfxNgs extends Application {
         private final Map<SAMFlag,CheckMenuItem> flag2filterInMenuItem=new HashMap<>();
         private final Map<SAMFlag,CheckMenuItem> flag2filterOutMenuItem=new HashMap<>();
         private final Spinner<Integer> maxReadLimitSpinner;
-       
+        private final Canvas canvas = new Canvas(900, 600);
+        private final ScrollBar canvasScrollV = new ScrollBar();
+        private final CheckBox canvasShowReadName = new CheckBox("Show Read Name");
         
         BamStageContent(final String url) throws IOException
         	{
@@ -446,6 +460,8 @@ public class JfxNgs extends Application {
             		ValidationStringency.LENIENT
             		);
             LOG.info("Opening "+url);
+            
+            
             this.samReader=srf.open(SamInputResource.of(url));
             if(!this.samReader.hasIndex())
             	{
@@ -691,6 +707,30 @@ public class JfxNgs extends Application {
             tabbedPane.getTabs().add(createProgramRecordPane(this.samReader.getFileHeader()));
             tabbedPane.getTabs().add(buildJavascriptPane());
             
+            /* CANVAS STUFFF */
+            final BorderPane canvasPane = new BorderPane(this.canvas);
+            this.canvasScrollV.setOrientation(Orientation.VERTICAL);
+            canvasPane.setRight(this.canvasScrollV);
+            final FlowPane canvasTop=new FlowPane(this.canvasShowReadName);
+            canvasPane.setTop(canvasTop);
+            
+            this.canvasShowReadName.setOnAction(new EventHandler<ActionEvent>() {
+				@Override
+				public void handle(ActionEvent event) {
+					repaintCanvas();
+				}
+			});
+            this.canvasScrollV.valueProperty().addListener(new ChangeListener<Number>() {
+                public void changed(ObservableValue<? extends Number> ov, Number old_val, Number new_val) {
+                	repaintCanvas();
+                }
+            });
+            
+            tab=new Tab("Canvas",canvasPane);
+            tab.setClosable(false);
+            tabbedPane.getTabs().add(tab);
+            /* END CANVAS STUFF */
+            
             vbox1.getChildren().add(tabbedPane);
             
             final FlowPane bottom=new FlowPane(super.messageLabel);
@@ -717,6 +757,221 @@ public class JfxNgs extends Application {
             CloserUtil.close(samReader);
         	}
         
+        /** get a stream of read we can display on canvas */
+        private Stream<SAMRecord> getDisplayableSamRecordStream()
+        	{
+        	return this.recordTable.getItems().
+        			stream().
+        			filter(R->!R.getReadUnmappedFlag() && R.getCigar()!=null)
+        			;
+        	}
+        
+        private void repaintCanvas()
+        	{
+        	final boolean showReadName = this.canvasShowReadName.isSelected();
+        	final int baseSize=15;
+        	final double canvaswidth= this.canvas.getWidth();
+        	final double canvasheight= this.canvas.getHeight();
+        	final GraphicsContext gc=this.canvas.getGraphicsContext2D();
+        	gc.setFill(Color.WHITE);
+        	gc.fillRect(0, 0, canvaswidth, canvasheight);
+        	double y=baseSize*2;
+        	final List<SAMRecord> records=getDisplayableSamRecordStream().collect(Collectors.toList());
+        	if(records.isEmpty()) return;
+     
+        	final int recordStart=(int)this.canvasScrollV.getValue();
+        	if(recordStart>=records.size()) return;
+        	int recordIndex=recordStart;
+        	final int chromStart=records.get(recordStart).getUnclippedStart();
+        	final int chromLen=(int)(canvaswidth/baseSize);
+        	if(chromLen==0) return;
+        	
+        	
+        	Function<Integer,Double> position2pixel=new Function<Integer, Double>() {
+				@Override
+				public Double apply(Integer pos) {
+					return ((pos-(double)chromStart)/(double)chromLen)*canvaswidth;
+				}
+			};
+			
+        	
+
+			
+			final Hershey hershey=new Hershey();
+			
+			hershey.paint(gc,records.get(recordStart).getContig(),1,0,baseSize*records.get(recordStart).getContig().length(),baseSize-2);
+			
+			for(int x=chromStart;x<chromStart+chromLen;++x)
+				{
+				double px=position2pixel.apply(x);
+				gc.setStroke(x%10==0?Color.BLACK:Color.GRAY);
+				gc.setLineWidth(x%10==0?5:0.5);
+				gc.strokeLine(px, baseSize, px, canvasheight);
+				if(x%10==0)
+					{
+					String s=String.valueOf(x);
+					gc.setLineWidth(1.0);
+					hershey.paint(gc,s,px,baseSize,baseSize*s.length(),baseSize-1);
+					}
+				}
+			gc.setLineWidth(1);
+        	while(y<canvasheight && recordIndex < records.size())
+        		{
+        		final SAMRecord rec=records.get(recordIndex);
+        		if(!rec.getReferenceName().equals(records.get(recordStart).getReferenceName())) {
+        			++recordIndex;
+        			continue;
+        			}
+        		int baseIndex=0;
+        		int refIndex=rec.getUnclippedStart();
+        		final byte bases[]=rec.getReadBases();
+        		
+        		final Function<Integer,String> getBaseAt = new Function<Integer, String>() {
+					@Override
+					public String apply(Integer readPos) {
+						char c;
+						if(showReadName)
+							{
+							if(rec.getReadNameLength()<=readPos) return "";
+							c= rec.getReadName().charAt(readPos);
+							}
+						else if(bases==null || bases.length<=readPos)
+							{
+							return "";
+							}
+						else
+							{
+							c=(char)bases[readPos];
+							}	
+						c=(rec.getReadNegativeStrandFlag()?
+								Character.toLowerCase(c):
+								Character.toUpperCase(c)
+								);
+						return String.valueOf(c);
+					}
+				};
+				
+        		final Function<Integer,Color> getColorAt = new Function<Integer, Color>() {
+					
+					public Color apply(Integer readPos) {
+						if(bases==null || bases.length<=readPos)
+							{
+							return Color.BLACK;
+							}
+						switch(Character.toUpperCase((char)bases[readPos]))
+							{
+							case 'A': return Color.BLUE;
+							case 'T': return Color.GREEN;
+							case 'C': return Color.YELLOW;
+							case 'G': return Color.RED;
+							default: return Color.BLACK;
+							}
+					}
+				};
+
+				
+				
+				gc.setLineWidth(1.0);
+        		//arrow end
+    			{
+    			double endpos=position2pixel.apply(rec.getReadNegativeStrandFlag()?rec.getUnclippedStart():rec.getUnclippedEnd()+1);
+    			double radius=baseSize/4.0;
+    			gc.setFill(Color.BLACK);
+    			gc.fillOval(
+    					endpos- radius,
+        				y+baseSize/2.0 - radius,
+        				radius*2 ,
+        				radius*2
+        				);
+    			}
+
+        		
+        		final Set<Integer> referenceEvents=new HashSet<>();
+        		for(CigarElement ce:rec.getCigar()) {
+        			switch(ce.getOperator())
+        				{
+        				case P: break;
+        				case I: 
+        					{
+        					baseIndex+=ce.getLength();
+        					referenceEvents.add(refIndex);
+        					break;
+        					}
+        				case D: case N:
+        					{
+        					gc.setFill(Color.RED);
+        					for(int x=0;x< ce.getLength();++x)
+        						{
+        						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
+        						refIndex++;
+        						}
+        					break;
+        					}
+        				case H:
+        					{
+    						gc.setFill(Color.YELLOW);
+        					for(int x=0;x< ce.getLength();++x)
+        						{
+        						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
+        						refIndex++;
+        						}
+        					break;
+        					}
+        				case S:
+	    					{
+	    					for(int x=0;x< ce.getLength();++x)
+	    						{
+	    						gc.setFill(Color.YELLOW);
+	    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
+	    						gc.setStroke(getColorAt.apply(baseIndex));
+	    						hershey.paint(gc,getBaseAt.apply(baseIndex), position2pixel.apply(refIndex),y,baseSize-1,baseSize-2);
+	    						refIndex++;
+	    						baseIndex++;
+	    						}
+	    					break;
+	    					}
+        				case EQ:case X:case M:
+    						{
+	    					for(int x=0;x< ce.getLength();++x)
+	    						{
+        						gc.setFill(ce.getOperator()==CigarOperator.X?Color.RED:Color.LIGHTGRAY);
+	    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
+	    						gc.setStroke(getColorAt.apply(baseIndex));
+	    						hershey.paint(gc,getBaseAt.apply(baseIndex), position2pixel.apply(refIndex),y,baseSize-1,baseSize-2);
+	    						refIndex++;
+	    						baseIndex++;
+	    						}
+        					break;
+        					}
+        				
+        				default:break;
+        				}
+        			if(refIndex> chromStart+chromLen) break;
+        			}
+        		
+        		
+        		gc.setStroke(Color.BLACK);
+        		gc.strokeRect(
+        				position2pixel.apply(rec.getUnclippedStart()),
+        				y,
+        				position2pixel.apply(rec.getUnclippedEnd()+1)-position2pixel.apply(rec.getUnclippedStart()) ,
+        				baseSize-1
+        				);
+        		
+        		for(Integer pos:referenceEvents)
+        			{
+        			double x=position2pixel.apply(pos);
+        			gc.setStroke(Color.RED);
+        			gc.setLineWidth(0.5);
+        			gc.strokeLine(x, y, x, y+baseSize);
+        			}
+        		
+        		recordIndex++;
+        		y+=baseSize;
+        		}
+        	gc.setStroke(Color.BLACK);
+    		gc.rect(0,0,canvaswidth-1,canvasheight-1);
+        	}
         
         private TableView<SamFlagRow> createSamFlagTable()
 	        {
@@ -841,7 +1096,7 @@ public class JfxNgs extends Application {
         		}
         	for(final SAMFlag flag: this.flag2filterOutMenuItem.keySet())
         		{
-        		CheckMenuItem cbox = this.flag2filterInMenuItem.get(flag);
+        		CheckMenuItem cbox = this.flag2filterOutMenuItem.get(flag);
         		if(!cbox.isSelected()) continue;
         		recFilter=recFilter.and(R-> !flag.isSet(R.getFlags()));
         		}
@@ -901,6 +1156,13 @@ public class JfxNgs extends Application {
         		}
         	if(iter!=null) iter.close();
         	this.recordTable.getItems().setAll(L);
+        	
+        	final int countDisplayable = (int)getDisplayableSamRecordStream().count();
+        	this.canvasScrollV.setMin(0);
+        	this.canvasScrollV.setMax(countDisplayable);
+        	this.canvasScrollV.setValue(0);
+        	
+        	repaintCanvas();
         	}
         @Override
     	void openInIgv() {
@@ -1071,6 +1333,7 @@ public class JfxNgs extends Application {
     	private void doMenuSaveAs()
     		{
     		final FileChooser fc=new FileChooser();
+        	fc.setSelectedExtensionFilter(new ExtensionFilter("VCF Files", "*.vcf.gz"));
     		File saveAs=fc.showSaveDialog(this);
     		if(saveAs==null) return;
     		if(!saveAs.getName().endsWith(".vcf.gz"))
@@ -1430,6 +1693,13 @@ public class JfxNgs extends Application {
     public void stop() throws Exception
     	{
     	try {
+    		this.preferences.sync();
+    		}
+    	catch(BackingStoreException err)
+    		{
+    		LOG.warning(err.getMessage());
+    		}
+    	try {
     		LOG.info("flush preferences");
     		this.preferences.flush();
     		}
@@ -1461,7 +1731,24 @@ public class JfxNgs extends Application {
        
         primaryStage.setTitle(getClass().getSimpleName());
         Menu menu=new Menu("File");
-        MenuItem menuItem=new MenuItem("Open...");
+        
+        MenuItem menuItem=new MenuItem("About...");
+        menuItem.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				Alert alert=new Alert(AlertType.INFORMATION);
+				alert.setHeaderText("JFXNGS");
+				alert.setContentText("Pierre Lindenbaum PhD. 2017.\n"
+						+ "@yokofakun\n"
+						+ "Institut du Thorax - Nantes - France\n"
+						+ "https://github.com/lindenb/jvarkit"
+						);
+				alert.showAndWait();
+			}
+		});
+        menu.getItems().add(menuItem);
+        
+        menuItem=new MenuItem("Open...");
         menuItem.setOnAction(new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
@@ -1470,6 +1757,9 @@ public class JfxNgs extends Application {
 			}
 		});
         menu.getItems().add(menuItem);
+        
+        
+        
         menuItem=new MenuItem("Quit...");
         menuItem.setOnAction(new EventHandler<ActionEvent>() {
 			@Override
@@ -1480,8 +1770,9 @@ public class JfxNgs extends Application {
         menu.getItems().add(menuItem);
         
         MenuBar bar=new MenuBar(menu);
-        FlowPane flow=new FlowPane();
-        flow.getChildren().add(new Label("Set Location to:"));
+        FlowPane flow=new FlowPane(5,5);
+        flow.setPadding(new Insets(10,10,10,10));
+        flow.getChildren().add(new Label("Set Location of all frames to:"));
         final TextField textField=new TextField();
         textField.setPrefColumnCount(15);
         textField.setPromptText("Location");
@@ -1508,7 +1799,7 @@ public class JfxNgs extends Application {
         BorderPane pane=new BorderPane();
         
         
-        
+        pane.setBottom(new Label("Author: Pierre Lindenbaum PhD."));
         
        
         VBox vbox1= new VBox(bar,flow,pane);
@@ -1599,26 +1890,41 @@ public class JfxNgs extends Application {
     	Platform.exit();
     	}
     
-    private Collection<StageContent> openNgsFiles(final Window owner)
+    private void openNgsFiles(final Window owner)
     	{
-    	FileChooser fc=new FileChooser();
-    	fc.setSelectedExtensionFilter(new ExtensionFilter("NGS Files","*.bam","*.vcf","*.vcf.gz","list"));
-    	List<File> selFiles = fc.showOpenMultipleDialog(owner);
-    	if(selFiles==null || selFiles.isEmpty()) return Collections.emptyList();
+    	final String LAST_USED_DIR="last.used.dir";
+    	final FileChooser fc=new FileChooser();
+    	String lastDirStr= preferences.get(LAST_USED_DIR, null);
+    	if(lastDirStr!=null && !lastDirStr.isEmpty())
+    		{
+    		fc.setInitialDirectory(new File(lastDirStr));
+    		}
+    	
+    	fc.setSelectedExtensionFilter(new ExtensionFilter("NGS Files", "*.bam","*.vcf","*.vcf.gz","*.list"));
+    	final List<File> selFiles = fc.showOpenMultipleDialog(owner);
+    	if(selFiles==null || selFiles.isEmpty()) return ;
     	List<StageContent> stages =new ArrayList<>();
+    	File parentDir=null;
     	try 
     		{
 	    	for(final File f:selFiles)
 	    		{
 	    		stages.addAll( openNgsFiles(f.getPath()) );
+	    		parentDir=f.getParentFile();
 	    		}
-	    	return stages;
+	    	for(StageContent sc:stages)
+	    		{	
+	    		sc.show();
+	    		}
+	    	if(parentDir!=null)
+	    		{
+	    		preferences.put(LAST_USED_DIR, parentDir.getPath());
+	    		}
     		}
     	catch(final Exception err)
     		{
     		for(StageContent sc:stages) sc.closeNgsResource();
     		showExceptionDialog(owner, err);
-    		return Collections.emptyList();
     		}		
     	}
 
@@ -1639,23 +1945,25 @@ public class JfxNgs extends Application {
 	    	{
 	    	SamReader samIn=null;
 	    	//try as BAM
-	    	if(IOUtil.isUrl(uri) || uri.endsWith(".bam") )
+	    	if(uri.endsWith(".bam") )
 		    	{
 		    	try
 		    		{
-		    		SamReaderFactory srf = SamReaderFactory.makeDefault();
+		    		final SamReaderFactory srf = SamReaderFactory.makeDefault();
 		    		srf.validationStringency(ValidationStringency.LENIENT);
 		    		samIn = srf.open(SamInputResource.of(uri));
 		    		if(samIn.hasIndex())
 		    			{
 		    			samIn.close();
+		    			LOG.info("OK for BAM "+uri);
 		    			stages.add(new BamStageContent(uri));
 		    			continue;
 		    			}
+		    		LOG.warning("cannot read "+uri+" as BAM");
 		    		}
-		    	catch(Exception err)
+		    	catch(final Exception err)
 		    		{
-		    		LOG.info("not an indexed bam file : "+uri);
+		    		LOG.warning("not an indexed bam file : "+uri);
 		    		}
 		    	finally
 		    		{
@@ -1664,7 +1972,7 @@ public class JfxNgs extends Application {
 		    	}
 	    	//try as VCF
 	    	
-	    	if(IOUtil.isUrl(uri) || uri.endsWith(".vcf") || uri.endsWith(".bcf")  || uri.endsWith(".vcf.gz") )
+	    	if(uri.endsWith(".vcf") || uri.endsWith(".bcf")  || uri.endsWith(".vcf.gz") )
 		    	{
 		    	VCFFileReader vcfIn=null;
 		    	try
@@ -1672,21 +1980,23 @@ public class JfxNgs extends Application {
 		    		vcfIn = new VCFFileReader(new File(uri), true);
 		    		vcfIn.getFileHeader();
 		    		vcfIn.close();
-		    		
+		    		LOG.info("OK for VCF "+uri);
 					stages.add(new VcfStage(uri));
 					continue;
 		    		}
 		    	catch(Exception err)
 		    		{
-		    		LOG.info("not an indexed vcf file : "+uri);
+		    		LOG.warning("not an indexed vcf file : "+uri);
 		    		}
 		    	finally
 		    		{
 		    		CloserUtil.close(vcfIn);
 		    		}
 		    	}
-	    	throw new IOException("Not a NGS file : "+uri);
+	    	for(StageContent sc:stages) sc.closeNgsResource();
+	    	throw new IOException("Not a Valid/indexed NGS file : "+uri);
 	    	}
+    	LOG.info("N opened stages = "+stages.size());
     	return stages;
     	}
     
@@ -1703,13 +2013,7 @@ public class JfxNgs extends Application {
     	}
 
     public static void main(String[] args) {
-    	//final String base="/home/lindenb/src/gatk-ui/";
-    	final String base="/commun/data/users/lindenb/src/gatk-ui/";
-    	args=new String[]{
-    			base+"testdata/mutations.vcf",
-    			base+"testdata/S1.bam",
-    			base+"testdata/S2.bam",
-    			};
+    	
         launch(args);
     }
 
