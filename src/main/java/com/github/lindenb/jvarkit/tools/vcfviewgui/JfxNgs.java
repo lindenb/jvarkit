@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -100,6 +101,7 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -132,6 +134,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
@@ -162,7 +165,8 @@ public class JfxNgs extends Application {
     	protected final TextField gotoField=new TextField();
 
     	
-        public StageContent() {
+        public StageContent()
+        	{
         	if(JfxNgs.this.javascriptEngine==null) {
         		this.javascriptArea.setEditable(false);
         		this.javascriptArea.setPromptText("Javascript engine is not available");
@@ -435,7 +439,37 @@ public class JfxNgs extends Application {
     		}
 		}
 
-
+    private static class ContigPos
+    	implements Comparable<ContigPos>
+		{
+		final String contig;
+		final int position;
+		ContigPos(final String contig,final int position) {
+			this.contig=contig;
+			this.position=position;
+		}
+		@Override
+		public int compareTo(ContigPos o) {
+			int i=contig.compareTo(o.contig);
+			if(i!=0) return i;
+			return position-o.position;
+			}
+		}
+    private static class Pileup extends ContigPos
+    	{
+    	
+    	final int count[]=new int[5];
+    	final StringBuilder seq=new StringBuilder();
+    	final StringBuilder qual=new StringBuilder();
+    	final StringBuilder operators=new StringBuilder();
+    	
+    	Pileup(final String contig,final int position) {
+			super(contig,position);
+			Arrays.fill(count,0);
+			}
+    	int depth() { return count[0]+count[1]+count[2]+count[3]+count[4];}
+    	}
+    
     /** NGS window for BAM */
     private class BamStageContent extends StageContent
         {
@@ -444,6 +478,7 @@ public class JfxNgs extends Application {
         private final TableView<SamFlagRow> flagsTable;
         private final TableView<SAMTagAndValue> metaDataTable;
         private final TableView<CigarAndBase> cigarTable;
+        private final TableView<Pileup> pileupTable;
         private final Map<SAMFlag,CheckMenuItem> flag2filterInMenuItem=new HashMap<>();
         private final Map<SAMFlag,CheckMenuItem> flag2filterOutMenuItem=new HashMap<>();
         private final Spinner<Integer> maxReadLimitSpinner;
@@ -604,8 +639,8 @@ public class JfxNgs extends Application {
             tilePane.getChildren().add(this.cigarTable);
 
             
-   
-
+            this.pileupTable = createPileupTable();
+            tilePane.getChildren().add(this.cigarTable);
             
             /* when a read is selected update the flagsTable and metaDataTable */
             this.recordTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -996,6 +1031,23 @@ public class JfxNgs extends Application {
 	        }
         
         
+        private TableView<Pileup> createPileupTable()
+        	{
+        	final TableView<Pileup> table=new TableView<>();
+        	table.getColumns().add(makeColumn("REF", O->O.contig));
+        	table.getColumns().add(makeColumn("POS", O->O.position));
+        	table.getColumns().add(makeColumn("Depth", O->O.depth()));
+        	table.getColumns().add(makeColumn("A", O->O.count[0]));
+        	table.getColumns().add(makeColumn("T", O->O.count[1]));
+        	table.getColumns().add(makeColumn("G", O->O.count[2]));
+        	table.getColumns().add(makeColumn("C", O->O.count[3]));
+        	table.getColumns().add(makeColumn("N", O->O.count[4]));
+        	table.getColumns().add(makeColumn("Bases", O->O.seq.toString()));
+        	table.getColumns().add(makeColumn("Qual", O->O.qual.toString()));
+        	table.getColumns().add(makeColumn("Operators", O->O.operators.toString()));
+        	return table;
+        	}
+        
         private TableView<CigarAndBase> createCigarTable() 
         	{
         	final TableView<CigarAndBase> table=new TableView<>();
@@ -1139,7 +1191,16 @@ public class JfxNgs extends Application {
         			compiledScript=null;
         			}
         		}
-        	
+        	final Map<ContigPos,Pileup> pos2pileup=new TreeMap<>();
+        	Function<ContigPos,Pileup> getpileup=new  Function<ContigPos, Pileup>() {
+				@Override
+				public Pileup apply(ContigPos t) {
+					Pileup p =pos2pileup.get(t);
+					if(p==null) { p=new Pileup(t.contig,t.position);pos2pileup.put(t,p);}
+					return p;
+				}
+			};
+			
         	int count_items=0;
         	while(iter!=null && iter.hasNext() && count_items<max_items)
         		{
@@ -1153,9 +1214,102 @@ public class JfxNgs extends Application {
         		
         		if(!recFilter.test(rec)) continue;
         		L.add(rec);
+        		
+        		/* FILL pileup */
+        		if(!rec.getReadUnmappedFlag() && rec.getCigar()!=null)
+        			{
+        			int refpos=rec.getUnclippedStart();
+        			int readpos=0;
+        			final byte bases[]=rec.getReadBases();
+        			final byte quals[]=rec.getOriginalBaseQualities();
+        			
+            		final Function<Integer,Character> getBaseAt = new Function<Integer, Character>() {
+    					@Override
+    					public Character apply(Integer readPos) {
+    						char c;
+    						if(bases==null || bases.length<=readPos)
+    							{
+    							return '?';
+    							}
+    						else
+    							{
+    							c=(char)bases[readPos];
+    							}	
+    						c=(rec.getReadNegativeStrandFlag()?
+    								Character.toLowerCase(c):
+    								Character.toUpperCase(c)
+    								);
+    						return c;
+    					}
+    				};
+        			
+            		final Function<Integer,Character> getQualAt = new Function<Integer, Character>() {
+    					@Override
+    					public Character apply(Integer readPos) {
+    						char c;
+    						if(quals==null || quals.length<=readPos)
+    							{
+    							return '#';
+    							}
+    						else
+    							{
+    							c=(char)quals[readPos];
+    							}	
+    						return c;
+    					}
+    				};
+
+    				
+        			for(final CigarElement ce:rec.getCigar())
+        				{
+        				switch(ce.getOperator())
+        					{
+        					case P:break;
+        					case N:case D:
+        						{
+        						refpos+=ce.getLength();
+        						break;
+        						}
+        					case H:
+        						{
+    							for(int i=0;i< ce.getLength();++i) {
+        							Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+        							p.seq.append('?');
+        							p.qual.append('?');
+        							p.operators.append((char)CigarOperator.enumToCharacter(ce.getOperator()));
+        							++refpos;
+        							}
+        						break;
+        						}
+        					case I:
+        						{
+    							Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+    							p.seq.append(getBaseAt.apply(readpos));
+    							p.qual.append(getQualAt.apply(readpos));
+    							p.operators.append((char)CigarOperator.enumToCharacter(ce.getOperator()));
+    							readpos+=ce.getLength();
+    							break;
+        						}
+        					case S: case EQ: case X: case M:
+        						for(int i=0;i< ce.getLength();++i) {
+        							Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+        							p.seq.append(getBaseAt.apply(readpos));
+        							p.qual.append(getQualAt.apply(readpos));
+        							p.operators.append((char)CigarOperator.enumToCharacter(ce.getOperator()));
+        							++readpos;
+        							++refpos;
+        							}
+        						break;
+        					}
+        				}
+        			}
+        		
+        		
         		}
         	if(iter!=null) iter.close();
         	this.recordTable.getItems().setAll(L);
+        	this.pileupTable.getItems().setAll(pos2pileup.values());
+        	
         	
         	final int countDisplayable = (int)getDisplayableSamRecordStream().count();
         	this.canvasScrollV.setMin(0);
@@ -1318,7 +1472,13 @@ public class JfxNgs extends Application {
             
             final FlowPane bottom=new FlowPane(super.messageLabel);
             vbox1.getChildren().add(bottom);
-            this.setScene(new Scene(vbox1,1000+randomMoveWindow.nextInt(10),500+randomMoveWindow.nextInt(10)));
+            final Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
+
+            final Scene scene = new Scene(vbox1,
+            		primaryScreenBounds.getWidth()-200+randomMoveWindow.nextInt(10),
+            		primaryScreenBounds.getHeight()-200+randomMoveWindow.nextInt(10));
+           
+            this.setScene(scene);
             
            
 
@@ -1805,8 +1965,11 @@ public class JfxNgs extends Application {
         VBox vbox1= new VBox(bar,flow,pane);
         
         
-      
-        final Scene scene = new Scene(vbox1,500+randomMoveWindow.nextInt(10),300+randomMoveWindow.nextInt(10));
+        final Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
+
+        final Scene scene = new Scene(vbox1,
+        		primaryScreenBounds.getWidth()-200+randomMoveWindow.nextInt(10),
+        		primaryScreenBounds.getHeight()-200+randomMoveWindow.nextInt(10));
        
         primaryStage.setScene(scene);
         primaryStage.setOnHidden(e -> doMenuQuit());
@@ -1941,63 +2104,97 @@ public class JfxNgs extends Application {
     		}
 		final List<StageContent> stages =new ArrayList<>();
 
-    	for(String uri:pathList)
+    	for(final String uri:pathList)
 	    	{
-	    	SamReader samIn=null;
 	    	//try as BAM
 	    	if(uri.endsWith(".bam") )
 		    	{
-		    	try
-		    		{
-		    		final SamReaderFactory srf = SamReaderFactory.makeDefault();
-		    		srf.validationStringency(ValidationStringency.LENIENT);
-		    		samIn = srf.open(SamInputResource.of(uri));
-		    		if(samIn.hasIndex())
-		    			{
-		    			samIn.close();
-		    			LOG.info("OK for BAM "+uri);
-		    			stages.add(new BamStageContent(uri));
-		    			continue;
-		    			}
-		    		LOG.warning("cannot read "+uri+" as BAM");
-		    		}
-		    	catch(final Exception err)
-		    		{
-		    		LOG.warning("not an indexed bam file : "+uri);
-		    		}
-		    	finally
-		    		{
-		    		CloserUtil.close(samIn);
-		    		}
+	    		final StageContent sc=openBam(uri);
+		    	if(sc!=null) stages.add(sc);
 		    	}
-	    	//try as VCF
-	    	
-	    	if(uri.endsWith(".vcf") || uri.endsWith(".bcf")  || uri.endsWith(".vcf.gz") )
+	    	else if(uri.endsWith(".vcf") || uri.endsWith(".bcf")  || uri.endsWith(".vcf.gz") )
 		    	{
-		    	VCFFileReader vcfIn=null;
-		    	try
-		    		{
-		    		vcfIn = new VCFFileReader(new File(uri), true);
-		    		vcfIn.getFileHeader();
-		    		vcfIn.close();
-		    		LOG.info("OK for VCF "+uri);
-					stages.add(new VcfStage(uri));
-					continue;
-		    		}
-		    	catch(Exception err)
-		    		{
-		    		LOG.warning("not an indexed vcf file : "+uri);
-		    		}
-		    	finally
-		    		{
-		    		CloserUtil.close(vcfIn);
-		    		}
+	    		final StageContent sc=openVcf(uri);
+		    	if(sc!=null) stages.add(sc);
 		    	}
-	    	for(StageContent sc:stages) sc.closeNgsResource();
-	    	throw new IOException("Not a Valid/indexed NGS file : "+uri);
+	    	else
+	    		{
+	    		LOG.warning("Don't know how to open "+uri);
+	    		}	
 	    	}
     	LOG.info("N opened stages = "+stages.size());
     	return stages;
+    	}
+    
+    private BamStageContent openBam(final String uri)
+    	{
+    	SamReader samIn=null;
+    	try
+			{
+			final SamReaderFactory srf = SamReaderFactory.makeDefault();
+			srf.validationStringency(ValidationStringency.LENIENT);
+			samIn = srf.open(SamInputResource.of(uri));
+			if(!samIn.hasIndex())
+				{
+				LOG.warning("No index for "+uri);
+				return null;
+				}
+			if(samIn.getFileHeader()==null)
+				{
+				LOG.warning("cannot get SAM header for "+uri);
+				return null;
+				}
+			if(samIn.getFileHeader().getSequenceDictionary()==null)
+				{
+				LOG.warning("cannot get SAM Dictionary for "+uri);
+				return null;
+				}	
+			samIn.close();
+			LOG.info("OK for BAM "+uri);
+			return new BamStageContent(uri);
+			}
+		catch(final Exception err)
+			{
+			LOG.warning("not an indexed bam file : "+uri);
+			return null;
+			}
+		finally
+			{
+			CloserUtil.close(samIn);
+			}
+    	}
+    
+    private VcfStage openVcf(final String uri)
+    	{
+    	VCFFileReader vcfIn=null;
+    	try
+    		{
+    		vcfIn = new VCFFileReader(new File(uri), true);
+    		if(vcfIn.getFileHeader()==null) {
+    			LOG.info("No VCF header in "+uri);
+    			return null;
+    			}
+    		if(vcfIn.getFileHeader().getSequenceDictionary()==null) {
+    			LOG.info("No VCF idctionary in "+uri);
+    			return null;
+    			}
+    		if(vcfIn.getFileHeader()!=null && vcfIn.getFileHeader().getSequenceDictionary()!=null)
+	    		{
+	    		vcfIn.close();
+	    		LOG.info("OK for VCF "+uri);
+				return new VcfStage(uri);
+	    		}
+    		return null;
+    		}
+    	catch(Exception err)
+    		{
+    		LOG.warning("not an indexed vcf file : "+uri);
+    		return null;
+    		}
+    	finally
+    		{
+    		CloserUtil.close(vcfIn);
+    		}
     	}
     
     private MenuItem createMenuItem(final String label,final Runnable runner)
