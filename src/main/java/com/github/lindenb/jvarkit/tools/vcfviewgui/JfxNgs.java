@@ -153,6 +153,8 @@ public class JfxNgs extends Application {
     private final List<StageContent> all_opened_stages=new ArrayList<>();
     private final Random randomMoveWindow=new Random();
     
+    
+    
     /** abstract base class for NGS window */
     private abstract class StageContent
         extends Stage
@@ -210,6 +212,56 @@ public class JfxNgs extends Application {
         	new Thread(r).start();
         	}
 
+        /** create a MenuItem saving a table */
+        protected <T> MenuItem menuForSavingTable(final String tableName,TableView<T> table)
+        	{
+        	final MenuItem item=new MenuItem("Save "+tableName+" as ...");
+        	item.setOnAction(new EventHandler<ActionEvent>()
+				{
+				@Override
+				public void handle(ActionEvent event)
+					{
+					FileChooser fc=new FileChooser();
+					fc.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("TSV","tsv"));
+					File fout=fc.showSaveDialog(StageContent.this);
+					if(fout==null) return ;
+					PrintWriter out=null;
+					try
+						{
+						out = new PrintWriter(fout);
+						for(int x=0;x< table.getColumns().size();++x)
+							{
+							out.print(x==0?"#":"\t");
+							out.print(table.getColumns().get(x).getText());
+							}
+						out.println();
+						for(int y=0;y< table.getItems().size();++y)
+							{
+							final T row=table.getItems().get(y);
+							for(int x=0;x< table.getColumns().size();++x)
+								{
+								if(x>0) out.print("\t");
+								out.print(table.getColumns().get(x).getCellObservableValue(row).getValue());
+								}
+							out.println();
+							}
+						out.flush();
+						}
+					catch(Exception err)
+						{
+						err.printStackTrace();
+						showExceptionDialog(StageContent.this, err);
+						}
+					finally
+						{
+						CloserUtil.close(out);
+						}
+					
+					}
+				});
+        	return item;
+        	}
+        
         /** send a goto command to IGV */
         protected void openInIgv(final Locatable feature)
         	{
@@ -467,7 +519,22 @@ public class JfxNgs extends Application {
 			super(contig,position);
 			Arrays.fill(count,0);
 			}
-    	int depth() { return count[0]+count[1]+count[2]+count[3]+count[4];}
+    	void watch(char base,char q,CigarOperator op)
+    		{
+    		seq.append(base);
+    		switch(Character.toUpperCase(base))
+    			{
+    			case 'A': count[0]++;break;
+    			case 'T': count[1]++;break;
+    			case 'G': count[2]++;break;
+    			case 'C': count[3]++;break;
+    			case '<':case '>': case '-':break;
+    			default: count[4]++;break;
+    			}
+    		qual.append(q);
+    		this.operators.append((char)CigarOperator.enumToCharacter(op));
+    		}
+    	int depth() { return count[0]+count[1]+count[2]+count[3];}
     	}
     
     /** NGS window for BAM */
@@ -639,8 +706,6 @@ public class JfxNgs extends Application {
             tilePane.getChildren().add(this.cigarTable);
 
             
-            this.pileupTable = createPileupTable();
-            tilePane.getChildren().add(this.cigarTable);
             
             /* when a read is selected update the flagsTable and metaDataTable */
             this.recordTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -723,6 +788,11 @@ public class JfxNgs extends Application {
             
             tab.setContent(borderPane);
            
+            this.pileupTable = createPileupTable();
+            tab=new Tab("Pileup",this.pileupTable);
+            tab.setClosable(false);
+            tabbedPane.getTabs().add(tab);
+
             
             tab=new Tab("Header");
             tab.setClosable(false);
@@ -776,8 +846,14 @@ public class JfxNgs extends Application {
             		800+randomMoveWindow.nextInt(10)
             		));
             
-            
-        }
+            fileMenu.getItems().addAll(
+            		menuForSavingTable("SamRecord",this.recordTable),
+            		menuForSavingTable("MetaData",this.metaDataTable),
+            		menuForSavingTable("Flags",this.flagsTable),
+            		menuForSavingTable("Pileup",this.pileupTable),
+            		menuForSavingTable("Cigar",this.cigarTable)
+            		);
+        	}
 
         
         @Override
@@ -1045,7 +1121,7 @@ public class JfxNgs extends Application {
         	table.getColumns().add(makeColumn("Bases", O->O.seq.toString()));
         	table.getColumns().add(makeColumn("Qual", O->O.qual.toString()));
         	table.getColumns().add(makeColumn("Operators", O->O.operators.toString()));
-        	return table;
+        return table;
         	}
         
         private TableView<CigarAndBase> createCigarTable() 
@@ -1223,6 +1299,7 @@ public class JfxNgs extends Application {
         			final byte bases[]=rec.getReadBases();
         			final byte quals[]=rec.getOriginalBaseQualities();
         			
+        			/** function getting the ith base */
             		final Function<Integer,Character> getBaseAt = new Function<Integer, Character>() {
     					@Override
     					public Character apply(Integer readPos) {
@@ -1243,6 +1320,7 @@ public class JfxNgs extends Application {
     					}
     				};
         			
+    				/** function getting the ith base quality */
             		final Function<Integer,Character> getQualAt = new Function<Integer, Character>() {
     					@Override
     					public Character apply(Integer readPos) {
@@ -1273,29 +1351,33 @@ public class JfxNgs extends Application {
         					case H:
         						{
     							for(int i=0;i< ce.getLength();++i) {
-        							Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
-        							p.seq.append('?');
-        							p.qual.append('?');
-        							p.operators.append((char)CigarOperator.enumToCharacter(ce.getOperator()));
+        							final Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+        							p.watch('-','#',ce.getOperator());
         							++refpos;
         							}
         						break;
         						}
         					case I:
         						{
-    							Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
-    							p.seq.append(getBaseAt.apply(readpos));
-    							p.qual.append(getQualAt.apply(readpos));
-    							p.operators.append((char)CigarOperator.enumToCharacter(ce.getOperator()));
-    							readpos+=ce.getLength();
+        						for(int i=0;i< ce.getLength();++i) {
+        						final Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+	    							p.watch('<',getQualAt.apply(readpos),ce.getOperator());
+	    							readpos++;
+	        						}
     							break;
         						}
-        					case S: case EQ: case X: case M:
+        					case S:
+	    						for(int i=0;i< ce.getLength();++i) {
+	    							final Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+	    							p.watch('-',getQualAt.apply(readpos),ce.getOperator());
+	    							++readpos;
+	    							++refpos;
+	    							}
+	    						break;
+        					case EQ: case X: case M:
         						for(int i=0;i< ce.getLength();++i) {
-        							Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
-        							p.seq.append(getBaseAt.apply(readpos));
-        							p.qual.append(getQualAt.apply(readpos));
-        							p.operators.append((char)CigarOperator.enumToCharacter(ce.getOperator()));
+        							final Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+        							p.watch(getBaseAt.apply(readpos),getQualAt.apply(readpos),ce.getOperator());
         							++readpos;
         							++refpos;
         							}
@@ -1303,8 +1385,6 @@ public class JfxNgs extends Application {
         					}
         				}
         			}
-        		
-        		
         		}
         	if(iter!=null) iter.close();
         	this.recordTable.getItems().setAll(L);
@@ -1481,7 +1561,12 @@ public class JfxNgs extends Application {
             this.setScene(scene);
             
            
-
+            fileMenu.getItems().addAll(
+            		menuForSavingTable("Variants",this.variantTable),
+            		menuForSavingTable("INFO",this.infoTableRow),
+            		menuForSavingTable("FILTER",this.filterTableRow),
+            		menuForSavingTable("Genotype",this.genotypeTable)
+            		);
     		}
     	
         @Override
