@@ -30,6 +30,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -41,6 +42,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -56,6 +58,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
@@ -71,16 +74,21 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.fastq.FastqReader;
+import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -97,6 +105,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -105,6 +114,13 @@ import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.Chart;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.PieChart;
+import javafx.scene.chart.StackedBarChart;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -148,17 +164,324 @@ public class JfxNgs extends Application {
     private static final Logger LOG= Logger.getLogger("JfxNgs");
     private final Preferences preferences ;
     private final Compilable javascriptEngine;
+    private static final String LAST_USED_DIR_KEY="last.used.dir";
     private static final int DEFAULT_BAM_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.sam", "10000"));
     private static final int DEFAULT_VCF_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.vcf", "1000"));
     private final List<StageContent> all_opened_stages=new ArrayList<>();
     private final Random randomMoveWindow=new Random();
     
     
+    /** create a chart position/base/count */
+    private static class CountBasePerPositionChartGenerator
+    	{
+    	/** all bases seen so far */
+        private final Set<Character> all_chars=new TreeSet<>();
+        /** count position / base / number */
+        private final Map<Integer,Counter<Character>> pos2base2count= new TreeMap<>();
+        
+        public CountBasePerPositionChartGenerator visit(final Collection<SAMRecord> records)
+        	{
+        	 for(final SAMRecord rec: records) visit(rec);
+        	 return this;
+        	}
+        public CountBasePerPositionChartGenerator visit(final SAMRecord rec) {
+        	byte bases[]= rec.getReadBases();
+        	if(bases==null || bases.length==0) return this;
+        	
+        	if(! rec.getReadUnmappedFlag() && rec.getReadNegativeStrandFlag())
+        		{
+        		bases = Arrays.copyOf(bases, bases.length);//because it would modify the read itself.
+        		SequenceUtil.reverseComplement(bases);
+        		}
+	        return visit(bases);	
+	        }
+        	
+       public CountBasePerPositionChartGenerator visit(final byte bases[]) {
+            if(bases==null || bases.length==0) return this;
+            
+        	for(int x=0;x< bases.length;++x)
+        		{
+        		Counter<Character> count = this.pos2base2count.get(x+1);
+        		if(count==null) {
+        			count = new Counter<>();
+        			this.pos2base2count.put(x+1,count);
+        			}
+        		char c=(char)bases[x];
+        		count.incr(c);
+        		this.all_chars.add(c);
+        		}
+        	return this;
+        	}
+        
+        public StackedBarChart<String, Number> make()
+	        {
+	        if(pos2base2count.isEmpty()) return null;
+	        
+	    	final CategoryAxis xAxis = new CategoryAxis();
+	    	xAxis.setLabel("Position in Read");
+	        final NumberAxis yAxis = new NumberAxis();
+	        yAxis.setLabel("Count");
+	
+	        
+	        final List<XYChart.Series<String, Number>> base2count=new ArrayList<>(all_chars.size());
+	        for(final Character base:all_chars) {
+	        	final XYChart.Series<String, Number> serie= new XYChart.Series<String, Number>();
+	        	serie.setName(base.toString());
+	        	base2count.add(serie);
+	        	
+		        for(final Integer pos1 : this.pos2base2count.keySet())
+		        	{
+		        	serie.getData().add(new XYChart.Data<String,Number>(
+		        			String.valueOf(pos1),
+		        			this.pos2base2count.get(pos1).count(base))
+		        			);
+		        	}
+		        }
+	        
+	        final StackedBarChart<String, Number> sbc =
+	                new StackedBarChart<String, Number>(xAxis, yAxis);
+	        sbc.setTitle("Position/Base/Count");
+	        sbc.getData().addAll(base2count);
+	        sbc.setCategoryGap(0.2);
+	        
+	        return sbc;
+	        }
+	    }
+    
+    /** create a chart position/base/count */
+    private static class ReadLengthChartGenerator
+    	{
+        /** count position / base / number */
+        private final Counter<Integer> length2count= new Counter<>();
+        
+        public ReadLengthChartGenerator visit(final Collection<SAMRecord> records)
+        	{
+        	 for(final SAMRecord rec: records) visit(rec);
+        	 return this;
+        	}
+        
+        public ReadLengthChartGenerator visit(final SAMRecord rec) {
+	        return visit(rec.getReadLength());	
+	        }
+        
+        public ReadLengthChartGenerator visit(final FastqRecord rec) {
+	        return visit(rec.length());	
+	        }
+
+       private ReadLengthChartGenerator visit(int length) {
+           	this.length2count.incr(length);
+        	return this;
+        	}
+        
+        public StackedBarChart<String, Number> make()
+	        {	        
+	    	final CategoryAxis xAxis = new CategoryAxis();
+	    	xAxis.setLabel("Length");
+	        final NumberAxis yAxis = new NumberAxis();
+	        yAxis.setLabel("Count");
+	
+	        
+        	final XYChart.Series<String, Number> serie= new XYChart.Series<String, Number>();
+        	serie.setName("Length");
+        	
+        	
+	        for(final Integer L  : new TreeSet<Integer>(this.length2count.keySet()))
+	        	{
+	        	serie.getData().add(new XYChart.Data<String,Number>(
+	        			String.valueOf(L),
+	        			this.length2count.count(L))
+	        			);
+	        	}
+	        
+	        final StackedBarChart<String, Number> sbc =
+	                new StackedBarChart<String, Number>(xAxis, yAxis);
+	        sbc.setTitle("Reads Lengths");
+	        sbc.getData().add(serie);
+	        sbc.setCategoryGap(0.2);
+	        sbc.setLegendVisible(false);
+	        return sbc;
+	        }
+	    }
+    
+    
+    
+    /** create a chart position/quality */
+    private static class QualityPerPositionCharGenerator
+    	{
+    	private class QualData {
+    		double sum=0.0;
+    		long count=0L;
+    		byte m=Byte.MAX_VALUE;
+    		byte M=Byte.MIN_VALUE;
+    		void visit(byte qual) {
+    			this.sum+=qual;
+    			this.count++;
+    			if(qual<m) m=qual;
+    			if(qual>M) M=qual;
+    			}
+    		double get() { return this.sum/this.count;}
+    		double min() { return m;}
+    		double max() { return M;}
+    		}
+        /** count position / base / number */
+        private final Map<Integer,QualData> pos2qual= new TreeMap<>();
+        
+        public QualityPerPositionCharGenerator visit(final Collection<SAMRecord> records)
+        	{
+        	 for(final SAMRecord rec: records) visit(rec);
+        	 return this;
+        	}
+        
+        public QualityPerPositionCharGenerator visit(final SAMRecord rec) {
+        	byte quals[]= rec.getBaseQualities();
+        	if(quals==null || quals.length==0) return this;
+        	
+        	if(! rec.getReadUnmappedFlag() && rec.getReadNegativeStrandFlag())
+        		{
+        		quals = Arrays.copyOf(quals, quals.length);//because it would modify the read itself.
+        		SequenceUtil.reverseQualities(quals);
+        		}
+	        return visit(quals);	
+	        }
+        public QualityPerPositionCharGenerator visit(final FastqRecord rec) {
+        	byte quals[]= rec.getBaseQualityString().getBytes();
+        	if(quals==null || quals.length==0) return this;
+        	SAMUtils.fastqToPhred(quals);
+	        return visit(quals);	
+	        }
+       public QualityPerPositionCharGenerator visit(final byte quals[]) {
+            if(quals==null || quals.length==0) return this;
+            
+        	for(int x=0;x< quals.length;++x)
+        		{
+        		QualData count = this.pos2qual.get(x+1);
+        		if(count==null) {
+        			count = new QualData();
+        			this.pos2qual.put(x+1,count);
+        			}
+        		count.visit(quals[x]);
+        		}
+        	return this;
+        	}
+        
+        public LineChart<Number, Number> make()
+	        {
+	        if(pos2qual.isEmpty()) return null;
+	        
+	    	final NumberAxis xAxis = new NumberAxis();
+	    	xAxis.setLabel("Position in Read");
+	        final NumberAxis yAxis = new NumberAxis();
+	        yAxis.setLabel("Read Quality");
+	
+	        
+
+        	final  XYChart.Series<Number,Number> serie_mean = new XYChart.Series<Number,Number>();
+        	serie_mean.setName("Mean Quality");
+        	final  XYChart.Series<Number,Number> serie_min = new XYChart.Series<Number,Number>();
+        	serie_min.setName("Min Quality");
+        	final  XYChart.Series<Number,Number> serie_max = new XYChart.Series<Number,Number>();
+        	serie_max.setName("Max Quality");
+        	
+	        for(final Integer pos1 : this.pos2qual.keySet())
+	        	{
+	        	final QualData q= this.pos2qual.get(pos1);
+	        	serie_mean.getData().add(new XYChart.Data<Number,Number>(
+	        			pos1,q.get())
+	        			);
+	        	serie_min.getData().add(new XYChart.Data<Number,Number>(
+	        			pos1,q.min())
+	        			);
+	        	serie_max.getData().add(new XYChart.Data<Number,Number>(
+	        			pos1,q.max())
+	        			);
+	        	}
+	        
+	        
+	        final LineChart<Number, Number> sbc =
+	                new LineChart<Number, Number>(xAxis, yAxis);
+	        sbc.setTitle("Position/Quality");
+	        sbc.getData().add(serie_min);
+	        sbc.getData().add(serie_mean);
+	        sbc.getData().add(serie_max);
+	        sbc.setCreateSymbols(false);
+	        return sbc;
+	        }
+	    }
+
+    /** create a chart position/quality */
+    private static class QCpercentChartGenerator
+    	{
+        /** count position / base / number */
+        private final Counter<Integer> gcPercent2count=new Counter<>();
+        
+        public QCpercentChartGenerator visit(final Collection<SAMRecord> records)
+        	{
+        	 for(final SAMRecord rec: records) visit(rec);
+        	 return this;
+        	}
+        
+        public QCpercentChartGenerator visit(final SAMRecord rec) {
+	        return visit(rec.getReadString());	
+	        }
+        public QCpercentChartGenerator visit(final FastqRecord rec) {
+	        return visit(rec.getReadString());	
+	        }
+       public QCpercentChartGenerator visit(final String seq) {
+            if(seq==null || seq.isEmpty()) return this;
+            int ngc=0;
+        	for(int x=0;x< seq.length();++x)
+        		{
+        		switch(seq.charAt(x))
+        			{
+        			case 'G':case 'g':
+        			case 'C':case 'c':
+        			case 'S':case 's':
+        				ngc++;
+        				break;
+        			default:
+        				break;
+        			}
+        		}
+        	this.gcPercent2count.incr((int)(100.0*((double)ngc)/seq.length()));
+        	return this;
+        	}
+        
+        public LineChart<Number, Number> make()
+	        {
+	    	final NumberAxis xAxis = new NumberAxis();
+	    	xAxis.setLabel("%GC");
+	        final NumberAxis yAxis = new NumberAxis();
+	        yAxis.setLabel("Count");
+	
+	        
+
+        	final  XYChart.Series<Number,Number> serie = new XYChart.Series<Number,Number>();
+        	serie.setName("QC");
+        	
+	        for(int g=0;g<=100;++g)
+	        	{
+	        	serie.getData().add(new XYChart.Data<Number,Number>(
+	        			g,this.gcPercent2count.count(g))
+	        			);
+	        	}
+	        
+	        
+	        final LineChart<Number, Number> sbc =
+	                new LineChart<Number, Number>(xAxis, yAxis);
+	        sbc.setTitle("Percentage GC");
+	        sbc.getData().add(serie);
+	        sbc.setCreateSymbols(false);
+	        sbc.setLegendVisible(false);
+	        return sbc;
+	        }
+	    }
     
     /** abstract base class for NGS window */
     private abstract class StageContent
         extends Stage
         {
+    	/** src file */
+    	protected final String sourceUrl;
     	/** javascript filtering */
     	protected final TextArea javascriptArea=new TextArea();
     	/** message stuff */
@@ -167,8 +490,10 @@ public class JfxNgs extends Application {
     	protected final TextField gotoField=new TextField();
 
     	
-        public StageContent()
+        public StageContent(final String sourceUrl)
         	{
+        	this.sourceUrl= sourceUrl;
+        	this.setTitle(sourceUrl);
         	if(JfxNgs.this.javascriptEngine==null) {
         		this.javascriptArea.setEditable(false);
         		this.javascriptArea.setPromptText("Javascript engine is not available");
@@ -197,6 +522,7 @@ public class JfxNgs extends Application {
            
             this.gotoField.setPrefColumnCount(15);
             }
+        
         @Override
         protected void finalize() throws Throwable {
         	closeNgsResource();
@@ -221,9 +547,9 @@ public class JfxNgs extends Application {
 				@Override
 				public void handle(ActionEvent event)
 					{
-					FileChooser fc=new FileChooser();
+					FileChooser fc=newFileChooser();
 					fc.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("TSV","tsv"));
-					File fout=fc.showSaveDialog(StageContent.this);
+					File fout= updateLastDir(fc.showSaveDialog(StageContent.this));
 					if(fout==null) return ;
 					PrintWriter out=null;
 					try
@@ -459,6 +785,222 @@ public class JfxNgs extends Application {
         
         }
 
+    
+    private class ReadQualityStage
+		extends Stage
+			{
+    		private class ScanQualThread extends Thread
+    			{
+    			volatile boolean kill_flag=false;
+        		private final File source;
+        		private final CountBasePerPositionChartGenerator charter1 = new CountBasePerPositionChartGenerator();
+        		private final QualityPerPositionCharGenerator charter2 = new QualityPerPositionCharGenerator();
+    			private final QCpercentChartGenerator charter3=new QCpercentChartGenerator();
+    			private final ReadLengthChartGenerator charter4=new ReadLengthChartGenerator();
+        		private long lastRefresh =System.currentTimeMillis();
+    			private long nItems=0L;
+    			private final CompiledScript compiledScript;
+        		ScanQualThread(final File source,CompiledScript compiledScript)
+    				{
+    				this.source=source;
+    				this.compiledScript = compiledScript;
+    				}
+        		private void repaint()
+        			{
+        			 Platform.runLater(new Runnable() {
+        				 @Override
+        				public void run() {
+        					 Chart chart=charter1.make();
+        					 if(chart!=null) ReadQualityStage.this.tabStat1.setContent(chart);
+        					 chart=charter2.make();
+        					 if(chart!=null) ReadQualityStage.this.tabStat2.setContent(chart);
+        					 chart=charter3.make();
+        					 if(chart!=null) ReadQualityStage.this.tabStat3.setContent(chart);
+        					 chart=charter4.make();
+        					 if(chart!=null) ReadQualityStage.this.tabStat4.setContent(chart);
+        					 ReadQualityStage.this.countItemsLabel.setText("Running... Number of items: "+nItems);
+        				 }
+        			 	});
+        			}
+        		void update()
+        			{
+        			long now  =System.currentTimeMillis(); 
+        			if( kill_flag || now - lastRefresh < 5*1000) return ;//5 seconds;
+        			lastRefresh = now;
+        			repaint();
+        			}
+        		
+                /** called by javascript filters */
+                private boolean accept(final Bindings bindings)
+        			{
+                	if(compiledScript==null) return true;
+        			final Object result;
+        			try  {
+        				result = this.compiledScript.eval(bindings);
+        			} catch(final ScriptException err)
+        				{
+        				return false;
+        				}
+        			
+        			if(result==null) return false;;
+        			if(result instanceof Boolean)
+        				{
+        				if(Boolean.FALSE.equals(result)) return false;
+        				}
+        			else if(result instanceof Number)
+        				{
+        				if(((Number)result).intValue()!=1) return false;
+        				}
+        			else
+        				{
+        				return false;
+        				}
+        			return true;
+        			}
+
+        		
+    			@Override
+    			public void run() {
+    				SamReader samReader =null;
+    				SAMRecordIterator samIter=null;
+    				FastqReader fqReader=null;
+    				try 
+	    				{
+	    				if(source.getName().endsWith(".bam") || source.getName().endsWith(".sam"))
+	    					{
+	    					SimpleBindings bindings= new SimpleBindings();
+	    					SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+	    					samReader = srf.open(this.source);
+	    					samIter = samReader.iterator();
+	    					bindings.put("header", samReader.getFileHeader());
+	    					while(!kill_flag && samIter.hasNext())
+	    						{
+	    						final SAMRecord rec=samIter.next();
+	    						
+	    						nItems++;
+	    						if(this.compiledScript!=null )
+	    							{
+	    							bindings.put("record", rec);
+	    							if(!accept(bindings)) continue;
+	    							}
+	    						charter1.visit(rec);
+	    						charter2.visit(rec);
+	    						charter3.visit(rec);
+	    						charter4.visit(rec);
+	    						update();
+	    						}
+	    					samIter.close();
+	    					samReader.close();
+	    					}
+	    				else if(source.getName().endsWith(".fastq") ||
+	    						source.getName().endsWith(".fastq.gz") ||
+	    						source.getName().endsWith(".fq") ||
+	    						source.getName().endsWith(".fq.gz")
+	    					
+	    					)
+	    					{
+	    					fqReader = new FastqReader(this.source);
+	    					while(!kill_flag && fqReader.hasNext())
+	    						{
+	    						final FastqRecord rec=fqReader.next();
+	    						nItems++;
+	    						charter1.visit(rec.getReadString().getBytes());
+	    						charter2.visit(rec);
+	    						charter3.visit(rec);
+	    						charter4.visit(rec);
+	    						update();
+	    						}
+	    					fqReader.close();
+	    					}
+	    				if(kill_flag) {
+	    					LOG.warning("Thread was killed");
+	    					}
+	    				else
+		    				{
+		    				repaint();
+		    				Platform.runLater(new Runnable() {
+		        				 @Override
+		        				public void run() {
+		        					 ReadQualityStage.this.countItemsLabel.setText(
+		        						"Done... Number of items: "+nItems+ (kill_flag?" [KILLED]":""));
+		        				 }
+		        			 	});
+		    				}
+	    				}
+    				catch(final Throwable err)
+    					{
+    					LOG.severe(err.getMessage());
+    					Platform.runLater(new Runnable() {
+	        				 @Override
+	        				public void run() {
+	        					 ReadQualityStage.this.countItemsLabel.setText(
+	        						"ERROR "+err.getMessage());
+	        				 	}
+	        			 	});
+    					}
+    				finally
+    					{
+    					CloserUtil.close(samIter);
+    					CloserUtil.close(samReader);
+    					CloserUtil.close(samReader);
+    					}
+    				}
+    			
+    			}
+    		private final ScanQualThread thread;
+    		private final Tab tabStat1;
+    		private final Tab tabStat2;
+    		private final Tab tabStat3;
+    		private final Tab tabStat4;
+    		private final Label countItemsLabel;
+    		
+	    	ReadQualityStage(File file,final CompiledScript compiledScript)
+	    		{
+	    		setTitle(file.getPath());
+	    		this.thread=new ScanQualThread(file,compiledScript);
+	        	this.addEventHandler(
+	        			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
+	                        @Override
+	                        public void handle(WindowEvent event) {
+	                        	kill();
+	                            }
+	                        });
+	        	this.addEventHandler(
+	        			WindowEvent.WINDOW_SHOWN ,new EventHandler<WindowEvent>() {
+	                        @Override
+	                        public void handle(WindowEvent event) {
+	                        	thread.start();
+	                            }
+	                        });
+	        	
+	        
+	        	this.tabStat1=new Tab("Base/Position",new GridPane());
+	        	this.tabStat1.setClosable(false);
+	        	this.tabStat2=new Tab("Quality/Position",new GridPane());
+	        	this.tabStat2.setClosable(false);
+	        	this.tabStat3=new Tab("GC%",new GridPane());
+	        	this.tabStat3.setClosable(false);
+	        	this.tabStat4=new Tab("Read-Length",new GridPane());
+	        	this.tabStat4.setClosable(false);
+	        	TabPane tabPane=new TabPane(this.tabStat1,this.tabStat2,this.tabStat3,this.tabStat4);
+	        	
+	        	this.countItemsLabel=new Label();
+	        	VBox box1=new VBox(tabPane,this.countItemsLabel);
+	        	Scene scene=new Scene(box1,1000,800);
+	        	setScene(scene);
+	    		}
+	    	@Override
+	    	protected void finalize() throws Throwable {
+	    		kill();
+		    	super.finalize();
+		    	}
+	    	void kill()
+	    		{
+	    		thread.kill_flag=true;
+	    		}
+			}
+
+    
     /** describe the state of a SamFlag */
     private static class SamFlagRow
 		{
@@ -555,7 +1097,7 @@ public class JfxNgs extends Application {
         
         BamStageContent(final String url) throws IOException
         	{
-        	this.setTitle(url);
+        	super(url);
             final SamReaderFactory srf= SamReaderFactory.makeDefault();
             srf.validationStringency(Level.OFF.equals(LOG.getLevel())?
             		ValidationStringency.SILENT:
@@ -591,8 +1133,42 @@ public class JfxNgs extends Application {
 				}
 			}));
            
+            final Menu statsMenu=new Menu("Stats");
+            statsMenu.getItems().add(createMenuItem("Show for current Reads",new Runnable() {
+				@Override
+				public void run() {
+					doMenuShowStats();
+				}
+			}));
+            if(!IOUtil.isUrl(url))
+	            {
+	            statsMenu.getItems().add(createMenuItem("Run for whole file",new Runnable() {
+					@Override
+					public void run() {
+						CompiledScript compiledScript=null;
+			        	if(JfxNgs.this.javascriptEngine!=null && !BamStageContent.this.javascriptArea.getText().trim().isEmpty())
+			        		{
+			        		try
+			        			{
+			        			compiledScript = JfxNgs.this.javascriptEngine.compile(BamStageContent.this.javascriptArea.getText());
+			        			}
+			        		catch(Exception err)
+			        			{
+			        			LOG.warning(err.getMessage());
+			        			updateStatusBar(AlertType.ERROR, err);
+			        			return;
+			        			}
+			        		}
+						ReadQualityStage qcstage=new ReadQualityStage(new File(url),compiledScript);
+						qcstage.show();
+					}
+				}));
+	            }
+            
+            
+            
             //selectFlagMenu.getItems().addAll(flag2filterOutMenuItem.values());
-            final MenuBar menuBar=new MenuBar(fileMenu);
+            final MenuBar menuBar=new MenuBar(fileMenu,statsMenu);
             final VBox vbox1 = new VBox();
             vbox1.getChildren().add(menuBar);
             
@@ -841,10 +1417,13 @@ public class JfxNgs extends Application {
             final FlowPane bottom=new FlowPane(super.messageLabel);
             vbox1.getChildren().add(bottom);
             
+            final Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
+
             this.setScene(new Scene(vbox1,
-            		1000+randomMoveWindow.nextInt(10),
-            		800+randomMoveWindow.nextInt(10)
-            		));
+            		primaryScreenBounds.getWidth()-200+randomMoveWindow.nextInt(10),
+            		primaryScreenBounds.getHeight()-200+randomMoveWindow.nextInt(10))
+            		);
+            		
             
             fileMenu.getItems().addAll(
             		menuForSavingTable("SamRecord",this.recordTable),
@@ -864,7 +1443,7 @@ public class JfxNgs extends Application {
         @Override
         void closeNgsResource()
         	{
-        	LOG.info("closing"+samReader.getResourceDescription());
+        	LOG.info("closing"+super.sourceUrl);
             CloserUtil.close(samReader);
         	}
         
@@ -877,6 +1456,70 @@ public class JfxNgs extends Application {
         			;
         	}
         
+        private void doMenuShowStats()
+        	{
+        	
+        	final TabPane tabPane=new TabPane();
+        	final StackedBarChart<String,Number>  sbc1 = new CountBasePerPositionChartGenerator().
+        			visit(this.recordTable.getItems()).
+        			make();
+        	if(sbc1!=null)
+        		{	
+        		Tab tab=new Tab("Position/Bases", sbc1);
+        		tab.setClosable(false);
+        		tabPane.getTabs().add(tab);
+        		}
+        	
+        	final LineChart<Number, Number> sbc2=new QualityPerPositionCharGenerator().
+        		visit(this.recordTable.getItems()).
+        		make();
+        	
+        	if(sbc2!=null)
+	    		{	
+	    		Tab tab=new Tab("Position/Quality", sbc2);
+	    		tab.setClosable(false);
+	    		tabPane.getTabs().add(tab);
+	    		}
+        	final LineChart<Number, Number> sbc3=new QCpercentChartGenerator().
+            		visit(this.recordTable.getItems()).
+            		make();
+            	
+        	if(sbc3!=null)
+	    		{	
+	    		Tab tab=new Tab("GC%", sbc3);
+	    		tab.setClosable(false);
+	    		tabPane.getTabs().add(tab);
+	    		}
+        	final StackedBarChart<String,Number>  sbc4 = new ReadLengthChartGenerator().
+        			visit(this.recordTable.getItems()).
+        			make();
+        	if(sbc4!=null)
+        		{	
+        		Tab tab=new Tab("Read Lengths", sbc4);
+        		tab.setClosable(false);
+        		tabPane.getTabs().add(tab);
+        		}
+        	
+        	
+        	Stage dialog = new Stage();
+        	dialog.initOwner(this);
+        	dialog.setTitle("BAM Stats");
+        	Scene scene;
+        	if(tabPane.getTabs().isEmpty())
+        		{
+        		scene=new Scene(new Label("No Data for "+super.sourceUrl));
+        		}
+        	else
+        		{
+        		BorderPane pane=new BorderPane(tabPane);
+        		pane.setTop(new Label("Data for "+super.sourceUrl));        		
+        		scene=new Scene(pane);
+        		}
+        	dialog.setScene(scene);
+        	dialog.show();
+        	}
+        
+        /** repaint the canvas area */
         private void repaintCanvas()
         	{
         	final boolean showReadName = this.canvasShowReadName.isSelected();
@@ -1410,6 +2053,475 @@ public class JfxNgs extends Application {
 	    	}
         }
     
+    
+    private static abstract class VariantChartGenerator
+    	{
+    	public abstract String getName(); 
+    	public final VariantChartGenerator visit(List<VariantContext> L)
+    		{
+    		for(final VariantContext ctx:L) visit(ctx);
+    		return this;
+    		}
+    	public abstract VariantChartGenerator visit(VariantContext ctx);
+    	public abstract Chart make();    	
+    	}
+    
+    private static class GenotypeTypeChartGenerator
+		extends VariantChartGenerator
+		{
+    	private final Map<String,Counter<GenotypeType>> sample2count=new TreeMap<>();
+    	@Override
+    	public String getName() {
+    		return "Genotype Type";
+    		}
+    	@Override
+    	public VariantChartGenerator visit(final VariantContext ctx) {
+    		for(final Genotype g:ctx.getGenotypes())
+    			{
+    			Counter<GenotypeType> count = this.sample2count.get(g.getSampleName());
+    			if(count==null) {
+    				count = new Counter<>();
+    				this.sample2count.put(g.getSampleName(), count);
+    				}
+    			count.incr(g.getType());
+    			}
+    		return this;
+    		}
+    	@Override
+    	public Chart make() {	        
+	    	final CategoryAxis xAxis = new CategoryAxis();
+	    	xAxis.setLabel("Sample");
+	        final NumberAxis yAxis = new NumberAxis();
+	        yAxis.setLabel("Count");
+	
+	        
+	        final List<XYChart.Series<String, Number>> gtype2count=new ArrayList<>(GenotypeType.values().length);
+	        for(final GenotypeType genotypeType :GenotypeType.values()) {
+	        	final XYChart.Series<String, Number> serie= new XYChart.Series<String, Number>();
+	        	serie.setName(genotypeType.name());
+	        	gtype2count.add(serie);
+	        	
+		        for(final String sampleName : this.sample2count.keySet())
+		        	{
+		        	serie.getData().add(new XYChart.Data<String,Number>(
+		        			sampleName,
+		        			this.sample2count.get(sampleName).count(genotypeType))
+		        			);
+		        	}
+		        }
+	        
+	        final StackedBarChart<String, Number> sbc =
+	                new StackedBarChart<String, Number>(xAxis, yAxis);
+	        sbc.setTitle("Genotype / Sample");
+	        sbc.getData().addAll(gtype2count);
+	        sbc.setCategoryGap(0.2);
+	        return sbc;
+	        }
+		}
+    
+    
+    private static class AlleleFrequencyChartGenerator
+		extends VariantChartGenerator
+		{
+    	private final Counter<Integer> afindexcount=new Counter<>();
+    	private final List<Limit> limits =new ArrayList<>();
+    	private int nSamples=0;
+    	private static class Limit
+    		{
+    		final int index;
+    		final double v;
+    		final String label;
+    		Limit(int index,double v,String label) {this.index=index;this.v=v;this.label=label;}
+    		}
+    	
+    	@Override
+    	public String getName() {
+    		return "Allele Frequency";
+    		}
+    	@Override
+    	public VariantChartGenerator visit(final VariantContext ctx) {
+    		if(ctx.hasAttribute(VCFConstants.ALLELE_FREQUENCY_KEY))
+    			{
+    			if(this.limits.isEmpty())
+	    			{
+    				final DecimalFormat df = new DecimalFormat("#.###");
+    				int ndiv;
+	    			if(ctx.getNSamples()>0)
+	    				{
+	    				this.nSamples=ctx.getNSamples();
+	    				ndiv=(2*this.nSamples);
+	    				}
+	    			else
+	    				{
+	    				ndiv = 10;
+	    				}
+	    			
+	    			for(int x=0;x< ndiv;++x)
+	    				{
+	    				double v= x*(1.0/ndiv);
+	    				String cat="??";
+	    				if(x==0)
+							{
+							cat="<"+df.format(v);
+							}
+	    				else if(x+1==ndiv)
+							{
+							cat=">="+df.format(v);
+							}
+						else
+							{
+							cat="["+df.format(v)+" - "+df.format(v+ (1.0/ndiv))+"[";
+							}
+						
+	    				this.limits.add(new Limit(this.limits.size(),v,cat));
+	    				}
+	    			}
+    			for(final Object o: ctx.getAttributeAsList(VCFConstants.ALLELE_FREQUENCY_KEY))
+    				{
+    				if(o==null) continue;
+    				final double v;
+    				if(o instanceof Double)
+    					{
+    					v=Double.class.cast(o);
+    					}
+    				else if(o instanceof Float)
+						{
+						v=Float.class.cast(o);
+						}
+    				else
+    					{
+    					try
+    						{
+    						v=Double.parseDouble(o.toString());
+    						}
+    					catch(NumberFormatException err) {
+	    					LOG.warning("Not a double "+o+" "+o.getClass());
+	    					continue;
+	    					}
+    					}
+    				Limit cat=null;
+    				for(int x=0;x<limits.size();++x)
+    					{
+    					if(x==0 && v< limits.get(0).v)
+    						{
+    						cat = limits.get(0);
+    						break;
+    						}
+    					else if(x+1==limits.size())
+							{
+							cat= limits.get(x);
+							break;
+							}
+    					else if( v>=limits.get(x).v && v<limits.get(x+1).v)
+    						{
+    						cat=  limits.get(x);
+    						break;
+    						}
+    					
+    					}		
+    				if(cat!=null)
+    					{
+    					this.afindexcount.incr(cat.index);
+    					}
+    				else
+    					{
+    					LOG.warning("?? AF: "+v);
+    					}
+    				}
+    			}
+    		else
+    			{
+    			LOG.warning("NOT AF in variant");
+    			}
+    		return this;
+    		}
+    	@Override
+    	public Chart make() {	        
+	    	final CategoryAxis xAxis = new CategoryAxis();
+	    	xAxis.setLabel("AF");
+	        final NumberAxis yAxis = new NumberAxis();
+	        yAxis.setLabel("Count");
+	
+	        
+        	final XYChart.Series<String, Number> serie= new XYChart.Series<String, Number>();
+        	serie.setName("AF");
+        	
+        	
+	        for(final Limit limit  :this.limits)
+	        	{
+	        	if(this.afindexcount.count(limit.index)==0L) continue;
+	        	serie.getData().add(new XYChart.Data<String,Number>(
+	        			limit.label,
+	        			this.afindexcount.count(limit.index))
+	        			);
+	        	}
+	        
+	        final StackedBarChart<String, Number> sbc =
+	                new StackedBarChart<String, Number>(xAxis, yAxis);
+	        sbc.setTitle("Allele Frequency"+(this.nSamples>0?" (Nbr. Sample(s):"+this.nSamples+")":""));
+	        sbc.getData().add(serie);
+	        sbc.setCategoryGap(0.2);
+	        sbc.setLegendVisible(false);
+	        return sbc;
+	        }
+		}
+
+    
+    private static class VariantTypeChartGenerator
+    	extends VariantChartGenerator
+		{
+    	private static interface Category
+    		{
+    		public String getName();
+    		public boolean accept(final VariantContext ctx);
+    		}
+    	private  final Category categories[]=new Category[]{
+    		new Category(){
+    			@Override public String getName() {return "SNP Unfiltered";};
+    			@Override  public boolean accept(final VariantContext ctx) { return ctx.isSNP() && !ctx.isFiltered();}
+    			},
+    		new Category(){
+    			@Override public String getName() {return "SNP Filtered";};
+    			@Override  public boolean accept(final VariantContext ctx) { return ctx.isSNP() && ctx.isFiltered();}
+    			},
+    		new Category(){
+    			@Override public String getName() {return "Indel Unfiltered";};
+    			@Override  public boolean accept(final VariantContext ctx) { return ctx.isIndel() && !ctx.isFiltered();}
+    			},
+    		new Category(){
+    			@Override public String getName() {return "Indel Filtered";};
+    			@Override  public boolean accept(final VariantContext ctx) { return ctx.isIndel() && ctx.isFiltered();}
+    			},
+    		/* always LAST */
+			new Category(){
+    			@Override public String getName() {return "Others";};
+    			@Override  public boolean accept(final VariantContext ctx) { return true;}
+    			}
+    		};
+    	private final long counts[]=new long[categories.length];
+    	
+    	@Override
+		public String getName() { return "Variant Types";}
+    	@Override
+		public VariantTypeChartGenerator visit(VariantContext ctx)
+			{
+    		for(int i=0;i< categories.length;++i)
+    			{
+    			if(categories[i].accept(ctx)) {
+    				counts[i]++;
+    				break;
+    				}
+    			}
+			return this;
+			}
+    	@Override
+		public Chart make() {
+	    	final CategoryAxis xAxis = new CategoryAxis();
+	    	xAxis.setLabel("Position in Read");
+	        final NumberAxis yAxis = new NumberAxis();
+	        yAxis.setLabel("Count");
+
+	        final ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
+	        for(int i=0;i< categories.length;++i)
+				{
+	        	pieChartData.add( new PieChart.Data(categories[i].getName() +" "+counts[i], counts[i]));
+				}
+	        final PieChart chart = new PieChart(pieChartData);
+	        chart.setTitle("Variants Types");
+	       
+	        return chart;
+			}
+		}
+
+    
+    private class VcfQualityStage
+		extends Stage
+			{
+    		private class ScanVcfThread extends Thread
+    			{
+    			volatile boolean kill_flag=false;
+        		private final File source;
+        		private long lastRefresh =System.currentTimeMillis();
+    			private long nItems=0L;
+    			private final VariantChartGenerator generators[];
+    			private final CompiledScript compiledScript;
+    			ScanVcfThread(final File source,CompiledScript compiledScript)
+    				{
+    				this.source=source;
+    				this.compiledScript = compiledScript;
+    				this.generators=new VariantChartGenerator[]{
+    					new VariantTypeChartGenerator(),
+    					new GenotypeTypeChartGenerator(),
+    					new AlleleFrequencyChartGenerator()
+    					};
+    				}
+        		private void repaint()
+        			{
+        			 Platform.runLater(new Runnable() {
+        				 @Override
+        				public void run() {
+        					for(int x=0;x <generators.length;++x)
+        						{
+        						 VcfQualityStage.this.tabStats[x].setContent(generators[x].make());
+        						}
+        				 	}
+        			 	});
+        			}
+        		void update()
+        			{
+        			long now  =System.currentTimeMillis(); 
+        			if( kill_flag || now - lastRefresh < 5*1000) return ;//5 seconds;
+        			lastRefresh = now;
+        			repaint();
+        			}
+        		
+                /** called by javascript filters */
+                private boolean accept(final Bindings bindings)
+        			{
+                	if(compiledScript==null) return true;
+        			final Object result;
+        			try  {
+        				result = this.compiledScript.eval(bindings);
+        			} catch(final ScriptException err)
+        				{
+        				return false;
+        				}
+        			
+        			if(result==null) return false;;
+        			if(result instanceof Boolean)
+        				{
+        				if(Boolean.FALSE.equals(result)) return false;
+        				}
+        			else if(result instanceof Number)
+        				{
+        				if(((Number)result).intValue()!=1) return false;
+        				}
+        			else
+        				{
+        				return false;
+        				}
+        			return true;
+        			}
+
+        		
+    			@Override
+    			public void run() {
+    				VCFFileReader vcfReader =null;
+    				CloseableIterator<VariantContext> iter=null;
+    				try 
+	    				{
+    						final SimpleBindings bindings=new SimpleBindings();
+	    					vcfReader = new VCFFileReader(this.source,false);
+	    					bindings.put("header", vcfReader.getFileHeader());
+	    					iter = vcfReader.iterator();
+	    					
+	    					while(!kill_flag && iter.hasNext())
+	    						{
+	    						final VariantContext ctx=iter.next();
+	    						
+	    						nItems++;
+	    						if(this.compiledScript!=null )
+	    							{
+	    							bindings.put("variant", ctx);
+	    							if(!accept(bindings)) continue;
+	    							}
+	    						for(VariantChartGenerator gen:this.generators)
+	    							{
+	    							gen.visit(ctx);
+	    							}
+	    						
+	    						update();
+	    						}
+	    					iter.close();
+	    					vcfReader.close();
+	    				
+	    				if(kill_flag) {
+	    					LOG.warning("Thread was killed");
+	    					}
+	    				else
+		    				{
+		    				repaint();
+		    				Platform.runLater(new Runnable() {
+		        				 @Override
+		        				public void run() {
+		        					 VcfQualityStage.this.countItemsLabel.setText(
+		        						"Done... Number of items: "+nItems+ (kill_flag?" [KILLED]":""));
+		        				 }
+		        			 	});
+		    				}
+	    				}
+    				catch(final Throwable err)
+    					{
+    					LOG.severe(err.getMessage());
+    					Platform.runLater(new Runnable() {
+	        				 @Override
+	        				public void run() {
+	        					 VcfQualityStage.this.countItemsLabel.setText(
+	        						"ERROR "+err.getMessage());
+	        				 	}
+	        			 	});
+    					}
+    				finally
+    					{
+    					CloserUtil.close(iter);
+    					CloserUtil.close(vcfReader);
+    					}
+    				}
+    			
+    			}
+    		private final ScanVcfThread thread;
+    		private final Tab tabStats[];
+    		private final Label countItemsLabel;
+    		
+    		VcfQualityStage(File file,final CompiledScript compiledScript)
+	    		{
+	    		setTitle(file.getPath());
+	    		this.thread=new ScanVcfThread(file,compiledScript);
+	        	
+	        	TabPane tabPane=new TabPane();
+
+	        	this.tabStats=new Tab[this.thread.generators.length];
+	        	for(int x=0;x < this.thread.generators.length;++x)
+	        		{
+	        		Tab tab=new Tab(this.thread.generators[x].getName());
+	        		tab.setClosable(false);
+	        		tabPane.getTabs().add(tab);
+	        		this.tabStats[x]=tab;
+	        		}
+	        	this.countItemsLabel=new Label();
+	        	VBox box1=new VBox(tabPane,this.countItemsLabel);
+	        	Scene scene=new Scene(box1,1000,800);
+	        	setScene(scene);
+	        	
+	        	this.addEventHandler(
+	        			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
+	                        @Override
+	                        public void handle(WindowEvent event) {
+	                        	kill();
+	                            }
+	                        });
+	        	this.addEventHandler(
+	        			WindowEvent.WINDOW_SHOWN ,new EventHandler<WindowEvent>() {
+	                        @Override
+	                        public void handle(WindowEvent event) {
+	                        	thread.start();
+	                            }
+	                        });
+	        	
+	    		}
+	    	@Override
+	    	protected void finalize() throws Throwable {
+	    		kill();
+		    	super.finalize();
+		    	}
+	    	void kill()
+	    		{
+	    		thread.kill_flag=true;
+	    		}
+			}
+
+    
+    
     /** display item in VCF/INFO */
     private static class InfoTableRow
 		{
@@ -1434,7 +2546,7 @@ public class JfxNgs extends Application {
     	private TableView<String> filterTableRow;
     	
     	VcfStage(final String path) {
-    		this.setTitle(path);
+    		super(path);
     		this.vcfFileReader = new VCFFileReader(new File(path),true);
     		final VCFHeader header=this.vcfFileReader.getFileHeader();
     		
@@ -1452,14 +2564,51 @@ public class JfxNgs extends Application {
 					doMenuSaveAs();
 				}
 			}));
+            
+            
+            
             fileMenu.getItems().add(createMenuItem("Close",new Runnable() {
 				@Override
 				public void run() {
 					VcfStage.this.hide();
 				}
 			}));
+            
+            final Menu statsMenu=new Menu("Stats");
+            statsMenu.getItems().add(createMenuItem("Show for current Variants",new Runnable() {
+				@Override
+				public void run() {
+					doMenuShowStats();
+					}
+				}));
+            
+            if(!IOUtil.isUrl(path))
+	            {
+	            statsMenu.getItems().add(createMenuItem("Run for whole file",new Runnable() {
+					@Override
+					public void run() {
+						CompiledScript compiledScript=null;
+			        	if(JfxNgs.this.javascriptEngine!=null && !VcfStage.this.javascriptArea.getText().trim().isEmpty())
+			        		{
+			        		try
+			        			{
+			        			compiledScript = JfxNgs.this.javascriptEngine.compile(VcfStage.this.javascriptArea.getText());
+			        			}
+			        		catch(Exception err)
+			        			{
+			        			LOG.warning(err.getMessage());
+			        			updateStatusBar(AlertType.ERROR, err);
+			        			return;
+			        			}
+			        		}
+			        	VcfQualityStage qcstage=new VcfQualityStage(new File(path),compiledScript);
+						qcstage.show();
+					}
+				}));
+	            }
+            
             //selectFlagMenu.getItems().addAll(flag2filterOutMenuItem.values());
-            final MenuBar menuBar=new MenuBar(fileMenu);
+            final MenuBar menuBar=new MenuBar(fileMenu,statsMenu);
             final VBox vbox1 = new VBox();
             vbox1.getChildren().add(menuBar);
             
@@ -1577,9 +2726,9 @@ public class JfxNgs extends Application {
     	
     	private void doMenuSaveAs()
     		{
-    		final FileChooser fc=new FileChooser();
+    		final FileChooser fc=newFileChooser();
         	fc.setSelectedExtensionFilter(new ExtensionFilter("VCF Files", "*.vcf.gz"));
-    		File saveAs=fc.showSaveDialog(this);
+    		File saveAs= updateLastDir(fc.showSaveDialog(this));
     		if(saveAs==null) return;
     		if(!saveAs.getName().endsWith(".vcf.gz"))
     			{
@@ -1915,6 +3064,49 @@ public class JfxNgs extends Application {
         	this.variantTable.getItems().setAll(L);
         	}
 
+    	
+        private void doMenuShowStats()
+	    	{
+	    	final TabPane tabPane=new TabPane();
+    		Tab tab=new Tab("Variant Type",
+    				new VariantTypeChartGenerator().
+		    			visit(this.variantTable.getItems()).
+		    			make()
+		    			);
+    		tab.setClosable(false);
+    		tabPane.getTabs().add(tab);
+	    		
+    		tab=new Tab("Genotype Types",
+    				new GenotypeTypeChartGenerator().
+		    			visit(this.variantTable.getItems()).
+		    			make()
+		    			);
+    		tab.setClosable(false);
+    		tabPane.getTabs().add(tab);
+    		
+    		tab=new Tab("Allele Frequencies",
+    				new AlleleFrequencyChartGenerator().
+		    			visit(this.variantTable.getItems()).
+		    			make()
+		    			);
+    		tab.setClosable(false);
+    		tabPane.getTabs().add(tab);
+	    	
+	    	
+	    	Stage dialog = new Stage();
+	    	dialog.initOwner(this);
+	    	dialog.setTitle("VCF Stats");
+	    	Scene scene;
+	    	
+    		BorderPane pane=new BorderPane(tabPane);
+    		pane.setTop(new Label("Data for "+super.sourceUrl));        		
+    		scene=new Scene(pane);
+	    		
+	    	dialog.setScene(scene);
+	    	dialog.show();
+	    	}
+
+    	
     	}
     
     
@@ -1934,6 +3126,30 @@ public class JfxNgs extends Application {
 		this.javascriptEngine = engine;
 		}
 
+    private FileChooser newFileChooser()
+    	{
+    	final FileChooser fc=new FileChooser();
+
+    	String lastDirStr= preferences.get(LAST_USED_DIR_KEY, null);
+    	if(lastDirStr!=null && !lastDirStr.isEmpty())
+    		{
+    		fc.setInitialDirectory(new File(lastDirStr));
+    		}
+    	return fc;
+    	}
+    private File updateLastDir(File f)
+    	{
+    	if(f==null || !f.exists()) return f;
+    	File dir=f;
+    	if(f.isFile()){
+    		dir=f.getParentFile();
+    		if(dir==null) return f;
+    		}
+    	preferences.get(LAST_USED_DIR_KEY, dir.getPath());
+    	return f;
+    	}
+    
+    
     @Override
     public void stop() throws Exception
     	{
@@ -2003,7 +3219,17 @@ public class JfxNgs extends Application {
 		});
         menu.getItems().add(menuItem);
         
-        
+        menu.getItems().add(createMenuItem("Run Quality Control BAM/Fastq", new Runnable() {
+			@Override
+			public void run() {
+				FileChooser fc=newFileChooser();
+				fc.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("bam or fastq", "bam","sam","fastq","fastq.gz","fq","fq.gz"));
+				File sel=updateLastDir(fc.showOpenDialog(primaryStage));
+				if(sel==null) return;
+				ReadQualityStage rqs=new ReadQualityStage(sel,null);
+				rqs.show();
+				}
+			}));
         
         menuItem=new MenuItem("Quit...");
         menuItem.setOnAction(new EventHandler<ActionEvent>() {
@@ -2048,13 +3274,8 @@ public class JfxNgs extends Application {
         
        
         VBox vbox1= new VBox(bar,flow,pane);
-        
-        
-        final Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
 
-        final Scene scene = new Scene(vbox1,
-        		primaryScreenBounds.getWidth()-200+randomMoveWindow.nextInt(10),
-        		primaryScreenBounds.getHeight()-200+randomMoveWindow.nextInt(10));
+        final Scene scene = new Scene(vbox1,500,300);
        
         primaryStage.setScene(scene);
         primaryStage.setOnHidden(e -> doMenuQuit());
@@ -2140,33 +3361,22 @@ public class JfxNgs extends Application {
     
     private void openNgsFiles(final Window owner)
     	{
-    	final String LAST_USED_DIR="last.used.dir";
-    	final FileChooser fc=new FileChooser();
-    	String lastDirStr= preferences.get(LAST_USED_DIR, null);
-    	if(lastDirStr!=null && !lastDirStr.isEmpty())
-    		{
-    		fc.setInitialDirectory(new File(lastDirStr));
-    		}
+    	final FileChooser fc=newFileChooser();
     	
     	fc.setSelectedExtensionFilter(new ExtensionFilter("NGS Files", "*.bam","*.vcf","*.vcf.gz","*.list"));
     	final List<File> selFiles = fc.showOpenMultipleDialog(owner);
     	if(selFiles==null || selFiles.isEmpty()) return ;
     	List<StageContent> stages =new ArrayList<>();
-    	File parentDir=null;
     	try 
     		{
 	    	for(final File f:selFiles)
 	    		{
 	    		stages.addAll( openNgsFiles(f.getPath()) );
-	    		parentDir=f.getParentFile();
+	    		updateLastDir(f.getParentFile());
 	    		}
 	    	for(StageContent sc:stages)
 	    		{	
 	    		sc.show();
-	    		}
-	    	if(parentDir!=null)
-	    		{
-	    		preferences.put(LAST_USED_DIR, parentDir.getPath());
 	    		}
     		}
     	catch(final Exception err)
@@ -2295,8 +3505,7 @@ public class JfxNgs extends Application {
     	}
 
     public static void main(String[] args) {
-    	
-        launch(args);
+    	launch(args);
     }
 
 }
