@@ -24,16 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfviewgui.chart;
 
-import java.util.Collection;
-
 import htsjdk.variant.variantcontext.VariantContext;
-import javafx.scene.chart.Chart;
 
-public abstract class VariantContextChartFactory {
-public abstract String getName();
-public abstract void visit(final VariantContext rec);
-public void visit(final Collection<VariantContext> recs) {
-	for(final VariantContext rec:recs) this.visit(rec);
-	}
-public abstract Chart build();
+public abstract class VariantContextChartFactory
+implements ChartFactory<VariantContext>{
 }

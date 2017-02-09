@@ -24,21 +24,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfviewgui.chart;
 
-import java.util.Collection;
 
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.fastq.FastqRecord;
-import javafx.scene.chart.Chart;
 
-public abstract class ReadChartFactory {
-public abstract String getName();
-public abstract void visit(final SAMRecord rec);
+public abstract class ReadChartFactory implements ChartFactory<SAMRecord>
+{
 public abstract void visit(final FastqRecord rec);
-public void visit(final Collection<SAMRecord> recs) {
-	for(final SAMRecord rec:recs) this.visit(rec);
-	}
-public abstract Chart build();
-
-
-
 }
