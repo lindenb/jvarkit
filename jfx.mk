@@ -98,11 +98,13 @@ compile-webstart : .secret.keystore webstart/picard.jar webstart/SnpSift.jar \
 
 webstart/jfxngs/jfxngs.jar: .secret.keystore ${htsjdk.jars}  src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/JfxNgs.java
 	mkdir -p webstart/tmp webstart/jfxngs
+	$(foreach P,$(filter %.jar,$^), unzip -o "$P"  -d webstart/tmp ${CRLF} )
 	javac -d webstart/tmp -sourcepath src/main/java -cp '$(subst $(SPACE),:,$(filter %.jar,$^))' $(filter %.java,$^)
-	jar cvf $@ -C webstart/tmp .
+	echo -e "Manifest-Version: 1.0\nMain-Class: com.github.lindenb.jvarkit.tools.vcfviewgui.JfxNgs\nPermissions: all-permissions\nCodebase: *\nApplication-Name: JfxNgs" > webstart/tmp/manifest.txt
+	jar cvfm $@ webstart/tmp/manifest.txt -C webstart/tmp .
+	$(call sign_jfx1,$@)
 	echo '<resources><j2se version="1.8+"/>' > $(dir $@)resources.xml
-	$(foreach P,$(filter %.jar,$^), echo '<jar download="null" href="$(notdir $P)"/>'   >>  $(dir $@)resources.xml && cp --verbose "$P" $(dir $@) && $(call sign_jfx1,$(dir $@)$(notdir $P)) ${CRLF} )
-	echo '<jar download="null" href="$(notdir $@)" main="true"/>' >> $(dir $@)resources.xml &&  $(call sign_jfx1,$@)
+	echo '<jar download="null" href="$(notdir $@)" main="true"/>' >> $(dir $@)resources.xml 
 	echo '</resources>' >>  $(dir $@)resources.xml
 	xmllint --path $(dir $@) --xinclude src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/JfxNgs.jnlp | sed 's%CODEBASE%${webstart.base}%' > $(dir $@)JfxNgs.jnlp
 	rm -rf webstart/tmp $(dir $@)resources.xml

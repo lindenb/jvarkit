@@ -26,11 +26,11 @@ package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -42,7 +42,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -57,7 +56,28 @@ import javax.script.CompiledScript;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
+import javax.xml.namespace.QName;
+import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.events.Attribute;
+import javax.xml.stream.events.StartElement;
+import javax.xml.stream.events.XMLEvent;
 
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AlleleFrequencyChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.GCPercentChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.GenotypeTypeChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.MapqChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.QualityPerPositionChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ReadChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ReadLengthChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ReadQualityChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.SamFlagsChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.TiTvChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantContextChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantDepthChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantQualChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantTypeChartFactory;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
@@ -74,7 +94,6 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
-import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -86,7 +105,6 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -114,13 +132,8 @@ import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.Chart;
-import javafx.scene.chart.LineChart;
-import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.PieChart;
-import javafx.scene.chart.StackedBarChart;
-import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -169,313 +182,27 @@ public class JfxNgs extends Application {
     private static final int DEFAULT_VCF_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.vcf", "1000"));
     private final List<StageContent> all_opened_stages=new ArrayList<>();
     private final Random randomMoveWindow=new Random();
-    
-    
-    /** create a chart position/base/count */
-    private static class CountBasePerPositionChartGenerator
-    	{
-    	/** all bases seen so far */
-        private final Set<Character> all_chars=new TreeSet<>();
-        /** count position / base / number */
-        private final Map<Integer,Counter<Character>> pos2base2count= new TreeMap<>();
-        
-        public CountBasePerPositionChartGenerator visit(final Collection<SAMRecord> records)
-        	{
-        	 for(final SAMRecord rec: records) visit(rec);
-        	 return this;
-        	}
-        public CountBasePerPositionChartGenerator visit(final SAMRecord rec) {
-        	byte bases[]= rec.getReadBases();
-        	if(bases==null || bases.length==0) return this;
-        	
-        	if(! rec.getReadUnmappedFlag() && rec.getReadNegativeStrandFlag())
-        		{
-        		bases = Arrays.copyOf(bases, bases.length);//because it would modify the read itself.
-        		SequenceUtil.reverseComplement(bases);
-        		}
-	        return visit(bases);	
-	        }
-        	
-       public CountBasePerPositionChartGenerator visit(final byte bases[]) {
-            if(bases==null || bases.length==0) return this;
-            
-        	for(int x=0;x< bases.length;++x)
-        		{
-        		Counter<Character> count = this.pos2base2count.get(x+1);
-        		if(count==null) {
-        			count = new Counter<>();
-        			this.pos2base2count.put(x+1,count);
-        			}
-        		char c=(char)bases[x];
-        		count.incr(c);
-        		this.all_chars.add(c);
-        		}
-        	return this;
-        	}
-        
-        public StackedBarChart<String, Number> make()
-	        {
-	        if(pos2base2count.isEmpty()) return null;
-	        
-	    	final CategoryAxis xAxis = new CategoryAxis();
-	    	xAxis.setLabel("Position in Read");
-	        final NumberAxis yAxis = new NumberAxis();
-	        yAxis.setLabel("Count");
-	
-	        
-	        final List<XYChart.Series<String, Number>> base2count=new ArrayList<>(all_chars.size());
-	        for(final Character base:all_chars) {
-	        	final XYChart.Series<String, Number> serie= new XYChart.Series<String, Number>();
-	        	serie.setName(base.toString());
-	        	base2count.add(serie);
-	        	
-		        for(final Integer pos1 : this.pos2base2count.keySet())
-		        	{
-		        	serie.getData().add(new XYChart.Data<String,Number>(
-		        			String.valueOf(pos1),
-		        			this.pos2base2count.get(pos1).count(base))
-		        			);
-		        	}
-		        }
-	        
-	        final StackedBarChart<String, Number> sbc =
-	                new StackedBarChart<String, Number>(xAxis, yAxis);
-	        sbc.setTitle("Position/Base/Count");
-	        sbc.getData().addAll(base2count);
-	        sbc.setCategoryGap(0.2);
-	        
-	        return sbc;
-	        }
-	    }
-    
-    /** create a chart position/base/count */
-    private static class ReadLengthChartGenerator
-    	{
-        /** count position / base / number */
-        private final Counter<Integer> length2count= new Counter<>();
-        
-        public ReadLengthChartGenerator visit(final Collection<SAMRecord> records)
-        	{
-        	 for(final SAMRecord rec: records) visit(rec);
-        	 return this;
-        	}
-        
-        public ReadLengthChartGenerator visit(final SAMRecord rec) {
-	        return visit(rec.getReadLength());	
-	        }
-        
-        public ReadLengthChartGenerator visit(final FastqRecord rec) {
-	        return visit(rec.length());	
-	        }
+    /** shor-Read oriented chart-factories */
+    private static final Class<?> READ_CHARTER_CLASSES[]= {
+	    BasesPerPositionChartFactory.class,
+		QualityPerPositionChartFactory.class,
+		GCPercentChartFactory.class,
+		ReadLengthChartFactory.class,
+		SamFlagsChartFactory.class,
+		MapqChartFactory.class,
+		ReadQualityChartFactory.class
+	    };
+    /** variant oriented chart-factories */
+    private static final Class<?> VARIANT_CHARTER_CLASSES[]= {
+		VariantTypeChartFactory.class,
+		GenotypeTypeChartFactory.class,
+		AlleleFrequencyChartFactory.class,
+		VariantQualChartFactory.class,
+		TiTvChartFactory.class,
+		VariantDepthChartFactory.class
+		};
 
-       private ReadLengthChartGenerator visit(int length) {
-           	this.length2count.incr(length);
-        	return this;
-        	}
-        
-        public StackedBarChart<String, Number> make()
-	        {	        
-	    	final CategoryAxis xAxis = new CategoryAxis();
-	    	xAxis.setLabel("Length");
-	        final NumberAxis yAxis = new NumberAxis();
-	        yAxis.setLabel("Count");
-	
-	        
-        	final XYChart.Series<String, Number> serie= new XYChart.Series<String, Number>();
-        	serie.setName("Length");
-        	
-        	
-	        for(final Integer L  : new TreeSet<Integer>(this.length2count.keySet()))
-	        	{
-	        	serie.getData().add(new XYChart.Data<String,Number>(
-	        			String.valueOf(L),
-	        			this.length2count.count(L))
-	        			);
-	        	}
-	        
-	        final StackedBarChart<String, Number> sbc =
-	                new StackedBarChart<String, Number>(xAxis, yAxis);
-	        sbc.setTitle("Reads Lengths");
-	        sbc.getData().add(serie);
-	        sbc.setCategoryGap(0.2);
-	        sbc.setLegendVisible(false);
-	        return sbc;
-	        }
-	    }
-    
-    
-    
-    /** create a chart position/quality */
-    private static class QualityPerPositionCharGenerator
-    	{
-    	private class QualData {
-    		double sum=0.0;
-    		long count=0L;
-    		byte m=Byte.MAX_VALUE;
-    		byte M=Byte.MIN_VALUE;
-    		void visit(byte qual) {
-    			this.sum+=qual;
-    			this.count++;
-    			if(qual<m) m=qual;
-    			if(qual>M) M=qual;
-    			}
-    		double get() { return this.sum/this.count;}
-    		double min() { return m;}
-    		double max() { return M;}
-    		}
-        /** count position / base / number */
-        private final Map<Integer,QualData> pos2qual= new TreeMap<>();
-        
-        public QualityPerPositionCharGenerator visit(final Collection<SAMRecord> records)
-        	{
-        	 for(final SAMRecord rec: records) visit(rec);
-        	 return this;
-        	}
-        
-        public QualityPerPositionCharGenerator visit(final SAMRecord rec) {
-        	byte quals[]= rec.getBaseQualities();
-        	if(quals==null || quals.length==0) return this;
-        	
-        	if(! rec.getReadUnmappedFlag() && rec.getReadNegativeStrandFlag())
-        		{
-        		quals = Arrays.copyOf(quals, quals.length);//because it would modify the read itself.
-        		SequenceUtil.reverseQualities(quals);
-        		}
-	        return visit(quals);	
-	        }
-        public QualityPerPositionCharGenerator visit(final FastqRecord rec) {
-        	byte quals[]= rec.getBaseQualityString().getBytes();
-        	if(quals==null || quals.length==0) return this;
-        	SAMUtils.fastqToPhred(quals);
-	        return visit(quals);	
-	        }
-       public QualityPerPositionCharGenerator visit(final byte quals[]) {
-            if(quals==null || quals.length==0) return this;
-            
-        	for(int x=0;x< quals.length;++x)
-        		{
-        		QualData count = this.pos2qual.get(x+1);
-        		if(count==null) {
-        			count = new QualData();
-        			this.pos2qual.put(x+1,count);
-        			}
-        		count.visit(quals[x]);
-        		}
-        	return this;
-        	}
-        
-        public LineChart<Number, Number> make()
-	        {
-	        if(pos2qual.isEmpty()) return null;
-	        
-	    	final NumberAxis xAxis = new NumberAxis();
-	    	xAxis.setLabel("Position in Read");
-	        final NumberAxis yAxis = new NumberAxis();
-	        yAxis.setLabel("Read Quality");
-	
-	        
 
-        	final  XYChart.Series<Number,Number> serie_mean = new XYChart.Series<Number,Number>();
-        	serie_mean.setName("Mean Quality");
-        	final  XYChart.Series<Number,Number> serie_min = new XYChart.Series<Number,Number>();
-        	serie_min.setName("Min Quality");
-        	final  XYChart.Series<Number,Number> serie_max = new XYChart.Series<Number,Number>();
-        	serie_max.setName("Max Quality");
-        	
-	        for(final Integer pos1 : this.pos2qual.keySet())
-	        	{
-	        	final QualData q= this.pos2qual.get(pos1);
-	        	serie_mean.getData().add(new XYChart.Data<Number,Number>(
-	        			pos1,q.get())
-	        			);
-	        	serie_min.getData().add(new XYChart.Data<Number,Number>(
-	        			pos1,q.min())
-	        			);
-	        	serie_max.getData().add(new XYChart.Data<Number,Number>(
-	        			pos1,q.max())
-	        			);
-	        	}
-	        
-	        
-	        final LineChart<Number, Number> sbc =
-	                new LineChart<Number, Number>(xAxis, yAxis);
-	        sbc.setTitle("Position/Quality");
-	        sbc.getData().add(serie_min);
-	        sbc.getData().add(serie_mean);
-	        sbc.getData().add(serie_max);
-	        sbc.setCreateSymbols(false);
-	        return sbc;
-	        }
-	    }
-
-    /** create a chart position/quality */
-    private static class QCpercentChartGenerator
-    	{
-        /** count position / base / number */
-        private final Counter<Integer> gcPercent2count=new Counter<>();
-        
-        public QCpercentChartGenerator visit(final Collection<SAMRecord> records)
-        	{
-        	 for(final SAMRecord rec: records) visit(rec);
-        	 return this;
-        	}
-        
-        public QCpercentChartGenerator visit(final SAMRecord rec) {
-	        return visit(rec.getReadString());	
-	        }
-        public QCpercentChartGenerator visit(final FastqRecord rec) {
-	        return visit(rec.getReadString());	
-	        }
-       public QCpercentChartGenerator visit(final String seq) {
-            if(seq==null || seq.isEmpty()) return this;
-            int ngc=0;
-        	for(int x=0;x< seq.length();++x)
-        		{
-        		switch(seq.charAt(x))
-        			{
-        			case 'G':case 'g':
-        			case 'C':case 'c':
-        			case 'S':case 's':
-        				ngc++;
-        				break;
-        			default:
-        				break;
-        			}
-        		}
-        	this.gcPercent2count.incr((int)(100.0*((double)ngc)/seq.length()));
-        	return this;
-        	}
-        
-        public LineChart<Number, Number> make()
-	        {
-	    	final NumberAxis xAxis = new NumberAxis();
-	    	xAxis.setLabel("%GC");
-	        final NumberAxis yAxis = new NumberAxis();
-	        yAxis.setLabel("Count");
-	
-	        
-
-        	final  XYChart.Series<Number,Number> serie = new XYChart.Series<Number,Number>();
-        	serie.setName("QC");
-        	
-	        for(int g=0;g<=100;++g)
-	        	{
-	        	serie.getData().add(new XYChart.Data<Number,Number>(
-	        			g,this.gcPercent2count.count(g))
-	        			);
-	        	}
-	        
-	        
-	        final LineChart<Number, Number> sbc =
-	                new LineChart<Number, Number>(xAxis, yAxis);
-	        sbc.setTitle("Percentage GC");
-	        sbc.getData().add(serie);
-	        sbc.setCreateSymbols(false);
-	        sbc.setLegendVisible(false);
-	        return sbc;
-	        }
-	    }
-    
     /** abstract base class for NGS window */
     private abstract class StageContent
         extends Stage
@@ -528,6 +255,67 @@ public class JfxNgs extends Application {
         	closeNgsResource();
         	super.finalize();
         	}
+        
+        /** path to snippets */
+        protected String getSnippetResourcePath()
+        	{
+        	return null;
+        	}
+        
+        
+        protected Menu createSnippetMenu() {
+        	final Menu menu=new Menu("Snippets");
+        	final String rsrc = getSnippetResourcePath();
+        	if(rsrc!=null) {
+        		InputStream in=null;
+        		XMLEventReader r=null;
+        		try
+        			{
+        			in = getClass().getResourceAsStream(rsrc);
+        			if(in!=null)
+        				{
+        				r=XMLInputFactory.newFactory().createXMLEventReader(in);
+        				final QName labelAtt=new QName("label");
+        				while(r.hasNext())
+        					{
+        					XMLEvent evt=r.nextEvent();
+        					if(!evt.isStartElement() ) continue;
+        					StartElement start=evt.asStartElement();
+        					if(!start.getName().getLocalPart().equals("code")) continue;
+        					Attribute attLabel=start.getAttributeByName(labelAtt);
+        					if(attLabel!=null && r.hasNext() && r.peek().isCharacters())
+        						{
+            					final MenuItem item=new MenuItem(attLabel.getValue());
+        						final String code= r.nextEvent().asCharacters().getData();
+
+        						item.setOnAction(new EventHandler<ActionEvent>() {
+    								@Override
+    								public void handle(ActionEvent event) {
+    									StageContent.this.javascriptArea.setText(code);
+    								}
+    							});
+        						menu.getItems().add(item);
+        						}
+        					}
+        				}
+        			}
+        		catch(Exception err)
+        			{
+        			LOG.warning(err.getMessage());
+        			}
+        		finally
+        			{
+        			CloserUtil.close(r);
+        			CloserUtil.close(in);
+        			}
+        		}
+        	else
+        		{
+        		LOG.warning("No snippets defined for "+getClass());
+        		}
+        	return menu;
+        	}
+        
         /** send those command to IGV */
         protected void openInIgv(final List<String> commands)
         	{
@@ -793,10 +581,9 @@ public class JfxNgs extends Application {
     			{
     			volatile boolean kill_flag=false;
         		private final File source;
-        		private final CountBasePerPositionChartGenerator charter1 = new CountBasePerPositionChartGenerator();
-        		private final QualityPerPositionCharGenerator charter2 = new QualityPerPositionCharGenerator();
-    			private final QCpercentChartGenerator charter3=new QCpercentChartGenerator();
-    			private final ReadLengthChartGenerator charter4=new ReadLengthChartGenerator();
+        		private final ReadChartFactory charters[]=new ReadChartFactory[READ_CHARTER_CLASSES.length];
+        		
+        		
         		private long lastRefresh =System.currentTimeMillis();
     			private long nItems=0L;
     			private final CompiledScript compiledScript;
@@ -804,20 +591,28 @@ public class JfxNgs extends Application {
     				{
     				this.source=source;
     				this.compiledScript = compiledScript;
+    				for(int i=0;i<charters.length;++i )
+    					{
+    					try
+    						{
+    						charters[i]=(ReadChartFactory)READ_CHARTER_CLASSES[i].newInstance();
+    						}
+    					catch(Exception err)
+    						{
+    						throw new RuntimeException(err);    						}
+    					}
     				}
         		private void repaint()
         			{
+        			final List<Chart> L=new ArrayList<>(this.charters.length);
+        			for(ReadChartFactory chartter:this.charters) L.add(chartter.build());
         			 Platform.runLater(new Runnable() {
         				 @Override
         				public void run() {
-        					 Chart chart=charter1.make();
-        					 if(chart!=null) ReadQualityStage.this.tabStat1.setContent(chart);
-        					 chart=charter2.make();
-        					 if(chart!=null) ReadQualityStage.this.tabStat2.setContent(chart);
-        					 chart=charter3.make();
-        					 if(chart!=null) ReadQualityStage.this.tabStat3.setContent(chart);
-        					 chart=charter4.make();
-        					 if(chart!=null) ReadQualityStage.this.tabStat4.setContent(chart);
+        					 for(int i=0;i< charters.length;++i)
+        					 	{
+        						 ReadQualityStage.this.tabs[i].setContent(L.get(i));
+        					 	}
         					 ReadQualityStage.this.countItemsLabel.setText("Running... Number of items: "+nItems);
         				 }
         			 	});
@@ -883,10 +678,10 @@ public class JfxNgs extends Application {
 	    							bindings.put("record", rec);
 	    							if(!accept(bindings)) continue;
 	    							}
-	    						charter1.visit(rec);
-	    						charter2.visit(rec);
-	    						charter3.visit(rec);
-	    						charter4.visit(rec);
+	    						for(final ReadChartFactory charter: this.charters)
+		    						{
+		    						charter.visit(rec);
+		    						}
 	    						update();
 	    						}
 	    					samIter.close();
@@ -904,10 +699,10 @@ public class JfxNgs extends Application {
 	    						{
 	    						final FastqRecord rec=fqReader.next();
 	    						nItems++;
-	    						charter1.visit(rec.getReadString().getBytes());
-	    						charter2.visit(rec);
-	    						charter3.visit(rec);
-	    						charter4.visit(rec);
+	    						for(final ReadChartFactory charter: this.charters)
+		    						{
+		    						charter.visit(rec);
+		    						}
 	    						update();
 	    						}
 	    					fqReader.close();
@@ -948,10 +743,7 @@ public class JfxNgs extends Application {
     			
     			}
     		private final ScanQualThread thread;
-    		private final Tab tabStat1;
-    		private final Tab tabStat2;
-    		private final Tab tabStat3;
-    		private final Tab tabStat4;
+    		private final Tab tabs[];
     		private final Label countItemsLabel;
     		
 	    	ReadQualityStage(File file,final CompiledScript compiledScript)
@@ -973,16 +765,17 @@ public class JfxNgs extends Application {
 	                            }
 	                        });
 	        	
-	        
-	        	this.tabStat1=new Tab("Base/Position",new GridPane());
-	        	this.tabStat1.setClosable(false);
-	        	this.tabStat2=new Tab("Quality/Position",new GridPane());
-	        	this.tabStat2.setClosable(false);
-	        	this.tabStat3=new Tab("GC%",new GridPane());
-	        	this.tabStat3.setClosable(false);
-	        	this.tabStat4=new Tab("Read-Length",new GridPane());
-	        	this.tabStat4.setClosable(false);
-	        	TabPane tabPane=new TabPane(this.tabStat1,this.tabStat2,this.tabStat3,this.tabStat4);
+	        	final TabPane tabPane=new TabPane();
+	        	this.tabs=new Tab[this.thread.charters.length];
+	        	for(int i=0;i< this.tabs.length;++i)
+	        	{
+	        		this.tabs[i]=new Tab(
+	        				this.thread.charters[i].getName(),
+	        				this.thread.charters[i].build()
+	        				);
+	        		this.tabs[i].setClosable(false);
+	        		tabPane.getTabs().add(this.tabs[i]);
+	        	}
 	        	
 	        	this.countItemsLabel=new Label();
 	        	VBox box1=new VBox(tabPane,this.countItemsLabel);
@@ -1458,50 +1251,25 @@ public class JfxNgs extends Application {
         
         private void doMenuShowStats()
         	{
-        	
         	final TabPane tabPane=new TabPane();
-        	final StackedBarChart<String,Number>  sbc1 = new CountBasePerPositionChartGenerator().
-        			visit(this.recordTable.getItems()).
-        			make();
-        	if(sbc1!=null)
-        		{	
-        		Tab tab=new Tab("Position/Bases", sbc1);
-        		tab.setClosable(false);
-        		tabPane.getTabs().add(tab);
+        	for(Class<?> clazz:READ_CHARTER_CLASSES)
+        		{
+        		try {
+        			final ReadChartFactory rcf = (ReadChartFactory)clazz.newInstance();
+        			rcf.visit(this.recordTable.getItems());
+        			final Chart chart=rcf.build();
+        			Tab tab=new Tab(rcf.getName(),chart);
+            		tab.setClosable(false);
+            		tabPane.getTabs().add(tab);
+        			}
+        		catch(Exception err)
+        			{
+        			LOG.warning(err.getMessage());
+        			}
+        		
         		}
         	
-        	final LineChart<Number, Number> sbc2=new QualityPerPositionCharGenerator().
-        		visit(this.recordTable.getItems()).
-        		make();
-        	
-        	if(sbc2!=null)
-	    		{	
-	    		Tab tab=new Tab("Position/Quality", sbc2);
-	    		tab.setClosable(false);
-	    		tabPane.getTabs().add(tab);
-	    		}
-        	final LineChart<Number, Number> sbc3=new QCpercentChartGenerator().
-            		visit(this.recordTable.getItems()).
-            		make();
-            	
-        	if(sbc3!=null)
-	    		{	
-	    		Tab tab=new Tab("GC%", sbc3);
-	    		tab.setClosable(false);
-	    		tabPane.getTabs().add(tab);
-	    		}
-        	final StackedBarChart<String,Number>  sbc4 = new ReadLengthChartGenerator().
-        			visit(this.recordTable.getItems()).
-        			make();
-        	if(sbc4!=null)
-        		{	
-        		Tab tab=new Tab("Read Lengths", sbc4);
-        		tab.setClosable(false);
-        		tabPane.getTabs().add(tab);
-        		}
-        	
-        	
-        	Stage dialog = new Stage();
+        	final Stage dialog = new Stage();
         	dialog.initOwner(this);
         	dialog.setTitle("BAM Stats");
         	Scene scene;
@@ -2053,286 +1821,10 @@ public class JfxNgs extends Application {
 	    	}
         }
     
-    
-    private static abstract class VariantChartGenerator
-    	{
-    	public abstract String getName(); 
-    	public final VariantChartGenerator visit(List<VariantContext> L)
-    		{
-    		for(final VariantContext ctx:L) visit(ctx);
-    		return this;
-    		}
-    	public abstract VariantChartGenerator visit(VariantContext ctx);
-    	public abstract Chart make();    	
-    	}
-    
-    private static class GenotypeTypeChartGenerator
-		extends VariantChartGenerator
-		{
-    	private final Map<String,Counter<GenotypeType>> sample2count=new TreeMap<>();
-    	@Override
-    	public String getName() {
-    		return "Genotype Type";
-    		}
-    	@Override
-    	public VariantChartGenerator visit(final VariantContext ctx) {
-    		for(final Genotype g:ctx.getGenotypes())
-    			{
-    			Counter<GenotypeType> count = this.sample2count.get(g.getSampleName());
-    			if(count==null) {
-    				count = new Counter<>();
-    				this.sample2count.put(g.getSampleName(), count);
-    				}
-    			count.incr(g.getType());
-    			}
-    		return this;
-    		}
-    	@Override
-    	public Chart make() {	        
-	    	final CategoryAxis xAxis = new CategoryAxis();
-	    	xAxis.setLabel("Sample");
-	        final NumberAxis yAxis = new NumberAxis();
-	        yAxis.setLabel("Count");
-	
-	        
-	        final List<XYChart.Series<String, Number>> gtype2count=new ArrayList<>(GenotypeType.values().length);
-	        for(final GenotypeType genotypeType :GenotypeType.values()) {
-	        	final XYChart.Series<String, Number> serie= new XYChart.Series<String, Number>();
-	        	serie.setName(genotypeType.name());
-	        	gtype2count.add(serie);
-	        	
-		        for(final String sampleName : this.sample2count.keySet())
-		        	{
-		        	serie.getData().add(new XYChart.Data<String,Number>(
-		        			sampleName,
-		        			this.sample2count.get(sampleName).count(genotypeType))
-		        			);
-		        	}
-		        }
-	        
-	        final StackedBarChart<String, Number> sbc =
-	                new StackedBarChart<String, Number>(xAxis, yAxis);
-	        sbc.setTitle("Genotype / Sample");
-	        sbc.getData().addAll(gtype2count);
-	        sbc.setCategoryGap(0.2);
-	        return sbc;
-	        }
-		}
-    
-    
-    private static class AlleleFrequencyChartGenerator
-		extends VariantChartGenerator
-		{
-    	private final Counter<Integer> afindexcount=new Counter<>();
-    	private final List<Limit> limits =new ArrayList<>();
-    	private int nSamples=0;
-    	private static class Limit
-    		{
-    		final int index;
-    		final double v;
-    		final String label;
-    		Limit(int index,double v,String label) {this.index=index;this.v=v;this.label=label;}
-    		}
-    	
-    	@Override
-    	public String getName() {
-    		return "Allele Frequency";
-    		}
-    	@Override
-    	public VariantChartGenerator visit(final VariantContext ctx) {
-    		if(ctx.hasAttribute(VCFConstants.ALLELE_FREQUENCY_KEY))
-    			{
-    			if(this.limits.isEmpty())
-	    			{
-    				final DecimalFormat df = new DecimalFormat("#.###");
-    				int ndiv;
-	    			if(ctx.getNSamples()>0)
-	    				{
-	    				this.nSamples=ctx.getNSamples();
-	    				ndiv=(2*this.nSamples);
-	    				}
-	    			else
-	    				{
-	    				ndiv = 10;
-	    				}
-	    			
-	    			for(int x=0;x< ndiv;++x)
-	    				{
-	    				double v= x*(1.0/ndiv);
-	    				String cat="??";
-	    				if(x==0)
-							{
-							cat="<"+df.format(v);
-							}
-	    				else if(x+1==ndiv)
-							{
-							cat=">="+df.format(v);
-							}
-						else
-							{
-							cat="["+df.format(v)+" - "+df.format(v+ (1.0/ndiv))+"[";
-							}
-						
-	    				this.limits.add(new Limit(this.limits.size(),v,cat));
-	    				}
-	    			}
-    			for(final Object o: ctx.getAttributeAsList(VCFConstants.ALLELE_FREQUENCY_KEY))
-    				{
-    				if(o==null) continue;
-    				final double v;
-    				if(o instanceof Double)
-    					{
-    					v=Double.class.cast(o);
-    					}
-    				else if(o instanceof Float)
-						{
-						v=Float.class.cast(o);
-						}
-    				else
-    					{
-    					try
-    						{
-    						v=Double.parseDouble(o.toString());
-    						}
-    					catch(NumberFormatException err) {
-	    					LOG.warning("Not a double "+o+" "+o.getClass());
-	    					continue;
-	    					}
-    					}
-    				Limit cat=null;
-    				for(int x=0;x<limits.size();++x)
-    					{
-    					if(x==0 && v< limits.get(0).v)
-    						{
-    						cat = limits.get(0);
-    						break;
-    						}
-    					else if(x+1==limits.size())
-							{
-							cat= limits.get(x);
-							break;
-							}
-    					else if( v>=limits.get(x).v && v<limits.get(x+1).v)
-    						{
-    						cat=  limits.get(x);
-    						break;
-    						}
-    					
-    					}		
-    				if(cat!=null)
-    					{
-    					this.afindexcount.incr(cat.index);
-    					}
-    				else
-    					{
-    					LOG.warning("?? AF: "+v);
-    					}
-    				}
-    			}
-    		else
-    			{
-    			LOG.warning("NOT AF in variant");
-    			}
-    		return this;
-    		}
-    	@Override
-    	public Chart make() {	        
-	    	final CategoryAxis xAxis = new CategoryAxis();
-	    	xAxis.setLabel("AF");
-	        final NumberAxis yAxis = new NumberAxis();
-	        yAxis.setLabel("Count");
-	
-	        
-        	final XYChart.Series<String, Number> serie= new XYChart.Series<String, Number>();
-        	serie.setName("AF");
-        	
-        	
-	        for(final Limit limit  :this.limits)
-	        	{
-	        	if(this.afindexcount.count(limit.index)==0L) continue;
-	        	serie.getData().add(new XYChart.Data<String,Number>(
-	        			limit.label,
-	        			this.afindexcount.count(limit.index))
-	        			);
-	        	}
-	        
-	        final StackedBarChart<String, Number> sbc =
-	                new StackedBarChart<String, Number>(xAxis, yAxis);
-	        sbc.setTitle("Allele Frequency"+(this.nSamples>0?" (Nbr. Sample(s):"+this.nSamples+")":""));
-	        sbc.getData().add(serie);
-	        sbc.setCategoryGap(0.2);
-	        sbc.setLegendVisible(false);
-	        return sbc;
-	        }
-		}
 
     
-    private static class VariantTypeChartGenerator
-    	extends VariantChartGenerator
-		{
-    	private static interface Category
-    		{
-    		public String getName();
-    		public boolean accept(final VariantContext ctx);
-    		}
-    	private  final Category categories[]=new Category[]{
-    		new Category(){
-    			@Override public String getName() {return "SNP Unfiltered";};
-    			@Override  public boolean accept(final VariantContext ctx) { return ctx.isSNP() && !ctx.isFiltered();}
-    			},
-    		new Category(){
-    			@Override public String getName() {return "SNP Filtered";};
-    			@Override  public boolean accept(final VariantContext ctx) { return ctx.isSNP() && ctx.isFiltered();}
-    			},
-    		new Category(){
-    			@Override public String getName() {return "Indel Unfiltered";};
-    			@Override  public boolean accept(final VariantContext ctx) { return ctx.isIndel() && !ctx.isFiltered();}
-    			},
-    		new Category(){
-    			@Override public String getName() {return "Indel Filtered";};
-    			@Override  public boolean accept(final VariantContext ctx) { return ctx.isIndel() && ctx.isFiltered();}
-    			},
-    		/* always LAST */
-			new Category(){
-    			@Override public String getName() {return "Others";};
-    			@Override  public boolean accept(final VariantContext ctx) { return true;}
-    			}
-    		};
-    	private final long counts[]=new long[categories.length];
-    	
-    	@Override
-		public String getName() { return "Variant Types";}
-    	@Override
-		public VariantTypeChartGenerator visit(VariantContext ctx)
-			{
-    		for(int i=0;i< categories.length;++i)
-    			{
-    			if(categories[i].accept(ctx)) {
-    				counts[i]++;
-    				break;
-    				}
-    			}
-			return this;
-			}
-    	@Override
-		public Chart make() {
-	    	final CategoryAxis xAxis = new CategoryAxis();
-	    	xAxis.setLabel("Position in Read");
-	        final NumberAxis yAxis = new NumberAxis();
-	        yAxis.setLabel("Count");
 
-	        final ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
-	        for(int i=0;i< categories.length;++i)
-				{
-	        	pieChartData.add( new PieChart.Data(categories[i].getName() +" "+counts[i], counts[i]));
-				}
-	        final PieChart chart = new PieChart(pieChartData);
-	        chart.setTitle("Variants Types");
-	       
-	        return chart;
-			}
-		}
-
+    
     
     private class VcfQualityStage
 		extends Stage
@@ -2343,26 +1835,36 @@ public class JfxNgs extends Application {
         		private final File source;
         		private long lastRefresh =System.currentTimeMillis();
     			private long nItems=0L;
-    			private final VariantChartGenerator generators[];
+    			private final VariantContextChartFactory generators[];
     			private final CompiledScript compiledScript;
     			ScanVcfThread(final File source,CompiledScript compiledScript)
     				{
     				this.source=source;
     				this.compiledScript = compiledScript;
-    				this.generators=new VariantChartGenerator[]{
-    					new VariantTypeChartGenerator(),
-    					new GenotypeTypeChartGenerator(),
-    					new AlleleFrequencyChartGenerator()
-    					};
+    				this.generators=new VariantContextChartFactory[VARIANT_CHARTER_CLASSES.length];
+    				for(int i=0;i< this.generators.length;++i)
+    					{
+    					try
+    						{
+    						this.generators[i]=(VariantContextChartFactory)VARIANT_CHARTER_CLASSES[i].newInstance();
+    						}
+    					catch(final Exception err)
+    						{
+    						throw new RuntimeException(err);
+    						}
+    					}
     				}
         		private void repaint()
         			{
+        			final List<Chart> L=new ArrayList<>(this.generators.length);
+        			for(VariantContextChartFactory chartter:this.generators) L.add(chartter.build());
+
         			 Platform.runLater(new Runnable() {
         				 @Override
         				public void run() {
-        					for(int x=0;x <generators.length;++x)
+        					for(int i=0;i< L.size();++i)
         						{
-        						 VcfQualityStage.this.tabStats[x].setContent(generators[x].make());
+        						VcfQualityStage.this.tabStats[i].setContent(L.get(i));
         						}
         				 	}
         			 	});
@@ -2425,11 +1927,10 @@ public class JfxNgs extends Application {
 	    							bindings.put("variant", ctx);
 	    							if(!accept(bindings)) continue;
 	    							}
-	    						for(VariantChartGenerator gen:this.generators)
+	    						for(final VariantContextChartFactory gen:this.generators)
 	    							{
 	    							gen.visit(ctx);
 	    							}
-	    						
 	    						update();
 	    						}
 	    					iter.close();
@@ -2483,10 +1984,11 @@ public class JfxNgs extends Application {
 	        	this.tabStats=new Tab[this.thread.generators.length];
 	        	for(int x=0;x < this.thread.generators.length;++x)
 	        		{
-	        		Tab tab=new Tab(this.thread.generators[x].getName());
-	        		tab.setClosable(false);
-	        		tabPane.getTabs().add(tab);
-	        		this.tabStats[x]=tab;
+	        		this.tabStats[x]=new Tab(this.thread.generators[x].getName(),
+	        				this.thread.generators[x].build()
+	        				);
+	        		this.tabStats[x].setClosable(false);
+	        		tabPane.getTabs().add(this.tabStats[x]);
 	        		}
 	        	this.countItemsLabel=new Label();
 	        	VBox box1=new VBox(tabPane,this.countItemsLabel);
@@ -2539,12 +2041,12 @@ public class JfxNgs extends Application {
     	{
     	private final TextField javascriptFILTERfield=new TextField("");
     	private final VCFFileReader vcfFileReader;
-    	private Spinner<Integer> maxReadLimitSpinner;
-    	private TableView<VariantContext> variantTable;
-    	private TableView<Genotype> genotypeTable;
-    	private TableView<InfoTableRow> infoTableRow;
-    	private TableView<String> filterTableRow;
-    	
+    	private final Spinner<Integer> maxReadLimitSpinner;
+    	private final TableView<VariantContext> variantTable;
+    	private final TableView<Genotype> genotypeTable;
+    	private final TableView<InfoTableRow> infoTableRow;
+    	private final TableView<String> filterTableRow;
+    	private final BorderPane genotypeChartPane;
     	VcfStage(final String path) {
     		super(path);
     		this.vcfFileReader = new VCFFileReader(new File(path),true);
@@ -2665,22 +2167,27 @@ public class JfxNgs extends Application {
     		
     		/* build genotype table */
     		this.genotypeTable =this.buildGenotypeTableRow(header);
-    		GridPane.setConstraints( this.genotypeTable,5, 0,5,10); 
+    		GridPane.setConstraints( this.genotypeTable,5, 0,5,14); 
     		gridPane.getChildren().add(this.genotypeTable);
     		
     		/* filter table */
     		this.filterTableRow = this.buildFilterTable();
-    		GridPane.setConstraints( this.filterTableRow,0, 10,3,2);
+    		GridPane.setConstraints( this.filterTableRow,0, 10,3,1);
     		gridPane.getChildren().add(this.filterTableRow);
-
-    		
+    		/* genotype pane */
+    		this.genotypeChartPane = new BorderPane(this.makeGenotypePie(null));
+    		this.genotypeChartPane.setPadding(new Insets(5));
+    		GridPane.setConstraints( this.genotypeChartPane,0, 12,3,4);
+	    	gridPane.getChildren().add(this.genotypeChartPane);
+	    		
     		/* build info Table table */
     		this.infoTableRow = this.buildInfoTableRow();
-    		GridPane.setConstraints( this.infoTableRow,3, 10,8,2); // column=3 row=1
+    		GridPane.setConstraints( this.infoTableRow,3, 10,8,5); // column=3 row=1
     		gridPane.getChildren().add(this.infoTableRow);
     		
-          
+    				
            
+    		
             
             //vbox1.getChildren().add(gridPane);
     		
@@ -2957,8 +2464,31 @@ public class JfxNgs extends Application {
             	this.infoTableRow.getItems().clear();
             	this.filterTableRow.getItems().clear();
         		}
+        	this.genotypeChartPane.setCenter(this.makeGenotypePie(ctx));
         	}
     	
+        private PieChart makeGenotypePie(final VariantContext ctx) {
+	        final Counter<GenotypeType> countTypes= new Counter<>();
+	        if(ctx!=null) {
+	        	for(final Genotype g:ctx.getGenotypes())
+					{
+	        		countTypes.incr(g.getType());
+					}
+	        	}
+        	final ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
+        	for(final GenotypeType t:GenotypeType.values())
+        		{
+        		int c= (int)countTypes.count(t);
+        		if(c==0) continue;
+        		pieChartData.add(new PieChart.Data(
+        				t.name()+" = "+c,
+        				c));
+        		}
+	        final PieChart chart = new PieChart(pieChartData);
+	        chart.setLegendVisible(false);
+	        return chart;
+        	}
+        
     	/** build a table describing the FORMAT column */
     	private Tab buildFormatHeaderTab(final VCFHeader header)
     		{
@@ -3068,39 +2598,27 @@ public class JfxNgs extends Application {
         private void doMenuShowStats()
 	    	{
 	    	final TabPane tabPane=new TabPane();
-    		Tab tab=new Tab("Variant Type",
-    				new VariantTypeChartGenerator().
-		    			visit(this.variantTable.getItems()).
-		    			make()
-		    			);
-    		tab.setClosable(false);
-    		tabPane.getTabs().add(tab);
-	    		
-    		tab=new Tab("Genotype Types",
-    				new GenotypeTypeChartGenerator().
-		    			visit(this.variantTable.getItems()).
-		    			make()
-		    			);
-    		tab.setClosable(false);
-    		tabPane.getTabs().add(tab);
-    		
-    		tab=new Tab("Allele Frequencies",
-    				new AlleleFrequencyChartGenerator().
-		    			visit(this.variantTable.getItems()).
-		    			make()
-		    			);
-    		tab.setClosable(false);
-    		tabPane.getTabs().add(tab);
+	    	for(Class<?> clazz: VARIANT_CHARTER_CLASSES)
+	    		{
+	    		try {
+					final VariantContextChartFactory vccf=(VariantContextChartFactory)clazz.newInstance();
+					vccf.visit(this.variantTable.getItems());
+					final Tab tab=new Tab(vccf.getName(),vccf.build());
+		    		tab.setClosable(false);
+		    		tabPane.getTabs().add(tab);
+	    		} catch (final Exception e) {
+					throw new RuntimeException(e);
+					}
+	    		}
 	    	
-	    	
-	    	Stage dialog = new Stage();
+	    	final Stage dialog = new Stage();
 	    	dialog.initOwner(this);
 	    	dialog.setTitle("VCF Stats");
-	    	Scene scene;
 	    	
-    		BorderPane pane=new BorderPane(tabPane);
+    		final BorderPane pane=new BorderPane(tabPane);
+    		pane.setPadding(new Insets(10,10,10,10));
     		pane.setTop(new Label("Data for "+super.sourceUrl));        		
-    		scene=new Scene(pane);
+    		Scene scene=new Scene(pane);
 	    		
 	    	dialog.setScene(scene);
 	    	dialog.show();
