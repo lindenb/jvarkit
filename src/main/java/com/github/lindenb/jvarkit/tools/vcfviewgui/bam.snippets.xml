@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<snippets>
+<code label="Reads Clipped">
+record.getReadUnmappedFlag()==false &amp;&amp; (
+	record.getCigarString().contains("S") ||
+	record.getCigarString().contains("H")
+	);
+</code>
+
+<code label="Reads Length between 10 and 50">
+record.getReadLength()&gt;10 &amp;&amp; record.getReadLength.()&lt;50
+</code>
+
+
+
+</snippets>

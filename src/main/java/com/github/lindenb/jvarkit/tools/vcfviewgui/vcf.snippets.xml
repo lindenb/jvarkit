@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<snippets>
+<code label="Remove all sites with more than 5% of no-call (./.)"><![CDATA[
+var n=0.0;
+for(var i=0;i< variant.getNSamples();i++ )
+	{
+	if(variant.getGenotype(i).isNoCall()) n++;
+	}
+variant.getNSamples()>0 && n/ variant.getNSamples() < 0.05
+]]></code>
+
+<code label="One sample has a genotype different from the others"><![CDATA[
+function accept(ctx)
+    {
+    var x,y,g1,g2,count_same=0;
+    var sampleList=header.getSampleNamesInOrder();
+    /** loop over one sample */
+    for(x=0;x < sampleList.size();++x)
+        {
+        g1=ctx.getGenotype( sampleList.get(x) );
+        /** ignore non-called */
+        if(! g1.isCalled() ) continue;
+        count_same=0;
+        /** loop over the other samples */
+        for(y=0;y< sampleList.size() && count_same==0 ;++y)
+            {
+            if(x==y) continue;/* same sample ?*/
+            g2=ctx.getGenotype( sampleList.get(y) );
+            /** ignore non-called */
+            if(! g2.isCalled() ) continue;
+            /** is g1==g2 ? */
+            if( g1.sameGenotype( g2 ) )
+                {
+                count_same++;
+                }
+            }
+        /* found no other same genotype */
+        if(count_same==0) return true;
+        }
+    return false;
+    }
+accept(variant);
+]]></code>
+
+<code label="Selecting Variants based on annotations"><![CDATA[
+function accept(v) {
+var ann =   v.getAttributeAsList("ANN");
+for(var i=0;i< ann.size();++i)
+    {
+    var tokens = ann.get(i).split(/\|/);
+    if( tokens.length>2 && tokens[2] == "MODIFIER" ) return true;
+    }
+return false;
+}
+accept(variant);
+]]></code>
+
+
+<code label="Het variants for Sample"><![CDATA[
+variant.getGenotype("SAMPLENAME").isHet()
+]]></code>
+
+
+</snippets>

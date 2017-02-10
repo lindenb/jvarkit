@@ -63,6 +63,7 @@ import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.chart.Chart;
 import javafx.scene.control.Label;
@@ -71,6 +72,7 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
@@ -104,6 +106,8 @@ public abstract class NgsStage extends Stage {
 	protected final File urlOrFile;
 	/** javascript filtering */
 	protected final TextArea javascriptArea=new TextArea();
+	
+	
 	/** message stuff */
 	protected final Label messageLabel=new Label();
 	/** message stuff */
@@ -325,7 +329,7 @@ public abstract class NgsStage extends Stage {
     	
     	this.menuBar.getMenus().add(this.statsMenu);
     	
-       
+    	this.menuBar.getMenus().add(this.createJavascriptSnippetMenu());
     	}
     
     @Override
@@ -334,12 +338,10 @@ public abstract class NgsStage extends Stage {
     	super.finalize();
     	}
     
-    /** path to snippets */
-    protected String getSnippetResourcePath()
-    	{
-    	return null;
-    	}
+    /** path to java script snippets */
+    protected abstract String getSnippetResourcePath();
     
+    /** generate a set of common button for handling javascript */
     protected List<Button> makeJavascriptButtons()
     	{
     	List<Button> buttons=new ArrayList<>();
@@ -424,10 +426,15 @@ public abstract class NgsStage extends Stage {
     	return buttons;
     	}
     
-    protected Menu createSnippetMenu() {
+    /** generate the javascript Menu, containing the snippets.
+     * the snippet are stored as a xml file in the jar file
+     * @return
+     */
+    private Menu createJavascriptSnippetMenu() {
     	final Menu menu=new Menu("Snippets");
     	final String rsrc = getSnippetResourcePath();
-    	if(rsrc!=null) {
+    	if(rsrc!=null && !rsrc.isEmpty()) {
+    		LOG.info("Loading javascript snippets "+rsrc);
     		InputStream in=null;
     		XMLEventReader r=null;
     		try
@@ -435,8 +442,11 @@ public abstract class NgsStage extends Stage {
     			in = getClass().getResourceAsStream(rsrc);
     			if(in!=null)
     				{
-    				r=XMLInputFactory.newFactory().createXMLEventReader(in);
+    				final XMLInputFactory xif=XMLInputFactory.newFactory();
+    				xif.setProperty(XMLInputFactory.IS_COALESCING,Boolean.TRUE);
+    				r=xif.createXMLEventReader(in);
     				final QName labelAtt=new QName("label");
+    				final QName nameAtt=new QName("name");
     				while(r.hasNext())
     					{
     					XMLEvent evt=r.nextEvent();
@@ -444,6 +454,7 @@ public abstract class NgsStage extends Stage {
     					StartElement start=evt.asStartElement();
     					if(!start.getName().getLocalPart().equals("code")) continue;
     					Attribute attLabel=start.getAttributeByName(labelAtt);
+    					if(attLabel==null) attLabel=start.getAttributeByName(nameAtt);
     					if(attLabel!=null && r.hasNext() && r.peek().isCharacters())
     						{
         					final MenuItem item=new MenuItem(attLabel.getValue());
@@ -453,11 +464,35 @@ public abstract class NgsStage extends Stage {
 								@Override
 								public void handle(ActionEvent event) {
 									NgsStage.this.javascriptArea.setText(code);
+									Parent parent=NgsStage.this.javascriptArea;
+									while(parent!=null)
+										{
+										if(parent instanceof TabPane)
+											{
+											List<Tab> tabs=((TabPane)parent).getTabs();
+											for(int x=0;x<tabs.size();++x)
+												{
+												if(tabs.get(x).getText().equals(JAVASCRIPT_TAB_KEY))
+													{
+													((TabPane)parent).getSelectionModel().select(tabs.get(x));
+													break;
+													}
+												}
+											break;
+											}
+										parent=parent.getParent();
+										}
+									
+									
 								}
 							});
     						menu.getItems().add(item);
     						}
     					}
+    				}
+    			else
+    				{
+    				LOG.warning("Cannot read snippets "+rsrc);
     				}
     			}
     		catch(Exception err)

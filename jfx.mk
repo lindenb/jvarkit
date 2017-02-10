@@ -100,6 +100,7 @@ webstart/jfxngs/jfxngs.jar: .secret.keystore ${htsjdk.jars}  src/main/java/com/g
 	mkdir -p webstart/tmp webstart/jfxngs
 	$(foreach P,$(filter %.jar,$^), unzip -o "$P"  -d webstart/tmp ${CRLF} )
 	javac -d webstart/tmp -sourcepath src/main/java -cp '$(subst $(SPACE),:,$(filter %.jar,$^))' $(filter %.java,$^)
+	$(foreach S,bam vcf, cp -v src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/${S}.snippets.xml webstart/tmp/com/github/lindenb/jvarkit/tools/vcfviewgui/;)
 	echo -e "Manifest-Version: 1.0\nMain-Class: com.github.lindenb.jvarkit.tools.vcfviewgui.JfxNgs\nPermissions: all-permissions\nCodebase: *\nApplication-Name: JfxNgs" > webstart/tmp/manifest.txt
 	jar cvfm $@ webstart/tmp/manifest.txt -C webstart/tmp .
 	$(call sign_jfx1,$@)

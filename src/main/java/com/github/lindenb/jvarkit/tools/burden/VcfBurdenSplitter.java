@@ -382,7 +382,7 @@ public class VcfBurdenSplitter
 	private class SlidingWindowSplitter extends Splitter {
 		final int winsize;
 		final int winshift;
-		SlidingWindowSplitter(int winsize,int winshift)
+		SlidingWindowSplitter(final int winsize,final int winshift)
 			{
 			this.winsize = winsize;
 			this.winshift =winshift;
@@ -391,14 +391,15 @@ public class VcfBurdenSplitter
 		public Set<String> keys(final VariantContext ctx)
 			{
 			final Set<String> set= new HashSet<>();
-			int x= (int)(ctx.getStart()/this.winsize);
-			x*=winsize;
-			while(x<=ctx.getStart() && ctx.getStart()<=x+this.winshift) {
-				set.add(String.format("%s_%09d_%09d", ctx.getContig(),x,x+winshift));
+			int x= ctx.getStart() - ctx.getStart()%this.winsize;
+			
+			while(x<=ctx.getStart() && ctx.getStart()<=x+this.winsize) {
+				set.add(String.format("%s_%09d_%09d", ctx.getContig(),x,x+winsize));
 				x += this.winshift;
 			}
 	 		return set;
 			}
+		
 		@Override
 		public String getName() {
 			return "split"+this.winsize+"_"+this.winshift;
@@ -417,6 +418,10 @@ public class VcfBurdenSplitter
 			new HighDamageVepSplitter(),
 			new SlidingWindowSplitter(1000, 500),
 			new SlidingWindowSplitter(1000, 300),
+			new SlidingWindowSplitter(2000, 1000),
+			new SlidingWindowSplitter(2000, 500),
+			new SlidingWindowSplitter(4000, 2000),
+			new SlidingWindowSplitter(4000, 1000)
 		};
 	
 	public VcfBurdenSplitter()

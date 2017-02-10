@@ -590,7 +590,7 @@ public class BamStage extends NgsStage {
         		);
         		
         
-        fileMenu.getItems().addAll(
+        super.fileMenu.getItems().addAll(
         		menuForSavingTable("SamRecord",this.recordTable),
         		menuForSavingTable("MetaData",this.metaDataTable),
         		menuForSavingTable("Flags",this.flagsTable),
@@ -624,7 +624,7 @@ public class BamStage extends NgsStage {
 					doMenuShowWholeStats(factory);
 				}
 			});
-	    	statsMenu.getItems().add(menuItem);
+	    	super.statsMenu.getItems().add(menuItem);
 	        }
         
         
@@ -635,6 +635,8 @@ public class BamStage extends NgsStage {
                     owner.preferences.putInt(SPINNER_VALUE_KEY,maxItemsLimitSpinner.getValue().intValue());
                     }
                 });
+        
+        
     	}
 
     
@@ -1300,5 +1302,8 @@ public class BamStage extends NgsStage {
 			CloserUtil.close(w);
 			}    		
 		}
-    
+    @Override
+    protected String getSnippetResourcePath() {
+    	return "/com/github/lindenb/jvarkit/tools/vcfviewgui/bam.snippets.xml";
+    	}
     }

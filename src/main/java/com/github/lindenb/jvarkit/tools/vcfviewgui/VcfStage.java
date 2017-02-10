@@ -876,6 +876,9 @@ public class VcfStage extends NgsStage {
 			qcstage.show();
 		}
 
-	
+    @Override
+    protected String getSnippetResourcePath() {
+    	return "/com/github/lindenb/jvarkit/tools/vcfviewgui/vcf.snippets.xml";
+    	}
 	
 	}
