@@ -174,7 +174,7 @@ import javafx.util.Callback;
 @SuppressWarnings("unused")
 public class JfxNgs extends Application {
     private static final Logger LOG= Logger.getLogger("JfxNgs");
-    private final Preferences preferences ;
+    final Preferences preferences ;
     final Compilable javascriptEngine;
     private static final String LAST_USED_DIR_KEY="last.used.dir";
     private final List<NgsStage> all_opened_stages=new ArrayList<>();
@@ -272,15 +272,19 @@ public class JfxNgs extends Application {
 		});
         menu.getItems().add(menuItem);
         
-        menuItem=new MenuItem("Open...");
-        menuItem.setOnAction(new EventHandler<ActionEvent>() {
+        
+        menu.getItems().add(createMenuItem("Open VCF...",new Runnable() {
 			@Override
-			public void handle(ActionEvent event) {
-				openNgsFiles(primaryStage);
-				
+			public void run() {
+				openVcfFile(primaryStage);
 			}
-		});
-        menu.getItems().add(menuItem);
+		}));
+        menu.getItems().add(createMenuItem("Open BAM...",new Runnable() {
+			@Override
+			public void run() {
+				openBamFile(primaryStage);
+			}
+		}));
         
         
         menuItem=new MenuItem("Quit...");
@@ -332,34 +336,35 @@ public class JfxNgs extends Application {
         primaryStage.setScene(scene);
         primaryStage.setOnHidden(e -> doMenuQuit());
        
-        Collection<NgsStage> newStages=new ArrayList<>();
         Exception lastException=null;
-        for(final String arg: params.getUnnamed())
-	        {
-	        try 
-		        {
-	        	newStages.addAll(openNgsFiles(arg));
-		        }
-	        catch(final Exception err)
-	        	{
-	        	lastException=err;
-	        	}
-	        }
-        if(lastException!=null)
-        	{
-        	final Exception error=lastException;
-        	primaryStage.setOnShown(new EventHandler<WindowEvent>() {
-				@Override
-				public void handle(WindowEvent event) {
-					showExceptionDialog(primaryStage,error);
-				}
-			});
-        	}
+        
+        primaryStage.addEventHandler(
+    			WindowEvent.WINDOW_SHOWING ,new EventHandler<WindowEvent>() {
+                    @Override
+                    public void handle(final WindowEvent event) {
+                    	for(final String arg: params.getUnnamed())
+            	        	{
+                    		final File f=new File(arg);
+                    		try {
+								if(BamStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
+									{
+									new BamStage(JfxNgs.this, f).show();
+									}
+								else if(VcfStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
+									{
+									new VcfStage(JfxNgs.this, f).show();
+									}
+								else
+									{
+									JfxNgs.showExceptionDialog(primaryStage,"Cannot open "+f);
+									}
+							} catch (Exception e) {
+								showExceptionDialog(primaryStage, e);
+								}
+            	        	}
+                        }
+                    });        
         primaryStage.show();
-        for(NgsStage sc:newStages)
-	    	{
-	    	sc.show();
-	    	}
         }
 
     void unregisterStage(NgsStage s) {
@@ -373,36 +378,47 @@ public class JfxNgs extends Application {
     }
     
     
-    static void showExceptionDialog(final Window owner,Throwable error)
+    static void showExceptionDialog(final Window owner,Object err)
     	{
     	final Alert alert = new Alert(AlertType.WARNING);
-		alert.setTitle("Error");
-		alert.setHeaderText("Error");
-		// Create expandable Exception.
+    	alert.setTitle("Error");
 		
-		StringWriter sw = new StringWriter();
-		PrintWriter pw = new PrintWriter(sw);
-		error.printStackTrace(pw);
-		String exceptionText = sw.toString();
+		if(err!=null && err instanceof Throwable)
+			{
+			
+			alert.setHeaderText("Error");
 
-		Label label = new Label("The exception stacktrace was:");
-
-		TextArea textArea = new TextArea(exceptionText);
-		textArea.setEditable(false);
-		textArea.setWrapText(true);
-
-		textArea.setMaxWidth(Double.MAX_VALUE);
-		textArea.setMaxHeight(Double.MAX_VALUE);
-		GridPane.setVgrow(textArea, Priority.ALWAYS);
-		GridPane.setHgrow(textArea, Priority.ALWAYS);
-
-		GridPane expContent = new GridPane();
-		expContent.setMaxWidth(Double.MAX_VALUE);
-		expContent.add(label, 0, 0);
-		expContent.add(textArea, 0, 1);
-
-		// Set expandable Exception into the dialog pane.
-		alert.getDialogPane().setExpandableContent(expContent);
+			final Throwable error=(Throwable) err;
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			error.printStackTrace(pw);
+			String exceptionText = sw.toString();
+	
+			Label label = new Label("The exception stacktrace was:");
+	
+			TextArea textArea = new TextArea(exceptionText);
+			textArea.setEditable(false);
+			textArea.setWrapText(true);
+	
+			textArea.setMaxWidth(Double.MAX_VALUE);
+			textArea.setMaxHeight(Double.MAX_VALUE);
+			GridPane.setVgrow(textArea, Priority.ALWAYS);
+			GridPane.setHgrow(textArea, Priority.ALWAYS);
+	
+			GridPane expContent = new GridPane();
+			expContent.setMaxWidth(Double.MAX_VALUE);
+			expContent.add(label, 0, 0);
+			expContent.add(textArea, 0, 1);
+	
+			// Set expandable Exception into the dialog pane.
+			alert.getDialogPane().setExpandableContent(expContent);
+			}
+		else
+			{
+			String msg=String.valueOf(err);
+			alert.setHeaderText(msg);
+			alert.getDialogPane().setExpandableContent(new Label(msg));
+			}
 		alert.showAndWait();
     	}
     
@@ -411,140 +427,89 @@ public class JfxNgs extends Application {
     	Platform.exit();
     	}
     
-    void openNgsFiles(final Window owner)
+    void openBamFile(final Window owner)
     	{
-    	final FileChooser fc=newFileChooser();
-    	
-    	fc.setSelectedExtensionFilter(new ExtensionFilter("NGS Files", "*.bam","*.vcf","*.vcf.gz","*.list"));
-    	final List<File> selFiles = fc.showOpenMultipleDialog(owner);
-    	if(selFiles==null || selFiles.isEmpty()) return ;
-    	List<NgsStage> stages =new ArrayList<>();
+    	final FileChooser fc = newFileChooser();
+    	fc.setSelectedExtensionFilter(BamStage.EXTENSION_FILTER);
+    	final File file = updateLastDir(fc.showOpenDialog(owner));
+    	if(file==null) return;
+    	SamReader samIn=null;
     	try 
     		{
-	    	for(final File f:selFiles)
-	    		{
-	    		stages.addAll( openNgsFiles(f.getPath()) );
-	    		updateLastDir(f.getParentFile());
-	    		}
-	    	for(NgsStage sc:stages)
-	    		{	
-	    		sc.show();
-	    		}
-    		}
-    	catch(final Exception err)
-    		{
-    		for(NgsStage sc:stages) sc.closeNgsResource();
-    		showExceptionDialog(owner, err);
-    		}		
-    	}
 
-    Collection<NgsStage> openNgsFiles(final String path0) throws Exception
-    	{
-    	final List<String> pathList;
-    	if(!IOUtil.isUrl(path0) && path0.endsWith(".list"))
-    		{
-    		pathList = Files.lines(Paths.get(path0)).filter(L-> ! (L.isEmpty() && L.startsWith("#"))).collect(Collectors.toList());
-    		}
-    	else
-    		{
-    		pathList = Collections.singletonList(path0);
-    		}
-		final List<NgsStage> stages =new ArrayList<>();
-
-    	for(final String uri:pathList)
-	    	{
-	    	//try as BAM
-	    	if(uri.endsWith(".bam") )
-		    	{
-	    		final NgsStage sc=openBam(uri);
-		    	if(sc!=null) stages.add(sc);
-		    	}
-	    	else if(uri.endsWith(".vcf") || uri.endsWith(".bcf")  || uri.endsWith(".vcf.gz") )
-		    	{
-	    		final NgsStage sc=openVcf(uri);
-		    	if(sc!=null) stages.add(sc);
-		    	}
-	    	else
-	    		{
-	    		LOG.warning("Don't know how to open "+uri);
-	    		}	
-	    	}
-    	LOG.info("N opened stages = "+stages.size());
-    	return stages;
-    	}
-    
-    private NgsStage openBam(final String uri)
-    	{
-    	SamReader samIn=null;
-    	try
-			{
 			final SamReaderFactory srf = SamReaderFactory.makeDefault();
 			srf.validationStringency(ValidationStringency.LENIENT);
-			samIn = srf.open(SamInputResource.of(uri));
+			samIn = srf.open(file);
 			if(!samIn.hasIndex())
 				{
-				LOG.warning("No index for "+uri);
-				return null;
+				showExceptionDialog(owner,"No index for "+file);
+				return;
 				}
 			if(samIn.getFileHeader()==null)
 				{
-				LOG.warning("cannot get SAM header for "+uri);
-				return null;
+				LOG.warning("cannot get SAM header for "+file);
+				return;
 				}
 			if(samIn.getFileHeader().getSequenceDictionary()==null)
 				{
-				LOG.warning("cannot get SAM Dictionary for "+uri);
-				return null;
+				LOG.warning("cannot get SAM Dictionary for "+file);
+				return;
 				}	
 			samIn.close();
-			LOG.info("OK for BAM "+uri);
-			return new BamStage(this,uri);
-			}
-		catch(final Exception err)
-			{
-			LOG.warning("not an indexed bam file : "+uri);
-			return null;
-			}
-		finally
-			{
-			CloserUtil.close(samIn);
-			}
-    	}
-    
-    private VcfStage openVcf(final String uri)
-    	{
-    	VCFFileReader vcfIn=null;
-    	try
+			LOG.info("OK for BAM "+file);
+			final BamStage sc= new BamStage(this,file);
+	    	sc.show();
+    		}
+    	catch(final Exception err)
     		{
-    		File file=new File(uri);
+    		showExceptionDialog(owner, err);
+    		}		
+    	finally
+    		{
+    		CloserUtil.close(samIn);
+    		}
+    	}
+
+    void openVcfFile(final Window owner)
+		{
+		final FileChooser fc = newFileChooser();
+		fc.setSelectedExtensionFilter(VcfStage.EXTENSION_FILTER);
+		final File file = updateLastDir(fc.showOpenDialog(owner));
+		if(file==null) return;
+    	VCFFileReader vcfIn=null;
+		try 
+			{
     		vcfIn = new VCFFileReader(file, true);
     		if(vcfIn.getFileHeader()==null) {
-    			LOG.info("No VCF header in "+uri);
-    			return null;
+    			showExceptionDialog(owner,"No VCF header in "+file);
+    			return ;
     			}
     		if(vcfIn.getFileHeader().getSequenceDictionary()==null) {
-    			LOG.info("No VCF idctionary in "+uri);
-    			return null;
+    			showExceptionDialog(owner,"No VCF idctionary in "+file);
+    			return ;
     			}
     		if(vcfIn.getFileHeader()!=null && vcfIn.getFileHeader().getSequenceDictionary()!=null)
 	    		{
 	    		vcfIn.close();
-	    		LOG.info("OK for VCF "+uri);
-				return new VcfStage(this,file);
+	    		LOG.info("OK for VCF "+file);
+	    		VcfStage sc= new VcfStage(this,file);
+	    		sc.show();
 	    		}
-    		return null;
+    		return ;
     		}
-    	catch(Exception err)
-    		{
-    		LOG.warning("not an indexed vcf file : "+uri);
-    		return null;
-    		}
-    	finally
-    		{
-    		CloserUtil.close(vcfIn);
-    		}
-    	}
+		catch(final Exception err)
+			{
+			showExceptionDialog(owner, err);
+			}		
+		finally
+			{
+			CloserUtil.close(vcfIn);
+			}
+		}
     
+    
+    
+    /** utiliti for create a menuItem */
     static MenuItem createMenuItem(final String label,final Runnable runner)
     	{
     	final MenuItem menu=new MenuItem(label);
@@ -558,6 +523,10 @@ public class JfxNgs extends Application {
     	}
 
     public static void main(String[] args) {
+    	args=new String[]{
+    			"/commun/data/projects/20161205.JULIEN.DAVD.GT50.W15/Samples/09H0046/BAM/HaloplexDAVD.20161108.GT50.W15.09H0046_final.bam",
+    			//"/commun/data/projects/20161205.JULIEN.DAVD.GT50.W15/VCF/HaloplexDAVD.20161108.GT50.W15.haplotypecaller.annotations.vcf.gz"
+    			};
     	launch(args);
     }
 

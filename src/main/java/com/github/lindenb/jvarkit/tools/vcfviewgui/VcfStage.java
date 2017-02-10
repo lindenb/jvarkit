@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.io.File;
@@ -7,6 +31,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import javax.script.CompiledScript;
@@ -38,7 +66,6 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -53,10 +80,14 @@ import javafx.scene.chart.PieChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
@@ -66,27 +97,28 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
-import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.util.Callback;
 
 public class VcfStage extends NgsStage {
     private static final int DEFAULT_VCF_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.vcf", "1000"));
-
-	
+    static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Variant Files", ".vcf",".vcf.gz");
+    private static final String SPINNER_VALUE_KEY="vcf.spinner.value";
+    
     /** variant oriented chart-factories */
-    private static final Class<?> VARIANT_CHARTER_CLASSES[]= {
-		VariantTypeChartFactory.class,
-		GenotypeTypeChartFactory.class,
-		AlleleFrequencyChartFactory.class,
-		VariantQualChartFactory.class,
-		TiTvChartFactory.class,
-		VariantDepthChartFactory.class
-		};
+    private static final List<Supplier<ChartFactory<VariantContext>>> VARIANT_CHART_FACTORIES= Arrays.asList(
+		()->new VariantTypeChartFactory(),
+		()->new GenotypeTypeChartFactory(),
+		()->new AlleleFrequencyChartFactory(),
+		()->new VariantQualChartFactory(),
+		()->new TiTvChartFactory(),
+		()->new VariantDepthChartFactory()
+		);
 
     
     private class VcfQualityStage
@@ -94,20 +126,9 @@ public class VcfStage extends NgsStage {
 			{
     		private class ScanVcfThread extends ScanThread
     			{
-    			ScanVcfThread(final File source,CompiledScript compiledScript)
+    			ScanVcfThread(final ChartFactory<VariantContext> factory,final File source,CompiledScript compiledScript,final Predicate<VariantContext> otherFilters)
     				{
-    				super(source,compiledScript);
-    				for(int i=0;i< VARIANT_CHARTER_CLASSES.length;++i)
-    					{
-    					try
-    						{
-    						super.factories.add((VariantContextChartFactory)VARIANT_CHARTER_CLASSES[i].newInstance());
-    						}
-    					catch(final Exception err)
-    						{
-    						throw new RuntimeException(err);
-    						}
-    					}
+    				super(factory,source,compiledScript,otherFilters);
     				}
         		        		
     			@Override
@@ -131,10 +152,8 @@ public class VcfStage extends NgsStage {
 	    							bindings.put("variant", ctx);
 	    							if(!accept(bindings)) continue;
 	    							}
-	    						for(final ChartFactory<VariantContext> gen:super.factories)
-	    							{
-	    							gen.visit(ctx);
-	    							}
+	    						if(!super.otherFilters.test(ctx)) continue;
+	    						super.factory.visit(ctx);
 	    						update();
 	    						}
 	    					iter.close();
@@ -145,14 +164,7 @@ public class VcfStage extends NgsStage {
 	    				}
     				catch(final Throwable err)
     					{
-    					LOG.severe(err.getMessage());
-    					Platform.runLater(new Runnable() {
-	        				 @Override
-	        				public void run() {
-	        					 VcfQualityStage.this.countItemsLabel.setText(
-	        						"ERROR "+err.getMessage());
-	        				 	}
-	        			 	});
+    					super.onError(err);
     					}
     				finally
     					{
@@ -163,15 +175,19 @@ public class VcfStage extends NgsStage {
     			
     			}
     		
-    		VcfQualityStage(File file,final CompiledScript compiledScript)
+    		VcfQualityStage(final ChartFactory<VariantContext> factory,final File file,final CompiledScript compiledScript,final Predicate<VariantContext> otherFilters)
 	    		{
-    			super(file,compiledScript);
+    			super(factory,file,compiledScript,otherFilters);
 	    		}
 
 			@Override
-			protected AbstractQualityStage<VariantContext>.ScanThread createThread(File file,
-					CompiledScript compiledScript) {
-				return new ScanVcfThread(file, compiledScript);
+			protected AbstractQualityStage<VariantContext>.ScanThread createThread(
+					final ChartFactory<VariantContext> factory,
+					File file,
+					CompiledScript compiledScript,
+					final Predicate<VariantContext> otherFilters
+					) {
+				return new ScanVcfThread(factory,file, compiledScript,otherFilters);
 				}
     		
 			}
@@ -190,6 +206,13 @@ public class VcfStage extends NgsStage {
 			this.index = index;
 			this.value=value;
 			}
+		boolean accept(final Pattern pat)
+			{
+			if(pat==null) return true;
+			if(pat.matcher(key).find()) return true;
+			if(value!=null && pat.matcher(String.valueOf(value)).find()) return true;
+			return false;
+			}
 		}
     
 	private final TextField javascriptFILTERfield=new TextField("");
@@ -199,7 +222,9 @@ public class VcfStage extends NgsStage {
 	private final TableView<InfoTableRow> infoTableRow;
 	private final TableView<String> filterTableRow;
 	private final BorderPane genotypeChartPane;
-	
+	private final CheckBox cboxShowHomRef=new CheckBox("HomRef");
+	private final CheckBox cboxShowNoCall=new CheckBox("NoCall");
+	private final TextField tfFilterInfo=new TextField();
 	
 	VcfStage(final JfxNgs owner,final File path) throws IOException {
 		super(owner,path);
@@ -229,8 +254,11 @@ public class VcfStage extends NgsStage {
         top1.getChildren().add(gotoButton);
         top1.getChildren().add(new Separator(Orientation.VERTICAL));
         top1.getChildren().add(new Label("Limit:"));
+        
         super.maxItemsLimitSpinner.setValueFactory(
-        		new SpinnerValueFactory.IntegerSpinnerValueFactory(0,100000,DEFAULT_VCF_RECORDS_COUNT));;
+        		new SpinnerValueFactory.IntegerSpinnerValueFactory(0,100000,
+        				owner.preferences.getInt(SPINNER_VALUE_KEY, DEFAULT_VCF_RECORDS_COUNT)
+        				));;
 
         top1.getChildren().add(super.maxItemsLimitSpinner);
         top1.getChildren().add(new Separator(Orientation.VERTICAL));
@@ -256,44 +284,82 @@ public class VcfStage extends NgsStage {
 		vbox1.getChildren().add(tabPane);
 		
 		
-		GridPane gridPane = new GridPane();
+		/*GridPane gridPane = new GridPane();
 		gridPane.setPadding(new Insets(10, 10, 10, 10));
 		gridPane.setVgap(4);
-		gridPane.setHgap(4);
+		gridPane.setHgap(4);*/
 
         
+		final SplitPane split1=new SplitPane();
+		split1.setOrientation(Orientation.HORIZONTAL);
+		
 		/* build variant table */
 		this.variantTable = this.buildVariantTable();
-		GridPane.setConstraints( this.variantTable,0, 0,5,10); // column=3 row=1
-		gridPane.getChildren().add(this.variantTable);
+		split1.getItems().add(this.variantTable);
 		
 		/* build genotype table */
-		this.genotypeTable =this.buildGenotypeTableRow(header);
-		GridPane.setConstraints( this.genotypeTable,5, 0,5,14); 
-		gridPane.getChildren().add(this.genotypeTable);
 		
+		this.genotypeTable =this.buildGenotypeTableRow(header);
+		FlowPane flow3 = new FlowPane(this.cboxShowHomRef,this.cboxShowNoCall);
+		this.cboxShowHomRef.setSelected(true);
+		this.cboxShowNoCall.setSelected(true);
+		EventHandler<ActionEvent> repaintGTTable=new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				refreshGenotypeTable(variantTable.getSelectionModel().getSelectedItem());
+				}
+			};
+		this.cboxShowHomRef.setOnAction(repaintGTTable);
+		this.cboxShowNoCall.setOnAction(repaintGTTable);
+
+		BorderPane pane2=new BorderPane(this.genotypeTable);
+		pane2.setTop(flow3);
+		//GridPane.setConstraints(pane2,5, 0,5,14); 
+		split1.getItems().add(pane2);
+		
+		final SplitPane split2=new SplitPane();
+		split2.setOrientation(Orientation.HORIZONTAL);
+
 		/* filter table */
 		this.filterTableRow = this.buildFilterTable();
-		GridPane.setConstraints( this.filterTableRow,0, 10,3,1);
-		gridPane.getChildren().add(this.filterTableRow);
+		//GridPane.setConstraints( this.filterTableRow,0, 10,3,1);
+		//gridPane.getChildren().add(this.filterTableRow);
+		split2.getItems().add(this.filterTableRow);
 		/* genotype pane */
+		
+		
 		this.genotypeChartPane = new BorderPane(this.makeGenotypePie(null));
 		this.genotypeChartPane.setPadding(new Insets(5));
-		GridPane.setConstraints( this.genotypeChartPane,0, 12,3,4);
-    	gridPane.getChildren().add(this.genotypeChartPane);
-    		
+		//GridPane.setConstraints( this.genotypeChartPane,0, 12,3,4);
+    	//gridPane.getChildren().add(this.genotypeChartPane);
+		split2.getItems().add(this.genotypeChartPane);
+		
+		
 		/* build info Table table */
 		this.infoTableRow = this.buildInfoTableRow();
-		GridPane.setConstraints( this.infoTableRow,3, 10,8,5); // column=3 row=1
-		gridPane.getChildren().add(this.infoTableRow);
-		
+		flow3 = new FlowPane(new Label("Filter:"),tfFilterInfo);
+		tfFilterInfo.setPrefColumnCount(10);
+		tfFilterInfo.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				reloadInfoTable(variantTable.getSelectionModel().getSelectedItem());
+			}
+		});
+		pane2=new BorderPane(this.infoTableRow);
+		pane2.setTop(flow3);
+		//GridPane.setConstraints( this.infoTableRow,3, 10,8,5); // column=3 row=1
+		//gridPane.getChildren().add(this.infoTableRow);
+		split2.getItems().add(pane2);
 				
        
 		
         
         //vbox1.getChildren().add(gridPane);
-		
-		final Tab tab=new Tab("Variants", gridPane);
+		final SplitPane split3=new SplitPane();
+		split3.setOrientation(Orientation.VERTICAL);
+		split3.getItems().addAll(split1,split2);
+
+		final Tab tab=new Tab("Variants", split3);
 		tab.setClosable(false);
 		tabPane.getTabs().add(tab);
 		tabPane.getTabs().add(buildInfoHeaderTab(header));
@@ -325,6 +391,45 @@ public class VcfStage extends NgsStage {
         		menuForSavingTable("FILTER",this.filterTableRow),
         		menuForSavingTable("Genotype",this.genotypeTable)
         		);
+        
+        /* fill stats menu */
+        final Supplier<List<VariantContext>> variantsProvider=()->this.variantTable.getItems();
+        
+        for(final Supplier<ChartFactory<VariantContext>> supplier: VARIANT_CHART_FACTORIES)
+	        {
+        	final ChartFactory<VariantContext> factory = supplier.get();
+        	final MenuItem menuItem=new MenuItem("Local "+factory.getName());
+        	menuItem.setOnAction(new EventHandler<ActionEvent>() {
+				@Override
+				public void handle(ActionEvent event) {
+					doMenuShowLocalStats(factory, variantsProvider);
+				}
+			});
+        	statsMenu.getItems().add(menuItem);
+	        }
+        super.statsMenu.getItems().add(new SeparatorMenuItem());
+        for(final Supplier<ChartFactory<VariantContext>> supplier: VARIANT_CHART_FACTORIES)
+	        {
+	    	final ChartFactory<VariantContext> factory = supplier.get();
+	    	final MenuItem menuItem=new MenuItem("Whole"+factory.getName());
+	    	menuItem.setOnAction(new EventHandler<ActionEvent>() {
+				@Override
+				public void handle(ActionEvent event) {
+					doMenuShowWholeStats(factory);
+				}
+			});
+	    	statsMenu.getItems().add(menuItem);
+	        }
+
+        
+        this.addEventHandler(
+    			WindowEvent.WINDOW_HIDING ,new EventHandler<WindowEvent>() {
+                    @Override
+                    public void handle(final WindowEvent event) {
+                    owner.preferences.putInt(SPINNER_VALUE_KEY,maxItemsLimitSpinner.getValue().intValue());
+                    }
+                });
+
 		}
 	
     @Override
@@ -336,9 +441,10 @@ public class VcfStage extends NgsStage {
 	protected void doMenuSaveAs()
 		{
 		final FileChooser fc= owner.newFileChooser();
-    	fc.setSelectedExtensionFilter(new ExtensionFilter("VCF Files", "*.vcf.gz"));
+    	fc.setSelectedExtensionFilter(EXTENSION_FILTER);
 		final File saveAs= owner.updateLastDir(fc.showSaveDialog(this));
 		if(saveAs==null) return;
+		if(saveAs.equals(super.urlOrFile)) return;
 		if(!saveAs.getName().endsWith(".vcf.gz"))
 			{
 			final Alert alert=new Alert(AlertType.ERROR, "Output should end with .vcf.gz", ButtonType.OK);
@@ -413,12 +519,13 @@ public class VcfStage extends NgsStage {
 		scroll.setFitToHeight(true);
 		final BorderPane pane=new BorderPane(scroll);
 		if(this.owner.javascriptEngine!=null) {
-    		final FlowPane flowPane = new FlowPane(
+    		final HBox flowPane = new HBox(
     				new Label("set following FILTER on rejection:"),
     				javascriptFILTERfield
     				);
     		
     		this.javascriptFILTERfield.setPromptText("If not empty , don't discard the variant but set the FILTER");
+    		flowPane.getChildren().addAll(super.makeJavascriptButtons());
     		pane.setTop(flowPane);
     		}
 		final Label helpLabel=new Label("The script injects:\n"+
@@ -429,7 +536,7 @@ public class VcfStage extends NgsStage {
 		helpLabel.setWrapText(true);
 		pane.setBottom(helpLabel);
 		
-		final Tab tab=new Tab("Javascript",pane);
+		final Tab tab=new Tab(JAVASCRIPT_TAB_KEY,pane);
 		tab.setClosable(false);
 		return tab;
 		}
@@ -526,45 +633,19 @@ public class VcfStage extends NgsStage {
 	
     private void fireSelectedVariantChanged(final VariantContext ctx)
     	{
+    	refreshGenotypeTable(ctx);
+    	reloadInfoTable(ctx);
     	if(ctx!=null)
     		{
-    		this.genotypeTable.getItems().setAll(ctx.getGenotypes());
+    		
     		
     		this.filterTableRow.getItems().setAll(
     				ctx.getFilters()
     				);
     		
-    		final List<InfoTableRow> infos=new ArrayList<>();
-    		final Map<String,Object> atts = ctx.getAttributes();
-    		for(final String key:atts.keySet())
-    			{
-    			Object v= atts.get(key);
-    			final List<?> L;
-    			if(v instanceof List)
-    				{
-    				L=(List<?>)v;
-    				}
-    			else if(v.getClass().isArray())
-    				{
-    				Object a[]=(Object[])v;
-    				L=Arrays.asList(a);
-    				}
-    			else
-    				{
-    				L=Collections.singletonList(v);
-    				}
-    			for(int x=0;x< L.size();++x)
-    				{
-    				
-    				infos.add(new InfoTableRow(key,(L.size()==1?null:x+1),L.get(x)));
-    				}
-    			}
-    		this.infoTableRow.getItems().setAll(infos);
     		}
     	else
     		{
-        	this.genotypeTable.getItems().clear();
-        	this.infoTableRow.getItems().clear();
         	this.filterTableRow.getItems().clear();
     		}
     	this.genotypeChartPane.setCenter(this.makeGenotypePie(ctx));
@@ -696,41 +777,84 @@ public class VcfStage extends NgsStage {
     	if(iter!=null) iter.close();
     	this.variantTable.getItems().setAll(L);
     	}
-
-	@Override
-    protected void doMenuShowLocalStats()
-    	{
-    	final TabPane tabPane=new TabPane();
-    	for(Class<?> clazz: VARIANT_CHARTER_CLASSES)
-    		{
-    		try {
-				final VariantContextChartFactory vccf=(VariantContextChartFactory)clazz.newInstance();
-				vccf.visit(this.variantTable.getItems());
-				final Tab tab=new Tab(vccf.getName(),vccf.build());
-	    		tab.setClosable(false);
-	    		tabPane.getTabs().add(tab);
-    		} catch (final Exception e) {
-				throw new RuntimeException(e);
+	
+	private void reloadInfoTable(final VariantContext ctx)
+		{
+		if(ctx==null)
+			{
+			this.infoTableRow.getItems().clear();
+			}
+		else
+			{
+			final String filterStr=this.tfFilterInfo.getText();
+			Pattern regex=null;
+			if(!filterStr.trim().isEmpty())
+				{
+				try
+					{
+					regex=Pattern.compile(filterStr.trim(),Pattern.CASE_INSENSITIVE);
+					}
+				catch(PatternSyntaxException err)
+					{
+					LOG.warning("Invalid regexp :"+filterStr);
+					regex=Pattern.compile(Pattern.quote(filterStr));
+					}
 				}
-    		}
-    	
-    	final Stage dialog = new Stage();
-    	dialog.initOwner(this);
-    	dialog.setTitle("VCF Stats");
-    	
-		final BorderPane pane=new BorderPane(tabPane);
-		pane.setPadding(new Insets(10,10,10,10));
-		pane.setTop(new Label("Data for "+super.urlOrFile));        		
-		Scene scene=new Scene(pane);
-    		
-    	dialog.setScene(scene);
-    	dialog.show();
-    	}
+			final List<InfoTableRow> infos=new ArrayList<>();
+			final Map<String,Object> atts = ctx.getAttributes();
+			for(final String key:atts.keySet())
+				{
+				Object v= atts.get(key);
+				final List<?> L;
+				if(v instanceof List)
+					{
+					L=(List<?>)v;
+					}
+				else if(v.getClass().isArray())
+					{
+					Object a[]=(Object[])v;
+					L=Arrays.asList(a);
+					}
+				else
+					{
+					L=Collections.singletonList(v);
+					}
+				for(int x=0;x< L.size();++x)
+					{
+					final InfoTableRow itr=new InfoTableRow(key,(L.size()==1?null:x+1),L.get(x));
+					if(regex!=null && !itr.accept(regex)) {
+						continue;
+					}
+					infos.add(itr);
+					}
+				}
+			this.infoTableRow.getItems().setAll(infos);
+			}
+		
+		}
+
+	private void refreshGenotypeTable(final VariantContext ctx)
+		{
+		if(ctx==null)
+			{
+        	this.genotypeTable.getItems().clear();
+			}
+		else
+			{
+        	this.genotypeTable.getItems().setAll(
+        			ctx.getGenotypes().stream().
+        			filter(G->cboxShowNoCall.isSelected() || G.isCalled()).
+        			filter(G->cboxShowHomRef.isSelected() || !G.isHomRef()).
+        			collect(Collectors.toList())
+        			);
+			}
+		}
 
 	@Override
-	protected void doMenuShowWholeStats() {
+	protected void doMenuShowWholeStats(final ChartFactory<?> factory) {
 			CompiledScript compiledScript=null;
-        	if(VcfStage.this.owner.javascriptEngine!=null && !VcfStage.this.javascriptArea.getText().trim().isEmpty())
+        	if( VcfStage.this.owner.javascriptEngine!=null &&
+        		!VcfStage.this.javascriptArea.getText().trim().isEmpty())
         		{
         		try
         			{
@@ -743,9 +867,12 @@ public class VcfStage extends NgsStage {
         			return;
         			}
         		}
-        	VcfQualityStage qcstage=new VcfQualityStage(
+        	final VcfQualityStage qcstage=new VcfQualityStage(
+        			(VariantContextChartFactory)factory,
         			File.class.cast(super.urlOrFile),
-        			compiledScript);
+        			compiledScript,
+        			V->true
+        			);
 			qcstage.show();
 		}
 

@@ -1,14 +1,40 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Vector;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.script.Bindings;
@@ -27,6 +53,7 @@ import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import javafx.application.Platform;
@@ -35,6 +62,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.chart.Chart;
 import javafx.scene.control.Label;
@@ -43,18 +71,20 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn.CellDataFeatures;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.util.Callback;
 
 /**
@@ -65,10 +95,13 @@ import javafx.util.Callback;
 public abstract class NgsStage extends Stage {
     protected static final Logger LOG= Logger.getLogger("NgsStage");
 	protected static final String JAVASCRIPT_TAB_KEY="JS";
-    /** owner Application */
+	private static final int REFRESH_SECOND=Integer.parseInt(System.getProperty("jfxngs.refresh.seconds","5"));
+    static final ExtensionFilter JS_EXTENSION_FILTER=new ExtensionFilter("Javascript Files", ".js",".javascript");
+
+	/** owner Application */
     protected JfxNgs owner;
     /** src file */
-	protected final Object urlOrFile;
+	protected final File urlOrFile;
 	/** javascript filtering */
 	protected final TextArea javascriptArea=new TextArea();
 	/** message stuff */
@@ -79,6 +112,9 @@ public abstract class NgsStage extends Stage {
 	protected final MenuBar menuBar=new MenuBar();
 	/** File Menu */
 	protected final Menu fileMenu=new Menu("File");
+	/** Stats Menu */
+	protected final Menu statsMenu=new Menu("Stats");
+	
     /** limit number of items */
 	protected final Spinner<Integer> maxItemsLimitSpinner=
 			new Spinner<>(0, 10000, 1);
@@ -90,16 +126,26 @@ public abstract class NgsStage extends Stage {
 		protected abstract class ScanThread 
 			extends Thread
 			{
+			/** number of items scanned so far */
 			protected long nItems=0L;
+			/** file source */
 			protected final File source;
+			/** script for filtering */
 			protected final CompiledScript compiledScript;
+			/** should we stop the scanning */
 			protected volatile boolean kill_flag=false;
+			/** time of last refresh */
     		protected long lastRefresh =System.currentTimeMillis();
-    		protected final List<ChartFactory<T>> factories = new Vector<>();
-    		ScanThread(final File source,CompiledScript compiledScript)
+    		/** active chart factory */
+    		protected final ChartFactory<T> factory;
+    		/**  other filters */
+    		protected final Predicate<T> otherFilters;
+    		ScanThread(final ChartFactory<T> factory,final File source,CompiledScript compiledScript,Predicate<T> otherFilters)
 				{
 				this.source=source;
 				this.compiledScript = compiledScript;
+				this.factory=factory;
+				this.otherFilters= otherFilters;
 				}
             /** called by javascript filters */
             protected boolean accept(final Bindings bindings)
@@ -128,12 +174,14 @@ public abstract class NgsStage extends Stage {
     				}
     			return true;
     			}
+            /** called at end */
             protected void atEnd() {
             	if(kill_flag) {
 					LOG.warning("Thread was killed");
 					}
 				else
     				{
+					/** repaint for the last time */
     				repaint();
     				Platform.runLater(new Runnable() {
         				 @Override
@@ -146,15 +194,11 @@ public abstract class NgsStage extends Stage {
             	}
             protected void repaint()
 				{
-				final List<Chart> L=new ArrayList<>(this.factories.size());
-				for(final ChartFactory<T> chartter:this.factories) L.add(chartter.build());
+				final Chart chart= this.factory.build();
 				 Platform.runLater(new Runnable() {
 					 @Override
 					public void run() {
-						 for(int i=0;i< L.size();++i)
-						 	{
-							AbstractQualityStage.this.tabs.get(i).setContent(L.get(i));
-						 	}
+						AbstractQualityStage.this.contentPane.setCenter(chart);
 						AbstractQualityStage.this.countItemsLabel.setText("Running... Number of items: "+nItems);
 					 	}
 				 	});
@@ -162,20 +206,32 @@ public abstract class NgsStage extends Stage {
             protected void update()
 				{
 				long now  =System.currentTimeMillis(); 
-				if( kill_flag || now - lastRefresh < 5*1000) return ;//5 seconds;
+				if( kill_flag || now - lastRefresh < REFRESH_SECOND*1000) return ;//5 seconds;
 				lastRefresh = now;
 				repaint();
 				}
+            protected void onError(final Throwable err)
+            	{
+            	LOG.severe(err.getMessage());
+				Platform.runLater(new Runnable() {
+    				 @Override
+    				public void run() {
+    					 AbstractQualityStage.this.countItemsLabel.setText(
+    						"ERROR "+err.getMessage());
+    				 	}
+    			 	});
+            	}
+            
 			}
 		
 		protected final ScanThread thread;
-		protected final List<Tab> tabs=new Vector<>();
+		protected final BorderPane contentPane=new BorderPane();
 		protected final Label countItemsLabel=new Label();
 
-		protected AbstractQualityStage(File file,final CompiledScript compiledScript)
+		protected AbstractQualityStage(final ChartFactory<T> factory,final File file,final CompiledScript compiledScript,final Predicate<T> otherFilters)
 			{
-			setTitle(file.getPath());
-			this.thread = createThread(file,compiledScript);
+			this.setTitle(factory.getName()+" : "+file.getPath());
+			this.thread = createThread(factory,file,compiledScript,otherFilters);
 	    	this.addEventHandler(
 	    			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
 	                    @Override
@@ -191,23 +247,13 @@ public abstract class NgsStage extends Stage {
                         	thread.start();
                             }
                         });
-        	final TabPane tabPane=new TabPane();
-        	for(int i=0;i< this.thread.factories.size();++i)
-        		{
-        		final Tab tab=new Tab(
-        				this.thread.factories.get(i).getName(),
-        				this.thread.factories.get(i).build()
-        				);
-        		tab.setClosable(false);
-        		this.tabs.add(tab);
-        		tabPane.getTabs().add(tab);
-        		}
-        	final VBox box1=new VBox(tabPane,this.countItemsLabel);
-        	final Scene scene=new Scene(box1,1000,800);
-        	setScene(scene);
+        	this.contentPane.setCenter(factory.build());
+        	this.contentPane.setBottom(this.countItemsLabel);
+        	final Scene scene=new Scene(this.contentPane,1000,500);
+        	this.setScene(scene);
 			}
 		
-		protected abstract ScanThread createThread(File file,final CompiledScript compiledScript);
+		protected abstract ScanThread createThread(final ChartFactory<T> factory,final File file,final CompiledScript compiledScript,final Predicate<T> otherFilters);
 		@Override
     	protected void finalize() throws Throwable {
     		kill();
@@ -219,7 +265,7 @@ public abstract class NgsStage extends Stage {
     		}
     	}
 	
-    public NgsStage(final JfxNgs owner,final Object urlOrFile) throws IOException
+    public NgsStage(final JfxNgs owner,final File urlOrFile) throws IOException
     	{
     	this.owner= owner;
     	this.urlOrFile= urlOrFile;
@@ -256,10 +302,16 @@ public abstract class NgsStage extends Stage {
         this.gotoField.setPrefColumnCount(15);
         this.gotoField.setEditable(true);
         
-        this.fileMenu.getItems().add(JfxNgs.createMenuItem("Open",new Runnable() {
+        this.fileMenu.getItems().add(JfxNgs.createMenuItem("Open BAM...",new Runnable() {
 			@Override
 			public void run() {
-				owner.openNgsFiles(NgsStage.this);
+				owner.openBamFile(NgsStage.this);
+			}
+		}));
+        this.fileMenu.getItems().add(JfxNgs.createMenuItem("Open VCF...",new Runnable() {
+			@Override
+			public void run() {
+				owner.openVcfFile(NgsStage.this);
 			}
 		}));
         this.fileMenu.getItems().add(JfxNgs.createMenuItem("Save Filtered Data as... ",new Runnable() {
@@ -270,21 +322,10 @@ public abstract class NgsStage extends Stage {
 		}));
     	this.menuBar.getMenus().add(this.fileMenu);
         
-    	final Menu statsMenu=new Menu("Stats");
-    	this.menuBar.getMenus().add(statsMenu);
-
-        statsMenu.getItems().add(JfxNgs.createMenuItem("Show for current Reads",new Runnable() {
-			@Override
-			public void run() {
-				doMenuShowLocalStats();
-			}
-		}));
-        statsMenu.getItems().add(JfxNgs.createMenuItem("Show for whole file",new Runnable() {
-			@Override
-			public void run() {
-				doMenuShowWholeStats();
-			}
-		}));
+    	
+    	this.menuBar.getMenus().add(this.statsMenu);
+    	
+       
     	}
     
     @Override
@@ -299,6 +340,89 @@ public abstract class NgsStage extends Stage {
     	return null;
     	}
     
+    protected List<Button> makeJavascriptButtons()
+    	{
+    	List<Button> buttons=new ArrayList<>();
+    	if(owner.javascriptEngine==null) return buttons;
+    	Button button=new Button("Save as...");
+    	button.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				FileChooser fc= owner.newFileChooser();
+				fc.setSelectedExtensionFilter(JS_EXTENSION_FILTER);
+				File js=owner.updateLastDir(fc.showSaveDialog(NgsStage.this));
+				if(js==null) return;
+				PrintWriter pw=null;
+				try 
+					{
+					pw=new PrintWriter(js);
+					pw.write(javascriptArea.getText());
+					pw.flush();
+					pw.close();
+					}
+				catch(final Exception err)
+					{
+					JfxNgs.showExceptionDialog(NgsStage.this, err);
+					}
+				finally
+					{
+					CloserUtil.close(pw);
+					}
+			}
+			});
+    	buttons.add(button);
+    	
+    	button=new Button("Open...");
+    	button.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				final FileChooser fc= owner.newFileChooser();
+				fc.setSelectedExtensionFilter(JS_EXTENSION_FILTER);
+				final File js=owner.updateLastDir(fc.showOpenDialog(NgsStage.this));
+				if(js==null) return;
+				InputStream in=null;
+				try 
+					{
+					in= new FileInputStream(js);
+					javascriptArea.setText(IOUtil.readFully(in));
+					in.close();
+					}
+				catch(final Exception err)
+					{
+					JfxNgs.showExceptionDialog(NgsStage.this, err);
+					}
+				finally
+					{
+					CloserUtil.close(in);
+					}
+			}
+			});
+    	buttons.add(button);
+    	
+    	button=new Button("Validate");
+    	button.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				final String script=javascriptArea.getText();
+				try 
+					{
+					owner.javascriptEngine.compile(script);
+					final Alert alert=new Alert(AlertType.CONFIRMATION);
+					
+					alert.setContentText("OK");
+					alert.showAndWait();
+					}
+				catch(final Exception err)
+					{
+					JfxNgs.showExceptionDialog(NgsStage.this, err);
+					}
+			}
+			});
+    	buttons.add(button);
+   	
+    	
+    	return buttons;
+    	}
     
     protected Menu createSnippetMenu() {
     	final Menu menu=new Menu("Snippets");
@@ -432,9 +556,27 @@ public abstract class NgsStage extends Stage {
     abstract void reloadData();
     
     /** show stats */
-    protected abstract void doMenuShowWholeStats();
+    protected abstract void doMenuShowWholeStats(final ChartFactory<?> factory);
     /** show stats for whole file */
-    protected abstract void doMenuShowLocalStats();
+    protected final <T> void doMenuShowLocalStats(final ChartFactory<T> factory,final Supplier<List<T>> data)
+    	{
+    	LOG.info("creating chart "+factory.getName());
+    	final List<T> L=data.get();
+    	LOG.info("creating n items "+L.size());
+
+    	for(final T o:L) factory.visit(o);
+		final Chart chart=factory.build();
+    	final BorderPane contentPane=new BorderPane(chart);
+    	contentPane.setPadding(new Insets(10));
+    	final Stage dialog = new Stage();
+    	dialog.initOwner(this);
+    	dialog.setTitle(factory.getName());
+    	contentPane.setTop(new Label("Data for "+this.urlOrFile));
+       	dialog.setScene(new Scene(contentPane));
+    	contentPane.setBottom(new Label("Number of items: "+L.size()));
+    	LOG.info("Showing chart");
+    	dialog.show();
+    	}
     
     protected void updateStatusBar(final AlertType type,final Object o)
     	{

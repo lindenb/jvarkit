@@ -38,23 +38,42 @@ public class VariantTypeChartFactory  extends VariantContextChartFactory
 			public String getName();
 			public boolean accept(final VariantContext ctx);
 			}
+		
+		private static class CategoryImpl implements Category
+		{
+			final boolean filtered;
+			final boolean snp;
+			final boolean id;
+			CategoryImpl(boolean filtered,boolean snp,boolean id) {
+				this.filtered=filtered;
+				this.snp=snp;
+				this.id=id;
+			}
+		@Override public String getName()
+			{
+			return (snp?"SNP":"INDEL")+" "+
+					(filtered?"":"NOT")+" FILTERed "+
+					(id?"HAS":"NO")+" ID";
+			}
+		@Override public boolean accept(final VariantContext ctx) {
+			if(snp && !ctx.isSNP()) return false;
+			if(!snp && !ctx.isIndel()) return false;
+			if(filtered!=ctx.isFiltered()) return false;
+			if(id!=ctx.hasID()) return false;
+			return true;
+			}
+		}
+
+		
 		private  final Category categories[]=new Category[]{
-			new Category(){
-				@Override public String getName() {return "SNP Unfiltered";};
-				@Override  public boolean accept(final VariantContext ctx) { return ctx.isSNP() && !ctx.isFiltered();}
-				},
-			new Category(){
-				@Override public String getName() {return "SNP Filtered";};
-				@Override  public boolean accept(final VariantContext ctx) { return ctx.isSNP() && ctx.isFiltered();}
-				},
-			new Category(){
-				@Override public String getName() {return "Indel Unfiltered";};
-				@Override  public boolean accept(final VariantContext ctx) { return ctx.isIndel() && !ctx.isFiltered();}
-				},
-			new Category(){
-				@Override public String getName() {return "Indel Filtered";};
-				@Override  public boolean accept(final VariantContext ctx) { return ctx.isIndel() && ctx.isFiltered();}
-				},
+			new CategoryImpl(true,true,true),
+			new CategoryImpl(true,true,false),
+			new CategoryImpl(true,false,true),
+			new CategoryImpl(true,false,false),
+			new CategoryImpl(false,true,true),
+			new CategoryImpl(false,true,false),
+			new CategoryImpl(false,false,true),
+			new CategoryImpl(false,false,false),
 			/* always LAST */
 			new Category(){
 				@Override public String getName() {return "Others";};
@@ -83,10 +102,12 @@ public class VariantTypeChartFactory  extends VariantContextChartFactory
 	        final ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
 	        for(int i=0;i< categories.length;++i)
 				{
+	        	if(counts[i]==0) continue;
 	        	pieChartData.add( new PieChart.Data(categories[i].getName() +" "+counts[i], counts[i]));
 				}
 	        final PieChart chart = new PieChart(pieChartData);
 	        chart.setTitle(this.getName());
+	        chart.setLegendVisible(false);
 	        return chart;
 			}
 	}

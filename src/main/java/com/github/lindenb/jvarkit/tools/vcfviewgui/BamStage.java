@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -24,6 +26,7 @@ import javax.script.SimpleBindings;
 
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.CigarOpPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.GCPercentChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.MapqChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.QualityPerPositionChartFactory;
@@ -31,11 +34,14 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ReadChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ReadLengthChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ReadQualityChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.SamFlagsChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantContextChartFactory;
 import com.github.lindenb.jvarkit.util.Hershey;
 
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
@@ -50,9 +56,15 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -66,16 +78,21 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.chart.Chart;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableView;
@@ -83,52 +100,48 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javafx.stage.FileChooser.ExtensionFilter;
 
 @SuppressWarnings("unused")
 public class BamStage extends NgsStage {
     private static final int DEFAULT_BAM_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.sam", "10000"));
-
+    static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Bam Files", ".bam");
     private static final Logger LOG= Logger.getLogger("BamStage");
+    private static final String SPINNER_VALUE_KEY="bam.spinner.value";
     /** shor-Read oriented chart-factories */
-    private static final Class<?> READ_CHARTER_CLASSES[]= {
-	    BasesPerPositionChartFactory.class,
-		QualityPerPositionChartFactory.class,
-		GCPercentChartFactory.class,
-		ReadLengthChartFactory.class,
-		SamFlagsChartFactory.class,
-		MapqChartFactory.class,
-		ReadQualityChartFactory.class
-	    };
-
+    private static final List<Supplier<ChartFactory<SAMRecord>>> READ_CHART_LIST=Arrays.asList(
+    		()->new BasesPerPositionChartFactory(),
+    		()->new QualityPerPositionChartFactory(),
+    		()->new GCPercentChartFactory(),
+    		()->new ReadLengthChartFactory(),
+    		()->new SamFlagsChartFactory(),
+    		()->new MapqChartFactory(),
+    		()->new ReadQualityChartFactory(),
+    		()->new CigarOpPerPositionChartFactory()
+    		);
     
     private class ReadQualityStage
 		extends AbstractQualityStage<SAMRecord>
 			{
     		private class ScanQualThread extends ScanThread
     			{
-        		ScanQualThread(final File source,CompiledScript compiledScript)
+    			private final Predicate<SAMRecord> flagFilters;
+        		ScanQualThread(
+        				final ChartFactory<SAMRecord> factory,
+        				final File source,
+        				CompiledScript compiledScript,
+        				final Predicate<SAMRecord> flagFilters
+        				)
     				{
-    				super(source,compiledScript);
-    				for(int i=0;i<READ_CHARTER_CLASSES.length;++i )
-    					{
-    					try
-    						{
-    						super.factories.add((ReadChartFactory)READ_CHARTER_CLASSES[i].newInstance());
-    						}
-    					catch(Exception err)
-    						{
-    						throw new RuntimeException(err);    						}
-    					}
+    				super(factory,source,compiledScript,flagFilters);
+    				this.flagFilters=flagFilters;
     				}
-        		
-        		
-
         		
     			@Override
     			public void run() {
@@ -146,33 +159,22 @@ public class BamStage extends NgsStage {
     						final SAMRecord rec=samIter.next();
     						
     						nItems++;
+    						if(!flagFilters.test(rec)) continue;
     						if(this.compiledScript!=null )
     							{
     							bindings.put("record", rec);
     							if(!accept(bindings)) continue;
     							}
-    						for(final ChartFactory<SAMRecord> charter: super.factories)
-	    						{
-	    						charter.visit(rec);
-	    						}
+    						this.factory.visit(rec);
     						update();
     						}
     					samIter.close();
     					samReader.close();
-	    					
-    					atEnd();
-	    				
+    					super.atEnd();	    				
 	    				}
     				catch(final Throwable err)
     					{
-    					LOG.severe(err.getMessage());
-    					Platform.runLater(new Runnable() {
-	        				 @Override
-	        				public void run() {
-	        					 ReadQualityStage.this.countItemsLabel.setText(
-	        						"ERROR "+err.getMessage());
-	        				 	}
-	        			 	});
+    					super.onError(err);
     					}
     				finally
     					{
@@ -184,22 +186,25 @@ public class BamStage extends NgsStage {
     			
     			}
     		
-	    	ReadQualityStage(File file,
-					CompiledScript compiledScript)
+	    	ReadQualityStage(
+	    			ChartFactory<SAMRecord> factory,
+	    			final File file,
+	    			final CompiledScript compiledScript,
+	    			final Predicate<SAMRecord> filters)
 	    		{
-	    		super(file,compiledScript);
+	    		super(factory,file,compiledScript,filters);
 	    		}
-
-			@Override
-			protected AbstractQualityStage<SAMRecord>.ScanThread createThread(File file,
-					CompiledScript compiledScript) {
-				return new ScanQualThread(file,compiledScript);
-				}
 	    	
+			@Override
+			protected AbstractQualityStage<SAMRecord>.ScanThread createThread(
+					ChartFactory<SAMRecord> factory,
+					File file,
+					CompiledScript compiledScript,
+					final Predicate<SAMRecord> filters
+					) {
+				return new ScanQualThread(factory,file,compiledScript,filters);
+				}
 			}
-
-    
-
     
 	/** describe the state of a SamFlag */
     private static class SamFlagRow
@@ -291,7 +296,7 @@ public class BamStage extends NgsStage {
     private final ScrollBar canvasScrollV = new ScrollBar();
     private final CheckBox canvasShowReadName = new CheckBox("Show Read Name");
     
-    BamStage(final JfxNgs owner,final Object urlOrFile) throws IOException
+    BamStage(final JfxNgs owner,final File urlOrFile) throws IOException
     	{
     	super(owner,urlOrFile);
         final SamReaderFactory srf= SamReaderFactory.makeDefault();
@@ -315,7 +320,18 @@ public class BamStage extends NgsStage {
         	this.samReader.close();
         	throw new IOException("Bam without index "+urlOrFile);
         	}
-
+        
+        if(this.samReader.getFileHeader()==null)
+    		{
+	    	this.samReader.close();
+	    	throw new IOException("Bam without header "+urlOrFile);
+	    	}
+        if(this.samReader.getFileHeader().getSequenceDictionary()==null)
+			{
+	    	this.samReader.close();
+	    	throw new IOException("Bam without dictionary "+urlOrFile);
+	    	}
+        
         /** Build menu for SAM Flags */
         for(final SAMFlag flg:SAMFlag.values())
         	{
@@ -325,13 +341,9 @@ public class BamStage extends NgsStage {
         
        
         
-        if(urlOrFile instanceof File)
-            {}
-        
-        
         
         final VBox vbox1 = new VBox();
-        vbox1.getChildren().add(menuBar);
+        vbox1.getChildren().add(super.menuBar);
         
         FlowPane top1= new FlowPane(5,5);
         top1.setPadding(new Insets(10, 10, 10, 10));
@@ -349,7 +361,9 @@ public class BamStage extends NgsStage {
 			});
         
         super.maxItemsLimitSpinner.setValueFactory(
-        		new SpinnerValueFactory.IntegerSpinnerValueFactory(0,100000,DEFAULT_BAM_RECORDS_COUNT));;
+        		new SpinnerValueFactory.IntegerSpinnerValueFactory(0,100000,
+        				owner.preferences.getInt(SPINNER_VALUE_KEY, DEFAULT_BAM_RECORDS_COUNT)
+        				));;
         top1.getChildren().add(gotoButton);
         top1.getChildren().add(new Separator(Orientation.VERTICAL));
         top1.getChildren().add(new Label("Limit:"));
@@ -399,52 +413,40 @@ public class BamStage extends NgsStage {
         this.recordTable.getColumns().add(makeColumn("SEQ",REC->REC.getReadString()));
         this.recordTable.getColumns().add(makeColumn("QUAL",REC->REC.getBaseQualityString()));
         
-        VBox borderPane = new VBox();
-        borderPane.setPadding(new Insets(10, 10, 10, 10));
-       
+        
 
         
         //ScrollPane scroll = new ScrollPane(this.recordTable);
         //scroll.setFitToHeight(true);
         //scroll.setFitToWidth(true);
         
-        borderPane.getChildren().add(this.recordTable);
+        BorderPane borderPane1=new BorderPane(this.recordTable);
+        borderPane1.setPadding(new Insets(5));
+        SplitPane split1= new SplitPane();
+        split1.setOrientation(Orientation.VERTICAL);
+        split1.getItems().add(borderPane1);
         
-        GridPane tilePane = new GridPane();
-        tilePane.setPadding(new Insets(10, 10, 10, 10));
-        tilePane.setVgap(4);
-        tilePane.setHgap(4);
        
-        
-        borderPane.getChildren().add(tilePane);
+        SplitPane split2= new SplitPane();
+        split1.getItems().add(split2);
+        split2.setOrientation(Orientation.HORIZONTAL);
         
         /* define SAM Flag table */
         this.flagsTable= createSamFlagTable();
        
         
         //scroll.setFitToHeight(true);
-        GridPane.setConstraints(  this.flagsTable,1, 1); // column=1 row=1
-        tilePane.getChildren().add( this.flagsTable);
-        
+        split2.getItems().add(this.flagsTable); 
         
         /* define Meta Data table */
         this.metaDataTable = createMetaDataTable();
-
-        GridPane.setConstraints( this.metaDataTable,2, 1); // column=2 row=1
-        tilePane.getChildren().add(this.metaDataTable);
+        split2.getItems().add(this.metaDataTable); 
 
         
         /* build the cigar table */
         this.cigarTable = createCigarTable();
-        
-      
-        //scroll = new ScrollPane();
-        //scroll.setFitToHeight(true);
-        //scroll.setFitToWidth(true);
-        GridPane.setConstraints( this.cigarTable,3, 1); // column=3 row=1
-        tilePane.getChildren().add(this.cigarTable);
+        split2.getItems().add(this.cigarTable); 
 
-        
         
         /* when a read is selected update the flagsTable and metaDataTable */
         this.recordTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -524,8 +526,8 @@ public class BamStage extends NgsStage {
             	}
         });
 
-        
-        tab.setContent(borderPane);
+        split2.setDividerPositions(0.1f, 0.6f, 0.9f);
+        tab.setContent(split1);
        
         this.pileupTable = createPileupTable();
         tab=new Tab("Pileup",this.pileupTable);
@@ -595,6 +597,44 @@ public class BamStage extends NgsStage {
         		menuForSavingTable("Pileup",this.pileupTable),
         		menuForSavingTable("Cigar",this.cigarTable)
         		);
+        
+        /* fill stats menu */
+        final Supplier<List<SAMRecord>> variantsProvider=()->this.recordTable.getItems();
+        
+        for(final Supplier<ChartFactory<SAMRecord>> supplier: READ_CHART_LIST)
+	        {
+        	final ChartFactory<SAMRecord> factory = supplier.get();
+        	final MenuItem menuItem=new MenuItem("Local "+factory.getName());
+        	menuItem.setOnAction(new EventHandler<ActionEvent>() {
+				@Override
+				public void handle(ActionEvent event) {
+					doMenuShowLocalStats(factory, variantsProvider);
+				}
+			});
+        	statsMenu.getItems().add(menuItem);
+	        }
+        super.statsMenu.getItems().add(new SeparatorMenuItem());
+        for(final Supplier<ChartFactory<SAMRecord>> supplier: READ_CHART_LIST)
+	        {
+	    	final ChartFactory<SAMRecord> factory = supplier.get();
+	    	final MenuItem menuItem=new MenuItem("Whole"+factory.getName());
+	    	menuItem.setOnAction(new EventHandler<ActionEvent>() {
+				@Override
+				public void handle(ActionEvent event) {
+					doMenuShowWholeStats(factory);
+				}
+			});
+	    	statsMenu.getItems().add(menuItem);
+	        }
+        
+        
+        this.addEventHandler(
+    			WindowEvent.WINDOW_HIDING ,new EventHandler<WindowEvent>() {
+                    @Override
+                    public void handle(final WindowEvent event) {
+                    owner.preferences.putInt(SPINNER_VALUE_KEY,maxItemsLimitSpinner.getValue().intValue());
+                    }
+                });
     	}
 
     
@@ -619,43 +659,6 @@ public class BamStage extends NgsStage {
     			;
     	}
     
-    private void doMenuShowStats()
-    	{
-    	final TabPane tabPane=new TabPane();
-    	for(Class<?> clazz:READ_CHARTER_CLASSES)
-    		{
-    		try {
-    			final ReadChartFactory rcf = (ReadChartFactory)clazz.newInstance();
-    			rcf.visit(this.recordTable.getItems());
-    			final Chart chart=rcf.build();
-    			Tab tab=new Tab(rcf.getName(),chart);
-        		tab.setClosable(false);
-        		tabPane.getTabs().add(tab);
-    			}
-    		catch(Exception err)
-    			{
-    			LOG.warning(err.getMessage());
-    			}
-    		
-    		}
-    	
-    	final Stage dialog = new Stage();
-    	dialog.initOwner(this);
-    	dialog.setTitle("BAM Stats");
-    	Scene scene;
-    	if(tabPane.getTabs().isEmpty())
-    		{
-    		scene=new Scene(new Label("No Data for "+super.urlOrFile));
-    		}
-    	else
-    		{
-    		BorderPane pane=new BorderPane(tabPane);
-    		pane.setTop(new Label("Data for "+super.urlOrFile));        		
-    		scene=new Scene(pane);
-    		}
-    	dialog.setScene(scene);
-    	dialog.show();
-    	}
     
     /** repaint the canvas area */
     private void repaintCanvas()
@@ -929,11 +932,15 @@ public class BamStage extends NgsStage {
     
     private Tab buildJavascriptPane()
 		{
-		
 		final ScrollPane scroll=new ScrollPane(super.javascriptArea);
 		scroll.setFitToWidth(true);
 		scroll.setFitToHeight(true);
 		final BorderPane pane=new BorderPane(scroll);
+		pane.setPadding(new Insets(10));
+		
+		final FlowPane top=new FlowPane();
+		top.getChildren().addAll(super.makeJavascriptButtons());
+		pane.setTop(top);
 		
 		final Label helpLabel=new Label("The script injects:\n"+
 				"* header ( htsjdk.samtools.SAMFileHeader )\n"+
@@ -943,7 +950,7 @@ public class BamStage extends NgsStage {
 		helpLabel.setWrapText(true);
 		pane.setBottom(helpLabel);
 		
-		final Tab tab=new Tab("Javascript",pane);
+		final Tab tab=new Tab(JAVASCRIPT_TAB_KEY,pane);
 		tab.setClosable(false);
 		return tab;
 		}
@@ -988,6 +995,24 @@ public class BamStage extends NgsStage {
     	return tab;
     	}
     
+    /** build a Predicate for filtering on SAM FLAG using the checkboxes */
+    private Predicate<SAMRecord> makeFlagPredicate()
+    	{
+    	java.util.function.Predicate<SAMRecord> recFilter= x -> true;
+    	for(final SAMFlag flag: this.flag2filterInMenuItem.keySet())
+			{
+			CheckMenuItem cbox = this.flag2filterInMenuItem.get(flag);
+			if(!cbox.isSelected()) continue;
+			recFilter=recFilter.and(R-> flag.isSet(R.getFlags()));
+			}
+		for(final SAMFlag flag: this.flag2filterOutMenuItem.keySet())
+			{
+			CheckMenuItem cbox = this.flag2filterOutMenuItem.get(flag);
+			if(!cbox.isSelected()) continue;
+			recFilter=recFilter.and(R-> !flag.isSet(R.getFlags()));
+			}
+		return recFilter;
+    	}
     
     @Override
     void reloadData() {
@@ -995,20 +1020,7 @@ public class BamStage extends NgsStage {
     	final List<SAMRecord> L= new ArrayList<SAMRecord>(max_items);
     	final String location = this.gotoField.getText().trim();
     	final SAMRecordIterator iter;
-    	java.util.function.Predicate<SAMRecord> recFilter= x -> true;
-    	
-    	for(final SAMFlag flag: this.flag2filterInMenuItem.keySet())
-    		{
-    		CheckMenuItem cbox = this.flag2filterInMenuItem.get(flag);
-    		if(!cbox.isSelected()) continue;
-    		recFilter=recFilter.and(R-> flag.isSet(R.getFlags()));
-    		}
-    	for(final SAMFlag flag: this.flag2filterOutMenuItem.keySet())
-    		{
-    		CheckMenuItem cbox = this.flag2filterOutMenuItem.get(flag);
-    		if(!cbox.isSelected()) continue;
-    		recFilter=recFilter.and(R-> !flag.isSet(R.getFlags()));
-    		}
+    	final java.util.function.Predicate<SAMRecord> recFilter=makeFlagPredicate();
     	
     	if(location.isEmpty())
     		{
@@ -1194,23 +1206,99 @@ public class BamStage extends NgsStage {
 
 
 	@Override
-	protected void doMenuShowWholeStats() {
-		// TODO Auto-generated method stub
-		
-	}
+	protected void doMenuShowWholeStats(final ChartFactory<?> factory) {
+    	CompiledScript compiledScript=null;
+    	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
+    		{
+    		try
+    			{
+    			compiledScript =this.owner.javascriptEngine.compile(this.javascriptArea.getText());
+    			}
+    		catch(final Exception err)
+    			{
+    			JfxNgs.showExceptionDialog(this, err);
+    			return;
+    			}
+    		}
 
-
-	@Override
-	protected void doMenuShowLocalStats() {
-		// TODO Auto-generated method stub
-		
-	}
+    	@SuppressWarnings("unchecked")
+		final ReadQualityStage qcstage=new ReadQualityStage(
+    			(ChartFactory<SAMRecord>)factory,
+    			File.class.cast(super.urlOrFile),
+    			compiledScript,
+    			makeFlagPredicate()
+    			);
+		qcstage.show();
+		}
 
 
 	@Override
 	protected void doMenuSaveAs() {
-		// TODO Auto-generated method stub
+		final FileChooser fc= owner.newFileChooser();
+    	fc.setSelectedExtensionFilter(EXTENSION_FILTER);
+		final File saveAs= owner.updateLastDir(fc.showSaveDialog(this));
+		if(saveAs==null) return;
+		if(saveAs.equals(super.urlOrFile)) return;
+		if(!saveAs.getName().endsWith(".bam"))
+			{
+			final Alert alert=new Alert(AlertType.ERROR, "Output should end with .bam", ButtonType.OK);
+			alert.showAndWait();
+			return;
+			}
 		
-	}
+    	CompiledScript compiledScript=null;
+    	SimpleBindings binding=null;
+    	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
+    		{
+    		try
+    			{
+    			binding=new SimpleBindings();
+    			compiledScript =this.owner.javascriptEngine.compile(this.javascriptArea.getText());
+    			binding.put("header", this.samReader.getFileHeader());
+    			}
+    		catch(final Exception err)
+    			{
+    			JfxNgs.showExceptionDialog(this, err);
+    			return;
+    			}
+    		}
+
+    	Predicate<SAMRecord> filter=makeFlagPredicate();
+		final SAMFileWriterFactory swf= new SAMFileWriterFactory();
+		swf.setCreateIndex(true);
+		SAMRecordIterator iter=null;
+		SAMFileWriter w=null;
+		try
+			{
+			w = swf.makeBAMWriter(this.samReader.getFileHeader(), true, saveAs);
+			
+			iter=this.samReader.iterator();
+			while(iter.hasNext())
+				{
+				final SAMRecord rec=iter.next();
+				if(!filter.test(rec)) continue;
+				if(compiledScript!=null)
+        			{
+        			binding.put("record", rec);
+        			if(!super.accept(compiledScript,binding))
+        				{
+        				continue;
+        				}
+        			}
+				
+				w.addAlignment(rec);
+				}
+			w.close();
+			}
+		catch(Exception err)
+			{
+			JfxNgs.showExceptionDialog(this, err);
+			return;
+			}
+		finally
+			{
+			CloserUtil.close(w);
+			}    		
+		}
     
     }
