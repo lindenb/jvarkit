@@ -523,10 +523,6 @@ public class JfxNgs extends Application {
     	}
 
     public static void main(String[] args) {
-    	args=new String[]{
-    			"/commun/data/projects/20161205.JULIEN.DAVD.GT50.W15/Samples/09H0046/BAM/HaloplexDAVD.20161108.GT50.W15.09H0046_final.bam",
-    			//"/commun/data/projects/20161205.JULIEN.DAVD.GT50.W15/VCF/HaloplexDAVD.20161108.GT50.W15.haplotypecaller.annotations.vcf.gz"
-    			};
     	launch(args);
     }
 
