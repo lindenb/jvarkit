@@ -40,6 +40,7 @@ import java.util.logging.Logger;
 import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
+import javax.script.SimpleBindings;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
@@ -70,6 +71,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -77,6 +79,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -122,6 +125,49 @@ public abstract class NgsStage extends Stage {
     /** limit number of items */
 	protected final Spinner<Integer> maxItemsLimitSpinner=
 			new Spinner<>(0, 10000, 1);
+
+	
+    protected static abstract class JavascriptFilter<HEADER,DATATYPE> {
+		protected final CompiledScript compiledScript;
+		protected final SimpleBindings bindings=new SimpleBindings();
+		protected JavascriptFilter(final HEADER header,CompiledScript compiledScript)
+			{
+			this.bindings.put("header", header);
+			this.compiledScript=compiledScript;
+			}
+		public abstract DATATYPE eval(DATATYPE v);
+		
+		 /** called by javascript filters */
+	    protected boolean accept()
+			{
+	    	if(this.compiledScript==null) return true;
+			final Object result;
+			try  {
+				result = this.compiledScript.eval(bindings);
+			} catch(final ScriptException err)
+			{
+				LOG.severe(err.getMessage());
+				err.printStackTrace();
+				return false;
+			}
+			
+			if(result==null) return false;;
+			if(result instanceof Boolean)
+				{
+				if(Boolean.FALSE.equals(result)) return false;
+				}
+			else if(result instanceof Number)
+				{
+				if(((Number)result).intValue()!=1) return false;
+				}
+			else
+				{
+				LOG.warning("Script returned something that is not a boolean or a number:"+result.getClass());
+				return false;
+				}
+			return true;
+			}
+		}
 
 	
 	protected abstract class AbstractQualityStage<T>
@@ -275,7 +321,8 @@ public abstract class NgsStage extends Stage {
     	this.urlOrFile= urlOrFile;
     	this.setTitle(this.urlOrFile.toString());
     	this.maxItemsLimitSpinner.setEditable(true);
-    	
+    	this.maxItemsLimitSpinner.setTooltip(new Tooltip(
+    			"The whole file is NOT loaded, only a subset of data will be read."));
     	
     	if(this.owner.javascriptEngine==null) {
     		this.javascriptArea.setEditable(false);
@@ -306,6 +353,13 @@ public abstract class NgsStage extends Stage {
         this.gotoField.setPrefColumnCount(15);
         this.gotoField.setEditable(true);
         
+        this.fileMenu.getItems().add(JfxNgs.createMenuItem("About...",new Runnable() {
+			@Override
+			public void run() {
+				JfxNgs.doMenuAbout(NgsStage.this);
+			}
+		}));
+        this.fileMenu.getItems().add(new SeparatorMenuItem());
         this.fileMenu.getItems().add(JfxNgs.createMenuItem("Open BAM...",new Runnable() {
 			@Override
 			public void run() {
@@ -318,6 +372,7 @@ public abstract class NgsStage extends Stage {
 				owner.openVcfFile(NgsStage.this);
 			}
 		}));
+        this.fileMenu.getItems().add(new SeparatorMenuItem());
         this.fileMenu.getItems().add(JfxNgs.createMenuItem("Save Filtered Data as... ",new Runnable() {
 			@Override
 			public void run() {
@@ -325,10 +380,7 @@ public abstract class NgsStage extends Stage {
 			}
 		}));
     	this.menuBar.getMenus().add(this.fileMenu);
-        
-    	
     	this.menuBar.getMenus().add(this.statsMenu);
-    	
     	this.menuBar.getMenus().add(this.createJavascriptSnippetMenu());
     	}
     
@@ -346,7 +398,9 @@ public abstract class NgsStage extends Stage {
     	{
     	List<Button> buttons=new ArrayList<>();
     	if(owner.javascriptEngine==null) return buttons;
-    	Button button=new Button("Save as...");
+    	Button button= setTooltip( new Button("Save as..."),
+    			"Save the Script below in a text file"
+    			);
     	button.setOnAction(new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
@@ -374,7 +428,8 @@ public abstract class NgsStage extends Stage {
 			});
     	buttons.add(button);
     	
-    	button=new Button("Open...");
+    	button= setTooltip(new Button("Open..."),
+    			"Open a javascript file  that will be used to filter the data");
     	button.setOnAction(new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
@@ -401,7 +456,10 @@ public abstract class NgsStage extends Stage {
 			});
     	buttons.add(button);
     	
-    	button=new Button("Validate");
+    	button=setTooltip(
+    			new Button("Validate"),
+    			"Validate the Javascript syntax of the script below"
+    			);
     	button.setOnAction(new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
@@ -650,36 +708,7 @@ public abstract class NgsStage extends Stage {
 				});
 	        return col;
     	}
-    /** called by javascript filters */
-    protected boolean accept(final CompiledScript script,final Bindings bindings)
-		{
-		final Object result;
-		try  {
-			result = script.eval(bindings);
-		} catch(ScriptException err)
-		{
-			LOG.severe(err.getMessage());
-			err.printStackTrace();
-			updateStatusBar(AlertType.WARNING,err);
-			return false;
-		}
-		
-		if(result==null) return false;;
-		if(result instanceof Boolean)
-			{
-			if(Boolean.FALSE.equals(result)) return false;
-			}
-		else if(result instanceof Number)
-			{
-			if(((Number)result).intValue()!=1) return false;
-			}
-		else
-			{
-			updateStatusBar(AlertType.WARNING,"Script returned something that is not a boolean or a number:"+result.getClass());
-			return false;
-			}
-		return true;
-		}
+   
     
     /** build a table view for a Dictionary */
     protected Tab buildDictTab(final SAMSequenceDictionary dict)
@@ -791,4 +820,25 @@ public abstract class NgsStage extends Stage {
 			}
     	}
     
+    protected <T extends  javafx.scene.control.Control> T setTooltip(final T control, final String text)
+    	{
+    	if(text!=null && !text.trim().isEmpty())
+    		{
+    		control.setTooltip(new Tooltip(text));
+    		}
+    	return control;
+    	}
+    /** create a button opening the current item in Broad/IGV */
+    protected Button createIgvButton() {
+        final Button igvButton =setTooltip(new Button("IGV"),
+        		"Open the current selected item in Broad/Integrative Genome Viewer"
+        		);
+        igvButton.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				openInIgv();
+			}
+		});
+        return igvButton;
+        }
 }

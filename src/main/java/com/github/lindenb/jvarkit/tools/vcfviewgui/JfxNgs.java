@@ -153,6 +153,7 @@ import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
@@ -178,6 +179,8 @@ public class JfxNgs extends Application {
     final Compilable javascriptEngine;
     private static final String LAST_USED_DIR_KEY="last.used.dir";
     private final List<NgsStage> all_opened_stages=new ArrayList<>();
+    
+    
     
     public JfxNgs()
 		{
@@ -260,14 +263,7 @@ public class JfxNgs extends Application {
         menuItem.setOnAction(new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
-				Alert alert=new Alert(AlertType.INFORMATION);
-				alert.setHeaderText("JFXNGS");
-				alert.setContentText("Pierre Lindenbaum PhD. 2017.\n"
-						+ "@yokofakun\n"
-						+ "Institut du Thorax - Nantes - France\n"
-						+ "https://github.com/lindenb/jvarkit"
-						);
-				alert.showAndWait();
+				doMenuAbout(primaryStage);
 			}
 		});
         menu.getItems().add(menuItem);
@@ -307,7 +303,11 @@ public class JfxNgs extends Application {
         Button button=new Button("Go");
         flow.getChildren().add(button);
         
-        EventHandler<ActionEvent> handler=new EventHandler<ActionEvent>() {
+        textField.setTooltip(new Tooltip(
+        		"set genomic location can be: empty, 'contig', 'contig:pos', 'contig:start-end' and (\"unmapped\" for bam)"
+        		));
+        
+        final EventHandler<ActionEvent> handler=new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
 				final String loc=textField.getText().trim();
@@ -320,6 +320,7 @@ public class JfxNgs extends Application {
 				}
 		};
         button.setOnAction(handler);
+        button.setTooltip(new Tooltip("Go the the specified genomic location."));
         textField.setOnAction(handler);
         
         
@@ -507,7 +508,17 @@ public class JfxNgs extends Application {
 			}
 		}
     
-    
+    static void doMenuAbout(Stage stage)
+    	{
+    	Alert alert=new Alert(AlertType.INFORMATION);
+		alert.setHeaderText("JFXNGS");
+		alert.setContentText("Pierre Lindenbaum PhD. 2017.\n"
+				+ "@yokofakun\n"
+				+ "Institut du Thorax - Nantes - France\n"
+				+ "https://github.com/lindenb/jvarkit"
+				);
+		alert.showAndWait();
+    	}
     
     /** utiliti for create a menuItem */
     static MenuItem createMenuItem(final String label,final Runnable runner)

@@ -19,11 +19,10 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
-import javax.script.SimpleBindings;
 
+import com.github.lindenb.jvarkit.tools.samjs.SamJavascript;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.CigarOpPerPositionChartFactory;
@@ -70,6 +69,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -97,6 +97,7 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
@@ -110,7 +111,7 @@ import javafx.stage.FileChooser.ExtensionFilter;
 
 @SuppressWarnings("unused")
 public class BamStage extends NgsStage {
-    private static final int DEFAULT_BAM_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.sam", "10000"));
+    private static final int DEFAULT_BAM_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.sam", "1000"));
     static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Bam Files", ".bam");
     private static final Logger LOG= Logger.getLogger("BamStage");
     private static final String SPINNER_VALUE_KEY="bam.spinner.value";
@@ -125,6 +126,23 @@ public class BamStage extends NgsStage {
     		()->new ReadQualityChartFactory(),
     		()->new CigarOpPerPositionChartFactory()
     		);
+    
+    
+    private static class BamJavascripFilter
+    	extends JavascriptFilter<SAMFileHeader,SAMRecord>
+		{
+		protected BamJavascripFilter(final SAMFileHeader header,CompiledScript compiledScript)
+			{
+			super(header,compiledScript);
+			}
+		@Override public SAMRecord eval(final SAMRecord rec)
+			{
+			if(super.compiledScript==null) return rec;
+			super.bindings.put("record", rec);
+			return super.accept()?rec:null;
+			}
+		}
+
     
     private class ReadQualityStage
 		extends AbstractQualityStage<SAMRecord>
@@ -149,21 +167,26 @@ public class BamStage extends NgsStage {
     				SAMRecordIterator samIter=null;
     				try 
     					{
-	    				final SimpleBindings bindings= new SimpleBindings();
+	    				BamJavascripFilter bamJavascripFilter=null;
 	    				final SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
     					samReader = srf.open(this.source);
     					samIter = samReader.iterator();
-    					bindings.put("header", samReader.getFileHeader());
+    					
+    					if(this.compiledScript!=null)
+    						{
+    						bamJavascripFilter=new BamJavascripFilter(samReader.getFileHeader(),
+    								compiledScript);
+    						}	
+    					
     					while(!kill_flag && samIter.hasNext())
     						{
     						final SAMRecord rec=samIter.next();
     						
     						nItems++;
     						if(!flagFilters.test(rec)) continue;
-    						if(this.compiledScript!=null )
+    						if(bamJavascripFilter!=null)
     							{
-    							bindings.put("record", rec);
-    							if(!accept(bindings)) continue;
+    							if(bamJavascripFilter.eval(rec)==null) continue;
     							}
     						this.factory.visit(rec);
     						update();
@@ -335,8 +358,8 @@ public class BamStage extends NgsStage {
         /** Build menu for SAM Flags */
         for(final SAMFlag flg:SAMFlag.values())
         	{
-        	flag2filterInMenuItem.put(flg,new CheckMenuItem("Filter In "+flg.name()));
-        	flag2filterOutMenuItem.put(flg,new CheckMenuItem("Filter Out "+flg.name()));
+        	this.flag2filterInMenuItem.put(flg,new CheckMenuItem("Filter In "+flg.name()));
+        	this.flag2filterOutMenuItem.put(flg,new CheckMenuItem("Filter Out "+flg.name()));
         	}
         
        
@@ -382,14 +405,9 @@ public class BamStage extends NgsStage {
 				reloadData();
 				}
 			});
-        final Button igvButton =new Button("IGV");
-        top1.getChildren().add(igvButton);
-        igvButton.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				openInIgv();
-			}
-		});
+      
+        top1.getChildren().add(createIgvButton());
+       
         
         
         TabPane tabbedPane = new TabPane();
@@ -560,17 +578,8 @@ public class BamStage extends NgsStage {
         final FlowPane canvasTop=new FlowPane(this.canvasShowReadName);
         canvasPane.setTop(canvasTop);
         
-        this.canvasShowReadName.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				repaintCanvas();
-			}
-		});
-        this.canvasScrollV.valueProperty().addListener(new ChangeListener<Number>() {
-            public void changed(ObservableValue<? extends Number> ov, Number old_val, Number new_val) {
-            	repaintCanvas();
-            }
-        });
+        this.canvasShowReadName.setOnAction(E->repaintCanvas());
+        this.canvasScrollV.valueProperty().addListener(E->repaintCanvas());
         
         tab=new Tab("Canvas",canvasPane);
         tab.setClosable(false);
@@ -629,7 +638,7 @@ public class BamStage extends NgsStage {
         
         
         this.addEventHandler(
-    			WindowEvent.WINDOW_HIDING ,new EventHandler<WindowEvent>() {
+    			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
                     @Override
                     public void handle(final WindowEvent event) {
                     owner.preferences.putInt(SPINNER_VALUE_KEY,maxItemsLimitSpinner.getValue().intValue());
@@ -1044,22 +1053,19 @@ public class BamStage extends NgsStage {
     			iter=samReader.queryOverlapping(interval.getContig(),interval.getStart(), interval.getEnd());
     			}
     		}
-    	
-    	CompiledScript compiledScript=null;
-    	SimpleBindings binding=null;
+    	BamJavascripFilter bamjsfilter=null;
     	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
     		{
     		try
     			{
-    			binding=new SimpleBindings();
-    			compiledScript = this.owner.javascriptEngine.compile(this.javascriptArea.getText());
-    			binding.put("header", this.samReader.getFileHeader());
+    			final CompiledScript compiledScript = this.owner.javascriptEngine.compile(this.javascriptArea.getText());
+    			bamjsfilter=new BamJavascripFilter(this.samReader.getFileHeader(), compiledScript);
     			}
     		catch(Exception err)
     			{
     			LOG.warning(err.getMessage());
     			updateStatusBar(AlertType.ERROR, err);
-    			compiledScript=null;
+    			bamjsfilter=null;
     			}
     		}
     	final Map<ContigPos,Pileup> pos2pileup=new TreeMap<>();
@@ -1077,12 +1083,10 @@ public class BamStage extends NgsStage {
     		{
     		final SAMRecord rec = iter.next();
     		++count_items;
-    		if(compiledScript!=null)
+    		if(bamjsfilter!=null)
     			{
-    			binding.put("record", rec);
-    			if(!super.accept(compiledScript, binding)) continue;
-    			}
-    		
+    			if(bamjsfilter.eval(rec)==null) continue;
+    			}    		
     		if(!recFilter.test(rec)) continue;
     		L.add(rec);
     		
@@ -1197,10 +1201,14 @@ public class BamStage extends NgsStage {
 	void openInIgv() {
     	final SAMRecord ctx=this.recordTable.getSelectionModel().getSelectedItem();
     	if(ctx==null) {
-    		updateStatusBar(AlertType.WARNING,"no variant selected");
+    		updateStatusBar(AlertType.WARNING,"no Read selected");
     		return;
     		}
-    	if(ctx.getReadUnmappedFlag()) return;
+    	if(ctx.getReadUnmappedFlag())
+    		{
+    		updateStatusBar(AlertType.WARNING,"read is not mapped");
+    		return;
+    		}
     	openInIgv(ctx);
     	}
     
@@ -1248,19 +1256,18 @@ public class BamStage extends NgsStage {
 			return;
 			}
 		
-    	CompiledScript compiledScript=null;
-    	SimpleBindings binding=null;
+    	BamJavascripFilter bamjsfilter=null;
     	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
     		{
     		try
     			{
-    			binding=new SimpleBindings();
-    			compiledScript =this.owner.javascriptEngine.compile(this.javascriptArea.getText());
-    			binding.put("header", this.samReader.getFileHeader());
+    			final CompiledScript compiledScript =this.owner.javascriptEngine.compile(this.javascriptArea.getText());
+    			bamjsfilter=new BamJavascripFilter(this.samReader.getFileHeader(),compiledScript);
     			}
     		catch(final Exception err)
     			{
     			JfxNgs.showExceptionDialog(this, err);
+    			bamjsfilter=null;
     			return;
     			}
     		}
@@ -1279,13 +1286,9 @@ public class BamStage extends NgsStage {
 				{
 				final SAMRecord rec=iter.next();
 				if(!filter.test(rec)) continue;
-				if(compiledScript!=null)
+				if(bamjsfilter!=null)
         			{
-        			binding.put("record", rec);
-        			if(!super.accept(compiledScript,binding))
-        				{
-        				continue;
-        				}
+        			if(bamjsfilter.eval(rec)==null) continue;
         			}
 				
 				w.addAlignment(rec);

@@ -38,7 +38,6 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import javax.script.CompiledScript;
-import javax.script.SimpleBindings;
 
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AlleleFrequencyChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
@@ -106,7 +105,7 @@ import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.util.Callback;
 
 public class VcfStage extends NgsStage {
-    private static final int DEFAULT_VCF_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.vcf", "1000"));
+    private static final int DEFAULT_VCF_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.vcf", "100"));
     static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Variant Files", ".vcf",".vcf.gz");
     private static final String SPINNER_VALUE_KEY="vcf.spinner.value";
     
@@ -119,7 +118,33 @@ public class VcfStage extends NgsStage {
 		()->new TiTvChartFactory(),
 		()->new VariantDepthChartFactory()
 		);
-
+    
+    
+    private static class VcfJavascripFilter
+	extends JavascriptFilter<VCFHeader,VariantContext>
+		{
+    	private final String filter;
+		VcfJavascripFilter(
+				final String filter,
+				final VCFHeader header,
+				final CompiledScript compiledScript)
+			{
+			super(header,compiledScript);
+			this.filter=filter;
+			}
+		@Override public VariantContext eval(final VariantContext ctx)
+			{
+			if(super.compiledScript==null) return ctx;
+			super.bindings.put("variant", ctx);
+			boolean ok=super.accept();
+			if(!ok )
+				{
+				if(filter==null || filter.trim().isEmpty()) return null;
+				return new VariantContextBuilder(ctx).filter(this.filter).make();
+				}
+			return ctx;
+			}
+		}
     
     private class VcfQualityStage
 		extends AbstractQualityStage<VariantContext>
@@ -135,11 +160,15 @@ public class VcfStage extends NgsStage {
     			public void run() {
     				VCFFileReader vcfReader =null;
     				CloseableIterator<VariantContext> iter=null;
+    				VcfJavascripFilter javascriptFilter=null;
     				try 
 	    				{
-    						final SimpleBindings bindings=new SimpleBindings();
-	    					vcfReader = new VCFFileReader(this.source,false);
-	    					bindings.put("header", vcfReader.getFileHeader());
+    						vcfReader = new VCFFileReader(this.source,false);
+    						if(this.compiledScript!=null )
+    							{
+    							javascriptFilter=new VcfJavascripFilter("", vcfReader.getFileHeader(), compiledScript);
+    							}
+    						
 	    					iter = vcfReader.iterator();
 	    					
 	    					while(!kill_flag && iter.hasNext())
@@ -147,11 +176,9 @@ public class VcfStage extends NgsStage {
 	    						final VariantContext ctx=iter.next();
 	    						
 	    						nItems++;
-	    						if(this.compiledScript!=null )
-	    							{
-	    							bindings.put("variant", ctx);
-	    							if(!accept(bindings)) continue;
-	    							}
+	    						if(javascriptFilter!=null &&
+	    							javascriptFilter.eval(ctx)==null) continue;
+	    							
 	    						if(!super.otherFilters.test(ctx)) continue;
 	    						super.factory.visit(ctx);
 	    						update();
@@ -263,14 +290,8 @@ public class VcfStage extends NgsStage {
         top1.getChildren().add(super.maxItemsLimitSpinner);
         top1.getChildren().add(new Separator(Orientation.VERTICAL));
 		
-        final Button igvButton =new Button("IGV");
-        top1.getChildren().add(igvButton);
-        igvButton.setOnAction(new EventHandler<ActionEvent>() {
-				@Override
-				public void handle(ActionEvent event) {
-					openInIgv();
-				}
-			});
+        top1.getChildren().add(createIgvButton());
+        
         this.gotoField.setOnAction(new EventHandler<ActionEvent>()
 			{
 			@Override
@@ -423,7 +444,7 @@ public class VcfStage extends NgsStage {
 
         
         this.addEventHandler(
-    			WindowEvent.WINDOW_HIDING ,new EventHandler<WindowEvent>() {
+    			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
                     @Override
                     public void handle(final WindowEvent event) {
                     owner.preferences.putInt(SPINNER_VALUE_KEY,maxItemsLimitSpinner.getValue().intValue());
@@ -452,15 +473,18 @@ public class VcfStage extends NgsStage {
 			return;
 			}
 		
-    	CompiledScript compiledScript=null;
-    	SimpleBindings binding=null;
+    	
+    	VcfJavascripFilter javascriptFilter=null;
     	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
     		{
     		try
     			{
-    			binding=new SimpleBindings();
-    			compiledScript =this.owner.javascriptEngine.compile(this.javascriptArea.getText());
-    			binding.put("header", this.vcfFileReader.getFileHeader());
+    			CompiledScript  compiledScript =this.owner.javascriptEngine.compile(this.javascriptArea.getText());
+    			javascriptFilter=new VcfJavascripFilter(
+    				this.javascriptFILTERfield.getText().trim(),
+    				this.vcfFileReader.getFileHeader(),
+    				compiledScript);
+    			
     			}
     		catch(final Exception err)
     			{
@@ -477,25 +501,22 @@ public class VcfStage extends NgsStage {
 			final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
 			vcwb.setOutputFile(saveAs);
 			w= vcwb.build();
-			VCFHeader header2= new VCFHeader(this.vcfFileReader.getFileHeader());
-        	final String filterName = this.javascriptFILTERfield.getText().trim();
-        	if(!filterName.isEmpty())
+			final VCFHeader header2= new VCFHeader(this.vcfFileReader.getFileHeader());
+        	if(!javascriptFilter.filter.isEmpty())
         		{
-        		header2.addMetaDataLine(new VCFFilterHeaderLine(filterName, "Set by User in JfxNgs"));
+        		header2.addMetaDataLine(new VCFFilterHeaderLine(javascriptFilter.filter, "Set by User in JfxNgs:"+
+        				this.javascriptArea.getText().replaceAll("[\n\t\r ]+"," ")
+        				));
         		}
 			w.writeHeader(header2);
 			iter=this.vcfFileReader.iterator();
 			while(iter.hasNext())
 				{
 				VariantContext ctx=iter.next();
-				if(compiledScript!=null)
+				if(javascriptFilter!=null)
         			{
-        			binding.put("variant", ctx);
-        			if(!super.accept(compiledScript,binding))
-        				{
-        				if(filterName.isEmpty()) continue;
-        				ctx=new VariantContextBuilder(ctx).filter(filterName).make();
-        				}
+        			ctx = javascriptFilter.eval(ctx);
+        			if(ctx==null) continue;
         			}
 				w.add(ctx);
 				}
@@ -523,7 +544,7 @@ public class VcfStage extends NgsStage {
     				new Label("set following FILTER on rejection:"),
     				javascriptFILTERfield
     				);
-    		
+    		this.javascriptFILTERfield.setPrefColumnCount(30);
     		this.javascriptFILTERfield.setPromptText("If not empty , don't discard the variant but set the FILTER");
     		flowPane.getChildren().addAll(super.makeJavascriptButtons());
     		pane.setTop(flowPane);
@@ -740,38 +761,36 @@ public class VcfStage extends NgsStage {
 				iter=this.vcfFileReader.query(interval.getContig(),interval.getStart(),interval.getEnd());
     			}
     		}
-    	CompiledScript compiledScript=null;
-    	SimpleBindings binding=null;
-    	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
+    	VcfJavascripFilter javascripFilter=null;
+    	if(this.owner.javascriptEngine!=null &&
+    		!this.javascriptArea.getText().trim().isEmpty())
     		{
     		try
     			{
-    			binding=new SimpleBindings();
-    			compiledScript = this.owner.javascriptEngine.compile(this.javascriptArea.getText());
-    			binding.put("header", this.vcfFileReader.getFileHeader());
+    			CompiledScript compiledScript = this.owner.javascriptEngine.compile(this.javascriptArea.getText());
+    			javascripFilter = new VcfJavascripFilter(
+    					this.javascriptFILTERfield.getText().trim(),
+    					vcfFileReader.getFileHeader(),
+    					compiledScript
+    					);
     			}
-    		catch(Exception err)
+    		catch(final Exception err)
     			{
+    			updateStatusBar(AlertType.ERROR, err);
     			LOG.warning(err.getMessage());
-    			compiledScript=null;
+    			javascripFilter=null;
     			}
     		}
-    	final String filterName = this.javascriptFILTERfield.getText().trim();
     	int count_items=0;
     	while(iter!=null && iter.hasNext() && count_items<max_items)
     		{
     		VariantContext rec = iter.next();
     		++count_items;
-    		if(compiledScript!=null)
+    		if(javascripFilter!=null)
     			{
-    			binding.put("variant", rec);
-    			if(!super.accept(compiledScript,binding))
-    				{
-    				if(filterName.isEmpty()) continue;
-    				rec=new VariantContextBuilder(rec).filter(filterName).make();
-    				}
+    			rec= javascripFilter.eval(rec);
+    			if(rec==null) continue;
     			}
-    		
     		L.add(rec);
     		}
     	if(iter!=null) iter.close();
