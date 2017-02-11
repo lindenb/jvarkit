@@ -182,6 +182,23 @@ public class JfxNgs extends Application {
     private static final String LAST_USED_DIR_KEY="last.used.dir";
     private final List<NgsStage> all_opened_stages=new ArrayList<>();
     
+    /** utility Function to convert base to Color */
+    public static final Function<Character, Color> BASE2COLOR= new Function<Character, Color>() {
+		@Override
+		public Color apply(final Character c) {
+			switch(c)
+			{
+			case 'A':case 'a': return Color.BLUE;
+			case 'T': case 't' : return Color.GREEN;
+			case 'C': case 'c': return Color.YELLOW;
+			case 'G': case 'g': return Color.RED;
+			default: break;
+			}    	
+		return Color.BLACK;
+		}
+	};
+    
+    
     /** URL or file */
     public static class InputSource
     	{
@@ -402,14 +419,11 @@ public class JfxNgs extends Application {
         primaryStage.show();
         }
 
-    void unregisterStage(NgsStage s) {
+    void unregisterStage(final NgsStage s) {
     	this.all_opened_stages.remove(s);
-    	LOG.info("unregister nbr.win"+this.all_opened_stages.size());
-
     }
-    void registerStage(NgsStage s) {
+    void registerStage(final NgsStage s) {
     	this.all_opened_stages.add(s);  
-    	LOG.info("register nbr.win"+this.all_opened_stages.size());
     }
     
     

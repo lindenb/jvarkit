@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.io.File;
@@ -96,6 +120,8 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.ScrollEvent;
@@ -104,6 +130,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -424,20 +452,10 @@ public class BamStage extends NgsStage {
         tab.setClosable(false);
         tabbedPane.getTabs().add(tab);
         
-        this.recordTable = new TableView<>();
+        this.recordTable = makeRecordTable();
         /** create columns */
         
-        this.recordTable.getColumns().add(makeColumn("Read-Name",REC->REC.getReadName()));
-        this.recordTable.getColumns().add(makeColumn("Flag",REC->REC.getFlags()));
-        this.recordTable.getColumns().add(makeColumn("Ref",REC->REC.getReferenceName()));
-        this.recordTable.getColumns().add(makeColumn("Read-Pos",REC->REC.getAlignmentStart()));
-        this.recordTable.getColumns().add(makeColumn("MAPQ",REC->REC.getMappingQuality()));
-        this.recordTable.getColumns().add(makeColumn("CIGAR",REC->REC.getCigarString()));
-        this.recordTable.getColumns().add(makeColumn("LEN",REC->REC.getInferredInsertSize()));
-        this.recordTable.getColumns().add(makeColumn("Mate-Ref",REC->REC.getMateReferenceName()));
-        this.recordTable.getColumns().add(makeColumn("Mate-Pos",REC->REC.getMateAlignmentStart()));
-        this.recordTable.getColumns().add(makeColumn("SEQ",REC->REC.getReadString()));
-        this.recordTable.getColumns().add(makeColumn("QUAL",REC->REC.getBaseQualityString()));
+        
         
         
 
@@ -656,6 +674,42 @@ public class BamStage extends NgsStage {
         
     	}
 
+    private TableView<SAMRecord> makeRecordTable() {
+    	final TableView<SAMRecord>  table = new TableView<SAMRecord>();
+    	table.getColumns().add(makeColumn("Read-Name",REC->REC.getReadName()));
+    	table.getColumns().add(makeColumn("Flag",REC->REC.getFlags()));
+    	table.getColumns().add(makeColumn("Ref",REC->REC.getReferenceName()));
+    	table.getColumns().add(makeColumn("Read-Pos",REC->REC.getAlignmentStart()));
+    	table.getColumns().add(makeColumn("MAPQ",REC->REC.getMappingQuality()));
+    	table.getColumns().add(makeColumn("CIGAR",REC->REC.getCigarString()));
+    	table.getColumns().add(makeColumn("LEN",REC->REC.getInferredInsertSize()));
+    	table.getColumns().add(makeColumn("Mate-Ref",REC->REC.getMateReferenceName()));
+    	table.getColumns().add(makeColumn("Mate-Pos",REC->REC.getMateAlignmentStart()));
+    	
+    	final Font font1=new Font("Courier", 9);
+    	
+    	final TableColumn<SAMRecord, String> tc=makeColumn("SEQ",REC->REC.getReadString());
+    	tc.setCellFactory(tv -> new TableCell<SAMRecord, String>() { 
+    	    @Override
+    	    protected void updateItem(final String item, boolean empty) {
+    	        super.updateItem(item, empty);
+    	        this.setFont(font1);
+    	        this.setText(item);
+    	        /*
+    	        final List<Text> L=new ArrayList<>(item.length());
+    	        for(int i=0;i< item.length();++i) {
+    	        	final Text txt=new Text(String.valueOf(item.charAt(i)));new Text(String.valueOf(item.charAt(i)));
+    	        	txt.setStroke(JfxNgs.BASE2COLOR.apply(item.charAt(i)));
+    	        	L.add(txt);
+    	        	}
+    	        this.getChildren().setAll(L);
+    	        */
+    	    }
+    	});
+	    table.getColumns().add(tc);
+	    table.getColumns().add(makeColumn("QUAL",REC->REC.getBaseQualityString()));
+	    return table;
+	    }
     
     @Override
     protected SAMSequenceDictionary getSAMSequenceDictionary() {
@@ -766,20 +820,12 @@ public class BamStage extends NgsStage {
 			};
 			
     		final Function<Integer,Color> getColorAt = new Function<Integer, Color>() {
-				
-				public Color apply(Integer readPos) {
+				public Color apply(final Integer readPos) {
 					if(bases==null || bases.length<=readPos)
 						{
 						return Color.BLACK;
 						}
-					switch(Character.toUpperCase((char)bases[readPos]))
-						{
-						case 'A': return Color.BLUE;
-						case 'T': return Color.GREEN;
-						case 'C': return Color.YELLOW;
-						case 'G': return Color.RED;
-						default: return Color.BLACK;
-						}
+					return JfxNgs.BASE2COLOR.apply((char)bases[readPos]);
 				}
 			};
 
@@ -891,13 +937,8 @@ public class BamStage extends NgsStage {
         {
         final TableView<SamFlagRow> table=new TableView<>();
     	table.getColumns().add(makeColumn("Flag", O->O.flag.name()));
-    	table.getColumns().add(makeColumn("Status",new Function<SamFlagRow,Boolean>() {
-    		@Override
-    		public Boolean apply(final SamFlagRow param) {
-    			return param.flag.isSet(param.record.getFlags());
-    			}
-			} ));
-    	
+    	table.getColumns().add(makeColumn("Status",param-> param.flag.isSet(param.record.getFlags())?"\u2611":"\u2610"));
+    		
         return table;
         }        
     
@@ -935,14 +976,14 @@ public class BamStage extends NgsStage {
     	table.getColumns().add(makeColumn("Ref-Pos", O->O.posInRef));
     	table.getColumns().add(makeColumn("OP",new Function<CigarAndBase,String>() {
     		@Override
-    		public String apply(CigarAndBase param) {
+    		public String apply(final CigarAndBase param) {
     			return param.op==null?null:param.op.name();
     		}
 			} ));
     	table.getColumns().add(makeColumn("Len", O->O.count));
     	table.getColumns().add(makeColumn("Read-Bases",new Function<CigarAndBase,String>() {
     		@Override
-    		public String apply(CigarAndBase param) {
+    		public String apply(final CigarAndBase param) {
     			return param.base==null?null:String.valueOf((char)param.base.intValue());
     		}
 			} ));

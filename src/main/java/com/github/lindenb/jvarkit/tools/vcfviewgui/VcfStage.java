@@ -286,14 +286,7 @@ public class VcfStage extends NgsStage {
         top1.getChildren().add(new Label("GoTo:"));
         top1.getChildren().add(super.gotoField);
         final Button gotoButton=new Button("Go");
-        gotoButton.setOnAction(new EventHandler<ActionEvent>()
-			{
-			@Override
-			public void handle(ActionEvent event)
-				{
-				reloadData();
-				}
-			});
+        gotoButton.setOnAction(A->reloadData());
         top1.getChildren().add(gotoButton);
         top1.getChildren().add(new Separator(Orientation.VERTICAL));
         top1.getChildren().add(new Label("Limit:"));
@@ -308,14 +301,7 @@ public class VcfStage extends NgsStage {
 		
         top1.getChildren().add(createIgvButton());
         
-        this.gotoField.setOnAction(new EventHandler<ActionEvent>()
-			{
-			@Override
-			public void handle(ActionEvent event)
-				{
-				reloadData();
-				}
-			});
+        this.gotoField.setOnAction(A->reloadData());
 		final TabPane tabPane=new TabPane();
 		tabPane.setPadding(new Insets(10, 10, 10, 10));
 		vbox1.getChildren().add(tabPane);
@@ -417,7 +403,10 @@ public class VcfStage extends NgsStage {
 		tab.setClosable(false);
 		tabPane.getTabs().add(tab);
 		tabPane.getTabs().add(buildInfoHeaderTab(header));
-		tabPane.getTabs().add(buildFormatHeaderTab(header));
+		if(header.getNGenotypeSamples()>0)
+			{
+			tabPane.getTabs().add(buildFormatHeaderTab(header));
+			}
 		tabPane.getTabs().add(buildFilterHeaderTab(header));
         tabPane.getTabs().add(buildDictTab( header.getSequenceDictionary()));
         tabPane.getTabs().add(buildJavascriptPane());
