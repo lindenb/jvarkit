@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.vcfviewgui;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
@@ -176,26 +178,58 @@ import javafx.util.Callback;
 public class JfxNgs extends Application {
     private static final Logger LOG= Logger.getLogger("JfxNgs");
     final Preferences preferences ;
-    final Compilable javascriptEngine;
+    final Optional<Compilable> javascriptCompiler;
     private static final String LAST_USED_DIR_KEY="last.used.dir";
     private final List<NgsStage> all_opened_stages=new ArrayList<>();
     
+    /** URL or file */
+    public static class InputSource
+    	{
+    	private final Object o;
+    	public InputSource(final File file) {
+    		this.o= file;
+    		}
+    	public InputSource(final URL url) {
+    		this.o= url;
+    		}
+    	public boolean isUrl() {
+    		return this.o instanceof URL;
+    		}
+    	public boolean isFile() {
+    		return this.o instanceof File;
+    		}
+    	public File asFile() {
+    		if(!isFile()) throw new IllegalStateException("Not a file:"+o);
+    		return File.class.cast(this.o);
+    		}
+    	public URL asUrl() {
+    		if(!isUrl()) throw new IllegalStateException("Not a url:"+o);
+    		return URL.class.cast(this.o);
+    		}
+    	@Override
+    	public String toString() {
+    		return this.o.toString();
+    		}
+    	}
     
     
     public JfxNgs()
 		{
 		this.preferences = Preferences.userNodeForPackage(JfxNgs.class);
-		Compilable engine;
+		Compilable engine=null;
 		try {
 			final ScriptEngineManager manager = new ScriptEngineManager();
-			engine = (Compilable)manager.getEngineByName("js");
+			if(manager!=null && (manager instanceof Compilable))
+				{
+				engine = (Compilable)manager.getEngineByName("js");
+				}
 			}
 		catch(Exception err)
 			{
 			engine=null;
 			LOG.warning("Cannot get Compilable JS engine "+err.getMessage());
 			}
-		this.javascriptEngine = engine;
+		this.javascriptCompiler = Optional.ofNullable(engine);
 		}
 
     /** obtain a new file chooser, update the preferences if needed */
@@ -349,11 +383,11 @@ public class JfxNgs extends Application {
                     		try {
 								if(BamStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
 									{
-									new BamStage(JfxNgs.this, f).show();
+									new BamStage(JfxNgs.this, new JfxNgs.InputSource(f)).show();
 									}
 								else if(VcfStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
 									{
-									new VcfStage(JfxNgs.this, f).show();
+									new VcfStage(JfxNgs.this, new JfxNgs.InputSource(f)).show();
 									}
 								else
 									{
@@ -390,15 +424,17 @@ public class JfxNgs extends Application {
 			alert.setHeaderText("Error");
 
 			final Throwable error=(Throwable) err;
+			error.printStackTrace();
+			
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
 			error.printStackTrace(pw);
 			String exceptionText = sw.toString();
 	
-			Label label = new Label("The exception stacktrace was:");
+			final Label label = new Label("The exception stacktrace was:");
 	
-			TextArea textArea = new TextArea(exceptionText);
-			textArea.setEditable(false);
+			final TextArea textArea = new TextArea(exceptionText);
+			textArea.setEditable(true);
 			textArea.setWrapText(true);
 	
 			textArea.setMaxWidth(Double.MAX_VALUE);
@@ -406,7 +442,7 @@ public class JfxNgs extends Application {
 			GridPane.setVgrow(textArea, Priority.ALWAYS);
 			GridPane.setHgrow(textArea, Priority.ALWAYS);
 	
-			GridPane expContent = new GridPane();
+			final GridPane expContent = new GridPane();
 			expContent.setMaxWidth(Double.MAX_VALUE);
 			expContent.add(label, 0, 0);
 			expContent.add(textArea, 0, 1);
@@ -458,7 +494,7 @@ public class JfxNgs extends Application {
 				}	
 			samIn.close();
 			LOG.info("OK for BAM "+file);
-			final BamStage sc= new BamStage(this,file);
+			final BamStage sc= new BamStage(this,new InputSource(file));
 	    	sc.show();
     		}
     	catch(final Exception err)
@@ -493,7 +529,7 @@ public class JfxNgs extends Application {
 	    		{
 	    		vcfIn.close();
 	    		LOG.info("OK for VCF "+file);
-	    		VcfStage sc= new VcfStage(this,file);
+	    		VcfStage sc= new VcfStage(this,new InputSource(file));
 	    		sc.show();
 	    		}
     		return ;

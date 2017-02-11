@@ -32,12 +32,12 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
-import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
@@ -48,6 +48,7 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
+import com.github.lindenb.jvarkit.tools.vcfviewgui.JfxNgs.InputSource;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
@@ -106,7 +107,7 @@ public abstract class NgsStage extends Stage {
 	/** owner Application */
     protected JfxNgs owner;
     /** src file */
-	protected final File urlOrFile;
+	protected final JfxNgs.InputSource urlOrFile;
 	/** javascript filtering */
 	protected final TextArea javascriptArea=new TextArea();
 	
@@ -128,9 +129,11 @@ public abstract class NgsStage extends Stage {
 
 	
     protected static abstract class JavascriptFilter<HEADER,DATATYPE> {
-		protected final CompiledScript compiledScript;
+		protected final Optional<CompiledScript> compiledScript;
 		protected final SimpleBindings bindings=new SimpleBindings();
-		protected JavascriptFilter(final HEADER header,CompiledScript compiledScript)
+		protected JavascriptFilter(
+				final HEADER header,
+				final Optional<CompiledScript> compiledScript)
 			{
 			this.bindings.put("header", header);
 			this.compiledScript=compiledScript;
@@ -140,10 +143,10 @@ public abstract class NgsStage extends Stage {
 		 /** called by javascript filters */
 	    protected boolean accept()
 			{
-	    	if(this.compiledScript==null) return true;
+	    	if(!this.compiledScript.isPresent()) return true;
 			final Object result;
 			try  {
-				result = this.compiledScript.eval(bindings);
+				result = this.compiledScript.get().eval(this.bindings);
 			} catch(final ScriptException err)
 			{
 				LOG.severe(err.getMessage());
@@ -179,9 +182,9 @@ public abstract class NgsStage extends Stage {
 			/** number of items scanned so far */
 			protected long nItems=0L;
 			/** file source */
-			protected final File source;
+			protected final InputSource source;
 			/** script for filtering */
-			protected final CompiledScript compiledScript;
+			protected final Optional<CompiledScript> compiledScript;
 			/** should we stop the scanning */
 			protected volatile boolean kill_flag=false;
 			/** time of last refresh */
@@ -190,20 +193,24 @@ public abstract class NgsStage extends Stage {
     		protected final ChartFactory<T> factory;
     		/**  other filters */
     		protected final Predicate<T> otherFilters;
-    		ScanThread(final ChartFactory<T> factory,final File source,CompiledScript compiledScript,Predicate<T> otherFilters)
+    		ScanThread(
+    				final ChartFactory<T> factory,
+    				final InputSource source,
+    				final Optional<CompiledScript> compiledScript,
+    				final Predicate<T> otherFilters)
 				{
 				this.source=source;
 				this.compiledScript = compiledScript;
 				this.factory=factory;
 				this.otherFilters= otherFilters;
 				}
-            /** called by javascript filters */
+            /** called by javascript filters 
             protected boolean accept(final Bindings bindings)
     			{
-            	if(compiledScript==null) return true;
+            	if(compiledScript.isPresent()) return true;
     			final Object result;
     			try  {
-    				result = this.compiledScript.eval(bindings);
+    				result = this.compiledScript.get().eval(bindings);
     			} catch(final ScriptException err)
     				{
     				return false;
@@ -223,7 +230,8 @@ public abstract class NgsStage extends Stage {
     				return false;
     				}
     			return true;
-    			}
+    			}*/
+    		
             /** called at end */
             protected void atEnd() {
             	if(kill_flag) {
@@ -278,9 +286,14 @@ public abstract class NgsStage extends Stage {
 		protected final BorderPane contentPane=new BorderPane();
 		protected final Label countItemsLabel=new Label();
 
-		protected AbstractQualityStage(final ChartFactory<T> factory,final File file,final CompiledScript compiledScript,final Predicate<T> otherFilters)
+		protected AbstractQualityStage(
+				final ChartFactory<T> factory,
+				final JfxNgs.InputSource file,
+				final Optional<CompiledScript> compiledScript,
+				final Predicate<T> otherFilters
+				)
 			{
-			this.setTitle(factory.getName()+" : "+file.getPath());
+			this.setTitle(factory.getName()+" : "+file.toString());
 			this.thread = createThread(factory,file,compiledScript,otherFilters);
 	    	this.addEventHandler(
 	    			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
@@ -302,8 +315,13 @@ public abstract class NgsStage extends Stage {
         	final Scene scene=new Scene(this.contentPane,1000,500);
         	this.setScene(scene);
 			}
-		
-		protected abstract ScanThread createThread(final ChartFactory<T> factory,final File file,final CompiledScript compiledScript,final Predicate<T> otherFilters);
+		/** create the thread that will scan the file in the background */
+		protected abstract ScanThread createThread(
+				final ChartFactory<T> factory,
+				final JfxNgs.InputSource file,
+				final Optional<CompiledScript> compiledScript,
+				final Predicate<T> otherFilters
+				);
 		@Override
     	protected void finalize() throws Throwable {
     		kill();
@@ -315,7 +333,7 @@ public abstract class NgsStage extends Stage {
     		}
     	}
 	
-    public NgsStage(final JfxNgs owner,final File urlOrFile) throws IOException
+    protected NgsStage(final JfxNgs owner,final JfxNgs.InputSource urlOrFile) throws IOException
     	{
     	this.owner= owner;
     	this.urlOrFile= urlOrFile;
@@ -324,7 +342,7 @@ public abstract class NgsStage extends Stage {
     	this.maxItemsLimitSpinner.setTooltip(new Tooltip(
     			"The whole file is NOT loaded, only a subset of data will be read."));
     	
-    	if(this.owner.javascriptEngine==null) {
+    	if(!this.owner.javascriptCompiler.isPresent()) {
     		this.javascriptArea.setEditable(false);
     		this.javascriptArea.setPromptText("Javascript engine is not available");
     	} else
@@ -397,7 +415,7 @@ public abstract class NgsStage extends Stage {
     protected List<Button> makeJavascriptButtons()
     	{
     	List<Button> buttons=new ArrayList<>();
-    	if(owner.javascriptEngine==null) return buttons;
+    	if(!owner.javascriptCompiler.isPresent()) return buttons;
     	Button button= setTooltip( new Button("Save as..."),
     			"Save the Script below in a text file"
     			);
@@ -466,10 +484,11 @@ public abstract class NgsStage extends Stage {
 				final String script=javascriptArea.getText();
 				try 
 					{
-					owner.javascriptEngine.compile(script);
+					owner.javascriptCompiler.get().compile(script);
 					final Alert alert=new Alert(AlertType.CONFIRMATION);
-					
-					alert.setContentText("OK");
+					alert.setAlertType(AlertType.CONFIRMATION);
+					alert.setTitle("OK");
+					alert.setContentText("OK. Script is compilable.");
 					alert.showAndWait();
 					}
 				catch(final Exception err)

@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -48,6 +49,8 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantDepthChartFactor
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantQualChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantTypeChartFactory;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParserFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -127,14 +130,14 @@ public class VcfStage extends NgsStage {
 		VcfJavascripFilter(
 				final String filter,
 				final VCFHeader header,
-				final CompiledScript compiledScript)
+				final Optional<CompiledScript> compiledScript)
 			{
 			super(header,compiledScript);
 			this.filter=filter;
 			}
 		@Override public VariantContext eval(final VariantContext ctx)
 			{
-			if(super.compiledScript==null) return ctx;
+			if(!super.compiledScript.isPresent()) return ctx;
 			super.bindings.put("variant", ctx);
 			boolean ok=super.accept();
 			if(!ok )
@@ -151,7 +154,10 @@ public class VcfStage extends NgsStage {
 			{
     		private class ScanVcfThread extends ScanThread
     			{
-    			ScanVcfThread(final ChartFactory<VariantContext> factory,final File source,CompiledScript compiledScript,final Predicate<VariantContext> otherFilters)
+    			ScanVcfThread(final ChartFactory<VariantContext> factory,
+    						final JfxNgs.InputSource source,
+    						final Optional<CompiledScript> compiledScript,
+    						final Predicate<VariantContext> otherFilters)
     				{
     				super(factory,source,compiledScript,otherFilters);
     				}
@@ -160,13 +166,13 @@ public class VcfStage extends NgsStage {
     			public void run() {
     				VCFFileReader vcfReader =null;
     				CloseableIterator<VariantContext> iter=null;
-    				VcfJavascripFilter javascriptFilter=null;
+    				Optional<VcfJavascripFilter> javascriptFilter=Optional.empty();
     				try 
 	    				{
-    						vcfReader = new VCFFileReader(this.source,false);
-    						if(this.compiledScript!=null )
+    						vcfReader = new VCFFileReader(this.source.asFile(),false);
+    						if(this.compiledScript.isPresent() )
     							{
-    							javascriptFilter=new VcfJavascripFilter("", vcfReader.getFileHeader(), compiledScript);
+    							javascriptFilter=Optional.of(new VcfJavascripFilter("", vcfReader.getFileHeader(), compiledScript));
     							}
     						
 	    					iter = vcfReader.iterator();
@@ -176,8 +182,8 @@ public class VcfStage extends NgsStage {
 	    						final VariantContext ctx=iter.next();
 	    						
 	    						nItems++;
-	    						if(javascriptFilter!=null &&
-	    							javascriptFilter.eval(ctx)==null) continue;
+	    						if(javascriptFilter.isPresent() &&
+	    							javascriptFilter.get().eval(ctx)==null) continue;
 	    							
 	    						if(!super.otherFilters.test(ctx)) continue;
 	    						super.factory.visit(ctx);
@@ -202,7 +208,11 @@ public class VcfStage extends NgsStage {
     			
     			}
     		
-    		VcfQualityStage(final ChartFactory<VariantContext> factory,final File file,final CompiledScript compiledScript,final Predicate<VariantContext> otherFilters)
+    		VcfQualityStage(final ChartFactory<VariantContext> factory,
+    				final JfxNgs.InputSource file,
+    				final Optional<CompiledScript> compiledScript,
+    				final Predicate<VariantContext> otherFilters
+    				)
 	    		{
     			super(factory,file,compiledScript,otherFilters);
 	    		}
@@ -210,8 +220,8 @@ public class VcfStage extends NgsStage {
 			@Override
 			protected AbstractQualityStage<VariantContext>.ScanThread createThread(
 					final ChartFactory<VariantContext> factory,
-					File file,
-					CompiledScript compiledScript,
+					JfxNgs.InputSource file,
+					Optional<CompiledScript> compiledScript,
 					final Predicate<VariantContext> otherFilters
 					) {
 				return new ScanVcfThread(factory,file, compiledScript,otherFilters);
@@ -241,24 +251,30 @@ public class VcfStage extends NgsStage {
 			return false;
 			}
 		}
+   
+    
     
 	private final TextField javascriptFILTERfield=new TextField("");
 	private final VCFFileReader vcfFileReader;
 	private final TableView<VariantContext> variantTable;
 	private final TableView<Genotype> genotypeTable;
 	private final TableView<InfoTableRow> infoTableRow;
+	/** annotation SNPEFF table ROW */
+	private final TableView<AnnPredictionParser.AnnPrediction> annTableRow;
 	private final TableView<String> filterTableRow;
 	private final BorderPane genotypeChartPane;
 	private final CheckBox cboxShowHomRef=new CheckBox("HomRef");
 	private final CheckBox cboxShowNoCall=new CheckBox("NoCall");
 	private final TextField tfFilterInfo=new TextField();
-	
-	VcfStage(final JfxNgs owner,final File path) throws IOException {
+	private final AnnPredictionParser annPredictionParser;
+	VcfStage(final JfxNgs owner,final JfxNgs.InputSource path) throws IOException {
 		super(owner,path);
-		this.vcfFileReader = new VCFFileReader(path,true);
+		this.vcfFileReader = new VCFFileReader(path.asFile(),true);
 		final VCFHeader header=this.vcfFileReader.getFileHeader();
 		
-        
+        this.annPredictionParser=new PredictionParserFactory().
+        			header(header).
+        			buildAnnPredictionParser();
       
         
         //selectFlagMenu.getItems().addAll(flag2filterOutMenuItem.values());
@@ -333,10 +349,14 @@ public class VcfStage extends NgsStage {
 		this.cboxShowHomRef.setOnAction(repaintGTTable);
 		this.cboxShowNoCall.setOnAction(repaintGTTable);
 
-		BorderPane pane2=new BorderPane(this.genotypeTable);
-		pane2.setTop(flow3);
-		//GridPane.setConstraints(pane2,5, 0,5,14); 
-		split1.getItems().add(pane2);
+		
+		if(header.getNGenotypeSamples()>0)
+			{
+			final BorderPane pane2=new BorderPane(this.genotypeTable);
+			pane2.setTop(flow3);
+			//GridPane.setConstraints(pane2,5, 0,5,14); 
+			split1.getItems().add(pane2);
+			}
 		
 		final SplitPane split2=new SplitPane();
 		split2.setOrientation(Orientation.HORIZONTAL);
@@ -350,14 +370,17 @@ public class VcfStage extends NgsStage {
 		
 		
 		this.genotypeChartPane = new BorderPane(this.makeGenotypePie(null));
-		this.genotypeChartPane.setPadding(new Insets(5));
-		//GridPane.setConstraints( this.genotypeChartPane,0, 12,3,4);
-    	//gridPane.getChildren().add(this.genotypeChartPane);
-		split2.getItems().add(this.genotypeChartPane);
-		
+		if(header.getNGenotypeSamples()>0)
+			{
+			this.genotypeChartPane.setPadding(new Insets(5));
+			//GridPane.setConstraints( this.genotypeChartPane,0, 12,3,4);
+	    	//gridPane.getChildren().add(this.genotypeChartPane);
+			split2.getItems().add(this.genotypeChartPane);
+			}
 		
 		/* build info Table table */
 		this.infoTableRow = this.buildInfoTableRow();
+		this.annTableRow = this.buildAnnTableRow();
 		flow3 = new FlowPane(new Label("Filter:"),tfFilterInfo);
 		tfFilterInfo.setPrefColumnCount(10);
 		tfFilterInfo.setOnAction(new EventHandler<ActionEvent>() {
@@ -366,10 +389,20 @@ public class VcfStage extends NgsStage {
 				reloadInfoTable(variantTable.getSelectionModel().getSelectedItem());
 			}
 		});
-		pane2=new BorderPane(this.infoTableRow);
+		final TabPane tabPane2=new TabPane();
+		Tab tab=new Tab("INFO",this.infoTableRow);
+		tab.setClosable(false);
+		tabPane2.getTabs().add(tab);
+		tab=new Tab("ANN",this.annTableRow);
+		tab.setClosable(false);
+		tabPane2.getTabs().add(tab);
+		
+		BorderPane pane2=new BorderPane(tabPane2);
 		pane2.setTop(flow3);
 		//GridPane.setConstraints( this.infoTableRow,3, 10,8,5); // column=3 row=1
 		//gridPane.getChildren().add(this.infoTableRow);
+		
+		
 		split2.getItems().add(pane2);
 				
        
@@ -380,7 +413,7 @@ public class VcfStage extends NgsStage {
 		split3.setOrientation(Orientation.VERTICAL);
 		split3.getItems().addAll(split1,split2);
 
-		final Tab tab=new Tab("Variants", split3);
+		tab=new Tab("Variants", split3);
 		tab.setClosable(false);
 		tabPane.getTabs().add(tab);
 		tabPane.getTabs().add(buildInfoHeaderTab(header));
@@ -475,15 +508,16 @@ public class VcfStage extends NgsStage {
 		
     	
     	VcfJavascripFilter javascriptFilter=null;
-    	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
+    	if(	this.owner.javascriptCompiler.isPresent() &&
+    		!this.javascriptArea.getText().trim().isEmpty())
     		{
     		try
     			{
-    			CompiledScript  compiledScript =this.owner.javascriptEngine.compile(this.javascriptArea.getText());
     			javascriptFilter=new VcfJavascripFilter(
     				this.javascriptFILTERfield.getText().trim(),
     				this.vcfFileReader.getFileHeader(),
-    				compiledScript);
+    				Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()))
+    				);
     			
     			}
     		catch(final Exception err)
@@ -539,7 +573,7 @@ public class VcfStage extends NgsStage {
 		scroll.setFitToWidth(true);
 		scroll.setFitToHeight(true);
 		final BorderPane pane=new BorderPane(scroll);
-		if(this.owner.javascriptEngine!=null) {
+		if(this.owner.javascriptCompiler.isPresent()) {
     		final HBox flowPane = new HBox(
     				new Label("set following FILTER on rejection:"),
     				javascriptFILTERfield
@@ -608,13 +642,36 @@ public class VcfStage extends NgsStage {
 	/** build INFO table */
 	private TableView<InfoTableRow> buildInfoTableRow()
 		{
-		final TableView<InfoTableRow> table=new TableView<InfoTableRow>();
+		final TableView<InfoTableRow> table=new TableView<>();
 		table.getColumns().add(makeColumn("Key", R->R.key));
 		table.getColumns().add(makeColumn("Index", R->R.index));
-		table.getColumns().add(makeColumn("Value", R->R.value));
+		
+		final TableColumn<InfoTableRow, Object> t=makeColumn("Value", R->R.value);
+		t.setPrefWidth(300.0);
+		table.getColumns().add(t);
+		
 		return table;
 		}
-      
+     
+	private TableView<AnnPredictionParser.AnnPrediction> buildAnnTableRow()
+		{
+		final TableView<AnnPredictionParser.AnnPrediction> table=new TableView<>();
+		table.getColumns().add(makeColumn("SO", P->P.getSOTermsString()));
+		table.getColumns().add(makeColumn("Allele", P->P.getAllele()));
+		table.getColumns().add(makeColumn("Impact", P->P.getPutativeImpact()));
+		table.getColumns().add(makeColumn("GeneId", P->P.getGeneId()));
+		table.getColumns().add(makeColumn("Feature", P->P.getFeatureType()));
+		table.getColumns().add(makeColumn("Biotype", P->P.getTranscriptBioType()));
+		table.getColumns().add(makeColumn("HGVsc", P->P.getHGVSc()));
+		table.getColumns().add(makeColumn("Rank", P->P.getRank()));
+		table.getColumns().add(makeColumn("cDNA-pos", P->P.getCDNAPos()));
+		table.getColumns().add(makeColumn("CDS-pos", P->P.getCDSPos()));
+		table.getColumns().add(makeColumn("AA-pos", P->P.getAAPos()));
+		table.getColumns().add(makeColumn("Distance", P->P.getDistance()));
+		table.getColumns().add(makeColumn("Msg", P->P.getMessages()));
+		return table;
+		}
+	
 	/** build Genotype table */
 	private TableView<Genotype> buildGenotypeTableRow(final VCFHeader header)
 		{
@@ -658,8 +715,6 @@ public class VcfStage extends NgsStage {
     	reloadInfoTable(ctx);
     	if(ctx!=null)
     		{
-    		
-    		
     		this.filterTableRow.getItems().setAll(
     				ctx.getFilters()
     				);
@@ -669,7 +724,9 @@ public class VcfStage extends NgsStage {
     		{
         	this.filterTableRow.getItems().clear();
     		}
-    	this.genotypeChartPane.setCenter(this.makeGenotypePie(ctx));
+    	if(ctx.getNSamples()>0) {
+    		this.genotypeChartPane.setCenter(this.makeGenotypePie(ctx));
+    		}
     	}
 	
     private PieChart makeGenotypePie(final VariantContext ctx) {
@@ -762,16 +819,15 @@ public class VcfStage extends NgsStage {
     			}
     		}
     	VcfJavascripFilter javascripFilter=null;
-    	if(this.owner.javascriptEngine!=null &&
+    	if(this.owner.javascriptCompiler.isPresent() &&
     		!this.javascriptArea.getText().trim().isEmpty())
     		{
     		try
     			{
-    			CompiledScript compiledScript = this.owner.javascriptEngine.compile(this.javascriptArea.getText());
     			javascripFilter = new VcfJavascripFilter(
     					this.javascriptFILTERfield.getText().trim(),
     					vcfFileReader.getFileHeader(),
-    					compiledScript
+    					Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()))
     					);
     			}
     		catch(final Exception err)
@@ -802,6 +858,7 @@ public class VcfStage extends NgsStage {
 		if(ctx==null)
 			{
 			this.infoTableRow.getItems().clear();
+			this.annTableRow.getItems().clear();
 			}
 		else
 			{
@@ -843,18 +900,21 @@ public class VcfStage extends NgsStage {
 					final InfoTableRow itr=new InfoTableRow(key,(L.size()==1?null:x+1),L.get(x));
 					if(regex!=null && !itr.accept(regex)) {
 						continue;
-					}
+						}
 					infos.add(itr);
+					
+					
 					}
 				}
 			this.infoTableRow.getItems().setAll(infos);
+			this.annTableRow.getItems().setAll(this.annPredictionParser.getPredictions(ctx));
 			}
 		
 		}
 
 	private void refreshGenotypeTable(final VariantContext ctx)
 		{
-		if(ctx==null)
+		if(ctx==null || ctx.getNSamples()==0)
 			{
         	this.genotypeTable.getItems().clear();
 			}
@@ -871,15 +931,15 @@ public class VcfStage extends NgsStage {
 
 	@Override
 	protected void doMenuShowWholeStats(final ChartFactory<?> factory) {
-			CompiledScript compiledScript=null;
-        	if( VcfStage.this.owner.javascriptEngine!=null &&
+			Optional<CompiledScript> compiledScript=Optional.empty();
+        	if( VcfStage.this.owner.javascriptCompiler.isPresent() &&
         		!VcfStage.this.javascriptArea.getText().trim().isEmpty())
         		{
         		try
         			{
-        			compiledScript = VcfStage.this.owner.javascriptEngine.compile(VcfStage.this.javascriptArea.getText());
+        			compiledScript = Optional.of(VcfStage.this.owner.javascriptCompiler.get().compile(VcfStage.this.javascriptArea.getText()));
         			}
-        		catch(Exception err)
+        		catch(final Exception err)
         			{
         			LOG.warning(err.getMessage());
         			updateStatusBar(AlertType.ERROR, err);
@@ -888,15 +948,15 @@ public class VcfStage extends NgsStage {
         		}
         	final VcfQualityStage qcstage=new VcfQualityStage(
         			(VariantContextChartFactory)factory,
-        			File.class.cast(super.urlOrFile),
+        			super.urlOrFile,
         			compiledScript,
         			V->true
         			);
 			qcstage.show();
-		}
+			}
 
     @Override
-    protected String getSnippetResourcePath() {
+    protected final String getSnippetResourcePath() {
     	return "/com/github/lindenb/jvarkit/tools/vcfviewgui/vcf.snippets.xml";
     	}
 	

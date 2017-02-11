@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -131,7 +132,10 @@ public class BamStage extends NgsStage {
     private static class BamJavascripFilter
     	extends JavascriptFilter<SAMFileHeader,SAMRecord>
 		{
-		protected BamJavascripFilter(final SAMFileHeader header,CompiledScript compiledScript)
+		protected BamJavascripFilter(
+				final SAMFileHeader header,
+				final Optional<CompiledScript> compiledScript
+				)
 			{
 			super(header,compiledScript);
 			}
@@ -152,8 +156,8 @@ public class BamStage extends NgsStage {
     			private final Predicate<SAMRecord> flagFilters;
         		ScanQualThread(
         				final ChartFactory<SAMRecord> factory,
-        				final File source,
-        				CompiledScript compiledScript,
+        				final JfxNgs.InputSource source,
+        				final Optional<CompiledScript> compiledScript,
         				final Predicate<SAMRecord> flagFilters
         				)
     				{
@@ -168,8 +172,12 @@ public class BamStage extends NgsStage {
     				try 
     					{
 	    				BamJavascripFilter bamJavascripFilter=null;
-	    				final SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-    					samReader = srf.open(this.source);
+	    				final SamReaderFactory srf=SamReaderFactory.makeDefault().
+	    						validationStringency(ValidationStringency.SILENT);
+    					samReader = this.source.isFile()?
+    							srf.open(this.source.asFile()):
+    							srf.open(SamInputResource.of(this.source.asUrl()))
+    							;
     					samIter = samReader.iterator();
     					
     					if(this.compiledScript!=null)
@@ -210,9 +218,9 @@ public class BamStage extends NgsStage {
     			}
     		
 	    	ReadQualityStage(
-	    			ChartFactory<SAMRecord> factory,
-	    			final File file,
-	    			final CompiledScript compiledScript,
+	    			final ChartFactory<SAMRecord> factory,
+	    			final JfxNgs.InputSource file,
+	    			final Optional<CompiledScript> compiledScript,
 	    			final Predicate<SAMRecord> filters)
 	    		{
 	    		super(factory,file,compiledScript,filters);
@@ -220,9 +228,9 @@ public class BamStage extends NgsStage {
 	    	
 			@Override
 			protected AbstractQualityStage<SAMRecord>.ScanThread createThread(
-					ChartFactory<SAMRecord> factory,
-					File file,
-					CompiledScript compiledScript,
+					final ChartFactory<SAMRecord> factory,
+					JfxNgs.InputSource file,
+					final Optional<CompiledScript> compiledScript,
 					final Predicate<SAMRecord> filters
 					) {
 				return new ScanQualThread(factory,file,compiledScript,filters);
@@ -319,7 +327,7 @@ public class BamStage extends NgsStage {
     private final ScrollBar canvasScrollV = new ScrollBar();
     private final CheckBox canvasShowReadName = new CheckBox("Show Read Name");
     
-    BamStage(final JfxNgs owner,final File urlOrFile) throws IOException
+    BamStage(final JfxNgs owner,final JfxNgs.InputSource urlOrFile) throws IOException
     	{
     	super(owner,urlOrFile);
         final SamReaderFactory srf= SamReaderFactory.makeDefault();
@@ -329,13 +337,13 @@ public class BamStage extends NgsStage {
         		);
         LOG.info("Opening "+urlOrFile);
         
-        if(urlOrFile instanceof File)
+        if(urlOrFile.isFile())
         	{
-        	 this.samReader=srf.open(File.class.cast(urlOrFile));
+        	 this.samReader=srf.open(urlOrFile.asFile());
         	}
         else
         	{
-        	 this.samReader=srf.open(SamInputResource.of(urlOrFile.toString()));
+        	 this.samReader=srf.open(SamInputResource.of(urlOrFile.asUrl()));
         	}
        
         if(!this.samReader.hasIndex())
@@ -1053,13 +1061,16 @@ public class BamStage extends NgsStage {
     			iter=samReader.queryOverlapping(interval.getContig(),interval.getStart(), interval.getEnd());
     			}
     		}
-    	BamJavascripFilter bamjsfilter=null;
-    	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
+    	Optional<BamJavascripFilter> bamjsfilter=Optional.empty();
+    	if(this.owner.javascriptCompiler.isPresent() &&
+    			!this.javascriptArea.getText().trim().isEmpty())
     		{
     		try
     			{
-    			final CompiledScript compiledScript = this.owner.javascriptEngine.compile(this.javascriptArea.getText());
-    			bamjsfilter=new BamJavascripFilter(this.samReader.getFileHeader(), compiledScript);
+    			bamjsfilter=Optional.of(new BamJavascripFilter(
+    					this.samReader.getFileHeader(),
+    					Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()))
+    					));
     			}
     		catch(Exception err)
     			{
@@ -1083,9 +1094,9 @@ public class BamStage extends NgsStage {
     		{
     		final SAMRecord rec = iter.next();
     		++count_items;
-    		if(bamjsfilter!=null)
+    		if(bamjsfilter.isPresent())
     			{
-    			if(bamjsfilter.eval(rec)==null) continue;
+    			if(bamjsfilter.get().eval(rec)==null) continue;
     			}    		
     		if(!recFilter.test(rec)) continue;
     		L.add(rec);
@@ -1217,12 +1228,13 @@ public class BamStage extends NgsStage {
 
 	@Override
 	protected void doMenuShowWholeStats(final ChartFactory<?> factory) {
-    	CompiledScript compiledScript=null;
-    	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
+    	Optional<CompiledScript> compiledScript=Optional.empty();
+    	if(this.owner.javascriptCompiler.isPresent() &&
+    		!this.javascriptArea.getText().trim().isEmpty())
     		{
     		try
     			{
-    			compiledScript =this.owner.javascriptEngine.compile(this.javascriptArea.getText());
+    			compiledScript =Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()));
     			}
     		catch(final Exception err)
     			{
@@ -1234,7 +1246,7 @@ public class BamStage extends NgsStage {
     	@SuppressWarnings("unchecked")
 		final ReadQualityStage qcstage=new ReadQualityStage(
     			(ChartFactory<SAMRecord>)factory,
-    			File.class.cast(super.urlOrFile),
+    			super.urlOrFile,
     			compiledScript,
     			makeFlagPredicate()
     			);
@@ -1256,18 +1268,21 @@ public class BamStage extends NgsStage {
 			return;
 			}
 		
-    	BamJavascripFilter bamjsfilter=null;
-    	if(this.owner.javascriptEngine!=null && !this.javascriptArea.getText().trim().isEmpty())
+    	Optional<BamJavascripFilter> bamjsfilter=Optional.empty();
+    	if(this.owner.javascriptCompiler.isPresent() && 
+    			!this.javascriptArea.getText().trim().isEmpty())
     		{
     		try
     			{
-    			final CompiledScript compiledScript =this.owner.javascriptEngine.compile(this.javascriptArea.getText());
-    			bamjsfilter=new BamJavascripFilter(this.samReader.getFileHeader(),compiledScript);
+    			bamjsfilter=Optional.of(
+    					new BamJavascripFilter(this.samReader.getFileHeader(),
+    							Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()))
+    							));
     			}
     		catch(final Exception err)
     			{
     			JfxNgs.showExceptionDialog(this, err);
-    			bamjsfilter=null;
+    			bamjsfilter=Optional.empty();
     			return;
     			}
     		}
@@ -1286,9 +1301,9 @@ public class BamStage extends NgsStage {
 				{
 				final SAMRecord rec=iter.next();
 				if(!filter.test(rec)) continue;
-				if(bamjsfilter!=null)
+				if(bamjsfilter.isPresent())
         			{
-        			if(bamjsfilter.eval(rec)==null) continue;
+        			if(bamjsfilter.get().eval(rec)==null) continue;
         			}
 				
 				w.addAlignment(rec);
