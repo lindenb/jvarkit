@@ -56,12 +56,15 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder.OutputType;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
@@ -121,7 +124,55 @@ public class VcfStage extends NgsStage {
 		()->new TiTvChartFactory(),
 		()->new VariantDepthChartFactory()
 		);
-    
+ 
+    /** Misc VCF tools that will be injected in the nashorn context */
+    public static class VcfTools
+    	{
+    	private final AnnPredictionParser annParser;
+    	VcfTools(final VCFHeader header) {
+    		this.annParser  = new PredictionParserFactory().header(header).buildAnnPredictionParser();
+    	}
+    	
+    	public List<AnnPredictionParser.AnnPrediction> getAnnPredictions(final VariantContext ctx) {
+    		return this.annParser.getPredictions(ctx);
+    		}
+    	
+    	public boolean isMendelianIncompatibility(final Genotype child,final Genotype parent)
+    		{
+    		if(child==null || parent==null) return false;
+    		if(child.isNoCall() || parent.isNoCall()) return false;
+    		if(child.getPloidy()!=2 || parent.getPloidy()!=2) return false;
+    		for(final Allele childAllele:child.getAlleles())
+    			{
+    			if(parent.getAlleles().contains(childAllele)) return false;
+    			}
+    		
+    		return true;
+    		}
+    	public boolean isMendelianIncompatibility(final Genotype child,final Genotype father,final Genotype mother)
+			{
+			if(child==null || child.isNoCall()) return false;
+			if(father==null || father.isNoCall()) {
+				return this.isMendelianIncompatibility(child,mother);
+				}
+			if(mother==null || mother.isNoCall()) {
+				return this.isMendelianIncompatibility(child,father);
+				}
+			final Allele alleles[]=new Allele[2];
+			for(final Allele af:father.getAlleles())
+			{
+				alleles[0]=af;
+				for(final Allele am:mother.getAlleles())
+				{
+					alleles[1]=am;
+					final Genotype sim = new GenotypeBuilder(child.getSampleName()).alleles(Arrays.asList(alleles)).make();
+					if(sim.sameGenotype(sim, true)) return false;
+				}	
+			}
+			
+			return true;
+			}
+    	}
     
     private static class VcfJavascripFilter
 	extends JavascriptFilter<VCFHeader,VariantContext>
@@ -133,6 +184,7 @@ public class VcfStage extends NgsStage {
 				final Optional<CompiledScript> compiledScript)
 			{
 			super(header,compiledScript);
+			super.bindings.put("tools", new VcfTools(header));
 			this.filter=filter;
 			}
 		@Override public VariantContext eval(final VariantContext ctx)
@@ -192,6 +244,11 @@ public class VcfStage extends NgsStage {
 	    					iter.close();
 	    					vcfReader.close();
 	    				
+	    					
+	    					if(javascriptFilter.isPresent() && javascriptFilter.get().encounteredException.isPresent())
+	    						{
+	    						this.encounteredException=javascriptFilter.get().encounteredException;
+	    						}
 	    					atEnd();
 	    				
 	    				}
@@ -369,12 +426,7 @@ public class VcfStage extends NgsStage {
 		this.annTableRow = this.buildAnnTableRow();
 		flow3 = new FlowPane(new Label("Filter:"),tfFilterInfo);
 		tfFilterInfo.setPrefColumnCount(10);
-		tfFilterInfo.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				reloadInfoTable(variantTable.getSelectionModel().getSelectedItem());
-			}
-		});
+		tfFilterInfo.setOnAction(AE->reloadInfoTable(variantTable.getSelectionModel().getSelectedItem()));
 		final TabPane tabPane2=new TabPane();
 		Tab tab=new Tab("INFO",this.infoTableRow);
 		tab.setClosable(false);
@@ -522,6 +574,7 @@ public class VcfStage extends NgsStage {
 		try
 			{
 			final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+			vcwb.setOutputFileType(OutputType.BLOCK_COMPRESSED_VCF);
 			vcwb.setOutputFile(saveAs);
 			w= vcwb.build();
 			final VCFHeader header2= new VCFHeader(this.vcfFileReader.getFileHeader());
@@ -545,7 +598,7 @@ public class VcfStage extends NgsStage {
 				}
 			w.close();
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			JfxNgs.showExceptionDialog(this, err);
 			return;

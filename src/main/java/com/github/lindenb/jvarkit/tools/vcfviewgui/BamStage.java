@@ -83,6 +83,7 @@ import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -157,6 +158,15 @@ public class BamStage extends NgsStage {
     		()->new CigarOpPerPositionChartFactory()
     		);
     
+    /** Misc BAM tools that will be injected in the nashorn context */
+    public static class BamTools
+    	{
+    	public String reverseComplement(final String sequenceData)
+    		{
+    		return SequenceUtil.reverseComplement(sequenceData);
+    		}
+    	
+    	}
     
     private static class BamJavascripFilter
     	extends JavascriptFilter<SAMFileHeader,SAMRecord>
@@ -167,6 +177,7 @@ public class BamStage extends NgsStage {
 				)
 			{
 			super(header,compiledScript);
+			super.bindings.put("tools",new BamTools());
 			}
 		@Override public SAMRecord eval(final SAMRecord rec)
 			{
@@ -230,7 +241,12 @@ public class BamStage extends NgsStage {
     						}
     					samIter.close();
     					samReader.close();
-    					super.atEnd();	    				
+    					
+    					if(bamJavascripFilter!=null && bamJavascripFilter.encounteredException.isPresent())
+    						{
+    						this.encounteredException=bamJavascripFilter.encounteredException;
+    						}
+    					super.atEnd();
 	    				}
     				catch(final Throwable err)
     					{
@@ -356,7 +372,10 @@ public class BamStage extends NgsStage {
     private final ScrollBar canvasScrollV = new ScrollBar();
     private final CheckBox canvasShowReadName = new CheckBox("Show Read Name");
     
-    BamStage(final JfxNgs owner,final JfxNgs.InputSource urlOrFile) throws IOException
+    BamStage(final JfxNgs owner,
+    		final JfxNgs.InputSource urlOrFile,
+    		final Optional<File> bamFileIndex
+    		) throws IOException
     	{
     	super(owner,urlOrFile);
         final SamReaderFactory srf= SamReaderFactory.makeDefault();
@@ -366,15 +385,23 @@ public class BamStage extends NgsStage {
         		);
         LOG.info("Opening "+urlOrFile);
         
+        final SamInputResource sir;
         if(urlOrFile.isFile())
         	{
-        	 this.samReader=srf.open(urlOrFile.asFile());
+        	sir= SamInputResource.of(urlOrFile.asFile());
         	}
         else
         	{
-        	 this.samReader=srf.open(SamInputResource.of(urlOrFile.asUrl()));
+        	 sir=SamInputResource.of(urlOrFile.asUrl());
         	}
        
+        if(bamFileIndex.isPresent())
+        	{
+        	sir.index(bamFileIndex.get());
+        	}
+        
+        this.samReader=srf.open(sir);
+        
         if(!this.samReader.hasIndex())
         	{
         	this.samReader.close();
@@ -434,14 +461,7 @@ public class BamStage extends NgsStage {
         CheckMenuItem tmp[]=new CheckMenuItem[menuFlags.size()];
         menuFlags.toArray(tmp);
         top1.getChildren().add(new MenuBar(new Menu("Flags",null,tmp)));
-        super.gotoField.setOnAction(new EventHandler<ActionEvent>()
-			{
-			@Override
-			public void handle(ActionEvent event)
-				{
-				reloadData();
-				}
-			});
+        super.gotoField.setOnAction(AE->reloadData());
       
         top1.getChildren().add(createIgvButton());
        
@@ -668,6 +688,7 @@ public class BamStage extends NgsStage {
     			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
                     @Override
                     public void handle(final WindowEvent event) {
+                    if(bamFileIndex.isPresent()) bamFileIndex.get().delete();
                     owner.preferences.putInt(SPINNER_VALUE_KEY,maxItemsLimitSpinner.getValue().intValue());
                     }
                 });
@@ -1363,6 +1384,7 @@ public class BamStage extends NgsStage {
 				w.addAlignment(rec);
 				}
 			w.close();
+			iter.close();
 			}
 		catch(Exception err)
 			{
@@ -1371,6 +1393,7 @@ public class BamStage extends NgsStage {
 			}
 		finally
 			{
+			CloserUtil.close(iter);
 			CloserUtil.close(w);
 			}    		
 		}

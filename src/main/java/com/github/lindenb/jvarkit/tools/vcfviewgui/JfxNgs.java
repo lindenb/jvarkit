@@ -25,6 +25,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URL;
@@ -82,6 +85,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
+import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
@@ -400,7 +404,7 @@ public class JfxNgs extends Application {
                         		
 								if(BamStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
 									{
-									new BamStage(JfxNgs.this, new JfxNgs.InputSource(f)).show();
+									new BamStage(JfxNgs.this, new JfxNgs.InputSource(f),Optional.empty()).show();
 									}
 								else if(VcfStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
 									{
@@ -498,7 +502,6 @@ public class JfxNgs extends Application {
     	SamReader samIn=null;
     	try 
     		{
-
 			final SamReaderFactory srf = SamReaderFactory.makeDefault();
 			srf.validationStringency(ValidationStringency.LENIENT);
 			samIn = srf.open(file);
@@ -519,7 +522,7 @@ public class JfxNgs extends Application {
 				}	
 			samIn.close();
 			LOG.info("OK for BAM "+file);
-			final BamStage sc= new BamStage(this,new InputSource(file));
+			final BamStage sc= new BamStage(this,new InputSource(file),Optional.empty());
 	    	sc.show();
     		}
     	catch(final Exception err)
@@ -532,8 +535,44 @@ public class JfxNgs extends Application {
     		}
     	}
 
+    private File tryDownloadIndex(final String url)
+    	throws IOException
+    	{
+    	if(!url.endsWith(BamFileIoUtils.BAM_FILE_EXTENSION)) throw new IllegalStateException("bam suffix not checked");
+    	final File baiFile=File.createTempFile("tmp.", ".bai");
+    	baiFile.deleteOnExit();
+    	for(int i=0;i< 2;++i)
+    		{
+    		final String baiurl=(i==0?
+    				url:url.substring(0, url.length()-BamFileIoUtils.BAM_FILE_EXTENSION.length())
+    				)+".bai";
+    		InputStream in=null;
+    		FileOutputStream out=null;
+    		try {
+    			LOG.info("trying "+baiurl);
+				in = new URL(baiurl).openStream();
+				out = new FileOutputStream(baiFile);
+				IOUtil.copyStream(in, out);
+				out.flush();
+				out.close();
+				in.close();
+				return baiFile;
+			} catch (final IOException err) {
+				baiFile.delete();
+				LOG.warning("Cannot fetch "+baiurl+" : "+err.getMessage());
+				}
+    		finally
+    			{
+    			CloserUtil.close(out);
+    			CloserUtil.close(in);
+    			}
+    		}
+    	throw new IOException("cannot get bam index for "+url);
+    	}
+    
     private void _openBamAnySource(final Window owner,final InputSource source){
     	SamReader samIn=null;
+    	Optional<File> bamIndex=Optional.empty();
     	try 
     		{
 			final SamReaderFactory srf = SamReaderFactory.makeDefault();
@@ -544,8 +583,15 @@ public class JfxNgs extends Application {
 				}
 			else
 				{
+				
+				bamIndex= Optional.of(tryDownloadIndex(source.asUrl().toString()));
+				if(!bamIndex.isPresent())
+					{
+					showExceptionDialog(owner,"Cannot fetch index for "+source);
+					return;
+					}
 				final SamInputResource sir= SamInputResource.of(source.asUrl());
-				sir.index(new URL("http://localhost/~lindenb/remotebam/NA18516.chrom14.ILLUMINA.bwa.YRI.exon_targetted.20100311.bai"));
+				sir.index(bamIndex.get());
 				samIn = srf.open(sir);
 				}
 			if(!samIn.hasIndex())
@@ -565,7 +611,7 @@ public class JfxNgs extends Application {
 				}	
 			samIn.close();
 			LOG.info("OK for BAM "+source);
-			final BamStage sc= new BamStage(this,source);
+			final BamStage sc= new BamStage(this,source,bamIndex);
 	    	sc.show();
     		}
     	catch(final Exception err)

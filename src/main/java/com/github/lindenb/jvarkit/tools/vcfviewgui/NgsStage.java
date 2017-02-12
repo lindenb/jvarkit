@@ -131,6 +131,7 @@ public abstract class NgsStage extends Stage {
     protected static abstract class JavascriptFilter<HEADER,DATATYPE> {
 		protected final Optional<CompiledScript> compiledScript;
 		protected final SimpleBindings bindings=new SimpleBindings();
+		Optional<Throwable> encounteredException=Optional.empty();
 		protected JavascriptFilter(
 				final HEADER header,
 				final Optional<CompiledScript> compiledScript)
@@ -149,8 +150,12 @@ public abstract class NgsStage extends Stage {
 				result = this.compiledScript.get().eval(this.bindings);
 			} catch(final ScriptException err)
 			{
-				LOG.severe(err.getMessage());
-				err.printStackTrace();
+				if(!this.encounteredException.isPresent())
+					{
+					LOG.severe(err.getMessage());
+					err.printStackTrace();
+					this.encounteredException = Optional.of(err);
+					}
 				return false;
 			}
 			
@@ -165,7 +170,12 @@ public abstract class NgsStage extends Stage {
 				}
 			else
 				{
-				LOG.warning("Script returned something that is not a boolean or a number:"+result.getClass());
+				if(!this.encounteredException.isPresent())
+					{
+					final String err="Script returned something that is not a boolean or a number:"+result.getClass();
+					LOG.warning(err);
+					this.encounteredException = Optional.of(new ScriptException(err));
+					}
 				return false;
 				}
 			return true;
@@ -193,6 +203,9 @@ public abstract class NgsStage extends Stage {
     		protected final ChartFactory<T> factory;
     		/**  other filters */
     		protected final Predicate<T> otherFilters;
+    		/** last seen exception */
+    		protected Optional<Throwable> encounteredException=Optional.empty();
+
     		ScanThread(
     				final ChartFactory<T> factory,
     				final InputSource source,
@@ -204,33 +217,7 @@ public abstract class NgsStage extends Stage {
 				this.factory=factory;
 				this.otherFilters= otherFilters;
 				}
-            /** called by javascript filters 
-            protected boolean accept(final Bindings bindings)
-    			{
-            	if(compiledScript.isPresent()) return true;
-    			final Object result;
-    			try  {
-    				result = this.compiledScript.get().eval(bindings);
-    			} catch(final ScriptException err)
-    				{
-    				return false;
-    				}
-    			
-    			if(result==null) return false;;
-    			if(result instanceof Boolean)
-    				{
-    				if(Boolean.FALSE.equals(result)) return false;
-    				}
-    			else if(result instanceof Number)
-    				{
-    				if(((Number)result).intValue()!=1) return false;
-    				}
-    			else
-    				{
-    				return false;
-    				}
-    			return true;
-    			}*/
+            
     		
             /** called at end */
             protected void atEnd() {
@@ -246,6 +233,10 @@ public abstract class NgsStage extends Stage {
         				public void run() {
         					 AbstractQualityStage.this.countItemsLabel.setText(
         						"Done... Number of items: "+nItems+ (kill_flag?" [KILLED]":""));
+        					 if(encounteredException.isPresent())
+        					 	{
+        						JfxNgs.showExceptionDialog(NgsStage.this, encounteredException.get());
+        					 	}
         				 }
         			 	});
     				}
