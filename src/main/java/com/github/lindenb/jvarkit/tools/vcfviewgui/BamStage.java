@@ -61,6 +61,7 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.SamFlagsChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantContextChartFactory;
 import com.github.lindenb.jvarkit.util.Hershey;
 
+import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
@@ -73,6 +74,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMTextHeaderCodec;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -697,20 +699,61 @@ public class BamStage extends NgsStage {
     	}
 
     private TableView<SAMRecord> makeRecordTable() {
+    	final Font font1=new Font("Courier", 9);
+
     	final TableView<SAMRecord>  table = new TableView<SAMRecord>();
     	table.getColumns().add(makeColumn("Read-Name",REC->REC.getReadName()));
     	table.getColumns().add(makeColumn("Flag",REC->REC.getFlags()));
     	table.getColumns().add(makeColumn("Ref",REC->REC.getReferenceName()));
-    	table.getColumns().add(makeColumn("Read-Pos",REC->REC.getAlignmentStart()));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("Read-Pos",REC->REC.getAlignmentStart())));
     	table.getColumns().add(makeColumn("MAPQ",REC->REC.getMappingQuality()));
-    	table.getColumns().add(makeColumn("CIGAR",REC->REC.getCigarString()));
-    	table.getColumns().add(makeColumn("LEN",REC->REC.getInferredInsertSize()));
+    	
+    	TableColumn<SAMRecord, Cigar> tc0 = makeColumn("CIGAR",REC->REC.getCigar());
+    	
+    	tc0.setCellFactory(tv -> new TableCell<SAMRecord, Cigar>() { 
+    		final TextFlow textFlow = new TextFlow();
+    		
+    	    @Override
+    	    protected void updateItem(final Cigar cigar, boolean empty) {
+    	        super.updateItem(cigar, empty);
+    	        setText(null);
+    	        if(cigar==null || cigar.isEmpty())
+    	        	{
+    	        	//setText(null);
+    	            setGraphic(null);
+    	        	return;
+    	        	}
+    	        final List<Text> L=new ArrayList<>(cigar.numCigarElements());
+    	        for(final CigarElement ce: cigar.getCigarElements()) {
+    	        	final Text txt=new Text(String.valueOf(ce.getLength())+(char)CigarOperator.enumToCharacter(ce.getOperator()));
+    	        	txt.setFont(font1);
+    	        	switch(ce.getOperator())
+    	        		{
+    	        		case H:case S: txt.setStroke(Color.ORANGE);break;
+    	        		case X:case N: case D: case I: txt.setStroke(Color.RED);break;
+    	        		case M: txt.setStroke(Color.BLUE);break;
+    	        		case EQ: txt.setStroke(Color.GREEN);break;
+    	        		case P: txt.setStroke(Color.GRAY);break;
+    	        		default: txt.setStroke(Color.BLACK);break;
+    	        		}
+    	        	L.add(txt);
+    	        	}
+    	        this.textFlow.setLineSpacing(0.1);
+    	        this.textFlow.setMaxHeight(10);
+    	        this.textFlow.setPrefHeight(10);
+    	        this.textFlow.getChildren().setAll(L);
+    	        this.setGraphic(textFlow);
+    	    }
+    	});
+    	
+    	table.getColumns().add(tc0);
+    	
+    	table.getColumns().add(formatIntegerColumn(makeColumn("LEN",REC->REC.getInferredInsertSize())));
     	table.getColumns().add(makeColumn("Mate-Ref",REC->REC.getMateReferenceName()));
-    	table.getColumns().add(makeColumn("Mate-Pos",REC->REC.getMateAlignmentStart()));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("Mate-Pos",REC->REC.getMateAlignmentStart())));
     	
-    	final Font font1=new Font("Courier", 9);
     	
-    	final TableColumn<SAMRecord, String> tc=makeColumn("SEQ",REC->REC.getReadString());
+    	TableColumn<SAMRecord, String> tc = makeColumn("SEQ",REC->REC.getReadString());
     	
     	// http://stackoverflow.com/questions/42187987/
     	tc.setCellFactory(tv -> new TableCell<SAMRecord, String>() { 
@@ -728,7 +771,7 @@ public class BamStage extends NgsStage {
     	        	}
     	        final List<Text> L=new ArrayList<>(item.length());
     	        for(int i=0;i< item.length();++i) {
-    	        	final Text txt=new Text(String.valueOf(item.charAt(i)));new Text(String.valueOf(item.charAt(i)));
+    	        	final Text txt=new Text(String.valueOf(item.charAt(i)));
     	        	txt.setFont(font1);
     	        	txt.setStroke(JfxNgs.BASE2COLOR.apply(item.charAt(i)));
     	        	L.add(txt);
@@ -741,7 +784,43 @@ public class BamStage extends NgsStage {
     	    }
     	});
 	    table.getColumns().add(tc);
-	    table.getColumns().add(makeColumn("QUAL",REC->REC.getBaseQualityString()));
+	    
+    	tc=makeColumn("QUAL",REC->REC.getBaseQualityString());
+    	tc.setCellFactory(tv -> new TableCell<SAMRecord, String>() { 
+    		final TextFlow textFlow = new TextFlow();
+    	    @Override
+    	    protected void updateItem(final String item, boolean empty) {
+    	        super.updateItem(item, empty);
+    	        setText(null);
+    	        if(item==null)
+    	        	{
+    	        	//setText(null);
+    	            setGraphic(null);
+    	        	return;
+    	        	}
+    	        final List<Text> L=new ArrayList<>(item.length());
+    	        for(int i=0;i< item.length();++i) {
+    	        	char c=item.charAt(i);
+    	        	int ch=(int)c;
+    	        	double qual=93.0;
+    	        	if (!(ch < 33 || ch > 126))
+    	        		{
+    	        		qual=SAMUtils.fastqToPhred(c);
+    	        		}
+    	        	final Text txt=new Text(String.valueOf(c));
+    	        	txt.setFont(font1);
+    	        	txt.setStroke(Color.gray(qual/93.0));
+    	        	L.add(txt);
+    	        	}
+    	        this.textFlow.setLineSpacing(0.1);
+    	        this.textFlow.setMaxHeight(10);
+    	        this.textFlow.setPrefHeight(10);
+    	        this.textFlow.getChildren().setAll(L);
+    	        this.setGraphic(textFlow);
+    	    }
+    	});
+	    
+	    table.getColumns().add(tc);
 	    return table;
 	    }
     
@@ -989,7 +1068,7 @@ public class BamStage extends NgsStage {
     	{
     	final TableView<Pileup> table=new TableView<>();
     	table.getColumns().add(makeColumn("REF", O->O.contig));
-    	table.getColumns().add(makeColumn("POS", O->O.position));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("POS", O->O.position)));
     	table.getColumns().add(makeColumn("Depth", O->O.depth()));
     	table.getColumns().add(makeColumn("A", O->O.count[0]));
     	table.getColumns().add(makeColumn("T", O->O.count[1]));
@@ -1006,15 +1085,15 @@ public class BamStage extends NgsStage {
     	{
     	final TableView<CigarAndBase> table=new TableView<>();
     	table.getColumns().add(makeColumn("REF", O->O.ref));
-    	table.getColumns().add(makeColumn("Read-Pos", O->O.posInRead));
-    	table.getColumns().add(makeColumn("Ref-Pos", O->O.posInRef));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("Read-Pos", O->O.posInRead)));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("Ref-Pos", O->O.posInRef)));
     	table.getColumns().add(makeColumn("OP",new Function<CigarAndBase,String>() {
     		@Override
     		public String apply(final CigarAndBase param) {
     			return param.op==null?null:param.op.name();
     		}
 			} ));
-    	table.getColumns().add(makeColumn("Len", O->O.count));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("Len", O->O.count)));
     	table.getColumns().add(makeColumn("Read-Bases",new Function<CigarAndBase,String>() {
     		@Override
     		public String apply(final CigarAndBase param) {

@@ -672,7 +672,7 @@ public class VcfStage extends NgsStage {
 		{
 		final TableView<VariantContext> table=new TableView<>();
 		table.getColumns().add(makeColumn("CHROM", V->V.getContig()));
-        table.getColumns().add(makeColumn("POS", V->V.getStart()));
+        table.getColumns().add(formatIntegerColumn(makeColumn("POS", V->V.getStart())));
         table.getColumns().add(makeColumn("ID", V->V.hasID()?V.getID():null));
         table.getColumns().add(makeColumn("REF", V->V.getReference().getDisplayString()));
         table.getColumns().add(makeColumn("ALT", V->V.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(","))));

@@ -76,6 +76,7 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
@@ -840,4 +841,27 @@ public abstract class NgsStage extends Stage {
         igvButton.setOnAction(AE->openInIgv());
 		return igvButton;
         }
+    
+    static <T>  TableColumn<T, Integer> formatIntegerColumn(final TableColumn<T, Integer> tc) {
+    	tc.setCellFactory(tv ->new TableCell<T,Integer>() {
+    	private java.text.DecimalFormat niceIntFormat = new java.text.DecimalFormat("###,###");
+	    @Override
+	    protected void updateItem(final Integer pos, boolean empty) {
+	        super.updateItem(pos, empty);
+	        setText(null);
+	        if(pos==null)
+	        	{
+	        	setText(null);
+	            setGraphic(null);
+	        	}
+	        else
+	        	{
+	        	setText(niceIntFormat.format(pos));
+	        	 setGraphic(null);
+	        	}
+	        	}
+	    	});
+    	return tc;
+    	}
+    
 }
