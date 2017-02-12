@@ -352,20 +352,14 @@ public abstract class NgsStage extends Stage {
     	
     	
     	this.addEventHandler(
-    			WindowEvent.WINDOW_SHOWING ,new EventHandler<WindowEvent>() {
-                    @Override
-                    public void handle(WindowEvent event) {
+    			WindowEvent.WINDOW_SHOWING ,WE-> {
                         owner.registerStage(NgsStage.this);
-                        NgsStage.this.reloadData();
-                        }
+                        NgsStage.this.reloadData();   
                     });
     	this.addEventHandler(
-    			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
-                    @Override
-                    public void handle(WindowEvent event) {
+    			WindowEvent.WINDOW_CLOSE_REQUEST ,WE->{
                     	NgsStage.this.closeNgsResource();
                     	owner.unregisterStage(NgsStage.this);
-                        }
                     });
        
         this.gotoField.setPrefColumnCount(15);
@@ -795,7 +789,7 @@ public abstract class NgsStage extends Stage {
 			Integer start=null,end=null;
 			if(hyphen==-1)
 				{
-				final String startStr=location.substring(colon+1).trim();
+				final String startStr=location.substring(colon+1).replace(",", "").trim();
 				try {
 					start= Math.max(0, Integer.parseInt(startStr));
 					end=ssr.getSequenceLength();
@@ -810,13 +804,13 @@ public abstract class NgsStage extends Stage {
 			else
 				{
 				try {
-					start= Math.max(0, new Integer(location.substring(colon+1,hyphen).trim()));
+					start= Math.max(0, new Integer(location.substring(colon+1,hyphen).replace(",", "").trim()));
 					end= Math.min(
-							Integer.parseInt(location.substring(hyphen+1).trim()),
+							Integer.parseInt(location.substring(hyphen+1).replace(",", "").trim()),
 							ssr.getSequenceLength()
 							);
 					}
-				catch(NumberFormatException err )
+				catch(final NumberFormatException err )
 					{
 					start=null;end=null;
 					LOG.warning(location);
@@ -852,12 +846,7 @@ public abstract class NgsStage extends Stage {
         final Button igvButton =setTooltip(new Button("IGV"),
         		"Open the current selected item in Broad/Integrative Genome Viewer"
         		);
-        igvButton.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				openInIgv();
-			}
-		});
-        return igvButton;
+        igvButton.setOnAction(AE->openInIgv());
+		return igvButton;
         }
 }

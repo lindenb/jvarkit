@@ -132,6 +132,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -689,21 +690,33 @@ public class BamStage extends NgsStage {
     	final Font font1=new Font("Courier", 9);
     	
     	final TableColumn<SAMRecord, String> tc=makeColumn("SEQ",REC->REC.getReadString());
+    	
+    	// http://stackoverflow.com/questions/42187987/
     	tc.setCellFactory(tv -> new TableCell<SAMRecord, String>() { 
+    		final TextFlow textFlow = new TextFlow();
+    		
     	    @Override
     	    protected void updateItem(final String item, boolean empty) {
     	        super.updateItem(item, empty);
-    	        this.setFont(font1);
-    	        this.setText(item);
-    	        /*
+    	        setText(null);
+    	        if(item==null)
+    	        	{
+    	        	//setText(null);
+    	            setGraphic(null);
+    	        	return;
+    	        	}
     	        final List<Text> L=new ArrayList<>(item.length());
     	        for(int i=0;i< item.length();++i) {
     	        	final Text txt=new Text(String.valueOf(item.charAt(i)));new Text(String.valueOf(item.charAt(i)));
+    	        	txt.setFont(font1);
     	        	txt.setStroke(JfxNgs.BASE2COLOR.apply(item.charAt(i)));
     	        	L.add(txt);
     	        	}
-    	        this.getChildren().setAll(L);
-    	        */
+    	        this.textFlow.setLineSpacing(0.1);
+    	        this.textFlow.setMaxHeight(10);
+    	        this.textFlow.setPrefHeight(10);
+    	        this.textFlow.getChildren().setAll(L);
+    	        this.setGraphic(textFlow);
     	    }
     	});
 	    table.getColumns().add(tc);

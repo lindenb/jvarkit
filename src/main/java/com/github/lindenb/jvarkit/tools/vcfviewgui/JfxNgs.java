@@ -97,6 +97,7 @@ import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.SamReaderFactory.Option;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
@@ -140,6 +141,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -147,6 +149,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -155,6 +158,7 @@ import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
@@ -320,27 +324,13 @@ public class JfxNgs extends Application {
         menu.getItems().add(menuItem);
         
         
-        menu.getItems().add(createMenuItem("Open VCF...",new Runnable() {
-			@Override
-			public void run() {
-				openVcfFile(primaryStage);
-			}
-		}));
-        menu.getItems().add(createMenuItem("Open BAM...",new Runnable() {
-			@Override
-			public void run() {
-				openBamFile(primaryStage);
-			}
-		}));
+        menu.getItems().add(createMenuItem("Open VCF File...",()->openVcfFile(primaryStage)));
+        menu.getItems().add(createMenuItem("Open BAM File...",()->openBamFile(primaryStage)));
+        menu.getItems().add(createMenuItem("Open Remote BAM...",()->openBamUrl(primaryStage)));
         
-        
+        menu.getItems().add(new SeparatorMenuItem());
         menuItem=new MenuItem("Quit...");
-        menuItem.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				doMenuQuit();
-			}
-		});
+        menuItem.setOnAction(AE->doMenuQuit());
         menu.getItems().add(menuItem);
         
         MenuBar bar=new MenuBar(menu);
@@ -396,8 +386,18 @@ public class JfxNgs extends Application {
                     public void handle(final WindowEvent event) {
                     	for(final String arg: params.getUnnamed())
             	        	{
-                    		final File f=new File(arg);
+                    		
+                    		
                     		try {
+                    			if(IOUtil.isUrl(arg))
+	                    			{
+	                    			final InputSource src=new InputSource(new URL(arg));
+	                    			_openBamAnySource(primaryStage,src);
+	                    			continue;
+	                    			}
+                    			
+                    			final File f=new File(arg);
+                        		
 								if(BamStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
 									{
 									new BamStage(JfxNgs.this, new JfxNgs.InputSource(f)).show();
@@ -478,6 +478,17 @@ public class JfxNgs extends Application {
     	Platform.exit();
     	}
     
+    void openBamUrl(final Window owner)
+		{
+    	final TextInputDialog dialog=new TextInputDialog();
+    	dialog.setTitle("Get URL");
+    	dialog.setHeaderText("Input BAM URL");
+    	final Optional<String> choice=dialog.showAndWait();
+    	if(!choice.isPresent()) return;
+    	
+		}
+    
+    /** open FileChoser to open a BAM file */
     void openBamFile(final Window owner)
     	{
     	final FileChooser fc = newFileChooser();
@@ -521,6 +532,51 @@ public class JfxNgs extends Application {
     		}
     	}
 
+    private void _openBamAnySource(final Window owner,final InputSource source){
+    	SamReader samIn=null;
+    	try 
+    		{
+			final SamReaderFactory srf = SamReaderFactory.makeDefault();
+			srf.validationStringency(ValidationStringency.LENIENT);
+			if(source.isFile())
+				{
+				samIn = srf.open(source.asFile());
+				}
+			else
+				{
+				final SamInputResource sir= SamInputResource.of(source.asUrl());
+				sir.index(new URL("http://localhost/~lindenb/remotebam/NA18516.chrom14.ILLUMINA.bwa.YRI.exon_targetted.20100311.bai"));
+				samIn = srf.open(sir);
+				}
+			if(!samIn.hasIndex())
+				{
+				showExceptionDialog(owner,"No index for "+source);
+				return;
+				}
+			if(samIn.getFileHeader()==null)
+				{
+				showExceptionDialog(owner,"cannot get SAM header for "+source);
+				return;
+				}
+			if(samIn.getFileHeader().getSequenceDictionary()==null)
+				{
+				showExceptionDialog(owner,"cannot get SAM Dictionary for "+source);
+				return;
+				}	
+			samIn.close();
+			LOG.info("OK for BAM "+source);
+			final BamStage sc= new BamStage(this,source);
+	    	sc.show();
+    		}
+    	catch(final Exception err)
+    		{
+    		showExceptionDialog(owner, err);
+    		}		
+    	finally
+    		{
+    		CloserUtil.close(samIn);
+    		}    }
+    
     void openVcfFile(final Window owner)
 		{
 		final FileChooser fc = newFileChooser();
