@@ -48,7 +48,6 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
-import com.github.lindenb.jvarkit.tools.vcfviewgui.JfxNgs.InputSource;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
@@ -99,7 +98,7 @@ import javafx.util.Callback;
  * @author lindenb
  *
  */
-public abstract class NgsStage extends Stage {
+public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends Stage {
     protected static final Logger LOG= Logger.getLogger("NgsStage");
 	protected static final String JAVASCRIPT_TAB_KEY="JS";
 	private static final int REFRESH_SECOND=Integer.parseInt(System.getProperty("jfxngs.refresh.seconds","5"));
@@ -108,7 +107,7 @@ public abstract class NgsStage extends Stage {
 	/** owner Application */
     protected JfxNgs owner;
     /** src file */
-	protected final JfxNgs.InputSource urlOrFile;
+	private final NgsFile<HEADERTYPE,ITEMTYPE> ngsFile;
 	/** javascript filtering */
 	protected final TextArea javascriptArea=new TextArea();
 	
@@ -184,7 +183,7 @@ public abstract class NgsStage extends Stage {
 		}
 
 	
-	protected abstract class AbstractQualityStage<T>
+	protected abstract class AbstractQualityStage
 		extends Stage
 		{
 		protected abstract class ScanThread 
@@ -193,7 +192,7 @@ public abstract class NgsStage extends Stage {
 			/** number of items scanned so far */
 			protected long nItems=0L;
 			/** file source */
-			protected final InputSource source;
+			protected final NgsFile<HEADERTYPE, ITEMTYPE> ngsReader;
 			/** script for filtering */
 			protected final Optional<CompiledScript> compiledScript;
 			/** should we stop the scanning */
@@ -201,19 +200,19 @@ public abstract class NgsStage extends Stage {
 			/** time of last refresh */
     		protected long lastRefresh =System.currentTimeMillis();
     		/** active chart factory */
-    		protected final ChartFactory<T> factory;
+    		protected final ChartFactory<ITEMTYPE> factory;
     		/**  other filters */
-    		protected final Predicate<T> otherFilters;
+    		protected final Predicate<ITEMTYPE> otherFilters;
     		/** last seen exception */
     		protected Optional<Throwable> encounteredException=Optional.empty();
 
     		ScanThread(
-    				final ChartFactory<T> factory,
-    				final InputSource source,
+    				final ChartFactory<ITEMTYPE> factory,
+    				final NgsFile<HEADERTYPE, ITEMTYPE> ngsReader,
     				final Optional<CompiledScript> compiledScript,
-    				final Predicate<T> otherFilters)
+    				final Predicate<ITEMTYPE> otherFilters)
 				{
-				this.source=source;
+				this.ngsReader=ngsReader;
 				this.compiledScript = compiledScript;
 				this.factory=factory;
 				this.otherFilters= otherFilters;
@@ -222,6 +221,7 @@ public abstract class NgsStage extends Stage {
     		
             /** called at end */
             protected void atEnd() {
+            	CloserUtil.close(this.ngsReader);
             	if(kill_flag) {
 					LOG.warning("Thread was killed");
 					}
@@ -262,6 +262,7 @@ public abstract class NgsStage extends Stage {
 				}
             protected void onError(final Throwable err)
             	{
+            	CloserUtil.close(this.ngsReader);
             	LOG.severe(err.getMessage());
 				Platform.runLater(new Runnable() {
     				 @Override
@@ -279,14 +280,14 @@ public abstract class NgsStage extends Stage {
 		protected final Label countItemsLabel=new Label();
 
 		protected AbstractQualityStage(
-				final ChartFactory<T> factory,
-				final JfxNgs.InputSource file,
+				final ChartFactory<ITEMTYPE> factory,
+				final NgsFile<HEADERTYPE,ITEMTYPE> ngsReader,
 				final Optional<CompiledScript> compiledScript,
-				final Predicate<T> otherFilters
+				final Predicate<ITEMTYPE> otherFilters
 				)
 			{
-			this.setTitle(factory.getName()+" : "+file.toString());
-			this.thread = createThread(factory,file,compiledScript,otherFilters);
+			this.setTitle(factory.getName()+" : "+ngsReader.getSource());
+			this.thread = createThread(factory,ngsReader,compiledScript,otherFilters);
 	    	this.addEventHandler(
 	    			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
 	                    @Override
@@ -309,10 +310,10 @@ public abstract class NgsStage extends Stage {
 			}
 		/** create the thread that will scan the file in the background */
 		protected abstract ScanThread createThread(
-				final ChartFactory<T> factory,
-				final JfxNgs.InputSource file,
+				final ChartFactory<ITEMTYPE> factory,
+				final NgsFile<HEADERTYPE, ITEMTYPE> ngsReader,
 				final Optional<CompiledScript> compiledScript,
-				final Predicate<T> otherFilters
+				final Predicate<ITEMTYPE> otherFilters
 				);
 		@Override
     	protected void finalize() throws Throwable {
@@ -325,11 +326,14 @@ public abstract class NgsStage extends Stage {
     		}
     	}
 	
-    protected NgsStage(final JfxNgs owner,final JfxNgs.InputSource urlOrFile) throws IOException
+    protected NgsStage(
+    		final JfxNgs owner,
+    		final NgsFile<HEADERTYPE,ITEMTYPE> ngsFile
+    		) throws IOException
     	{
     	this.owner= owner;
-    	this.urlOrFile= urlOrFile;
-    	this.setTitle(this.urlOrFile.toString());
+    	this.ngsFile= ngsFile;
+    	this.setTitle(this.ngsFile.getSource());
     	this.maxItemsLimitSpinner.setEditable(true);
     	this.maxItemsLimitSpinner.setTooltip(new Tooltip(
     			"The whole file is NOT loaded, only a subset of data will be read."));
@@ -350,7 +354,7 @@ public abstract class NgsStage extends Stage {
                     });
     	this.addEventHandler(
     			WindowEvent.WINDOW_CLOSE_REQUEST ,WE->{
-                    	NgsStage.this.closeNgsResource();
+                    	NgsStage.this.ngsFile.close();
                     	owner.unregisterStage(NgsStage.this);
                     });
        
@@ -390,7 +394,7 @@ public abstract class NgsStage extends Stage {
     
     @Override
     protected void finalize() throws Throwable {
-    	closeNgsResource();
+    	this.ngsFile.close();
     	super.finalize();
     	}
     
@@ -648,8 +652,6 @@ public abstract class NgsStage extends Stage {
     	}
     
     abstract void openInIgv();
-    /** close the NGS resource , even if the window was not opened */
-    abstract void closeNgsResource();
     /** reload all data */
     abstract void reloadData();
     
@@ -669,7 +671,7 @@ public abstract class NgsStage extends Stage {
     	final Stage dialog = new Stage();
     	dialog.initOwner(this);
     	dialog.setTitle(factory.getName());
-    	contentPane.setTop(new Label("Data for "+this.urlOrFile));
+    	contentPane.setTop(new Label("Data for "+this.ngsFile.getSource()));
        	dialog.setScene(new Scene(contentPane));
     	contentPane.setBottom(new Label("Number of items: "+L.size()));
     	LOG.info("Showing chart");
@@ -737,7 +739,6 @@ public abstract class NgsStage extends Stage {
     /** save filtered Data As ... */
     protected abstract void doMenuSaveAs();
     
-    protected abstract SAMSequenceDictionary getSAMSequenceDictionary();
     
     /** called by main stage: set location box content and call reloadData */
     protected void moveTo(final String s)
@@ -748,7 +749,7 @@ public abstract class NgsStage extends Stage {
     
     protected Interval parseInterval(final String location)
     	{
-    	final SAMSequenceDictionary dict=getSAMSequenceDictionary();
+    	final SAMSequenceDictionary dict=this.ngsFile.getSequenceDictionary();
 		final String contig;
 		int colon =location.indexOf(":");
 		if(colon==-1)
@@ -863,5 +864,10 @@ public abstract class NgsStage extends Stage {
 	    	});
     	return tc;
     	}
+    
+    
+    protected NgsFile<HEADERTYPE, ITEMTYPE> getNgsFile() {
+		return ngsFile;
+	}
     
 }

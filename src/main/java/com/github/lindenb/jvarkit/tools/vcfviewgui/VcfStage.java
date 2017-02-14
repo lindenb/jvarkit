@@ -52,7 +52,6 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParserFactory;
 
-import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -66,7 +65,6 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder.OutputType;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -110,7 +108,7 @@ import javafx.stage.WindowEvent;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.util.Callback;
 
-public class VcfStage extends NgsStage {
+public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     private static final int DEFAULT_VCF_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.vcf", "100"));
     static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Variant Files", ".vcf",".vcf.gz");
     private static final String SPINNER_VALUE_KEY="vcf.spinner.value";
@@ -125,6 +123,17 @@ public class VcfStage extends NgsStage {
 		()->new VariantDepthChartFactory()
 		);
  
+    /** base class to represent local file or remote tabix file */
+    public static interface VariantFileReader
+    	{
+    	public VCFHeader getFileHeader(); 
+    	public CloseableIterator<VariantContext> iterator() throws IOException; 
+    	public CloseableIterator<VariantContext> iterator(final String contig,int start,int end) throws IOException; 
+    	public void close();
+    	}
+    
+        
+    
     /** Misc VCF tools that will be injected in the nashorn context */
     public static class VcfTools
     	{
@@ -202,32 +211,31 @@ public class VcfStage extends NgsStage {
 		}
     
     private class VcfQualityStage
-		extends AbstractQualityStage<VariantContext>
+		extends AbstractQualityStage
 			{
     		private class ScanVcfThread extends ScanThread
     			{
     			ScanVcfThread(final ChartFactory<VariantContext> factory,
-    						final JfxNgs.InputSource source,
+    						final VcfFile vcfinput,
     						final Optional<CompiledScript> compiledScript,
     						final Predicate<VariantContext> otherFilters)
     				{
-    				super(factory,source,compiledScript,otherFilters);
+    				super(factory,vcfinput,compiledScript,otherFilters);
     				}
         		        		
     			@Override
     			public void run() {
-    				VCFFileReader vcfReader =null;
     				CloseableIterator<VariantContext> iter=null;
     				Optional<VcfJavascripFilter> javascriptFilter=Optional.empty();
     				try 
 	    				{
-    						vcfReader = new VCFFileReader(this.source.asFile(),false);
     						if(this.compiledScript.isPresent() )
     							{
-    							javascriptFilter=Optional.of(new VcfJavascripFilter("", vcfReader.getFileHeader(), compiledScript));
+    							javascriptFilter=Optional.of(
+    									new VcfJavascripFilter("", super.ngsReader.getHeader(), compiledScript));
     							}
     						
-	    					iter = vcfReader.iterator();
+	    					iter = super.ngsReader.iterator();
 	    					
 	    					while(!kill_flag && iter.hasNext())
 	    						{
@@ -242,7 +250,7 @@ public class VcfStage extends NgsStage {
 	    						update();
 	    						}
 	    					iter.close();
-	    					vcfReader.close();
+	    					super.ngsReader.close();
 	    				
 	    					
 	    					if(javascriptFilter.isPresent() && javascriptFilter.get().encounteredException.isPresent())
@@ -259,29 +267,29 @@ public class VcfStage extends NgsStage {
     				finally
     					{
     					CloserUtil.close(iter);
-    					CloserUtil.close(vcfReader);
+    					CloserUtil.close(super.ngsReader);
     					}
     				}
     			
     			}
     		
     		VcfQualityStage(final ChartFactory<VariantContext> factory,
-    				final JfxNgs.InputSource file,
+    				final VcfFile vcfinput,
     				final Optional<CompiledScript> compiledScript,
     				final Predicate<VariantContext> otherFilters
     				)
 	    		{
-    			super(factory,file,compiledScript,otherFilters);
+    			super(factory,vcfinput,compiledScript,otherFilters);
 	    		}
 
 			@Override
-			protected AbstractQualityStage<VariantContext>.ScanThread createThread(
+			protected ScanVcfThread createThread(
 					final ChartFactory<VariantContext> factory,
-					JfxNgs.InputSource file,
+					NgsFile<VCFHeader,VariantContext> ngsfile,
 					Optional<CompiledScript> compiledScript,
 					final Predicate<VariantContext> otherFilters
 					) {
-				return new ScanVcfThread(factory,file, compiledScript,otherFilters);
+				return new ScanVcfThread(factory,(VcfFile)ngsfile, compiledScript,otherFilters);
 				}
     		
 			}
@@ -312,7 +320,6 @@ public class VcfStage extends NgsStage {
     
     
 	private final TextField javascriptFILTERfield=new TextField("");
-	private final VCFFileReader vcfFileReader;
 	private final TableView<VariantContext> variantTable;
 	private final TableView<Genotype> genotypeTable;
 	private final TableView<InfoTableRow> infoTableRow;
@@ -324,10 +331,9 @@ public class VcfStage extends NgsStage {
 	private final CheckBox cboxShowNoCall=new CheckBox("NoCall");
 	private final TextField tfFilterInfo=new TextField();
 	private final AnnPredictionParser annPredictionParser;
-	VcfStage(final JfxNgs owner,final JfxNgs.InputSource path) throws IOException {
-		super(owner,path);
-		this.vcfFileReader = new VCFFileReader(path.asFile(),true);
-		final VCFHeader header=this.vcfFileReader.getFileHeader();
+	VcfStage(final JfxNgs owner,final VcfFile vcfFile) throws IOException {
+		super(owner,vcfFile);
+		final VCFHeader header= vcfFile.getHeader();
 		
         this.annPredictionParser=new PredictionParserFactory().
         			header(header).
@@ -527,10 +533,6 @@ public class VcfStage extends NgsStage {
 
 		}
 	
-    @Override
-    protected SAMSequenceDictionary getSAMSequenceDictionary() {
-    	return this.vcfFileReader.getFileHeader().getSequenceDictionary();
-    	}
 
 	
 	protected void doMenuSaveAs()
@@ -539,7 +541,6 @@ public class VcfStage extends NgsStage {
     	fc.setSelectedExtensionFilter(EXTENSION_FILTER);
 		final File saveAs= owner.updateLastDir(fc.showSaveDialog(this));
 		if(saveAs==null) return;
-		if(saveAs.equals(super.urlOrFile)) return;
 		if(!saveAs.getName().endsWith(".vcf.gz"))
 			{
 			final Alert alert=new Alert(AlertType.ERROR, "Output should end with .vcf.gz", ButtonType.OK);
@@ -556,7 +557,7 @@ public class VcfStage extends NgsStage {
     			{
     			javascriptFilter=new VcfJavascripFilter(
     				this.javascriptFILTERfield.getText().trim(),
-    				this.vcfFileReader.getFileHeader(),
+    				this.getVcfFile().getHeader(),
     				Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()))
     				);
     			
@@ -577,7 +578,7 @@ public class VcfStage extends NgsStage {
 			vcwb.setOutputFileType(OutputType.BLOCK_COMPRESSED_VCF);
 			vcwb.setOutputFile(saveAs);
 			w= vcwb.build();
-			final VCFHeader header2= new VCFHeader(this.vcfFileReader.getFileHeader());
+			final VCFHeader header2= new VCFHeader(this.getVcfFile().getHeader());
         	if(!javascriptFilter.filter.isEmpty())
         		{
         		header2.addMetaDataLine(new VCFFilterHeaderLine(javascriptFilter.filter, "Set by User in JfxNgs:"+
@@ -585,7 +586,7 @@ public class VcfStage extends NgsStage {
         				));
         		}
 			w.writeHeader(header2);
-			iter=this.vcfFileReader.iterator();
+			iter= this.getVcfFile().iterator();
 			while(iter.hasNext())
 				{
 				VariantContext ctx=iter.next();
@@ -760,14 +761,18 @@ public class VcfStage extends NgsStage {
     		this.filterTableRow.getItems().setAll(
     				ctx.getFilters()
     				);
-    		
+    		if(ctx.getNSamples()>0)
+	    		{
+	    		this.genotypeChartPane.setCenter(this.makeGenotypePie(ctx));
+	    		}
     		}
     	else
     		{
         	this.filterTableRow.getItems().clear();
-    		}
-    	if(ctx.getNSamples()>0) {
-    		this.genotypeChartPane.setCenter(this.makeGenotypePie(ctx));
+        	if(getVcfFile().getHeader().getNGenotypeSamples()>0)
+	        	{
+	    		this.genotypeChartPane.setCenter(this.makeGenotypePie(ctx));
+	    		}
     		}
     	}
 	
@@ -829,12 +834,6 @@ public class VcfStage extends NgsStage {
         return tab;
 		}
 	
-	
-	@Override
-    void closeNgsResource() {
-    	CloserUtil.close(this.vcfFileReader);
-    	}
-	
 	@Override
     void reloadData()
 		{
@@ -843,22 +842,32 @@ public class VcfStage extends NgsStage {
     	final String location = this.gotoField.getText().trim();
     	final CloseableIterator<VariantContext> iter;
     	
-    	
-    	if(location.isEmpty())
-    		{
-    		iter = this.vcfFileReader.iterator();
+    	try {
+	    	if(location.isEmpty())
+	    		{
+	    		iter = this.getVcfFile().iterator();
+	    		}
+	    	else
+	    		{
+	    		final Interval interval=this.parseInterval(location);
+	    		if(interval==null)
+	    			{
+	    			iter=null;
+	    			}
+	    		else
+	    			{
+					iter= this.getVcfFile().iterator(
+							interval.getContig(),
+							interval.getStart(),
+							interval.getEnd()
+							);
+	    			}
+	    		}
     		}
-    	else
+    	catch(final IOException err)
     		{
-    		final Interval interval=this.parseInterval(location);
-    		if(interval==null)
-    			{
-    			iter=null;
-    			}
-    		else
-    			{
-				iter=this.vcfFileReader.query(interval.getContig(),interval.getStart(),interval.getEnd());
-    			}
+    		JfxNgs.showExceptionDialog(this, err);
+    		return;
     		}
     	VcfJavascripFilter javascripFilter=null;
     	if(this.owner.javascriptCompiler.isPresent() &&
@@ -868,7 +877,7 @@ public class VcfStage extends NgsStage {
     			{
     			javascripFilter = new VcfJavascripFilter(
     					this.javascriptFILTERfield.getText().trim(),
-    					vcfFileReader.getFileHeader(),
+    					this.getVcfFile().getHeader(),
     					Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()))
     					);
     			}
@@ -886,6 +895,7 @@ public class VcfStage extends NgsStage {
     		++count_items;
     		if(javascripFilter!=null)
     			{
+    			if(javascripFilter.encounteredException.isPresent()) break;
     			rec= javascripFilter.eval(rec);
     			if(rec==null) continue;
     			}
@@ -893,6 +903,10 @@ public class VcfStage extends NgsStage {
     		}
     	if(iter!=null) iter.close();
     	this.variantTable.getItems().setAll(L);
+    	if(javascripFilter!=null && javascripFilter.encounteredException.isPresent())
+    		{
+    		JfxNgs.showExceptionDialog(this, javascripFilter.encounteredException.get());
+    		}
     	}
 	
 	private void reloadInfoTable(final VariantContext ctx)
@@ -988,13 +1002,22 @@ public class VcfStage extends NgsStage {
         			return;
         			}
         		}
-        	final VcfQualityStage qcstage=new VcfQualityStage(
-        			(VariantContextChartFactory)factory,
-        			super.urlOrFile,
-        			compiledScript,
-        			V->true
-        			);
-			qcstage.show();
+        	
+        	VcfFile copy=null;
+        	try {
+        		copy=(VcfFile)this.getVcfFile().reOpen();
+	        	final VcfQualityStage qcstage=new VcfQualityStage(
+	        			(VariantContextChartFactory)factory,
+	        			copy,
+	        			compiledScript,
+	        			V->true
+	        			);
+				qcstage.show();
+        	} catch(final IOException err)
+        		{
+        		CloserUtil.close(copy);
+        		JfxNgs.showExceptionDialog(this, err);
+        		}
 			}
 
     @Override
@@ -1002,4 +1025,8 @@ public class VcfStage extends NgsStage {
     	return "/com/github/lindenb/jvarkit/tools/vcfviewgui/vcf.snippets.xml";
     	}
 	
+    private VcfFile getVcfFile() {
+    	return VcfFile.class.cast(super.getNgsFile());
+    }
+    
 	}

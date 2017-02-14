@@ -44,6 +44,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -189,11 +190,11 @@ public class VcfToSql extends AbstractVcfToSql
 			{
 			super(name);
 			}
-    	Object escape(Object o)
+    	Object escape(final Object o)
     		{
     		if(o==null)
     			{
-    			if(!this.nilleable) throw new RuntimeException("not set as nilleable");
+    			if(!this.nilleable) throw new RuntimeException("column "+ this.table.getName()+"."+this.getName()+" : not set as nilleable");
     			return "NULL";
     			}
     		else
@@ -593,6 +594,7 @@ public class VcfToSql extends AbstractVcfToSql
 					);
 			filter2filterid.put(filter.getID(), new SelectStmt(this.filterTable, "name", filter.getID()));
 			}
+		filter2filterid.put(VCFConstants.PASSES_FILTERS_v4, new SelectStmt(this.filterTable, "name", VCFConstants.PASSES_FILTERS_v4));
 
 		
 		final SAMSequenceDictionary dict= header.getSequenceDictionary();
@@ -657,10 +659,14 @@ public class VcfToSql extends AbstractVcfToSql
 					new SelectStmt(this.alleleTable, "bases", alt.getBaseString())
 					);
 				}
-			
+
 			/* insert filters */
-			for(String filter:var.getFilters())
+			for(final String filter:var.getFilters())
 				{
+				if(filter2filterid.get(filter)==null)
+					{
+					throw new IOException("VCF Error: filter "+filter+" is not defined in the VCF header.");
+					}
 				this.variant2filters.insert(
 					outputWriter,
 					null,

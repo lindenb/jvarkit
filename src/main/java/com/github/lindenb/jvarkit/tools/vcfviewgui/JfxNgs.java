@@ -46,6 +46,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.BackingStoreException;
@@ -56,6 +57,7 @@ import java.util.stream.Stream;
 import javax.script.Bindings;
 import javax.script.Compilable;
 import javax.script.CompiledScript;
+import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
@@ -66,6 +68,7 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
+import com.github.lindenb.jvarkit.tools.vcfviewgui.VcfStage.VariantFileReader;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AlleleFrequencyChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.GCPercentChartFactory;
@@ -188,7 +191,7 @@ public class JfxNgs extends Application {
     final Preferences preferences ;
     final Optional<Compilable> javascriptCompiler;
     private static final String LAST_USED_DIR_KEY="last.used.dir";
-    private final List<NgsStage> all_opened_stages=new ArrayList<>();
+    private final List<NgsStage<?,?>> all_opened_stages=new ArrayList<>();
     
     /** utility Function to convert base to Color */
     public static final Function<Character, Color> BASE2COLOR= new Function<Character, Color>() {
@@ -206,51 +209,33 @@ public class JfxNgs extends Application {
 		}
 	};
     
-    
-    /** URL or file */
-    public static class InputSource
-    	{
-    	private final Object o;
-    	public InputSource(final File file) {
-    		this.o= file;
-    		}
-    	public InputSource(final URL url) {
-    		this.o= url;
-    		}
-    	public boolean isUrl() {
-    		return this.o instanceof URL;
-    		}
-    	public boolean isFile() {
-    		return this.o instanceof File;
-    		}
-    	public File asFile() {
-    		if(!isFile()) throw new IllegalStateException("Not a file:"+o);
-    		return File.class.cast(this.o);
-    		}
-    	public URL asUrl() {
-    		if(!isUrl()) throw new IllegalStateException("Not a url:"+o);
-    		return URL.class.cast(this.o);
-    		}
-    	@Override
-    	public String toString() {
-    		return this.o.toString();
-    		}
-    	}
-    
-    
+       
     public JfxNgs()
 		{
 		this.preferences = Preferences.userNodeForPackage(JfxNgs.class);
 		Compilable engine=null;
 		try {
 			final ScriptEngineManager manager = new ScriptEngineManager();
-			if(manager!=null && (manager instanceof Compilable))
+			final ScriptEngine scriptEngine = manager.getEngineByName("js");
+
+			if(scriptEngine!=null)
 				{
-				engine = (Compilable)manager.getEngineByName("js");
+				if(!(scriptEngine instanceof Compilable)) {
+					LOG.info("cannot find compilable nashorn");;
+					}
+				else
+					{
+					engine = (Compilable)scriptEngine;
+					}
+				}
+			else
+				{
+				LOG.info("Cannot get instance of nashorn");
 				}
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
+			err.printStackTrace();
 			engine=null;
 			LOG.warning("Cannot get Compilable JS engine "+err.getMessage());
 			}
@@ -319,18 +304,15 @@ public class JfxNgs extends Application {
         Menu menu=new Menu("File");
         
         MenuItem menuItem=new MenuItem("About...");
-        menuItem.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				doMenuAbout(primaryStage);
-			}
-		});
+        menuItem.setOnAction(AE->doMenuAbout(primaryStage));
+			
         menu.getItems().add(menuItem);
         
         
         menu.getItems().add(createMenuItem("Open VCF File...",()->openVcfFile(primaryStage)));
         menu.getItems().add(createMenuItem("Open BAM File...",()->openBamFile(primaryStage)));
         menu.getItems().add(createMenuItem("Open Remote BAM...",()->openBamUrl(primaryStage)));
+        menu.getItems().add(createMenuItem("Open Remote VCF...",()->openVcfUrl(primaryStage)));
         
         menu.getItems().add(new SeparatorMenuItem());
         menuItem=new MenuItem("Quit...");
@@ -357,7 +339,7 @@ public class JfxNgs extends Application {
 			public void handle(ActionEvent event) {
 				final String loc=textField.getText().trim();
 				LOG.info("moveTo all to "+loc);
-				for(final NgsStage sc:all_opened_stages )
+				for(final NgsStage<?,?> sc:all_opened_stages )
 					{
 					LOG.info("moveTo "+sc.getTitle()+" to "+loc);
 					sc.moveTo(loc);
@@ -390,31 +372,45 @@ public class JfxNgs extends Application {
                     public void handle(final WindowEvent event) {
                     	for(final String arg: params.getUnnamed())
             	        	{
-                    		
+                    		VcfFile vcfin=null;
+                    		BamFile bamin=null;
                     		
                     		try {
                     			if(IOUtil.isUrl(arg))
 	                    			{
-	                    			final InputSource src=new InputSource(new URL(arg));
-	                    			_openBamAnySource(primaryStage,src);
-	                    			continue;
+	                    			if(arg.endsWith(".bam")) {
+	                    				bamin=BamFile.newInstance(arg); 
+	                    				}
+	                    			else if(arg.endsWith(".vcf.gz")) {
+	                    				vcfin=VcfFile.newInstance(arg);
+	                    				}
 	                    			}
-                    			
-                    			final File f=new File(arg);
-                        		
-								if(BamStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
-									{
-									new BamStage(JfxNgs.this, new JfxNgs.InputSource(f),Optional.empty()).show();
-									}
-								else if(VcfStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
-									{
-									new VcfStage(JfxNgs.this, new JfxNgs.InputSource(f)).show();
-									}
-								else
-									{
-									JfxNgs.showExceptionDialog(primaryStage,"Cannot open "+f);
-									}
+                    			else
+	                    			{
+	                    			final File f=new File(arg);
+	                        		
+									if(BamStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
+										{
+										bamin=BamFile.newInstance(f); 
+										}
+									else if(VcfStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
+										{
+										vcfin=VcfFile.newInstance(f);
+										}
+									else
+										{
+										JfxNgs.showExceptionDialog(primaryStage,"Cannot open "+f);
+										}
+	                    			}
+                    			if(vcfin!=null) {
+                    				new VcfStage(JfxNgs.this, vcfin).show();
+                    				}
+                    			else if(bamin!=null) {
+                    				new BamStage(JfxNgs.this, bamin).show();
+                    				}
 							} catch (Exception e) {
+								CloserUtil.close(vcfin);
+								CloserUtil.close(bamin);
 								showExceptionDialog(primaryStage, e);
 								}
             	        	}
@@ -423,10 +419,10 @@ public class JfxNgs extends Application {
         primaryStage.show();
         }
 
-    void unregisterStage(final NgsStage s) {
+    void unregisterStage(final NgsStage<?,?> s) {
     	this.all_opened_stages.remove(s);
     }
-    void registerStage(final NgsStage s) {
+    void registerStage(final NgsStage<?,?> s) {
     	this.all_opened_stages.add(s);  
     }
     
@@ -489,8 +485,51 @@ public class JfxNgs extends Application {
     	dialog.setHeaderText("Input BAM URL");
     	final Optional<String> choice=dialog.showAndWait();
     	if(!choice.isPresent()) return;
-    	
+    	BamFile input=null;
+    	try {
+			input = BamFile.newInstance(choice.get());
+			BamStage stage=new BamStage(JfxNgs.this, input);
+			stage.show();
+		} catch (final Exception err) {
+			CloserUtil.close(input);
+			showExceptionDialog(owner, err);
+			}
+
 		}
+    
+    void openVcfUrl(final Window owner)
+		{
+		final TextInputDialog dialog=new TextInputDialog();
+		dialog.setTitle("Get URL");
+		dialog.setHeaderText("Input VCF URL");
+		final Optional<String> choice=dialog.showAndWait();
+		if(!choice.isPresent()) return;
+    	VcfFile input=null;
+    	try {
+			input = VcfFile.newInstance(choice.get());
+			VcfStage stage=new VcfStage(JfxNgs.this, input);
+			stage.show();
+		} catch (final Exception err) {
+			CloserUtil.close(input);
+			showExceptionDialog(owner, err);
+			}
+		}
+    
+    
+    private void _openVcfAnySource(final Window owner,final String src)
+    	{
+    	VcfFile input=null;
+    	try {
+			input = VcfFile.newInstance(src);
+			VcfStage stage=new VcfStage(JfxNgs.this, input);
+			stage.show();
+		} catch (final Exception err) {
+			CloserUtil.close(input);
+			showExceptionDialog(owner, err);
+			}
+    	}
+    
+    
     
     /** open FileChoser to open a BAM file */
     void openBamFile(final Window owner)
@@ -499,43 +538,19 @@ public class JfxNgs extends Application {
     	fc.setSelectedExtensionFilter(BamStage.EXTENSION_FILTER);
     	final File file = updateLastDir(fc.showOpenDialog(owner));
     	if(file==null) return;
-    	SamReader samIn=null;
-    	try 
-    		{
-			final SamReaderFactory srf = SamReaderFactory.makeDefault();
-			srf.validationStringency(ValidationStringency.LENIENT);
-			samIn = srf.open(file);
-			if(!samIn.hasIndex())
-				{
-				showExceptionDialog(owner,"No index for "+file);
-				return;
-				}
-			if(samIn.getFileHeader()==null)
-				{
-				LOG.warning("cannot get SAM header for "+file);
-				return;
-				}
-			if(samIn.getFileHeader().getSequenceDictionary()==null)
-				{
-				LOG.warning("cannot get SAM Dictionary for "+file);
-				return;
-				}	
-			samIn.close();
-			LOG.info("OK for BAM "+file);
-			final BamStage sc= new BamStage(this,new InputSource(file),Optional.empty());
-	    	sc.show();
-    		}
-    	catch(final Exception err)
-    		{
-    		showExceptionDialog(owner, err);
-    		}		
-    	finally
-    		{
-    		CloserUtil.close(samIn);
-    		}
+    	BamFile input=null;
+    	try {
+			input = BamFile.newInstance(file);
+			BamStage stage=new BamStage(JfxNgs.this, input);
+			stage.show();
+		} catch (final Exception err) {
+			CloserUtil.close(input);
+			showExceptionDialog(owner, err);
+			}
+    		
     	}
 
-    private File tryDownloadIndex(final String url)
+    private File tryDownloadBamIndex(final String url)
     	throws IOException
     	{
     	if(!url.endsWith(BamFileIoUtils.BAM_FILE_EXTENSION)) throw new IllegalStateException("bam suffix not checked");
@@ -570,58 +585,6 @@ public class JfxNgs extends Application {
     	throw new IOException("cannot get bam index for "+url);
     	}
     
-    private void _openBamAnySource(final Window owner,final InputSource source){
-    	SamReader samIn=null;
-    	Optional<File> bamIndex=Optional.empty();
-    	try 
-    		{
-			final SamReaderFactory srf = SamReaderFactory.makeDefault();
-			srf.validationStringency(ValidationStringency.LENIENT);
-			if(source.isFile())
-				{
-				samIn = srf.open(source.asFile());
-				}
-			else
-				{
-				
-				bamIndex= Optional.of(tryDownloadIndex(source.asUrl().toString()));
-				if(!bamIndex.isPresent())
-					{
-					showExceptionDialog(owner,"Cannot fetch index for "+source);
-					return;
-					}
-				final SamInputResource sir= SamInputResource.of(source.asUrl());
-				sir.index(bamIndex.get());
-				samIn = srf.open(sir);
-				}
-			if(!samIn.hasIndex())
-				{
-				showExceptionDialog(owner,"No index for "+source);
-				return;
-				}
-			if(samIn.getFileHeader()==null)
-				{
-				showExceptionDialog(owner,"cannot get SAM header for "+source);
-				return;
-				}
-			if(samIn.getFileHeader().getSequenceDictionary()==null)
-				{
-				showExceptionDialog(owner,"cannot get SAM Dictionary for "+source);
-				return;
-				}	
-			samIn.close();
-			LOG.info("OK for BAM "+source);
-			final BamStage sc= new BamStage(this,source,bamIndex);
-	    	sc.show();
-    		}
-    	catch(final Exception err)
-    		{
-    		showExceptionDialog(owner, err);
-    		}		
-    	finally
-    		{
-    		CloserUtil.close(samIn);
-    		}    }
     
     void openVcfFile(final Window owner)
 		{
@@ -629,40 +592,20 @@ public class JfxNgs extends Application {
 		fc.setSelectedExtensionFilter(VcfStage.EXTENSION_FILTER);
 		final File file = updateLastDir(fc.showOpenDialog(owner));
 		if(file==null) return;
-    	VCFFileReader vcfIn=null;
-		try 
-			{
-    		vcfIn = new VCFFileReader(file, true);
-    		if(vcfIn.getFileHeader()==null) {
-    			showExceptionDialog(owner,"No VCF header in "+file);
-    			return ;
-    			}
-    		if(vcfIn.getFileHeader().getSequenceDictionary()==null) {
-    			showExceptionDialog(owner,"No VCF idctionary in "+file);
-    			return ;
-    			}
-    		if(vcfIn.getFileHeader()!=null && vcfIn.getFileHeader().getSequenceDictionary()!=null)
-	    		{
-	    		vcfIn.close();
-	    		LOG.info("OK for VCF "+file);
-	    		VcfStage sc= new VcfStage(this,new InputSource(file));
-	    		sc.show();
-	    		}
-    		return ;
-    		}
-		catch(final Exception err)
-			{
+		VcfFile input=null;
+    	try {
+			input = VcfFile.newInstance(file);
+			VcfStage stage=new VcfStage(JfxNgs.this, input);
+			stage.show();
+		} catch (final Exception err) {
+			CloserUtil.close(input);
 			showExceptionDialog(owner, err);
-			}		
-		finally
-			{
-			CloserUtil.close(vcfIn);
 			}
 		}
     
-    static void doMenuAbout(Stage stage)
+    static void doMenuAbout(final Stage stage)
     	{
-    	Alert alert=new Alert(AlertType.INFORMATION);
+    	final Alert alert=new Alert(AlertType.INFORMATION);
 		alert.setHeaderText("JFXNGS");
 		alert.setContentText("Pierre Lindenbaum PhD. 2017.\n"
 				+ "@yokofakun\n"
@@ -676,12 +619,7 @@ public class JfxNgs extends Application {
     static MenuItem createMenuItem(final String label,final Runnable runner)
     	{
     	final MenuItem menu=new MenuItem(label);
-    	menu.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				runner.run();
-			}
-		});
+    	menu.setOnAction(AE->runner.run());
     	return menu;
     	}
 
