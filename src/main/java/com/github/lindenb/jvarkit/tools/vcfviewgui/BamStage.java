@@ -47,7 +47,6 @@ import java.util.stream.Stream;
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
 
-import com.github.lindenb.jvarkit.tools.samjs.SamJavascript;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.CigarOpPerPositionChartFactory;
