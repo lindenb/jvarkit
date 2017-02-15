@@ -485,12 +485,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
        
         this.setScene(scene);
         
-       
         fileMenu.getItems().addAll(
         		menuForSavingTable("Variants",this.variantTable),
         		menuForSavingTable("INFO",this.infoTableRow),
         		menuForSavingTable("FILTER",this.filterTableRow),
-        		menuForSavingTable("Genotype",this.genotypeTable)
+        		menuForSavingTable("Genotypes",this.genotypeTable)
         		);
         
         /* fill stats menu */
@@ -534,7 +533,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		}
 	
 
-	
+	@Override
 	protected void doMenuSaveAs()
 		{
 		final FileChooser fc= owner.newFileChooser();
@@ -1028,5 +1027,6 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     private VcfFile getVcfFile() {
     	return VcfFile.class.cast(super.getNgsFile());
     }
+    
     
 	}

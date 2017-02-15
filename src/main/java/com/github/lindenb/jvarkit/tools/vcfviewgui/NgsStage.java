@@ -71,7 +71,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -358,36 +357,15 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
                     	owner.unregisterStage(NgsStage.this);
                     });
        
-        this.gotoField.setPrefColumnCount(15);
+        this.gotoField.setPrefColumnCount(25);
         this.gotoField.setEditable(true);
         
-        this.fileMenu.getItems().add(JfxNgs.createMenuItem("About...",new Runnable() {
-			@Override
-			public void run() {
-				JfxNgs.doMenuAbout(NgsStage.this);
-			}
-		}));
-        this.fileMenu.getItems().add(new SeparatorMenuItem());
-        this.fileMenu.getItems().add(JfxNgs.createMenuItem("Open BAM...",new Runnable() {
-			@Override
-			public void run() {
-				owner.openBamFile(NgsStage.this);
-			}
-		}));
-        this.fileMenu.getItems().add(JfxNgs.createMenuItem("Open VCF...",new Runnable() {
-			@Override
-			public void run() {
-				owner.openVcfFile(NgsStage.this);
-			}
-		}));
-        this.fileMenu.getItems().add(new SeparatorMenuItem());
-        this.fileMenu.getItems().add(JfxNgs.createMenuItem("Save Filtered Data as... ",new Runnable() {
-			@Override
-			public void run() {
-				doMenuSaveAs();
-			}
-		}));
-    	this.menuBar.getMenus().add(this.fileMenu);
+        
+        this.fileMenu.getItems().addAll(owner.createCommonMenuItems(this));
+        this.fileMenu.getItems().add(JfxNgs.createMenuItem("Save filtered data as...", ()->doMenuSaveAs()));
+
+    	
+        this.menuBar.getMenus().add(this.fileMenu);
     	this.menuBar.getMenus().add(this.statsMenu);
     	this.menuBar.getMenus().add(this.createJavascriptSnippetMenu());
     	}
@@ -592,15 +570,15 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     /** create a MenuItem saving a table */
     protected <T> MenuItem menuForSavingTable(final String tableName,TableView<T> table)
     	{
-    	final MenuItem item=new MenuItem("Save "+tableName+" as ...");
+    	final MenuItem item=new MenuItem("Save table '"+tableName+"' as ...");
     	item.setOnAction(new EventHandler<ActionEvent>()
 			{
 			@Override
-			public void handle(ActionEvent event)
+			public void handle(final ActionEvent event)
 				{
-				FileChooser fc= owner.newFileChooser();
+				final FileChooser fc= owner.newFileChooser();
 				fc.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("TSV","tsv"));
-				File fout= owner.updateLastDir(fc.showSaveDialog(NgsStage.this));
+				final File fout= owner.updateLastDir(fc.showSaveDialog(NgsStage.this));
 				if(fout==null) return ;
 				PrintWriter out=null;
 				try
@@ -633,7 +611,6 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 					{
 					CloserUtil.close(out);
 					}
-				
 				}
 			});
     	return item;
@@ -729,8 +706,17 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				);
 		
         table.getColumns().add(makeColumn("Name",SSR->SSR.getSequenceName()));
-        table.getColumns().add(makeColumn("Length",SSR->SSR.getSequenceLength()));
-        table.getColumns().add(makeColumn("Assembly",SSR->SSR.getAssembly()));
+        table.getColumns().add(formatIntegerColumn(makeColumn("Length",SSR->SSR.getSequenceLength())));
+        
+        if(dict.getSequences().stream().filter(S->S.getAssembly()!=null && !S.getAssembly().trim().isEmpty()).findAny().isPresent()) {
+        	table.getColumns().add(makeColumn("Assembly",SSR->SSR.getAssembly()));
+        	}
+        if(dict.getSequences().stream().filter(S->S.getSpecies()!=null && !S.getSpecies().trim().isEmpty()).findAny().isPresent()) {
+        	table.getColumns().add(makeColumn("Species",SSR->SSR.getSpecies()));
+        	}
+        if(dict.getSequences().stream().filter(S->S.getMd5()!=null && !S.getMd5().trim().isEmpty()).findAny().isPresent()) {
+        	table.getColumns().add(makeColumn("MD5",SSR->SSR.getMd5()));
+        	}
         final Tab tab=new Tab("Dict", table);
         tab.setClosable(false);
         
@@ -865,7 +851,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	return tc;
     	}
     
-    
+    /** returns  the underlying instance of NgsFile (BamFile, VcfFile...) */
     protected NgsFile<HEADERTYPE, ITEMTYPE> getNgsFile() {
 		return ngsFile;
 	}

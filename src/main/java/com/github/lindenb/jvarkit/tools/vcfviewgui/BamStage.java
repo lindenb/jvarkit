@@ -600,7 +600,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         		primaryScreenBounds.getHeight()-200)
         		);
         		
-        
+
         super.fileMenu.getItems().addAll(
         		menuForSavingTable("SamRecord",this.recordTable),
         		menuForSavingTable("MetaData",this.metaDataTable),
@@ -700,9 +700,9 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	
     	table.getColumns().add(tc0);
     	
-    	table.getColumns().add(formatIntegerColumn(makeColumn("LEN",REC->REC.getInferredInsertSize())));
-    	table.getColumns().add(makeColumn("Mate-Ref",REC->REC.getMateReferenceName()));
-    	table.getColumns().add(formatIntegerColumn(makeColumn("Mate-Pos",REC->REC.getMateAlignmentStart())));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("LEN",REC-> !REC.getReadPairedFlag() || REC.getMateUnmappedFlag()?null:REC.getInferredInsertSize())));
+    	table.getColumns().add(makeColumn("Mate-Ref",REC->!REC.getReadPairedFlag() || REC.getMateUnmappedFlag()?null:REC.getMateReferenceName()));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("Mate-Pos",REC-> !REC.getReadPairedFlag() || REC.getMateUnmappedFlag()?null: REC.getMateAlignmentStart())));
     	
     	
     	TableColumn<SAMRecord, String> tc = makeColumn("SEQ",REC->REC.getReadString());

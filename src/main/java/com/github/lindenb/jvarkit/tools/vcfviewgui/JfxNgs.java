@@ -303,19 +303,10 @@ public class JfxNgs extends Application {
         primaryStage.setTitle(getClass().getSimpleName());
         Menu menu=new Menu("File");
         
-        MenuItem menuItem=new MenuItem("About...");
-        menuItem.setOnAction(AE->doMenuAbout(primaryStage));
-			
-        menu.getItems().add(menuItem);
-        
-        
-        menu.getItems().add(createMenuItem("Open VCF File...",()->openVcfFile(primaryStage)));
-        menu.getItems().add(createMenuItem("Open BAM File...",()->openBamFile(primaryStage)));
-        menu.getItems().add(createMenuItem("Open Remote BAM...",()->openBamUrl(primaryStage)));
-        menu.getItems().add(createMenuItem("Open Remote VCF...",()->openVcfUrl(primaryStage)));
+        menu.getItems().addAll(createCommonMenuItems(primaryStage));
         
         menu.getItems().add(new SeparatorMenuItem());
-        menuItem=new MenuItem("Quit...");
+        MenuItem menuItem=new MenuItem("Quit...");
         menuItem.setOnAction(AE->doMenuQuit());
         menu.getItems().add(menuItem);
         
@@ -336,7 +327,7 @@ public class JfxNgs extends Application {
         
         final EventHandler<ActionEvent> handler=new EventHandler<ActionEvent>() {
 			@Override
-			public void handle(ActionEvent event) {
+			public void handle(final ActionEvent event) {
 				final String loc=textField.getText().trim();
 				LOG.info("moveTo all to "+loc);
 				for(final NgsStage<?,?> sc:all_opened_stages )
@@ -541,7 +532,7 @@ public class JfxNgs extends Application {
     	BamFile input=null;
     	try {
 			input = BamFile.newInstance(file);
-			BamStage stage=new BamStage(JfxNgs.this, input);
+			final BamStage stage=new BamStage(JfxNgs.this, input);
 			stage.show();
 		} catch (final Exception err) {
 			CloserUtil.close(input);
@@ -550,6 +541,19 @@ public class JfxNgs extends Application {
     		
     	}
 
+    List<MenuItem> createCommonMenuItems(final Stage stage) {
+    	final List<MenuItem> L=new ArrayList<>();
+    	L.add(createMenuItem("About...",()->doMenuAbout(stage)));
+        L.add(new SeparatorMenuItem());
+    	L.add(createMenuItem("Open VCF File...",()->openVcfFile(stage)));
+        L.add(createMenuItem("Open BAM File...",()->openBamFile(stage)));
+        L.add(createMenuItem("Open Remote BAM...",()->openBamUrl(stage)));
+        L.add(createMenuItem("Open Remote VCF...",()->openVcfUrl(stage)));
+        L.add(new SeparatorMenuItem());
+        L.add(createMenuItem("Close",()->stage.hide()));
+        return L;
+    	}
+    
     private File tryDownloadBamIndex(final String url)
     	throws IOException
     	{
