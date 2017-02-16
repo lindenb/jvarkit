@@ -31,7 +31,9 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -49,6 +51,7 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
+import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -66,6 +69,8 @@ import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.chart.Chart;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -86,6 +91,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.Paint;
+import javafx.scene.paint.Stop;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -109,8 +118,8 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	private final NgsFile<HEADERTYPE,ITEMTYPE> ngsFile;
 	/** javascript filtering */
 	protected final TextArea javascriptArea=new TextArea();
-	
-	
+	/** draw the karyotype */
+	protected final SeqDictionaryCanvas seqDictionaryCanvas;
 	/** message stuff */
 	protected final Label messageLabel=new Label();
 	/** message stuff */
@@ -126,9 +135,185 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	protected final Spinner<Integer> maxItemsLimitSpinner=
 			new Spinner<>(0, 10000, 1);
 
+	/** simple pair chromosome/pos */
+	protected static class ContigPos
+	implements Comparable<ContigPos>, Locatable
+		{
+		final String contig;
+		final int position;
+		ContigPos(final String contig,final int position) {
+			this.contig=contig;
+			this.position=position;
+		}
+		
+		@Override
+		public String getContig() {
+			return this.contig;
+			}
+		@Override
+		public int getStart() {
+			return this.position;
+			}
+		@Override
+		public int getEnd() {
+			return this.position;
+			}
+		@Override
+		public int compareTo(final ContigPos o) {
+			int i=contig.compareTo(o.contig);
+			if(i!=0) return i;
+			return position-o.position;
+			}
+		@Override
+		public String toString() {
+			return this.contig+":"+this.position;
+			}
+		}
 	
+	protected class SeqDictionaryCanvas
+		extends BorderPane
+		{
+		private final SAMSequenceDictionary dict;
+		private final double refLength;
+		private ContigPos itemsStart=null;
+		private ContigPos itemsEnd=null;
+		private Interval selectInterval=null;
+		private final Map<String,Long> chrom2start;
+		private final Canvas canvas;
+	    private final Tooltip mousePositionToolTip = new Tooltip("dddd");
+    	private java.text.DecimalFormat niceIntFormat = new java.text.DecimalFormat("###,###");
+
+		SeqDictionaryCanvas(final SAMSequenceDictionary dict) {
+			this.dict = dict;
+			this.chrom2start=new HashMap<>(dict.size());
+			this.refLength = dict.getReferenceLength();
+			this.canvas = new Canvas(500,25);
+			
+			this.setCenter(this.canvas);
+			this.setPrefWidth(Double.MAX_VALUE);
+			this.setPrefWidth(25.0);
+            long p=0L;
+            for(final SAMSequenceRecord ssr: dict.getSequences())
+            	{
+            	this.chrom2start.put(ssr.getSequenceName(),p);
+            	p+=ssr.getSequenceLength();
+            	}
+            this.canvas.setOnMouseClicked(AE->{
+            	if(AE.getClickCount()<2 || this.canvas.getWidth()==0) return;
+            	final ContigPos cp = pixel2base(AE.getX());
+            	if(cp==null) return;
+            	NgsStage.this.gotoField.setText(cp.contig+":"+cp.position);
+                NgsStage.this.reloadData();		
+            	});
+            Tooltip.install(this.canvas,this.mousePositionToolTip);
+            this.canvas.setOnMouseMoved(AE->{
+           		final ContigPos cp = pixel2base(AE.getX());
+           		mousePositionToolTip.setText(cp==null?"":cp.contig+":"+this.niceIntFormat.format(cp.position));});
+			}
+		
+		private ContigPos pixel2base(double pixx)
+			{
+			long x= (long)((pixx/this.canvas.getWidth())*this.refLength);
+			long p1=0L;
+			for(final SAMSequenceRecord ssr: this.dict.getSequences())
+	        	{
+	        	if(p1<=x && x<=p1+ssr.getSequenceLength()) {
+	        		return new ContigPos(ssr.getSequenceName(),(int)(x-p1));
+	        		}
+	        	p1+=ssr.getSequenceLength();
+	        	}
+			return null;
+			}
+		
+		public void setItemsInterval(final ContigPos start,final ContigPos end) {
+			this.itemsStart = start;
+			this.itemsEnd = end;
+			draw();
+			}
+		public void setSelectInterval(final Interval selectInterval) {
+			this.selectInterval = selectInterval;
+			draw();
+			}
+		// http://stackoverflow.com/questions/31761361/
+        @Override
+        protected void layoutChildren() {
+        	final double x = snappedLeftInset();
+            final double y = snappedTopInset();
+            final double w = snapSize(getWidth()) - x - snappedRightInset();
+            final double h = snapSize(getHeight()) - y - snappedBottomInset();
+            canvas.setLayoutX(x);
+            canvas.setLayoutY(y);
+            canvas.setWidth(w);
+            canvas.setHeight(h);
+            draw();
+        }
+		private double base2pixel(final String contig,final int v) {
+			final Long n=this.chrom2start.get(contig);
+			if(n==null) return -9999.99;
+			return ((double)(n+v)/this.refLength)*this.canvas.getWidth();
+			}
+		
+		public void draw() {
+            final double boundrec=5.0;
+			final double width = canvas.getWidth();
+			final double height = canvas.getHeight();
+			if(width<=1.0 || height<=1.0) return;
+            final GraphicsContext gc = this.canvas.getGraphicsContext2D();
+            gc.setGlobalAlpha(1.0);
+            gc.clearRect(0, 0, width, height);
+            final Paint p1= new LinearGradient(0, 0, 0, 1.0, true, CycleMethod.NO_CYCLE,
+            		new Stop(0.0, Color.DARKGRAY),
+            		new Stop(0.5, Color.WHITE),
+            		new Stop(1.0,Color.DARKGRAY)
+            		);
+            final Paint p2= new LinearGradient(0, 0, 0, 1.0, true, CycleMethod.NO_CYCLE,
+            		new Stop(0.0, Color.DARKSLATEBLUE),
+            		new Stop(0.5, Color.WHITE),
+            		new Stop(1.0,Color.DARKSLATEBLUE)
+            		);
+            final Hershey hershey = new Hershey();
+            for(int i=0;i< this.dict.size();++i)
+            	{
+            	final SAMSequenceRecord ssr = this.dict.getSequence(i);
+            	final double x0 = base2pixel(ssr.getSequenceName(),1);
+            	final double x1 =  base2pixel(ssr.getSequenceName(),ssr.getSequenceLength());
+            	double labelh = height-5;
+            	double labelw=Math.min(ssr.getSequenceName().length()*labelh,(x1-x0));
+            	
+            	gc.setLineWidth(0.5);
+            	gc.setFill(i%2==0?p1:p2);
+            	gc.fillRoundRect(x0, 1, (x1-x0), height-2, boundrec, boundrec);
+            	gc.setStroke(Color.BLACK);
+            	gc.strokeRoundRect(x0, 1, (x1-x0), height-2, boundrec, boundrec);
+            	if(labelh>3 && labelw>3) {
+	            	gc.setStroke(Color.BLACK);
+	            	gc.setLineWidth(1.0);
+	            	hershey.paint(gc, ssr.getSequenceName(), x0+(x1-x0)/2.0-labelw/2.0,2.0, labelw, labelh);
+	            	}
+            	}
+            if(this.itemsStart!=null && this.itemsEnd!=null) {
+            	final double x0 = base2pixel(this.itemsStart.contig,this.itemsStart.position);
+            	final double x1 =  base2pixel(this.itemsEnd.contig,this.itemsEnd.position);
+            	gc.setGlobalAlpha(0.8);
+            	gc.setFill(Color.ORANGE);
+            	gc.fillRoundRect(x0, 1, (x1-x0)+1.0, height-2, 1, 1);
+            	}
+            if(selectInterval!=null) {
+            	final double x0 = base2pixel(selectInterval.getContig(),selectInterval.getStart());
+            	final double x1 =  base2pixel(selectInterval.getContig(),selectInterval.getEnd());
+            	gc.setGlobalAlpha(0.8);
+            	gc.setFill(Color.RED);
+            	gc.fillRoundRect(x0, 1, (x1-x0)+1.0, height-2, 1, 1);
+            	}
+			}
+
+		}
+	
+	/** javascript filter used to filter a NgsFile*/
     protected static abstract class JavascriptFilter<HEADER,DATATYPE> {
+    	/** the compiled script */
 		protected final Optional<CompiledScript> compiledScript;
+		/** bindings that will be injected in the script */
 		protected final SimpleBindings bindings=new SimpleBindings();
 		Optional<Throwable> encounteredException=Optional.empty();
 		protected JavascriptFilter(
@@ -336,6 +521,8 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	this.maxItemsLimitSpinner.setEditable(true);
     	this.maxItemsLimitSpinner.setTooltip(new Tooltip(
     			"The whole file is NOT loaded, only a subset of data will be read."));
+    	
+    	this.seqDictionaryCanvas = new  SeqDictionaryCanvas(ngsFile.getSequenceDictionary());
     	
     	if(!this.owner.javascriptCompiler.isPresent()) {
     		this.javascriptArea.setEditable(false);
@@ -733,6 +920,28 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	this.reloadData();
     	}
     
+    private int parsePosition(String num) throws NumberFormatException
+    	{
+    	if( num==null || num.trim().isEmpty()) throw new NumberFormatException("bad number \""+num+"\"");
+    	num = num.replace(",", "").trim();
+    	if(num.toLowerCase().endsWith("bp"))
+    		{
+    		return Integer.parseInt(num.substring(0,num.length()-2))*1;
+    		}
+    	else if(num.toLowerCase().endsWith("kb"))
+			{
+			return Integer.parseInt(num.substring(0,num.length()-2))*1000;
+			}
+    	else if(num.toLowerCase().endsWith("mb"))
+			{
+			return Integer.parseInt(num.substring(0,num.length()-2))*1000000;
+			}
+    	else
+    		{
+    		return Integer.parseInt(num);
+    		}
+    	}
+    
     protected Interval parseInterval(final String location)
     	{
     	final SAMSequenceDictionary dict=this.ngsFile.getSequenceDictionary();
@@ -740,11 +949,11 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		int colon =location.indexOf(":");
 		if(colon==-1)
 			{
-			contig=location;
+			contig=location.trim();
 			}
 		else
 			{
-			contig=location.substring(0,colon);
+			contig=location.substring(0,colon).trim();
 			}
 		
 		SAMSequenceRecord ssr= dict.getSequence(contig);
@@ -764,30 +973,47 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		
 		if(colon!=-1)
 			{
-			int hyphen=location.indexOf('-');
+			final int hyphen = location.indexOf('-');
+			final int plus = location.indexOf('+');
+			
+			if(hyphen!=-1 && plus!=-1) {
+				updateStatusBar(AlertType.WARNING, "both '+' and '-' in "+location);
+				return null;
+				}
+			
 			Integer start=null,end=null;
-			if(hyphen==-1)
+			
+			if(hyphen==-1 && plus==-1)
 				{
-				final String startStr=location.substring(colon+1).replace(",", "").trim();
 				try {
-					start= Math.max(0, Integer.parseInt(startStr));
+					start= Math.max(0, parsePosition(location.substring(colon+1)));
 					end=ssr.getSequenceLength();
 					}
 				catch(final NumberFormatException err ) {
 					start=null;
-					LOG.warning(startStr);
+					LOG.warning(location);
 					updateStatusBar(AlertType.WARNING, "Bad Start in : "+location);
 					return null;
 					}
 				}
 			else
 				{
+				int delimidx=(hyphen==-1?plus:hyphen);
 				try {
-					start= Math.max(0, new Integer(location.substring(colon+1,hyphen).replace(",", "").trim()));
-					end= Math.min(
-							Integer.parseInt(location.substring(hyphen+1).replace(",", "").trim()),
+					start= Math.max(0, parsePosition(location.substring(colon+1,delimidx)));
+					int num2= Math.min(
+							parsePosition(location.substring(delimidx+1)),
 							ssr.getSequenceLength()
 							);
+					if(plus!=-1) {
+						int center = start;
+						start=Math.max(center-num2,0);
+						end = Math.min(center+num2,ssr.getSequenceLength());
+						}
+					else
+						{
+						end=num2;
+						}
 					}
 				catch(final NumberFormatException err )
 					{

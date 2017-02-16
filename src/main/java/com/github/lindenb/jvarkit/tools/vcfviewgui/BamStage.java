@@ -306,22 +306,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     		}
 		}
 
-    private static class ContigPos
-    	implements Comparable<ContigPos>
-		{
-		final String contig;
-		final int position;
-		ContigPos(final String contig,final int position) {
-			this.contig=contig;
-			this.position=position;
-		}
-		@Override
-		public int compareTo(ContigPos o) {
-			int i=contig.compareTo(o.contig);
-			if(i!=0) return i;
-			return position-o.position;
-			}
-		}
+    
     private static class Pileup extends ContigPos
     	{
     	
@@ -368,19 +353,13 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     		) throws IOException
     	{
     	super(owner,bamFile);
-        
-        LOG.info("Opening "+bamFile.getSource());
-        
-        
-         
+               
         /** Build menu for SAM Flags */
         for(final SAMFlag flg:SAMFlag.values())
         	{
         	this.flag2filterInMenuItem.put(flg,new CheckMenuItem("Filter In "+flg.name()));
         	this.flag2filterOutMenuItem.put(flg,new CheckMenuItem("Filter Out "+flg.name()));
         	}
-        
-       
         
         
         final VBox vbox1 = new VBox();
@@ -471,12 +450,15 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         this.recordTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if(newSelection==null)
             	{
+        		seqDictionaryCanvas.setSelectInterval(null);
             	flagsTable.getItems().clear();
             	metaDataTable.getItems().clear();
             	cigarTable.getItems().clear();
             	}
             else
             	{
+        		super.seqDictionaryCanvas.setSelectInterval(new Interval(newSelection.getContig(), newSelection.getStart(), newSelection.getEnd()));
+
             	final List<SamFlagRow> L=new ArrayList<>();
             	for(final SAMFlag flag: SAMFlag.values())
             		{
@@ -587,7 +569,9 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         tabbedPane.getTabs().add(tab);
         /* END CANVAS STUFF */
         
+        vbox1.getChildren().add(super.seqDictionaryCanvas);
         vbox1.getChildren().add(tabbedPane);
+        
         
         final FlowPane bottom=new FlowPane(super.messageLabel);
         vbox1.getChildren().add(bottom);
@@ -1306,7 +1290,21 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	this.canvasScrollV.setMax(countDisplayable);
     	this.canvasScrollV.setValue(0);
     	
+    	if(!this.recordTable.getItems().isEmpty())
+    		{
+    		super.seqDictionaryCanvas.setItemsInterval(
+    				new ContigPos(this.recordTable.getItems().get(0).getContig(), this.recordTable.getItems().get(0).getStart()),
+    				new ContigPos(this.recordTable.getItems().get(this.recordTable.getItems().size()-1).getContig(), this.recordTable.getItems().get(this.recordTable.getItems().size()-1).getEnd())
+    				);
+    		}
+    	else
+    		{
+    		super.seqDictionaryCanvas.setItemsInterval(null,null);
+    		}
+    	
     	repaintCanvas();
+    	
+    	
     	}
     @Override
 	void openInIgv() {

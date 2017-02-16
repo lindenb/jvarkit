@@ -367,6 +367,9 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         this.gotoField.setOnAction(A->reloadData());
 		final TabPane tabPane=new TabPane();
 		tabPane.setPadding(new Insets(10, 10, 10, 10));
+		
+		
+        vbox1.getChildren().add(super.seqDictionaryCanvas);
 		vbox1.getChildren().add(tabPane);
 		
 		
@@ -755,8 +758,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	{
     	refreshGenotypeTable(ctx);
     	reloadInfoTable(ctx);
+    	
     	if(ctx!=null)
     		{
+    		super.seqDictionaryCanvas.setSelectInterval(new Interval(ctx.getContig(), ctx.getStart(), ctx.getEnd()));
     		this.filterTableRow.getItems().setAll(
     				ctx.getFilters()
     				);
@@ -767,6 +772,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     		}
     	else
     		{
+    		super.seqDictionaryCanvas.setSelectInterval(null);
         	this.filterTableRow.getItems().clear();
         	if(getVcfFile().getHeader().getNGenotypeSamples()>0)
 	        	{
@@ -906,6 +912,20 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     		{
     		JfxNgs.showExceptionDialog(this, javascripFilter.encounteredException.get());
     		}
+    	
+    	
+    	if(!this.variantTable.getItems().isEmpty())
+			{
+			super.seqDictionaryCanvas.setItemsInterval(
+					new ContigPos(this.variantTable.getItems().get(0).getContig(), this.variantTable.getItems().get(0).getStart()),
+					new ContigPos(this.variantTable.getItems().get(this.variantTable.getItems().size()-1).getContig(), this.variantTable.getItems().get(this.variantTable.getItems().size()-1).getEnd())
+					);
+			}
+		else
+			{
+			super.seqDictionaryCanvas.setItemsInterval(null,null);
+			}
+    	
     	}
 	
 	private void reloadInfoTable(final VariantContext ctx)
