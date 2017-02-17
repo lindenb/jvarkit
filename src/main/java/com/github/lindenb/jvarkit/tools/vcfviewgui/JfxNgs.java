@@ -193,6 +193,8 @@ public class JfxNgs extends Application {
     private static final String LAST_USED_DIR_KEY="last.used.dir";
     private final List<NgsStage<?,?>> all_opened_stages=new ArrayList<>();
     
+    
+    
     /** utility Function to convert base to Color */
     public static final Function<Character, Color> BASE2COLOR= new Function<Character, Color>() {
 		@Override

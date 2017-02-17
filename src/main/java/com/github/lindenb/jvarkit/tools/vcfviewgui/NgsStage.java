@@ -133,7 +133,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	
     /** limit number of items */
 	protected final Spinner<Integer> maxItemsLimitSpinner=
-			new Spinner<>(0, 10000, 1);
+			new Spinner<>(0, 1000, 1);
 
 	/** simple pair chromosome/pos */
 	protected static class ContigPos
@@ -170,6 +170,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			}
 		}
 	
+	/* pane used to draw the karyotype of the reference */
 	protected class SeqDictionaryCanvas
 		extends BorderPane
 		{
@@ -211,9 +212,9 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
            		mousePositionToolTip.setText(cp==null?"":cp.contig+":"+this.niceIntFormat.format(cp.position));});
 			}
 		
-		private ContigPos pixel2base(double pixx)
+		private ContigPos pixel2base(final double pixx)
 			{
-			long x= (long)((pixx/this.canvas.getWidth())*this.refLength);
+			final long x= (long)((pixx/this.canvas.getWidth())*this.refLength);
 			long p1=0L;
 			for(final SAMSequenceRecord ssr: this.dict.getSequences())
 	        	{
@@ -272,6 +273,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
             		new Stop(1.0,Color.DARKSLATEBLUE)
             		);
             final Hershey hershey = new Hershey();
+            /* paint each chrom */
             for(int i=0;i< this.dict.size();++i)
             	{
             	final SAMSequenceRecord ssr = this.dict.getSequence(i);
@@ -291,6 +293,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	            	hershey.paint(gc, ssr.getSequenceName(), x0+(x1-x0)/2.0-labelw/2.0,2.0, labelw, labelh);
 	            	}
             	}
+            /** draw current region of items */
             if(this.itemsStart!=null && this.itemsEnd!=null) {
             	final double x0 = base2pixel(this.itemsStart.contig,this.itemsStart.position);
             	final double x1 =  base2pixel(this.itemsEnd.contig,this.itemsEnd.position);
@@ -298,6 +301,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
             	gc.setFill(Color.ORANGE);
             	gc.fillRoundRect(x0, 1, (x1-x0)+1.0, height-2, 1, 1);
             	}
+            /* draw current selected item */
             if(selectInterval!=null) {
             	final double x0 = base2pixel(selectInterval.getContig(),selectInterval.getStart());
             	final double x1 =  base2pixel(selectInterval.getContig(),selectInterval.getEnd());

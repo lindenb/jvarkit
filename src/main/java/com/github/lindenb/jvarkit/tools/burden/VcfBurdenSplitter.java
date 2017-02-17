@@ -421,7 +421,8 @@ public class VcfBurdenSplitter
 			new SlidingWindowSplitter(2000, 1000),
 			new SlidingWindowSplitter(2000, 500),
 			new SlidingWindowSplitter(4000, 2000),
-			new SlidingWindowSplitter(4000, 1000)
+			new SlidingWindowSplitter(4000, 1000),
+			new SlidingWindowSplitter(10000, 3000)/* matilde 17 Fev 2017 */
 		};
 	
 	public VcfBurdenSplitter()
