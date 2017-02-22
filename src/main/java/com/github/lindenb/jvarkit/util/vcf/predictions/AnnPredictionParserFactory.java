@@ -24,5 +24,20 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
-public interface Prediction {
+import htsjdk.variant.vcf.VCFHeader;
+
+public class AnnPredictionParserFactory extends AbstractPredictionParserFactory<AnnPredictionParser,AnnPredictionParserFactory>
+	{
+	public AnnPredictionParserFactory() {
+		super(AnnPredictionParser.getDefaultTag());
+		}
+	public AnnPredictionParserFactory(final VCFHeader header) {
+		super(AnnPredictionParser.getDefaultTag(),header);
+		}
+	
+	@Override
+	public AnnPredictionParser get() {
+		return new AnnPredictionParser(getHeader(), getTag());
+	}
+	
 }

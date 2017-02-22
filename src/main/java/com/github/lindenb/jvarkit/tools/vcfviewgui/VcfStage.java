@@ -50,7 +50,9 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantQualChartFactory
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantTypeChartFactory;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -138,13 +140,20 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     public static class VcfTools
     	{
     	private final AnnPredictionParser annParser;
+    	private final VepPredictionParser vepParser;
     	VcfTools(final VCFHeader header) {
-    		this.annParser  = new PredictionParserFactory().header(header).buildAnnPredictionParser();
+    		this.annParser  = new AnnPredictionParserFactory(header).get();
+    		this.vepParser  = new VepPredictionParserFactory(header).get();
     	}
     	
     	public List<AnnPredictionParser.AnnPrediction> getAnnPredictions(final VariantContext ctx) {
     		return this.annParser.getPredictions(ctx);
     		}
+    	
+    	public List<VepPredictionParser.VepPrediction> getVepPredictions(final VariantContext ctx) {
+    		return this.vepParser.getPredictions(ctx);
+    		}
+
     	
     	public boolean isMendelianIncompatibility(final Genotype child,final Genotype parent)
     		{
@@ -324,21 +333,21 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	private final TableView<Genotype> genotypeTable;
 	private final TableView<InfoTableRow> infoTableRow;
 	/** annotation SNPEFF table ROW */
-	private final TableView<AnnPredictionParser.AnnPrediction> annTableRow;
+	private final TableView<AnnPredictionParser.AnnPrediction> annPredictionTable;
+	private final TableView<VepPredictionParser.VepPrediction> vepPredictionTable;
 	private final TableView<String> filterTableRow;
 	private final BorderPane genotypeChartPane;
 	private final CheckBox cboxShowHomRef=new CheckBox("HomRef");
 	private final CheckBox cboxShowNoCall=new CheckBox("NoCall");
 	private final TextField tfFilterInfo=new TextField();
 	private final AnnPredictionParser annPredictionParser;
+	private final VepPredictionParser vepPredictionParser;
 	VcfStage(final JfxNgs owner,final VcfFile vcfFile) throws IOException {
 		super(owner,vcfFile);
 		final VCFHeader header= vcfFile.getHeader();
 		
-        this.annPredictionParser=new PredictionParserFactory().
-        			header(header).
-        			buildAnnPredictionParser();
-      
+        this.annPredictionParser=new AnnPredictionParserFactory(header).get();
+        this.vepPredictionParser=new VepPredictionParserFactory(header).get();
         
         //selectFlagMenu.getItems().addAll(flag2filterOutMenuItem.values());
         final VBox vbox1 = new VBox();
@@ -432,7 +441,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		
 		/* build info Table table */
 		this.infoTableRow = this.buildInfoTableRow();
-		this.annTableRow = this.buildAnnTableRow();
+		this.annPredictionTable = this.buildAnnTableRow();
+		this.vepPredictionTable = this.buildVepTableRow(this.vepPredictionParser);
 		flow3 = new FlowPane(new Label("Filter:"),tfFilterInfo);
 		tfFilterInfo.setPrefColumnCount(10);
 		tfFilterInfo.setOnAction(AE->reloadInfoTable(variantTable.getSelectionModel().getSelectedItem()));
@@ -440,7 +450,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		Tab tab=new Tab("INFO",this.infoTableRow);
 		tab.setClosable(false);
 		tabPane2.getTabs().add(tab);
-		tab=new Tab("ANN",this.annTableRow);
+		tab=new Tab("ANN",this.annPredictionTable);
+		tab.setClosable(false);
+		tabPane2.getTabs().add(tab);
+		tab=new Tab("VEP",this.vepPredictionTable);
 		tab.setClosable(false);
 		tabPane2.getTabs().add(tab);
 		
@@ -716,7 +729,16 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		table.getColumns().add(makeColumn("Msg", P->P.getMessages()));
 		return table;
 		}
-	
+	private TableView<VepPredictionParser.VepPrediction> buildVepTableRow(final VepPredictionParser parser)
+		{
+		final TableView<VepPredictionParser.VepPrediction> table=new TableView<>();
+		for(final String col:parser.getCategories())
+			{
+			table.getColumns().add(makeColumn(col, P->P.get(col)));
+			}
+		return table;
+		}
+
 	/** build Genotype table */
 	private TableView<Genotype> buildGenotypeTableRow(final VCFHeader header)
 		{
@@ -933,7 +955,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		if(ctx==null)
 			{
 			this.infoTableRow.getItems().clear();
-			this.annTableRow.getItems().clear();
+			this.annPredictionTable.getItems().clear();
+			this.vepPredictionTable.getItems().clear();
 			}
 		else
 			{
@@ -982,7 +1005,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 					}
 				}
 			this.infoTableRow.getItems().setAll(infos);
-			this.annTableRow.getItems().setAll(this.annPredictionParser.getPredictions(ctx));
+			this.annPredictionTable.getItems().setAll(this.annPredictionParser.getPredictions(ctx));
+			this.vepPredictionTable.getItems().setAll(this.vepPredictionParser.getPredictions(ctx));
 			}
 		
 		}

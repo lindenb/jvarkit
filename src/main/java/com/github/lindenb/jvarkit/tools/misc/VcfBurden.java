@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 public class VcfBurden extends AbstractKnimeApplication
 	{
@@ -334,7 +335,7 @@ public class VcfBurden extends AbstractKnimeApplication
 			final List<String> samples= in.getHeader().getSampleNamesInOrder();
 			final VCFHeader header=in.getHeader();
 			String prev_chrom = null;
-			final VepPredictionParser vepPredParser=new VepPredictionParser(header);
+			final VepPredictionParser vepPredParser=new VepPredictionParserFactory().header(header).get();
 			final Map<GeneTranscript,List<VariantAndCsq>> gene2variants=new HashMap<>();
 			final SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
 			final Set<SequenceOntologyTree.Term> acn=new HashSet<>();

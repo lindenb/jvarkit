@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,7 +44,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 
 /**
@@ -64,7 +64,7 @@ public class SnpEffPredictionParser implements PredictionParser
 	private String tag;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 
-	public SnpEffPredictionParser(final VCFHeader header)
+	SnpEffPredictionParser(final VCFHeader header)
 		{		
 		this(header,getDefaultTag());
 		}
@@ -131,23 +131,22 @@ public class SnpEffPredictionParser implements PredictionParser
 	@Override
 	public List<SnpEffPrediction> getPredictions(VariantContext ctx)
 		{
-		 ArrayList<SnpEffPrediction> preds= new ArrayList<SnpEffPrediction>();
-		if(col2col.isEmpty())
+		if(this.col2col.isEmpty() || !ctx.hasAttribute(getTag()))
 			{
-			return preds;
+			return Collections.emptyList();
 			}
-		Object o=ctx.getAttribute(getTag());
-		List<? extends Object> L= VCFUtils.attributeAsList(o);
-		for(Object o2:L)
+		final List<? extends Object> L= ctx.getAttributeAsList(getTag());
+		final ArrayList<SnpEffPrediction> preds= new ArrayList<SnpEffPrediction>(L.size());
+		for(final Object o2:L)
 			{
 			 _predictions(preds,o2);
 			}
 		return preds;
 		}
 	
-	private void _predictions( List<SnpEffPrediction> preds,Object o)
+	private void _predictions(final List<SnpEffPrediction> preds,final Object o)
 		{
-		SnpEffPrediction pred= parseOnePrediction(o);
+		final SnpEffPrediction pred= parseOnePrediction(o);
 		if(pred==null) return;
 		preds.add(pred);
 		}
@@ -159,8 +158,7 @@ public class SnpEffPredictionParser implements PredictionParser
 			{
 			return parseOnePrediction( o.toString());
 			}
-		final String s=String.class.cast(o).trim();
-		final String tokens[]=pipe.split(s);
+		final String tokens[]=pipe.split(String.class.cast(o).trim());
 		return new SnpEffPrediction(tokens);
 		}
 	
@@ -187,29 +185,18 @@ public class SnpEffPredictionParser implements PredictionParser
 			if(idx==null || idx>=tokens.length || tokens[idx].isEmpty()) return null;
 			return tokens[idx];
 			}
-		@Override
 		public String getGeneName()
 			{
 			return getByCol(COLS.Gene_Name);
 			}
 		
-		@Override
 		public String getEnsemblTranscript()
 			{
 			String s=getByCol(COLS.Transcript);
 			if(s==null || !s.startsWith("ENST")) return null;
 			return s;
 			}
-		@Override
-		public String getEnsemblProtein()
-			{
-			return null;
-			}
 		
-		@Override
-		public String getEnsemblGene() {
-			return null;
-			}
 		
 		private AAChange getAAChange()
 			{
@@ -234,20 +221,17 @@ public class SnpEffPredictionParser implements PredictionParser
 			return change;
 			}
 		
-		@Override
 		public String getAltAminoAcid()
 			{
 			AAChange aa=getAAChange();
 			return aa==null?null:aa.alt;
 			}
 		
-		@Override
 		public Integer getAminoAcidPosition()
 			{
 			AAChange aa=getAAChange();
 			return aa==null?null:aa.pos;
 			}
-		@Override
 		public String getReferenceAminoAcid() {
 			AAChange aa=getAAChange();
 			return aa==null?null:aa.ref;
@@ -266,7 +250,6 @@ public class SnpEffPredictionParser implements PredictionParser
 			return hash;
 			}
 		
-		@Override
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
 			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();

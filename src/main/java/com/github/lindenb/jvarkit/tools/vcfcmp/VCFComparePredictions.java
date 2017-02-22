@@ -12,8 +12,10 @@ import java.util.Set;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -190,8 +192,8 @@ public class VCFComparePredictions extends AbstractVCFCompareBase {
 			for(AbstractVCFCompareBase.Input input:this.inputs)
 				{
 				PredictionTuple predictionTuple=new PredictionTuple();
-				predictionTuple.snpEffPredictionParser=new SnpEffPredictionParser(input.codecAndHeader.header);
-				predictionTuple.vepPredictionParser=new VepPredictionParser(input.codecAndHeader.header);
+				predictionTuple.snpEffPredictionParser=new SnpEffPredictionParserFactory(input.codecAndHeader.header).get();
+				predictionTuple.vepPredictionParser=new VepPredictionParserFactory(input.codecAndHeader.header).get();
 				
 				predictionTuples.add(predictionTuple);
 				}

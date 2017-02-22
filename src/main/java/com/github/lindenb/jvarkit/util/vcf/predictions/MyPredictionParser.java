@@ -151,7 +151,6 @@ public class MyPredictionParser implements PredictionParser
 			}
 		
 		
-		@Override
 		public String getGeneName()
 			{
 			return getTranscript();
@@ -200,7 +199,6 @@ public class MyPredictionParser implements PredictionParser
 			return getByCol(VCFPredictions.FORMAT1.AA);
 			}
 		
-		@Override
 		public String getAltAminoAcid()
 			{
 			String s=getAminoAcidChange();
@@ -210,7 +208,6 @@ public class MyPredictionParser implements PredictionParser
 			}
 		
 		
-		@Override
 		public Integer getAminoAcidPosition()
 			{
 			String s= getByCol(VCFPredictions.FORMAT1.PROTPOS);
@@ -221,7 +218,7 @@ public class MyPredictionParser implements PredictionParser
 				return null;
 				}
 			}
-		@Override
+
 		public String getReferenceAminoAcid() {
 
 			String s=getAminoAcidChange();
@@ -230,23 +227,6 @@ public class MyPredictionParser implements PredictionParser
 			return slash==-1?null:s.substring(0,slash);
 			}
 		
-		@Override
-		public String getEnsemblGene() {
-			return null;
-			}
-		
-		@Override
-		public String getEnsemblProtein() {
-			return null;
-			}
-		
-		@Override
-		public String getEnsemblTranscript() {
-			
-			return null;
-			}
-		
-		@Override
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
 			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();

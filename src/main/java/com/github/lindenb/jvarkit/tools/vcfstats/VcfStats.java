@@ -57,8 +57,10 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 public class VcfStats extends AbstractVcfStats
 	{
@@ -582,8 +584,8 @@ public class VcfStats extends AbstractVcfStats
 				this.DP_info_is_depth=true;
 				}
 			
-			this.vepPredictionParser=new VepPredictionParser(header);
-			this.snpEffPredictionParser=new SnpEffPredictionParser(header);
+			this.vepPredictionParser=new VepPredictionParserFactory(header).get();
+			this.snpEffPredictionParser=new SnpEffPredictionParserFactory(header).get();
 			
 			xout.writeStartElement("html");
 			xout.writeAttribute("xmlns", "http://www.w3.org/1999/xhtml");

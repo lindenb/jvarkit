@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 
 public class VcfBurdenSplitter
@@ -171,7 +172,7 @@ public class VcfBurdenSplitter
 		@Override public String getName() { return "vep";}
 		@Override public String getDescription() { return "Ensembl Variant Effect Prediction";}
 		public void initialize(final VCFHeader header) {
-			this.vepPredictionParser = new VepPredictionParser(header);
+			this.vepPredictionParser = new VepPredictionParserFactory(header).get();
 			}
 		public boolean accept(final VepPrediction pred,final VariantContext origin) {
 			return true;

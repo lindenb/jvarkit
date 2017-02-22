@@ -57,6 +57,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 public class VcfToRdf extends AbstractVcfToRdf
 	{
@@ -239,7 +240,7 @@ public class VcfToRdf extends AbstractVcfToRdf
 			final VCFHeader header = in.getHeader();
 			
 			
-			final VepPredictionParser vepPredictionParser=new VepPredictionParser(header);
+			final VepPredictionParser vepPredictionParser=new VepPredictionParserFactory(header).get();
 			writeHeader(header,source);
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			while(in.hasNext())
@@ -282,6 +283,7 @@ public class VcfToRdf extends AbstractVcfToRdf
 				if(super.printVep) {
 				for(final VepPrediction prediction : vepPredictionParser.getPredictions(ctx))
 					{
+					/* 
 					final List<Object> L=new ArrayList<>();
 					L.add("rdf:type");L.add("vep:Prediction");
 					L.add("vcf:variant"); L.add(variant);
@@ -322,6 +324,7 @@ public class VcfToRdf extends AbstractVcfToRdf
 						URI.create("urn:vep/"+(++id_generator)),
 						L.toArray()
 						);
+					*/
 					}
 				}
 				

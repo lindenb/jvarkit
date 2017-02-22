@@ -36,13 +36,13 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 public class VCFCompare extends AbstractCommandLineProgram
 	{
@@ -276,7 +276,6 @@ public class VCFCompare extends AbstractCommandLineProgram
 		AbstractVCFCodec codec;
 		SnpEffPredictionParser snpEffPredictionParser=null;
 		VepPredictionParser vepPredictionParser=null;
-		MyPredictionParser myPredictionParser=null;
 		}
 	
 	private class LineAndFile
@@ -372,14 +371,14 @@ public class VCFCompare extends AbstractCommandLineProgram
 	@Override
 	public int doWork(String[] args)
 		{
-		SortingCollectionFactory<LineAndFile> factory=new SortingCollectionFactory<LineAndFile>();
+		int maxRecordsInRAM=50000;
 		GetOpt getopt=new GetOpt();
 		int c;
 		while((c=getopt.getopt(args, super.getGetOptDefault()+"M:T:"))!=-1)
 			{
 			switch(c)
 				{
-				case 'M': factory.setMaxRecordsInRAM(Math.max(1,Integer.parseInt(getopt.getOptArg())));break;
+				case 'M': maxRecordsInRAM=Math.max(1,Integer.parseInt(getopt.getOptArg()));break;
 				case 'T': super.addTmpDirectory(new File(getopt.getOptArg()));break;
 				default: switch(super.handleOtherOptions(c, getopt, args))
 					{
@@ -413,12 +412,12 @@ public class VCFCompare extends AbstractCommandLineProgram
 			{
 			LineAndFileComparator varcmp=new LineAndFileComparator();
 			
-			factory.setComponentType(LineAndFile.class);
-			factory.setComparator(varcmp);
-			factory.setTmpDirs(this.getTmpDirectories());
-			factory.setCodec(new LineAndFileCodec());
 			
-			variants=factory.make();
+			variants=SortingCollection.newInstance(LineAndFile.class, new LineAndFileCodec(),
+					varcmp,
+					maxRecordsInRAM,
+					this.getTmpDirectories()
+					);
 			variants.setDestructiveIteration(true);
 
 			
@@ -433,9 +432,8 @@ public class VCFCompare extends AbstractCommandLineProgram
 				LineIterator li=new LineIteratorImpl(lr);
 				this.inputs[i].header=(VCFHeader)this.inputs[i].codec.readActualHeader(li);
 				
-				this.inputs[i].vepPredictionParser=new VepPredictionParser(this.inputs[i].header);
-				this.inputs[i].snpEffPredictionParser=new SnpEffPredictionParser(this.inputs[i].header);
-				this.inputs[i].myPredictionParser=new MyPredictionParser(this.inputs[i].header);
+				this.inputs[i].vepPredictionParser=new VepPredictionParserFactory(this.inputs[i].header).get();
+				this.inputs[i].snpEffPredictionParser=new SnpEffPredictionParserFactory(this.inputs[i].header).get();
 				
 				while(li.hasNext())
 					{
@@ -505,19 +503,6 @@ public class VCFCompare extends AbstractCommandLineProgram
 						{
 						Set<Term> tt=new HashSet<SequenceOntologyTree.Term>();
 						for(SnpEffPredictionParser.SnpEffPrediction pred:VCFCompare.this.inputs[file_id].snpEffPredictionParser.getPredictions(ctx))
-							{
-							tt.addAll(pred.getSOTerms());
-							}
-						return tt;
-						}
-					});
-				venn1List.add(new VennPred("mypred",term)
-					{	
-					@Override
-					Set<Term> terms(VariantContext ctx, int file_id)
-						{
-						Set<Term> tt=new HashSet<SequenceOntologyTree.Term>();
-						for(MyPredictionParser.MyPrediction pred:VCFCompare.this.inputs[file_id].myPredictionParser.getPredictions(ctx))
 							{
 							tt.addAll(pred.getSOTerms());
 							}

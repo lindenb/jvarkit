@@ -54,6 +54,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 public class VcfToSql extends AbstractVcfToSql
 	{
@@ -615,7 +616,7 @@ public class VcfToSql extends AbstractVcfToSql
 			chrom2chromId.put(ssr.getSequenceName(), new SelectStmt(this.chromosomeTable,"name",ssr.getSequenceName()));
 			}
 		
-		VepPredictionParser vepPredictionParser=new VepPredictionParser(header);
+		VepPredictionParser vepPredictionParser=new VepPredictionParserFactory(header).get();
 		
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 		int nVariants=0;
@@ -679,6 +680,7 @@ public class VcfToSql extends AbstractVcfToSql
 				{
 				for(VepPrediction pred: vepPredictionParser.getPredictions(var))
 					{
+					/*
 					vepPrediction.insert(
 							outputWriter,
 							null,
@@ -708,6 +710,7 @@ public class VcfToSql extends AbstractVcfToSql
 							term_id
 							);
 						}
+					*/
 					}
 				}
 			

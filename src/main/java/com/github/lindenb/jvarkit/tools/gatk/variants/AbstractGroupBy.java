@@ -51,7 +51,7 @@ import org.broadinstitute.gatk.utils.report.GATKReportTable;
 import com.github.lindenb.jvarkit.gatk.Category;
 import com.github.lindenb.jvarkit.gatk.GatkReportWriter;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -72,7 +72,7 @@ public abstract class AbstractGroupBy
     protected GatkReportWriter.Format outputTableFormat =  GatkReportWriter.Format.DEFAULT;
 
     
-    protected AnnPredictionParser annParser= new PredictionParserFactory().buildAnnPredictionParser();
+    protected AnnPredictionParser annParser= new AnnPredictionParserFactory().get();
     
     /** utility class to get a window/range result for doubles values */
     protected static class DoubleRangeClassifier implements Function<Object, String>
@@ -270,7 +270,7 @@ public abstract class AbstractGroupBy
     @Override
     public void initialize() {
     	final VCFHeader vcfHeader  = GATKVCFUtils.getVCFHeadersFromRods(getToolkit()).get(variants.getName());
-    	this.annParser = new PredictionParserFactory().header(vcfHeader).buildAnnPredictionParser();
+    	this.annParser = new AnnPredictionParserFactory(vcfHeader).get();
     	super.initialize();
     	}
     

@@ -52,10 +52,12 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 
 /**
@@ -143,10 +145,10 @@ public class VcfFilterSequenceOntology
 			
 			out.writeHeader(h2);
 
-			final VepPredictionParser vepParser=new VepPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
-			final SnpEffPredictionParser snpEffparser= new SnpEffPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
+			final VepPredictionParser vepParser=new VepPredictionParserFactory().header(header).get().sequenceOntologyTree(this.sequenceOntologyTree);
+			final SnpEffPredictionParser snpEffparser= new SnpEffPredictionParserFactory().header(header).get().sequenceOntologyTree(this.sequenceOntologyTree);
 			final MyPredictionParser myPredParser= new MyPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
-			final AnnPredictionParser annPredParser= new PredictionParserFactory().header(header).buildAnnPredictionParser().sequenceOntologyTree(this.sequenceOntologyTree);
+			final AnnPredictionParser annPredParser= new AnnPredictionParserFactory().header(header).get().sequenceOntologyTree(this.sequenceOntologyTree);
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 			
 			while(in.hasNext() )

@@ -44,7 +44,9 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -80,11 +82,11 @@ public class VCFFilterJS
 			{
 			final VCFHeader header = r.getHeader();
 			final SnpEffPredictionParser snpEffPredictionParser =(super.use_snpeff ?
-					new SnpEffPredictionParser(header):
+					new SnpEffPredictionParserFactory().header(header).get():
 					null
 					);
 			final VepPredictionParser vepPredictionParser = (super.use_vep?
-					new VepPredictionParser(header):
+					new VepPredictionParserFactory().header(header).get():
 					null
 					);
 

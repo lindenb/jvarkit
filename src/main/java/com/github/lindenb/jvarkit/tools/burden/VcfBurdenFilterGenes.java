@@ -47,6 +47,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 /**
  * Filter by genes
@@ -113,17 +114,17 @@ public class VcfBurdenFilterGenes
 				{
 				filterControlsHeader = null;
 				}
-			final List<VepPredictionParser.COLS> lookColumns=Arrays.asList(
-					VepPredictionParser.COLS.CCDS,
-					VepPredictionParser.COLS.Feature,
-					VepPredictionParser.COLS.ENSP,
-					VepPredictionParser.COLS.Gene,
-					VepPredictionParser.COLS.HGNC,
-					VepPredictionParser.COLS.HGNC_ID,					
-					VepPredictionParser.COLS.SYMBOL,					
-					VepPredictionParser.COLS.RefSeq					
+			final List<String> lookColumns=Arrays.asList(
+					"CCDS",
+					"Feature",
+					"ENSP",
+					"Gene",
+					"HGNC",
+					"HGNC_ID",					
+					"SYMBOL",					
+					"RefSeq"					
 					);
-			final VepPredictionParser vepParser = new VepPredictionParser(header);
+			final VepPredictionParser vepParser = new VepPredictionParserFactory(header).get();
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
@@ -144,7 +145,7 @@ public class VcfBurdenFilterGenes
 				final List<String> newCsqList=new ArrayList<>();
 				for(final String predStr: csqList) {
 					final VepPredictionParser.VepPrediction pred = vepParser.parseOnePrediction(ctx,predStr);
-					for(final VepPredictionParser.COLS col:lookColumns) {
+					for(final String col:lookColumns) {
 						final String token = pred.getByCol(col);
 						if(token!=null && !token.isEmpty() && this.geneNames.contains(token))
 							{

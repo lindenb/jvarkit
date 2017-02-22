@@ -61,7 +61,9 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 /**
  * 
@@ -211,25 +213,11 @@ public class GroupByGene
 			if(s!=null)  set.add(new GeneName(s,"vep-gene"));
 			s=pred.getRefSeq();
 			if(s!=null)  set.add(new GeneName(s,"vep-refseq"));
-			
-			
-			s=pred.getEnsemblTranscript();
-			if(s!=null)
-				{
-				set.add(new GeneName(s,"vep-ensembl-transcript-name"));
-				String ex=pred.getExon();
-				if(ex!=null)
-					{
-					set.add(new GeneName(s+"|"+ex,"vep-ensembl-transcript-exon-name"));
-					}
-				}
 			}
 		for(SnpEffPredictionParser.SnpEffPrediction pred: this.snpEffPredictionParser.getPredictions(ctx))
 			{
 			String s=pred.getGeneName();
 			if(s!=null)  set.add(new GeneName(s,"snpeff-gene-name"));
-			s=pred.getEnsemblGene();
-			if(s!=null)  set.add(new GeneName(s,"snpeff-ensembl-gene-name"));
 			s=pred.getEnsemblTranscript();
 			if(s!=null)  set.add(new GeneName(s,"snpeff-ensembl-transcript-name"));
 			}
@@ -435,8 +423,8 @@ public class GroupByGene
 			{
 			this.sampleNames.addAll(header.getSampleNamesInOrder());
 			}
-		this.snpEffPredictionParser=new SnpEffPredictionParser(header);
-		this.vepPredictionParser=new VepPredictionParser(header);
+		this.snpEffPredictionParser=new SnpEffPredictionParserFactory(header).get();
+		this.vepPredictionParser=new VepPredictionParserFactory(header).get();
 		SAMSequenceDictionary dict=header.getSequenceDictionary();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 		while(iter.hasNext())

@@ -29,8 +29,10 @@ History:
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,7 +45,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 /**
  * ###INFO=<ID=CSQ,Number=.,Type=String,Description="Consequence type as predicted by VEP. Format: Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_po
@@ -56,7 +57,7 @@ public class VepPredictionParser implements PredictionParser
 	{
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 
-	/* public, used in VcfBurdenFilterGene */
+	/* public, used in VcfBurdenFilterGene 
 	public enum COLS{
 		Allele,
 		Gene,
@@ -83,14 +84,14 @@ public class VepPredictionParser implements PredictionParser
 		IMPACT,BIOTYPE,INTRON,HGVSc,
 		HGVSp,ALLELE_NUM,CANONICAL,
 		CCDS,ENSP,DOMAINS
-		};
-	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
-	private Pattern pipe=Pattern.compile("[\\|]");
-	private String tag;
+		*/
+	private final Map<String, Integer> col2col=new HashMap<String, Integer>();
+	private final Pattern pipe=Pattern.compile("[\\|]");
+	private final String tag;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 
 	
-	public VepPredictionParser(final VCFHeader header)
+	VepPredictionParser(final VCFHeader header)
 		{		
 		this(header,getDefaultTag());
 		}
@@ -111,17 +112,17 @@ public class VepPredictionParser implements PredictionParser
 		return "CSQ";
 		}
 	
-	public VepPredictionParser(VCFHeader header,String tag)
+	VepPredictionParser(final VCFHeader header,final String tag)
 		{	
 		this.tag=(tag==null?getDefaultTag():tag);
-		VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
+		final VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
 		if(info==null || info.getDescription()==null)
 			{
 			LOG.warning("NO "+tag+" found in header");
 			return;
 			}
 		String description=info.getDescription();
-		String chunck=" Format:";
+		final String chunck=" Format:";
 		int i=description.indexOf(chunck);
 		if(i==-1)
 			{
@@ -129,37 +130,31 @@ public class VepPredictionParser implements PredictionParser
 			return;
 			}
 		description=description.substring(i+chunck.length()).replaceAll("[ \'\\.\\(\\)]+","").trim();
-		String tokens[]=pipe.split(description);
+		final String tokens[]= this.pipe.split(description);
 
 		for(i=0;i< tokens.length;++i)
 			{
 			if(tokens[i].isEmpty()) continue;
-			COLS col=null;
-			for(COLS c:COLS.values())
+			if(this.col2col.containsKey(tokens[i]))
 				{
-				if(c.name().equalsIgnoreCase(tokens[i]))
-					{
-					col=c;
-					}
-				}
-			if(col==null)
-				{
-				LOG.warning("Undefined VEP tag "+tokens[i]);
+				LOG.warning("Column  "+tokens[i]+" defined twice in "+description);;
 				continue;
 				}
-			col2col.put(col, i);
+			this.col2col.put(tokens[i], i);
 			}
 		}
 	
-	
+	public Set<String> getCategories() {
+		return Collections.unmodifiableSet(this.col2col.keySet());
+	}
 	
 	@Override
-	public List<VepPrediction> getPredictions(VariantContext ctx)
+	public List<VepPrediction> getPredictions(final VariantContext ctx)
 		{
-		ArrayList<VepPrediction> preds= new ArrayList<VepPrediction>();
-		if(col2col.isEmpty()) return preds;
-		List<? extends Object> L = VCFUtils.attributeAsList(ctx.getAttribute(this.tag));
-		for(Object o2:L)  _predictions(preds,o2,ctx);
+		if(col2col.isEmpty()) return Collections.emptyList();
+		final List<? extends Object> L =ctx.getAttributeAsList(this.tag);
+		ArrayList<VepPrediction> preds= new ArrayList<VepPrediction>(L.size());
+		for(final Object o2:L)  _predictions(preds,o2,ctx);
 		return preds;
 		}
 	
@@ -177,7 +172,7 @@ public class VepPredictionParser implements PredictionParser
 	
 	private void _predictions( List<VepPrediction> preds,Object o,VariantContext ctx)
 		{
-		VepPrediction pred= parseOnePrediction(ctx,o);
+		final VepPrediction pred= parseOnePrediction(ctx,o);
 		if(pred==null) return;
 		preds.add(pred);
 		}
@@ -193,7 +188,7 @@ public class VepPredictionParser implements PredictionParser
 			this.source=source;
 			this.tokens=tokens;
 			/** special case for ALT, can be '-' */
-			Integer idx_allele = col2col.get(COLS.Allele);
+			Integer idx_allele = col2col.get("Allele");
 			if(	idx_allele!=null && 
 				idx_allele<tokens.length &&
 				tokens[idx_allele].equals("-"))
@@ -208,32 +203,45 @@ public class VepPredictionParser implements PredictionParser
 					}
 				}
 			}
-		public String getByCol(final COLS col)
+		public String getByCol(final String col)
 			{
+			if(col==null || col.isEmpty()) return null;
 			final Integer idx=col2col.get(col);
 			if(idx==null || idx>=tokens.length || tokens[idx].isEmpty())
 				{
 				return null;
 				}
-			return tokens[idx];
+			return this.tokens[idx];
 			}
+		
+		/** alias of getByColl */
+		public String get(final String col)
+			{
+			return this.getByCol(col);
+			}
+		
+		public boolean hasAttribute(final String col) {
+			String s= this.get(col);
+			return s!=null && !s.isEmpty();
+			}
+		
 		public Allele getAllele()
 			{
-			String s= getByCol(COLS.Allele);
+			final String s= getByCol("Allele");
 			return s==null?null:Allele.create(s, false);
 			}
 		
 		
 		public String getExon()
 			{
-			return getByCol(COLS.EXON);
+			return getByCol("EXON");
 			}
 		
 		
 		/** return -1 negative strand, 1 position strand , else 0 */
 		public int getStrand()
 			{
-			String s=getByCol(COLS.STRAND);
+			String s=getByCol("STRAND");
 			if(s==null) return 0;
 			if(s.equals("1")) return 1;
 			if(s.equals("-1")) return -1;
@@ -242,59 +250,58 @@ public class VepPredictionParser implements PredictionParser
 		
 		
 		/** alias of getHGNC */
-		@Override
 		public String getGeneName()
 			{
-			return getByCol(COLS.HGNC);
+			return getByCol("HGNC");
 			}
 		
 		public String getHGNC()
 			{
-			return getByCol(COLS.HGNC);
+			return getByCol("HGNC");
 			}
 		public String getHgncId()
 			{
-			return getByCol(COLS.HGNC_ID);
+			return getByCol("HGNC_ID");
 			}
 		
 		public String getSymbol()
 			{
-			return getByCol(COLS.SYMBOL);
+			return getByCol("SYMBOL");
 			}
 		
 		public String getRefSeq()
 			{
-			return getByCol(COLS.RefSeq);
+			return getByCol("RefSeq");
 			}
 		
 		public String getFeature()
 			{
-			return getByCol(COLS.Feature);
+			return getByCol("Feature");
 			}
 		public String getFeatureType()
 			{
-			return getByCol(COLS.Feature_type);
+			return getByCol("Feature_type");
 			}
 
 		public String getGene()
 			{
-			return getByCol(COLS.Gene);
+			return getByCol("Gene");
 			}
 		
 		public String getENSP()
 			{
-			return getByCol(COLS.ENSP);
+			return getByCol("ENSP");
 			}
 		
 		public String getSymbolSource()
 			{
-			return getByCol(COLS.SYMBOL_SOURCE);
+			return getByCol("SYMBOL_SOURCE");
 			}
 		
-		private Map<COLS,String> getMap()
+		public Map<String,String> getMap()
 			{
-			Map<COLS, String> hash=new HashMap<COLS,String>();
-			for(COLS c: col2col.keySet())
+			final Map<String, String> hash=new LinkedHashMap<>();
+			for(final String c: col2col.keySet())
 				{
 				int idx=col2col.get(c);
 				if(idx>=this.tokens.length) continue;
@@ -303,35 +310,17 @@ public class VepPredictionParser implements PredictionParser
 			return hash;
 			}
 		
-		@Override
-		public String getAltAminoAcid() {
-			return null;
-			}
 		
-		@Override
-		public Integer getAminoAcidPosition()
-			{
-			return null;
-			}
-		@Override
-		public String getReferenceAminoAcid() {
-			return null;
-			}
 		
-		@Override
 		public String getEnsemblGene() {
-			String s=getByCol(COLS.Gene);
+			String s=getByCol("Gene");
 			if(s==null) return null;
 			return s;
 			}
 		
-		@Override
-		public String getEnsemblProtein() {
-			return null;
-			}
 		
 		public Double getSift() {
-			String s=getByCol(COLS.SIFT);
+			String s=getByCol("SIFT");
 			if(s==null) return null;
 			try
 				{
@@ -344,7 +333,7 @@ public class VepPredictionParser implements PredictionParser
 			}
 		
 		public Double getPolyphen() {
-			String s=getByCol(COLS.PolyPhen);
+			String s=getByCol("PolyPhen");
 			if(s==null) return null;
 			try
 				{
@@ -356,17 +345,11 @@ public class VepPredictionParser implements PredictionParser
 				}
 			}
 		
-		/** override of getFeature */
-		@Override
-		public String getEnsemblTranscript() {
-			return getFeature();
-			}
 		
-		@Override
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
 			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
-			String EFF=getByCol(COLS.Consequence);
+			String EFF=getByCol("Consequence");
 			if(EFF==null) return set;
 			for(SequenceOntologyTree.Term t: VepPredictionParser.this.soTree.getTerms())
 				{
@@ -383,7 +366,7 @@ public class VepPredictionParser implements PredictionParser
 		
 		public Integer getPositionInCDna()
 		{
-			final String s= getByCol(COLS.cDNA_position);
+			final String s= getByCol("cDNA_position");
 			if(s==null || s.trim().isEmpty()) return null;
 			try {
 				return Integer.parseInt(s);
@@ -394,7 +377,7 @@ public class VepPredictionParser implements PredictionParser
 		
 		public Integer getPositionInCDS()
 		{
-			final String s= getByCol(COLS.CDS_position);
+			final String s= getByCol("CDS_position");
 			if(s==null || s.trim().isEmpty()) return null;
 			try {
 				return Integer.parseInt(s);

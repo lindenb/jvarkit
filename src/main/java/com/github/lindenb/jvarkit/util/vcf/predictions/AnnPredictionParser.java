@@ -69,6 +69,7 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
  */
 public class AnnPredictionParser
+	implements PredictionParser
 	{
 	public static enum Impact 
 		{
@@ -98,7 +99,7 @@ public class AnnPredictionParser
 		}
 	
 	
-	public AnnPredictionParser(final VCFHeader header,final String tag)
+	AnnPredictionParser(final VCFHeader header,final String tag)
 		{	
 		this.tag=(tag==null?getDefaultTag():tag);
 		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(this.tag));
@@ -159,7 +160,7 @@ public class AnnPredictionParser
 			
 	
 	public class AnnPrediction
-		//implements Prediction
+		implements Prediction
 		{
 		private final String originalStr;
 		private final String tokens[];

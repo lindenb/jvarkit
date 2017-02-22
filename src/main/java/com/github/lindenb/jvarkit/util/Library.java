@@ -25,7 +25,6 @@ import com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology;
 import com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2;
 import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFReplaceTag;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
-import com.github.lindenb.jvarkit.tools.vcfviewgui.VcfViewGui;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -60,7 +59,6 @@ private Library()
 			VCFTrios.class,
 			VcfCutSamples.class,
 			VcfCompareCallersOneSample.class,
-			VcfViewGui.class,
 			VcfConcat.class,
 			InfoTreeModel.class,
 			DefaultVcfTable.class,

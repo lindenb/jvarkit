@@ -32,7 +32,9 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.Prediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 /** 
  * RDFVcfWriter
@@ -534,8 +536,9 @@ public class RDFVcfWriter
 		{
 		w.writeComment("X"+ctx.getAttribute(getPredictionParser().getTag()));
 		
-		for(Prediction pred:this.getPredictionParser().getPredictions(ctx))
+		for(final Prediction pred:this.getPredictionParser().getPredictions(ctx))
 			{
+			/*
 			w.writeStartElement(PFX,"prediction",NS);
 			w.writeStartElement(PFX,getLocalName(),NS);
 			Integer i=pred.getAminoAcidPosition();
@@ -591,6 +594,7 @@ public class RDFVcfWriter
 			
 			w.writeEndElement();
 			w.writeEndElement();
+			*/
 			}
 		
 		}
@@ -604,7 +608,7 @@ public class RDFVcfWriter
 		private SnpEffPredictionParser predFactory;
 		public SnpEffHandler()
 			{
-			this.predFactory=new SnpEffPredictionParser(RDFVcfWriter.this.header);
+			this.predFactory=new SnpEffPredictionParserFactory(RDFVcfWriter.this.header).get();
 			}
 		
 		@Override
@@ -631,7 +635,7 @@ public class RDFVcfWriter
 		private VepPredictionParser predFactory;
 		public VepHandler()
 			{
-			this.predFactory=new VepPredictionParser(RDFVcfWriter.this.header);
+			this.predFactory=new VepPredictionParserFactory(RDFVcfWriter.this.header).get();
 			}
 		
 		@Override

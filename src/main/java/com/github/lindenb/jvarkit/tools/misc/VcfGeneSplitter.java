@@ -62,6 +62,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
 
@@ -208,7 +209,7 @@ public class VcfGeneSplitter
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
 			/** find splitter by name */
 			
-			final VepPredictionParser vepPredictionParser=new VepPredictionParser(cah.header);
+			final VepPredictionParser vepPredictionParser=new VepPredictionParserFactory().header(cah.header).get();
 			sortingcollection = SortingCollection.newInstance(
 					KeyAndLine.class,
 					new KeyAndLineCodec(),

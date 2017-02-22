@@ -24,5 +24,21 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
-public interface Prediction {
-}
+import htsjdk.variant.vcf.VCFHeader;
+
+public class SnpEffPredictionParserFactory
+	extends AbstractPredictionParserFactory<SnpEffPredictionParser,SnpEffPredictionParserFactory>
+	{
+	public SnpEffPredictionParserFactory() {
+		super(SnpEffPredictionParser.getDefaultTag());
+		}
+	
+	public SnpEffPredictionParserFactory(final VCFHeader header) {
+		super(SnpEffPredictionParser.getDefaultTag(),header);
+		}
+	
+	@Override
+	public SnpEffPredictionParser get() {
+		return new SnpEffPredictionParser(getHeader(), getTag());
+		}
+	}

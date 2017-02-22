@@ -62,9 +62,11 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 /**
  * 
@@ -324,9 +326,9 @@ public class VcfGeneOntology
 				}
 
 			w.writeHeader(h2);
-			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-			SnpEffPredictionParser snpEffPredictionParser= new SnpEffPredictionParser(header);
-			VepPredictionParser vepPredictionParser = new VepPredictionParser(header);
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SnpEffPredictionParser snpEffPredictionParser= new SnpEffPredictionParserFactory().header(header).get();
+			final VepPredictionParser vepPredictionParser = new VepPredictionParserFactory().header(header).get();
 			
 			while(in.hasNext())
 				{
