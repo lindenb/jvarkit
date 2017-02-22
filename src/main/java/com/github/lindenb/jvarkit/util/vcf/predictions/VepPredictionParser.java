@@ -89,7 +89,7 @@ public class VepPredictionParser implements PredictionParser
 	private final Pattern pipe=Pattern.compile("[\\|]");
 	private final String tag;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
-
+	private final boolean valid;
 	
 	VepPredictionParser(final VCFHeader header)
 		{		
@@ -119,6 +119,7 @@ public class VepPredictionParser implements PredictionParser
 		if(info==null || info.getDescription()==null)
 			{
 			LOG.warning("NO "+tag+" found in header");
+			this.valid = false;
 			return;
 			}
 		String description=info.getDescription();
@@ -126,6 +127,7 @@ public class VepPredictionParser implements PredictionParser
 		int i=description.indexOf(chunck);
 		if(i==-1)
 			{
+			this.valid = false;
 			LOG.warning("Cannot find "+chunck+ " in "+description);
 			return;
 			}
@@ -142,6 +144,11 @@ public class VepPredictionParser implements PredictionParser
 				}
 			this.col2col.put(tokens[i], i);
 			}
+		this.valid=true;
+		}
+	
+	public boolean isValid() {
+		return valid;
 		}
 	
 	public Set<String> getCategories() {
@@ -151,7 +158,7 @@ public class VepPredictionParser implements PredictionParser
 	@Override
 	public List<VepPrediction> getPredictions(final VariantContext ctx)
 		{
-		if(col2col.isEmpty()) return Collections.emptyList();
+		if(!isValid() || this.col2col.isEmpty()) return Collections.emptyList();
 		final List<? extends Object> L =ctx.getAttributeAsList(this.tag);
 		ArrayList<VepPrediction> preds= new ArrayList<VepPrediction>(L.size());
 		for(final Object o2:L)  _predictions(preds,o2,ctx);
@@ -160,21 +167,20 @@ public class VepPredictionParser implements PredictionParser
 	
 	public VepPrediction parseOnePrediction(final VariantContext ctx,final Object o)
 		{
-		if(o==null) return null;
+		if(o==null || !isValid()) return null;
 		if(!(o instanceof String))
 			{
 			return parseOnePrediction(ctx,o.toString());
 			}
 		final String s=String.class.cast(o).trim();
-		final String tokens[]=pipe.split(s);
+		final String tokens[]= this.pipe.split(s);
 		return new VepPrediction(tokens,s,ctx);
 		}
 	
-	private void _predictions( List<VepPrediction> preds,Object o,VariantContext ctx)
+	private void _predictions(final List<VepPrediction> preds,final Object o,final VariantContext ctx)
 		{
 		final VepPrediction pred= parseOnePrediction(ctx,o);
-		if(pred==null) return;
-		preds.add(pred);
+		if(pred!=null) preds.add(pred);
 		}
 			
 	
@@ -182,13 +188,13 @@ public class VepPredictionParser implements PredictionParser
 		implements Prediction
 		{
 		private final String source;
-		private String tokens[];
+		private final String tokens[];
 		VepPrediction(final String tokens[],final String source,final VariantContext ctx)
 			{
 			this.source=source;
 			this.tokens=tokens;
 			/** special case for ALT, can be '-' */
-			Integer idx_allele = col2col.get("Allele");
+			Integer idx_allele = VepPredictionParser.this.col2col.get("Allele");
 			if(	idx_allele!=null && 
 				idx_allele<tokens.length &&
 				tokens[idx_allele].equals("-"))
@@ -206,7 +212,7 @@ public class VepPredictionParser implements PredictionParser
 		public String getByCol(final String col)
 			{
 			if(col==null || col.isEmpty()) return null;
-			final Integer idx=col2col.get(col);
+			final Integer idx= VepPredictionParser.this.col2col.get(col);
 			if(idx==null || idx>=tokens.length || tokens[idx].isEmpty())
 				{
 				return null;
@@ -241,7 +247,7 @@ public class VepPredictionParser implements PredictionParser
 		/** return -1 negative strand, 1 position strand , else 0 */
 		public int getStrand()
 			{
-			String s=getByCol("STRAND");
+			final String s=getByCol("STRAND");
 			if(s==null) return 0;
 			if(s.equals("1")) return 1;
 			if(s.equals("-1")) return -1;
