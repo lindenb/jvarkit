@@ -192,9 +192,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			}
     	}
     
+    /** instance of JavascriptFilter for VCFs */
     private static class VcfJavascripFilter
 	extends JavascriptFilter<VCFHeader,VariantContext>
 		{
+    	/** set the FILTER column instead of deleting the variant */
     	private final String filter;
 		VcfJavascripFilter(
 				final String filter,
@@ -209,13 +211,15 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			{
 			if(!super.compiledScript.isPresent()) return ctx;
 			super.bindings.put("variant", ctx);
-			boolean ok=super.accept();
-			if(!ok )
+			if(super.accept())
+				{
+				return ctx;
+				}
+			else
 				{
 				if(filter==null || filter.trim().isEmpty()) return null;
 				return new VariantContextBuilder(ctx).filter(this.filter).make();
 				}
-			return ctx;
 			}
 		}
     
@@ -339,6 +343,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	private final BorderPane genotypeChartPane;
 	private final CheckBox cboxShowHomRef=new CheckBox("HomRef");
 	private final CheckBox cboxShowNoCall=new CheckBox("NoCall");
+	private final CheckBox cboxShowFiltered=new CheckBox("Filtered");
 	private final TextField tfFilterInfo=new TextField();
 	private final AnnPredictionParser annPredictionParser;
 	private final VepPredictionParser vepPredictionParser;
@@ -398,9 +403,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		/* build genotype table */
 		
 		this.genotypeTable =this.buildGenotypeTableRow(header);
-		FlowPane flow3 = new FlowPane(this.cboxShowHomRef,this.cboxShowNoCall);
+		FlowPane flow3 = new FlowPane(this.cboxShowHomRef,this.cboxShowNoCall,this.cboxShowFiltered);
 		this.cboxShowHomRef.setSelected(true);
 		this.cboxShowNoCall.setSelected(true);
+		this.cboxShowFiltered.setSelected(true);
 		EventHandler<ActionEvent> repaintGTTable=new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
@@ -409,6 +415,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			};
 		this.cboxShowHomRef.setOnAction(repaintGTTable);
 		this.cboxShowNoCall.setOnAction(repaintGTTable);
+		this.cboxShowFiltered.setOnAction(repaintGTTable);
 
 		
 		if(header.getNGenotypeSamples()>0)
@@ -441,7 +448,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		
 		/* build info Table table */
 		this.infoTableRow = this.buildInfoTableRow();
-		this.annPredictionTable = this.buildAnnTableRow();
+		this.annPredictionTable = this.buildAnnTableRow(this.annPredictionParser);
 		this.vepPredictionTable = this.buildVepTableRow(this.vepPredictionParser);
 		flow3 = new FlowPane(new Label("Filter:"),tfFilterInfo);
 		tfFilterInfo.setPrefColumnCount(10);
@@ -450,13 +457,18 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		Tab tab=new Tab("INFO",this.infoTableRow);
 		tab.setClosable(false);
 		tabPane2.getTabs().add(tab);
-		tab=new Tab("ANN",this.annPredictionTable);
-		tab.setClosable(false);
-		tabPane2.getTabs().add(tab);
-		tab=new Tab("VEP",this.vepPredictionTable);
-		tab.setClosable(false);
-		tabPane2.getTabs().add(tab);
-		
+		if(this.annPredictionParser.isValid())
+			{
+			tab=new Tab("ANN",this.annPredictionTable);
+			tab.setClosable(false);
+			tabPane2.getTabs().add(tab);
+			}
+		if(this.vepPredictionParser.isValid())
+			{
+			tab=new Tab("VEP",this.vepPredictionTable);
+			tab.setClosable(false);
+			tabPane2.getTabs().add(tab);
+			}
 		BorderPane pane2=new BorderPane(tabPane2);
 		pane2.setTop(flow3);
 		//GridPane.setConstraints( this.infoTableRow,3, 10,8,5); // column=3 row=1
@@ -659,7 +671,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		{
 		final TableView<String> table=new TableView<>();
 		
-		TableColumn<String,String>  scol = new TableColumn<>("Filter");
+		final TableColumn<String,String>  scol = new TableColumn<>("Filter");
 		scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<String,String>, ObservableValue<String>>() {				
 			@Override
 			public ObservableValue<String> call(CellDataFeatures<String, String> param) {
@@ -668,7 +680,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			});
         table.getColumns().add(scol);
 		
-        
+        table.setPlaceholder(new Label("No Variant or Variant contains no Filter"));
 		return table;    
 		}
 	
@@ -694,6 +706,9 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         table.getColumns().add(makeColumn("ALT", V->V.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(","))));
         table.getColumns().add(makeColumn("FILTER", V->V.getFilters().stream().collect(Collectors.joining(","))));
         table.getColumns().add(makeColumn("QUAL", V->V.hasLog10PError()?V.getPhredScaledQual():null));
+        
+        table.setPlaceholder(new Label("No Variant."));
+
         return table;
 		}
 
@@ -707,35 +722,43 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		final TableColumn<InfoTableRow, Object> t=makeColumn("Value", R->R.value);
 		t.setPrefWidth(300.0);
 		table.getColumns().add(t);
-		
+		table.setPlaceholder(new Label("No INFO."));
 		return table;
 		}
      
-	private TableView<AnnPredictionParser.AnnPrediction> buildAnnTableRow()
+	private TableView<AnnPredictionParser.AnnPrediction> buildAnnTableRow(final AnnPredictionParser parser)
 		{
 		final TableView<AnnPredictionParser.AnnPrediction> table=new TableView<>();
-		table.getColumns().add(makeColumn("SO", P->P.getSOTermsString()));
-		table.getColumns().add(makeColumn("Allele", P->P.getAllele()));
-		table.getColumns().add(makeColumn("Impact", P->P.getPutativeImpact()));
-		table.getColumns().add(makeColumn("GeneId", P->P.getGeneId()));
-		table.getColumns().add(makeColumn("Feature", P->P.getFeatureType()));
-		table.getColumns().add(makeColumn("Biotype", P->P.getTranscriptBioType()));
-		table.getColumns().add(makeColumn("HGVsc", P->P.getHGVSc()));
-		table.getColumns().add(makeColumn("Rank", P->P.getRank()));
-		table.getColumns().add(makeColumn("cDNA-pos", P->P.getCDNAPos()));
-		table.getColumns().add(makeColumn("CDS-pos", P->P.getCDSPos()));
-		table.getColumns().add(makeColumn("AA-pos", P->P.getAAPos()));
-		table.getColumns().add(makeColumn("Distance", P->P.getDistance()));
-		table.getColumns().add(makeColumn("Msg", P->P.getMessages()));
+		if(parser.isValid())
+			{
+			table.getColumns().add(makeColumn("SO", P->P.getSOTermsString()));
+			table.getColumns().add(makeColumn("Allele", P->P.getAllele()));
+			table.getColumns().add(makeColumn("Impact", P->P.getPutativeImpact()));
+			table.getColumns().add(makeColumn("GeneId", P->P.getGeneId()));
+			table.getColumns().add(makeColumn("Feature", P->P.getFeatureType()));
+			table.getColumns().add(makeColumn("Biotype", P->P.getTranscriptBioType()));
+			table.getColumns().add(makeColumn("HGVsc", P->P.getHGVSc()));
+			table.getColumns().add(makeColumn("Rank", P->P.getRank()));
+			table.getColumns().add(makeColumn("cDNA-pos", P->P.getCDNAPos()));
+			table.getColumns().add(makeColumn("CDS-pos", P->P.getCDSPos()));
+			table.getColumns().add(makeColumn("AA-pos", P->P.getAAPos()));
+			table.getColumns().add(makeColumn("Distance", P->P.getDistance()));
+			table.getColumns().add(makeColumn("Msg", P->P.getMessages()));
+			}
+		table.setPlaceholder(new Label("No ANN prediction available"));
 		return table;
 		}
 	private TableView<VepPredictionParser.VepPrediction> buildVepTableRow(final VepPredictionParser parser)
 		{
 		final TableView<VepPredictionParser.VepPrediction> table=new TableView<>();
-		for(final String col:parser.getCategories())
+		if(parser.isValid())
 			{
-			table.getColumns().add(makeColumn(col, P->P.get(col)));
+			for(final String col:parser.getCategories())
+				{
+				table.getColumns().add(makeColumn(col, P->P.get(col)));
+				}
 			}
+		table.setPlaceholder(new Label("No VEP prediction available"));
 		return table;
 		}
 
@@ -771,6 +794,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			}
 		/* type */
 		table.getColumns().add(makeColumn("Type", G->G.getType().name()));
+		
+		table.setPlaceholder(new Label("No Genotype."));
 		return table;
 		}
 
@@ -835,6 +860,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         table.getColumns().add(makeColumn("Description", F->F.getDescription()));
         final Tab tab=new Tab("FORMAT",table);
         tab.setClosable(false);
+        table.setPlaceholder(new Label("No FORMAT defined."));
         return tab;
 		}
 
@@ -848,6 +874,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         table.getColumns().add(makeColumn("Description", F->F.getDescription()));
         final Tab tab=new Tab("INFO",table);
         tab.setClosable(false);
+        table.setPlaceholder(new Label("No INFO defined."));
         return tab;
 		}
 	
@@ -858,6 +885,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         table.getColumns().add(makeColumn("ID", F->F.getID()));
         final Tab tab=new Tab("FILTER",table);
         tab.setClosable(false);
+        
+        table.setPlaceholder(new Label("No FILTER defined."));
         return tab;
 		}
 	
@@ -1023,6 +1052,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         			ctx.getGenotypes().stream().
         			filter(G->cboxShowNoCall.isSelected() || G.isCalled()).
         			filter(G->cboxShowHomRef.isSelected() || !G.isHomRef()).
+        			filter(G->cboxShowFiltered.isSelected() || !G.isFiltered()).
         			collect(Collectors.toList())
         			);
 			}

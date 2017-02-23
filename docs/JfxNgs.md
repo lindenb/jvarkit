@@ -64,6 +64,7 @@ The program will store temporary files in your TMPDIR (for example, remote index
 ```java
 class VcfTool {
 	public List<AnnPredictionParser.AnnPrediction> getAnnPredictions(final VariantContext ctx);
+	public List<VepPredictionParser.VepPrediction> getVepPredictions(final VariantContext ctx);
 	public boolean isMendelianIncompatibility(final Genotype child,final Genotype parent);
 	public boolean isMendelianIncompatibility(final Genotype child,final Genotype father,final Genotype mother);
 	}

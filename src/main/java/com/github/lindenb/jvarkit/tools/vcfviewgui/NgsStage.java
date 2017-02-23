@@ -32,13 +32,16 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
@@ -889,7 +892,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     protected Tab buildDictTab(final SAMSequenceDictionary dict)
         {
     	
-		/* build INFO Table */
+		/* build dict Table */
 		final TableView<SAMSequenceRecord> table=new TableView<>(
 				dict==null?
 				FXCollections.observableArrayList():
@@ -899,18 +902,25 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
         table.getColumns().add(makeColumn("Name",SSR->SSR.getSequenceName()));
         table.getColumns().add(formatIntegerColumn(makeColumn("Length",SSR->SSR.getSequenceLength())));
         
-        if(dict.getSequences().stream().filter(S->S.getAssembly()!=null && !S.getAssembly().trim().isEmpty()).findAny().isPresent()) {
-        	table.getColumns().add(makeColumn("Assembly",SSR->SSR.getAssembly()));
-        	}
-        if(dict.getSequences().stream().filter(S->S.getSpecies()!=null && !S.getSpecies().trim().isEmpty()).findAny().isPresent()) {
-        	table.getColumns().add(makeColumn("Species",SSR->SSR.getSpecies()));
-        	}
-        if(dict.getSequences().stream().filter(S->S.getMd5()!=null && !S.getMd5().trim().isEmpty()).findAny().isPresent()) {
-        	table.getColumns().add(makeColumn("MD5",SSR->SSR.getMd5()));
-        	}
+        final Set<String> all_attributes=new HashSet<>();
+        
+       for(final SAMSequenceRecord ssr:dict.getSequences())
+       		{
+        	all_attributes.addAll(ssr.getAttributes().stream().
+		        map(A->A.getKey()).
+		        filter(S->!(S.equals("Name") || S.equals("Length"))).
+		        collect(Collectors.toSet())
+		        );
+       		}
+        for(final String key:all_attributes)
+	        {
+            if(dict.getSequences().stream().filter(S->S.getSpecies()!=null && !S.getSpecies().trim().isEmpty()).findAny().isPresent()) {
+            	table.getColumns().add(makeColumn(key,SSR->SSR.getAttribute(key)));
+            	}
+	        }
         final Tab tab=new Tab("Dict", table);
         tab.setClosable(false);
-        
+        table.setPlaceholder(new Label("No Dictionary."));
         return tab;
         }
     /** save filtered Data As ... */

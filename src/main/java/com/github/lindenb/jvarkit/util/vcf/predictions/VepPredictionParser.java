@@ -29,6 +29,7 @@ History:
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -87,6 +88,7 @@ public class VepPredictionParser implements PredictionParser
 		*/
 	private final Map<String, Integer> col2col=new HashMap<String, Integer>();
 	private final Pattern pipe=Pattern.compile("[\\|]");
+	private final Pattern ampRegex = Pattern.compile("[&]");
 	private final String tag;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 	private final boolean valid;
@@ -351,20 +353,35 @@ public class VepPredictionParser implements PredictionParser
 				}
 			}
 		
+		/** return the "Consequence" String or NULL if not found */
+		public String getSOTermsString()
+		{
+			return getByCol("Consequence");
+		}
 		
+		/** return the "Consequence" splitted, as an array of String, empty if consequence is not found */
+		public List<String> getSOTermsStrings()
+		{
+			final String EFF=getSOTermsString();
+			if(EFF==null || EFF.isEmpty()) return Collections.emptyList();
+			return Arrays.asList(VepPredictionParser.this.ampRegex.split(EFF));
+		}
+	
+		/** convert the list of getConsequences() to a list of SequenceOntology Terms */
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
-			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
-			String EFF=getByCol("Consequence");
-			if(EFF==null) return set;
-			for(SequenceOntologyTree.Term t: VepPredictionParser.this.soTree.getTerms())
-				{
-				for(String eff:EFF.split("[&]"))
+			final List<String> effects = getSOTermsStrings();
+			if(effects.isEmpty()) return Collections.emptySet();
+			final Set<SequenceOntologyTree.Term> set=new HashSet<>(effects.size());
+			for(final String label:effects) {
+				if(label.isEmpty()) continue;
+				final SequenceOntologyTree.Term t =VepPredictionParser.this.soTree.getTermByLabel(label);
+				if(t==null) {
+					LOG.warning("Current Sequence Ontology Tree doesn't contain "+ label);
+					} 
+				else
 					{
-					if(t.getLabel().equals(eff))
-						{
-						set.add(t);
-						}
+					set.add(t);
 					}
 				}
 			return set;

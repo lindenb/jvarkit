@@ -79,6 +79,8 @@ public class AnnPredictionParser
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 
 	private final Pattern pipeRegex=Pattern.compile("[\\|]");
+	private final Pattern ampRegex = Pattern.compile("[&]");
+
 	private final String tag;
 	private final boolean valid;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
@@ -257,25 +259,26 @@ public class AnnPredictionParser
 			}
 		
 		public List<String> getSOTermsStrings() {
-			final String s=getSOTermsString();
-			if(s.isEmpty()) return Collections.emptyList();
-			return Arrays.asList(this.getSOTermsString().split("[&]"));
+			final String soterms =getSOTermsString();
+			if(soterms==null || soterms.isEmpty()) return Collections.emptyList();
+			return Arrays.asList(AnnPredictionParser.this.ampRegex.split(soterms));
 			}
 		
 		//@Override
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
-			final Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
-			for(final String eff:getSOTermsStrings())
-				{
-				if(eff.isEmpty()) continue;
-				for(final SequenceOntologyTree.Term t: AnnPredictionParser.this.soTree.getTerms())
+			final List<String> effects = getSOTermsStrings();
+			if(effects.isEmpty()) return Collections.emptySet();
+			final Set<SequenceOntologyTree.Term> set=new HashSet<>(effects.size());
+			for(final String label:effects) {
+				if(label.isEmpty()) continue;
+				final SequenceOntologyTree.Term t =AnnPredictionParser.this.soTree.getTermByLabel(label);
+				if(t==null) {
+					LOG.warning("Current Sequence Ontology Tree doesn't contain "+ label);
+					} 
+				else
 					{
-					if(t.getLabel().equals(eff))
-						{
-						set.add(t);
-						//break ?
-						}
+					set.add(t);
 					}
 				}
 			return set;

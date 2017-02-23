@@ -58,7 +58,8 @@ import htsjdk.samtools.util.RuntimeIOException;
 public class SequenceOntologyTree
 	{
 	private static SequenceOntologyTree INSTANCE=null;
-	private Map<String,TermImpl> uri2term=new HashMap<String,TermImpl>();
+	private final Map<String,TermImpl> uri2term=new HashMap<String,TermImpl>();
+	private final Map<String,TermImpl> label2term=new HashMap<String,TermImpl>();
 	
 	
 	public interface Term
@@ -176,15 +177,16 @@ public class SequenceOntologyTree
 			if(s.isEmpty()) continue;
 			t.children.add(s);
 			}
-		uri2term.put(t.accession, t);
+		this.uri2term.put(t.accession, t);
+		this.label2term.put(t.getLabel(), t);
 		}
 	
-	public Term getTermByAcn(String s)
+	public Term getTermByAcn(final String s)
 		{
 		return this.uri2term.get(s);
 		}
 	
-	private static String normalizeName(String s)
+	private static String normalizeName(final String s)
 		{
 		return s.toLowerCase().
 				replaceAll("'", "prime").
@@ -192,14 +194,11 @@ public class SequenceOntologyTree
 		}
 	
 	/** loop over terms and find a term.label==user.label */ 
-	public Term getTermByLabel(String s)
+	public Term getTermByLabel(final String s)
 		{
-		String sn=normalizeName(s);
-		for(Term t:uri2term.values())
-			{
-			if(normalizeName(t.getLabel()).equals(sn)) return t;
-			}
-		return null;
+		final Term t= this.label2term.get(s);
+		if(t!=null) return t;
+		return  this.label2term.get(normalizeName(s));
 		}
 	
 	private SequenceOntologyTree()

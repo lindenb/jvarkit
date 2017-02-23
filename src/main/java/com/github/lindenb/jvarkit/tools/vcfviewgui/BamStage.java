@@ -756,6 +756,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	});
 	    
 	    table.getColumns().add(tc);
+	    table.setPlaceholder(new Label("No Read."));
 	    return table;
 	    }
     
@@ -975,7 +976,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         final TableView<SamFlagRow> table=new TableView<>();
     	table.getColumns().add(makeColumn("Flag", O->O.flag.name()));
     	table.getColumns().add(makeColumn("Status",param-> param.flag.isSet(param.record.getFlags())?"\u2611":"\u2610"));
-    		
+    	table.setPlaceholder(new Label("No SAM flag."));
         return table;
         }        
     
@@ -984,6 +985,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         final TableView<SAMTagAndValue> table=new TableView<>();
     	table.getColumns().add(makeColumn("Key", O->O.tag));
     	table.getColumns().add(makeColumn("Value", O->O.value));
+    	table.setPlaceholder(new Label("No Meta-data."));
         return table;
         }
     
@@ -1002,7 +1004,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	table.getColumns().add(makeColumn("Bases", O->O.seq.toString()));
     	table.getColumns().add(makeColumn("Qual", O->O.qual.toString()));
     	table.getColumns().add(makeColumn("Operators", O->O.operators.toString()));
-    return table;
+    	table.setPlaceholder(new Label("No Pileup data."));
+    	return table;
     	}
     
     private TableView<CigarAndBase> createCigarTable() 
@@ -1024,6 +1027,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     			return param.base==null?null:String.valueOf((char)param.base.intValue());
     		}
 			} ));
+    	
+    	table.setPlaceholder(new Label("No Cigar Data."));
         return table;
     	}
     
@@ -1072,6 +1077,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	
     	final Tab tab=new Tab("ReadGroups", table);
     	tab.setClosable(false);
+    	
+    	table.setPlaceholder(new Label("No BAM read-greoup."));
     	return tab;
     	}
     
@@ -1089,6 +1096,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         
     	final Tab tab=new Tab("PG", table);
     	tab.setClosable(false);
+    	table.setPlaceholder(new Label("No Program-Group."));
     	return tab;
     	}
     
