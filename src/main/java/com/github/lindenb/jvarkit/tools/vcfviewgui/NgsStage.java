@@ -1096,4 +1096,68 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		return ngsFile;
 	}
     
+    /** returns the currently selected item , used for contextual menus */
+    protected abstract Optional<ITEMTYPE> getCurrentSelectedItem(); 
+    
+    /** build context menu for current selected locatable */
+    protected List<MenuItem> buildItemsForContextMenu() {
+    	final List<MenuItem> L=new ArrayList<>();
+    	MenuItem menuItem;
+    	for(final String build:new String[]{"hg38","hg19","hg18"})
+    		{
+    		menuItem=new MenuItem("Open in UCSC "+build+" ... ");
+    		menuItem.setOnAction(AE->{
+    			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
+    			if(!sel.isPresent()) return;
+    			String chrom=sel.get().getContig();
+    			if(!chrom.startsWith("chr")) {
+    				chrom="chr"+chrom;
+    				if(chrom.equals("chrMT")) chrom="chrM";
+    			}
+    			NgsStage.this.owner.getHostServices().showDocument(
+    				"http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&position="+
+    						chrom+"%3A"+sel.get().getStart()+"-"+sel.get().getEnd()
+    					);
+    		});
+    		L.add(menuItem);
+    		}
+    	for(final String build:new String[]{"grch37.Homo_sapiens","www.Homo_sapiens","www.Rattus_norvegicus"})
+		{
+    		int dot=build.indexOf('.');
+    		final String host=build.substring(0,dot);
+    		final String org=build.substring(dot+1);
+    		menuItem=new MenuItem("Open in Ensembl "+org+(host.equals("www")?"":"["+host+"]")+" ... ");
+    		menuItem.setOnAction(AE->{
+			
+			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
+			if(!sel.isPresent()) return;
+			String chrom=sel.get().getContig();
+			if(chrom.startsWith("chr")) {
+				chrom=chrom.substring(3);
+				if(chrom.equals("MT")) chrom="M";
+				}
+			NgsStage.this.owner.getHostServices().showDocument(
+				"http://"+host +".ensembl.org/"+ org+"/Location/View?r="+
+						chrom+"%3A"+sel.get().getStart()+"-"+sel.get().getEnd()
+					);
+			});
+		L.add(menuItem);
+		}
+    	menuItem=new MenuItem("Open in Exac ... ");
+		menuItem.setOnAction(AE->{
+			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
+			if(!sel.isPresent()) return;
+			String chrom=sel.get().getContig();
+			if(chrom.startsWith("chr")) {
+				chrom=chrom.substring(3);
+				if(chrom.equals("M")) chrom="MT";
+			}
+			NgsStage.this.owner.getHostServices().showDocument(
+				"http://exac.broadinstitute.org/region/"+
+						chrom+"-"+sel.get().getStart()+"-"+sel.get().getEnd()
+					);
+		});
+		L.add(menuItem);
+    	return L;
+    	}
 }

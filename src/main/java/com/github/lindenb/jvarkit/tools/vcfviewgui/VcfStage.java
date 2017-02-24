@@ -86,6 +86,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
@@ -708,7 +709,21 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         table.getColumns().add(makeColumn("QUAL", V->V.hasLog10PError()?V.getPhredScaledQual():null));
         
         table.setPlaceholder(new Label("No Variant."));
-
+        
+        
+        final ContextMenu ctxMenu=new ContextMenu();
+        
+        MenuItem menuItem=new MenuItem("dbSNP...");
+        menuItem.setOnAction(AE->{
+        	final VariantContext ctx=table.getSelectionModel().getSelectedItem();
+        	if(ctx==null || !ctx.hasID() || !ctx.getID().matches("rs[0-9]+")) return ;
+        	//http://stackoverflow.com/questions/16604341
+        	VcfStage.this.owner.getHostServices().showDocument("https://www.ncbi.nlm.nih.gov/snp/"+ctx.getID().substring(2));
+        });
+        ctxMenu.getItems().add(menuItem);
+        ctxMenu.getItems().addAll(super.buildItemsForContextMenu());
+        
+        table.setContextMenu(ctxMenu);
         return table;
 		}
 
@@ -1102,5 +1117,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	return VcfFile.class.cast(super.getNgsFile());
     }
     
+    @Override
+    protected Optional<VariantContext> getCurrentSelectedItem()
+    	{
+    	return Optional.ofNullable(this.variantTable.getSelectionModel().getSelectedItem());
+    	}
+
     
 	}

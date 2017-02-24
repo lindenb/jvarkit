@@ -110,6 +110,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -757,6 +758,13 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 	    
 	    table.getColumns().add(tc);
 	    table.setPlaceholder(new Label("No Read."));
+	    
+	    
+        final ContextMenu ctxMenu=new ContextMenu();
+        ctxMenu.getItems().addAll(super.buildItemsForContextMenu());
+        
+        table.setContextMenu(ctxMenu);
+	    
 	    return table;
 	    }
     
@@ -1445,4 +1453,10 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     private BamFile getBamFile() {
     	return BamFile.class.cast(super.getNgsFile());
     }
+    
+    
+    @Override
+    protected Optional<SAMRecord> getCurrentSelectedItem() {
+    	return Optional.ofNullable(this.recordTable.getSelectionModel().getSelectedItem());
+    	}
     }
