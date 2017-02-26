@@ -173,6 +173,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	
     	}
     
+    /** specialized javascript filter for BAM file */
     private static class BamJavascripFilter
     	extends JavascriptFilter<SAMFileHeader,SAMRecord>
 		{
@@ -186,7 +187,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 			}
 		@Override public SAMRecord eval(final SAMRecord rec)
 			{
-			if(super.compiledScript==null) return rec;
+			if(!super.compiledScript.isPresent()) return rec;
 			super.bindings.put("record", rec);
 			return super.accept()?rec:null;
 			}
@@ -703,7 +704,28 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	table.getColumns().add(makeColumn("Read-Name",REC->REC.getReadName()));
     	table.getColumns().add(makeColumn("Flag",REC->REC.getFlags()));
     	table.getColumns().add(makeColumn("Ref",REC->REC.getReferenceName()));
-    	table.getColumns().add(formatIntegerColumn(makeColumn("Read-Pos",REC->REC.getAlignmentStart())));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("UStart",REC->{
+    		if(REC.getReadUnmappedFlag() || REC.getCigar()==null ) return null;
+    		final int upos = REC.getUnclippedStart();
+    		if(upos ==  REC.getAlignmentStart()) return null;
+    		return upos;
+    		})));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("Start",REC->{
+			final int pos= REC.getAlignmentStart();
+			if( pos == SAMRecord.NO_ALIGNMENT_START) return null;
+			return pos;
+			})));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("End",REC->{
+	    	final int pos= REC.getAlignmentEnd();
+			if( pos == SAMRecord.NO_ALIGNMENT_START) return null;
+			return pos;
+			})));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("UEnd",REC->{
+			if(REC.getReadUnmappedFlag()  || REC.getCigar()==null) return null;
+			final int upos = REC.getUnclippedEnd();
+			if(upos ==  REC.getAlignmentEnd()) return null;
+			return upos;
+			})));
     	table.getColumns().add(makeColumn("MAPQ",REC->REC.getMappingQuality()));
     	
     	TableColumn<SAMRecord, Cigar> tc0 = makeColumn("CIGAR",REC->REC.getCigar());
@@ -817,8 +839,15 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	        this.setGraphic(textFlow);
     	    }
     	});
-	    
+
+    	
 	    table.getColumns().add(tc);
+	    
+    	final short SA = SAMTagUtil.getSingleton().makeBinaryTag("SA");
+    	table.getColumns().add(makeColumn("SA",REC->REC.getAttribute(SA)==null?null:"*"));
+    	table.getColumns().add(makeColumn("NM",REC->REC.getIntegerAttribute("NM")));
+
+	    
 	    table.setPlaceholder(new Label("No Read."));
 	    
 	    
