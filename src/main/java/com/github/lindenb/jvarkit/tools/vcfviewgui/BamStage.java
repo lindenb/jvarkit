@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -41,6 +42,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -72,6 +74,7 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMTagUtil;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
@@ -306,7 +309,55 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     		this.count=count;
     		}
 		}
-
+    /** describe 'SA' field in a READ */
+    private static class SuplementaryAlign
+    	{
+    	private static final Pattern SEMICOLON_PAT = Pattern.compile("[;]");
+   	 	private static final Pattern COMMA_PAT = Pattern.compile("[,]");    	 
+    	final String contig;
+    	final Integer pos;
+    	final String strand;
+    	final String cigar;
+    	final Integer mapq;
+    	final String nm;
+    	private SuplementaryAlign(final String commaStrs[])
+    		{
+    		this.contig= commaStrs[0];
+    		int  n=-1;
+    		 try {
+    			 n = Integer.parseInt(commaStrs[1]);
+             } catch( final NumberFormatException err ) {
+            	 n=-1;
+             	}
+    		this.pos=(n==-1?null:n);
+    		this.strand=commaStrs[2];
+    		this.cigar=commaStrs[3];
+    		 try {
+    			 n = Integer.parseInt(commaStrs[4]);
+             } catch( final NumberFormatException err ) {
+            	 n=-1;
+             	}
+    		 this.mapq=(n==-1?null:n);
+    		 this.nm=commaStrs[5];
+    		}
+    	//TODO upgrade htsjdk and use SAMUtils
+    	static List<SuplementaryAlign> fromSamRecord(final SAMRecord record) {
+    		if(record==null)  return Collections.emptyList();
+    		final Object saValue = record.getAttribute( SAMTagUtil.getSingleton().SA );
+    		if( saValue == null || !(saValue instanceof String) ) return Collections.emptyList();
+    		final String semiColonStrs[] = SEMICOLON_PAT.split((String)saValue);
+    		final List<SuplementaryAlign> alignments = new ArrayList<>( semiColonStrs.length );
+    		 for(int i=0; i< semiColonStrs.length;++i  ) {
+    	            final String semiColonStr = semiColonStrs[i];
+    	            /* ignore empty string */
+    	            if( semiColonStr.isEmpty() ) continue;
+    	            final String commaStrs[] = COMMA_PAT.split(semiColonStr);
+    	            if( commaStrs.length != 6 ) continue;
+    	            alignments.add(new SuplementaryAlign(commaStrs));
+    		 	}
+    		return alignments;
+    		}
+    	}
     
     private static class Pileup extends ContigPos
     	{
@@ -342,6 +393,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     private final TableView<SamFlagRow> flagsTable;
     private final TableView<SAMTagAndValue> metaDataTable;
     private final TableView<CigarAndBase> cigarTable;
+    /** table of supplementary alignments */
+    private final TableView<SuplementaryAlign> suplAlignTable;
     private final TableView<Pileup> pileupTable;
     private final Map<SAMFlag,CheckMenuItem> flag2filterInMenuItem=new HashMap<>();
     private final Map<SAMFlag,CheckMenuItem> flag2filterOutMenuItem=new HashMap<>();
@@ -444,7 +497,13 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         
         /* build the cigar table */
         this.cigarTable = createCigarTable();
-        split2.getItems().add(this.cigarTable); 
+        this.suplAlignTable = createSuplAlignTable();
+        final javafx.scene.control.TabPane tabpane2=new TabPane();
+        tabpane2.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        tabpane2.getTabs().add( new Tab("Cigar",  this.cigarTable ));
+        tabpane2.getTabs().add( new Tab("SA",  this.suplAlignTable ));
+        
+        split2.getItems().add(tabpane2); 
 
         
         /* when a read is selected update the flagsTable and metaDataTable */
@@ -455,6 +514,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
             	flagsTable.getItems().clear();
             	metaDataTable.getItems().clear();
             	cigarTable.getItems().clear();
+            	suplAlignTable.getItems().clear();
             	}
             else
             	{
@@ -469,6 +529,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
             	
             	/* update meta data */
             	metaDataTable.getItems().setAll(newSelection.getAttributes());
+            	/* update suppl align table */
+            	suplAlignTable.getItems().setAll(SuplementaryAlign.fromSamRecord(newSelection));
             	
             	if(!newSelection.getReadUnmappedFlag() && newSelection.getCigar()!=null)
             		{
@@ -1015,7 +1077,21 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	table.setPlaceholder(new Label("No Pileup data."));
     	return table;
     	}
+    /** supplementary align table ... */
+    private TableView<SuplementaryAlign> createSuplAlignTable()
+    {
+    	final TableView<SuplementaryAlign> table=new TableView<>();
+    	table.getColumns().add(makeColumn("REF", O->O.contig));
+    	table.getColumns().add(formatIntegerColumn(makeColumn("POS", O->O.pos)));
+    	table.getColumns().add(makeColumn("Strand", O->O.strand));
+    	table.getColumns().add(makeColumn("NM", O->O.nm));
+    	table.getColumns().add(makeColumn("MAPQ", O->O.mapq));
+    	table.getColumns().add(makeColumn("Cigar", O->O.cigar));
+    	table.setPlaceholder(new Label("No Read or no \"SA\" tag."));
+        return table;
+    }
     
+    /** create the Table showing the bases in a CIGAR string */
     private TableView<CigarAndBase> createCigarTable() 
     	{
     	final TableView<CigarAndBase> table=new TableView<>();

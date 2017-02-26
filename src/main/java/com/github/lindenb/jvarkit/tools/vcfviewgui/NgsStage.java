@@ -88,6 +88,8 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -1103,12 +1105,25 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     protected List<MenuItem> buildItemsForContextMenu() {
     	final List<MenuItem> L=new ArrayList<>();
     	MenuItem menuItem;
+    	
+    	menuItem=new MenuItem("Copy Interval in Clipboard");
+		menuItem.setOnAction(AE->{
+			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
+			if(!sel.isPresent() || sel.get().getContig()==null) return;
+			final Clipboard clipboard = Clipboard.getSystemClipboard();
+		    final ClipboardContent content = new ClipboardContent();
+		    content.putString(sel.get().getContig()+":"+sel.get().getStart()+"-"+sel.get().getEnd());
+		    clipboard.setContent(content);
+		});
+
+		L.add(menuItem);
+    	
     	for(final String build:new String[]{"hg38","hg19","hg18"})
     		{
     		menuItem=new MenuItem("Open in UCSC "+build+" ... ");
     		menuItem.setOnAction(AE->{
     			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
-    			if(!sel.isPresent()) return;
+    			if(!sel.isPresent() || sel.get().getContig()==null) return;
     			String chrom=sel.get().getContig();
     			if(!chrom.startsWith("chr")) {
     				chrom="chr"+chrom;
@@ -1130,7 +1145,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     		menuItem.setOnAction(AE->{
 			
 			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
-			if(!sel.isPresent()) return;
+			if(!sel.isPresent() || sel.get().getContig()==null) return;
 			String chrom=sel.get().getContig();
 			if(chrom.startsWith("chr")) {
 				chrom=chrom.substring(3);
@@ -1146,7 +1161,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	menuItem=new MenuItem("Open in Exac ... ");
 		menuItem.setOnAction(AE->{
 			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
-			if(!sel.isPresent()) return;
+			if(!sel.isPresent() || sel.get().getContig()==null) return;
 			String chrom=sel.get().getContig();
 			if(chrom.startsWith("chr")) {
 				chrom=chrom.substring(3);
