@@ -1122,57 +1122,48 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     		{
     		menuItem=new MenuItem("Open in UCSC "+build+" ... ");
     		menuItem.setOnAction(AE->{
-    			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
+    			final Optional<ITEMTYPE> sel=getCurrentSelectedItem();
     			if(!sel.isPresent() || sel.get().getContig()==null) return;
-    			String chrom=sel.get().getContig();
-    			if(!chrom.startsWith("chr")) {
-    				chrom="chr"+chrom;
-    				if(chrom.equals("chrMT")) chrom="chrM";
-    			}
     			NgsStage.this.owner.getHostServices().showDocument(
     				"http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&position="+
-    						chrom+"%3A"+sel.get().getStart()+"-"+sel.get().getEnd()
+    						JfxNgs.ContigToUCSC.apply(sel.get().getContig())+"%3A"+sel.get().getStart()+"-"+sel.get().getEnd()
     					);
     		});
     		L.add(menuItem);
     		}
     	for(final String build:new String[]{"grch37.Homo_sapiens","www.Homo_sapiens","www.Rattus_norvegicus"})
-		{
+			{
     		int dot=build.indexOf('.');
     		final String host=build.substring(0,dot);
     		final String org=build.substring(dot+1);
     		menuItem=new MenuItem("Open in Ensembl "+org+(host.equals("www")?"":"["+host+"]")+" ... ");
     		menuItem.setOnAction(AE->{
 			
-			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
+    		final Optional<ITEMTYPE> sel=getCurrentSelectedItem();
 			if(!sel.isPresent() || sel.get().getContig()==null) return;
-			String chrom=sel.get().getContig();
-			if(chrom.startsWith("chr")) {
-				chrom=chrom.substring(3);
-				if(chrom.equals("MT")) chrom="M";
-				}
+			
 			NgsStage.this.owner.getHostServices().showDocument(
 				"http://"+host +".ensembl.org/"+ org+"/Location/View?r="+
-						chrom+"%3A"+sel.get().getStart()+"-"+sel.get().getEnd()
+						JfxNgs.ContigToEnseml.apply(sel.get().getContig())+"%3A"+sel.get().getStart()+"-"+sel.get().getEnd()
 					);
-			});
-		L.add(menuItem);
-		}
-    	menuItem=new MenuItem("Open in Exac ... ");
-		menuItem.setOnAction(AE->{
-			Optional<ITEMTYPE> sel=getCurrentSelectedItem();
-			if(!sel.isPresent() || sel.get().getContig()==null) return;
-			String chrom=sel.get().getContig();
-			if(chrom.startsWith("chr")) {
-				chrom=chrom.substring(3);
-				if(chrom.equals("M")) chrom="MT";
+				});
+			L.add(menuItem);
 			}
-			NgsStage.this.owner.getHostServices().showDocument(
-				"http://exac.broadinstitute.org/region/"+
-						chrom+"-"+sel.get().getStart()+"-"+sel.get().getEnd()
-					);
-		});
-		L.add(menuItem);
+    	
+	    	for(final String database : new String[]{"Exac","gnomAD"})
+	    	{
+	    	menuItem=new MenuItem("Open Region in "+database+" ... ");
+			menuItem.setOnAction(AE->{
+				final Optional<ITEMTYPE> sel=getCurrentSelectedItem();
+				if(!sel.isPresent() || sel.get().getContig()==null) return;
+				NgsStage.this.owner.getHostServices().showDocument(
+					"http://"+database.toLowerCase()+".broadinstitute.org/region/"+
+							JfxNgs.ContigToEnseml.apply(sel.get().getContig())+"-"+sel.get().getStart()+"-"+sel.get().getEnd()
+						);
+			});
+			L.add(menuItem);
+	    	}
+    	
     	return L;
     	}
 }

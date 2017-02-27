@@ -244,7 +244,34 @@ public class JfxNgs extends Application {
 		}
 	};
     
-       
+	
+	/** utility to convert UCSC chrom to Ensembl , used web opening web browser*/
+    public static final Function<String, String> ContigToEnseml= new Function<String, String>() {
+		@Override
+		public String apply(String c) {
+			if(c==null) return null;
+			if(c.toLowerCase().startsWith("chr")) {
+				c=c.substring(3);
+				}
+			if(c.equals("M")) c="MT";
+			return c;
+			}
+		};
+      
+	/** utility to convert Ensembl chrom to UCSC  , used web opening web browser*/
+    public static final Function<String, String> ContigToUCSC = new Function<String, String>() {
+		@Override
+		public String apply(String c) {
+			if(c==null) return null;
+			if(!c.toLowerCase().startsWith("chr")) {
+				c="chr"+c;
+				}
+			if(c.equals("chrMT")) c="chrM";
+			return c;
+			}
+		};
+	
+		
     public JfxNgs()
 		{
 		this.preferences = Preferences.userNodeForPackage(JfxNgs.class);

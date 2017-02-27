@@ -794,10 +794,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	        menuItem=new MenuItem("Prediction Ensembl REST ["+build+"]");
 	        menuItem.setOnAction(AE->{
 	        	final VariantContext ctx=table.getSelectionModel().getSelectedItem();
-			if(ctx==null) return;
-	        	String chrom=ctx.getContig();
-        		if(chrom.startsWith("chr")) chrom=chrom.substring(3);
-        		if(chrom.equals("M")) chrom="MT";
+	        	if(ctx==null) return;
+	        	
 	        	for(final Allele a: ctx.getAlternateAlleles())
 	        		{
 	        		if(a.isReference()) continue;
@@ -806,11 +804,34 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	        	
 		        	VcfStage.this.owner.getHostServices().showDocument(
 		        		"http://rest.ensembl.org/vep/"+build+"/region/"
-		        				+ chrom +"%3A"+ctx.getStart()+"-"+ctx.getEnd()+"%3A1%2F"+ a.getDisplayString() +"?content-type=text%2Fxml");
+		        				+ JfxNgs.ContigToEnseml.apply(ctx.getContig())
+		        				+"%3A"+ctx.getStart()+"-"+ctx.getEnd()+"%3A1%2F"+ a.getDisplayString() +"?content-type=text%2Fxml");
 	        		}
 	        	});
 	        ctxMenu.getItems().add(menuItem);
 	        }
+    	for(final String database : new String[]{"Exac","gnomAD"}) {
+        menuItem=new MenuItem("Open Variant (ALT) in "+database+" ... ");
+		menuItem.setOnAction(AE->{
+        	final VariantContext ctx=table.getSelectionModel().getSelectedItem();
+        	if(ctx==null) return;
+        	for(final Allele a: ctx.getAlternateAlleles())
+	    		{
+	    		if(a.isReference()) continue;
+	    		if(a.isSymbolic()) continue;
+	    		if(a.isNoCall()) continue;
+	    	
+	        	VcfStage.this.owner.getHostServices().showDocument(
+	        		"http://"+ database.toLowerCase() +".broadinstitute.org/variant/"
+	        				+ JfxNgs.ContigToEnseml.apply(ctx.getContig())
+	        				+ "-"+ctx.getStart()+"-"
+	        				+ ctx.getReference().getDisplayString()+"-"
+	        				+a.getDisplayString()
+	        				);
+	    		}
+			});
+		ctxMenu.getItems().add(menuItem);
+		}
         
         table.setContextMenu(ctxMenu);
         return table;
