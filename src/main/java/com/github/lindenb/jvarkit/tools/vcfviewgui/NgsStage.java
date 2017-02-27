@@ -531,6 +531,10 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	this.maxItemsLimitSpinner.setTooltip(new Tooltip(
     			"The whole file is NOT loaded, only a subset of data will be read."));
     	
+    	if(ngsFile.getSequenceDictionary()==null)
+    		{
+    		throw new IOException("There is no associated dictionary for "+ngsFile);
+    		}
     	this.seqDictionaryCanvas = new  SeqDictionaryCanvas(ngsFile.getSequenceDictionary());
     	
     	if(!this.owner.javascriptCompiler.isPresent()) {
