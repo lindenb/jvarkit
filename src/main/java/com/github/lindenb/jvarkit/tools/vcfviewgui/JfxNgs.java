@@ -170,11 +170,13 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
+import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -193,6 +195,37 @@ public class JfxNgs extends Application {
     private static final String LAST_USED_DIR_KEY="last.used.dir";
     private final List<NgsStage<?,?>> all_opened_stages=new ArrayList<>();
     
+    /** class used to store key/value for preferences */
+    private static class PrefItem
+    	{
+    	final String key;
+    	final String label;
+    	final TextField textField;
+    	PrefItem(final String key, final String label,String description) {
+    		this.key = key;
+    		this.label= label;
+    		if(description==null) description=label;
+    		this.textField =new TextField();
+    		this.textField.setPrefColumnCount(25);
+    		this.textField.setTooltip(new Tooltip(description));
+    		this.textField.setPromptText(description);
+    		}
+    	String getValue() { return this.textField.getText().trim();}
+    	}
+    
+	private final PrefItem pref_httpHost = new PrefItem("http.proxyHost", "Http Proxy Host",null);
+	private final PrefItem pref_httpPort = new PrefItem("http.proxyPort", "Http Proxy Port",null);
+	private final PrefItem pref_httpsHost = new PrefItem("https.proxyHost", "Https Proxy Host",null);
+	private final PrefItem pref_httpsPort = new PrefItem("https.proxyPort", "Https Proxy Port",null);
+	private final PrefItem pref_max_sam_items = new PrefItem(BamStage.SPINNER_VALUE_KEY, "Default number of Reads",null);
+	private final PrefItem pref_max_vcf_items = new PrefItem(VcfStage.SPINNER_VALUE_KEY, "Default number of Variants",null);
+	private final PrefItem all_preferences[]=new PrefItem[]{
+			pref_httpHost,pref_httpPort,
+			pref_httpsHost,pref_httpsPort,
+			pref_max_sam_items,
+			pref_max_vcf_items
+		};
+
     
     
     /** utility Function to convert base to Color */
@@ -203,7 +236,7 @@ public class JfxNgs extends Application {
 			{
 			case 'A':case 'a': return Color.BLUE;
 			case 'T': case 't' : return Color.GREEN;
-			case 'C': case 'c': return Color.YELLOW;
+			case 'C': case 'c': return Color.ORANGE;
 			case 'G': case 'g': return Color.RED;
 			default: break;
 			}    	
@@ -242,6 +275,16 @@ public class JfxNgs extends Application {
 			LOG.warning("Cannot get Compilable JS engine "+err.getMessage());
 			}
 		this.javascriptCompiler = Optional.ofNullable(engine);
+		/* init some prefs */
+		if( this.preferences.get(pref_max_sam_items.key,null)==null)
+			{
+			this.preferences.put(pref_max_sam_items.key,String.valueOf(BamStage.DEFAULT_BAM_RECORDS_COUNT));
+			}
+		if( this.preferences.get(pref_max_vcf_items.key,null)==null)
+			{
+			this.preferences.put(pref_max_vcf_items.key,String.valueOf(VcfStage.DEFAULT_VCF_RECORDS_COUNT));
+			}
+		applyPreferences();
 		}
 
     /** obtain a new file chooser, update the preferences if needed */
@@ -264,7 +307,7 @@ public class JfxNgs extends Application {
     		dir=f.getParentFile();
     		if(dir==null) return f;
     		}
-    	preferences.get(LAST_USED_DIR_KEY, dir.getPath());
+    	this.preferences.put(LAST_USED_DIR_KEY, dir.getPath());
     	return f;
     	}
     
@@ -273,7 +316,6 @@ public class JfxNgs extends Application {
     public void stop() throws Exception
     	{
     	try {
-    		LOG.info("flush preferences");
     		this.preferences.flush();
     		}
     	catch(final BackingStoreException err)
@@ -297,6 +339,7 @@ public class JfxNgs extends Application {
     
     @Override
     public void start(final Stage primaryStage) throws Exception {
+    	
         final Parameters params = this.getParameters();
         
         
@@ -317,8 +360,8 @@ public class JfxNgs extends Application {
         flow.setPadding(new Insets(10,10,10,10));
         flow.getChildren().add(new Label("Set Location of all frames to:"));
         final TextField textField=new TextField();
-        textField.setPrefColumnCount(15);
-        textField.setPromptText("Location");
+        textField.setPrefColumnCount(25);
+        textField.setPromptText("Location. e:g '2:1234-5678'");
         flow.getChildren().add(textField);
         Button button=new Button("Go");
         flow.getChildren().add(button);
@@ -355,8 +398,7 @@ public class JfxNgs extends Application {
         final Scene scene = new Scene(vbox1,500,300);
        
         primaryStage.setScene(scene);
-        primaryStage.setOnHidden(e -> doMenuQuit());
-       
+        
         Exception lastException=null;
         
         primaryStage.addEventHandler(
@@ -443,6 +485,9 @@ public class JfxNgs extends Application {
 			final TextArea textArea = new TextArea(exceptionText);
 			textArea.setEditable(true);
 			textArea.setWrapText(true);
+			textArea.setPrefWidth(1000);
+			textArea.setPrefHeight(700);
+			
 	
 			textArea.setMaxWidth(Double.MAX_VALUE);
 			textArea.setMaxHeight(Double.MAX_VALUE);
@@ -546,6 +591,7 @@ public class JfxNgs extends Application {
     List<MenuItem> createCommonMenuItems(final Stage stage) {
     	final List<MenuItem> L=new ArrayList<>();
     	L.add(createMenuItem("About...",()->doMenuAbout(stage)));
+    	L.add(createMenuItem("Preferences...",()->showPreferencesDialog(stage)));
         L.add(new SeparatorMenuItem());
     	L.add(createMenuItem("Open VCF File...",()->openVcfFile(stage)));
         L.add(createMenuItem("Open BAM File...",()->openBamFile(stage)));
@@ -629,6 +675,42 @@ public class JfxNgs extends Application {
     	return menu;
     	}
 
+    private  void showPreferencesDialog(final Stage parentStage)
+    	{
+    	Stage dialog = new Stage();
+    	dialog.setTitle("Preferences...");
+    	// populate dialog with controls.
+    	final VBox vbox=new VBox();
+    	for(final PrefItem pref: all_preferences)
+    		{
+    		final Label label=new Label(pref.label+" :");
+        	final HBox hbox=new HBox(label,pref.textField);
+        	hbox.setPadding(new Insets(10));
+        	pref.textField.setText(this.preferences.get(pref.key, ""));
+        	vbox.getChildren().add(hbox);
+    		}
+    	vbox.setPadding(new Insets(10));
+    	dialog.setScene(new Scene(vbox));
+    	dialog.initOwner(parentStage);
+    	dialog.initModality(Modality.APPLICATION_MODAL); 
+    	dialog.showAndWait();
+    	
+    	for(final PrefItem pref: this.all_preferences)
+    		{
+    		this.preferences.put(pref.key, pref.getValue());
+    		}
+    	applyPreferences();
+    	}
+    
+    /** apply preferences after application is launched of after the pref dialog was opened*/
+    private void applyPreferences()
+    	{
+    	for(final PrefItem pref:new PrefItem[]{pref_httpHost,pref_httpPort,pref_httpsHost,pref_httpsPort})
+			{
+			System.setProperty(pref.key,this.preferences.get(pref.key, ""));
+			}
+    	}
+    
     public static void main(String[] args) {
     	launch(args);
     }

@@ -147,10 +147,10 @@ import javafx.stage.FileChooser.ExtensionFilter;
 
 @SuppressWarnings("unused")
 public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
-    private static final int DEFAULT_BAM_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.sam", "1000"));
+    static final String SPINNER_VALUE_KEY="bam.spinner.value";
+    static final int DEFAULT_BAM_RECORDS_COUNT= 1000;
     static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Bam Files", ".bam");
     private static final Logger LOG= Logger.getLogger("BamStage");
-    private static final String SPINNER_VALUE_KEY="bam.spinner.value";
     /** shor-Read oriented chart-factories */
     private static final List<Supplier<ChartFactory<SAMRecord>>> READ_CHART_LIST=Arrays.asList(
     		()->new BasesPerPositionChartFactory(),
@@ -435,10 +435,22 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 				}
 			});
         
+        int number_of_items_in_spinner;
+        try {
+        	number_of_items_in_spinner= owner.preferences.getInt(SPINNER_VALUE_KEY, DEFAULT_BAM_RECORDS_COUNT);
+			if(number_of_items_in_spinner<0) number_of_items_in_spinner=0;
+			if(number_of_items_in_spinner>100000) number_of_items_in_spinner=100000;
+        	}
+        catch(Exception err)
+        	{
+        	number_of_items_in_spinner = DEFAULT_BAM_RECORDS_COUNT;
+        	}
+        
         super.maxItemsLimitSpinner.setValueFactory(
         		new SpinnerValueFactory.IntegerSpinnerValueFactory(0,100000,
-        				owner.preferences.getInt(SPINNER_VALUE_KEY, DEFAULT_BAM_RECORDS_COUNT)
-        				));;
+        				number_of_items_in_spinner
+        				));
+        				
         top1.getChildren().add(gotoButton);
         top1.getChildren().add(new Separator(Orientation.VERTICAL));
         top1.getChildren().add(new Label("Limit:"));
@@ -685,6 +697,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 	    	super.statsMenu.getItems().add(menuItem);
 	        }
         
+       
+
         
         this.addEventHandler(
     			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
@@ -1515,25 +1529,29 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     			}
     		}
 
-    	Predicate<SAMRecord> filter=makeFlagPredicate();
+    	final Predicate<SAMRecord> flagfilter=makeFlagPredicate();
 		final SAMFileWriterFactory swf= new SAMFileWriterFactory();
 		swf.setCreateIndex(true);
 		CloseableIterator<SAMRecord> iter=null;
 		SAMFileWriter w=null;
 		try
 			{
-			w = swf.makeBAMWriter(this.getBamFile().getHeader(), true, saveAs);
+			final SAMFileHeader h2 =this.getBamFile().getHeader().clone();
+			h2.addComment("Generated with JfxNgs. javascript was: "+
+					this.javascriptArea.getText().trim().replaceAll("[\n\t\r ]+"," ")
+					);
+			
+			w = swf.makeBAMWriter(h2, true, saveAs);
 			
 			iter= this.getBamFile().iterator();
 			while(iter.hasNext())
 				{
 				final SAMRecord rec=iter.next();
-				if(!filter.test(rec)) continue;
+				if(!flagfilter.test(rec)) continue;
 				if(bamjsfilter.isPresent())
         			{
         			if(bamjsfilter.get().eval(rec)==null) continue;
         			}
-				
 				w.addAlignment(rec);
 				}
 			w.close();

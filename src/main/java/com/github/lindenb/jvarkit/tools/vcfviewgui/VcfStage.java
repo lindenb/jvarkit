@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -70,8 +71,11 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -99,6 +103,8 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.layout.BorderPane;
@@ -112,9 +118,9 @@ import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.util.Callback;
 
 public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
-    private static final int DEFAULT_VCF_RECORDS_COUNT=Integer.parseInt(System.getProperty("jxf.ngs.default.vcf", "100"));
+    static final String SPINNER_VALUE_KEY="vcf.spinner.value";
+	static final int DEFAULT_VCF_RECORDS_COUNT= 100;
     static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Variant Files", ".vcf",".vcf.gz");
-    private static final String SPINNER_VALUE_KEY="vcf.spinner.value";
     
     /** variant oriented chart-factories */
     private static final List<Supplier<ChartFactory<VariantContext>>> VARIANT_CHART_FACTORIES= Arrays.asList(
@@ -135,7 +141,31 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	public void close();
     	}
     
-        
+    /** class used to display samples */
+    public static class SampleDef
+    	{
+    	private final String name;
+    	private final String description;
+        private final BooleanProperty _displayedProperty = new SimpleBooleanProperty(true);
+        public BooleanProperty displayedProperty()  { return _displayedProperty; }
+        public boolean isDisplayed() { return displayedProperty().get(); }
+        public void setDisplayed(boolean v) { displayedProperty().set(v); }
+    
+    	SampleDef(final String name,final String description)
+	    	{
+	    	this.name=name;
+	    	this.description=description;
+	    	}
+    
+    	public String getName() {
+			return name;
+			}
+    	public String getDescription() {
+			return description;
+			}
+    	}
+    
+    private final Map<String,SampleDef> name2sampledef;
     
     /** Misc VCF tools that will be injected in the nashorn context */
     public static class VcfTools
@@ -337,6 +367,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	private final TableView<VariantContext> variantTable;
 	private final TableView<Genotype> genotypeTable;
 	private final TableView<InfoTableRow> infoTableRow;
+	private final TableView<SampleDef> sampleTable = new TableView<>();
 	/** annotation SNPEFF table ROW */
 	private final TableView<AnnPredictionParser.AnnPrediction> annPredictionTable;
 	private final TableView<VepPredictionParser.VepPrediction> vepPredictionTable;
@@ -369,9 +400,20 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         top1.getChildren().add(new Separator(Orientation.VERTICAL));
         top1.getChildren().add(new Label("Limit:"));
         
+        int number_of_items_in_spinner;
+        try {
+        	number_of_items_in_spinner= owner.preferences.getInt(SPINNER_VALUE_KEY, DEFAULT_VCF_RECORDS_COUNT);
+			if(number_of_items_in_spinner<0) number_of_items_in_spinner=0;
+			if(number_of_items_in_spinner>100000) number_of_items_in_spinner=100000;
+        	}
+        catch(Exception err)
+        	{
+        	number_of_items_in_spinner = DEFAULT_VCF_RECORDS_COUNT;
+        	}
+        
         super.maxItemsLimitSpinner.setValueFactory(
         		new SpinnerValueFactory.IntegerSpinnerValueFactory(0,100000,
-        				owner.preferences.getInt(SPINNER_VALUE_KEY, DEFAULT_VCF_RECORDS_COUNT)
+        				number_of_items_in_spinner
         				));;
 
         top1.getChildren().add(super.maxItemsLimitSpinner);
@@ -445,6 +487,28 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			//GridPane.setConstraints( this.genotypeChartPane,0, 12,3,4);
 	    	//gridPane.getChildren().add(this.genotypeChartPane);
 			split2.getItems().add(this.genotypeChartPane);
+			this.name2sampledef=new LinkedHashMap<>(header.getNGenotypeSamples());
+			for(final String sampleName:header.getSampleNamesInOrder())
+				{
+				String desc=null;
+				for(final VCFHeaderLine h:header.getOtherHeaderLines()) {
+					final String key = h.getKey();
+					if(!key.equals("Sample")) continue;
+					final String value =h.getValue();
+					if(value.contains("ID="+sampleName+",") || value.contains("ID="+sampleName+">"))
+						{
+						desc = value;
+						break;
+						}
+					}
+				final SampleDef sampledef = new SampleDef(sampleName, desc);
+				this.name2sampledef.put(sampleName, sampledef);
+				}
+		
+			}
+		else
+			{
+			this.name2sampledef=Collections.emptyMap();
 			}
 		
 		/* build info Table table */
@@ -497,6 +561,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		tabPane.getTabs().add(buildFilterHeaderTab(header));
         tabPane.getTabs().add(buildDictTab( header.getSequenceDictionary()));
         tabPane.getTabs().add(buildJavascriptPane());
+        if(header.getNGenotypeSamples()>0)
+	        {
+	        tabPane.getTabs().add(buildSampleTab());
+	        }
         /* register selection handler */
         /* when a read is selected update the flagsTable and metaDataTable */
         this.variantTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -671,7 +739,6 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	private TableView<String> buildFilterTable()
 		{
 		final TableView<String> table=new TableView<>();
-		
 		final TableColumn<String,String>  scol = new TableColumn<>("Filter");
 		scol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<String,String>, ObservableValue<String>>() {				
 			@Override
@@ -723,6 +790,28 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         ctxMenu.getItems().add(menuItem);
         ctxMenu.getItems().addAll(super.buildItemsForContextMenu());
         
+        for(final String build:new String[]{"human"}) {
+	        menuItem=new MenuItem("Prediction Ensembl REST ["+build+"]");
+	        menuItem.setOnAction(AE->{
+	        	final VariantContext ctx=table.getSelectionModel().getSelectedItem();
+			if(ctx==null) return;
+	        	String chrom=ctx.getContig();
+        		if(chrom.startsWith("chr")) chrom=chrom.substring(3);
+        		if(chrom.equals("M")) chrom="MT";
+	        	for(final Allele a: ctx.getAlternateAlleles())
+	        		{
+	        		if(a.isReference()) continue;
+	        		if(a.isSymbolic()) continue;
+	        		if(a.isNoCall()) continue;
+	        	
+		        	VcfStage.this.owner.getHostServices().showDocument(
+		        		"http://rest.ensembl.org/vep/"+build+"/region/"
+		        				+ chrom +"%3A"+ctx.getStart()+"-"+ctx.getEnd()+"%3A1%2F"+ a.getDisplayString() +"?content-type=text%2Fxml");
+	        		}
+	        	});
+	        ctxMenu.getItems().add(menuItem);
+	        }
+        
         table.setContextMenu(ctxMenu);
         return table;
 		}
@@ -741,6 +830,64 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		return table;
 		}
      
+	/** build table of Sample */
+	private Tab buildSampleTab()
+		{
+		final boolean editable = this.name2sampledef.size()>1;
+		final BorderPane pane=new BorderPane(this.sampleTable);
+		pane.setPadding(new Insets(10));
+		
+
+		this.sampleTable.setEditable(editable);
+		this.sampleTable.getColumns().add(makeColumn("Name", R->R.getName()));
+		final TableColumn<SampleDef, Boolean> selectCol = new TableColumn<>("Display");
+		selectCol.setCellValueFactory(new PropertyValueFactory<>("displayed"));
+		selectCol.setCellFactory(col -> {
+            CheckBoxTableCell<SampleDef, Boolean> cell = new CheckBoxTableCell<>(index -> {
+               return sampleTable.getItems().get(index).displayedProperty();
+            });
+            return cell ;
+        });
+		selectCol.setEditable(editable);
+		this.sampleTable.getColumns().add(selectCol);
+		this.sampleTable.getColumns().add(makeColumn("Description", R->R.getDescription()));
+		this.sampleTable.setPlaceholder(new Label("No Sample."));
+		this.sampleTable.getItems().addAll(this.name2sampledef.values());
+		
+		final HBox top=new HBox();
+		top.setPadding(new Insets(10));
+		Button but= new Button("Select all");
+		but.setOnAction(AE->{
+			for(final SampleDef def:name2sampledef.values())
+				{
+				def.setDisplayed(true);
+				}
+			if(getCurrentSelectedItem().isPresent())
+				{
+				refreshGenotypeTable(getCurrentSelectedItem().get());
+				}
+			});
+		top.getChildren().add(but);
+		
+		but= new Button("Unselect all");
+		but.setOnAction(AE->{
+			for(final SampleDef def:name2sampledef.values())
+				{
+				def.setDisplayed(false);
+				}
+			if(getCurrentSelectedItem().isPresent())
+				{
+				refreshGenotypeTable(getCurrentSelectedItem().get());
+				}
+			});
+		top.getChildren().add(but);
+		
+		pane.setTop(top);
+		final Tab tab=new Tab("Samples",pane);
+		tab.setClosable(false);
+		return tab;
+		}
+	
 	private TableView<AnnPredictionParser.AnnPrediction> buildAnnTableRow(final AnnPredictionParser parser)
 		{
 		final TableView<AnnPredictionParser.AnnPrediction> table=new TableView<>();
@@ -848,12 +995,17 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         if(ctx!=null) {
         	for(final Genotype g:ctx.getGenotypes())
 				{
+        		// ignore genotype if not displayed
+        		final SampleDef sampleDef= this.name2sampledef.get(g.getSampleName());
+        		if(sampleDef==null || !sampleDef.isDisplayed()) continue;
+
         		countTypes.incr(g.getType());
 				}
         	}
     	final ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
     	for(final GenotypeType t:GenotypeType.values())
     		{
+    		
     		int c= (int)countTypes.count(t);
     		if(c==0) continue;
     		pieChartData.add(new PieChart.Data(
@@ -1068,6 +1220,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         			filter(G->cboxShowNoCall.isSelected() || G.isCalled()).
         			filter(G->cboxShowHomRef.isSelected() || !G.isHomRef()).
         			filter(G->cboxShowFiltered.isSelected() || !G.isFiltered()).
+        			filter(G->{SampleDef d=name2sampledef.get(G.getSampleName()); return d==null ||d.isDisplayed();}).
         			collect(Collectors.toList())
         			);
 			}
