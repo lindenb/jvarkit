@@ -100,6 +100,7 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -372,6 +373,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	private final TableView<AnnPredictionParser.AnnPrediction> annPredictionTable;
 	private final TableView<VepPredictionParser.VepPrediction> vepPredictionTable;
 	private final TableView<String> filterTableRow;
+	private final TableView<Allele> allelesTable;
 	private final BorderPane genotypeChartPane;
 	private final CheckBox cboxShowHomRef=new CheckBox("HomRef");
 	private final CheckBox cboxShowNoCall=new CheckBox("NoCall");
@@ -469,24 +471,21 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			split1.getItems().add(pane2);
 			}
 		
-		final SplitPane split2=new SplitPane();
-		split2.setOrientation(Orientation.HORIZONTAL);
 
 		/* filter table */
 		this.filterTableRow = this.buildFilterTable();
 		//GridPane.setConstraints( this.filterTableRow,0, 10,3,1);
 		//gridPane.getChildren().add(this.filterTableRow);
-		split2.getItems().add(this.filterTableRow);
+		//split2.getItems().add(this.filterTableRow);
 		/* genotype pane */
 		
 		
 		this.genotypeChartPane = new BorderPane(this.makeGenotypePie(null));
 		if(header.getNGenotypeSamples()>0)
 			{
-			this.genotypeChartPane.setPadding(new Insets(5));
 			//GridPane.setConstraints( this.genotypeChartPane,0, 12,3,4);
 	    	//gridPane.getChildren().add(this.genotypeChartPane);
-			split2.getItems().add(this.genotypeChartPane);
+			
 			this.name2sampledef=new LinkedHashMap<>(header.getNGenotypeSamples());
 			for(final String sampleName:header.getSampleNamesInOrder())
 				{
@@ -515,10 +514,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		this.infoTableRow = this.buildInfoTableRow();
 		this.annPredictionTable = this.buildAnnTableRow(this.annPredictionParser);
 		this.vepPredictionTable = this.buildVepTableRow(this.vepPredictionParser);
-		flow3 = new FlowPane(new Label("Filter:"),tfFilterInfo);
+		flow3 = new FlowPane(new Label("INFO Filter:"),tfFilterInfo);
 		tfFilterInfo.setPrefColumnCount(10);
 		tfFilterInfo.setOnAction(AE->reloadInfoTable(variantTable.getSelectionModel().getSelectedItem()));
 		final TabPane tabPane2=new TabPane();
+		tabPane2.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		Tab tab=new Tab("INFO",this.infoTableRow);
 		tab.setClosable(false);
 		tabPane2.getTabs().add(tab);
@@ -534,23 +534,34 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			tab.setClosable(false);
 			tabPane2.getTabs().add(tab);
 			}
+		tabPane2.getTabs().add(new Tab("FILTER",this.filterTableRow));
+		if(header.getNGenotypeSamples()>0)
+			{
+			this.genotypeChartPane.setPadding(new Insets(5));
+			tabPane2.getTabs().add(new Tab("G-Chart",this.genotypeChartPane));
+			}
+		this.allelesTable = buildAlleleTable();
+		tabPane2.getTabs().add(new Tab("ALLELES",this.allelesTable));
+		
 		BorderPane pane2=new BorderPane(tabPane2);
 		pane2.setTop(flow3);
+		
+		
+		
+		final SplitPane split2=new SplitPane();
+		split2.setOrientation(Orientation.VERTICAL);
+		split2.getItems().addAll(split1,pane2);
 		//GridPane.setConstraints( this.infoTableRow,3, 10,8,5); // column=3 row=1
 		//gridPane.getChildren().add(this.infoTableRow);
 		
 		
-		split2.getItems().add(pane2);
 				
        
 		
         
         //vbox1.getChildren().add(gridPane);
-		final SplitPane split3=new SplitPane();
-		split3.setOrientation(Orientation.VERTICAL);
-		split3.getItems().addAll(split1,split2);
 
-		tab=new Tab("Variants", split3);
+		tab=new Tab("Variants", split2);
 		tab.setClosable(false);
 		tabPane.getTabs().add(tab);
 		tabPane.getTabs().add(buildInfoHeaderTab(header));
@@ -838,6 +849,19 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		}
 
 	/** build INFO table */
+	private TableView<Allele> buildAlleleTable()
+		{
+		final TableView<Allele> table=new TableView<>();
+		table.getColumns().add(makeColumn("REF",A->A.isReference()?"*":null));
+		table.getColumns().add(makeColumn("Sym.",A->A.isSymbolic()?"*":null));
+		table.getColumns().add(makeColumn("Bases.",A->A.getBaseString()));
+		table.getColumns().add(makeColumn("Length.",A->{if(A.isSymbolic()) return (Integer)null;return A.length();}));
+		table.setPlaceholder(new Label("No Allele."));
+		return table;
+		}
+
+	
+	/** build INFO table */
 	private TableView<InfoTableRow> buildInfoTableRow()
 		{
 		final TableView<InfoTableRow> table=new TableView<>();
@@ -988,7 +1012,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	{
     	refreshGenotypeTable(ctx);
     	reloadInfoTable(ctx);
-    	
+    	reloadAlleleTable(ctx);
     	if(ctx!=null)
     		{
     		super.seqDictionaryCanvas.setSelectInterval(new Interval(ctx.getContig(), ctx.getStart(), ctx.getEnd()));
@@ -1166,6 +1190,18 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			}
     	
     	}
+	
+	private void reloadAlleleTable(final VariantContext ctx)
+		{
+		if(ctx==null)
+			{
+			this.allelesTable.getItems().clear();
+			}
+		else
+			{
+			this.allelesTable.getItems().setAll(ctx.getAlleles());
+			}
+		}	
 	
 	private void reloadInfoTable(final VariantContext ctx)
 		{
