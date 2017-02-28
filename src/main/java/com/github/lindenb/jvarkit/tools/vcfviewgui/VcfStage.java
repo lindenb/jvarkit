@@ -820,7 +820,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	    		if(a.isReference()) continue;
 	    		if(a.isSymbolic()) continue;
 	    		if(a.isNoCall()) continue;
-	    	
+	    		
 	        	VcfStage.this.owner.getHostServices().showDocument(
 	        		"http://"+ database.toLowerCase() +".broadinstitute.org/variant/"
 	        				+ JfxNgs.ContigToEnseml.apply(ctx.getContig())
