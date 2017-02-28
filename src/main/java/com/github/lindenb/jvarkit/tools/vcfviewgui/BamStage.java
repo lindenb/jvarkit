@@ -1291,15 +1291,15 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     					Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()))
     					));
     			}
-    		catch(Exception err)
+    		catch(final Exception err)
     			{
     			LOG.warning(err.getMessage());
     			updateStatusBar(AlertType.ERROR, err);
-    			bamjsfilter=null;
+    			bamjsfilter=Optional.empty();
     			}
     		}
     	final Map<ContigPos,Pileup> pos2pileup=new TreeMap<>();
-    	Function<ContigPos,Pileup> getpileup=new  Function<ContigPos, Pileup>() {
+    	final Function<ContigPos,Pileup> getpileup=new  Function<ContigPos, Pileup>() {
 			@Override
 			public Pileup apply(ContigPos t) {
 				Pileup p =pos2pileup.get(t);
@@ -1438,8 +1438,6 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     		}
     	
     	repaintCanvas();
-    	
-    	
     	}
     @Override
 	void openInIgv() {

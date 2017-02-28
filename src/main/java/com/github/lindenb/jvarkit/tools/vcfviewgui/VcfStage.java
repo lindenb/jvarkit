@@ -1153,7 +1153,6 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     			{
     			updateStatusBar(AlertType.ERROR, err);
     			LOG.warning(err.getMessage());
-    			javascripFilter=null;
     			}
     		}
     	int count_items=0;

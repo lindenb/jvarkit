@@ -88,6 +88,8 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
+import htsjdk.samtools.BAMIndex;
+import htsjdk.samtools.BAMIndexer;
 import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -113,12 +115,21 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.Tribble;
+import htsjdk.tribble.index.Index;
+import htsjdk.tribble.index.IndexFactory;
+import htsjdk.tribble.index.IndexFactory.IndexType;
+import htsjdk.tribble.index.tabix.TabixFormat;
+import htsjdk.tribble.index.tabix.TabixIndex;
+import htsjdk.tribble.index.tabix.TabixIndexCreator;
+import htsjdk.tribble.util.TabixUtils;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
@@ -493,13 +504,16 @@ public class JfxNgs extends Application {
     	{
     	final Alert alert = new Alert(AlertType.WARNING);
     	alert.setTitle("Error");
+    	
 		
 		if(err!=null && err instanceof Throwable)
 			{
 			
 			alert.setHeaderText("Error");
-
+			
 			final Throwable error=(Throwable) err;
+			alert.setContentText(String.valueOf(error.getMessage()));
+
 			error.printStackTrace();
 			
 			StringWriter sw = new StringWriter();
@@ -510,10 +524,8 @@ public class JfxNgs extends Application {
 			final Label label = new Label("The exception stacktrace was:");
 	
 			final TextArea textArea = new TextArea(exceptionText);
-			textArea.setEditable(true);
-			textArea.setWrapText(true);
-			textArea.setPrefWidth(1000);
-			textArea.setPrefHeight(700);
+			textArea.setEditable(false);
+			textArea.setWrapText(false);
 			
 	
 			textArea.setMaxWidth(Double.MAX_VALUE);
@@ -521,11 +533,14 @@ public class JfxNgs extends Application {
 			GridPane.setVgrow(textArea, Priority.ALWAYS);
 			GridPane.setHgrow(textArea, Priority.ALWAYS);
 	
-			final GridPane expContent = new GridPane();
-			expContent.setMaxWidth(Double.MAX_VALUE);
-			expContent.add(label, 0, 0);
-			expContent.add(textArea, 0, 1);
-	
+			final BorderPane expContent = new BorderPane(new ScrollPane(textArea));
+			expContent.setTop(label);
+			expContent.setMinHeight(500);
+			expContent.setMinWidth(800);
+			expContent.setPrefWidth(1000);
+			expContent.setPrefHeight(900);
+
+			
 			// Set expandable Exception into the dialog pane.
 			alert.getDialogPane().setExpandableContent(expContent);
 			}
@@ -533,6 +548,7 @@ public class JfxNgs extends Application {
 			{
 			String msg=String.valueOf(err);
 			alert.setHeaderText(msg);
+			alert.setContentText(msg);
 			alert.getDialogPane().setExpandableContent(new Label(msg));
 			}
 		alert.showAndWait();
@@ -543,16 +559,20 @@ public class JfxNgs extends Application {
     	Platform.exit();
     	}
     
+  
     void openBamUrl(final Window owner)
 		{
+    	final String lastkey="last.bam.url";
     	final TextInputDialog dialog=new TextInputDialog();
-    	dialog.setTitle("Get URL");
+    	dialog.setContentText(this.preferences.get(lastkey, ""));
+    	dialog.setTitle("Get BAM URL");
     	dialog.setHeaderText("Input BAM URL");
     	final Optional<String> choice=dialog.showAndWait();
     	if(!choice.isPresent()) return;
     	BamFile input=null;
     	try {
 			input = BamFile.newInstance(choice.get());
+			this.preferences.put(lastkey, choice.get());
 			BamStage stage=new BamStage(JfxNgs.this, input);
 			stage.show();
 		} catch (final Exception err) {
@@ -564,14 +584,17 @@ public class JfxNgs extends Application {
     
     void openVcfUrl(final Window owner)
 		{
+    	final String lastkey="last.vcf.url";
 		final TextInputDialog dialog=new TextInputDialog();
-		dialog.setTitle("Get URL");
+		dialog.setContentText(this.preferences.get(lastkey, ""));
+		dialog.setTitle("Get VCF URL");
 		dialog.setHeaderText("Input VCF URL");
 		final Optional<String> choice=dialog.showAndWait();
 		if(!choice.isPresent()) return;
     	VcfFile input=null;
     	try {
 			input = VcfFile.newInstance(choice.get());
+			this.preferences.put(lastkey, choice.get());
 			VcfStage stage=new VcfStage(JfxNgs.this, input);
 			stage.show();
 		} catch (final Exception err) {
@@ -586,7 +609,7 @@ public class JfxNgs extends Application {
     	VcfFile input=null;
     	try {
 			input = VcfFile.newInstance(src);
-			VcfStage stage=new VcfStage(JfxNgs.this, input);
+			final VcfStage stage=new VcfStage(JfxNgs.this, input);
 			stage.show();
 		} catch (final Exception err) {
 			CloserUtil.close(input);
@@ -594,7 +617,50 @@ public class JfxNgs extends Application {
 			}
     	}
     
+    private void doMenuOpenInExcel(final Window owner)
+    	{
+    	showExceptionDialog(owner,"DO NOT USE EXCEL");
+    	}
     
+    /** open index a BAM file */
+    private void doMenuIndexBam(final Window owner)
+		{
+    	final FileChooser fc = newFileChooser();
+    	fc.setSelectedExtensionFilter(BamStage.EXTENSION_FILTER);
+    	final List<File> files = fc.showOpenMultipleDialog(owner);
+    	if(files==null) return;
+    	for(final File file : files)
+	    	{
+    		LOG.info("indexing "+file);
+    		updateLastDir(file);
+	    	SamReader bam=null;
+	    	try
+	    		{
+	    		final File output=  new File(file.getAbsolutePath() + BAMIndex.BAMIndexSuffix);
+	    		if(output.exists())
+	    			{
+	    			throw new IOException("Bam index "+output+" already exists.");
+	    			}
+	    		bam = SamReaderFactory.makeDefault()
+	    				.enable(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS)
+	    				.validationStringency(ValidationStringency.LENIENT)
+	                    .open(file);
+	    				;
+	    		BAMIndexer.createIndex(bam, output);
+	    		
+	    		}
+	    	catch(final Exception err)
+	    		{	
+				showExceptionDialog(owner, err);
+				break;
+	    		}
+	    	finally
+	    		{
+	    		CloserUtil.close(bam);
+	    		}
+	    	}
+		}
+
     
     /** open FileChoser to open a BAM file */
     void openBamFile(final Window owner)
@@ -612,18 +678,21 @@ public class JfxNgs extends Application {
 			CloserUtil.close(input);
 			showExceptionDialog(owner, err);
 			}
-    		
     	}
 
     List<MenuItem> createCommonMenuItems(final Stage stage) {
     	final List<MenuItem> L=new ArrayList<>();
     	L.add(createMenuItem("About...",()->doMenuAbout(stage)));
     	L.add(createMenuItem("Preferences...",()->showPreferencesDialog(stage)));
+    	L.add(createMenuItem("Open in Microsoft Excel...",()->doMenuOpenInExcel(stage)));
         L.add(new SeparatorMenuItem());
     	L.add(createMenuItem("Open VCF File...",()->openVcfFile(stage)));
         L.add(createMenuItem("Open BAM File...",()->openBamFile(stage)));
         L.add(createMenuItem("Open Remote BAM...",()->openBamUrl(stage)));
         L.add(createMenuItem("Open Remote VCF...",()->openVcfUrl(stage)));
+        L.add(new SeparatorMenuItem());
+        L.add(createMenuItem("Tool: index BAM file...",()->doMenuIndexBam(stage)));
+        L.add(createMenuItem("Tool: index VCF file...",()->doMenuIndexVcf(stage)));
         L.add(new SeparatorMenuItem());
         L.add(createMenuItem("Close",()->stage.hide()));
         return L;
@@ -681,6 +750,65 @@ public class JfxNgs extends Application {
 			showExceptionDialog(owner, err);
 			}
 		}
+    
+    /** open index a VCF file */
+    private void doMenuIndexVcf(final Window owner)
+		{
+    	final FileChooser fc = newFileChooser();
+    	fc.setSelectedExtensionFilter(VcfStage.EXTENSION_FILTER);
+    	final List<File> files = fc.showOpenMultipleDialog(owner);
+    	if(files==null) return;
+    	for(final File file : files)
+	    	{
+    		updateLastDir(file);
+    		if(file.getName().endsWith(".vcf.gz"))
+    			{
+    			LOG.info("writing tabix index for "+file);
+    			final File output=new File(file.getAbsolutePath()+TabixUtils.STANDARD_INDEX_EXTENSION);
+    			try
+    				{
+    				if(output.exists())
+		    			{
+		    			throw new IOException("Tabix index "+output+" already exists.");
+		    			}
+    				final TabixIndex index=IndexFactory.createTabixIndex(file,new VCFCodec(),(SAMSequenceDictionary)null);
+    				index.write(output);
+    				}
+    			catch(final Exception err)
+    				{	
+    				showExceptionDialog(owner, err);
+    				break;
+    				}    			
+    			}
+    		else if(file.getName().endsWith(".vcf"))
+    			{
+    			LOG.info("writing tribble index for "+file);
+    			final File output=new File(file.getAbsolutePath()+Tribble.STANDARD_INDEX_EXTENSION);
+    			try
+					{
+					if(output.exists())
+		    			{
+		    			throw new IOException("Tribble index "+output+" already exists.");
+		    			}
+					final Index index=IndexFactory.createIndex(file,new VCFCodec(),IndexType.LINEAR);
+					index.writeBasedOnFeatureFile(file);
+					}
+    			catch(final Exception err)
+					{	
+					showExceptionDialog(owner, err);
+					break;
+					}
+				}
+    		else
+    			{
+    			showExceptionDialog(owner,"Cannot index file "+file);
+    			break;
+    			}
+	    	}
+		}
+
+
+    
     
     static void doMenuAbout(final Stage stage)
     	{
