@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -142,20 +143,74 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	public void close();
     	}
     
+    
+    /** class used to define a trio of genotype */
+    public static class TrioGenotype
+    	{
+    	final Genotype children;
+    	final Genotype father;
+    	final Genotype mother;
+    	TrioGenotype(final Genotype children,final Genotype father,final Genotype mother)
+    		{
+    		this.children = children;
+    		this.father= father;
+    		this.mother= father;
+    		}
+    	
+    	private boolean _isMendelianIncompatibility(final Genotype child,final Genotype parent)
+    		{
+    		if(child==null || parent==null) return false;
+    		if(child.isNoCall() || parent.isNoCall()) return false;
+    		if(child.getPloidy()!=2 || parent.getPloidy()!=2) return false;
+    		for(final Allele childAllele:child.getAlleles())
+    			{
+    			if(parent.getAlleles().contains(childAllele)) return false;
+    			}
+    		
+    		return true;
+    		}
+    	public boolean isMendelianIncompatibility()
+			{
+			if(children==null || children.isNoCall()) return false;
+			if(father==null || father.isNoCall()) {
+				return this._isMendelianIncompatibility(children,mother);
+				}
+			if(mother==null || mother.isNoCall()) {
+				return this._isMendelianIncompatibility(children,father);
+				}
+			final Allele alleles[]=new Allele[2];
+			for(final Allele af:father.getAlleles())
+				{
+					alleles[0]=af;
+					for(final Allele am:mother.getAlleles())
+					{
+						alleles[1]=am;
+						final Genotype sim = new GenotypeBuilder(children.getSampleName()).alleles(Arrays.asList(alleles)).make();
+						if(sim.sameGenotype(sim, true)) return false;
+					}	
+				}
+			return true;
+			}
+    	
+    	
+    	}
+    
     /** class used to display samples */
     public static class SampleDef
     	{
     	private final String name;
     	private final String description;
         private final BooleanProperty _displayedProperty = new SimpleBooleanProperty(true);
+        private final Optional<PedFile.Sample> pedsample;
         public BooleanProperty displayedProperty()  { return _displayedProperty; }
         public boolean isDisplayed() { return displayedProperty().get(); }
         public void setDisplayed(boolean v) { displayedProperty().set(v); }
-    
-    	SampleDef(final String name,final String description)
+        public Optional<PedFile.Sample> getPedSample() { return this.pedsample;}
+    	SampleDef(final String name,final String description,final PedFile.Sample pedsample)
 	    	{
 	    	this.name=name;
 	    	this.description=description;
+	    	this.pedsample = Optional.ofNullable(pedsample);
 	    	}
     
     	public String getName() {
@@ -173,7 +228,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	{
     	private final AnnPredictionParser annParser;
     	private final VepPredictionParser vepParser;
-    	VcfTools(final VCFHeader header) {
+    	@SuppressWarnings("unused")
+		private final PedFile pedfile;
+    	VcfTools(final VCFHeader header,final PedFile pedfile) {
+    		this.pedfile=pedfile;
     		this.annParser  = new AnnPredictionParserFactory(header).get();
     		this.vepParser  = new VepPredictionParserFactory(header).get();
     	}
@@ -232,11 +290,14 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	private final String filter;
 		VcfJavascripFilter(
 				final String filter,
-				final VCFHeader header,
-				final Optional<CompiledScript> compiledScript)
+				final VcfFile vcfFile,
+				final Optional<CompiledScript> compiledScript
+				)
 			{
-			super(header,compiledScript);
-			super.bindings.put("tools", new VcfTools(header));
+			super(vcfFile.getHeader(),compiledScript);
+			super.bindings.put("tools", new VcfTools(vcfFile.getHeader(),vcfFile.getPedigree()));
+			super.bindings.put("pedigree", vcfFile.getPedigree());
+			
 			this.filter=filter;
 			}
 		@Override public VariantContext eval(final VariantContext ctx)
@@ -270,6 +331,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         		        		
     			@Override
     			public void run() {
+    						
     				CloseableIterator<VariantContext> iter=null;
     				Optional<VcfJavascripFilter> javascriptFilter=Optional.empty();
     				try 
@@ -277,7 +339,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     						if(this.compiledScript.isPresent() )
     							{
     							javascriptFilter=Optional.of(
-    									new VcfJavascripFilter("", super.ngsReader.getHeader(), compiledScript));
+    									new VcfJavascripFilter("",
+    											getVcfFile(),
+    											compiledScript
+    											));
     							}
     						
 	    					iter = super.ngsReader.iterator();
@@ -374,6 +439,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	private final TableView<VepPredictionParser.VepPrediction> vepPredictionTable;
 	private final TableView<String> filterTableRow;
 	private final TableView<Allele> allelesTable;
+	private final TableView<TrioGenotype> triosTable;
 	private final BorderPane genotypeChartPane;
 	private final CheckBox cboxShowHomRef=new CheckBox("HomRef");
 	private final CheckBox cboxShowNoCall=new CheckBox("NoCall");
@@ -500,7 +566,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 						break;
 						}
 					}
-				final SampleDef sampledef = new SampleDef(sampleName, desc);
+				final SampleDef sampledef = new SampleDef(
+						sampleName,
+						desc,
+						vcfFile.getPedigree().get(sampleName)
+						);
 				this.name2sampledef.put(sampleName, sampledef);
 				}
 		
@@ -542,6 +612,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			}
 		this.allelesTable = buildAlleleTable();
 		tabPane2.getTabs().add(new Tab("ALLELES",this.allelesTable));
+		
+		this.triosTable = buildTrioTable();
+		if(vcfFile.getHeader().getNGenotypeSamples()>0 && !vcfFile.getPedigree().isEmpty()) {
+			tabPane2.getTabs().add(new Tab("TRIOS",this.triosTable));
+			}
 		
 		BorderPane pane2=new BorderPane(tabPane2);
 		pane2.setTop(flow3);
@@ -664,7 +739,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     			{
     			javascriptFilter=new VcfJavascripFilter(
     				this.javascriptFILTERfield.getText().trim(),
-    				this.getVcfFile().getHeader(),
+    				this.getVcfFile(),
     				Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()))
     				);
     			
@@ -786,6 +861,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         table.getColumns().add(makeColumn("FILTER", V->V.getFilters().stream().collect(Collectors.joining(","))));
         table.getColumns().add(makeColumn("QUAL", V->V.hasLog10PError()?V.getPhredScaledQual():null));
         
+        
+		
+
+        
         table.setPlaceholder(new Label("No Variant."));
         
         
@@ -860,6 +939,33 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		return table;
 		}
 
+	/** build Trio table */
+	private TableView<TrioGenotype> buildTrioTable()
+		{
+
+		final TableView<TrioGenotype> table=new TableView<>();
+		if(getVcfFile().getHeader().getNGenotypeSamples()>0 && !getPedigree().isEmpty()) {
+			final Function<Genotype,String> gt2str=new Function<Genotype,String>()
+				{
+				@Override
+				public String apply(final Genotype gt)
+					{
+					if(gt==null || !gt.isCalled()) return null;
+					return gt.getAlleles().stream().map(S->S.getBaseString()).collect(Collectors.joining("/"));
+					}
+				};
+			
+			table.getColumns().add(makeColumn("Child",T->T.children==null?null:T.children.getSampleName()));
+			table.getColumns().add(makeColumn("Child-GT",T->gt2str.apply(T.children)));
+			table.getColumns().add(makeColumn("Father",T->T.father==null?null:T.father.getSampleName()));
+			table.getColumns().add(makeColumn("Father-GT",T->gt2str.apply(T.father)));
+			table.getColumns().add(makeColumn("Mother",T->T.mother==null?null:T.mother.getSampleName()));
+			table.getColumns().add(makeColumn("Mother-GT",T->gt2str.apply(T.mother)));
+			table.getColumns().add(makeColumn("Violation",T->T.isMendelianIncompatibility()));
+			}
+		table.setPlaceholder(new Label("No Trio."));
+		return table;
+		}
 	
 	/** build INFO table */
 	private TableView<InfoTableRow> buildInfoTableRow()
@@ -884,6 +990,19 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		
 
 		this.sampleTable.setEditable(editable);
+		
+		if(!getVcfFile().getPedigree().isEmpty())
+			{
+			this.sampleTable.getColumns().add(makeColumn("Family", R->{
+				if(R.getPedSample().isPresent())
+					{
+					return R.getPedSample().get().getFamily();
+					}
+				return null;
+				}));
+			}
+		
+		
 		this.sampleTable.getColumns().add(makeColumn("Name", R->R.getName()));
 		final TableColumn<SampleDef, Boolean> selectCol = new TableColumn<>("Display");
 		selectCol.setCellValueFactory(new PropertyValueFactory<>("displayed"));
@@ -898,6 +1017,44 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		this.sampleTable.getColumns().add(makeColumn("Description", R->R.getDescription()));
 		this.sampleTable.setPlaceholder(new Label("No Sample."));
 		this.sampleTable.getItems().addAll(this.name2sampledef.values());
+		
+		
+		if(!getVcfFile().getPedigree().isEmpty())
+			{
+			this.sampleTable.getColumns().add(makeColumn("Father", R->{
+				if(R.getPedSample().isPresent())
+					{
+					final PedFile.Sample parent= R.getPedSample().get().getFather();
+					return parent==null?null:parent.getName();
+					}
+				return (String)null;
+				}));
+			
+			this.sampleTable.getColumns().add(makeColumn("Mother", R->{
+				if(R.getPedSample().isPresent())
+					{
+					final PedFile.Sample parent= R.getPedSample().get().getMother();
+					return parent==null?null:parent.getName();
+					}
+				return (String)null;
+				}));
+
+			this.sampleTable.getColumns().add(makeColumn("Sex", R->{
+				if(R.getPedSample().isPresent())
+					{
+					return R.getPedSample().get().getSex().name();
+					}
+				return (String)null;
+				}));
+			
+			this.sampleTable.getColumns().add(makeColumn("Status", R->{
+				if(R.getPedSample().isPresent())
+					{
+					return R.getPedSample().get().getStatus().name();
+					}
+				return (String)null;
+				}));
+			}
 		
 		final HBox top=new HBox();
 		top.setPadding(new Insets(10));
@@ -977,6 +1134,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		/* sample */
 		table.getColumns().add(makeColumn("Sample", G->G.getSampleName()));
 		
+		
+		
 		for(final VCFFormatHeaderLine h:header.getFormatHeaderLines())
 			{
             final TableColumn<Genotype,String>  newcol = new TableColumn<>(h.getID());
@@ -1002,6 +1161,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		/* type */
 		table.getColumns().add(makeColumn("Type", G->G.getType().name()));
 		
+		
+		
 		table.setPlaceholder(new Label("No Genotype."));
 		return table;
 		}
@@ -1013,6 +1174,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	refreshGenotypeTable(ctx);
     	reloadInfoTable(ctx);
     	reloadAlleleTable(ctx);
+    	refreshTrioTable(ctx);
     	if(ctx!=null)
     		{
     		super.seqDictionaryCanvas.setSelectInterval(new Interval(ctx.getContig(), ctx.getStart(), ctx.getEnd()));
@@ -1105,6 +1267,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	@Override
     void reloadData()
 		{
+		
     	final int max_items= super.maxItemsLimitSpinner.getValue();
     	final List<VariantContext> L= new ArrayList<>(max_items);
     	final String location = this.gotoField.getText().trim();
@@ -1145,7 +1308,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     			{
     			javascripFilter = new VcfJavascripFilter(
     					this.javascriptFILTERfield.getText().trim(),
-    					this.getVcfFile().getHeader(),
+    					this.getVcfFile(),
     					Optional.of(this.owner.javascriptCompiler.get().compile(this.javascriptArea.getText()))
     					);
     			}
@@ -1282,6 +1445,31 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			}
 		}
 
+	private List<TrioGenotype> getTrios(final VariantContext ctx)
+		{
+		if(ctx==null) return Collections.emptyList();
+		final List<TrioGenotype> trios = new ArrayList<>();
+		for(final PedFile.Sample child:getPedigree())
+			{
+			final Genotype gc = ctx.getGenotype(child.getName());
+			if(gc==null) continue;
+			final PedFile.Sample father= child.getFather();
+			final Genotype gf =  (father==null?null:ctx.getGenotype(father.getName()));
+			final PedFile.Sample mother= child.getMother();
+			final Genotype gm =  (mother==null?null:ctx.getGenotype(mother.getName()));
+			if(gf==null && gm==null) continue;
+			trios.add(new TrioGenotype(gc, gf, gm));
+			}
+		return trios;
+		}
+	
+	private void refreshTrioTable(final VariantContext ctx)
+		{
+		this.triosTable.getItems().setAll(getTrios(ctx));
+		}
+	
+	
+	
 	@Override
 	protected void doMenuShowWholeStats(final ChartFactory<?> factory) {
 			Optional<CompiledScript> compiledScript=Optional.empty();
@@ -1325,6 +1513,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     private VcfFile getVcfFile() {
     	return VcfFile.class.cast(super.getNgsFile());
     }
+    
+    
+    private PedFile getPedigree() {
+    	return getVcfFile().getPedigree();
+    	}
     
     @Override
     protected Optional<VariantContext> getCurrentSelectedItem()
