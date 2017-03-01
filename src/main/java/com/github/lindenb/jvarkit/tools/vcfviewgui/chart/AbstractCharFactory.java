@@ -24,12 +24,27 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfviewgui.chart;
 
+import com.github.lindenb.jvarkit.tools.vcfviewgui.PedFile;
 
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.fastq.FastqRecord;
 
-public abstract class ReadChartFactory extends AbstractCharFactory<SAMFileHeader,SAMRecord>
-	{
-	public abstract void visit(final FastqRecord rec);
+public abstract class AbstractCharFactory<HEADER,T> implements ChartFactory<HEADER, T> {
+	private PedFile pedigree=PedFile.getEmptyInstance();
+	private HEADER header=null;
+	
+	@Override
+	public void setHeader(final HEADER header) {
+		this.header=header;	
+		}
+	@Override
+	public HEADER getHeader() {
+		return this.header;	
+		}
+	public PedFile getPedigree()
+		{
+		return pedigree;
+		}
+	public void setPedigree(final PedFile pedigree)
+		{
+		this.pedigree = pedigree;
+		}
 	}

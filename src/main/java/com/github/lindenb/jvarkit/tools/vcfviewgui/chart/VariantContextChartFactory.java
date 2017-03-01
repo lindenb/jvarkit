@@ -24,19 +24,47 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfviewgui.chart;
 
-import com.github.lindenb.jvarkit.tools.vcfviewgui.PedFile;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 
 public abstract class VariantContextChartFactory
-implements ChartFactory<VariantContext>{
-private PedFile pedigree=null;
-public PedFile getPedigree()
-	{
-	return pedigree;
-	}
-public void setPedigree(final PedFile pedigree)
-	{
-	this.pedigree = pedigree;
-	}
+extends AbstractCharFactory<VCFHeader,VariantContext>{
+
+	protected List<Double> getAttributeAsDoubleList(final VariantContext ctx,final String att)
+		{
+		if(ctx==null || att==null) return Collections.emptyList();	
+		final List<Object> L=ctx.getAttributeAsList(att);
+		final List<Double> F=new ArrayList<>(L.size());
+		for(final Object o: L) 
+			{
+			if(o==null) continue;
+			final double v;
+			if(o instanceof Double)
+				{
+				v=Double.class.cast(o);
+				}
+			else if(o instanceof Float)
+				{
+				v=Float.class.cast(o);
+				}
+			else
+				{
+				try
+					{
+					v=Double.parseDouble(o.toString());
+					}
+				catch(NumberFormatException err) {
+					continue;
+					}
+				}
+			F.add(v);
+			}
+		return F;
+		}
+
 }

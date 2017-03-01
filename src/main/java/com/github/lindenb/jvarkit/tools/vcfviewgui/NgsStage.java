@@ -393,14 +393,14 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			/** time of last refresh */
     		protected long lastRefresh =System.currentTimeMillis();
     		/** active chart factory */
-    		protected final ChartFactory<ITEMTYPE> factory;
+    		protected final ChartFactory<HEADERTYPE,ITEMTYPE> factory;
     		/**  other filters */
     		protected final Predicate<ITEMTYPE> otherFilters;
     		/** last seen exception */
     		protected Optional<Throwable> encounteredException=Optional.empty();
 
     		ScanThread(
-    				final ChartFactory<ITEMTYPE> factory,
+    				final ChartFactory<HEADERTYPE,ITEMTYPE> factory,
     				final NgsFile<HEADERTYPE, ITEMTYPE> ngsReader,
     				final Optional<CompiledScript> compiledScript,
     				final Predicate<ITEMTYPE> otherFilters)
@@ -473,7 +473,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		protected final Label countItemsLabel=new Label();
 
 		protected AbstractQualityStage(
-				final ChartFactory<ITEMTYPE> factory,
+				final ChartFactory<HEADERTYPE,ITEMTYPE> factory,
 				final NgsFile<HEADERTYPE,ITEMTYPE> ngsReader,
 				final Optional<CompiledScript> compiledScript,
 				final Predicate<ITEMTYPE> otherFilters
@@ -503,7 +503,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			}
 		/** create the thread that will scan the file in the background */
 		protected abstract ScanThread createThread(
-				final ChartFactory<ITEMTYPE> factory,
+				final ChartFactory<HEADERTYPE,ITEMTYPE> factory,
 				final NgsFile<HEADERTYPE, ITEMTYPE> ngsReader,
 				final Optional<CompiledScript> compiledScript,
 				final Predicate<ITEMTYPE> otherFilters
@@ -833,11 +833,13 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     abstract void reloadData();
     
     /** show stats */
-    protected abstract void doMenuShowWholeStats(final ChartFactory<?> factory);
+    protected abstract void doMenuShowWholeStats(final ChartFactory<HEADERTYPE,ITEMTYPE> factory);
     /** show stats for whole file */
-    protected final <T> void doMenuShowLocalStats(final ChartFactory<T> factory,final Supplier<List<T>> data)
+    protected final <T> void doMenuShowLocalStats(final ChartFactory<HEADERTYPE,T> factory,final Supplier<List<T>> data)
     	{
     	LOG.info("creating chart "+factory.getName());
+    	factory.setHeader(getNgsFile().getHeader());
+    	factory.setPedigree(getPedigree());
     	final List<T> L=data.get();
     	LOG.info("creating n items "+L.size());
 
@@ -1101,6 +1103,11 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     protected NgsFile<HEADERTYPE, ITEMTYPE> getNgsFile() {
 		return ngsFile;
 	}
+    
+    /** returns the pedigree associated to this file */
+    public PedFile getPedigree() {
+    	return PedFile.getEmptyInstance();
+    }
     
     /** returns the currently selected item , used for contextual menus */
     protected abstract Optional<ITEMTYPE> getCurrentSelectedItem(); 

@@ -4,28 +4,25 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.stream.JsonReader;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.RuntimeIOException;
 
 public class NgsWorkflow extends AbstractNgsWorkflow
 	{
@@ -92,9 +89,8 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 	private static PropertyKeyBuilder key(final String key) { return new PropertyKeyBuilder(key);}
 	
 	
-	private static final PropertyKey PROP_PROJECT_OUTPUT_DIRECTORY = key("project.output.directory").
+	private static final PropertyKey PROP_PROJECT_OUTPUT_DIRECTORY = key("output.directory").
 			description("Project output directory").
-			def("${OUTDIR}").
 			build();
 	
 	private static final PropertyKey PROP_TMP_PREFIX_TOKEN = key("tmp.prefix").
@@ -116,6 +112,16 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		def("GATCGGAAGAGCACACGTCTGAACTCCAGTCAC").
 		build();
 	
+	private static final PropertyKey PROP_BWA_MEM_NTHREADS = key("bwa.mem.nthreads").
+			description("Number of threads for bwa mem").
+			def("1").
+			build();
+	
+	private static final PropertyKey PROP_SAMTOOLS_SORT_NTHREADS = key("samtools.sort.nthreads").
+			description("Number of threads for samtools sort").
+			def("1").
+			build();
+
 	
 	
 	private abstract class HasAttributes
@@ -180,9 +186,8 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			{
 			return getTmpPrefixToken()+getFilePrefix();
 			}
-		protected void indexBam(final String indexFile,final String bamFile) {
-			out.println(indexFile+":"+bamFile);
-			out.println("\t${samtools.exe} index $<");
+		protected String indexBam(final String indexFile,final String bamFile) {
+			return new StringBuilder(indexFile).append(bamFile).append("\n\t${samtools.exe} index $<").toString();
 			}
 		}
 	
@@ -210,15 +215,21 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			}
 			
 			final Set<String> seen=new HashSet<>(); 
-			for(final JsonElement samplejson :json.get("samples").getAsJsonArray())
-				{
-				Sample sample =new Sample(this,samplejson.getAsJsonObject());
-				this._samples.add(sample);
-				if(seen.contains(sample.getName()))
+			if(json.has("samples")) {
+				for(final JsonElement samplejson :json.get("samples").getAsJsonArray())
 					{
-					throw new IOException("Sample "+sample+" defined twice");
+					Sample sample =new Sample(this,samplejson.getAsJsonObject());
+					this._samples.add(sample);
+					if(seen.contains(sample.getName()))
+						{
+						throw new IOException("Sample "+sample+" defined twice");
+						}
+					seen.add(sample.getName());
 					}
-				seen.add(sample.getName());
+				}
+			else
+				{
+				LOG.warn("No 'samples' under project");
 				}
 			}
 		
@@ -237,13 +248,13 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			return getAttribute(PROP_PROJECT_OUTPUT_DIRECTORY);
 			}
 		public  String getSamplesDirectory() {
-			return getOutputDirectory()+"/Samples";
+			return "${OUT}/Samples";
 			}
 	
 		}
 	
 	
-	class Sample extends HasAttributes
+	private class Sample extends HasAttributes
 		{
 		private final Project project;
 		private final String name;
@@ -263,7 +274,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 				this.pairs = new ArrayList<>();
 				for(final JsonElement pairjson :json.get("fastqs").getAsJsonArray())
 					{
-					PairedFastq pair =new PairedFastq(this,this.pairs.size(),pairjson.getAsJsonObject());
+					final PairedFastq pair =new PairedFastq(this,this.pairs.size(),pairjson);
 					this.pairs.add(pair);
 					}
 				}
@@ -312,10 +323,9 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			return new StringBuilder().
 					append(getMarkdupBam()+" : "+getMergedBam()+"\n").
 					append("\tmkdir -p $(dir $@) && ").
-					append("$(java.exe)  -Djava.io.tmpdir=$(dir $@) -jar \"$(picard.jar)\" MergeSamFiles O=$(addsuffix .tmp.bam,$@) ").
-					append(" SO=coordinate AS=true CREATE_INDEX=false  COMPRESSION_LEVEL=9 VALIDATION_STRINGENCY=SILENT USE_THREADING=true VERBOSITY=INFO TMP_DIR=$(dir $@) COMMENT=\"Merged from $(words $^) files.\" ").
-					append("$(foreach B,$(filter %.bam,$^), I=$(B) ) && ").
-					append("mv --verbose \"$(addsuffix .tmp.bam,$@)\" \"$@\" ").
+					append("$(java.exe) -Xmx3g -Djava.io.tmpdir=$(dir $@) -jar \"$(picard.jar)\" MarkDuplicates I=$< O=$(addsuffix .tmp.bam,$@) M=$(addsuffix .metrics,$@) ").
+					append(" SO=coordinate AS=true CREATE_INDEX=false  COMPRESSION_LEVEL=9 VALIDATION_STRINGENCY=SILENT VERBOSITY=INFO TMP_DIR=$(dir $@)  ").
+					append(" && mv --verbose \"$(addsuffix .tmp.bam,$@)\" \"$@\" ").
 					append("\n").
 					toString();
 			}
@@ -334,13 +344,17 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			super(root);
 			this.indexInSample=indexInSample;
 			this.fastqs = new ArrayList<>();
+			this._sample=sample;
 			if(root.isJsonObject())
 				{
 				final JsonObject json=root.getAsJsonObject();
-				for(final JsonElement fqjson :json.get("fastqs").getAsJsonArray())
-					{		
-					Fastq fq =new Fastq(this,fqjson);
-					this.fastqs.add(fq);
+				if(json.has("fastqs"))
+					{
+					for(final JsonElement fqjson :json.get("fastqs").getAsJsonArray())
+						{		
+						Fastq fq =new Fastq(this,fqjson);
+						this.fastqs.add(fq);
+						}
 					}
 				}
 			else if(root.isJsonArray())
@@ -360,6 +374,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			}
 		
 		public Sample getSample() { return this._sample;}
+		public Project getProject() { return getSample().getProject();}
 		@Override
 		public final Sample getParent() { return getSample(); }
 	
@@ -382,36 +397,147 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 				return getDirectory()+"/${TMPPREFIX}."+getSample().getName()+".sorted.bam";
 				}
 			}
+		private boolean isUsingCutadapt()
+			{
+			return true;
+			}
+		
+		private Integer getLane() {
+			for(int i=0;i< this.fastqs.size();++i)
+				{
+				String fname= this.fastqs.get(i).getFilename();
+				if(!fname.endsWith(".fastq.gz")) continue;
+				String tokens[]=fname.split("[_]");
+				for(int j=0;j+1< tokens.length;++j)
+					{
+					if(tokens[j].matches("L[0-9]+") && tokens[j+1].equals("R"+(i+1)))
+						{
+						return Integer.parseInt(tokens[j].substring(1).trim());
+						}
+					}
+				
+				}
+			return null;
+			}
 		
 		public  String bwamem()
 			{
-			return new StringBuilder().
+			final String inputs[]=new String[2];
+
+			final StringBuilder sb= new StringBuilder().
 				append(this.getSortedFilename()).
 				append(":").
-				append(this.get(0)).
-				append(" ").
-				append(this.get(1)).
-				append("\n").
-				append("\tmkdir -p $(dir $@  ) && ").
-				append(" $(bwa.exe) mem -t 1 -M -H '@CO\\tAlignment de $(notdir $^) par Pierre Lindenbaum pour Cedric LeCaignec 20170228' ").
-				append(" -R '@RG\\tID:"+ getSample().getName()+"_"+getIndex()+"\\tLB:"+getSample()+"\\tSM:"+getSample() +"\\tPL:illumina\\tCN:Nantes' ${REF} $(word 1,$^)  $(word 2,$^)  |").
-				append("$(samtools.exe) sort --reference $(REF) -l 9 -@ 1 -O bam -o $(addsuffix .tmp.bam,$@) -T  $(dir $@)${TMPPREFIX}_sort_"+getIndex()+" - && ").
-				append("mv --verbose \"$(addsuffix .tmp.bam,$@)\" \"$@\"").
-				append("\n").
+				append(this.get(0).getFilename());
+			if(this.fastqs.size()>1)
+				{
+				sb.append(" ").
+				append(this.get(1).getFilename());
+				inputs[0]=this.get(0).getFilename();
+				inputs[1]=this.get(1).getFilename();
+				}
+			sb.append("\n").
+				append("\tmkdir -p $(dir $@  ) ");
+			
+			if(this.fastqs.size()==1 && this.fastqs.get(0).isBam())
+				{
+				inputs[0]="$(addsuffix .bam2fq.R1.fq.gz,$@)";
+				inputs[1]="$(addsuffix .bam2fq.R2.fq.gz,$@)";
+
+				sb.append(" && $(java.exe)  -Djava.io.tmpdir=$(dir $@) -jar \"$(picard.jar)\" SamToFastq ").
+					append(" I=$<  FASTQ=").append(inputs[0]).
+					append(" SECOND_END_FASTQ=").append(inputs[1]).
+					append(" UNPAIRED_FASTQ=$(addsuffix .bam2fq.unpaired.fq.gz,$@) ").
+					append(" VALIDATION_STRINGENCY=SILENT VERBOSITY=INFO TMP_DIR=$(dir $@) ").
+					append(" && rm --verbose $(addsuffix .bam2fq.unpaired.fq.gz,$@) ")
+					;
+				}
+			
+			String fq1;
+			String fq2;
+			if(isUsingCutadapt())
+				{
+				fq1="$(addsuffix .tmp.R1.fq,$@)";
+				fq2="$(addsuffix .tmp.R2.fq,$@)";
+				for(int side=0;side<2;++side)
+					{
+					sb.append(" && ${cutadapt.exe} -a ").
+					append(getAttribute(side==0?PROP_CUTADAPT_ADAPTER5:PROP_CUTADAPT_ADAPTER3)).
+					append(" ").
+					append(inputs[side]).
+					append(" -o $(addsuffix .tmp.fq,$@) > /dev/null ").
+					append("&& awk '{if(NR%4==2 && length($$0)==0) { printf(\"N\\n\");} else if(NR%4==0 && length($$0)==0) { printf(\"#\\n\");} else {print;}}' ").
+					append("$(addsuffix .tmp.fq,$@) > ").
+					append(side==0?fq1:fq2).
+					append(" && rm   --verbose $(addsuffix .tmp.fq,$@) ");
+					}
+				}
+			else
+				{
+				fq1=inputs[0];
+				fq2=inputs[1];
+				}
+			final Integer laneIndex= getLane();
+			
+			sb.append(" && $(bwa.exe) mem -t ").
+				append(getAttribute(PROP_BWA_MEM_NTHREADS)).
+				append(" -M -H '@CO\\tDate:"
+					+ new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new Date())
+					+" Alignment of $(notdir $^) for project "+
+					getProject().getName()+":"+getProject().getDescription()+"'").
+				append(" -R '@RG\\tID:"+ getSample().getName()).
+				append(laneIndex==null?"":"_L"+laneIndex).
+				append("\\tLB:"+getSample()+"\\tSM:"+getSample() +"\\tPL:illumina\\tCN:Nantes' ${REF} "+fq1+" "+fq2+"  |").
+				append("$(samtools.exe) sort --reference $(REF) -l 9 -@ ").
+				append(getAttribute(PROP_SAMTOOLS_SORT_NTHREADS)).
+				append(" -O bam -o $(addsuffix .tmp.bam,$@) -T  $(dir $@)${TMPPREFIX}_sort_"+getIndex()+" - && ").
+				append("mv --verbose \"$(addsuffix .tmp.bam,$@)\" \"$@\"")
+				;
+			if(isUsingCutadapt())
+				{
+				sb.append(" && rm --verbose -f "+fq1+" "+fq2);
+				}
+			if(this.fastqs.size()==1 && this.fastqs.get(0).isBam())
+				{
+				sb.append(" && rm --verbose -f  "+inputs[0]+" "+inputs[1]);
+				}
+			
+			return sb.append("\n").
 				toString();
 			}
 		}
 	
-	class Fastq
+	private class Fastq extends HasAttributes
 		{
 		final PairedFastq pair;
 		final String filename;
-		Fastq( final PairedFastq pair,final JsonElement e ) {
+		Fastq( final PairedFastq pair,final JsonElement e ) throws IOException {
+			super(e);
 			this.pair=pair;
 			filename= e.getAsString();
 			}
 		public String getFilename() {
 			return filename;
+			}
+		public boolean isBam() {
+			return getFilename().endsWith(".bam");
+			}
+		public boolean isFastq() {
+			final String s=getFilename().toLowerCase();
+			return s.endsWith(".fq") || s.endsWith(".fq.gz") || s.endsWith(".fastq") || s.endsWith(".fastq.gz");
+			}
+		@Override
+		public String toString() {
+			return getFilename();
+			}
+		
+	
+		public PairedFastq getPair() {
+			return pair;
+			}
+		
+		@Override
+		public PairedFastq getParent() {
+			return getPair();
 			}
 		}
 	
@@ -434,6 +560,14 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 	
 	public void execute(final Project project)
 		{
+		out.println("include ../../config/config.mk");
+		out.println("OUT="+project.getOutputDirectory());
+		
+		out.println("all_merged_bam:"+project.getSamples().stream().
+					map(S->S.getMergedBam()).
+					collect(Collectors.joining(" \\\n\t"))
+					);
+		
 		for(final Sample sample: project.getSamples())
 			{
 			if(sample.getPairs().size()==1)
@@ -476,8 +610,9 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			JsonParser jsparser=new JsonParser();
 			JsonElement root=jsparser.parse(r);
 			r.close();
-			Project proj=new Project(root.getAsJsonObject());
+			Project proj=new Project(root);
 			execute(proj);
+			out.flush();
 			return RETURN_OK;
 			}
 		catch(final Exception err)

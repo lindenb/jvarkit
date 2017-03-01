@@ -68,7 +68,6 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
-import com.github.lindenb.jvarkit.tools.vcfviewgui.VcfStage.VariantFileReader;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AlleleFrequencyChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.GCPercentChartFactory;

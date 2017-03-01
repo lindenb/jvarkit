@@ -28,16 +28,22 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.VariantContext;
 
 public class PedFile implements Iterable<PedFile.Sample>
 	{
@@ -48,6 +54,120 @@ public class PedFile implements Iterable<PedFile.Sample>
 	public enum Status {Affected,Unaffected,Unknown};
 	private final Map<String,Sample> name2sample=new HashMap<>();
 	
+	public static final Predicate<TrioGenotype> MendelianIncompatibiltyFilter
+		= new Predicate<TrioGenotype>()
+		{
+		@Override
+		public boolean test(TrioGenotype trio) {
+			return false;
+			}
+		};
+	
+    /** class used to define a trio of genotype */
+    public static class TrioGenotype
+    	{
+    	private final Genotype children;
+    	private final Genotype father;
+    	private final Genotype mother;
+    	private TrioGenotype(final Genotype children,final Genotype father,final Genotype mother)
+    		{
+    		this.children = children;
+    		this.father= father;
+    		this.mother= father;
+    		}
+    	
+    	public Genotype getChildren() {
+			return children;
+		}
+    	
+    	public Genotype getFather() {
+			return father;
+		}
+    	public Genotype getMother() {
+			return mother;
+		}
+    	
+    	private boolean _isMendelianIncompatibility(final Genotype child,final Genotype parent)
+    		{
+    		if(child==null || parent==null) return false;
+    		if(child.isNoCall() || parent.isNoCall()) return false;
+    		if(child.getPloidy()!=2 || parent.getPloidy()!=2) return false;
+    		for(final Allele childAllele:child.getAlleles())
+    			{
+    			if(parent.getAlleles().contains(childAllele)) return false;
+    			}
+    		
+    		return true;
+    		}
+    	public boolean isMendelianIncompatibility()
+			{
+			if(children==null || children.isNoCall()) return false;
+			if(father==null || father.isNoCall()) {
+				return this._isMendelianIncompatibility(children,mother);
+				}
+			if(mother==null || mother.isNoCall()) {
+				return this._isMendelianIncompatibility(children,father);
+				}
+			final Allele alleles[]=new Allele[2];
+			for(final Allele af:father.getAlleles())
+				{
+					alleles[0]=af;
+					for(final Allele am:mother.getAlleles())
+					{
+						alleles[1]=am;
+						final Genotype sim = new GenotypeBuilder(children.getSampleName()).alleles(Arrays.asList(alleles)).make();
+						if(sim.sameGenotype(sim, true)) return false;
+					}	
+				}
+			return true;
+			}
+    	
+    	
+    	}
+
+	public Iterable<PedFile.TrioGenotype> getTrios(final VariantContext ctx)
+		{
+		if(ctx==null || isEmpty()) return Collections.emptyList();
+		return new TrioGenotypeIterator(ctx);
+		}
+
+	
+	private class TrioGenotypeIterator
+		implements Iterable<TrioGenotype>
+		{
+		private final VariantContext ctx;
+		TrioGenotypeIterator( final VariantContext ctx)
+			{
+			this.ctx=ctx;
+			}
+		private  class MyIterator extends AbstractIterator<TrioGenotype>
+			{
+			int index=0;
+			@Override
+			protected TrioGenotype advance() {
+				while(this.index<ctx.getNSamples())
+					{
+					final Genotype gc = ctx.getGenotype(this.index);
+					this.index++;
+					if(gc==null) continue;
+					final PedFile.Sample child = PedFile.this.get(gc.getSampleName());
+					if(child==null) continue;
+					final PedFile.Sample father= child.getFather();
+					final Genotype gf =  (father==null?null:ctx.getGenotype(father.getName()));
+					final PedFile.Sample mother= child.getMother();
+					final Genotype gm =  (mother==null?null:ctx.getGenotype(mother.getName()));
+					if(gf==null && gm==null) continue;
+					return new TrioGenotype(gc, gf, gm);
+					}
+				return null;
+				}
+			}
+		
+		@Override
+		public Iterator<TrioGenotype> iterator() {
+			return new MyIterator();
+			}
+		}
 	
 	public interface Sample
 		{
@@ -63,6 +183,8 @@ public class PedFile implements Iterable<PedFile.Sample>
 		public Status getStatus();
 		public default boolean isAffected() { return getStatus()==Status.Affected;}
 		public default boolean isUnaffected() { return getStatus()==Status.Unaffected;}
+		public default boolean isMale() { return getSex()==Sex.Male;}
+		public default boolean isFemale() { return getSex()==Sex.Female;}
 		}
 	
 	private static final PedFile EMPTY=new PedFile();

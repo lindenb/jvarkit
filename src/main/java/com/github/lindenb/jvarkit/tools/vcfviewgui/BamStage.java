@@ -88,12 +88,6 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
-import htsjdk.variant.vcf.VCFFilterHeaderLine;
-import htsjdk.variant.vcf.VCFHeader;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -152,7 +146,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Bam Files", ".bam");
     private static final Logger LOG= Logger.getLogger("BamStage");
     /** shor-Read oriented chart-factories */
-    private static final List<Supplier<ChartFactory<SAMRecord>>> READ_CHART_LIST=Arrays.asList(
+    private static final List<Supplier<ChartFactory<SAMFileHeader,SAMRecord>>> READ_CHART_LIST=Arrays.asList(
     		()->new BasesPerPositionChartFactory(),
     		()->new QualityPerPositionChartFactory(),
     		()->new GCPercentChartFactory(),
@@ -201,7 +195,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     			{
     			private final Predicate<SAMRecord> flagFilters;
         		ScanQualThread(
-        				final ChartFactory<SAMRecord> factory,
+        				final ChartFactory<SAMFileHeader,SAMRecord> factory,
         				final NgsFile<SAMFileHeader, SAMRecord> bamReader,
         				final Optional<CompiledScript> compiledScript,
         				final Predicate<SAMRecord> flagFilters
@@ -263,17 +257,20 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     			}
     		
 	    	ReadQualityStage(
-	    			final ChartFactory<SAMRecord> factory,
+	    			final ChartFactory<SAMFileHeader,SAMRecord> factory,
 	    			final BamFile bamReader,
 	    			final Optional<CompiledScript> compiledScript,
-	    			final Predicate<SAMRecord> filters)
+	    			final Predicate<SAMRecord> filters
+	    			)
 	    		{
 	    		super(factory,bamReader,compiledScript,filters);
 	    		}
 	    	@Override
 	    	protected NgsStage<SAMFileHeader, SAMRecord>.AbstractQualityStage.ScanThread createThread(
-	    		ChartFactory<SAMRecord> factory, NgsFile<SAMFileHeader, SAMRecord> bamReader,
-	    		Optional<CompiledScript> compiledScript, Predicate<SAMRecord> otherFilters) {
+	    		final ChartFactory<SAMFileHeader,SAMRecord> factory,
+	    		final NgsFile<SAMFileHeader, SAMRecord> bamReader,
+	    		final Optional<CompiledScript> compiledScript,
+	    		final Predicate<SAMRecord> otherFilters) {
 				return new ScanQualThread(factory,bamReader,compiledScript,otherFilters);
 	    		}
 	    	
@@ -669,29 +666,30 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         		);
         
         /* fill stats menu */
-        final Supplier<List<SAMRecord>> variantsProvider=()->this.recordTable.getItems();
+        final Supplier<List<SAMRecord>> readsProvider=()->this.recordTable.getItems();
         
-        for(final Supplier<ChartFactory<SAMRecord>> supplier: READ_CHART_LIST)
+        for(final Supplier<ChartFactory<SAMFileHeader,SAMRecord>> supplier: READ_CHART_LIST)
 	        {
-        	final ChartFactory<SAMRecord> factory = supplier.get();
+        	final ChartFactory<SAMFileHeader,SAMRecord> factory = supplier.get();
         	final MenuItem menuItem=new MenuItem("Local "+factory.getName());
         	menuItem.setOnAction(new EventHandler<ActionEvent>() {
 				@Override
 				public void handle(ActionEvent event) {
-					doMenuShowLocalStats(factory, variantsProvider);
+					doMenuShowLocalStats(supplier.get(), readsProvider);
 				}
 			});
         	statsMenu.getItems().add(menuItem);
 	        }
         super.statsMenu.getItems().add(new SeparatorMenuItem());
-        for(final Supplier<ChartFactory<SAMRecord>> supplier: READ_CHART_LIST)
+        for(final Supplier<ChartFactory<SAMFileHeader,SAMRecord>> supplier: READ_CHART_LIST)
 	        {
-	    	final ChartFactory<SAMRecord> factory = supplier.get();
+	    	final ChartFactory<SAMFileHeader,SAMRecord> factory = supplier.get();
+	    	
 	    	final MenuItem menuItem=new MenuItem("Whole"+factory.getName());
 	    	menuItem.setOnAction(new EventHandler<ActionEvent>() {
 				@Override
 				public void handle(ActionEvent event) {
-					doMenuShowWholeStats(factory);
+					doMenuShowWholeStats(supplier.get());
 				}
 			});
 	    	super.statsMenu.getItems().add(menuItem);
@@ -1458,7 +1456,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 
 
 	@Override
-	protected void doMenuShowWholeStats(final ChartFactory<?> factory) {
+	protected void doMenuShowWholeStats(final ChartFactory<SAMFileHeader,SAMRecord> factory) {
     	Optional<CompiledScript> compiledScript=Optional.empty();
     	if(this.owner.javascriptCompiler.isPresent() &&
     		!this.javascriptArea.getText().trim().isEmpty())
@@ -1477,9 +1475,10 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	try 
 	    	{
     		reopened=this.getBamFile().reOpen();
-	    	@SuppressWarnings("unchecked")
+    		factory.setHeader(reopened.getHeader());
+    		factory.setPedigree(getPedigree());
 			final ReadQualityStage qcstage=new ReadQualityStage(
-	    			(ChartFactory<SAMRecord>)factory,
+	    			(ChartFactory<SAMFileHeader,SAMRecord>)factory,
 	    			reopened,
 	    			compiledScript,
 	    			makeFlagPredicate()

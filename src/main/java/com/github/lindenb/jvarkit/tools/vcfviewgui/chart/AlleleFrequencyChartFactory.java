@@ -92,28 +92,8 @@ public class AlleleFrequencyChartFactory extends VariantContextChartFactory {
     				this.limits.add(new Limit(this.limits.size(),v,cat));
     				}
     			}
-			for(final Object o: ctx.getAttributeAsList(VCFConstants.ALLELE_FREQUENCY_KEY))
+			for(final Double v: super.getAttributeAsDoubleList(ctx,VCFConstants.ALLELE_FREQUENCY_KEY))
 				{
-				if(o==null) continue;
-				final double v;
-				if(o instanceof Double)
-					{
-					v=Double.class.cast(o);
-					}
-				else if(o instanceof Float)
-					{
-					v=Float.class.cast(o);
-					}
-				else
-					{
-					try
-						{
-						v=Double.parseDouble(o.toString());
-						}
-					catch(NumberFormatException err) {
-    					continue;
-    					}
-					}
 				Limit cat=null;
 				for(int x=0;x<limits.size();++x)
 					{

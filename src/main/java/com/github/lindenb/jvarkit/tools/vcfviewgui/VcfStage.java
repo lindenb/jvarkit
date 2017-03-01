@@ -42,6 +42,8 @@ import java.util.stream.Collectors;
 
 import javax.script.CompiledScript;
 
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AFByPopulationChartFactory;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AFBySexChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AlleleFrequencyChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.GenotypeTypeChartFactory;
@@ -125,75 +127,16 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Variant Files", ".vcf",".vcf.gz");
     
     /** variant oriented chart-factories */
-    private static final List<Supplier<ChartFactory<VariantContext>>> VARIANT_CHART_FACTORIES= Arrays.asList(
+    private static final List<Supplier<ChartFactory<VCFHeader,VariantContext>>> VARIANT_CHART_FACTORIES= Arrays.asList(
 		()->new VariantTypeChartFactory(),
 		()->new GenotypeTypeChartFactory(),
 		()->new AlleleFrequencyChartFactory(),
 		()->new VariantQualChartFactory(),
 		()->new TiTvChartFactory(),
-		()->new VariantDepthChartFactory()
+		()->new VariantDepthChartFactory(),
+		()->new AFByPopulationChartFactory(),
+		()->new AFBySexChartFactory()
 		);
- 
-    /** base class to represent local file or remote tabix file */
-    public static interface VariantFileReader
-    	{
-    	public VCFHeader getFileHeader(); 
-    	public CloseableIterator<VariantContext> iterator() throws IOException; 
-    	public CloseableIterator<VariantContext> iterator(final String contig,int start,int end) throws IOException; 
-    	public void close();
-    	}
-    
-    
-    /** class used to define a trio of genotype */
-    public static class TrioGenotype
-    	{
-    	final Genotype children;
-    	final Genotype father;
-    	final Genotype mother;
-    	TrioGenotype(final Genotype children,final Genotype father,final Genotype mother)
-    		{
-    		this.children = children;
-    		this.father= father;
-    		this.mother= father;
-    		}
-    	
-    	private boolean _isMendelianIncompatibility(final Genotype child,final Genotype parent)
-    		{
-    		if(child==null || parent==null) return false;
-    		if(child.isNoCall() || parent.isNoCall()) return false;
-    		if(child.getPloidy()!=2 || parent.getPloidy()!=2) return false;
-    		for(final Allele childAllele:child.getAlleles())
-    			{
-    			if(parent.getAlleles().contains(childAllele)) return false;
-    			}
-    		
-    		return true;
-    		}
-    	public boolean isMendelianIncompatibility()
-			{
-			if(children==null || children.isNoCall()) return false;
-			if(father==null || father.isNoCall()) {
-				return this._isMendelianIncompatibility(children,mother);
-				}
-			if(mother==null || mother.isNoCall()) {
-				return this._isMendelianIncompatibility(children,father);
-				}
-			final Allele alleles[]=new Allele[2];
-			for(final Allele af:father.getAlleles())
-				{
-					alleles[0]=af;
-					for(final Allele am:mother.getAlleles())
-					{
-						alleles[1]=am;
-						final Genotype sim = new GenotypeBuilder(children.getSampleName()).alleles(Arrays.asList(alleles)).make();
-						if(sim.sameGenotype(sim, true)) return false;
-					}	
-				}
-			return true;
-			}
-    	
-    	
-    	}
     
     /** class used to display samples */
     public static class SampleDef
@@ -321,7 +264,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			{
     		private class ScanVcfThread extends ScanThread
     			{
-    			ScanVcfThread(final ChartFactory<VariantContext> factory,
+    			ScanVcfThread(final ChartFactory<VCFHeader,VariantContext> factory,
     						final VcfFile vcfinput,
     						final Optional<CompiledScript> compiledScript,
     						final Predicate<VariantContext> otherFilters)
@@ -383,7 +326,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     			
     			}
     		
-    		VcfQualityStage(final ChartFactory<VariantContext> factory,
+    		VcfQualityStage(final ChartFactory<VCFHeader,VariantContext> factory,
     				final VcfFile vcfinput,
     				final Optional<CompiledScript> compiledScript,
     				final Predicate<VariantContext> otherFilters
@@ -394,9 +337,9 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 
 			@Override
 			protected ScanVcfThread createThread(
-					final ChartFactory<VariantContext> factory,
-					NgsFile<VCFHeader,VariantContext> ngsfile,
-					Optional<CompiledScript> compiledScript,
+					final ChartFactory<VCFHeader,VariantContext> factory,
+					final NgsFile<VCFHeader,VariantContext> ngsfile,
+					final Optional<CompiledScript> compiledScript,
 					final Predicate<VariantContext> otherFilters
 					) {
 				return new ScanVcfThread(factory,(VcfFile)ngsfile, compiledScript,otherFilters);
@@ -439,7 +382,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	private final TableView<VepPredictionParser.VepPrediction> vepPredictionTable;
 	private final TableView<String> filterTableRow;
 	private final TableView<Allele> allelesTable;
-	private final TableView<TrioGenotype> triosTable;
+	private final TableView<PedFile.TrioGenotype> triosTable;
 	private final BorderPane genotypeChartPane;
 	private final CheckBox cboxShowHomRef=new CheckBox("HomRef");
 	private final CheckBox cboxShowNoCall=new CheckBox("NoCall");
@@ -678,35 +621,28 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         /* fill stats menu */
         final Supplier<List<VariantContext>> variantsProvider=()->this.variantTable.getItems();
         
-        for(final Supplier<ChartFactory<VariantContext>> supplier: VARIANT_CHART_FACTORIES)
+        for(final Supplier<ChartFactory<VCFHeader,VariantContext>> supplier: VARIANT_CHART_FACTORIES)
 	        {
-        	final ChartFactory<VariantContext> factory = supplier.get();
-        	if(factory instanceof VariantContextChartFactory)
-        		{
-        		VariantContextChartFactory.class.cast(factory).setPedigree(getPedigree());
-        		}
+        	final ChartFactory<VCFHeader,VariantContext> factory = supplier.get();
         	final MenuItem menuItem=new MenuItem("Local "+factory.getName());
         	menuItem.setOnAction(new EventHandler<ActionEvent>() {
 				@Override
 				public void handle(ActionEvent event) {
-					doMenuShowLocalStats(factory, variantsProvider);
+					doMenuShowLocalStats(supplier.get(), variantsProvider);
 				}
 			});
         	statsMenu.getItems().add(menuItem);
 	        }
         super.statsMenu.getItems().add(new SeparatorMenuItem());
-        for(final Supplier<ChartFactory<VariantContext>> supplier: VARIANT_CHART_FACTORIES)
+        for(final Supplier<ChartFactory<VCFHeader,VariantContext>> supplier: VARIANT_CHART_FACTORIES)
 	        {
-	    	final ChartFactory<VariantContext> factory = supplier.get();
-	    	if(factory instanceof VariantContextChartFactory)
-        		{
-        		VariantContextChartFactory.class.cast(factory).setPedigree(getPedigree());
-        		}
+	    	final ChartFactory<VCFHeader,VariantContext> factory = supplier.get();
+	    	
 	    	final MenuItem menuItem=new MenuItem("Whole"+factory.getName());
 	    	menuItem.setOnAction(new EventHandler<ActionEvent>() {
 				@Override
 				public void handle(ActionEvent event) {
-					doMenuShowWholeStats(factory);
+					doMenuShowWholeStats(supplier.get());
 				}
 			});
 	    	statsMenu.getItems().add(menuItem);
@@ -948,10 +884,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		}
 
 	/** build Trio table */
-	private TableView<TrioGenotype> buildTrioTable()
+	private TableView<PedFile.TrioGenotype> buildTrioTable()
 		{
 
-		final TableView<TrioGenotype> table=new TableView<>();
+		final TableView<PedFile.TrioGenotype> table=new TableView<>();
 		if(getVcfFile().getHeader().getNGenotypeSamples()>0 && !getPedigree().isEmpty()) {
 			final Function<Genotype,String> gt2str=new Function<Genotype,String>()
 				{
@@ -963,12 +899,12 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 					}
 				};
 			
-			table.getColumns().add(makeColumn("Child",T->T.children==null?null:T.children.getSampleName()));
-			table.getColumns().add(makeColumn("Child-GT",T->gt2str.apply(T.children)));
-			table.getColumns().add(makeColumn("Father",T->T.father==null?null:T.father.getSampleName()));
-			table.getColumns().add(makeColumn("Father-GT",T->gt2str.apply(T.father)));
-			table.getColumns().add(makeColumn("Mother",T->T.mother==null?null:T.mother.getSampleName()));
-			table.getColumns().add(makeColumn("Mother-GT",T->gt2str.apply(T.mother)));
+			table.getColumns().add(makeColumn("Child",T->T.getChildren()==null?null:T.getChildren().getSampleName()));
+			table.getColumns().add(makeColumn("Child-GT",T->gt2str.apply(T.getChildren())));
+			table.getColumns().add(makeColumn("Father",T->T.getFather()==null?null:T.getFather().getSampleName()));
+			table.getColumns().add(makeColumn("Father-GT",T->gt2str.apply(T.getFather())));
+			table.getColumns().add(makeColumn("Mother",T->T.getMother()==null?null:T.getMother().getSampleName()));
+			table.getColumns().add(makeColumn("Mother-GT",T->gt2str.apply(T.getMother())));
 			table.getColumns().add(makeColumn("Violation",T->T.isMendelianIncompatibility()));
 			}
 		table.setPlaceholder(new Label("No Trio."));
@@ -1453,33 +1389,21 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			}
 		}
 
-	private List<TrioGenotype> getTrios(final VariantContext ctx)
-		{
-		if(ctx==null) return Collections.emptyList();
-		final List<TrioGenotype> trios = new ArrayList<>();
-		for(final PedFile.Sample child:getPedigree())
-			{
-			final Genotype gc = ctx.getGenotype(child.getName());
-			if(gc==null) continue;
-			final PedFile.Sample father= child.getFather();
-			final Genotype gf =  (father==null?null:ctx.getGenotype(father.getName()));
-			final PedFile.Sample mother= child.getMother();
-			final Genotype gm =  (mother==null?null:ctx.getGenotype(mother.getName()));
-			if(gf==null && gm==null) continue;
-			trios.add(new TrioGenotype(gc, gf, gm));
-			}
-		return trios;
-		}
 	
 	private void refreshTrioTable(final VariantContext ctx)
 		{
-		this.triosTable.getItems().setAll(getTrios(ctx));
+		this.triosTable.getItems().clear();
+		for(PedFile.TrioGenotype gt: getPedigree().getTrios(ctx))
+			{
+			this.triosTable.getItems().add(gt);
+			}
 		}
 	
 	
 	
 	@Override
-	protected void doMenuShowWholeStats(final ChartFactory<?> factory) {
+	protected void doMenuShowWholeStats(
+			final ChartFactory<VCFHeader,VariantContext> factory) {
 			Optional<CompiledScript> compiledScript=Optional.empty();
         	if( VcfStage.this.owner.javascriptCompiler.isPresent() &&
         		!VcfStage.this.javascriptArea.getText().trim().isEmpty())
@@ -1499,6 +1423,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         	VcfFile copy=null;
         	try {
         		copy=(VcfFile)this.getVcfFile().reOpen();
+        		factory.setHeader(copy.getHeader());
+        		factory.setPedigree(getPedigree());
 	        	final VcfQualityStage qcstage=new VcfQualityStage(
 	        			(VariantContextChartFactory)factory,
 	        			copy,
@@ -1523,7 +1449,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     }
     
     
-    private PedFile getPedigree() {
+    @Override
+    public PedFile getPedigree() {
     	return getVcfFile().getPedigree();
     	}
     
