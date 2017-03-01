@@ -979,13 +979,13 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			}
 		
 		SAMSequenceRecord ssr= dict.getSequence(contig);
-		if(ssr==null && !contig.startsWith("chr"))
+		if(ssr==null)
 			{
-			ssr= dict.getSequence("chr"+contig);
+			ssr= dict.getSequence(JfxNgs.ContigToUCSC.apply(contig));
 			}
-		if(ssr==null && contig.startsWith("chr"))
+		if(ssr==null)
 			{
-			ssr= dict.getSequence( contig.substring(3));
+			ssr= dict.getSequence(JfxNgs.ContigToEnseml.apply(contig));
 			}
 		if(ssr==null)
 			{

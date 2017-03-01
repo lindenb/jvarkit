@@ -260,10 +260,25 @@ public class JfxNgs extends Application {
 		@Override
 		public String apply(String c) {
 			if(c==null) return null;
-			if(c.toLowerCase().startsWith("chr")) {
+			
+			if(c.toLowerCase().endsWith("_random") &&
+				c.toLowerCase().startsWith("chr") &&
+				c.toLowerCase().contains("_gl")
+				)
+				{
+				c=c.split("[_]")[1];
+				if(c.startsWith("gl")) return "GL"+c.substring(2)+".1";
+				}
+			else if(c.toLowerCase().startsWith("chrUn_gl"))
+				{
+				return "GL"+c.substring(8)+".1";
+				}
+			else if(c.toLowerCase().startsWith("chr")) 
+				{
 				c=c.substring(3);
 				}
 			if(c.equals("M")) c="MT";
+			
 			return c;
 			}
 		};
@@ -277,6 +292,7 @@ public class JfxNgs extends Application {
 				c="chr"+c;
 				}
 			if(c.equals("chrMT")) c="chrM";
+			
 			return c;
 			}
 		};
