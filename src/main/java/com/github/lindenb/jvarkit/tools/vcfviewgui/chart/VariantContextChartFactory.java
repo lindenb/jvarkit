@@ -24,8 +24,19 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfviewgui.chart;
 
+import com.github.lindenb.jvarkit.tools.vcfviewgui.PedFile;
+
 import htsjdk.variant.variantcontext.VariantContext;
 
 public abstract class VariantContextChartFactory
 implements ChartFactory<VariantContext>{
+private PedFile pedigree=null;
+public PedFile getPedigree()
+	{
+	return pedigree;
+	}
+public void setPedigree(final PedFile pedigree)
+	{
+	this.pedigree = pedigree;
+	}
 }

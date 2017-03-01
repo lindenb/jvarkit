@@ -681,6 +681,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         for(final Supplier<ChartFactory<VariantContext>> supplier: VARIANT_CHART_FACTORIES)
 	        {
         	final ChartFactory<VariantContext> factory = supplier.get();
+        	if(factory instanceof VariantContextChartFactory)
+        		{
+        		VariantContextChartFactory.class.cast(factory).setPedigree(getPedigree());
+        		}
         	final MenuItem menuItem=new MenuItem("Local "+factory.getName());
         	menuItem.setOnAction(new EventHandler<ActionEvent>() {
 				@Override
@@ -694,6 +698,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         for(final Supplier<ChartFactory<VariantContext>> supplier: VARIANT_CHART_FACTORIES)
 	        {
 	    	final ChartFactory<VariantContext> factory = supplier.get();
+	    	if(factory instanceof VariantContextChartFactory)
+        		{
+        		VariantContextChartFactory.class.cast(factory).setPedigree(getPedigree());
+        		}
 	    	final MenuItem menuItem=new MenuItem("Whole"+factory.getName());
 	    	menuItem.setOnAction(new EventHandler<ActionEvent>() {
 				@Override
