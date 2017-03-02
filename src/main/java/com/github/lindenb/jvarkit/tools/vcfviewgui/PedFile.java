@@ -73,7 +73,7 @@ public class PedFile implements Iterable<PedFile.Sample>
     		{
     		this.children = children;
     		this.father= father;
-    		this.mother= father;
+    		this.mother= mother;
     		}
     	
     	public Genotype getChildren() {
@@ -116,7 +116,7 @@ public class PedFile implements Iterable<PedFile.Sample>
 					{
 						alleles[1]=am;
 						final Genotype sim = new GenotypeBuilder(children.getSampleName()).alleles(Arrays.asList(alleles)).make();
-						if(sim.sameGenotype(sim, true)) return false;
+						if(children.sameGenotype(sim, true)) return false;
 					}	
 				}
 			return true;

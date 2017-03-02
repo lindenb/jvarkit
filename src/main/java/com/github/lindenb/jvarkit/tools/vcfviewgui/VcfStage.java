@@ -217,7 +217,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 				{
 					alleles[1]=am;
 					final Genotype sim = new GenotypeBuilder(child.getSampleName()).alleles(Arrays.asList(alleles)).make();
-					if(sim.sameGenotype(sim, true)) return false;
+					if(child.sameGenotype(sim, true)) return false;
 				}	
 			}
 			
