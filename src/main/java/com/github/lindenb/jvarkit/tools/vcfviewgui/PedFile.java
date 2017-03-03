@@ -221,8 +221,8 @@ public class PedFile implements Iterable<PedFile.Sample>
 		{
 		String family;
 		String name;
-		String father=null;
-		String mother=null;
+		Sample father=null;
+		Sample mother=null;
 		Sex sex=Sex.Unknown;
 		Status status=Status.Unknown;
 		@Override
@@ -230,9 +230,9 @@ public class PedFile implements Iterable<PedFile.Sample>
 		@Override
 		public String getName() { return name; }
 		@Override
-		public Sample getFather() { return father==null?null:PedFile.this.name2sample.get(father); }
+		public Sample getFather() { return father; }
 		@Override
-		public Sample getMother() { return mother==null?null:PedFile.this.name2sample.get(mother); }
+		public Sample getMother() { return mother; }
 		@Override
 		public Sex getSex() { return sex; }
 		@Override
@@ -264,6 +264,8 @@ public class PedFile implements Iterable<PedFile.Sample>
 		String line;
 		final Pattern delim=Pattern.compile("[\t ]+");
 		final PedFile ped=new PedFile();
+		final Map<SampleImpl,String> sample2fatherid=new HashMap<>();
+		final Map<SampleImpl,String> sample2motherid=new HashMap<>();
 		while((line=r.readLine())!=null)
 			{
 			if(line.trim().isEmpty() || line.startsWith("#")) continue;
@@ -273,8 +275,13 @@ public class PedFile implements Iterable<PedFile.Sample>
 			sample.family=tokens[0];
 			sample.name=tokens[1];
 			if(sample.name.isEmpty()) throw new IOException("Sample name cannot be empty");
-			sample.father=(tokens[2].isEmpty() || tokens[2].equals("0")?null:tokens[2]);
-			sample.mother=(tokens[3].isEmpty() || tokens[3].equals("0")?null:tokens[3]);
+			if(!(tokens[2].isEmpty() || tokens[2].equals("0"))) {
+				sample2fatherid.put(sample,tokens[2]);
+				}
+			if(!(tokens[3].isEmpty() || tokens[3].equals("0")))
+				{
+				sample2motherid.put(sample,tokens[3]);
+				}
 			if(tokens.length>4) {
 				if(tokens[4].toLowerCase().equals("M") || tokens[4].equals("1"))
 					{
@@ -308,7 +315,31 @@ public class PedFile implements Iterable<PedFile.Sample>
 				}
 			ped.name2sample.put(sample.getName(),sample);
 			}
-			
+		
+		for(final SampleImpl c:sample2fatherid.keySet())
+			{
+			final String parentid = sample2fatherid.get(c);
+			final SampleImpl parent = (SampleImpl)ped.name2sample.get(parentid);
+			if(parent==null) continue;
+			if(parent.getSex()==Sex.Unknown) {
+				parent.sex=Sex.Male;
+				}
+			else if(parent.isFemale()) throw new IOException("father of "+c+" is female");
+			c.father=parent;
+			}
+		
+		for(final SampleImpl c:sample2motherid.keySet())
+			{
+			final String parentid = sample2motherid.get(c);
+			final SampleImpl parent = (SampleImpl)ped.name2sample.get(parentid);
+			if(parent==null) continue;
+			if(parent.getSex()==Sex.Unknown) {
+				parent.sex=Sex.Female;
+				}
+			else if(parent.isMale()) throw new IOException("mother of "+c+" is male");
+			c.mother=parent;
+			}
+		
 		return ped;
 		}
 	

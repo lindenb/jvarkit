@@ -675,7 +675,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
      * the snippet are stored as a xml file in the jar file
      * @return
      */
-    private Menu createJavascriptSnippetMenu() {
+    protected Menu createJavascriptSnippetMenu() {
     	final Menu menu=new Menu("Snippets");
     	final String rsrc = getSnippetResourcePath();
     	if(rsrc!=null && !rsrc.isEmpty()) {
@@ -690,6 +690,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     				final XMLInputFactory xif=XMLInputFactory.newFactory();
     				xif.setProperty(XMLInputFactory.IS_COALESCING,Boolean.TRUE);
     				r=xif.createXMLEventReader(in);
+    				final QName isFunctionAtt=new QName("is-function");
     				final QName labelAtt=new QName("label");
     				final QName nameAtt=new QName("name");
     				while(r.hasNext())
@@ -702,13 +703,23 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     					if(attLabel==null) attLabel=start.getAttributeByName(nameAtt);
     					if(attLabel!=null && r.hasNext() && r.peek().isCharacters())
     						{
-        					final MenuItem item=new MenuItem(attLabel.getValue());
+    						final Attribute isFunction= start.getAttributeByName(isFunctionAtt);
+        					final MenuItem item=new MenuItem(attLabel.getValue()+
+        							(isFunction==null || !isFunction.getValue().equals("true")?"":"[Function]")
+        							);
     						final String code= r.nextEvent().asCharacters().getData();
-
     						item.setOnAction(new EventHandler<ActionEvent>() {
 								@Override
 								public void handle(ActionEvent event) {
-									NgsStage.this.javascriptArea.setText(code);
+									if(isFunction==null || !isFunction.getValue().equals("true"))
+										{
+										NgsStage.this.javascriptArea.setText(code);
+										}
+									else
+										{
+										final int caret = NgsStage.this.javascriptArea.getCaretPosition();
+										NgsStage.this.javascriptArea.insertText(caret, code);
+										}
 									Parent parent=NgsStage.this.javascriptArea;
 									while(parent!=null)
 										{

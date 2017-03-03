@@ -517,7 +517,7 @@ $(eval $(call compile-htsjdk-cmd,queue2make,${jvarkit.package}.tools.misc.QueueT
 $(eval $(call compile-htsjdk-cmd,vcfmovefilterstoinfo,${jvarkit.package}.tools.burden.VcfMoveFiltersToInfo,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,gatkcodegen,${jvarkit.package}.tools.gatk.codegen.GATKCodeGenerator,${gson.jar} ${velocity.jars} wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.VcfEigen01,wiki_flag))
-$(eval $(call compile-htsjdk-cmd,jfxngs,${jvarkit.package}.tools.vcfviewgui.JfxNgs,))
+$(eval $(call compile-htsjdk-cmd,jfxngs,${jvarkit.package}.tools.vcfviewgui.JfxNgs,jfxngs-resources))
 $(eval $(call compile-htsjdk-cmd,ngsworkflow,${jvarkit.package}.tools.workflow.NgsWorkflow,${gson.jar}))
 
 GATKWALKERS_SRC=$(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/SoftClipAnnotator variants/GroupByVariants variants/GroupByGenotypes variants/EigenVariants))
@@ -730,8 +730,10 @@ src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
 		-p edu.washington.gs.evs \
 		"http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
 
-
-
+## copy resources for jxngs
+jfxngs-resources:
+	mkdir -p ${tmp.dir}/com/github/lindenb/jvarkit/tools/vcfviewgui
+	$(foreach S,bam vcf, cp -v src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/${S}.snippets.xml ${tmp.dir}/com/github/lindenb/jvarkit/tools/vcfviewgui/;)
 
 #
 # ga4gh schema, see 

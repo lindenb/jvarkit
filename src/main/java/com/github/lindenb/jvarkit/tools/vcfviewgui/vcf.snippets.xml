@@ -61,4 +61,40 @@ variant.getGenotype("SAMPLENAME").isHet()
 ]]></code>
 
 
+<code is-function="true" label="Get Fraction of NoCall"><![CDATA[
+function fractionNoCall(ctx)
+	{
+	var numNoCall=0.0;
+	for(var i=0;i< ctx.getNSamples();++i)
+		{
+		if( ctx.getGenotype(i).isNoCall() ) numNoCall++;
+		}
+	return numNoCall/ctx.getNSamples();
+	}
+/* fractionNoCall(variant) < 0.1 */
+]]></code>
+
+<code is-function="true" label="Get Fraction of NoCall per Population"><![CDATA[
+function fractionNoCallPop(ctx,population)
+	{
+	var numSamples=0.0;
+	var numNoCall=0.0;
+	for(var i in population)
+		{
+		var genotype = ctx.getGenotype(population[i]);
+		if( genotype==null ) continue;
+		numSamples++;
+		if( genotype.isNoCall() ) numNoCall++;
+		}
+	return numNoCall/numSamples;
+	}
+/** 
+Example:
+
+fractionNoCallPop(variant,["CASE1","CASE2","CASE3"]) < 0.1 && fractionNoCallPop(variant,["CTRL1","CTRL2"]) < 0.2 
+
+*/
+]]></code>
+
+
 </snippets>

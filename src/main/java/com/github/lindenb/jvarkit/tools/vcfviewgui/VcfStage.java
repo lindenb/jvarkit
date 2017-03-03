@@ -95,6 +95,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -753,8 +754,9 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     		pane.setTop(flowPane);
     		}
 		final Label helpLabel=new Label("The script injects:\n"+
-				"* header ( htsjdk.variant.vcf.VCFHeader )\n"+
-				"* variant ( htsjdk.variant.variantcontext.VariantContext )\n"+
+				"* header ( "+VCFHeader.class.getName()+" )\n"+
+				"* variant ( "+VariantContext.class.getName()+" )\n"+
+				"* pedigree ( "+PedFile.class.getName()+" ) \n"+
 				"The script should return a boolean: true (accept variant) or false (reject variant)"
 				);
 		helpLabel.setWrapText(true);
@@ -1460,5 +1462,23 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	return Optional.ofNullable(this.variantTable.getSelectionModel().getSelectedItem());
     	}
 
+    @Override
+    protected Menu createJavascriptSnippetMenu() {
+    	final Menu menu = super.createJavascriptSnippetMenu();
+    	menu.getItems().add(new SeparatorMenuItem());
+    	
+    	MenuItem item= new MenuItem("Insert Samples as Array");
+    	menu.getItems().add(item);
+    	menu.setOnAction(AE->{
+    		final int caret = super.javascriptArea.getCaretPosition();
+        	final StringBuilder sb=new StringBuilder("var pedigree=[").
+        			append(getVcfFile().getHeader().getSampleNamesInOrder().stream().map(S->"\""+S+"\"").collect(Collectors.joining(","))).
+        			append("];\n")
+        			;
+        	super.javascriptArea.insertText(caret, sb.toString());
+    		});
+    	
+    	return menu;
+    	}
     
 	}
