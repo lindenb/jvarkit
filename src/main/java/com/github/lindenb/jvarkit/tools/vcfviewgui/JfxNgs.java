@@ -677,32 +677,14 @@ public class JfxNgs extends Application {
 		}
 
     
-    /** open FileChoser to open a BAM file */
-    void openBamFile(final Window owner)
-    	{
-    	final FileChooser fc = newFileChooser();
-    	fc.setSelectedExtensionFilter(BamStage.EXTENSION_FILTER);
-    	final File file = updateLastDir(fc.showOpenDialog(owner));
-    	if(file==null) return;
-    	BamFile input=null;
-    	try {
-			input = BamFile.newInstance(file);
-			final BamStage stage=new BamStage(JfxNgs.this, input);
-			stage.show();
-		} catch (final Exception err) {
-			CloserUtil.close(input);
-			showExceptionDialog(owner, err);
-			}
-    	}
-
+    
     List<MenuItem> createCommonMenuItems(final Stage stage) {
     	final List<MenuItem> L=new ArrayList<>();
     	L.add(createMenuItem("About...",()->doMenuAbout(stage)));
     	L.add(createMenuItem("Preferences...",()->showPreferencesDialog(stage)));
     	L.add(createMenuItem("Open in Microsoft Excel...",()->doMenuOpenInExcel(stage)));
         L.add(new SeparatorMenuItem());
-    	L.add(createMenuItem("Open VCF File...",()->openVcfFile(stage)));
-        L.add(createMenuItem("Open BAM File...",()->openBamFile(stage)));
+    	L.add(createMenuItem("Open VCF/BAM File...",()->openNgsFile(stage)));
         L.add(createMenuItem("Open Remote BAM...",()->openBamUrl(stage)));
         L.add(createMenuItem("Open Remote VCF...",()->openVcfUrl(stage)));
         L.add(new SeparatorMenuItem());
@@ -749,20 +731,54 @@ public class JfxNgs extends Application {
     	}
     
     
-    void openVcfFile(final Window owner)
+    void openNgsFile(final Window owner)
 		{
 		final FileChooser fc = newFileChooser();
-		fc.setSelectedExtensionFilter(VcfStage.EXTENSION_FILTER);
-		final File file = updateLastDir(fc.showOpenDialog(owner));
-		if(file==null) return;
-		VcfFile input=null;
-    	try {
-			input = VcfFile.newInstance(file);
-			VcfStage stage=new VcfStage(JfxNgs.this, input);
-			stage.show();
-		} catch (final Exception err) {
-			CloserUtil.close(input);
-			showExceptionDialog(owner, err);
+		final List<String> suffixes=new ArrayList<String>();
+		suffixes.addAll(VcfStage.EXTENSION_FILTER.getExtensions());
+		suffixes.addAll(BamStage.EXTENSION_FILTER.getExtensions());
+		
+		final FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
+				"Bam or VCF files",
+				suffixes
+				);
+		fc.setSelectedExtensionFilter(extFilter);
+		final List<File> selFiles = fc.showOpenMultipleDialog(owner);
+		if(selFiles==null) return ;
+		for(final File file: selFiles) {
+			updateLastDir(file);
+			if(VcfStage.EXTENSION_FILTER.
+					getExtensions().stream().
+					filter(S->file.getName().endsWith(S)).findAny().isPresent())
+				{
+				VcfFile input=null;
+		    	try {
+					input = VcfFile.newInstance(file);
+					VcfStage stage=new VcfStage(JfxNgs.this, input);
+					stage.show();
+				} catch (final Exception err) {
+					CloserUtil.close(input);
+					showExceptionDialog(owner, err);
+					}
+				}
+			else if(BamStage.EXTENSION_FILTER.
+					getExtensions().stream().
+					filter(S->file.getName().endsWith(S)).findAny().isPresent())
+				{
+				BamFile input=null;
+		    	try {
+					input = BamFile.newInstance(file);
+					final BamStage stage=new BamStage(JfxNgs.this, input);
+					stage.show();
+				} catch (final Exception err) {
+					CloserUtil.close(input);
+					showExceptionDialog(owner, err);
+					}				
+		    	}
+			else
+				{
+				LOG.info("Cannot open "+file);;
+				}
 			}
 		}
     

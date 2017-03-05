@@ -87,6 +87,7 @@ import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -107,6 +108,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -124,6 +126,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.BorderPane;
@@ -369,6 +372,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 			super(contig,position);
 			Arrays.fill(count,0);
 			}
+    	
+    	
     	void watch(char base,char q,CigarOperator op)
     		{
     		seq.append(base);
@@ -396,9 +401,12 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     private final TableView<Pileup> pileupTable;
     private final Map<SAMFlag,CheckMenuItem> flag2filterInMenuItem=new HashMap<>();
     private final Map<SAMFlag,CheckMenuItem> flag2filterOutMenuItem=new HashMap<>();
-    private final Canvas canvas = new Canvas(900, 600);
-    private final ScrollBar canvasScrollV = new ScrollBar();
+    private final Canvas canvas = new Canvas(900, 300);
+    private final ScrollBar canvasScrollHRecordIndex = new ScrollBar();
+    private final ScrollBar canvasScrolVInCoverage = new ScrollBar();
     private final CheckBox canvasShowReadName = new CheckBox("Show Read Name");
+    private final CheckBox canvasShowClip = new CheckBox("Show Clip");
+    private final ComboBox<Integer> canvasBaseSizeCombo = new ComboBox<>(FXCollections.observableArrayList(4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20));
     
     BamStage(final JfxNgs owner,
     		final BamFile bamFile
@@ -546,7 +554,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
             		{
             		final List<CigarAndBase> M = new ArrayList<>();
             		int posInRead=0;
-            		int posInRef=newSelection.getUnclippedStart();
+            		int posInRef= newSelection.getUnclippedStart();
             		final byte readString[] = newSelection.getReadBases();
             		for(CigarElement ce: newSelection.getCigar())
             			{
@@ -629,13 +637,32 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         
         /* CANVAS STUFFF */
         final BorderPane canvasPane = new BorderPane(this.canvas);
-        this.canvasScrollV.setOrientation(Orientation.VERTICAL);
-        canvasPane.setRight(this.canvasScrollV);
-        final FlowPane canvasTop=new FlowPane(this.canvasShowReadName);
+        canvasPane.setPadding(new Insets(10));
+        this.canvasScrollHRecordIndex.setOrientation(Orientation.HORIZONTAL);
+        canvasPane.setBottom(this.canvasScrollHRecordIndex);
+        this.canvasScrollHRecordIndex.setTooltip(new Tooltip("Available records.")); 
+        this.canvasScrolVInCoverage.setOrientation(Orientation.VERTICAL);
+        canvasPane.setRight(this.canvasScrolVInCoverage);
+        this.canvasScrolVInCoverage.setTooltip(new Tooltip("Move In coverage.")); 
+        this.canvasShowClip.setSelected(true);
+        this.canvasBaseSizeCombo.setValue(15);
+        
+        
+        final FlowPane canvasTop=new FlowPane(
+        		this.canvasShowReadName,
+        		new Separator(Orientation.VERTICAL),
+        		this.canvasShowClip,
+        		new Separator(Orientation.VERTICAL),
+        		new Label("Size:"),
+        		this.canvasBaseSizeCombo
+        		);
         canvasPane.setTop(canvasTop);
         
         this.canvasShowReadName.setOnAction(E->repaintCanvas());
-        this.canvasScrollV.valueProperty().addListener(E->repaintCanvas());
+        this.canvasShowClip.setOnAction(E->repaintCanvas());
+        this.canvasScrollHRecordIndex.valueProperty().addListener(E->repaintCanvas());
+        this.canvasScrolVInCoverage.valueProperty().addListener(E->repaintCanvas());
+        this.canvasBaseSizeCombo.valueProperty().addListener(E->repaintCanvas());
         
         tab=new Tab("Canvas",canvasPane);
         tab.setClosable(false);
@@ -706,7 +733,9 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
                     }
                 });
         
-        
+    	this.canvasScrolVInCoverage.setMin(0);
+    	this.canvasScrolVInCoverage.setMax(100);
+    	this.canvasScrolVInCoverage.setValue(0);
     	}
 
     private TableView<SAMRecord> makeRecordTable() {
@@ -882,11 +911,47 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	}
     
     
+    /** wrapper for SamRecord with row information for displaying read on the canvas */
+    private class XYRecord
+    	implements Locatable
+    	{
+    	int y=0;
+    	final SAMRecord record;
+    	XYRecord(final SAMRecord record) {
+    		this.record = record;
+    		}
+    	private boolean showClip() {
+    		return BamStage.this.canvasShowClip.isSelected();
+    		}
+    	@Override
+    	public String getContig()
+    		{
+    		return record.getContig();
+    		}
+    	@Override
+    	public int getStart()
+    		{
+    		return (showClip()?record.getUnclippedStart():record.getStart());
+    		}
+    	@Override
+    	public int getEnd()
+    		{
+    		return (showClip()?record.getUnclippedEnd():record.getEnd());
+    		}
+    	@Override
+    	public String toString()
+    		{
+    		return record.toString();
+    		}
+    	}
+    
+    
     /** repaint the canvas area */
     private void repaintCanvas()
     	{
+    	final boolean showClip = this.canvasShowClip.isSelected();
     	final boolean showReadName = this.canvasShowReadName.isSelected();
-    	final int baseSize=15;
+    	final int baseSize= this.canvasBaseSizeCombo.getValue();
     	final double canvaswidth= this.canvas.getWidth();
     	final double canvasheight= this.canvas.getHeight();
     	final GraphicsContext gc=this.canvas.getGraphicsContext2D();
@@ -896,28 +961,61 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	final List<SAMRecord> records=getDisplayableSamRecordStream().collect(Collectors.toList());
     	if(records.isEmpty()) return;
  
-    	final int recordStart=(int)this.canvasScrollV.getValue();
+    	
+    	final int recordStart=(int)this.canvasScrollHRecordIndex.getValue();
     	if(recordStart>=records.size()) return;
     	int recordIndex=recordStart;
     	final int chromStart=records.get(recordStart).getUnclippedStart();
     	final int chromLen=(int)(canvaswidth/baseSize);
     	if(chromLen==0) return;
+
     	
+    	/* pileup record */
+    	final List<List<XYRecord>> yxrows = new ArrayList<>();
+    	for(int i=recordStart;i< records.size();++i)
+    		{
+    		final SAMRecord rec = records.get(i);
+    		if(!rec.getReferenceName().equals(records.get(recordStart).getReferenceName())) {
+				continue;
+				}
+    		if(rec.getUnclippedStart()>(chromStart+chromLen)) break;
+    		if(rec.getUnclippedEnd()<(chromStart)) continue;
+    		final XYRecord newxy=new XYRecord(rec);
+    		int z=0;
+    		for(z=0;z< yxrows.size();++z )
+    			{
+    			final List<XYRecord> row=yxrows.get(z);
+    			final XYRecord lastyx = row.get(row.size()-1);
+    			if(lastyx.getEnd()+2<newxy.getStart())
+    				{
+    				newxy.y=z;
+    				row.add(newxy);
+    				break;
+    				}
+    			}
+    		if(z==yxrows.size())
+    			{ 
+    			newxy.y=z;
+    			final List<XYRecord> row=new ArrayList<>();
+    			row.add(newxy);
+    			yxrows.add(row);
+				
+    			}
+    		}
     	
-    	Function<Integer,Double> position2pixel=new Function<Integer, Double>() {
+    	final Function<Integer,Double> position2pixel=new Function<Integer, Double>() {
 			@Override
 			public Double apply(Integer pos) {
 				return ((pos-(double)chromStart)/(double)chromLen)*canvaswidth;
-			}
-		};
-		
-    	
-
+				}
+			};
 		
 		final Hershey hershey=new Hershey();
 		
+		// paint contig lines
 		hershey.paint(gc,records.get(recordStart).getContig(),1,0,baseSize*records.get(recordStart).getContig().length(),baseSize-2);
 		
+		// paint vertical lines
 		for(int x=chromStart;x<chromStart+chromLen;++x)
 			{
 			double px=position2pixel.apply(x);
@@ -932,152 +1030,168 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 				}
 			}
 		gc.setLineWidth(1);
-    	while(y<canvasheight && recordIndex < records.size())
-    		{
-    		final SAMRecord rec=records.get(recordIndex);
-    		if(!rec.getReferenceName().equals(records.get(recordStart).getReferenceName())) {
-    			++recordIndex;
-    			continue;
-    			}
-    		int baseIndex=0;
-    		int refIndex=rec.getUnclippedStart();
-    		final byte bases[]=rec.getReadBases();
-    		
-    		final Function<Integer,String> getBaseAt = new Function<Integer, String>() {
-				@Override
-				public String apply(Integer readPos) {
-					char c;
-					if(showReadName)
-						{
-						if(rec.getReadNameLength()<=readPos) return "";
-						c= rec.getReadName().charAt(readPos);
-						}
-					else if(bases==null || bases.length<=readPos)
-						{
-						return "";
-						}
-					else
-						{
-						c=(char)bases[readPos];
-						}	
-					c=(rec.getReadNegativeStrandFlag()?
-							Character.toLowerCase(c):
-							Character.toUpperCase(c)
-							);
-					return String.valueOf(c);
-				}
-			};
-			
-    		final Function<Integer,Color> getColorAt = new Function<Integer, Color>() {
-				public Color apply(final Integer readPos) {
-					if(bases==null || bases.length<=readPos)
-						{
-						return Color.BLACK;
-						}
-					return JfxNgs.BASE2COLOR.apply((char)bases[readPos]);
-				}
-			};
-
-			
-			
-			gc.setLineWidth(1.0);
-    		//arrow end
+		for(int yy=(int)this.canvasScrolVInCoverage.getValue();
+				y<canvasheight &&
+				yy < yxrows.size();
+				++yy, y+=baseSize
+				)
 			{
-			double endpos=position2pixel.apply(rec.getReadNegativeStrandFlag()?rec.getUnclippedStart():rec.getUnclippedEnd()+1);
-			double radius=baseSize/4.0;
-			gc.setFill(Color.BLACK);
-			gc.fillOval(
-					endpos- radius,
-    				y+baseSize/2.0 - radius,
-    				radius*2 ,
-    				radius*2
-    				);
-			}
+			final List<XYRecord> row=yxrows.get(yy);
+			for(final XYRecord rec: row)
+				{
+				/* paint record */
+	    		int baseIndex=0;
+	    		int refIndex=rec.getStart();
+	    		final byte bases[]=rec.record.getReadBases();
+	    		
+	    		final Function<Integer,String> getBaseAt = new Function<Integer, String>() {
+					@Override
+					public String apply(Integer readPos) {
+						char c;
+						if(showReadName)
+							{
+							if(rec.record.getReadNameLength()<=readPos) return "";
+							c= rec.record.getReadName().charAt(readPos);
+							}
+						else if(bases==null || bases.length<=readPos)
+							{
+							return "";
+							}
+						else
+							{
+							c=(char)bases[readPos];
+							}	
+						c=(rec.record.getReadNegativeStrandFlag()?
+								Character.toLowerCase(c):
+								Character.toUpperCase(c)
+								);
+						return String.valueOf(c);
+					}
+				};
+				
+	    		final Function<Integer,Color> getColorAt = new Function<Integer, Color>() {
+					public Color apply(final Integer readPos) {
+						if(bases==null || bases.length<=readPos)
+							{
+							return Color.BLACK;
+							}
+						return JfxNgs.BASE2COLOR.apply((char)bases[readPos]);
+					}
+				};
+				
+				gc.setLineWidth(1.0);
+	    		//arrow end
+				{
+				double endpos = position2pixel.apply(rec.record.getReadNegativeStrandFlag()?rec.getStart():rec.getEnd()+1);
+				double radius = baseSize/4.0;
+				gc.setFill(Color.BLACK);
+				gc.fillOval(
+						endpos- radius,
+	    				y+baseSize/2.0 - radius,
+	    				radius*2 ,
+	    				radius*2
+	    				);
+				}
 
-    		
-    		final Set<Integer> referenceEvents=new HashSet<>();
-    		for(CigarElement ce:rec.getCigar()) {
-    			switch(ce.getOperator())
-    				{
-    				case P: break;
-    				case I: 
-    					{
-    					baseIndex+=ce.getLength();
-    					referenceEvents.add(refIndex);
-    					break;
-    					}
-    				case D: case N:
-    					{
-    					gc.setFill(Color.RED);
-    					for(int x=0;x< ce.getLength();++x)
-    						{
-    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
-    						refIndex++;
-    						}
-    					break;
-    					}
-    				case H:
-    					{
-						gc.setFill(Color.YELLOW);
-    					for(int x=0;x< ce.getLength();++x)
-    						{
-    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
-    						refIndex++;
-    						}
-    					break;
-    					}
-    				case S:
-    					{
-    					for(int x=0;x< ce.getLength();++x)
-    						{
-    						gc.setFill(Color.YELLOW);
-    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
-    						gc.setStroke(getColorAt.apply(baseIndex));
-    						hershey.paint(gc,getBaseAt.apply(baseIndex), position2pixel.apply(refIndex),y,baseSize-1,baseSize-2);
-    						refIndex++;
-    						baseIndex++;
-    						}
-    					break;
-    					}
-    				case EQ:case X:case M:
-						{
-    					for(int x=0;x< ce.getLength();++x)
-    						{
-    						gc.setFill(ce.getOperator()==CigarOperator.X?Color.RED:Color.LIGHTGRAY);
-    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
-    						gc.setStroke(getColorAt.apply(baseIndex));
-    						hershey.paint(gc,getBaseAt.apply(baseIndex), position2pixel.apply(refIndex),y,baseSize-1,baseSize-2);
-    						refIndex++;
-    						baseIndex++;
-    						}
-    					break;
-    					}
-    				
-    				default:break;
-    				}
-    			if(refIndex> chromStart+chromLen) break;
-    			}
-    		
-    		
-    		gc.setStroke(Color.BLACK);
-    		gc.strokeRect(
-    				position2pixel.apply(rec.getUnclippedStart()),
-    				y,
-    				position2pixel.apply(rec.getUnclippedEnd()+1)-position2pixel.apply(rec.getUnclippedStart()) ,
-    				baseSize-1
-    				);
-    		
-    		for(Integer pos:referenceEvents)
-    			{
-    			double x=position2pixel.apply(pos);
-    			gc.setStroke(Color.RED);
-    			gc.setLineWidth(0.5);
-    			gc.strokeLine(x, y, x, y+baseSize);
-    			}
-    		
-    		recordIndex++;
-    		y+=baseSize;
-    		}
+	    		
+	    		final Set<Integer> referenceEvents=new HashSet<>();
+	    		for(final CigarElement ce:rec.record.getCigar()) {
+	    			switch(ce.getOperator())
+	    				{
+	    				case P: break;
+	    				case I: 
+	    					{
+	    					baseIndex+=ce.getLength();
+	    					referenceEvents.add(refIndex);
+	    					break;
+	    					}
+	    				case D: case N:
+	    					{
+	    					gc.setFill(Color.RED);
+	    					for(int x=0;x< ce.getLength();++x)
+	    						{
+	    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
+	    						refIndex++;
+	    						}
+	    					break;
+	    					}
+	    				case H:
+	    					{
+	    					if(showClip) {
+								gc.setFill(Color.YELLOW);
+		    					for(int x=0;x< ce.getLength();++x)
+		    						{
+		    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
+		    						refIndex++;
+		    						}
+		    					}
+	    					else
+	    						{
+	    						//NO refIndex+=ce.getLength();
+	    						}
+	    					break;
+	    					}
+	    				case S:
+	    					{
+	    					if(showClip) {
+		    					for(int x=0;x< ce.getLength();++x)
+		    						{
+		    						gc.setFill(Color.YELLOW);
+		    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
+		    						gc.setStroke(getColorAt.apply(baseIndex));
+		    						hershey.paint(gc,getBaseAt.apply(baseIndex), position2pixel.apply(refIndex),y,baseSize-1,baseSize-2);
+		    						refIndex++;
+		    						baseIndex++;
+		    						}
+		    					}
+	    					else
+	    						{
+	    						baseIndex+=ce.getLength();
+	    						//NO refIndex+=ce.getLength();
+	    						}
+	    					break;
+	    					}
+	    				case EQ:case X:case M:
+							{
+	    					for(int x=0;x< ce.getLength();++x)
+	    						{
+	    						gc.setFill(ce.getOperator()==CigarOperator.X?Color.RED:Color.LIGHTGRAY);
+	    						gc.fillRect(position2pixel.apply(refIndex),y,baseSize,baseSize-1);
+	    						gc.setStroke(getColorAt.apply(baseIndex));
+	    						hershey.paint(gc,getBaseAt.apply(baseIndex), position2pixel.apply(refIndex),y,baseSize-1,baseSize-2);
+	    						refIndex++;
+	    						baseIndex++;
+	    						}
+	    					break;
+	    					}
+	    				
+	    				default:break;
+	    				}
+	    			if(refIndex> chromStart+chromLen) break;
+	    			}
+	    		
+	    		
+	    		gc.setStroke(Color.BLACK);
+	    		gc.strokeRect(
+	    				position2pixel.apply(rec.getStart()),
+	    				y,
+	    				position2pixel.apply(rec.getEnd()+1)-position2pixel.apply(rec.getStart()) ,
+	    				baseSize-1
+	    				);
+	    		
+	    		for(final Integer pos:referenceEvents)
+	    			{
+	    			double x=position2pixel.apply(pos);
+	    			gc.setStroke(Color.RED);
+	    			gc.setLineWidth(0.5);
+	    			gc.strokeLine(x, y, x, y+baseSize);
+	    			}
+	    		
+				/* end paint record */
+				}
+			
+			
+			}
     	gc.setStroke(Color.BLACK);
 		gc.rect(0,0,canvaswidth-1,canvasheight-1);
     	}
@@ -1306,6 +1420,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 			}
 		};
 		
+		
     	int count_items=0;
     	while(iter!=null && iter.hasNext() && count_items<max_items)
     		{
@@ -1414,14 +1529,25 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     			}
     		}
     	if(iter!=null) iter.close();
+    	this.canvasScrolVInCoverage.setMin(0);
+    	int max_depth=pos2pileup.values().stream().
+    			map(P->P.depth()).
+    			max((A,B)->(A.compareTo(B))).
+    			orElse(0)
+    			;
+    	this.canvasScrolVInCoverage.setMax(max_depth+1);
+    	this.canvasScrolVInCoverage.setValue(0);
+
     	this.recordTable.getItems().setAll(L);
     	this.pileupTable.getItems().setAll(pos2pileup.values());
     	
     	
     	final int countDisplayable = (int)getDisplayableSamRecordStream().count();
-    	this.canvasScrollV.setMin(0);
-    	this.canvasScrollV.setMax(countDisplayable);
-    	this.canvasScrollV.setValue(0);
+    	this.canvasScrollHRecordIndex.setMin(0);
+    	this.canvasScrollHRecordIndex.setMax(countDisplayable);
+    	this.canvasScrollHRecordIndex.setValue(0);
+    	
+    	
     	
     	if(!this.recordTable.getItems().isEmpty())
     		{
