@@ -204,7 +204,7 @@ public class JfxNgs extends Application {
     final Optional<Compilable> javascriptCompiler;
     private static final String LAST_USED_DIR_KEY="last.used.dir";
     private final List<NgsStage<?,?>> all_opened_stages=new ArrayList<>();
-    
+
     /** class used to store key/value for preferences */
     private static class PrefItem
     	{
@@ -222,7 +222,7 @@ public class JfxNgs extends Application {
     		}
     	String getValue() { return this.textField.getText().trim();}
     	}
-    
+
 	private final PrefItem pref_httpHost = new PrefItem("http.proxyHost", "Http Proxy Host",null);
 	private final PrefItem pref_httpPort = new PrefItem("http.proxyPort", "Http Proxy Port",null);
 	private final PrefItem pref_httpsHost = new PrefItem("https.proxyHost", "Https Proxy Host",null);
@@ -236,8 +236,8 @@ public class JfxNgs extends Application {
 			pref_max_vcf_items
 		};
 
-    
-    
+
+
     /** utility Function to convert base to Color */
     public static final Function<Character, Color> BASE2COLOR= new Function<Character, Color>() {
 		@Override
@@ -249,18 +249,18 @@ public class JfxNgs extends Application {
 			case 'C': case 'c': return Color.ORANGE;
 			case 'G': case 'g': return Color.RED;
 			default: break;
-			}    	
+			}
 		return Color.BLACK;
 		}
 	};
-    
-	
+
+
 	/** utility to convert UCSC chrom to Ensembl , used web opening web browser*/
     public static final Function<String, String> ContigToEnseml= new Function<String, String>() {
 		@Override
 		public String apply(String c) {
 			if(c==null) return null;
-			
+
 			if(c.toLowerCase().endsWith("_random") &&
 				c.toLowerCase().startsWith("chr") &&
 				c.toLowerCase().contains("_gl")
@@ -273,16 +273,16 @@ public class JfxNgs extends Application {
 				{
 				return "GL"+c.substring(8)+".1";
 				}
-			else if(c.toLowerCase().startsWith("chr")) 
+			else if(c.toLowerCase().startsWith("chr"))
 				{
 				c=c.substring(3);
 				}
 			if(c.equals("M")) c="MT";
-			
+
 			return c;
 			}
 		};
-      
+
 	/** utility to convert Ensembl chrom to UCSC  , used web opening web browser*/
     public static final Function<String, String> ContigToUCSC = new Function<String, String>() {
 		@Override
@@ -292,12 +292,12 @@ public class JfxNgs extends Application {
 				c="chr"+c;
 				}
 			if(c.equals("chrMT")) c="chrM";
-			
+
 			return c;
 			}
 		};
-	
-		
+
+
     public JfxNgs()
 		{
 		this.preferences = Preferences.userNodeForPackage(JfxNgs.class);
@@ -363,7 +363,7 @@ public class JfxNgs extends Application {
     	this.preferences.put(LAST_USED_DIR_KEY, dir.getPath());
     	return f;
     	}
-    
+
     /** at stop, save the preferences */
     @Override
     public void stop() throws Exception
@@ -377,37 +377,37 @@ public class JfxNgs extends Application {
     		}
     	super.stop();
     	}
-    
+
     /*
     private void showPreferenceDialoge(Window parentStage)
 	    {
 	    Stage dialog = new Stage();
-	
-	     
+
+
 	     dialog.setTitle("Preferences");
 		 dialog.initOwner(parentStage);
-		 dialog.initModality(Modality.APPLICATION_MODAL); 
+		 dialog.initModality(Modality.APPLICATION_MODAL);
 		 dialog.showAndWait();
 	    }*/
-    
+
     @Override
     public void start(final Stage primaryStage) throws Exception {
-    	
+
         final Parameters params = this.getParameters();
-        
-        
-       
-       
+
+
+
+
         primaryStage.setTitle(getClass().getSimpleName());
         Menu menu=new Menu("File");
-        
+
         menu.getItems().addAll(createCommonMenuItems(primaryStage));
-        
+
         menu.getItems().add(new SeparatorMenuItem());
         MenuItem menuItem=new MenuItem("Quit...");
         menuItem.setOnAction(AE->doMenuQuit());
         menu.getItems().add(menuItem);
-        
+
         MenuBar bar=new MenuBar(menu);
         FlowPane flow=new FlowPane(5,5);
         flow.setPadding(new Insets(10,10,10,10));
@@ -418,11 +418,11 @@ public class JfxNgs extends Application {
         flow.getChildren().add(textField);
         Button button=new Button("Go");
         flow.getChildren().add(button);
-        
+
         textField.setTooltip(new Tooltip(
         		"set genomic location can be: empty, 'contig', 'contig:pos', 'contig:start-end' and (\"unmapped\" for bam)"
         		));
-        
+
         final EventHandler<ActionEvent> handler=new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(final ActionEvent event) {
@@ -438,22 +438,22 @@ public class JfxNgs extends Application {
         button.setOnAction(handler);
         button.setTooltip(new Tooltip("Go the the specified genomic location."));
         textField.setOnAction(handler);
-        
-        
+
+
         BorderPane pane=new BorderPane();
-        
-        
+
+
         pane.setBottom(new Label("Author: Pierre Lindenbaum PhD."));
-        
-       
+
+
         VBox vbox1= new VBox(bar,flow,pane);
 
         final Scene scene = new Scene(vbox1,500,300);
-       
+
         primaryStage.setScene(scene);
-        
+
         Exception lastException=null;
-        
+
         primaryStage.addEventHandler(
     			WindowEvent.WINDOW_SHOWING ,new EventHandler<WindowEvent>() {
                     @Override
@@ -462,12 +462,12 @@ public class JfxNgs extends Application {
             	        	{
                     		VcfFile vcfin=null;
                     		BamFile bamin=null;
-                    		
+
                     		try {
                     			if(IOUtil.isUrl(arg))
 	                    			{
 	                    			if(arg.endsWith(".bam")) {
-	                    				bamin=BamFile.newInstance(arg); 
+	                    				bamin=BamFile.newInstance(arg);
 	                    				}
 	                    			else if(arg.endsWith(".vcf.gz")) {
 	                    				vcfin=VcfFile.newInstance(arg);
@@ -476,10 +476,10 @@ public class JfxNgs extends Application {
                     			else
 	                    			{
 	                    			final File f=new File(arg);
-	                        		
+
 									if(BamStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
 										{
-										bamin=BamFile.newInstance(f); 
+										bamin=BamFile.newInstance(f);
 										}
 									else if(VcfStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
 										{
@@ -503,7 +503,7 @@ public class JfxNgs extends Application {
 								}
             	        	}
                         }
-                    });        
+                    });
         primaryStage.show();
         }
 
@@ -511,43 +511,43 @@ public class JfxNgs extends Application {
     	this.all_opened_stages.remove(s);
     }
     void registerStage(final NgsStage<?,?> s) {
-    	this.all_opened_stages.add(s);  
+    	this.all_opened_stages.add(s);
     }
-    
-    
+
+
     static void showExceptionDialog(final Window owner,Object err)
     	{
     	final Alert alert = new Alert(AlertType.WARNING);
     	alert.setTitle("Error");
-    	
-		
+
+
 		if(err!=null && err instanceof Throwable)
 			{
-			
+
 			alert.setHeaderText("Error");
-			
+
 			final Throwable error=(Throwable) err;
 			alert.setContentText(String.valueOf(error.getMessage()));
 
 			error.printStackTrace();
-			
+
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
 			error.printStackTrace(pw);
 			String exceptionText = sw.toString();
-	
+
 			final Label label = new Label("The exception stacktrace was:");
-	
+
 			final TextArea textArea = new TextArea(exceptionText);
 			textArea.setEditable(false);
 			textArea.setWrapText(false);
-			
-	
+
+
 			textArea.setMaxWidth(Double.MAX_VALUE);
 			textArea.setMaxHeight(Double.MAX_VALUE);
 			GridPane.setVgrow(textArea, Priority.ALWAYS);
 			GridPane.setHgrow(textArea, Priority.ALWAYS);
-	
+
 			final BorderPane expContent = new BorderPane(new ScrollPane(textArea));
 			expContent.setTop(label);
 			expContent.setMinHeight(500);
@@ -555,7 +555,7 @@ public class JfxNgs extends Application {
 			expContent.setPrefWidth(1000);
 			expContent.setPrefHeight(900);
 
-			
+
 			// Set expandable Exception into the dialog pane.
 			alert.getDialogPane().setExpandableContent(expContent);
 			}
@@ -568,18 +568,18 @@ public class JfxNgs extends Application {
 			}
 		alert.showAndWait();
     	}
-    
+
     private void doMenuQuit()
     	{
     	Platform.exit();
     	}
-    
-  
+
+
     void openBamUrl(final Window owner)
 		{
     	final String lastkey="last.bam.url";
-    	final TextInputDialog dialog=new TextInputDialog();
-    	dialog.setContentText(this.preferences.get(lastkey, ""));
+    	final TextInputDialog dialog=new TextInputDialog(this.preferences.get(lastkey, ""));
+    	dialog.setContentText("URL:");
     	dialog.setTitle("Get BAM URL");
     	dialog.setHeaderText("Input BAM URL");
     	final Optional<String> choice=dialog.showAndWait();
@@ -596,12 +596,12 @@ public class JfxNgs extends Application {
 			}
 
 		}
-    
+
     void openVcfUrl(final Window owner)
 		{
     	final String lastkey="last.vcf.url";
-		final TextInputDialog dialog=new TextInputDialog();
-		dialog.setContentText(this.preferences.get(lastkey, ""));
+		final TextInputDialog dialog=new TextInputDialog(this.preferences.get(lastkey, ""));
+		dialog.setContentText("URL:");
 		dialog.setTitle("Get VCF URL");
 		dialog.setHeaderText("Input VCF URL");
 		final Optional<String> choice=dialog.showAndWait();
@@ -617,8 +617,8 @@ public class JfxNgs extends Application {
 			showExceptionDialog(owner, err);
 			}
 		}
-    
-    
+
+
     private void _openVcfAnySource(final Window owner,final String src)
     	{
     	VcfFile input=null;
@@ -631,12 +631,12 @@ public class JfxNgs extends Application {
 			showExceptionDialog(owner, err);
 			}
     	}
-    
+
     private void doMenuOpenInExcel(final Window owner)
     	{
     	showExceptionDialog(owner,"DO NOT USE EXCEL");
     	}
-    
+
     /** open index a BAM file */
     private void doMenuIndexBam(final Window owner)
 		{
@@ -662,10 +662,10 @@ public class JfxNgs extends Application {
 	                    .open(file);
 	    				;
 	    		BAMIndexer.createIndex(bam, output);
-	    		
+
 	    		}
 	    	catch(final Exception err)
-	    		{	
+	    		{
 				showExceptionDialog(owner, err);
 				break;
 	    		}
@@ -676,8 +676,8 @@ public class JfxNgs extends Application {
 	    	}
 		}
 
-    
-    
+
+
     List<MenuItem> createCommonMenuItems(final Stage stage) {
     	final List<MenuItem> L=new ArrayList<>();
     	L.add(createMenuItem("About...",()->doMenuAbout(stage)));
@@ -694,7 +694,7 @@ public class JfxNgs extends Application {
         L.add(createMenuItem("Close",()->stage.hide()));
         return L;
     	}
-    
+
     private File tryDownloadBamIndex(final String url)
     	throws IOException
     	{
@@ -729,15 +729,15 @@ public class JfxNgs extends Application {
     		}
     	throw new IOException("cannot get bam index for "+url);
     	}
-    
-    
+
+
     void openNgsFile(final Window owner)
 		{
 		final FileChooser fc = newFileChooser();
 		final List<String> suffixes=new ArrayList<String>();
 		suffixes.addAll(VcfStage.EXTENSION_FILTER.getExtensions());
 		suffixes.addAll(BamStage.EXTENSION_FILTER.getExtensions());
-		
+
 		final FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
 				"Bam or VCF files",
 				suffixes
@@ -773,7 +773,7 @@ public class JfxNgs extends Application {
 				} catch (final Exception err) {
 					CloserUtil.close(input);
 					showExceptionDialog(owner, err);
-					}				
+					}
 		    	}
 			else
 				{
@@ -781,7 +781,7 @@ public class JfxNgs extends Application {
 				}
 			}
 		}
-    
+
     /** open index a VCF file */
     private void doMenuIndexVcf(final Window owner)
 		{
@@ -806,10 +806,10 @@ public class JfxNgs extends Application {
     				index.write(output);
     				}
     			catch(final Exception err)
-    				{	
+    				{
     				showExceptionDialog(owner, err);
     				break;
-    				}    			
+    				}
     			}
     		else if(file.getName().endsWith(".vcf"))
     			{
@@ -825,7 +825,7 @@ public class JfxNgs extends Application {
 					index.writeBasedOnFeatureFile(file);
 					}
     			catch(final Exception err)
-					{	
+					{
 					showExceptionDialog(owner, err);
 					break;
 					}
@@ -839,8 +839,8 @@ public class JfxNgs extends Application {
 		}
 
 
-    
-    
+
+
     static void doMenuAbout(final Stage stage)
     	{
     	final Alert alert=new Alert(AlertType.INFORMATION);
@@ -852,7 +852,7 @@ public class JfxNgs extends Application {
 				);
 		alert.showAndWait();
     	}
-    
+
     /** utiliti for create a menuItem */
     static MenuItem createMenuItem(final String label,final Runnable runner)
     	{
@@ -878,16 +878,16 @@ public class JfxNgs extends Application {
     	vbox.setPadding(new Insets(10));
     	dialog.setScene(new Scene(vbox));
     	dialog.initOwner(parentStage);
-    	dialog.initModality(Modality.APPLICATION_MODAL); 
+    	dialog.initModality(Modality.APPLICATION_MODAL);
     	dialog.showAndWait();
-    	
+
     	for(final PrefItem pref: this.all_preferences)
     		{
     		this.preferences.put(pref.key, pref.getValue());
     		}
     	applyPreferences();
     	}
-    
+
     /** apply preferences after application is launched of after the pref dialog was opened*/
     private void applyPreferences()
     	{
@@ -896,10 +896,9 @@ public class JfxNgs extends Application {
 			System.setProperty(pref.key,this.preferences.get(pref.key, ""));
 			}
     	}
-    
+
     public static void main(String[] args) {
     	launch(args);
     }
 
 }
-

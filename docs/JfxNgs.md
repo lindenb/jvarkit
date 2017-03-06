@@ -1,4 +1,4 @@
-**JfxNgs** is a java-based user interface used to display data from Variant Call Format ( VCF) files, or BAM files. 
+**JfxNgs** is a java-based user interface used to display data from Variant Call Format ( VCF) files, or BAM files.
 
 #Screenshots
 
@@ -44,6 +44,9 @@ The program will store temporary files in your TMPDIR (for example, remote index
 
 * The main screen is the first opened window.
 * In the 'File' menu you can open a BAM file, a VCF file, or specify a remote URL to open a remote BAM or a remote VCF file.
+
+Example remote BAM url: OPTIONS XHR https://data.broadinstitute.org/igvdata/BodyMap/hg19/IlluminaHiSeq2000_BodySites/brain_merged/accepted_hits.bam
+
 * There is a text entry to specify a genomic location. This text field can be used to change the genomic locations of all the windows.
 * closing the main screen will exit the application.
 
@@ -51,7 +54,7 @@ The program will store temporary files in your TMPDIR (for example, remote index
 
 * Local VCF files must be indexed with tribble or tabix
 * Remote VCF files must be indexed with tabix.
-* The File menu contains items to load new VCF/bam files as well as items to save the tables. An item "Save variants as" will filter the variants from the source file and save them in another vcf. 
+* The File menu contains items to load new VCF/bam files as well as items to save the tables. An item "Save variants as" will filter the variants from the source file and save them in another vcf.
 * The spinner 'Limit' is used to specify the maximun number of variants **before** filtration that will be read from the VCF input.
 * The 'Goto' field is used to select variant of a genomic location. Syntax is 'chrom' or 'chrom:start' or 'chrom:start-end' .
 * The 'IGV' button will move IGV in the region of the selected variant.
@@ -133,7 +136,7 @@ The 'Validate' button will validate the syntax of the javascript program.
 * The 'Canvas' tab displays a mini-genome browser.
 * The 'Reads' table display the BAM rows.
 * The Flags table contains the sam-fags for the currently selected read.
-* The key-value table contains meta-data of the selected read. 
+* The key-value table contains meta-data of the selected read.
 * A cigar table displays the positions of all the bases of the selected read.
 * The 'Stats' menu will generate various statistics about the BAM file. It can be applied to the current short-read or to the whole BAM file.
 * The 'Snippets' menu contains some javascript examples.
@@ -166,4 +169,3 @@ java -jar dist/jfxngs.jar "http://path/to/file.vcf.gz" "/path/to/file.bam"
 ## Author
 
 Pierre Lindenbaum PhD Insitut du Thorax , UMR1087 , Nantes, France. @yokofakun
-

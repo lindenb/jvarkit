@@ -8,9 +8,19 @@ record.getReadUnmappedFlag()==false &amp;&amp; (
 </code>
 
 <code label="Reads Length between 10 and 50">
-record.getReadLength()&gt;10 &amp;&amp; record.getReadLength.()&lt;50
+record.getReadLength()&gt;10 &amp;&amp; record.getReadLength()&lt;50
 </code>
 
+<code label="Read string contains EcoRI">
+record.getReadString().contains("GAATTC");
+</code>
 
-
+<code label="Read in Lane 3">
+/** assume read name looks like 'HWI-BRUNOP16X_0001:3:63:18606:91538' */
+var tokens=record.getReadName().split(/\:/);
+tokens.length>2 &amp;&amp; tokens[1].equals("3");
+</code>
+<code label="Disjoint Chromosomes">
+record.getReadPairedFlag() &amp;&amp; !record.getReadUnmappedFlag() &amp;&amp; !record.getMateUnmappedFlag()  &amp;&amp; !record.getReferenceName().equals(record.getMateReferenceName());
+</code>
 </snippets>
