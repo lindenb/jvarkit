@@ -232,6 +232,7 @@ public class JfxNgs extends Application {
 	
 	final PrefItem pref_bam_max_seq_length_displayed = new PrefItem("bam.max.seq.length.displayed", "Max sequence length to be displayed",null);
 	final PrefItem pref_bam_max_cigar_items_displayed = new PrefItem("bam.cigar.max.items", "Max number of cigar elements to be displayed",null);
+	final PrefItem pref_vcf_max_allele_length_displayed = new PrefItem("allele.max.length", "Max Allele size to be displayed",null);
 	
 	
 	private final PrefItem all_preferences[]=new PrefItem[]{
@@ -240,7 +241,8 @@ public class JfxNgs extends Application {
 			pref_max_sam_items,
 			pref_max_vcf_items,
 			pref_bam_max_seq_length_displayed,
-			pref_bam_max_cigar_items_displayed
+			pref_bam_max_cigar_items_displayed,
+			pref_vcf_max_allele_length_displayed
 		};
 
 	

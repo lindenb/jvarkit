@@ -391,12 +391,39 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	private final TextField tfFilterInfo=new TextField();
 	private final AnnPredictionParser annPredictionParser;
 	private final VepPredictionParser vepPredictionParser;
+	/* don't display allele if it's too big */
+	private final Function<Allele,String> allele2stringConverter;
+	
 	VcfStage(final JfxNgs owner,final VcfFile vcfFile) throws IOException {
 		super(owner,vcfFile);
 		final VCFHeader header= vcfFile.getHeader();
 		
         this.annPredictionParser=new AnnPredictionParserFactory(header).get();
         this.vepPredictionParser=new VepPredictionParserFactory(header).get();
+        
+        /* create allele2stringConverter , it won't display read length having more than xxx bases*/
+        {
+        	int prefnum=0;
+        	try {
+        		prefnum=Integer.parseInt(this.owner.preferences.get(this.owner.pref_vcf_max_allele_length_displayed.key,"100"));
+        	} catch(final NumberFormatException err) {
+        		prefnum=100;
+        	}
+        	final int vcf_max_allele_length = prefnum;
+        	this.allele2stringConverter = new Function<Allele, String>() {
+				@Override
+				public String apply(final Allele t) {
+					if(t==null) return null;
+					if(t.isNoCall()) return Allele.NO_CALL_STRING; 
+					if(t.isSymbolic()) return t.getDisplayString();
+					if(vcf_max_allele_length>=0 && t.length() > vcf_max_allele_length) {
+						return t.getDisplayString().substring(0, vcf_max_allele_length)+"... (len="+t.length()+")";
+					}
+					return t.getDisplayString();
+				}
+			};
+        }
+        
         
         //selectFlagMenu.getItems().addAll(flag2filterOutMenuItem.values());
         final VBox vbox1 = new VBox();
@@ -802,8 +829,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		table.getColumns().add(makeColumn("CHROM", V->V.getContig()));
         table.getColumns().add(formatIntegerColumn(makeColumn("POS", V->V.getStart())));
         table.getColumns().add(makeColumn("ID", V->V.hasID()?V.getID():null));
-        table.getColumns().add(makeColumn("REF", V->V.getReference().getDisplayString()));
-        table.getColumns().add(makeColumn("ALT", V->V.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(","))));
+        table.getColumns().add(makeColumn("REF", V->allele2stringConverter.apply(V.getReference())));
+        table.getColumns().add(makeColumn("ALT", V->V.getAlternateAlleles().stream().map(A->allele2stringConverter.apply(A)).collect(Collectors.joining(","))));
         table.getColumns().add(makeColumn("FILTER", V->V.getFilters().stream().collect(Collectors.joining(","))));
         table.getColumns().add(makeColumn("QUAL", V->V.hasLog10PError()?V.getPhredScaledQual():null));
         
@@ -879,7 +906,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		final TableView<Allele> table=new TableView<>();
 		table.getColumns().add(makeColumn("REF",A->A.isReference()?"*":null));
 		table.getColumns().add(makeColumn("Sym.",A->A.isSymbolic()?"*":null));
-		table.getColumns().add(makeColumn("Bases.",A->A.getBaseString()));
+		table.getColumns().add(makeColumn("Bases.",A->allele2stringConverter.apply(A)));
 		table.getColumns().add(makeColumn("Length.",A->{if(A.isSymbolic()) return (Integer)null;return A.length();}));
 		table.setPlaceholder(new Label("No Allele."));
 		return table;
@@ -897,7 +924,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 				public String apply(final Genotype gt)
 					{
 					if(gt==null || !gt.isCalled()) return null;
-					return gt.getAlleles().stream().map(S->S.getBaseString()).collect(Collectors.joining("/"));
+					return gt.getAlleles().stream().map(S->allele2stringConverter.apply(S)).collect(Collectors.joining(gt.isPhased()?"|":"/"));
 					}
 				};
 			
@@ -1088,7 +1115,22 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
             newcol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<Genotype,String>, ObservableValue<String>>() {				
 				@Override
 				public ObservableValue<String> call(CellDataFeatures<Genotype, String> param) {
-					Object o = param.getValue().getAnyAttribute(param.getTableColumn().getText());
+					final String delim;
+					Object o;
+					if(param.getTableColumn().getText().equals(VCFConstants.GENOTYPE_KEY))
+						{
+						delim =  param.getValue().isPhased()?"|":"/";
+						o = param.getValue().
+								getAlleles().
+								stream().map(A->allele2stringConverter.apply(A)).
+								collect(Collectors.toList());
+						}
+					else
+						{
+						delim=",";
+						o = param.getValue().getAnyAttribute(param.getTableColumn().getText());
+						}
+					
 					if(o==null)
 						{
 						return new ReadOnlyObjectWrapper<String>(null);
@@ -1096,7 +1138,6 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 					if(o instanceof List)
 						{
 						List<?> L=(List<?>)o;
-						String delim=(param.getTableColumn().getText().equals(VCFConstants.GENOTYPE_KEY) && param.getValue().isPhased()?"|":",");
 						o = L.stream().map(S -> String.valueOf(S)).collect(Collectors.joining(delim)).toString();
 						}
 					return new ReadOnlyObjectWrapper<String>(String.valueOf(o));

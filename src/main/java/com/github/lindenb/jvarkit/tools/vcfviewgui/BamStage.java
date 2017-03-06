@@ -1586,7 +1586,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     		}
     	if(iter!=null) iter.close();
     	this.canvasScrolVInCoverage.setMin(0);
-    	int max_depth=pos2pileup.values().stream().
+    	final int max_depth=pos2pileup.values().stream().
     			map(P->P.depth()).
     			max((A,B)->(A.compareTo(B))).
     			orElse(0)
