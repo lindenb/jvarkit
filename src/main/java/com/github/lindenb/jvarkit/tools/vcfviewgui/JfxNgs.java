@@ -206,7 +206,7 @@ public class JfxNgs extends Application {
     private final List<NgsStage<?,?>> all_opened_stages=new ArrayList<>();
 
     /** class used to store key/value for preferences */
-    private static class PrefItem
+    static class PrefItem
     	{
     	final String key;
     	final String label;
@@ -229,14 +229,21 @@ public class JfxNgs extends Application {
 	private final PrefItem pref_httpsPort = new PrefItem("https.proxyPort", "Https Proxy Port",null);
 	private final PrefItem pref_max_sam_items = new PrefItem(BamStage.SPINNER_VALUE_KEY, "Default number of Reads",null);
 	private final PrefItem pref_max_vcf_items = new PrefItem(VcfStage.SPINNER_VALUE_KEY, "Default number of Variants",null);
+	
+	final PrefItem pref_bam_max_seq_length_displayed = new PrefItem("bam.max.seq.length.displayed", "Max sequence length to be displayed",null);
+	final PrefItem pref_bam_max_cigar_items_displayed = new PrefItem("bam.cigar.max.items", "Max number of cigar elements to be displayed",null);
+	
+	
 	private final PrefItem all_preferences[]=new PrefItem[]{
 			pref_httpHost,pref_httpPort,
 			pref_httpsHost,pref_httpsPort,
 			pref_max_sam_items,
-			pref_max_vcf_items
+			pref_max_vcf_items,
+			pref_bam_max_seq_length_displayed,
+			pref_bam_max_cigar_items_displayed
 		};
 
-
+	
 
     /** utility Function to convert base to Color */
     public static final Function<Character, Color> BASE2COLOR= new Function<Character, Color>() {

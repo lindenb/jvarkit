@@ -396,6 +396,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     private final TableView<SamFlagRow> flagsTable;
     private final TableView<SAMTagAndValue> metaDataTable;
     private final TableView<CigarAndBase> cigarTable;
+    private final TableView<CigarElement> cigarElementTable;
     /** table of supplementary alignments */
     private final TableView<SuplementaryAlign> suplAlignTable;
     private final TableView<Pileup> pileupTable;
@@ -516,9 +517,11 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         /* build the cigar table */
         this.cigarTable = createCigarTable();
         this.suplAlignTable = createSuplAlignTable();
+        this.cigarElementTable = createCigarElementTable();
         final javafx.scene.control.TabPane tabpane2=new TabPane();
         tabpane2.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         tabpane2.getTabs().add( new Tab("Cigar",  this.cigarTable ));
+        tabpane2.getTabs().add( new Tab("Cigar Elements",  this.cigarElementTable ));
         tabpane2.getTabs().add( new Tab("SA",  this.suplAlignTable ));
         
         split2.getItems().add(tabpane2); 
@@ -533,6 +536,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
             	metaDataTable.getItems().clear();
             	cigarTable.getItems().clear();
             	suplAlignTable.getItems().clear();
+            	this.cigarElementTable.getItems().clear();
             	}
             else
             	{
@@ -552,6 +556,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
             	
             	if(!newSelection.getReadUnmappedFlag() && newSelection.getCigar()!=null)
             		{
+            		this.cigarElementTable.getItems().setAll(newSelection.getCigar().getCigarElements());
+            		
             		final List<CigarAndBase> M = new ArrayList<>();
             		int posInRead=0;
             		int posInRef= newSelection.getUnclippedStart();
@@ -604,6 +610,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
             	else
             		{
             		cigarTable.getItems().clear();
+            		cigarElementTable.getItems().clear();
             		}
             	}
         });
@@ -740,7 +747,24 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 
     private TableView<SAMRecord> makeRecordTable() {
     	final Font font1=new Font("Courier", 9);
-
+    	
+    	/* get max SEQ length displayed */
+    	int prefnum=0;
+    	try {
+    		prefnum=Integer.parseInt(this.owner.preferences.get(this.owner.pref_bam_max_seq_length_displayed.key,"500"));
+    	} catch(final NumberFormatException err) {
+    		prefnum=500;
+    	}
+    	final int max_seq_length=prefnum;
+    	
+    	/* get MAX number of items in cigar */
+    	try {
+    		prefnum=Integer.parseInt(this.owner.preferences.get(this.owner.pref_bam_max_cigar_items_displayed.key,"50"));
+    	} catch(final NumberFormatException err) {
+    		prefnum=50;
+    	}
+    	final int max_items_in_cigar = prefnum;
+    	
     	final TableView<SAMRecord>  table = new TableView<SAMRecord>();
     	table.getColumns().add(makeColumn("Read-Name",REC->REC.getReadName()));
     	table.getColumns().add(makeColumn("Flag",REC->REC.getFlags()));
@@ -784,6 +808,13 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	            setGraphic(null);
     	        	return;
     	        	}
+    	        
+    	        if(cigar.numCigarElements()>= max_items_in_cigar) {
+    	        	setGraphic(null);
+    	        	setText(" num(items) > "+max_items_in_cigar);
+    	        	return ;
+    	        	}
+    	        
     	        final List<Text> L=new ArrayList<>(cigar.numCigarElements());
     	        for(final CigarElement ce: cigar.getCigarElements()) {
     	        	final Text txt=new Text(String.valueOf(ce.getLength())+(char)CigarOperator.enumToCharacter(ce.getOperator()));
@@ -830,6 +861,13 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	            setGraphic(null);
     	        	return;
     	        	}
+    	        
+    	        if(item.length() >= max_seq_length) {
+    	        	setGraphic(null);
+    	        	setText("len > "+max_seq_length);
+    	        	return ;
+    	        	}
+    	        
     	        final List<Text> L=new ArrayList<>(item.length());
     	        for(int i=0;i< item.length();++i) {
     	        	final Text txt=new Text(String.valueOf(item.charAt(i)));
@@ -859,6 +897,13 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	            setGraphic(null);
     	        	return;
     	        	}
+
+    	        if(item.length() >= max_seq_length) {
+    	        	setGraphic(null);
+    	        	setText("len > "+max_seq_length);
+    	        	return ;
+    	        	}
+
     	        final List<Text> L=new ArrayList<>(item.length());
     	        for(int i=0;i< item.length();++i) {
     	        	char c=item.charAt(i);
@@ -1195,6 +1240,17 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	gc.setStroke(Color.BLACK);
 		gc.rect(0,0,canvaswidth-1,canvasheight-1);
     	}
+    
+    /* create table of CigarElement */
+    private TableView<CigarElement> createCigarElementTable()
+	    {
+	    final TableView<CigarElement> table=new TableView<>();
+		table.getColumns().add(makeColumn("Op.", O->O.getOperator().name()));
+		table.getColumns().add(makeColumn("Length",param-> param.getLength()));
+		table.setPlaceholder(new Label("No Cigar"));
+	    return table;
+	    }
+    
     
     private TableView<SamFlagRow> createSamFlagTable()
         {
