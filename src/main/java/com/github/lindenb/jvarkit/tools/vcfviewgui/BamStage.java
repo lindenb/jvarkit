@@ -408,6 +408,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     private final CheckBox canvasShowReadName = new CheckBox("Show Read Name");
     private final CheckBox canvasShowClip = new CheckBox("Show Clip");
     private final ComboBox<Integer> canvasBaseSizeCombo = new ComboBox<>(FXCollections.observableArrayList(4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20));
+    /**  columns specific of paired-end data */ 
+    private final List<TableColumn<SAMRecord, ?>> pairedEndColumns = new ArrayList<>();
     
     BamStage(final JfxNgs owner,
     		final BamFile bamFile
@@ -765,6 +767,14 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	}
     	final int max_items_in_cigar = prefnum;
     	
+    	/* utility function to make column specific of paired data */
+    	final Function<TableColumn<SAMRecord,?>,TableColumn<SAMRecord,?>> insertPairdColumn = TC->{
+    			this.pairedEndColumns.add(TC);
+    			return TC;
+    			};
+ 
+    	
+    	
     	final TableView<SAMRecord>  table = new TableView<SAMRecord>();
     	table.getColumns().add(makeColumn("Read-Name",REC->REC.getReadName()));
     	table.getColumns().add(makeColumn("Flag",REC->REC.getFlags()));
@@ -840,9 +850,9 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	
     	table.getColumns().add(tc0);
     	
-    	table.getColumns().add(formatIntegerColumn(makeColumn("LEN",REC-> !REC.getReadPairedFlag() || REC.getMateUnmappedFlag()?null:REC.getInferredInsertSize())));
-    	table.getColumns().add(makeColumn("Mate-Ref",REC->!REC.getReadPairedFlag() || REC.getMateUnmappedFlag()?null:REC.getMateReferenceName()));
-    	table.getColumns().add(formatIntegerColumn(makeColumn("Mate-Pos",REC-> !REC.getReadPairedFlag() || REC.getMateUnmappedFlag()?null: REC.getMateAlignmentStart())));
+    	table.getColumns().add(insertPairdColumn.apply(formatIntegerColumn(makeColumn("LEN",REC-> !REC.getReadPairedFlag() || REC.getMateUnmappedFlag()?null:REC.getInferredInsertSize()))));
+    	table.getColumns().add(insertPairdColumn.apply(makeColumn("Mate-Ref",REC->!REC.getReadPairedFlag() || REC.getMateUnmappedFlag()?null:REC.getMateReferenceName())));
+    	table.getColumns().add(insertPairdColumn.apply(formatIntegerColumn(makeColumn("Mate-Pos",REC-> !REC.getReadPairedFlag() || REC.getMateUnmappedFlag()?null: REC.getMateAlignmentStart()))));
     	
     	
     	TableColumn<SAMRecord, String> tc = makeColumn("SEQ",REC->REC.getReadString());
@@ -850,7 +860,6 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	// http://stackoverflow.com/questions/42187987/
     	tc.setCellFactory(tv -> new TableCell<SAMRecord, String>() { 
     		final TextFlow textFlow = new TextFlow();
-    		
     	    @Override
     	    protected void updateItem(final String item, boolean empty) {
     	        super.updateItem(item, empty);
@@ -1616,6 +1625,12 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     		{
     		super.seqDictionaryCanvas.setItemsInterval(null,null);
     		}
+    	
+    	/* show hide columns for paired end data if no paired data found */
+    	{
+    	final boolean contains_paired= 	this.recordTable.getItems().stream().anyMatch(S->S.getReadPairedFlag());
+    	for(final TableColumn<SAMRecord, ?> tc: this.pairedEndColumns) tc.setVisible(contains_paired);
+    	}
     	
     	repaintCanvas();
     	}
