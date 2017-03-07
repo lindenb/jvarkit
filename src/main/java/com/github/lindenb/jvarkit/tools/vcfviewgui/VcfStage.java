@@ -394,6 +394,26 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	/* don't display allele if it's too big */
 	private final Function<Allele,String> allele2stringConverter;
 	
+    /** bioalcidae instance */
+    private final AbstractAwkLike bioalcidae=new  AbstractAwkLike()
+    		{
+    		@Override
+			protected String getHelpString() {
+				return super.getHelpString()+"\nThe script injects:\n"+
+						"* 'header' a ( "+VCFHeader.class.getName()+" )\n"+
+						"* 'iter' an Iterator over instance of "+VariantContext.class.getName()+" )\n"
+						;
+				}
+    	
+    		@Override
+    		protected javax.script.SimpleBindings completeBindings(javax.script.SimpleBindings sb, final VCFHeader h)
+    			{
+    			sb.put("tools", new VcfTools(h, getPedigree()));
+    			return sb;
+    			}
+    		};
+
+	
 	VcfStage(final JfxNgs owner,final VcfFile vcfFile) throws IOException {
 		super(owner,vcfFile);
 		final VCFHeader header= vcfFile.getHeader();
@@ -1508,11 +1528,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	final Menu menu = super.createJavascriptSnippetMenu();
     	menu.getItems().add(new SeparatorMenuItem());
     	
-    	MenuItem item= new MenuItem("Insert Samples as Array");
+    	MenuItem item= new MenuItem("Insert Samples' name as Array");
     	menu.getItems().add(item);
     	menu.setOnAction(AE->{
     		final int caret = super.javascriptArea.getCaretPosition();
-        	final StringBuilder sb=new StringBuilder("var pedigree=[").
+        	final StringBuilder sb=new StringBuilder("var sampleNames=[").
         			append(getVcfFile().getHeader().getSampleNamesInOrder().stream().map(S->"\""+S+"\"").collect(Collectors.joining(","))).
         			append("];\n")
         			;
@@ -1521,5 +1541,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	
     	return menu;
     	}
-    
+    /** invoke bioalcidae */
+   @Override
+   void invokeBioalcidae()
+    	{
+    	this.bioalcidae.show();
+    	}
+
 	}

@@ -48,6 +48,7 @@ import java.util.stream.Stream;
 
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
+import javax.script.SimpleBindings;
 
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
@@ -89,6 +90,8 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -403,13 +406,32 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     private final Map<SAMFlag,CheckMenuItem> flag2filterInMenuItem=new HashMap<>();
     private final Map<SAMFlag,CheckMenuItem> flag2filterOutMenuItem=new HashMap<>();
     private final Canvas canvas = new Canvas(900, 300);
-    private final ScrollBar canvasScrollHRecordIndex = new ScrollBar();
+    private final ScrollBar canvasScrollHGenomicLoc = new ScrollBar();
     private final ScrollBar canvasScrolVInCoverage = new ScrollBar();
     private final CheckBox canvasShowReadName = new CheckBox("Show Read Name");
     private final CheckBox canvasShowClip = new CheckBox("Show Clip");
     private final ComboBox<Integer> canvasBaseSizeCombo = new ComboBox<>(FXCollections.observableArrayList(4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20));
     /**  columns specific of paired-end data */ 
     private final List<TableColumn<SAMRecord, ?>> pairedEndColumns = new ArrayList<>();
+    /** bioalcidae instance */
+    private final AbstractAwkLike bioalcidae=new  AbstractAwkLike()
+    		{
+			@Override
+			protected String getHelpString() {
+				return super.getHelpString()+"\nThe script injects:\n"+
+						"* 'header' a ( "+SAMFileHeader.class.getName()+" )\n"+
+						"* 'iter' an Iterator over instance of "+SAMRecord.class.getName()+" )\n"
+						;
+				}
+
+    	
+    	
+	    	 @Override 
+	    	 protected SimpleBindings completeBindings(final SimpleBindings sb,final SAMFileHeader header) {
+	    		 sb.put("tools", new BamTools());
+				 return sb;
+			 	}
+    		};
     
     BamStage(final JfxNgs owner,
     		final BamFile bamFile
@@ -647,9 +669,9 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         /* CANVAS STUFFF */
         final BorderPane canvasPane = new BorderPane(this.canvas);
         canvasPane.setPadding(new Insets(10));
-        this.canvasScrollHRecordIndex.setOrientation(Orientation.HORIZONTAL);
-        canvasPane.setBottom(this.canvasScrollHRecordIndex);
-        this.canvasScrollHRecordIndex.setTooltip(new Tooltip("Available records.")); 
+        this.canvasScrollHGenomicLoc.setOrientation(Orientation.HORIZONTAL);
+        canvasPane.setBottom(this.canvasScrollHGenomicLoc);
+        this.canvasScrollHGenomicLoc.setTooltip(new Tooltip("Genomic Position")); 
         this.canvasScrolVInCoverage.setOrientation(Orientation.VERTICAL);
         canvasPane.setRight(this.canvasScrolVInCoverage);
         this.canvasScrolVInCoverage.setTooltip(new Tooltip("Move In coverage.")); 
@@ -669,7 +691,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         
         this.canvasShowReadName.setOnAction(E->repaintCanvas());
         this.canvasShowClip.setOnAction(E->repaintCanvas());
-        this.canvasScrollHRecordIndex.valueProperty().addListener(E->repaintCanvas());
+        this.canvasScrollHGenomicLoc.valueProperty().addListener(E->repaintCanvas());
         this.canvasScrolVInCoverage.valueProperty().addListener(E->repaintCanvas());
         this.canvasBaseSizeCombo.valueProperty().addListener(E->repaintCanvas());
         
@@ -1015,26 +1037,26 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	final List<SAMRecord> records=getDisplayableSamRecordStream().collect(Collectors.toList());
     	if(records.isEmpty()) return;
  
+    	final long genomicIndex = (long)this.canvasScrollHGenomicLoc.getValue();
+    	final ContigPos contigStart = super.convertGenomicIndexToContigPos(genomicIndex);
+    	if(contigStart==null) return;
     	
-    	final int recordStart=(int)this.canvasScrollHRecordIndex.getValue();
-    	if(recordStart>=records.size()) return;
-    	int recordIndex=recordStart;
-    	final int chromStart=records.get(recordStart).getUnclippedStart();
+    	final int chromStart=contigStart.position;
     	final int chromLen=(int)(canvaswidth/baseSize);
     	if(chromLen==0) return;
 
     	
     	/* pileup record */
     	final List<List<XYRecord>> yxrows = new ArrayList<>();
-    	for(int i=recordStart;i< records.size();++i)
+    	for(final SAMRecord rec:records)
     		{
-    		final SAMRecord rec = records.get(i);
-    		if(!rec.getReferenceName().equals(records.get(recordStart).getReferenceName())) {
+    		if(!rec.getReferenceName().equals(contigStart.getContig())) {
 				continue;
 				}
-    		if(rec.getUnclippedStart()>(chromStart+chromLen)) break;
-    		if(rec.getUnclippedEnd()<(chromStart)) continue;
     		final XYRecord newxy=new XYRecord(rec);
+    		if(rec.getStart()>(chromStart+chromLen)) break;
+    		if(rec.getEnd()<(chromStart)) continue;
+
     		int z=0;
     		for(z=0;z< yxrows.size();++z )
     			{
@@ -1053,7 +1075,6 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     			final List<XYRecord> row=new ArrayList<>();
     			row.add(newxy);
     			yxrows.add(row);
-				
     			}
     		}
     	
@@ -1067,7 +1088,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 		final Hershey hershey=new Hershey();
 		
 		// paint contig lines
-		hershey.paint(gc,records.get(recordStart).getContig(),1,0,baseSize*records.get(recordStart).getContig().length(),baseSize-2);
+		hershey.paint(gc,contigStart.getContig(),1,0,baseSize*contigStart.getContig().length(),baseSize-2);
 		
 		// paint vertical lines
 		for(int x=chromStart;x<chromStart+chromLen;++x)
@@ -1083,6 +1104,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 				hershey.paint(gc,s,px,baseSize,baseSize*s.length(),baseSize-1);
 				}
 			}
+		
 		gc.setLineWidth(1);
 		for(int yy=(int)this.canvasScrolVInCoverage.getValue();
 				y<canvasheight &&
@@ -1430,6 +1452,9 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	final String location = this.gotoField.getText().trim();
     	final CloseableIterator<SAMRecord> iter;
     	final java.util.function.Predicate<SAMRecord> recFilter=makeFlagPredicate();
+    	Long canvasFirstRecordGenomicIndex=null;
+    	Long canvasLastRecordGenomicIndex=null;
+
     	
     	try {
     	if(location.isEmpty())
@@ -1497,7 +1522,19 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     			}    		
     		if(!recFilter.test(rec)) continue;
     		L.add(rec);
-    		
+    		/* get bounds for canvas genmic browser */
+    		if(!rec.getReadUnmappedFlag() && rec.getCigar()!=null) {
+    			final long endIndex =convertContigPosToGenomicIndex(new ContigPos(rec.getContig(),rec.getUnclippedEnd()));
+	    		if(canvasFirstRecordGenomicIndex==null)
+	    			{
+	    			canvasFirstRecordGenomicIndex = convertContigPosToGenomicIndex(new ContigPos(rec.getContig(),rec.getUnclippedStart()));
+	    			canvasLastRecordGenomicIndex = endIndex;
+	    			}
+	    		else if(canvasLastRecordGenomicIndex< endIndex)
+	    			{
+	    			canvasLastRecordGenomicIndex = endIndex;
+	    			}
+	    		}
     		/* FILL pileup */
     		if(!rec.getReadUnmappedFlag() && rec.getCigar()!=null)
     			{
@@ -1606,12 +1643,26 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	this.recordTable.getItems().setAll(L);
     	this.pileupTable.getItems().setAll(pos2pileup.values());
     	
-    	
-    	final int countDisplayable = (int)getDisplayableSamRecordStream().count();
-    	this.canvasScrollHRecordIndex.setMin(0);
-    	this.canvasScrollHRecordIndex.setMax(countDisplayable);
-    	this.canvasScrollHRecordIndex.setValue(0);
-    	
+    	/* set bounds for canvas */
+ 
+    	if(canvasFirstRecordGenomicIndex!=null && canvasLastRecordGenomicIndex!=null &&
+    			canvasFirstRecordGenomicIndex.longValue() < canvasLastRecordGenomicIndex.longValue() 
+    		)
+    		{
+    		this.canvasScrollHGenomicLoc.setMin(canvasFirstRecordGenomicIndex);
+    		this.canvasScrollHGenomicLoc.setMax(canvasLastRecordGenomicIndex);
+    		//this.canvasScrollHGenomicLoc.setUnitIncrement(1);
+    		//this.canvasScrollHGenomicLoc.setBlockIncrement(Math.max(1.0,Math.min( canvasLastRecordGenomicIndex-canvasFirstRecordGenomicIndex, this.canvas.getWidth())));
+    		this.canvasScrollHGenomicLoc.setValue(canvasFirstRecordGenomicIndex);
+    		}
+    	else
+    		{
+    		this.canvasScrollHGenomicLoc.setMin(0);
+    		this.canvasScrollHGenomicLoc.setMax(0);
+    		this.canvasScrollHGenomicLoc.setValue(0);
+    		this.canvasScrollHGenomicLoc.setBlockIncrement(0);
+    		this.canvasScrollHGenomicLoc.setUnitIncrement(1);
+    		}
     	
     	
     	if(!this.recordTable.getItems().isEmpty())
@@ -1776,4 +1827,12 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     protected Optional<SAMRecord> getCurrentSelectedItem() {
     	return Optional.ofNullable(this.recordTable.getSelectionModel().getSelectedItem());
     	}
+    
+    /** invoke bioalcidae */
+   @Override
+   void invokeBioalcidae()
+    	{
+    	this.bioalcidae.show();
+    	}
+
     }

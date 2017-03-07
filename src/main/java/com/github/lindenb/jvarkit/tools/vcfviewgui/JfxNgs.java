@@ -177,6 +177,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
@@ -419,7 +420,7 @@ public class JfxNgs extends Application {
 
         MenuBar bar=new MenuBar(menu);
         FlowPane flow=new FlowPane(5,5);
-        flow.setPadding(new Insets(10,10,10,10));
+        flow.setPadding(new Insets(10));
         flow.getChildren().add(new Label("Set Location of all frames to:"));
         final TextField textField=new TextField();
         textField.setPrefColumnCount(25);
@@ -445,12 +446,12 @@ public class JfxNgs extends Application {
 				}
 		};
         button.setOnAction(handler);
-        button.setTooltip(new Tooltip("Go the the specified genomic location."));
+        button.setTooltip(new Tooltip("Go the specified genomic location."));
         textField.setOnAction(handler);
 
 
         BorderPane pane=new BorderPane();
-
+        pane.setPadding(new Insets(5));
 
         pane.setBottom(new Label("Author: Pierre Lindenbaum PhD."));
 
@@ -467,7 +468,33 @@ public class JfxNgs extends Application {
     			WindowEvent.WINDOW_SHOWING ,new EventHandler<WindowEvent>() {
                     @Override
                     public void handle(final WindowEvent event) {
-                    	for(final String arg: params.getUnnamed())
+                    	final List<String> unnamedParams = new ArrayList<>(params.getUnnamed());
+                    	String startPos="";
+                    	int optind=0;
+                    	while(optind+1< unnamedParams.size())
+                    		{
+                    		if(unnamedParams.get(optind).equals("-h") || unnamedParams.get(optind).equals("--help"))
+	                			{
+                    			unnamedParams.remove(optind);
+	                			System.out.println("JfxNgs : Pierre Lindenbaum PhD 2017");
+	                			System.out.println("Options:");
+	                			System.out.println(" -h|--help this screen.");
+	                			System.out.println(" -p|--position (string) the starting position");
+	                			Platform.exit();
+	                			}
+                    		else if(unnamedParams.get(optind).equals("-p") || unnamedParams.get(optind).equals("--position"))
+                    			{
+                    			startPos=unnamedParams.get(optind+1);
+                    			unnamedParams.remove(optind+1);
+                    			unnamedParams.remove(optind);
+                    			}
+                    		else
+                    			{
+                    			optind++;
+                    			}
+                    		}
+                    	
+                    	for(final String arg: unnamedParams )
             	        	{
                     		VcfFile vcfin=null;
                     		BamFile bamin=null;
@@ -500,7 +527,7 @@ public class JfxNgs extends Application {
 										}
 	                    			}
                     			if(vcfin!=null) {
-                    				new VcfStage(JfxNgs.this, vcfin).show();
+                    				new VcfStage(JfxNgs.this, vcfin).setLocationOnOpen(startPos).show();
                     				}
                     			else if(bamin!=null) {
                     				new BamStage(JfxNgs.this, bamin).show();
@@ -570,7 +597,7 @@ public class JfxNgs extends Application {
 			}
 		else
 			{
-			String msg=String.valueOf(err);
+			final String msg=String.valueOf(err);
 			alert.setHeaderText(msg);
 			alert.setContentText(msg);
 			alert.getDialogPane().setExpandableContent(new Label(msg));

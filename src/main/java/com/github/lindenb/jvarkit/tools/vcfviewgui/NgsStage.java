@@ -59,6 +59,7 @@ import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
@@ -70,6 +71,7 @@ import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
@@ -79,6 +81,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -93,17 +97,22 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Paint;
 import javafx.scene.paint.Stop;
+import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.stage.FileChooser.ExtensionFilter;
+import javafx.stage.Modality;
 import javafx.util.Callback;
 
 /**
@@ -135,7 +144,9 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	protected final Menu fileMenu=new Menu("File");
 	/** Stats Menu */
 	protected final Menu statsMenu=new Menu("Stats");
-	
+	/** Bioalcidae Menu */
+	protected final Menu bioalcidaeMenu=new Menu("Bioalcidae");
+
     /** limit number of items */
 	protected final Spinner<Integer> maxItemsLimitSpinner=
 			new Spinner<>(0, 1000, 1);
@@ -318,6 +329,186 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 
 		}
 	
+	/** generate Bioalcidae-like window */
+	 protected  abstract class AbstractAwkLike {
+		 protected final TextArea scriptArea= new TextArea();
+		
+		 AbstractAwkLike()
+		 	{
+			this.scriptArea.setPromptText("insert your javascript expression");
+			this.scriptArea.setText("while(iter.hasNext()) {\n"
+					+ " var item= iter.next();\n"
+					+ " out.println(item.getContig()+\"\\t\"+item.getStart()+\"\\t\"+item.getEnd());\n"
+					+ "}\n"
+					);
+		 	}
+		 
+		 protected SimpleBindings completeBindings(final SimpleBindings sb,final HEADERTYPE h) {
+			 return sb;
+		 }
+		 
+		 protected String getHelpString() {
+			 return "This is a graphical interface to a Biolacidae-like tool (see https://github.com/lindenb/jvarkit/wiki/BioAlcidae).\n"+
+					 "This tool is not multihreaded, so you might see the interface freezing as it runs.\n"+
+					 "The filter (including javascript) of the original window are **not** used.\n"+
+					 "Use a your own risk. If your produce an infinite loop, the script might run forever and potentialy might feel your hard-drive.\n"+
+					 "The script injects:\n* out : the output stream, a '"+PrintWriter.class.getName()+"'\n"+
+	    			 "* pedigree ( "+PedFile.class.getName()+" ) (empty for BAM)\n"
+					 ;
+		 }
+		 
+		public void execute(final Stage ownerWindow) 
+			{
+			if(!NgsStage.this.owner.javascriptCompiler.isPresent())
+				{
+				JfxNgs.showExceptionDialog(ownerWindow, "javascript is not supported");
+				return;
+				}
+			final CompiledScript compiledScript;
+			final String expr=this.scriptArea.getText();
+			if(expr.trim().isEmpty())
+				{
+				JfxNgs.showExceptionDialog(ownerWindow, "Empty expression");
+				return;
+				}
+			
+			
+			try {
+				compiledScript = NgsStage.this.owner.javascriptCompiler.get().compile(expr);
+				} 
+			catch(final Throwable err)
+				{
+				JfxNgs.showExceptionDialog(ownerWindow,err);
+				return;
+				}
+			
+			final FileChooser fc=NgsStage.this.owner.newFileChooser();
+			fc.setInitialFileName("output.txt");
+			fc.setSelectedExtensionFilter(new ExtensionFilter("text file", ".txt",".csv"));
+			final File f=fc.showSaveDialog(ownerWindow);
+			if(f==null) return;
+			PrintWriter pw=null;
+			NgsFile<HEADERTYPE,ITEMTYPE> copyNgsFile=null;
+			CloseableIterator<ITEMTYPE> iter=null;
+			try {
+				pw = new PrintWriter(f);
+				copyNgsFile = getNgsFile().reOpen();
+
+				final SimpleBindings bindings= completeBindings(new  SimpleBindings(),copyNgsFile.getHeader());
+				bindings.put("header", copyNgsFile.getHeader());
+				bindings.put("out", pw);
+				bindings.put("iter", iter);
+				
+				compiledScript.eval(bindings);
+				pw.flush();
+				pw.close();
+				pw=null;
+				final Alert alert = new Alert(AlertType.CONFIRMATION, "Done:  " + f + " ?", ButtonType.OK);
+				alert.showAndWait();
+				}
+			catch(final Throwable err) {
+				JfxNgs.showExceptionDialog(ownerWindow, err);
+				}
+			finally {
+				CloserUtil.close(iter);
+				CloserUtil.close(copyNgsFile);
+				CloserUtil.close(pw);
+				}
+			}
+		 
+		public void show() {
+			final Stage dialog = new Stage();
+			dialog.setTitle("Bioalcidae for "+getNgsFile().getSource());
+			
+			VBox contentPane=new VBox(5);
+			final Menu fileMenu = new Menu("File");
+			
+			MenuItem menu=new MenuItem("Save script as...");
+			menu.setOnAction(AE->{});
+			fileMenu.getItems().add(menu);
+			menu=new MenuItem("Load Script ...");
+			menu.setOnAction(AE->{actionLoadScript(dialog, this.scriptArea);});
+			fileMenu.getItems().add(menu);
+			menu=new MenuItem("Validate Script ...");
+			menu.setOnAction(AE->{actionValidateScript(dialog, this.scriptArea);});
+			fileMenu.getItems().add(menu);
+
+			
+			menu=new MenuItem("Run");
+			menu.setOnAction(AE->{execute(dialog);});
+			fileMenu.getItems().add(menu);
+			fileMenu.getItems().add(new SeparatorMenuItem());
+			menu=new MenuItem("Close");
+			menu.setOnAction(AE->{dialog.hide();});
+			fileMenu.getItems().add(menu);
+			
+			/** snippets */
+			
+			final Menu snippetmenu=new Menu("Snippets");
+
+			loadSnippets().stream().filter(C->C.scope!=null && !C.scope.equalsIgnoreCase("bioalcidae")).forEach(
+    				C->{
+    					final MenuItem item=new MenuItem(C.label+
+    							(C.function?"[Function]":"")
+    							);
+						item.setOnAction(new EventHandler<ActionEvent>() {
+							@Override
+							public void handle(ActionEvent event) {
+								if(!C.function)
+									{
+									AbstractAwkLike.this.scriptArea.setText(C.code);
+									}
+								else
+									{
+									final int caret =AbstractAwkLike.this.scriptArea.getCaretPosition();
+									AbstractAwkLike.this.scriptArea.insertText(caret, C.code);
+									}
+							}
+						});
+						snippetmenu.getItems().add(item);	
+    				} );
+		    		
+			final MenuBar menuBar=new MenuBar(fileMenu,snippetmenu);
+			contentPane.getChildren().add(menuBar);
+
+			
+			final FlowPane top=new FlowPane(5,5);
+			Button button=new Button("Save Script as...");
+	    	button.setOnAction(AE->{actionSaveScript(dialog, this.scriptArea);});
+	    	top.getChildren().add(button);
+	    	
+	    	button=new Button("Open Script as ...");
+	    	button.setOnAction(AE->{actionLoadScript(dialog, this.scriptArea);});
+	    	top.getChildren().add(button);
+	    	
+	    	button=new Button("Validate");
+	    	button.setOnAction(AE->{actionValidateScript(dialog, this.scriptArea);});
+	    	top.getChildren().add(button);
+
+	    	contentPane.getChildren().add(top);
+	    	
+			contentPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
+			contentPane.getChildren().add(this.scriptArea);
+			
+			contentPane.getChildren().add(new Separator(Orientation.HORIZONTAL));			
+			final Label helpLabel=new Label(getHelpString());
+			helpLabel.setWrapText(true);
+			contentPane.getChildren().add(helpLabel);
+			
+			button= new Button("Run");
+			button.setFont(Font.font(button.getFont().getFamily(),32));
+			button.setOnAction(AE->{ execute(dialog);});
+			FlowPane flowPane=new FlowPane(button);
+			contentPane.getChildren().add(flowPane);
+			
+			dialog.setScene(new Scene(contentPane));
+			
+			dialog.initOwner(NgsStage.this);
+			dialog.initModality(Modality.APPLICATION_MODAL); 
+			dialog.showAndWait();
+			}
+	 	}
+	 
 	/** javascript filter used to filter a NgsFile*/
     protected static abstract class JavascriptFilter<HEADER,DATATYPE> {
     	/** the compiled script */
@@ -568,6 +759,15 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
         this.menuBar.getMenus().add(this.fileMenu);
     	this.menuBar.getMenus().add(this.statsMenu);
     	this.menuBar.getMenus().add(this.createJavascriptSnippetMenu());
+    	
+    	if(this.owner.javascriptCompiler.isPresent()) {
+	    	this.menuBar.getMenus().add(this.bioalcidaeMenu);
+	    	
+	    	final MenuItem runBioalcidae = new MenuItem("Open Dialog...");
+	    	runBioalcidae.setOnAction(AE->{invokeBioalcidae();});
+	    	this.bioalcidaeMenu.getItems().add(runBioalcidae);
+	    	this.bioalcidaeMenu.getItems().add(new SeparatorMenuItem());
+	    	}
     	}
     
     @Override
@@ -587,88 +787,92 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	Button button= setTooltip( new Button("Save as..."),
     			"Save the Script below in a text file"
     			);
-    	button.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				FileChooser fc= owner.newFileChooser();
-				fc.setSelectedExtensionFilter(JS_EXTENSION_FILTER);
-				File js=owner.updateLastDir(fc.showSaveDialog(NgsStage.this));
-				if(js==null) return;
-				PrintWriter pw=null;
-				try 
-					{
-					pw=new PrintWriter(js);
-					pw.write(javascriptArea.getText());
-					pw.flush();
-					pw.close();
-					}
-				catch(final Exception err)
-					{
-					JfxNgs.showExceptionDialog(NgsStage.this, err);
-					}
-				finally
-					{
-					CloserUtil.close(pw);
-					}
-			}
-			});
+    	button.setOnAction(AE->{actionSaveScript(NgsStage.this, this.javascriptArea);});
     	buttons.add(button);
     	
     	button= setTooltip(new Button("Open..."),
     			"Open a javascript file  that will be used to filter the data");
-    	button.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				final FileChooser fc= owner.newFileChooser();
-				fc.setSelectedExtensionFilter(JS_EXTENSION_FILTER);
-				final File js=owner.updateLastDir(fc.showOpenDialog(NgsStage.this));
-				if(js==null) return;
-				InputStream in=null;
-				try 
-					{
-					in= new FileInputStream(js);
-					javascriptArea.setText(IOUtil.readFully(in));
-					in.close();
-					}
-				catch(final Exception err)
-					{
-					JfxNgs.showExceptionDialog(NgsStage.this, err);
-					}
-				finally
-					{
-					CloserUtil.close(in);
-					}
-			}
-			});
+    	button.setOnAction(AE->{actionLoadScript(NgsStage.this, this.javascriptArea);});
     	buttons.add(button);
     	
     	button=setTooltip(
     			new Button("Validate"),
     			"Validate the Javascript syntax of the script below"
     			);
-    	button.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				final String script=javascriptArea.getText();
-				try 
-					{
-					owner.javascriptCompiler.get().compile(script);
-					final Alert alert=new Alert(AlertType.CONFIRMATION);
-					alert.setAlertType(AlertType.CONFIRMATION);
-					alert.setTitle("OK");
-					alert.setContentText("OK. Script is compilable.");
-					alert.showAndWait();
-					}
-				catch(final Exception err)
-					{
-					JfxNgs.showExceptionDialog(NgsStage.this, err);
-					}
-			}
-			});
+    	button.setOnAction(AE->{actionValidateScript(NgsStage.this, this.javascriptArea);});
     	buttons.add(button);
    	
     	
     	return buttons;
+    	}
+    
+    
+    /** A simple snippet bean */
+    private static class SnippetCode
+    	{
+    	String label="";
+    	String code="";
+    	boolean function=false;
+    	String scope="";
+    	}
+    
+    protected List<SnippetCode> loadSnippets()
+    	{
+    	final String rsrc = getSnippetResourcePath();
+    	if(rsrc==null || rsrc.isEmpty()) return Collections.emptyList();
+    	final List<SnippetCode> snippets = new ArrayList<>();
+		InputStream in=null;
+		XMLEventReader r=null;
+		try
+			{
+			in = getClass().getResourceAsStream(rsrc);
+			if(in!=null)
+				{
+				final XMLInputFactory xif=XMLInputFactory.newFactory();
+				xif.setProperty(XMLInputFactory.IS_COALESCING,Boolean.TRUE);
+				r=xif.createXMLEventReader(in);
+				final QName isFunctionAtt=new QName("is-function");
+				final QName scopeAtt=new QName("scope");
+				final QName labelAtt=new QName("label");
+				final QName nameAtt=new QName("name");
+				while(r.hasNext())
+					{
+					XMLEvent evt=r.nextEvent();
+					if(!evt.isStartElement() ) continue;
+					System.err.println("X1");
+					StartElement start=evt.asStartElement();
+					if(!start.getName().getLocalPart().equals("code")) continue;
+					Attribute isFunction =start.getAttributeByName(isFunctionAtt);
+					Attribute scope =start.getAttributeByName(scopeAtt);
+
+					Attribute attLabel=start.getAttributeByName(labelAtt);
+					if(attLabel==null) attLabel=start.getAttributeByName(nameAtt);
+					if(attLabel!=null && r.hasNext() && r.peek().isCharacters())
+						{
+						final SnippetCode snippet=new SnippetCode();
+						snippet.label = attLabel.getValue();
+						snippet.code = r.nextEvent().asCharacters().getData();
+						snippet.function = isFunction!=null && isFunction.getValue().equals("true");
+						snippet.scope = (scope==null ?"":scope.getValue());
+						snippets.add(snippet);
+						}
+					}
+				}
+			else
+				{
+				LOG.warning("Cannot read snippets "+rsrc);
+				}
+			}
+		catch(Exception err)
+			{
+			LOG.warning(err.getMessage());
+			}
+		finally
+			{
+			CloserUtil.close(r);
+			CloserUtil.close(in);
+			}
+		return snippets;
     	}
     
     /** generate the javascript Menu, containing the snippets.
@@ -677,94 +881,48 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
      */
     protected Menu createJavascriptSnippetMenu() {
     	final Menu menu=new Menu("Snippets");
-    	final String rsrc = getSnippetResourcePath();
-    	if(rsrc!=null && !rsrc.isEmpty()) {
-    		LOG.info("Loading javascript snippets "+rsrc);
-    		InputStream in=null;
-    		XMLEventReader r=null;
-    		try
-    			{
-    			in = getClass().getResourceAsStream(rsrc);
-    			if(in!=null)
-    				{
-    				final XMLInputFactory xif=XMLInputFactory.newFactory();
-    				xif.setProperty(XMLInputFactory.IS_COALESCING,Boolean.TRUE);
-    				r=xif.createXMLEventReader(in);
-    				final QName isFunctionAtt=new QName("is-function");
-    				final QName labelAtt=new QName("label");
-    				final QName nameAtt=new QName("name");
-    				while(r.hasNext())
-    					{
-    					XMLEvent evt=r.nextEvent();
-    					if(!evt.isStartElement() ) continue;
-    					StartElement start=evt.asStartElement();
-    					if(!start.getName().getLocalPart().equals("code")) continue;
-    					Attribute attLabel=start.getAttributeByName(labelAtt);
-    					if(attLabel==null) attLabel=start.getAttributeByName(nameAtt);
-    					if(attLabel!=null && r.hasNext() && r.peek().isCharacters())
-    						{
-    						final Attribute isFunction= start.getAttributeByName(isFunctionAtt);
-        					final MenuItem item=new MenuItem(attLabel.getValue()+
-        							(isFunction==null || !isFunction.getValue().equals("true")?"":"[Function]")
-        							);
-    						final String code= r.nextEvent().asCharacters().getData();
-    						item.setOnAction(new EventHandler<ActionEvent>() {
-								@Override
-								public void handle(ActionEvent event) {
-									if(isFunction==null || !isFunction.getValue().equals("true"))
+    		loadSnippets().stream().filter(C->C.scope==null || !C.scope.equalsIgnoreCase("bioalcidae")).forEach(
+    				C->{
+    					final MenuItem item=new MenuItem(C.label+
+    							(C.function?"[Function]":"")
+    							);
+						item.setOnAction(new EventHandler<ActionEvent>() {
+							@Override
+							public void handle(ActionEvent event) {
+								if(!C.function)
+									{
+									NgsStage.this.javascriptArea.setText(C.code);
+									}
+								else
+									{
+									final int caret = NgsStage.this.javascriptArea.getCaretPosition();
+									NgsStage.this.javascriptArea.insertText(caret, C.code);
+									}
+								Parent parent=NgsStage.this.javascriptArea;
+								while(parent!=null)
+									{
+									if(parent instanceof TabPane)
 										{
-										NgsStage.this.javascriptArea.setText(code);
-										}
-									else
-										{
-										final int caret = NgsStage.this.javascriptArea.getCaretPosition();
-										NgsStage.this.javascriptArea.insertText(caret, code);
-										}
-									Parent parent=NgsStage.this.javascriptArea;
-									while(parent!=null)
-										{
-										if(parent instanceof TabPane)
+										List<Tab> tabs=((TabPane)parent).getTabs();
+										for(int x=0;x<tabs.size();++x)
 											{
-											List<Tab> tabs=((TabPane)parent).getTabs();
-											for(int x=0;x<tabs.size();++x)
+											if(tabs.get(x).getText().equals(JAVASCRIPT_TAB_KEY))
 												{
-												if(tabs.get(x).getText().equals(JAVASCRIPT_TAB_KEY))
-													{
-													((TabPane)parent).getSelectionModel().select(tabs.get(x));
-													break;
-													}
+												((TabPane)parent).getSelectionModel().select(tabs.get(x));
+												break;
 												}
-											break;
 											}
-										parent=parent.getParent();
+										break;
 										}
-									
-									
-								}
-							});
-    						menu.getItems().add(item);
-    						}
-    					}
+									parent=parent.getParent();
+									}
+							}
+						});
+					menu.getItems().add(item);	
     				}
-    			else
-    				{
-    				LOG.warning("Cannot read snippets "+rsrc);
-    				}
-    			}
-    		catch(Exception err)
-    			{
-    			LOG.warning(err.getMessage());
-    			}
-    		finally
-    			{
-    			CloserUtil.close(r);
-    			CloserUtil.close(in);
-    			}
-    		}
-    	else
-    		{
-    		LOG.warning("No snippets defined for "+getClass());
-    		}
+    				
+    				);
+    	
     	return menu;
     	}
     
@@ -1188,4 +1346,114 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	
     	return L;
     	}
-}
+    /** convert a contig pos to genomic index, return -1 on error (contig not found ) */
+    protected long convertContigPosToGenomicIndex(final ContigPos cp) {
+    	if(cp==null || cp.getContig()==null) return -1L;
+    	long n=0L;
+    	for(final SAMSequenceRecord ssr: getNgsFile().getSequenceDictionary().getSequences())
+	    	{
+	    	if(cp.getContig().equals(ssr.getSequenceName()))
+    				{
+    				return n + Math.min( Math.max(1L,cp.position),ssr.getSequenceLength());
+    				}
+	    	n+=ssr.getSequenceLength();
+	    	}
+    	return -1l;
+    	}
+    /** convert a contig pos to genomic index, return null on error (contig not found ) */
+    protected ContigPos convertGenomicIndexToContigPos(long gi) {
+    	if(gi<0L) gi=0L;
+    	long n=0L;
+    	for(final SAMSequenceRecord ssr: getNgsFile().getSequenceDictionary().getSequences())
+	    	{
+	    	if(n<=gi && gi<=n+ssr.getSequenceLength())
+    				{
+    				return new ContigPos(ssr.getSequenceName(),(int)(gi-n));
+    				}
+	    	n+=ssr.getSequenceLength();
+	    	}
+    	return null;
+    	}
+    
+    /** called by JfxNgs add an event handler to show a specific location when the window opens
+     * @param s the location
+     * @return 'this'
+     */
+    NgsStage<HEADERTYPE, ITEMTYPE> setLocationOnOpen(final String s)
+    	{
+    	if(!(s==null || s.trim().isEmpty()))
+    		{
+    		this.addEventHandler(
+        			WindowEvent.WINDOW_SHOWING ,WE-> {
+        					NgsStage.this.gotoField.setText(s);
+                            NgsStage.this.reloadData();   
+                        });
+    		}
+    	return this;
+    	}
+    
+    /** invoke bioalcidae */
+    abstract void invokeBioalcidae();
+    
+    
+    private void actionLoadScript(final Stage dialog,final TextArea scriptArea) {
+		final FileChooser fc= NgsStage.this.owner.newFileChooser();
+		fc.setSelectedExtensionFilter(JS_EXTENSION_FILTER);
+		final File js=NgsStage.this.owner.updateLastDir(fc.showOpenDialog(dialog));
+		if(js==null) return;
+		InputStream in=null;
+		try 
+			{
+			in= new FileInputStream(js);
+			scriptArea.setText(IOUtil.readFully(in));
+			in.close();
+			}
+		catch(final Exception err)
+			{
+			JfxNgs.showExceptionDialog(dialog, err);
+			}
+		finally
+			{
+			CloserUtil.close(in);
+			}
+    	}
+    private void actionSaveScript(final Stage dialog,final TextArea scriptArea) {
+		final FileChooser fc= this.owner.newFileChooser();
+		fc.setSelectedExtensionFilter(JS_EXTENSION_FILTER);
+		final File js= this.owner.updateLastDir(fc.showSaveDialog(dialog));
+		if(js==null) return;
+		PrintWriter pw=null;
+		try 
+			{
+			pw=new PrintWriter(js);
+			pw.write(scriptArea.getText());
+			pw.flush();
+			pw.close();
+			}
+		catch(final Exception err)
+			{
+			JfxNgs.showExceptionDialog(dialog, err);
+			}
+		finally
+			{
+			CloserUtil.close(pw);
+			}
+    	}
+    
+    private void actionValidateScript(final Stage dialog,final TextArea scriptArea) {
+    	try {
+			NgsStage.this.owner.javascriptCompiler.get().compile(scriptArea.getText());
+			final Alert alert=new Alert(AlertType.CONFIRMATION);
+			alert.setAlertType(AlertType.CONFIRMATION);
+			alert.setTitle("OK");
+			alert.setContentText("OK. Script is compilable.");
+			alert.showAndWait();
+			}
+		catch(final Exception err)
+			{
+			JfxNgs.showExceptionDialog(dialog, err);
+			}
+			
+		}
+    
+	}
