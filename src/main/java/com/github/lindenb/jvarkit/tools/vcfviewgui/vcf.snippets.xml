@@ -96,5 +96,24 @@ fractionNoCallPop(variant,["CASE1","CASE2","CASE3"]) < 0.1 && fractionNoCallPop(
 */
 ]]></code>
 
+<code scope="bioalcidae" label="Count Variant/Chromosome"><![CDATA[
+var chrom2count={};
+var n=0;
+while(iter.hasNext()) {
+ var item= iter.next();
+ var contig = item.getContig();
+ if( ! ( contig in chrom2count ) ) {
+   chrom2count[contig]=1;
+  } else  {
+   chrom2count[contig]++;
+  }
+}
+
+for(var contig in  chrom2count)
+{
+out.println(contig+"\t"+chrom2count[contig]);
+}
+]]></code>
+
 
 </snippets>

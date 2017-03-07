@@ -29,6 +29,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,6 +60,7 @@ import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -72,7 +74,6 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -81,11 +82,11 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -150,6 +151,39 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     /** limit number of items */
 	protected final Spinner<Integer> maxItemsLimitSpinner=
 			new Spinner<>(0, 1000, 1);
+	
+	/** Simple Wrapper for Iterator, logging things every xxx seconds */
+	protected  class LogCloseableIterator
+		extends AbstractIterator<ITEMTYPE>
+		implements CloseableIterator<ITEMTYPE>
+		{
+		private final  CloseableIterator<ITEMTYPE> delegate;
+		private long clock = System.currentTimeMillis();
+		LogCloseableIterator(final CloseableIterator<ITEMTYPE> iter) {
+			this.delegate = iter;
+			}
+		
+		@Override
+		protected ITEMTYPE advance() {
+			if( this.delegate.hasNext()) {
+				final ITEMTYPE t= this.delegate.next();
+				long now = System.currentTimeMillis();
+				if(now - this.clock  > 10*1000) {
+					LOG.info(String.valueOf(t.getContig())+":"+t.getStart()+"-"+t.getEnd());
+					this.clock = now;
+					}
+				return t;
+				} else {
+					close();
+					return null;
+				}
+			}
+		
+		@Override
+		public void close() {
+			CloserUtil.close(this.delegate);
+			}
+		}
 
 	/** simple pair chromosome/pos */
 	protected static class ContigPos
@@ -357,7 +391,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 					 ;
 		 }
 		 
-		public void execute(final Stage ownerWindow) 
+		private void execute(final Stage ownerWindow,boolean saveToFile) 
 			{
 			if(!NgsStage.this.owner.javascriptCompiler.isPresent())
 				{
@@ -381,19 +415,30 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				JfxNgs.showExceptionDialog(ownerWindow,err);
 				return;
 				}
-			
-			final FileChooser fc=NgsStage.this.owner.newFileChooser();
-			fc.setInitialFileName("output.txt");
-			fc.setSelectedExtensionFilter(new ExtensionFilter("text file", ".txt",".csv"));
-			final File f=fc.showSaveDialog(ownerWindow);
-			if(f==null) return;
+			File saveAsFile=null;
+			StringWriter saveToStringWriter=null;
+			if(saveToFile)
+				{
+				final FileChooser fc=NgsStage.this.owner.newFileChooser();
+				fc.setInitialFileName("output.txt");
+				fc.setSelectedExtensionFilter(new ExtensionFilter("text file", ".txt",".csv"));
+				saveAsFile =fc.showSaveDialog(ownerWindow);
+				if(saveAsFile==null) return;
+				}
+			else
+				{
+				saveToStringWriter=new StringWriter();
+				}
 			PrintWriter pw=null;
 			NgsFile<HEADERTYPE,ITEMTYPE> copyNgsFile=null;
 			CloseableIterator<ITEMTYPE> iter=null;
 			try {
-				pw = new PrintWriter(f);
+				pw = saveToFile?
+						new PrintWriter(saveAsFile):
+						new PrintWriter(saveToStringWriter)
+						;
 				copyNgsFile = getNgsFile().reOpen();
-
+				iter = new LogCloseableIterator(copyNgsFile.iterator());
 				final SimpleBindings bindings= completeBindings(new  SimpleBindings(),copyNgsFile.getHeader());
 				bindings.put("header", copyNgsFile.getHeader());
 				bindings.put("out", pw);
@@ -403,9 +448,18 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				pw.flush();
 				pw.close();
 				pw=null;
-				final Alert alert = new Alert(AlertType.CONFIRMATION, "Done:  " + f + " ?", ButtonType.OK);
-				alert.showAndWait();
-				}
+				if(saveToStringWriter!=null) {
+					final Stage showResultStage=new Stage();
+					showResultStage.setTitle("BioAlcidae");
+					showResultStage.setScene(new Scene(new ScrollPane(new TextArea(saveToStringWriter.toString()))));
+					showResultStage.show();
+					} 
+				else
+					{
+					final Alert alert = new Alert(AlertType.CONFIRMATION, "Done. ?", ButtonType.OK);
+					alert.showAndWait();
+					}
+				}	
 			catch(final Throwable err) {
 				JfxNgs.showExceptionDialog(ownerWindow, err);
 				}
@@ -434,9 +488,13 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			fileMenu.getItems().add(menu);
 
 			
-			menu=new MenuItem("Run");
-			menu.setOnAction(AE->{execute(dialog);});
+			menu=new MenuItem("Run To File");
+			menu.setOnAction(AE->{execute(dialog,true);});
 			fileMenu.getItems().add(menu);
+			menu=new MenuItem("Run To Dialog");
+			menu.setOnAction(AE->{execute(dialog,false);});
+			fileMenu.getItems().add(menu);
+
 			fileMenu.getItems().add(new SeparatorMenuItem());
 			menu=new MenuItem("Close");
 			menu.setOnAction(AE->{dialog.hide();});
@@ -446,25 +504,12 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			
 			final Menu snippetmenu=new Menu("Snippets");
 
-			loadSnippets().stream().filter(C->C.scope!=null && !C.scope.equalsIgnoreCase("bioalcidae")).forEach(
+			loadSnippets().stream().filter(C->C.isBioalcidaeScope()).forEach(
     				C->{
     					final MenuItem item=new MenuItem(C.label+
     							(C.function?"[Function]":"")
     							);
-						item.setOnAction(new EventHandler<ActionEvent>() {
-							@Override
-							public void handle(ActionEvent event) {
-								if(!C.function)
-									{
-									AbstractAwkLike.this.scriptArea.setText(C.code);
-									}
-								else
-									{
-									final int caret =AbstractAwkLike.this.scriptArea.getCaretPosition();
-									AbstractAwkLike.this.scriptArea.insertText(caret, C.code);
-									}
-							}
-						});
+						item.setOnAction(C.handler(AbstractAwkLike.this.scriptArea) );
 						snippetmenu.getItems().add(item);	
     				} );
 		    		
@@ -495,10 +540,18 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			helpLabel.setWrapText(true);
 			contentPane.getChildren().add(helpLabel);
 			
-			button= new Button("Run");
-			button.setFont(Font.font(button.getFont().getFamily(),32));
-			button.setOnAction(AE->{ execute(dialog);});
-			FlowPane flowPane=new FlowPane(button);
+			FlowPane flowPane=new FlowPane();
+			flowPane.setPadding(new Insets(5));
+			button= new Button("Run To File....");
+			button.setFont(Font.font(button.getFont().getFamily(),24));
+			button.setOnAction(AE->{ execute(dialog,true);});
+			flowPane.getChildren().add(button);
+			button= new Button("Run To Dialog....");
+			button.setFont(Font.font(button.getFont().getFamily(),24));
+			button.setOnAction(AE->{ execute(dialog,false);});
+			flowPane.getChildren().add(button);
+
+			
 			contentPane.getChildren().add(flowPane);
 			
 			dialog.setScene(new Scene(contentPane));
@@ -814,6 +867,26 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	String code="";
     	boolean function=false;
     	String scope="";
+    	
+    	public boolean isFilterScope() { return !isBioalcidaeScope();}
+    	public boolean isBioalcidaeScope() { return scope!=null && scope.equalsIgnoreCase("bioalcidae");}
+    	public EventHandler<ActionEvent> handler(final TextArea textArea) {
+    		return new EventHandler<ActionEvent>() {
+				@Override
+				public void handle(final ActionEvent event) {
+					if(!function)
+						{
+						textArea.setText(code);
+						}
+					else
+						{
+						final int caret = textArea.getCaretPosition();
+						textArea.insertText(caret,code);
+						}	
+				textArea.requestFocus();
+				}
+			};
+    	}
     	}
     
     protected List<SnippetCode> loadSnippets()
@@ -837,13 +910,12 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				final QName nameAtt=new QName("name");
 				while(r.hasNext())
 					{
-					XMLEvent evt=r.nextEvent();
+					final XMLEvent evt=r.nextEvent();
 					if(!evt.isStartElement() ) continue;
-					System.err.println("X1");
-					StartElement start=evt.asStartElement();
+					final StartElement start=evt.asStartElement();
 					if(!start.getName().getLocalPart().equals("code")) continue;
-					Attribute isFunction =start.getAttributeByName(isFunctionAtt);
-					Attribute scope =start.getAttributeByName(scopeAtt);
+					final Attribute isFunction =start.getAttributeByName(isFunctionAtt);
+					final Attribute scope =start.getAttributeByName(scopeAtt);
 
 					Attribute attLabel=start.getAttributeByName(labelAtt);
 					if(attLabel==null) attLabel=start.getAttributeByName(nameAtt);
@@ -881,7 +953,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
      */
     protected Menu createJavascriptSnippetMenu() {
     	final Menu menu=new Menu("Snippets");
-    		loadSnippets().stream().filter(C->C.scope==null || !C.scope.equalsIgnoreCase("bioalcidae")).forEach(
+    		loadSnippets().stream().filter(C->C.isFilterScope()).forEach(
     				C->{
     					final MenuItem item=new MenuItem(C.label+
     							(C.function?"[Function]":"")
@@ -898,24 +970,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 									final int caret = NgsStage.this.javascriptArea.getCaretPosition();
 									NgsStage.this.javascriptArea.insertText(caret, C.code);
 									}
-								Parent parent=NgsStage.this.javascriptArea;
-								while(parent!=null)
-									{
-									if(parent instanceof TabPane)
-										{
-										List<Tab> tabs=((TabPane)parent).getTabs();
-										for(int x=0;x<tabs.size();++x)
-											{
-											if(tabs.get(x).getText().equals(JAVASCRIPT_TAB_KEY))
-												{
-												((TabPane)parent).getSelectionModel().select(tabs.get(x));
-												break;
-												}
-											}
-										break;
-										}
-									parent=parent.getParent();
-									}
+								
 							}
 						});
 					menu.getItems().add(item);	
