@@ -24,11 +24,45 @@ import com.google.gson.JsonParser;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
 
 public class NgsWorkflow extends AbstractNgsWorkflow
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(NgsWorkflow.class);
 	
+	private enum RefSplitType {WHOLE_GENOME,WHOLE_CONTIG,INTERVAL};
+	
+	private abstract class RefSplit
+		{
+		abstract RefSplitType getType();
+		abstract String getToken();
+		}
+	
+	private class NoSplit extends RefSplit
+		{
+		@Override RefSplitType getType() { return RefSplitType.WHOLE_GENOME;}
+		@Override String getToken() { return "";}
+		}
+	
+	private class ContigSplit extends RefSplit
+		{
+		final String contig;
+		ContigSplit(final String contig) {this.contig=contig;}
+		public String getContig() {return contig;}
+		@Override RefSplitType getType() { return RefSplitType.WHOLE_CONTIG;}
+		@Override String getToken() { return "."+getContig();}
+		}
+
+	
+	private class IntervalSplit extends RefSplit
+		{
+		final Interval interval;
+		IntervalSplit(final Interval interval) {this.interval=interval;}
+		public Interval getInterval() {return interval;}
+		@Override RefSplitType getType() { return RefSplitType.INTERVAL;}
+		@Override String getToken() { return "."+getInterval().getContig()+"_"+getInterval().getStart()+"_"+getInterval().getEnd();}
+		}
+		
 	private static interface PropertyKey
 		{
 		public String getKey();
@@ -160,6 +194,10 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			description("Disable cutadapt").
 			def(false).
 			build();
+	private static final PropertyKey PROP_GATK_HAPCALLER_NCT = key("gatk.hapcaller.nct").
+			description("Hapcaller -nct").
+			def("1").
+			build();
 
 	
 	
@@ -248,6 +286,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		private final String description;
 		private final List<Sample> _samples=new ArrayList<>();
 		private final Optional<Capture> capture;
+		private final Pedigree pedigree;
 		Project(final JsonElement root) throws IOException
 			{
 			super(root);
@@ -272,6 +311,14 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			else
 				{
 				this.capture =Optional.empty();
+				}
+			
+			if(json.has("pedigree")) {
+				this.pedigree = new Pedigree(this,json.get("pedigree"));
+				}
+			else
+				{
+				this.pedigree = new Pedigree(this,new JsonObject());
 				}
 			
 			final Set<String> seen=new HashSet<>(); 
@@ -299,6 +346,10 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		
 		public String getDescription() {
 			return description;
+		}
+		
+		public Pedigree getPedigree() {
+			return pedigree;
 		}
 		
 		public List<Sample> getSamples() { return this._samples;}
@@ -329,34 +380,133 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			return this.capture.get();
 			}
 		
-		public  String getGenotypedVcf() {
-			return getVcfDirectory()+"/"+getTmpPrefix()+".Genotyped.vcf.gz";
+		public  String getHapCallerGenotypedVcf() {
+			return getVcfDirectory()+"/"+getTmpPrefix()+"Genotyped.vcf.gz";
 			}
 
 		
+		public List<RefSplit> getHaplotypeCallerSplits() {
+			final List<RefSplit> chroms=new ArrayList<>(25);
+			for(int i=1;i<=22;++i) chroms.add(new ContigSplit(String.valueOf(i)));
+			chroms.add(new ContigSplit("X"));
+			chroms.add(new ContigSplit("Y"));
+			return chroms;
+			}
+		
 		public StringBuilder haplotypeCaller() {
 			final StringBuilder w=new StringBuilder();
+			final List<String> vcfParts=new ArrayList<>();
+			final List<RefSplit> refSplits = getHaplotypeCallerSplits();
+			if(refSplits.isEmpty()) throw new IllegalArgumentException();
 			
-			w.append(getGenotypedVcf()).append(":").append(
-					getSamples().stream().map(S->S.getFinalBam()).collect(Collectors.joining(" "))
-					);
-			if( this.hasCapture())
-            	{
-				w.append(" ").append(getCapture().getExtendedFilename());
-            	}
+			for(final RefSplit split: refSplits)
+				{
+				final String vcfPart;
+				switch(split.getType()) {
+					case WHOLE_GENOME:  vcfPart= getHapCallerGenotypedVcf();break;
+					default:  vcfPart= "$(addsuffix "+split.getToken()+".vcf.gz,"+getHapCallerGenotypedVcf()+")";
+					}
+				
+				vcfParts.add(vcfPart);
+				
+				w.append(vcfPart).append(":").append(getFinalBamList());
+				w.append(" ").append(getPedigree().getPedFilename());
+				if( this.hasCapture())
+	            	{
+					w.append(" ").append(getCapture().getExtendedFilename());
+	            	}
+				w.append("\n");
+				w.append(rulePrefix()+" && ");
+				
+				if( this.hasCapture())
+	            	{
+					switch(split.getType())
+						{
+						case WHOLE_GENOME: break;
+						case INTERVAL:{
+								IntervalSplit tmp= IntervalSplit.class.cast(split);
+								w.append(" awk -F '\t' '($$1==\""+tmp.getInterval().getContig()+" && !("+ 
+										tmp.getInterval().getEnd()+" < int($$2) || int($$3) <"+
+										tmp.getInterval().getStart()+")' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && "); 
+								break;
+								}
+						case WHOLE_CONTIG:
+								{
+								ContigSplit tmp= ContigSplit.class.cast(split);
+								w.append(" awk -F '\t' '($$1==\""+tmp.getContig()+"\")' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && ");
+								break;
+								}
+						default: throw new IllegalStateException();
+						}
+	            	}
+				
+				w.append(" $(java.exe)  -XX:ParallelGCThreads=5 -Xmx2g  -Djava.io.tmpdir=$(dir $@) -jar $(gatk.jar) -T HaplotypeCaller ");
+				w.append("	-R $(REF) ");
+				w.append("	--validation_strictness LENIENT ");
+				w.append("	-I $< -o \"$(addsuffix .tmp.vcf.gz,$@)\" ");
+				//w.print("	--num_cpu_threads_per_data_thread "+  this.getIntProperty("base-recalibrator-nct",1));
+				w.append("	-l INFO ");
+				w.append("	-nct ").append(getAttribute(PROP_GATK_HAPCALLER_NCT));
+				
+				w.append("	--dbsnp \"$(gatk.bundle.dbsnp.vcf)\" ");
+				w.append(" $(foreach A, PossibleDeNovo AS_FisherStrand AlleleBalance AlleleBalanceBySample BaseCountsBySample GCContent ClippingRankSumTest , --annotation ${A} ) ");
+				w.append(" --pedigree ").append(getPedigree().getPedFilename());
+				if( this.hasCapture())
+		            {
+					switch(split.getType())
+						{
+						case WHOLE_GENOME: 	w.append(" -L:"+getCapture().getName()+",BED "+getCapture().getExtendedFilename());
+						case INTERVAL: //through...
+						case WHOLE_CONTIG: w.append(" -L $(addsuffix .bed,$@) ");break;
+						default: throw new IllegalStateException();
+						}
+		            }
+				else
+					{
+					switch(split.getType())
+						{
+						case WHOLE_GENOME: /* nothing */ break;
+						case INTERVAL: {
+							IntervalSplit tmp= IntervalSplit.class.cast(split);
+							w.append(" -L \""+tmp.getInterval().getContig()+":"+ tmp.getInterval().getStart()+"-"+tmp.getInterval().getEnd()+"\" ");
+							break;
+							}
+						case WHOLE_CONTIG: w.append(" -L ").append(ContigSplit.class.cast(split).getContig());break;
+						default: throw new IllegalStateException();
+						}					
+					}
+				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz,$@)\" \"$@\" ");
+				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz.tbi,$@)\" \"$(addsuffix .tbi,$@)\" ");
+				
+				if( this.hasCapture())
+	            	{
+					w.append(" && rm --verbose \"$(addsuffix .bed,$@)\" ");
+	            	}
+				w.append("\n");
+				}
 			
-			if( this.hasCapture())
-	            {
-				w.append(" -L:"+ getCapture().getName()+",BED "+ getCapture().getExtendedFilename());
-	            }
-
+			if(vcfParts.size()>1) {
+				w.append(getHapCallerGenotypedVcf()).append(":");
+				for(final String vcfPart:vcfParts) {
+					w.append(" \\\n\t").append(vcfPart);
+					}
+				w.append("\n");
+				
+				w.append(rulePrefix()).append(" &&  $(java.exe)  -Djava.io.tmpdir=$(dir $@) -jar \"$(picard.jar)\" MergeVcfs O=$(addsuffix .tmp.vcf.gz,$@) ");
+				for(final String vcfPart:vcfParts) {
+					w.append(" I=").append(vcfPart).append(" ");
+					}
+				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz,$@)\" \"$@\" ");
+				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz.tbi,$@)\" \"$(addsuffix .tbi,$@)\" ");
+				w.append("\n");
+				}
 			
 			return w;
 			}
 		
 
 		String getFinalBamList() {
-			return getSamplesDirectory()+"/"+getTmpPrefix()+".final.bam.list";
+			return getSamplesDirectory()+"/"+getTmpPrefix()+"final.bam.list";
 			}
 		
 		void bamList(final PrintWriter w) {
@@ -365,7 +515,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			this.getSamples().stream().forEach(S->{
 				w.print(" && echo \""+S.getFinalBam()+"\" >> $(addsuffix .tmp,$@) ");
 				});
-			w.println(" && mv $(addsuffix .tmp,$@) $@");
+			w.println("&& mv --verbose $(addsuffix .tmp,$@) $@");
 			}
 		
 		@Override
@@ -374,7 +524,67 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			}
 		}
 	
+	/** describe a Pedigree capture */
+	private class Pedigree extends HasAttributes
+		{
+		private final Project project;
+		private final String pedFilename;
+		private final boolean providedByUser;
+		Pedigree( final Project project,final JsonElement root) throws IOException
+			{
+			super(root);
+			this.project=project;
+			if(root!=null && root.isJsonObject() && root.getAsJsonObject().has("ped"))
+				{
+				final JsonObject json=root.getAsJsonObject();
+				this.pedFilename=json.get("ped").getAsString();
+				this.providedByUser = true;
+				}
+			else if(root!=null && root.isJsonPrimitive())
+				{
+				this.pedFilename=root.getAsString();
+				this.providedByUser = true;
+				}
+			else
+				{
+				this.providedByUser = false;
+				this.pedFilename = project.getOutputDirectory()+"/PED/"+getTmpPrefix()+"pedigree.ped";
+				}
+			}
+		public boolean isProvidedByUser() {
+			return providedByUser;
+			}
+		public String getPedFilename() {
+			return pedFilename;
+			}
+		public Project getProject() {
+			return project;
+			}
+		@Override
+		public Project getParent() {
+			return getProject();
+			}
+		void build(final PrintWriter w)
+			{
+			if(isProvidedByUser()) return;
+			w.println(getPedFilename()+":");
+			w.println(rulePrefix()+" && rm --verbose -f $@ $(addsuffix .tmp.ped,$@)");
+			for(final Sample sample: getProject().getSamples())
+				{
+				w.print("\techo '");
+				w.print(String.join("\t",sample.getFamilyId(),sample.getName(),sample.getFatherId(),sample.getMotherId(),sample.getSex(),sample.getStatus()));
+				w.println("' >> $(addsuffix .tmp.ped,$@)");
+				}
+			w.println("\tmv  --verbose $(addsuffix .tmp.ped,$@) $@");
+			}
+		
+		@Override
+		public String toString() {
+			return getPedFilename();
+			}
+		}
 	
+	/** describe a BED capture */
 	private class Capture extends HasAttributes
 		{
 		private final Project project;
@@ -514,6 +724,13 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 				}
 			}
 		
+		public String getFamilyId() { return "PEDIGREE";}
+		public String getFatherId() { return "0";}
+		public String getMotherId() { return "0";}
+		public String getSex() { return "0";}
+		public String getStatus() { return "9";}
+		
+		
 		public Project getProject() { return this.project;}
 		public List<PairedFastq> getPairs() { return this.pairs;}
 		public String getName() { return this.name;}
@@ -627,7 +844,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 					append("\ttouch -c $@").
 					append("\n").
 					append(getMarkdupBam()+" : "+getMergedBam()+"\n").
-					append("\tmkdir -p $(dir $@) && ").
+					append(rulePrefix()+" && ").
 					append("$(java.exe) -Xmx3g -Djava.io.tmpdir=$(dir $@) -jar \"$(picard.jar)\" MarkDuplicates I=$< O=$(addsuffix .tmp.bam,$@) M=$(addsuffix .metrics,$@) ").
 					append(" REMOVE_DUPLICATES=").
 					append(isAttributeSet(PROP_PICARD_MARKDUP_REMOVES_DUPLICATES)?"true":"false").
@@ -640,6 +857,26 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 					toString();
 			}
 		
+		
+		public String finalBam()
+			{
+			if(this.isBamAlreadyProvided()) return "";
+			StringBuilder sb=new StringBuilder().
+				append(getFinalBamBai()+":"+ this.getFinalBam()).
+				append("\n").
+				append(rulePrefix()).
+				append(" && ${samtools.exe} index $< $@").
+				append("\n")
+				;
+			sb.append(getFinalBam()+":"+ this.getRecalBam()).
+				append("\n").
+				append(rulePrefix()).
+				append(" && cp --verbose $< $@").
+				append("\n")
+				;
+			
+			return sb.toString();
+			}
 		
 		public String recalibrateBam()
 		{
@@ -1019,9 +1256,11 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		out.println("gatk.bundle.mills.indels.vcf=$(gatk.bundle.dir)Mills_and_1000G_gold_standard.indels.b37.vcf");
 		out.println("gatk.bundle.hapmap.vcf=$(gatk.bundle.dir)hapmap_3.3.b37.vcf");
 		out.println("exac.vcf?=/commun/data/pubdb/broadinstitute.org/exac/0.3/ExAC.r0.3.sites.vep.vcf.gz");
-
+		
+		out.println("all:"+project.getHapCallerGenotypedVcf());
+		
 		out.println("all_final_bam:"+project.getSamples().stream().
-				map(S->S.getFinalBam()).
+				map(S->S.getFinalBamBai()).
 				collect(Collectors.joining(" \\\n\t"))
 				);
 		
@@ -1065,11 +1304,16 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			out.println(sample.markDuplicates());
 			out.println(sample.realignAroundIndels());
 			out.println(sample.recalibrateBam());
+			out.println(sample.finalBam());
 			}
 		if(project.hasCapture())
 			{
 			project.getCapture().prepareCapture(out);
 			}
+		project.getPedigree().build(out);
+		project.bamList(out);
+		out.println(project.haplotypeCaller());
+		
 		out.println();
 		out.flush();
 		}
