@@ -125,6 +125,11 @@ import javafx.util.Callback;
 public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends Stage {
     protected static final Logger LOG= Logger.getLogger("NgsStage");
 	protected static final String JAVASCRIPT_TAB_KEY="JS";
+	protected static final String TOOL_CONTEXT_KEY="tools";
+	protected static final String PEDIGREE_CONTEXT_KEY="pedigree";
+	protected static final String HEADER_CONTEXT_KEY="header";
+	protected static final String OUT_CONTEXT_KEY="out";
+	protected static final String ITER_CONTEXT_KEY="iter";
 	private static final int REFRESH_SECOND=Integer.parseInt(System.getProperty("jfxngs.refresh.seconds","5"));
     static final List<ExtensionFilter> JS_EXTENSION_FILTERS=Arrays.asList(
     		new ExtensionFilter("Javascript Files", "*.js","*.javascript")
@@ -162,6 +167,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		{
 		private final  CloseableIterator<ITEMTYPE> delegate;
 		private long clock = System.currentTimeMillis();
+		private long count=0L;
 		LogCloseableIterator(final CloseableIterator<ITEMTYPE> iter) {
 			this.delegate = iter;
 			if(iter==null) throw new NullPointerException("delegate is null");
@@ -171,9 +177,17 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		protected ITEMTYPE advance() {
 			if( this.delegate.hasNext()) {
 				final ITEMTYPE t= this.delegate.next();
+				++count;
 				long now = System.currentTimeMillis();
 				if(now - this.clock  > 10*1000) {
-					if(t!=null && t.getContig()!=null) LOG.info(t.getContig()+":"+t.getStart()+"-"+t.getEnd());
+					if(t!=null && t.getContig()!=null)
+						{
+						LOG.info("N="+count+" last:"+t.getContig()+":"+t.getStart()+"-"+t.getEnd());
+						}
+					else
+						{
+						LOG.info("N="+count);
+						}
 					this.clock = now;
 					}
 				return t;
@@ -445,9 +459,9 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				copyNgsFile = getNgsFile().reOpen();
 				iter = new LogCloseableIterator(copyNgsFile.iterator());
 				final SimpleBindings bindings= completeBindings(new  SimpleBindings(),copyNgsFile.getHeader());
-				bindings.put("header", copyNgsFile.getHeader());
-				bindings.put("out", pw);
-				bindings.put("iter", iter);
+				bindings.put(HEADER_CONTEXT_KEY, copyNgsFile.getHeader());
+				bindings.put(OUT_CONTEXT_KEY, pw);
+				bindings.put(ITER_CONTEXT_KEY, iter);
 				
 				compiledScript.eval(bindings);
 				pw.flush();
@@ -1048,6 +1062,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     /** send a goto command to IGV */
     protected void openInIgv(final Locatable feature)
     	{
+    	updateStatusBar(AlertType.NONE,"");
     	if(feature==null) {
     		updateStatusBar(AlertType.WARNING,"No Feature was selected");
     		return;
@@ -1195,6 +1210,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     
     protected Interval parseInterval(final String location)
     	{
+    	updateStatusBar(AlertType.NONE,"");
     	final SAMSequenceDictionary dict=this.ngsFile.getSequenceDictionary();
 		final String contig;
 		int colon =location.indexOf(":");
@@ -1480,6 +1496,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     private void actionSaveScript(final Stage dialog,final TextArea scriptArea) {
 		final FileChooser fc= this.owner.newFileChooser();
 		fc.getExtensionFilters().addAll(JS_EXTENSION_FILTERS);
+		fc.setInitialFileName("script.js");
 		final File js= this.owner.updateLastDir(fc.showSaveDialog(dialog));
 		if(js==null) return;
 		PrintWriter pw=null;
@@ -1501,12 +1518,13 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	}
     
     private void actionValidateScript(final Stage dialog,final TextArea scriptArea) {
+    	if(!NgsStage.this.owner.javascriptCompiler.isPresent()) return;
     	try {
 			NgsStage.this.owner.javascriptCompiler.get().compile(scriptArea.getText());
 			final Alert alert=new Alert(AlertType.CONFIRMATION);
 			alert.setAlertType(AlertType.CONFIRMATION);
 			alert.setTitle("OK");
-			alert.setContentText("OK. Script is compilable.");
+			alert.setContentText("OK. At least, the script is compilable.");
 			alert.showAndWait();
 			}
 		catch(final Exception err)

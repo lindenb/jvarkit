@@ -124,6 +124,7 @@ import javafx.util.Callback;
 
 public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     static final String SPINNER_VALUE_KEY="vcf.spinner.value";
+    static final String VARIANT_CONTEXT_KEY="variant";
 	static final int DEFAULT_VCF_RECORDS_COUNT= 100;
     static final List<ExtensionFilter> EXTENSION_FILTERS= Arrays.asList(
     		new ExtensionFilter("Indexed VCF File", "*.vcf", "*.vcf.gz"),
@@ -243,15 +244,15 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 				)
 			{
 			super(vcfFile.getHeader(),compiledScript);
-			super.bindings.put("tools", new VcfTools(vcfFile.getHeader(),vcfFile.getPedigree()));
-			super.bindings.put("pedigree", vcfFile.getPedigree());
+			super.bindings.put(TOOL_CONTEXT_KEY, new VcfTools(vcfFile.getHeader(),vcfFile.getPedigree()));
+			super.bindings.put(PEDIGREE_CONTEXT_KEY, vcfFile.getPedigree());
 			
 			this.filter=(filter==null?"":filter);
 			}
 		@Override public VariantContext eval(final VariantContext ctx)
 			{
 			if(!super.compiledScript.isPresent()) return ctx;
-			super.bindings.put("variant", ctx);
+			super.bindings.put(VARIANT_CONTEXT_KEY, ctx);
 			if(super.accept())
 				{
 				return ctx;
@@ -404,15 +405,18 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     		@Override
 			protected String getHelpString() {
 				return super.getHelpString()+"\nThe script injects:\n"+
-						"* 'header' a ( "+VCFHeader.class.getName()+" )\n"+
-						"* 'iter' an Iterator over instance of "+VariantContext.class.getName()+" )\n"
+						"* '"+ HEADER_CONTEXT_KEY+"' an instance of java class ( "+VCFHeader.class.getName()+" )\n"+
+						"* '"+ ITER_CONTEXT_KEY+"' an Iterator over instances of java class "+VariantContext.class.getName()+" )\n"+
+						"* '"+ TOOL_CONTEXT_KEY +"' an instance of "+VcfTools.class.getName()+" )\n"+
+						"* '"+ PEDIGREE_CONTEXT_KEY +"' an instance of "+PedFile.class.getName()+" )\n"
 						;
 				}
     	
     		@Override
     		protected javax.script.SimpleBindings completeBindings(javax.script.SimpleBindings sb, final VCFHeader h)
     			{
-    			sb.put("tools", new VcfTools(h, getPedigree()));
+    			sb.put(TOOL_CONTEXT_KEY, new VcfTools(h, getPedigree()));
+    			sb.put(PEDIGREE_CONTEXT_KEY, getPedigree());
     			return sb;
     			}
     		};
@@ -812,9 +816,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     		pane.setTop(flowPane);
     		}
 		final Label helpLabel=new Label("The script injects:\n"+
-				"* header ( "+VCFHeader.class.getName()+" )\n"+
-				"* variant ( "+VariantContext.class.getName()+" )\n"+
-				"* pedigree ( "+PedFile.class.getName()+" ) \n"+
+				"* '"+HEADER_CONTEXT_KEY+"' an instance of  "+VCFHeader.class.getName()+"\n"+
+				"* '"+VARIANT_CONTEXT_KEY+"' an instance of "+VariantContext.class.getName()+" )\n"+
+				"* '"+PEDIGREE_CONTEXT_KEY+"' an instance of "+PedFile.class.getName()+"\n"+
+				"* '"+TOOL_CONTEXT_KEY+"' an instance of "+VcfTools.class.getName()+"\n"+
 				"The script should return a boolean: true (accept variant) or false (reject variant)"
 				);
 		helpLabel.setWrapText(true);
@@ -844,6 +849,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	
 	@Override
 	void openInIgv() {
+		updateStatusBar(AlertType.NONE,"");
     	final VariantContext ctx=this.variantTable.getSelectionModel().getSelectedItem();
     	if(ctx==null) {
     		updateStatusBar(AlertType.WARNING,"no variant selected");
@@ -1285,7 +1291,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	@Override
     void reloadData()
 		{
-		
+		updateStatusBar(AlertType.NONE,"");
     	final int max_items= super.maxItemsLimitSpinner.getValue();
     	final List<VariantContext> L= new ArrayList<>(max_items);
     	final String location = this.gotoField.getText().trim();
@@ -1478,6 +1484,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	@Override
 	protected void doMenuShowWholeStats(
 			final ChartFactory<VCFHeader,VariantContext> factory) {
+			updateStatusBar(AlertType.NONE,"");
 			Optional<CompiledScript> compiledScript=Optional.empty();
         	if( VcfStage.this.owner.javascriptCompiler.isPresent() &&
         		!VcfStage.this.javascriptArea.getText().trim().isEmpty())
@@ -1541,7 +1548,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	
     	MenuItem item= new MenuItem("Insert Samples' name as Array");
     	menu.getItems().add(item);
-    	menu.setOnAction(AE->{
+    	item.setOnAction(AE->{
     		final int caret = super.javascriptArea.getCaretPosition();
         	final StringBuilder sb=new StringBuilder("var sampleNames=[").
         			append(getVcfFile().getHeader().getSampleNamesInOrder().stream().map(S->"\""+S+"\"").collect(Collectors.joining(","))).

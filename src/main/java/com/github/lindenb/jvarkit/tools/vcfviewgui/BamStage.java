@@ -149,6 +149,7 @@ import javafx.stage.FileChooser.ExtensionFilter;
 @SuppressWarnings("unused")
 public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     static final String SPINNER_VALUE_KEY="bam.spinner.value";
+    static final String RECORD_CONTEXT_KEY="record";
     static final int DEFAULT_BAM_RECORDS_COUNT= 1000;
     static final List<ExtensionFilter> EXTENSION_FILTERS=Arrays.asList(
     		new ExtensionFilter("Indexed Bam Files", "*.bam")
@@ -186,12 +187,12 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 				)
 			{
 			super(header,compiledScript);
-			super.bindings.put("tools",new BamTools());
+			super.bindings.put(TOOL_CONTEXT_KEY,new BamTools());
 			}
 		@Override public SAMRecord eval(final SAMRecord rec)
 			{
 			if(!super.compiledScript.isPresent()) return rec;
-			super.bindings.put("record", rec);
+			super.bindings.put(RECORD_CONTEXT_KEY, rec);
 			return super.accept()?rec:null;
 			}
 		}
@@ -422,8 +423,9 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 			@Override
 			protected String getHelpString() {
 				return super.getHelpString()+"\nThe script injects:\n"+
-						"* 'header' a ( "+SAMFileHeader.class.getName()+" )\n"+
-						"* 'iter' an Iterator over instance of "+SAMRecord.class.getName()+" )\n"
+						"* 'header' an instance of the java class  "+SAMFileHeader.class.getName()+" \n"+
+						"* 'iter' an Iterator over instances of the java class "+SAMRecord.class.getName()+" \n"+
+						"* '"+TOOL_CONTEXT_KEY +"' an instance of "+BamTools.class.getName()+" \n"
 						;
 				}
 
@@ -431,7 +433,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	
 	    	 @Override 
 	    	 protected SimpleBindings completeBindings(final SimpleBindings sb,final SAMFileHeader header) {
-	    		 sb.put("tools", new BamTools());
+	    		 sb.put(TOOL_CONTEXT_KEY, new BamTools());
 				 return sb;
 			 	}
     		};
@@ -1374,8 +1376,9 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 		pane.setTop(top);
 		
 		final Label helpLabel=new Label("The script injects:\n"+
-				"* header ( htsjdk.samtools.SAMFileHeader )\n"+
-				"* record ( htsjdk.samtools.SAMRecord )\n"+
+				"* '"+HEADER_CONTEXT_KEY+"' an instance of "+ SAMFileHeader.class.getName() +"\n"+
+				"* '"+RECORD_CONTEXT_KEY+"' an instance of "+ SAMRecord.class.getName() +"\n"+
+				"* '"+TOOL_CONTEXT_KEY+"' an instance of "+ BamTools.class.getName() +"\n"+
 				"The script should return a boolean: true (accept record) or false (reject record)"
 				);
 		helpLabel.setWrapText(true);
@@ -1450,6 +1453,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     
     @Override
     void reloadData() {
+    	updateStatusBar(AlertType.NONE,"");
     	final int max_items= super.maxItemsLimitSpinner.getValue();
     	final List<SAMRecord> L= new ArrayList<SAMRecord>(max_items);
     	final String location = this.gotoField.getText().trim();
@@ -1690,6 +1694,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	}
     @Override
 	void openInIgv() {
+    	updateStatusBar(AlertType.NONE,"");
     	final SAMRecord ctx=this.recordTable.getSelectionModel().getSelectedItem();
     	if(ctx==null) {
     		updateStatusBar(AlertType.WARNING,"no Read selected");
