@@ -513,11 +513,11 @@ public class JfxNgs extends Application {
 	                    			{
 	                    			final File f=new File(arg);
 
-									if(BamStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
+									if(fileMatchExtensionFilter(f.getName(), BamStage.EXTENSION_FILTERS))
 										{
 										bamin=BamFile.newInstance(f);
 										}
-									else if(VcfStage.EXTENSION_FILTER.getExtensions().stream().filter(S->f.getName().endsWith(S)).findAny().isPresent())
+									else if(fileMatchExtensionFilter(f.getName(), VcfStage.EXTENSION_FILTERS))
 										{
 										vcfin=VcfFile.newInstance(f);
 										}
@@ -624,7 +624,7 @@ public class JfxNgs extends Application {
     	try {
 			input = BamFile.newInstance(choice.get());
 			this.preferences.put(lastkey, choice.get());
-			BamStage stage=new BamStage(JfxNgs.this, input);
+			final BamStage stage=new BamStage(JfxNgs.this, input);
 			stage.show();
 		} catch (final Exception err) {
 			CloserUtil.close(input);
@@ -677,7 +677,7 @@ public class JfxNgs extends Application {
     private void doMenuIndexBam(final Window owner)
 		{
     	final FileChooser fc = newFileChooser();
-    	fc.setSelectedExtensionFilter(BamStage.EXTENSION_FILTER);
+    	fc.getExtensionFilters().addAll(BamStage.EXTENSION_FILTERS);
     	final List<File> files = fc.showOpenMultipleDialog(owner);
     	if(files==null) return;
     	for(final File file : files)
@@ -698,7 +698,8 @@ public class JfxNgs extends Application {
 	                    .open(file);
 	    				;
 	    		BAMIndexer.createIndex(bam, output);
-
+	    		final Alert alert = new Alert(AlertType.CONFIRMATION, "Done. ?", ButtonType.OK);
+				alert.showAndWait();
 	    		}
 	    	catch(final Exception err)
 	    		{
@@ -770,22 +771,20 @@ public class JfxNgs extends Application {
     void openNgsFile(final Window owner)
 		{
 		final FileChooser fc = newFileChooser();
-		final List<String> suffixes=new ArrayList<String>();
-		suffixes.addAll(VcfStage.EXTENSION_FILTER.getExtensions());
-		suffixes.addAll(BamStage.EXTENSION_FILTER.getExtensions());
-
-		final FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
-				"Bam or VCF files",
-				suffixes
-				);
-		fc.setSelectedExtensionFilter(extFilter);
+		
+		final List<String> suffixes=new ArrayList<>();
+		for(FileChooser.ExtensionFilter e:VcfStage.EXTENSION_FILTERS)
+			suffixes.addAll(e.getExtensions());
+		for(FileChooser.ExtensionFilter e:BamStage.EXTENSION_FILTERS)
+			suffixes.addAll(e.getExtensions());
+		
+		
+		fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("BAM/VCF",suffixes));
 		final List<File> selFiles = fc.showOpenMultipleDialog(owner);
 		if(selFiles==null) return ;
 		for(final File file: selFiles) {
 			updateLastDir(file);
-			if(VcfStage.EXTENSION_FILTER.
-					getExtensions().stream().
-					filter(S->file.getName().endsWith(S)).findAny().isPresent())
+			if(fileMatchExtensionFilter(file.getName(), VcfStage.EXTENSION_FILTERS))
 				{
 				VcfFile input=null;
 		    	try {
@@ -797,9 +796,7 @@ public class JfxNgs extends Application {
 					showExceptionDialog(owner, err);
 					}
 				}
-			else if(BamStage.EXTENSION_FILTER.
-					getExtensions().stream().
-					filter(S->file.getName().endsWith(S)).findAny().isPresent())
+			else if(fileMatchExtensionFilter(file.getName(), BamStage.EXTENSION_FILTERS))
 				{
 				BamFile input=null;
 		    	try {
@@ -822,7 +819,7 @@ public class JfxNgs extends Application {
     private void doMenuIndexVcf(final Window owner)
 		{
     	final FileChooser fc = newFileChooser();
-    	fc.setSelectedExtensionFilter(VcfStage.EXTENSION_FILTER);
+    	fc.getExtensionFilters().addAll(VcfStage.EXTENSION_FILTERS);
     	final List<File> files = fc.showOpenMultipleDialog(owner);
     	if(files==null) return;
     	for(final File file : files)
@@ -840,6 +837,8 @@ public class JfxNgs extends Application {
 		    			}
     				final TabixIndex index=IndexFactory.createTabixIndex(file,new VCFCodec(),(SAMSequenceDictionary)null);
     				index.write(output);
+					final Alert alert = new Alert(AlertType.CONFIRMATION, "Done. ?", ButtonType.OK);
+					alert.showAndWait();
     				}
     			catch(final Exception err)
     				{
@@ -859,6 +858,8 @@ public class JfxNgs extends Application {
 		    			}
 					final Index index=IndexFactory.createIndex(file,new VCFCodec(),IndexType.LINEAR);
 					index.writeBasedOnFeatureFile(file);
+					final Alert alert = new Alert(AlertType.CONFIRMATION, "Done. ?", ButtonType.OK);
+					alert.showAndWait();
 					}
     			catch(final Exception err)
 					{
@@ -932,7 +933,22 @@ public class JfxNgs extends Application {
 			System.setProperty(pref.key,this.preferences.get(pref.key, ""));
 			}
     	}
-
+    
+    /** utility function to test if a file match FileChooser.ExtFilter*/
+    static boolean fileMatchExtensionFilter(final String f,final Collection<FileChooser.ExtensionFilter> extensionFilters)
+    	{
+    	if(f==null) return false;
+    	for(final FileChooser.ExtensionFilter extensionFilter:extensionFilters)
+    		{
+    		for(String ext:extensionFilter.getExtensions()) {
+    			if(ext.equals("*.*")) continue;
+    			if(ext.startsWith("*.")) ext=ext.substring(2);
+    			if(f.endsWith(ext)) return true;
+    			}
+    		}
+    	return false;
+    	}
+    
     public static void main(String[] args) {
     	launch(args);
     }

@@ -125,7 +125,11 @@ import javafx.util.Callback;
 public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     static final String SPINNER_VALUE_KEY="vcf.spinner.value";
 	static final int DEFAULT_VCF_RECORDS_COUNT= 100;
-    static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Variant Files", ".vcf",".vcf.gz");
+    static final List<ExtensionFilter> EXTENSION_FILTERS= Arrays.asList(
+    		new ExtensionFilter("Indexed VCF File", "*.vcf", "*.vcf.gz"),
+    		new ExtensionFilter("Tabix-Indexed VCF Files", "*.vcf.gz"),
+    		new ExtensionFilter("Tribble-Indexed VCF File", "*.vcf")
+    		);
     
     /** variant oriented chart-factories */
     private static final List<Supplier<ChartFactory<VCFHeader,VariantContext>>> VARIANT_CHART_FACTORIES= Arrays.asList(
@@ -242,7 +246,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			super.bindings.put("tools", new VcfTools(vcfFile.getHeader(),vcfFile.getPedigree()));
 			super.bindings.put("pedigree", vcfFile.getPedigree());
 			
-			this.filter=filter;
+			this.filter=(filter==null?"":filter);
 			}
 		@Override public VariantContext eval(final VariantContext ctx)
 			{
@@ -712,7 +716,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	protected void doMenuSaveAs()
 		{
 		final FileChooser fc= owner.newFileChooser();
-    	fc.setSelectedExtensionFilter(EXTENSION_FILTER);
+    	fc.getExtensionFilters().addAll(EXTENSION_FILTERS);
 		final File saveAs= owner.updateLastDir(fc.showSaveDialog(this));
 		if(saveAs==null) return;
 		if(!saveAs.getName().endsWith(".vcf.gz"))
@@ -749,18 +753,19 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		try
 			{
 			final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
-			vcwb.setOutputFileType(OutputType.BLOCK_COMPRESSED_VCF);
 			vcwb.setOutputFile(saveAs);
+			vcwb.setOutputFileType(OutputType.BLOCK_COMPRESSED_VCF);
+			vcwb.setReferenceDictionary(this.getNgsFile().getSequenceDictionary());
 			w= vcwb.build();
 			final VCFHeader header2= new VCFHeader(this.getVcfFile().getHeader());
-        	if(!javascriptFilter.filter.isEmpty())
+        	if(javascriptFilter!=null && !(javascriptFilter.filter==null || javascriptFilter.filter.isEmpty()))
         		{
         		header2.addMetaDataLine(new VCFFilterHeaderLine(javascriptFilter.filter, "Set by User in JfxNgs:"+
         				this.javascriptArea.getText().replaceAll("[\n\t\r ]+"," ")
         				));
         		}
 			w.writeHeader(header2);
-			iter= this.getVcfFile().iterator();
+			iter= new LogCloseableIterator(this.getVcfFile().iterator());
 			while(iter.hasNext())
 				{
 				VariantContext ctx=iter.next();
@@ -772,14 +777,20 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 				w.add(ctx);
 				}
 			w.close();
+			w=null;
+			iter.close();iter=null;
+    		final Alert alert = new Alert(AlertType.CONFIRMATION, "Done", ButtonType.OK);
+			alert.showAndWait();
 			}
 		catch(final Exception err)
 			{
+			err.printStackTrace();
 			JfxNgs.showExceptionDialog(this, err);
 			return;
 			}
 		finally
 			{
+			CloserUtil.close(iter);
 			CloserUtil.close(w);
 			}    		
 		}

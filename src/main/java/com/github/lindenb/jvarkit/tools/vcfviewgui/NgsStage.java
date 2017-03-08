@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -125,10 +126,12 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     protected static final Logger LOG= Logger.getLogger("NgsStage");
 	protected static final String JAVASCRIPT_TAB_KEY="JS";
 	private static final int REFRESH_SECOND=Integer.parseInt(System.getProperty("jfxngs.refresh.seconds","5"));
-    static final ExtensionFilter JS_EXTENSION_FILTER=new ExtensionFilter("Javascript Files", ".js",".javascript");
+    static final List<ExtensionFilter> JS_EXTENSION_FILTERS=Arrays.asList(
+    		new ExtensionFilter("Javascript Files", "*.js","*.javascript")
+			);
 
 	/** owner Application */
-    protected JfxNgs owner;
+    protected final JfxNgs owner;
     /** src file */
 	private final NgsFile<HEADERTYPE,ITEMTYPE> ngsFile;
 	/** javascript filtering */
@@ -161,6 +164,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		private long clock = System.currentTimeMillis();
 		LogCloseableIterator(final CloseableIterator<ITEMTYPE> iter) {
 			this.delegate = iter;
+			if(iter==null) throw new NullPointerException("delegate is null");
 			}
 		
 		@Override
@@ -169,7 +173,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				final ITEMTYPE t= this.delegate.next();
 				long now = System.currentTimeMillis();
 				if(now - this.clock  > 10*1000) {
-					LOG.info(String.valueOf(t.getContig())+":"+t.getStart()+"-"+t.getEnd());
+					if(t!=null && t.getContig()!=null) LOG.info(t.getContig()+":"+t.getStart()+"-"+t.getEnd());
 					this.clock = now;
 					}
 				return t;
@@ -370,10 +374,11 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		 AbstractAwkLike()
 		 	{
 			this.scriptArea.setPromptText("insert your javascript expression");
-			this.scriptArea.setText("while(iter.hasNext()) {\n"
+			this.scriptArea.setText("/** count even start */\nvar count=0;\nwhile(iter.hasNext()) {\n"
 					+ " var item= iter.next();\n"
-					+ " out.println(item.getContig()+\"\\t\"+item.getStart()+\"\\t\"+item.getEnd());\n"
+					+ " if(item.getStart()%2==0) count++;\n"
 					+ "}\n"
+					+ "out.println(count);\n"
 					);
 		 	}
 		 
@@ -1453,7 +1458,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     
     private void actionLoadScript(final Stage dialog,final TextArea scriptArea) {
 		final FileChooser fc= NgsStage.this.owner.newFileChooser();
-		fc.setSelectedExtensionFilter(JS_EXTENSION_FILTER);
+		fc.getExtensionFilters().addAll(JS_EXTENSION_FILTERS);
 		final File js=NgsStage.this.owner.updateLastDir(fc.showOpenDialog(dialog));
 		if(js==null) return;
 		InputStream in=null;
@@ -1474,7 +1479,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	}
     private void actionSaveScript(final Stage dialog,final TextArea scriptArea) {
 		final FileChooser fc= this.owner.newFileChooser();
-		fc.setSelectedExtensionFilter(JS_EXTENSION_FILTER);
+		fc.getExtensionFilters().addAll(JS_EXTENSION_FILTERS);
 		final File js= this.owner.updateLastDir(fc.showSaveDialog(dialog));
 		if(js==null) return;
 		PrintWriter pw=null;

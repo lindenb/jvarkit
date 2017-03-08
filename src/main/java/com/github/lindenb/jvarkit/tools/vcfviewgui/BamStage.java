@@ -50,6 +50,7 @@ import javax.script.CompiledScript;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 
+import com.github.lindenb.jvarkit.tools.vcfviewgui.NgsStage.LogCloseableIterator;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.CigarOpPerPositionChartFactory;
@@ -149,7 +150,9 @@ import javafx.stage.FileChooser.ExtensionFilter;
 public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     static final String SPINNER_VALUE_KEY="bam.spinner.value";
     static final int DEFAULT_BAM_RECORDS_COUNT= 1000;
-    static final ExtensionFilter EXTENSION_FILTER=new ExtensionFilter("Bam Files", ".bam");
+    static final List<ExtensionFilter> EXTENSION_FILTERS=Arrays.asList(
+    		new ExtensionFilter("Indexed Bam Files", "*.bam")
+    	);
     private static final Logger LOG= Logger.getLogger("BamStage");
     /** shor-Read oriented chart-factories */
     private static final List<Supplier<ChartFactory<SAMFileHeader,SAMRecord>>> READ_CHART_LIST=Arrays.asList(
@@ -1745,7 +1748,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 	@Override
 	protected void doMenuSaveAs() {
 		final FileChooser fc= owner.newFileChooser();
-    	fc.setSelectedExtensionFilter(EXTENSION_FILTER);
+    	fc.getExtensionFilters().addAll(EXTENSION_FILTERS);
 		final File saveAs= owner.updateLastDir(fc.showSaveDialog(this));
 		if(saveAs==null) return;
 		if(!saveAs.getName().endsWith(".bam"))
@@ -1788,7 +1791,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 			
 			w = swf.makeBAMWriter(h2, true, saveAs);
 			
-			iter= this.getBamFile().iterator();
+			iter= new  LogCloseableIterator(this.getBamFile().iterator());
 			while(iter.hasNext())
 				{
 				final SAMRecord rec=iter.next();
@@ -1799,8 +1802,10 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         			}
 				w.addAlignment(rec);
 				}
-			w.close();
-			iter.close();
+			w.close();w=null;
+			iter.close();iter=null;
+    		final Alert alert = new Alert(AlertType.CONFIRMATION, "Done", ButtonType.OK);
+			alert.showAndWait();
 			}
 		catch(Exception err)
 			{
