@@ -44,4 +44,12 @@ out.println(contig+"\t"+chrom2count[contig]);
 }
 ]]></code>
 
+
+<code scope="bioalcidae" label="Convert to BED">while(iter.hasNext()) {
+ var item= iter.next();
+ out.println(item.getContig()+"\t"+item.getStart()+"\t"+item.getEnd());
+}</code>
+
+
+
 </snippets>

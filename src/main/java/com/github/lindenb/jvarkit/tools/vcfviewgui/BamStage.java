@@ -104,7 +104,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.chart.Chart;
 import javafx.scene.control.Alert;
@@ -409,7 +408,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     private final TableView<Pileup> pileupTable;
     private final Map<SAMFlag,CheckMenuItem> flag2filterInMenuItem=new HashMap<>();
     private final Map<SAMFlag,CheckMenuItem> flag2filterOutMenuItem=new HashMap<>();
-    private final Canvas canvas = new Canvas(900, 300);
+    private final ResizableCanvas canvas;
     private final ScrollBar canvasScrollHGenomicLoc = new ScrollBar();
     private final ScrollBar canvasScrolVInCoverage = new ScrollBar();
     private final CheckBox canvasShowReadName = new CheckBox("Show Read Name");
@@ -672,6 +671,13 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
         tabbedPane.getTabs().add(buildJavascriptPane());
         
         /* CANVAS STUFFF */
+        this.canvas = new ResizableCanvas(900, 300)
+			{
+			public void repaintCanvas()
+				{
+				BamStage.this.repaintCanvas();
+				}
+			};
         final BorderPane canvasPane = new BorderPane(this.canvas);
         canvasPane.setPadding(new Insets(10));
         this.canvasScrollHGenomicLoc.setOrientation(Orientation.HORIZONTAL);
@@ -1033,9 +1039,9 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	final boolean showClip = this.canvasShowClip.isSelected();
     	final boolean showReadName = this.canvasShowReadName.isSelected();
     	final int baseSize= this.canvasBaseSizeCombo.getValue();
-    	final double canvaswidth= this.canvas.getWidth();
-    	final double canvasheight= this.canvas.getHeight();
-    	final GraphicsContext gc=this.canvas.getGraphicsContext2D();
+    	final double canvaswidth= this.canvas.getCanvas().getWidth();
+    	final double canvasheight= this.canvas.getCanvas().getHeight();
+    	final GraphicsContext gc=this.canvas.getCanvas().getGraphicsContext2D();
     	gc.setFill(Color.WHITE);
     	gc.fillRect(0, 0, canvaswidth, canvasheight);
     	double y=baseSize*2;
@@ -1531,10 +1537,10 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     		L.add(rec);
     		/* get bounds for canvas genmic browser */
     		if(!rec.getReadUnmappedFlag() && rec.getCigar()!=null) {
-    			final long endIndex =convertContigPosToGenomicIndex(new ContigPos(rec.getContig(),rec.getUnclippedEnd()));
+    			final long endIndex =convertContigPosToGenomicIndex(rec.getContig(),rec.getUnclippedEnd());
 	    		if(canvasFirstRecordGenomicIndex==null)
 	    			{
-	    			canvasFirstRecordGenomicIndex = convertContigPosToGenomicIndex(new ContigPos(rec.getContig(),rec.getUnclippedStart()));
+	    			canvasFirstRecordGenomicIndex = convertContigPosToGenomicIndex(rec.getContig(),rec.getUnclippedStart());
 	    			canvasLastRecordGenomicIndex = endIndex;
 	    			}
 	    		else if(canvasLastRecordGenomicIndex< endIndex)

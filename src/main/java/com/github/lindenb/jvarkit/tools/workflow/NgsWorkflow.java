@@ -5,6 +5,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -57,7 +60,9 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 	private class IntervalSplit extends RefSplit
 		{
 		final Interval interval;
-		IntervalSplit(final Interval interval) {this.interval=interval;}
+		IntervalSplit(final Interval interval) {this.interval=interval;
+			if(interval.getStart()>=interval.getEnd()) throw new IllegalArgumentException(interval.toString());
+			}
 		public Interval getInterval() {return interval;}
 		@Override RefSplitType getType() { return RefSplitType.INTERVAL;}
 		@Override String getToken() { return "."+getInterval().getContig()+"_"+getInterval().getStart()+"_"+getInterval().getEnd();}
@@ -199,7 +204,119 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			def("1").
 			build();
 
+	private RefSplit parseRefSplitFromStr(final String s)
+		{
+		int colon= s.indexOf(":");
+		if(colon!=-1)
+			{
+			int hyphen = s.lastIndexOf('-', colon+1);
+			if(hyphen<0) throw new IllegalArgumentException("Illegal array item "+s);
+			final Interval interval = new Interval(
+					s.substring(0,colon),
+					Integer.parseInt(s.substring(colon+1,hyphen)),
+					Integer.parseInt(s.substring(hyphen+1))
+					);
+			return new IntervalSplit(interval);
+			}
+		else
+			{
+			return new ContigSplit(s);
+			}
+		}
 	
+	private List<RefSplit> parseRefSplitList(final JsonElement root) throws IOException
+		{
+		final List<RefSplit> splits=new ArrayList<>();
+		if(root.isJsonObject())
+			{
+			JsonObject ob = root.getAsJsonObject();
+			final Interval interval = new Interval(
+					ob.get("chrom").getAsString(),
+					ob.get("start").getAsInt(),
+					ob.get("end").getAsInt()
+					);
+			return Collections.singletonList(new IntervalSplit(interval));
+			}
+		else if(root.isJsonArray())
+			{
+			final JsonArray array=root.getAsJsonArray();
+			if(array.size()==0) throw new IOException("Empty array");
+			for(int i=0; i< array.size();++i) {
+				JsonElement item = array.get(i);
+				if(item.isJsonPrimitive())
+					{
+					splits.add(parseRefSplitFromStr(item.getAsString()));
+					}
+				else if(item.isJsonObject())
+					{
+					JsonObject ob = item.getAsJsonObject();
+					final Interval interval = new Interval(
+							ob.get("chrom").getAsString(),
+							ob.get("start").getAsInt(),
+							ob.get("end").getAsInt()
+							);
+					splits.add(new IntervalSplit(interval));
+					}
+				else
+					{
+					 throw new IOException("Illegal array item "+item);
+					}
+				}
+			return splits;
+			}
+		else if(root.isJsonPrimitive())
+			{
+			final String str=root.getAsString();
+			if(str.endsWith(".bed"))
+				{
+				splits.addAll(Files.readAllLines(Paths.get(str)).stream().
+					filter(L->!L.startsWith("browser")).
+					filter(L->!L.startsWith("track")).
+					filter(L->!L.startsWith("#")).
+					filter(L->!L.trim().isEmpty()).
+					map(L->L.split("[\t]")).
+					map(T->new Interval(T[0],1+Integer.parseInt(T[1]),Integer.parseInt(T[2]))).
+					map(I->new IntervalSplit(I)).
+					collect(Collectors.toList())
+					);
+				return splits;
+				}
+			else if(str.endsWith(".json"))
+				{
+				splits.addAll(parseRefSplitList(readJsonFile(new File(str))));
+				return splits;
+				}
+			else if(str.endsWith(".intervals"))//gatk style
+				{
+				splits.addAll(Files.readAllLines(Paths.get(str)).stream().
+						filter(L->!L.startsWith("#")).
+						filter(L->!L.trim().isEmpty()).
+						map(L-> parseRefSplitFromStr(L)).
+						collect(Collectors.toList())
+						);
+				return splits;
+				}
+			else if(str.equals("genome_wide"))
+				{
+				return Collections.singletonList(new NoSplit());
+				}
+			else if(str.equals("by_chromosome"))
+				{
+				for(int i=1;i<=22;++i) splits.add(new ContigSplit(String.valueOf(i)));
+				splits.add(new ContigSplit("X"));
+				splits.add(new ContigSplit("Y"));
+				return splits;
+				}
+			else 
+				{
+				return Collections.singletonList(parseRefSplitFromStr(str));
+				}
+			}
+		else
+			{
+			throw new IOException("illegal refSplit "+root);
+			}
+		}
 	
 	private abstract class HasAttributes
 		{
@@ -492,10 +609,13 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 					}
 				w.append("\n");
 				
-				w.append(rulePrefix()).append(" &&  $(java.exe)  -Djava.io.tmpdir=$(dir $@) -jar \"$(picard.jar)\" MergeVcfs O=$(addsuffix .tmp.vcf.gz,$@) ");
-				for(final String vcfPart:vcfParts) {
-					w.append(" I=").append(vcfPart).append(" ");
+				w.append(rulePrefix()+" && ${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T CombineVariants -R $(REF) "
+						+ " -o $(addsuffix .tmp.vcf.gz,$@) -genotypeMergeOptions UNSORTED "
+						);
+				for(int k=0;k<vcfParts.size();++k) {
+					w.append(" --variant:v").append(k).append(" ").append(vcfParts.get(k)).append(" ");
 					}
+
 				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz,$@)\" \"$@\" ");
 				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz.tbi,$@)\" \"$(addsuffix .tbi,$@)\" ");
 				w.append("\n");
@@ -1317,6 +1437,16 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		out.println();
 		out.flush();
 		}
+	
+	private static JsonElement readJsonFile(final File jsonFile) throws IOException {
+		IOUtil.assertFileIsReadable(jsonFile);
+		FileReader r=new FileReader(jsonFile);
+		JsonParser jsparser=new JsonParser();
+		JsonElement root=jsparser.parse(r);
+		r.close();
+		return root;
+		}
+	
 	@Override
 	public Collection<Throwable> call() throws Exception {
 		if(super.dumpAttributes)
@@ -1332,17 +1462,12 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 				}
 			return RETURN_OK;
 			}
-		FileReader r=null;
 		try
 			{
 			final List<String> args=this.getInputFiles();
 			if(args.size()!=1) return wrapException("exepcted one and only one json file as input");
 			final File jsonFile=new File(args.get(0));
-			IOUtil.assertFileIsReadable(jsonFile);
-			r=new FileReader(jsonFile);
-			JsonParser jsparser=new JsonParser();
-			JsonElement root=jsparser.parse(r);
-			r.close();
+			JsonElement root=readJsonFile(jsonFile);
 			Project proj=new Project(root);
 			execute(proj);
 			out.flush();
@@ -1354,7 +1479,6 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			}
 		finally
 			{
-			CloserUtil.close(r);
 			}
 		}
 	

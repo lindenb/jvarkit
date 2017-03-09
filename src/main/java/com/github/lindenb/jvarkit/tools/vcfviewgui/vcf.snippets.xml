@@ -157,5 +157,33 @@ out.println(contig+"\t"+chrom2count[contig]);
 }
 ]]></code>
 
+<code scope="bioalcidae" label="Convert to BED">while(iter.hasNext()) {
+ var item= iter.next();
+ out.println(item.getContig()+"\t"+item.getStart()+"\t"+item.getEnd());
+}</code>
+
+<code scope="bioalcidae" label="Table: chrom/pos/ref/alt/an/ac"><![CDATA[
+while(iter.hasNext()) {
+ var ctx= iter.next();
+ var alts = ctx.getAlternateAlleles();
+ var acs =  ctx.getAttributeAsList("AC");
+ var ans =  ctx.getAttributeAsList("AN");
+ for(var i=0;i< alts.size();++i)
+     {
+     out.print(ctx.getContig());
+     out.print("\t");
+     out.print(ctx.getStart());
+     out.print("\t");
+     out.print(ctx.getReference().getDisplayString());
+    out.print("\t");
+     out.print(alts.get(i).getDisplayString());
+     out.print("\t");
+     out.print( i< ans.size()?ans.get(i):".");
+     out.print("\t");
+     out.print( i< acs.size()?acs.get(i):".");
+     out.println();
+     }
+}
+]]></code>
 
 </snippets>

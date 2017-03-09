@@ -88,6 +88,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.chart.PieChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -116,6 +117,10 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
+import javafx.scene.shape.ArcType;
+import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.WindowEvent;
@@ -399,6 +404,9 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	/* don't display allele if it's too big */
 	private final Function<Allele,String> allele2stringConverter;
 	
+	/** canvas displaying variants */
+	private final ResizableCanvas drawingArea;
+	
     /** bioalcidae instance */
     private final AbstractAwkLike bioalcidae=new  AbstractAwkLike()
     		{
@@ -570,6 +578,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 						desc,
 						vcfFile.getPedigree().get(sampleName)
 						);
+				sampledef.displayedProperty().addListener(CL->{paintDrawingArea();});
 				this.name2sampledef.put(sampleName, sampledef);
 				}
 		
@@ -646,10 +655,23 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		tabPane.getTabs().add(buildFilterHeaderTab(header));
         tabPane.getTabs().add(buildDictTab( header.getSequenceDictionary()));
         tabPane.getTabs().add(buildJavascriptPane());
+        
+        
+        
         if(header.getNGenotypeSamples()>0)
 	        {
 	        tabPane.getTabs().add(buildSampleTab());
 	        }
+        
+        /* build canvas pane */
+        this.drawingArea = new ResizableCanvas(900, 400)
+        		{
+        		public void repaintCanvas() {paintDrawingArea();};
+        		};
+        tab=new Tab("Canvas",this.drawingArea);
+        tab.setClosable(false);
+		tabPane.getTabs().add(tab);
+        
         /* register selection handler */
         /* when a read is selected update the flagsTable and metaDataTable */
         this.variantTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -1374,7 +1396,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			{
 			super.seqDictionaryCanvas.setItemsInterval(null,null);
 			}
-    	
+    	paintDrawingArea();
     	}
 	
 	private void reloadAlleleTable(final VariantContext ctx)
@@ -1565,5 +1587,160 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	{
     	this.bioalcidae.show();
     	}
+   
+   
+   private void paintDrawingArea()
+	   	{
+    	final double canvaswidth= this.drawingArea.getCanvas().getWidth();
+    	if(canvaswidth<1) return;
+    	final double canvasheight= this.drawingArea.getCanvas().getHeight();
+    	if(canvasheight<1) return;
+    	final GraphicsContext gc=this.drawingArea.getCanvas().getGraphicsContext2D();
+    	gc.setGlobalAlpha(1.0);
+    	gc.setFill(Color.WHITE);
+    	gc.fillRect(0, 0, canvaswidth, canvasheight);
+		if(this.variantTable.getItems().isEmpty()) return;
+		
+		gc.setFill(Color.BLACK);
+		final int MAX_VARIANTS=(int)(canvaswidth/10);
+		if(this.variantTable.getItems().size() >MAX_VARIANTS)
+			{
+			gc.setFont(Font.font ("Verdana", 24));
+			gc.fillText("Sorry. Too Many Variants (N="+this.variantTable.getItems().size()+">"+MAX_VARIANTS+")",2,50);
+			return;
+			}
+		
+		int nrows=1;//genome track
+		for(final SampleDef sampleDef : this.name2sampledef.values())
+			{
+			if(!sampleDef.isDisplayed()) continue;
+			nrows++;
+			}
+    	final double rowheight = canvasheight/nrows;
+		if(rowheight<12)
+			{
+			gc.setFont(Font.font ("Verdana", 24));
+			gc.fillText("Sorry. Too Many Samples. (rowheight<12)",2,canvasheight/2);
+			return;
+			}
 
+		
+		Long minGenomicIndex=null;
+		Long maxGenomicIndex=null;
+		
+		for(final VariantContext ctx: this.variantTable.getItems())
+			{
+			long giS = convertContigPosToGenomicIndex(ctx.getContig(), ctx.getStart());
+			long giE = convertContigPosToGenomicIndex(ctx.getContig(), ctx.getEnd());
+			if(minGenomicIndex==null || minGenomicIndex.longValue()> giS) {
+				minGenomicIndex = giS;
+				}
+			if(maxGenomicIndex==null || maxGenomicIndex.longValue()< giE) {
+				maxGenomicIndex = giE;
+				}
+			}
+		
+		if( minGenomicIndex ==null  || maxGenomicIndex==null) return;
+		
+		long extend = (long)((maxGenomicIndex-minGenomicIndex)*0.1);
+		minGenomicIndex = minGenomicIndex-extend;
+		maxGenomicIndex = maxGenomicIndex+extend;
+		
+		final long genomicIndexStart = minGenomicIndex;
+		final long genomicIndexLength = (maxGenomicIndex-minGenomicIndex);
+		
+    	final double marginleft = (nrows<=1?0.0:canvaswidth/10.0);//no margin if no sample
+    	
+		
+		final Function<Long,Double> convertGenomicIndexToPixel= (GI)->
+			{
+				double x=	marginleft+(canvaswidth-marginleft)*((double)(GI-genomicIndexStart))/((double)(genomicIndexLength));
+				
+				return x;
+			};
+		
+		//draw vertical lines
+		String prev_chr="";
+		Paint fill_chr1=Color.BLACK;
+		Paint fill_chr2=Color.DARKGRAY;
+		Paint fill_current = fill_chr1;
+		gc.setFont(Font.font ("Verdana", 7));
+		for(final VariantContext ctx: this.variantTable.getItems())
+			{
+			if(!ctx.getContig().equals(prev_chr)) {
+				
+				prev_chr=ctx.getContig();
+				fill_current =(fill_current==fill_chr1?fill_chr2:fill_chr1); 
+				}
+			gc.setFill(fill_current);
+			double x0 = convertGenomicIndexToPixel.apply(convertContigPosToGenomicIndex(ctx.getContig(), ctx.getStart()));
+			double x1 = convertGenomicIndexToPixel.apply(convertContigPosToGenomicIndex(ctx.getContig(), ctx.getEnd()));
+			if(x0<=x1) x0=x0+1L;
+			gc.setGlobalAlpha(0.4);
+			gc.fillRect(x0, 0, (x1-x0), canvasheight);
+			
+			// http://stackoverflow.com/questions/39524792/
+			gc.setGlobalAlpha(1.0);
+			gc.setFill(Color.BLACK);
+			gc.save();
+		    gc.translate(x0, 0);
+		    gc.rotate(90);
+		    gc.fillText(ctx.getContig()+":"+ctx.getStart(), 5, 0,rowheight);
+		    gc.restore();
+			}
+    	final double radius=3.0;
+
+
+		
+		gc.setFont(Font.font ("Verdana", 12));
+    	double y = rowheight;
+    	for(final SampleDef sampleDef : this.name2sampledef.values())
+			{
+			if(!sampleDef.isDisplayed()) continue;
+			gc.setLineWidth(1.0);
+			gc.setGlobalAlpha(1.0);
+    		gc.setFill(Color.BLACK);
+    		gc.setStroke(Color.BLACK);
+    		gc.strokeLine(0, y, canvaswidth, y);
+    		gc.fillText(sampleDef.getName(),1,y+gc.getFont().getSize(),marginleft);
+    		gc.setLineWidth(0.5);
+    		final double midy= y+ rowheight/2.0;
+    		
+    		gc.setGlobalAlpha(0.8);
+    		for(final VariantContext ctx: this.variantTable.getItems())
+    			{
+    			double x0 = convertGenomicIndexToPixel.apply(convertContigPosToGenomicIndex(ctx.getContig(), ctx.getStart()));
+    			final Genotype g= ctx.getGenotype(sampleDef.getName());
+    			if(g==null || g.isNoCall()) continue;
+    			if(g.isHomRef()) {
+    				gc.setStroke(Color.DARKGRAY);
+    				gc.strokeOval(x0-radius, midy-radius, radius*2, radius*2);
+    				}
+    			else if(g.isHet() && !g.isHetNonRef())
+    				{
+    				gc.setStroke(Color.DARKGRAY);
+    				gc.strokeOval(x0-radius, midy-radius, radius*2, radius*2);
+    				gc.setFill(Color.RED);
+    				gc.fillArc(x0-radius, midy-radius, radius*2, radius*2,0,180,ArcType.CHORD);
+    				}
+    			else if(g.isHetNonRef())
+					{
+					gc.setFill(Color.PINK);
+					gc.fillOval(x0-radius, midy-radius, radius*2, radius*2);
+					gc.setFill(Color.RED);
+					gc.fillArc(x0-radius, midy-radius, radius*2, radius*2,0,180,ArcType.CHORD);
+					}
+    			else
+    				{
+    				gc.setFill(Color.RED);
+    				gc.fillOval(x0-radius, midy-radius, radius*2, radius*2);
+    				}
+    			}
+    		
+    		y += rowheight;
+			}
+		
+		
+	   	}
+   
 	}

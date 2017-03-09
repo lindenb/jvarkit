@@ -26,10 +26,12 @@ package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -103,6 +105,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
@@ -155,10 +158,81 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	protected final Menu statsMenu=new Menu("Stats");
 	/** Bioalcidae Menu */
 	protected final Menu bioalcidaeMenu=new Menu("Bioalcidae");
+	/** accelerator to get the starting position of the whole genome */
+	private final Map<String,Long> chrom2start;
+
 
     /** limit number of items */
 	protected final Spinner<Integer> maxItemsLimitSpinner=
 			new Spinner<>(0, 1000, 1);
+	
+	/** limited writer for Bioalcidae Security */
+	private static class LimitSecurityWriter extends Writer
+		{
+		private final long limit;
+		private long written=0L;
+		private final Writer delegate;
+		private boolean error_raised=false;
+		LimitSecurityWriter( final Writer delegate,long limit){
+			this.delegate=delegate;
+			this.limit=limit;
+			}
+		@Override
+		public void write(char[] cbuf, int off, int len) throws IOException {
+			if(error_raised) return;
+			if(this.limit!=-1L && this.written+len>=this.limit) {
+				error_raised=true;
+				final String msg="For security Reason I cannot write more than "+this.limit+" characters.";
+				LOG.severe(msg);
+				throw new IOException(msg);
+				}
+			delegate.write(cbuf, off, len);
+			this.written+=len;
+			}
+		
+		@Override
+		public void flush() throws IOException {
+			this.delegate.flush();
+			}
+		@Override
+		public void close() throws IOException {
+			CloserUtil.close(this.delegate);
+			}
+		}
+	
+	/** resizable canvas http://stackoverflow.com/questions/31761361/ */
+	 protected static abstract class ResizableCanvas extends Pane {
+
+	        private final Canvas canvas;
+
+	        ResizableCanvas(double width, double height) {
+	            canvas = new Canvas(width, height);
+	            getChildren().add(canvas);
+	            canvas.heightProperty().addListener(CL->{repaintCanvas();});
+	            canvas.widthProperty().addListener(CL->{repaintCanvas();});
+	        }
+
+	        public Canvas getCanvas() {
+	            return canvas;
+	        }
+	        
+	        public abstract void repaintCanvas();
+	  
+	        @Override
+	        protected void layoutChildren() {
+	            final double x = snappedLeftInset();
+	            final double y = snappedTopInset();
+	            final double w = snapSize(getWidth()) - x - snappedRightInset();
+	            final double h = snapSize(getHeight()) - y - snappedBottomInset();
+	            canvas.setLayoutX(x);
+	            canvas.setLayoutY(y);
+	            canvas.setWidth(w);
+	            canvas.setHeight(h);
+	            
+	        }
+	    }
+
+	
 	
 	/** Simple Wrapper for Iterator, logging things every xxx seconds */
 	protected  class LogCloseableIterator
@@ -240,94 +314,67 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	
 	/* pane used to draw the karyotype of the reference */
 	protected class SeqDictionaryCanvas
-		extends BorderPane
+		extends ResizableCanvas
 		{
 		private final SAMSequenceDictionary dict;
 		private final double refLength;
 		private ContigPos itemsStart=null;
 		private ContigPos itemsEnd=null;
 		private Interval selectInterval=null;
-		private final Map<String,Long> chrom2start;
-		private final Canvas canvas;
 	    private final Tooltip mousePositionToolTip = new Tooltip("dddd");
     	private java.text.DecimalFormat niceIntFormat = new java.text.DecimalFormat("###,###");
 
 		SeqDictionaryCanvas(final SAMSequenceDictionary dict) {
+			super(200,100);
+			this.setMinHeight(20.0);
+			this.setMinWidth(500.0);
 			this.dict = dict;
-			this.chrom2start=new HashMap<>(dict.size());
 			this.refLength = dict.getReferenceLength();
-			this.canvas = new Canvas(500,25);
-			
-			this.setCenter(this.canvas);
 			this.setPrefWidth(Double.MAX_VALUE);
-			this.setPrefWidth(25.0);
-            long p=0L;
-            for(final SAMSequenceRecord ssr: dict.getSequences())
-            	{
-            	this.chrom2start.put(ssr.getSequenceName(),p);
-            	p+=ssr.getSequenceLength();
-            	}
-            this.canvas.setOnMouseClicked(AE->{
-            	if(AE.getClickCount()<2 || this.canvas.getWidth()==0) return;
+			//this.setPrefWidth(25.0);
+           
+            this.getCanvas().setOnMouseClicked(AE->{
+            	if(AE.getClickCount()<2 || this.getCanvas().getWidth()==0) return;
             	final ContigPos cp = pixel2base(AE.getX());
             	if(cp==null) return;
             	NgsStage.this.gotoField.setText(cp.contig+":"+cp.position);
                 NgsStage.this.reloadData();		
             	});
-            Tooltip.install(this.canvas,this.mousePositionToolTip);
-            this.canvas.setOnMouseMoved(AE->{
+            Tooltip.install(this.getCanvas(),this.mousePositionToolTip);
+            this.getCanvas().setOnMouseMoved(AE->{
            		final ContigPos cp = pixel2base(AE.getX());
-           		mousePositionToolTip.setText(cp==null?"":cp.contig+":"+this.niceIntFormat.format(cp.position));});
+           		this.mousePositionToolTip.setText(cp==null?"":cp.contig+":"+this.niceIntFormat.format(cp.position));});
 			}
 		
 		private ContigPos pixel2base(final double pixx)
 			{
-			final long x= (long)((pixx/this.canvas.getWidth())*this.refLength);
-			long p1=0L;
-			for(final SAMSequenceRecord ssr: this.dict.getSequences())
-	        	{
-	        	if(p1<=x && x<=p1+ssr.getSequenceLength()) {
-	        		return new ContigPos(ssr.getSequenceName(),(int)(x-p1));
-	        		}
-	        	p1+=ssr.getSequenceLength();
-	        	}
-			return null;
+			final long x= (long)((pixx/this.getCanvas().getWidth())*this.refLength);
+			return NgsStage.this.convertGenomicIndexToContigPos(x);
 			}
 		
 		public void setItemsInterval(final ContigPos start,final ContigPos end) {
 			this.itemsStart = start;
 			this.itemsEnd = end;
-			draw();
+			repaintCanvas();
 			}
 		public void setSelectInterval(final Interval selectInterval) {
 			this.selectInterval = selectInterval;
-			draw();
-			}
-		// http://stackoverflow.com/questions/31761361/
-        @Override
-        protected void layoutChildren() {
-        	final double x = snappedLeftInset();
-            final double y = snappedTopInset();
-            final double w = snapSize(getWidth()) - x - snappedRightInset();
-            final double h = snapSize(getHeight()) - y - snappedBottomInset();
-            canvas.setLayoutX(x);
-            canvas.setLayoutY(y);
-            canvas.setWidth(w);
-            canvas.setHeight(h);
-            draw();
-        }
-		private double base2pixel(final String contig,final int v) {
-			final Long n=this.chrom2start.get(contig);
-			if(n==null) return -9999.99;
-			return ((double)(n+v)/this.refLength)*this.canvas.getWidth();
+			repaintCanvas();
 			}
 		
-		public void draw() {
+		private double base2pixel(final String contig,final int v) {
+			final long n= NgsStage.this.convertContigPosToGenomicIndex(contig,v);
+			if(n==-1L) return -9999.99;
+			return ((double)(n)/this.refLength)*this.getCanvas().getWidth();
+			}
+		
+		@Override
+		public void repaintCanvas() {
             final double boundrec=5.0;
-			final double width = canvas.getWidth();
-			final double height = canvas.getHeight();
+			final double width = getCanvas().getWidth();
+			final double height = getCanvas().getHeight();
 			if(width<=1.0 || height<=1.0) return;
-            final GraphicsContext gc = this.canvas.getGraphicsContext2D();
+            final GraphicsContext gc = this.getCanvas().getGraphicsContext2D();
             gc.setGlobalAlpha(1.0);
             gc.clearRect(0, 0, width, height);
             final Paint p1= new LinearGradient(0, 0, 0, 1.0, true, CycleMethod.NO_CYCLE,
@@ -345,8 +392,8 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
             for(int i=0;i< this.dict.size();++i)
             	{
             	final SAMSequenceRecord ssr = this.dict.getSequence(i);
-            	final double x0 = base2pixel(ssr.getSequenceName(),1);
-            	final double x1 =  base2pixel(ssr.getSequenceName(),ssr.getSequenceLength());
+            	final double x0 = this.base2pixel(ssr.getSequenceName(),1);
+            	final double x1 = this.base2pixel(ssr.getSequenceName(),ssr.getSequenceLength());
             	double labelh = height-5;
             	double labelw=Math.min(ssr.getSequenceName().length()*labelh,(x1-x0));
             	
@@ -448,14 +495,52 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				{
 				saveToStringWriter=new StringWriter();
 				}
-			PrintWriter pw=null;
+			FileWriter fw=null;
 			NgsFile<HEADERTYPE,ITEMTYPE> copyNgsFile=null;
 			CloseableIterator<ITEMTYPE> iter=null;
 			try {
-				pw = saveToFile?
-						new PrintWriter(saveAsFile):
-						new PrintWriter(saveToStringWriter)
-						;
+				final LimitSecurityWriter limitSecurityWriter;
+				if( saveToFile)
+					{
+					long limit_bytes;
+					try
+						{
+						limit_bytes=Long.parseLong(
+								owner.preferences.get(
+										owner.pref_bioalcidae_max_stream.key,
+										owner.pref_bioalcidae_max_stream.defaultValue
+										)
+								);
+						}
+					catch(final Exception err)
+						{
+						err.printStackTrace();
+						limit_bytes=Long.parseLong(owner.pref_bioalcidae_max_stream.defaultValue);
+						}
+					fw = new FileWriter(saveAsFile);
+					limitSecurityWriter = new LimitSecurityWriter(fw,limit_bytes);
+					}
+				else
+					{
+					long limit_bytes;
+					try
+						{
+						limit_bytes=Long.parseLong(
+								owner.preferences.get(
+										owner.pref_bioalcidae_max_string.key,
+										owner.pref_bioalcidae_max_string.defaultValue
+										)
+								);
+						}
+					catch(final Exception err)
+						{
+						err.printStackTrace();
+						limit_bytes=Long.parseLong(owner.pref_bioalcidae_max_string.defaultValue);
+						}
+					saveToStringWriter = new StringWriter();
+					limitSecurityWriter= new LimitSecurityWriter(saveToStringWriter,limit_bytes);
+					}
+				final PrintWriter pw= new PrintWriter(limitSecurityWriter);
 				copyNgsFile = getNgsFile().reOpen();
 				iter = new LogCloseableIterator(copyNgsFile.iterator());
 				final SimpleBindings bindings= completeBindings(new  SimpleBindings(),copyNgsFile.getHeader());
@@ -466,8 +551,17 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				compiledScript.eval(bindings);
 				pw.flush();
 				pw.close();
-				pw=null;
-				if(saveToStringWriter!=null) {
+
+				if(pw.checkError())
+					{
+					final Alert alert = new Alert(
+							AlertType.ERROR,
+							"I/O Error. Check Stream limits in preferences.",
+							ButtonType.OK);
+					alert.showAndWait();
+					}
+				
+				else if(saveToStringWriter!=null) {
 					final Stage showResultStage=new Stage();
 					showResultStage.setTitle("BioAlcidae");
 					showResultStage.setScene(new Scene(new ScrollPane(new TextArea(saveToStringWriter.toString()))));
@@ -480,12 +574,13 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 					}
 				}	
 			catch(final Throwable err) {
+				err.printStackTrace();
 				JfxNgs.showExceptionDialog(ownerWindow, err);
 				}
 			finally {
 				CloserUtil.close(iter);
 				CloserUtil.close(copyNgsFile);
-				CloserUtil.close(pw);
+				CloserUtil.close(fw);
 				}
 			}
 		 
@@ -798,6 +893,16 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     		{
     		throw new IOException("There is no associated dictionary for "+ngsFile);
     		}
+    	this.chrom2start=new HashMap<>(ngsFile.getSequenceDictionary().size());
+    	{
+    	long genomeLength=0L;
+    	for(final SAMSequenceRecord ssr: ngsFile.getSequenceDictionary().getSequences())
+	     	{
+	     	this.chrom2start.put(ssr.getSequenceName(),genomeLength);
+	     	genomeLength+=ssr.getSequenceLength();
+	     	}
+    	}
+    	
     	this.seqDictionaryCanvas = new  SeqDictionaryCanvas(ngsFile.getSequenceDictionary());
     	
     	if(!this.owner.javascriptCompiler.isPresent()) {
@@ -1425,17 +1530,25 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     /** convert a contig pos to genomic index, return -1 on error (contig not found ) */
     protected long convertContigPosToGenomicIndex(final ContigPos cp) {
     	if(cp==null || cp.getContig()==null) return -1L;
-    	long n=0L;
-    	for(final SAMSequenceRecord ssr: getNgsFile().getSequenceDictionary().getSequences())
-	    	{
-	    	if(cp.getContig().equals(ssr.getSequenceName()))
-    				{
-    				return n + Math.min( Math.max(1L,cp.position),ssr.getSequenceLength());
-    				}
-	    	n+=ssr.getSequenceLength();
-	    	}
-    	return -1l;
+    	return convertContigPosToGenomicIndex(cp.getContig(),cp.position);
     	}
+    
+    /** convert a contig pos to genomic index, return -1 on error (contig not found ) */
+    protected long convertContigPosToGenomicIndex(final String contig,int pos) {
+    	if(contig==null) return -1L;
+    	final Long n= this.chrom2start.get(contig);
+    	if(n==null) {
+    		System.err.println("Cannot find "+contig);
+    		return -1L;
+    	}
+    	final SAMSequenceRecord ssr=  getNgsFile().getSequenceDictionary().getSequence(contig);
+    	if(ssr==null){
+    		System.err.println("Cannot find "+contig);
+    		return -1L;
+    	}
+    	return n.longValue() + Math.min( Math.max(1L,pos),ssr.getSequenceLength());
+    	}
+    
     /** convert a contig pos to genomic index, return null on error (contig not found ) */
     protected ContigPos convertGenomicIndexToContigPos(long gi) {
     	if(gi<0L) gi=0L;

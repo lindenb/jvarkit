@@ -212,6 +212,7 @@ public class JfxNgs extends Application {
     	final String key;
     	final String label;
     	final TextField textField;
+    	String defaultValue="";
     	PrefItem(final String key, final String label,String description) {
     		this.key = key;
     		this.label= label;
@@ -221,6 +222,7 @@ public class JfxNgs extends Application {
     		this.textField.setTooltip(new Tooltip(description));
     		this.textField.setPromptText(description);
     		}
+    	PrefItem setDefault(final String s) { this.defaultValue=s;this.textField.setText(s); return this;}
     	String getValue() { return this.textField.getText().trim();}
     	}
 
@@ -231,9 +233,13 @@ public class JfxNgs extends Application {
 	private final PrefItem pref_max_sam_items = new PrefItem(BamStage.SPINNER_VALUE_KEY, "Default number of Reads",null);
 	private final PrefItem pref_max_vcf_items = new PrefItem(VcfStage.SPINNER_VALUE_KEY, "Default number of Variants",null);
 	
-	final PrefItem pref_bam_max_seq_length_displayed = new PrefItem("bam.max.seq.length.displayed", "Max sequence length to be displayed",null);
-	final PrefItem pref_bam_max_cigar_items_displayed = new PrefItem("bam.cigar.max.items", "Max number of cigar elements to be displayed",null);
-	final PrefItem pref_vcf_max_allele_length_displayed = new PrefItem("allele.max.length", "Max Allele size to be displayed",null);
+	final PrefItem pref_bam_max_seq_length_displayed = new PrefItem("bam.max.seq.length.displayed", "Max sequence length to be displayed",null).setDefault("1000");
+	final PrefItem pref_bam_max_cigar_items_displayed = new PrefItem("bam.cigar.max.items", "Max number of cigar elements to be displayed",null).setDefault("50");
+	final PrefItem pref_vcf_max_allele_length_displayed = new PrefItem("allele.max.length", "Max Allele size to be displayed",null).setDefault("20");
+	
+	final PrefItem pref_bioalcidae_max_stream = new PrefItem("bioalcidae.max.stream", "Max number of bytes to be written by bioalcidae using stream. -1=no limit",null).setDefault("-1");
+	final PrefItem pref_bioalcidae_max_string = new PrefItem("bioalcidae.max.string", "Max number of bytes to be written by bioalcidae using textpane",null).setDefault("10000");
+	
 	
 	
 	private final PrefItem all_preferences[]=new PrefItem[]{
@@ -243,7 +249,9 @@ public class JfxNgs extends Application {
 			pref_max_vcf_items,
 			pref_bam_max_seq_length_displayed,
 			pref_bam_max_cigar_items_displayed,
-			pref_vcf_max_allele_length_displayed
+			pref_vcf_max_allele_length_displayed,
+			pref_bioalcidae_max_stream,
+			pref_bioalcidae_max_string
 		};
 
 	
@@ -909,10 +917,10 @@ public class JfxNgs extends Application {
     		final Label label=new Label(pref.label+" :");
         	final HBox hbox=new HBox(label,pref.textField);
         	hbox.setPadding(new Insets(10));
-        	pref.textField.setText(this.preferences.get(pref.key, ""));
+        	pref.textField.setText(this.preferences.get(pref.key, pref.defaultValue));
         	vbox.getChildren().add(hbox);
     		}
-    	vbox.setPadding(new Insets(10));
+    	vbox.setPadding(new Insets(5));
     	dialog.setScene(new Scene(vbox));
     	dialog.initOwner(parentStage);
     	dialog.initModality(Modality.APPLICATION_MODAL);
