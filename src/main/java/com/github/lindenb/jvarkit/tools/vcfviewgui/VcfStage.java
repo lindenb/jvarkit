@@ -395,6 +395,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 	private final TableView<Allele> allelesTable;
 	private final TableView<PedFile.TrioGenotype> triosTable;
 	private final BorderPane genotypeChartPane;
+	private final CheckBox canvasEvenlySpaced=new CheckBox("Evenly Spaced");
 	private final CheckBox cboxShowHomRef=new CheckBox("HomRef");
 	private final CheckBox cboxShowNoCall=new CheckBox("NoCall");
 	private final CheckBox cboxShowFiltered=new CheckBox("Filtered");
@@ -668,7 +669,11 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         		{
         		public void repaintCanvas() {paintDrawingArea();};
         		};
-        tab=new Tab("Canvas",this.drawingArea);
+        BorderPane canvasPane=new BorderPane(this.drawingArea);
+        this.canvasEvenlySpaced.setSelected(false);
+        this.canvasEvenlySpaced.setOnAction(AE->{paintDrawingArea();});
+        canvasPane.setTop(new FlowPane(this.canvasEvenlySpaced));
+        tab=new Tab("Canvas",canvasPane);
         tab.setClosable(false);
 		tabPane.getTabs().add(tab);
         
@@ -1602,7 +1607,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		if(this.variantTable.getItems().isEmpty()) return;
 		
 		gc.setFill(Color.BLACK);
-		final int MAX_VARIANTS=(int)(canvaswidth/10);
+		final int MAX_VARIANTS=(int)(canvaswidth/4.0);
 		if(this.variantTable.getItems().size() >MAX_VARIANTS)
 			{
 			gc.setFont(Font.font ("Verdana", 24));
@@ -1616,48 +1621,55 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			if(!sampleDef.isDisplayed()) continue;
 			nrows++;
 			}
-    	final double rowheight = canvasheight/nrows;
-		if(rowheight<12)
-			{
-			gc.setFont(Font.font ("Verdana", 24));
-			gc.fillText("Sorry. Too Many Samples. (rowheight<12)",2,canvasheight/2);
-			return;
-			}
-
+    	double rowheight = canvasheight/nrows;
+    	if(rowheight<5) rowheight=5;
 		
-		Long minGenomicIndex=null;
-		Long maxGenomicIndex=null;
+		final double marginleft = (nrows<=1?0.0:canvaswidth/10.0);//no margin if no sample
 		
-		for(final VariantContext ctx: this.variantTable.getItems())
+		final Function<Long,Double> convertGenomicIndexToPixel ;
+		final Function<Integer,Double> convertListIndexToPixel ;
+		
+		if( !this.canvasEvenlySpaced.isSelected() )
 			{
-			long giS = convertContigPosToGenomicIndex(ctx.getContig(), ctx.getStart());
-			long giE = convertContigPosToGenomicIndex(ctx.getContig(), ctx.getEnd());
-			if(minGenomicIndex==null || minGenomicIndex.longValue()> giS) {
-				minGenomicIndex = giS;
+			Long minGenomicIndex;
+			Long maxGenomicIndex;
+		
+				{
+				final VariantContext ctx = this.variantTable.getItems().get(0);
+				minGenomicIndex = convertContigPosToGenomicIndex(ctx.getContig(), ctx.getStart());
+				maxGenomicIndex = minGenomicIndex;
 				}
-			if(maxGenomicIndex==null || maxGenomicIndex.longValue()< giE) {
-				maxGenomicIndex = giE;
+		
+				{
+				final VariantContext ctx = this.variantTable.getItems().get(this.variantTable.getItems().size()-1);
+				maxGenomicIndex = convertContigPosToGenomicIndex(ctx.getContig(), ctx.getEnd());
 				}
-			}
+			if(minGenomicIndex==null || maxGenomicIndex==null) return;
 		
-		if( minGenomicIndex ==null  || maxGenomicIndex==null) return;
 		
-		long extend = (long)((maxGenomicIndex-minGenomicIndex)*0.1);
-		minGenomicIndex = minGenomicIndex-extend;
-		maxGenomicIndex = maxGenomicIndex+extend;
+			long extend = (long)((maxGenomicIndex-minGenomicIndex)*0.1);
+			minGenomicIndex = minGenomicIndex-extend;
+			maxGenomicIndex = maxGenomicIndex+extend;
 		
-		final long genomicIndexStart = minGenomicIndex;
-		final long genomicIndexLength = (maxGenomicIndex-minGenomicIndex);
-		
-    	final double marginleft = (nrows<=1?0.0:canvaswidth/10.0);//no margin if no sample
-    	
-		
-		final Function<Long,Double> convertGenomicIndexToPixel= (GI)->
-			{
-				double x=	marginleft+(canvaswidth-marginleft)*((double)(GI-genomicIndexStart))/((double)(genomicIndexLength));
+			final long genomicIndexStart = minGenomicIndex;
+			final long genomicIndexLength = (maxGenomicIndex-minGenomicIndex);
+			
+			convertGenomicIndexToPixel = (GI)->
+				{
+					double x=	marginleft+(canvaswidth-marginleft)*((double)(GI-genomicIndexStart))/((double)(genomicIndexLength));
 				
-				return x;
-			};
+					return x;
+				};
+			convertListIndexToPixel = null;
+			}
+		else
+			{
+			final double nItems = 2.0 + this.variantTable.getItems().size();
+			convertGenomicIndexToPixel = null;
+			convertListIndexToPixel = (IDX)-> {
+					return marginleft + ((1+IDX)/nItems)*(canvaswidth-marginleft);
+				};
+			}
 		
 		//draw vertical lines
 		String prev_chr="";
@@ -1665,17 +1677,31 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		Paint fill_chr2=Color.DARKGRAY;
 		Paint fill_current = fill_chr1;
 		gc.setFont(Font.font ("Verdana", 7));
-		for(final VariantContext ctx: this.variantTable.getItems())
+		for(int idx= 0;idx < this.variantTable.getItems().size(); ++idx )
 			{
+			final VariantContext ctx = this.variantTable.getItems().get(idx);
+			
 			if(!ctx.getContig().equals(prev_chr)) {
-				
 				prev_chr=ctx.getContig();
 				fill_current =(fill_current==fill_chr1?fill_chr2:fill_chr1); 
 				}
 			gc.setFill(fill_current);
-			double x0 = convertGenomicIndexToPixel.apply(convertContigPosToGenomicIndex(ctx.getContig(), ctx.getStart()));
-			double x1 = convertGenomicIndexToPixel.apply(convertContigPosToGenomicIndex(ctx.getContig(), ctx.getEnd()));
-			if(x0<=x1) x0=x0+1L;
+			
+			double x0;
+			double x1;
+			
+			if( convertListIndexToPixel==null)
+				{
+				x0 = convertGenomicIndexToPixel.apply(convertContigPosToGenomicIndex(ctx.getContig(), ctx.getStart()));
+			    x1 = convertGenomicIndexToPixel.apply(convertContigPosToGenomicIndex(ctx.getContig(), ctx.getEnd()));
+			    if(x0<=x1) x1=x0+1;
+				}
+			else
+				{
+				x0 = convertListIndexToPixel.apply(idx);
+				x1=x0+1;
+				}
+			
 			gc.setGlobalAlpha(0.4);
 			gc.fillRect(x0, 0, (x1-x0), canvasheight);
 			
@@ -1707,9 +1733,19 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     		final double midy= y+ rowheight/2.0;
     		
     		gc.setGlobalAlpha(0.8);
-    		for(final VariantContext ctx: this.variantTable.getItems())
+    		for(int idx=0;idx < this.variantTable.getItems().size();++idx)
     			{
-    			double x0 = convertGenomicIndexToPixel.apply(convertContigPosToGenomicIndex(ctx.getContig(), ctx.getStart()));
+    			final VariantContext ctx= this.variantTable.getItems().get(idx);
+    			
+    			double x0;
+    			if(convertListIndexToPixel==null)
+    				{
+    				x0 = convertGenomicIndexToPixel.apply(convertContigPosToGenomicIndex(ctx.getContig(), ctx.getStart()));
+    				}
+    			else
+    				{
+    				x0 = convertListIndexToPixel.apply(idx);
+    				}
     			final Genotype g= ctx.getGenotype(sampleDef.getName());
     			if(g==null || g.isNoCall()) continue;
     			if(g.isHomRef()) {
@@ -1738,6 +1774,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     			}
     		
     		y += rowheight;
+    		if(y> canvasheight) break;
 			}
 		
 		

@@ -39,15 +39,16 @@ while(iter.hasNext()) {
 }
 
 for(var contig in  chrom2count)
-{
-out.println(contig+"\t"+chrom2count[contig]);
-}
+	{
+	out.println(contig+"\t"+chrom2count[contig]);
+	}
 ]]></code>
 
 
 <code scope="bioalcidae" label="Convert to BED">while(iter.hasNext()) {
  var item= iter.next();
- out.println(item.getContig()+"\t"+item.getStart()+"\t"+item.getEnd());
+ if(item.getReadUnmappedFlag()) continue;
+ out.println(item.getContig()+"\t"+(item.getStart()-1)+"\t"+item.getEnd());
 }</code>
 
 

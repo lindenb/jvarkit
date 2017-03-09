@@ -159,7 +159,7 @@ out.println(contig+"\t"+chrom2count[contig]);
 
 <code scope="bioalcidae" label="Convert to BED">while(iter.hasNext()) {
  var item= iter.next();
- out.println(item.getContig()+"\t"+item.getStart()+"\t"+item.getEnd());
+ out.println(item.getContig()+"\t"+(item.getStart()-1)+"\t"+item.getEnd());
 }</code>
 
 <code scope="bioalcidae" label="Table: chrom/pos/ref/alt/an/ac"><![CDATA[
