@@ -723,6 +723,10 @@ public class BioAlcidae
 				
 			
 			this.writer.flush();
+			if(this.writer.checkError())
+				{
+				LOG.warn("I/O errror. Something wrong happended");
+				}
 			return RETURN_OK;
 			}
 		catch(Exception err)

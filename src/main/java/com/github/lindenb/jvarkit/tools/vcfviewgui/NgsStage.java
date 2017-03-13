@@ -24,14 +24,16 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -102,6 +104,7 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
@@ -113,6 +116,8 @@ import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Paint;
 import javafx.scene.paint.Stop;
 import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -167,18 +172,17 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			new Spinner<>(0, 1000, 1);
 	
 	/** limited writer for Bioalcidae Security */
-	private static class LimitSecurityWriter extends Writer
+	private static class LimitSecurityStream extends FilterOutputStream
 		{
 		private final long limit;
 		private long written=0L;
-		private final Writer delegate;
 		private boolean error_raised=false;
-		LimitSecurityWriter( final Writer delegate,long limit){
-			this.delegate=delegate;
+		LimitSecurityStream( final OutputStream delegate,long limit){
+			super(delegate);
 			this.limit=limit;
 			}
 		@Override
-		public void write(char[] cbuf, int off, int len) throws IOException {
+		public void write(byte[] cbuf, int off, int len) throws IOException {
 			if(error_raised) return;
 			if(this.limit!=-1L && this.written+len>=this.limit) {
 				error_raised=true;
@@ -186,18 +190,17 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				LOG.severe(msg);
 				throw new IOException(msg);
 				}
-			delegate.write(cbuf, off, len);
+			super.out.write(cbuf, off, len);
 			this.written+=len;
 			}
 		
 		@Override
-		public void flush() throws IOException {
-			this.delegate.flush();
+		public void write(int b) throws IOException {
+			byte array[]=new byte[]{(byte)b};
+			this.write(array,0,array.length);
 			}
-		@Override
-		public void close() throws IOException {
-			CloserUtil.close(this.delegate);
-			}
+		
+		
 		}
 	
 	/** resizable canvas http://stackoverflow.com/questions/31761361/ */
@@ -239,28 +242,46 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		extends AbstractIterator<ITEMTYPE>
 		implements CloseableIterator<ITEMTYPE>
 		{
+		volatile int __stop_flag=0; 
+		private boolean _closed=false;
 		private final  CloseableIterator<ITEMTYPE> delegate;
 		private long clock = System.currentTimeMillis();
 		private long count=0L;
-		LogCloseableIterator(final CloseableIterator<ITEMTYPE> iter) {
+		private final Label messageLabel;
+		LogCloseableIterator(final CloseableIterator<ITEMTYPE> iter, final Label messageLabel) {
 			this.delegate = iter;
+			this.messageLabel=messageLabel;
 			if(iter==null) throw new NullPointerException("delegate is null");
 			}
 		
 		@Override
 		protected ITEMTYPE advance() {
+			if(this._closed) return null;
+			if(__stop_flag!=0) {
+				this.close();
+				return null;
+				}
 			if( this.delegate.hasNext()) {
 				final ITEMTYPE t= this.delegate.next();
 				++count;
 				long now = System.currentTimeMillis();
 				if(now - this.clock  > 10*1000) {
+					final String msg;
 					if(t!=null && t.getContig()!=null)
 						{
-						LOG.info("N="+count+" last:"+t.getContig()+":"+t.getStart()+"-"+t.getEnd());
+						msg = "N="+count+" last:"+t.getContig()+":"+t.getStart()+"-"+t.getEnd();
 						}
 					else
 						{
-						LOG.info("N="+count);
+						msg = "N="+count;
+						}
+					if(this.messageLabel!=null)
+						{
+						Platform.runLater(()->{messageLabel.setText(msg);});
+						}
+					else
+						{
+						LOG.info(msg);
 						}
 					this.clock = now;
 					}
@@ -274,6 +295,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		@Override
 		public void close() {
 			CloserUtil.close(this.delegate);
+			this._closed=true;
 			}
 		}
 
@@ -431,7 +453,93 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	/** generate Bioalcidae-like window */
 	 protected  abstract class AbstractAwkLike {
 		 protected final TextArea scriptArea= new TextArea();
-		
+		 protected final Label progessLabel= new Label();
+		 private volatile Runner curentrunner=null;
+		 
+		 private class Runner extends Thread
+		 	{
+			CompiledScript compiledScript = null;
+			NgsFile<HEADERTYPE,ITEMTYPE> copyNgsFile=null;
+			FileOutputStream fw=null;
+			File saveAsFile=null;
+			ByteArrayOutputStream saveToStringWriter=null;
+			PrintStream out = null;
+			SimpleBindings bindings=null;
+			LogCloseableIterator iter=null;
+			
+			@Override
+			public void run() {
+				try 
+					{
+					this.bindings.put(HEADER_CONTEXT_KEY, this.copyNgsFile.getHeader());
+					this.bindings.put(OUT_CONTEXT_KEY, this.out);
+					this.bindings.put(ITER_CONTEXT_KEY, this.iter);
+					
+					this.compiledScript.eval(this.bindings);
+					this.iter.close();
+					this.out.flush();
+					this.out.close();
+					
+					Platform.runLater(()->{
+						AbstractAwkLike.this.progessLabel.setText("Done.");
+						});
+					
+					if(this.iter.__stop_flag!=0)
+						{
+						//nothing
+						}
+					else if(this.out.checkError())
+						{
+						Platform.runLater(()->{
+							final Alert alert = new Alert(
+									AlertType.ERROR,
+									"I/O Error. Check Stream limits in preferences.",
+									ButtonType.OK);
+							alert.showAndWait();
+							});
+						}
+					else if(this.saveToStringWriter!=null) {
+						final String output = new String(this.saveToStringWriter.toByteArray());
+						Platform.runLater(()->{
+							final Stage showResultStage=new Stage();
+							showResultStage.setTitle("BioAlcidae");
+							showResultStage.setScene(new Scene(new ScrollPane(new TextArea(output))));
+							showResultStage.show();
+							});
+						} 
+					else
+						{
+						Platform.runLater(()->{
+							final Alert alert = new Alert(AlertType.CONFIRMATION, "Done", ButtonType.OK);
+							alert.showAndWait();
+							});
+						}
+					this.out=null;
+					this.iter=null;
+					}
+				catch(final Exception err)
+					{
+					Platform.runLater(()->{
+						AbstractAwkLike.this.progessLabel.setText("Error :"+err.getMessage());
+						});
+					err.printStackTrace();
+					}
+				finally
+					{
+					AbstractAwkLike.this.curentrunner=null;
+					dispose();
+					}
+				}
+			
+			void dispose()
+				{
+				CloserUtil.close(this.iter);
+				CloserUtil.close(this.copyNgsFile);
+				CloserUtil.close(this.fw);				
+				}
+			
+		 	}
+		 
 		 AbstractAwkLike()
 		 	{
 			this.scriptArea.setPromptText("insert your javascript expression");
@@ -447,24 +555,43 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			 return sb;
 		 }
 		 
-		 protected String getHelpString() {
-			 return "This is a graphical interface to a Biolacidae-like tool (see https://github.com/lindenb/jvarkit/wiki/BioAlcidae).\n"+
-					 "This tool is not multihreaded, so you might see the interface freezing as it runs.\n"+
+		 protected TextFlow getHelpString() {
+			 return new TextFlow(new Text(
+			     "This is a graphical interface to a Biolacidae-like tool (see https://github.com/lindenb/jvarkit/wiki/BioAlcidae).\n"+
 					 "The filter (including javascript) of the original window are **not** used.\n"+
 					 "Use a your own risk. If your produce an infinite loop, the script might run forever and potentialy might feel your hard-drive.\n"+
-					 "The script injects:\n* out : the output stream, a '"+PrintWriter.class.getName()+"'\n"+
-	    			 "* pedigree ( "+PedFile.class.getName()+" ) (empty for BAM)\n"
-					 ;
+					 "The script injects:\n* out : the output stream, a '"),javadocFor(PrintStream.class),new Text("'\n"+
+	    			 "* pedigree ( "),javadocFor(PedFile.class),new Text(" ) (empty for BAM)\n"
+					 ));
 		 }
-		 
+		
+		private synchronized void stopRunner()
+			{
+			final Runner runner=this.curentrunner;
+			if(runner!=null) {
+				if(runner.iter!=null) runner.iter.__stop_flag=1;
+				try { Thread.sleep(2000);} catch (InterruptedException e) {}
+				try {runner.dispose();} catch (Exception e) {}
+				try {runner.interrupt();} catch (Exception e) {}
+				this.curentrunner=null;
+				this.progessLabel.setText("Runner stopped.");
+				}	
+			}
+		
 		private void execute(final Stage ownerWindow,boolean saveToFile) 
 			{
+			AbstractAwkLike.this.progessLabel.setText("");
+			if(this.curentrunner!=null)
+				{
+				JfxNgs.showExceptionDialog(ownerWindow, "Process is already running.");
+				return;
+				}
+			
 			if(!NgsStage.this.owner.javascriptCompiler.isPresent())
 				{
 				JfxNgs.showExceptionDialog(ownerWindow, "javascript is not supported");
 				return;
 				}
-			final CompiledScript compiledScript;
 			final String expr=this.scriptArea.getText();
 			if(expr.trim().isEmpty())
 				{
@@ -472,34 +599,31 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				return;
 				}
 			
-			
+			final Runner newrunner=new Runner();
+
 			try {
-				compiledScript = NgsStage.this.owner.javascriptCompiler.get().compile(expr);
+				newrunner.compiledScript = NgsStage.this.owner.javascriptCompiler.get().compile(expr);
 				} 
 			catch(final Throwable err)
 				{
 				JfxNgs.showExceptionDialog(ownerWindow,err);
 				return;
 				}
-			File saveAsFile=null;
-			StringWriter saveToStringWriter=null;
 			if(saveToFile)
 				{
 				final FileChooser fc=NgsStage.this.owner.newFileChooser();
 				fc.setInitialFileName("output.txt");
 				fc.setSelectedExtensionFilter(new ExtensionFilter("text file", ".txt",".csv"));
-				saveAsFile =fc.showSaveDialog(ownerWindow);
-				if(saveAsFile==null) return;
+				newrunner.saveAsFile =fc.showSaveDialog(ownerWindow);
+				if(newrunner.saveAsFile==null) return;
 				}
 			else
 				{
-				saveToStringWriter=new StringWriter();
+				newrunner.saveToStringWriter=new ByteArrayOutputStream();
 				}
-			FileWriter fw=null;
-			NgsFile<HEADERTYPE,ITEMTYPE> copyNgsFile=null;
-			CloseableIterator<ITEMTYPE> iter=null;
+			
 			try {
-				final LimitSecurityWriter limitSecurityWriter;
+				final LimitSecurityStream limitSecurityStream;
 				if( saveToFile)
 					{
 					long limit_bytes;
@@ -517,8 +641,8 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 						err.printStackTrace();
 						limit_bytes=Long.parseLong(owner.pref_bioalcidae_max_stream.defaultValue);
 						}
-					fw = new FileWriter(saveAsFile);
-					limitSecurityWriter = new LimitSecurityWriter(fw,limit_bytes);
+					newrunner.fw = new FileOutputStream(newrunner.saveAsFile);
+					limitSecurityStream = new LimitSecurityStream(newrunner.fw,limit_bytes);
 					}
 				else
 					{
@@ -537,55 +661,30 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 						err.printStackTrace();
 						limit_bytes=Long.parseLong(owner.pref_bioalcidae_max_string.defaultValue);
 						}
-					saveToStringWriter = new StringWriter();
-					limitSecurityWriter= new LimitSecurityWriter(saveToStringWriter,limit_bytes);
+					newrunner.saveToStringWriter = new ByteArrayOutputStream();
+					limitSecurityStream= new LimitSecurityStream(newrunner.saveToStringWriter,limit_bytes);
 					}
-				final PrintWriter pw= new PrintWriter(limitSecurityWriter);
-				copyNgsFile = getNgsFile().reOpen();
-				iter = new LogCloseableIterator(copyNgsFile.iterator());
-				final SimpleBindings bindings= completeBindings(new  SimpleBindings(),copyNgsFile.getHeader());
-				bindings.put(HEADER_CONTEXT_KEY, copyNgsFile.getHeader());
-				bindings.put(OUT_CONTEXT_KEY, pw);
-				bindings.put(ITER_CONTEXT_KEY, iter);
-				
-				compiledScript.eval(bindings);
-				pw.flush();
-				pw.close();
+				newrunner.out = new PrintStream(limitSecurityStream);
+				newrunner.copyNgsFile = getNgsFile().reOpen();
+				newrunner.iter = new LogCloseableIterator(newrunner.copyNgsFile.iterator(),this.progessLabel);
+				newrunner.bindings= completeBindings(new  SimpleBindings(),newrunner.copyNgsFile.getHeader());
 
-				if(pw.checkError())
-					{
-					final Alert alert = new Alert(
-							AlertType.ERROR,
-							"I/O Error. Check Stream limits in preferences.",
-							ButtonType.OK);
-					alert.showAndWait();
-					}
-				
-				else if(saveToStringWriter!=null) {
-					final Stage showResultStage=new Stage();
-					showResultStage.setTitle("BioAlcidae");
-					showResultStage.setScene(new Scene(new ScrollPane(new TextArea(saveToStringWriter.toString()))));
-					showResultStage.show();
-					} 
-				else
-					{
-					final Alert alert = new Alert(AlertType.CONFIRMATION, "Done. ?", ButtonType.OK);
-					alert.showAndWait();
-					}
-				}	
+				this.curentrunner=newrunner;
+				this.curentrunner.start();
+				}
 			catch(final Throwable err) {
 				err.printStackTrace();
+				newrunner.dispose();
 				JfxNgs.showExceptionDialog(ownerWindow, err);
 				}
 			finally {
-				CloserUtil.close(iter);
-				CloserUtil.close(copyNgsFile);
-				CloserUtil.close(fw);
+				
 				}
 			}
 		 
 		public void show() {
 			final Stage dialog = new Stage();
+			dialog.setResizable(true);
 			dialog.setTitle("Bioalcidae for "+getNgsFile().getSource());
 			
 			VBox contentPane=new VBox(5);
@@ -641,6 +740,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	    	top.getChildren().add(button);
 	    	
 	    	button=new Button("Validate");
+	    	button.setTooltip(new Tooltip("Validate javascript syntax"));
 	    	button.setOnAction(AE->{actionValidateScript(dialog, this.scriptArea);});
 	    	top.getChildren().add(button);
 
@@ -650,23 +750,34 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			contentPane.getChildren().add(this.scriptArea);
 			
 			contentPane.getChildren().add(new Separator(Orientation.HORIZONTAL));			
-			final Label helpLabel=new Label(getHelpString());
-			helpLabel.setWrapText(true);
+			final FlowPane helpLabel=new FlowPane(getHelpString());
 			contentPane.getChildren().add(helpLabel);
 			
 			FlowPane flowPane=new FlowPane();
 			flowPane.setPadding(new Insets(5));
+			
 			button= new Button("Run To File....");
+			button.setTooltip(new Tooltip("Run the process and save the result in a new file"));
 			button.setFont(Font.font(button.getFont().getFamily(),24));
 			button.setOnAction(AE->{ execute(dialog,true);});
 			flowPane.getChildren().add(button);
+			
 			button= new Button("Run To Dialog....");
+			button.setTooltip(new Tooltip("Run the process and display the result in a new window"));
 			button.setFont(Font.font(button.getFont().getFamily(),24));
 			button.setOnAction(AE->{ execute(dialog,false);});
 			flowPane.getChildren().add(button);
-
+			
+			
+			button= new Button("Stop");
+			button.setTooltip(new Tooltip("Stop current running process"));
+			button.setFont(Font.font(button.getFont().getFamily(),24));
+			button.setOnAction(AE->{stopRunner();});
+			flowPane.getChildren().add(button);
 			
 			contentPane.getChildren().add(flowPane);
+			
+			contentPane.getChildren().add(this.progessLabel);
 			
 			dialog.setScene(new Scene(contentPane));
 			
@@ -877,6 +988,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     		}
     	}
 	
+	/** Constructor */
     protected NgsStage(
     		final JfxNgs owner,
     		final NgsFile<HEADERTYPE,ITEMTYPE> ngsFile
@@ -887,13 +999,16 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	this.setTitle(this.ngsFile.getSource());
     	this.maxItemsLimitSpinner.setEditable(true);
     	this.maxItemsLimitSpinner.setTooltip(new Tooltip(
-    			"The whole file is NOT loaded, only a subset of data will be read."));
-    	
+    			"When Manually editing, press <RETURN> to commit the new value." +
+    			"The whole file is NOT loaded, only a subset of data will be read."
+    			));
     	if(ngsFile.getSequenceDictionary()==null)
     		{
     		throw new IOException("There is no associated dictionary for "+ngsFile);
     		}
     	this.chrom2start=new HashMap<>(ngsFile.getSequenceDictionary().size());
+    	
+    	// for faster result in canvas things, get the genomic index of each chromosome
     	{
     	long genomeLength=0L;
     	for(final SAMSequenceRecord ssr: ngsFile.getSequenceDictionary().getSequences())
@@ -907,7 +1022,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	
     	if(!this.owner.javascriptCompiler.isPresent()) {
     		this.javascriptArea.setEditable(false);
-    		this.javascriptArea.setPromptText("Javascript engine is not available");
+    		this.javascriptArea.setPromptText("Javascript engine is not available.");
     	} else
     		{
     		this.javascriptArea.setPromptText("Use this area to create a javascript-bases filter to ignore some items");
@@ -1646,5 +1761,33 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			}
 			
 		}
+    
+    /** create a hyperlink to javadoc, used in 'help' sections of javascript */
+    protected Hyperlink javadocFor(final Class<?> clazz) {
+		String name=clazz.getName();
+    	final Hyperlink a = new Hyperlink(name);
+
+		int dollar=name.indexOf("$");
+		if(dollar!=-1) name=name.substring(0,dollar);
+		String url;
+		
+		if(name.contains("htsjdk"))
+			{	
+			url="https://samtools.github.io/htsjdk/javadoc/htsjdk/"+name.replace(".", "/")+".html";
+			}
+		else if(name.startsWith("java"))
+			{	
+			url="https://docs.oracle.com/javase/8/docs/api/"+name.replace(".", "/")+".html";
+			}
+		else
+			{
+			url="https://github.com/lindenb/jvarkit/blob/master/src/main/java/"+name.replace(".", "/")+".java";
+			}
+    	a.setTooltip(new Tooltip(url));
+    	a.setOnAction(event -> {
+    		NgsStage.this.owner.getHostServices().showDocument(url);
+    	});
+    	return a;
+    	}
     
 	}

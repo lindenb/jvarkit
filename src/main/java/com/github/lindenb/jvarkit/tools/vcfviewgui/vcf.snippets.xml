@@ -162,12 +162,19 @@ out.println(contig+"\t"+chrom2count[contig]);
  out.println(item.getContig()+"\t"+(item.getStart()-1)+"\t"+item.getEnd());
 }</code>
 
-<code scope="bioalcidae" label="Table: chrom/pos/ref/alt/an/ac"><![CDATA[
+<code scope="bioalcidae" label="Table: chrom/pos/ref/alt/an/ac/af"><![CDATA[
+/* print header */
+out.println("#CHROM\tPOS\tREF\tALT\tAN\tAC\tAF");
+
+/* loop over the variants */
 while(iter.hasNext()) {
  var ctx= iter.next();
  var alts = ctx.getAlternateAlleles();
+ var an =  ( ctx.hasAttribute("AN") ? ctx.getAttribute("AN") : "." );
  var acs =  ctx.getAttributeAsList("AC");
- var ans =  ctx.getAttributeAsList("AN");
+ var afs =  ctx.getAttributeAsList("AF");
+ 
+ /* loop over ALT alleles  */
  for(var i=0;i< alts.size();++i)
      {
      out.print(ctx.getContig());
@@ -175,15 +182,78 @@ while(iter.hasNext()) {
      out.print(ctx.getStart());
      out.print("\t");
      out.print(ctx.getReference().getDisplayString());
-    out.print("\t");
+     out.print("\t");
      out.print(alts.get(i).getDisplayString());
      out.print("\t");
-     out.print( i< ans.size()?ans.get(i):".");
+     out.print( an );
      out.print("\t");
      out.print( i< acs.size()?acs.get(i):".");
+     out.print("\t");
+     out.print( i< afs.size()?afs.get(i):".");
      out.println();
      }
 }
+]]></code>
+
+<code scope="bioalcidae" label="Create a new VCF: insert distance with previous variant"><![CDATA[
+
+/** register java classes */
+var VariantContextWriterBuilder = Java.type("htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder");
+var VariantContextBuilder = Java.type("htsjdk.variant.variantcontext.VariantContextBuilder");
+var VCFInfoHeaderLine = Java.type("htsjdk.variant.vcf.VCFInfoHeaderLine");
+var VCFHeaderLineType = Java.type("htsjdk.variant.vcf.VCFHeaderLineType");
+var VCFHeader = Java.type("htsjdk.variant.vcf.VCFHeader");
+
+/* factory methods to open a VCF writer */
+var vcwb = new VariantContextWriterBuilder();
+vcwb.setOptions(VariantContextWriterBuilder.NO_OPTIONS);
+vcwb.setOutputVCFStream(out);
+
+
+/** open a new vcf writer */
+var vcfwriter=  vcwb.build();
+/* make a copy of the source header */
+var destheader = new VCFHeader(header);
+var infoheaderdist = new VCFInfoHeaderLine("DISTANCE_PREV",1, VCFHeaderLineType.Integer,  "Distance with previous variant. Can be negative if the variants overlap.");
+destheader.addMetaDataLine(infoheaderdist);
+
+/* write the header */
+vcfwriter.writeHeader(destheader);
+
+/* previous variant */
+var prev=null;
+
+/** compute the distance with previous variant */
+function distance(ctx)
+	{
+	var d=null;
+	if(prev!=null && prev.getContig().equals(ctx.getContig()))
+		{
+		d= new java.lang.Integer(ctx.getStart()-prev.getEnd());
+		}
+	/* update previous variant */
+	prev=ctx;
+	return d;
+	}
+
+
+while(iter.hasNext())
+	{
+	var ctx = iter.next();
+	
+	var dist  = distance(ctx);
+	if( dist == null ) 
+		{
+		vcfwriter.add(ctx);
+		}
+	else
+		{
+		var vcb = new VariantContextBuilder(ctx);
+		vcb.attribute(infoheaderdist.getID(),dist);
+		vcfwriter.add(vcb.make());
+		}
+	}
+
 ]]></code>
 
 </snippets>

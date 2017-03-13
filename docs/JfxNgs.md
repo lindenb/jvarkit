@@ -53,6 +53,15 @@ Example remote BAM url: OPTIONS XHR https://data.broadinstitute.org/igvdata/Body
 ## The VCF window
 
 * Local VCF files must be indexed with tribble or tabix
+* a **pedigree** with the suffix "*.ped" can be associated to a VCF if they have the same basename. e.g:
+
+```
+input.vcf.gz
+input.vcf.gz.tbi
+input.ped
+```
+
+
 * Remote VCF files must be indexed with tabix.
 * The File menu contains items to load new VCF/bam files as well as items to save the tables. An item "Save variants as" will filter the variants from the source file and save them in another vcf.
 * The spinner 'Limit' is used to specify the maximun number of variants **before** filtration that will be read from the VCF input.
@@ -140,6 +149,11 @@ The 'Validate' button will validate the syntax of the javascript program.
 * A cigar table displays the positions of all the bases of the selected read.
 * The 'Stats' menu will generate various statistics about the BAM file. It can be applied to the current short-read or to the whole BAM file.
 * The 'Snippets' menu contains some javascript examples.
+
+## Bialcidae
+
+Both  BAM and VCF windows have an interface to Bioalcidae: https://github.com/lindenb/jvarkit/wiki/BioAlcidae .
+ 
 
 ## Compiling the standalone version
 

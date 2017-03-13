@@ -24,8 +24,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 
@@ -822,10 +822,34 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 				{
 				this.finalBam=null;
 				this.pairs = new ArrayList<>();
-				for(final JsonElement pairjson :json.get("fastqs").getAsJsonArray())
+				final JsonElement fastqs = json.get("fastqs");
+				if(fastqs.isJsonPrimitive()) {
+					final File dir=new File(fastqs.getAsString());
+					if(!(dir.exists() && dir.isDirectory())) throw new IOException("not a directory "+dir );
+					final File inside[]=dir.listFiles(F->F.exists() && F.getName().contains("_R1_") && F.getName().endsWith(".fastq.gz"));
+					if(inside==null || inside.length==0) throw new IOException("No file under "+dir);
+					for(final File insideFileR1:inside)
+						{
+						final JsonArray twofastqs=new JsonArray();
+						twofastqs.add(new JsonPrimitive(insideFileR1.getAbsolutePath()));
+						final File insideFileR2=new File(dir,insideFileR1.getName().replaceAll("_R1_", "_R2_"));
+						if(!insideFileR2.exists()) throw new IOException("Cannot find "+insideFileR2);
+						twofastqs.add(new JsonPrimitive(insideFileR2.getAbsolutePath()));
+						final PairedFastq pair=new PairedFastq(this, this.pairs.size(), twofastqs);
+						this.pairs.add(pair);
+						}
+					}
+				else if(fastqs.isJsonArray())
 					{
-					final PairedFastq pair =new PairedFastq(this,this.pairs.size(),pairjson);
-					this.pairs.add(pair);
+					for(final JsonElement pairjson : fastqs.getAsJsonArray())
+						{
+						final PairedFastq pair =new PairedFastq(this,this.pairs.size(),pairjson);
+						this.pairs.add(pair);
+						}
+					}
+				else
+					{
+					throw new IOException("bad fastq");
 					}
 				}
 			else

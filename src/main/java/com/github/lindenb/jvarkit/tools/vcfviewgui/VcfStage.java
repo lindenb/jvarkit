@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -121,6 +122,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.ArcType;
 import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.WindowEvent;
@@ -412,13 +415,16 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     private final AbstractAwkLike bioalcidae=new  AbstractAwkLike()
     		{
     		@Override
-			protected String getHelpString() {
-				return super.getHelpString()+"\nThe script injects:\n"+
-						"* '"+ HEADER_CONTEXT_KEY+"' an instance of java class ( "+VCFHeader.class.getName()+" )\n"+
-						"* '"+ ITER_CONTEXT_KEY+"' an Iterator over instances of java class "+VariantContext.class.getName()+" )\n"+
-						"* '"+ TOOL_CONTEXT_KEY +"' an instance of "+VcfTools.class.getName()+" )\n"+
-						"* '"+ PEDIGREE_CONTEXT_KEY +"' an instance of "+PedFile.class.getName()+" )\n"
-						;
+			protected TextFlow getHelpString() {
+    			final TextFlow tf= super.getHelpString();
+    			
+				 tf.getChildren().addAll(new Text("\n"+
+						"* '"+ HEADER_CONTEXT_KEY+"' an instance of java class  "),javadocFor(VCFHeader.class),new Text(" )\n"+
+						"* '"+ ITER_CONTEXT_KEY+"' an Iterator over instances of java class "),javadocFor(VariantContext.class),new Text(" )\n"+
+						"* '"+ TOOL_CONTEXT_KEY +"' an instance of "),javadocFor(VcfTools.class),new Text(" )\n"+
+						"* '"+ PEDIGREE_CONTEXT_KEY +"' an instance of "),javadocFor(PedFile.class),new Text(" )\n"
+						));
+				 return tf;
 				}
     	
     		@Override
@@ -796,7 +802,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
         				));
         		}
 			w.writeHeader(header2);
-			iter= new LogCloseableIterator(this.getVcfFile().iterator());
+			iter= new LogCloseableIterator(this.getVcfFile().iterator(),null);
 			while(iter.hasNext())
 				{
 				VariantContext ctx=iter.next();
@@ -842,15 +848,14 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     		flowPane.getChildren().addAll(super.makeJavascriptButtons());
     		pane.setTop(flowPane);
     		}
-		final Label helpLabel=new Label("The script injects:\n"+
-				"* '"+HEADER_CONTEXT_KEY+"' an instance of  "+VCFHeader.class.getName()+"\n"+
-				"* '"+VARIANT_CONTEXT_KEY+"' an instance of "+VariantContext.class.getName()+" )\n"+
-				"* '"+PEDIGREE_CONTEXT_KEY+"' an instance of "+PedFile.class.getName()+"\n"+
-				"* '"+TOOL_CONTEXT_KEY+"' an instance of "+VcfTools.class.getName()+"\n"+
+		final FlowPane bottom=new FlowPane(new TextFlow(new Text("The script injects:\n"+
+				"* '"+HEADER_CONTEXT_KEY+"' an instance of  "),javadocFor(VCFHeader.class),new Text("\n"+
+				"* '"+VARIANT_CONTEXT_KEY+"' an instance of "),javadocFor(VariantContext.class),new Text(" )\n"+
+				"* '"+PEDIGREE_CONTEXT_KEY+"' an instance of "),javadocFor(PedFile.class),new Text("\n"+
+				"* '"+TOOL_CONTEXT_KEY+"' an instance of "),javadocFor(VcfTools.class),new Text("\n"+
 				"The script should return a boolean: true (accept variant) or false (reject variant)"
-				);
-		helpLabel.setWrapText(true);
-		pane.setBottom(helpLabel);
+				)));
+		pane.setBottom(bottom);
 		
 		final Tab tab=new Tab(JAVASCRIPT_TAB_KEY,pane);
 		tab.setClosable(false);
@@ -1392,10 +1397,17 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     	
     	if(!this.variantTable.getItems().isEmpty())
 			{
+    		int last_index=this.variantTable.getItems().size()-1;
 			super.seqDictionaryCanvas.setItemsInterval(
 					new ContigPos(this.variantTable.getItems().get(0).getContig(), this.variantTable.getItems().get(0).getStart()),
-					new ContigPos(this.variantTable.getItems().get(this.variantTable.getItems().size()-1).getContig(), this.variantTable.getItems().get(this.variantTable.getItems().size()-1).getEnd())
+					new ContigPos(this.variantTable.getItems().get(last_index).getContig(), this.variantTable.getItems().get(last_index).getEnd())
 					);
+			if(this.variantTable.getItems().get(0).getContig().equals(
+				this.variantTable.getItems().get(last_index).getContig()))
+				{
+				this.gotoField.setText(this.variantTable.getItems().get(0).getContig()+":"+this.variantTable.getItems().get(0).getStart()+"-"+this.variantTable.getItems().get(last_index).getEnd());
+				}
+			
 			}
 		else
 			{
@@ -1442,7 +1454,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 				}
 			final List<InfoTableRow> infos=new ArrayList<>();
 			final Map<String,Object> atts = ctx.getAttributes();
-			for(final String key:atts.keySet())
+			for(final String key: new TreeSet<String>(atts.keySet()))
 				{
 				Object v= atts.get(key);
 				final List<?> L;

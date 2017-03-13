@@ -117,6 +117,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -420,12 +421,15 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     private final AbstractAwkLike bioalcidae=new  AbstractAwkLike()
     		{
 			@Override
-			protected String getHelpString() {
-				return super.getHelpString()+"\nThe script injects:\n"+
-						"* 'header' an instance of the java class  "+SAMFileHeader.class.getName()+" \n"+
-						"* 'iter' an Iterator over instances of the java class "+SAMRecord.class.getName()+" \n"+
-						"* '"+TOOL_CONTEXT_KEY +"' an instance of "+BamTools.class.getName()+" \n"
+			protected TextFlow getHelpString() {
+				final TextFlow tf=super.getHelpString();
+				 tf.getChildren().addAll(new Text(
+						"* 'header' an instance of the java class  "),javadocFor(SAMFileHeader.class),new Text(" \n"+
+						"* 'iter' an Iterator over instances of the java class "),javadocFor(SAMRecord.class),new Text(" \n"+
+						"* '"+TOOL_CONTEXT_KEY +"' an instance of "),javadocFor(BamTools.class),new Text(" \n")
+						 )
 						;
+				 return tf;
 				}
 
     	
@@ -845,6 +849,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	    protected void updateItem(final Cigar cigar, boolean empty) {
     	        super.updateItem(cigar, empty);
     	        setText(null);
+    	        setTextOverrun(OverrunStyle.CLIP);
     	        if(cigar==null || cigar.isEmpty())
     	        	{
     	        	//setText(null);
@@ -897,6 +902,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	    protected void updateItem(final String item, boolean empty) {
     	        super.updateItem(item, empty);
     	        setText(null);
+    	        setTextOverrun(OverrunStyle.CLIP);
     	        if(item==null)
     	        	{
     	        	//setText(null);
@@ -907,6 +913,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	        if(item.length() >= max_seq_length) {
     	        	setGraphic(null);
     	        	setText("len > "+max_seq_length);
+    	        	
     	        	return ;
     	        	}
     	        
@@ -932,6 +939,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	    @Override
     	    protected void updateItem(final String item, boolean empty) {
     	        super.updateItem(item, empty);
+    	        setTextOverrun(OverrunStyle.CLIP);
     	        setText(null);
     	        if(item==null)
     	        	{
@@ -1381,14 +1389,15 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 		top.getChildren().addAll(super.makeJavascriptButtons());
 		pane.setTop(top);
 		
-		final Label helpLabel=new Label("The script injects:\n"+
-				"* '"+HEADER_CONTEXT_KEY+"' an instance of "+ SAMFileHeader.class.getName() +"\n"+
-				"* '"+RECORD_CONTEXT_KEY+"' an instance of "+ SAMRecord.class.getName() +"\n"+
-				"* '"+TOOL_CONTEXT_KEY+"' an instance of "+ BamTools.class.getName() +"\n"+
-				"The script should return a boolean: true (accept record) or false (reject record)"
-				);
-		helpLabel.setWrapText(true);
-		pane.setBottom(helpLabel);
+		final FlowPane bottom=new FlowPane(
+				new TextFlow(new Text("The script injects:\n"+
+						"* '"+HEADER_CONTEXT_KEY+"' an instance of "),javadocFor(SAMFileHeader.class),new Text("\n"+
+						"* '"+RECORD_CONTEXT_KEY+"' an instance of "),javadocFor(SAMRecord.class),new Text("\n"+
+						"* '"+TOOL_CONTEXT_KEY+"' an instance of "),javadocFor(BamTools.class),new Text("\n"+
+						"The script should return a boolean: true (accept record) or false (reject record)")
+						));
+		
+		pane.setBottom(bottom);
 		
 		final Tab tab=new Tab(JAVASCRIPT_TAB_KEY,pane);
 		tab.setClosable(false);
@@ -1680,10 +1689,26 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	
     	if(!this.recordTable.getItems().isEmpty())
     		{
-    		super.seqDictionaryCanvas.setItemsInterval(
-    				new ContigPos(this.recordTable.getItems().get(0).getContig(), this.recordTable.getItems().get(0).getStart()),
-    				new ContigPos(this.recordTable.getItems().get(this.recordTable.getItems().size()-1).getContig(), this.recordTable.getItems().get(this.recordTable.getItems().size()-1).getEnd())
-    				);
+    		final int last_index= this.recordTable.getItems().size()-1;
+    		
+    		if(		!this.recordTable.getItems().get(0).getReadUnmappedFlag() &&
+    				!this.recordTable.getItems().get(last_index).getReadUnmappedFlag())
+	    		{
+	    		super.seqDictionaryCanvas.setItemsInterval(
+	    				new ContigPos(this.recordTable.getItems().get(0).getContig(), this.recordTable.getItems().get(0).getStart()),
+	    				new ContigPos(this.recordTable.getItems().get(last_index).getContig(), this.recordTable.getItems().get(last_index).getEnd())
+	    				);
+	    		
+	    		if(		this.recordTable.getItems().get(0).getContig().equals(
+	    						this.recordTable.getItems().get(last_index).getContig()))
+	    				{
+	    				this.gotoField.setText(this.recordTable.getItems().get(0).getContig()+":"+this.recordTable.getItems().get(0).getStart()+"-"+this.recordTable.getItems().get(last_index).getEnd());
+	    				}
+	    		}
+    		else
+    			{
+    			super.seqDictionaryCanvas.setItemsInterval(null,null);
+    			}
     		}
     	else
     		{
@@ -1802,7 +1827,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 			
 			w = swf.makeBAMWriter(h2, true, saveAs);
 			
-			iter= new  LogCloseableIterator(this.getBamFile().iterator());
+			iter= new  LogCloseableIterator(this.getBamFile().iterator(),null);
 			while(iter.hasNext())
 				{
 				final SAMRecord rec=iter.next();
