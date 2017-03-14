@@ -388,11 +388,25 @@ public class VcfBurdenSplitter
 			this.winsize = winsize;
 			this.winshift =winshift;
 			}
+		
+		private int leftMostWindowStart(final VariantContext ctx) {
+	    	int varstart = ctx.getStart();
+	    	varstart = Math.max(0, varstart - varstart%this.winsize);
+	    	while(varstart>0)
+	    	{
+	    		int left = varstart - this.winshift;
+	    		if( left <0) left=0;
+	    		if( left + this.winsize < ctx.getStart()) break;
+	    		varstart = left;
+	    	}
+	    	return varstart;
+	    }
+		
 		@Override
 		public Set<String> keys(final VariantContext ctx)
 			{
 			final Set<String> set= new HashSet<>();
-			int x= ctx.getStart() - ctx.getStart()%this.winsize;
+			int x= this.leftMostWindowStart(ctx);
 			
 			while(x<=ctx.getStart() && ctx.getStart()<=x+this.winsize) {
 				set.add(String.format("%s_%09d_%09d", ctx.getContig(),x,x+winsize));

@@ -113,8 +113,9 @@ extends RodWalker<Long, Long> implements TreeReducible<Long>
 			for(final VariantContext ctx2:mapVariantToMany(ctx,tracker,ref,context))
 				{
 				this.writer.add(ctx2);
-				processed++;
+				
 				}
+			processed++;
 			}
 		return processed;
 	    }

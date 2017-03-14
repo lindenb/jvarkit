@@ -30,10 +30,10 @@ package com.github.lindenb.jvarkit.tools.gatk.variants;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.utils.commandline.Argument;
@@ -71,9 +71,13 @@ public class WindowVariants extends AbstractVariantProcessor
     protected String winName = "WINDOW";
     @Argument(fullName="noemptywin",shortName="noemptywin", doc="Don't print Windows in INFO having zero match.", required=false)
     protected boolean hideZeroHitWindow = false;
+    @Argument(fullName="best",shortName="best", doc="Only print the window with the hightest number of matches", required=false)
+    protected boolean bestMatch = false;
 
+    
+    /** a sliding window */
     private class Window
-    	implements Locatable
+    	implements Locatable,Comparable<Window>
     	{
     	final String contig;
     	final int start;
@@ -125,6 +129,14 @@ public class WindowVariants extends AbstractVariantProcessor
 			}
 			return true;
 		}
+		
+		public int compareTo(final Window w) 
+			{
+			int i= this.contig.compareTo(w.contig);
+			if(i!=0) return i;
+			return this.start - w.start;
+			}
+		
 		@Override
 		public String toString() {
 			return new StringBuilder().
@@ -137,28 +149,52 @@ public class WindowVariants extends AbstractVariantProcessor
     	
     	}
     
+    /** wrapper arount a variant context , keep track of the associated windows */
     private class Variant
     	{
     	final long id=WindowVariants.this.id_generator++;
     	final VariantContext ctx;
-    	final Set<Window> windows=new HashSet<>();
+    	final Set<Window> windows=new TreeSet<>();
+    	
     	Variant(final VariantContext ctx) {
     		this.ctx = ctx;
     		}
+    	
     	VariantContext build() {
 			final List<String> winStrs = new ArrayList<>(this.windows.size());
+			Window best=null;
 			for(final Window w:this.windows) 
 				{
 				if(w.count_matching==0 && hideZeroHitWindow) continue;
-				winStrs.add(w.toString());
+				if( WindowVariants.this.bestMatch ) 
+					{
+					if(best==null || best.count_matching < w.count_matching)
+						{
+						best= w;
+						}
+					}
+				else
+					{
+					winStrs.add(w.toString());
+					}
 				}
 
-    		if(winStrs.isEmpty())
+			
+			
+    		if((bestMatch && best==null) )
     			{
     			return ctx;
     			}
+    		else if(bestMatch) {
+    			return new VariantContextBuilder(this.ctx).
+    					attribute(winName, best.toString()).
+    					make();
+    			}
+    		else if( winStrs.isEmpty()) {
+    			return ctx;
+    			}
     		else
-    			{
+    			{    			
     			return new VariantContextBuilder(this.ctx).
     					attribute(winName, winStrs).
     					make();
@@ -229,8 +265,7 @@ public class WindowVariants extends AbstractVariantProcessor
     		this.windowMap.clear();
     		return;
     		}
-		final int pos  = ctx.getStart();
-		final int win_start = Math.max(0,pos -pos%this.window_size);
+		final int win_start = leftMostWindowStart(ctx);
 
 		/* not same chromosome : dump all */
 		if( !variantBuffer.isEmpty() &&
@@ -262,11 +297,21 @@ public class WindowVariants extends AbstractVariantProcessor
     			{
     			++i;
     			}
-    		
     		}
-    	
     	}
     
+    private int leftMostWindowStart(final VariantContext ctx) {
+    	int varstart = ctx.getStart();
+    	varstart = Math.max(0, varstart - varstart%this.window_size);
+    	while(varstart>0)
+    	{
+    		int left = varstart - this.window_shift;
+    		if( left <0) left=0;
+    		if( left + this.window_size < ctx.getStart()) break;
+    		varstart = left;
+    	}
+    	return varstart;
+    }
     
     /** this method is called my mapToMany */
     protected VariantContext mapVariant(final VariantContext ctx,
@@ -275,7 +320,7 @@ public class WindowVariants extends AbstractVariantProcessor
     		final AlignmentContext context)
     	{
     	flushVariants(ctx);
-    	final int varstart = ctx.getStart();
+
     	final Variant variant = new Variant(ctx);
     	this.variantBuffer.add(variant);
     	boolean match=true;
@@ -291,7 +336,7 @@ public class WindowVariants extends AbstractVariantProcessor
 	    	}
     	
     	
-    	int chromStart=  Math.max(0, varstart - varstart%this.window_size);
+    	int chromStart=  leftMostWindowStart(ctx);
     	while(!(chromStart+this.window_size < ctx.getStart() ||
     			chromStart > ctx.getEnd()
     			))
@@ -314,7 +359,6 @@ public class WindowVariants extends AbstractVariantProcessor
     			}
     		variant.windows.add(win);
     		chromStart+=this.window_shift;
-    		
     		}
 	    	
     	return null;
