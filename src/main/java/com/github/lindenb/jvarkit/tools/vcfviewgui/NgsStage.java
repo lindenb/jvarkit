@@ -478,7 +478,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 					this.compiledScript.eval(this.bindings);
 					this.iter.close();
 					this.out.flush();
-					this.out.close();
+					
 					
 					Platform.runLater(()->{
 						AbstractAwkLike.this.progessLabel.setText("Done.");
@@ -514,6 +514,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 							alert.showAndWait();
 							});
 						}
+					this.out.close();//we close after to avoid check error is user closed the stream
 					this.out=null;
 					this.iter=null;
 					}

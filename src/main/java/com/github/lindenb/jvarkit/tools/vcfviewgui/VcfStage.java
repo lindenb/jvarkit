@@ -419,10 +419,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     			final TextFlow tf= super.getHelpString();
     			
 				 tf.getChildren().addAll(new Text("\n"+
-						"* '"+ HEADER_CONTEXT_KEY+"' an instance of java class  "),javadocFor(VCFHeader.class),new Text(" )\n"+
-						"* '"+ ITER_CONTEXT_KEY+"' an Iterator over instances of java class "),javadocFor(VariantContext.class),new Text(" )\n"+
-						"* '"+ TOOL_CONTEXT_KEY +"' an instance of "),javadocFor(VcfTools.class),new Text(" )\n"+
-						"* '"+ PEDIGREE_CONTEXT_KEY +"' an instance of "),javadocFor(PedFile.class),new Text(" )\n"
+						"* '"+ HEADER_CONTEXT_KEY+"' an instance of java class  "),javadocFor(VCFHeader.class),new Text("\n"+
+						"* '"+ ITER_CONTEXT_KEY+"' an Iterator over instances of java class "),javadocFor(VariantContext.class),new Text("\n"+
+						"* '"+ TOOL_CONTEXT_KEY +"' an instance of "),javadocFor(VcfTools.class),new Text("\n"+
+						"* '"+ PEDIGREE_CONTEXT_KEY +"' an instance of "),javadocFor(PedFile.class),new Text("\n"
 						));
 				 return tf;
 				}

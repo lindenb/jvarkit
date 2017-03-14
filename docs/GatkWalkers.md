@@ -88,4 +88,31 @@ Arguments for GroupByVariants:
  -o,--out <out>                          File to which result should be written
 ```
 
+## WindowVariants   
+
+Annotate Variants using a sliding window
+
+```
+Arguments for WindowVariants:
+ -V,--variant <variant>                            Input VCF file
+ -select,--selectexpressions <selectexpressions>   Optional Jexl expression to use when selecting the data
+ -shift,--windowShift <windowShift>                Window shift (in bp.)
+ -wsize,--windowSize <windowSize>                  Window Size (in bp.)
+ -wname,--windowName <windowName>                  INFO Attribute name that will be added
+ -o,--out <out>                                    File to which variants should be written
+```
+
+
+e.g:
+
+```
+ (...) -T WindowVariants -V input.vcf -R ref.fasta -select 'vc.hasID()'
+
+##INFO=<ID=WINDOW,Number=.,Type=String,Description="Window : start|end|number-of-matching-variants|number-of-non-matching-variants">
+(...)
+2	35565407	.	G	A	.	PASS	WINDOW=35565400|35565550|0|1,35565350|35565500|2|2,35565300|35565450|2|2
+2	35565471	rs11234	C	T	.	PASS	WINDOW=35565450|35565600|1|0
+2	35565628	.	T	G	.	PASS	WINDOW=35565600|35565750|1|2
+
+```
 

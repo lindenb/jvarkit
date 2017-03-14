@@ -520,7 +520,7 @@ $(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.Vc
 $(eval $(call compile-htsjdk-cmd,jfxngs,${jvarkit.package}.tools.vcfviewgui.JfxNgs,jfxngs-resources))
 $(eval $(call compile-htsjdk-cmd,ngsworkflow,${jvarkit.package}.tools.workflow.NgsWorkflow,${gson.jar}))
 
-GATKWALKERS_SRC=$(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/SoftClipAnnotator variants/GroupByVariants variants/GroupByGenotypes variants/EigenVariants))
+GATKWALKERS_SRC=$(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/SoftClipAnnotator variants/GroupByVariants variants/GroupByGenotypes variants/EigenVariants variants/WindowVariants))
 
 gatkwalkers:
 	mkdir -p ${tmp.dir} ${dist.dir}
