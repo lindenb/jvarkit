@@ -32,6 +32,7 @@ package com.github.lindenb.jvarkit.tools.vcfbigwig;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -46,6 +47,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
@@ -54,8 +56,12 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VCFBigWig extends AbstractVCFBigWig
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFBigWig.class);
-
+	private enum AggregateMethod
+		{
+		avg,median,first,all
+		}
 	private BBFileReader bbFileReader=null;
+	private AggregateMethod aggregateMethod=AggregateMethod.avg;
 	
 	public VCFBigWig()
 		{
@@ -66,7 +72,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 	public Collection<Throwable> initializeKnime() {
 		if(super.biwWigFile==null || super.biwWigFile.isEmpty())
 			{
-			return wrapException("Undefined BigWig file");
+			return wrapException("Undefined BigWig file option -"+OPTION_BIWWIGFILE);
 			}
 		try
 			{
@@ -77,7 +83,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 				this.bbFileReader=null;
 				throw new IOException(super.biwWigFile+" is not a bigWIG file.");
 				}
-			
+
 			if(this.TAG==null || this.TAG.isEmpty())
 				{
 				super.TAG=super.biwWigFile;
@@ -89,7 +95,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 				}
 			
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			return wrapException(err);
 			}
@@ -107,7 +113,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 			CloserUtil.close(this.bbFileReader);
 			this.bbFileReader=null;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error("Error",err);
 			}
@@ -115,7 +121,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	protected Collection<Throwable> call(final String inputName) throws Exception {
 		return doVcfToVcf(inputName);
 		}
 	
@@ -125,13 +131,40 @@ public class VCFBigWig extends AbstractVCFBigWig
 			final VcfIterator r,
 			final VariantContextWriter w)
 			throws IOException {
+		if(super.aggregateMethodStr.isEmpty()) 
+			{
+			this.aggregateMethod = AggregateMethod.avg;
+			}
+		else
+			{
+			try {
+				this.aggregateMethod = AggregateMethod.valueOf(super.aggregateMethodStr);
+			} catch(final Exception err)
+				{
+				return wrapException("Bad value for -"+OPTION_AGGREGATEMETHODSTR+" must be one of "+Arrays.toString(AggregateMethod.values()));
+				}
+			}
 		final VCFHeader header=r.getHeader();
 		final VCFHeader h2=new VCFHeader(header);
-		h2.addMetaDataLine(new VCFInfoHeaderLine(
-				super.TAG,1,
-				VCFHeaderLineType.Float,
-				"Values from bigwig file: "+this.biwWigFile
-				));
+		
+		if(this.aggregateMethod.equals(AggregateMethod.all))
+			{
+			h2.addMetaDataLine(new VCFInfoHeaderLine(
+					super.TAG,
+					VCFHeaderLineCount.UNBOUNDED,
+					VCFHeaderLineType.Float,
+					"Values from bigwig file: "+this.biwWigFile
+					));
+			}
+		else
+			{
+			h2.addMetaDataLine(new VCFInfoHeaderLine(
+					super.TAG,1,
+					VCFHeaderLineType.Float,
+					"Values from bigwig file: "+this.biwWigFile
+					));
+			}
+		
 		super.addMetaData(h2);
 		w.writeHeader(h2);
 		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
@@ -151,21 +184,52 @@ public class VCFBigWig extends AbstractVCFBigWig
 					);
 			while(iter!=null && iter.hasNext())
 				{
-				WigItem item=iter.next();
-				float v=item.getWigValue();
+				final WigItem item=iter.next();
+				final float v=item.getWigValue();
 				values.add(v);
-				
+				if(this.aggregateMethod.equals(AggregateMethod.first)) break;
 				}
+			
 			if(values.isEmpty())
 				{
 				w.add(ctx);
 				continue;
 				}
-			
-			double total=0L;
-			for(Float f:values) total+=f;
 			final VariantContextBuilder b=new VariantContextBuilder(ctx);
-			b.attribute(this.TAG,(float)(total/values.size()));
+
+			switch(this.aggregateMethod)
+				{
+				case all:
+					b.attribute(this.TAG,values);
+					break;
+				case avg:
+					double total=0L;
+					for(final Float f:values) total+=f;
+					b.attribute(this.TAG,(float)(total/values.size()));
+					break;
+				case first:
+					b.attribute(this.TAG,values.get(0));
+					break;
+				case median:
+					final double median_value;
+					values.sort((A,B)->A.compareTo(B));
+					final int mid_x= values.size()/2;
+					if(values.size()==1)
+						{
+						median_value = values.get(0);
+						}
+					else if(values.size()%2==0)
+                        {
+                		median_value =  (values.get(mid_x-1)+values.get(mid_x))/2.0;
+                        }
+	                else
+                        {
+                		median_value =  values.get(mid_x);
+                        }
+					b.attribute(this.TAG,median_value);
+					break;
+				default: throw new IllegalStateException();
+				}
 			w.add(b.make());
 			}
 		progress.finish();
@@ -173,7 +237,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 		}
 	
 	
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args) throws IOException
 		{
 		new VCFBigWig().instanceMain(args);
 		}

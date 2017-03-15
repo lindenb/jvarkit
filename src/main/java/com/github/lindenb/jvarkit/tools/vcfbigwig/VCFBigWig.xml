@@ -19,6 +19,9 @@
 	<option name="contained" opt="C" type="boolean" longopt="contained" default="false">
 		<description>Specifies wig values must be contained by region. if false: return any intersecting region values</description>
 	</option>
+	<option name="aggregateMethodStr" opt="a" type="string" longopt="aggregate" default="avg">
+		<description>How to aggregate overlapping values: 'avg' average; 'median': median, 'first': use first, 'all' : print all the data</description>
+	</option>
 </options>
 
 <!-- __PLACEHOLDER__ --></app>

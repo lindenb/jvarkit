@@ -758,27 +758,16 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
 	        {
 	    	final ChartFactory<SAMFileHeader,SAMRecord> factory = supplier.get();
 	    	
-	    	final MenuItem menuItem=new MenuItem("Whole"+factory.getName());
-	    	menuItem.setOnAction(new EventHandler<ActionEvent>() {
-				@Override
-				public void handle(ActionEvent event) {
-					doMenuShowWholeStats(supplier.get());
-				}
-			});
+	    	final MenuItem menuItem=new MenuItem("Whole "+factory.getName());
+	    	menuItem.setOnAction(AE->doMenuShowWholeStats(supplier.get()) );
 	    	super.statsMenu.getItems().add(menuItem);
 	        }
         
-       
-
-        
         this.addEventHandler(
-    			WindowEvent.WINDOW_CLOSE_REQUEST ,new EventHandler<WindowEvent>() {
-                    @Override
-                    public void handle(final WindowEvent event) {
-                    owner.preferences.putInt(SPINNER_VALUE_KEY,maxItemsLimitSpinner.getValue().intValue());
-                    }
-                });
-        
+    			WindowEvent.WINDOW_CLOSE_REQUEST ,
+    			WE->owner.preferences.putInt(SPINNER_VALUE_KEY,maxItemsLimitSpinner.getValue().intValue())
+                );
+                
     	this.canvasScrolVInCoverage.setMin(0);
     	this.canvasScrolVInCoverage.setMax(100);
     	this.canvasScrolVInCoverage.setValue(0);
@@ -912,8 +901,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	        
     	        if(item.length() >= max_seq_length) {
     	        	setGraphic(null);
-    	        	setText("len > "+max_seq_length);
-    	        	
+    	        	setText("len > "+max_seq_length);    	        	
     	        	return ;
     	        	}
     	        

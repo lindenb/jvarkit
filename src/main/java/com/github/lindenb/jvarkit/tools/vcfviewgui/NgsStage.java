@@ -108,7 +108,9 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
@@ -169,7 +171,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 
     /** limit number of items */
 	protected final Spinner<Integer> maxItemsLimitSpinner=
-			new Spinner<>(0, 1000, 1);
+			new Spinner<>(0, 10000, 1);
 	
 	/** limited writer for Bioalcidae Security */
 	private static class LimitSecurityStream extends FilterOutputStream
@@ -208,11 +210,11 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 
 	        private final Canvas canvas;
 
-	        ResizableCanvas(double width, double height) {
-	            canvas = new Canvas(width, height);
-	            getChildren().add(canvas);
-	            canvas.heightProperty().addListener(CL->{repaintCanvas();});
-	            canvas.widthProperty().addListener(CL->{repaintCanvas();});
+	        ResizableCanvas(final double width,final  double height) {
+	            this.canvas = new Canvas(width, height);
+	            this.getChildren().add(this.canvas);
+	            this.canvas.heightProperty().addListener(CL->{repaintCanvas();});
+	            this.canvas.widthProperty().addListener(CL->{repaintCanvas();});
 	        }
 
 	        public Canvas getCanvas() {
@@ -227,11 +229,10 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	            final double y = snappedTopInset();
 	            final double w = snapSize(getWidth()) - x - snappedRightInset();
 	            final double h = snapSize(getHeight()) - y - snappedBottomInset();
-	            canvas.setLayoutX(x);
-	            canvas.setLayoutY(y);
-	            canvas.setWidth(w);
-	            canvas.setHeight(h);
-	            
+	            this.canvas.setLayoutX(x);
+	            this.canvas.setLayoutY(y);
+	            this.canvas.setWidth(w);
+	            this.canvas.setHeight(h);
 	        }
 	    }
 
@@ -265,7 +266,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 				final ITEMTYPE t= this.delegate.next();
 				++count;
 				long now = System.currentTimeMillis();
-				if(now - this.clock  > 10*1000) {
+				if(now - this.clock  > 1*1000) {
 					final String msg;
 					if(t!=null && t.getContig()!=null)
 						{
@@ -299,7 +300,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			}
 		}
 
-	/** simple pair chromosome/pos */
+	/** simple pair chromosome/pos, used when clicking on ideogram */
 	protected static class ContigPos
 	implements Comparable<ContigPos>, Locatable
 		{
@@ -550,6 +551,10 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 					+ "}\n"
 					+ "out.println(count);\n"
 					);
+			this.scriptArea.setMaxWidth(Double.MAX_VALUE);
+			this.scriptArea.setMaxHeight(Double.MAX_VALUE);
+			this.scriptArea.setFont(Font.font("Courier",14));
+			this.scriptArea.setPrefRowCount(100);
 		 	}
 		 
 		 protected SimpleBindings completeBindings(final SimpleBindings sb,final HEADERTYPE h) {
@@ -557,13 +562,13 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		 }
 		 
 		 protected TextFlow getHelpString() {
+			 
 			 return new TextFlow(new Text(
-			     "This is a graphical interface to a Biolacidae-like tool (see https://github.com/lindenb/jvarkit/wiki/BioAlcidae).\n"+
+			     "This is a graphical interface to an instance of  "),createHyperLink("BioAlcidae","https://github.com/lindenb/jvarkit/wiki/BioAlcidae"),new Text(".\n"+
 					 "The filter (including javascript) of the original window are **not** used.\n"+
 					 "Use a your own risk. If your produce an infinite loop, the script might run forever and potentialy might feel your hard-drive.\n"+
-					 "The script injects:\n* out : the output stream, a '"),javadocFor(PrintStream.class),new Text("'\n"+
-	    			 "* pedigree ( "),javadocFor(PedFile.class),new Text(" ) (empty for BAM)\n"
-					 ));
+					 "The script injects:\n* out : the output stream, a '"),javadocFor(PrintStream.class),new Text("'\n")
+					 );
 		 }
 		
 		private synchronized void stopRunner()
@@ -688,7 +693,9 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			dialog.setResizable(true);
 			dialog.setTitle("Bioalcidae for "+getNgsFile().getSource());
 			
-			VBox contentPane=new VBox(5);
+			final VBox contentPane=new VBox(5);
+			VBox.setVgrow(contentPane, Priority.ALWAYS);
+			
 			final Menu fileMenu = new Menu("File");
 			
 			MenuItem menu=new MenuItem("Save script as...");
@@ -748,35 +755,43 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 	    	contentPane.getChildren().add(top);
 	    	
 			contentPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
-			contentPane.getChildren().add(this.scriptArea);
+			final BorderPane scriptPane=new BorderPane(this.scriptArea);
+			scriptPane.setPadding(new Insets(5));
+			scriptPane.setMaxHeight(Double.MAX_VALUE);
+			scriptPane.setMaxWidth(Double.MAX_VALUE);
+			contentPane.getChildren().add(scriptPane);
+			
 			
 			contentPane.getChildren().add(new Separator(Orientation.HORIZONTAL));			
 			final FlowPane helpLabel=new FlowPane(getHelpString());
 			contentPane.getChildren().add(helpLabel);
 			
-			FlowPane flowPane=new FlowPane();
-			flowPane.setPadding(new Insets(5));
+			final HBox buttonPane=new HBox(5);
+			buttonPane.setPadding(new Insets(5));
 			
 			button= new Button("Run To File....");
 			button.setTooltip(new Tooltip("Run the process and save the result in a new file"));
 			button.setFont(Font.font(button.getFont().getFamily(),24));
+			button.setTextFill(Color.GREEN);
 			button.setOnAction(AE->{ execute(dialog,true);});
-			flowPane.getChildren().add(button);
+			buttonPane.getChildren().add(button);
 			
 			button= new Button("Run To Dialog....");
+			button.setTextFill(Color.GREEN);
 			button.setTooltip(new Tooltip("Run the process and display the result in a new window"));
 			button.setFont(Font.font(button.getFont().getFamily(),24));
 			button.setOnAction(AE->{ execute(dialog,false);});
-			flowPane.getChildren().add(button);
+			buttonPane.getChildren().add(button);
 			
 			
 			button= new Button("Stop");
+			button.setTextFill(Color.RED);
 			button.setTooltip(new Tooltip("Stop current running process"));
 			button.setFont(Font.font(button.getFont().getFamily(),24));
 			button.setOnAction(AE->{stopRunner();});
-			flowPane.getChildren().add(button);
+			buttonPane.getChildren().add(button);
 			
-			contentPane.getChildren().add(flowPane);
+			contentPane.getChildren().add(buttonPane);
 			
 			contentPane.getChildren().add(this.progessLabel);
 			
@@ -1762,11 +1777,19 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			}
 			
 		}
+    protected Hyperlink createHyperLink(final String label,final String  url)
+    	{
+    	final Hyperlink a = new Hyperlink(label==null || label.isEmpty()?url:label);
+    	a.setTooltip(new Tooltip(url));
+    	a.setOnAction(event -> {
+    		NgsStage.this.owner.getHostServices().showDocument(url);
+    	});
+    	return a;
+    	}
     
     /** create a hyperlink to javadoc, used in 'help' sections of javascript */
     protected Hyperlink javadocFor(final Class<?> clazz) {
 		String name=clazz.getName();
-    	final Hyperlink a = new Hyperlink(name);
 
 		int dollar=name.indexOf("$");
 		if(dollar!=-1) name=name.substring(0,dollar);
@@ -1784,11 +1807,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			{
 			url="https://github.com/lindenb/jvarkit/blob/master/src/main/java/"+name.replace(".", "/")+".java";
 			}
-    	a.setTooltip(new Tooltip(url));
-    	a.setOnAction(event -> {
-    		NgsStage.this.owner.getHostServices().showDocument(url);
-    	});
-    	return a;
+    	return createHyperLink(clazz.getName(),url);
     	}
     
 	}

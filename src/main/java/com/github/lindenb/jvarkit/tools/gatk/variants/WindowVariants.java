@@ -140,7 +140,7 @@ public class WindowVariants extends AbstractVariantProcessor
 		@Override
 		public String toString() {
 			return new StringBuilder().
-					append(getStart()).append("|").
+					append(Math.max(0, getStart())).append("|").
 					append(getEnd()).append("|").
 					append(count_matching).append("|").
 					append(count_notmatching).
@@ -181,17 +181,17 @@ public class WindowVariants extends AbstractVariantProcessor
 
 			
 			
-    		if((bestMatch && best==null) )
+    		if((WindowVariants.this.bestMatch && best==null) )
     			{
-    			return ctx;
+    			return this.ctx;
     			}
-    		else if(bestMatch) {
+    		else if(WindowVariants.this.bestMatch) {
     			return new VariantContextBuilder(this.ctx).
     					attribute(winName, best.toString()).
     					make();
     			}
     		else if( winStrs.isEmpty()) {
-    			return ctx;
+    			return this.ctx;
     			}
     		else
     			{    			
@@ -238,6 +238,9 @@ public class WindowVariants extends AbstractVariantProcessor
     	if(this.window_shift<=0) {
     		throw new UserException("Bad window shift.");
     	}
+    	if(this.winName==null || this.winName.isEmpty()) {
+    		throw new UserException("Bad INFO ID windowName");
+    	}
     	final Map<String,String> exprMap=new HashMap<>();
     	for(final String expStr:this.selectExpressions) {
     		exprMap.put("expr"+(1+exprMap.size()), expStr);
@@ -245,6 +248,9 @@ public class WindowVariants extends AbstractVariantProcessor
     	this.jexls = VariantContextUtils.initializeMatchExps(exprMap);
 
     	final VCFHeader header= new VCFHeader(super.getVcfHeader());
+    	if(header.getInfoHeaderLine(this.winName)!=null) {
+    		throw new UserException("VCF header already contains the INFO header ID="+this.winName);
+    	}
     	header.addMetaDataLine(new VCFInfoHeaderLine(
     			this.winName,
     			VCFHeaderLineCount.UNBOUNDED,
@@ -291,7 +297,6 @@ public class WindowVariants extends AbstractVariantProcessor
 	    				this.windowMap.remove(win);
 	    				}
 	    			}
-    			    			
     			}
     		else
     			{
@@ -302,11 +307,10 @@ public class WindowVariants extends AbstractVariantProcessor
     
     private int leftMostWindowStart(final VariantContext ctx) {
     	int varstart = ctx.getStart();
-    	varstart = Math.max(0, varstart - varstart%this.window_size);
+    	varstart = varstart - varstart%this.window_size;
     	while(varstart>0)
     	{
     		int left = varstart - this.window_shift;
-    		if( left <0) left=0;
     		if( left + this.window_size < ctx.getStart()) break;
     		varstart = left;
     	}

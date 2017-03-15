@@ -35,6 +35,9 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 	
 	private enum RefSplitType {WHOLE_GENOME,WHOLE_CONTIG,INTERVAL};
 	
+
+	
+	
 	private abstract class RefSplit
 		{
 		abstract RefSplitType getType();
@@ -500,7 +503,9 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		public  String getHapCallerGenotypedVcf() {
 			return getVcfDirectory()+"/"+getTmpPrefix()+"Genotyped.vcf.gz";
 			}
-
+		public  String getSamtoolsRawVcf() {
+			return getVcfDirectory()+"/"+getTmpPrefix()+"Samtools.vcf.gz";
+			}
 		
 		public List<RefSplit> getHaplotypeCallerSplits() {
 			final List<RefSplit> chroms=new ArrayList<>(25);
@@ -508,6 +513,10 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			chroms.add(new ContigSplit("X"));
 			chroms.add(new ContigSplit("Y"));
 			return chroms;
+			}
+		
+		public List<RefSplit> getSamtoolsCallerSplits() {
+			return getHaplotypeCallerSplits();
 			}
 		
 		public StringBuilder haplotypeCaller() {
@@ -638,10 +647,215 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			w.println("&& mv --verbose $(addsuffix .tmp,$@) $@");
 			}
 		
+		public List<AbstractCaller> getCallers()
+			{
+			final List<AbstractCaller> L = new ArrayList<>();
+			L.add(new UnifiedGenotyperCaller());
+			L.add(new SamtoolsCaller());
+			return L;
+			}
+		
 		@Override
 		public String toString() {
 			return getName();
 			}
+		
+		
+		
+		
+		private abstract class AbstractCaller
+			{
+			Project getProject() { return Project.this;}
+			abstract List<RefSplit> getCallSplits();
+			abstract String getTargetVcfFilename();
+			
+			abstract void call(final StringBuilder w,RefSplit split);
+			
+			void  print(final StringBuilder w) {
+				final List<String> vcfParts=new ArrayList<>();
+				final List<RefSplit> refSplits = this.getCallSplits();
+				if(refSplits.isEmpty()) throw new IllegalArgumentException();
+				
+				for(final RefSplit split: refSplits)
+					{
+					final String vcfPart;
+					switch(split.getType()) {
+						case WHOLE_GENOME:  vcfPart= getTargetVcfFilename();break;
+						default:  vcfPart= "$(addsuffix "+split.getToken()+".vcf.gz,"+getTargetVcfFilename()+")";
+						}
+					
+					vcfParts.add(vcfPart);
+					
+					w.append(vcfPart).append(":").append(getFinalBamList());
+					w.append(" ").append(getPedigree().getPedFilename());
+					if( getProject().hasCapture())
+		            	{
+						w.append(" ").append(getCapture().getExtendedFilename());
+		            	}
+					w.append("\n");
+					w.append(rulePrefix()+" && ");
+					
+					if( getProject().hasCapture())
+		            	{
+						switch(split.getType())
+							{
+							case WHOLE_GENOME: break;
+							case INTERVAL:{
+									IntervalSplit tmp= IntervalSplit.class.cast(split);
+									w.append(" awk -F '\t' '($$1==\""+tmp.getInterval().getContig()+" && !("+ 
+											tmp.getInterval().getEnd()+" < int($$2) || int($$3) <"+
+											tmp.getInterval().getStart()+")' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && "); 
+									break;
+									}
+							case WHOLE_CONTIG:
+									{
+									ContigSplit tmp= ContigSplit.class.cast(split);
+									w.append(" awk -F '\t' '($$1==\""+tmp.getContig()+"\")' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && ");
+									break;
+									}
+							default: throw new IllegalStateException();
+							}
+		            	}
+					this.call(w,split);
+					w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz,$@)\" \"$@\" ");
+					w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz.tbi,$@)\" \"$(addsuffix .tbi,$@)\" ");
+					
+					if( getProject().hasCapture())
+		            	{
+						w.append(" && rm --verbose \"$(addsuffix .bed,$@)\" ");
+		            	}
+					w.append("\n");
+					}
+				
+				if(vcfParts.size()>1) {
+					w.append(getTargetVcfFilename()).append(":");
+					for(final String vcfPart:vcfParts) {
+						w.append(" \\\n\t").append(vcfPart);
+						}
+					w.append("\n");
+					
+					w.append(rulePrefix()+" && ${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T CombineVariants -R $(REF) "
+							+ " -o $(addsuffix .tmp.vcf.gz,$@) -genotypeMergeOptions UNSORTED "
+							);
+					for(int k=0;k<vcfParts.size();++k) {
+						w.append(" --variant:v").append(k).append(" ").append(vcfParts.get(k)).append(" ");
+						}
+	
+					w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz,$@)\" \"$@\" ");
+					w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz.tbi,$@)\" \"$(addsuffix .tbi,$@)\" ");
+					w.append("\n");
+					}
+				}
+			}
+	
+	
+	private class UnifiedGenotyperCaller extends AbstractCaller
+		{	
+		@Override
+		List<RefSplit> getCallSplits() {
+			return getProject().getHaplotypeCallerSplits();
+			}
+		@Override String getTargetVcfFilename() { return  getProject().getHapCallerGenotypedVcf();}
+		
+		@Override void call(final StringBuilder w,final RefSplit split)
+			{
+			w.append(" $(java.exe)  -XX:ParallelGCThreads=5 -Xmx2g  -Djava.io.tmpdir=$(dir $@) -jar $(gatk.jar) -T HaplotypeCaller ");
+			w.append("	-R $(REF) ");
+			w.append("	--validation_strictness LENIENT ");
+			w.append("	-I $< -o \"$(addsuffix .tmp.vcf.gz,$@)\" ");
+			//w.print("	--num_cpu_threads_per_data_thread "+  this.getIntProperty("base-recalibrator-nct",1));
+			w.append("	-l INFO ");
+			w.append("	-nct ").append(getAttribute(PROP_GATK_HAPCALLER_NCT));
+			
+			w.append("	--dbsnp \"$(gatk.bundle.dbsnp.vcf)\" ");
+			w.append(" $(foreach A, PossibleDeNovo AS_FisherStrand AlleleBalance AlleleBalanceBySample BaseCountsBySample GCContent ClippingRankSumTest , --annotation ${A} ) ");
+			w.append(" --pedigree ").append(getProject().getPedigree().getPedFilename());
+			if( getProject().hasCapture())
+	            {
+				switch(split.getType())
+					{
+					case WHOLE_GENOME: 	w.append(" -L:"+getProject().getCapture().getName()+",BED "+getCapture().getExtendedFilename());
+					case INTERVAL: //through...
+					case WHOLE_CONTIG: w.append(" -L $(addsuffix .bed,$@) ");break;
+					default: throw new IllegalStateException();
+					}
+	            }
+			else
+				{
+				switch(split.getType())
+					{
+					case WHOLE_GENOME: /* nothing */ break;
+					case INTERVAL: {
+						IntervalSplit tmp= IntervalSplit.class.cast(split);
+						w.append(" -L \""+tmp.getInterval().getContig()+":"+ tmp.getInterval().getStart()+"-"+tmp.getInterval().getEnd()+"\" ");
+						break;
+						}
+					case WHOLE_CONTIG: w.append(" -L ").append(ContigSplit.class.cast(split).getContig());break;
+					default: throw new IllegalStateException();
+					}					
+				}
+			}
+
+		}
+
+	private class SamtoolsCaller extends AbstractCaller
+		{	
+		@Override
+		List<RefSplit> getCallSplits() {
+			return getProject().getSamtoolsCallerSplits();
+			}
+
+		@Override String getTargetVcfFilename() { return  getProject().getSamtoolsRawVcf();}
+		
+		@Override void call(final StringBuilder w,final RefSplit split)
+			{
+			w.append(" ${samtools.exe} mpileup --uncompressed --BCF --fasta-ref $(REF) --bam-list $< ");
+			
+			if( getProject().hasCapture())
+	            {
+				switch(split.getType())
+					{
+					case WHOLE_GENOME: 	w.append(" --positions "+getCapture().getExtendedFilename());
+					case INTERVAL: //through...
+					case WHOLE_CONTIG: w.append(" --positions $(addsuffix .bed,$@) ");break;
+					default: throw new IllegalStateException();
+					}
+	            }
+			else
+				{
+				switch(split.getType())
+					{
+					case WHOLE_GENOME: /* nothing */ break;
+					case INTERVAL: {
+						final IntervalSplit tmp= IntervalSplit.class.cast(split);
+						w.append(" --region \""+tmp.getInterval().getContig()+":"+ tmp.getInterval().getStart()+"-"+tmp.getInterval().getEnd()+"\" ");
+						break;
+						}
+					case WHOLE_CONTIG: w.append(" --region ").append(ContigSplit.class.cast(split).getContig());break;
+					default: throw new IllegalStateException();
+					}					
+				}
+			
+			
+			w.append(" | ${bcftools.exe} call -vmO z -o \"$(addsuffix .tmp.vcf.gz,$@)\" ");
+			w.append(" --samples-file ").append(getProject().getPedigree().getPedFilename());
+			w.append(" && ${tabix.exe} -f -p vcf \"$(addsuffix .tmp.vcf.gz,$@)\" ");
+			}
+		}
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
 		}
 	
 	/** describe a Pedigree capture */
