@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -122,7 +123,23 @@ public class AnnPredictionParser
 		return valid;
 		}
 
+	/** returns all the SO terms String found in this variant */
+	public Set<String> getSOTermsStrings(final VariantContext ctx) {
+		if(!isValid()) return Collections.emptySet();
+		return getPredictions(ctx).stream().
+				flatMap(P->P.getSOTermsStrings().stream()).
+				collect(Collectors.toSet());
+		}
 
+	/** returns all the SO terms found in this variant */
+	public Set<SequenceOntologyTree.Term> getSOTerms(final VariantContext ctx) {
+		if(!isValid()) return Collections.emptySet();
+		return getPredictions(ctx).stream().
+				flatMap(P->P.getSOTerms().stream()).
+				collect(Collectors.toSet());
+		}
+
+	
 	public List<AnnPrediction> getPredictions(final VariantContext ctx)
 		{
 		if(!isValid())

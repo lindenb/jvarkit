@@ -418,8 +418,11 @@ public class SequenceOntologyTree
 		tree.addTerm("SO:0001556","increased_translational_product_level","SO:0001553","");
 		tree.addTerm("SO:0001596","transcript_secondary_structure_variant","SO:0001576","SO:0001597");
 		tree.addTerm("SO:0001885","TFBS_translocation","SO:0001884","");
+		//2017 March 17
+		tree.addTerm("SO:0000605","intergenic_region", "", "");
+		tree.addTerm("SO:0001792","non_coding_exon_variant", "SO:0001791", "");
 		return tree;
-						}
+	 }
 		
 	
 	private static class OwlLoader

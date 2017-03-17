@@ -64,6 +64,8 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonParser;
@@ -178,11 +180,13 @@ public class BioAlcidae
 			bindings.put("header",in.getHeader());
 			bindings.put("iter",in);
 			bindings.put("format","vcf");
+			bindings.put("snpeff",new AnnPredictionParserFactory(in.getHeader()).get());
+			bindings.put("vep",new VepPredictionParserFactory(in.getHeader()).get());
 			this.script.eval(bindings);
 			this.writer.flush();
 			return RETURN_OK;
 			} 
-		catch (Exception e)
+		catch (final Exception e)
 			{
 			return wrapException(e);
 			}

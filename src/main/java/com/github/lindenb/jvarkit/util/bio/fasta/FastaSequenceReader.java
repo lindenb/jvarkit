@@ -100,8 +100,8 @@ public FastaSequence readOne(final File file) throws IOException {
 	}
 
 public List<FastaSequence> readAll(final File file) throws IOException {
-	List<FastaSequence> seqs = new ArrayList<>(); 
-	CloseableIterator<FastaSequence> r= iterator(file);
+	final List<FastaSequence> seqs = new ArrayList<>(); 
+	final CloseableIterator<FastaSequence> r= iterator(file);
 	while(r.hasNext())  seqs.add(r.next());
 	r.close();
 	return seqs;
@@ -154,7 +154,7 @@ protected FastaSequence read(final PushbackReader reader) throws IOException {
 					);
 			}
 		return null;
-	} catch (IOException e) {
+	} catch (final IOException e) {
 		throw new RuntimeIOException(e);
 		}}
 
@@ -219,7 +219,7 @@ private static class SequenceImpl
 		public CloseableIterator<FastaSequence> iterator() {
 			try {
 				return FastaSequenceReader.this.iterator(this.fastaFile);
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				throw new RuntimeIOException(e);
 			}
 		}

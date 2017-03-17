@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
 
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BigWigIterator;
@@ -62,7 +63,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 		}
 	private BBFileReader bbFileReader=null;
 	private AggregateMethod aggregateMethod=AggregateMethod.avg;
-	
+	private Function<String,String> variantChromNameConverter= S -> S ;
 	public VCFBigWig()
 		{
 		}
@@ -70,6 +71,24 @@ public class VCFBigWig extends AbstractVCFBigWig
 	
 	@Override
 	public Collection<Throwable> initializeKnime() {
+		if(super.convertChrName==null || super.convertChrName.equals("identity"))
+			{
+			this.variantChromNameConverter= S -> S;
+			}
+		else if(super.convertChrName.equals("ensembl2ucsc"))
+			{
+			this.variantChromNameConverter= S -> {
+				String s=S;
+				if(!s.toLowerCase().startsWith("chr")) s="chr"+s;
+				if(s.equals("chrMT")) s="M";
+				return s;
+				};
+			}
+		else
+			{
+			return wrapException("Undefined chromosome name converter type:"+this.convertChrName);
+			}
+		
 		if(super.biwWigFile==null || super.biwWigFile.isEmpty())
 			{
 			return wrapException("Undefined BigWig file option -"+OPTION_BIWWIGFILE);
@@ -174,11 +193,12 @@ public class VCFBigWig extends AbstractVCFBigWig
 			{
 			final VariantContext ctx = progress.watch(r.next());
 			values.clear();
+			final String variantChrom= this.variantChromNameConverter.apply(ctx.getContig());
 			
 			final BigWigIterator iter=this.bbFileReader.getBigWigIterator(
-					ctx.getContig(),
+					variantChrom,
 					ctx.getStart()-1,
-					ctx.getContig(),
+					variantChrom,
 					ctx.getEnd(),
 					super.isContained()
 					);

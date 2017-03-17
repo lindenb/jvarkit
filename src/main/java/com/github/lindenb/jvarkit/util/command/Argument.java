@@ -27,27 +27,33 @@ History:
 
 */
 package com.github.lindenb.jvarkit.util.command;
-import static java.lang.annotation.ElementType.FIELD;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-import java.util.function.Function;
 
-@Retention(RUNTIME)
-@Target(FIELD)
-@Inherited
-@Documented
-public @interface Argument {
-	public String opt() default "";
-	public String longopt() default "";
-	public String description() default "";
-	public String argname() default "ARG";
-	public String regex() default "";
-	public String category() default "";
-	public boolean hidden() default false;
-	public String env() default "";
-
-}
+public abstract class Argument<T>
+	{
+	protected String shortopt=null;
+	protected String longOpt=null;
+	protected String description=null;
+	
+	public abstract static class AbstractBuilder<Y,A extends Argument<Y>,B extends AbstractBuilder<Y,A,B>>
+		{
+		protected final A instance;
+		protected AbstractBuilder(final A instance)
+			{
+			this.instance=instance;
+			}
+		// http://stackoverflow.com/questions/5818504/
+		protected abstract B getThis();
+		
+		protected void validate()
+			{
+			
+			}
+		protected B desc(final String s) { this.instance.description=s; return getThis();}
+		protected B shortOpt(final char c) { return this.shortOpt(String.valueOf(c));}
+		protected B shortOpt(final String s) { this.instance.shortopt = s; return getThis();}
+		protected B longOpt(final String s) { this.instance.longOpt = s; return getThis();}
+		public A make() { validate();return this.instance;}
+		}
+	
+	}

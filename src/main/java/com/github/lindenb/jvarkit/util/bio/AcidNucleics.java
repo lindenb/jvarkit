@@ -29,9 +29,9 @@ package com.github.lindenb.jvarkit.util.bio;
 public class AcidNucleics {
 
 	
-public static String reverseComplement(CharSequence seq)
+public static String reverseComplement(final CharSequence seq)
 	{
-	StringBuilder b=new StringBuilder(seq.length());
+	final StringBuilder b=new StringBuilder(seq.length());
 	for(int i=0;i< seq.length();++i)
 		{
 		b.append(complement(seq.charAt((seq.length()-1)-i)));

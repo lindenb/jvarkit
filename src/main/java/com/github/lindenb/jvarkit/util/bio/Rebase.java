@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.util.bio;
 
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -40,9 +41,10 @@ import java.util.Set;
  *
  */
 public class Rebase
+	extends AbstractList<Rebase.Enzyme>
 	implements Iterable<Rebase.Enzyme>
 	{
-	private List<Rebase.Enzyme> enzymes=new ArrayList<Rebase.Enzyme>();
+	private final List<Rebase.Enzyme> enzymes=new ArrayList<Rebase.Enzyme>();
 	public interface Enzyme
 		{
 		public String getName();
@@ -54,20 +56,20 @@ public class Rebase
 		public float getWeight();
 		}
 	
-	public  Rebase.Enzyme getEnzymeByName(String name)
+	public  Rebase.Enzyme getEnzymeByName(final String name)
 		{
-		for(Rebase.Enzyme E:this)
-			{
-			if(E.getName().equals(name)) return E;
-			}
-		return null;
+		return this.stream().
+			filter(F->F.getName().equals(name)).
+			findFirst().orElse(null);
 		}
 	
-	public Rebase.Enzyme get(int index)
+	@Override 
+	public Rebase.Enzyme get(final int index)
 		{
 		return getEnzymes().get(index);
 		}
 	
+	@Override 
 	public int size()
 		{
 		return getEnzymes().size();
@@ -110,12 +112,12 @@ public class Rebase
 	
 	public class EnzymeImpl implements Enzyme
 		{
-		private String name;
-		private String seq;
-		private String decl;
-		private boolean palindromic;
+		private final String name;
+		private final String seq;
+		private final String decl;
+		private final boolean palindromic;
 		private float weight=0f;
-		public EnzymeImpl(String name,String decl)
+		public EnzymeImpl(final String name,final String decl)
 			{
 			this.name=name;
 			this.decl=decl;
@@ -134,7 +136,7 @@ public class Rebase
 		public boolean isPalindromic() { return this.palindromic;}
 		public char at(int index) { return this.seq.charAt(index); }
 		@Override
-		public boolean equals(Object obj)
+		public boolean equals(final Object obj)
 			{
 			if(this==obj) return true;
 			if(obj==null || !(obj instanceof EnzymeImpl)) return false;
@@ -153,7 +155,7 @@ public class Rebase
 			}
 		}
 	
-	private void add(String name,String decl)
+	private void add(final String name,final String decl)
 		{
 		this.enzymes.add(new EnzymeImpl(name, decl));
 		}
@@ -161,11 +163,11 @@ public class Rebase
 	/** Neoschizomers are restriction enzymes that recognize the same nucleotide sequence as their prototype but cleave at a different site. */
 	public Rebase removeNeoschizomers()
 		{
-		Set<String> seen = new HashSet<>();
+		final Set<String> seen = new HashSet<>();
 		int i=0;
 		while(i< this.enzymes.size())
 			{
-			Enzyme e = this.enzymes.get(i);
+			final Enzyme e = this.enzymes.get(i);
 			if(!seen.add(e.getBases()))
 				{
 				this.enzymes.remove(i);
@@ -180,7 +182,7 @@ public class Rebase
 	
 	public static Rebase createDefaultRebase()
 		{
-		Rebase rebase=new Rebase();
+		final Rebase rebase=new Rebase();
 		/* curl -s "ftp://ftp.neb.com/pub/rebase/allenz.txt" |grep -E '^<[1257]>' | awk '/^<[^7]>/ {printf("%s\t",substr($0,4)); next;} /^<7>/ {print substr($0,4); next;}' | awk -F '       ' '($2=="" && $3!="?" && $4!="?" && $4!="")'  | cut  -f 1,3 | sort -k1,1 | awk '{printf("rebase.add(\"%s\",\"%s\");\n",$1,$2);}' */
 		rebase.add("AarI","CACCTGC(4/8)");
 		rebase.add("AatII","GACGT^C");

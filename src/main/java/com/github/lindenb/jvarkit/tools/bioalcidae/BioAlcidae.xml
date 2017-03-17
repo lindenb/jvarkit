@@ -38,6 +38,8 @@ For VCF , the program injects the following variables:
 <h:ul>
 	<h:li><h:b>header</h:b> a htsjdk.variant.vcf.VCFHeader https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html</h:li>
 	<h:li><h:b>iter</h:b> a java.util.Iterator&lt;htsjdk.variant.variantcontext.VariantContext&gt;  https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html</h:li>
+	<h:li><h:b>vep</h:b> a com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser  https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/VepPredictionParser.java</h:li>
+	<h:li><h:b>snpeff</h:b> a com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser  https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/AnnPredictionParser.java</h:li>
 </h:ul>
 
 <h:h4>Fasta</h:h4>
