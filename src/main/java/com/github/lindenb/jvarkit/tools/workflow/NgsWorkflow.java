@@ -504,7 +504,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			}
 		
 		public  String getHapCallerGenotypedVcf() {
-			return getVcfDirectory()+"/"+getTmpPrefix()+"Genotyped.vcf.gz";
+			return getVcfDirectory()+"/"+getTmpPrefix()+"HCGenotyped.vcf.gz";
 			}
 		public  String getSamtoolsRawVcf() {
 			return getVcfDirectory()+"/"+getTmpPrefix()+"Samtools.vcf.gz";
@@ -522,119 +522,6 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			return getHaplotypeCallerSplits();
 			}
 		
-		public StringBuilder haplotypeCaller() {
-			final StringBuilder w=new StringBuilder();
-			final List<String> vcfParts=new ArrayList<>();
-			final List<RefSplit> refSplits = getHaplotypeCallerSplits();
-			if(refSplits.isEmpty()) throw new IllegalArgumentException();
-			
-			for(final RefSplit split: refSplits)
-				{
-				final String vcfPart;
-				switch(split.getType()) {
-					case WHOLE_GENOME:  vcfPart= getHapCallerGenotypedVcf();break;
-					default:  vcfPart= "$(addsuffix "+split.getToken()+".vcf.gz,"+getHapCallerGenotypedVcf()+")";
-					}
-				
-				vcfParts.add(vcfPart);
-				
-				w.append(vcfPart).append(":").append(getFinalBamList());
-				w.append(" ").append(getPedigree().getPedFilename());
-				if( this.hasCapture())
-	            	{
-					w.append(" ").append(getCapture().getExtendedFilename());
-	            	}
-				w.append("\n");
-				w.append(rulePrefix()+" && ");
-				
-				if( this.hasCapture())
-	            	{
-					switch(split.getType())
-						{
-						case WHOLE_GENOME: break;
-						case INTERVAL:{
-								IntervalSplit tmp= IntervalSplit.class.cast(split);
-								w.append(" awk -F '\t' '($$1==\""+tmp.getInterval().getContig()+" && !("+ 
-										tmp.getInterval().getEnd()+" < int($$2) || int($$3) <"+
-										tmp.getInterval().getStart()+")' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && "); 
-								break;
-								}
-						case WHOLE_CONTIG:
-								{
-								ContigSplit tmp= ContigSplit.class.cast(split);
-								w.append(" awk -F '\t' '($$1==\""+tmp.getContig()+"\")' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && ");
-								break;
-								}
-						default: throw new IllegalStateException();
-						}
-	            	}
-				
-				w.append(" $(java.exe)  -XX:ParallelGCThreads=5 -Xmx2g  -Djava.io.tmpdir=$(dir $@) -jar $(gatk.jar) -T HaplotypeCaller ");
-				w.append("	-R $(REF) ");
-				w.append("	--validation_strictness LENIENT ");
-				w.append("	-I $< -o \"$(addsuffix .tmp.vcf.gz,$@)\" ");
-				//w.print("	--num_cpu_threads_per_data_thread "+  this.getIntProperty("base-recalibrator-nct",1));
-				w.append("	-l INFO ");
-				w.append("	-nct ").append(getAttribute(PROP_GATK_HAPCALLER_NCT));
-				
-				w.append("	--dbsnp \"$(gatk.bundle.dbsnp.vcf)\" ");
-				w.append(" $(foreach A, PossibleDeNovo AS_FisherStrand AlleleBalance AlleleBalanceBySample BaseCountsBySample GCContent ClippingRankSumTest , --annotation ${A} ) ");
-				w.append(" --pedigree ").append(getPedigree().getPedFilename());
-				if( this.hasCapture())
-		            {
-					switch(split.getType())
-						{
-						case WHOLE_GENOME: 	w.append(" -L:"+getCapture().getName()+",BED "+getCapture().getExtendedFilename());
-						case INTERVAL: //through...
-						case WHOLE_CONTIG: w.append(" -L $(addsuffix .bed,$@) ");break;
-						default: throw new IllegalStateException();
-						}
-		            }
-				else
-					{
-					switch(split.getType())
-						{
-						case WHOLE_GENOME: /* nothing */ break;
-						case INTERVAL: {
-							IntervalSplit tmp= IntervalSplit.class.cast(split);
-							w.append(" -L \""+tmp.getInterval().getContig()+":"+ tmp.getInterval().getStart()+"-"+tmp.getInterval().getEnd()+"\" ");
-							break;
-							}
-						case WHOLE_CONTIG: w.append(" -L ").append(ContigSplit.class.cast(split).getContig());break;
-						default: throw new IllegalStateException();
-						}					
-					}
-				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz,$@)\" \"$@\" ");
-				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz.tbi,$@)\" \"$(addsuffix .tbi,$@)\" ");
-				
-				if( this.hasCapture())
-	            	{
-					w.append(" && rm --verbose \"$(addsuffix .bed,$@)\" ");
-	            	}
-				w.append("\n");
-				}
-			
-			if(vcfParts.size()>1) {
-				w.append(getHapCallerGenotypedVcf()).append(":");
-				for(final String vcfPart:vcfParts) {
-					w.append(" \\\n\t").append(vcfPart);
-					}
-				w.append("\n");
-				
-				w.append(rulePrefix()+" && ${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T CombineVariants -R $(REF) "
-						+ " -o $(addsuffix .tmp.vcf.gz,$@) -genotypeMergeOptions UNSORTED "
-						);
-				for(int k=0;k<vcfParts.size();++k) {
-					w.append(" --variant:v").append(k).append(" ").append(vcfParts.get(k)).append(" ");
-					}
-
-				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz,$@)\" \"$@\" ");
-				w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz.tbi,$@)\" \"$(addsuffix .tbi,$@)\" ");
-				w.append("\n");
-				}
-			
-			return w;
-			}
 		
 
 		String getFinalBamList() {
@@ -654,29 +541,36 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			{
 			final List<AbstractCaller> L = new ArrayList<>();
 			L.add(new UnifiedGenotyperCaller());
-			L.add(new SamtoolsCaller());
+			//L.add(new SamtoolsCaller());
 			return L;
 			}
+		
+		
+		public void callVariants(PrintWriter out) {
+			for(AbstractCaller C:getCallers()) C.print(out);
+		}
 		
 		@Override
 		public String toString() {
 			return getName();
 			}
 		
-		
+		public String getNoResultContig() {
+			return "22";
+		}
 		
 		
 		private abstract class AbstractCaller
 			{
 			Project getProject() { return Project.this;}
-			abstract List<RefSplit> getCallSplits();
+			abstract List<? extends RefSplit> getCallSplits();
 			abstract String getTargetVcfFilename();
 			
-			abstract void call(final StringBuilder w,RefSplit split);
+			abstract void call(final PrintWriter w,RefSplit split);
 			
-			void  print(final StringBuilder w) {
+			void  print(final PrintWriter w)  {
 				final List<String> vcfParts=new ArrayList<>();
-				final List<RefSplit> refSplits = this.getCallSplits();
+				final List<? extends RefSplit> refSplits = this.getCallSplits();
 				if(refSplits.isEmpty()) throw new IllegalArgumentException();
 				
 				for(final RefSplit split: refSplits)
@@ -704,16 +598,16 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 							{
 							case WHOLE_GENOME: break;
 							case INTERVAL:{
-									IntervalSplit tmp= IntervalSplit.class.cast(split);
-									w.append(" awk -F '\t' '($$1==\""+tmp.getInterval().getContig()+" && !("+ 
+									final IntervalSplit tmp= IntervalSplit.class.cast(split);
+									w.append(" awk -F '\t' 'BEGIN{N=0;}{if($$1==\""+tmp.getInterval().getContig()+"\" && !("+ 
 											tmp.getInterval().getEnd()+" < int($$2) || int($$3) <"+
-											tmp.getInterval().getStart()+")' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && "); 
+											tmp.getInterval().getStart()+")) {print;N++;}}END{if(N==0) printf(\""+getNoResultContig()+"\\t0\\t1\\n\");}' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && "); 
 									break;
 									}
 							case WHOLE_CONTIG:
 									{
-									ContigSplit tmp= ContigSplit.class.cast(split);
-									w.append(" awk -F '\t' '($$1==\""+tmp.getContig()+"\")' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && ");
+									final ContigSplit tmp= ContigSplit.class.cast(split);
+									w.append(" awk -F '\t' 'BEGIN{N=0;}{if($$1==\""+tmp.getContig()+"\") {print;N++;}}END{if(N==0) printf(\""+getNoResultContig()+"\\t0\\t1\\n\");}' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && ");
 									break;
 									}
 							default: throw new IllegalStateException();
@@ -736,14 +630,20 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 						w.append(" \\\n\t").append(vcfPart);
 						}
 					w.append("\n");
+					w.append(rulePrefix()+" && rm -f $(addsuffix .list,$@)\n");
 					
-					w.append(rulePrefix()+" && ${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T CombineVariants -R $(REF) "
-							+ " -o $(addsuffix .tmp.vcf.gz,$@) -genotypeMergeOptions UNSORTED "
-							);
-					for(int k=0;k<vcfParts.size();++k) {
-						w.append(" --variant:v").append(k).append(" ").append(vcfParts.get(k)).append(" ");
+					for(final String vcfPart:vcfParts) {
+						w.append("\techo '");
+						w.append(vcfPart);
+						w.append("' >>  $(addsuffix .list,$@)\n");
 						}
-	
+					
+					w.append("\t${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T CombineVariants -R $(REF) "
+							+ " -o $(addsuffix .tmp.vcf.gz,$@) -genotypeMergeOptions UNSORTED "
+							+" --variant  $(addsuffix .list,$@) "
+							);
+					
+					w.append(" && rm --verbose $(addsuffix .list,$@)");
 					w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz,$@)\" \"$@\" ");
 					w.append(" && mv --verbose \"$(addsuffix .tmp.vcf.gz.tbi,$@)\" \"$(addsuffix .tbi,$@)\" ");
 					w.append("\n");
@@ -755,12 +655,12 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 	private class UnifiedGenotyperCaller extends AbstractCaller
 		{	
 		@Override
-		List<RefSplit> getCallSplits() {
-			return getProject().getHaplotypeCallerSplits();
+		List<? extends RefSplit> getCallSplits() {
+			return getIntervalSplitListGapForGrch37();
 			}
 		@Override String getTargetVcfFilename() { return  getProject().getHapCallerGenotypedVcf();}
 		
-		@Override void call(final StringBuilder w,final RefSplit split)
+		@Override void call(final PrintWriter w,final RefSplit split)
 			{
 			w.append(" $(java.exe)  -XX:ParallelGCThreads=5 -Xmx2g  -Djava.io.tmpdir=$(dir $@) -jar $(gatk.jar) -T HaplotypeCaller ");
 			w.append("	-R $(REF) ");
@@ -779,7 +679,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 					{
 					case WHOLE_GENOME: 	w.append(" -L:"+getProject().getCapture().getName()+",BED "+getCapture().getExtendedFilename());
 					case INTERVAL: //through...
-					case WHOLE_CONTIG: w.append(" -L $(addsuffix .bed,$@) ");break;
+					case WHOLE_CONTIG: w.append(" -L:BED \"$(addsuffix .bed,$@)\" ");break;
 					default: throw new IllegalStateException();
 					}
 	            }
@@ -810,7 +710,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 
 		@Override String getTargetVcfFilename() { return  getProject().getSamtoolsRawVcf();}
 		
-		@Override void call(final StringBuilder w,final RefSplit split)
+		@Override void call(final PrintWriter w,final RefSplit split)
 			{
 			w.append(" ${samtools.exe} mpileup --uncompressed --BCF --fasta-ref $(REF) --bam-list $< ");
 			
@@ -1673,7 +1573,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			}
 		project.getPedigree().build(out);
 		project.bamList(out);
-		out.println(project.haplotypeCaller());
+		project.callVariants(out);
 		
 		out.println();
 		out.flush();
@@ -1723,284 +1623,285 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			}
 		}
 	
-	
+	/* curl "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt.gz" |gunzip -c | cut -f2,3,4 | grep -v _ | grep -v GL | grep -v MT | sed 's/^chr//' | sort -t '   ' -k1,1V -k2,2n -k3,3n | /commun/data/packages/bedtools/bedtools2-2.25.0/bin/complementBed -i - -g <(cut -f 1,2 /commun/data/pubdb/broadinstitute.org/bundle/1.5/b37/human_g1k_v37.fasta.fai) | sort -t '        ' -k1,1V -k2,2n -k3,3n | grep -v GL | awk -F '   ' '($2!=$3)' | awk '{printf("L.add(new IntervalSplit(%s,%s,%s));\n",$1,int($2)-1,int($3)+1);}' */
 	public List<IntervalSplit> getIntervalSplitListGapForGrch37() {
 		final List<IntervalSplit> L=new ArrayList<>();
-		L.add(new IntervalSplit(1,10001,177416));
-		L.add(new IntervalSplit(1,227417,267719));
-		L.add(new IntervalSplit(1,317719,471368));
-		L.add(new IntervalSplit(1,521368,2634220));
-		L.add(new IntervalSplit(1,2684220,3845268));
-		L.add(new IntervalSplit(1,3995268,13052998));
-		L.add(new IntervalSplit(1,13102998,13219912));
-		L.add(new IntervalSplit(1,13319912,13557162));
-		L.add(new IntervalSplit(1,13607162,17125658));
-		L.add(new IntervalSplit(1,17175658,29878082));
-		L.add(new IntervalSplit(1,30028082,103863906));
-		L.add(new IntervalSplit(1,103913906,120697156));
-		L.add(new IntervalSplit(1,120747156,120936695));
-		L.add(new IntervalSplit(1,121086695,121485434));
-		L.add(new IntervalSplit(1,142535434,142731022));
-		L.add(new IntervalSplit(1,142781022,142967761));
-		L.add(new IntervalSplit(1,143117761,143292816));
-		L.add(new IntervalSplit(1,143342816,143544525));
-		L.add(new IntervalSplit(1,143644525,143771002));
-		L.add(new IntervalSplit(1,143871002,144095783));
-		L.add(new IntervalSplit(1,144145783,144224481));
-		L.add(new IntervalSplit(1,144274481,144401744));
-		L.add(new IntervalSplit(1,144451744,144622413));
-		L.add(new IntervalSplit(1,144672413,144710724));
-		L.add(new IntervalSplit(1,144810724,145833118));
-		L.add(new IntervalSplit(1,145883118,146164650));
-		L.add(new IntervalSplit(1,146214650,146253299));
-		L.add(new IntervalSplit(1,146303299,148026038));
-		L.add(new IntervalSplit(1,148176038,148361358));
-		L.add(new IntervalSplit(1,148511358,148684147));
-		L.add(new IntervalSplit(1,148734147,148954460));
-		L.add(new IntervalSplit(1,149004460,149459645));
-		L.add(new IntervalSplit(1,149509645,205922707));
-		L.add(new IntervalSplit(1,206072707,206332221));
-		L.add(new IntervalSplit(1,206482221,223747846));
-		L.add(new IntervalSplit(1,223797846,235192211));
-		L.add(new IntervalSplit(1,235242211,248908210));
-		L.add(new IntervalSplit(1,249058210,249240621));
-		L.add(new IntervalSplit(2,10001,3529311));
-		L.add(new IntervalSplit(2,3579312,5018788));
-		L.add(new IntervalSplit(2,5118788,16279724));
-		L.add(new IntervalSplit(2,16329724,21153113));
-		L.add(new IntervalSplit(2,21178113,87668206));
-		L.add(new IntervalSplit(2,87718206,89630436));
-		L.add(new IntervalSplit(2,89830436,90321525));
-		L.add(new IntervalSplit(2,90371525,90545103));
-		L.add(new IntervalSplit(2,91595103,92326171));
-		L.add(new IntervalSplit(2,95326171,110109337));
-		L.add(new IntervalSplit(2,110251337,149690582));
-		L.add(new IntervalSplit(2,149790582,234003741));
-		L.add(new IntervalSplit(2,234053741,239801978));
-		L.add(new IntervalSplit(2,239831978,240784132));
-		L.add(new IntervalSplit(2,240809132,243102476));
-		L.add(new IntervalSplit(2,243152476,243189373));
-		L.add(new IntervalSplit(3,60001,66170269));
-		L.add(new IntervalSplit(3,66270270,90504854));
-		L.add(new IntervalSplit(3,93504854,194041961));
-		L.add(new IntervalSplit(3,194047251,197962430));
-		L.add(new IntervalSplit(4,10001,1423145));
-		L.add(new IntervalSplit(4,1478646,8799203));
-		L.add(new IntervalSplit(4,8818203,9274642));
-		L.add(new IntervalSplit(4,9324642,31820917));
-		L.add(new IntervalSplit(4,31837417,32834638));
-		L.add(new IntervalSplit(4,32840638,40296396));
-		L.add(new IntervalSplit(4,40297096,49338941));
-		L.add(new IntervalSplit(4,49488941,49660117));
-		L.add(new IntervalSplit(4,52660117,59739333));
-		L.add(new IntervalSplit(4,59789333,75427379));
-		L.add(new IntervalSplit(4,75452279,191044276));
-		L.add(new IntervalSplit(5,10001,17530656));
-		L.add(new IntervalSplit(5,17580657,46405641));
-		L.add(new IntervalSplit(5,49405641,91636128));
-		L.add(new IntervalSplit(5,91686128,138787073));
-		L.add(new IntervalSplit(5,138837073,155138727));
-		L.add(new IntervalSplit(5,155188727,180905260));
-		L.add(new IntervalSplit(6,60001,58087658));
-		L.add(new IntervalSplit(6,58137659,58780166));
-		L.add(new IntervalSplit(6,61880166,62128589));
-		L.add(new IntervalSplit(6,62178589,95680543));
-		L.add(new IntervalSplit(6,95830543,157559467));
-		L.add(new IntervalSplit(6,157609467,157641300));
-		L.add(new IntervalSplit(6,157691300,167942073));
-		L.add(new IntervalSplit(6,168042073,170279972));
-		L.add(new IntervalSplit(6,170329972,171055067));
-		L.add(new IntervalSplit(7,10001,232483));
-		L.add(new IntervalSplit(7,282484,50370631));
-		L.add(new IntervalSplit(7,50410631,58054331));
-		L.add(new IntervalSplit(7,61054331,61310513));
-		L.add(new IntervalSplit(7,61360513,61460465));
-		L.add(new IntervalSplit(7,61510465,61677020));
-		L.add(new IntervalSplit(7,61727020,61917157));
-		L.add(new IntervalSplit(7,61967157,74715724));
-		L.add(new IntervalSplit(7,74765724,100556043));
-		L.add(new IntervalSplit(7,100606043,130154523));
-		L.add(new IntervalSplit(7,130254523,139379377));
-		L.add(new IntervalSplit(7,139404377,142048195));
-		L.add(new IntervalSplit(7,142098195,142276197));
-		L.add(new IntervalSplit(7,142326197,143347897));
-		L.add(new IntervalSplit(7,143397897,154270634));
-		L.add(new IntervalSplit(7,154370634,159128663));
-		L.add(new IntervalSplit(8,10001,7474648));
-		L.add(new IntervalSplit(8,7524649,12091854));
-		L.add(new IntervalSplit(8,12141854,43838887));
-		L.add(new IntervalSplit(8,46838887,48130499));
-		L.add(new IntervalSplit(8,48135599,86576451));
-		L.add(new IntervalSplit(8,86726451,142766515));
-		L.add(new IntervalSplit(8,142816515,145332588));
-		L.add(new IntervalSplit(8,145432588,146304022));
-		L.add(new IntervalSplit(9,10001,39663685));
-		L.add(new IntervalSplit(9,39713686,39974796));
-		L.add(new IntervalSplit(9,40024796,40233029));
-		L.add(new IntervalSplit(9,40283029,40425834));
-		L.add(new IntervalSplit(9,40475834,40940341));
-		L.add(new IntervalSplit(9,40990341,41143214));
-		L.add(new IntervalSplit(9,41193214,41365793));
-		L.add(new IntervalSplit(9,41415793,42613955));
-		L.add(new IntervalSplit(9,42663955,43213698));
-		L.add(new IntervalSplit(9,43313698,43946569));
-		L.add(new IntervalSplit(9,43996569,44676646));
-		L.add(new IntervalSplit(9,44726646,44908293));
-		L.add(new IntervalSplit(9,44958293,45250203));
-		L.add(new IntervalSplit(9,45350203,45815521));
-		L.add(new IntervalSplit(9,45865521,46216430));
-		L.add(new IntervalSplit(9,46266430,46461039));
-		L.add(new IntervalSplit(9,46561039,47060133));
-		L.add(new IntervalSplit(9,47160133,47317679));
-		L.add(new IntervalSplit(9,65467679,65918360));
-		L.add(new IntervalSplit(9,65968360,66192215));
-		L.add(new IntervalSplit(9,66242215,66404656));
-		L.add(new IntervalSplit(9,66454656,66614195));
-		L.add(new IntervalSplit(9,66664195,66863343));
-		L.add(new IntervalSplit(9,66913343,67107834));
-		L.add(new IntervalSplit(9,67207834,67366296));
-		L.add(new IntervalSplit(9,67516296,67987998));
-		L.add(new IntervalSplit(9,68137998,68514181));
-		L.add(new IntervalSplit(9,68664181,68838946));
-		L.add(new IntervalSplit(9,68988946,69278385));
-		L.add(new IntervalSplit(9,69328385,70010542));
-		L.add(new IntervalSplit(9,70060542,70218729));
-		L.add(new IntervalSplit(9,70318729,70506535));
-		L.add(new IntervalSplit(9,70556535,70735468));
-		L.add(new IntervalSplit(9,70835468,92343416));
-		L.add(new IntervalSplit(9,92443416,92528796));
-		L.add(new IntervalSplit(9,92678796,133073060));
-		L.add(new IntervalSplit(9,133223060,137041193));
-		L.add(new IntervalSplit(9,137091193,139166997));
-		L.add(new IntervalSplit(9,139216997,141153431));
-		L.add(new IntervalSplit(10,60001,17974674));
-		L.add(new IntervalSplit(10,18024675,38818835));
-		L.add(new IntervalSplit(10,38868835,39154935));
-		L.add(new IntervalSplit(10,42354935,42546687));
-		L.add(new IntervalSplit(10,42596687,46426964));
-		L.add(new IntervalSplit(10,46476964,47429169));
-		L.add(new IntervalSplit(10,47529169,47792476));
-		L.add(new IntervalSplit(10,47892476,48055707));
-		L.add(new IntervalSplit(10,48105707,49095536));
-		L.add(new IntervalSplit(10,49195536,51137410));
-		L.add(new IntervalSplit(10,51187410,51398845));
-		L.add(new IntervalSplit(10,51448845,125869472));
-		L.add(new IntervalSplit(10,125919472,128616069));
-		L.add(new IntervalSplit(10,128766069,133381404));
-		L.add(new IntervalSplit(10,133431404,133677527));
-		L.add(new IntervalSplit(10,133727527,135524747));
-		L.add(new IntervalSplit(11,60001,1162758));
-		L.add(new IntervalSplit(11,1212759,50783853));
-		L.add(new IntervalSplit(11,51090853,51594205));
-		L.add(new IntervalSplit(11,54694205,69089801));
-		L.add(new IntervalSplit(11,69139801,69724695));
-		L.add(new IntervalSplit(11,69774695,87688378));
-		L.add(new IntervalSplit(11,87738378,96287584));
-		L.add(new IntervalSplit(11,96437584,134946516));
-		L.add(new IntervalSplit(12,60001,95738));
-		L.add(new IntervalSplit(12,145739,7189876));
-		L.add(new IntervalSplit(12,7239876,34856694));
-		L.add(new IntervalSplit(12,37856694,109373470));
-		L.add(new IntervalSplit(12,109423470,122530623));
-		L.add(new IntervalSplit(12,122580623,132706992));
-		L.add(new IntervalSplit(12,132806992,133841895));
-		L.add(new IntervalSplit(13,19020001,86760323));
-		L.add(new IntervalSplit(13,86910324,112353994));
-		L.add(new IntervalSplit(13,112503994,114325993));
-		L.add(new IntervalSplit(13,114425993,114639948));
-		L.add(new IntervalSplit(13,114739948,115109878));
-		L.add(new IntervalSplit(14,19000001,107289539));
-		L.add(new IntervalSplit(15,20000001,20894632));
-		L.add(new IntervalSplit(15,20935075,21398819));
-		L.add(new IntervalSplit(15,21885000,22212114));
-		L.add(new IntervalSplit(15,22262114,22596193));
-		L.add(new IntervalSplit(15,22646193,23514853));
-		L.add(new IntervalSplit(15,23564853,29159443));
-		L.add(new IntervalSplit(15,29209443,82829645));
-		L.add(new IntervalSplit(15,82879645,84984473));
-		L.add(new IntervalSplit(15,85034473,102521392));
-		L.add(new IntervalSplit(16,60001,8636920));
-		L.add(new IntervalSplit(16,8686921,34023150));
-		L.add(new IntervalSplit(16,34173150,35285801));
-		L.add(new IntervalSplit(16,46385801,88389383));
-		L.add(new IntervalSplit(16,88439383,90294753));
-		L.add(new IntervalSplit(17,0,296626));
-		L.add(new IntervalSplit(17,396626,21566608));
-		L.add(new IntervalSplit(17,21666608,22263006));
-		L.add(new IntervalSplit(17,25263006,34675848));
-		L.add(new IntervalSplit(17,34725848,62410760));
-		L.add(new IntervalSplit(17,62460760,77546461));
-		L.add(new IntervalSplit(17,77596461,79709049));
-		L.add(new IntervalSplit(17,79759049,81195210));
-		L.add(new IntervalSplit(18,10001,15410897));
-		L.add(new IntervalSplit(18,18510898,52059136));
-		L.add(new IntervalSplit(18,52209136,72283353));
-		L.add(new IntervalSplit(18,72333353,75721820));
-		L.add(new IntervalSplit(18,75771820,78017248));
-		L.add(new IntervalSplit(19,60001,7346003));
-		L.add(new IntervalSplit(19,7396004,8687198));
-		L.add(new IntervalSplit(19,8737198,20523415));
-		L.add(new IntervalSplit(19,20573415,24631782));
-		L.add(new IntervalSplit(19,27731782,59118983));
-		L.add(new IntervalSplit(20,60001,26319568));
-		L.add(new IntervalSplit(20,29419569,29653908));
-		L.add(new IntervalSplit(20,29803908,34897085));
-		L.add(new IntervalSplit(20,34947085,61091437));
-		L.add(new IntervalSplit(20,61141437,61213369));
-		L.add(new IntervalSplit(20,61263369,62965520));
-		L.add(new IntervalSplit(21,9411194,9595547));
-		L.add(new IntervalSplit(21,9645548,9775437));
-		L.add(new IntervalSplit(21,9825437,10034920));
-		L.add(new IntervalSplit(21,10084920,10215976));
-		L.add(new IntervalSplit(21,10365976,10647896));
-		L.add(new IntervalSplit(21,10697896,11188129));
-		L.add(new IntervalSplit(21,14338129,42955559));
-		L.add(new IntervalSplit(21,43005559,44632664));
-		L.add(new IntervalSplit(21,44682664,48119895));
-		L.add(new IntervalSplit(22,16050001,16697849));
-		L.add(new IntervalSplit(22,16847850,20509431));
-		L.add(new IntervalSplit(22,20609431,50364777));
-		L.add(new IntervalSplit(22,50414777,51244566));
+		L.add(new IntervalSplit(1,10000,177417));
+		L.add(new IntervalSplit(1,227416,267720));
+		L.add(new IntervalSplit(1,317718,471369));
+		L.add(new IntervalSplit(1,521367,2634221));
+		L.add(new IntervalSplit(1,2684219,3845269));
+		L.add(new IntervalSplit(1,3995267,13052999));
+		L.add(new IntervalSplit(1,13102997,13219913));
+		L.add(new IntervalSplit(1,13319911,13557163));
+		L.add(new IntervalSplit(1,13607161,17125659));
+		L.add(new IntervalSplit(1,17175657,29878083));
+		L.add(new IntervalSplit(1,30028081,103863907));
+		L.add(new IntervalSplit(1,103913905,120697157));
+		L.add(new IntervalSplit(1,120747155,120936696));
+		L.add(new IntervalSplit(1,121086694,121485435));
+		L.add(new IntervalSplit(1,142535433,142731023));
+		L.add(new IntervalSplit(1,142781021,142967762));
+		L.add(new IntervalSplit(1,143117760,143292817));
+		L.add(new IntervalSplit(1,143342815,143544526));
+		L.add(new IntervalSplit(1,143644524,143771003));
+		L.add(new IntervalSplit(1,143871001,144095784));
+		L.add(new IntervalSplit(1,144145782,144224482));
+		L.add(new IntervalSplit(1,144274480,144401745));
+		L.add(new IntervalSplit(1,144451743,144622414));
+		L.add(new IntervalSplit(1,144672412,144710725));
+		L.add(new IntervalSplit(1,144810723,145833119));
+		L.add(new IntervalSplit(1,145883117,146164651));
+		L.add(new IntervalSplit(1,146214649,146253300));
+		L.add(new IntervalSplit(1,146303298,148026039));
+		L.add(new IntervalSplit(1,148176037,148361359));
+		L.add(new IntervalSplit(1,148511357,148684148));
+		L.add(new IntervalSplit(1,148734146,148954461));
+		L.add(new IntervalSplit(1,149004459,149459646));
+		L.add(new IntervalSplit(1,149509644,205922708));
+		L.add(new IntervalSplit(1,206072706,206332222));
+		L.add(new IntervalSplit(1,206482220,223747847));
+		L.add(new IntervalSplit(1,223797845,235192212));
+		L.add(new IntervalSplit(1,235242210,248908211));
+		L.add(new IntervalSplit(1,249058209,249240622));
+		L.add(new IntervalSplit(2,10000,3529312));
+		L.add(new IntervalSplit(2,3579311,5018789));
+		L.add(new IntervalSplit(2,5118787,16279725));
+		L.add(new IntervalSplit(2,16329723,21153114));
+		L.add(new IntervalSplit(2,21178112,87668207));
+		L.add(new IntervalSplit(2,87718205,89630437));
+		L.add(new IntervalSplit(2,89830435,90321526));
+		L.add(new IntervalSplit(2,90371524,90545104));
+		L.add(new IntervalSplit(2,91595102,92326172));
+		L.add(new IntervalSplit(2,95326170,110109338));
+		L.add(new IntervalSplit(2,110251336,149690583));
+		L.add(new IntervalSplit(2,149790581,234003742));
+		L.add(new IntervalSplit(2,234053740,239801979));
+		L.add(new IntervalSplit(2,239831977,240784133));
+		L.add(new IntervalSplit(2,240809131,243102477));
+		L.add(new IntervalSplit(2,243152475,243189374));
+		L.add(new IntervalSplit(3,60000,66170270));
+		L.add(new IntervalSplit(3,66270269,90504855));
+		L.add(new IntervalSplit(3,93504853,194041962));
+		L.add(new IntervalSplit(3,194047250,197962431));
+		L.add(new IntervalSplit(4,10000,1423146));
+		L.add(new IntervalSplit(4,1478645,8799204));
+		L.add(new IntervalSplit(4,8818202,9274643));
+		L.add(new IntervalSplit(4,9324641,31820918));
+		L.add(new IntervalSplit(4,31837416,32834639));
+		L.add(new IntervalSplit(4,32840637,40296397));
+		L.add(new IntervalSplit(4,40297095,49338942));
+		L.add(new IntervalSplit(4,49488940,49660118));
+		L.add(new IntervalSplit(4,52660116,59739334));
+		L.add(new IntervalSplit(4,59789332,75427380));
+		L.add(new IntervalSplit(4,75452278,191044277));
+		L.add(new IntervalSplit(5,10000,17530657));
+		L.add(new IntervalSplit(5,17580656,46405642));
+		L.add(new IntervalSplit(5,49405640,91636129));
+		L.add(new IntervalSplit(5,91686127,138787074));
+		L.add(new IntervalSplit(5,138837072,155138728));
+		L.add(new IntervalSplit(5,155188726,180905261));
+		L.add(new IntervalSplit(6,60000,58087659));
+		L.add(new IntervalSplit(6,58137658,58780167));
+		L.add(new IntervalSplit(6,61880165,62128590));
+		L.add(new IntervalSplit(6,62178588,95680544));
+		L.add(new IntervalSplit(6,95830542,157559468));
+		L.add(new IntervalSplit(6,157609466,157641301));
+		L.add(new IntervalSplit(6,157691299,167942074));
+		L.add(new IntervalSplit(6,168042072,170279973));
+		L.add(new IntervalSplit(6,170329971,171055068));
+		L.add(new IntervalSplit(7,10000,232484));
+		L.add(new IntervalSplit(7,282483,50370632));
+		L.add(new IntervalSplit(7,50410630,58054332));
+		L.add(new IntervalSplit(7,61054330,61310514));
+		L.add(new IntervalSplit(7,61360512,61460466));
+		L.add(new IntervalSplit(7,61510464,61677021));
+		L.add(new IntervalSplit(7,61727019,61917158));
+		L.add(new IntervalSplit(7,61967156,74715725));
+		L.add(new IntervalSplit(7,74765723,100556044));
+		L.add(new IntervalSplit(7,100606042,130154524));
+		L.add(new IntervalSplit(7,130254522,139379378));
+		L.add(new IntervalSplit(7,139404376,142048196));
+		L.add(new IntervalSplit(7,142098194,142276198));
+		L.add(new IntervalSplit(7,142326196,143347898));
+		L.add(new IntervalSplit(7,143397896,154270635));
+		L.add(new IntervalSplit(7,154370633,159128664));
+		L.add(new IntervalSplit(8,10000,7474649));
+		L.add(new IntervalSplit(8,7524648,12091855));
+		L.add(new IntervalSplit(8,12141853,43838888));
+		L.add(new IntervalSplit(8,46838886,48130500));
+		L.add(new IntervalSplit(8,48135598,86576452));
+		L.add(new IntervalSplit(8,86726450,142766516));
+		L.add(new IntervalSplit(8,142816514,145332589));
+		L.add(new IntervalSplit(8,145432587,146304023));
+		L.add(new IntervalSplit(9,10000,39663686));
+		L.add(new IntervalSplit(9,39713685,39974797));
+		L.add(new IntervalSplit(9,40024795,40233030));
+		L.add(new IntervalSplit(9,40283028,40425835));
+		L.add(new IntervalSplit(9,40475833,40940342));
+		L.add(new IntervalSplit(9,40990340,41143215));
+		L.add(new IntervalSplit(9,41193213,41365794));
+		L.add(new IntervalSplit(9,41415792,42613956));
+		L.add(new IntervalSplit(9,42663954,43213699));
+		L.add(new IntervalSplit(9,43313697,43946570));
+		L.add(new IntervalSplit(9,43996568,44676647));
+		L.add(new IntervalSplit(9,44726645,44908294));
+		L.add(new IntervalSplit(9,44958292,45250204));
+		L.add(new IntervalSplit(9,45350202,45815522));
+		L.add(new IntervalSplit(9,45865520,46216431));
+		L.add(new IntervalSplit(9,46266429,46461040));
+		L.add(new IntervalSplit(9,46561038,47060134));
+		L.add(new IntervalSplit(9,47160132,47317680));
+		L.add(new IntervalSplit(9,65467678,65918361));
+		L.add(new IntervalSplit(9,65968359,66192216));
+		L.add(new IntervalSplit(9,66242214,66404657));
+		L.add(new IntervalSplit(9,66454655,66614196));
+		L.add(new IntervalSplit(9,66664194,66863344));
+		L.add(new IntervalSplit(9,66913342,67107835));
+		L.add(new IntervalSplit(9,67207833,67366297));
+		L.add(new IntervalSplit(9,67516295,67987999));
+		L.add(new IntervalSplit(9,68137997,68514182));
+		L.add(new IntervalSplit(9,68664180,68838947));
+		L.add(new IntervalSplit(9,68988945,69278386));
+		L.add(new IntervalSplit(9,69328384,70010543));
+		L.add(new IntervalSplit(9,70060541,70218730));
+		L.add(new IntervalSplit(9,70318728,70506536));
+		L.add(new IntervalSplit(9,70556534,70735469));
+		L.add(new IntervalSplit(9,70835467,92343417));
+		L.add(new IntervalSplit(9,92443415,92528797));
+		L.add(new IntervalSplit(9,92678795,133073061));
+		L.add(new IntervalSplit(9,133223059,137041194));
+		L.add(new IntervalSplit(9,137091192,139166998));
+		L.add(new IntervalSplit(9,139216996,141153432));
+		L.add(new IntervalSplit(10,60000,17974675));
+		L.add(new IntervalSplit(10,18024674,38818836));
+		L.add(new IntervalSplit(10,38868834,39154936));
+		L.add(new IntervalSplit(10,42354934,42546688));
+		L.add(new IntervalSplit(10,42596686,46426965));
+		L.add(new IntervalSplit(10,46476963,47429170));
+		L.add(new IntervalSplit(10,47529168,47792477));
+		L.add(new IntervalSplit(10,47892475,48055708));
+		L.add(new IntervalSplit(10,48105706,49095537));
+		L.add(new IntervalSplit(10,49195535,51137411));
+		L.add(new IntervalSplit(10,51187409,51398846));
+		L.add(new IntervalSplit(10,51448844,125869473));
+		L.add(new IntervalSplit(10,125919471,128616070));
+		L.add(new IntervalSplit(10,128766068,133381405));
+		L.add(new IntervalSplit(10,133431403,133677528));
+		L.add(new IntervalSplit(10,133727526,135524748));
+		L.add(new IntervalSplit(11,60000,1162759));
+		L.add(new IntervalSplit(11,1212758,50783854));
+		L.add(new IntervalSplit(11,51090852,51594206));
+		L.add(new IntervalSplit(11,54694204,69089802));
+		L.add(new IntervalSplit(11,69139800,69724696));
+		L.add(new IntervalSplit(11,69774694,87688379));
+		L.add(new IntervalSplit(11,87738377,96287585));
+		L.add(new IntervalSplit(11,96437583,134946517));
+		L.add(new IntervalSplit(12,60000,95739));
+		L.add(new IntervalSplit(12,145738,7189877));
+		L.add(new IntervalSplit(12,7239875,34856695));
+		L.add(new IntervalSplit(12,37856693,109373471));
+		L.add(new IntervalSplit(12,109423469,122530624));
+		L.add(new IntervalSplit(12,122580622,132706993));
+		L.add(new IntervalSplit(12,132806991,133841896));
+		L.add(new IntervalSplit(13,19020000,86760324));
+		L.add(new IntervalSplit(13,86910323,112353995));
+		L.add(new IntervalSplit(13,112503993,114325994));
+		L.add(new IntervalSplit(13,114425992,114639949));
+		L.add(new IntervalSplit(13,114739947,115109879));
+		L.add(new IntervalSplit(14,19000000,107289540));
+		L.add(new IntervalSplit(15,20000000,20894633));
+		L.add(new IntervalSplit(15,20935074,21398820));
+		L.add(new IntervalSplit(15,21884999,22212115));
+		L.add(new IntervalSplit(15,22262113,22596194));
+		L.add(new IntervalSplit(15,22646192,23514854));
+		L.add(new IntervalSplit(15,23564852,29159444));
+		L.add(new IntervalSplit(15,29209442,82829646));
+		L.add(new IntervalSplit(15,82879644,84984474));
+		L.add(new IntervalSplit(15,85034472,102521393));
+		L.add(new IntervalSplit(16,60000,8636921));
+		L.add(new IntervalSplit(16,8686920,34023151));
+		L.add(new IntervalSplit(16,34173149,35285802));
+		L.add(new IntervalSplit(16,46385800,88389384));
+		L.add(new IntervalSplit(16,88439382,90294754));
+		L.add(new IntervalSplit(17,-1,296627));
+		L.add(new IntervalSplit(17,396625,21566609));
+		L.add(new IntervalSplit(17,21666607,22263007));
+		L.add(new IntervalSplit(17,25263005,34675849));
+		L.add(new IntervalSplit(17,34725847,62410761));
+		L.add(new IntervalSplit(17,62460759,77546462));
+		L.add(new IntervalSplit(17,77596460,79709050));
+		L.add(new IntervalSplit(17,79759048,81195211));
+		L.add(new IntervalSplit(18,10000,15410898));
+		L.add(new IntervalSplit(18,18510897,52059137));
+		L.add(new IntervalSplit(18,52209135,72283354));
+		L.add(new IntervalSplit(18,72333352,75721821));
+		L.add(new IntervalSplit(18,75771819,78017249));
+		L.add(new IntervalSplit(19,60000,7346004));
+		L.add(new IntervalSplit(19,7396003,8687199));
+		L.add(new IntervalSplit(19,8737197,20523416));
+		L.add(new IntervalSplit(19,20573414,24631783));
+		L.add(new IntervalSplit(19,27731781,59118984));
+		L.add(new IntervalSplit(20,60000,26319569));
+		L.add(new IntervalSplit(20,29419568,29653909));
+		L.add(new IntervalSplit(20,29803907,34897086));
+		L.add(new IntervalSplit(20,34947084,61091438));
+		L.add(new IntervalSplit(20,61141436,61213370));
+		L.add(new IntervalSplit(20,61263368,62965521));
+		L.add(new IntervalSplit(21,9411193,9595548));
+		L.add(new IntervalSplit(21,9645547,9775438));
+		L.add(new IntervalSplit(21,9825436,10034921));
+		L.add(new IntervalSplit(21,10084919,10215977));
+		L.add(new IntervalSplit(21,10365975,10647897));
+		L.add(new IntervalSplit(21,10697895,11188130));
+		L.add(new IntervalSplit(21,14338128,42955560));
+		L.add(new IntervalSplit(21,43005558,44632665));
+		L.add(new IntervalSplit(21,44682663,48119896));
+		L.add(new IntervalSplit(22,16050000,16697850));
+		L.add(new IntervalSplit(22,16847849,20509432));
+		L.add(new IntervalSplit(22,20609430,50364778));
+		L.add(new IntervalSplit(22,50414776,51244567));
+
 		
-		L.add(new IntervalSplit("X",60001,94820));
-		L.add(new IntervalSplit("X",144821,231384));
-		L.add(new IntervalSplit("X",281384,1047557));
-		L.add(new IntervalSplit("X",1097557,1134113));
-		L.add(new IntervalSplit("X",1184113,1264234));
-		L.add(new IntervalSplit("X",1314234,2068238));
-		L.add(new IntervalSplit("X",2118238,7623882));
-		L.add(new IntervalSplit("X",7673882,10738674));
-		L.add(new IntervalSplit("X",10788674,37098256));
-		L.add(new IntervalSplit("X",37148256,49242997));
-		L.add(new IntervalSplit("X",49292997,49974173));
-		L.add(new IntervalSplit("X",50024173,52395914));
-		L.add(new IntervalSplit("X",52445914,58582012));
-		L.add(new IntervalSplit("X",61682012,76653692));
-		L.add(new IntervalSplit("X",76703692,113517668));
-		L.add(new IntervalSplit("X",113567668,115682290));
-		L.add(new IntervalSplit("X",115732290,120013235));
-		L.add(new IntervalSplit("X",120063235,143507324));
-		L.add(new IntervalSplit("X",143557324,148906424));
-		L.add(new IntervalSplit("X",148956424,149032062));
-		L.add(new IntervalSplit("X",149082062,152277099));
-		L.add(new IntervalSplit("X",152327099,155260560));
-		L.add(new IntervalSplit("Y",10001,44820));
-		L.add(new IntervalSplit("Y",94821,181384));
-		L.add(new IntervalSplit("Y",231384,997557));
-		L.add(new IntervalSplit("Y",1047557,1084113));
-		L.add(new IntervalSplit("Y",1134113,1214234));
-		L.add(new IntervalSplit("Y",1264234,2018238));
-		L.add(new IntervalSplit("Y",2068238,8914955));
-		L.add(new IntervalSplit("Y",8964955,9241322));
-		L.add(new IntervalSplit("Y",9291322,10104553));
-		L.add(new IntervalSplit("Y",13104553,13143954));
-		L.add(new IntervalSplit("Y",13193954,13748578));
-		L.add(new IntervalSplit("Y",13798578,20143885));
-		L.add(new IntervalSplit("Y",20193885,22369679));
-		L.add(new IntervalSplit("Y",22419679,23901428));
-		L.add(new IntervalSplit("Y",23951428,28819361));
-		L.add(new IntervalSplit("Y",58819361,58917656));
-		L.add(new IntervalSplit("Y",58967656,59363566));
+		L.add(new IntervalSplit("X",60000,94821));
+		L.add(new IntervalSplit("X",144820,231385));
+		L.add(new IntervalSplit("X",281383,1047558));
+		L.add(new IntervalSplit("X",1097556,1134114));
+		L.add(new IntervalSplit("X",1184112,1264235));
+		L.add(new IntervalSplit("X",1314233,2068239));
+		L.add(new IntervalSplit("X",2118237,7623883));
+		L.add(new IntervalSplit("X",7673881,10738675));
+		L.add(new IntervalSplit("X",10788673,37098257));
+		L.add(new IntervalSplit("X",37148255,49242998));
+		L.add(new IntervalSplit("X",49292996,49974174));
+		L.add(new IntervalSplit("X",50024172,52395915));
+		L.add(new IntervalSplit("X",52445913,58582013));
+		L.add(new IntervalSplit("X",61682011,76653693));
+		L.add(new IntervalSplit("X",76703691,113517669));
+		L.add(new IntervalSplit("X",113567667,115682291));
+		L.add(new IntervalSplit("X",115732289,120013236));
+		L.add(new IntervalSplit("X",120063234,143507325));
+		L.add(new IntervalSplit("X",143557323,148906425));
+		L.add(new IntervalSplit("X",148956423,149032063));
+		L.add(new IntervalSplit("X",149082061,152277100));
+		L.add(new IntervalSplit("X",152327098,155260561));
+		L.add(new IntervalSplit("Y",10000,44821));
+		L.add(new IntervalSplit("Y",94820,181385));
+		L.add(new IntervalSplit("Y",231383,997558));
+		L.add(new IntervalSplit("Y",1047556,1084114));
+		L.add(new IntervalSplit("Y",1134112,1214235));
+		L.add(new IntervalSplit("Y",1264233,2018239));
+		L.add(new IntervalSplit("Y",2068237,8914956));
+		L.add(new IntervalSplit("Y",8964954,9241323));
+		L.add(new IntervalSplit("Y",9291321,10104554));
+		L.add(new IntervalSplit("Y",13104552,13143955));
+		L.add(new IntervalSplit("Y",13193953,13748579));
+		L.add(new IntervalSplit("Y",13798577,20143886));
+		L.add(new IntervalSplit("Y",20193884,22369680));
+		L.add(new IntervalSplit("Y",22419678,23901429));
+		L.add(new IntervalSplit("Y",23951427,28819362));
+		L.add(new IntervalSplit("Y",58819360,58917657));
+		L.add(new IntervalSplit("Y",58967655,59363567));
 		return L;
 		}
 	
