@@ -79,7 +79,8 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 public class VCFUtils
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VCFUtils.class);
+	@SuppressWarnings("unused")
+	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFUtils.class);
 	
 	public static class CodecAndHeader
 		{
@@ -279,7 +280,6 @@ public class VCFUtils
 	 * */
 	public static  VcfIterator createVcfIteratorFromInputStream(final InputStream in) throws IOException
 		{
-		LOG.info("reading vcf from stream");
 		return new VcfIteratorImpl(in);	
 		}
 
@@ -308,7 +308,6 @@ public class VCFUtils
 			}
 		else
 			{
-			LOG.info("reading from "+IN);
 			return new VcfIteratorImpl(IOUtils.openURIForReading(IN));
 			}
 		}
@@ -318,7 +317,6 @@ public class VCFUtils
 	 * */
 	public static  VcfIterator createVcfIteratorStdin() throws IOException
 		{
-		LOG.info("reading from stdin");
 		return new VcfIteratorImpl(System.in);
 		}
 	
@@ -381,7 +379,6 @@ public class VCFUtils
 		{
 		if(OUT==null)
 			{
-			LOG.info("writing to stdout");
 			return createVariantContextWriterToStdout();
 			}
 		else
