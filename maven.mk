@@ -9,7 +9,7 @@ avro.libs = $(lib.dir)/org/apache/avro/avro-tools/${avro.tools.version}/avro-too
 
 lib.dir?=lib
 
-htsjdk.version=2.6.1
+htsjdk.version=2.9.1
 htsjdk.jars  =  \
 	$(lib.dir)/com/github/samtools/htsjdk/${htsjdk.version}/htsjdk-${htsjdk.version}.jar \
 	$(lib.dir)/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar \
