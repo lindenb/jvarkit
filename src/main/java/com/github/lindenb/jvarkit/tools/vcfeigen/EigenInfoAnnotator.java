@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -387,12 +388,15 @@ public class EigenInfoAnnotator implements InfoAnnotator
 						{
 						//nothing
 						}
-					else if(vihl.getCountType()!=VCFHeaderLineCount.R)
+					else if(vihl.getCountType()==VCFHeaderLineCount.R)
 						{
-						map.put(vihl.getID(),new ArrayList<>(new HashSet<>(atts)));
+						map.put(vihl.getID(),new ArrayList<>(new LinkedHashSet<>(atts)));
 						}
 					else
 						{
+						if(atts.size()!=ctx.getAlternateAlleles().size()) {
+							System.err.println("Number of eigen data!=number of ALTS");
+						}
 						map.put(vihl.getID(), atts);
 						}
 					}

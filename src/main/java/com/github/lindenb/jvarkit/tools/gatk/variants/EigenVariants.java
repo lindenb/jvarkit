@@ -95,7 +95,7 @@ protected VariantContext mapVariant(
 		final ReferenceContext ref,
 		final AlignmentContext context
 		) {
-	final Map<String,Object> m  = annotator.getAnnotations(ctx);
+	final Map<String,Object> m  = this.annotator.getAnnotations(ctx);
 	if(m==null || m.isEmpty())
 		{
 		return ctx;
