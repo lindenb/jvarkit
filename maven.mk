@@ -86,7 +86,10 @@ velocity.jars  =  \
 	$(lib.dir)/commons-lang/commons-lang/2.4/commons-lang-2.4.jar \
 	$(lib.dir)/org/apache/velocity/velocity/1.7/velocity-1.7.jar
 
-all_maven_jars = $(sort ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
+jcommander.jar= \
+	$(lib.dir)/com/beust/jcommander/1.64/jcommander-1.64.jar
+
+all_maven_jars = $(sort ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
 
 
 ${all_maven_jars}  : 
