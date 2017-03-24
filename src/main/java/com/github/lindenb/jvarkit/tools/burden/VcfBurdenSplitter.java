@@ -591,7 +591,7 @@ public class VcfBurdenSplitter
 							for(final VariantContext ctx:variants) {
 								if(isDebuggingVariant(ctx))
 									{
-									LOG.info("saving variant "+shortName(ctx)+" to final output");
+									LOG.info("saving variant "+shortName(ctx)+" to final output with key="+first.key);
 									}
 								out.add(ctx);
 							}

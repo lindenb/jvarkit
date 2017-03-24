@@ -20,10 +20,10 @@ public class ArgumentDef
 	{
 	private final Object object;
 	private final Field field;
-	private final Argument argument;
+	private final AbstractArgument argument;
 	private final Option option ;
 	public boolean visited=false;
-	ArgumentDef(final Object object,final Field field,final Argument argument) {
+	ArgumentDef(final Object object,final Field field,final AbstractArgument argument) {
 		this.object = object;
 		this.field = field;
 		this.argument = argument;

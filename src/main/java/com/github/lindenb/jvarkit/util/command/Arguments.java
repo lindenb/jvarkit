@@ -48,7 +48,6 @@ import org.apache.commons.cli.ParseException;
 
 
 public class Arguments {
-@Argument
 private static boolean print_hidden_options=false;
 
 private final List<ArgumentDef> argumentdefs = new ArrayList<>();
@@ -115,7 +114,7 @@ private void register(final Object obj,final Class<?> clazz) {
 		//if real object, we're not looking a static fields
 		if(obj!=null && java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
 		//retrieve argument
-		final Argument argument  = field.getAnnotation(Argument.class);
+		final AbstractArgument argument  = field.getAnnotation(AbstractArgument.class);
 		//no argument
 		if(argument==null) continue;
 		//create new argument def
@@ -173,11 +172,11 @@ w.flush();
 
 
 private static class Test {
-@Argument
+@AbstractArgument
 boolean f1;
-@Argument
+@AbstractArgument
 Boolean f2;
-@Argument
+@AbstractArgument
 Collection<File> f3 = new ArrayList<>();
 }
 

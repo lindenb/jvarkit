@@ -34,7 +34,7 @@ import htsjdk.variant.vcf.VCFHeader;
 
 public class DelegateVariantContextWriter implements VariantContextWriter {
 	private final VariantContextWriter _delegate;
-	
+	private boolean is_closed=false;
 	public DelegateVariantContextWriter(final VariantContextWriter delegate) {
 		this._delegate = delegate;
 	}
@@ -43,8 +43,14 @@ public class DelegateVariantContextWriter implements VariantContextWriter {
 		return _delegate;
 	}
 	
+	/** return true if 'close' was invoked */
+	public boolean isClosed() {
+		return this.is_closed;
+	}
+	
 	@Override
 	public void add(final VariantContext ctx) {
+		if(isClosed()) return;
 		getDelegate().add(ctx);
 
 	}
@@ -59,6 +65,7 @@ public class DelegateVariantContextWriter implements VariantContextWriter {
 		try { getDelegate().close(); } catch(final Throwable err) {
 			/* https://github.com/samtools/htsjdk/issues/469 */
 			}
+		this.is_closed = true;
 	}
 
 	@Override
