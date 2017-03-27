@@ -502,7 +502,10 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			{
 			return this.capture.get();
 			}
-		
+		public  String getHapCallerAnnotationVcf() {
+			return getVcfDirectory()+"/"+getTmpPrefix()+"HCAnnotations.vcf.gz";
+			}
+
 		public  String getHapCallerGenotypedVcf() {
 			return getVcfDirectory()+"/"+getTmpPrefix()+"HCGenotyped.vcf.gz";
 			}
@@ -550,6 +553,11 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 			for(AbstractCaller C:getCallers()) C.print(out);
 		}
 		
+		public void annotateVariants(PrintWriter out) {
+			new VariantAnnotator(this.getHapCallerAnnotationVcf(),this.getHapCallerGenotypedVcf()).print(out);
+		}
+		
+		
 		@Override
 		public String toString() {
 			return getName();
@@ -558,6 +566,61 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		public String getNoResultContig() {
 			return "22";
 		}
+		
+		
+		public class VariantAnnotator
+			{
+			private String target;
+			private String dep;
+			public VariantAnnotator(String target,String dep)
+				{
+				this.target=target;
+				this.dep=dep;
+				}
+			void  print(final PrintWriter w)
+				{
+				w.print(this.target);
+				w.print(":");
+				w.print(this.dep);
+				w.println();
+				w.print(rulePrefix());
+				w.print(" && rm -f  $(addsuffix .tmp1.vcf,$@)  $(addsuffix .tmp1.vcf.idx,$@) $(addsuffix .tmp2.vcf,$@)  $(addsuffix .tmp2.vcf.idx,$@) ");
+				w.print(" && gunzip -c $< |  $(call run_jvarkit,vcfbigwig) "
+						+ " -t ensembl2ucsc -T DukeMapabilityUniqueness35bp -B /commun/data/pubdb/ucsc/hg19/encodeDCC/wgEncodeDukeMapabilityUniqueness35bp.bigWig |");
+				w.print(" $(call run_jvarkit,vcffilterjs) -F DukeMapabilityUniqueness35LT1 -e '!variant.hasAttribute(\"DukeMapabilityUniqueness35bp\") || variant.getAttributeAsDouble(\"DukeMapabilityUniqueness35bp\",100.0)>=1.0;' > $(addsuffix .tmp1.vcf,$@) ");
+				//BED
+				w.print(" && ${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T VariantFiltration -R $(REF) "
+						+ " -o $(addsuffix .tmp2.vcf,$@) -L $(addsuffix .tmp1.vcf,$@) --variant $(addsuffix .tmp1.vcf,$@) "
+						+" --maskName MapabilityConsensusExcludable --mask:BED /commun/data/pubdb/ucsc/hg19/encodeDCC/wgEncodeDacMapabilityConsensusExcludable_nochrprefix.bed.gz "
+						+ " && mv --verbose   $(addsuffix .tmp2.vcf,$@)  $(addsuffix .tmp1.vcf,$@)"
+						+ " && mv --verbose   $(addsuffix .tmp2.vcf.idx,$@)  $(addsuffix .tmp1.vcf.idx,$@)"
+						);
+				w.print(" && ${java.exe} -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T VariantFiltration -R $(REF) "
+						+ " -o $(addsuffix .tmp2.vcf,$@) -L $(addsuffix .tmp1.vcf,$@) --variant $(addsuffix .tmp1.vcf,$@) "
+						+" --maskName MapabilityRegionsExcludable --mask:BED /commun/data/pubdb/ucsc/hg19/encodeDCC/wgEncodeDukeMapabilityRegionsExcludable_nochrprefix.bed.gz "
+						+ " && mv --verbose   $(addsuffix .tmp2.vcf,$@)  $(addsuffix .tmp1.vcf,$@)"
+						+ " && mv --verbose   $(addsuffix .tmp2.vcf.idx,$@)  $(addsuffix .tmp1.vcf.idx,$@)"
+						);
+				//EXAC
+				w.print(" && ${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T VariantAnnotator -R $(REF) "
+						+ " -o $(addsuffix .tmp2.vcf,$@) -L $(addsuffix .tmp1.vcf,$@) --variant $(addsuffix .tmp1.vcf,$@) "
+						+" --resource:exac /commun/data/pubdb/broadinstitute.org/exac/1.0/ExAC.r1.sites.vcf.gz   --resourceAlleleConcordance "
+						+" --expression exac.AC --expression exac.AC  "
+						+ " -A PossibleDeNovo --pedigree "+ getPedigree().getPedFilename()+" "
+						+ " && mv --verbose   $(addsuffix .tmp2.vcf,$@)  $(addsuffix .tmp1.vcf,$@)"
+						+ " && mv --verbose   $(addsuffix .tmp2.vcf.idx,$@)  $(addsuffix .tmp1.vcf.idx,$@)"
+						);
+				w.print(" && $(call run_jvarkit,vcffilterjs) -F IN_EXAC -e 'variant.hasAttribute(\"exac.AC\")' $(addsuffix .tmp1.vcf,$@) |");
+				w.print(" ${java.exe}  -Djava.io.tmpdir=$(dir $@) /commun/data/packages/snpEff/snpEff_4_3i/snpEff.jar ann -c /commun/data/packages/snpEff/snpEff_4_3i/snpEff.config GRCh37.75 -nodownload -noStats |  ");
+				w.print(" ${bgzip.exe} >  $(addsuffix .tmp2.vcf.gz,$@)  ");
+				w.print(" && ${tabix.exe} -p vcf -f $(addsuffix .tmp2.vcf.gz,$@) "
+					+ " && mv --verbose   $(addsuffix .tmp2.vcf.gz,$@) $@ "
+					+ " && mv --verbose   $(addsuffix .tmp2.vcf.gz.tbi,$@)  $(addsuffix .tbi,$@)"
+					);
+				w.print(" && rm -f  $(addsuffix .tmp1.vcf,$@)  $(addsuffix .tmp1.vcf.idx,$@)  $(addsuffix .tmp2.vcf,$@)  $(addsuffix .tmp2.vcf.idx,$@) ");
+				w.println();
+				}
+			}
 		
 		
 		private abstract class AbstractCaller
@@ -1518,7 +1581,11 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		out.println("gatk.bundle.hapmap.vcf=$(gatk.bundle.dir)hapmap_3.3.b37.vcf");
 		out.println("exac.vcf?=/commun/data/pubdb/broadinstitute.org/exac/0.3/ExAC.r0.3.sites.vep.vcf.gz");
 		
-		out.println("all:"+project.getHapCallerGenotypedVcf());
+		
+		//out.println("define run_jvarkit\n${java.exe} -jar ${jvarkit.dir}/$(1).jar\nendef");
+
+		
+		out.println("all:"+project.getHapCallerAnnotationVcf());
 		
 		out.println("all_final_bam:"+project.getSamples().stream().
 				map(S->S.getFinalBamBai()).
@@ -1574,6 +1641,8 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		project.getPedigree().build(out);
 		project.bamList(out);
 		project.callVariants(out);
+		project.annotateVariants(out);
+		
 		
 		out.println();
 		out.flush();

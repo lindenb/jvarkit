@@ -61,11 +61,13 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
 
 /**
  * 
@@ -91,41 +93,6 @@ public class VcfBurdenSplitter2
 	@Parameter(names={"-if","--ignorefilter"},description="accept variants having a FILTER column. Default is ignore variants with a FILTER column")
 	private boolean acceptFiltered = false;
 
-	@Parameter(names={"-vepFeature","--vepFeature"},description="enable VEP 'FEATURE' (transcript)")
-	private boolean enableVepFeature = false;
-
-	@Parameter(names={"-vepHgnc","--vepHgnc"},description="enable VEP 'HGNC'")
-	private boolean enableVepHgnc = false;
-
-	@Parameter(names={"-vepEnsg","--vepEnsg"},description="enable VEP 'ENSG'")
-	private boolean enableVepEnsg = false;
-
-	@Parameter(names={"-vepEnst","--vepEnst"},description="enable VEP 'FEATURE' starting with 'ENST'")
-	private boolean enableVepEnst = false;
-
-	@Parameter(names={"-vepEnsp","--vepEnsp"},description="enable VEP 'ENSP'")
-	private boolean enableVepEnsp = false;
-
-	@Parameter(names={"-vepSymbol","--vepSymbol"},description="enable VEP 'SYMBOL'")
-	private boolean enableVepSymbol = false;
-
-	@Parameter(names={"-vepRefSeq","--vepRefSeq"},description="enable VEP 'SYMBOL'= XM_ or NM_")
-	private boolean enableVepRefSeq = false;
-
-	@Parameter(names={"-all_nm","--all_nm"},description="enable grouping by ALL_NM : gene not empty and transcript starting with NM_")
-	private boolean enableAllNM = false;
-
-	@Parameter(names={"-all_refseq","--all_refseq"},description="enable grouping by ALL_REFSEQ: gene not empty and transcript NOT starting with ENST")
-	private boolean enableAllRefSeq = false;
-
-	@Parameter(names={"-all_enst","--all_enst"},description="enable grouping by ALL_ENST: gene starting with ENST")
-	private boolean enableAllEnst = false;
-
-	@Parameter(names={"-all_transcripts","--all_transcripts"},description="enable grouping by all transcript for a gene using gene name (e.g Nm_12345)")
-	private boolean enableAllTranscript = false;
-
-	@Parameter(names={"-all_genes","--all_genes"},description="enable grouping by all transcript for a gene using transcript name (e.g PRKCB1)")
-	private boolean enableAllGenes = false;
 
 	@Parameter(names={"-all_filtered","--all_filtered"},description="If defined, the group where ALL the variants are FILTERED will be saved here.")
 	private File allFilteredFileOut = null;
@@ -142,10 +109,7 @@ public class VcfBurdenSplitter2
 	
 	/** list of available splitters */
 	private final Splitter splitters[]= new Splitter[]{
-			new VepSplitter(),
-			new SoVepSplitter(),
-			new ZeroVepFilter(),
-			new HighDamageVepSplitter(),
+			new PredictionsSplitter(),
 			new SlidingWindowSplitter(1000, 500),
 			new SlidingWindowSplitter(1000, 300),
 			new SlidingWindowSplitter(2000, 1000),
@@ -159,7 +123,7 @@ public class VcfBurdenSplitter2
 	
 	
 	private MyWriter oneAndOnlyWriter=null;
-	public VariantContextWriter open(VariantContextWriter delegate) {
+	public VariantContextWriter open(final VariantContextWriter delegate) {
 		if(this.oneAndOnlyWriter!=null) {
 			throw new JvarkitException.ProgrammingError("This method shouldn't be invoked twice");
 			}
@@ -381,20 +345,19 @@ public class VcfBurdenSplitter2
 		}
 	
 	/** base vep splitter */
-	private class VepSplitter extends Splitter {
+	private class PredictionsSplitter extends Splitter {
 		private VepPredictionParser vepPredictionParser=null;
-		VepSplitter() {}
+		private AnnPredictionParser annPredictionParser=null;
+		PredictionsSplitter() {}
 		
 		
 		
-		@Override public String getName() { return "vep";}
-		@Override public String getDescription() { return "Ensembl Variant Effect Prediction";}
+		@Override public String getName() { return "prediction";}
+		@Override public String getDescription() { return "Variant Effect Predictions";}
 		public void initialize(final VCFHeader header) {
 			this.vepPredictionParser = new VepPredictionParserFactory(header).get();
+			this.annPredictionParser = new AnnPredictionParserFactory(header).get();
 			}
-		public boolean accept(final VepPrediction pred,final VariantContext origin) {
-			return true;
-		}
 		private boolean isEmpty(final String s) {
 			return s==null || s.trim().isEmpty();
 		}
@@ -402,201 +365,39 @@ public class VcfBurdenSplitter2
 		public Set<String> keys(final VariantContext ctx) {
 			final Set<String> keys = new HashSet<>();
 			for(final VepPrediction pred: this.vepPredictionParser.getPredictions(ctx)) {
-				if(!accept(pred,ctx)) {
-					if(isDebuggingVariant(ctx)) {
-						LOG.info("VEP predictions  Ignoring "+shortName(ctx)+".");
+				if(!isEmpty(pred.getFeature()))
+					{
+					keys.add(ctx.getContig()+"_VEP_FEATURE_"+pred.getFeature());
 					}
-					continue;
-				} else
-				{
-					if(isDebuggingVariant(ctx)) {
-						LOG.info("VEP predictions  accepted "+shortName(ctx)+".");
+				if(!isEmpty(pred.getGene()))
+					{
+					keys.add(ctx.getContig()+"_VEP_GENE_"+pred.getGene());
+					}
+				if(!isEmpty(pred.getSymbol()))
+					{
+					keys.add(ctx.getContig()+"_VEP_SYMBOL_"+pred.getSymbol());
+					}
+				if(!isEmpty(pred.getRefSeq()))
+					{
+					keys.add(ctx.getContig()+"_VEP_REFSEQ_"+pred.getRefSeq());
 					}
 				}
-				
-				
-				//ALL_NM && ALL_REFSEQ && ALL_ENST && ALL_TRANSCRIPTS
+			for(final AnnPrediction pred: this.annPredictionParser.getPredictions(ctx)) {
+				if(!isEmpty(pred.getFeatureType()) && !isEmpty(pred.getFeatureId())) {
+					keys.add(ctx.getContig()+"_ANN_FEATURE_"+pred.getFeatureType()+"_"+pred.getFeatureId());
+					}
+				if(!isEmpty(pred.getGeneId()))
 					{
-					final String geneName =  pred.getSymbol();
-					final String transcriptName =  pred.getFeature();
-					
-					
-					if(!isEmpty(geneName) && !isEmpty(transcriptName)) {
-						if(VcfBurdenSplitter2.this.enableAllNM && transcriptName.startsWith("NM_")) {
-							keys.add(String.format("ALL_NM_%s_%s",ctx.getContig(),geneName));
-							}
-						if(VcfBurdenSplitter2.this.enableAllRefSeq && !transcriptName.startsWith("ENST"))
-							{
-							keys.add(String.format("ALL_REFSEQ_%s_%s",ctx.getContig(),geneName));
-							}
-						if(VcfBurdenSplitter2.this.enableAllEnst && transcriptName.startsWith("ENST"))
-							{
-							keys.add(String.format("ALL_ENST_%s_%s",ctx.getContig(),geneName));
-							}
-						}
-					
-					
-					if(!isEmpty(geneName) && VcfBurdenSplitter2.this.enableAllGenes)
-						{
-						keys.add(String.format("ALL_GENES_%s_%s",ctx.getContig(),geneName));
-						}
-					if(!isEmpty(transcriptName) && VcfBurdenSplitter2.this.enableAllTranscript)
-						{
-						String k= String.format("ALL_TRANSCRIPTS_%s_%s",ctx.getContig(),transcriptName);
-						if( !isEmpty(geneName) ) k+="_"+geneName;
-						keys.add(k);
-						}
-
-					
-					}
-				
-				String s;
-				if(VcfBurdenSplitter2.this.enableVepHgnc) {
-					s= pred.getHGNC();
-					if(!isEmpty(s)) {
-						keys.add(String.format("HGNC_%s_%s",ctx.getContig(),s));
-						}
-					}
-				
-				if(VcfBurdenSplitter2.this.enableVepEnsg) {
-					s= pred.getEnsemblGene();
-					if(!isEmpty(s)) {
-						keys.add(String.format("ENSG_%s_%s",ctx.getContig(),s));
-						}
-					}
-				/* same as feature 
-				s= pred.getEnsemblTranscript();
-				if(!isEmpty(s)) {
-					keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
-					}*/
-				
-				if(VcfBurdenSplitter2.this.enableVepFeature) {
-					s= pred.getFeature();
-					if(!isEmpty(s)) {
-						keys.add(String.format("FEATURE_%s_%s",ctx.getContig(),s));
-						
-						if(VcfBurdenSplitter2.this.enableVepRefSeq && (s.startsWith("XM_") || s.startsWith("NM_")))
-							{
-							keys.add(String.format("REFSEQ_%s_%s",ctx.getContig(),s));
-							}
-						else if(VcfBurdenSplitter2.this.enableVepEnst && s.startsWith("ENST_"))
-							{
-							keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
-							}
-						}
-					}
-				
-				if(VcfBurdenSplitter2.this.enableVepSymbol) {
-					s= pred.getSymbol();
-					if(!isEmpty(s)) {
-						keys.add(String.format("SYMBOL_%s_%s",ctx.getContig(),s));
-						}
-					}
-				
-				if(VcfBurdenSplitter2.this.enableVepEnsp) {
-					s= pred.getENSP();
-					if(!isEmpty(s)) {
-						keys.add(String.format("ENSP_%s_%s",ctx.getContig(),s));
-						}
+					keys.add(ctx.getContig()+"_ANN_GENE_"+pred.getFeatureType());
 					}
 				}
 			return keys;
 			}
 		}
 	
-	private abstract class AbstractSoVepSplitter extends VepSplitter {
-		final Set<SequenceOntologyTree.Term> acns;
-		AbstractSoVepSplitter(final String acn_list[])
-			{
-			final SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
-			this.acns = new HashSet<>(acn_list.length);
-			for(final String soacn:acn_list)
-				{
-				final SequenceOntologyTree.Term  tacn = soTree.getTermByAcn(soacn);
-				if(tacn==null)
-					{
-					throw new NullPointerException("tacn == null pour "+acns);
-					}
-				acns.addAll(tacn.getAllDescendants());
-				}
-			}
-		@Override
-		public boolean accept(final VepPrediction pred,final VariantContext origin) {
-			for(final SequenceOntologyTree.Term so:pred.getSOTerms())
-				{
-				if(acns.contains(so))
-					{
-					if(isDebuggingVariant(origin)) {
-						LOG.info("accepting variant "+shortName(origin)+" because SO-TERM "+so+" is in "+this.acns);
-						}
-					return true;
-					}
-				}
-			if(isDebuggingVariant(origin)) {
-				LOG.info("I don't accept variant "+shortName(origin)+" "+pred+" because SO-TERM "+pred.getSOTerms()+" is not in "+this.acns);
-				}
-			return false;
-			}
-		}
 	
-	private class SoVepSplitter extends AbstractSoVepSplitter {
-		SoVepSplitter() {
-			super(new String[]{
-					"SO:0001893",  "SO:0001574",  "SO:0001575", 
-					"SO:0001587",  "SO:0001589",  "SO:0001578", 
-					"SO:0002012",  "SO:0001889",  "SO:0001821", 
-					"SO:0001822",  "SO:0001583",  "SO:0001818"
-					});
-			}
-		@Override
-		public String getName() {
-			return "vepso";
-			}
-		@Override
-		public String getDescription() {
-			return "Vep Sequence Ontology http://sequenceontology.org/ . Terms: "+ this.acns;
-			}
-	}
-	
-	private class HighDamageVepSplitter extends AbstractSoVepSplitter {
-		HighDamageVepSplitter() {
-			super(new String[]{
-				"SO:0001893",  "SO:0001574",  "SO:0001575",
-				"SO:0001587",  "SO:0001589",  "SO:0001578", 
-				"SO:0002012",  "SO:0001889"
-				});
-		}
-		@Override
-		public String getName() {
-			return "vephd";
-			}
-				
-		@Override
-		public String getDescription() {
-			return "Vep Sequence Ontology http://sequenceontology.org/ . Terms:  High Damage. Terms: "+ this.acns;
-			}
-	}
 
-	
-	/** added for Matilde Nov 25, 2016, because all variants are FILTERed */
-	private class ZeroVepFilter  extends AbstractSoVepSplitter {
-		ZeroVepFilter() {
-			super(new String[0]);
-			}
-		@Override
-		public String getName() {
-			return "vep0";
-			}
-		@Override
-		public boolean accept(final VepPrediction pred,VariantContext ctx) {
-			return true;
-		}
-		@Override
-		public String getDescription() {
-			return "Any Sequence Ontology term";
-			}
-		}
-	
+		
 	
 	private class SlidingWindowSplitter extends Splitter {
 		final int winsize;

@@ -31,9 +31,15 @@ private Logger() {
 public Logger info(Object s) {
 	return log(Level.INFO,s);
 	}
-
+public Logger debug(Object s) {
+	return log(Level.DEBUG,s);
+	}
 public Logger severe(final Object err) {
 	return log(Level.FATAL,err);
+	}
+
+public Logger warn(final Object err) {
+	return log(Level.WARN,err);
 	}
 
 public Logger fatal(final Throwable err) {

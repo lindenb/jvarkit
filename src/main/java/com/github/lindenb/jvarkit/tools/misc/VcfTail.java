@@ -30,80 +30,140 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
 
+```
+ BEGIN_DOC
+
+## Example
+
+```
+$  curl -s "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
+java -jar dist/vcftail.jar -n2 |\
+grep -v "##"| cut -f 1,2,4,5
+
+#CHROM  POS REF ALT
+chr1    935492  G   T
+chr1    1334052 CTAGAG  C
+```
+
+END_DOC
+
+**/
 public class VcfTail
-	extends AbstractVcfTail
 	{
+	@Parameter(names={"-n","--count"},description="number of variants")
+	private int _count=10;
+	@Parameter(names={"-c","--bycontig"},descriptionKey="Print last variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
+	private boolean _by_contig=false;
+
+	
 	public VcfTail()
 		{
 		}
 
-	@Override
-	protected boolean isSupportingConcatenatedVcf(final String inputName) {
-		return this.supportConcatenation;
+	public VcfTail setByContig(boolean _by_contig) {
+		this._by_contig = _by_contig;
+		return this;
+	}
+	
+	public VcfTail setCount(int _count) {
+		this._count = _count;
+		return this;
 		}
 	
-
-	@Override
-	public Collection<Throwable> initializeKnime()
+	public VariantContextWriter open(VariantContextWriter delegate)
 		{
-		if(this.count<0) return wrapException("bad value for count "+this.count);
-		return super.initializeKnime();
-	 	}
-	/* public for knime */
-	@Override
-	public Collection<Throwable> doVcfToVcf(final String inputName,
-			VcfIterator in, VariantContextWriter out) throws IOException
+		if(this._count<0) throw new JvarkitException.CommandLineError("bad value for count "+this._count);
+		return new MyWriter(delegate,_count,_by_contig);
+		}
+	
+	private static class MyWriter extends DelegateVariantContextWriter
+		{
+		private final int count;
+		private final boolean by_contig;
+		private String prev_contig=null;
+		final LinkedList<VariantContext> buffer=new LinkedList<VariantContext>();
+		MyWriter(VariantContextWriter w,int count,boolean by_contig) {
+			super(w);
+			this.count=count;
+			this.by_contig=by_contig;
+			}
+		private void dump()
 			{
-			try {
-				final VCFHeader header=in.getHeader();
-				final VCFHeader h2= addMetaData(new VCFHeader(header));
-				final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header);
-				out.writeHeader(h2);
-				final LinkedList<VariantContext> L=new LinkedList<VariantContext>();
-				while(in.hasNext() && L.size()< this.count && !out.checkError())
-					{	
-					L.add(progess.watch(in.next()));
-					}
-				while(in.hasNext())
-					{
-					L.add(progess.watch(in.next()));
-					L.removeFirst();
-					}
-				for(VariantContext ctx:L)
-					{
-					out.add(ctx);
-					}
-				progess.finish();
-				return RETURN_OK;
-				}
-			finally
+			for(VariantContext ctx:buffer) 
 				{
-				CloserUtil.close(out);
-				out=null;
+				getDelegate().add(ctx);
+				}
+			buffer.clear();
+			}
+		@Override
+		public void add(final VariantContext ctx) {
+			if(isClosed()) {
+				return;
+				}
+			if(by_contig && (this.prev_contig!=null ||
+					!this.prev_contig.equals(ctx.getContig())))
+				{
+				dump();
+				prev_contig=ctx.getContig();
+				}
+			buffer.add(ctx);
+			if(buffer.size()>this.count)
+				{
+				buffer.removeFirst();
 				}
 			}
-	
-	 @Override
-	protected Collection<Throwable> call(String inputName) throws Exception
-		{
-		return doVcfToVcf(inputName);
+		@Override
+		public void close() {
+			dump();
+			super.close();
+			}
 		}
+
+	
+	@Program(name="vcftail",description="print the last variants of a vcf")
+	public static class Launcher extends com.github.lindenb.jvarkit.util.jcommander.Launcher
+		{
+		@ParametersDelegate
+		private VcfTail instance=new VcfTail();
+		@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
+		private VariantContextWriter out=new VcfWriterOnDemand();
 		
+		@Override
+		public int doWork(final List<String> args) {
+			try {
+				final VcfIterator in = VCFUtils.createVcfIterator(super.oneFileOrNull(args));
+				final VariantContextWriter out=instance.open(this.out);
+				out.writeHeader(in.getHeader());
+				while(in.hasNext()) {
+					out.add(in.next());
+					}
+				in.close();
+				out.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return 0;
+			}	
+		}
 		
 	public static void main(String[] args)
 		{
-		new VcfTail().instanceMainWithExit(args);
+		new VcfTail.Launcher().instanceMainWithExit(args);
 		}
 	}

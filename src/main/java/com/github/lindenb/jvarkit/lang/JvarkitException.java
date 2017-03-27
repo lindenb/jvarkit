@@ -30,6 +30,27 @@ package com.github.lindenb.jvarkit.lang;
 @SuppressWarnings("serial")
 public class JvarkitException   {
 
+public static class ReferenceMissing extends Error
+	{
+	public ReferenceMissing(final String msg) {
+		super("Reference missing : "+msg);
+		}
+	}
+	
+public static class DictionaryMissing extends Error
+	{
+	public DictionaryMissing(final String msg) {
+		super("Dictionary missing : "+msg);
+		}
+	}
+public static class FastaDictionaryMissing extends DictionaryMissing
+{
+public FastaDictionaryMissing(final String file) {
+	super(file);
+	}
+}
+
+	
 /** exception thrown when the user do something wrong */
 public static class UserError extends Error
 	{

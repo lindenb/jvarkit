@@ -1142,6 +1142,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			table.getColumns().add(makeColumn("Impact", P->P.getPutativeImpact()));
 			table.getColumns().add(makeColumn("GeneId", P->P.getGeneId()));
 			table.getColumns().add(makeColumn("Feature", P->P.getFeatureType()));
+			table.getColumns().add(makeColumn("FeatureId", P->P.getFeatureId()));
 			table.getColumns().add(makeColumn("Biotype", P->P.getTranscriptBioType()));
 			table.getColumns().add(makeColumn("HGVsc", P->P.getHGVSc()));
 			table.getColumns().add(makeColumn("Rank", P->P.getRank()));

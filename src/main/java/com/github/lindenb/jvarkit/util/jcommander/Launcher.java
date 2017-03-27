@@ -26,13 +26,11 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.ParametersDelegate;
-import com.beust.jcommander.converters.FileConverter;
 import com.beust.jcommander.converters.IntegerConverter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -57,11 +55,18 @@ private class MyJCommander extends JCommander
 
 	
 	@Override
-	public void usage(StringBuilder sb) {
+	public void usage(final StringBuilder sb) {
+		final Class<?> clazz=Launcher.this.getClass();
+		
+		final Program programdesc=clazz.getAnnotation(Program.class);
+		if(programdesc!=null){
+			this.setProgramName(programdesc.name());
+		}
 		super.usage(sb);
+		
+		
 		InputStream in=null;
 		try {
-			final Class<?> clazz=Launcher.this.getClass();
 			String className=clazz.getName();
 			int dollar=className.indexOf('$');
 			if(dollar!=-1) className=className.substring(0, dollar);
@@ -73,11 +78,11 @@ private class MyJCommander extends JCommander
 				boolean ok=false;
 				while((line=r.readLine())!=null)
 					{
-					if(line.contains("BEGIN_DOC"))
+					if(line.contains("BEGIN"+"_DOC"))
 						{
 						ok=true;
 						}
-					else if(line.contains("END_DOC"))
+					else if(line.contains("END"+"_DOC"))
 						{
 						ok=false;
 						}
@@ -91,7 +96,7 @@ private class MyJCommander extends JCommander
 				}
 			else
 				{
-				System.err.println("cannot find "+className);
+				LOG.debug("cannot find java code for "+className);
 				}
 			}
 		catch(final Exception err) {

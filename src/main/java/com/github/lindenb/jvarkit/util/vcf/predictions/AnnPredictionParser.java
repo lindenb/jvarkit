@@ -317,6 +317,13 @@ public class AnnPredictionParser
 			if(this.tokens.length<6) return null;
 			return this.tokens[5];
 			}
+		
+		public String getFeatureId()
+			{
+			if(this.tokens.length<7) return null;
+			return this.tokens[6];
+			}
+		
 		public String getTranscriptBioType()
 			{
 			return this.at(7);
