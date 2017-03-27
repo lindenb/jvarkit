@@ -30,63 +30,114 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.List;
 
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFHeader;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.jcommander.validators.FilesValidators;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+ BEGIN_DOC
+ 
+ Hello world
+ 
+ END_DOC
+ */
 
 public class VcfHead
-	extends AbstractVcfHead
 	{
+	@Parameter(names={"-n","--count"},description="number of variants",validateValueWith=FilesValidators.X.class)
+	private long _count=10;
+	@Parameter(names={"-c","--bycontig"},descriptionKey="Print first variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
+	private boolean _by_contig=false;;
+
 	public VcfHead()
 		{
 		}
 	 
-	@Override
-	protected boolean isSupportingConcatenatedVcf(final String inputName) {
-		return this.supportConcatenation;
+	public VcfHead count(long n) { this._count=n;return this;}
+	public VcfHead byContig() { this._by_contig=true;return this;}
+	
+	public VariantContextWriter open(final VariantContextWriter w) {
+		if(this._count<0L) throw new JvarkitException.CommandLineError("bad value found count "+this._count);
+		return new MyWriter(w,_count,this._by_contig);
 		}
 	
-	
-		 @Override
-		public Collection<Throwable> initializeKnime() {
-			if(this.count<0) return wrapException("bad value found count "+this.count);
-			return super.initializeKnime();
-		 	}
-		 
-		 
-		/* public for knime */
+	private static class MyWriter extends DelegateVariantContextWriter
+		{
+		private final long count;
+		private final boolean by_contig;
+		private String prev_contig=null;
+		private long n=0L;
+		MyWriter(VariantContextWriter w,long n,boolean by_contig) {
+			super(w);
+			this.count=n;
+			this.by_contig=by_contig;
+			}
 		@Override
-		public Collection<Throwable> doVcfToVcf(
-				String inputName,
-				VcfIterator in,
-				VariantContextWriter out
-				) throws IOException {
-			final VCFHeader header=in.getHeader();
-			VCFHeader h2=addMetaData(new VCFHeader(header));
-			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-			out.writeHeader(h2);
-			int n=0;
-			while(in.hasNext() && n< super.count  && !out.checkError())
+		public void add(final VariantContext ctx) {
+			if(isClosed()) {
+				return;
+				}
+			if(by_contig && (this.prev_contig==null ||
+					!this.prev_contig.equals(ctx.getContig())))
 				{
-				out.add(progess.watch(in.next()));
+				this.prev_contig = ctx.getContig();
+				this.n=0L;
+				};
+				
+			if(n<count) {
+				super.add(ctx);
 				++n;
 				}
-			progess.finish();
-			return RETURN_OK;
+			else if(!this.by_contig)
+				{
+				close();
+				}
 			}
 		
-		@Override
-		protected Collection<Throwable> call(String inputName) throws Exception {
-			return doVcfToVcf(inputName);
-			}
+		}
+		 
+		 
+		
 	 	
-	
+	public static  class Launcher extends com.github.lindenb.jvarkit.util.jcommander.Launcher
+		{
+		@ParametersDelegate
+		private VcfHead instance=new VcfHead();
+		@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
+		private VariantContextWriter out=new VcfWriterOnDemand();
+		
+		Launcher() {
+			
+			}
+		@Override
+		public int doWork(List<String> args) {
+			try {
+				VcfIterator in = VCFUtils.createVcfIterator(super.oneFileOrNull(args));
+				final VariantContextWriter out=instance.open(this.out);
+				out.writeHeader(in.getHeader());
+				while(in.hasNext()) {
+					out.add(in.next());
+					}
+				in.close();
+				out.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return 0;
+			}	
+		}
+		
 	public static void main(String[] args)
 		{
-		new VcfHead().instanceMainWithExit(args);
+		new VcfHead.Launcher().instanceMainWithExit(args);
 		}
 	}

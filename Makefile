@@ -98,6 +98,8 @@ $(1)  : ${htsjdk.jars} \
 		$(filter-out wiki_flag,$(filter-out galaxy_flag,$(3))) ${apache.commons.cli.jars} ${slf4j.jars}
 	echo "### COMPILING $(1) ######"
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
+	mkdir -p ${tmp.dir}/$(dir $(subst .,/,$(2)))
+	cp --verbose "$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" "${tmp.dir}/$(dir $(subst .,/,$(2)))"
 	#generate java code if needed = a file with .xml exists, requires xsltproc, preprocessing file twice
 	if [ -e "$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"   ] ; then mkdir -p ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
 	xsltproc \
@@ -425,7 +427,7 @@ $(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterj
 $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.misc.VcfFilterSequenceOntology,wiki_flag galaxy_flag vcfpredictions))
 $(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology))
-$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,galaxy_flag wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,splitvcf,${jvarkit.package}.tools.misc.SplitVcf,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,forkvcf,${jvarkit.package}.tools.misc.ForkVcf,galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn,galaxy_flag wiki_flag))

@@ -5,14 +5,22 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.Function;
+import java.util.jar.Manifest;
 import java.util.zip.Deflater;
 
+import com.beust.jcommander.IStringConverter;
+import com.beust.jcommander.IStringConverterFactory;
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -20,18 +28,23 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.converters.FileConverter;
 import com.beust.jcommander.converters.IntegerConverter;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 
 
 
 public class Launcher {
-private static final Logger LOG=Logger.build().
+/*private static final Logger LOG=Logger.build().
 			prefix("Launcher").
-			make();
-	
+			make();*/
+private static final java.util.logging.Logger LOG=java.util.logging.Logger.getAnonymousLogger();
 	
 public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 
@@ -144,7 +157,10 @@ extends IntegerConverter implements Function<String, Integer> {
 /** original arc/argv */
 private List<String> argcargv=Collections.emptyList();
 private final JCommander jcommander = new MyJCommander();
-
+/** git hash in the manifest */
+private String gitHash = null;
+/** compile date in the manifest */
+private String compileDate = null;
 
 @Parameter(names = {"-h","--help"}, help = true)
 private boolean print_help = false;
@@ -152,6 +168,7 @@ private boolean print_help = false;
 private boolean print_version = false;
 @Parameter(description = "Files")
 private List<String> files = new ArrayList<>();
+
 
 
 public class CompressionArgs
@@ -195,10 +212,169 @@ public static class WritingBamArgs
 	public int compressionLevel=5;
 	}
 
+public static class VcfWriterOnDemandConverter
+	implements IStringConverter<VcfWriterOnDemand> {
+	@Override
+	public VcfWriterOnDemand convert(String s) {
+		if(s.equals("-") || s.equals("stdin") || s.isEmpty()) {
+			return new VcfWriterOnDemand();
+			}
+		else
+			{
+			return new VcfWriterOnDemand(new File(s));
+			}
+		}
+	}
+
+public static class VcfWriterOnDemand
+	implements VariantContextWriter
+	{
+	private VariantContextWriter delegate=null;
+	private final VariantContextWriterBuilder vcb=new VariantContextWriterBuilder().
+				clearIndexCreator().
+				clearOptions()
+				;
+	private List<VCFHeaderLine> extraHeaderLines=new ArrayList<>();
+	public VcfWriterOnDemand() {
+		vcb.setOutputVCFStream(System.out);
+		}
+	VcfWriterOnDemand(final File file)
+		{
+		vcb.setOutputFile(file);
+		}
+	@Override
+	public void writeHeader(final VCFHeader header) {
+		if(this.delegate==null) {
+			this.delegate =vcb.build(); 
+			}
+		VCFHeader header2 = header;
+		if(!this.extraHeaderLines.isEmpty()) {
+			header2= new VCFHeader(header);
+			for(final VCFHeaderLine hl:this.extraHeaderLines)
+				{
+				header2.addMetaDataLine(hl);
+				}
+		}
+		this.delegate.writeHeader(header2);
+		}
+	@Override
+	public void add(final VariantContext ctx) {
+		if(this.delegate==null) throw new JvarkitException.ProgrammingError("null delegate");
+		this.delegate.add(ctx);
+		}
+	@Override
+	public boolean checkError() {
+		return (this.delegate==null?false:delegate.checkError());
+		}
+	@Override
+	public void close() {
+		CloserUtil.close(this.delegate);
+		}
+	@Override
+	public String toString() {
+		return "Default VCF writer (stdout)";
+		}
+	}
+
+
 public Launcher()
 	{
+	
+	try {
+		/** set locale http://seqanswers.com/forums/showthread.php?p=174020#post174020 */
+		Locale.setDefault(Locale.US);
+		}
+	catch(final java.security.AccessControlException err) {
+		System.err.println("Cannot set Locale to US for security reasons"+err.getMessage());
+		}
+	try {
+		System.setProperty("file.encoding", "UTF-8");
+		}
+	catch(final java.security.AccessControlException err) {
+		System.err.println("Cannot set file.encoding to UTF-8 for security reasons"+err.getMessage());
+		}
+	 final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
+		    put(VcfWriterOnDemand.class, VcfWriterOnDemandConverter.class);
+		    put(VariantContextWriter.class, VcfWriterOnDemandConverter.class);
+		}};	
+	this.jcommander.addConverterFactory(new IStringConverterFactory() {
+			@Override
+			public Class<? extends IStringConverter<?>> getConverter(Class forType) {		
+				return MAP.get(forType);
+				}
+			});
 	this.jcommander.addObject(this);	
 	}
+
+public String getCompileDate()
+{
+if(this.compileDate==null)
+	{
+	this.compileDate="undefined";
+	loadManifest();
+	}
+return compileDate;
+}
+
+public String getGitHash()
+{
+if(this.gitHash==null)
+	{
+	this.gitHash="1.0";
+	loadManifest();
+	}
+return this.gitHash;
+}
+
+public String getVersion()
+{
+return getGitHash();
+}
+
+
+private void loadManifest()
+	{
+	try
+		{
+		final Enumeration<URL> resources = getClass().getClassLoader()
+				  .getResources("META-INF/MANIFEST.MF");//not '/META-INF'
+		while (resources.hasMoreElements())
+			{
+			final URL url=resources.nextElement();
+			InputStream in=url.openStream();
+			if(in==null)
+				{
+				continue;
+				}
+			
+			Manifest m=new Manifest(in);
+			in.close();
+			in=null;
+			final java.util.jar.Attributes attrs=m.getMainAttributes();
+			if(attrs==null)
+				{
+				continue;
+				}
+			String s =attrs.getValue("Git-Hash");
+			if(s!=null && !s.isEmpty() && !s.contains("$")) //ant failed
+				{
+				this.gitHash=s;
+				}
+			s =attrs.getValue("Compile-Date");
+			if(s!=null && !s.isEmpty()) //ant failed
+				{
+				this.compileDate=s;
+				}
+			}
+		}	
+	catch(Exception err)
+		{
+		
+		}
+	
+}
+
+
 
 protected JCommander getJCommander()
 	{
@@ -271,9 +447,9 @@ public int instanceMain(final String args[]) {
 			ret=initialize();
 			if(ret!=0) return ret;
 			}
-		catch(Throwable err)
+		catch(final Throwable err)
 			{
-			LOG.fatal(err);
+			LOG.severe(err.getMessage());
 			return -1;
 			}
 		try 
@@ -281,9 +457,9 @@ public int instanceMain(final String args[]) {
 			ret=doWork(getFiles());
 			if(ret!=0) return ret;
 			}
-		catch(Throwable err)
+		catch(final Throwable err)
 			{
-			LOG.fatal(err);
+			LOG.severe(err.getMessage());
 			return -1;
 			}
 		}
