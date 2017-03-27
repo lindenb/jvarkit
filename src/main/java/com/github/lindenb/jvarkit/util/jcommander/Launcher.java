@@ -29,6 +29,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.converters.FileConverter;
 import com.beust.jcommander.converters.IntegerConverter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -41,10 +42,9 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 
 
 public class Launcher {
-/*private static final Logger LOG=Logger.build().
+private static final Logger LOG=Logger.build().
 			prefix("Launcher").
-			make();*/
-private static final java.util.logging.Logger LOG=java.util.logging.Logger.getAnonymousLogger();
+			make();
 	
 public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 

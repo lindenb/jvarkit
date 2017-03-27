@@ -38,7 +38,6 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.jcommander.validators.FilesValidators;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -53,10 +52,10 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 public class VcfHead
 	{
-	@Parameter(names={"-n","--count"},description="number of variants",validateValueWith=FilesValidators.X.class)
+	@Parameter(names={"-n","--count"},description="number of variants")
 	private long _count=10;
 	@Parameter(names={"-c","--bycontig"},descriptionKey="Print first variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
-	private boolean _by_contig=false;;
+	private boolean _by_contig=false;
 
 	public VcfHead()
 		{
