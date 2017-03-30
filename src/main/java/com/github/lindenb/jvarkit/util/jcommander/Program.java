@@ -9,4 +9,6 @@ import java.lang.annotation.Target;
 public @interface Program {
 	public String name() default "";
 	public String description() default "";
+	public String deprecatedMsg() default "";
+	public String[] keywords() default {};
 }

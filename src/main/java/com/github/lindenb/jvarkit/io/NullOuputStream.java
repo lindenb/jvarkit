@@ -66,6 +66,10 @@ public class NullOuputStream extends OutputStream
 		{
 		return _closed;
 		}
+	
+	@Override
+	public void flush()  {
+		}
 	@Override
 	public String toString()
 		{

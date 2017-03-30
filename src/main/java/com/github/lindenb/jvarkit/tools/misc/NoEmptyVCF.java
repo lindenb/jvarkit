@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
@@ -9,61 +37,72 @@ import java.util.List;
 
 import htsjdk.variant.vcf.VCFCodec;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
-
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class NoEmptyVCF extends AbstractCommandLineProgram
+/**
+ BEGIN_DOC
+ 
+## History
+ 
+ 2017:  moved to jcommander
+ 
+ END_DOC
+ */
+@Program(name="noemptyvcf",
+	description="If VCF is empty or doesn't exists, create a dummy one",
+	deprecatedMsg="Was developped at the time where VEP didn't send an output if there was no variant, just a header in the source vcf."
+	)
+public class NoEmptyVCF extends Launcher
 	{
-	private static Log LOG=Log.getInstance(NoEmptyVCF.class);
-
-    @Usage(programVersion="1.0")
-    public String USAGE = getStandardUsagePreamble() + "  If VCF is empty or doesn't exists, create a dummy one. ";
-
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,doc="VCF input (or stdin)",optional=true)
-    public File IN=null;
+	private static final Logger LOG=Logger.build(NoEmptyVCF.class).make();
     
+	@Parameter(names={"-s","--sample"},description="Add this genotyped samples")
+    private List<String> SAMPLES=new ArrayList<String>();
+	@Parameter(names={"-o","--out"},description="Output VCF or stdout")
+    private File outFile=null;
+
 	
-    @Option(shortName="S",doc="add this sample",minElements=0)
-    public List<String> SAMPLES=new ArrayList<String>();
     
-    private void write(File f) throws IOException
+    private void writeEmptyVcf() throws IOException
     	{
-    	LOG.info("fixing "+f);
-		PrintWriter w=new PrintWriter(IOUtils.openFileForBufferedWriting(IN));
-		write(w);
-		w.close();
-    	}
-    
-    private void write(PrintWriter out) throws IOException
-    	{
-		out.println(VCFCodec.VCF4_MAGIC_HEADER);
-		out.println("##source=noEmptyVCF");
-		out.print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO");
+		final PrintWriter w;
+		
+		if(outFile!=null)
+			{
+			w = new PrintWriter(IOUtils.openFileForBufferedWriting(outFile));
+			}
+		else
+			{
+			w= new PrintWriter(stdout());
+			}
+    	
+		w.println(VCFCodec.VCF4_MAGIC_HEADER);
+		w.println("##source=noEmptyVCF");
+		w.print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO");
 		if(!this.SAMPLES.isEmpty())
 			{
-			System.out.print("\tFORMAT");
-			for(String S:this.SAMPLES)
+			w.print("\tFORMAT");
+			for(final String S:this.SAMPLES)
 				{
-				System.out.print("\t");
-				System.out.print(S);
+				w.print("\t");
+				w.print(S);
 				}
 			}
-		out.println();
-		out.flush();
+		w.println();
+		w.flush();
     	}
-    
-	@Override
-	protected int doWork()
-		{
+    @Override
+    public int doWork(final List<String> args) {
+    	String inputName=super.oneFileOrNull(args);;
 		try
 			{
-			if(IN!=null)
+			if(inputName!=null)
 				{
+				final File IN=new File(inputName);
 				if(IN.exists())
 					{
 					LOG.info("opening "+IN+" ... ");
@@ -73,48 +112,46 @@ public class NoEmptyVCF extends AbstractCommandLineProgram
 					reader=null;
 					if(c!=-1 && c!='#')
 						{
-						LOG.error("File "+IN+" doesn't start with # but with ascii("+c+")");
+						LOG.fatal("File "+IN+" doesn't start with # but with ascii("+c+")");
 						return -1;
 						}
 					if(c==-1)
 						{
-						write(this.IN);
+						writeEmptyVcf();
 						}
 					}
 				else
 					{
-					LOG.error("File "+IN+" doesn't exists");
-					write(this.IN);
+					LOG.warn("File "+IN+" doesn't exists");
+					writeEmptyVcf();
 					}
 				}
 			else
 				{
 				LOG.info("reading from stdin ... ");
-				int c=System.in.read();
+				int c=stdin().read();
 				if(c!=-1 && c!='#')
 					{
 					LOG.warn("VCF doesn't start with # but with ascii("+c+")");
 					System.out.print((char)c);
-					IOUtils.copyTo(System.in, System.out);
+					IOUtils.copyTo(stdin(), stdout());
 					return 0;
 					}
 				if(c==-1)
 					{
 					LOG.warn("writing empty VCF");
-					write(new PrintWriter(System.out));
+					writeEmptyVcf();
 					}
 				else
 					{
-					System.out.print((char)c);
-					IOUtils.copyTo(System.in, System.out);
+					stdout().print((char)c);
+					IOUtils.copyTo(stdin(), stdout());
 					}
 				}
-			
-		
 			}
-		catch(IOException err)
+		catch(final IOException err)
 			{
-			LOG.error(err,"Boum");
+			LOG.fatal(err);
 			return -1;
 			}
 		return 0;
@@ -123,7 +160,7 @@ public class NoEmptyVCF extends AbstractCommandLineProgram
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new NoEmptyVCF().instanceMainWithExit(args);
 
 	}

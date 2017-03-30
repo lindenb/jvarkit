@@ -944,6 +944,20 @@ public class VCFUtils
     	
     	}
     
+    public static void copyHeaderAndVariantsTo(final VcfIterator iter,final VariantContextWriter w) {
+    	w.writeHeader(iter.getHeader());
+    	copyVariantsTo(iter,w);
+    	}
+
+    
+    public static long copyVariantsTo(final VcfIterator iter,final VariantContextWriter w) {
+    	long n=0L;
+    	while(iter.hasNext()) {
+    		w.add(iter.next());
+    		++n;
+    	}
+    	return n;
+    }
 	/*
 	
 		*/

@@ -31,14 +31,14 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -54,17 +54,60 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
+/**
+ BEGIN_DOC
+ 
+## Example
+
+```
+$ find ./  -type f -name "*.bam" |\
+   java -jar dist/findallcoverageatposition.jar -p "chr2:1234" 
+
+
+#File   CHROM   POS SAMPLE  DEPTH   M   I   D   N   S   H   P   EQ  X
+/path/to/Sample1.bam    2   1234    SAMPLE1 10  10  0   1   0   0   0   0   0   0
+/path/to/Sample2.bam    2   1234    SAMPLE2 10  0   0   0   1   0   0   0   5   5
+/path/to/Sample3.bam    2   1234    SAMPLE3 10  10  0   0   0   0   0   0   0   0
+```
+
+## See also
+
+ * https://twitter.com/pjacock/status/538300664334798848
+ * https://twitter.com/yokofakun/status/538300434109456385
+ * https://twitter.com/pjacock/status/538299549455233024
+ * FindAVariation
+
+## History
+
+ * 2017: moved to jcommander
+
+END_DOC
+ */
+@Program(name="findallcoverageatposition",keywords={"bam","coverage","search","depth"},description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?")
+public class FindAllCoverageAtPosition extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(FindAllCoverageAtPosition.class);
+	private static final Logger LOG = Logger.build(FindAllCoverageAtPosition.class).make();
 	private static final char INSERTION_CHAR='^';
 	private static final char DELETION_CHAR='-';
 	private static final char BASES_To_PRINT[]=new char[]{'A','C','G','T','N',INSERTION_CHAR,DELETION_CHAR};
+
+	@Parameter(names={"-p","--position"},description="-p chrom:pos . Multiple separated by space. Add this chrom/position. Required")
+	private String positionStr = "";
+
+	@Parameter(names={"-f","--posfile"},description="File containing positions. if file suffix is '.bed': all positions in the range will be scanned.")
+	private File positionFile = null;
+
+	@Parameter(names={"-o","--out"},description="output file. Default: stdout")
+	private File outputFile = null;
 
 	
 	private static class Mutation implements Comparable<Mutation>
@@ -181,9 +224,15 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
     		if(out.checkError()) break;
 			if(line.isEmpty() || line.startsWith("#")) continue;
 			File f=new File(line);
+			if(!f.exists()) continue;
 			if(!f.isFile()) continue;
 			if(!f.canRead()) continue;
 			String filename=f.getName();
+			if(!filename.endsWith(".cram"))
+				{
+				LOG.warn("Sorry CRAM is not supported "+filename);
+				continue;
+				}
 			if(!filename.endsWith(".bam")) continue;
 			
     			
@@ -256,8 +305,8 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 						int readPos = 0;
 						for(int k=0;k<cigar.numCigarElements() && ref< m.pos+1;++k)
 							{
-							CigarElement ce=cigar.getCigarElement(k);
-							CigarOperator op=ce.getOperator();
+							final CigarElement ce=cigar.getCigarElement(k);
+							final CigarOperator op=ce.getOperator();
 							switch(op)
 								{
 								case P: break;
@@ -352,29 +401,27 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 	    
     	}
     
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -p chrom:pos . Add this chrom/position. Required");
-		super.printOptions(out);
-		}
-	@Override
-	public Collection<Throwable> call() throws Exception
-		{
-		final String positionStr = getPositionStr();
-		final File positionFile = getPositionFile();
+    @Override
+    public int doWork(final List<String> args) {
 		final Set<Mutation> mutations=new TreeSet<>();
 
 		
-		final List<String> args = getInputFiles();
 		BufferedReader r = null;
 		try
 			{
+			mutations.addAll(
+					Arrays.asList(this.positionStr.split("[  ]")).
+						stream().filter(S->!S.trim().isEmpty())
+						.map(S->new Mutation(S)).
+						collect(Collectors.toSet())
+					);
+			
 			for(final String s:positionStr.split("[  ]"))
 				{
 				if(s.trim().isEmpty()) continue;
 				mutations.add(new Mutation(s));
 				}
-			if(positionFile!=null) {
+			if(this.positionFile!=null) {
 				String line;
 				r= IOUtils.openFileForBufferedReading(positionFile);
 				if(positionFile.getName().endsWith(".bed")) {
@@ -403,13 +450,14 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 		
 			if(mutations.isEmpty())
 				{
-				return wrapException("undefined position \'str\'");
+				LOG.fatal( "undefined position \'str\'");
+				return -1;
 				}
 		
 			LOG.info("number of mutations "+mutations.size());
 			
 			
-			this.out=openFileOrStdoutAsPrintWriter();
+			this.out=this.openFileOrStdoutAsPrintWriter(this.outputFile);
 			
 			out.print("#File");
 			out.print('\t');
@@ -454,11 +502,12 @@ public class FindAllCoverageAtPosition extends AbstractFindAllCoverageAtPosition
 					}
 				}
 			this.out.flush();
-			return RETURN_OK;
+			return 0;
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.severe(err);
+			return -1;
 			}
 		finally
 			{

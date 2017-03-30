@@ -4,7 +4,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.util.AbstractList;
 import java.util.NoSuchElementException;
-import java.util.function.Function;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;

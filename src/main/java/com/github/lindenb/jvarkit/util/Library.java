@@ -41,6 +41,7 @@ import com.github.lindenb.jvarkit.util.vcf.swing.InfoTreeModel;
  */
 class Library{
 	
+@Deprecated
 private Library()
 	{
 	@SuppressWarnings("unused")

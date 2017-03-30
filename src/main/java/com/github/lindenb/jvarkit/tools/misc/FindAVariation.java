@@ -49,13 +49,36 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+/** 
+ BEGIN_DOC
+ 
+## Example
 
+```
+$ find ./ -name "*.vcf" -o -name "*.vcf.gz" |\
+   java -jar dist/findamutation.jar -p "chr1:1234" 
+
+
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	1	8216713	8216713	yossi-1		NA12878	HET	A G
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	1	8216713	8216713	yossi-1		NA12891	HET	A G
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	1	8216713	8216713	yossi-1		NA12892	HET	A G
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2	2	2	.		NA12878	HOM_REF	C C
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2	2	2	.		NA12891	HET	C T
+htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2	2	2	.		NA12892	HET	C T
+```
+
+ 
+ END_DOC
+ */
+@Program(name="findavariation",description="Find a specific mutation in a list of VCF files",keywords={"vcf","variation","search"})
 public class FindAVariation extends AbstractFindAVariation
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(FindAVariation.class);
+	private static final Logger LOG = Logger.build(FindAVariation.class).make();
 
 	private static class Mutation
 		{
@@ -214,7 +237,7 @@ public class FindAVariation extends AbstractFindAVariation
     				}
 				catch(final Exception err)
 					{
-					LOG.error("cannot read "+f,err);
+					LOG.severe("cannot read "+f,err);
 					}
 				finally
 					{
@@ -244,7 +267,7 @@ public class FindAVariation extends AbstractFindAVariation
     				}
 				catch(final Exception err)
 					{
-					LOG.error("Error in "+f,err);
+					LOG.severe("Error in "+f,err);
 					}
 				finally
 					{

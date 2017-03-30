@@ -611,7 +611,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 						+ " && mv --verbose   $(addsuffix .tmp2.vcf.idx,$@)  $(addsuffix .tmp1.vcf.idx,$@)"
 						);
 				w.print(" && $(call run_jvarkit,vcffilterjs) -F IN_EXAC -e 'variant.hasAttribute(\"exac.AC\")' $(addsuffix .tmp1.vcf,$@) |");
-				w.print(" ${java.exe}  -Djava.io.tmpdir=$(dir $@) /commun/data/packages/snpEff/snpEff_4_3i/snpEff.jar ann -c /commun/data/packages/snpEff/snpEff_4_3i/snpEff.config GRCh37.75 -nodownload -noStats |  ");
+				w.print(" ${java.exe}  -Djava.io.tmpdir=$(dir $@) -jar /commun/data/packages/snpEff/snpEff_4_3i/snpEff.jar ann -c /commun/data/packages/snpEff/snpEff_4_3i/snpEff.config GRCh37.75 -nodownload -noStats |  ");
 				w.print(" ${bgzip.exe} >  $(addsuffix .tmp2.vcf.gz,$@)  ");
 				w.print(" && ${tabix.exe} -p vcf -f $(addsuffix .tmp2.vcf.gz,$@) "
 					+ " && mv --verbose   $(addsuffix .tmp2.vcf.gz,$@) $@ "

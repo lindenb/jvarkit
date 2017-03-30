@@ -21,7 +21,6 @@
 </options>
 
 <documentation>
-The program will try to fix the chromosome names according to the dictionary in the VCF headers.
 
 <h:h3>Example</h:h3>
 <h:pre><![CDATA[$ find ./ -name "*.vcf" -o -name "*.vcf.gz" |\

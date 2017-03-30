@@ -58,6 +58,13 @@ public static class UserError extends Error
 		super("User Error : "+msg);
 		}
 	}
+/** exception thrown when we cannot convert a contig */
+public static class ContigNotFound extends Error
+	{
+	public ContigNotFound(final String msg) {
+		super(msg);
+		}
+	}
 
 	
 /** exception thrown when the user made an error on the command line */

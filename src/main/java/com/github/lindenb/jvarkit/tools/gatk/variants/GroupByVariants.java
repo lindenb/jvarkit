@@ -77,6 +77,8 @@ public class GroupByVariants
     public boolean byDepth = false;
     @Argument(fullName="attribute",shortName="attribute",required=false,doc="Search for the presence (true/false) of an attribute in the INFO format. For example using GATK.VariantAnnotator and -comp")
     public Set<String> presence_of_attributes = new HashSet<>();
+    public boolean bySingleton = false;  
+    @Argument(fullName="singleton",shortName="singleton",required=false,doc="Singleton variants")
 
     
     private final DoubleRangeClassifier groupByAfClassifier = new DoubleRangeClassifier(
@@ -137,10 +139,11 @@ public class GroupByVariants
 				if(bybiotype) labels.add(biotype==null?".":biotype);
 				}
 			if(bynalts)labels.add(ctx.getAlternateAlleles().size());
-			if(byAffected || byCalled) 
+			if(byAffected || byCalled || bySingleton) 
 				{
 				int nc=0;
 				int ng=0;
+				int nsingles=0;
 				for(int i=0;i< ctx.getNSamples();++i)
 					{
 					final Genotype g= ctx.getGenotype(i);
@@ -150,11 +153,16 @@ public class GroupByVariants
 						}
 					if(g.isCalled())
 						{
-						nc++;
+						nc++;			
+						if(!g.isHomRef())
+							{
+							nsingles++;
+							}
 						}
 					}
 				if(byCalled) labels.add(nc< maxSamples?nc:"GE_"+maxSamples);
 				if(byAffected) labels.add(ng< maxSamples?ng:"GE_"+maxSamples);
+				if(bySingleton) labels.add(nsingles==1?"SINGLETON":".");
 				}
 			if(byTsv) {
 				if(ctx.getType()==VariantContext.Type.SNP && ctx.getAlternateAlleles().size()==1) {
@@ -285,6 +293,7 @@ public class GroupByVariants
 		if(bynalts) table.addColumn("N_ALT_ALLELES");
 		if(byCalled) table.addColumn("CALLED_SAMPLES");
 		if(byAffected) table.addColumn("AFFECTED_SAMPLES");
+		if(bySingleton) table.addColumn("SINGLETON");
 		if(byTsv) table.addColumn("Ts/Tv");
 		if(byAlleleSize) table.addColumn("ALLELE_SIZE");
 		if(byAlleFrequency) table.addColumn("ALLELE_FREQUENCY");

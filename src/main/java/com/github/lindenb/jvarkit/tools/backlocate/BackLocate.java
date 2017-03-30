@@ -36,10 +36,10 @@ import htsjdk.tribble.annotation.Strand;
 import htsjdk.tribble.readers.LineIterator;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,46 +47,110 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-
-
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+/**
+ BEGIN_DOC
+ 
+## Example
 
+mutation P->M at 1090 in NOTCH2
+
+```
+$  echo -e "NOTCH2\tP1090M" | java -jar dist/backlocate.jar -R hg19.fa
+(...)
+[WARNING/BackLocate] 2014-11-05 12:03:08 "The reference doesn't contain chromosome chr17_ctg5_hap1"
+[WARNING/BackLocate] 2014-11-05 12:03:15 "The reference doesn't contain chromosome chr4_ctg9_hap1"
+[WARNING/BackLocate] 2014-11-05 12:03:16 "The reference doesn't contain chromosome chr6_apd_hap1"
+[WARNING/BackLocate] 2014-11-05 12:03:16 "The reference doesn't contain chromosome chr6_cox_hap2"
+[WARNING/BackLocate] 2014-11-05 12:03:16 "The reference doesn't contain chromosome chr6_dbb_hap3"
+(...)
+[INFO/BackLocate] 2014-11-05 12:03:18 "genes:78963"
+[INFO/BackLocate] 2014-11-05 12:03:18 "loading http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz"
+[INFO/BackLocate] 2014-11-05 12:03:24 "kgxref:28493"
+(...)
+```
+
+```
+#User.Gene	AA1	petide.pos.1	AA2	knownGene.name	knownGene.strandknownGene.AA	index0.in.rna	codon	base.in.rna	chromosome	index0.in.genomic	exon
+##uc001eik.3
+NOTCH2	P	1090	M	uc001eik.3	NEGATIVE	P	3267	CCA	C	chr1	120480548	Exon 20
+NOTCH2	P	1090	M	uc001eik.3	NEGATIVE	P	3268	CCA	C	chr1	120480547	Exon 20
+NOTCH2	P	1090	M	uc001eik.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
+##uc001eil.3
+NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3267	CCA	C	chr1	120480548	Exon 20
+NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3268	CCA	C	chr1	120480547	Exon 20
+NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
+```
+
+
+## See also
+
+ * http://plindenbaum.blogspot.fr/2011/03/mapping-mutation-on-protein-to-genome.html
+ * https://github.com/lindenb/jvarkit/issues/14
+ * https://github.com/lindenb/jvarkit/issues/13
+ * https://www.biostars.org/p/116366/
+
+
+## History
+
+ * 2017: Moved to jcommander
+ * 2014: Moved to jvarkit
+ * Nov 2014 : removed all the dependencies to SQL and DAS; use a local indexed genome
+ * Aug 2015 : Added a new column "potention var codon" (as https://twitter.com/_ramrs/status/631123002005061633 ) , renamed "codon" to "wild codon"
+
+
+ 
+ END_DOC
+ */
+@Program(name="backlocate",description="Mapping a mutation on a protein back to the genome.")
 public class BackLocate
-	extends AbstractBackLocate
+	extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BackLocate.class);
+	private static final Logger LOG = Logger.build(BackLocate.class).make();
+	@Parameter(names={"-p","--printSeq"},description="print mRNA & protein sequences")
+	private boolean printSequences = false;
+
+	@Parameter(names={"-k","--kg"},description="UCSC knownGene URI")
+	private String knownGeneURI = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+
+	@Parameter(names={"-x","--kgxref"},description="UCSC kgXRef URI")
+	private String kgXRef = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz";
+
+	@Parameter(names={"-R","--reference"},description="Indexed Fasta REFerence",required=true)
+	private File indexedRefFile=null;
+	
+	@Parameter(names={"-o","--out"},description="File output. Default:stdout")
+	private File outputFile=null;
 
 	
-		private boolean printSequences=false;
-		private GenomicSequence genomicSeq=null;
-		private Map<String,Set<String>> geneSymbol2kg=new HashMap<>();
-		private Map<String,KnownGene> knwonGenes=new HashMap<>();
-		private IndexedFastaSequenceFile indexedFastaSequenceFile;
-		/** get a genetic code from a chromosome name (either std or mitochondrial */
-		private static GeneticCode getGeneticCodeByChromosome(String chr)
-			{
-			if(chr.equalsIgnoreCase("chrM") || chr.equalsIgnoreCase("MT")) return GeneticCode.getMitochondrial();
-			return GeneticCode.getStandard();
-			}
+
+	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private GenomicSequence genomicSeq=null;
+	private final Map<String,Set<String>> geneSymbol2kg=new HashMap<>();
+	private final Map<String,KnownGene> knwonGenes=new HashMap<>();
+	/** get a genetic code from a chromosome name (either std or mitochondrial */
+	private static GeneticCode getGeneticCodeByChromosome(final String chr)
+		{
+		if(chr.equalsIgnoreCase("chrM") || chr.equalsIgnoreCase("MT")) return GeneticCode.getMitochondrial();
+		return GeneticCode.getStandard();
+		}
 		
-		
-	
-	
-
-
-
-
 	
 	static private class RNASequence extends AbstractCharSequence
 		{
-		List<Integer> genomicPositions=new ArrayList<Integer>();
-		GenomicSequence genomic;
-		char strand;
-		RNASequence(GenomicSequence genomic,char strand)
+		final List<Integer> genomicPositions=new ArrayList<Integer>();
+		final GenomicSequence genomic;
+		final char strand;
+		RNASequence(final GenomicSequence genomic,final char strand)
 			{
 			this.genomic=genomic;
 			this.strand=strand;
@@ -106,9 +170,9 @@ public class BackLocate
 	
 	static private class ProteinCharSequence extends AbstractCharSequence
 		{
-		private RNASequence cDNA;
-		private GeneticCode geneticCode;
-		ProteinCharSequence(GeneticCode geneticCode,RNASequence cDNA)
+		private final RNASequence cDNA;
+		private final GeneticCode geneticCode;
+		ProteinCharSequence(final GeneticCode geneticCode,final RNASequence cDNA)
 			{
 			this.geneticCode=geneticCode;
 			this.cDNA=cDNA;
@@ -133,14 +197,11 @@ public class BackLocate
 
 	
 
-	
-
-		
 
 	private void backLocate(
-		PrintStream out,
-		KnownGene gene,
-		String geneName,
+		final PrintStream out,
+		final KnownGene gene,
+		final String geneName,
 		char aa1,char aa2,
 		int peptidePos1
 		) throws IOException
@@ -390,20 +451,20 @@ public class BackLocate
 		{
 		if(this.indexedFastaSequenceFile.getSequenceDictionary()==null)
 			{
-			throw new IOException("Cannot get sequence dictionary for REF : "+getMessageBundle("picard.dictionary.needed"));
+			throw new JvarkitException.FastaDictionaryMissing("No sequence dictionary in "+this.indexedRefFile);
 			}
 		
 		LOG.info("loading genes");
-		Set<String> unknown=new HashSet<String>();
+		final Set<String> unknown=new HashSet<String>();
 		BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
 		String line;
-		Pattern tab=Pattern.compile("[\t]");
+		final Pattern tab=Pattern.compile("[\t]");
 		while((line=in.readLine())!=null)
 			{
 			if(line.isEmpty()) continue;
-			String tokens[]=tab.split(line);
-			KnownGene g=new KnownGene(tokens);
-			Interval rgn=new Interval(g.getContig(), g.getTxStart()+1, g.getTxEnd());
+			final String tokens[]=tab.split(line);
+			final KnownGene g=new KnownGene(tokens);
+			final Interval rgn=new Interval(g.getContig(), g.getTxStart()+1, g.getTxEnd());
 			if(this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(rgn.getContig())==null)
 				{
 				if(!unknown.contains(g.getContig()))
@@ -424,17 +485,17 @@ public class BackLocate
 		{
 		
 		LOG.info("loading "+kgURI);
-		BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
+		final BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
 		String line;
-		Pattern tab=Pattern.compile("[\t]");
+		final Pattern tab=Pattern.compile("[\t]");
 		while((line=in.readLine())!=null)
 			{
 			if(line.isEmpty()) continue;
-			String tokens[]=tab.split(line);
-			String kgId=tokens[0];
+			final String tokens[]=tab.split(line);
+			final String kgId=tokens[0];
 			if(!this.knwonGenes.containsKey(kgId)) continue;
-			String geneSymbol=tokens[4];
-			Set<String> kglist= geneSymbol2kg.get(geneSymbol.toUpperCase());
+			final String geneSymbol=tokens[4];
+			Set<String> kglist= this.geneSymbol2kg.get(geneSymbol.toUpperCase());
 			if(kglist==null)
 				{
 				kglist=new HashSet<String>();
@@ -448,46 +509,31 @@ public class BackLocate
 
 	
 	@Override
-	public Collection<Throwable> initializeKnime()
-		{
-		try
-			{
-			if(getReferenceFile()==null)
+	public int doWork(List<String> args) {
+		PrintStream out=null;
+		try {			
+		
+			if(this.indexedRefFile==null)
 				{
-				return wrapException(getMessageBundle("reference.undefined"));
+				throw new JvarkitException.CommandLineError("Reference file was not provided");
 				}
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(getReferenceFile());
+			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.indexedRefFile);
 			
 			if(knownGeneURI==null)
 				{
-				return wrapException("Undefined knwonGeneURI");
+				throw new JvarkitException.CommandLineError("Undefined knwonGeneURI");
 				}
 			
 			if(kgXRef==null)
 				{
-				return wrapException("Undefined kgXref");
+				throw new JvarkitException.CommandLineError("Undefined kgXref");
 				}
 			this.loadKnownGenesFromUri(knownGeneURI);
 			this.loadkgXRefFromUri(kgXRef);
-			
-			return super.initializeKnime();
-			}
-		catch (Exception e)
-			{
-			return wrapException(e);
-			}
-		
-		}
-	
-	@Override
-	public Collection<Throwable> call() throws Exception
-		{
-		final List<String> args = this.getInputFiles();
-		PrintStream out=null;
-		try {			
+
 			
 			
-			out = this.openFileOrStdoutAsPrintStream();
+			out = this.openFileOrStdoutAsPrintStream(this.outputFile);
 			
 			out.print("#User.Gene");
         	out.print('\t');
@@ -541,25 +587,19 @@ public class BackLocate
 					CloserUtil.close(in);
 					}
 				}
-			return RETURN_OK;
+			return 0;
 			}
-		catch (Exception e) {
-			return wrapException(e);
+		catch (final Exception e) {
+			LOG.severe(e);
+			return -1;
 			}
 		finally
 			{
+			CloserUtil.close(this.indexedFastaSequenceFile);
+			this.indexedFastaSequenceFile=null;
 			CloserUtil.close(out);
 			}	
 		}
-		
-		@Override
-		public void disposeKnime()
-			{
-			CloserUtil.close(this.indexedFastaSequenceFile);
-			this.indexedFastaSequenceFile=null;
-			super.disposeKnime();
-			}
-		
 		
 	public static void main(String[] args)
 		{

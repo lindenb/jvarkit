@@ -5,9 +5,9 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -17,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
 import com.beust.jcommander.IStringConverter;
@@ -27,10 +28,14 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.converters.IntegerConverter;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -43,7 +48,8 @@ public class Launcher {
 private static final Logger LOG=Logger.build().
 			prefix("Launcher").
 			make();
-	
+public static final String[]OUTPUT_OPTIONS={"-o","--out"};
+
 public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 
 
@@ -64,6 +70,25 @@ private class MyJCommander extends JCommander
 		}
 		super.usage(sb);
 		
+		if(programdesc!=null){
+			if(!programdesc.deprecatedMsg().isEmpty())
+				{
+				sb.append("\n##DEPRECATED\n\n").
+					append(programdesc.deprecatedMsg()).
+					append("\n");
+				}
+			
+			sb.append("\n##Description\n\n").
+				append(programdesc.description()).
+				append("\n");
+			
+			if(programdesc.keywords()!=null && programdesc.keywords().length>0) {
+				sb.append("\n##Keywords\n\n");
+				for(String sk:programdesc.keywords()) sb.append(" * "+sk+"\n");
+				sb.append("\n");
+			}
+			
+		}
 		
 		InputStream in=null;
 		try {
@@ -88,7 +113,6 @@ private class MyJCommander extends JCommander
 						}
 					else if(ok)
 						{
-						if(line.startsWith(" *")) line=line.substring(0, 2);
 						sb.append(line).append("\n");
 						}
 					}
@@ -167,9 +191,9 @@ private String gitHash = null;
 /** compile date in the manifest */
 private String compileDate = null;
 
-@Parameter(names = {"-h","--help"}, help = true)
+@Parameter(names = {"-h","--help"},description="print help and exits", help = true)
 private boolean print_help = false;
-@Parameter(names = {"--version"}, help = true)
+@Parameter(names = {"--version"}, help = true,description="print version and exits")
 private boolean print_version = false;
 @Parameter(description = "Files")
 private List<String> files = new ArrayList<>();
@@ -215,6 +239,47 @@ public static class WritingBamArgs
 	{
 	@Parameter(names={"--xx"},description="Compression Level.",converter=CompressionConverter.class)
 	public int compressionLevel=5;
+	}
+
+public static class PrintWriterOnDemand
+	extends PrintWriter
+	{
+	private final File fileout;
+	private boolean delegate_created;
+	public PrintWriterOnDemand(final File out) {
+		super(new NullOuputStream());
+		this.fileout=out;
+		}
+	public PrintWriterOnDemand() {
+		this(null);
+		}
+	@Override
+	public void write(char[] buf, int off, int len) {
+		if(!this.delegate_created)
+			{
+			 try {
+		         synchronized (lock)
+		          	{
+		        	if(this.delegate_created) {
+		        		}
+		        	else if(this.fileout==null)
+					   {
+					   super.out=new PrintWriter(System.out);
+					   }
+		        	else
+						{
+						super.out =IOUtils.openFileForPrintWriter(fileout);
+						}
+		          	}
+		         this.delegate_created=true;
+				}    
+		    catch(final Exception err)
+		    	{
+		    	throw new RuntimeIOException(err);
+		    	}
+			}
+		super.write(buf, off, len);
+		}
 	}
 
 public static class VcfWriterOnDemandConverter
@@ -398,7 +463,6 @@ protected void cleanup() {
 
 protected Status parseArgs(final String args[])
 	{
-	System.err.println(Arrays.asList(args));
 	 try
 	  	{
 		getJCommander().parse(args);
@@ -459,7 +523,7 @@ public int instanceMain(final String args[]) {
 			}
 		try 
 			{
-			ret=doWork(getFiles());
+			ret=doWork(getFilenames());
 			if(ret!=0) return ret;
 			}
 		catch(final Throwable err)
@@ -475,25 +539,78 @@ public int instanceMain(final String args[]) {
 	return 0;
 	}
 
-public List<String> getFiles() {
+public List<String> getFilenames() {
 	return Collections.unmodifiableList(files);
+	}
+public List<File> getFiles() {
+	return getFilenames().stream().
+			map(S->new File(S)).
+			collect(Collectors.toList());
 	}
 
 public PrintStream stdout() { return System.out;}
 public PrintStream stderr() { return System.err;}
 public InputStream stdin() { return System.in;}
 
+/** open output (file or stdout) as PrintWriter */
+protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(File out) throws java.io.IOException
+	{
+	if(out!=null)
+		{
+		if(out.getName().endsWith(".gz"))
+			{
+			return new java.io.PrintWriter(this.openFileOrStdoutAsStream(out));
+			}
+		return new java.io.PrintWriter(out);
+		}
+	else
+		{
+		return new java.io.PrintWriter( stdout() );
+		}
+	}
+
+
+/** open output (file or stdout) as PrintStream */
+protected java.io.PrintStream openFileOrStdoutAsPrintStream(File out) throws java.io.IOException
+	{
+	if(out!=null)
+		{
+		if(out.getName().endsWith(".gz"))
+			{
+			final java.io.OutputStream os = this.openFileOrStdoutAsStream(out);
+			if(os instanceof java.io.PrintStream) {
+				return java.io.PrintStream.class.cast(os);
+				}
+			else
+				{
+				return new java.io.PrintStream(os);
+				}
+			}
+		return new java.io.PrintStream(out);
+		}
+	else
+		{
+		return stdout();
+		}
+	}
+
+/** open output (file or stdout) as OutputStream */
+protected java.io.OutputStream openFileOrStdoutAsStream(final File out) throws java.io.IOException
+	{
+	if(out!=null)
+		{
+		return  IOUtils.openFileForWriting(out);
+		}
+	else
+		{
+		return stdout();
+		}
+	}
 
 
 
 public void instanceMainWithExit( final String args[]) {
 	System.exit( instanceMain(args) );
 	}
-public static void main(String[] args) {
-	args=new String[]{ "--compression","best","a","b"};
-	Launcher l=new Launcher();
-	l.instanceMain(args);
-	System.err.println(l.print_help);
-	System.err.println(l.getFiles());
-}
+
 }

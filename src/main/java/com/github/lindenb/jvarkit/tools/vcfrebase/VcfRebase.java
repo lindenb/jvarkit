@@ -297,14 +297,11 @@ public class VcfRebase {
 				indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
 				in = VCFUtils.createVcfIterator(super.oneFileOrNull(args));
 				out=instance.open(this.out);
-				out.writeHeader(in.getHeader());
-				while(in.hasNext()) {
-					out.add(in.next());
-					}
+				VCFUtils.copyHeaderAndVariantsTo(in,out);
 				in.close();
 				out.close();
 				}
-			catch(IOException err)
+			catch(final IOException err)
 				{
 				throw new RuntimeIOException(err);
 				}

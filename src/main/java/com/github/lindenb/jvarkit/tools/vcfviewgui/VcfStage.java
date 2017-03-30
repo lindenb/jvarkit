@@ -1314,6 +1314,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 		{
         final TableView<VCFFilterHeaderLine> table=new TableView<>(FXCollections.observableArrayList(header.getFilterLines()));
         table.getColumns().add(makeColumn("ID", F->F.getID()));
+        table.getColumns().add(makeColumn("Description", F->F.getDescription()));
         final Tab tab=new Tab("FILTER",table);
         tab.setClosable(false);
         
