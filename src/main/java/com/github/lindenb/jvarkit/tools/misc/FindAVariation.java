@@ -33,9 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -43,15 +41,18 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /** 
@@ -75,11 +76,23 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
  
  END_DOC
  */
-@Program(name="findavariation",description="Find a specific mutation in a list of VCF files",keywords={"vcf","variation","search"})
-public class FindAVariation extends AbstractFindAVariation
+@Program(name="findavariation",description="Finds a specific mutation in a list of VCF files",keywords={"vcf","variation","search"})
+public class FindAVariation extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FindAVariation.class).make();
-
+	@Parameter(names={"-p","--position"},description="A list of 'chrom/position'")
+	private Set<String> positionsList = new HashSet<>();
+	@Parameter(names={"-o","--out"},description="Output file.")
+	private File outputFile = null;
+	@Parameter(names={"-f","--posfile"},description="Add this file containing chrom:position")
+	private Set<String> positionFilesList = new HashSet<>();
+	@Parameter(names={"-homref","--homref"},description="Hide HOM_REF genotypes")
+	private boolean hideHomRef=false;
+	@Parameter(names={"-nocall","--nocall"},description="Hide NO_CALL genotypes")
+	private boolean hideNoCall=false;
+	@Parameter(names={"-snp","--snp"},description="Search only variant have the very same position (ignore overlapping variants)")
+	private boolean onlySnp=false;
+	
 	private static class Mutation
 		{
 		final String chrom;
@@ -139,8 +152,14 @@ public class FindAVariation extends AbstractFindAVariation
 		}	
 
     
-    private void report(final File f,final VCFHeader header,final VariantContext ctx)
+    private void report(
+    		final File f,
+    		final VCFHeader header,
+    		final VariantContext ctx,
+    		final Mutation mpos
+    		)
     	{
+    	
     	final GenotypesContext genotypes=ctx.getGenotypes();
     	if(genotypes==null || genotypes.isEmpty())
     		{
@@ -159,6 +178,8 @@ public class FindAVariation extends AbstractFindAVariation
     		for(int i=0;i< genotypes.size();++i)
     			{
     			Genotype g=genotypes.get(i);
+    			if(g.isNoCall() && this.hideNoCall) continue;
+    			if(g.isHomRef() && this.hideHomRef) continue;
     			reportPos(f,header,ctx);
     			out.print('\t');
     			out.print(g.getSampleName());
@@ -213,20 +234,26 @@ public class FindAVariation extends AbstractFindAVariation
 			if(!VCFUtils.isVcfFile(f)) continue;
 			VcfIterator iter=null;
 			
-			if(VCFUtils.isTabixVcfFile(f))
+			
+			if(VCFUtils.isTabixVcfFile(f) || VCFUtils.isTribbleVcfFile(f))
 				{
-				TabixVcfFileReader r=null;
+				VCFFileReader r=null;
     			try
 					{
-					r=new TabixVcfFileReader(f.getPath());
-					final VCFHeader header =r.getHeader();
+					r=new VCFFileReader(f,true);
+					final VCFHeader header =r.getFileHeader();
 					for(final Mutation m:convertFromVcfHeader(f,header))
 						{
-						final Iterator<VariantContext> iter2 = r.iterator(
+						final CloseableIterator<VariantContext> iter2 = r.query(
 								m.chrom, m.pos, m.pos);
 						while(iter2.hasNext())
 							{
-							report(f,header,iter2.next());
+							final VariantContext ctx=iter2.next();
+							if(this.onlySnp )
+								{	
+								if(ctx.getStart()!=m.pos || ctx.getEnd()!=m.pos) continue;
+								}
+							report(f,header,ctx,m);
 							}
 						CloserUtil.close(iter2);
 						}
@@ -255,9 +282,17 @@ public class FindAVariation extends AbstractFindAVariation
 						{
 						final VariantContext ctx=iter.next();
 						final Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
-						if(mutlist.contains(m))
+						
+						for(final Mutation m2: mutlist)
 							{
-							report(f,header,ctx);
+							if(m.equals(m2)) {
+						    	if(this.onlySnp )
+									{	
+									if(ctx.getStart()!=m2.pos || ctx.getEnd()!=m2.pos) continue;
+									}	
+								report(f,header,ctx,m2);
+								break;
+								}
 							}
 						}
 					}
@@ -297,13 +332,14 @@ public class FindAVariation extends AbstractFindAVariation
 		}
 	
 	@Override
-	public Collection<Throwable> initializeKnime() {
+	public int doWork(final List<String> args) {
 		BufferedReader r=null;
 		try
 			{
-			for(final File f:super.positionFilesList)
+			
+			for(final String f:this.positionFilesList)
 				{
-				r = IOUtils.openFileForBufferedReading(f);
+				r = IOUtils.openURIForBufferedReading(f);
 				String line;
 				while((line=r.readLine())!=null)
 					{
@@ -313,30 +349,15 @@ public class FindAVariation extends AbstractFindAVariation
 					this.mutations.add(m);
 					}
 				}
-			for(final String s:super.positionsList)
+			
+			for(final String s:this.positionsList)
 				{
-				Mutation m= parseMutation(s);
+				final Mutation m= parseMutation(s);
 				LOG.debug("adding "+m);
 				this.mutations.add(m);
-				}
-			}
-		catch(final Exception err)
-			{	
-			return wrapException(err);
-			}
-		finally
-			{
-			CloserUtil.close(r);
-			}
-		return super.initializeKnime();
-		}
-	
-	@Override
-	public Collection<Throwable> call() throws Exception {
-		final List<String> args = getInputFiles();
-		try
-			{
-			this.out=super.openFileOrStdoutAsPrintWriter();
+				}			
+			
+			this.out=super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			this.out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tDP4");
 			if(args.isEmpty())
 				{
@@ -348,21 +369,25 @@ public class FindAVariation extends AbstractFindAVariation
 				for(final String filename: args)
 					{
 					LOG.info("Reading from "+filename);
-					BufferedReader r=IOUtils.openURIForBufferedReading(filename);
+					r=IOUtils.openURIForBufferedReading(filename);
 					scan(r);
 					r.close();
 					}
 				}
 			this.out.flush();
-			return RETURN_OK;
+			this.out.close();
+			this.out=null;
+			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
-
+			CloserUtil.close(out);
+			CloserUtil.close(r);
 			}
 		}
 	

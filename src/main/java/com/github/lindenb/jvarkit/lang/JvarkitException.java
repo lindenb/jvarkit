@@ -44,12 +44,18 @@ public static class DictionaryMissing extends Error
 		}
 	}
 public static class FastaDictionaryMissing extends DictionaryMissing
+	{
+	public FastaDictionaryMissing(final String file) {
+		super(file);
+		}
+	}
+
+public static class SampleMissing extends DictionaryMissing
 {
-public FastaDictionaryMissing(final String file) {
+public SampleMissing(final String file) {
 	super(file);
 	}
 }
-
 	
 /** exception thrown when the user do something wrong */
 public static class UserError extends Error

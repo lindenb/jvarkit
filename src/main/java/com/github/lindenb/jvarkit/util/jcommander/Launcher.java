@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.util.jcommander;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
@@ -32,6 +33,8 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -478,10 +481,54 @@ protected Status parseArgs(final String args[])
 	 return Status.OK;
 	}
 
-protected int doVcfToVcf(final String inputNameOrNull) {
-	return -1;
+protected VcfIterator openVcfIterator(final String inputNameOrNull) throws IOException {
+	return VCFUtils.createVcfIterator(inputNameOrNull);
+}
+
+protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+	return VCFUtils.createVariantContextWriter(outorNull);
+}
+
+
+protected VCFHeader addMetaData(final VCFHeader header) 
+	{
+	return header;
 	}
 
+protected int doVcfToVcf(final String inputName,final VcfIterator iterin,final VariantContextWriter out){
+	LOG.debug("using default doVcfToVcf ??");
+	VCFUtils.copyHeaderAndVariantsTo(iterin, out);
+	return 0;
+	}
+protected int doVcfToVcf(final String inputNameOrNull,final File outorNull){
+	VcfIterator iterin=null;
+	VariantContextWriter w=null;
+	int ret=0;
+	try {
+		iterin = openVcfIterator(inputNameOrNull);
+		w = openVariantContextWriter(outorNull);
+		ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
+		w.close();
+		w=null;
+		iterin.close();
+		iterin=null;
+		return ret;
+		}
+	catch(final Exception err)
+		{
+		LOG.error(err);
+		return -1;
+		}
+	finally
+		{
+		CloserUtil.close(iterin);
+		CloserUtil.close(w);
+		}
+	}
+
+protected int doVcfToVcf(final List<String> inputs,final File outorNull) {
+	return doVcfToVcf(oneFileOrNull(inputs),outorNull);
+	}
 
 
 protected String oneFileOrNull(final List<String> args) {
@@ -489,7 +536,7 @@ protected String oneFileOrNull(final List<String> args) {
 	{
 	case 0: return null;
 	case 1: return args.get(0);
-	default: throw new IllegalArgumentException("Expected one or zero argument but got "+args.size());
+	default: throw new JvarkitException.CommandLineError("Expected one or zero argument but got "+args.size());
 	}
 }
 
@@ -604,6 +651,26 @@ protected java.io.OutputStream openFileOrStdoutAsStream(final File out) throws j
 	else
 		{
 		return stdout();
+		}
+	}
+
+/** create a new SamReaderFactory */
+protected htsjdk.samtools.SamReaderFactory createSamReaderFactory()
+	{
+	return  htsjdk.samtools.SamReaderFactory.makeDefault().validationStringency(htsjdk.samtools.ValidationStringency.LENIENT);
+	}
+
+/** open a new SAM reader; If inputName==null, it reads from stdin */
+protected htsjdk.samtools.SamReader openSamReader(final String inputName)
+	{
+	final htsjdk.samtools.SamReaderFactory srf= this.createSamReaderFactory();
+	if(inputName==null)
+		{
+		return srf.open(htsjdk.samtools.SamInputResource.of(stdin()));
+		}
+	else
+		{
+		return srf.open(htsjdk.samtools.SamInputResource.of(inputName));
 		}
 	}
 

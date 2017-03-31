@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -49,22 +50,69 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
+/**
+BEGIN_DOC
+
+## Example
+
+```
+$ cat groups.txt
+10:112583204-112583210
+G2	11
+```
+
+
+```
+$ java -jar dist/splitvcf.jar  -o tmp__GROUPID__.vcf.gz -g groups.txt in.vcf
+$ ls tmp*
+tmpG1.vcf.gz
+tmpG2.vcf.gz
+tmpOTHER.vcf.gz
+```
+
+## See also
+
+* https://github.com/lindenb/jvarkit/wiki/SplitBam3
+
+END_DOC
+ 
+ */
+@Program(name="splitvcf",description="split a vcf...",keywords={"vcf"})
 public class SplitVcf
-	extends AbstractSplitVcf
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SplitVcf.class);
+	private static final Logger LOG = Logger.build(SplitVcf.class).make();
 
 	private final static String REPLACE_GROUPID="__GROUPID__";
 	private final java.util.Map<String,SplitGroup> name2group=new java.util.HashMap<>();
 	private final IntervalTreeMap<Set<SplitGroup>> interval2group = new IntervalTreeMap<>();
 	private SplitGroup underminedGroup=null;
 
+	
+	
+	@Parameter(names={"-g","--groupfile"},description="Chromosome group file. Intervals are 1-based. If undefined, splitvcf will use the sequence dictionary to output one vcf per contig.")
+	private File chromGroupFile = null;
+	
+	@Parameter(names={"-u","--unmapped"},description="unmapped interval name")
+	private String UNDERTERMINED_NAME = "OTHER";
+	
+	@Parameter(names={"-m","--multi"},description="if set, allow one variant to be mapped on multiple chromosome group (the record is duplicated)")
+	private boolean multiIntervalEnabled = false;
+
+	@Parameter(names={"-o","--out"},description="Output file (or stdout). Name must contain '__GROUPID__' ",required=true)
+	private File outputFile = null;
+	
 	
 	/** spit group */
 	private class SplitGroup implements Closeable
@@ -101,8 +149,8 @@ public class SplitVcf
 		public File getFile()
 			{
 			return new File(
-					SplitVcf.this.getOutputFile().getParentFile(),
-					SplitVcf.this.getOutputFile().getName().replaceAll(
+					SplitVcf.this.outputFile.getParentFile(),
+					SplitVcf.this.outputFile.getName().replaceAll(
 							SplitVcf.REPLACE_GROUPID,
 							this.groupName
 							));
@@ -149,7 +197,7 @@ public class SplitVcf
 			groups.addAll(G);
 			}
 		if(groups.isEmpty()) return Collections.emptySet();
-		if(!super.multiIntervalEnabled && groups.size()!=1) {
+		if(!this.multiIntervalEnabled && groups.size()!=1) {
 			throw new IllegalStateException("got two group for uniq interval "+interval+" ? "+groups);
 		}
 		return groups;
@@ -159,7 +207,7 @@ public class SplitVcf
 	private void putInterval(final String groupName,final Interval interval)
 		{
 		Collection<SplitGroup> splitgroups = this.getGroupsFromInterval(interval);
-		if(!super.multiIntervalEnabled)
+		if(!this.multiIntervalEnabled)
 			{
 			for(final SplitGroup splitgroup:splitgroups)
 				{
@@ -167,7 +215,7 @@ public class SplitVcf
 					{
 					throw new IllegalArgumentException(
 							"chrom "+interval+" already used in "+splitgroup.groupName+
-							". use option  -"+ OPTION_MULTIINTERVALENABLED+" to enable multiple groups/interval");
+							". use option to enable multiple groups/interval");
 					}
 				}
 			}
@@ -187,14 +235,13 @@ public class SplitVcf
 		this.interval2group.put(interval, L);
 		}
 				
-	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		if (getOutputFile()==null || !getOutputFile().getName().contains(REPLACE_GROUPID)) {
-			return wrapException("Output file pattern undefined or doesn't contain " + REPLACE_GROUPID + " : "
-					+ this.getOutputFile());
+	private int doWork(final String inputName) {
+		if (this.outputFile==null || !this.outputFile.getName().contains(REPLACE_GROUPID)) {
+			throw new JvarkitException.UserError("Output file pattern undefined or doesn't contain " + REPLACE_GROUPID + " : "
+					+ this.outputFile);
 		}
-		if (!(getOutputFile().getName().endsWith(".vcf") || getOutputFile().getName().endsWith(".vcf.gz"))) {
-			return wrapException("output file must end with '.vcf' or '.vcf.gz'");
+		if (!(this.outputFile.getName().endsWith(".vcf") || this.outputFile.getName().endsWith(".vcf.gz"))) {
+			throw new JvarkitException.UserError("output file must end with '.vcf' or '.vcf.gz'");
 		}
 		BufferedReader r=null;
 		VcfIterator in =null;
@@ -203,16 +250,16 @@ public class SplitVcf
 			in = openVcfIterator(inputName);
 			final SAMSequenceDictionary samSequenceDictionary = in.getHeader().getSequenceDictionary();
 			if(samSequenceDictionary==null) {
-				return wrapException("samSequenceDictionary missing in input VCF.");
+				throw new JvarkitException.UserError("samSequenceDictionary missing in input VCF.");
 			}
 			
 			
 			this.underminedGroup = new SplitGroup(UNDERTERMINED_NAME);
 			this.name2group.put(UNDERTERMINED_NAME, this.underminedGroup);
 	
-			if (super.chromGroupFile != null)
+			if (this.chromGroupFile != null)
 				{
-				r = IOUtils.openFileForBufferedReading(super.chromGroupFile);
+				r = IOUtils.openFileForBufferedReading(this.chromGroupFile);
 				String line;
 				while ((line = r.readLine()) != null) {
 					if (line.isEmpty() || line.startsWith("#"))
@@ -220,11 +267,11 @@ public class SplitVcf
 					final String tokens[] = line.split("[ \t,]+");
 					final String groupName = tokens[0].trim();
 					if (groupName.isEmpty())
-						return wrapException("Empty group name in " + line);
+						throw new JvarkitException.UserError("Empty group name in " + line);
 					if (this.UNDERTERMINED_NAME.equals(groupName))
-						return wrapException("Group cannot be named " + UNDERTERMINED_NAME);
+						throw new JvarkitException.UserError("Group cannot be named " + UNDERTERMINED_NAME);
 					if (this.name2group.containsKey(groupName))
-						return wrapException("Group defined twice " + groupName);
+						throw new JvarkitException.UserError("Group defined twice " + groupName);
 					for (int i = 1; i < tokens.length; i++) {
 						String sequence;
 						int start;
@@ -238,7 +285,7 @@ public class SplitVcf
 						if (colon == -1) {
 							final SAMSequenceRecord ssr = samSequenceDictionary.getSequence(segment);
 							if (ssr == null) {
-								return wrapException("Unknown chromosome , not in dict \"" + segment + "\"");
+								throw new JvarkitException.UserError("Unknown chromosome , not in dict \"" + segment + "\"");
 							}
 							sequence = segment;
 							start = 1;
@@ -246,10 +293,10 @@ public class SplitVcf
 						} else {
 							int hyphen = segment.indexOf('-', colon);
 							if (hyphen == -1)
-								return wrapException("Bad segment:" + segment);
+								throw new JvarkitException.UserError("Bad segment:" + segment);
 							sequence = segment.substring(0, colon);
 							if (samSequenceDictionary.getSequence(sequence) == null)
-								return wrapException("Unknown chromosome , not in dict " + segment);
+								throw new JvarkitException.UserError("Unknown chromosome , not in dict " + segment);
 	
 							start = Integer.parseInt(segment.substring(colon + 1, hyphen));
 							end = Integer.parseInt(segment.substring(hyphen + 1));
@@ -299,14 +346,14 @@ public class SplitVcf
 			for (final SplitGroup g : this.name2group.values()) {
 				g.close();
 			}
-			return RETURN_OK;
+			return 0;
 			}
-		catch(Exception err) {
+		catch(final Exception err) {
 			for (final SplitGroup g : this.name2group.values()) {
 				CloserUtil.close(g);
 				if(in!=null) g.getFile().delete();
 			}
-			return wrapException(err);
+			return -1;
 		} finally {
 			for (final SplitGroup g : this.name2group.values()) {
 				CloserUtil.close(g);
@@ -317,9 +364,14 @@ public class SplitVcf
 			this.interval2group.clear();
 		}
 	}
-	 	
 	
-	public static void main(String[] args)
+	
+	@Override
+	public int doWork(final List<String> args) {
+		return doWork(oneFileOrNull(args));
+		}
+	
+	public static void main(final String[] args)
 		{
 		new SplitVcf().instanceMainWithExit(args);
 		}

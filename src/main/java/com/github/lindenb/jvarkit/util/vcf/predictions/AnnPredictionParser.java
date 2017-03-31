@@ -34,7 +34,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -42,6 +41,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
 
@@ -77,7 +77,7 @@ public class AnnPredictionParser
 		// ordered from worst to lighter, keep this order
 		 HIGH, MODERATE, MODIFIER,LOW, UNDEFINED
 		}
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(AnnPredictionParser.class).make();
 
 	private final Pattern pipeRegex=Pattern.compile("[\\|]");
 	private final Pattern ampRegex = Pattern.compile("[&]");
@@ -291,7 +291,7 @@ public class AnnPredictionParser
 				if(label.isEmpty()) continue;
 				final SequenceOntologyTree.Term t =AnnPredictionParser.this.soTree.getTermByLabel(label);
 				if(t==null) {
-					LOG.warning("Current Sequence Ontology Tree doesn't contain "+ label);
+					LOG.warning("Current Sequence Ontology Tree doesn't contain \""+ label+"\"");
 					} 
 				else
 					{
@@ -307,21 +307,24 @@ public class AnnPredictionParser
 			final String s=this.tokens[2];
 			return Impact.valueOf(s.toUpperCase().trim());
 			}
+		
+		public String getGeneName()
+			{
+			return at(3);
+			}
+		
 		public String getGeneId()
 			{
-			if(this.tokens.length<5) return null;
-			return this.tokens[4];
+			return at(4);
 			}
 		public String getFeatureType()
 			{
-			if(this.tokens.length<6) return null;
-			return this.tokens[5];
+			return at(5);
 			}
 		
 		public String getFeatureId()
 			{
-			if(this.tokens.length<7) return null;
-			return this.tokens[6];
+			return at(6);
 			}
 		
 		public String getTranscriptBioType()

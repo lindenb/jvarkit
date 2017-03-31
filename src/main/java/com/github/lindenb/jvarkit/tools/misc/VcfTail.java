@@ -143,7 +143,7 @@ public class VcfTail
 		private VcfTail instance=new VcfTail();
 		@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
 		private VariantContextWriter out=new VcfWriterOnDemand();
-		
+				
 		@Override
 		public int doWork(final List<String> args) {
 			try {

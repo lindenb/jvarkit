@@ -258,14 +258,18 @@ public class VcfBurdenSplitter2
 						keys.add(ctx.getContig()+"_ANN_FEATURE_"+pred.getFeatureType()+"_"+pred.getFeatureId());
 						}
 					}
+				if(!isEmpty(pred.getGeneName()))
+					{
+					keys.add(ctx.getContig()+"_ANN_GENE_"+pred.getGeneName());
+					}
 				if(!isEmpty(pred.getGeneId()))
 					{
-					keys.add(ctx.getContig()+"_ANN_GENE_"+pred.getFeatureType());
+					keys.add(ctx.getContig()+"_ANN_GENEID_"+pred.getGeneId());
 					}
 				}	
 			/* replace . by _ so we don't have problems with regex later */
 			return keys.stream().
-					map(S->S.replace('.', '_')).
+					map(S->S.replace('.', '_').replace('-', '_')).
 					collect(Collectors.toSet());
 			}
 

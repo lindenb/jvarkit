@@ -24,9 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.File;
 import java.io.PrintWriter;
-import java.util.Collection;
+import java.util.List;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SamJsonWriterFactory;
 
 import htsjdk.samtools.SamReader;
@@ -34,26 +39,44 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
+@Program(name="sam2json",keywords={"sam","bam","json"},description="Convert a SAM input to JSON")
+public class SamToJson extends Launcher {
+	private static final Logger LOG = Logger.build(SamToJson.class).make();
+	
+	@Parameter(names={"-H","--header"},description="don't print SAM HEADER")
+	private boolean print_header = false;
 
-public class SamToJson extends AbstractSamToJson {
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamToJson.class);
+	@Parameter(names={"-name","--name"},description="do not print read name")
+	private boolean disable_readName = false;
 
-	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
+	@Parameter(names={"-atts","--atts"},description="do not print attributes")
+	private boolean disable_atts = false;
+
+	@Parameter(names={"-flag","--flag"},description="expand SAm Flags")
+	private boolean expflag = false;
+
+	@Parameter(names={"-cigar","--cigar"},description="expand cigar")
+	private boolean excigar = false;
+
+	@Parameter(names={"-out","--out"},description="output")
+	private File output = null;
+
+	
+	private int call(final String inputName) throws Exception {
 		PrintWriter out=null;
 		SamReader sfr=null;
 		final SamJsonWriterFactory factory =SamJsonWriterFactory.newInstance().
-				printHeader(super.print_header).
-				printReadName(!super.disable_readName).
-				printAttributes(!super.disable_atts).
-				expandFlag(super.expflag).
-				expandCigar(super.excigar)
+				printHeader(this.print_header).
+				printReadName(!this.disable_readName).
+				printAttributes(!this.disable_atts).
+				expandFlag(this.expflag).
+				expandCigar(this.excigar)
 				;
 		SAMFileWriter swf=null;
 		try
 			{
 			sfr = super.openSamReader(inputName);
-			out = super.openFileOrStdoutAsPrintWriter();
+			out = super.openFileOrStdoutAsPrintWriter(this.output);
 			swf = factory.open(sfr.getFileHeader(), out);
 			final SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext() && !out.checkError())
@@ -62,16 +85,27 @@ public class SamToJson extends AbstractSamToJson {
 				}
 			iter.close();
 			out.flush();
-			swf.close();
+			swf.close();swf=null;
 			LOG.info("done");
-			return RETURN_OK;
+			return 0;
 			}
 		catch(final Exception err) {
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally 	{
 			CloserUtil.close(sfr);
+			CloserUtil.close(swf);
 			}
+		}
+	@Override
+	public int doWork(List<String> args) {
+		try {
+			return call(oneFileOrNull(args));
+		} catch (Exception e) {
+			LOG.error(e);
+			return -1;
+		}
 		}
 	/**
 	 * @param args

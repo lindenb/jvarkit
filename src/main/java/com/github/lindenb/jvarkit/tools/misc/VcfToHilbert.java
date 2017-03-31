@@ -54,14 +54,20 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfToHilbert extends AbstractCommandLineProgram
+@Program(name="vcf2hilbert",keywords={"vcf","image","vislualization"},description="Plot a Hilbert Curve from a VCF file.")
+public class VcfToHilbert extends Launcher
 	{
+	private static final Logger LOG=Logger.build(VcfToHilbert.class).make();
+	
 	/** graphics context */ 
 	private Graphics2D g;
 	/** dictionary */
@@ -69,12 +75,15 @@ public class VcfToHilbert extends AbstractCommandLineProgram
     /** level of recursion */
     private int recursionLevel=6;
     /** with/height of the final picture */
+    @Parameter(names={"-w","--width"},description="Image width")
     private int imageWidth=1000;
     private double sampleWidth=0;
     private double genomicSizePerCurveUnit=0L;
     /** radius of a point */
+    @Parameter(names={"-r","--radius"},description="Radius Size")
     private float radiusSize =3.0f;
-
+    @Parameter(names={"-o","--out"},description="Output File")
+    private File imgOut =null;
     
     private abstract class HilbertSegmentHandler
     	{
@@ -360,24 +369,6 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			}
 		}
     
-    @Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"VcfToHilbert";
-    	}
-    
-	@Override
-	public String getProgramDescription() {
-		return "Plot a Hilbert Curve from a VCF file.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (file.png) output image name . Required");
-		out.println(" -w (int) image width . Default: "+this.imageWidth);
-		out.println(" -r (float) radius width . Default: "+this.radiusSize);
-		super.printOptions(out);
-		}
 	
 	
 
@@ -420,92 +411,54 @@ public class VcfToHilbert extends AbstractCommandLineProgram
     	 g.setStroke(oldStroke);
     	}
     
-	@Override
-	public int doWork(String[] args)
-		{
-		File imgOut=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:w:r:"))!=-1)
+    
+    
+    @Override
+    public int doWork(List<String> args) {
+		if(this.imgOut==null)
 			{
-			switch(c)
-				{
-				case 'r': this.radiusSize = Float.parseFloat(opt.getOptArg());break;
-				case 'o': imgOut=new File(opt.getOptArg());break;
-				case 'w': this.imageWidth = Integer.parseInt(opt.getOptArg());break;
-
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(imgOut==null)
-			{
-			error("output image file not defined");
+			LOG.error("output image file not defined");
 			return -1;
 			}
 		
 		if(this.imageWidth<1)
 			{
-			error("Bad image size:" +this.imageWidth);
+			LOG.error("Bad image size:" +this.imageWidth);
 			return -1;
 			}
 		VcfIterator iter=null;
 		try
 			{
+			iter = this.openVcfIterator(oneFileOrNull(args));
 			
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				iter=VCFUtils.createVcfIteratorStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				iter=VCFUtils.createVcfIterator(filename);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			VCFHeader header=iter.getHeader();
+			final VCFHeader header=iter.getHeader();
 			this.dict = header.getSequenceDictionary();
 			if(this.dict == null)
 				{
-				error(getMessageBundle("file.is.missing.dict"));
-				return -1;
+				throw new JvarkitException.FastaDictionaryMissing("no dict in input");
 				}
-			List<String> samples=header.getSampleNamesInOrder();
+			final List<String> samples=header.getSampleNamesInOrder();
 			if(samples.isEmpty())
 				{
-				error(getMessageBundle("no.sample.in.vcf"));
-				return -1;
+				throw new JvarkitException.SampleMissing("no.sample.in.vcf");
 				}
-			info("N-Samples:"+samples.size());
+			LOG.info("N-Samples:"+samples.size());
 			double marginWidth = (this.imageWidth-2)*0.05;
 			this.sampleWidth= ((this.imageWidth-2)-marginWidth)/samples.size();
-			info("sample Width:"+sampleWidth);
+			LOG.info("sample Width:"+sampleWidth);
 			BufferedImage img = new BufferedImage(this.imageWidth, this.imageWidth, BufferedImage.TYPE_INT_RGB);
 			this.g = (Graphics2D)img.getGraphics();
 			this.g.setColor(Color.WHITE);
 			this.g.fillRect(0, 0, imageWidth, imageWidth);
 			
 			g.setColor(Color.BLACK);
-			Hershey hershey =new Hershey();
+			final Hershey hershey =new Hershey();
 
 			EvalCurve evalCurve=new EvalCurve();
 			evalCurve.run();
 			this.genomicSizePerCurveUnit = ((double)dict.getReferenceLength()/(double)(evalCurve.count));
 			if(this.genomicSizePerCurveUnit<1) this.genomicSizePerCurveUnit=1;
-			info("genomicSizePerCurveUnit:"+genomicSizePerCurveUnit);
+			LOG.info("genomicSizePerCurveUnit:"+genomicSizePerCurveUnit);
 			
 			for(int x=0;x< samples.size();++x)
 				{
@@ -552,27 +505,28 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 					g.translate(-tx, -ty);
 					}
 				}
-			info("genomicSizePerCurveUnit:"+(long)genomicSizePerCurveUnit*evalCurve.count+" "+dict.getReferenceLength()+" count="+evalCurve.count);
-			info("Scanning variants");
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dict);
+			LOG.info("genomicSizePerCurveUnit:"+(long)genomicSizePerCurveUnit*evalCurve.count+" "+dict.getReferenceLength()+" count="+evalCurve.count);
+			LOG.info("Scanning variants");
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dict);
 			while(iter.hasNext())
 				{
-				VariantContext var=iter.next();
-				progress.watch(var.getContig(), var.getStart());
+				final VariantContext var=progress.watch(iter.next());
 				for(int x=0;x< samples.size();++x)
 					{
-					String samplex =  samples.get(x);
-					Genotype gx = var.getGenotype(samplex);
+					final String samplex =  samples.get(x);
+					final Genotype gx = var.getGenotype(samplex);
+					if(!gx.isCalled()) continue;
 					double tx = marginWidth+x*sampleWidth;
 
 					for(int y=0;y< samples.size();++y)
 						{
-						String sampley =  samples.get(y);
-						Genotype gy = var.getGenotype(sampley);
+						final String sampley =  samples.get(y);
+						final Genotype gy = var.getGenotype(sampley);
+						if(!gy.isCalled()) continue;
 						if(gx.isHomRef() && gy.isHomRef()) continue;
 						double ty = marginWidth+y*sampleWidth;
 						g.translate(tx, ty);
-						PaintVariant paint=new PaintVariant(var, x, y);
+						final PaintVariant paint=new PaintVariant(var, x, y);
 						paint.run();
 						g.translate(-tx, -ty);
 						}
@@ -582,7 +536,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			this.g.dispose();
 			
 			//save file
-			info("saving "+imgOut);
+			LOG.info("saving "+imgOut);
 			if(imgOut.getName().toLowerCase().endsWith(".png"))
 				{
 				ImageIO.write(img, "PNG", imgOut);
@@ -595,7 +549,7 @@ public class VcfToHilbert extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

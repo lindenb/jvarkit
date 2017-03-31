@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.util.vcf.predictions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -28,7 +29,8 @@ public class MyPredictionParser implements PredictionParser
 	private static final Logger LOG=Logger.getLogger("jvarkit");
 	private Map<VCFPredictions.FORMAT1, Integer> col2col=new HashMap<VCFPredictions.FORMAT1, Integer>();
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
-	private Pattern pipe=Pattern.compile("[\\|]");
+	private final Pattern pipe=Pattern.compile("[\\|]");
+	private final Pattern ampRegex = Pattern.compile("[&]");
 
 	public final String getTag()
 		{
@@ -227,24 +229,26 @@ public class MyPredictionParser implements PredictionParser
 			return slash==-1?null:s.substring(0,slash);
 			}
 		
+		public String getSOTermsString()
+			{
+			final String EFF=getByCol(VCFPredictions.FORMAT1.SEQONTOLOGY);
+			return EFF==null?"":EFF;
+			}
+		
+		public List<String> getSOTermsStrings()
+			{
+			final String soterms=getSOTermsString();
+			if(soterms==null || soterms.isEmpty()) return Collections.emptyList();
+			return Arrays.asList(MyPredictionParser.this.ampRegex.split(soterms));
+			}
+		
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
-			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
-			String EFF=getByCol(VCFPredictions.FORMAT1.SEQONTOLOGY);
-			if(EFF==null) return set;
-			for(SequenceOntologyTree.Term t: MyPredictionParser.this.soTree.getTerms())
+			final Set<SequenceOntologyTree.Term> set=new HashSet<>();
+			for(final String eff:getSOTermsStrings())
 				{
-				for(String eff:EFF.split("[&]"))
-					{
-					if(t.getLabel().replace(' ', '_').equals(eff))
-						{
-						set.add(t);
-						}
-					else if(t.getAcn().equals(eff))
-						{
-						set.add(t);
-						}
-					}
+				SequenceOntologyTree.Term t  = MyPredictionParser.this.soTree.getTermByLabel(eff);
+				if(t!=null) set.add(t);
 				}
 			return set;
 			}
