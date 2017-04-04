@@ -47,6 +47,8 @@ import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -59,8 +61,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 @Program(name="vcfreplacetag",description="Replace the key for INFO/FORMAT/FILTER",keywords={"vcf"})
 public class VCFReplaceTag extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractVCFReplaceTag.class);
-	
+	private static final Logger LOG = Logger.build(VCFReplaceTag.class).make();	
 	
 	@Parameter(names={"-t","--type"},description="replace type: one of FORMAT,FILTER,INFO",required=true)
 	private String replaceType = "INFO";

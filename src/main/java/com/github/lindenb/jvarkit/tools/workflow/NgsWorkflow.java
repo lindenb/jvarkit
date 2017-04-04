@@ -217,6 +217,12 @@ public class NgsWorkflow extends Launcher
 			def("1").
 			build();
 
+	private static final PropertyKey PROP_MAPPING_REGION = key("mapping.region").
+			description("When mapping with bwa, use bedtools intersect to restrict the output to the specified bed file"). =
+			def("").
+			build();
+
+	
 	private RefSplit parseRefSplitFromStr(final String s)
 		{
 		int colon= s.indexOf(":");
@@ -1499,8 +1505,17 @@ public class NgsWorkflow extends Launcher
 					append(getProject().getName()+":"+getProject().getDescription()+"'").
 				append(" -R '@RG\\tID:"+ getSample().getName()).
 				append(laneIndex==null?"":"_L"+laneIndex).
-				append("\\tLB:"+getSample()+"\\tSM:"+getSample() +"\\tPL:illumina\\tCN:Nantes' \""+bwaRef+"\" "+fq1+" "+fq2+"  |").
-				append("$(samtools.exe) sort --reference \"$(REF)\" -l ").
+				append("\\tLB:"+getSample()+"\\tSM:"+getSample() +"\\tPL:illumina\\tCN:Nantes' \""+bwaRef+"\" "+fq1+" "+fq2+"  |");
+			
+				if(!getAttribute(PROP_MAPPING_REGION,"").isEmpty())
+					{
+					final String rgn=getAttribute(PROP_MAPPING_REGION,"");
+					sb.append("$(bedtools.exe) intersect -nobuf -ubam -u  -abam -  -b ").
+						append("\"").append(rgn).append("\" |");
+					}
+				
+				
+			sb.append("$(samtools.exe) sort --reference \"$(REF)\" -l ").
 				append(getAttribute(PROP_DEFAULT_COMPRESSION_LEVEL)).
 				append(" -@ ").
 				append(getAttribute(PROP_SAMTOOLS_SORT_NTHREADS)).
