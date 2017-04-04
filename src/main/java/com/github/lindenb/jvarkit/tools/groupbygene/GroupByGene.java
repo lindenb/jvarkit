@@ -508,7 +508,7 @@ public class GroupByGene
 				}
 			else
 				{
-				for(String filename:args)
+				for(final String filename:args)
 					{
 					LOG.info("Reading from "+filename);
 					InputStream in=IOUtils.openURIForReading(filename);

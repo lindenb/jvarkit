@@ -34,7 +34,6 @@ import htsjdk.samtools.util.CloserUtil;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,17 +53,28 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class PubmedGraph extends AbstractCommandLineProgram
+@Program(name="pubmedgraph",description="Creates a Gephi-gexf graph of references-cotes for a given PMID",keywords={"pubmed","xml","graph"})
+public class PubmedGraph extends Launcher
 	{
+	private static final Logger LOG = Logger.build(PubmedGraph.class).make();
+
+	
+	@Parameter(names="-d",description="max-depth")
 	private int maxDepth=3;
 	private XMLInputFactory xmlInputFactory;
 	private Map<String, Article> pmid2article=new HashMap<String, PubmedGraph.Article>();
+	@Parameter(names="-f",description="disable forward (cited-in)")
 	private boolean disable_cited_in=false;
+	@Parameter(names="-b",description="disable backward (referenced-in)")
 	private boolean disable_references=false;
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outFile=null;
-	
+
 	private class Article
 		{
 		String pmid;
@@ -76,11 +86,11 @@ public class PubmedGraph extends AbstractCommandLineProgram
 	
 	private List<String> eLink(String pmid,String linkname) throws IOException,XMLStreamException
 		{
-		List<String> L=new ArrayList<>();
-		String url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?retmode=xml&db=pubmed&dbfrom=pubmed&" +
+		final List<String> L=new ArrayList<>();
+		final String url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?retmode=xml&db=pubmed&dbfrom=pubmed&" +
 				"id="+pmid+
 				"&linkname="+linkname;
-		info(url);
+		LOG.info(url);
 		StreamSource src=new StreamSource(url);
 		XMLEventReader reader= this.xmlInputFactory.createXMLEventReader(src);
 		int in_link=0;
@@ -118,7 +128,7 @@ public class PubmedGraph extends AbstractCommandLineProgram
 		String url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?retmode=xml&db=pubmed&" +
 				"id="+a.pmid
 				;
-		info(url);
+		LOG.info(url);
 		StreamSource src=new StreamSource(url);
 		XMLEventReader reader= this.xmlInputFactory.createXMLEventReader(src);
 		int in_title=0;
@@ -235,11 +245,11 @@ public class PubmedGraph extends AbstractCommandLineProgram
 			w.writeAttribute("version", "1.2");
 			w.writeStartElement("meta");
 			  w.writeStartElement("creator");
-			  w.writeCharacters(getProgramName()+" by "+getAuthorName());
+			  w.writeCharacters("PubmedGraph  by Pierre Lindenbaum");
 			  w.writeEndElement();
 			 
 			  w.writeStartElement("description");
-			  w.writeCharacters(getProgramCommandLine());
+			  w.writeCharacters("");
 			  w.writeEndElement();
 			
 			w.writeEndElement();//meta
@@ -342,63 +352,19 @@ public class PubmedGraph extends AbstractCommandLineProgram
 				}
 			}
 	
-
 	@Override
-	public String getProgramDescription() {
-		return "Creates a Gephi-gexf graph of references-cotes for a given PMID";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"PubmedGraph";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (out)  output file. default stdout");
-		out.println(" -d (int)  max-depth. default "+this.maxDepth);
-		out.println(" -f  disable forward (cited-in)");
-		out.println(" -b  disable backward (referenced-in)");
-		super.printOptions(out);
-		}
-
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:d:fb"))!=-1)
+	public int doWork(final List<String> args) {
+		if(args.size()!=1)
 			{
-			switch(c)
-				{
-				case 'o': this.outFile=new File(opt.getOptArg());break;
-				case 'f': this.disable_cited_in=true;break;
-				case 'b': this.disable_references=true;break;
-				case 'd': this.maxDepth=Math.max(0, Integer.parseInt(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(opt.getOptInd()+1!=args.length)
-			{
-			error("Illegal number of arguments");
+			LOG.error("Illegal number of arguments");
 			return -1;
 			}
 		try
 			{
 			this.xmlInputFactory=XMLInputFactory.newFactory();
 			
-			run(getArticleByPmid(args[opt.getOptInd()]),0);
-			for(Article a:this.pmid2article.values())
+			run(getArticleByPmid(args.get(0)),0);
+			for(final Article a:this.pmid2article.values())
 				{
 				eSummary(a);
 				}
@@ -406,9 +372,9 @@ public class PubmedGraph extends AbstractCommandLineProgram
 			gexf();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 

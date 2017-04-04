@@ -28,9 +28,9 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfstripannot;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -48,14 +48,30 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-
-public class VCFReplaceTag extends AbstractVCFReplaceTag
+@Program(name="vcfreplacetag",description="Replace the key for INFO/FORMAT/FILTER",keywords={"vcf"})
+public class VCFReplaceTag extends Launcher
 	{
 	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractVCFReplaceTag.class);
+	
+	
+	@Parameter(names={"-t","--type"},description="replace type: one of FORMAT,FILTER,INFO",required=true)
+	private String replaceType = "INFO";
+
+	@Parameter(names={"-k","--tag"},description="tag to replace . Format FROM/TO")
+	private List<String> userTagList = new ArrayList<>();
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
 	private Map<String,String> transformMap=new HashMap<>();
 	private int replaceTypeNo=-1;
 	
@@ -64,11 +80,11 @@ public class VCFReplaceTag extends AbstractVCFReplaceTag
 		}
 	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(
+	protected int doVcfToVcf(
 			final String inputName,
 			final VcfIterator r,
 			final VariantContextWriter w)
-			throws IOException {
+			 {
 
 			final VCFHeader header=r.getHeader();
 			
@@ -80,7 +96,7 @@ public class VCFReplaceTag extends AbstractVCFReplaceTag
 					{
 					case 0://INFO
 						{
-						VCFInfoHeaderLine info = header.getInfoHeaderLine(key);
+						final VCFInfoHeaderLine info = header.getInfoHeaderLine(key);
 						if(info!=null)
 							{
 							copyMeta.remove(info);
@@ -90,7 +106,7 @@ public class VCFReplaceTag extends AbstractVCFReplaceTag
 						}
 					case 1: //FORMAT
 						{
-						VCFFormatHeaderLine fmt = header.getFormatHeaderLine(key);
+							final VCFFormatHeaderLine fmt = header.getFormatHeaderLine(key);
 						if(fmt!=null)
 							{
 							copyMeta.remove(fmt);
@@ -100,7 +116,7 @@ public class VCFReplaceTag extends AbstractVCFReplaceTag
 						}
 					case 2: //FILTER
 						{
-						VCFFilterHeaderLine filter = header.getFilterHeaderLine(key);
+						final VCFFilterHeaderLine filter = header.getFilterHeaderLine(key);
 						if(filter!=null)
 							{
 							copyMeta.remove(filter);
@@ -111,9 +127,12 @@ public class VCFReplaceTag extends AbstractVCFReplaceTag
 					default: throw new IllegalStateException(""+this.replaceTypeNo);
 					}
 				}
-			addMetaData(copyMeta);
+			
 
 			final VCFHeader h2=new VCFHeader(copyMeta,header.getSampleNamesInOrder());
+			addMetaData(h2);
+			
+			
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(h2);
 			w.writeHeader(h2);
 			while(r.hasNext())
@@ -181,34 +200,33 @@ public class VCFReplaceTag extends AbstractVCFReplaceTag
 				}	
 			progress.finish();
 			LOG.info("done");
-			return RETURN_OK;
+			return 0;
 			}
 	
 	@Override
-	public Collection<Throwable> initializeKnime()
-		{	
-		if(super.replaceType==null)
+	public int doWork(List<String> args) {
+		if(this.replaceType==null)
 			{
-			return wrapException("Undefined replaceType");
+			throw new JvarkitException.CommandLineError("Undefined replaceType");
 			}
-		super.replaceType= this.replaceType.toUpperCase();
-		if(super.replaceType.equals("FILTER")){replaceTypeNo=2;}
-		else if(super.replaceType.equals("INFO")){replaceTypeNo=0;}
-		else if(super.replaceType.equals("FORMAT")){replaceTypeNo=1;}
+		this.replaceType= this.replaceType.toUpperCase();
+		if(this.replaceType.equals("FILTER")){replaceTypeNo=2;}
+		else if(this.replaceType.equals("INFO")){replaceTypeNo=0;}
+		else if(this.replaceType.equals("FORMAT")){replaceTypeNo=1;}
 		else
 			{	
-			return wrapException("Undefined replace type :"+this.replaceType);
+			throw new JvarkitException.CommandLineError("Undefined replace type :"+this.replaceType);
 			}
-		for(final String s:super.userTagList)
+		for(final String s:this.userTagList)
 			{
 			int slash=s.indexOf('/');
 			if(slash==-1)
 				{
-				return wrapException("missing '/' in "+s);
+				throw new JvarkitException.CommandLineError("missing '/' in "+s);
 				}
 			if(slash==0 || slash+1==s.length())
 				{
-				return wrapException("bad '/' in "+s);
+			 throw new JvarkitException.CommandLineError("bad '/' in "+s);
 				}
 			final String key = s.substring(0,slash);
 			if(replaceTypeNo==1)
@@ -216,17 +234,12 @@ public class VCFReplaceTag extends AbstractVCFReplaceTag
 				if(key.equals("DP") || key.equals("GT")|| key.equals("PL")||
 					key.equals("AD")|| key.equals("GQ"))
 					{
-					return wrapException("Cannot replace built-in FORMAT fields "+key);
+					throw new JvarkitException.CommandLineError("Cannot replace built-in FORMAT fields "+key);
 					}
 				}
 			this.transformMap.put(key,s.substring(slash+1));
 			}
-		return super.initializeKnime();
-		}
-	
-	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+		return doVcfToVcf(args,outputFile);
 		}
 
 	

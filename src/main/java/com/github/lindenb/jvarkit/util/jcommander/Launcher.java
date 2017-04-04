@@ -90,7 +90,11 @@ private class MyJCommander extends JCommander
 				for(String sk:programdesc.keywords()) sb.append(" * "+sk+"\n");
 				sb.append("\n");
 			}
-			
+			if(programdesc.biostars()!=null && programdesc.biostars().length>0) {
+				sb.append("\n## See also in Biostars\n\n");
+				for(int postid:programdesc.biostars()) sb.append(" * https://www.biostars.org/p/"+postid+"\n");
+				sb.append("\n");
+			}
 		}
 		
 		InputStream in=null;
@@ -529,6 +533,15 @@ protected int doVcfToVcf(final String inputNameOrNull,final File outorNull){
 protected int doVcfToVcf(final List<String> inputs,final File outorNull) {
 	return doVcfToVcf(oneFileOrNull(inputs),outorNull);
 	}
+
+
+protected String oneAndOnlyOneFile(final List<String> args) {
+	switch(args.size())
+		{
+		case 1: return args.get(0);
+		default: throw new JvarkitException.CommandLineError("Expected one and only one argument but got "+args.size());
+		}
+}
 
 
 protected String oneFileOrNull(final List<String> args) {

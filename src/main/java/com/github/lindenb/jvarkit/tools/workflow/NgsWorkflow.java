@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -20,6 +19,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -29,12 +33,15 @@ import com.google.gson.JsonPrimitive;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 
-public class NgsWorkflow extends AbstractNgsWorkflow
+@Program(name="ngsworkflow",description="ngs workflow",keywords={"ngs","workflow","pipeline","bam","vcf"})
+public class NgsWorkflow extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(NgsWorkflow.class);
+	private static final Logger LOG =Logger.build(NgsWorkflow.class).make();
 	
 	private enum RefSplitType {WHOLE_GENOME,WHOLE_CONTIG,INTERVAL};
 	
+	@Parameter(names={"-A","--attributes"},description="Dump available attributes and exit")
+	private boolean dumpAttributes = false;
 
 	
 	
@@ -611,7 +618,7 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 						+ " && mv --verbose   $(addsuffix .tmp2.vcf.idx,$@)  $(addsuffix .tmp1.vcf.idx,$@)"
 						);
 				w.print(" && $(call run_jvarkit,vcffilterjs) -F IN_EXAC -e 'variant.hasAttribute(\"exac.AC\")' $(addsuffix .tmp1.vcf,$@) |");
-				w.print(" ${java.exe}  -Djava.io.tmpdir=$(dir $@) -jar /commun/data/packages/snpEff/snpEff_4_3i/snpEff.jar ann -c /commun/data/packages/snpEff/snpEff_4_3i/snpEff.config GRCh37.75 -nodownload -noStats |  ");
+				w.print(" ${java.exe}  -Djava.io.tmpdir=$(dir $@) -jar ${snpeff.jar} ann -c ${snpeff.config} GRCh37.75 -nodownload -noStats |  ");
 				w.print(" ${bgzip.exe} >  $(addsuffix .tmp2.vcf.gz,$@)  ");
 				w.print(" && ${tabix.exe} -p vcf -f $(addsuffix .tmp2.vcf.gz,$@) "
 					+ " && mv --verbose   $(addsuffix .tmp2.vcf.gz,$@) $@ "
@@ -1656,10 +1663,9 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 		r.close();
 		return root;
 		}
-	
 	@Override
-	public Collection<Throwable> call() throws Exception {
-		if(super.dumpAttributes)
+	public int doWork(final List<String> args) {
+		if(this.dumpAttributes)
 			{
 			for(final PropertyKey prop:NgsWorkflow.name2propertyKey.values())
 				{
@@ -1670,22 +1676,22 @@ public class NgsWorkflow extends AbstractNgsWorkflow
 					}
 				System.out.println();
 				}
-			return RETURN_OK;
+			return 0;
 			}
 		try
 			{
-			final List<String> args=this.getInputFiles();
-			if(args.size()!=1) return wrapException("exepcted one and only one json file as input");
+			if(args.size()!=1) throw new JvarkitException.CommandLineError("exepcted one and only one json file as input");
 			final File jsonFile=new File(args.get(0));
-			JsonElement root=readJsonFile(jsonFile);
-			Project proj=new Project(root);
+			final JsonElement root=readJsonFile(jsonFile);
+			final Project proj=new Project(root);
 			execute(proj);
 			out.flush();
-			return RETURN_OK;
+			return 0;
 			}
 		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

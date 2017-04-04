@@ -69,7 +69,7 @@ public Logger debug(Object s) {
 	return log(Level.DEBUG,s);
 	}
 public Logger severe(final Object err) {
-	return severe(err,null);
+	return log(Level.SEVERE,err);
 	}
 
 public Logger severe(final Object err,Throwable t) {
@@ -121,6 +121,12 @@ public Logger log(Logger.Level level,final Object msg,final Throwable err) {
 	this.out.println();
 	if(err!=null)
 		{
+		if( err instanceof java.net.ConnectException) {
+			this.log(level,"It could be a proxy error. Did you set the java proxy ? See http://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html. "+
+					"Something like `java -Dhttp.proxyHost=myproxyhost  -Dhttp.proxyPort=myproxyport -Dhttps.proxyHost=myproxyhost  -Dhttps.proxyPort=myproxyport  `",
+					null);
+			}
+		
 		err.printStackTrace(this.out);
 		}
 	

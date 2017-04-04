@@ -30,11 +30,11 @@ package com.github.lindenb.jvarkit.tools.pubmed;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.Collator;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -53,19 +53,118 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.XMLEvent;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 
 /**
  * PubmedGender
- *
- */
-public class PubmedGender
-	extends AbstractPubmedGender
-	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PubmedGender.class);
+ BEGIN_DOC
+ 
+## Building the database
 
+```
+$ wget -O jeter.zip "https://www.ssa.gov/oact/babynames/names.zip"
+$ unzip -t jeter.zip | tail
+    testing: yob2009.txt              OK
+    testing: yob2010.txt              OK
+    testing: yob2011.txt              OK
+    testing: yob2012.txt              OK
+    testing: yob2013.txt              OK
+    testing: yob2014.txt              OK
+    testing: yob2015.txt              OK
+    testing: yob1880.txt              OK
+    testing: NationalReadMe.pdf       OK
+No errors detected in compressed data of jeter.zip.
+$ unzip -p jeter.zip yob2015.txt &gt; database.csv
+```
+
+## Example
+
+```
+$ java -jar dist/pubmeddump.jar "Lindenbaum[Author] Nantes" 2> /dev/null  | java -jar dist/pubmedgender.jar  -d jeter.csv 2> /dev/null | grep Lindenbaum -A 2 -B 1
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+--
+                <Author ValidYN="Y" male="169">
+                    <LastName>Lindenbaum</LastName>
+                    <ForeName>Pierre</ForeName>
+                    <Initials>P</Initials>
+```
+
+## See also
+
+
+ * A Simple tool to get the sex ratio in pubmed :  http://plindenbaum.blogspot.fr/2010/09/simple-tool-to-get-sex-ratio-in-pubmed.html
+
+
+ 
+ END_DOC
+ */
+@Program(name="pubmedgender",keywords={"pubmed","gender","ncbi","xml"},description="Add gender-related attributes in the Author tag of pubmed xml. ")
+public class PubmedGender
+	extends Launcher
+	{
+	private static final Logger LOG = Logger.build(PubmedGender.class).make();
+
+	@Parameter(names={"-d","--database"},description="REQUIRED: A comma delimited file containing the following columns: 1) Name 2) sex (M/F) 3) Score. See http://cpansearch.perl.org/src/EDALY/Text-GenderFromName-0.33/GenderFromName.pm or https://www.ssa.gov/oact/babynames/names.zip",required=true)
+	private File dataFile = null;
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
 	private static class GenderInfo {
 		String male=null;
 		String female=null;
@@ -80,9 +179,11 @@ public class PubmedGender
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		if(super.dataFile==null || !super.dataFile.exists()) {
-			return wrapException("Undefined option -"+OPTION_DATAFILE);
+	public int doWork(List<String> args) {
+		final String inputName= oneFileOrNull(args);
+		if(this.dataFile==null || !this.dataFile.exists()) {
+			LOG.error("Undefined option -d");
+			return -1;
 		}
 		OutputStream out=null;
 		XMLEventReader r=null;
@@ -93,14 +194,14 @@ public class PubmedGender
 		BufferedReader br=null;
 		try {
 			final Pattern comma=Pattern.compile("[,]");
-			LOG.info("load "+super.dataFile);
+			LOG.info("load "+this.dataFile);
 			this.name2gender.clear();
-			br = IOUtils.openFileForBufferedReading(super.dataFile);
+			br = IOUtils.openFileForBufferedReading(this.dataFile);
 			String line;
 			while((line=br.readLine())!=null) {
 				if(line.startsWith("#")) continue;
 				final String tokens[]= comma.split(line);
-				if(tokens.length!=3) return wrapException("expected 3 comma-separated columns in "+line);
+				if(tokens.length!=3) throw new JvarkitException.UserError("expected 3 comma-separated columns in "+line);
 				tokens[0]=tokens[0].toLowerCase();
 				GenderInfo gi = this.name2gender.get(tokens[0]);
 				if(gi==null) {
@@ -113,7 +214,7 @@ public class PubmedGender
 					gi.male=tokens[2];
 				} else
 				{
-					return wrapException("expected 'M' or 'F' in 2nd column  in "+line);
+					throw new JvarkitException.UserError("expected 'M' or 'F' in 2nd column  in "+line);
 				}
 				
 			}
@@ -134,7 +235,7 @@ public class PubmedGender
 			in=(inputName==null?stdin():IOUtils.openURIForReading(inputName));
 			r = xmlInputFactory.createXMLEventReader(in);
 			
-			out = super.openFileOrStdoutAsStream();
+			out = super.openFileOrStdoutAsStream(this.outputFile);
 			final XMLOutputFactory xof = XMLOutputFactory.newFactory();
 			w=xof.createXMLEventWriter(out, "UTF-8");
 			while(r.hasNext()) {
@@ -228,9 +329,10 @@ public class PubmedGender
 			in.close();in=null;
 			w.flush();w.close();w=null;
 			out.flush();out.close();out=null;
-			return RETURN_OK;
+			return 0;
 		} catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(r);
 			CloserUtil.close(in);

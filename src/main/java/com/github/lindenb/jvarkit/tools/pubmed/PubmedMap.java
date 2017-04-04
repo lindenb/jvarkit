@@ -29,12 +29,12 @@ History:
 package com.github.lindenb.jvarkit.tools.pubmed;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -51,19 +51,94 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.XMLEvent;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 
 /**
  * PubmedMap
- *
+BEGIN_DOC
+
+## Motivation
+use the Affiliation field in XML pubmed and try to insert some XML attributes describing the location.
+
+## Example
+
+```
+$ curl -s "https://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=26941271&retmode=xml" |java -jar dist/pubmedmap.jar   |\
+grep domain -B 5
+
+                 <Author>
+                    <LastName>Lai</LastName>
+                    <ForeName>Chih-Cheng</ForeName>
+                    <Initials>CC</Initials>
+                    <AffiliationInfo>
+                        <Affiliation domain="tw" place="Taiwan">Department of Intensive Care Medicine, Chi Mei Medical Center, Liouying, Tainan, Taiwan.</Affiliation>
+--
+                    <LastName>Lee</LastName>
+                    <ForeName>Meng-Tse Gabriel</ForeName>
+                    <Initials>MG</Initials>
+                    <Identifier Source="ORCID">http://orcid.org/0000-0002-2648-1522</Identifier>
+                    <AffiliationInfo>
+                        <Affiliation domain="tw" place="Taiwan">Department of Emergency Medicine, National Taiwan University Hospital, Taipei, Taiwan.</Affiliation>
+--
+                    <LastName>Lee</LastName>
+                    <ForeName>Shih-Hao</ForeName>
+                    <Initials>SH</Initials>
+                    <Identifier Source="ORCID">http://orcid.org/0000-0002-2648-1522</Identifier>
+                    <AffiliationInfo>
+                        <Affiliation domain="tw" place="Taiwan">Department of Emergency Medicine, National Taiwan University Hospital, Taipei, Taiwan.</Affiliation>
+--
+                <Author>
+                    <LastName>Hsu</LastName>
+                    <ForeName>Wan-Ting</ForeName>
+                    <Initials>WT</Initials>
+                    <AffiliationInfo>
+                        <Affiliation domain="tw" place="Taiwan">Department of Emergency Medicine, National Taiwan University Hospital, Taipei, Taiwan.</Affiliation>
+--
+                <Author>
+                    <LastName>Chang</LastName>
+                    <ForeName>Shy-Shin</ForeName>
+                    <Initials>SS</Initials>
+                    <AffiliationInfo>
+                        <Affiliation domain="tw" place="Taiwan">Department of Family Medicine, Chang Gung Memorial Hospital, Linkou, Taiwan Graduate Institute of Clinical Medical Sciences, College of Medicine, Chang Gung University, Taoyuan, Taiwan.</Affiliation>
+--
+                <Author>
+                    <LastName>Chen</LastName>
+                    <ForeName>Shyr-Chyr</ForeName>
+                    <Initials>SC</Initials>
+                    <AffiliationInfo>
+                        <Affiliation domain="tw" place="Taiwan">Department of Emergency Medicine, National Taiwan University Hospital, Taipei, Taiwan.</Affiliation>
+--
+                    <LastName>Lee</LastName>
+                    <ForeName>Chien-Chang</ForeName>
+                    <Initials>CC</Initials>
+                    <Identifier Source="ORCID">http://orcid.org/0000-0002-2648-1522</Identifier>
+                    <AffiliationInfo>
+                        <Affiliation domain="tw" place="Taiwan">Department of Emergency Medicine, National Taiwan University Hospital, Taipei, Taiwan Department of Emergency Medicine, National Taiwan University Hospital, Yunlin Branch, Douliou, Taiwan.</Affiliation>
+ (...)
+```
+
+## See also
+
+ * Mapping NCBI/PUBMED: http://plindenbaum.blogspot.fr/2007/06/mapping-ncbipubmed.html
+
+
+
+END_DOC
  */
+@Program(name="pubmedmap",description="Use Pubmed Author's Affiliation to map the authors .",keywords={"pubmed","xml","gis","map"})
 public class PubmedMap
-	extends AbstractPubmedMap
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PubmedMap.class);
-	
+	private static final Logger LOG = Logger.build(PubmedMap.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outFile=null;
+
 	private static class Country {
 	final String suffix;
 	final String name;
@@ -417,7 +492,8 @@ public class PubmedMap
 			}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public int doWork(final List<String> args) {
+		final String inputName= oneFileOrNull(args);
 		OutputStream out=null;
 		XMLEventReader r=null;
 		InputStream in=null;
@@ -438,7 +514,7 @@ public class PubmedMap
 			in=(inputName==null?stdin():IOUtils.openURIForReading(inputName));
 			r = xmlInputFactory.createXMLEventReader(in);
 			
-			out = super.openFileOrStdoutAsStream();
+			out = super.openFileOrStdoutAsStream(this.outFile);
 			final XMLOutputFactory xof = XMLOutputFactory.newFactory();
 			w=xof.createXMLEventWriter(out, "UTF-8");
 			while(r.hasNext()) {
@@ -485,9 +561,10 @@ public class PubmedMap
 			in.close();in=null;
 			w.flush();w.close();w=null;
 			out.flush();out.close();out=null;
-			return RETURN_OK;
-		} catch (Exception e) {
-			return wrapException(e);
+			return 0;
+		} catch (final Exception err) {
+			LOG.error(err);
+			return -1;
 		} finally {
 			CloserUtil.close(r);
 			CloserUtil.close(in);

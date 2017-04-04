@@ -27,14 +27,19 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.bam2xml;
 
+import java.io.File;
 import java.io.OutputStream;
-import java.util.Collection;
+import java.util.List;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;
@@ -54,9 +59,13 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 
-public class Bam2Xml extends AbstractBam2Xml
+@Program(name="bam2xml",keywords={"sam","bam","xml"},description="converts a BAM to XML")
+public class Bam2Xml extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(AbstractBam2Xml.class);
+	private static final Logger LOG = Logger.build(Bam2Xml.class).make();
+	
+	@Parameter(names={"-o","--out"},description="Output file or stdout")
+	private File outputFile = null;
 
 	public static class SAMXMLWriter implements SAMFileWriter
 		{
@@ -273,9 +282,9 @@ public class Bam2Xml extends AbstractBam2Xml
 		        {
 		        XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 		        
-		        if(getOutputFile()!=null)
+		        if(this.outputFile!=null)
 			        {
-		        	fout= IOUtils.openFileForWriting(getOutputFile());
+		        	fout= IOUtils.openFileForWriting(this.outputFile);
 			        w= xmlfactory.createXMLStreamWriter(fout,"UTF-8");
 			        }
 		        else
@@ -309,20 +318,20 @@ public class Bam2Xml extends AbstractBam2Xml
 	    	return 0;
 	    	}
 		
-		
+	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		SamReader r=null;
+	public int doWork(final List<String> args) {
+			SamReader r=null;
 			try
 				{
-				r= openSamReader(inputName);
+				r= openSamReader(oneFileOrNull(args));
 				run(r);
-				return RETURN_OK;
+				return 0;
 				}
-			catch(Exception err)
+			catch(final Exception err)
 				{
-				err.printStackTrace();
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 				}
 			finally
 				{

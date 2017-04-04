@@ -30,10 +30,11 @@ package com.github.lindenb.jvarkit.tools.pubmed;
 
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.PrintWriter;
 import java.net.URLEncoder;
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLEventWriter;
@@ -44,43 +45,78 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.util.CloserUtil;
 
 /**
- * PubmedDump
+BEGIN_DOC
+
+## Example
+
+```
+$  java -jar dist/pubmeddump.jar "Lindenbaum P" | grep ArticleTitle
+			
+	<ArticleTitle>NGS library preparation may generate artifactual integration sites of AAV vectors.</ArticleTitle>
+    <ArticleTitle>Mutations in FAM111B cause hereditary fibrosing poikiloderma with tendon contracture, myopathy, and pulmonary fibrosis.</ArticleTitle>
+    <ArticleTitle>[The Spanish Association of Surgeon's audited teaching programme for rectal cancer. Results after six years].</ArticleTitle>
+    <ArticleTitle>Common variants at SCN5A-SCN10A and HEY2 are associated with Brugada syndrome, a rare disease with high risk of sudden cardiac death.</ArticleTitle>
+    <ArticleTitle>The 3rd DBCLS BioHackathon: improving life science data integration with Semantic Web technologies.</ArticleTitle>
+    <ArticleTitle>Mass spectrometry-based identification of native cardiac Nav1.5 channel α subunit phosphorylation sites.</ArticleTitle>
+    <ArticleTitle>BioStar: an online question &amp; answer resource for the bioinformatics community.</ArticleTitle>
+    <ArticleTitle>Knime4Bio: a set of custom nodes for the interpretation of next-generation sequencing data with KNIME.</ArticleTitle>
+    <ArticleTitle>Truncating mutations in the last exon of NOTCH2 cause a rare skeletal disorder with osteoporosis.</ArticleTitle>
+    <ArticleTitle>The Gene Wiki: community intelligence applied to human gene annotation.</ArticleTitle>
+    <ArticleTitle>Robust physical methods that enrich genomic regions identical by descent for linkage studies: confirmation of a locus for osteogenesis imperfecta.</ArticleTitle>
+    <ArticleTitle>Association of autism with polymorphisms in the paired-like homeodomain transcription factor 1 (PITX1) on chromosome 5q31: a candidate gene analysis.</ArticleTitle>
+    <ArticleTitle>Haplotypes in the gene encoding protein kinase c-beta (PRKCB1) on chromosome 16 are associated with autism.</ArticleTitle>
+    <ArticleTitle>RoXaN, a novel cellular protein containing TPR, LD, and zinc finger motifs, forms a ternary complex with eukaryotic initiation factor 4G and rotavirus NSP3.</ArticleTitle>
+    <ArticleTitle>CloneIt: finding cloning strategies, in-frame deletions and frameshifts.</ArticleTitle>
+    <ArticleTitle>In vivo and in vitro phosphorylation of rotavirus NSP5 correlates with its localization in viroplasms.</ArticleTitle>
+```
+
+## See also
+
+ * https://gist.github.com/lindenb/6bfb49fd8bc3dd27d99f
+
+END_DOC
  *
  */
+@Program(name="pubmeddump",keywords={"ncbi","pubmed","xml"}, description="Dump XML results from pubmed/Eutils")
 public class PubmedDump
-	extends AbstractPubmedDump
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PubmedDump.class);
+	private static final Logger LOG = Logger.build(PubmedDump.class).make();
+
+	@Parameter(names={"-e","--email"},description="optional user email")
+	private String email = null;
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
 
 	private String tool="pubmedump";
 
-	public PubmedDump()
-		{
-		
+	public PubmedDump() {
 		}
 	
 	@Override
-	public Collection<Throwable> call() throws Exception {
+	public int doWork(final List<String> args) {
 		PrintWriter pw=null;
-		final List<String> args = getInputFiles();
-		final StringBuilder query=new StringBuilder();
+		
 		if(args.isEmpty())
 			{
-			return wrapException("Query missing");
+			LOG.error("Query missing");
+			return -1;
 			}
-		for(final String arg:args)
+		final String query=args.stream().collect(Collectors.joining(" ")).trim();
+		
+		if(query.isEmpty())
 			{
-			if(query.length()>0) query.append(" ");
-			query.append(arg);
+			LOG.error("query is empty");
+			return -1;
 			}
-		if(query.toString().trim().isEmpty())
-			{
-			return wrapException("Query is empty");
-			}
-
 		
 		try
 			{
@@ -135,9 +171,10 @@ public class PubmedDump
 			
 			if(count<0 || WebEnv==null || QueryKey==null)
 				{
-				return wrapException("Bad esearch result");
+				LOG.error("Bad esearch result");
+				return -1;
 				}
-			pw=super.openFileOrStdoutAsPrintWriter();
+			pw=super.openFileOrStdoutAsPrintWriter(outputFile);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			XMLEventWriter w=xof.createXMLEventWriter(pw);
 			long nFound=0L;
@@ -237,7 +274,7 @@ public class PubmedDump
 							}
 						default:
 							{
-							return wrapException("XML evt no handled: "+evt);
+							throw new IllegalStateException("XML evt no handled: "+evt);
 							}
 						}
 					}
@@ -252,11 +289,12 @@ public class PubmedDump
 			w.close();
 			pw.flush();
 			pw.close();
-			return RETURN_OK;
+			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

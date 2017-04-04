@@ -11,4 +11,5 @@ public @interface Program {
 	public String description() default "";
 	public String deprecatedMsg() default "";
 	public String[] keywords() default {};
+	public int[] biostars() default {};
 }

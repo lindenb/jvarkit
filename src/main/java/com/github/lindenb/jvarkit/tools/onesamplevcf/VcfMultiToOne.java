@@ -28,8 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.onesamplevcf;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -50,7 +50,11 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -58,9 +62,21 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /*
  * VcfMultiToOne
  */
-public class VcfMultiToOne extends AbstractVcfMultiToOne
+@Program(name="vcfmulti2one",description=">Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column",keywords={"vcf","sample"})
+public class VcfMultiToOne extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractVcfMultiToOne.class);
+	private static final Logger LOG = Logger.build(VcfMultiToOne.class).make();
+
+	@Parameter(names={"-c","--discard_no_call"},description="discard if variant is no-call")
+	private boolean discard_no_call = false;
+	@Parameter(names={"-r","--discard_hom_ref"},description="discard if variant is hom-ref")
+	private boolean discard_hom_ref = false;
+	@Parameter(names={"-a","--discard_non_available"},description="discard if variant is not available")
+	private boolean discard_non_available = false;
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
 
 	public static final String DEFAULT_VCF_SAMPLE_NAME="SAMPLE";
 	public static final String DEFAULT_SAMPLE_TAGID="SAMPLENAME";
@@ -91,11 +107,8 @@ public class VcfMultiToOne extends AbstractVcfMultiToOne
 			}
 		return samples;
 		}
-	
 	@Override
-	public Collection<Throwable> call() throws Exception
-		{
-		final List<String> arguments =  getInputFiles();
+	public int doWork(final List<String> arguments) {
 		VariantContextWriter  out=null;
 		Set<String> args= IOUtils.unrollFiles(arguments);
 		List<VcfIterator> inputs=new ArrayList<>(args.size()+1);
@@ -111,7 +124,8 @@ public class VcfMultiToOne extends AbstractVcfMultiToOne
 				}
 			else if(args.isEmpty())
 				{
-				return wrapException(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error("No vcf provided");
+				return -1;
 				}
 			else
 				{
@@ -134,11 +148,13 @@ public class VcfMultiToOne extends AbstractVcfMultiToOne
 					}
 				else if(header.getSequenceDictionary()==null)
 					{
-					return wrapException(getMessageBundle("no.dict.in.vcf"));
+					LOG.error("No Dictionary in vcf");
+					return -1;
 					}
 				else if(!SequenceUtil.areSequenceDictionariesEqual(dict, header.getSequenceDictionary()))
 					{
-					return wrapException(getMessageBundle("not.the.same.sequence.dictionaries"));
+					LOG.error("Not the same dictionary between vcfs");
+					return -1;
 					}
 				metaData.addAll(in.getHeader().getMetaDataInInputOrder());
 				sampleNames.addAll(in.getHeader().getSampleNamesInOrder());
@@ -149,7 +165,7 @@ public class VcfMultiToOne extends AbstractVcfMultiToOne
 					VCFUtils.createChromPosRefComparator():
 					VCFUtils.createTidPosRefComparator(dict)
 					);
-			addMetaData(metaData);
+			//addMetaData(metaData);
 			metaData.add(new VCFInfoHeaderLine(
 					DEFAULT_SAMPLE_TAGID,1,VCFHeaderLineType.String,
 					"Sample Name from multi-sample vcf"
@@ -172,7 +188,7 @@ public class VcfMultiToOne extends AbstractVcfMultiToOne
 					Collections.singleton(DEFAULT_VCF_SAMPLE_NAME)
 					);
 			
-			out= super.openVariantContextWriter();
+			out= super.openVariantContextWriter(this.outputFile);
 			out.writeHeader(h2);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			for(;;)
@@ -212,7 +228,7 @@ public class VcfMultiToOne extends AbstractVcfMultiToOne
 				
 				if(ctx.getNSamples()==0)
 					{
-					if(!super.discard_no_call)
+					if(!this.discard_no_call)
 						{
 						VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 						vcb.attribute(DEFAULT_SAMPLE_FILETAGID,inputFiles.get(best_idx));
@@ -227,9 +243,9 @@ public class VcfMultiToOne extends AbstractVcfMultiToOne
 					Genotype g= ctx.getGenotype(i);
 					String sample = g.getSampleName();
 					
-					if(!g.isCalled() && super.discard_no_call) continue;
-					if(!g.isAvailable() && super.discard_non_available) continue;
-					if(g.isHomRef() && super.discard_hom_ref) continue;
+					if(!g.isCalled() && this.discard_no_call) continue;
+					if(!g.isAvailable() && this.discard_non_available) continue;
+					if(g.isHomRef() && this.discard_hom_ref) continue;
 					
 					
 					GenotypeBuilder gb=new GenotypeBuilder(g);
@@ -247,11 +263,12 @@ public class VcfMultiToOne extends AbstractVcfMultiToOne
 				}
 			progress.finish();
 			LOG.debug("done");
-			return RETURN_OK;
+			return 0;
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

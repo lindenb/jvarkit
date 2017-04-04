@@ -109,4 +109,11 @@ public static class MixingApplesAndOranges extends ShouldNeverHappen
 		}
 	}
 
+public static class BerkeleyDbError  extends Error
+	{	
+	public BerkeleyDbError(final String msg) {
+		super(msg);
+		}
+	}
+
 }
