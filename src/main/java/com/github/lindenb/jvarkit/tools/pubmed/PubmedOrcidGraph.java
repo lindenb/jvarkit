@@ -257,8 +257,11 @@ public class PubmedOrcidGraph
 			
 			w.writeStartElement("node");
 			w.writeAttribute("id", this.orcid);
+			w.writeAttribute("label", String.join(" ",foreName,lastName));
 			w.writeStartElement("attvalues");
 			
+
+
 			w.writeEmptyElement("attvalue");
 			w.writeAttribute("for","orcid");
 			w.writeAttribute("value",this.orcid);
@@ -754,7 +757,7 @@ public class PubmedOrcidGraph
 			/* graph */
 			w.writeStartElement("graph");
 			w.writeAttribute("mode", "static");
-			w.writeAttribute("defaultedgetype", "directed");
+			w.writeAttribute("defaultedgetype", "undirected");
 	
 			
 			/* attributes */

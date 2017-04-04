@@ -89,6 +89,12 @@ velocity.jars  =  \
 jcommander.jar= \
 	$(lib.dir)/com/beust/jcommander/1.64/jcommander-1.64.jar
 
+berkeleydb.jar=$(lib.dir)/com/sleepycat/je/7.3.7/je-7.3.7.jar
+
+${berkeleydb.jar}:
+	mkdir -p $(dir $@) && wget -O "$@" "http://download.oracle.com/maven/$(patsubst ${lib.dir}/%,%,$@)"
+	
+
 all_maven_jars = $(sort ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
 
 

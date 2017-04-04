@@ -43,8 +43,6 @@ galaxy.dir?=galaxy
 
 mysql.version?=5.1.34
 mysql.jar?=lib/mysql-connector-java-${mysql.version}-bin.jar
-berkeleydb.version?=6.2.31
-berkeleydb.jar?=lib/je-${berkeleydb.version}.jar
 bigwig.version=20150429
 bigwig.jar?=lib/BigWig.jar
 bigwig.log4j.jar=$(dir ${bigwig.jar})/log4j-1.2.15.jar
@@ -667,13 +665,6 @@ ${mysql.jar} :
 	mv mysql-connector-java-${mysql.version}-bin.jar $@
 	rm jeter.tar.gz
 
-##
-## BerkeleyDB
-## 
-${berkeleydb.jar}:
-	echo "Downloading berkeleydb for java version ${berkeleydb.version} from oracle"
-	mkdir -p $(dir $@)
-	curl -Lk ${curl.proxy} -o $@ "http://download.oracle.com/maven/com/sleepycat/je/${berkeleydb.version}/je-${berkeleydb.version}.jar"
 
 ##
 ## Broad BigWig
