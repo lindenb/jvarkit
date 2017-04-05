@@ -286,7 +286,7 @@ $(eval $(call compile-htsjdk-cmd,bamstats05,${jvarkit.package}.tools.bamstats04.
 $(eval $(call compile-htsjdk-cmd,bamtreepack,${jvarkit.package}.tools.treepack.BamTreePack,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,batchigvpictures,${jvarkit.package}.tools.batchpicts.BatchIGVPictures,copy.opendoc.odp.resources))
 $(eval $(call compile-htsjdk-cmd,bedliftover,${jvarkit.package}.tools.liftover.BedLiftOver))
-$(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.ConvertBedChromosomes))
+$(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.ConvertBedChromosomes,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,103303))
 $(eval $(call compile_biostar_cmd,106668))
 $(eval $(call compile_biostar_cmd,130456,wiki_flag))
