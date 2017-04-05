@@ -564,6 +564,7 @@ api.uniprot :
 
 
 api.ncbi.pubmed : 
+	rm -rf  ${generated.dir}/java/gov/nih/nlm/ncbi/pubmed/
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_100101.dtd"
 	

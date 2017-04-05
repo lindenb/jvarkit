@@ -31,7 +31,6 @@ package com.github.lindenb.jvarkit.tools.pubmed;
 
 import gov.nih.nlm.ncbi.pubmed.ObjectFactory;
 import gov.nih.nlm.ncbi.pubmed.PubmedArticle;
-import gov.nih.nlm.ncbi.pubmed.PubmedBookArticle;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -229,11 +228,11 @@ public class PubmedFilterJS
 							jaxbElement= unmarshaller.unmarshal(r,PubmedArticle.class);
 							article=jaxbElement.getValue();
 							}
-						else if(localName.equals("PubmedBookArticle"))
+						/* no more in the latest dtd else if(localName.equals("PubmedBookArticle"))
 							{
 							jaxbElement= unmarshaller.unmarshal(r,PubmedBookArticle.class);
 							article=jaxbElement.getValue();
-							}
+							} */
 						else
 							{
 							w.add(r.nextEvent());
