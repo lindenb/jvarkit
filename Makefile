@@ -264,7 +264,7 @@ $(eval $(call compile_biostar_cmd,92368,${berkeleydb.jar}))
 #mysql
 $(eval $(call compile-htsjdk-cmd,vcfucsc,${jvarkit.package}.tools.vcfucsc.VcfUcsc,${mysql.jar}))
 
-$(eval $(call compile-htsjdk-cmd,addlinearindextobed,${jvarkit.package}.tools.misc.AddLinearIndexToBed))
+$(eval $(call compile-htsjdk-cmd,addlinearindextobed,${jvarkit.package}.tools.misc.AddLinearIndexToBed,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,allelefreqcalc,${jvarkit.package}.tools.misc.AlleleFrequencyCalculator))
 $(eval $(call compile-htsjdk-cmd,bam2xml,${jvarkit.package}.tools.bam2xml.Bam2Xml,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,almostsortedvcf,${jvarkit.package}.tools.sortvcfonref.AlmostSortedVcf))
@@ -368,7 +368,7 @@ $(eval $(call compile-htsjdk-cmd,liftover2svg,${jvarkit.package}.tools.liftover.
 $(eval $(call compile-htsjdk-cmd,mapuniprot,${jvarkit.package}.tools.misc.MapUniProtFeatures,${generated.dir}/java/org/uniprot/package-info.java))
 $(eval $(call compile-htsjdk-cmd,mergesplittedblast,${jvarkit.package}.tools.blast.MergeSplittedBlast,api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,metrics2xml,${jvarkit.package}.tools.metrics2xml.PicardMetricsToXML))
-$(eval $(call compile-htsjdk-cmd,ncbitaxonomy2xml,${jvarkit.package}.tools.misc.NcbiTaxonomyToXml))
+$(eval $(call compile-htsjdk-cmd,ncbitaxonomy2xml,${jvarkit.package}.tools.misc.NcbiTaxonomyToXml,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,ngsfilessummary,${jvarkit.package}.tools.ngsfiles.NgsFilesSummary))
 $(eval $(call compile-htsjdk-cmd,noemptyvcf,${jvarkit.package}.tools.misc.NoEmptyVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,nozerovariationvcf,${jvarkit.package}.tools.misc.NoZeroVariationVCF))
@@ -509,7 +509,7 @@ $(eval $(call compile-htsjdk-cmd,sammaskalignedbases,${jvarkit.package}.tools.mi
 $(eval $(call compile-htsjdk-cmd,gff2kg,${jvarkit.package}.tools.misc.Gff2KnownGene,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,miniassembly,${jvarkit.package}.tools.misc.MiniAssembly,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,haloplexparasite,${jvarkit.package}.tools.haloplex.HaloplexParasite,wiki_flag))
-$(eval $(call compile-htsjdk-cmd,bam2sql,${jvarkit.package}.tools.misc.BamToSql,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,bam2sql,${jvarkit.package}.tools.misc.BamToSql,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfinjectpedigree,${jvarkit.package}.tools.burden.VcfInjectPedigree,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,gbrowserhtml,${jvarkit.package}.tools.misc.GBrowserHtml,wiki_flag ${gson.jar} copy.samtools.js))
 $(eval $(call compile-htsjdk-cmd,bim2vcf,${jvarkit.package}.tools.misc.BimToVcf,wiki_flag))
@@ -565,7 +565,7 @@ api.uniprot :
 
 api.ncbi.pubmed : 
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_150101.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_100101.dtd"
 	
 
 api.evs:
@@ -582,7 +582,7 @@ api.ncbi.esearch:
 
 api.ncbi.elink:
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.elink -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/entrez/query/DTD/elink_020122.dtd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.elink -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/eLink_020511.dtd"
 
 
 api.ncbi.gb:

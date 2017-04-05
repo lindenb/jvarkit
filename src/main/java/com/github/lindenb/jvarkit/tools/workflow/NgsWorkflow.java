@@ -630,6 +630,7 @@ public class NgsWorkflow extends Launcher
 						);
 				w.print(" && $(call run_jvarkit,vcffilterjs) -F IN_EXAC -e 'variant.hasAttribute(\"exac.AC\")' $(addsuffix .tmp1.vcf,$@) |");
 				w.print(" ${java.exe}  -Djava.io.tmpdir=$(dir $@) -jar ${snpeff.jar} ann -c ${snpeff.config} GRCh37.75 -nodownload -noStats |  ");
+				w.print(" $(call vep78) |");
 				w.print(" ${bgzip.exe} >  $(addsuffix .tmp2.vcf.gz,$@)  ");
 				w.print(" && ${tabix.exe} -p vcf -f $(addsuffix .tmp2.vcf.gz,$@) "
 					+ " && mv --verbose   $(addsuffix .tmp2.vcf.gz,$@) $@ "
@@ -752,7 +753,7 @@ public class NgsWorkflow extends Launcher
 			w.append("	-nct ").append(getAttribute(PROP_GATK_HAPCALLER_NCT));
 			
 			w.append("	--dbsnp \"$(gatk.bundle.dbsnp.vcf)\" ");
-			w.append(" $(foreach A, PossibleDeNovo AS_FisherStrand AlleleBalance AlleleBalanceBySample BaseCountsBySample GCContent ClippingRankSumTest , --annotation ${A} ) ");
+			w.append(" $(foreach A,StrandAlleleCountsBySample  PossibleDeNovo AS_FisherStrand AlleleBalance AlleleBalanceBySample BaseCountsBySample GCContent ClippingRankSumTest , --annotation ${A} ) ");
 			w.append(" --pedigree ").append(getProject().getPedigree().getPedFilename());
 			if( getProject().hasCapture())
 	            {

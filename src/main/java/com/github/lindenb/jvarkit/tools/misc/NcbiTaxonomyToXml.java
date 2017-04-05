@@ -32,9 +32,10 @@ History:
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -43,14 +44,30 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class NcbiTaxonomyToXml extends AbstractCommandLineProgram
+import htsjdk.samtools.util.CloserUtil;
+
+@Program(name="ncbitaxonomy2xml",
+	description="Dump NCBI taxonomy tree as a hierarchical XML document",
+	keywords={"taxonomy","ncbi","xml"}
+	)
+public class NcbiTaxonomyToXml extends Launcher
 	{
-	private Map<Integer,Node> id2node=new HashMap<Integer,Node>();
+	private static final Logger LOG = Logger.build(NcbiTaxonomyToXml.class).make();
 	
-		
+	@Parameter(names={"-o","--out"},description="Output file or stdout")
+	private File outputFile = null;
+	@Parameter(names={"-r","--root"},description="NCBI taxon root id.")
+	private int root_id=1;
+
+	
+	private final Map<Integer,Node> id2node=new HashMap<Integer,Node>();
+
 	private static class Node
 		{
 		int id=0;
@@ -79,7 +96,7 @@ public class NcbiTaxonomyToXml extends AbstractCommandLineProgram
 			}
 		
 		
-		void writeXml(XMLStreamWriter w) throws XMLStreamException
+		void writeXml(final XMLStreamWriter w) throws XMLStreamException
 			{
 			w.writeStartElement("Taxon");
 			w.writeAttribute("id", String.valueOf(this.id));
@@ -171,69 +188,31 @@ public class NcbiTaxonomyToXml extends AbstractCommandLineProgram
 	
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/NcbiTaxonomyToXml";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Dump NCBI taxonomy tree as a hierarchical XML document";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out) {
-		out.print(" -r (id) NCBI taxon root id. Optional. Default: 1");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		int root_id=1;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"r:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'r': root_id=Integer.parseInt(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
+		OutputStream out=null;
 		File baseDir=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			final String baseDirStr = super.oneFileOrNull(args);
+			if(baseDirStr==null)
 				{
 				baseDir=null;
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else 
 				{
-				baseDir=new File(args[opt.getOptInd()]);
+				baseDir=new File(baseDirStr);
 				}
-			else
-				{
-				return -1;
-				}
-				 
+			
 			
 			
 			File inputFile=new File(baseDir,"nodes.dmp");
-			info("Reading Nodes "+inputFile);
+			LOG.info("Reading Nodes "+inputFile);
 			BufferedReader in=IOUtils.openFileForBufferedReading(inputFile);
 			readNodes(in);
 			in.close();
 			
 			inputFile=new File(baseDir,"names.dmp");
-			info("Reading Names "+inputFile);
+			LOG.info("Reading Names "+inputFile);
 			in=IOUtils.openFileForBufferedReading(inputFile);
 			readNames(in);
 			in.close();
@@ -241,32 +220,33 @@ public class NcbiTaxonomyToXml extends AbstractCommandLineProgram
 			Node root= this.id2node.get(root_id);
 			if(root==null)
 				{
-				error("Cannot get node id."+root_id);
+				LOG.error("Cannot get node id."+root_id);
 				return -1;
 				}
 			
-			
+			out= super.openFileOrStdoutAsStream(outputFile);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			XMLStreamWriter w=xof.createXMLStreamWriter(System.out, "UTF-8");
+			XMLStreamWriter w=xof.createXMLStreamWriter(out, "UTF-8");
 			w.writeStartDocument("UTF-8", "1.0");
 			w.writeStartElement("TaxaSet");
-			w.writeComment(getProgramName()+" by "+getAuthorName());
 			w.writeComment(getProgramCommandLine());
 			root.writeXml(w);
 			w.writeEndElement();//TaxaSet
 	
 			w.writeEndDocument();
 			w.flush();
-			System.out.flush();
+			out.flush();
+			out.close();out=null;
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
+			CloserUtil.close(out);
 			}
 		}
 	public static void main(String[] args)

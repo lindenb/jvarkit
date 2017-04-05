@@ -29,9 +29,9 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,15 +49,246 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMSequenceDictionaryHelper;
+/**
+ BEGIN_DOC
+ 
+## Motivation
 
+Inserting a BAM in a SQL is not a good idea of course !
+
+But it might be interesting to get some informations about the bases in a segment of bam.
+
+## Schema
+The schema can change if some options (-c , -f) are used.
+At the time of writing the schema is :
+
+```sql
+CREATE TABLE IF NOT EXISTS SamFile
+(
+id INTEGER PRIMARY KEY,
+filename TEXT
+);
+
+CREATE TABLE IF NOT EXISTS Dictionary
+(
+id INTEGER PRIMARY KEY,
+name TEXT NOT NULL,
+length INT NOT NULL,
+tid INT NOT NULL,
+samfile_id INT NOT NULL,
+FOREIGN KEY(samfile_id) REFERENCES SamFile(id)
+);
+
+CREATE TABLE IF NOT EXISTS ReadGroup
+(
+id INTEGER PRIMARY KEY,
+groupId TEXT NOT NULL,
+sample TEXT NOT NULL,
+samfile_id INT NOT NULL,
+FOREIGN KEY(samfile_id) REFERENCES SamFile(id)
+);
+
+CREATE TABLE IF NOT EXISTS Read
+(
+id INTEGER PRIMARY KEY,
+name TEXT NOT NULL,
+flag INTEGER NOT NULL,
+rname TEXT,
+pos INTEGER,
+mapq INTEGER NOT NULL,
+cigar TEXT,
+rnext TEXT,
+pnext INTEGER,
+tlen INTEGER,
+sequence TEXT NOT NULL,
+qualities TEXT NOT NULL,
+samfile_id INT NOT NULL,
+group_id INT,
+FOREIGN KEY(samfile_id) REFERENCES SamFile(id),
+FOREIGN KEY(group_id) REFERENCES ReadGroup(id)
+);
+
+CREATE TABLE IF NOT EXISTS Cigar
+(
+id INTEGER PRIMARY KEY,
+read_pos INT ,
+read_base TEXT,
+read_qual INT ,
+ref_pos INT ,
+ref_base TEXT,
+operator TEXT NOT NULL,
+read_id INT NOT NULL,
+FOREIGN KEY(read_id) REFERENCES Read(id)
+);
+```
+
+
+## Example
+Build a sqlite3 database for a set of BAM files in the region "rotavirus:1-10""
+
+```
+$java -jar dist/bam2sql.jar -r 'rotavirus:1-10' -R  ref.fa -c S*.bam |\
+sqlite3 database.sqlite
+```
+
+Select data from sqlite database where the genomic position is "rotavirus:5" 
+
+```sql
+select  SamFile.filename,
+		ReadGroup.sample,
+		Read.flag,
+		Read.rname,
+		Cigar.operator,
+		Cigar.read_pos,
+		Cigar.read_base,
+		Cigar.read_qual,
+		Cigar.ref_pos,
+		Cigar.ref_base
+from
+		SamFile,Read,Cigar,ReadGroup
+where
+		SamFile.id = Read.samfile_id AND
+		ReadGroup.id = Read.group_id AND 
+		Cigar.read_id = Read.id and
+		Read.rname = "rotavirus" and 
+		Cigar.ref_pos= 5
+		;
+```
+
+query:
+
+```
+$ sqlite3 -header -separator '   ' database.sqlite &lt; query.sql  | column -t 
+```
+
+output:
+
+```
+filename  sample  flag  rname      operator  read_pos  read_base  read_qual  ref_pos  ref_base
+S1.bam    S1      99    rotavirus  M         4         T          10         5        T
+S1.bam    S1      163   rotavirus  M         4         T          10         5        T
+S1.bam    S1      163   rotavirus  M         4         T          10         5        T
+S1.bam    S1      99    rotavirus  M         4         T          10         5        T
+S1.bam    S1      163   rotavirus  M         4         T          10         5        T
+S1.bam    S1      99    rotavirus  M         3         T          10         5        T
+S1.bam    S1      99    rotavirus  M         3         T          10         5        T
+S1.bam    S1      99    rotavirus  M         3         T          10         5        T
+S1.bam    S1      99    rotavirus  M         3         T          10         5        T
+S1.bam    S1      163   rotavirus  M         3         T          10         5        T
+S1.bam    S1      163   rotavirus  M         3         T          10         5        T
+S1.bam    S1      163   rotavirus  M         3         T          10         5        T
+S1.bam    S1      99    rotavirus  M         3         T          10         5        T
+S1.bam    S1      163   rotavirus  M         3         T          10         5        T
+S1.bam    S1      99    rotavirus  M         2         T          10         5        T
+S1.bam    S1      99    rotavirus  M         2         T          10         5        T
+S1.bam    S1      163   rotavirus  M         2         T          10         5        T
+S1.bam    S1      163   rotavirus  M         2         T          10         5        T
+S1.bam    S1      99    rotavirus  M         1         T          10         5        T
+S1.bam    S1      99    rotavirus  M         1         T          10         5        T
+S1.bam    S1      163   rotavirus  M         1         T          10         5        T
+S1.bam    S1      163   rotavirus  M         1         T          10         5        T
+S1.bam    S1      163   rotavirus  M         4         T          10         5        T
+S1.bam    S1      163   rotavirus  M         0         T          10         5        T
+S1.bam    S1      163   rotavirus  M         0         T          10         5        T
+S1.bam    S1      163   rotavirus  M         0         T          10         5        T
+S1.bam    S1      163   rotavirus  M         0         T          10         5        T
+S1.bam    S1      99    rotavirus  S         3         T          10         5        T
+S1.bam    S1      163   rotavirus  S         0         T          10         5        T
+S1.bam    S1      99    rotavirus  S         3         T          10         5        T
+S2.bam    S2      99    rotavirus  M         4         T          10         5        T
+S2.bam    S2      163   rotavirus  M         4         T          10         5        T
+S2.bam    S2      99    rotavirus  M         4         T          10         5        T
+S2.bam    S2      99    rotavirus  M         4         T          10         5        T
+S2.bam    S2      163   rotavirus  M         4         T          10         5        T
+S2.bam    S2      163   rotavirus  M         3         T          10         5        T
+S2.bam    S2      99    rotavirus  M         3         T          10         5        T
+S2.bam    S2      99    rotavirus  M         3         T          10         5        T
+S2.bam    S2      99    rotavirus  M         3         T          10         5        T
+S2.bam    S2      99    rotavirus  M         2         A          10         5        T
+S2.bam    S2      163   rotavirus  M         2         T          10         5        T
+S2.bam    S2      99    rotavirus  M         1         T          10         5        T
+S2.bam    S2      99    rotavirus  M         1         T          10         5        T
+S2.bam    S2      163   rotavirus  M         3         T          10         5        T
+S2.bam    S2      99    rotavirus  M         1         T          10         5        T
+S2.bam    S2      99    rotavirus  M         1         T          10         5        T
+S2.bam    S2      99    rotavirus  M         0         T          10         5        T
+S2.bam    S2      99    rotavirus  M         0         T          10         5        T
+S2.bam    S2      163   rotavirus  S         4         T          10         5        T
+S2.bam    S2      99    rotavirus  S         2         A          10         5        T
+S3.bam    S3      99    rotavirus  M         4         A          10         5        T
+S3.bam    S3      163   rotavirus  M         4         T          10         5        T
+S3.bam    S3      99    rotavirus  M         4         T          10         5        T
+S3.bam    S3      99    rotavirus  M         3         T          10         5        T
+S3.bam    S3      99    rotavirus  M         3         T          10         5        T
+S3.bam    S3      99    rotavirus  M         3         T          10         5        T
+S3.bam    S3      163   rotavirus  M         3         T          10         5        T
+S3.bam    S3      163   rotavirus  M         3         T          10         5        T
+S3.bam    S3      163   rotavirus  M         2         T          10         5        T
+S3.bam    S3      163   rotavirus  M         2         T          10         5        T
+S3.bam    S3      99    rotavirus  M         2         T          10         5        T
+S3.bam    S3      163   rotavirus  M         2         T          10         5        T
+S3.bam    S3      99    rotavirus  M         1         T          10         5        T
+S3.bam    S3      163   rotavirus  M         1         A          10         5        T
+S3.bam    S3      99    rotavirus  M         1         A          10         5        T
+S3.bam    S3      99    rotavirus  M         1         A          10         5        T
+S3.bam    S3      99    rotavirus  M         1         T          10         5        T
+S3.bam    S3      163   rotavirus  M         1         T          10         5        T
+S3.bam    S3      99    rotavirus  M         0         T          10         5        T
+S3.bam    S3      163   rotavirus  M         0         T          10         5        T
+S3.bam    S3      163   rotavirus  M         0         T          10         5        T
+S3.bam    S3      163   rotavirus  M         0         T          10         5        T
+S3.bam    S3      163   rotavirus  M         0         A          10         5        T
+S3.bam    S3      99    rotavirus  M         0         T          10         5        T
+S3.bam    S3      163   rotavirus  M         0         T          10         5        T
+S3.bam    S3      99    rotavirus  S         2         A          10         5        T
+S4.bam    S4      163   rotavirus  M         4         T          10         5        T
+S4.bam    S4      163   rotavirus  M         4         T          10         5        T
+S4.bam    S4      99    rotavirus  M         4         T          10         5        T
+S4.bam    S4      163   rotavirus  M         4         T          10         5        T
+S4.bam    S4      163   rotavirus  M         3         T          10         5        T
+S4.bam    S4      163   rotavirus  M         3         T          10         5        T
+S4.bam    S4      99    rotavirus  M         3         T          10         5        T
+S4.bam    S4      163   rotavirus  M         2         T          10         5        T
+S4.bam    S4      99    rotavirus  M         1         T          10         5        T
+S4.bam    S4      99    rotavirus  M         0         T          10         5        T
+S4.bam    S4      99    rotavirus  M         4         T          10         5        T
+S4.bam    S4      163   rotavirus  M         0         T          10         5        T
+S4.bam    S4      163   rotavirus  M         0         T          10         5        T
+```
+
+ 
+ END_DOC
+ */
+@Program(name="bam2sql",description="Convert a SAM/BAM to sqlite statements",keywords={"bam","sam","sql","sqlite"})
 public class BamToSql
-	extends AbstractBamToSql
+	extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamToSql.class);
+	private static final Logger LOG = Logger.build(BamToSql.class).make();
+	
+	@Parameter(names={"-o","--out"},description="Output file or stdout")
+	private File outputFile = null;
+	
+	@Parameter(names={"-r","--region"},description="Restrict to a given region")
+	private String regionStr = "";
+
+	@Parameter(names={"-c","--cigar"},description="print cigar data")
+	private boolean printcigar = false;
+
+	@Parameter(names={"-f","--flag"},description="expands details about sam flag")
+	private boolean printflag = false;
+
+	@Parameter(names={"-R","--reference"},description="The Reference fasta file",required=true)
+	private File faidxFile=null;
+	
 	public BamToSql()
 			{
 			}
@@ -70,24 +301,23 @@ public class BamToSql
 		sb.append("'");
 		return sb.toString();
 	}
-	
 	@Override
-	public Collection<Throwable> call() throws Exception 
-		{				
-		if(super.faidxFile==null) {
-			return wrapException("ref sequence not defined (-"+OPTION_FAIDXFILE+")");
-		}
+	public int doWork(List<String> args) {				
+		if(this.faidxFile==null) {
+			LOG.error("ref sequence faidx not defined");
+			return -1;
+			}
 		SAMRecordIterator iter=null;
 		SamReader sfr=null;
 		PrintWriter out =null;
 		GenomicSequence genomicSequence=null;
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-		final List<String> args = new ArrayList<String>(IOUtils.unrollFiles(super.getInputFiles()));
+		args = new ArrayList<String>(IOUtils.unrollFiles(args));
 		try
 			{		
 			
-			out = super.openFileOrStdoutAsPrintWriter();
-			indexedFastaSequenceFile=new IndexedFastaSequenceFile(super.faidxFile);
+			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.faidxFile);
 
 			
 			out.println("CREATE TABLE IF NOT EXISTS SamFile");
@@ -120,7 +350,7 @@ public class BamToSql
 			out.println("id INTEGER PRIMARY KEY,");
 			out.println("name TEXT NOT NULL,");
 			out.println("flag INTEGER NOT NULL,");
-			if(super.printflag){
+			if(this.printflag){
 				for(final SAMFlag flg: SAMFlag.values()) {
 					out.println(flg.name()+" INTEGER NOT NULL,");
 				}
@@ -175,26 +405,26 @@ public class BamToSql
 				final SAMFileHeader header1=sfr.getFileHeader();
 				if(header1==null)
 					{
-					return wrapException("File header missing");
+					throw new JvarkitException.FileFormatError("File header missing");
 					}
 				final SAMSequenceDictionary dict=header1.getSequenceDictionary();
 				if(dict==null)  {
-					return wrapException("No Dictionary in input");
+					throw new JvarkitException.DictionaryMissing("No Dictionary in input");
 					}
 				final SAMSequenceDictionaryHelper dix = new SAMSequenceDictionaryHelper(dict);
 				
 				final Interval userInterval;
 				iter= null;
-				if(super.regionStr==null || super.regionStr.isEmpty()) {
+				if(this.regionStr==null || this.regionStr.isEmpty()) {
 					LOG.warn("You're currently scanning the whole BAM ???!!!");
 					iter = sfr.iterator();
 					userInterval = null;
 					}
 				else
 					{
-					final Optional<Interval> interval = dix.parseInterval(super.regionStr);
+					final Optional<Interval> interval = dix.parseInterval(this.regionStr);
 					if(!interval.isPresent()) {
-						return wrapException("cannot parse interval "+super.regionStr);
+						throw new JvarkitException.UserError("cannot parse interval "+this.regionStr);
 					}
 					userInterval = interval.get();
 					iter = sfr.query(
@@ -238,7 +468,7 @@ public class BamToSql
 					final StringBuilder sql = new StringBuilder();
 					sql.append("insert into Read("
 							+ "name,flag,");
-					if(super.printflag){
+					if(this.printflag){
 						for(final SAMFlag flg: SAMFlag.values()) {
 							sql.append(flg.name()).append(",");
 						}
@@ -250,7 +480,7 @@ public class BamToSql
 				    sql.append(quote(rec.getReadName())).append(",");
 				    sql.append(rec.getFlags()).append(",");
 				    
-				    if(super.printflag){
+				    if(this.printflag){
 						for(final SAMFlag flg: SAMFlag.values()) {
 							sql.append(flg.isSet(rec.getFlags())?1:0);
 							sql.append(",");
@@ -318,7 +548,7 @@ public class BamToSql
 					sql.append("  ORDER BY F.id DESC LIMIT 1;");
 					out.println(sql.toString());
 					
-					if(super.printcigar && !rec.getReadUnmappedFlag() && rec.getCigar()!=null) {
+					if(this.printcigar && !rec.getReadUnmappedFlag() && rec.getCigar()!=null) {
 						if(genomicSequence==null || !genomicSequence.getChrom().equals(rec.getReferenceName())) {
 							genomicSequence = new GenomicSequence(indexedFastaSequenceFile, rec.getReferenceName());
 						}
@@ -408,11 +638,12 @@ public class BamToSql
 			out.flush();
 			out.close();
 			LOG.info("done");
-			return RETURN_OK;
+			return 0;
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

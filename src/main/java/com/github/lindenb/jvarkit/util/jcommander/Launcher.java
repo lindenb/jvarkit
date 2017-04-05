@@ -53,7 +53,7 @@ private static final Logger LOG=Logger.build().
 			prefix("Launcher").
 			make();
 public static final String[]OUTPUT_OPTIONS={"-o","--out"};
-
+protected static final int RETURN_OK=0;
 public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 
 
