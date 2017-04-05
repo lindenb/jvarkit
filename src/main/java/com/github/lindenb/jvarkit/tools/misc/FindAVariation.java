@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -53,6 +54,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /** 
@@ -235,7 +237,7 @@ public class FindAVariation extends Launcher
 			VcfIterator iter=null;
 			
 			
-			if(VCFUtils.isTabixVcfFile(f) || VCFUtils.isTribbleVcfFile(f))
+			if(VCFUtils.isTribbleVcfFile(f) )
 				{
 				VCFFileReader r=null;
     			try
@@ -245,6 +247,41 @@ public class FindAVariation extends Launcher
 					for(final Mutation m:convertFromVcfHeader(f,header))
 						{
 						final CloseableIterator<VariantContext> iter2 = r.query(
+								m.chrom, m.pos, m.pos);
+						while(iter2.hasNext())
+							{
+							final VariantContext ctx=iter2.next();
+							if(this.onlySnp )
+								{	
+								if(ctx.getStart()!=m.pos || ctx.getEnd()!=m.pos) continue;
+								}
+							report(f,header,ctx,m);
+							}
+						CloserUtil.close(iter2);
+						}
+					}
+    			catch(final htsjdk.tribble.TribbleException.InvalidHeader err)
+    				{
+    				LOG.warn(f+"\t"+err.getMessage());
+    				}
+				catch(final Exception err)
+					{
+					LOG.severe("cannot read "+f,err);
+					}
+				finally
+					{
+					CloserUtil.close(r);
+					}    				
+				}
+			else if(VCFUtils.isTabixVcfFile(f)) {
+				TabixVcfFileReader r=null;
+    			try
+					{
+					r=new TabixVcfFileReader(f.getPath());
+					final VCFHeader header =r.getHeader();
+					for(final Mutation m:convertFromVcfHeader(f,header))
+						{
+						final Iterator<VariantContext> iter2 = r.iterator(
 								m.chrom, m.pos, m.pos);
 						while(iter2.hasNext())
 							{

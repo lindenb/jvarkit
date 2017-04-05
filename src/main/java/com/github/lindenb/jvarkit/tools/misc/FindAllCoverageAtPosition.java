@@ -228,7 +228,7 @@ public class FindAllCoverageAtPosition extends Launcher
 			if(!f.isFile()) continue;
 			if(!f.canRead()) continue;
 			String filename=f.getName();
-			if(!filename.endsWith(".cram"))
+			if(filename.endsWith(".cram"))
 				{
 				LOG.warn("Sorry CRAM is not supported "+filename);
 				continue;

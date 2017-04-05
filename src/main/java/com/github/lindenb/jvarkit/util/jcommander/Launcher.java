@@ -9,6 +9,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -468,9 +469,15 @@ protected void cleanup() {
 	
 	}
 
+
+public String getProgramCommandLine() {
+	return String.join(" ",this.argcargv);
+	}
+
 protected Status parseArgs(final String args[])
 	{
-	 try
+	this.argcargv = Arrays.asList(args);
+	try
 	  	{
 		getJCommander().parse(args);
 	  	}

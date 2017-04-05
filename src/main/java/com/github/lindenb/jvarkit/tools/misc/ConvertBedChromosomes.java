@@ -1,45 +1,88 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import htsjdk.tribble.readers.AsciiLineReader;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.samtools.util.CloserUtil;
 
-
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
+@Program(name="bedrenamechr",description="Convert the names of the chromosomes in a Bed file",keywords={"bed","chromosome","contig","convert"})
 public class ConvertBedChromosomes
-	extends AbstractCommandLineProgram
+	extends Launcher
 	{
-	private Map<String,String> customMapping=new HashMap<String,String>();
+	private static final Logger LOG = Logger.build(ConvertBedChromosomes.class).make();
+	
+	@Parameter(names={"-c","-convert"},description="What should I do when  a converstion is not found")
+	private ContigNameConverter.OnNotFound onNotFound=ContigNameConverter.OnNotFound.RAISE_EXCEPTION;
+	@Parameter(names={"-f","--mapping","-m"},description="load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+",required=true)
+	private File mappingFile=null;
+	@Parameter(names={"-c","--column"},description="1-based chromosome column")
+	private int chromColumn1=1;
+	@Parameter(names={"-o","--out"},description="output bed. Default stdout")
+	private File outputFile= null;
+
+	
+	private ContigNameConverter customMapping=ContigNameConverter.getIdentity();
 	private Set<String> unmappedChromosomes=new HashSet<String>();
-	private int chromColumn0=0;
+	
 	private ConvertBedChromosomes()
 		{
 		
 		}
 	
-	private String convertName(String chrom)throws IOException
+	private String convertName(final String chrom)throws IOException
 		{
 		if(chrom==null) throw new NullPointerException();
-		String newname=customMapping.get(chrom);
+		String newname=customMapping.apply(chrom);
 		if(newname==null)
 			{
 			if(!unmappedChromosomes.contains(chrom))
 				{
-				warning("unmapped chromosome "+chrom);
+				LOG.warning("unmapped chromosome "+chrom);
 				unmappedChromosomes.add(chrom);
 				}
 			return null;
@@ -51,14 +94,23 @@ public class ConvertBedChromosomes
 	protected int doWork(InputStream in,PrintStream out)
 			throws IOException
 		{
+		final int chromColumn0=chromColumn1-1;
+	
 		Pattern tab=Pattern.compile("[\t]");
-		LineIterator lr=new LineIteratorImpl(new SynchronousLineReader(in));
+		LineIterator lr=new LineIteratorImpl(new AsciiLineReader(in));
+		
+		
 		while(lr.hasNext())
 			{	
 			String line=lr.next();
-			String tokens[]=tab.split(line, (chromColumn0+2));
+			if(BedLine.isBedHeader(line))
+				{
+				out.println(line);
+				continue;
+				}
+			final String tokens[]=tab.split(line, (chromColumn0+2));
 			if(chromColumn0 >=tokens.length) throw new IOException("Bad BED line : "+line+" extected at least "+(chromColumn0+2)+" columns");
-			String chrom=convertName(tokens[chromColumn0]);
+			final String chrom=convertName(tokens[chromColumn0]);
 			if(chrom==null) continue;
 			for(int i=0;i< tokens.length;++i)
 				{
@@ -67,128 +119,56 @@ public class ConvertBedChromosomes
 				}
 			out.println();
 			}
-		
+		out.flush();
 		return 0;
 		}
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BedRenameChromosomes";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Convert the names of the chromosomes in a Bed file.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -f (file) load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+");
-		out.println(" -c (int) 1-based chromosome column: default: 1");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"f:c:"))!=-1)
+	public int doWork(List<String> args) {
+		if(this.chromColumn1<1)
 			{
-			switch(c)
-				{
-				case 'c':
-						this.chromColumn0=Integer.parseInt(opt.getOptArg())-1;
-						if(this.chromColumn0<0)
-							{
-							error("bad chromosome index (<1): "+opt.getOptArg());
-							return -1;
-							}
-						break;
-				case 'f':
-					{
-					File f=new File(opt.getOptArg());
-					BufferedReader in=null;
-					try
-						{
-						info("Loading custom mapping "+f);
-						in=IOUtils.openFileForBufferedReading(f);
-						String line;
-						while((line=in.readLine())!=null)
-							{
-							if(line.isEmpty() || line.startsWith("#")) continue;
-							String tokens[]=line.split("[\t]");
-							if(tokens.length!=2
-									|| tokens[0].trim().isEmpty()
-									|| tokens[1].trim().isEmpty()
-									) throw new IOException("Bad mapping line: \""+line+"\"");
-							tokens[0]=tokens[0].trim();
-							tokens[1]=tokens[1].trim();
-							if(customMapping.containsKey(tokens[0]))
-								{
-								throw new IOException("Mapping defined twice for: \""+tokens[0]+"\"");
-								}
-							customMapping.put(tokens[0], tokens[1]);
-							}
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
-					finally
-						{
-						CloserUtil.close(in);
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			LOG.error("bad chromosome index (<1): "+this.chromColumn1);
+			return -1;
+			}
+		if(this.mappingFile!=null) {
+			LOG.info("reading custom mapping "+mappingFile);
+			this.customMapping=ContigNameConverter.fromFile(mappingFile);
 			}
 		
-		if(customMapping.isEmpty())
-			{
-			error("No custom mapping defined");
-			}
+		PrintStream out=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			out = super.openFileOrStdoutAsPrintStream(this.outputFile);
+			if(args.isEmpty())
 				{
-				info("reading stdin");
-				doWork(System.in, System.out);
+				LOG.info("reading stdin");
+				doWork(stdin(), out);
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
-				
+				for(final String filename:args)
 					{
-					info("opening "+args[i]);
-					InputStream in=IOUtils.openURIForReading(args[i]);
-					doWork(in, System.out);
+					InputStream in=IOUtils.openURIForReading(filename);
+					doWork(in, out);
 					CloserUtil.close(in);
 					}
 				}
 			if(!unmappedChromosomes.isEmpty())
 				{
-				warning("Unmapped chromosomes:"+unmappedChromosomes);
+				LOG.warning("Unmapped chromosomes:"+unmappedChromosomes);
 				}
+			out.flush();
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
-		
+		finally
+			{
+			CloserUtil.close(out);
+			}
 		}
 	
 

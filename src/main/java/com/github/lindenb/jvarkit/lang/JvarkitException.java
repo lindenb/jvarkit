@@ -27,6 +27,10 @@ History:
 
 */
 package com.github.lindenb.jvarkit.lang;
+
+import java.util.Arrays;
+import java.util.List;
+
 @SuppressWarnings("serial")
 public class JvarkitException   {
 
@@ -113,6 +117,36 @@ public static class BerkeleyDbError  extends Error
 	{	
 	public BerkeleyDbError(final String msg) {
 		super(msg);
+		}
+	}
+public static class FileFormatError  extends Error
+	{	
+	public FileFormatError(final String msg) {
+		super(msg);
+		}
+	}
+public static class TokenErrors  extends FileFormatError
+	{	
+	private static String vertical(final List<String> tokens) {
+		if(tokens==null) return "(tokens:null)";
+		StringBuilder sb=new StringBuilder("\n");
+		for(int i=0;i<tokens.size();++i)
+				sb.append(" * (").append(String.valueOf(i+1)).append(")\t\"").append(tokens.get(i)).append("\"\n");
+		return sb.toString();
+		}
+	public TokenErrors(String tokens[]) {
+		this(Arrays.asList(tokens));
+		}
+
+	public TokenErrors(List<String> tokens) {
+		super(vertical(tokens));
+		}
+
+	public TokenErrors(final String msg,List<String> tokens) {
+		super(msg+vertical(tokens));
+		}
+	public TokenErrors(final String msg,String tokens[]) {
+		this(msg,Arrays.asList(tokens));
 		}
 	}
 

@@ -1,8 +1,10 @@
 package com.github.lindenb.jvarkit.tools.workflow;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
@@ -18,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -30,8 +33,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.RuntimeIOException;
 
 @Program(name="ngsworkflow",description="ngs workflow",keywords={"ngs","workflow","pipeline","bam","vcf"})
 public class NgsWorkflow extends Launcher
@@ -218,7 +223,7 @@ public class NgsWorkflow extends Launcher
 			build();
 
 	private static final PropertyKey PROP_MAPPING_REGION = key("mapping.region").
-			description("When mapping with bwa, use bedtools intersect to restrict the output to the specified bed file"). =
+			description("When mapping with bwa, use bedtools intersect to restrict the output to the specified bed file").
 			def("").
 			build();
 
@@ -997,6 +1002,24 @@ public class NgsWorkflow extends Launcher
 		private final List<PairedFastq> pairs;
 		private final String finalBam;
 		private final String urer_g_vcf;
+		
+		private boolean isEmpty(File f) throws IOException
+			{
+			InputStream in=null;
+			try {
+				in = new FileInputStream(f);
+				if(f.getName().endsWith(".gz")) in=new GZIPInputStream(in);
+				int c=in.read();
+				in.close();
+				in=null;
+				return c==-1;
+			} catch (Exception e) {
+				throw new RuntimeIOException(e);
+			} finally {
+				CloserUtil.close(in);
+			}
+			}
+		
 		Sample( final Project project,final JsonObject root) throws IOException
 			{
 			super(root);
@@ -1023,6 +1046,10 @@ public class NgsWorkflow extends Launcher
 					if(inside==null || inside.length==0) throw new IOException("No file under "+dir);
 					for(final File insideFileR1:inside)
 						{
+						if(isEmpty(insideFileR1)) {
+							LOG.warn(insideFileR1.getPath()+" is empty!");
+							continue;
+						}
 						final JsonArray twofastqs=new JsonArray();
 						twofastqs.add(new JsonPrimitive(insideFileR1.getAbsolutePath()));
 						final File insideFileR2=new File(dir,insideFileR1.getName().replaceAll("_R1_", "_R2_"));
@@ -1441,6 +1468,12 @@ public class NgsWorkflow extends Launcher
 				inputs[0]=this.get(0).getFilename();
 				inputs[1]=this.get(1).getFilename();
 				}
+			
+			if(!getAttribute(PROP_MAPPING_REGION,"").isEmpty())
+				{
+				sb.append(" ").append(getAttribute(PROP_MAPPING_REGION,""));
+				}
+			
 			sb.append("\n").
 				append(rulePrefix());
 			
@@ -1507,20 +1540,23 @@ public class NgsWorkflow extends Launcher
 				append(laneIndex==null?"":"_L"+laneIndex).
 				append("\\tLB:"+getSample()+"\\tSM:"+getSample() +"\\tPL:illumina\\tCN:Nantes' \""+bwaRef+"\" "+fq1+" "+fq2+"  |");
 			
-				if(!getAttribute(PROP_MAPPING_REGION,"").isEmpty())
-					{
-					final String rgn=getAttribute(PROP_MAPPING_REGION,"");
-					sb.append("$(bedtools.exe) intersect -nobuf -ubam -u  -abam -  -b ").
-						append("\"").append(rgn).append("\" |");
-					}
+			if(!getAttribute(PROP_MAPPING_REGION,"").isEmpty())
+				{
+				final String rgn=getAttribute(PROP_MAPPING_REGION,"");
+				sb.append("$(samtools.exe) view -b -u -T ${REF} -L \"").append(rgn).append("\" - | ");
+				}
+
 				
 				
 			sb.append("$(samtools.exe) sort --reference \"$(REF)\" -l ").
 				append(getAttribute(PROP_DEFAULT_COMPRESSION_LEVEL)).
 				append(" -@ ").
 				append(getAttribute(PROP_SAMTOOLS_SORT_NTHREADS)).
-				append(" -O bam -o $(addsuffix .tmp.bam,$@) -T  $(dir $@)"+getTmpPrefixToken()+getSample().getName()+".tmp_sort_"+getIndex()+" - && ").
-				append("mv --verbose \"$(addsuffix .tmp.bam,$@)\" \"$@\"")
+				append(" -O bam -o $(addsuffix .tmp.bam,$@) -T  $(dir $@)"+getTmpPrefixToken()+getSample().getName()+".tmp_sort_"+getIndex()+" - && ");
+			
+			
+			
+			sb.append("mv --verbose \"$(addsuffix .tmp.bam,$@)\" \"$@\"")
 				;
 			if(isUsingCutadapt())
 				{

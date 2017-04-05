@@ -31,6 +31,9 @@ package com.github.lindenb.jvarkit.util.bio.bed;
 import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.readers.LineIterator;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public class BedLineCodec
@@ -42,23 +45,35 @@ public class BedLineCodec
 		}
 	
 	@Override
+	/** may be null of line is a BEd header or empty string */
 	public BedLine decode(String line) {
-		
 		if (line.trim().isEmpty()) {
             return null;
         	}
 		if(BedLine.isBedHeader(line)) return null;
 		
-
-        String[] tokens = tab.split(line);
+        final String[] tokens = tab.split(line);
         if(tokens.length<2) return null;
        
         return new BedLine(tokens);
         }
 	
+	
+	/** return   a List of Strings containing the line of
+	 * the bed header "browser.."
+	 * Never null but may be empty;
+	 */
 	@Override
-	public Object readActualHeader(LineIterator reader) {
-		return null;
+	public List<String> readActualHeader(final LineIterator reader) {
+		List<String> header=null;
+		while(reader.hasNext())
+			{
+			final String line = reader.peek();
+			if(line==null || !BedLine.isBedHeader(line)) break;
+			if(header==null) header=new ArrayList<>();
+			header.add(reader.next());				
+			}
+		return header==null?Collections.emptyList():header;
 		}
 	
     @Override

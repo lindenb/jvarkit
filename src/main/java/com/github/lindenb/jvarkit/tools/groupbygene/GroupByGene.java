@@ -30,13 +30,14 @@ package com.github.lindenb.jvarkit.tools.groupbygene;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -54,29 +55,134 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 /**
- * 
- * GroupByGene
- *
- */
-public class GroupByGene
-	extends AbstractGroupByGene
-	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(GroupByGene.class);
+BEGIN_DOC
 
+## Motivation
+
+Group VCF data by gene/transcript. By default it tries to use data from VEP and SnpEff
+
+## Example
+
+### Delimited output
+
+```
+$ curl -s -k "https://raw.github.com/arq5x/gemini/master/test/test4.vep.snpeff.vcf" |\
+java -jar dist/groupbygene.jar |\
+head | column  -t
+
+#chrom  min.POS    max.POS    gene.name  gene.type         samples.affected  count.variations  M10475  M10478  M10500  M128215
+chr10   52004315   52004315   ASAH2      snpeff-gene-name  2                 1                 0       0       1       1
+chr10   52004315   52004315   ASAH2      vep-gene-name     2                 1                 0       0       1       1
+chr10   52497529   52497529   ASAH2B     snpeff-gene-name  2                 1                 0       1       1       0
+chr10   52497529   52497529   ASAH2B     vep-gene-name     2                 1                 0       1       1       0
+chr10   48003992   48003992   ASAH2C     snpeff-gene-name  3                 1                 1       1       1       0
+chr10   48003992   48003992   ASAH2C     vep-gene-name     3                 1                 1       1       1       0
+chr10   126678092  126678092  CTBP2      snpeff-gene-name  1                 1                 0       0       0       1
+chr10   126678092  126678092  CTBP2      vep-gene-name     1                 1                 0       0       0       1
+chr10   135336656  135369532  CYP2E1     snpeff-gene-name  3                 2                 0       2       1       1
+```
+
+## XML output
+
+```
+$ curl -s -k "https://raw.github.com/arq5x/gemini/master/test/test4.vep.snpeff.vcf" |\
+java -jar dist/groupbygene.jar -X |\
+xmllint --> --format -<!-- 
+```
+
+
+```
+<!-- <?xml version="1.0" encoding="UTF-8"?>
+<genes>
+  <samples count="4">
+    <sample>M10475</sample>
+    <sample>M10478</sample>
+    <sample>M10500</sample>
+    <sample>M128215</sample>
+  </samples>
+  <gene name="ASAH2" type="snpeff-gene-name" chrom="chr10" min.POS="52004315" max.POS="52004315" affected="2" variations="1">
+    <sample name="M10500" count="1">
+      <genotype pos="52004315" ref="T" A1="C" A2="C"/>
+    </sample>
+    <sample name="M128215" count="1">
+      <genotype pos="52004315" ref="T" A1="C" A2="C"/>
+    </sample>
+  </gene>
+  <gene name="ASAH2" type="vep-gene-name" chrom="chr10" min.POS="52004315" max.POS="52004315" affected="2" variations="1">
+    <sample name="M10500" count="1">
+(...)
+    <sample name="M10475" count="1">
+      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
+    </sample>
+  </gene>
+  <gene name="ENST00000572003" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
+    <sample name="M10475" count="1">
+      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
+    </sample>
+  </gene>
+  <gene name="ENST00000572887" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
+    <sample name="M10475" count="1">
+      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
+    </sample>
+  </gene>
+  <gene name="ENST00000573843" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
+    <sample name="M10475" count="1">
+      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
+    </sample>
+  </gene>
+  <gene name="ENST00000573922" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
+    <sample name="M10475" count="1">
+      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
+    </sample>
+  </gene>
+  <gene name="ENST00000574309" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
+    <sample name="M10475" count="1">
+      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
+    </sample>
+  </gene>
+</genes>
+```
+
+END_DOC
+ */
+@Program(name="groupbygene",keywords={"vcf","gene"},description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff")
+public class GroupByGene
+	extends Launcher
+	{
+	private static final Logger LOG = Logger.build(GroupByGene.class).make();
+
+	@Parameter(names={"-X","--xml"},description="XML output")
+	private boolean xml_output = false;
+	@Parameter(names={"--filtered"},description="ignore FILTERED variants")
+	private boolean ignore_filtered = false;
+	@Parameter(names={"-T","--tag"},description="add Tag in INFO field containing the name of the genes.")
+	private Set<String> user_gene_tags = new HashSet<>();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outFile=null;
+	@Parameter(names={"---maxRecordsInRam"},description="Max records in RAM")
+	private int maxRecordsInRam=50000;
+	@Parameter(names={"--tmpDir"},description="Temporary directory")
+	private File tmpDir= new File(System.getProperty("java.io.tmpdir"));
+	
 	private Set<String> sampleNames = new TreeSet<String>();
-	private Set<String> user_gene_tags = new HashSet<String>();
 	private SortingCollection<Call> sortingCollection = null;
 	
 	private static class GeneName
@@ -187,18 +293,17 @@ public class GroupByGene
 	
 	private SnpEffPredictionParser snpEffPredictionParser=null;
 	private VepPredictionParser vepPredictionParser=null;
+	private AnnPredictionParser annPredictionParser=null;
 	
 	public GroupByGene()
 		{
 		}
 	
-	private Set<GeneName> getGenes(VariantContext ctx)
+	private Set<GeneName> getGenes(final VariantContext ctx)
 		{
-		
-		HashSet<GeneName> set=new HashSet<GeneName>();
+		final Set<GeneName> set=new HashSet<GeneName>();
 		for(VepPredictionParser.VepPrediction pred: this.vepPredictionParser.getPredictions(ctx))
 			{
-		
 			String s=pred.getGeneName();
 			if(s!=null)  set.add(new GeneName(s,"vep-gene-name"));
 			s=pred.getEnsemblGene();
@@ -221,6 +326,15 @@ public class GroupByGene
 			s=pred.getEnsemblTranscript();
 			if(s!=null)  set.add(new GeneName(s,"snpeff-ensembl-transcript-name"));
 			}
+		for(final AnnPredictionParser.AnnPrediction pred:this.annPredictionParser.getPredictions(ctx)) {
+			String s=pred.getGeneId();
+			if(s!=null)  set.add(new GeneName(s,"ann-gene-id"));
+			s=pred.getGeneName();
+			if(s!=null)  set.add(new GeneName(s,"ann-gene-name"));
+			s=pred.getFeatureId();
+			if(s!=null)  set.add(new GeneName(s,"ann-feature-id"));
+			}
+		
 		for(String user_gene_tag:user_gene_tags)
 			{
 			if(user_gene_tag.isEmpty()) continue;
@@ -249,7 +363,11 @@ public class GroupByGene
 				set.add(new GeneName(t,"user:"+user_gene_tag));
 				}
 			}
-		
+		Iterator<GeneName> iter=set.iterator();
+		while(iter.hasNext())
+			{
+			if(iter.next().name.isEmpty()) iter.remove();
+			}
 		return set;
 		}
 	
@@ -262,7 +380,7 @@ public class GroupByGene
 		{
 		this.sortingCollection.doneAdding();
 		
-		PrintStream pw = openFileOrStdoutAsPrintStream();
+		PrintStream pw = openFileOrStdoutAsPrintStream(this.outFile);
 		
 		XMLStreamWriter w=null;
 		if(xml_output)
@@ -405,7 +523,7 @@ public class GroupByGene
 			w.close();
 			}
 		pw.flush();
-		if(outputFile!=null) pw.close();
+		if(this.outFile!=null) pw.close();
 		}
 	
 	private void read(final InputStream in) throws IOException
@@ -425,24 +543,27 @@ public class GroupByGene
 			}
 		this.snpEffPredictionParser=new SnpEffPredictionParserFactory(header).get();
 		this.vepPredictionParser=new VepPredictionParserFactory(header).get();
+		this.annPredictionParser = new AnnPredictionParserFactory(header).get();
 		SAMSequenceDictionary dict=header.getSequenceDictionary();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 		while(iter.hasNext())
 			{
-			VariantContext ctx= progress.watch(iter.next());
-			for(GeneName g:getGenes(ctx))
+			final VariantContext ctx= progress.watch(iter.next());
+			if(ignore_filtered && ctx.isFiltered()) continue;
+			
+			for(final GeneName g:getGenes(ctx))
 				{
-				for(Genotype genotype:ctx.getGenotypes())
+				for(final Genotype genotype:ctx.getGenotypes())
 					{
 					if(!genotype.isAvailable()) continue;
 					if(!genotype.isCalled()) continue;
 					if(genotype.isNoCall()) continue;
 					if(genotype.isHomRef()) continue;
-					List<Allele> L=genotype.getAlleles();
+					final List<Allele> L=genotype.getAlleles();
 					if(L==null || L.isEmpty()) continue;
 					
 
-					Call c=new Call();
+					final Call c=new Call();
 					c.chrom=ctx.getContig();
 					c.pos=ctx.getStart();
 					c.ref=ctx.getReference().getDisplayString();
@@ -485,18 +606,15 @@ public class GroupByGene
 				Call.class,
 				new CallCodec(),
 				new CallCmp(),
-				getMaxRecordsInRam(),
-				getTmpDirectories()
+				this.maxRecordsInRam,
+				this.tmpDir
 				);
 		this.sortingCollection.setDestructiveIteration(true);
 		this.sampleNames.clear();
 		}
 
-	
 	@Override
-	public Collection<Throwable> call() throws Exception
-		{
-		final List<String> args = getInputFiles();
+	public int doWork(List<String> args) {
 		try
 			{
 			this.initializeSortingCollections();
@@ -520,11 +638,12 @@ public class GroupByGene
 			LOG.info("Done reading. Now printing results.");
 	
 			dump();
-			return RETURN_OK;
+			return 0;
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

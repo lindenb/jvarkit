@@ -1,11 +1,16 @@
 package com.github.lindenb.jvarkit.tools.gnomad;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -24,6 +29,15 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /**
  BEGIN_DOC
+ 
+ ## Manifest
+ 
+ the manifest is a tab delimited file containing 3 columns. It's used to map a contig to a URI
+ 
+ 1st column is a keyword 'exome' or 'genome'
+ 2d column is a contig name e.g: '1' .  Use '*' for 'any' chromosome
+ 3d column is a URL or file path where to find the data
+ 
  
  ## Example:
  
@@ -45,15 +59,29 @@ public class VcfGnomad extends Launcher{
 	
 	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
 	private final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female", "raw", "POPMAX"}; 
+	private enum OmeType {exome,genome};
+	
+	private List<ManifestEntry> manifestEntries=new ArrayList<>();
+	
+	
+	private static class ManifestEntry
+		implements Closeable
+		{
+		OmeType omeType;
+		String contig;
+		String uri;
+		TabixVcfFileReader tabix=null;
+		@Override
+		public void close() throws IOException {
+			CloserUtil.close(tabix);
+			tabix=null;
+			}
+		}
 	
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
-	@Parameter(names={"--baseurl"},description="GnomadBase URL")
-	private String baseURL="https://storage.googleapis.com/gnomad-public/release-170228/vcf/";
-	@Parameter(names={"-gs","--genome"},description="Genome Files Signature")
-	private String vcfGenomeFileSignature = "genomes/gnomad.genomes.r2.0.1.sites.CHROM.vcf.gz";
-	@Parameter(names={"-es","--exome"},description="Genome Files Signature")
-	private String vcfExomeSignature = "exomes/gnomad.exomes.r2.0.1.sites.vcf.gz";
+	@Parameter(names={"--m"},description="manifest file descibing how to map a contig to an URI . 3 columns: 1) exome|genome 2) contig 3) path or URL.")
+	private File manifestFile=null;
 	@Parameter(names={"-filtered","--filtered"},description="Skip Filtered")
 	private boolean skipFiltered=false;
 
@@ -64,26 +92,22 @@ public class VcfGnomad extends Launcher{
 	
 	private class InfoField
 		{
-		final boolean exome;
+		final OmeType ome;
 		final String tag;
 		final List<Integer> attributes=new ArrayList<>();
-		InfoField(String tag, boolean exome) {
+		InfoField(String tag, OmeType ome) {
 			this.tag=tag;
-			this.exome=exome;
+			this.ome=ome;
 			}
 		public String getOutputTag() {
-			return "gnomad."+(exome?"exome.":"genome.")+this.tag;
+			return "gnomad_"+ this.ome.name()+"_"+this.tag;
 		}
 		VCFInfoHeaderLine makeVCFInfoHeaderLine()
 			{
 			return new VCFInfoHeaderLine(
 					getOutputTag(),VCFHeaderLineCount.A,
 					VCFHeaderLineType.Integer,
-					"Field "+this.tag+" extracted from Gnomad "+baseURL+
-						(this.exome?
-							vcfExomeSignature:
-							vcfGenomeFileSignature
-							)
+					"Field "+this.tag+" extracted from Gnomad ("+ome.name()+")"
 					);
 			}
 		void fill(final VariantContext ctx,final VariantContext gnomadCtx)
@@ -113,33 +137,19 @@ public class VcfGnomad extends Launcher{
 		return contig;
 		}
 	
-	private String genomeUrlFromContig( String contig)
-		{
-		contig=normalizeContig(contig);
-		if(!contig.matches("([1-9]+|X)")) return null;
-		String b=baseURL;
-		if(!b.endsWith("/")) b+="/";
-		
-		return b+vcfGenomeFileSignature.replace("CHROM", contig);
-		}
 	
-	private String exomeUrl()
-		{
-		String b=baseURL;
-		if(!b.endsWith("/")) b+="/";
-		return b+vcfExomeSignature;
-		}
 	@Override
 	protected int doVcfToVcf(String inputName, VcfIterator iter, VariantContextWriter out) {
-		TabixVcfFileReader tabixGenomeFileReader=null;
-		TabixVcfFileReader tabixExomeFileReader=null;
+		final ManifestEntry ome2manifest[]=new ManifestEntry[OmeType.values().length];
+		Arrays.fill(ome2manifest,null);
+
 		try {
 			final List<InfoField> infoFields=new ArrayList<>();
-			for(int exome=0;exome<2;++exome) {
+			for(OmeType ome:OmeType.values()) {
 				for(final String pop: POPS)
 					{
-					infoFields.add(new InfoField("AC_"+pop,exome==1));
-					infoFields.add(new InfoField("AN_"+pop,exome==1));
+					infoFields.add(new InfoField("AC_"+pop,ome));
+					infoFields.add(new InfoField("AN_"+pop,ome));
 					}
 				}
 			String prevContig=null;
@@ -154,9 +164,6 @@ public class VcfGnomad extends Launcher{
 				h2.addMetaDataLine(infoField.makeVCFInfoHeaderLine());
 				}
 			
-			LOG.info("opening "+exomeUrl());
-			tabixExomeFileReader = new TabixVcfFileReader(exomeUrl());
-			
 			out.writeHeader(h2);
 			while(iter.hasNext()) {
 				final VariantContext ctx=iter.next();
@@ -165,20 +172,54 @@ public class VcfGnomad extends Launcher{
 					out.add(ctx);
 					continue;
 					}
+				final String ensemblContig=normalizeContig(ctx.getContig());
+
 				if(prevContig==null || !prevContig.equals(ctx.getContig())) {
 					LOG.debug("Data for "+ctx.getContig());
-					CloserUtil.close(tabixGenomeFileReader);
-					tabixGenomeFileReader=null;
 					prevContig=ctx.getContig();
-					String url=genomeUrlFromContig(ctx.getContig());
-					
-					if(url==null) {
-						LOG.warn("No Gnomad Data for "+ctx.getContig());
-						}
-					else
+					for(OmeType ome: OmeType.values())
 						{
-						LOG.info("Opening \""+url+"\"");
-						tabixGenomeFileReader=new TabixVcfFileReader(url);
+						ManifestEntry newEntry = null;
+
+						for(final ManifestEntry e: this.manifestEntries)
+							{
+							if(e.omeType!=ome) continue;
+							if(e.contig.equals("*"))
+								{
+								//accept
+								}
+							else if(!e.contig.equals(ensemblContig)){
+								continue;
+								}
+							newEntry=e;
+							break;
+							}
+						if(newEntry==null)
+							{
+							LOG.warn("No Gnomad Data for "+ctx.getContig()+" / "+ome);
+							}
+						final ManifestEntry prevEntry = ome2manifest[ome.ordinal()];
+						if(prevEntry==null && newEntry==null){
+							ome2manifest[ome.ordinal()]=null;
+							}
+						else if(newEntry!=null && prevEntry!=null &&
+								prevEntry.uri.equals(newEntry.uri))
+							{
+							// no need to re-open
+							//continue with prev entry
+							}
+						else if(newEntry==null && prevEntry!=null)
+							{
+							prevEntry.close();
+							ome2manifest[ome.ordinal()]=null;
+							}
+						else
+							{
+							if(prevEntry!=null) prevEntry.close();
+							ome2manifest[ome.ordinal()]=newEntry;
+							LOG.info("opening "+newEntry.uri);
+							newEntry.tabix=new TabixVcfFileReader(newEntry.uri);
+							}
 						}
 					}
 				
@@ -189,15 +230,13 @@ public class VcfGnomad extends Launcher{
 					}
 				
 				boolean setfilter=false;
-				final String ensemblContig=normalizeContig(ctx.getContig());
 				
 				// lopp over exome and genome data
-				for(int exome=0;exome < 2;++exome) {
-					final boolean is_exome=exome==0;
-					if(!is_exome && tabixGenomeFileReader==null) continue;
+				for(int i=0;i< ome2manifest.length;++i) {
+					ManifestEntry entry = ome2manifest[i];
+					if(entry==null) continue;
 					
-					final Iterator<VariantContext> iter2= 
-							(is_exome?tabixExomeFileReader:tabixGenomeFileReader).iterator(
+					final Iterator<VariantContext> iter2= entry.tabix.iterator(
 							ensemblContig,ctx.getStart()-1, ctx.getEnd()+1);
 					while(iter2.hasNext())
 						{
@@ -209,7 +248,7 @@ public class VcfGnomad extends Launcher{
 						
 						for(final InfoField infoField: infoFields)
 							{
-							if(infoField.exome!=is_exome) continue;
+							if(infoField.ome!=entry.omeType) continue;
 							infoField.fill(ctx, ctx2);
 							}		
 						if(this.alleleconcordance)
@@ -247,17 +286,54 @@ public class VcfGnomad extends Launcher{
 			return -1;
 		}
 		finally {
-			CloserUtil.close(tabixGenomeFileReader);
-			CloserUtil.close(tabixExomeFileReader);
+			CloserUtil.close(Arrays.asList(ome2manifest));
 		}
 	}
 
 @Override
 public int doWork(List<String> args) {
-	if(!this.vcfGenomeFileSignature.contains("CHROM"))
+	if(this.manifestFile==null)
 		{
-		LOG.error("vcf file signature should contains 'CHROM'");
-		return -1;
+		LOG.info("Building default manifest file...");
+		for(OmeType ot: OmeType.values()) {
+			for(int i=1;i<= 23;++i) {
+				ManifestEntry entry=new ManifestEntry();
+				entry.omeType=ot;
+				switch(i)
+					{
+					default: entry.contig=String.valueOf(i);break;
+					case 23: entry.contig="X";break;					
+					}
+				if(ot==OmeType.genome)
+					{
+					entry.uri = "https://storage.googleapis.com/gnomad-public/release-170228/vcf/genomes/gnomad.genomes.r2.0.1.sites."+entry.contig+".vcf.gz";
+					}
+				else
+					{
+					entry.uri = "https://storage.googleapis.com/gnomad-public/release-170228/vcf/exomes/gnomad.exomes.r2.0.1.sites.vcf.gz";
+					}
+				this.manifestEntries.add(entry);
+				}
+			
+			}
+		}
+	else
+		{
+		try {
+		Files.lines(this.manifestFile.toPath()).forEach(L->{
+			if(L.startsWith("#") || L.trim().isEmpty()) return;
+			final String tokens[]=L.split("[\t]");
+			if(tokens.length<3) throw new JvarkitException.TokenErrors("Expected 3 words",tokens);
+			ManifestEntry entry=new ManifestEntry();
+			entry.omeType=OmeType.valueOf(tokens[0]);
+			entry.contig = tokens[1].trim();
+			entry.uri=tokens[2].trim();
+			VcfGnomad.this.manifestEntries.add(entry);
+		});
+		} catch(IOException err) {
+			LOG.error(err);
+			return -1;
+		}
 		}
 	return doVcfToVcf(args, outputFile);
 	}
