@@ -45,7 +45,6 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -53,7 +52,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.io.ByteArrayInputStream;
-import java.io.FileOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -71,19 +70,29 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public class Biostar140111 extends AbstractKnimeApplication
+@Program(name="biostar140111",description="How to obtain human genotype data from dpSNP ftp?",biostars=140111)
+public class Biostar140111 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar130456.class).make();
+	
 	@SuppressWarnings("unused")
 	private static final gov.nih.nlm.ncbi.dbsnp.gt.ObjectFactory _fool_javac1=null;	
 	/** transforms XML/DOM to GBC entry */
 	private Unmarshaller unmarshaller;
 	
-	
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
 	
 	/** parses NCBI GT output */
 	private void parseGenotypes(XMLEventReader r,OutputStream outStream)  throws Exception
@@ -131,7 +140,7 @@ public class Biostar140111 extends AbstractKnimeApplication
 					
 					if(snpInfo.getSnpLoc().isEmpty())
 						{
-						warning("no snploc for rs"+snpInfo.getRsId());
+						LOG.warning("no snploc for rs"+snpInfo.getRsId());
 						}
 					
 						
@@ -141,7 +150,7 @@ public class Biostar140111 extends AbstractKnimeApplication
 						try {
 							chromStart = Integer.parseInt(snpLoc.getStart());
 						} catch (Exception e) {
-							warning("bad start in rs"+snpInfo.getRsId()+" "+snpLoc.getStart());
+							LOG.warning("bad start in rs"+snpInfo.getRsId()+" "+snpLoc.getStart());
 							continue;
 							}
 						chromStart++;
@@ -151,7 +160,7 @@ public class Biostar140111 extends AbstractKnimeApplication
 						String contigAllele=snpLoc.getContigAllele();
 						if(contigAllele==null || !dnaRegex.matcher(contigAllele).matches())
 							{
-							warning("bad contigAllele in rs"+snpInfo.getRsId()+" "+contigAllele);
+							LOG.warning("bad contigAllele in rs"+snpInfo.getRsId()+" "+contigAllele);
 							continue;
 							}
 						if(!"fwd".equals(snpLoc.getRsOrientToChrom()))
@@ -171,7 +180,7 @@ public class Biostar140111 extends AbstractKnimeApplication
 									String sample=String.valueOf(gt.getIndId());
 									if(!samples.contains(sample))
 										{
-										warning("Undefined sample:"+sample);
+										LOG.warning("Undefined sample:"+sample);
 										continue;
 										}
 									boolean ok=true;
@@ -182,7 +191,7 @@ public class Biostar140111 extends AbstractKnimeApplication
 										}
 									else if(tokens.length!=2)
 										{
-										warning("Bad genotypes in sample:"+sample+" "+gt.getGtype());
+										LOG.warning("Bad genotypes in sample:"+sample+" "+gt.getGtype());
 										continue;
 										}
 									List<Allele> sampleAlleles = new ArrayList<>(2);
@@ -267,8 +276,7 @@ public class Biostar140111 extends AbstractKnimeApplication
 		}
 	
 	@Override
-	public int executeKnime(List<String> args)
-		{
+	public int doWork(final List<String> args) {
 		InputStream inputStream=null;
 		XMLEventReader r=null;
 		OutputStream pw=null;
@@ -294,7 +302,7 @@ public class Biostar140111 extends AbstractKnimeApplication
 			
 			if(args.isEmpty())
 				{
-				r= xif.createXMLEventReader(System.in, "UTF-8");
+				r= xif.createXMLEventReader(stdin(), "UTF-8");
 				}
 			
 			else if(args.size()==1)
@@ -304,18 +312,11 @@ public class Biostar140111 extends AbstractKnimeApplication
 				}
 			else
 				{
-				error("Illegal number of arguments.");
+				LOG.error("Illegal number of arguments.");
 				return -1;
 				}
 			
-			if(getOutputFile()!=null)
-				{
-				pw = new FileOutputStream(getOutputFile()); 
-				}
-			else
-				{
-				pw =System.out; 
-				}
+			pw = super.openFileOrStdoutAsStream(this.outputFile);
 			
 			this.parseGenotypes(r,pw);
 			pw.flush();
@@ -323,48 +324,18 @@ public class Biostar140111 extends AbstractKnimeApplication
 			}
 		catch(Throwable err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			if(getOutputFile()!=null) CloserUtil.close(pw);
+			if(this.outputFile!=null) CloserUtil.close(pw);
 			CloserUtil.close(inputStream);
 			CloserUtil.close(r);
 			}
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println("-o (fileout). Default: stdout");
-		super.printOptions(out);
-		}
 
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': setOutputFile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-
-		return mainWork(opt.getOptInd(), args);
-		}
 
 	/**
 	 * @param args

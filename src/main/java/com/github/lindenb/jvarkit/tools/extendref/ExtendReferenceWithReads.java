@@ -44,28 +44,72 @@ import htsjdk.samtools.SamReaderFactory.Option;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 
+import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.semontology.Term;
+/**
+ BEGIN_DOC
+ 
+ ## Example
 
-public class ExtendReferenceWithReads extends AbstractExtendReferenceWithReads
+```
+$  java   -jar dist/extendrefwithreads.jar \
+     -R human_g1k_v37.fasta -f 0.3 \
+     f1.bam f2.bam f3.bam 2> /dev/null |\
+  cat -n | grep -E '(>|[atgc])' 
+
+     1	>1
+   167	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNncgattaccctaacgctcac
+   168	cctaaccctcnccctntnccnncnncccnncttcttccgaTAACCCTAACCCTAACCCTA
+  3791	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNatt
+  3792	tatgcNctttntgctgtGATTCATGGCTGAAATCGTGTTTGACCAGCTATGTGTGTCTCT
+  8691	NNNNNNNNNNNNNNNNNNNNNNNNctagGATCCTTGAAGCGCCCCCAAGGGCATCTTCTC
+ 64089	TGGTGAGGGAAATTAGAACCACGACAATTTGGGAACTTAGCTTCTGCCctgctccNNNNN
+ 66589	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNgagtAGCTGAGACTAC
+ 
+ ```
+
+ END_DOC
+ */
+@Program(name="extendrefwithreads",
+	description="Extending ends of sequences with the help of reads",
+	biostars=148089,
+	terms=Term.ID_0000015
+	)
+public class ExtendReferenceWithReads extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(ExtendReferenceWithReads.class);
+	private static final Logger LOG = Logger.build(ExtendReferenceWithReads.class).make();
+	
+	@Parameter(names={"-o","--out"},description="Output file or stdout")
+	private File outputFile = null;
+	@Parameter(names={"-R","--reference"},description="Indexed Reference Fasta",required=true)
+	private File faidx=null;
+	@Parameter(names={"-f","--callingfraction"},description="(0.0<float<=1.0) new base must have fraction greater than this number")
+	private double callingFraction=0.8;
+	@Parameter(names={"-d","--mindepth"},description="min depth")
+	private int minDepth=1;
+	@Parameter(names={"-N","--mincontig"},description="onsider only gaps in reference with size&gt;=N")
+	private int minLenNNNNContig=100;
+	
 	private List<SamReader> samReaders=new ArrayList<>();
 	private enum Rescue {LEFT,CENTER,RIGHT};
-	
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
 
-	private char consensus(Counter<Byte> count)
+	private char consensus(final Counter<Byte> count)
 		{
 		if(count==null || count.isEmpty()) return 'n';
 		double total = (double)count.getTotal();
@@ -167,14 +211,13 @@ public class ExtendReferenceWithReads extends AbstractExtendReferenceWithReads
 			}
 		return pos2bases;
 		}
-	
 	@Override
-	public Collection<Throwable> call() throws Exception {
-		if(super.faidx==null)
+	public int doWork(List<String> args) {
+		if(this.faidx==null)
 			{
-			return wrapException("No REF defined option -"+OPTION_FAIDX);
+			LOG.error("No REF defined");
+			return -1;
 			}
-		final List<String> args = super.getInputFiles();
 		this.samReaders.clear();
 		PrintStream out=null;
 		try {
@@ -182,7 +225,8 @@ public class ExtendReferenceWithReads extends AbstractExtendReferenceWithReads
 			SAMSequenceDictionary dict = this.indexedFastaSequenceFile.getSequenceDictionary();
 			if(dict==null)
 				{
-				return wrapException("Reference file is missing a sequence dictionary (use picard)");
+				LOG.error("Reference file is missing a sequence dictionary (use picard)");
+				return -1;
 				}
 			final SamReaderFactory srf= super.createSamReaderFactory();
 			srf.setOption(Option.CACHE_FILE_BASED_INDEXES, true);
@@ -194,27 +238,31 @@ public class ExtendReferenceWithReads extends AbstractExtendReferenceWithReads
 				/* doesn't work with remote ?? */
 				if(!sr.hasIndex()) 
 					{
-					return wrapException("file "+uri+" is not indexed");
+					LOG.error("file "+uri+" is not indexed");
+					return -1;
 					}
 				final SAMFileHeader header= sr.getFileHeader();
 				if(!header.getSortOrder().equals(SortOrder.coordinate))
 					{
-					return wrapException("file "+uri+" not sorted on coordinate but "+header.getSortOrder());
+					LOG.error("file "+uri+" not sorted on coordinate but "+header.getSortOrder());
+					return -1;
 					}
 				final SAMSequenceDictionary dict2 = header.getSequenceDictionary();
 				if(dict2==null)
 					{
-					return wrapException("file "+uri+" needs a sequence dictionary");
+					LOG.error("file "+uri+" needs a sequence dictionary");
+					return -1;
 					}
 				
 				samReaders.add(sr);
 				}
 			if(samReaders.isEmpty())
 				{
-				return wrapException("No BAM defined");
+				LOG.error("No BAM defined");
+				return -1;
 				}
 			
-			out = super.openFileOrStdoutAsPrintStream();
+			out = super.openFileOrStdoutAsPrintStream(this.outputFile);
 			
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(dict);
 			for(final SAMSequenceRecord ssr: dict.getSequences())
@@ -350,7 +398,8 @@ public class ExtendReferenceWithReads extends AbstractExtendReferenceWithReads
 			return RETURN_OK;
 			}
 		catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
 		finally
 			{

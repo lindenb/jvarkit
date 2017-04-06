@@ -11,5 +11,7 @@ public @interface Program {
 	public String description() default "";
 	public String deprecatedMsg() default "";
 	public String[] keywords() default {};
+	public String[] authors() default "Pierre Lindenbaum PhD @yokofakun";
 	public int[] biostars() default {};
+	public com.github.lindenb.semontology.Term[] terms() default {};
 }

@@ -48,7 +48,6 @@ import java.io.PrintWriter;
 import java.io.StreamTokenizer;
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -58,13 +57,25 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.tools.biostar.AbstractBiostar103303;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class Biostar103303 extends AbstractBiostar103303
+@Program(name="biostar103303",
+description="Calculate Percent Spliced In (PSI).", biostars=103303)
+public class Biostar103303 extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar103303.class);
+	private static final Logger LOG = Logger.build(Biostar103303.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-g","--gtf"},description="GTF file",required=true)
+	private String gtfuri = null;
+
 	private static class GTFGene
 		{
 		 class Exon
@@ -264,29 +275,20 @@ public class Biostar103303 extends AbstractBiostar103303
 	
 	
 	
-
 	@Override
-	public Collection<Throwable> call() throws Exception
-		{
+	public int doWork(final List<String> args) {
 		
-		if(super.gtfuri==null)
+		if(this.gtfuri==null)
 			{
 			return wrapException("GTF input misssing");
 			}
 		SamReader samReader=null;
 		SAMRecordIterator iter=null;
 		PrintWriter out=null;
-		if(getOutputFile()==null)
-			{
-			out=new PrintWriter(stdout());
-			}
-		else
-			{
-			out=new PrintWriter(getOutputFile());
-			}
-		final List<String> args= getInputFiles();
+		
 		try
 			{
+			out = super.openFileOrStdoutAsPrintWriter(outputFile);
 			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
 			if(args.isEmpty())
 				{
@@ -468,6 +470,7 @@ public class Biostar103303 extends AbstractBiostar103303
 				}
 				}
 			out.flush();
+			return 0;
 			}
 		catch (Exception e)
 			{
@@ -479,10 +482,8 @@ public class Biostar103303 extends AbstractBiostar103303
 			CloserUtil.close(samReader);
 			CloserUtil.close(out);
 			}
-		return Collections.emptyList();
 		}
 		
-	
 	
 	/**
 	 * @param args

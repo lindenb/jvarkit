@@ -58,9 +58,12 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 public class VcfGnomad extends Launcher{
 	
 	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
+	private static final int BUFFER_SIZE = 100000;
+	/** allele specific population in gnomad */
 	private final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female", "raw", "POPMAX"}; 
+	/** 'ome'-type section */
 	private enum OmeType {exome,genome};
-	
+	/** entries mapping chromosome/type->vcf.gz */
 	private List<ManifestEntry> manifestEntries=new ArrayList<>();
 	
 	
@@ -71,16 +74,50 @@ public class VcfGnomad extends Launcher{
 		String contig;
 		String uri;
 		TabixVcfFileReader tabix=null;
+		int buffferChromEnd=0;
+		final List<VariantContext> buffer=new ArrayList<>(BUFFER_SIZE);
 		@Override
 		public void close() throws IOException {
 			CloserUtil.close(tabix);
+			buffer.clear();
+			this.buffferChromEnd=0;
 			tabix=null;
 			}
+		/** find matching variant in tabix file, use a buffer to avoid multiple random accesses */
+		VariantContext findMatching(final String normContig,final int pos,Allele ref)
+			{
+			//past last buffer ? refill buffer
+			if(this.buffferChromEnd<=pos)
+				{
+				buffer.clear();
+				this.buffferChromEnd=pos+BUFFER_SIZE;
+				final Iterator<VariantContext> iter=this.tabix.iterator(
+						normContig, Math.max(0,pos-1),
+						this.buffferChromEnd
+						);
+				while(iter.hasNext())
+					{
+					this.buffer.add(iter.next());
+					}
+				CloserUtil.close(iter);
+				}
+			
+			for(VariantContext ctx:this.buffer)
+				{
+				if(!ctx.getContig().equals(normContig)) continue;
+				if(ctx.getStart()<pos) continue;
+				if(ctx.getStart()>pos) break;
+				if(!ctx.getReference().equals(ref)) continue;
+				return ctx;
+				}
+			return null;
+			}
+		
 		}
 	
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
-	@Parameter(names={"--m"},description="manifest file descibing how to map a contig to an URI . 3 columns: 1) exome|genome 2) contig 3) path or URL.")
+	@Parameter(names={"-m","--manifest"},description="manifest file descibing how to map a contig to an URI . 3 columns: 1) exome|genome 2) contig 3) path or URL.")
 	private File manifestFile=null;
 	@Parameter(names={"-filtered","--filtered"},description="Skip Filtered")
 	private boolean skipFiltered=false;
@@ -126,7 +163,7 @@ public class VcfGnomad extends Launcher{
 						found=Integer.parseInt(gatts.get(idx));
 						}
 					}
-				attributes.add(found);
+				this.attributes.add(found);
 				}
 			}
 		}
@@ -236,35 +273,24 @@ public class VcfGnomad extends Launcher{
 					ManifestEntry entry = ome2manifest[i];
 					if(entry==null) continue;
 					
-					final Iterator<VariantContext> iter2= entry.tabix.iterator(
-							ensemblContig,ctx.getStart()-1, ctx.getEnd()+1);
-					while(iter2.hasNext())
+					final VariantContext ctx2=entry.findMatching(ensemblContig, ctx.getStart(), ctx.getReference());
+					if(ctx2==null) continue;
+					for(final InfoField infoField: infoFields)
 						{
-						
-						final VariantContext ctx2=iter2.next();
-						if(!ensemblContig.equals(ctx2.getContig())) continue;
-						if(ctx.getStart()!=ctx2.getStart()) continue;
-						if(!ctx.getReference().equals(ctx2.getReference())) continue;
-						
-						for(final InfoField infoField: infoFields)
-							{
-							if(infoField.ome!=entry.omeType) continue;
-							infoField.fill(ctx, ctx2);
-							}		
-						if(this.alleleconcordance)
-							{
-							//stream all ALT. return false if we found one ALT that is not found in Gnomad
-							setfilter = !ctx.getAlternateAlleles().stream().
-									filter(A->!ctx2.getAlternateAlleles().contains(A)).
-									findAny().isPresent();
-							}
-						else
-							{
-							setfilter=true;
-							}					
-						break;
+						if(infoField.ome!=entry.omeType) continue;
+						infoField.fill(ctx, ctx2);
+						}		
+					if(this.alleleconcordance)
+						{
+						//stream all ALT. return false if we found one ALT that is not found in Gnomad
+						setfilter = !ctx.getAlternateAlleles().stream().
+								filter(A->!ctx2.getAlternateAlleles().contains(A)).
+								findAny().isPresent();
 						}
-					CloserUtil.close(iter2);
+					else
+						{
+						setfilter=true;
+						}					
 					}
 				
 				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);

@@ -92,6 +92,7 @@ define compile-htsjdk-cmd
 
 $(1)  : ${htsjdk.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
+		${generated.dir}/java/com/github/lindenb/semontology/Term.java \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
 		$(filter-out wiki_flag,$(filter-out galaxy_flag,$(3))) ${apache.commons.cli.jars} ${slf4j.jars}
 	echo "### COMPILING $(1) ######"
@@ -230,7 +231,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	
 
 
-.PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden
+.PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
 
 
 
@@ -254,7 +255,7 @@ tests:
 #bigwig
 $(eval $(call compile-htsjdk-cmd,vcfbigwig,		${jvarkit.package}.tools.vcfbigwig.VCFBigWig,${bigwig.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfensemblreg,	${jvarkit.package}.tools.ensemblreg.VcfEnsemblReg,${bigwig.jars}))
-$(eval $(call compile_biostar_cmd,105754,${bigwig.jar} wiki_flag))
+$(eval $(call compile_biostar_cmd,105754,${bigwig.jar} ${jcommander.jar} wiki_flag))
 # common math
 $(eval $(call compile-htsjdk-cmd,cnv01,${jvarkit.package}.tools.redon.CopyNumber01,${common.math.jar}))
 #berkeley
@@ -287,9 +288,9 @@ $(eval $(call compile-htsjdk-cmd,bamtreepack,${jvarkit.package}.tools.treepack.B
 $(eval $(call compile-htsjdk-cmd,batchigvpictures,${jvarkit.package}.tools.batchpicts.BatchIGVPictures,copy.opendoc.odp.resources))
 $(eval $(call compile-htsjdk-cmd,bedliftover,${jvarkit.package}.tools.liftover.BedLiftOver))
 $(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.ConvertBedChromosomes,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,103303))
+$(eval $(call compile_biostar_cmd,103303,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,106668))
-$(eval $(call compile_biostar_cmd,130456,wiki_flag))
+$(eval $(call compile_biostar_cmd,130456,${jcommander.jar} wiki_flag))
 $(eval $(call compile_biostar_cmd,145820))
 $(eval $(call compile_biostar_cmd,59647))
 $(eval $(call compile_biostar_cmd,76892))
@@ -306,7 +307,7 @@ $(eval $(call compile_biostar_cmd,90204))
 $(eval $(call compile_biostar_cmd,95652,api.ncbi.gb))
 $(eval $(call compile_biostar_cmd,3654,api.ncbi.insdseq api.ncbi.blast))
 $(eval $(call compile_biostar_cmd,154220))
-$(eval $(call compile_biostar_cmd,140111,api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
+$(eval $(call compile_biostar_cmd,140111,${jcommander.jar} api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
 $(eval $(call compile_biostar_cmd,160470,api.ncbi.blast wiki_flag))
 $(eval $(call compile_biostar_cmd,165777))
 $(eval $(call compile_biostar_cmd,170742))
@@ -480,7 +481,7 @@ $(eval $(call compile-htsjdk-cmd,bedindextabix,${jvarkit.package}.tools.misc.Bed
 $(eval $(call compile-htsjdk-cmd,vcf2bam,${jvarkit.package}.tools.misc.VcfToBam))
 $(eval $(call compile-htsjdk-cmd,vcffilterxpath,${jvarkit.package}.tools.misc.VcfFilterXPath))
 $(eval $(call compile-htsjdk-cmd,pcrclipreads,${jvarkit.package}.tools.pcr.PcrClipReads))
-$(eval $(call compile-htsjdk-cmd,extendrefwithreads,${jvarkit.package}.tools.extendref.ExtendReferenceWithReads,wiki_flag))
+$(eval $(call compile-htsjdk-cmd,extendrefwithreads,${jvarkit.package}.tools.extendref.ExtendReferenceWithReads,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pcrslicereads,${jvarkit.package}.tools.pcr.PcrSliceReads))
 $(eval $(call compile-htsjdk-cmd,samjmx,${jvarkit.package}.tools.jmx.SamJmx))
 $(eval $(call compile-htsjdk-cmd,vcfjmx,${jvarkit.package}.tools.jmx.VcfJmx))
@@ -561,6 +562,10 @@ ${generated.dir}/java/org/uniprot/package-info.java : api.uniprot
 api.uniprot :
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java -p org.uniprot ${xjc.proxy} "http://www.uniprot.org/support/docs/uniprot.xsd" 
+
+${generated.dir}/java/com/github/lindenb/semontology/Term.java:
+	mkdir -p $(dir $@)
+	wget -O $@ "https://raw.githubusercontent.com/lindenb/semontology/master/ontologies/Term.java"
 
 
 api.ncbi.pubmed : 
@@ -707,13 +712,13 @@ $(addprefix lib/, commons-validator/commons-validator/1.4.0/commons-validator-1.
 	
 
 
-
 ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java :
 	mkdir -p $(dir $@)
 	echo "package ${jvarkit.package}.util.htsjdk;" > $@
 	echo '@javax.annotation.Generated("jvarkit")' >> $@
 	echo 'public class HtsjdkVersion{ private HtsjdkVersion(){}' >> $@
 	echo 'public static String getVersion() {return "${htsjdk.version}";}' >> $@
+	echo -n 'public static String getDate() {return "' >> $@ &&  date | tr -d '\n' >> $@ && echo ')";}' >> $@
 	echo 'public static String getHash() {return "${htsjdk.version}";}' >> $@
 	echo 'public static String getHome() {return "$(word 1,${htsjdk.jars})";}' >> $@
 	echo 'public static String getJavadocUrl(Class<?> clazz) {return "https://samtools.github.io/htsjdk/javadoc/htsjdk/"+clazz.getName().replaceAll("\\.","/")+".html";}' >> $@

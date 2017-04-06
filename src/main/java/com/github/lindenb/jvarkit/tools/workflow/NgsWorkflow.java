@@ -38,7 +38,9 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.RuntimeIOException;
 
-@Program(name="ngsworkflow",description="ngs workflow",keywords={"ngs","workflow","pipeline","bam","vcf"})
+@Program(
+		name="ngsworkflow",
+		description="ngs workflow",keywords={"ngs","workflow","pipeline","bam","vcf"})
 public class NgsWorkflow extends Launcher
 	{
 	private static final Logger LOG =Logger.build(NgsWorkflow.class).make();
@@ -226,6 +228,10 @@ public class NgsWorkflow extends Launcher
 			description("When mapping with bwa, use bedtools intersect to restrict the output to the specified bed file").
 			def("").
 			build();
+	private static final PropertyKey PROP_USE_LUMPY_EXPRESS = key("use.lumpyexpress").
+			description("Use Lumpy Express").
+			def(false).
+			build();
 
 	
 	private RefSplit parseRefSplitFromStr(final String s)
@@ -360,6 +366,20 @@ public class NgsWorkflow extends Launcher
 		
 		public abstract HasAttributes getParent();
 		public Map<PropertyKey,String> getAttributes() { return _att;}
+		
+		private boolean booleanValue(final PropertyKey key) {
+			String s=getAttribute(key,"");
+			if(s!=null && s.equals("true")) return true;
+			if(s!=null && s.equals("false")) return false;
+			throw new RuntimeException("bad boolean value for "+key+" : "+s);
+			}
+		public boolean isTrue(final PropertyKey key) {
+			return booleanValue(key);
+			}
+		public boolean isFalse(final PropertyKey key) {
+			return !booleanValue(key);
+			}
+		
 		
 		public String getAttribute(final PropertyKey key,final String def)
 			{
@@ -521,9 +541,11 @@ public class NgsWorkflow extends Launcher
 			return this.capture.get();
 			}
 		public  String getHapCallerAnnotationVcf() {
-			return getVcfDirectory()+"/"+getTmpPrefix()+"HCAnnotations.vcf.gz";
+			return getVcfDirectory()+"/"+getFilePrefix()+"HCAnnotations.vcf.gz";
 			}
-
+		public  String getLumpyVcf() {
+			return getVcfDirectory()+"/"+getFilePrefix()+"LumpyExpress.vcf.gz";
+			}
 		public  String getHapCallerGenotypedVcf() {
 			return getVcfDirectory()+"/"+getTmpPrefix()+"HCGenotyped.vcf.gz";
 			}
@@ -628,8 +650,13 @@ public class NgsWorkflow extends Launcher
 						+ " && mv --verbose   $(addsuffix .tmp2.vcf,$@)  $(addsuffix .tmp1.vcf,$@)"
 						+ " && mv --verbose   $(addsuffix .tmp2.vcf.idx,$@)  $(addsuffix .tmp1.vcf.idx,$@)"
 						);
-				w.print(" && $(call run_jvarkit,vcffilterjs) -F IN_EXAC -e 'variant.hasAttribute(\"exac.AC\")' $(addsuffix .tmp1.vcf,$@) |");
+				// filter exac
+				w.print(" && $(call run_jvarkit,vcffilterjs) -F IN_EXAC -e '!variant.hasAttribute(\"exac.AC\")' $(addsuffix .tmp1.vcf,$@) |");
+				//gnomad
+				w.print(" $(call run_jvarkit,vcfgnomad) -ac -gf IN_GNOMAD -m '${gnomad.vcf.manifest}' |");
+				//snpeff
 				w.print(" ${java.exe}  -Djava.io.tmpdir=$(dir $@) -jar ${snpeff.jar} ann -c ${snpeff.config} GRCh37.75 -nodownload -noStats |  ");
+				//vep
 				w.print(" $(call vep78) |");
 				w.print(" ${bgzip.exe} >  $(addsuffix .tmp2.vcf.gz,$@)  ");
 				w.print(" && ${tabix.exe} -p vcf -f $(addsuffix .tmp2.vcf.gz,$@) "
@@ -640,6 +667,102 @@ public class NgsWorkflow extends Launcher
 				w.println();
 				}
 			}
+		
+		
+		private class LumpyExpress
+			{
+			private List<LumpyInput> inputs=new ArrayList<>();
+			Project getProject() { return Project.this;}
+			
+			LumpyExpress addBam(final String inputBam)
+				{
+				this.inputs.add(new LumpyInput(inputBam));
+				return this;
+				}
+			
+			private  class LumpyInput
+				{
+				final String inputBam;
+				LumpyInput(final String inputBam) {
+					this.inputBam = inputBam;
+					}
+				
+				private String getDiscordantBam() 
+					{
+					return "$(addsuffix .tmp.discordant.bam,"+inputBam+")";
+					}
+				private String getSplitterBam() 
+					{
+					return "$(addsuffix .tmp.splitters.bam,"+inputBam+")";
+					}
+				
+				void  print(final PrintWriter w)  {
+					// Extract the discordant paired-end alignments.
+					w.print(this.getDiscordantBam());
+					w.print(":");
+					w.print(this.inputBam);
+					w.println();
+					w.print(rulePrefix());
+					w.print(" && ${samtools.exe} view -F 1294 -b -o $(addsuffix .tmp.bam,$@) $< ");
+					w.print(" && mv --verbose $(addsuffix .tmp.bam,$@) $@ ");
+					w.println();
+					
+					// Extract the split-read alignments
+					w.print(this.getSplitterBam());
+					w.print(":");
+					w.print(this.inputBam);
+					w.println();
+					w.print(rulePrefix());
+					w.print(" && ${samtools.exe} view -h  $< | ");
+					w.print(" ${lumpy.dir}/scripts/extractSplitReads_BwaMem -i stdin |");
+					w.print(" ${samtools.exe} view -Sb -o $(addsuffix .tmp.bam,$@) - "); 
+					w.print(" && mv --verbose $(addsuffix .tmp.bam,$@) $@ ");
+					w.println();
+					}
+				}
+			void  print(final PrintWriter w)
+				{
+				if(this.inputs.isEmpty()) return;
+				
+				for(LumpyInput input:this.inputs) {
+					input.print(w);
+					}
+				
+				w.print(this.getProject().getLumpyVcf());
+				w.print(":");
+				w.println(this.inputs.stream().map(T->T.getDiscordantBam()+" "+T.getSplitterBam()+ " "+T.inputBam).collect(Collectors.joining(" ")));
+				w.println();
+				w.print(rulePrefix());
+				w.print("&&  ${lumpyexpress.exe} -B ");
+				w.print(this.inputs.stream().map(T->T.inputBam.trim()).collect(Collectors.joining(",")));
+				w.print(" -S ");
+				w.print(this.inputs.stream().map(T->T.getSplitterBam().trim()).collect(Collectors.joining(",")));
+				w.print(" -D ");
+				w.print(this.inputs.stream().map(T->T.getDiscordantBam().trim()).collect(Collectors.joining(",")));
+				w.print(" -o $(addsuffix .tmp.vcf,$@)  ");
+				w.print(" && $(java.exe)  -Djava.io.tmpdir=$(dir $@) -jar $(picard.jar) UpdateVcfSequenceDictionary I=$(addsuffix .tmp.vcf,$@)  O=$(addsuffix .tmp2.vcf,$@)   SEQUENCE_DICTIONARY=$(addsuffix .dict,$(basename ${REF})) && mv --verbose $(addsuffix .tmp2.vcf,$@) $(addsuffix .tmp.vcf,$@) ");
+				w.print(" && $(java.exe)  -Djava.io.tmpdir=$(dir $@) -jar $(picard.jar) SortVcf I=$(addsuffix .tmp.vcf,$@)  O=$(addsuffix .tmp2.vcf,$@)  && mv --verbose $(addsuffix .tmp2.vcf,$@) $(addsuffix .tmp.vcf,$@) ");				
+				w.print(" && ${bgzip.exe} -f $(addsuffix .tmp.vcf,$@)   ");
+				w.print(" && ${tabix.exe} -p vcf -f $(addsuffix .tmp.vcf.gz,$@) "
+					+ " && mv --verbose   $(addsuffix .tmp.vcf.gz,$@) $@ "
+					+ " && mv --verbose   $(addsuffix .tmp.vcf.gz.tbi,$@)  $(addsuffix .tbi,$@)"
+					);
+				w.print(" && rm --verbose "+ this.inputs.stream().map(T->T.getDiscordantBam()+" "+T.getSplitterBam()).collect(Collectors.joining(" ")));
+				w.print(" && touch  "+ this.inputs.stream().map(T->T.getDiscordantBam()+" "+T.getSplitterBam()).collect(Collectors.joining(" ")));
+				w.print(" && sleep 2 && touch -c $@  $(addsuffix .tbi,$@)");
+				w.println();
+				}
+			
+			}
+
+		void lumpyExpress(final PrintWriter out) {
+			if(this.isFalse(PROP_USE_LUMPY_EXPRESS)) return;
+			final LumpyExpress lumpy=new LumpyExpress();
+			for(Sample sample:this.getSamples()) {
+				lumpy.addBam(sample.getFinalBam());
+			}
+			lumpy.print(out);
+		}
 		
 		
 		private abstract class AbstractCaller
@@ -681,9 +804,11 @@ public class NgsWorkflow extends Launcher
 							case WHOLE_GENOME: break;
 							case INTERVAL:{
 									final IntervalSplit tmp= IntervalSplit.class.cast(split);
-									w.append(" awk -F '\t' 'BEGIN{N=0;}{if($$1==\""+tmp.getInterval().getContig()+"\" && !("+ 
-											tmp.getInterval().getEnd()+" < int($$2) || int($$3) <"+
-											tmp.getInterval().getStart()+")) {print;N++;}}END{if(N==0) printf(\""+getNoResultContig()+"\\t0\\t1\\n\");}' "+getCapture().getExtendedFilename()+" > $(addsuffix .bed,$@) && "); 
+									w.append(" ${bedtools.exe} intersect -a ").append(getCapture().getExtendedFilename()).
+										append(" -b <(echo -e '").append(tmp.getInterval().getContig()).append("\\t").
+										append(String.valueOf(tmp.getInterval().getStart())).append("\\t").
+										append(String.valueOf(tmp.getInterval().getEnd())).append("') | ").
+										append(" awk -F '\t' 'BEGIN{N=0;}{print;N++;}END{if(N==0) printf(\""+getNoResultContig()+"\\t0\\t1\\n\");}' > $(addsuffix .bed,$@) && "); 
 									break;
 									}
 							case WHOLE_CONTIG:
@@ -1644,7 +1769,15 @@ public class NgsWorkflow extends Launcher
 		//out.println("define run_jvarkit\n${java.exe} -jar ${jvarkit.dir}/$(1).jar\nendef");
 
 		
-		out.println("all:"+project.getHapCallerAnnotationVcf());
+		out.print("all:"+project.getHapCallerAnnotationVcf());
+		
+		if(project.isTrue(PROP_USE_LUMPY_EXPRESS))
+			{
+			out.print(" ");
+			out.print(project.getLumpyVcf());
+			}
+		
+		out.println();
 		
 		out.println("all_final_bam:"+project.getSamples().stream().
 				map(S->S.getFinalBamBai()).
@@ -1674,6 +1807,11 @@ public class NgsWorkflow extends Launcher
 				map(S->S.getMergedBamBai()).
 				collect(Collectors.joining(" \\\n\t"))
 				);
+		
+		
+		project.lumpyExpress(out);
+			
+		
 		
 		for(final Sample sample: project.getSamples())
 			{

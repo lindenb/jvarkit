@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.biostar;
 import htsjdk.samtools.util.CloserUtil;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -14,11 +15,42 @@ import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class Biostar105754 extends AbstractBiostar105754
+/**
+BEGIN_DOC
+
+## Example
+
+```
+$  echo -e "1\t1000\t20000\n3\t100\t200\nUn\t10\t11"  |\
+  java -jar dist/biostar105754.jar -B path/to//All_hg19_RS_noprefix.b
+
+
+#no data found for	Un	10	11
+1	1000	1001	0.0	1	1000	20000
+3	100	101	0.0	3	100	200
+```
+
+END_DOC
+ */
+@Program(name="biostar105754",description="bigwig : peak distance from specific genomic region",biostars=105754)
+public class Biostar105754 extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Biostar105754.class);
+
+	private static final Logger LOG = Logger.build(Biostar105754.class).make();
+	
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	
+	
+	@Parameter(names={"-B","--bigwig"},description="Big Wig file")
+	private String bigWigFile = null;
 
 	
 	private static int distance(int start1,int end1, int start2,int end2)
@@ -130,23 +162,21 @@ public class Biostar105754 extends AbstractBiostar105754
 			}
 		
 		@Override
-		public Collection<Throwable> call() throws Exception
-				{
-				if(super.bigWigFile==null)
+		public int doWork(List<String> args) {
+				if(this.bigWigFile==null)
 					{
-					return wrapException("Big wig file undefined option -"+OPTION_BIGWIGFILE);
+					return wrapException("Big wig file undefined option");
 					}
 				
 				try
 					{
-					LOG.info("Opening "+super.bigWigFile);
-					this.bbFileReader=new BBFileReader(super.bigWigFile);
+					LOG.info("Opening "+this.bigWigFile);
+					this.bbFileReader=new BBFileReader(this.bigWigFile);
 					if(!this.bbFileReader.isBigWigFile())
 						{
-						return wrapException("File "+super.bigWigFile+" is not a bigwig file");
+						return wrapException("File "+this.bigWigFile+" is not a bigwig file");
 						}
-					this.out = super.openFileOrStdoutAsPrintWriter();
-					final List<String> args = this.getInputFiles();
+					this.out = super.openFileOrStdoutAsPrintWriter(outputFile);
 					if(args.isEmpty())
 						{
 						BufferedReader r= new BufferedReader(new InputStreamReader(stdin()));

@@ -694,6 +694,13 @@ protected htsjdk.samtools.SamReader openSamReader(final String inputName)
 		}
 	}
 
+/** just created to make a transition between XML and Jcommander. Remove in the future */
+@Deprecated
+protected int wrapException(final Object msg) 
+	{
+	LOG.error(msg);
+	return -1;
+	}
 
 
 public void instanceMainWithExit( final String args[]) {

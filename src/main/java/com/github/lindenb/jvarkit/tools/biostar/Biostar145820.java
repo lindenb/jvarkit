@@ -52,11 +52,14 @@ import java.util.Comparator;
 import java.util.Random;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
+@Program(name="biostar145820",description="subsample BAM to fixed number of alignments.",biostars=145820)
 public class Biostar145820 extends AbstractCommandLineProgram
 	{
+	
 	private static class RandSamRecord
 		{
 		int rand_index;
@@ -126,17 +129,6 @@ public class Biostar145820 extends AbstractCommandLineProgram
 		}
 	
 	
-	@Override
-	public String getProgramDescription()
-		{
-		return "subsample BAM to fixed number of alignments. see https://www.biostars.org/p/145820/";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return DEFAULT_WIKI_PREFIX+"Biostar145820";
-		}
 
 	@Override
 	public void printOptions(PrintStream out)

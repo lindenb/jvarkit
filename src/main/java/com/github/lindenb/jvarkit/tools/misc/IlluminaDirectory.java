@@ -415,10 +415,8 @@ public class IlluminaDirectory
 	    			CloserUtil.close(w);
 		    		}
 		    	pw.flush();
-		    	final int ret = pw.checkError()?-1:0;
 		    	CloserUtil.close(pw);
-		    	if(ret!=0) return wrapException("I/O error on out (checkError)");
-				return RETURN_OK;
+		    	return RETURN_OK;
 				}
 			catch(final Exception err)
 				{
