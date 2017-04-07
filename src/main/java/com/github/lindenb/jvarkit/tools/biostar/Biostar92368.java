@@ -1,11 +1,37 @@
-/**
- * 
- */
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
 import java.io.PrintStream;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 import java.util.regex.Pattern;
@@ -14,8 +40,11 @@ import htsjdk.tribble.readers.LineIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.sleepycat.bind.tuple.StringBinding;
 import com.sleepycat.bind.tuple.TupleBinding;
 import com.sleepycat.bind.tuple.TupleInput;
@@ -34,8 +63,20 @@ import com.sleepycat.je.Transaction;
  * @author lindenb
  *
  */
-public class Biostar92368 extends AbstractCommandLineProgram
+@Program(name="biostar92368",biostars=92368,description="Binary interactions depth See also http://www.biostars.org/p/92368/")
+public class Biostar92368 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar92368.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-D","--bdbhome"},description="berkeleydb home",required=true)
+	private File dbHome=null;
+	@Parameter(names={"-M","--maxdepth"},description="Max depth")
+	private int maxDepth=3;
+
+	
 	private Environment environment=null;
 	private Database database=null;
 	
@@ -106,7 +147,7 @@ public class Biostar92368 extends AbstractCommandLineProgram
 			{
 			if(nLines++ % 10000 ==0)
 				{
-				info("Lines : "+nLines);
+				LOG.info("Lines : "+nLines);
 				}
 			String line=r.next();
 			if(line.isEmpty() || line.startsWith("#")) continue;
@@ -148,90 +189,44 @@ public class Biostar92368 extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar92368";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Binary interactions depth See also http://www.biostars.org/p/92368/";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -D (dir) berkeleydb home. REQUIRED.");
-		out.println(" -M (max depth) default:3");
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		int maxDepth=3;
-		File dbHome=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "D:M:"))!=-1)
+	public int doWork(List<String> args) {
+		if(this.dbHome==null)
 			{
-			switch(c)
-				{
-				case 'D':
-					{
-					dbHome=new File(opt.getOptArg());
-					break;
-					}
-				case 'M':
-					{
-					maxDepth=Integer.parseInt(opt.getOptArg());
-					break;
-					}
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
-		if(dbHome==null)
-			{
-			error("Undefined DB-Home");
+			LOG.error("Undefined DB-Home");
+			return -1;
 			}
 		environment=null;
 		EnvironmentConfig envCfg=new EnvironmentConfig();
 		this.database=null;
 		Transaction txn=null;
+		PrintStream out=null;
 		try
 			{
+			
 			envCfg.setAllowCreate(true);
 			this.environment=new Environment(dbHome, envCfg);
 			DatabaseConfig cfg=new DatabaseConfig();
 			cfg.setAllowCreate(true);
 			cfg.setTemporary(true);
 			this.database=environment.openDatabase(txn, "interactions", cfg);
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("reading stdin");
+				LOG.info("reading stdin");
 				LineIterator r=IOUtils.openStdinForLineIterator();
 				load(txn,r);
 				CloserUtil.close(r);
 				}
 			else
 				{
-				for(int optind=opt.getOptInd();optind< args.length;++optind)
+				for(String filename:args)
 					{
-					String filename=args[optind];
-					info("reading "+filename);
+					LOG.info("reading "+filename);
 					LineIterator r=IOUtils.openURIForLineIterator(filename);
 					load(txn,r);
 					CloserUtil.close(r);
 					}
 				}
+			out= super.openFileOrStdoutAsPrintStream(outputFile);
 			DatabaseEntry key1=new DatabaseEntry();
 			DatabaseEntry data1=new DatabaseEntry();
 			DatabaseEntry key2=new DatabaseEntry();
@@ -257,29 +252,33 @@ public class Biostar92368 extends AbstractCommandLineProgram
 					int depth=recursive(txn,prot2,path,-1,maxDepth);
 					if(depth!=-1)
 						{
-						System.out.println(prot1+"\t"+prot2+"\t"+depth);
+						out.println(prot1+"\t"+prot2+"\t"+depth);
 						}
 					else
 						{
 						//System.out.println(prot1+"\t"+prot2+"\t"+depth);
 						}
-					if(System.out.checkError()) break;
+					if(out.checkError()) break;
 					}
 				
 				}
 			CloserUtil.close(c2);
 			CloserUtil.close(c1);
+			out.flush();
+			out.close();
+			return 0;
 			}
 		catch (Exception err)
 			{
-			error(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
 			CloserUtil.close(this.database);
 			CloserUtil.close(this.environment);
 			}
-		return 0;
+		
 		}
 	/**
 	 * @param args

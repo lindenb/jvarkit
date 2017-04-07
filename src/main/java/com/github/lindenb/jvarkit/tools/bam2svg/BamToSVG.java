@@ -36,12 +36,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -62,22 +62,51 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 
-public class BamToSVG extends AbstractBamToSVG
+@Program(name="bam2svg",
+description="BAM to raster graphics",
+keywords={"bam","alignment","graphics","visualization"}
+)
+public class BamToSVG extends Launcher
 	{
 	private static final int HEIGHT_MAIN_TITLE=100;
 	private static final int HEIGHT_SAMPLE_NAME=50;
 	
 	
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamToSVG.class);
+	private static final Logger LOG = Logger.build(BamToSVG.class).make();
 
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-i","--interval"},description="interval",required=true)
+	private String intervalStr = null;
+
+	@Parameter(names={"-w","--width"},description="Page width")
+	private int drawinAreaWidth = 1000 ;
+
+	@Parameter(names={"-c","--showclipping"},description="Show clipping")
+	private boolean showClipping = false;
+
+	@Parameter(names={"-S","--vcf"},description="add VCF indexed with tabix. Optinal. the Samples's name must be the same than in the BAM")
+	private Set<String> vcfFileSet = new LinkedHashSet<>() ;
+
+	@Parameter(names={"-R","--reference"},description="indexed fasta reference")
+	private File referenceFile = null;
+
+	
 	
 		private int HEIGHT_RULER=200;
 		private Hershey hershey=new Hershey();
@@ -172,12 +201,12 @@ public class BamToSVG extends AbstractBamToSVG
 		
 		private int left(final SAMRecord rec)
 			{
-			return (super.showClipping?rec.getUnclippedStart():rec.getAlignmentStart());
+			return (this.showClipping?rec.getUnclippedStart():rec.getAlignmentStart());
 			}
 	
 		private int right(final SAMRecord rec)
 			{
-			return (super.showClipping?rec.getUnclippedEnd():rec.getAlignmentEnd());
+			return (this.showClipping?rec.getUnclippedEnd():rec.getAlignmentEnd());
 			}
 		private double baseToPixel(int pos)
 			{
@@ -417,8 +446,7 @@ public class BamToSVG extends AbstractBamToSVG
 			w.writeStartElement(SVG.NS,"description");
 			w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
 			w.writeCharacters("Version:"+getVersion()+"\n");
-			w.writeCharacters("Author:"+ getAuthorName()+" "+ getAuthorMail()+"\n");
-			w.writeCharacters("WWW:"+ getOnlineDocUrl()+"\n");
+			w.writeCharacters("Author: Pierre Lindenbaum\n");
 			w.writeCharacters("Htsjdk: "+HtsjdkVersion.getHome()+" "+HtsjdkVersion.getVersion()+"\n");
 			w.writeEndElement();
 			
@@ -623,7 +651,7 @@ public class BamToSVG extends AbstractBamToSVG
 				CigarOperator op=ce.getOperator();
 				switch(op)
 					{
-					case H:case S: if(!super.showClipping) break;//threw
+					case H:case S: if(!this.showClipping) break;//threw
 					case M:case EQ: case X:
 						{
 						arrow_cigar_index=cidx;
@@ -678,7 +706,7 @@ public class BamToSVG extends AbstractBamToSVG
 						}
 					case H:
 						{
-						if(!super.showClipping)
+						if(!this.showClipping)
 							{
 							refPos+=ce.getLength();
 							break;
@@ -688,7 +716,7 @@ public class BamToSVG extends AbstractBamToSVG
 						}
 					case S:
 						{
-						if(!super.showClipping)
+						if(!this.showClipping)
 							{
 							readPos+=ce.getLength();
 							refPos+=ce.getLength();
@@ -824,36 +852,27 @@ public class BamToSVG extends AbstractBamToSVG
 		}
 		
 		@Override
-		public Collection<Throwable> call() throws Exception
-			{			
+		public int doWork(List<String> args) {
 			/* parse interval */
-			if(super.intervalStr==null)
+			if(this.intervalStr==null)
 				{
-				return wrapException(getMessageBundle("bed.interval0.undefined"));
+				return wrapException("bed.interval0.undefined");
 				}
-			int colon= super.intervalStr.indexOf(':');
-			int hyphen=super.intervalStr.indexOf('-',colon+1);
+			int colon= this.intervalStr.indexOf(':');
+			int hyphen=this.intervalStr.indexOf('-',colon+1);
 			if(colon<1 || hyphen<=colon || hyphen+1==intervalStr.length())
 				{
-				return wrapException("Bad interval "+super.intervalStr);
+				return wrapException("Bad interval "+this.intervalStr);
 				}
 			
 			this.interval=new Interval();
-			this.interval.chrom=super.intervalStr.substring(0,colon);
-			this.interval.start=Integer.parseInt(super.intervalStr.substring(colon+1,hyphen))+1;
-			this.interval.end=Integer.parseInt(super.intervalStr.substring(hyphen+1));
+			this.interval.chrom=this.intervalStr.substring(0,colon);
+			this.interval.start=Integer.parseInt(this.intervalStr.substring(colon+1,hyphen))+1;
+			this.interval.end=Integer.parseInt(this.intervalStr.substring(hyphen+1));
 				
-			/* get genomic sequence */
-			if(this.getRefFile()!=null)
-				{
-				LOG.info("opening "+getRefFile());
-				this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(getRefFile());
-				this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.chrom);
-				}
 			
 			this.drawinAreaWidth = Math.max(100,this.drawinAreaWidth );
 			
-			final List<String> args= getInputFiles();
 			SamReader in=null;
 			SAMRecordIterator iter=null;
 			SamReaderFactory sfrf= SamReaderFactory.makeDefault();
@@ -862,7 +881,17 @@ public class BamToSVG extends AbstractBamToSVG
 			FileOutputStream fout=null;
 			try
 				{
-				for(String vcf:getVcfFileSet())
+				/* get genomic sequence */
+				if(this.referenceFile!=null)
+					{
+					LOG.info("opening "+this.referenceFile);
+					this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFile);
+					this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.chrom);
+					}
+
+				
+				
+				for(String vcf:this.vcfFileSet)
 					{
 					readVariantFile(vcf);
 					}
@@ -899,18 +928,18 @@ public class BamToSVG extends AbstractBamToSVG
 						}
 					}
 				
-				this.featureWidth=  super.drawinAreaWidth/(double)((this.interval.end - this.interval.start)+1); 
+				this.featureWidth=  this.drawinAreaWidth/(double)((this.interval.end - this.interval.start)+1); 
 				this.featureHeight= Math.min(Math.max(5.0,this.featureWidth),30); 
 				this.HEIGHT_RULER=(int)(this.niceIntFormat.format(this.interval.end).length()*this.featureHeight+5);
 				LOG.info("Feature height:"+this.featureHeight);
 				XMLOutputFactory xof=XMLOutputFactory.newFactory();
-				if(getOutputFile()==null)
+				if(this.outputFile==null)
 					{
 					w=xof.createXMLStreamWriter(stdout(), "UTF-8");
 					}
 				else
 					{
-					fout = new FileOutputStream(getOutputFile());
+					fout = new FileOutputStream(this.outputFile);
 					w=xof.createXMLStreamWriter(fout, "UTF-8");
 					}
 				w.writeStartDocument("UTF-8", "1.0");
@@ -919,7 +948,7 @@ public class BamToSVG extends AbstractBamToSVG
 				w.flush();
 				w.close();
 				
-				return Collections.emptyList();
+				return RETURN_OK;
 				}
 			catch(Exception err)
 				{

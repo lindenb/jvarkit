@@ -37,8 +37,10 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -243,10 +245,64 @@ public static class SortingCollectionArgs
 	}
 
 
-public static class WritingBamArgs
+public class WritingBamArgs
 	{
-	@Parameter(names={"--xx"},description="Compression Level.",converter=CompressionConverter.class)
+	
+	@Parameter(names={"--bamcompression"},description="Compression Level.")
 	public int compressionLevel=5;
+	@Parameter(names={"--samoutputformat"},description="Sam output format.")
+	public htsjdk.samtools.SamReader.Type samoutputformat = htsjdk.samtools.SamReader.Type.SAM_TYPE;
+	
+	/** creates a SAMFileWriterFactory */
+	public htsjdk.samtools.SAMFileWriterFactory createSAMFileWriterFactory() {
+		final SAMFileWriterFactory sfw =  new SAMFileWriterFactory();
+		int n= this.compressionLevel;
+		if(n<0) n= Deflater.NO_COMPRESSION;
+		if(n>9) n= Deflater.BEST_COMPRESSION;
+		sfw.setCompressionLevel(n);
+		
+		return sfw;
+		}
+	
+	/** return reference file. default implementation returns null */
+	public File getReferenceFile() {
+		return null;
+		}
+	
+	
+	
+	public SAMFileWriter openSAMFileWriter(File outputFileOrNull,SAMFileHeader header,boolean presorted)
+	{
+		final htsjdk.samtools.SAMFileWriterFactory sfw= this.createSAMFileWriterFactory();
+		
+		
+		if(outputFileOrNull==null)
+			{
+			if( this.samoutputformat!=null &&
+				this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.BAM_TYPE))
+				{
+				return sfw.makeBAMWriter(header, presorted, stdout());
+				}
+			else if(this.samoutputformat==null || this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.SAM_TYPE))
+				{
+				return sfw.makeSAMWriter(header, presorted, stdout());
+				}
+			else if(this.samoutputformat==null || this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.CRAM_TYPE))
+				{
+				return sfw.makeCRAMWriter(header,stdout(),getReferenceFile());
+				}
+			else
+				{
+				throw new IllegalStateException("Bad output format");
+				}
+			}
+		else
+			{
+			return sfw.makeWriter(header, presorted, outputFileOrNull, getReferenceFile());
+			}
+
+		}
+	
 	}
 
 public static class PrintWriterOnDemand

@@ -6,14 +6,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -58,7 +61,6 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 public class VcfGnomad extends Launcher{
 	
 	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
-	private static final int BUFFER_SIZE = 100000;
 	/** allele specific population in gnomad */
 	private final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female", "raw", "POPMAX"}; 
 	/** 'ome'-type section */
@@ -67,7 +69,7 @@ public class VcfGnomad extends Launcher{
 	private List<ManifestEntry> manifestEntries=new ArrayList<>();
 	
 	
-	private static class ManifestEntry
+	private class ManifestEntry
 		implements Closeable
 		{
 		OmeType omeType;
@@ -75,7 +77,7 @@ public class VcfGnomad extends Launcher{
 		String uri;
 		TabixVcfFileReader tabix=null;
 		int buffferChromEnd=0;
-		final List<VariantContext> buffer=new ArrayList<>(BUFFER_SIZE);
+		final Map<ContigPosRef,VariantContext> buffer=new HashMap<>();
 		@Override
 		public void close() throws IOException {
 			CloserUtil.close(tabix);
@@ -84,33 +86,27 @@ public class VcfGnomad extends Launcher{
 			tabix=null;
 			}
 		/** find matching variant in tabix file, use a buffer to avoid multiple random accesses */
-		VariantContext findMatching(final String normContig,final int pos,Allele ref)
+		VariantContext findMatching(final ContigPosRef userCtx)
 			{
 			//past last buffer ? refill buffer
-			if(this.buffferChromEnd<=pos)
+			if(this.buffferChromEnd <= userCtx.getPos())
 				{
 				buffer.clear();
-				this.buffferChromEnd=pos+BUFFER_SIZE;
+				this.buffferChromEnd = userCtx.getPos() + VcfGnomad.this.gnomadBufferSize;
 				final Iterator<VariantContext> iter=this.tabix.iterator(
-						normContig, Math.max(0,pos-1),
+						userCtx.getContig(),
+						Math.max(0,userCtx.getPos()-1),
 						this.buffferChromEnd
 						);
 				while(iter.hasNext())
 					{
-					this.buffer.add(iter.next());
+					final VariantContext ctx = iter.next();
+					final ContigPosRef key= new ContigPosRef(ctx);
+					this.buffer.put(key,ctx);
 					}
 				CloserUtil.close(iter);
 				}
-			
-			for(VariantContext ctx:this.buffer)
-				{
-				if(!ctx.getContig().equals(normContig)) continue;
-				if(ctx.getStart()<pos) continue;
-				if(ctx.getStart()>pos) break;
-				if(!ctx.getReference().equals(ref)) continue;
-				return ctx;
-				}
-			return null;
+			return this.buffer.get(userCtx);
 			}
 		
 		}
@@ -126,6 +122,10 @@ public class VcfGnomad extends Launcher{
 	private String inGnomadFilterName=null;
 	@Parameter(names={"-ac","--alleleconcordance"},description="ALL Alt allele must be found in gnomad before setting a FILTER")
 	private boolean alleleconcordance=false;
+	
+	@Parameter(names={"--bufferSize"},description="When we're looking for variant in Exac, load the variants for 'N' bases instead of doing a random access for each variant")
+	private int gnomadBufferSize=100000;
+
 	
 	private class InfoField
 		{
@@ -273,7 +273,7 @@ public class VcfGnomad extends Launcher{
 					ManifestEntry entry = ome2manifest[i];
 					if(entry==null) continue;
 					
-					final VariantContext ctx2=entry.findMatching(ensemblContig, ctx.getStart(), ctx.getReference());
+					final VariantContext ctx2=entry.findMatching(new ContigPosRef(ctx));
 					if(ctx2==null) continue;
 					for(final InfoField infoField: infoFields)
 						{
@@ -318,6 +318,9 @@ public class VcfGnomad extends Launcher{
 
 @Override
 public int doWork(List<String> args) {
+	if(this.gnomadBufferSize < 10) {
+		this.gnomadBufferSize  = 10;
+		}
 	if(this.manifestFile==null)
 		{
 		LOG.info("Building default manifest file...");

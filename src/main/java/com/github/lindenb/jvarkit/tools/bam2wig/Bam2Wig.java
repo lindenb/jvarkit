@@ -28,9 +28,10 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.bam2wig;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SamReader;
@@ -42,11 +43,86 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class Bam2Wig extends AbstractBam2Wig
+/**
+BEGIN_DOC
+
+## Example
+the input file
+
+```bash
+java -jar dist/bam2wig.jar -w 1 -s 3 -i -t -L OFF examples/toy.bam
+```
+
+```
+track type=wiggle_0 name="__REPLACE_WIG_NAME__" description="__REPLACE_WIG_DESC__"
+fixedStep chrom=ref start=7 step=3 span=1
+1
+3
+3
+3
+1
+1
+0
+0
+1
+0
+2
+2
+1
+fixedStep chrom=ref2 start=1 step=3 span=1
+1
+2
+3
+4
+5
+6
+6
+5
+4
+3
+3
+```
+
+END_DOC
+ */
+@Program(name="bam2wig",
+description="Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)",
+keywords={"bam","wig","wiggle"}
+)
+public class Bam2Wig extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(Bam2Wig.class);
+	private static final Logger LOG = Logger.build(Bam2Wig.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-t","--header"},description="print a UCSC custom track header")
+	private boolean custom_track = false;
+
+	@Parameter(names={"-s","--windowShift"},description="window shift")
+	private int WINDOW_SHIFT = 25 ;
+
+	@Parameter(names={"-w","--windowSize"},description="window size")
+	private int WINDOW_SIZE = 100 ;
+
+	@Parameter(names={"-q","--mapq"},description="min MAPQ")
+	private int min_qual = 0 ;
+
+	@Parameter(names={"-i","--integer"},description="cast to integer")
+	private boolean cast_to_integer = false;
+
+	@Parameter(names={"-g","--zerolength"},description="minimal zero-coverage length before writing a new header")
+	private int min_gap = 200 ;
+
+	@Parameter(names={"-d","--zerolength"},description="minimal depth before setting depth to zero")
+	private int min_depth = 0 ;
 
 
 	
@@ -58,7 +134,7 @@ public class Bam2Wig extends AbstractBam2Wig
 
 	
 	
-		private PrintWriter pw = null;
+	private PrintWriter pw = null;
 	
 	private void run(final SamReader sfr)
 		{
@@ -219,19 +295,18 @@ public class Bam2Wig extends AbstractBam2Wig
 		pw.flush();
 		}
 	
-
-		@Override
-		protected Collection<Throwable> call(String inputName) throws Exception {
+	@Override
+	public int doWork(final List<String> args) {
 			SamReader in=null;
-			this.pw = openFileOrStdoutAsPrintWriter();
 			try
 				{
-				in = openSamReader(inputName);
+				this.pw = openFileOrStdoutAsPrintWriter(this.outputFile);
+				in = openSamReader(oneFileOrNull(args));
 				run(in);
 				pw.flush();
 				return RETURN_OK;
 				}
-			catch(Exception err)
+			catch(final Exception err)
 				{
 				LOG.error(err);
 				return wrapException(err);

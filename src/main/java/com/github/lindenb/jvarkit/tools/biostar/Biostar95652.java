@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import gov.nih.nlm.ncbi.gb.GBFeature;
@@ -7,6 +35,8 @@ import gov.nih.nlm.ncbi.gb.GBSeq;
 import gov.nih.nlm.ncbi.gb.GBSet;
 
 import java.awt.geom.Rectangle2D;
+import java.io.File;
+import java.io.PrintStream;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,14 +55,23 @@ import javax.xml.stream.XMLStreamWriter;
 
 import org.xml.sax.InputSource;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 
-
-public class Biostar95652 extends AbstractCommandLineProgram
+@Program(name="biostar95652",description="Drawing a schematic genomic context tree. See also http://www.biostars.org/p/95652/",biostars=95652)
+public class Biostar95652 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar95652.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
 	private static final String XLINK="http://www.w3.org/1999/xlink";
 
 	@SuppressWarnings("unused")
@@ -276,59 +315,27 @@ public class Biostar95652 extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar95652";
-		}
-	@Override
-	public String getProgramDescription() {
-		return "Drawing a schematic genomic context tree. See also http://www.biostars.org/p/95652/";
-		}
+	public int doWork(final List<String> args) {
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				error("protein ID missing");
+				LOG.error("protein ID missing");
 				return -1;
 				}
 			JAXBContext context = JAXBContext.newInstance("gov.nih.nlm.ncbi.gb");
 			Unmarshaller unmarshaller=context.createUnmarshaller();
-			for(int i=opt.getOptInd();i<args.length;++i)
+			for(String arg:args)
 				{
 				String uri="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=protein&rettype=gb&retmode=xml&id="+
-						URLEncoder.encode(args[i],"UTF-8");
+						URLEncoder.encode(arg,"UTF-8");
 				
-				info("Reading from "+uri);
+				LOG.info("Reading from "+uri);
 				GBSet gbset=(GBSet)unmarshaller.unmarshal(new InputSource(uri));
 				if(gbset.getGBSeq().isEmpty())
 					{
-					info("Nothing in "+uri);
+					LOG.info("Nothing in "+uri);
 					continue;
 					}
 				GBSeq gbseq=gbset.getGBSeq().get(0);
@@ -413,7 +420,7 @@ public class Biostar95652 extends AbstractCommandLineProgram
 			root.x=0;
 			root.y= (this.leafList.size()*seqHeight)/2.0;
 			root.compileXY(0,this.leafList.size()*seqHeight);
-			
+			PrintStream ps = super.openFileOrStdoutAsPrintStream(outputFile);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			xof.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.TRUE);
 			XMLStreamWriter w=xof.createXMLStreamWriter(System.out, "UTF-8");
@@ -426,8 +433,7 @@ public class Biostar95652 extends AbstractCommandLineProgram
 			w.writeAttribute("height",String.valueOf(2+this.leafList.size()*seqHeight));
 			w.writeComment(this.getProgramCommandLine());
 			w.writeComment("Version:"+getVersion());
-			w.writeComment("Author:"+getAuthorName());
-			w.writeComment("URL:"+getOnlineDocUrl());
+			w.writeComment("Author: Pierre lindenbaum Phd");
 			
 			
 			w.writeStartElement("defs");
@@ -494,12 +500,14 @@ public class Biostar95652 extends AbstractCommandLineProgram
 			w.writeEndDocument();
 			w.flush();
 			w.close();
-			info("Done");
+			ps.close();
+			ps=null;
+			LOG.info("Done");
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

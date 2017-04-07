@@ -35,7 +35,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -44,11 +43,14 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import org.slf4j.Logger;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -64,9 +66,29 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 
-public class BamStats05 extends AbstractBamStats05
+@Program(name="bamstats05",
+description="Coverage statistics for a BED file, group by gene",
+keywords={"bam","coverage","statistics","bed"}
+)
+public class BamStats05 extends Launcher
 	{
-	private static final Logger LOG= com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractBamStats05.class);
+	private static final Logger LOG = Logger.build(BamStats05.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-m","--mincoverage"},description="min coverage to say the position is not covered")
+	private int MIN_COVERAGE = 0 ;
+
+	@Parameter(names={"-B","--bed"},description="bed file (columns: chrom start end GENE)",required=true)
+	private File BEDILE = null;
+
+	@Parameter(names={"-p","--orphan"},description="use orphan reads (not only properly paired)")
+	private boolean USE_ORPHAN = false;
+
+	@Parameter(names={"-q","--minmapq"},description="min mapping quality")
+	private int MMQ = 0 ;
 
 	private Map<String, List<Interval>> readBedFile(File bedFile) throws IOException
     	{
@@ -122,7 +144,7 @@ public class BamStats05 extends AbstractBamStats05
     		}
     	}
 	
-	protected  Collection<Throwable> doWork(
+	protected  int doWork(
 			final PrintWriter pw,
 			final Map<String, List<Interval>> gene2interval,
 			final String filename,
@@ -267,9 +289,7 @@ public class BamStats05 extends AbstractBamStats05
 	}
 	
 	@Override
-	public Collection<Throwable> call() throws Exception
-		{
-		final List<String> args = getInputFiles();
+	public int doWork(List<String> args) {
 		if(BEDILE==null)
 			{
 			return wrapException("missing bed file");
@@ -280,7 +300,7 @@ public class BamStats05 extends AbstractBamStats05
 		try
 			{
 			Map<String, List<Interval>> gene2interval = readBedFile(BEDILE);
-			pw = super.openFileOrStdoutAsPrintWriter();
+			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			pw.println("#chrom\tstart\tend\tgene\tsample\tlength\tmincov\tmaxcov\tmean\tnocoverage.bp\tpercentcovered");
 			SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			final Set<String> files = new  HashSet<>();
@@ -313,10 +333,10 @@ public class BamStats05 extends AbstractBamStats05
 			for(final String f:files)
 				{
 				in = srf.open(new File(f));
-				final Collection<Throwable> tl =doWork(pw,gene2interval,f,in);
+				int tl =doWork(pw,gene2interval,f,in);
 				CloserUtil.close(in);
 				in=null;
-				if(!tl.isEmpty()) return tl;
+				if(tl!=0) return tl;
 				}
 			pw.flush();
 			pw.close();

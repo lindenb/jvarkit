@@ -26,7 +26,23 @@ History:
 
 */
 package com.github.lindenb.jvarkit.tools.bam2graphics;
+/**
+BEGIN_DOC
 
+## Example
+
+```
+java -jar dist/bam2raster.jar \
+	-o ~/jeter.png \
+        -r 2:17379500-17379550 \
+        -R  human_g1k_v37.fasta \
+        sample.bam
+```
+
+<img src="https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png"/>
+
+END_DOC
+*/
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -43,17 +59,19 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 
@@ -71,10 +89,36 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-public class Bam2Raster extends AbstractBam2Raster
+@Program(name="bam2raster",
+	description="BAM to raster graphics",
+	keywords={"bam","alignment","graphics","visualization"}
+	)
+public class Bam2Raster extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Bam2Raster.class);
-    public Bam2Raster()
+	private static final Logger LOG = Logger.build(Bam2Raster.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-b","--bases"},description="print bases")
+	private boolean printBases = false;
+
+	@Parameter(names={"-r","--region"},description="restrict to that region. REQUIRED",required=true)
+	private String region = null;
+
+	@Parameter(names={"-R","--reference"},description="indexed fasta reference")
+	private File referenceFile = null;
+
+	@Parameter(names={"-w","--width"},description="Image width")
+	private int WIDTH = 1000 ;
+
+	@Parameter(names={"-N","--name"},description="print read name")
+	private boolean printName = false;
+
+
+	public Bam2Raster()
     	{
     	}
   
@@ -430,7 +474,7 @@ public class Bam2Raster extends AbstractBam2Raster
 										}
 									
 									//print read name instead of base
-									if(isPrintName())
+									if(this.printName)
 										{
 										
 										if(readpos<rec.getReadName().length())
@@ -444,7 +488,7 @@ public class Bam2Raster extends AbstractBam2Raster
 											c1=' ';
 											}
 										}
-									else if(!super.disablePrintBases)
+									else
 										{
 										c1=' ';
 										}
@@ -509,14 +553,9 @@ public class Bam2Raster extends AbstractBam2Raster
 		}
 
 		
-	
-	
 	@Override
-	public Collection<Throwable> call() throws Exception
-			{
-			final List<String> args = getInputFiles();
-			
-			if(getRegion()==null)
+	public int doWork(List<String> args) {
+			if(this.region==null)
 				{
 				return wrapException("Region was not defined.");
 				}
@@ -534,19 +573,19 @@ public class Bam2Raster extends AbstractBam2Raster
 				{
 				return wrapException("illegal number of arguments.");
 				}
-		    if(getWIDTH()<100)
+		    if(this.WIDTH<100)
 		    	{
 		    	LOG.info("adjusting WIDTH to 100");
-		    	setWIDTH(100);
+		    	this.WIDTH=100;
 		    	}
 			
 			SamReader samFileReader=null;
 			try
 				{
-				if(getReferenceFile()!=null)
+				if(this.referenceFile!=null)
 					{
 					LOG.info("loading reference");
-					this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(getReferenceFile());
+					this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
 					}
 				SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
 				if(this.bamFile==null)
@@ -579,16 +618,16 @@ public class Bam2Raster extends AbstractBam2Raster
 					{
 					return wrapException("No image was generated.");
 					}
-				if(getOutputFile()==null)
+				if(this.outputFile==null)
 					{
 					ImageIO.write(img, "PNG", stdout());
 					}
 				else
 					{
-					LOG.info("saving to "+getOutputFile());
-					ImageIO.write(img, "PNG", getOutputFile());
+					LOG.info("saving to "+this.outputFile);
+					ImageIO.write(img, "PNG", this.outputFile);
 					}
-				return Collections.emptyList();
+				return RETURN_OK;
 				}
 			catch(IOException err)
 				{

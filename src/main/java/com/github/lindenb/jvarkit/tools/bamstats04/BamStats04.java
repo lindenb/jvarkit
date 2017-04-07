@@ -29,13 +29,18 @@ History:
 package com.github.lindenb.jvarkit.tools.bamstats04;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.PrintWriter;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -47,158 +52,206 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 
-public class BamStats04 extends AbstractBamStats04
+/**
+BEGIN_DOC
+
+## Example
+
+```
+$ java -jar dist/bamstats04.jar \
+	-B data.bed \
+	f.bam
+#chrom	start	end	length	mincov	maxcov	mean	nocoveragebp	percentcovered
+1	429665	429785	120	42	105	72.36666666666666	0	100
+1	430108	430144	36	9	9	9.0	0	100
+1	439811	439904	93	0	36	3.6451612903225805	21	77
+1	550198	550246	48	1325	1358	1344.4583333333333	0	100
+1	629855	629906	51	223	520	420.70588235294116	0	100
+1	689960	690029	69	926	1413	1248.9420289855072	0	100
+1	690852	690972	120	126	193	171.24166666666667	0	100
+1	787283	787406	123	212	489	333.9756097560976	0	100
+1	789740	789877	137	245	688	528.6715328467153	0	1
+```
+
+END_DOC
+ */
+@Program(name="bamstats04",
+description="Coverage statistics for a BED file.",
+keywords={"bam","coverage","statistics","bed"}
+)
+public class BamStats04 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamStats04.class);
+	private static final Logger LOG = Logger.build(BamStats04.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-cov","--cov"},description="min coverage to say the position is not covered")
+	private int MIN_COVERAGE = 0 ;
+
+	@Parameter(names={"-mmq","--mmq"},description="min mapping quality")
+	private int MMQ = 0 ;
+
+	@Parameter(names={"-keeporphan","--keeporphan"},description="if set: accept not properly aligned pairs.")
+	private boolean keep_orphans = false;
+
+	@Parameter(names={"-B","--bed"},description="Bed File. Required",required=true)
+	private File bedFile = null;
+
+	@Parameter(names={"-R","--ref"},description="Optional REFerence Genome. If set, a column with the GC% will be added")
+	private File faidxFile = null;
+
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		if(super.bedFile==null || !super.bedFile.exists()) {
-			return wrapException("undefined option -"+OPTION_BEDFILE);
-		}
-		BufferedReader bedIn=null;
-		SamReader samReader = null;
-		PrintWriter pw = null;
-		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-		GenomicSequence genomicSequence=null;
-		try
-			{
-			
-			final BedLineCodec codec= new BedLineCodec();
-			
-			bedIn=IOUtils.openFileForBufferedReading(super.bedFile);
-			samReader = super.openSamReader(inputName);
-			if(super.faidxFile!=null) {
-				indexedFastaSequenceFile = new IndexedFastaSequenceFile(super.faidxFile);
+		public int doWork(final List<String> args) {
+			if(this.bedFile==null || !this.bedFile.exists()) {
+				return wrapException("undefined option -B");
 			}
-			pw = super.openFileOrStdoutAsPrintWriter();
-			pw.println("#chrom\tstart\tend\tlength\t"+
-				(indexedFastaSequenceFile==null?"":"gc_percent\t")+
-				"mincov\tmaxcov\tmeancov\tmediancov\tnocoveragebp\tpercentcovered");
-
-		
-			String line=null;
-			while((line=bedIn.readLine())!=null)
+			BufferedReader bedIn=null;
+			SamReader samReader = null;
+			PrintWriter pw = null;
+			IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+			GenomicSequence genomicSequence=null;
+			try
 				{
-				if(line.isEmpty() || line.startsWith("#")) continue;
-				final BedLine bedLine = codec.decode(line);
-				if(bedLine==null) continue;
-				if(genomicSequence==null || !genomicSequence.getChrom().equals(bedLine.getContig())) {
-					genomicSequence = new GenomicSequence(indexedFastaSequenceFile, bedLine.getContig());
-					}
 				
-				/* picard javadoc:  - Sequence name - Start position (1-based) - End position (1-based, end inclusive)  */
+				final BedLineCodec codec= new BedLineCodec();
 				
-				
-				final int counts[]=new int[bedLine.getEnd()-bedLine.getStart()+1];
-				if(counts.length==0) continue;
-				Arrays.fill(counts, 0);
-				
-				/**
-				 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
-	    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
-				 */
-				final SAMRecordIterator r=samReader.queryOverlapping(
-						bedLine.getContig(),
-						bedLine.getStart(),
-						bedLine.getEnd()
-						);
-				while(r.hasNext())
-					{
-					final SAMRecord rec=r.next();
-					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-					if(rec.getDuplicateReadFlag() ) continue;
-					if(!super.keep_orphans && rec.getReadPairedFlag() && !rec.getProperPairFlag())
-						{
-						continue;
-						}
-					if(rec.isSecondaryOrSupplementary()) continue;
-					if(!rec.getReferenceName().equals(bedLine.getContig())) continue;
-					if(rec.getMappingQuality()==255 ||
-						rec.getMappingQuality()==0 ||
-						rec.getMappingQuality()< this.MMQ)
-						{
-						continue;
-						}
-					final Cigar cigar=rec.getCigar();
-					if(cigar==null) continue;
-		    		int refpos1=rec.getAlignmentStart();
-		    		for(final CigarElement ce:cigar)
-		    			{
-		    			final CigarOperator op=ce.getOperator();
-		    			if(!op.consumesReferenceBases()) continue;
-		    			if(op.consumesReadBases())
-		    				{
-		    				for(int i=0;i< ce.getLength();++i)
-	    		    			{
-								if(refpos1+i>= bedLine.getStart() && refpos1+i<=bedLine.getEnd())
-									{
-									counts[refpos1+i-bedLine.getStart()]++;
-									}
-			    				}
-		    				}
-		    			refpos1+=ce.getLength();
-		    			if(refpos1>bedLine.getEnd()) break;
-		    			}
-					}
-				
-				r.close();
-				
-				Arrays.sort(counts);
-				
-				int count_no_coverage=0;
-				double mean=0;
-				for(final int cov:counts)
-					{
-					if(cov<=MIN_COVERAGE) ++count_no_coverage;
-					mean+=cov;
-					}
-				mean/=counts.length;
-				
-                final double median_depth;
-                final int mid_x= counts.length/2;
-                if(counts.length%2==0)
-                        {
-                        median_depth =  (counts[mid_x-1]+counts[mid_x])/2.0;
-                        }
-                else
-                        {
-                        median_depth =  counts[mid_x];
-                        }
-
-				
-				pw.println(
-						bedLine.getContig()+"\t"+
-						(bedLine.getStart()-1)+"\t"+
-						(bedLine.getEnd())+"\t"+
-						counts.length+"\t"+
-						(genomicSequence==null?
-							"":
-							String.valueOf((genomicSequence.getGCPercent(bedLine.getStart()-1,bedLine.getEnd())).getGCPercentAsInteger())+"\t")+
-						counts[0]+"\t"+
-						counts[counts.length-1]+"\t"+
-						mean+"\t"+median_depth+"\t"+
-						count_no_coverage+"\t"+
-						(int)(((counts.length-count_no_coverage)/(double)counts.length)*100.0)
-						);
+				bedIn=IOUtils.openFileForBufferedReading(this.bedFile);
+				samReader = super.openSamReader(oneFileOrNull(args));
+				if(this.faidxFile!=null) {
+					indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidxFile);
 				}
-			pw.flush();
-			pw.close();pw=null;
-			LOG.info("done");
-			return RETURN_OK;
+				pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+				pw.println("#chrom\tstart\tend\tlength\t"+
+					(indexedFastaSequenceFile==null?"":"gc_percent\t")+
+					"mincov\tmaxcov\tmeancov\tmediancov\tnocoveragebp\tpercentcovered");
+	
+			
+				String line=null;
+				while((line=bedIn.readLine())!=null)
+					{
+					if(line.isEmpty() || line.startsWith("#")) continue;
+					final BedLine bedLine = codec.decode(line);
+					if(bedLine==null) continue;
+					if(genomicSequence==null || !genomicSequence.getChrom().equals(bedLine.getContig())) {
+						genomicSequence = new GenomicSequence(indexedFastaSequenceFile, bedLine.getContig());
+						}
+					
+					/* picard javadoc:  - Sequence name - Start position (1-based) - End position (1-based, end inclusive)  */
+					
+					
+					final int counts[]=new int[bedLine.getEnd()-bedLine.getStart()+1];
+					if(counts.length==0) continue;
+					Arrays.fill(counts, 0);
+					
+					/**
+					 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
+		    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
+					 */
+					final SAMRecordIterator r=samReader.queryOverlapping(
+							bedLine.getContig(),
+							bedLine.getStart(),
+							bedLine.getEnd()
+							);
+					while(r.hasNext())
+						{
+						final SAMRecord rec=r.next();
+						if(rec.getReadUnmappedFlag()) continue;
+						if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+						if(rec.getDuplicateReadFlag() ) continue;
+						if(!this.keep_orphans && rec.getReadPairedFlag() && !rec.getProperPairFlag())
+							{
+							continue;
+							}
+						if(rec.isSecondaryOrSupplementary()) continue;
+						if(!rec.getReferenceName().equals(bedLine.getContig())) continue;
+						if(rec.getMappingQuality()==255 ||
+							rec.getMappingQuality()==0 ||
+							rec.getMappingQuality()< this.MMQ)
+							{
+							continue;
+							}
+						final Cigar cigar=rec.getCigar();
+						if(cigar==null) continue;
+			    		int refpos1=rec.getAlignmentStart();
+			    		for(final CigarElement ce:cigar)
+			    			{
+			    			final CigarOperator op=ce.getOperator();
+			    			if(!op.consumesReferenceBases()) continue;
+			    			if(op.consumesReadBases())
+			    				{
+			    				for(int i=0;i< ce.getLength();++i)
+		    		    			{
+									if(refpos1+i>= bedLine.getStart() && refpos1+i<=bedLine.getEnd())
+										{
+										counts[refpos1+i-bedLine.getStart()]++;
+										}
+				    				}
+			    				}
+			    			refpos1+=ce.getLength();
+			    			if(refpos1>bedLine.getEnd()) break;
+			    			}
+						}
+					
+					r.close();
+					
+					Arrays.sort(counts);
+					
+					int count_no_coverage=0;
+					double mean=0;
+					for(final int cov:counts)
+						{
+						if(cov<=MIN_COVERAGE) ++count_no_coverage;
+						mean+=cov;
+						}
+					mean/=counts.length;
+					
+	                final double median_depth;
+	                final int mid_x= counts.length/2;
+	                if(counts.length%2==0)
+	                        {
+	                        median_depth =  (counts[mid_x-1]+counts[mid_x])/2.0;
+	                        }
+	                else
+	                        {
+	                        median_depth =  counts[mid_x];
+	                        }
+	
+					
+					pw.println(
+							bedLine.getContig()+"\t"+
+							(bedLine.getStart()-1)+"\t"+
+							(bedLine.getEnd())+"\t"+
+							counts.length+"\t"+
+							(genomicSequence==null?
+								"":
+								String.valueOf((genomicSequence.getGCPercent(bedLine.getStart()-1,bedLine.getEnd())).getGCPercentAsInteger())+"\t")+
+							counts[0]+"\t"+
+							counts[counts.length-1]+"\t"+
+							mean+"\t"+median_depth+"\t"+
+							count_no_coverage+"\t"+
+							(int)(((counts.length-count_no_coverage)/(double)counts.length)*100.0)
+							);
+					}
+				pw.flush();
+				pw.close();pw=null;
+				LOG.info("done");
+				return RETURN_OK;
+				}
+		catch(final Exception err)
+			{
+			return wrapException(err);
 			}
-	catch(final Exception err)
-		{
-		return wrapException(err);
+		finally
+			{
+			CloserUtil.close(indexedFastaSequenceFile);
+			CloserUtil.close(pw);
+			CloserUtil.close(bedIn);
+			CloserUtil.close(samReader);
+			}
 		}
-	finally
-		{
-		CloserUtil.close(indexedFastaSequenceFile);
-		CloserUtil.close(pw);
-		CloserUtil.close(bedIn);
-		CloserUtil.close(samReader);
-		}
-	}
 	
 	/**
 	 * @param args

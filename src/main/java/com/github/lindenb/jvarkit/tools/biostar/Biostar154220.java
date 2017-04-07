@@ -37,68 +37,52 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.picard.AbstractBamWriterProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class Biostar154220 extends AbstractBamWriterProgram
+@Program(name="biostar154220",description="Cap BAM to a given coverage",biostars=154220)
+public class Biostar154220 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar154220.class).make();
 	
-	private int capDepth=20;
-	public void setCapDepth(int capDepth) {
-		this.capDepth = capDepth;
-	}
-	
-	public int getCapDepth() {
-		return capDepth;
-	}
-	
-	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Cap BAM to a given coverage. see https://www.biostars.org/p/154220";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return DEFAULT_WIKI_PREFIX+"Biostar154220";
-		}
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
 
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -n (int) number of reads. default:"+getCapDepth()); 
-		super.printOptions(out);
-		}
+	@Parameter(names={"-n","--depth"},description="number of reads")
+	private int capDepth=20;
+	
+	@ParametersDelegate
+	private WritingBamArgs writingBams=new WritingBamArgs();
+	
+	
 
 	@SuppressWarnings("resource")
-	private int doWork( SamReader in) throws IOException
+	private int doWork(final SamReader in) throws IOException
 		{
 		SAMFileHeader header= in.getFileHeader();
 		if(header.getSortOrder()!=SAMFileHeader.SortOrder.unsorted)
 			{
-			error("input should be unsorted, reads sorted on REF/query-name e.g: see https://github.com/lindenb/jvarkit/wiki/SortSamRefName");
+			LOG.error("input should be unsorted, reads sorted on REF/query-name e.g: see https://github.com/lindenb/jvarkit/wiki/SortSamRefName");
 			return -1;
 			}
 		SAMSequenceDictionary dict=header.getSequenceDictionary();
 		if(dict==null)
 			{
-			error("no dict !");
+			LOG.error("no dict !");
 			return -1;
 			}
 		SAMFileWriter out=null;
@@ -108,8 +92,8 @@ public class Biostar154220 extends AbstractBamWriterProgram
 		try
 			{
 			SAMFileHeader header2=header.clone();
-			header2.addComment(getProgramName()+" "+getVersion()+" "+getProgramCommandLine());
-			out = openSAMFileWriter(header2, true);
+			header2.addComment("Biostar154220"+" "+getVersion()+" "+getProgramCommandLine());
+			out = this.writingBams.openSAMFileWriter(outputFile,header2, true);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			iter = in.iterator();
 			List<SAMRecord> buffer=new ArrayList<>();
@@ -151,7 +135,7 @@ public class Biostar154220 extends AbstractBamWriterProgram
 							prev_tid=tid;
 							depth_array=null;
 							System.gc();
-							info("Alloc memory for contig "+ssr.getSequenceName()+" N="+ssr.getSequenceLength()+"*sizeof(int)");
+							LOG.info("Alloc memory for contig "+ssr.getSequenceName()+" N="+ssr.getSequenceLength()+"*sizeof(int)");
 							depth_array=new int[ssr.getSequenceLength()+1];//use a +1 pos
 							Arrays.fill(depth_array, 0);
 							}
@@ -182,7 +166,7 @@ public class Biostar154220 extends AbstractBamWriterProgram
 									for(int x=0;x<ce.getLength() && refPos1+x< depth_array.length;++x)
 										{
 										int cov = (int)readposition2coverage.incr(refPos1+x);
-										if( depth_array[refPos1+x]+cov > this.getCapDepth())
+										if( depth_array[refPos1+x]+cov > this.capDepth)
 											{
 											dump_this_buffer=false;
 											break;
@@ -218,7 +202,7 @@ public class Biostar154220 extends AbstractBamWriterProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
@@ -229,56 +213,23 @@ public class Biostar154220 extends AbstractBamWriterProgram
 		}
 	
 	
-	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "n:"))!=-1)
+	public int doWork(List<String> args) {
+
+		if(this.capDepth<0) // -1 == infinite
 			{
-			switch(c)
-				{
-				case 'n': this.setCapDepth(Integer.parseInt(opt.getOptArg()));break;				
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;				
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
-		if(getCapDepth()<0) // -1 == infinite
-			{
-			error("Bad depth:"+getCapDepth());
+			LOG.error("Bad depth:"+this.capDepth);
 			return -1;
 			}
 		SamReader in=null;
 		try
 			{
-			SamReaderFactory srf= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-			if(opt.getOptInd()==args.length)
-				{
-				in = srf.open(SamInputResource.of(System.in));
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				in = srf.open(SamInputResource.of(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error("Illegal number of arguments");
-				return -1;
-				}
+			in=openSamReader(oneFileOrNull(args));
 			return doWork(in); 
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

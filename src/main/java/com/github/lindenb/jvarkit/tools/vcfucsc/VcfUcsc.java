@@ -1,6 +1,30 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfucsc;
 
-import java.io.IOException;
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -8,6 +32,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -21,15 +46,78 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.bin.BinIterator;
-import com.github.lindenb.jvarkit.util.printf.Printf;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class VcfUcsc extends AbstractVCFFilter2
+@Program(name="vcfucsc",description="annotate an VCF with mysql UCSC data")
+public class VcfUcsc extends Launcher
 	{
-	private Printf expression=null;
+	private static final Logger LOG = Logger.build(VcfUcsc.class).make();
+
+	private static abstract class Printf
+		{
+		Printf next=null;
+		abstract void eval(ResultSet row,StringBuilder sb) throws SQLException;
+		void append(Printf n) {if( this.next==null) {this.next=n;} else this.next.append(n);}	
+		}
+	private static class PrintfText extends Printf
+		{
+		final String content;
+		PrintfText(String text) {this.content=text;}
+		void eval(ResultSet row,StringBuilder sb) throws SQLException
+			{
+			sb.append(content);
+			if(next!=null) next.eval(row, sb);
+			}
+		}
+
+	private static class PrintfColumnIndex extends Printf
+		{
+		final int column1;
+		PrintfColumnIndex(int c) {this.column1=c;}
+		void eval(ResultSet row,StringBuilder sb) throws SQLException
+			{
+			if(column1>0 || column1<=row.getMetaData().getColumnCount())
+				{
+				sb.append(row.getString(column1));
+				}
+			
+			if(next!=null) next.eval(row, sb);
+			}
+
+		}
+
+	private static class PrintfColumnLabel extends Printf
+		{
+		final String label;
+		PrintfColumnLabel(String text) {this.label=text;}
+		void eval(ResultSet row,StringBuilder sb) throws SQLException
+			{
+			if(!label.isEmpty())
+				{
+				sb.append(row.getString(label));
+				}
+			
+			if(next!=null) next.eval(row, sb);
+			}
+		}
+
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-e","--expression"},description="expression string.")
+	private String expressionStr="";
+	
+	private Printf expression=new PrintfText("");
+	
+	@Parameter(names={"-D","--database"},description="database name")
 	private String database="hg19";
+	@Parameter(names={"-T","-t","--table"},description="table name")
 	private String table=null;
 	private Connection connection=null;
 	private String jdbcuri="jdbc:mysql://genome-mysql.cse.ucsc.edu";
@@ -43,15 +131,16 @@ public class VcfUcsc extends AbstractVCFFilter2
 		ResultSet row=pstmt.executeQuery();
 		while(row.next())
 			{
-			String s=this.expression.eval(row);
-			if(s==null || s.isEmpty()) continue;
+			StringBuilder sb=new StringBuilder();
+			this.expression.eval(row,sb);
+			String s=sb.toString();
+			if(s.isEmpty()) continue;
 			atts.add(s);
 			}
 		row.close();
 		}
 	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) 
 		{
 		String TAG="UCSC_"+database.toUpperCase()+"_"+table.toUpperCase();
 		PreparedStatement pstmt=null;
@@ -109,11 +198,12 @@ public class VcfUcsc extends AbstractVCFFilter2
 				vcb.attribute(TAG,atts.toArray());
 				out.add(vcb.make());
 				}
-			
+			return -1;
 			}
 		catch(SQLException err)
 			{
 			throw new RuntimeException("SQLError", err);
+		
 			}
 		finally
 			{
@@ -123,53 +213,65 @@ public class VcfUcsc extends AbstractVCFFilter2
 		}
 
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "e:T:D:"))!=-1)
+	public int doWork(final List<String> args) {
+		
+
+		try
 			{
-			switch(c)
+			String s=this.expressionStr;
+			while(!s.isEmpty())
 				{
-				case 'D': this.database=opt.getOptArg();break;
-				case 'T': this.table=opt.getOptArg();break;
-				case 'e':
+				int b=s.indexOf("${");
+				if(b==-1)
 					{
-					try
-						{
-						this.expression=Printf.compile(opt.getOptArg()); break;
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
+					this.expression.append(new PrintfText(s));
+					break;
 					}
-				default: 
+				int e=s.indexOf("}",b);
+				if(e==-1) 
 					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
+					LOG.error("Cannot find end of expression in "+this.expressionStr);
+					return -1;
 					}
+				if(b>0) this.expression.append(new PrintfText(s.substring(0,b)));
+				final String between = s.substring(b+2,e).trim();
+				if(between.isEmpty()) 
+					{
+					LOG.error("bad expression in "+this.expressionStr);
+					return -1;
+					}
+				if(between.matches("[0-9]+"))
+					{
+					 this.expression.append(new PrintfColumnIndex(Integer.parseInt(between)));
+					}
+				else
+					{
+					 this.expression.append(new PrintfColumnLabel(between));
+					}
+				s=s.substring(e+1);
 				}
 			}
+		catch(Exception err)
+			{
+			LOG.error(err);
+			return -1;
+			}
+					
+			
 		
 		if(this.table==null)
 			{
-			error("Table undefined.");
+			LOG.error("Table undefined.");
 			return -1;
 			}
 		if(this.expression==null)
 			{
-			error("Expression undefined.");
+			LOG.error("Expression undefined.");
 			return -1;
 			}
 		try
 			{
-			info("Getting jdbc-driver");
+			LOG.info("Getting jdbc-driver");
 			Class.forName("com.mysql.jdbc.Driver");
 			this.connection=DriverManager.getConnection(
 					jdbcuri+"/"+database+"?user=genome&password=");
@@ -195,7 +297,7 @@ public class VcfUcsc extends AbstractVCFFilter2
 				}
 			if(chromColumn==null)
 				{
-				error("cannot find chromColumn in "+cols);
+				LOG.error("cannot find chromColumn in "+cols);
 				return -1;
 				}
 			
@@ -208,7 +310,7 @@ public class VcfUcsc extends AbstractVCFFilter2
 				}
 			if(startColumn==null)
 				{
-				error("cannot find startColumn in "+cols);
+				LOG.error("cannot find startColumn in "+cols);
 				return -1;
 				}
 			for(String col:new String[]{"txEnd","cdsEnd","chromEnd"})
@@ -220,14 +322,14 @@ public class VcfUcsc extends AbstractVCFFilter2
 				}
 			if(endColumn==null)
 				{
-				error("cannot find endColumn in "+cols);
+				LOG.error("cannot find endColumn in "+cols);
 				return -1;
 				}
-			return doWork(opt.getOptInd(), args);
+			return doVcfToVcf(args, outputFile);
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
