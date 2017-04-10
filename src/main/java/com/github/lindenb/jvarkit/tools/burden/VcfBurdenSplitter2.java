@@ -228,44 +228,14 @@ public class VcfBurdenSplitter2
 			super.close();
 			}
 		
-		private boolean isEmpty(final String s) {
-			return s==null || s.trim().isEmpty();
-		}
 		
 		private Set<String> getSplitNamesFor(final VariantContext ctx){
 			final Set<String> keys = new HashSet<>();
 			for(final VepPrediction pred: this.vepPredictionParser.getPredictions(ctx)) {
-				if(!isEmpty(pred.getFeature()))
-					{
-					keys.add(ctx.getContig()+"_VEP_FEATURE_"+pred.getFeature());
-					}
-				if(!isEmpty(pred.getGene()))
-					{
-					keys.add(ctx.getContig()+"_VEP_GENE_"+pred.getGene());
-					}
-				if(!isEmpty(pred.getSymbol()))
-					{
-					keys.add(ctx.getContig()+"_VEP_SYMBOL_"+pred.getSymbol());
-					}
-				if(!isEmpty(pred.getRefSeq()))
-					{
-					keys.add(ctx.getContig()+"_VEP_REFSEQ_"+pred.getRefSeq());
-					}
+				keys.addAll(pred.getGeneKeys().stream().map(S->ctx.getContig()+"_"+S).collect(Collectors.toSet()));
 				}
 			for(final AnnPrediction pred: this.annPredictionParser.getPredictions(ctx)) {
-				if(!isEmpty(pred.getFeatureType()) && !isEmpty(pred.getFeatureId())) {
-					if(pred.getFeatureType().equals("transcript")) {
-						keys.add(ctx.getContig()+"_ANN_FEATURE_"+pred.getFeatureType()+"_"+pred.getFeatureId());
-						}
-					}
-				if(!isEmpty(pred.getGeneName()))
-					{
-					keys.add(ctx.getContig()+"_ANN_GENE_"+pred.getGeneName());
-					}
-				if(!isEmpty(pred.getGeneId()))
-					{
-					keys.add(ctx.getContig()+"_ANN_GENEID_"+pred.getGeneId());
-					}
+				keys.addAll(pred.getGeneKeys().stream().map(S->ctx.getContig()+"_"+S).collect(Collectors.toSet()));
 				}	
 			/* replace . by _ so we don't have problems with regex later */
 			return keys.stream().

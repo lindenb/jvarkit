@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -58,6 +59,7 @@ import htsjdk.tribble.Tribble;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.util.TabixUtils;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -958,6 +960,33 @@ public class VCFUtils
     	}
     	return n;
     }
+    /**
+     * copy InfoHeaderType.ALLELE from ctx from annotationVarian 
+     */
+    public static List<Object> copyAlternateAlleleAnnotations(
+    		final List<Allele> destAlternateAlleles,
+    		final VariantContext annotationVariant,
+    		final String infoAttributeName
+    		)
+		{
+    	final List<Object> attributes=new ArrayList<>(destAlternateAlleles.size());
+    	final List<Allele> galts=annotationVariant.getAlternateAlleles();
+		final List<Object> gatts = annotationVariant.getAttributeAsList(infoAttributeName);
+		for(final Allele a:destAlternateAlleles)
+			{
+			Object found=null;
+			//final int idx=gnomadCtx.getAlleleIndex(a);//non idx(REF)==0
+			final int idx=galts.indexOf(a);
+			
+			if(idx>=0) {
+				if(idx<gatts.size() && gatts.get(idx)!=null && !gatts.get(idx).equals(".")) {
+					found= gatts.get(idx);
+					}
+				}
+			attributes.add(found);
+			}
+		return attributes;
+		}
 	/*
 	
 		*/

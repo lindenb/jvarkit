@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -54,6 +55,8 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantDepthChartFactor
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantQualChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantTypeChartFactory;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -183,6 +186,7 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     /** Misc VCF tools that will be injected in the nashorn context */
     public static class VcfTools
     	{
+    	private final SequenceOntologyTree sequenceOntologyTree= SequenceOntologyTree.getInstance(); 
     	private final AnnPredictionParser annParser;
     	private final VepPredictionParser vepParser;
     	@SuppressWarnings("unused")
@@ -193,6 +197,10 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     		this.vepParser  = new VepPredictionParserFactory(header).get();
     	}
     	
+    	public SequenceOntologyTree getSequenceOntologyTree() {
+			return sequenceOntologyTree;
+		}
+    	
     	public List<AnnPredictionParser.AnnPrediction> getAnnPredictions(final VariantContext ctx) {
     		return this.annParser.getPredictions(ctx);
     		}
@@ -201,6 +209,38 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
     		return this.vepParser.getPredictions(ctx);
     		}
 
+    	/** return true if variant has any prediction with a SO term (or its children) with this label */
+    	public boolean hasSequenceOntologyLabel(final VariantContext ctx,final String lbl)
+    		{
+    		if(lbl==null) return false;
+    		final Term t= this.getSequenceOntologyTree().getTermByLabel(lbl);
+    		if(t==null) LOG.warning("don't know SO.label "+lbl);
+    		return hasSequenceOntologyTerm(ctx,t);
+    		}
+    	/** return true if variant has any prediction with a SO term (or its children) with this accession */
+    	public boolean hasSequenceOntologyAccession(final VariantContext ctx,final String acn)
+			{
+			if(acn==null) return false;
+			final Term t= this.getSequenceOntologyTree().getTermByAcn(acn);
+    		if(t==null) LOG.warning("don't know SO.acn "+acn);
+			return hasSequenceOntologyTerm(ctx,t);
+			}
+
+    	/** return true if variant has any prediction with a SO term (or its children) */
+    	public boolean hasSequenceOntologyTerm(final VariantContext ctx,final Term t)
+			{
+			if(t==null) return false;
+			final Set<Term> children=t.getAllDescendants();
+			for(AnnPredictionParser.AnnPrediction a: getAnnPredictions(ctx)) {
+				if(!Collections.disjoint(a.getSOTerms(),children)) return true;
+				}
+			for(VepPredictionParser.VepPrediction a: getVepPredictions(ctx)) {
+				if(!Collections.disjoint(a.getSOTerms(),children)) return true;
+				}
+			return false;
+			}
+
+    	
     	
     	public boolean isMendelianIncompatibility(final Genotype child,final Genotype parent)
     		{

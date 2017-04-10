@@ -25,10 +25,12 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.SynchronousLineReader;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
-import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -40,15 +42,19 @@ import htsjdk.samtools.util.SortingCollection;
  * GenScan
  *
  */
+@Program(name="genscan",description="Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).")
 public class GenScan extends AbstractGeneScan
 	{
-
+	private static final Logger LOG = Logger.build(GenScan.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-R","--reference"},description="Fasta indexed reference.")
+	private File faidxFile = null;
    // @Option(shortName="IIS",doc="Input is a BAM/SAM file",optional=false)	
  
     
 	private Map<String,ChromInfo> chrom2chromInfo=new HashMap<String,ChromInfo>();
 	private SortingCollection<DataPoint> dataPoints=null;
-	private File faidxFile=null;
 	private boolean drawLines=true;
 	private boolean firstLineIsHeader=true;
 
@@ -279,7 +285,7 @@ public class GenScan extends AbstractGeneScan
 	
 	private void readTsv(InputStream in) throws IOException
 		{
-		info("reading tsv");
+		LOG.info("reading tsv");
 		int nLines=0;
 		Pattern tab=Pattern.compile("[\t]");
 		
@@ -298,7 +304,7 @@ public class GenScan extends AbstractGeneScan
 				sample.sample_id=this.samples.size();
 				sample.name=tokens[c];
 				this.samples.add(sample);
-				info("Adding sample "+sample.name+" "+samples.size());
+				LOG.info("Adding sample "+sample.name+" "+samples.size());
 				}
 			foundHeader=true;
 			++nLines;
@@ -320,7 +326,7 @@ public class GenScan extends AbstractGeneScan
 					sample.sample_id=this.samples.size();
 					sample.name="$"+(c-2);
 					this.samples.add(sample);
-					info("Adding sample "+sample.name+" "+samples.size());
+					LOG.info("Adding sample "+sample.name+" "+samples.size());
 					}
 				foundHeader=true;
 				}
@@ -339,7 +345,7 @@ public class GenScan extends AbstractGeneScan
 				{
 				if(this.faidxFile!=null) //dict provided by user
 					{
-					warning("chromosome "+tokens[0]+" was not defined in dictionary.");
+					LOG.warning("chromosome "+tokens[0]+" was not defined in dictionary.");
 					continue;
 					}
 				ci=new ChromInfo();
@@ -355,19 +361,19 @@ public class GenScan extends AbstractGeneScan
 				pt.pos=Integer.parseInt(tokens[1]);
 				if(pt.pos<0)
 					{
-					warning("Position <0 in "+line);
+					LOG.warning("Position <0 in "+line);
 					continue;
 					}
 				if(this.faidxFile!=null && (pt.pos< 0 || pt.pos > ci.dictSequenceLength))
 					{
-					warning("Position 0<"+pt.pos+"<"+ci.dictSequenceLength+" out of range in "+line);
+					LOG.warning("Position 0<"+pt.pos+"<"+ci.dictSequenceLength+" out of range in "+line);
 					continue;
 					}
 				
 				
 				}
 			catch (Exception e) {
-				warning("bad pos in  "+line);
+				LOG.warning("bad pos in  "+line);
 				continue;
 				}
 			for(int i=0;i< samples.size();++i)
@@ -376,11 +382,11 @@ public class GenScan extends AbstractGeneScan
 					pt.values[i]=Double.parseDouble(tokens[3+i]);
 					if(Double.isNaN(pt.values[i]))
 						{
-						warning("bad value in "+tokens[0]+":"+tokens[1]+":"+tokens[2]+"="+tokens[3+i]);
+						LOG.warning("bad value in "+tokens[0]+":"+tokens[1]+":"+tokens[2]+"="+tokens[3+i]);
 						}
 					}
 				catch (Exception e) {
-					warning("bad value in "+tokens[0]+":"+tokens[1]+":"+tokens[2]+"="+tokens[3+i]);
+					LOG.warning("bad value in "+tokens[0]+":"+tokens[1]+":"+tokens[2]+"="+tokens[3+i]);
 					pt.values[i]=Double.NaN;
 					}
 				samples.get(i).minmax.visit(pt.values[i]);
@@ -392,7 +398,7 @@ public class GenScan extends AbstractGeneScan
 				}
 			}
 		CloserUtil.close(r);
-		info("num lines:"+nLines);
+		LOG.info("num lines:"+nLines);
 		}
 	
 	@Override
@@ -400,92 +406,45 @@ public class GenScan extends AbstractGeneScan
 		return this.chromInfos;
 		}
 	
-	@Override
-	public String getProgramName()
-		{
-		return "GenScan";
-		}
+	
 	
 	@Override
-	public String getProgramDescription() {
-		return "Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).";
-		}
+	public int doWork(List<String> args) {
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/Genscan";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (file.jpg) picture filename out. if undefined, show a Window");
-		out.println(" -R (fasta) reference fasta indexed with samtools. Optional.");
-		out.println(" -T (dir) add tmp directory. Optional.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		SortingCollectionFactory<DataPoint> sortingCollectionFactory=new SortingCollectionFactory<GenScan.DataPoint>();
-		sortingCollectionFactory.setComparator(new Comparator<GenScan.DataPoint>()
-			{
-			@Override
-			public int compare(DataPoint o1, DataPoint o2)
-				{
-				return o1.compareTo(o2);
-				}
-			});
-		sortingCollectionFactory.setComponentType(DataPoint.class);
-		sortingCollectionFactory.setCodec(new DataPointCodec());
-		File filout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:R:T:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'T': addTmpDirectory(new File(opt.getOptArg()));break;
-				case 'o': filout=new File(opt.getOptArg());break;
-				case 'R': faidxFile=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		sortingCollectionFactory.setTmpDirs(getTmpDirectories());
 	
 		InputStream in=null;
 		try
 			{
+			this.dataPoints = 
+					SortingCollection.newInstance(DataPoint.class, new DataPointCodec(), new Comparator<GenScan.DataPoint>()
+				{
+				@Override
+				public int compare(DataPoint o1, DataPoint o2)
+					{
+					return o1.compareTo(o2);
+					}
+				}, 50000);
 			
-			if(opt.getOptInd()==args.length)
+			
+			if(args.isEmpty())
 				{
-				info("Reading from stdin.");
-				in=System.in;
+				LOG.info("Reading from stdin.");
+				in=stdin();
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
+				String filename=args.get(0);
+				LOG.info("Reading from "+filename);
 				in=IOUtils.openURIForReading(filename);
 				}
 			else
 				{
-				error("Illegal number of arguments");
+				LOG.error("Illegal number of arguments");
 				return -1;
 				}
 			if(faidxFile!=null)
 				{
-				info("Reading "+faidxFile);
+				LOG.info("Reading "+faidxFile);
 				SAMSequenceDictionary dict=new SAMSequenceDictionaryFactory().load(faidxFile);
 				for(SAMSequenceRecord rec: dict.getSequences())
 					{
@@ -497,7 +456,6 @@ public class GenScan extends AbstractGeneScan
 					this.chrom2chromInfo.put(ci.sequenceName, ci);
 					}
 				}
-			this.dataPoints=sortingCollectionFactory.make();
 			
 			readTsv(in);
 			
@@ -508,19 +466,19 @@ public class GenScan extends AbstractGeneScan
 			this.dataPoints=null;
 
 			
-			if(filout==null)
+			if(outputFile==null)
 				{
 				showGui(img);
 				}
 			else
 				{
-				ImageIO.write(img, "JPG", filout);
+				ImageIO.write(img, "JPG", outputFile);
 				}
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

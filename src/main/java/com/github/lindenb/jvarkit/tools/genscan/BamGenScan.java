@@ -43,6 +43,9 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.Cigar;
@@ -60,8 +63,15 @@ import htsjdk.samtools.util.SequenceUtil;
  * BamGenScan
  *
  */
+
+
+@Program(name="bamgenscan",description="Paint a Genome Scan picture from a BAM")
 public class BamGenScan extends AbstractGeneScan
 	{
+	private static final Logger LOG = Logger.build(BamGenScan.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
 	private List<Input> inputs=new ArrayList<Input>();
 	
 	/** a sample name and a filename */
@@ -84,7 +94,7 @@ public class BamGenScan extends AbstractGeneScan
 			for(String filename:input.filenames.split("[\\:]+"))
 				{
 				if(filename.isEmpty()) continue;
-				info("Reading header for "+filename);
+				LOG.info("Reading header for "+filename);
 				SamReader sfr=SamFileReaderFactory.mewInstance().open(new File(filename));
 				readers.add(sfr);
 				
@@ -93,7 +103,7 @@ public class BamGenScan extends AbstractGeneScan
 			for(ChromInfo ci:this.chromInfos)
 				{
 				if(!ci.visible) continue;
-				info("["+input_id+"]alloc "+ci.dictSequenceLength+" for "+ci.getSequenceName());
+				LOG.info("["+input_id+"]alloc "+ci.dictSequenceLength+" for "+ci.getSequenceName());
 				int count[]=new int[ci.dictSequenceLength];
 				Arrays.fill(count, 0);
 				
@@ -195,72 +205,28 @@ public class BamGenScan extends AbstractGeneScan
 		}
 	
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BamGenScan";
-		}
-
 	
 	@Override
 	protected List<ChromInfo> getChromInfos() {
 		return this.chromInfos;
 		}
 	
-	@Override
-	public String getProgramName()
-		{
-		return "BamGenScan";
-		}
 	
 	@Override
-	public String getProgramDescription() {
-		return "Paint a Genome Scan picture from a BAM.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (file.jpg) picture filename out. if undefined, show a Window");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		
-		File filout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
-			{
-			switch(c)
-			{
-				case 'o': filout=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	public int doWork(final List<String> args) {
 		try
 			{
 			
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				error("illegal number of arguments");
+				LOG.error("illegal number of arguments");
 				return -1;
 				}
 			SAMSequenceDictionary dict=null;
-			for(int i=opt.getOptInd();i<args.length;++i)
+			for(int i=0;i<args.size();++i)
 				{
 				Input input=new Input();
-				input.filenames=args[i];
+				input.filenames=args.get(i);
 				input.sample=new Sample();
 				input.sample.name=input.filenames;
 				input.sample.sample_id=super.samples.size();
@@ -272,14 +238,14 @@ public class BamGenScan extends AbstractGeneScan
 				for(String filename:input.filenames.split("[\\:]+"))
 					{
 					if(filename.isEmpty()) continue;
-					info("["+inputs.size()+"]Reading header for "+filename);
+					LOG.info("["+inputs.size()+"]Reading header for "+filename);
 					SamReader sfr=SamFileReaderFactory.mewInstance().open(new File(filename));
 					SAMFileHeader h=sfr.getFileHeader();
 					sfr.close();
 					SAMSequenceDictionary d=h.getSequenceDictionary();
 					if(d==null)
 						{
-						error("Cannot get sequence dictionary for "+filename);
+						LOG.error("Cannot get sequence dictionary for "+filename);
 						return -1;
 						}
 					if(dict==null)
@@ -288,16 +254,16 @@ public class BamGenScan extends AbstractGeneScan
 						}
 					else if(!SequenceUtil.areSequenceDictionariesEqual(d, dict))
 						{
-						error("Sequence dictionaries are not the same.");
+						LOG.error("Sequence dictionaries are not the same.");
 						return -1;
 						}
 					}
 				
 				}
-			info("number of input:"+inputs.size());
+			LOG.info("number of input:"+inputs.size());
 			if(dict==null )
 				{
-				error("No dictionary found");
+				LOG.error("No dictionary found");
 				return -1;
 				}
 		
@@ -319,19 +285,19 @@ public class BamGenScan extends AbstractGeneScan
 			BufferedImage img=makeImage();
 
 			
-			if(filout==null)
+			if(outputFile==null)
 				{
 				showGui(img);
 				}
 			else
 				{
-				ImageIO.write(img, "JPG", filout);
+				ImageIO.write(img, "JPG", outputFile);
 				}
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

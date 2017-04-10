@@ -367,6 +367,30 @@ public class AnnPredictionParser
 			}
 
 		
+		private boolean _isEmpty(String s) {
+			return s==null || s.trim().isEmpty();
+		}
+		
+		/** returns some the posssible ways to name a gene */
+		public Set<String> getGeneKeys() {
+			final Set<String> keys= new HashSet<>();
+			if(!_isEmpty(this.getFeatureType()) &&
+				!_isEmpty(this.getFeatureId()) &&
+				this.getFeatureType().equals("transcript")
+				)
+				{
+				keys.add("ANN_FEATURE_TRANSCRIPT_"+this.getFeatureId());
+				}
+			if(!_isEmpty(this.getGeneName()))
+				{
+				keys.add("ANN_GENE_"+this.getGeneName());
+				}
+			if(!_isEmpty(this.getGeneId()))
+				{
+				keys.add("ANN_GENEID_"+this.getGeneId());
+				}
+			return keys;
+			}
 		
 		@Override
 		public String toString() {

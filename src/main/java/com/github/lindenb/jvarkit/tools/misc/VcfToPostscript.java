@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.io.BufferedReader;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -18,20 +19,32 @@ import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
-public class VcfToPostscript extends AbstractCommandLineProgram
+@Program(name="vcf2postscript",description="Print VCF context as Postscript")
+public class VcfToPostscript extends Launcher
 	{
+	private final static Logger LOG=Logger.build(VcfToPostscript.class).make();
+	@Parameter(names={"-o","--out"},description="OUtput file")
+	private File outputFile=null;
+
 	private List<KnownGene> genes=new ArrayList<KnownGene>();
 	private Set<Integer> positions=new HashSet<Integer>();
 	private Map<String,Set<Integer>> sample2positions=new TreeMap<String,Set<Integer>>();
 	private int chromStart=Integer.MAX_VALUE;
 	private int chromEnd=Integer.MIN_VALUE;
+	
+	@Parameter(names={"-kg","-k","--knownGene"},description="UCSC known Genes URI")
+	private String ucscKnownGene="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+
 
 	private Map<String,List<KnownGene>> chrom2knownGenes=new HashMap<String,List<KnownGene>>();
 
@@ -305,12 +318,12 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 							}
 		    			if(genes.isEmpty())
 		    				{
-		    				debug("no gene for "+ctx.getContig()+":"+ctx.getStart());
+		    				LOG.debug("no gene for "+ctx.getContig()+":"+ctx.getStart());
 		    				}
 		    			}
 		    		else
 		    			{
-		    			debug("not any gene for "+ctx.getContig());
+		    			LOG.debug("not any gene for "+ctx.getContig());
 		    			}
 		    		}
 		    	
@@ -327,67 +340,21 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 
 
 	@Override
-	public String getProgramDescription() {
-		return "Print VCF context as Postscript";
-		}
-	
-	private String ucscKnownGene="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -k (uri/file) knownGene source. Required. Default: "+ucscKnownGene);
-		super.printOptions(out);
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args,outputFile);
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"k:"))!=-1)
-			{
-			switch(c)
-				{	
-				case 'k':this.ucscKnownGene=opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		VcfIterator iter=null;
+	protected int doVcfToVcf(String inputName, VcfIterator iter, VariantContextWriter w) {
 		BufferedReader r=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				iter=new VcfIteratorImpl(System.in);
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String uri=args[opt.getOptInd()];
-				info("Reading from "+uri);
-				iter=new VcfIteratorImpl(IOUtils.openURIForReading(uri));
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
-			info("Reading "+this.ucscKnownGene);
-			SAMSequenceDictionary dict=iter.getHeader().getSequenceDictionary();
+			final SAMSequenceDictionary dict=iter.getHeader().getSequenceDictionary();
+
+			LOG.info("Reading "+this.ucscKnownGene);
+			r=IOUtils.openURIForBufferedReading(this.ucscKnownGene);
 			
 			int nKG=0;
-			r=IOUtils.openURIForBufferedReading(ucscKnownGene);
 			Pattern tab=Pattern.compile("[\t]");
 			String line;
 			while((line=r.readLine())!=null)
@@ -406,7 +373,7 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 				++nKG;
 				}
 			r.close();
-			info("Done Reading knownGenes. N="+nKG);
+			LOG.info("Done Reading knownGenes. N="+nKG);
 
 		    final double ticksH=(fHeight/2.0f)*0.6f;
 			final double ticksx=20;
@@ -501,7 +468,7 @@ public class VcfToPostscript extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

@@ -156,7 +156,7 @@ public class SequenceOntologyTree
 	private static void _getAllDescendants(final Term term,final Set<Term> set)
 		{
 		set.add(term);
-		for(Term c:term.getChildren())
+		for(final Term c:term.getChildren())
 			{
 			_getAllDescendants(c,set);
 			}

@@ -34,12 +34,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.StreamTokenizer;
 import java.io.StringReader;
 import java.net.URLDecoder;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -48,11 +48,19 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class Gtf2Xml extends AbstractCommandLineProgram{
-	private File outputFile=null;
+@Program(name="gtf2xml",description="Convert GTF to XML")
+public class Gtf2Xml extends Launcher{
+	private static final Logger LOG = Logger.build(FixVCF.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-T","--tmpDir"},description="mp directory")
+	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+
 	private abstract class GffCodec
 		{
 		Map<String,Long> seqdict=new LinkedHashMap<>();
@@ -166,69 +174,18 @@ public class Gtf2Xml extends AbstractCommandLineProgram{
 		}
 	
 	@Override
-	public String getProgramDescription() {
-		return "Convert GTF to XML";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"Gtf2Xml";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (out)  output file. default stdout");
-		super.printOptions(out);
-		}
+	public int doWork(List<String> args) {
 
-	
-	public void setOutputFile(File outputFile) {
-		this.outputFile = outputFile;
-	}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		BufferedReader r=null;
 		XMLStreamWriter w=null;
 		FileWriter fw=null;
 		try {
-			if(opt.getOptInd()==args.length)
-				{
-				r = IOUtils.openStdinForBufferedReader();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				r = IOUtils.openFileForBufferedReading(new File(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error("Illegal number of arguments");
-				return -1;
-				}
+			String inputName=oneFileOrNull(args);
+			r = super.openBufferedReader(inputName);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			if(this.outputFile==null)
 				{
-				w = xof.createXMLStreamWriter(System.out, "UTF-8");
+				w = xof.createXMLStreamWriter(stdout(), "UTF-8");
 				}
 			else
 				{
@@ -247,7 +204,7 @@ public class Gtf2Xml extends AbstractCommandLineProgram{
 				if(headerLine.startsWith("##gff-version "))
 					{
 					String version=headerLine.substring(ws+1).trim();
-					info("version "+version);
+					LOG.info("version "+version);
 					if(version.equals("3"))
 						{
 						codec = new Gtf3Codec();
@@ -262,7 +219,7 @@ public class Gtf2Xml extends AbstractCommandLineProgram{
 					}
 				else
 					{
-					warning("ignoring "+headerLine);
+					LOG.warning("ignoring "+headerLine);
 					}
 				}
 			w.writeCharacters("\n");
@@ -332,7 +289,7 @@ public class Gtf2Xml extends AbstractCommandLineProgram{
 			return 0;
 			}
 		catch (Exception e) {
-			error(e);
+			LOG.error(e);
 			return -1;
 			}
 		finally

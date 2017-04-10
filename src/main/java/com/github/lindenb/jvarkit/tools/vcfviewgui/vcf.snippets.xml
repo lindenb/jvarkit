@@ -56,46 +56,8 @@ accept(variant);
 ]]></code>
 
 <code is-function="true" label="Select Variant using VEP/ANN parser"><![CDATA[
-/** parameter 'terms' is a list of string.
- *  The function returns true if the list contains one the item of 'target'
- */
-function is_target_pred(terms)
-	{
-	var targets=[ "missense_variant" , "synonymous_variant" ];
-	for(var i in targets) {
-		if(terms.contains(targets[i])) return true;
-		}
-	return false;
-	}
-
-/* shall we accept the variant 'ctx' */
-function accept_prediction(ctx)
-	{
-	var i,preds;
-	
-	/* use the 'tool' to get the SNPEFF/NN annotations */
-	preds=tools.getAnnPredictions(ctx);
-	/** loop over the ANN predictions */
-	for(i=0;i< preds.size();++i)
-		{
-		/* search for the predictions in the Sequence Ontology terms */
-		if( is_target_pred( preds.get(i).getSOTermsStrings())) return true;
-		}
-	
-	/* use the 'tool' to get the VEP annotations */
-	preds=tools.getVepPredictions(ctx);
-	/** loop over the VEP predictions */
-	for(var i=0;i< preds.size();++i)
-		{
-		/* search for the predictions in the Sequence Ontology terms */
-		if( is_target_pred( preds.get(i).getSOTermsStrings())) return true;
-		}
-	return false;
-	}
-
-
-/* accept_prediction(variant); */
-
+tools.hasSequenceOntologyLabel(variant,"missense_variant") ||
+ tools.hasSequenceOntologyLabel(variant,"synonymous_variant");
 ]]></code>
 
 <code label="Het variants for Sample"><![CDATA[

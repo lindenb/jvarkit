@@ -4,32 +4,37 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMUtils;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
-
+@Program(name="IlluminaStatsFastq",description="Reads filenames from stdin: Count FASTQs in Illumina Result.")
 public class IlluminaStatsFastq
-	extends AbstractCommandLineProgram
+	extends Launcher
 	{
-	
+	private static final Logger LOG = Logger.build(IlluminaStatsFastq.class).make();
+	@Parameter(names={"-o","--output"},description="Output zip file.")
+	private File outputFile = null;
+	@Parameter(names={"-X"},description="maximum number of DNA indexes to print. memory consuming if not 0. ")
+	private int COUNT_INDEX=0;
+
 	private static class Bases
 		{
 		long A=0L;
@@ -51,7 +56,6 @@ public class IlluminaStatsFastq
     private PrintWriter wlength=null;
     private PrintWriter wDNAIndexes=null;
     private PrintWriter wsqlite=null;
-    private int nThreads=1;
     	
 	
 	private static void tsv(PrintWriter out,Object...array)
@@ -64,10 +68,6 @@ public class IlluminaStatsFastq
 		out.println();
 		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "Reads filenames from stdin: Count FASTQs in Illumina Result.";
-		}
 	
 	private class Analyzer extends Thread
 		{
@@ -106,7 +106,7 @@ public class IlluminaStatsFastq
 				analyze(this.fastqFile);
 				}
 			catch (Exception e) {
-				error(e);
+				LOG.error(e);
 				}
 		
 			}
@@ -133,7 +133,7 @@ public class IlluminaStatsFastq
 				
 				
 				
-				info(f.toString());
+				LOG.info(f.toString());
 				FastQName fq=FastQName.parse(f);
 				
 				Counter<Integer> qualityHistogram=new Counter<Integer>();
@@ -213,7 +213,7 @@ public class IlluminaStatsFastq
 					}
 				catch(Exception err2)
 					{
-					error(err2,"BOUM "+err2.getMessage());
+					LOG.error(err2);
 					err2.printStackTrace();
 					synchronized (IlluminaStatsFastq.class)
 						{
@@ -308,66 +308,17 @@ public class IlluminaStatsFastq
 			}
 		}
 
-	private int COUNT_INDEX=0;
-	private File OUT=null;
 	
 	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -h help. This Screen");
-		out.println(" -v print version and exits");
-		out.println(" -L (log-level , a "+Level.class.getName()+"). Optional");
-		out.println(" -X (int) maximum number of DNA indexes to print. memory consuming if not 0. Optional");
-		out.println(" -o (filename out) Directory or ZIP. Required.");
-		out.println(" -T (int) number of threads current:"+this.nThreads);
-		}
+	public int doWork(List<String> args) {
 	
-	@Override
-	public int doWork(String args[])
-		{
-		GetOpt getopt=new GetOpt();
-		int c;
-		while((c=getopt.getopt(args, "hvL:o:X:T:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(Level.parse(getopt.getOptArg()));break;
-				case 'X':
-					{
-					COUNT_INDEX=Integer.parseInt(getopt.getOptArg());
-					break;
-					}
-				case 'o':
-					{
-					this.OUT=new File(getopt.getOptArg());
-					break;
-					}
-				case 'T':
-					{
-					this.nThreads=Math.max(1, Integer.parseInt(getopt.getOptArg()));
-					break;
-					}
-				case ':':
-					{
-					System.err.println("Missing argument. -"+(char)getopt.getOptOpt());
-					return -1;
-					}
-				default:
-					{
-					System.err.println("Unknown option -"+(char)getopt.getOptOpt());
-					return -1;
-					}
-				}
-			}
 		
-		
-		if(getopt.getOptInd()!=args.length)
+		if(!args.isEmpty())
 			{
 			System.err.println("Expected reads from stdin. Illegal Number of arguments.");
 			return -1;
 			}
-		if(OUT==null)
+		if(this.outputFile==null)
 			{
 			System.err.println("undefined output file.");
 			return -1;
@@ -376,7 +327,7 @@ public class IlluminaStatsFastq
 		
 		try {
 			
-			archiveFactory=ArchiveFactory.open(OUT);
+			archiveFactory=ArchiveFactory.open(this.outputFile);
 			this.wnames = archiveFactory.openWriter("names.tsv");
 			this.wcount = archiveFactory.openWriter("counts.tsv");
 			this.wquals = archiveFactory.openWriter("quals.tsv");
@@ -388,26 +339,14 @@ public class IlluminaStatsFastq
 			this.wDNAIndexes = archiveFactory.openWriter("indexes.tsv");
 			this.wsqlite = archiveFactory.openWriter("sqlite3.sql");
 			
-			info("reading from stdin");
+			LOG.info("reading from stdin");
 			BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
-			List<Analyzer> pool=new ArrayList<Analyzer>(this.nThreads);
 			for(;;)
 				{
 				String line=in.readLine();
-				if(line==null || pool.size()==this.nThreads)
-					{
-					for(Analyzer analyzer:pool)
-						{
-						analyzer.start();
-						}
-					for(Analyzer analyzer:pool)
-						{
-						analyzer.join();
-						}
-					pool.clear();
-					if(line==null) break;
-					}
-				pool.add(new Analyzer(new File(line)));
+				if(line==null) break;
+				final Analyzer a=new Analyzer(new File(line));
+				a.run();
 				}
 			
 			in.close();
@@ -456,11 +395,10 @@ public class IlluminaStatsFastq
 				{
 				this.archiveFactory.close();
 				}
-			info("Done.");
+			LOG.info("Done.");
 			} 
 		catch (Exception e) {
-			e.printStackTrace();
-			error(e,"ERROR:"+e.getMessage());
+			LOG.error(e);
 			return -1;
 			}
 		finally	

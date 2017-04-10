@@ -120,7 +120,7 @@ public class VepPredictionParser implements PredictionParser
 		final VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
 		if(info==null || info.getDescription()==null)
 			{
-			LOG.warning("NO "+tag+" found in header");
+			LOG.warning("NO "+tag+" found in header. This VCF was probably NOT annotated with VEP.");
 			this.valid = false;
 			return;
 			}
@@ -408,6 +408,34 @@ public class VepPredictionParser implements PredictionParser
 				return null;
 			}
 		}
+		
+		
+		private boolean _isEmpty(String s) {
+			return s==null || s.trim().isEmpty();
+		}
+		
+		/** returns some the posssible ways to name a gene */
+		public Set<String> getGeneKeys() {
+			final Set<String> keys= new HashSet<>();
+			if(!_isEmpty(this.getFeature()))
+				{
+				keys.add("VEP_FEATURE_"+this.getFeature());
+				}
+			if(!_isEmpty(this.getGene()))
+				{
+				keys.add("VEP_GENE_"+this.getGene());
+				}
+			if(!_isEmpty(this.getSymbol()))
+				{
+				keys.add("VEP_SYMBOL_"+this.getSymbol());
+				}
+			if(!_isEmpty(this.getRefSeq()))
+				{
+				keys.add("VEP_REFSEQ_"+this.getRefSeq());
+				}
+			return keys;
+			}
+		
 		
 	@Override
 	public String toString() {

@@ -39,7 +39,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.io.PrintStream;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,14 +48,15 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 
-
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Hershey;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public abstract class AbstractGeneScan extends AbstractCommandLineProgram
+public abstract class AbstractGeneScan extends Launcher
 	{
-	protected Dimension screenSize=new Dimension(1000,300);
+	private static final Logger LOG = Logger.build(AbstractGeneScan.class).make();
+	
 	protected boolean DISCARD_UNSEEN_CHROM=false;
 	/** use min/max rather than 0->sequence length */
 	protected boolean DISCARD_BOUNDS=false;
@@ -65,10 +65,6 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
     protected MinMaxDouble minMaxY=new MinMaxDouble();
     /**all samples in the same chart */
     private boolean merge_sample=false;
-    /** user min Value */
-    private Double user_min_value=null;
-    /** user max Value */
-    private Double user_max_value=null;
     
 	protected List<Sample> samples=new ArrayList<Sample>();
 	protected List<ChromInfo> chromInfos=new ArrayList<ChromInfo>();
@@ -224,8 +220,8 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 	
 	protected void prepareData()
 		{
-		info("prepare sample data");
-		info(this.minMaxY);
+		LOG.info("prepare sample data");
+		LOG.info(this.minMaxY);
 		int i=0;
 		int num_visible_samples=samples.size();
 		while(i<samples.size())
@@ -246,12 +242,12 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 			if(sample.minmax.isValid())
 				{
 				this.minMaxY.merge(sample.minmax);
-				info("merge "+sample.minmax+" "+this.minMaxY);
+				LOG.info("merge "+sample.minmax+" "+this.minMaxY);
 				++i;
 				}
 			else
 				{
-				warning("No valid data for "+sample.name);
+				LOG.warning("No valid data for "+sample.name);
 				
 				sample.visible=false;
 				num_visible_samples--;
@@ -265,24 +261,24 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 			{
 			this.minMaxY.setMax(this.user_max_value);
 			}
-		info(this.minMaxY);
+		LOG.info(this.minMaxY);
 		
 		
 		
 		if(!this.minMaxY.isValid())
 			{
-			warning("invalid y values");
+			LOG.warning("invalid y values");
 			this.minMaxY.setMax(1.0);
 			this.minMaxY.setMin(0.0);
 			}
 
 		if(this.minMaxY.getMin()==this.minMaxY.getMax())
 			{
-			warning(" y min= y max");
+			LOG.warning(" y min= y max");
 			this.minMaxY.setMax(this.minMaxY.getMin()+1.0);
 			}
 		
-		info(this.minMaxY);
+		LOG.info(this.minMaxY);
 		
 		if(this.merge_sample)
 			{
@@ -307,7 +303,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 				}
 				
 			}
-		info("prepare chrom data");
+		LOG.info("prepare chrom data");
 		long genome_length=0L;
 		i=0;
 		while(i< this.chromInfos.size())
@@ -315,7 +311,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 			ChromInfo ci=this.chromInfos.get(i);
 			if(DISCARD_UNSEEN_CHROM && !ci.minmaxBase.isValid())
 				{
-				warning("no data for chrom "+ci.sequenceName);
+				LOG.warning("no data for chrom "+ci.sequenceName);
 				ci.visible=false;
 				continue;
 				}
@@ -369,7 +365,7 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 		{
 		prepareData();
 		NumberFormat fmt=NumberFormat.getInstance();
-		info("make image");
+		LOG.info("make image");
 		BufferedImage img=new BufferedImage(
 				this.screenSize.width,
 				this.screenSize.height,
@@ -469,50 +465,15 @@ public abstract class AbstractGeneScan extends AbstractCommandLineProgram
 		g.dispose();	
 		return img;
 		}
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println( " --min-y (double) min y value. Optional.");
-		out.println( " --max-y (double) max y value. Optional.");
-		out.println( " --image-size (int)x(int) image width x height . Default:"+screenSize+". Optional.");
-		super.printOptions(out);
-		}
+
+	@Parameter(names={"--miny"},description="min y value")
+	private Double user_min_value=null;
+	@Parameter(names={"--maxy"},description="max y value")
+	private Double user_max_value=null;
+	@Parameter(names={"--imagesize"},description=" (int)x(int) image width x height")
+	protected Dimension screenSize=new Dimension(1000,300);
 	
-	@Override
-	protected GetOptStatus handleOtherOptions(int c, GetOpt opt,String args[])
-		{
-		switch(c)
-			{
-			case GetOpt.LONG_OPT:
-					{
-					String lo=opt.getLongOpt();
-					if("min-y".equals(lo))
-						{
-						this.user_min_value=Double.parseDouble(opt.increaseOptind(args));
-						return GetOptStatus.OK;
-						}
-					else if("max-y".equals(lo))
-						{
-						this.user_max_value=Double.parseDouble(opt.increaseOptind(args));
-						return GetOptStatus.OK;
-						}
-					else if("image-size".equals(lo))
-						{
-						String v=opt.increaseOptind(args);
-						int x=v.indexOf('x');
-						if(x<1)
-							{
-							error("bad size. Expected (width)x(heigh) "+v);
-							}
-						this.screenSize.width=Integer.parseInt(v.substring(0, x));
-						this.screenSize.height=Integer.parseInt(v.substring(x+1));
-						
-						return GetOptStatus.OK;
-						}
-					break;
-					}
-			}
-		return super.handleOtherOptions(c, opt, args);
-		}
+	
 	
 	protected void showGui(BufferedImage img)
 		{

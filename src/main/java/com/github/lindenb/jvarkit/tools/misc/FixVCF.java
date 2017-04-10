@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2015 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.ByteArrayInputStream;
@@ -7,7 +35,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
 import java.util.ArrayList;
@@ -31,106 +58,49 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
+@Program(name="fixvcf",description="Fix a VCF if INFO or FILTER are missing")
 public class FixVCF
-	extends com.github.lindenb.jvarkit.util.AbstractCommandLineProgram
+	extends Launcher
 	{
-	private File tmpDir=null;
+	private static final Logger LOG = Logger.build(FixVCF.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-T","--tmpDir"},description="mp directory")
+	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+	
 
 	@Override
-	public String getProgramDescription() {
-		return "Fix a VCF if INFO or FILTER are missing";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FixVCF";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -o (filenameout) optional. default stdout.");
-		out.println(" -T (dir) tmp directory. Optional");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		File fileout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:T:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o':fileout=new File(args[opt.getOptInd()]);break;
-				case 'T':tmpDir=new File(args[opt.getOptInd()]);break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		if(tmpDir==null)
-			{
-			tmpDir=new File(System.getProperty("java.io.tmpdir"));
-			}
-		
+	public int doWork(List<String> args) {
 		VariantContextWriter w=null;
+		InputStream in = null;
 		try
 			{
-			if(fileout==null)
-				{
-				this.info("writing to stdout");
-				w= VCFUtils.createVariantContextWriterToStdout();
-				}
-			else
-				{
-				this.info("writing to "+fileout);
-				w= VCFUtils.createVariantContextWriter(fileout);
-				}
+			String fname=super.oneFileOrNull(args);
 			
-
+			in = super.openInputStream(fname);
+			w = super.openVariantContextWriter(this.outputFile);
 			
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				doWork("stdin",System.in,w);
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				InputStream in=IOUtils.openURIForReading(filename);
-				doWork(filename,System.in,w);
-				CloserUtil.close(in);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
+			doWork((fname==null?"stdin":fname),in,w);
+				
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
 			CloserUtil.close(w);
+			CloserUtil.close(in);
 			}
 		}
 	
@@ -188,8 +158,8 @@ public class FixVCF
 			catch(Exception err)
 				{
 				pw.close();
-				error(line);
-				error(err);
+				LOG.error(line);
+				LOG.error(err);
 				return -1;
 				}
 			for(String f:ctx.getFilters())
@@ -197,13 +167,13 @@ public class FixVCF
 				if(h2.getFilterHeaderLine(f)!=null) continue;
 				//if(f.equals(VCFConstants.PASSES_FILTERS_v4)) continue; hum...
 				if(f.isEmpty() || f.equals(VCFConstants.UNFILTERED)) continue;
- 				info("Fixing missing Filter:"+f);
+				LOG.info("Fixing missing Filter:"+f);
 				h2.addMetaDataLine(new VCFFilterHeaderLine(f));
 				}
 			for(String tag:ctx.getAttributes().keySet())
 				{
 				if(h2.getInfoHeaderLine(tag)!=null) continue;
-				info("Fixing missing INFO:"+tag);
+				LOG.info("Fixing missing INFO:"+tag);
 				h2.addMetaDataLine(new VCFInfoHeaderLine(tag, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "undefined. Saved by "+getClass()));
 				}
 			}
@@ -211,7 +181,7 @@ public class FixVCF
 		pw.close();
 		pw=null;
 		
-		info("re-reading VCF frm tmpFile:" +tmp);
+		LOG.info("re-reading VCF frm tmpFile:" +tmp);
 		
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName(),
 				"Saved VCF FILTER AND INFO from "+filenameIn

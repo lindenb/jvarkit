@@ -378,6 +378,17 @@ public class Pedigree
 		return this.families.get(famId);
 	}
 	
+	/** get an individual by id, assume individual-ID are unique */
+	public Person getPersonById(final String id) {
+		for(final Family fam:this.families.values())
+			{
+			final Person p = fam.getPersonById(id);
+			if(p!=null) return p;
+			}
+		return null;
+	}
+
+	
 	/** get all the individuals in this pedigree */
 	public java.util.Set<Person> getPersons()
 		{

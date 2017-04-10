@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,110 +42,79 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public class ReferenceToVCF extends AbstractCommandLineProgram
+@Program(name="referencetovcf",
+	description="Creates a VCF containing all the possible substitutions from a Reference Genome."
+		)
+public class ReferenceToVCF extends Launcher
 	{
+	private static final Logger LOG = Logger.build(ReferenceToVCF.class).make();
+	
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-L","--bed"},description="limit to this BED")
+	private File  bedFile = null;
+	@Parameter(names={"-i","--insertions"},description="generate insertions")
+	private int  insertion_size = 0;
+	@Parameter(names={"-d","--deletions"},description="generate deletions")
+	private int  deletion_size = 0;
+	@Parameter(names={"-A","--disjoint"},description="disjoint ALT")
+	private boolean  disjoint_alts=false;
+
 	private IntervalTreeMap<Boolean> limitBed=null;
 	
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/ReferenceToVCF";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Creates a VCF containing all the possible substitutions from a Reference Genome.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-L (file) limit to this BED file.");
-		out.println("-d (int) generate deletions (size).");
-		out.println("-i (int) generate insertions (size).");
-		out.println("-g group ALT for same REF.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean group_alts=false;
-		int insertion_size = 0;
-		int deletion_size = 0;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"L:i:d:g"))!=-1)
+	public int doWork(List<String> args) {
+
+		if(this.bedFile!=null)
 			{
-			switch(c)
+			if(limitBed==null) limitBed=new IntervalTreeMap<Boolean>();
+			try
 				{
-				case 'g': group_alts=true;break;
-				case 'i': insertion_size = Integer.parseInt(opt.getOptArg()); break;
-				case 'd': deletion_size = Integer.parseInt(opt.getOptArg()); break;
-				case 'L':
+				Pattern tab=Pattern.compile("[\t]");
+				BufferedReader r=IOUtils.openFileForBufferedReading(this.bedFile);
+				String line;
+				while((line=r.readLine())!=null)
 					{
-					if(limitBed==null) limitBed=new IntervalTreeMap<Boolean>();
-					try
-						{
-						info("reading "+opt.getOptArg());
-						Pattern tab=Pattern.compile("[\t]");
-						LineIterator r=IOUtils.openURIForLineIterator(opt.getOptArg());
-						while(r.hasNext())
-							{
-							String line=r.next();
-							if(line.startsWith("#") || line.isEmpty()) continue;
-							String tokens[]=tab.split(line,4);
-							limitBed.put(new Interval(
-									tokens[0],
-									1+Integer.parseInt(tokens[1]),
-									1+Integer.parseInt(tokens[2])
-									), true);
-							}
-						CloserUtil.close(r);
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
-				
-					break;
+					if(BedLine.isBedHeader(line)) continue;
+					if(line.startsWith("#") || line.isEmpty()) continue;
+					String tokens[]=tab.split(line,4);
+					limitBed.put(new Interval(
+							tokens[0],
+							1+Integer.parseInt(tokens[1]),
+							1+Integer.parseInt(tokens[2])
+							), true);
 					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				CloserUtil.close(r);
+				}
+			catch(Exception err)
+				{
+				LOG.error(err);
+				return -1;
 				}
 			}
 		Random random=new Random(0L);
 		VariantContextWriter out=null;
 		try
 			{
-			if(opt.getOptInd()+1!=args.length)
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			IndexedFastaSequenceFile fasta=new IndexedFastaSequenceFile(new File(args[opt.getOptInd()]));
+			IndexedFastaSequenceFile fasta=new IndexedFastaSequenceFile(new File(oneAndOnlyOneFile(args)));
 			SAMSequenceDictionary dict=fasta.getSequenceDictionary();
-			out=VCFUtils.createVariantContextWriterToOutputStream(System.out);
+			out= super.openVariantContextWriter(this.outputFile);
 			
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			VCFHeader header=new VCFHeader();
@@ -189,14 +159,13 @@ public class ReferenceToVCF extends AbstractCommandLineProgram
 						Interval interval=new Interval(ssr.getSequenceName(), n+1, n+1);
 						if(!this.limitBed.containsOverlapping(interval)	) continue;
 						}
-					if(group_alts)
+					if(!disjoint_alts)
 						{
 						VariantContextBuilder vcb=new VariantContextBuilder();
 						vcb.chr(ssr.getSequenceName());
 						vcb.start(n+1);
 						vcb.stop(n+1);
 						vcb.alleles(alleles);
-						vcb.log10PError(-5);
 						out.add(vcb.make());
 						}
 					else
@@ -208,7 +177,6 @@ public class ReferenceToVCF extends AbstractCommandLineProgram
 							vcb.start(n+1);
 							vcb.stop(n+1);
 							vcb.alleles(Arrays.asList(alleles.get(0),alleles.get(a)));//index 0 is always REF
-							vcb.log10PError(-5);
 							out.add(vcb.make());
 							}
 						}
@@ -240,7 +208,6 @@ public class ReferenceToVCF extends AbstractCommandLineProgram
 						vcb.start(n+1);
 						vcb.alleles(alleles);
 						vcb.computeEndFromAlleles(alleles, n+1);
-						vcb.log10PError(-5);
 						out.add(vcb.make());
 						}
 					
@@ -270,17 +237,12 @@ public class ReferenceToVCF extends AbstractCommandLineProgram
 						vcb.start(n+1);
 						vcb.alleles(alleles);
 						vcb.computeEndFromAlleles(alleles, n+1);
-						vcb.log10PError(-5);
 						out.add(vcb.make());
 						}
 
-					
-					
-					if(System.out.checkError()) break;
-					
-					
+					if(out.checkError()) break;
 					}
-				if(System.out.checkError()) break;
+				if(out.checkError()) break;
 				}
 			progress.finish();
 			
@@ -290,7 +252,7 @@ public class ReferenceToVCF extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

@@ -1,5 +1,6 @@
 package com.github.lindenb.jvarkit.util.jcommander;
 
+import java.awt.Dimension;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -360,6 +361,22 @@ public static class VcfWriterOnDemandConverter
 		}
 	}
 
+public static class DimensionConverter
+	implements IStringConverter<Dimension>
+{
+	@Override
+	public Dimension convert(String v) {
+		int x=v.indexOf('x');
+		if(x<1)
+			{
+			throw new ParameterException("bad size. Expected (width)x(heigh) "+v);
+			}
+		int width=Integer.parseInt(v.substring(0, x));
+		int height=Integer.parseInt(v.substring(x+1));
+		return new Dimension(width, height);
+		}
+}
+
 public static class VcfWriterOnDemand
 	implements VariantContextWriter
 	{
@@ -430,6 +447,7 @@ public Launcher()
 	 final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
 		    put(VcfWriterOnDemand.class, VcfWriterOnDemandConverter.class);
 		    put(VariantContextWriter.class, VcfWriterOnDemandConverter.class);
+		    put(Dimension.class,DimensionConverter.class);
 		}};	
 	this.jcommander.addConverterFactory(new IStringConverterFactory() {
 			@Override
@@ -555,6 +573,20 @@ protected VcfIterator openVcfIterator(final String inputNameOrNull) throws IOExc
 protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
 	return VCFUtils.createVariantContextWriter(outorNull);
 }
+
+protected InputStream openInputStream(final String inOrNull) throws IOException {
+	return(inOrNull==null?
+			stdin():
+			IOUtils.openURIForReading(inOrNull)
+			);
+}
+
+protected BufferedReader openBufferedReader(final String inOrNull) throws IOException {
+	return(inOrNull==null?
+			new BufferedReader(new InputStreamReader(stdin())):
+			IOUtils.openURIForBufferedReading(inOrNull)
+			);
+	}
 
 
 protected VCFHeader addMetaData(final VCFHeader header) 

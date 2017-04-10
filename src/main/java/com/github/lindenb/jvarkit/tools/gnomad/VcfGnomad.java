@@ -62,7 +62,7 @@ public class VcfGnomad extends Launcher{
 	
 	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
 	/** allele specific population in gnomad */
-	private final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female", "raw", "POPMAX"}; 
+	private final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female","SAS", "raw", "POPMAX"}; 
 	/** 'ome'-type section */
 	private enum OmeType {exome,genome};
 	/** entries mapping chromosome/type->vcf.gz */
@@ -131,39 +131,67 @@ public class VcfGnomad extends Launcher{
 		{
 		final OmeType ome;
 		final String tag;
+		final boolean is_AC;
 		final List<Integer> attributes=new ArrayList<>();
-		InfoField(String tag, OmeType ome) {
+		InfoField(String tag, OmeType ome,boolean is_AC) {
 			this.tag=tag;
 			this.ome=ome;
+			this.is_AC = is_AC;
 			}
 		public String getOutputTag() {
 			return "gnomad_"+ this.ome.name()+"_"+this.tag;
 		}
 		VCFInfoHeaderLine makeVCFInfoHeaderLine()
 			{
-			return new VCFInfoHeaderLine(
-					getOutputTag(),VCFHeaderLineCount.A,
-					VCFHeaderLineType.Integer,
-					"Field "+this.tag+" extracted from Gnomad ("+ome.name()+")"
-					);
+			if(!is_AC)
+				{
+				return new VCFInfoHeaderLine(
+						getOutputTag(),1,
+						VCFHeaderLineType.Integer,
+						"Field "+this.tag+" extracted from Gnomad ("+ome.name()+")"
+						);
+				}
+			else
+				{
+				return new VCFInfoHeaderLine(
+						getOutputTag(),VCFHeaderLineCount.A,
+						VCFHeaderLineType.Integer,
+						"Field "+this.tag+" extracted from Gnomad ("+ome.name()+")"
+						);
+				}
 			}
 		void fill(final VariantContext ctx,final VariantContext gnomadCtx)
 			{
 			this.attributes.clear();
-			final List<Allele> galts=gnomadCtx.getAlternateAlleles();
-			final List<String> gatts = gnomadCtx.getAttributeAsStringList(this.tag,null);
-			for(final Allele a:ctx.getAlternateAlleles())
+			
+			if(!is_AC)
 				{
-				Integer found=null;
-				//final int idx=gnomadCtx.getAlleleIndex(a);//non idx(REF)==0
-				final int idx=galts.indexOf(a);
-				
-				if(idx>=0) {
-					if(idx<gatts.size() && gatts.get(idx)!=null && !gatts.get(idx).equals(".")) {
-						found=Integer.parseInt(gatts.get(idx));
-						}
+				int att=gnomadCtx.getAttributeAsInt(this.tag, -9999);
+				if(att>=0) {
+					this.attributes.add(att);
 					}
-				this.attributes.add(found);
+				else
+					{
+					this.attributes.add(null);
+					}
+				}
+			else
+				{
+				final List<Allele> galts=gnomadCtx.getAlternateAlleles();
+				final List<String> gatts = gnomadCtx.getAttributeAsStringList(this.tag,null);
+				for(final Allele a:ctx.getAlternateAlleles())
+					{
+					Integer found=null;
+					//final int idx=gnomadCtx.getAlleleIndex(a);//non idx(REF)==0
+					final int idx=galts.indexOf(a);
+					
+					if(idx>=0) {
+						if(idx<gatts.size() && gatts.get(idx)!=null && !gatts.get(idx).equals(".")) {
+							found=Integer.parseInt(gatts.get(idx));
+							}
+						}
+					this.attributes.add(found);
+					}
 				}
 			}
 		}
@@ -185,8 +213,8 @@ public class VcfGnomad extends Launcher{
 			for(OmeType ome:OmeType.values()) {
 				for(final String pop: POPS)
 					{
-					infoFields.add(new InfoField("AC_"+pop,ome));
-					infoFields.add(new InfoField("AN_"+pop,ome));
+					infoFields.add(new InfoField("AC_"+pop,ome,true));
+					infoFields.add(new InfoField("AN_"+pop,ome,pop.equals("POPMAX")));
 					}
 				}
 			String prevContig=null;
