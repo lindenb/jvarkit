@@ -1,5 +1,6 @@
 package com.github.lindenb.jvarkit.util.bio.gtf;
 
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 
 import java.util.Map;
@@ -11,6 +12,9 @@ public class GTFLine implements Locatable
 		
 		}
 	
+	public Interval getInterval() {
+		return new Interval(getContig(), getStart(), getEnd());
+		}
 	public String getContig() {
 		return contig;
 	}

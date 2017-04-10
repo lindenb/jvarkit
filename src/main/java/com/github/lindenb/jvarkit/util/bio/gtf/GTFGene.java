@@ -71,6 +71,32 @@ public class GTFGene implements Locatable
 		{
 		
 		}
+
+ 	GTFGene(List<GTFLine> lines)
+		{
+ 		for(final GTFLine item: lines) {
+ 			String token=item.getType();
+ 			if(token.equals("gene")) {
+				continue;
+ 			}
+			
+			else if(token.equals("transcript")) {
+				//tx = item.interval;
+				continue;
+				}
+			
+			else if(token.equals("exon")) {
+				//exons.add( item.interval);
+				continue;
+			}
+			
+			else if(token.equals("CDS")) {
+				//cds.add( item.interval);
+				continue;
+				}
+ 			}
+
+		}
 	
 	Exon createExon(int start,int end)
 		{
