@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import htsjdk.tribble.Feature;
 import htsjdk.tribble.annotation.Strand;
@@ -72,7 +73,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 	
 	@Override
 	public final int getStart() {
-		return getTxStart();
+		return getTxStart() + 1;
 		}
 	
 	@Override
@@ -141,7 +142,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 	
 	public abstract class Segment implements Iterable<Integer>
 		{
-		private int index;
+		private final int index;
 		protected Segment(int index)
 			{
 			this.index=index;
@@ -206,7 +207,9 @@ public class KnownGene implements Iterable<Integer>,Feature
 			}
 		
 		public abstract String getName();
+		/** the zero based position */
 		public abstract int getStart();
+		/** the zero based position */
 		public abstract int getEnd();
 		}
 	
@@ -423,28 +426,33 @@ public class KnownGene implements Iterable<Integer>,Feature
 
 			}
 		
+		private static final Pattern COMMA=Pattern.compile("[,]");
 		
 		public KnownGene(final String tokens[])
 			{
-			this.name = tokens[0];
-			this.chrom= tokens[1];
-	        this.strand = tokens[2].charAt(0);
-	        this.txStart = Integer.parseInt(tokens[3]);
-	        this.txEnd = Integer.parseInt(tokens[4]);
-	        this.cdsStart= Integer.parseInt(tokens[5]);
-	        this.cdsEnd= Integer.parseInt(tokens[6]);
-	        int exonCount=Integer.parseInt(tokens[7]);
+			/* first column may be the bin column 
+			 * we use the strand to detect the format */
+			final int binIdx=tokens[2].equals("+") || tokens[2].equals("-")?0:1;
+			
+			this.name = tokens[binIdx + 0];
+			this.chrom= tokens[binIdx + 1];
+	        this.strand = tokens[binIdx + 2].charAt(0);
+	        this.txStart = Integer.parseInt(tokens[binIdx + 3]);
+	        this.txEnd = Integer.parseInt(tokens[binIdx + 4]);
+	        this.cdsStart= Integer.parseInt(tokens[binIdx + 5]);
+	        this.cdsEnd= Integer.parseInt(tokens[binIdx + 6]);
+	        final int exonCount=Integer.parseInt(tokens[binIdx + 7]);
 	        this.exonStarts = new int[exonCount];
 	        this.exonEnds = new int[exonCount];
 	            
             
             int index=0;
-            for(final String s: tokens[8].split("[,]"))
+            for(final String s: COMMA.split(tokens[binIdx + 8]))
             	{
             	this.exonStarts[index++]=Integer.parseInt(s);
             	}
             index=0;
-            for(final String s: tokens[9].split("[,]"))
+            for(final String s: COMMA.split(tokens[binIdx + 9]))
             	{
             	this.exonEnds[index++]=Integer.parseInt(s);
             	}

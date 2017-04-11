@@ -227,7 +227,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
 	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 \
-	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad
+	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg
 	
 
 
@@ -405,6 +405,7 @@ $(eval $(call compile-htsjdk-cmd,splitread,${jvarkit.package}.tools.splitread.Sp
 #$(eval $(call compile-cgi-cmd,tview.cgi))
 $(eval $(call compile-htsjdk-cmd,vcf2hilbert,${jvarkit.package}.tools.misc.VcfToHilbert,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2ps,${jvarkit.package}.tools.misc.VcfToPostscript,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcf2svg,${jvarkit.package}.tools.misc.VcfToSvg,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2rdf,${jvarkit.package}.tools.vcf2rdf.VcfToRdf,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcf2sql,${jvarkit.package}.tools.vcf2sql.VcfToSql))
 $(eval $(call compile-htsjdk-cmd,vcf2xml,${jvarkit.package}.tools.vcf2xml.Vcf2Xml))

@@ -140,7 +140,7 @@ public class TabixFileReader implements Closeable
     		try
     			{
     			if(isClosed() || delegate==null ) return null;
-    			String s= delegate.next();
+    			final String s= delegate.next();
     			if(s==null ) delegate=null;
     			return s;
     			}

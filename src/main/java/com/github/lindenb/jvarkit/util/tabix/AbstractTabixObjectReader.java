@@ -40,8 +40,8 @@ import htsjdk.samtools.util.Interval;
 public abstract class AbstractTabixObjectReader<T> implements Closeable
 	//,Iterable<VariantContext> NO, not a true iterator
 	{
-    protected TabixFileReader tabix=null;
-    protected String uri;
+    protected final TabixFileReader tabix;
+    protected final String uri;
   
     
     protected AbstractTabixObjectReader(final String uri) throws IOException
@@ -90,15 +90,15 @@ public abstract class AbstractTabixObjectReader<T> implements Closeable
     protected abstract class AbstractMyIterator
     	implements Iterator<T>
     	{
-    	protected Iterator<String> delegate;
-    	protected AbstractMyIterator(Iterator<String> delegate)
+    	protected final Iterator<String> delegate;
+    	protected AbstractMyIterator(final Iterator<String> delegate)
     		{
     		this.delegate=delegate;
     		}
     	@Override
     	public boolean hasNext()
     		{
-    		return delegate.hasNext();
+    		return this.delegate.hasNext();
     		}
     	@Override
     	public abstract T next();
