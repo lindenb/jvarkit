@@ -75,8 +75,11 @@ private class MyJCommander extends JCommander
 		if(programdesc!=null){
 			this.setProgramName(programdesc.name());
 		}
-		super.usage(sb);
 		
+		if(print_markdown_help) sb.append("\n```\n");
+		super.usage(sb);
+		if(print_markdown_help) sb.append("\n```\n\n");
+
 		if(programdesc!=null){
 			if(!programdesc.deprecatedMsg().isEmpty())
 				{
@@ -99,8 +102,68 @@ private class MyJCommander extends JCommander
 				for(int postid:programdesc.biostars()) sb.append(" * https://www.biostars.org/p/"+postid+"\n");
 				sb.append("\n");
 			}
+			
 		}
 		
+		if(print_markdown_help)
+			{
+			final String progName=(programdesc==null?"software":programdesc.name());
+			sb.append("##Compilation\n");
+			sb.append("\n");
+			sb.append("### Requirements / Dependencies\n");
+			sb.append("\n");
+			sb.append("* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
+			sb.append("* GNU Make >= 3.81\n");
+			sb.append("* curl/wget\n");
+			sb.append("* git\n");
+			sb.append("* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with \"libxml 20706, libxslt 10126 and libexslt 815\")\n");
+			sb.append("\n");
+			sb.append("\n");
+			sb.append("### Download and Compile\n");
+			sb.append("\n");
+			sb.append("```bash\n");
+			sb.append("$ git clone \"https://github.com/lindenb/jvarkit.git\"\n");
+			sb.append("$ cd jvarkit\n");
+			sb.append("$ make "+progName+"\n");
+			sb.append("```\n");
+			sb.append("\n");
+			sb.append("The *.jar libraries are not included in the main jar file, so you shouldn\'t move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).");
+			sb.append("\n");
+			sb.append("The required libraries will be downloaded and installed in the `dist` directory.\n");
+			sb.append("\n");
+			sb.append("### edit \'local.mk\' (optional)\n");
+			sb.append("\n");
+			sb.append("The a file **local.mk** can be created edited to override/add some definitions.\n");
+			sb.append("\n");
+			sb.append("For example it can be used to set the HTTP proxy:\n");
+			sb.append("\n");
+			sb.append("```\n");
+			sb.append("http.proxy.host=your.host.com\n");
+			sb.append("http.proxy.port=124567\n");
+			sb.append("```\n");
+
+			
+			sb.append("## Contribute\n");
+			sb.append("\n");
+			sb.append("- Issue Tracker: http://github.com/lindenb/jvarkit/issues\n");
+			sb.append("- Source Code: http://github.com/lindenb/jvarkit\n");
+			sb.append("\n");
+			sb.append("## License\n");
+			sb.append("\n");
+			sb.append("The project is licensed under the MIT license.\n");
+			sb.append("\n");
+			sb.append("## Citing\n");
+			sb.append("\n");
+			sb.append("Should you cite **"+progName +"** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md\n");
+			sb.append("\n");
+			sb.append("The current reference is:\n");
+			sb.append("\n");
+			sb.append("http://dx.doi.org/10.6084/m9.figshare.1425030\n");
+			sb.append("\n");
+			sb.append("> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.\n");
+			sb.append("> http://dx.doi.org/10.6084/m9.figshare.1425030\n");
+			sb.append("\n");
+			}
 		InputStream in=null;
 		try {
 			String className=clazz.getName();
@@ -204,6 +267,9 @@ private String compileDate = null;
 
 @Parameter(names = {"-h","--help"},description="print help and exits", help = true)
 private boolean print_help = false;
+@Parameter(names = {"--markdownhelp"},description="print Markdown help and exits", help = true,hidden=true)
+private boolean print_markdown_help = false;
+
 @Parameter(names = {"--version"}, help = true,description="print version and exits")
 private boolean print_version = false;
 @Parameter(description = "Files")
@@ -561,7 +627,7 @@ protected Status parseArgs(final String args[])
 		return Status.EXIT_FAILURE; 
 	 	}
 	 
-	 if (this.print_help) return Status.PRINT_HELP;
+	 if (this.print_help || this.print_markdown_help) return Status.PRINT_HELP;
 	 if (this.print_version) return Status.PRINT_VERSION;
 	 return Status.OK;
 	}

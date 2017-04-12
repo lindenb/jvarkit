@@ -102,6 +102,17 @@ description="when writing multiple SVG docs, stop after the first one. It avoids
 private boolean stop_at_first=false;
 @Parameter(names={"-gw","--genotypeWidth"},description="Genotype square width")
 private int genotype_width=10;
+@Parameter(names={"--nonCoding"},description="Ignore Non-coding genes")
+private boolean removeNonCoding = false;
+@Parameter(names={"--exon","--exons"},description="Only keep variants in exons")
+private boolean variantsInExonOnly = false;
+@Parameter(names={"--alphaFILTER"},description="Variant having FILTER!=PASS opacity (0== hide FILTERED variants)")
+private double variantFILTEREDOpacity = 1.0;
+@Parameter(names={"--alphaINDEL"},description="Variant INDEL opacity (0== hide INDEL variants) ")
+private double variantIndelOpacity = 1.0;
+
+
+
 
 private void title(XMLStreamWriter w,String title) throws XMLStreamException
 	{
@@ -144,16 +155,28 @@ public int doWork(final List<String> args) {
 		while(r.hasNext())
 			{
 			final VariantContext ctx=r.next();
-			if(!chromosomes.contains(ctx.getContig()))
+			String tabixContig=ctx.getContig();
+			if(!chromosomes.contains(tabixContig))
 				{
-				while(r.hasNext())
+				if(tabixContig.startsWith("chr"))
 					{
-					final VariantContext ctx2 = r.peek();
-					if(!ctx2.getContig().equals(ctx.getContig())) break;
-					r.next();
+					tabixContig=tabixContig.substring(3);
 					}
-				LOG.error("No chromosome "+ctx.getContig()+" in "+knownGeneUri+". Check the chromosome nomenclature.");
-				continue;
+				else if(!tabixContig.startsWith("chr"))
+					{
+					tabixContig="chr"+tabixContig;
+					}
+				if(!chromosomes.contains(tabixContig))
+					{
+					while(r.hasNext())
+						{
+						final VariantContext ctx2 = r.peek();
+						if(!ctx2.getContig().equals(ctx.getContig())) break;
+						r.next();
+						}
+					LOG.error("No chromosome "+ctx.getContig()+" in "+knownGeneUri+". Check the chromosome nomenclature.");
+					continue;
+					}
 				}
 			
 			final List<VariantContext> variants = new ArrayList<>();
@@ -170,13 +193,14 @@ public int doWork(final List<String> args) {
 				int newStart=chromStart;
 				int newEnd=chromEnd;
 				final Iterator<KnownGene> kgr = tabix.iterator(
-						ctx.getContig(),
+						tabixContig,
 						chromStart,
 						chromEnd
 						);
 				while(kgr.hasNext())
 					{		
 					final KnownGene g=kgr.next();
+					if(this.removeNonCoding && g.isNonCoding()) continue;
 					genes.add(g);
 					newStart=Math.min(g.getTxStart(),newStart);
 					newEnd=Math.max(g.getTxEnd(),newEnd);
@@ -197,12 +221,46 @@ public int doWork(final List<String> args) {
 				final VariantContext ctx2 = r.peek();
 				if(!ctx2.getContig().equals(ctx.getContig())) break;
 				if(ctx2.getStart()> chromEnd) break;
+				
+				
 				variants.add(r.next());
+					
 				}
 			
+			if(this.variantsInExonOnly)
+				{
+				variants.removeIf(V->{
+					for(final KnownGene gene:genes)
+						{
+						for(final KnownGene.Exon exon: gene.getExons())
+							{
+							if(V.getEnd()< exon.getStart() || V.getStart()>=exon.getEnd())
+								{
+								//rien
+								}
+							else
+								{
+								return false;
+								}
+							}
+						}
+					return true;
+					});
+				}
+			if(this.variantFILTEREDOpacity<=0)
+				{
+				variants.removeIf(V->V.isFiltered());
+				}
+			if(this.variantIndelOpacity<=0)
+				{
+				variants.removeIf(V->V.isIndel());
+				}
+
 			
 			
-			LOG.info(variants.size()+" "+genes.size());
+			if(variants.isEmpty()) continue;
+			
+			LOG.info("Variants ("+variants.size()+") Transcripts ("+genes.size()+") "+tabixContig+":"+chromStart+"-"+chromEnd);
 
 			if(outputFile!=null)
 				{
@@ -245,7 +303,7 @@ public int doWork(final List<String> args) {
 	        		chromStart, 
 	        		chromEnd
 	        		);
-				
+			final int interline_weight=6;
 			final int margin_top=10;
 			final int margin_bottom=10;
 			final int margin_right=100;
@@ -261,8 +319,8 @@ public int doWork(final List<String> args) {
             w.writeAttribute("height",String.valueOf(
             		margin_top+margin_bottom+
             		genes.size()*TRANSCRIPT_HEIGHT+
-            		4*featureHeight+
-            		variants.size()*this.genotype_width
+            		interline_weight*featureHeight+
+            		header.getSampleNamesInOrder().size()*this.genotype_width
             		));
             title(w,ctx.getContig()+":"+chromStart+"-"+chromEnd);
             //defs
@@ -300,6 +358,27 @@ public int doWork(final List<String> args) {
 						w.writeAttribute("height",String.valueOf(this.genotype_width));
     		w.writeEndElement();	
     		
+    		w.writeStartElement("g");
+			w.writeAttribute("id","g_"+GenotypeType.MIXED); //
+				w.writeEmptyElement("rect");
+					w.writeAttribute("style","fill:pink;stroke;none;");
+					w.writeAttribute("x","0");
+					w.writeAttribute("y","0" );
+					w.writeAttribute("width",String.valueOf(this.genotype_width));
+					w.writeAttribute("height",String.valueOf(this.genotype_width));
+		    w.writeEndElement();	
+    		
+    		w.writeStartElement("g");
+			w.writeAttribute("id","g_"+GenotypeType.UNAVAILABLE); //
+				w.writeEmptyElement("rect");
+					w.writeAttribute("style","fill:gray;stroke;none;");
+					w.writeAttribute("x","0");
+					w.writeAttribute("y","0" );
+					w.writeAttribute("width",String.valueOf(this.genotype_width));
+					w.writeAttribute("height",String.valueOf(this.genotype_width));
+		    w.writeEndElement();	
+
+		    
     		w.writeStartElement("g");
     		w.writeAttribute("id","g_"+GenotypeType.HET); //
     			w.writeEmptyElement("rect");
@@ -352,7 +431,7 @@ public int doWork(final List<String> args) {
     				".kgexon {fill:url(#grad01);stroke:black;}\n"+
     				".gcpercent {fill:url(#grad02);stroke:black;}"+
     				".coverage {fill:url(#grad03);stroke:black;}"+
-    				".kgcds {fill:mediumpurple;stroke:black;}\n"+
+    				".kgcds {fill:yellow;stroke:black;opacity:0.7;}\n"+
     				".variant{stroke:none;fill:red;opacity:0.2;}\n"+
     				".xaxis{stroke:gray;fill:none;opacity:0.2;}"
     				);
@@ -380,6 +459,8 @@ public int doWork(final List<String> args) {
 					return margin_left+ midx-genotype_width/2.0;
 					}
 			};
+			
+			final Function<VariantContext,String> variantTitle= V-> V.getContig()+":"+V.getStart()+" "+V.getReference().getDisplayString();
 			
 			/** title */
 			double y=0;
@@ -459,9 +540,9 @@ public int doWork(final List<String> args) {
 					w.writeEmptyElement("rect");
 					w.writeAttribute("class","kgcds");
 					w.writeAttribute("x",String.valueOf(baseToPixel.apply(trim.apply(g.getCdsStart()))));
-					w.writeAttribute("y",String.valueOf(midY-cdsHeigh/2));
+					w.writeAttribute("y",String.valueOf(midY-cdsHeigh/4.0));
 					w.writeAttribute("width",String.valueOf(baseToPixel.apply(trim.apply(g.getCdsEnd()))-baseToPixel.apply((trim.apply((g.getCdsStart()))))));
-					w.writeAttribute("height",String.valueOf(cdsHeigh));
+					w.writeAttribute("height",String.valueOf(cdsHeigh/2.0));
 					}
 				
 				//String label=String.format("%15s", g.getName());
@@ -481,7 +562,7 @@ public int doWork(final List<String> args) {
 				final VariantContext vc=variants.get(vidx);
 				double x1 =  baseToPixel.apply(vc.getStart());
 				double x2 =  baseToPixel.apply(vc.getEnd());
-				final double y2= y+featureHeight*4;
+				final double y2= y+featureHeight*interline_weight;
 				w.writeStartElement("polygon");
 				w.writeAttribute("style","fill:ghostwhite;stroke:black;opacity:0.6;stroke-width:0.5;");
 				w.writeAttribute("points",
@@ -490,23 +571,55 @@ public int doWork(final List<String> args) {
 						" "+variantIndexToPixel.apply(vidx)+","+y2+
 						" "+variantIndexToPixel.apply(vidx+1)+","+y2
 						);
-				title(w,vc.getContig()+":"+vc.getStart()+" "+vc.getReference().getDisplayString());
+				title(w,variantTitle.apply(vc));
+				w.writeEndElement();
+				}
+			for(int vidx=0;vidx < variants.size();++vidx)
+				{
+				final VariantContext vc=variants.get(vidx);
+				final double y2= y+featureHeight*interline_weight;
+				w.writeStartElement("text");
+				w.writeAttribute("transform",
+						"translate("+(String.valueOf(variantIndexToPixel.apply(vidx)+genotype_width/2.0))+","+String.valueOf(y2-5)+") "+
+						"rotate(-45)");
+				w.writeAttribute("x", "0");
+				w.writeAttribute("y", "0");
+				w.writeAttribute("style", "font-size:9px;stroke:black;stroke-width:1;");
+				w.writeCharacters(variantTitle.apply(vc));
 				w.writeEndElement();
 				w.writeCharacters("\n");
 				}
-			y+=featureHeight*4;
+			y+=featureHeight*interline_weight;
 			
 			w.writeStartElement("g");
-			for(final String sample: header.getGenotypeSamples())
+			for(final String sample: header.getSampleNamesInOrder())
 				{
 				for(int vidx=0;vidx < variants.size();++vidx)
 					{
 					final VariantContext vc=variants.get(vidx);
 					final Genotype g=vc.getGenotype(sample);
+					double opacity= 1.0;
+					
+					if(vc.isIndel())  opacity*=this.variantIndelOpacity;
+					if(vc.isFiltered())  opacity*=this.variantFILTEREDOpacity;
+					if(opacity>1) opacity=1;
+					if(opacity<=0) continue;
+					if(opacity<1)
+						{
+						w.writeStartElement("g");
+						w.writeAttribute("style","opacity:"+opacity+";");
+						}
+					
 					w.writeEmptyElement("use");
 					w.writeAttribute("x",""+variantIndexToPixel.apply(vidx));
 					w.writeAttribute("y",String.valueOf(y));
 					w.writeAttribute("xlink", XLINK.NS, "href", "#g_"+g.getType());
+					
+					if(opacity<1)
+						{
+						w.writeEndElement();
+						}
+					
 					}
 				w.writeCharacters("\n");
 				w.writeStartElement("text");
