@@ -78,6 +78,15 @@ $ java -jar dist/vcf2svg.jar \
    -k refGene.txt.gz input.vcf > out.svg
 ```
 
+## Screenshot
+
+https://twitter.com/yokofakun/status/851875435948462080
+
+![screenshot](https://pbs.twimg.com/media/C9J4LeoXkAEqvIN.jpg)
+
+
+
+
 END_DOC
  */
 @Program(name="vcf2svg",description="write a vcf to svg , with gene context",keywords={"vcf","svg","xlm","visualization"})
@@ -323,6 +332,12 @@ public int doWork(final List<String> args) {
             		header.getSampleNamesInOrder().size()*this.genotype_width
             		));
             title(w,ctx.getContig()+":"+chromStart+"-"+chromEnd);
+            
+            w.writeStartElement("desc");
+            w.writeCharacters("generated with "+getProgramName()+"\n"+
+            		"Author: Pierre Lindenbaum PhD. @yokofakun .");
+            w.writeEndElement();
+            
             //defs
             w.writeStartElement("defs");
 			

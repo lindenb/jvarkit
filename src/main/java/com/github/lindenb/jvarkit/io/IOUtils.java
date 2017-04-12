@@ -35,8 +35,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -51,6 +49,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.LinkedHashSet;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -111,9 +110,9 @@ public class IOUtils {
 	
 	public static void copyTo(final File f,final OutputStream fous) throws IOException
 		{
-		FileInputStream fin=null;
+		InputStream fin=null;
 		try {
-			fin =new FileInputStream(f);
+			fin =Files.newInputStream(f.toPath());
 			copyTo(fin,fous);
 			fous.flush();
 		} finally {
@@ -135,7 +134,7 @@ public class IOUtils {
 	
 	public static void copyTo(final InputStream in,final File f) throws IOException
 		{
-		final FileOutputStream fous=new FileOutputStream(f);
+		final OutputStream fous= Files.newOutputStream(f.toPath());
 		copyTo(in,fous);
 		fous.flush();
 		fous.close();
@@ -256,11 +255,10 @@ public class IOUtils {
 		}
 
 	
-	@SuppressWarnings("resource")
-	public static InputStream openFileForReading(File file) throws IOException
+	public static InputStream openFileForReading(final File file) throws IOException
 		{
 		IOUtil.assertFileIsReadable(file);
-		InputStream in= new FileInputStream(file);
+		InputStream in= Files.newInputStream(file.toPath());
 		if(file.getName().endsWith(".gz"))
 			{
 			in=tryBGZIP(in);
@@ -286,11 +284,11 @@ public class IOUtils {
         	}
         else if (file.getName().endsWith(".gz"))
 	    	{
-	        return new GZIPOutputStream(new FileOutputStream(file),true);
+	        return new GZIPOutputStream(Files.newOutputStream(file.toPath()),true);
 	    	}
         else
         	{
-            return new FileOutputStream(file);
+            return Files.newOutputStream(file.toPath());
         	}         
     	}
     

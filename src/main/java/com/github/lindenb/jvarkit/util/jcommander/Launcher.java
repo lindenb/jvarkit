@@ -1,6 +1,11 @@
 package com.github.lindenb.jvarkit.util.jcommander;
 
+import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -20,8 +25,22 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.jar.Manifest;
+import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 import java.util.zip.Deflater;
+
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JToolBar;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.IStringConverterFactory;
@@ -72,9 +91,13 @@ private class MyJCommander extends JCommander
 		final Class<?> clazz=Launcher.this.getClass();
 		
 		final Program programdesc=clazz.getAnnotation(Program.class);
+		
 		if(programdesc!=null){
 			this.setProgramName(programdesc.name());
-		}
+		} else
+			{
+			this.setProgramName(Launcher.this.getProgramName());
+			}
 		
 		if(print_markdown_help) sb.append("\n```\n");
 		super.usage(sb);
@@ -141,7 +164,11 @@ private class MyJCommander extends JCommander
 			sb.append("http.proxy.host=your.host.com\n");
 			sb.append("http.proxy.port=124567\n");
 			sb.append("```\n");
-
+			
+			sb.append("## Source code \n\n");
+			sb.append("https://github.com/lindenb/jvarkit/tree/master/src/main/").
+				append(clazz.getName().replace('.','/')).append(".java\n");
+			sb.append("\n");
 			
 			sb.append("## Contribute\n");
 			sb.append("\n");
@@ -275,7 +302,7 @@ private boolean print_version = false;
 @Parameter(description = "Files")
 private List<String> files = new ArrayList<>();
 
-
+private String programName="";
 
 public class CompressionArgs
 	{
@@ -474,6 +501,8 @@ public static class VcfWriterOnDemand
 		}
 		this.delegate.writeHeader(header2);
 		}
+	
+	
 	@Override
 	public void add(final VariantContext ctx) {
 		if(this.delegate==null) throw new JvarkitException.ProgrammingError("null delegate");
@@ -493,9 +522,271 @@ public static class VcfWriterOnDemand
 		}
 	}
 
+public static class JConsole extends JFrame
+	{
+	private final Preferences prefs;
+	private File lastDir=null;
+	protected final ActionMap actionMap=new ActionMap();
+	protected final JTextArea textArea;
+	private final Class<? extends Launcher> clazz;
+	@SuppressWarnings("serial")
+	JConsole(Class<? extends Launcher> clazz) {
+		super("JConsole");
+		
+		this.clazz = clazz;
+		final Program programAnnot = clazz.getAnnotation(Program.class);
+		if(programAnnot!=null)
+			{
+			this.setTitle(programAnnot.name());
+			}
+		this.prefs = Preferences.userNodeForPackage(JConsole.class);
+		String pref= this.prefs.get(this.clazz.getName()+".lastDir", null);
+		if(pref!=null)
+			{
+			this.lastDir=new File(pref);
+			}
+		
+		this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		final JMenuBar menubar=new JMenuBar();
+		setJMenuBar(menubar);
+		this.actionMap.put("launcher.jconsole.about", new AbstractAction("About...") {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				JOptionPane.showMessageDialog(JConsole.this, programAnnot.description());
+				}
+			});
+		this.actionMap.put("launcher.jconsole.exit", new AbstractAction("Exit") {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				doMenuQuit();
+				}
+			});
+		this.actionMap.put("launcher.jconsole.run", new AbstractAction("Run") {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				doMenuRun();
+				}
+			});
+		this.actionMap.put("launcher.jconsole.insertpathr", new AbstractAction("Insert Path/R") {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				doMenuInsertPath(true);
+				}
+			});
+		this.actionMap.put("launcher.jconsole.insertpathw", new AbstractAction("Insert Path/W") {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				doMenuInsertPath(false);
+				}
+			});
+		
+		JMenu jmenu=new JMenu("File");
+		jmenu.add(this.actionMap.get("launcher.jconsole.about"));
+		jmenu.add(this.actionMap.get("launcher.jconsole.exit"));
+		menubar.add(jmenu);
+		jmenu=new JMenu("Tool");
+		jmenu.add(this.actionMap.get("launcher.jconsole.run"));
+		jmenu.add(this.actionMap.get("launcher.jconsole.insertpathr"));
+		jmenu.add(this.actionMap.get("launcher.jconsole.insertpathw"));
+		menubar.add(jmenu);
+		JPanel contentPane=new JPanel(new BorderLayout(5,5));
+		final JToolBar toolbar=new JToolBar();
+		contentPane.add(toolbar,BorderLayout.NORTH);
+		toolbar.add(this.actionMap.get("launcher.jconsole.run"));
+		toolbar.add(this.actionMap.get("launcher.jconsole.insertpathr"));
+		toolbar.add(this.actionMap.get("launcher.jconsole.insertpathw"));
+		
+		this.textArea = new JTextArea(5, 40);
+		
+		pref= this.prefs.get(this.clazz.getName()+".text", null);
+		if(pref!=null)
+			{
+			this.textArea.setText(pref);
+			}
+		
+		contentPane.add(new JScrollPane(this.textArea),BorderLayout.CENTER);
+		
+		final JPanel bot=new JPanel(new FlowLayout(FlowLayout.TRAILING,5,5));
+		contentPane.add(bot,BorderLayout.SOUTH);
+		
+		final JButton runButton=new JButton(this.actionMap.get("launcher.jconsole.run"));
+		bot.add(runButton);
+		
+		setContentPane(contentPane);
+		
+		this.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(final WindowEvent e) {
+				try
+					{
+					prefs.put(clazz.getName()+".text", textArea.getText());
+					if(lastDir!=null) prefs.put(clazz.getName()+".lastDir",lastDir.getPath());
+					prefs.flush();
+					}
+				catch(Exception err)
+					{
+					LOG.error(err);
+					}
+				}
+			});
+		}
+	
+
+	protected void doMenuInsertPath(boolean openDialog) {
+		final JFileChooser fc=new JFileChooser(this.lastDir);
+		if(openDialog)
+			{
+			if(fc.showOpenDialog(JConsole.this)!=JFileChooser.APPROVE_OPTION) return;
+			}
+		else
+			{
+			if(fc.showSaveDialog(JConsole.this)!=JFileChooser.APPROVE_OPTION) return;
+			}
+		final File f=fc.getSelectedFile();
+		if(f==null) return;
+		this.lastDir=f.getParentFile();
+		this.textArea.insert(f.getPath(), this.textArea.getCaretPosition());
+		}
+
+
+	protected void doMenuRun() 
+		{
+		final List<String> args;
+		try {
+			args = this.getArguments();
+			}
+		catch(final IllegalArgumentException err)
+			{
+			LOG.error(err);
+			JOptionPane.showMessageDialog(JConsole.this,
+					String.valueOf(err.getMessage()),
+					"Error",
+					JOptionPane.ERROR_MESSAGE
+					);
+			return;
+			}
+		final JFileChooser fc=new  JFileChooser(this.lastDir);
+		if( fc.showSaveDialog(JConsole.this)!=JFileChooser.APPROVE_OPTION) return ;
+		final File selFile = fc.getSelectedFile();
+		if(selFile==null) return;
+		this.lastDir=selFile.getParentFile();
+		final Launcher instance;
+		try {
+			instance = this.clazz.newInstance();
+			}
+		catch(final Throwable err)
+			{
+			LOG.error(err);
+			JOptionPane.showMessageDialog(JConsole.this,
+					String.valueOf(err.getMessage()),
+					"Error creating a new instance of "+clazz.getName(),
+					JOptionPane.ERROR_MESSAGE
+					);
+			return;
+			}
+		int ret=0;
+		PrintStream oldstdout = System.out;
+		try {
+			LOG.info("execute "+args);
+			ret=instance.instanceMain(args.toArray(new String[args.size()]));
+			}
+		catch(final Throwable err)
+			{
+			LOG.error(err);
+			JOptionPane.showMessageDialog(JConsole.this,
+					String.valueOf(err.getMessage()),
+					"Error",
+					JOptionPane.ERROR_MESSAGE
+					);
+			return;
+			}
+		finally
+			{
+			System.setOut(oldstdout);
+			}
+		JOptionPane.showMessageDialog(JConsole.this,
+			"Program exited with status: "+ret,
+			"Exit:"+ret,
+			ret==0?JOptionPane.PLAIN_MESSAGE:JOptionPane.ERROR_MESSAGE
+			);
+		
+		}
+	protected void doMenuQuit() 
+		{
+		setVisible(false);
+		dispose();
+		}
+	protected List<String> getArguments() {
+		final List<String> args = new ArrayList<>();
+		final String s=this.textArea.getText();
+		int i=0;
+		while(i<s.length())
+			{
+			if(Character.isWhitespace(s.charAt(i))) {++i;continue;}
+			if(s.charAt(i)=='\"' || s.charAt(i)=='\'')
+				{
+				char quote=s.charAt(i);
+				i++;
+				final StringBuilder sb=new StringBuilder();
+				while(i< s.length())
+					{
+					char c = s.charAt(i);
+					++i;
+					if(c==quote) break;
+					if(c=='\\')
+						{
+						if(i+1>=s.length())
+							{	
+							throw new IllegalArgumentException("Unclosed string after "+sb.toString());
+							}
+						c= s.charAt(i);
+						switch(c)
+							{
+							case '\'': sb.append('\'');break;
+							case '\"': sb.append('\"');break;
+							case 'n': sb.append('\n');break;
+							case 't': sb.append('\t');break;
+							case '\\': sb.append('\\');break;
+							default: throw new IllegalArgumentException("Unknown escape sequence after: "+sb.toString());
+							}
+						}
+					else
+						{
+						sb.append(c);
+						}
+					}
+				args.add(sb.toString());
+				}
+			else
+				{
+				final StringBuilder sb=new StringBuilder();
+				while(i< s.length() && !Character.isWhitespace(s.charAt(i)))
+					{
+					sb.append(s.charAt(i));
+					i++;
+					}
+				args.add(sb.toString());
+				}
+			}
+		return args;
+		}
+
+	}
+
+
 
 public Launcher()
 	{
+	final Class<?> clazz=Launcher.this.getClass();
+	final Program programdesc=clazz.getAnnotation(Program.class);
+	if(programdesc!=null)
+		{
+		this.programName = programdesc.name();
+		}
+	else
+		{
+		this.programName = getClass().getSimpleName();
+		}	
 	
 	try {
 		/** set locale http://seqanswers.com/forums/showthread.php?p=174020#post174020 */
@@ -524,14 +815,19 @@ public Launcher()
 	this.jcommander.addObject(this);	
 	}
 
-public String getCompileDate()
-{
-if(this.compileDate==null)
+public String getProgramName()
 	{
-	this.compileDate="undefined";
-	loadManifest();
+	return this.programName;
 	}
-return compileDate;
+
+public String getCompileDate()
+	{
+	if(this.compileDate==null)
+		{
+		this.compileDate="undefined";
+		loadManifest();
+		}
+	return compileDate;
 }
 
 public String getGitHash()

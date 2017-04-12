@@ -230,7 +230,7 @@ public class NgsWorkflow extends Launcher
 			build();
 	private static final PropertyKey PROP_USE_LUMPY_EXPRESS = key("use.lumpyexpress").
 			description("Use Lumpy Express").
-			def(false).
+			def("false").
 			build();
 
 	
@@ -368,10 +368,10 @@ public class NgsWorkflow extends Launcher
 		public Map<PropertyKey,String> getAttributes() { return _att;}
 		
 		private boolean booleanValue(final PropertyKey key) {
-			String s=getAttribute(key,"");
+			String s=getAttribute(key,"false");
 			if(s!=null && s.equals("true")) return true;
 			if(s!=null && s.equals("false")) return false;
-			throw new RuntimeException("bad boolean value for "+key+" : "+s);
+			throw new RuntimeException("bad boolean value for "+key+" : \""+s+"\"");
 			}
 		public boolean isTrue(final PropertyKey key) {
 			return booleanValue(key);
@@ -645,8 +645,8 @@ public class NgsWorkflow extends Launcher
 				w.print(" && ${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T VariantAnnotator -R $(REF) "
 						+ " -o $(addsuffix .tmp2.vcf,$@) -L $(addsuffix .tmp1.vcf,$@) --variant $(addsuffix .tmp1.vcf,$@) "
 						+" --resource:exac /commun/data/pubdb/broadinstitute.org/exac/1.0/ExAC.r1.sites.vcf.gz   --resourceAlleleConcordance "
-						+" --expression exac.AC --expression exac.AC  "
-						+ " -A PossibleDeNovo --pedigree "+ getPedigree().getPedFilename()+" "
+						+" --expression exac.AC  "
+						+ " -A PossibleDeNovo -A HomopolymerRun -A TandemRepeatAnnotator  --pedigree "+ getPedigree().getPedFilename()+" "
 						+ " && mv --verbose   $(addsuffix .tmp2.vcf,$@)  $(addsuffix .tmp1.vcf,$@)"
 						+ " && mv --verbose   $(addsuffix .tmp2.vcf.idx,$@)  $(addsuffix .tmp1.vcf.idx,$@)"
 						);
@@ -837,15 +837,24 @@ public class NgsWorkflow extends Launcher
 						w.append(" \\\n\t").append(vcfPart);
 						}
 					w.append("\n");
-					w.append(rulePrefix()+" && rm -f $(addsuffix .list,$@)\n");
-					
+					w.append(rulePrefix()+" && rm -f $(addsuffix .list,$@) ");
+					int vcfn=0;
 					for(final String vcfPart:vcfParts) {
-						w.append("\techo '");
+						if(vcfn%30==0)
+							{
+							w.append("\n\t");
+							}
+						else
+							{
+							w.append(" && ");
+							}
+						w.append("echo '");
 						w.append(vcfPart);
-						w.append("' >>  $(addsuffix .list,$@)\n");
+						w.append("' >>  $(addsuffix .list,$@) ");
+						vcfn++;
 						}
 					
-					w.append("\t${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T CombineVariants -R $(REF) "
+					w.append("\n\t${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T CombineVariants -R $(REF) "
 							+ " -o $(addsuffix .tmp.vcf.gz,$@) -genotypeMergeOptions UNSORTED "
 							+" --variant  $(addsuffix .list,$@) "
 							);
@@ -878,7 +887,9 @@ public class NgsWorkflow extends Launcher
 			w.append("	-nct ").append(getAttribute(PROP_GATK_HAPCALLER_NCT));
 			
 			w.append("	--dbsnp \"$(gatk.bundle.dbsnp.vcf)\" ");
-			w.append(" $(foreach A,StrandAlleleCountsBySample  PossibleDeNovo AS_FisherStrand AlleleBalance AlleleBalanceBySample BaseCountsBySample GCContent ClippingRankSumTest , --annotation ${A} ) ");
+			w.append(" $(foreach A, StrandAlleleCountsBySample  PossibleDeNovo AS_FisherStrand AlleleBalance AlleleBalanceBySample "
+					/* BaseCountsBySample fait planter */
+					+ " GCContent ClippingRankSumTest , --annotation ${A} ) ");
 			w.append(" --pedigree ").append(getProject().getPedigree().getPedFilename());
 			if( getProject().hasCapture())
 	            {
