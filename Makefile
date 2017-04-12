@@ -305,7 +305,7 @@ $(eval $(call compile_biostar_cmd,86363))
 $(eval $(call compile_biostar_cmd,86480,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,90204))
 $(eval $(call compile_biostar_cmd,95652,${jcommander.jar} api.ncbi.gb))
-$(eval $(call compile_biostar_cmd,3654,api.ncbi.insdseq api.ncbi.blast))
+$(eval $(call compile_biostar_cmd,3654,${jcommander.jar} api.ncbi.insdseq api.ncbi.blast))
 $(eval $(call compile_biostar_cmd,154220,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,140111,${jcommander.jar} api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
 $(eval $(call compile_biostar_cmd,160470,api.ncbi.blast wiki_flag))
@@ -581,6 +581,7 @@ api.evs:
 	${XJC} -d ${generated.dir}/java -p edu.washington.gs.evs ${xjc.proxy} -wsdl "http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
 
 api.ncbi.blast:
+	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/blast
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.blast -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd"
 
@@ -594,18 +595,22 @@ api.ncbi.elink:
 
 
 api.ncbi.gb:
+	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/gb
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.gb -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd"
 
 api.ncbi.taxonomy:
+	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/taxonomy
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.taxonomy -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/entrez/query/DTD/taxon.dtd"
 
 api.ncbi.tseq:
+	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/tseq
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.tseq -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_TSeq.dtd"
 
 api.ncbi.insdseq:
+	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/insdseq
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.insdseq -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/INSD_INSDSeq.dtd"
 
