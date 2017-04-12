@@ -37,14 +37,15 @@ import gov.nih.nlm.ncbi.insdseq.INSDInterval;
 import gov.nih.nlm.ncbi.insdseq.INSDQualifier;
 import htsjdk.samtools.util.CloserUtil;
 
-import java.io.PrintStream;
 import java.util.List;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 
 import javax.xml.bind.JAXBContext;
@@ -55,10 +56,66 @@ import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+/**
+BEGIN_DOC
 
-public class Biostar3654 extends AbstractKnimeApplication
+## Example
+
+```
+$ cat ~/jeter.blastn.xml 
+<?xml version="1.0"?>
+<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd">
+<BlastOutput>
+(...)
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gi|14971104|gb|AF338247.1|</Hit_id>
+  <Hit_def>Human rotavirus A strain M clone M1 NSP3 genes, complete cds</Hit_def>
+  <Hit_accession>AF338247</Hit_accession>
+  <Hit_len>2032</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+```
+
+```
+$ java -jar dist/biostar3654.jar ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
+
+QUERY: No definition line
+       ID:Query_186611 Len:980
+>Human rotavirus A strain M clone M1 NSP3 genes, complete cds
+ AF338247
+ id:gi|14971104|gb|AF338247.1| len:2032
+
+   e-value:0 gap:0 bitScore:1764.98
+
+QUERY 000000001 GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGC 000000050
+                ||||||||||||||||||||||||||||||||||||||||||||||||||
+HIT   000000001 GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGC 000000050
+                ################################################## source organi
+                ##################################                 5'UTR
+                                                  ################ CDS codon_sta
+
+QUERY 000000051 AGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCT 000000100
+                ||||||||||||||||||||||||||||||||||||||||||||||||||
+HIT   000000051 AGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCT 000000100
+                ################################################## source organi
+                ################################################## CDS codon_sta
+(...)
+
+
+END_DOC
+
+ */
+@Program(name="biostar3654",description="show blast alignment with annotations",biostars=3654,keywords={"blast","xml","annotation"})
+public class Biostar3654 extends Launcher
 	{
+	private static final Logger LOG=Logger.build(Biostar3654.class).make();
+	
 	@SuppressWarnings("unused")
 	private static final gov.nih.nlm.ncbi.blast.ObjectFactory _fool_javac1=null;
 	@SuppressWarnings("unused")
@@ -68,7 +125,10 @@ public class Biostar3654 extends AbstractKnimeApplication
 	private PrintWriter pw=null;
 	/** left margin */
 	private int margin=9;
+	@Parameter(names={"-o","--out"},description="Ouput file. Default: stdout")
+	private File outputFile=null;
 	/** length of a fasta line */
+	@Parameter(names={"-L","--length"},description="Fasta Line kength")
 	private int fastaLineLength=50;
 	
 	/** XML input factory */
@@ -138,11 +198,12 @@ public class Biostar3654 extends AbstractKnimeApplication
 		void print()
 			{
 			/* loop over the feature */
-			for(INSDFeature feature:this.features)
+			for(final INSDFeature feature:this.features)
 				{
 				if(feature.getINSDFeatureIntervals()==null) continue;
+				if(feature.getINSDFeatureIntervals().getINSDInterval()==null) continue;
 				//loop over the coordinates
-				for(INSDInterval interval:feature.getINSDFeatureIntervals().getINSDInterval())
+				for(final INSDInterval interval:feature.getINSDFeatureIntervals().getINSDInterval())
 					{
 					int intervalFrom=0;
 					int intervalTo=0;
@@ -213,12 +274,14 @@ public class Biostar3654 extends AbstractKnimeApplication
 					//Biostar3654.this.pw.print(" ");
 					//Biostar3654.this.pw.print(feature.getINSDFeatureLocation());//no because using seq_start & seq_stop with efetch change this
 					//print the infos
-					for(INSDQualifier qual:feature.getINSDFeatureQuals().getINSDQualifier())
-						{
-						Biostar3654.this.pw.print(" ");
-						Biostar3654.this.pw.print(qual.getINSDQualifierName());
-						Biostar3654.this.pw.print(":");
-						Biostar3654.this.pw.print(qual.getINSDQualifierValue());
+					if( feature.getINSDFeatureQuals()!=null && feature.getINSDFeatureQuals().getINSDQualifier()!=null ) {
+						for(final INSDQualifier qual:feature.getINSDFeatureQuals().getINSDQualifier())
+							{
+							Biostar3654.this.pw.print(" ");
+							Biostar3654.this.pw.print(qual.getINSDQualifierName());
+							Biostar3654.this.pw.print(":");
+							Biostar3654.this.pw.print(qual.getINSDQualifierValue());
+							}
 						}
 					
 					Biostar3654.this.pw.println();
@@ -281,63 +344,72 @@ public class Biostar3654 extends AbstractKnimeApplication
 	
 	
 	/** fetches the annotation for a given entry if the name starts with gi|.... */
-	private List<INSDFeature> fetchAnnotations(String database,String name,int start,int end)
+	private List<INSDFeature> fetchAnnotations(
+		final String database,
+		final String acn,int start,int end)
 		throws Exception
 		{
-		int pipe;
-		if(start>end) return fetchAnnotations(database,name,end,start);
-		
-		List<INSDFeature> L=new ArrayList<INSDFeature>();
-		
-		if(name!=null &&
-		name.startsWith("gi|") &&
-		(pipe=name.indexOf('|',3))!=-1)
+		InputStream in=null;
+		XMLEventReader r=null;
+		final List<INSDFeature> L=new ArrayList<INSDFeature>();
+		if(start>end) return fetchAnnotations(database,acn,end,start);
+		try 
 			{
-			String gi=name.substring(3,pipe);
-			String uri="https://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db="+database+
-					"&id="+gi+
-					"&rettype=gbc&retmode=xml&seq_start="+start+"&seq_stop="+end;
-			info(uri);
-			InputStream in= new URL(uri).openStream();
-			XMLEventReader r=this.xif.createXMLEventReader(in);
-			while(r.hasNext())
+			
+			if(acn!=null && !acn.isEmpty() && !acn.startsWith("Query"))
 				{
-				XMLEvent  evt=r.peek();
-				if(evt.isStartElement() &&
-						evt.asStartElement().getName().getLocalPart().equals("INSDFeature"))
-						{
-						INSDFeature feature = this.unmarshaller.unmarshal(r,
-								INSDFeature.class).getValue();
-						INSDFeatureIntervals its = feature.getINSDFeatureIntervals();
-						if(its==null || its.getINSDInterval().isEmpty()) continue;
-						for(INSDInterval interval:its.getINSDInterval())
+				String uri="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db="+database+
+						"&id="+URLEncoder.encode(acn,"UTF-8")+
+						"&rettype=gbc&retmode=xml&seq_start="+start+"&seq_stop="+end;
+				LOG.info(uri);
+				in = new URL(uri).openStream();
+				r=this.xif.createXMLEventReader(in);
+				while(r.hasNext())
+					{
+					XMLEvent  evt=r.peek();
+					if(evt.isStartElement() &&
+							evt.asStartElement().getName().getLocalPart().equals("INSDFeature"))
 							{
-							//when using seq_start and seq_stop , the NCBI shifts the data...
-							if( interval.getINSDIntervalFrom()!=null &&
-								interval.getINSDIntervalTo()!=null)
+							INSDFeature feature = this.unmarshaller.unmarshal(r,
+									INSDFeature.class).getValue();
+							INSDFeatureIntervals its = feature.getINSDFeatureIntervals();
+							if(its==null || its.getINSDInterval().isEmpty()) continue;
+							for(INSDInterval interval:its.getINSDInterval())
 								{
-								interval.setINSDIntervalFrom(String.valueOf(Integer.parseInt(interval.getINSDIntervalFrom())+start-1));
-								interval.setINSDIntervalTo(String.valueOf(Integer.parseInt(interval.getINSDIntervalTo())+start-1));
+								//when using seq_start and seq_stop , the NCBI shifts the data...
+								if( interval.getINSDIntervalFrom()!=null &&
+									interval.getINSDIntervalTo()!=null)
+									{
+									interval.setINSDIntervalFrom(String.valueOf(Integer.parseInt(interval.getINSDIntervalFrom())+start-1));
+									interval.setINSDIntervalTo(String.valueOf(Integer.parseInt(interval.getINSDIntervalTo())+start-1));
+									}
+								else if( interval.getINSDIntervalPoint()!=null)
+									{
+									interval.setINSDIntervalPoint(String.valueOf(Integer.parseInt(interval.getINSDIntervalPoint())+start-1));
+									}
 								}
-							else if( interval.getINSDIntervalPoint()!=null)
-								{
-								interval.setINSDIntervalPoint(String.valueOf(Integer.parseInt(interval.getINSDIntervalPoint())+start-1));
-								}
+							L.add(feature);
 							}
-						L.add(feature);
-						}
-					else
-						{
-						r.next();//consumme
-						}			
+						else
+							{
+							r.next();//consumme
+							}			
+					}
+				
 				}
+			}
+		catch(Exception err) {
+			LOG.error(err);
+			}
+		finally
+			{
 			CloserUtil.close(r);
 			CloserUtil.close(in);
 			}
-		info("N(INSDFeature)="+L.size());
-		//not found, return empty table
-		return L;
-		}
+			LOG.info("N(INSDFeature)="+L.size());
+			//not found, return empty table
+			return L;
+			}
 	
 	/** parses BLAST output */
 	private void parseBlast(XMLEventReader r)  throws Exception
@@ -398,7 +470,7 @@ public class Biostar3654 extends AbstractKnimeApplication
 						);
 				List<INSDFeature> hFeatures= fetchAnnotations(
 						database,
-						hit.getHitId(),
+						hit.getHitAccession(),
 						Integer.parseInt(hsp.getHspHitFrom()),
 						Integer.parseInt(hsp.getHspHitTo())
 						);
@@ -439,8 +511,7 @@ public class Biostar3654 extends AbstractKnimeApplication
 		}
 
 	@Override
-	public int executeKnime(List<String> args)
-		{
+	public int doWork(final List<String> args) {
 		try
 			{
 			
@@ -459,18 +530,12 @@ public class Biostar3654 extends AbstractKnimeApplication
 							return new ByteArrayInputStream(new byte[0]);
 						}
 				});
-			if(getOutputFile()!=null)
-				{
-				this.pw = new PrintWriter(getOutputFile()); 
-				}
-			else
-				{
-				this.pw = new PrintWriter(System.out); 
-				}
+			this.pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			
 			//read from stdin
 			if(args.isEmpty())
 				{
-				XMLEventReader r=this.xif.createXMLEventReader(System.in, "UTF-8");
+				XMLEventReader r=this.xif.createXMLEventReader(stdin(), "UTF-8");
 				this.parseBlast(r);
 				r.close();
 				}
@@ -479,7 +544,7 @@ public class Biostar3654 extends AbstractKnimeApplication
 				//loop over the files
 				for(String inputName:args)
 					{
-					info("Reading "+inputName);
+					LOG.info("Reading "+inputName);
 					FileReader fr=new java.io.FileReader(inputName);
 					XMLEventReader r=this.xif.createXMLEventReader(fr);
 					this.parseBlast(r);
@@ -492,49 +557,15 @@ public class Biostar3654 extends AbstractKnimeApplication
 			}
 		catch(Throwable err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			if(getOutputFile()!=null) CloserUtil.close(this.pw);
+			CloserUtil.close(this.pw);
 			}
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println("-o (fileout). Default: stdout");
-		out.println("-L (int) line length: default: "+this.fastaLineLength);
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:L:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'L': this.fastaLineLength=Math.max(1,Integer.parseInt(opt.getOptArg()));break;
-				case 'o': setOutputFile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-
-		return mainWork(opt.getOptInd(), args);
-		}
-
 	/**
 	 * @param args
 	 */
