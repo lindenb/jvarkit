@@ -41,6 +41,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JToolBar;
+import javax.swing.SwingUtilities;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.IStringConverterFactory;
@@ -166,7 +167,7 @@ private class MyJCommander extends JCommander
 			sb.append("```\n");
 			
 			sb.append("## Source code \n\n");
-			sb.append("https://github.com/lindenb/jvarkit/tree/master/src/main/").
+			sb.append("https://github.com/lindenb/jvarkit/tree/master/src/main/java/").
 				append(clazz.getName().replace('.','/')).append(".java\n");
 			sb.append("\n");
 			
@@ -529,6 +530,50 @@ public static class JConsole extends JFrame
 	protected final ActionMap actionMap=new ActionMap();
 	protected final JTextArea textArea;
 	private final Class<? extends Launcher> clazz;
+	private volatile Runner runner=null;
+	private  class Runner
+		extends Thread
+		{
+		Launcher instance;
+		String args[];
+		int returnStatus=0;
+		@Override
+		public void run() {
+			try
+				{
+				int ret= instance.instanceMain(args);
+				this.returnStatus=ret;
+				}
+			catch(Exception err)
+				{
+				LOG.error(err);
+				try { SwingUtilities.invokeAndWait(()->{
+					if(Runner.this != JConsole.this.runner) return;
+					 JConsole.this.runner=null;
+					JOptionPane.showMessageDialog(JConsole.this, "An error occured "+err.getMessage());
+					}); } catch(Throwable err2) {
+						LOG.error(err2);
+					}
+				returnStatus=-1;
+				return;
+				}
+			
+			try { SwingUtilities.invokeAndWait(()->{
+				if(Runner.this != JConsole.this.runner) return;
+				 JConsole.this.runner=null;
+				JOptionPane.showMessageDialog(
+						JConsole.this,
+						"Program exited with status "+returnStatus,
+						"End",
+						returnStatus==0?JOptionPane.PLAIN_MESSAGE:JOptionPane.ERROR_MESSAGE
+						);
+				}); } catch(Throwable err2) {
+					LOG.error(err2);
+				}
+			}
+		
+		}
+	
 	@SuppressWarnings("serial")
 	JConsole(Class<? extends Launcher> clazz) {
 		super("JConsole");
@@ -567,6 +612,13 @@ public static class JConsole extends JFrame
 				doMenuRun();
 				}
 			});
+		this.actionMap.put("launcher.jconsole.stop", new AbstractAction("Stop") {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				doMenuStop();
+				}
+			});
+
 		this.actionMap.put("launcher.jconsole.insertpathr", new AbstractAction("Insert Path/R") {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -609,8 +661,8 @@ public static class JConsole extends JFrame
 		final JPanel bot=new JPanel(new FlowLayout(FlowLayout.TRAILING,5,5));
 		contentPane.add(bot,BorderLayout.SOUTH);
 		
-		final JButton runButton=new JButton(this.actionMap.get("launcher.jconsole.run"));
-		bot.add(runButton);
+		bot.add(new JButton(this.actionMap.get("launcher.jconsole.stop")));
+		bot.add(new JButton(this.actionMap.get("launcher.jconsole.run")));
 		
 		setContentPane(contentPane);
 		
@@ -647,10 +699,23 @@ public static class JConsole extends JFrame
 		this.lastDir=f.getParentFile();
 		this.textArea.insert(f.getPath(), this.textArea.getCaretPosition());
 		}
+	
+	private synchronized void doMenuStop() {
+		if(this.runner!=null)
+			{
+			try { this.runner.interrupt();}
+			catch(Throwable err)  {}
+			this.runner=null;
+			}
+		}
 
-
-	protected void doMenuRun() 
+	protected synchronized void doMenuRun() 
 		{
+		if(this.runner!=null)
+			{	
+			JOptionPane.showMessageDialog(JConsole.this, "Program is already running....");
+			return;
+			}
 		final List<String> args;
 		try {
 			args = this.getArguments();
@@ -665,14 +730,10 @@ public static class JConsole extends JFrame
 					);
 			return;
 			}
-		final JFileChooser fc=new  JFileChooser(this.lastDir);
-		if( fc.showSaveDialog(JConsole.this)!=JFileChooser.APPROVE_OPTION) return ;
-		final File selFile = fc.getSelectedFile();
-		if(selFile==null) return;
-		this.lastDir=selFile.getParentFile();
+		Runner run =new Runner();
 		final Launcher instance;
 		try {
-			instance = this.clazz.newInstance();
+			run.instance = this.clazz.newInstance();
 			}
 		catch(final Throwable err)
 			{
@@ -684,31 +745,9 @@ public static class JConsole extends JFrame
 					);
 			return;
 			}
-		int ret=0;
-		PrintStream oldstdout = System.out;
-		try {
-			LOG.info("execute "+args);
-			ret=instance.instanceMain(args.toArray(new String[args.size()]));
-			}
-		catch(final Throwable err)
-			{
-			LOG.error(err);
-			JOptionPane.showMessageDialog(JConsole.this,
-					String.valueOf(err.getMessage()),
-					"Error",
-					JOptionPane.ERROR_MESSAGE
-					);
-			return;
-			}
-		finally
-			{
-			System.setOut(oldstdout);
-			}
-		JOptionPane.showMessageDialog(JConsole.this,
-			"Program exited with status: "+ret,
-			"Exit:"+ret,
-			ret==0?JOptionPane.PLAIN_MESSAGE:JOptionPane.ERROR_MESSAGE
-			);
+		run.args = args.toArray(new String[args.size()]);
+		this.runner=run;
+		this.runner.start();
 		
 		}
 	protected void doMenuQuit() 

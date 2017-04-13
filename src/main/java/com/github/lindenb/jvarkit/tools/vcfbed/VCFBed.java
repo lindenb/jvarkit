@@ -29,12 +29,15 @@ History:
 package com.github.lindenb.jvarkit.tools.vcfbed;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -56,13 +59,76 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 /**
- * 
  * VCFBed
- *
+BEGIN_DOC
+
+## Example
+
+Map the NCBI biosystems to a BED file using the following script:     https://gist.github.com/6024788 
+
+```
+$ gunzip -c ~/ncbibiosystem.bed.gz | head
+1	69091	70008	79501	106356	30	Signaling_by_GPCR
+1	69091	70008	79501	106383	50	Olfactory_Signaling_Pathway
+1	69091	70008	79501	119548	40	GPCR_downstream_signaling
+1	69091	70008	79501	477114	30	Signal_Transduction
+1	69091	70008	79501	498	40	Olfactory_transduction
+1	69091	70008	79501	83087	60	Olfactory_transduction
+1	367640	368634	26683	106356	30	Signaling_by_GPCR
+1	367640	368634	26683	106383	50	Olfactory_Signaling_Pathway
+1	367640	368634	26683	119548	40	GPCR_downstream_signaling
+1	367640	368634	26683	477114	30	Signal_Transduction
+```
+
+Now, annotate a remote VCF with the data of NCBI biosystems.
+
+```
+curl "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
+ sed 's/^chr//' |\
+ java -jar  dist/vcfbed.jar -B ~/ncbibiosystem.bed.gz -T NCBIBIOSYS  -f '($4|$5|$6|$7)' |\
+ grep -E '(^#CHR|NCBI)'
+
+##INFO=<ID=NCBIBIOSYS,Number=.,Type=String,Description="metadata added from /home/lindenb/ncbibiosystem.bed.gz . Format was ($4|$5|$6|$7)">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	1094PC0005	1094PC0009	1094PC0012	1094PC0013
+1	69270	.	A	G	2694.18	.	AC=40;AF=1.000;AN=40;DP=83;Dels=0.00;EFF=SYNONYMOUS_CODING(LOW|SILENT|tcA/tcG|S60|305|OR4F5|protein_coding|CODING|ENST00000335137|exon_1_69091_70008);FS=0.000;HRun=0;HaplotypeScore=0.0000;InbreedingCoeff=-0.0598;MQ=31.06;MQ0=0;NCBIBIOSYS=(79501|119548|40|GPCR_downstream_signaling),(79501|106356|30|Signaling_by_GPCR),(79501|498|40|Olfactory_transduction),(79501|83087|60|Olfactory_transduction),(79501|477114|30|Signal_Transduction),(79501|106383|50|Olfactory_Signaling_Pathway);QD=32.86	GT:AD:DP:GQ:PL	./.	./.	1/1:0,3:3:9.03:106,9,0	1/1:0,6:6:18.05:203,18,0
+1	69511	.	A	G	77777.27	.	AC=49;AF=0.875;AN=56;BaseQRankSum=0.150;DP=2816;DS;Dels=0.00;EFF=NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Aca/Gca|T141A|305|OR4F5|protein_coding|CODING|ENST00000335137|exon_1_69091_70008);FS=21.286;HRun=0;HaplotypeScore=3.8956;InbreedingCoeff=0.0604;MQ=32.32;MQ0=0;MQRankSum=1.653;NCBIBIOSYS=(79501|119548|40|GPCR_downstream_signaling),(79501|106356|30|Signaling_by_GPCR),(79501|498|40|Olfactory_transduction),(79501|83087|60|Olfactory_transduction),(79501|477114|30|Signal_Transduction),(79501|106383|50|Olfactory_Signaling_Pathway);QD=27.68;ReadPosRankSum=2.261	GT:AD:DP:GQ:PL	./.	./.	0/1:2,4:6:15.70:16,0,40	0/1:2,2:4:21.59:22,0,40</h:pre>
+```
+
+
+END_DOC
+
  */
-public class VCFBed extends AbstractVCFBed
+@Program(name="vcfbed",
+	description="Transfer information from a BED to a VCF",
+	keywords={"bed","vcf","annotation"}
+	)
+public class VCFBed extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFBed.class);
+
+	private static final Logger LOG = Logger.build(VCFBed.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-f","--format"},description="format pattern ${xx} will be replaced by column xx in the bed line. Empty lines will be ignored (no tag) but the FILTERs will be set.")
+	private String formatPattern = "${1}:${2}-${3}";
+
+	@Parameter(names={"-T","--tag"},description="use the following INFO tag name")
+	private String infoName = "VCFBED";
+
+	@Parameter(names={"-B","--bed"},description="Tribble or Tabix bed file ")
+	private File tabixFile = null;
+
+	@Parameter(names={"-m","--map"},description="unindexed bed file, will be loaded in memory (faster than tribble/tabix but memory consumming)")
+	private File treeMapFile = null;
+
+	@Parameter(names={"-fo","--filteroverlap"},description="if defined, set this as a FILTER column if one or more BED line overlap a variant")
+	private String filterOverlapStr = null;
+
+	@Parameter(names={"-fn","--filternooverlap"},description="if defined, set this as a FILTER column if not any BED line overlap a variant")
+	private String filterNoOverlapStr = null;
+
 	private IntervalTreeMap<Set<BedLine>> intervalTreeMap=null;
 
 	
@@ -152,113 +218,121 @@ public class VCFBed extends AbstractVCFBed
 	
 	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w)
-			throws IOException {
-		final File srcbedfile = super.tabixFile==null?super.treeMapFile:super.tabixFile;
-		final VCFHeader h2=new VCFHeader(r.getHeader());
-		final VCFInfoHeaderLine infoHeader= 
-				new VCFInfoHeaderLine(
-						super.infoName,
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"metadata added from "+ srcbedfile+
-						" . Format was "+super.formatPattern
-						);
-		
-		final VCFFilterHeaderLine filterOverlap = 
-				(this.filterOverlapStr==null || this.filterNoOverlapStr.trim().isEmpty()?null:
-				new VCFFilterHeaderLine(this.filterOverlapStr, "Variant overlap with "+srcbedfile)	
-				);
-		
-		final VCFFilterHeaderLine filterNoOverlap = 
-				(this.filterNoOverlapStr==null || this.filterNoOverlapStr.trim().isEmpty()?null:
-				new VCFFilterHeaderLine(this.filterNoOverlapStr, "Variant having NO overlap with "+srcbedfile)	
-				);
-		
-		if(filterOverlap!=null) h2.addMetaDataLine(filterOverlap);
-		if(filterNoOverlap!=null) h2.addMetaDataLine(filterNoOverlap);
-		
-		h2.addMetaDataLine(infoHeader);
-		addMetaData(h2);
-		
-		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(h2);
-		w.writeHeader(h2);
-		while(r.hasNext())
-			{
-			boolean found_overlap=false;
-			final VariantContext ctx= progress.watch(r.next());
-			final Set<String> annotations=new HashSet<String>();
-			
-			if(this.intervalTreeMap!=null) {
-				for(final Set<BedLine> bedLines :this.intervalTreeMap.getOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd()))) {
-					for(final BedLine bedLine:bedLines) {
-					final String newannot=this.parsedFormat.toString(bedLine);
-					found_overlap=true;
-					if(!newannot.isEmpty())
-						{
-						annotations.add(VCFUtils.escapeInfoField(newannot));
-						}
-					}
-				}
+	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w)
+			 {
+			try
+				{
+				final File srcbedfile = this.tabixFile==null?this.treeMapFile:this.tabixFile;
+				final VCFHeader h2=new VCFHeader(r.getHeader());
+				final VCFInfoHeaderLine infoHeader= 
+						new VCFInfoHeaderLine(
+								this.infoName,
+								VCFHeaderLineCount.UNBOUNDED,
+								VCFHeaderLineType.String,
+								"metadata added from "+ srcbedfile+
+								" . Format was "+this.formatPattern
+								);
 				
-			}
-			else
-				{
-				CloseableIterator<BedLine> iter = this.bedReader.iterator(
-						ctx.getContig(),
-						ctx.getStart()-1,
-						ctx.getEnd()+1
+				final VCFFilterHeaderLine filterOverlap = 
+						(this.filterOverlapStr==null || this.filterNoOverlapStr.trim().isEmpty()?null:
+						new VCFFilterHeaderLine(this.filterOverlapStr, "Variant overlap with "+srcbedfile)	
 						);
-				while(iter.hasNext())
+				
+				final VCFFilterHeaderLine filterNoOverlap = 
+						(this.filterNoOverlapStr==null || this.filterNoOverlapStr.trim().isEmpty()?null:
+						new VCFFilterHeaderLine(this.filterNoOverlapStr, "Variant having NO overlap with "+srcbedfile)	
+						);
+				
+				if(filterOverlap!=null) h2.addMetaDataLine(filterOverlap);
+				if(filterNoOverlap!=null) h2.addMetaDataLine(filterNoOverlap);
+				
+				h2.addMetaDataLine(infoHeader);
+				addMetaData(h2);
+				
+				final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(h2);
+				w.writeHeader(h2);
+				while(r.hasNext())
 					{
-					final BedLine bedLine = iter.next();
+					boolean found_overlap=false;
+					final VariantContext ctx= progress.watch(r.next());
+					final Set<String> annotations=new HashSet<String>();
 					
-					if(!ctx.getContig().equals(bedLine.getContig())) continue;
-					if(ctx.getStart() > bedLine.getEnd() ) continue;
-					if(ctx.getEnd() < bedLine.getStart() ) continue;
-	
-					found_overlap=true;
-
-					final String newannot=this.parsedFormat.toString(bedLine);
-					if(!newannot.isEmpty())
-						annotations.add(VCFUtils.escapeInfoField(newannot));
+					if(this.intervalTreeMap!=null) {
+						for(final Set<BedLine> bedLines :this.intervalTreeMap.getOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd()))) {
+							for(final BedLine bedLine:bedLines) {
+							final String newannot=this.parsedFormat.toString(bedLine);
+							found_overlap=true;
+							if(!newannot.isEmpty())
+								{
+								annotations.add(VCFUtils.escapeInfoField(newannot));
+								}
+							}
+						}
+						
 					}
-				CloserUtil.close(iter);
-				}
+					else
+						{
+						CloseableIterator<BedLine> iter = this.bedReader.iterator(
+								ctx.getContig(),
+								ctx.getStart()-1,
+								ctx.getEnd()+1
+								);
+						while(iter.hasNext())
+							{
+							final BedLine bedLine = iter.next();
+							
+							if(!ctx.getContig().equals(bedLine.getContig())) continue;
+							if(ctx.getStart() > bedLine.getEnd() ) continue;
+							if(ctx.getEnd() < bedLine.getStart() ) continue;
 			
-			final String filterToSet;
-			if(found_overlap && filterOverlap!=null) {
-				filterToSet = filterOverlap.getID();
+							found_overlap=true;
+		
+							final String newannot=this.parsedFormat.toString(bedLine);
+							if(!newannot.isEmpty())
+								annotations.add(VCFUtils.escapeInfoField(newannot));
+							}
+						CloserUtil.close(iter);
+						}
+					
+					final String filterToSet;
+					if(found_overlap && filterOverlap!=null) {
+						filterToSet = filterOverlap.getID();
+						}
+					else if(!found_overlap &&  filterNoOverlap!=null) {
+						filterToSet = filterNoOverlap.getID();
+						}
+					else
+						{
+						filterToSet=null;
+						}
+					
+					if(filterToSet==null && annotations.isEmpty())
+						{
+						w.add(ctx);
+						continue;
+						}
+					final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+					if(!annotations.isEmpty()) {
+						vcb.attribute(infoHeader.getID(), annotations.toArray());
+						}
+					if(filterToSet!=null) {
+						vcb.filter(filterToSet);
+						}
+					w.add(vcb.make());
+					if(w.checkError()) break;
+					}
+				progress.finish();
+				return RETURN_OK;
 				}
-			else if(!found_overlap &&  filterNoOverlap!=null) {
-				filterToSet = filterNoOverlap.getID();
-				}
-			else
-				{
-				filterToSet=null;
-				}
-			
-			if(filterToSet==null && annotations.isEmpty())
-				{
-				w.add(ctx);
-				continue;
-				}
-			final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-			if(!annotations.isEmpty()) {
-				vcb.attribute(infoHeader.getID(), annotations.toArray());
-				}
-			if(filterToSet!=null) {
-				vcb.filter(filterToSet);
-				}
-			w.add(vcb.make());
-			if(w.checkError()) break;
+		catch(final Exception err) {
+			LOG.error(err);
+			return -1;
 			}
-		progress.finish();
-		return RETURN_OK;
 		}
 	
 	/** reads a Bed file and convert it to a IntervalTreeMap<Bedline> */
-	private htsjdk.samtools.util.IntervalTreeMap<Set<com.github.lindenb.jvarkit.util.bio.bed.BedLine>> readBedFileAsIntervalTreeMap(final java.io.File file) throws java.io.IOException
+	private htsjdk.samtools.util.IntervalTreeMap<Set<com.github.lindenb.jvarkit.util.bio.bed.BedLine>> 
+		readBedFileAsIntervalTreeMap(final java.io.File file) throws java.io.IOException
 		{
 		java.io.BufferedReader r=null;
 		try
@@ -290,19 +364,17 @@ public class VCFBed extends AbstractVCFBed
 			}
 		}
 
-	
-	
 	@Override
-	public Collection<Throwable> initializeKnime() {
+	public int doWork(final List<String> args) {
 		try
 			{
-			if(super.tabixFile==null && super.treeMapFile==null)
+			if(this.tabixFile==null && this.treeMapFile==null)
 				{
-				return wrapException("Undefined tabix or memory file -"+OPTION_TABIXFILE+" -"+OPTION_TREEMAPFILE);
+				return wrapException("Undefined tabix or memory file");
 				}
-			else if(super.tabixFile!=null && super.treeMapFile!=null)
+			else if(this.tabixFile!=null && this.treeMapFile!=null)
 				{
-				return wrapException("You cannot use both options: -"+OPTION_TABIXFILE+" -"+OPTION_TREEMAPFILE);
+				return wrapException("You cannot use both options: tabix/in memory bed");
 				}
 			else if( this.tabixFile!=null) {
 				LOG.info("opening Bed "+this.tabixFile);
@@ -311,45 +383,37 @@ public class VCFBed extends AbstractVCFBed
 			else 
 				{
 				try {
-					this.intervalTreeMap = this.readBedFileAsIntervalTreeMap(super.treeMapFile);
+					this.intervalTreeMap = this.readBedFileAsIntervalTreeMap(this.treeMapFile);
 					LOG.info("Number of items in "+this.treeMapFile+" "+this.intervalTreeMap.size());
 				}
 				catch(final Exception err) {
 					return wrapException(err);
-				}
+					}
 				}
 			
 			if(this.infoName==null || this.infoName.trim().isEmpty())
 				{
-				return wrapException("Undefined INFO name. -"+OPTION_INFONAME);
+				return wrapException("Undefined INFO name.");
 				}
 			
 			LOG.info("parsing "+this.formatPattern);
 			this.parsedFormat=parseFormat(formatPattern);
 			if(this.parsedFormat==null) this.parsedFormat=new PlainChunk("");
 			LOG.info("format for "+this.formatPattern+" :"+this.parsedFormat);
+			return doVcfToVcf(args, outputFile);
 			}
 		catch(final Exception err)
 			{
+			LOG.error(err);
 			return wrapException(err);
 			}
-		return super.initializeKnime();
-		}
-
-	
-	@Override
-	public void disposeKnime()
-		{
-		CloserUtil.close(this.bedReader);
-		this.bedReader = null;
-		this.intervalTreeMap=null;
-		this.parsedFormat = null;
-		super.disposeKnime();
-		}
-	
-	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+		finally
+			{
+			CloserUtil.close(this.bedReader);
+			this.bedReader = null;
+			this.intervalTreeMap=null;
+			this.parsedFormat = null;			
+			}
 		}
 
 	
