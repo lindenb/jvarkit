@@ -412,7 +412,7 @@ $(eval $(call compile-htsjdk-cmd,vcf2sql,${jvarkit.package}.tools.vcf2sql.VcfToS
 $(eval $(call compile-htsjdk-cmd,vcf2xml,${jvarkit.package}.tools.vcf2xml.Vcf2Xml))
 $(eval $(call compile-htsjdk-cmd,vcfannobam,${jvarkit.package}.tools.vcfannobam.VCFAnnoBam))
 $(eval $(call compile-htsjdk-cmd,vcfbed,${jvarkit.package}.tools.vcfbed.VCFBed,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfbedjs,${jvarkit.package}.tools.vcfbed.VCFBed))
+$(eval $(call compile-htsjdk-cmd,vcfbedjs,${jvarkit.package}.tools.vcfbed.VCFBed,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfbiomart,${jvarkit.package}.tools.vcfbiomart.VcfBiomart))
 $(eval $(call compile-htsjdk-cmd,vcfcadd,${jvarkit.package}.tools.misc.VcfCadd))
 $(eval $(call compile-htsjdk-cmd,vcfcmppred,${jvarkit.package}.tools.vcfcmp.VCFComparePredictions))
