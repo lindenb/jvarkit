@@ -29,19 +29,17 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -64,106 +62,72 @@ chr1    1334052 CTAGAG  C
 END_DOC
 
 **/
-public class VcfTail
+@Program(name="vcftail",description="print the last variants of a vcf",keywords={"vcf"})
+public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	{
+	private static final Logger LOG=Logger.build(VcfTail.class).make();
+	@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
+	private File output=null;
 	@Parameter(names={"-n","--count"},description="number of variants")
-	private int _count=10;
+	private int count=10;
 	@Parameter(names={"-c","--bycontig"},descriptionKey="Print last variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
-	private boolean _by_contig=false;
+	private boolean by_contig=false;
 
 	
 	public VcfTail()
 		{
 		}
-
-	public VcfTail setByContig(boolean _by_contig) {
-		this._by_contig = _by_contig;
-		return this;
-	}
-	
-	public VcfTail setCount(int _count) {
-		this._count = _count;
-		return this;
-		}
-	
-	public VariantContextWriter open(VariantContextWriter delegate)
-		{
-		if(this._count<0) throw new JvarkitException.CommandLineError("bad value for count "+this._count);
-		return new MyWriter(delegate,_count,_by_contig);
-		}
-	
-	private static class MyWriter extends DelegateVariantContextWriter
-		{
-		private final int count;
-		private final boolean by_contig;
-		private String prev_contig=null;
+	@Override
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+		String prev_contig=null;
 		final LinkedList<VariantContext> buffer=new LinkedList<VariantContext>();
-		MyWriter(VariantContextWriter w,int count,boolean by_contig) {
-			super(w);
-			this.count=count;
-			this.by_contig=by_contig;
-			}
-		private void dump()
-			{
-			for(VariantContext ctx:buffer) 
-				{
-				getDelegate().add(ctx);
-				}
-			buffer.clear();
-			}
-		@Override
-		public void add(final VariantContext ctx) {
-			if(isClosed()) {
-				return;
-				}
-			if(by_contig && (this.prev_contig!=null ||
-					!this.prev_contig.equals(ctx.getContig())))
-				{
-				dump();
-				prev_contig=ctx.getContig();
-				}
-			buffer.add(ctx);
-			if(buffer.size()>this.count)
-				{
-				buffer.removeFirst();
-				}
-			}
-		@Override
-		public void close() {
-			dump();
-			super.close();
-			}
-		}
 
-	
-	@Program(name="vcftail",description="print the last variants of a vcf")
-	public static class Launcher extends com.github.lindenb.jvarkit.util.jcommander.Launcher
-		{
-		@ParametersDelegate
-		private VcfTail instance=new VcfTail();
-		@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
-		private VariantContextWriter out=new VcfWriterOnDemand();
-				
-		@Override
-		public int doWork(final List<String> args) {
-			try {
-				final VcfIterator in = VCFUtils.createVcfIterator(super.oneFileOrNull(args));
-				final VariantContextWriter out=instance.open(this.out);
-				out.writeHeader(in.getHeader());
-				while(in.hasNext()) {
-					out.add(in.next());
+		try
+			{
+			final Runnable dump=()->{
+				for(final VariantContext ctx:buffer) 
+					{
+					out.add(ctx);
 					}
-				in.close();
-				out.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+				buffer.clear();
+				};
+			
+			final VCFHeader header2=  new VCFHeader(in.getHeader());
+			out.writeHeader(header2);
+			while(in.hasNext())
+				{
+				final VariantContext ctx = in.next();
+				if(by_contig && (prev_contig==null ||
+						!prev_contig.equals(ctx.getContig())))
+					{
+					dump.run();;
+					prev_contig=ctx.getContig();
+					}
+				buffer.add(ctx);
+				if(buffer.size()>this.count)
+					{
+					buffer.removeFirst();
+					}
+
+				}
+			dump.run();
 			return 0;
-			}	
+			}
+		catch(Exception err)
+			{
+			LOG.error(err);
+			return -1;
+			}
 		}
-		
+	
+	@Override
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args,output);
+		}
+	
+
 	public static void main(String[] args)
 		{
-		new VcfTail.Launcher().instanceMainWithExit(args);
+		new VcfTail().instanceMainWithExit(args);
 		}
 	}

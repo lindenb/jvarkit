@@ -23,9 +23,14 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.tools.biostar;
+import java.io.File;
 import java.io.PrintStream;
-import java.util.Collection;
+import java.util.List;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -38,17 +43,54 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 
+/**
+BEGIN_DOC
 
-public class Biostar170742 extends AbstractBiostar170742
+## Example
+
+
+```
+$ java -jar dist-2.0.1/biostar170742.jar \
+	-R ref.fa \
+	S1.bam  | head -n 15
+ 
+0 rotavirus 1 70 rotavirus_1_317_5:0:0_7:0:0_2de/1 + 60
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATT
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAATATGGCGTCAACTCAGCAGATGGTCAGCTCTAATATT
+
+1 rotavirus 1 70 rotavirus_1_535_4:0:0_4:0:0_1a6/2 + 60
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATT
+GGCTTTTACTGCTTTTCAGTGGTTGCTTCTCAAGATGGAGTGTACTCATCAGATGGTAAGCTCTATTATT
+
+2 rotavirus 1 70 rotavirus_1_543_5:0:0_11:0:0_390/2 + 60
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATT
+GGCTTTTAATGCTTTTCATTTGATGCTGCTCAAGATGGAGTCTACACAGCAGATGGTCAGCTCTATTATT
+
+3 rotavirus 1 70 rotavirus_1_578_3:0:0_7:0:0_7c/1 + 60
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATT
+GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTCCTGAGCAGCTGGTAAGCTCTATTATT
+(...)
+```
+
+END_DOC
+ */
+@Program(name="biostar170742",description="convert sam format to axt Format")
+public class Biostar170742 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar170742.class);
 
-	
+	private static final Logger LOG = Logger.build(Biostar170742.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+	private File faidx = null;
+
 	
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		if(super.faidx==null)
+	public int doWork(List<String> args) {
+		if(this.faidx==null)
 			{
 			return wrapException("Reference sequence was not defined");
 			}
@@ -59,10 +101,10 @@ public class Biostar170742 extends AbstractBiostar170742
 		IndexedFastaSequenceFile indexedFastaSequenceFile= null;
 		try
 			{
-			indexedFastaSequenceFile = new IndexedFastaSequenceFile(super.faidx);
+			indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
 			long align_id=0;
-			sfr = openSamReader(inputName);
-			out =  super.openFileOrStdoutAsPrintStream();
+			sfr = openSamReader(oneFileOrNull(args));
+			out =  super.openFileOrStdoutAsPrintStream(this.outputFile);
 			final StringBuilder refseq = new StringBuilder();
 			final StringBuilder readseq = new StringBuilder();
 			
@@ -168,7 +210,8 @@ public class Biostar170742 extends AbstractBiostar170742
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

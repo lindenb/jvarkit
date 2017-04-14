@@ -31,7 +31,6 @@ package com.github.lindenb.jvarkit.tools.biostar;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import javax.xml.stream.XMLEventFactory;
@@ -42,41 +41,63 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.util.CloserUtil;
 
-
-public class Biostar165777 extends AbstractBiostar165777
+@Program(name="biostar165777",description="Split a XML file")
+public class Biostar165777 extends Launcher
 	{
+
+	private static final Logger LOG = Logger.build(Biostar165777.class).make();
 	private static final String SPLIT_TOKEN="__SPLIT__";
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Must contains "+SPLIT_TOKEN ,required=true)
+	private File outputFile = null;
+
+
+	@Parameter(names={"-N","--count"},description="Number of files to be created")
+	private int count = 100 ;
+
+	@Parameter(names={"-T","--tag"},description="XML tag to be split.e.g 'Hit' in blast")
+	private String tagName = null;
+
 	
 	public Biostar165777() {
 		}
+	
+	
 	@Override
-	public Collection<Throwable> call(String inputFile) throws Exception {
-		if(getOutputFile()==null)
+	public int doWork(List<String> args) {
+	
+		if(this.outputFile==null)
 			{
 			return wrapException("output file must be defined.");
 			}
-		if(!getOutputFile().getName().contains(SPLIT_TOKEN))
+		if(!this.outputFile.getName().contains(SPLIT_TOKEN))
 			{
-			return wrapException("output file "+getOutputFile()+" should contains the word "+SPLIT_TOKEN);
+			return wrapException("output file "+outputFile+" should contains the word "+SPLIT_TOKEN);
 			}
-		if(getTagName()==null)
+		if(this.tagName==null)
 			{
 			return wrapException("Tag name was not defined");
 			}
-		if(getCount()<1)
+		if(this.count<1)
 			{	
-			return wrapException("bad count "+getCount());
+			return wrapException("bad count "+this.count);
 			}
 		XMLEventReader r = null;
 		try {
 			final List<FileOutputStream> fwriters = new ArrayList<>();
 			final List<XMLEventWriter> writers = new ArrayList<>();
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			for(int i=0;i< getCount();++i)
+			for(int i=0;i< this.count;++i)
 				{
-				File xmlout =new File(getOutputFile().getParentFile(), getOutputFile().getName().
+				File xmlout =new File(this.outputFile.getParentFile(),this.outputFile.getName().
 						replaceAll(SPLIT_TOKEN, String.format("%03d", (i+1))));
 				FileOutputStream fos = new FileOutputStream(xmlout);
 				fwriters.add(fos);
@@ -86,6 +107,7 @@ public class Biostar165777 extends AbstractBiostar165777
 			//READ Whole XML file
 			
 			final XMLInputFactory xif = XMLInputFactory.newFactory();
+			final String inputFile = oneFileOrNull(args);
 			if(inputFile==null)
 				{
 				r = xif.createXMLEventReader(new StreamSource(stdin())); 
@@ -100,10 +122,10 @@ public class Biostar165777 extends AbstractBiostar165777
 				{
 				
 				XMLEvent evt = r.nextEvent();
-				if(evt.isStartElement() && evt.asStartElement().getName().getLocalPart().equals(getTagName()))
+				if(evt.isStartElement() && evt.asStartElement().getName().getLocalPart().equals(this.tagName))
 					{
 					++numberOfItems;
-					XMLEventWriter w = writers.get(numberOfItems%getCount());
+					XMLEventWriter w = writers.get(numberOfItems%this.count);
 					int depth=1;
 					w.add(evt);
 					while(r.hasNext())
@@ -152,6 +174,7 @@ public class Biostar165777 extends AbstractBiostar165777
 			}
 		catch(Exception err)
 			{
+			LOG.error(err);
 			return wrapException(err);
 			}
 		finally {

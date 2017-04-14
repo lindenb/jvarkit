@@ -94,7 +94,8 @@ $(1)  : ${htsjdk.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		${generated.dir}/java/com/github/lindenb/semontology/Term.java \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
-		$(filter-out wiki_flag,$(filter-out galaxy_flag,$(3))) ${apache.commons.cli.jars} ${slf4j.jars}
+		$(filter-out wiki_flag,$(filter-out galaxy_flag,$(3))) ${apache.commons.cli.jars} ${slf4j.jars} \
+		${dist.dir}/annotproc.jar
 	echo "### COMPILING $(1) ######"
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
 	mkdir -p ${tmp.dir}/$(dir $(subst .,/,$(2)))
@@ -127,10 +128,15 @@ $(1)  : ${htsjdk.jars} \
 		; fi
 	#copy resource
 	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
-	echo '### Printing javac version : it should be 1.8. if Not, check your $$$${PATH}.'
+	echo '### Printing javac version : it should be Oracle 1.8 (NOT OpenJDK). if Not, check your $$$${PATH}.'
 	${JAVAC} -version
 	#compile
-	${JAVAC} -d ${tmp.dir} -g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" -sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
+	${JAVAC} \
+		-J-Djvarkit.libs.jars='$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))' \
+		-processorpath ${dist.dir}/annotproc.jar \
+		-d ${tmp.dir} \
+		-g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))" \
+		-sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
 ifeq (${standalone},yes)
 	$$(foreach J,$$(filter %.jar,$$^),unzip -o $${J} -d ${tmp.dir};) 
 endif
@@ -138,7 +144,7 @@ endif
 	echo "Manifest-Version: 1.0" > ${tmp.mft}
 	echo "Main-Class: $(2)" >> ${tmp.mft}
 ifneq (${standalone},yes)
-	echo "Class-Path: $$(realpath $$(filter %.jar,$$^)) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
+	echo "Class-Path: $$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^))) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
 endif
 	echo -n "Git-Hash: " >> ${tmp.mft}
 	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.mft} 
@@ -152,7 +158,7 @@ endif
 ifeq (${standalone},yes)
 	echo -n ' -jar "${dist.dir}/$(1).jar" '  >> ${dist.dir}/$(1)
 else
-	echo -n ' -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) '  >> ${dist.dir}/$(1)
+	echo -n ' -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))):${dist.dir}/$(1).jar" $(2) '  >> ${dist.dir}/$(1)
 endif
 	echo '$$$$*' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
@@ -292,10 +298,10 @@ $(eval $(call compile_biostar_cmd,103303,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,106668))
 $(eval $(call compile_biostar_cmd,130456,${jcommander.jar} wiki_flag))
 $(eval $(call compile_biostar_cmd,145820))
-$(eval $(call compile_biostar_cmd,59647))
+$(eval $(call compile_biostar_cmd,59647,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,76892))
-$(eval $(call compile_biostar_cmd,77288))
-$(eval $(call compile_biostar_cmd,77828))
+$(eval $(call compile_biostar_cmd,77288,${jcommander.jar}))
+$(eval $(call compile_biostar_cmd,77828,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,78285))
 $(eval $(call compile_biostar_cmd,78400,wiki_flag))
 $(eval $(call compile_biostar_cmd,81455))
@@ -308,14 +314,14 @@ $(eval $(call compile_biostar_cmd,95652,${jcommander.jar} api.ncbi.gb))
 $(eval $(call compile_biostar_cmd,3654,${jcommander.jar} api.ncbi.insdseq api.ncbi.blast))
 $(eval $(call compile_biostar_cmd,154220,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,140111,${jcommander.jar} api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
-$(eval $(call compile_biostar_cmd,160470,api.ncbi.blast wiki_flag))
-$(eval $(call compile_biostar_cmd,165777))
-$(eval $(call compile_biostar_cmd,170742))
+$(eval $(call compile_biostar_cmd,160470,${jcommander.jar} api.ncbi.blast wiki_flag))
+$(eval $(call compile_biostar_cmd,165777,${jcommander.jar}))
+$(eval $(call compile_biostar_cmd,170742,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,172515))
 $(eval $(call compile_biostar_cmd,173114))
 $(eval $(call compile_biostar_cmd,175929,wiki_flag))
 $(eval $(call compile_biostar_cmd,178713))
-$(eval $(call compile_biostar_cmd,214299,wiki_flag))
+$(eval $(call compile_biostar_cmd,214299,${jcommander.jar} wiki_flag))
 $(eval $(call compile_biostar_cmd,234081,wiki_flag))
 $(eval $(call compile_biostar_cmd,234230,wiki_flag))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast wiki_flag))
@@ -468,7 +474,7 @@ $(eval $(call compile-htsjdk-cmd,vcfcomparecallers,${jvarkit.package}.tools.vcfc
 $(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xcontamination.XContaminations))
 $(eval $(call compile-htsjdk-cmd,vcfjoinvcfjs,${jvarkit.package}.tools.vcffilterjs.VCFJoinVCFJS))
-$(eval $(call compile_biostar_cmd,139647))
+$(eval $(call compile_biostar_cmd,139647,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfburden,${jvarkit.package}.tools.misc.VcfBurden))
 $(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae,${gson.jar} api.ncbi.blast api.ncbi.insdseq ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java  wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfbedsetfilter,${jvarkit.package}.tools.vcfbed.VCFBedSetFilter,wiki_flag galaxy_flag))
@@ -781,8 +787,12 @@ include jfx.mk
 
 ## Java annotation processing:
 ${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/WebStartAnnotationProcessor.java
+	rm -rf "${tmp.dir}"
 	mkdir -p ${tmp.dir}/META-INF/services
 	echo "com.github.lindenb.jvarkit.annotproc.WebStartAnnotationProcessor" > ${tmp.dir}/META-INF/services/javax.annotation.processing.Processor
+	echo '### Printing javac version : it should be Oracle 1.8 (NOT OpenJDK). if Not, check your $$$${PATH}.'
+	${JAVAC} -version
+	#compile
 	${JAVAC} -d ${tmp.dir} -sourcepath ${src.dir}:${generated.dir}/java $<
 	${JAR} cvf $@ -C ${tmp.dir} .
 	rm -rf "${tmp.dir}"

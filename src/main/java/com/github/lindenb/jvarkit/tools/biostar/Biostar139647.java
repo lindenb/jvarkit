@@ -28,8 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,14 +49,33 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.readers.LineIterator;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class Biostar139647 extends AbstractBiostar139647
+@Program(name="biostar139647",
+	description="Convert alignment in Fasta/Clustal format to SAM/BAM file",
+	biostars= 139647
+	)
+public class Biostar139647 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar139647.class);
+	private static final Logger LOG = Logger.build(Biostar139647.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-R","--refname"},description="reference name. Optional")
+	private String REF = "chrUn";
+	
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 
 	private static final char CLIPPING=' ';
-	private String REF="chrUn";
 	private int align_length=0;
 	private Map<String, AlignSequence> sample2sequence=new HashMap<String, AlignSequence>();
 	//private AbstractSequence consensus=null;
@@ -91,15 +110,14 @@ public class Biostar139647 extends AbstractBiostar139647
 		}
 	
 	
-	
 	@Override
-	protected Collection<Throwable> call(final String filename) throws Exception
-		{
+	public int doWork(final List<String> args) {
 		SAMFileWriter w=null;
 		LineIterator r=null;
 		SAMFileWriterFactory sfwf=null;
 		try
 			{
+			final String filename = super.oneFileOrNull(args);
 			if(filename==null)
 				{
 				LOG.info("Reading from stdin");
@@ -216,7 +234,7 @@ public class Biostar139647 extends AbstractBiostar139647
 			header.setSortOrder(SortOrder.unsorted);
 			header.setSequenceDictionary(dict);
 			SAMProgramRecord pgr=header.createProgramRecord();
-			pgr.setProgramName(getName());
+			pgr.setProgramName(getProgramName());
 			pgr.setProgramVersion(getVersion());
 			if(getProgramCommandLine().trim().isEmpty())
 				{
@@ -226,16 +244,8 @@ public class Biostar139647 extends AbstractBiostar139647
 				{
 				pgr.setCommandLine(getProgramCommandLine());
 				}
+			w = this.writingBamArgs.openSAMFileWriter(this.outputFile, header, false);
 			
-			sfwf = new SAMFileWriterFactory();
-			if(getOutputFile()==null)
-				{
-				w = sfwf.makeSAMWriter(header, false, System.out);
-				}
-			else
-				{
-				w = sfwf.makeSAMOrBAMWriter(header, false, getOutputFile());
-				}
 			DefaultSAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
 			for(String seqName: this.sample2sequence.keySet())
 				{
@@ -262,7 +272,7 @@ public class Biostar139647 extends AbstractBiostar139647
 				
 				int n=start;
 				StringBuilder dna=new StringBuilder();
-				List<CigarElement> cigars =new ArrayList<>();
+				final List<CigarElement> cigars =new ArrayList<>();
 				while(n<=end )
 					{
 					if( !Character.isLetter(shortRead.at(n)))

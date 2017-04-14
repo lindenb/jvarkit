@@ -32,26 +32,38 @@ import java.awt.Insets;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 
-public class Biostar77288 extends AbstractCommandLineProgram
+@Program(name=",biostar77288",
+	description="Low resolution sequence alignment visualization",
+	biostars=77288
+	)
+public class Biostar77288 extends Launcher
     {
+	private static final Logger LOG= Logger.build(Biostar77288.class).make();
+	
+	@Parameter(names="-S",description="Input is seqLogo")
     private boolean SEQLOGO=false;
+	@Parameter(names="-W",description=" Alignment width")
     private int ALN_WIDTH=1000;
+	@Parameter(names="-r",description="Use Rect")
     private boolean use_rect=false;
     
-    
+
    
     private Map<String,Seq> sequences=new LinkedHashMap<String,Seq>();
     private int max_length=0;
@@ -81,12 +93,9 @@ public class Biostar77288 extends AbstractCommandLineProgram
    
     private void readingClustal(String IN) throws IOException
     	{
-    	this.info("reading CLUSTALW");
+    	LOG.info("reading CLUSTALW");
         String line;
-        BufferedReader in=(IN==null?
-                new BufferedReader(new InputStreamReader(System.in)):
-                IOUtils.openURIForBufferedReading(IN)
-                );
+        BufferedReader in=super.openBufferedReader(IN);
         while((line=in.readLine())!=null)
             {
         	int ws=0;
@@ -116,7 +125,7 @@ public class Biostar77288 extends AbstractCommandLineProgram
     
     private void readingSeqLogo(String IN) throws IOException
 		{
-		this.info("reading SeqLogo");
+		LOG.info("reading SeqLogo");
 	    String line;
 	    BufferedReader in=(IN==null?
 	            new BufferedReader(new InputStreamReader(System.in)):
@@ -166,7 +175,7 @@ public class Biostar77288 extends AbstractCommandLineProgram
 
             
             XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-            this.w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
+            this.w= xmlfactory.createXMLStreamWriter(stdout(),"UTF-8");
             w.writeStartDocument("UTF-8","1.0");
             w.writeStartElement("svg");
             w.writeDefaultNamespace(SVG.NS);
@@ -267,74 +276,22 @@ public class Biostar77288 extends AbstractCommandLineProgram
             }
         catch (Exception err)
             {
-            this.error(err);
+        	LOG.error(err);
             return -1;
             }
         }
     
     
-	@Override
-	public String getProgramDescription() {
-		return "Low resolution sequence alignment visualization . See https://www.biostars.org/p/77288/";
-		}
 	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"Biostar77288";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -W (width) Alignment width");
-		out.println(" -S Input is seqLogo (see https://github.com/lindenb/jvarkit#sam4weblogo)");
-		super.printOptions(out);
-		}
-    
 
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"W:Sr"))!=-1)
-			{
-			switch(c)
-				{
-				case 'W': this.ALN_WIDTH=Integer.parseInt(opt.getOptArg());break;
-				case 'S': this.SEQLOGO=true;break;
-				case 'r': this.use_rect=true;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+    @Override
+    public int doWork(final List<String> args) {
 		try {
-			if(opt.getOptInd()==args.length)
-				{
-				return run(null);
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				return run(args[opt.getOptInd()]);
-				}
-			else
-				{
-				error("Illegal number of arguments");
-				return -1;
-				}
-			}
-		catch (Exception e)
-			{
-			error(e);
+			return run(oneFileOrNull(args));
+		} catch (IOException e) {
+			LOG.error(e);
 			return -1;
-			}
+		}
 		}
 
     

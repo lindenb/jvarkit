@@ -1,87 +1,74 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
-import java.io.PrintStream;
+import java.util.List;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-import com.github.lindenb.jvarkit.util.picard.SamFlag;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
-public class Biostar59647 extends AbstractCommandLineProgram
+@Program(name="biostar59647",
+	description="SAM/BAM to XML",
+	biostars=59647
+	)
+public class Biostar59647 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar59647.class).make();
 
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
+	@Parameter(names={"-r","-R","--reference"},description="Reference file indexed with picard",required=true)
+	private File refFile=null;
 	private  Biostar59647() {
 		}
 	
 	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar59647";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "SAM/BAM to XML. See http://www.biostars.org/p/59647/";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -r (reference) Reference file indexed with picard. REQUIRED.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		File refFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args,getGetOptDefault()+ "r:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'r': refFile=new File(getopt.getOptArg());break;
-				default: 
-					{
-					switch(handleOtherOptions(c, getopt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
-		
-		if(refFile==null)
-			{
-			error("Undefined REF file");
-			return -1;
-			}
-		File bamFile=null;
-		if(getopt.getOptInd()+1!=args.length)
-			{
-			info("reading from stdin.");
-			}
-		else
-			{
-			bamFile=new File(args[getopt.getOptInd()]);
-			}
-	
+	public int doWork(final List<String> args) {
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 		SamReader samFileReader=null;
 		
@@ -90,29 +77,23 @@ public class Biostar59647 extends AbstractCommandLineProgram
 			GenomicSequence genomicSequence=null;
 			indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
 			samFileReader=null;
-			if(bamFile==null)
-				{
-				samFileReader= SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else
-				{
-				samFileReader=SamFileReaderFactory.mewInstance().open(bamFile);
-				}
+			final String bamFile = oneFileOrNull(args);
+			samFileReader = super.openSamReader(bamFile);
 			
 			if(SequenceUtil.areSequenceDictionariesEqual(
 					indexedFastaSequenceFile.getSequenceDictionary(),
 					samFileReader.getFileHeader().getSequenceDictionary())
 					)
 				{
-				warning("Not the same sequence dictionaries");
+				LOG.warning("Not the same sequence dictionaries");
 				}
 			
 			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 			XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("sam");
-			w.writeAttribute("ref",(bamFile==null?"stdin": bamFile.getPath()));
-			w.writeAttribute("bam", args[1]);
+			w.writeAttribute("bam",(bamFile==null?"stdin": bamFile));
+			w.writeAttribute("ref",refFile.getPath());
 
 			w.writeComment(getProgramCommandLine());
 
@@ -140,7 +121,7 @@ public class Biostar59647 extends AbstractCommandLineProgram
 					w.writeEndElement();
 					
 					w.writeStartElement("flags");
-					for(SamFlag f: SamFlag.values())
+					for(SAMFlag f: SAMFlag.values())
 						{
 						w.writeAttribute(f.name(),String.valueOf(f.isSet(rec.getFlags())));
 						}
@@ -285,7 +266,7 @@ public class Biostar59647 extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

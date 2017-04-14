@@ -38,7 +38,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Marshaller;
@@ -62,14 +61,91 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+/**
+## Example
 
-public class Biostar160470 extends AbstractBiostar160470
+Makefile:
+
+```make
+bin.dir=/commun/data/packages/ncbi/ncbi-blast-2.2.28+/bin
+
+all: blastdb.nin
+	cat roxan.fa | ${bin.dir}/tblastn -db blastdb -outfmt 5 | java -jar biostar160470.jar -p ${bin.dir} -d blastdb| xmllint --format - 
+
+blastdb.nin: mysequences.fa
+	${bin.dir}/makeblastdb -dbtype nucl -in $< -out blastdb
+```
+
+ouput:
+```xml
+              <Hsp>
+                <Hsp_num>5</Hsp_num>
+                <Hsp_bit-score>31.9574</Hsp_bit-score>
+                <Hsp_score>71</Hsp_score>
+                <Hsp_evalue>0.000226217</Hsp_evalue>
+                <Hsp_query-from>520</Hsp_query-from>
+                <Hsp_query-to>575</Hsp_query-to>
+                <Hsp_hit-from>1711</Hsp_hit-from>
+                <Hsp_hit-to>1860</Hsp_hit-to>
+                <Hsp_query-frame>0</Hsp_query-frame>
+                <Hsp_hit-frame>1</Hsp_hit-frame>
+                <Hsp_identity>16</Hsp_identity>
+                <Hsp_positive>27</Hsp_positive>
+                <Hsp_gaps>6</Hsp_gaps>
+                <Hsp_align-len>56</Hsp_align-len>
+                <Hsp_qseq>MGEFRLCDRLQKGKACPDGDKCRCAHGQEELNEWLDRREVLKQKLAKARKDMLLCP</Hsp_qseq>
+                <Hsp_hseq>VGSYYLCKDMINKQDCKYGDNCTFAYHQEEIDVWTEERK------GTLNRDLLFDP</Hsp_hseq>
+                <Hsp_midline>+G + LC  +   + C  GD C  A+ QEE++ W + R+          +D+L  P</Hsp_midline>
+                <Hsp_hit-DNA>GTGGGCTCCTACTACCTGTGCAAAGACATGATTAACAAGCAGGACTGTAAGTACGGGGATAACTGCACCTTCGCCTACCATCAGGAGGAGATCGACGTGTGGACCGAGGAGCGGAAG------------------CTGCTCTTCGACCCG</Hsp_hit-DNA>
+              </Hsp>
+              <Hsp>
+                <Hsp_num>6</Hsp_num>
+                <Hsp_bit-score>22.3274</Hsp_bit-score>
+                <Hsp_score>46</Hsp_score>
+                <Hsp_evalue>0.215374</Hsp_evalue>
+                <Hsp_query-from>22</Hsp_query-from>
+                <Hsp_query-to>62</Hsp_query-to>
+                <Hsp_hit-from>3316</Hsp_hit-from>
+                <Hsp_hit-to>3435</Hsp_hit-to>
+                <Hsp_query-frame>0</Hsp_query-frame>
+                <Hsp_hit-frame>1</Hsp_hit-frame>
+                <Hsp_identity>15</Hsp_identity>
+                <Hsp_positive>19</Hsp_positive>
+                <Hsp_gaps>1</Hsp_gaps>
+                <Hsp_align-len>41</Hsp_align-len>
+                <Hsp_qseq>HEAPWTNLTPSWRRPTHRTTVPLAVLRNQPPRQSPACPTLP</Hsp_qseq>
+                <Hsp_hseq>HQAAPSPLRPCPSSPHHRPGVRTQAHVLQPP-EAPLKPGLP</Hsp_hseq>
+                <Hsp_midline>H+A  + L P    P HR  V       QPP ++P  P LP</Hsp_midline>
+                <Hsp_hit-DNA>CATCAGGCAGCCCCCAGCCCCCTGAGGCCCTGTCCATCTTCTCCCCACCACCGCCCCGGTGTGCGTACCCAGGCGCACGTGCTGCAGCCCCCG---GCCCCGCTGAAACCTGGGCTGCCC</Hsp_hit-DNA>
+              </Hsp>
+```
+
+
+ */
+@Program(name="biostar160470",
+	description="Getting untranslated nucleotide sequences on tblastn standalone ",
+	biostars=160470)
+public class Biostar160470 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar160470.class).make();
+
 	@SuppressWarnings("unused")
 	private static final gov.nih.nlm.ncbi.blast.ObjectFactory _fool_javac1=null;
-	private String blastBinDir=null;
-	private String blastDb=null;
 	
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-p","--bindir"},description="Blast binaries path")
+	private String blastBinDir = null;
+
+	@Parameter(names={"-d","--db"},description="Blast db name")
+	private String blastDb = null;
+
 	
 	/** XML input factory */
 	private XMLInputFactory xif;
@@ -82,7 +158,7 @@ public class Biostar160470 extends AbstractBiostar160470
 	/** parses BLAST output */
 	private void parseBlast(final XMLEventReader r)  throws Exception
 		{
-		final PrintStream out=super.openFileOrStdoutAsPrintStream();
+		final PrintStream out=super.openFileOrStdoutAsPrintStream(this.outputFile);
 		final XMLOutputFactory xof = XMLOutputFactory.newFactory();
 		final XMLEventWriter w=xof.createXMLEventWriter(out, "UTF-8");
 
@@ -219,7 +295,8 @@ public class Biostar160470 extends AbstractBiostar160470
 		}
 		
 	@Override
-	public Collection<Throwable> call(final String filename) throws Exception {
+	public int doWork(java.util.List<String> args) 
+		{
 		if(blastDb==null)
 			{
 			return wrapException("undefined blastdb");
@@ -245,6 +322,7 @@ public class Biostar160470 extends AbstractBiostar160470
 				});
 			
 			//read from stdin
+			final String filename = super.oneFileOrNull(args);
 			if(filename==null)
 				{
 			    r=this.xif.createXMLEventReader(stdin(), "UTF-8");

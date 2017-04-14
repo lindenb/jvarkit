@@ -1,24 +1,42 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class Biostar77828 extends AbstractBiostar77828
+@Program(name="biostar77828",description="Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ ")
+public class Biostar77828 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar77828.class);
+
+	private static final Logger LOG = Logger.build(Biostar77828.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-minc","--minc"},description="min core")
+	private int MINC = 20 ;
+
+	@Parameter(names={"-maxc","--maxc"},description="max core")
+	private int MAXC = 30 ;
+
+	@Parameter(names={"-iter","--iter"},description="number of iterations")
+	private long N_ITERATIONS = 1000000 ;
 
 
 
@@ -164,7 +182,7 @@ public class Biostar77828 extends AbstractBiostar77828
     private Solution createSolution()
     	{
     	int n_cores=
-    			super.MINC+(super.MINC>=super.MAXC?0:this.random.nextInt(super.MAXC-super.MINC))
+    			this.MINC+(this.MINC>=this.MAXC?0:this.random.nextInt(this.MAXC-this.MINC))
     			;
     	long optimal_size= (this.effective_genome_size/n_cores);
     	
@@ -241,24 +259,15 @@ public class Biostar77828 extends AbstractBiostar77828
     	
     	return sol;
     	}
-	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception
-		{
+    @Override
+    public int doWork(List<String> args) {
 		PrintStream pw =null;
     	try
 	    	{
+    		
 	    	LOG.info("load BED");
-	    	BufferedReader in=null;
-	    	if(inputName==null)
-	    		{
-	    		LOG.info("read stdin");
-	    		in=new BufferedReader(new InputStreamReader(stdin()));
-	    		}
-	    	else
-	    		{
-	    		LOG.info("read "+inputName);
-	    		in= IOUtils.openURIForBufferedReading(inputName);
-	    		}
+	    	BufferedReader in=super.openBufferedReader(oneFileOrNull(args));
+	    
 	    	final BedLineCodec codec = new BedLineCodec();
 	    	String line;
 	    	while((line=in.readLine())!=null)
@@ -278,7 +287,7 @@ public class Biostar77828 extends AbstractBiostar77828
     			this.all_segments.add(seg);
 				}
 	    	
-	    	pw = super.openFileOrStdoutAsPrintStream();
+	    	pw = super.openFileOrStdoutAsPrintStream(this.outputFile);
 	    	
 	    	Solution best=null;
 	    	for(long generation=0;generation< this.N_ITERATIONS;++generation)
@@ -290,11 +299,12 @@ public class Biostar77828 extends AbstractBiostar77828
 	    		if(best==null || sol.compareTo(best)<0)
 	    			{
 	    			best=sol;
+	    			/*
 	    			if(LOG.isDebugEnabled())
 	    				{
 	    				LOG.info("%%generation:"+generation);
 	    				best.print(stderr());
-	    				}
+	    				}*/
 	    			}
 	    		}
 	    	if(best!=null)
@@ -305,7 +315,7 @@ public class Biostar77828 extends AbstractBiostar77828
 	    	pw.close();
 	    	return RETURN_OK;
 	    	}
-    	catch(Exception err)
+    	catch(final Exception err)
     		{
     		return wrapException(err);
     		}

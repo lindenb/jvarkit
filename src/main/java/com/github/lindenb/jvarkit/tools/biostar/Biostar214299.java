@@ -29,14 +29,19 @@ History:
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMFileHeader;
@@ -52,12 +57,71 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+/**
+BEGIN_DOC
 
-public class Biostar214299 extends AbstractBiostar214299
+The program removes all the existing read group and create some new one from the 'position file'.
+For now, only simple alleles are supported.
+Reads group are affected if a specific variant is found in the 'position file'.
+If two samples share the same group, the read group is AMBIGOUS.
+If the read is unmapped, the read group is UNMAPPED.
+If no sample is affected to a read, the read group will be UNAFFECTED;
+ 
+## Example
+
+the positions file
+
+```
+$ cat positions.tsv
+rotavirus       267     C       SAMPLE1
+rotavirus       267     G       SAMPLE2
+```
+
+processing : 
+
+```
+$ java -jar dist/biostar214299.jar -p positions.tsv input.bam
+
+@HD     VN:1.5  SO:coordinate
+@SQ     SN:rotavirus    LN:1074
+@RG     ID:UNAFFECTED   SM:UNAFFECTED   LB:UNAFFECTED
+@RG     ID:UNMAPPED     SM:UNMAPPED     LB:UNMAPPED
+@RG     ID:SAMPLE1      SM:SAMPLE1      LB:SAMPLE1
+@RG     ID:SAMPLE2      SM:SAMPLE2      LB:SAMPLE2
+@RG     ID:AMBIGOUS     SM:AMBIGOUS     LB:AMBIGOUS
+(...)
+rotavirus_237_744_6:0:0_3:0:0_29c       163     rotavirus       237     60      70M     =       675     508     ATCCGGCGTTAAATGGAAAGTTTCGGTGATCTATTAGAAATAGAAATTGGATGACTGATTCAAAAACGGT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      MD:Z:3A19A1C1C1G31T8    RG:Z:SAMPLE1    NM:i:6  AS:i:41 XS:i:0
+rotavirus_234_692_6:0:1_4:0:0_3ac       163     rotavirus       237     60      6S30M5I1M5D28M  =       623     456     TTGGTAATCAGGCGTTAAATGGAAAGTTTAGCTCAGGACAACGAAATAGAAATTGGATGACTGATTCTAA  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      MD:Z:31^TATTA28 RG:Z:SAMPLE2    NM:i:10 AS:i:37 XS:i:0
+rotavirus_237_777_6:0:0_7:0:0_216       99      rotavirus       237     60      70M     =       708     541     ATCAGGGGTTAAATTGAAAGTTTAGCTCAGCTCTTAGACATAGAAATTGGATGACTGATTGTACAACGGT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      MD:Z:6C7G17A5A21C2A6    RG:Z:SAMPLE1    NM:i:6  AS:i:40 XS:i:0
+rotavirus_237_699_3:0:0_8:0:0_22f       163     rotavirus       237     60      70M     =       650     463     ATGAGGCGTTAAATGGAAAGTTTATCTCAGCTATTAGAAATAGCAATTGGATGACTGATTCTAAAACGGT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      MD:Z:2C21G18A26 RG:Z:SAMPLE1    NM:i:3  AS:i:57 XS:i:0
+(...)
+rotavirus_311_846_10:0:0_11:0:0_3d7     141     *       0       0       *       *       0       0       AACTTAGATGAAGACGATCAAAACCTTAGAATGACTTTATGTTCTAAATGGCTCGACCCAAAGATGAGAG  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
+rotavirus_85_600_7:0:0_9:0:0_3e0        77      *       0       0       *       *       0       0       AGCTGCAGTTGTTTCTGCTCCTTCAACATTAGAATTACTGGGTATTGAATATGATTCCAATGAAGTCTAT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
+rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       *       0       0       TATTTCTCCTTAAGCCTGTGTTTTATTGCATCAAATCTTTTTTCAAACTGCTCATAACGAGATTTCCACT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
+```
+
+END_DOC
+ */
+@Program(name="biostar214299",description="Extract allele specific reads from bamfiles",biostars=214299)
+public class Biostar214299 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar214299.class);
+
+	private static final Logger LOG = Logger.build(Biostar214299.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-p","--positions"},description="Position file. A Tab delimited file containing the following 4 column: (1)chrom (2)position (3) allele A/T/G/C (4) sample name.",required=true)
+	private File positionFile = null;
 	
+	
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	
 	private static class Position
 		{
@@ -67,9 +131,9 @@ public class Biostar214299 extends AbstractBiostar214299
 		}
 	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		if(super.positionFile==null) {
-			return wrapException("option -"+OPTION_POSITIONFILE+ " is not defined.");
+	public int doWork(List<String> args) {
+		if(this.positionFile==null) {
+			return wrapException("position File is not defined.");
 			}
 		final String UNAFFECTED_SAMPLE="UNAFFECTED";
 		final String AMBIGOUS_SAMPLE="AMBIGOUS";
@@ -80,13 +144,13 @@ public class Biostar214299 extends AbstractBiostar214299
 		final Set<String> samples = new HashSet<>();
 		try
 			{
-			sfr = openSamReader(inputName);
+			sfr = openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=sfr.getFileHeader();
 			final SAMSequenceDictionary dict =header.getSequenceDictionary();
 			if(dict==null) return wrapException("Dictionary missing in input sam");
 			
 			
-			try ( BufferedReader br = IOUtils.openFileForBufferedReading(super.positionFile)) {
+			try ( BufferedReader br = IOUtils.openFileForBufferedReading(this.positionFile)) {
 				String line;
 				while((line=br.readLine())!=null) {
 					if(line.trim().isEmpty() || line.startsWith("#")) continue;
@@ -140,7 +204,7 @@ public class Biostar214299 extends AbstractBiostar214299
 			final SAMFileHeader newHeader = new SAMFileHeader();
 			newHeader.setSortOrder(header.getSortOrder());
 			newHeader.setSequenceDictionary(dict);
-			newHeader.addComment("generated with "+getName()+" "+getVersion()+" "+getAuthorName()+": "+getProgramCommandLine());
+			newHeader.addComment("generated with "+getProgramName()+" "+getVersion()+" Pierre Lindenbaum : "+getProgramCommandLine());
 			/* create groups */
 			for(final String sample: samples) {
 				final SAMReadGroupRecord rg = new SAMReadGroupRecord(sample);
@@ -150,7 +214,7 @@ public class Biostar214299 extends AbstractBiostar214299
 			}
 			
 			
-			sfw = openSAMFileWriter(newHeader, true);
+			sfw = this.writingBamArgs.openSAMFileWriter(this.outputFile,newHeader, true);
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
 			final SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
