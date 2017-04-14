@@ -787,6 +787,7 @@ include jfx.mk
 
 ## Java annotation processing:
 ${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/WebStartAnnotationProcessor.java
+	mkdir -p $(dir $@) 
 	rm -rf "${tmp.dir}"
 	mkdir -p ${tmp.dir}/META-INF/services
 	echo "com.github.lindenb.jvarkit.annotproc.WebStartAnnotationProcessor" > ${tmp.dir}/META-INF/services/javax.annotation.processing.Processor
