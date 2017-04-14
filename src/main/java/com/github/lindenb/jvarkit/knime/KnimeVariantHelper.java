@@ -70,6 +70,8 @@ public class KnimeVariantHelper {
 	private final AnnPredictionParser annParser;
 	private final Map<String,IndexedBedReader> bedReaders=new HashMap<>();
 	private final Map<String,IndexedVcfFileReader> vcfReaders=new HashMap<>();
+	
+	
 	public KnimeVariantHelper() {
 		final VCFHeader header=new VCFHeader();
 		final VCFInfoHeaderLine info=new VCFInfoHeaderLine(
@@ -204,11 +206,19 @@ public class KnimeVariantHelper {
 			this.contig = (s == null ? null : String.valueOf(s));
 			return this;
 		}
+		
+		public VariantBuilder contig(final Integer s) {
+			return this.contig(s==null?(String)null:String.valueOf(s));
+		}
 
 		public VariantBuilder chrom(final String s) {
 			return contig(s);
 		}
 
+		public VariantBuilder chrom(final Integer s) {
+			return contig(s);
+		}
+		
 		public VariantBuilder pos(final Integer s) {
 			failIf(s == null || s < 0, "position is null or < 0");
 			this.pos = (s == null ? null : parseInt(s));
@@ -271,6 +281,10 @@ public class KnimeVariantHelper {
 			return this;
 		}
 
+		public final VariantBuilder info(final String s)
+			{	
+			return this.attributes(s);
+			}
 		public VariantBuilder attributes(final String s) {
 			this.attributes.clear();
 			if (s == null || s.isEmpty())
@@ -337,6 +351,10 @@ public class KnimeVariantHelper {
 			return this;
 		}
 
+		public final VariantContext make() {
+			return this.build();
+		}
+		
 		@SuppressWarnings("deprecation")
 		public VariantContext build() {
 			failIf(this.contig == null, "Contig undefined");
@@ -395,15 +413,15 @@ public class KnimeVariantHelper {
 								}
 								gb.alleles(GTAlleles);
 							} else if (gtKey.equals(VCFConstants.GENOTYPE_ALLELE_DEPTHS)) {
-								gb.AD(decodeInts(formatTokens[i]));
+								gb.AD(decodeInts(gtTokens[i]));
 							} else if (gtKey.equals(VCFConstants.GENOTYPE_PL_KEY)) {
-								gb.PL(decodeInts(formatTokens[i]));
+								gb.PL(decodeInts(gtTokens[i]));
 							} else if (gtKey.equals(VCFConstants.GENOTYPE_LIKELIHOODS_KEY)) {
-								gb.PL(GenotypeLikelihoods.fromGLField(formatTokens[i]).getAsPLs());
+								gb.PL(GenotypeLikelihoods.fromGLField(gtTokens[i]).getAsPLs());
 							} else if (gtKey.equals(VCFConstants.DEPTH_KEY)) {
-								gb.DP(Integer.valueOf(formatTokens[i]));
+								gb.DP(Integer.valueOf(gtTokens[i]));
 							} else {
-								gb.attribute(gtKey, formatTokens[i]);
+								gb.attribute(gtKey, gtTokens[i]);
 							}
 						}
 						gtList.add(gb.make());
