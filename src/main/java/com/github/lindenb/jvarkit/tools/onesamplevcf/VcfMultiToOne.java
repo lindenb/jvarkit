@@ -97,8 +97,8 @@ public class VcfMultiToOne extends Launcher
 			{
 			throw new IllegalArgumentException("Not a VCF produced by VcfMultiToOne");
 			}
-		Set<String> samples = new TreeSet<String>();
-		for(VCFHeaderLine h:header.getMetaDataInInputOrder())
+		final Set<String> samples = new TreeSet<String>();
+		for(final VCFHeaderLine h:header.getMetaDataInInputOrder())
 			{
 			if(h.getKey().equals(SAMPLE_HEADER_DECLARATION))
 				{
@@ -175,7 +175,7 @@ public class VcfMultiToOne extends Launcher
 					"Origin of sample"
 					));
 			
-			for(String sample:sampleNames)
+			for(final String sample:sampleNames)
 				{
 				metaData.add(
 					new VCFHeaderLine(
@@ -183,7 +183,7 @@ public class VcfMultiToOne extends Launcher
 					sample));
 				}
 			
-			VCFHeader h2 = new VCFHeader(
+			final VCFHeader h2 = new VCFHeader(
 					metaData,
 					Collections.singleton(DEFAULT_VCF_SAMPLE_NAME)
 					);
@@ -223,42 +223,42 @@ public class VcfMultiToOne extends Launcher
 				
 				if(smallest==null) break;
 				
-				VariantContext ctx = progress.watch(inputs.get(best_idx).next());
+				final VariantContext ctx = progress.watch(inputs.get(best_idx).next());
 				
 				
 				if(ctx.getNSamples()==0)
 					{
 					if(!this.discard_no_call)
 						{
-						VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 						vcb.attribute(DEFAULT_SAMPLE_FILETAGID,inputFiles.get(best_idx));
 						vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
-						out.add(vcb.make());
+						out.add(VCFUtils.recalculateAttributes(vcb.make()));
 						}
 					continue;
 					}
 				
 				for(int i=0;i< ctx.getNSamples();++i)
 					{
-					Genotype g= ctx.getGenotype(i);
-					String sample = g.getSampleName();
+					final Genotype g= ctx.getGenotype(i);
+					final String sample = g.getSampleName();
 					
 					if(!g.isCalled() && this.discard_no_call) continue;
 					if(!g.isAvailable() && this.discard_non_available) continue;
 					if(g.isHomRef() && this.discard_hom_ref) continue;
 					
 					
-					GenotypeBuilder gb=new GenotypeBuilder(g);
+					final GenotypeBuilder gb=new GenotypeBuilder(g);
 					gb.name(DEFAULT_VCF_SAMPLE_NAME);
 					
 					
-					VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+					final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					vcb.attribute(DEFAULT_SAMPLE_TAGID, sample);
 					vcb.attribute(DEFAULT_SAMPLE_FILETAGID,inputFiles.get(best_idx));
 					
 					
 					vcb.genotypes(gb.make());
-					out.add(vcb.make());
+					out.add(VCFUtils.recalculateAttributes(vcb.make()));
 					}
 				}
 			progress.finish();
