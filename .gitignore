@@ -24,3 +24,4 @@ doc/wiki
 galaxy
 .secret.keystore
 webstart
+*.class

@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,17 +47,40 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
-public class VcfToSql extends AbstractVcfToSql
+@Program(name="vcf2sql",description="Generate the SQL code to insert a VCF into mysql",
+		keywords={"vcf","sql"}
+		)
+public class VcfToSql extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfToSql.class);
+	private static final Logger LOG = Logger.build(VcfToSql.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-s","--schema"},description="Print Schema")
+	private boolean print_schema = false;
+
+	@Parameter(names={"-d","--drop"},description="Add Drop Tables Statement")
+	private boolean drop_tables = false;
+
+	@Parameter(names={"-n","--noinfo"},description="ignore INFO column")
+	private boolean ignore_info = false;
+
+	@Parameter(names={"-f","--nofilter"},description="ignore FILTER column")
+	private boolean ignore_filter = false;
 
     private PrintWriter outputWriter =null;
     
@@ -676,9 +698,9 @@ public class VcfToSql extends AbstractVcfToSql
 					);
 				}
 			
-			if(!super.ignore_info)
+			if(!this.ignore_info)
 				{
-				for(VepPrediction pred: vepPredictionParser.getPredictions(var))
+				for(final VepPrediction pred: vepPredictionParser.getPredictions(var))
 					{
 					/*
 					vepPrediction.insert(
@@ -737,16 +759,13 @@ public class VcfToSql extends AbstractVcfToSql
 		}
 	
     
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception
-		{
+	public int doWork(List<String> args) {
 		try
 			{
-			
-			if(super.print_schema)
+			if(this.print_schema)
 				{
-				this.outputWriter =  openFileOrStdoutAsPrintWriter();
+				this.outputWriter =  this.openFileOrStdoutAsPrintWriter(this.outputFile);
 				
 				this.outputWriter.println("digraph G{");
 				for(int i=0;i< this.all_tables.length;++i)
@@ -773,13 +792,10 @@ public class VcfToSql extends AbstractVcfToSql
 				return RETURN_OK;
 				}
 			
-			if(inputName==null)
-				{
-				return wrapException("Illegal number of arguments");
-				}
-			final File filename=new File(inputName);
+			//final String inputName=;
+			final File filename=new File( oneAndOnlyOneFile(args));
 			
-			this.outputWriter =  openFileOrStdoutAsPrintWriter();
+			this.outputWriter =  this.openFileOrStdoutAsPrintWriter(this.outputFile);
 			
 			if(this.drop_tables)
 				{
@@ -805,7 +821,7 @@ public class VcfToSql extends AbstractVcfToSql
 			LOG.info("done");
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			return wrapException(err);
 			}

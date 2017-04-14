@@ -3,96 +3,65 @@
  */
 package com.github.lindenb.jvarkit.tools.vcf2xml;
 
+import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.util.List;
 
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.XMLVcfWriterFactory;
 /**
- * @author lindenb
- *
+
+ 
  */
-public class Vcf2Xml extends AbstractVCFFilter3
+@Program(name="vcf2xml",description="Convert VCF to XML",keywords={"vcf","xml"})
+public class Vcf2Xml extends Launcher
 	{
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
 	public Vcf2Xml()
 		{
 		
 		}
 	@Override
-	protected void doWork(String inputSource, VcfIterator vcfIn,
-		VariantContextWriter out) throws IOException
-		{
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(vcfIn.getHeader());
-		while(vcfIn.hasNext())
+	protected int doVcfToVcf(
+			final String inputName,
+			final VcfIterator iterin, 
+			final VariantContextWriter out
+			) {
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(iterin.getHeader());
+		while(iterin.hasNext())
 			{
-			out.add(progress.watch(vcfIn.next()));
+			out.add(progress.watch(iterin.next()));
 			}
 		progress.finish();
+		return 0;
 		}
 	
 	/** open VariantContextWriter */
 	@Override
-	protected VariantContextWriter createVariantContextWriter()
-		throws IOException
-		{
-		XMLVcfWriterFactory factory=XMLVcfWriterFactory.newInstance();
-		if(getOutputFile()!=null)
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+		final XMLVcfWriterFactory factory=XMLVcfWriterFactory.newInstance();
+		if(outorNull!=null)
 			{
-			factory.setOutputFile(getOutputFile());
+			factory.setOutputFile(outorNull);
 			}
 		return factory.createVariantContextWriter();
 		}
-
-	
 	
 	@Override
-	public String getProgramDescription() {
-		return "Convert VCF to XML";
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args, outputFile);
 		}
 	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"Vcf2Xml";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (out)  output file. default stdout");
-		super.printOptions(out);
-		}
-
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
-
-	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new Vcf2Xml().instanceMain(args);
 		}

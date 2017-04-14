@@ -80,6 +80,10 @@ public Logger severe(final Object err,Throwable t) {
 public Logger error(final Object err) {
 	return severe(err);
 	}
+public Logger error(final Object err,Throwable t) {
+	return severe(err,t);
+	}
+
 
 public Logger warning(final Object err) {
 	return warn(err);

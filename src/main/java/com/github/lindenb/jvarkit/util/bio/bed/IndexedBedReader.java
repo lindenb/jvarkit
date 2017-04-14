@@ -85,7 +85,7 @@ public class IndexedBedReader
     		}
 		}
 	
-	public IndexedBedReader(String onlyTabixOrLocal) throws IOException
+	public IndexedBedReader(final String onlyTabixOrLocal) throws IOException
 		{
 		if(onlyTabixOrLocal==null) throw new NullPointerException("bed file==null");
 		

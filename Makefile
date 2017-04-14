@@ -212,7 +212,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	samgrep	samjs	samshortinvert	samstats01	sigframe	sortvcfoninfo \
 	sortvcfonref2	splitbam3	splitbytile	splitread	tview	tview.cgi \
 	vcf2hilbert	vcf2ps	vcf2rdf	vcf2sql	vcf2xml	vcfannobam	 \
-	vcfbedjs	vcfbiomart	vcfcadd	vcfcmppred	vcfcomm	vcfcompare	vcfcomparegt \
+	vcfbiomart	vcfcadd	vcfcmppred	vcfcomm	vcfcompare	vcfcomparegt \
 	vcfconcat	vcfcutsamples	vcffilterdoid		vcfgo \
 	vcfjaspar	vcfliftover	vcfmerge	vcfmulti2one \
 	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
@@ -408,11 +408,10 @@ $(eval $(call compile-htsjdk-cmd,vcf2hilbert,${jvarkit.package}.tools.misc.VcfTo
 $(eval $(call compile-htsjdk-cmd,vcf2ps,${jvarkit.package}.tools.misc.VcfToPostscript,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2svg,${jvarkit.package}.tools.misc.VcfToSvg,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2rdf,${jvarkit.package}.tools.vcf2rdf.VcfToRdf,wiki_flag))
-$(eval $(call compile-htsjdk-cmd,vcf2sql,${jvarkit.package}.tools.vcf2sql.VcfToSql))
-$(eval $(call compile-htsjdk-cmd,vcf2xml,${jvarkit.package}.tools.vcf2xml.Vcf2Xml))
+$(eval $(call compile-htsjdk-cmd,vcf2sql,${jvarkit.package}.tools.vcf2sql.VcfToSql,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcf2xml,${jvarkit.package}.tools.vcf2xml.Vcf2Xml,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfannobam,${jvarkit.package}.tools.vcfannobam.VCFAnnoBam))
 $(eval $(call compile-htsjdk-cmd,vcfbed,${jvarkit.package}.tools.vcfbed.VCFBed,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfbedjs,${jvarkit.package}.tools.vcfbed.VCFBed,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfbiomart,${jvarkit.package}.tools.vcfbiomart.VcfBiomart))
 $(eval $(call compile-htsjdk-cmd,vcfcadd,${jvarkit.package}.tools.misc.VcfCadd))
 $(eval $(call compile-htsjdk-cmd,vcfcmppred,${jvarkit.package}.tools.vcfcmp.VCFComparePredictions))
@@ -779,6 +778,22 @@ $(word 1,${ga4gh.schemas.avpr}) : ${avro.libs}
 #
 
 include jfx.mk
+
+## Java annotation processing:
+${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/WebStartAnnotationProcessor.java
+	mkdir -p ${tmp.dir}/META-INF/services
+	echo "com.github.lindenb.jvarkit.annotproc.WebStartAnnotationProcessor" > ${tmp.dir}/META-INF/services/javax.annotation.processing.Processor
+	${JAVAC} -d ${tmp.dir} -sourcepath ${src.dir}:${generated.dir}/java $<
+	${JAR} cvf $@ -C ${tmp.dir} .
+	rm -rf "${tmp.dir}"
+
+## Knime helper
+${dist.dir}/knimehelper.jar: ${src.dir}/com/github/lindenb/jvarkit/knime/KnimeVariantHelper.java ${htsjdk.jars}   ${slf4j.jars}
+	mkdir -p ${tmp.dir}/META-INF/services
+	${JAVAC} -cp "$(subst $(SPACE),:,$(realpath $(filter %.jar,$^)))" -d ${tmp.dir} -sourcepath ${src.dir}:${generated.dir}/java $<
+	$(foreach J,$(filter %.jar,$^),unzip -o ${J} -d ${tmp.dir};) 
+	${JAR} cvf $@ -C ${tmp.dir} .
+	rm -rf "${tmp.dir}"
 
 clean:
 	rm -rf ${dist.dir}
