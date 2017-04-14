@@ -88,75 +88,6 @@ public class PubmedFilterJS
 	
 	
 	
-	
-	private boolean evalJavaScriptBoolean(
-		final javax.script.CompiledScript compiledScript,
-		final javax.script.Bindings bindings) throws javax.script.ScriptException
-		{
-		Object result = compiledScript.eval(bindings);
-		if(result==null) return false;
-		if(result instanceof Boolean)
-			{
-			if(Boolean.FALSE.equals(result)) return false;
-			}
-		else if(result instanceof Number)
-			{
-			if(((Number)result).intValue()!=1) return false;
-			}
-		else
-			{
-			LOG.warn("Script returned something that is not a boolean or a number:"+result.getClass());
-			 return false;
-			}
-		return true;
-		}
-	
-	/** compile the javascript script. Can be either from JavascriptFile or JavascriptExpr */
-	private javax.script.CompiledScript compileJavascript() throws Exception
-		{
-		if( this.javascriptExpr!=null && this.javascriptFile!=null)
-			{
-			throw new RuntimeException("Both javascript expression and file defined.");
-			}
-		
-		
-		if(  this.javascriptExpr==null && this.javascriptFile==null)
-			{
-			throw new RuntimeException("User error : Undefined script. Check your parameters.");
-			}
-			
-		LOG.info("getting javascript manager");
-		final javax.script.ScriptEngineManager manager = new javax.script.ScriptEngineManager();
-		final javax.script.ScriptEngine engine = manager.getEngineByName("js");
-		if(engine==null)
-			{
-			throw new RuntimeException("not available ScriptEngineManager: javascript. Use the SUN/Oracle JDK ?");
-			}
-		final javax.script.Compilable compilingEngine = (javax.script.Compilable)engine;
-		if(this.javascriptFile!=null)
-			{
-			LOG.info("Compiling "+this.javascriptFile);
-			java.io.FileReader r = null;
-			try
-				{
-				r = new java.io.FileReader(this.javascriptFile);
-				return compilingEngine.compile(r);
-				}
-			finally
-				{
-				htsjdk.samtools.util.CloserUtil.close(r);
-				}
-			}
-		else if(this.javascriptExpr!=null)
-			{
-			LOG.info("Compiling "+this.javascriptExpr);
-			return compilingEngine.compile(this.javascriptExpr);
-			}
-		else
-			{
-			throw new RuntimeException("illegal state");
-			}
-		}
 
 	@Override
 	public int doWork(List<String> args) {
@@ -166,7 +97,10 @@ public class PubmedFilterJS
 		Marshaller marshaller;
 		try
 			{
-			compiledScript =  this.compileJavascript();
+			compiledScript =  this.compileJavascript(
+					this.javascriptExpr,
+					this.javascriptFile
+					);
 						
 			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.pubmed");
 			unmarshaller =jc.createUnmarshaller();
