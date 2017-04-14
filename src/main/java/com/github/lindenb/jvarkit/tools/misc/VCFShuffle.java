@@ -31,9 +31,10 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Random;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -43,14 +44,32 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public class VCFShuffle extends AbstractVCFShuffle
+@Program(name="vcfshuffle",description="Shuffle a VCF")
+public class VCFShuffle extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFShuffle.class);
 
+	private static final Logger LOG = Logger.build(VCFShuffle.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	
+	@Parameter(names={"-N","--seed"},description="random seed. Optional. -1 = time.")
+	private long seed = -1L ;
+
+	@Parameter(names={"-T","--tmpDir"},description="mp directory")
+	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+
+	@Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
+	private int maxRecordsInRam =50000;
+
+	
 	private static class RLine
 		{
 		long rand;
@@ -104,27 +123,16 @@ public class VCFShuffle extends AbstractVCFShuffle
 		}
 	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
+	public int doWork(final List<String> args) {
 		if(seed==-1L) seed= System.currentTimeMillis();
 		SortingCollection<RLine> shuffled=null;
 		VariantContextWriter out=null;
 		BufferedReader lr=null;
 		try
 			{
-			if(inputName==null) {
-				lr = IOUtils.openStreamForBufferedReader(stdin());
-			} else
-				{
-				lr = IOUtils.openURIForBufferedReading(inputName);
-				}
-			if(getOutputFile()==null)
-				{
-				out = VCFUtils.createVariantContextWriterToOutputStream(stdout());
-				}
-			else
-				{
-				out = VCFUtils.createVariantContextWriter(getOutputFile());
-				}
+			lr = super.openBufferedReader(oneFileOrNull(args));
+			out = super.openVariantContextWriter(this.outputFile);
+			
 			
 			final Random random=new Random(this.seed);
 
@@ -138,8 +146,8 @@ public class VCFShuffle extends AbstractVCFShuffle
 					RLine.class,
 					new RLineCodec(),
 					new RLineCmp(),
-					super.maxRecordsInRam,
-					super.getTmpDirectories()
+					this.maxRecordsInRam,
+					this.tmpDir
 					);
 			shuffled.setDestructiveIteration(true);
 			String line;

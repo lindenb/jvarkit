@@ -1049,6 +1049,81 @@ protected String oneFileOrNull(final List<String> args) {
 	}
 }
 
+protected boolean evalJavaScriptBoolean(
+		final javax.script.CompiledScript compiledScript,
+		final javax.script.Bindings bindings) throws javax.script.ScriptException
+		{
+		Object result = compiledScript.eval(bindings);
+		if(result==null) return false;
+		if(result instanceof Boolean)
+			{
+			if(Boolean.FALSE.equals(result)) return false;
+			}
+		else if(result instanceof Number)
+			{
+			if(((Number)result).intValue()!=1) return false;
+			}
+		else
+			{
+			LOG.warn("Script returned something that is not a boolean or a number:"+result.getClass());
+			 return false;
+			}
+		return true;
+		}
+
+
+/** compile the javascript script. Can be either from JavascriptFile or JavascriptExpr */
+protected javax.script.CompiledScript compileJavascript(
+		final String jsExpression,
+		final File jsFile
+		) throws Exception
+	{
+	if( jsExpression!=null && jsFile!=null)
+		{
+		throw new RuntimeException("Both javascript expression and file defined.");
+		}
+	
+	
+	if(jsExpression==null && jsFile==null)
+		{
+		throw new RuntimeException("User error : Undefined script. Check your parameters.");
+		}
+		
+	LOG.info("getting javascript manager");
+	final javax.script.ScriptEngineManager manager = new javax.script.ScriptEngineManager();
+	final javax.script.ScriptEngine engine = manager.getEngineByName("js");
+	if(engine==null)
+		{
+		throw new RuntimeException("not available ScriptEngineManager: javascript. Use the SUN/Oracle JDK ?");
+		}
+	final javax.script.Compilable compilingEngine = (javax.script.Compilable)engine;
+	if(jsFile!=null)
+		{
+		LOG.info("Compiling "+jsFile);
+		java.io.FileReader r = null;
+		try
+			{
+			r = new java.io.FileReader(jsFile);
+			return compilingEngine.compile(r);
+			}
+		finally
+			{
+			htsjdk.samtools.util.CloserUtil.close(r);
+			}
+		}
+	else if(jsExpression!=null)
+		{
+		LOG.info("Compiling "+jsExpression);
+		return compilingEngine.compile(jsExpression);
+		}
+	else
+		{
+		throw new RuntimeException("illegal state");
+		}
+	}
+/** END : JAVASCRIPT SECTION ************************************************/
+
+
 public int doWork(final List<String> args)
 	{
 	return -1;

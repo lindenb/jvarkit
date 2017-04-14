@@ -4,8 +4,6 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,68 +20,56 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
-/**
- * @author lindenb
- *
- */
-public class NoZeroVariationVCF extends AbstractVCFFilter2
+@Program(name="nozerovariationvcf",description="cat a whole VCF, or, if there is no variant, creates a fake one")
+public class NoZeroVariationVCF extends Launcher
 	{
-	@Override
-	public String getProgramDescription() {
-		return "cat a whole VCF, or, if there is no variant, creates a fake one ";
-		}
+	private static final Logger LOG = Logger.build(NoZeroVariationVCF.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-R","-r","--reference"},description="Indexed fasta reference")
+	private File faidx = null;
+
 	
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/NoZeroVariationVCF";
-	}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -r (file)  fasta sequence file. "+getMessageBundle("reference.faidx")+" . Required.");
-		super.printOptions(out);
-		}
-	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
-		{
-		VCFHeader header=in.getHeader();
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+		final VCFHeader header=in.getHeader();
 		if(in.hasNext())
 			{
-			info("found a variant in VCF.");
-			out.writeHeader(header);
-			out.add(in.next());
-			while(in.hasNext())
-				{
-				out.add(in.next());
-				}
+			LOG.info("found a variant in VCF.");
+			VCFUtils.copyHeaderAndVariantsTo(in, out);
 			}
 		else
 			{
-			info("no a variant in VCF. Creating a fake Variant");
-			header.addMetaDataLine(new VCFFilterHeaderLine("FAKESNP", "Fake SNP created because vcf input was empty. See "+getOnlineDocUrl()));
+			LOG.info("no a variant in VCF. Creating a fake Variant");
+			header.addMetaDataLine(new VCFFilterHeaderLine("FAKESNP", "Fake SNP created because vcf input was empty."));
 			
 			VCFFormatHeaderLine gtHeaderLine=header.getFormatHeaderLine(VCFConstants.GENOTYPE_KEY);
 			if(gtHeaderLine==null)
 				{
-				info("Adding GT to header");
+				LOG.info("Adding GT to header");
 				header.addMetaDataLine(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_KEY, 1, VCFHeaderLineType.String, "Genotype"));
 				}
 			gtHeaderLine=header.getFormatHeaderLine(VCFConstants.GENOTYPE_QUALITY_KEY);
 			if(gtHeaderLine==null)
 				{
-				info("Adding GQ to header");
+				LOG.info("Adding GQ to header");
 				header.addMetaDataLine(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_QUALITY_KEY, 1, VCFHeaderLineType.Integer, "Genotype Quality"));
 				}
 			
@@ -93,13 +79,13 @@ public class NoZeroVariationVCF extends AbstractVCFFilter2
 			//choose random chrom, best is 'random' , but not 1...23,X,Y, etc...
 			String chrom=dict.getSequence(0).getSequenceName();
 			
-			for(SAMSequenceRecord ssr:dict.getSequences())
+			for(final SAMSequenceRecord ssr:dict.getSequences())
 				{
 				String ssn=ssr.getSequenceName();
 				if(ssn.contains("_")) { chrom=ssn; break;}
 				}
 			
-			for(SAMSequenceRecord ssr:dict.getSequences())
+			for(final SAMSequenceRecord ssr:dict.getSequences())
 				{
 				String ssn=ssr.getSequenceName();
 				if(ssn.toLowerCase().contains("random")) { chrom=ssn; break;}
@@ -146,58 +132,51 @@ public class NoZeroVariationVCF extends AbstractVCFFilter2
 			vcb.log10PError(-0.1);
 			for(String sample:header.getSampleNamesInOrder())
 				{
-				GenotypeBuilder gb=new GenotypeBuilder(sample);
-				gb.DP(1);
-				gb.GQ(1);
-				gb.alleles(la1a2);
-				gb.noAD();
-				gb.noPL();
-				genotypes.add(gb.make());
+				final GenotypeBuilder gb=new GenotypeBuilder(sample);
+				
+				if(genotypes.isEmpty()) {
+					gb.DP(1);
+					gb.GQ(1);
+					gb.alleles(la1a2);
+					gb.noAD();
+					gb.noPL();
+					genotypes.add(gb.make());
+					}
+				else
+					{
+					genotypes.add(GenotypeBuilder.createMissing(sample, 2));
+					}
 				}
 			vcb.genotypes(genotypes);
 			vcb.noID();
 			out.add(vcb.make());
 			}
+		return 0;
 		}
-	
 	@Override
-	public int doWork(String[] args)
-		{
-		String faidx=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args, "hvL:r:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(getopt.getOptArg()));break;
-				case 'r': faidx=getopt.getOptArg();break;
-				case ':': System.err.println("Missing argument for option -"+getopt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+getopt.getOptOpt());return -1;
-				}
-			}
+	public int doWork(List<String> args) {
+		
 		if(faidx==null)
 			{
-			error("Indexed fasta file missing.");
+			LOG.error("Indexed fasta file missing.");
 			return -1;
 			}
 		try
 			{
-			info("opening "+faidx);
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(new File(faidx));
+			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
 			
-			int ret= doWork(getopt.getOptInd(), args);
-			
-			this.indexedFastaSequenceFile.close();
-			return ret;
+			return doVcfToVcf(args,this.outputFile);
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
-			}		
+			}	
+		finally
+			{
+			CloserUtil.close(this.indexedFastaSequenceFile);
+			this.indexedFastaSequenceFile =null;
+			}
 		}
 
 	public static void main(String[] args)

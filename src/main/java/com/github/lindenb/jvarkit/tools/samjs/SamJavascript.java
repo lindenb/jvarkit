@@ -26,32 +26,69 @@ package com.github.lindenb.jvarkit.tools.samjs;
 
 
 
+import java.io.File;
+
 /**
  * Author: Pierre Lindenbaum PhD. @yokofakun
  * Motivation http://www.biostars.org/p/66319/ 
  */
 
-import java.util.Collection;
+import java.util.List;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
+/**
+BEGIN_DOC
 
+## Motivation
 
+Filters a BAM using javascript( java rhino engine).
+The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
+and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+
+END_DOC
+*/
+@Program(name="samjs",description="Filters a BAM using javascript ( java nashorn engine  ).")
 public class SamJavascript
-	extends AbstractSamJavascript
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamJavascript.class);
+	private static final Logger LOG = Logger.build(SamJavascript.class).make();
 
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-X","--fail"},description="Save dicarded reads in that file")
+	private File failingReadsFile = null;
+
+	@Parameter(names={"-N","--limit"},description="limit to 'N' records.")
+	private long LIMIT = -1L ;
+
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
+	
+	@Parameter(names={"-e","--expression"},description="javascript expression")
+	private String jsExpression=null;
+	@Parameter(names={"-f","--file"},description="javascript file")
+	private File jsFile =null;
+	
+	
 	private CompiledScript  script=null;
 	private SAMFileWriter failingReadsWriter=null;
 	
@@ -62,21 +99,16 @@ public class SamJavascript
 		}
 	
 	/* open failing bam if it was not already open */
-	private void openFailing(SAMFileHeader h)
+	private void openFailing(final SAMFileHeader h)
 		{
 		if(this.failingReadsFile==null) return;
 		if(this.failingReadsWriter==null)
 			{
 			LOG.info("Writing failings to "+ this.failingReadsFile);
-			SAMFileHeader h2= h.clone();
-			SAMFileWriterFactory sfwf = new SAMFileWriterFactory();
-			sfwf.setCreateMd5File(false);
-			sfwf.setCreateIndex(false);
+			final SAMFileHeader h2= h.clone();
+			
 		
-			this.failingReadsWriter=sfwf.makeSAMOrBAMWriter(
-					h2, 
-					true
-					,this.failingReadsFile);
+			this.failingReadsWriter=this.writingBamArgs.openSAMFileWriter(failingReadsFile, h2,true);
 			}
 		}
 	
@@ -86,20 +118,17 @@ public class SamJavascript
 		if(failingReadsWriter!=null) failingReadsWriter.addAlignment(rec);
 		}
 	
-	
-
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		
-		 SAMRecordIterator iter=null;
+	public int doWork(List<String> args) {
+		SAMRecordIterator iter=null;
 		SamReader samFileReader=null;
 		SAMFileWriter sw=null;
 		try
 			{
-			this.script  = super.compileJavascript();
-			samFileReader= openSamReader(inputName);
+			this.script  = super.compileJavascript(this.jsExpression,this.jsFile);
+			samFileReader= openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=samFileReader.getFileHeader();
-			sw = openSAMFileWriter(header, true);
+			sw = writingBamArgs.openSAMFileWriter(outputFile,header, true);
 			
 			
 			long count=0L;
@@ -109,7 +138,7 @@ public class SamJavascript
 	        iter = samFileReader.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord record=iter.next();
+				final SAMRecord record=iter.next();
 				progress.watch(record);
 				bindings.put("record", record);
 				
@@ -131,7 +160,7 @@ public class SamJavascript
 			
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			return wrapException(err);
 			}
@@ -149,5 +178,8 @@ public class SamJavascript
 		{
 		new SamJavascript().instanceMainWithExit(args);
 		}
+	
+	
+
 	
 	}

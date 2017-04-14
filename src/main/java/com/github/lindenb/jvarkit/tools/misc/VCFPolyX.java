@@ -28,8 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.IOException;
-import java.util.Collection;
+import java.io.File;
+import java.util.List;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
@@ -41,13 +41,49 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VCFPolyX extends AbstractVCFPolyX
+/*
+BEGIN_DOC
+
+## Example
+
+```
+$ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf
+(...)
+2   1133956 .   A   G   2468.84 .   POLYX=23
+2   1133956 .   A   AG  3604.25 .   POLYX=23
+2   2981671 .   T   G   47.18   .   POLYX=24
+(...)
+```
+
+END_DOC
+*/
+@Program(name="vcfpolyx",description="Number of repeated REF bases around POS.")
+public class VCFPolyX extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFPolyX.class);
+	private static final Logger LOG = Logger.build(VCFPolyX.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-n","--filter"},description="if number of repeated bases is greater or equal to 'n' set a FILTER = (tag)")
+	private int filterTrehsold = -1 ;
+
+	@Parameter(names={"-t","--tag"},description="Tag used in INFO and FILTER columns.")
+	private String polyXtag = "POLYX";
+
+	@Parameter(names={"-R","--reference"},description="Indexed fasta reference")
+	private File faidx = null;
+
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
 	public VCFPolyX()
@@ -55,15 +91,34 @@ public class VCFPolyX extends AbstractVCFPolyX
 		}
 	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+	public int doWork(List<String> args) {
+		if(this.polyXtag.trim().isEmpty()) {
+			LOG.error("Empty tag in");
+			return -1;
+			}
+		try {
+			if(this.faidx==null)
+				{
+				LOG.error("Undefined Reference");
+				return -1;
+				}
+			LOG.info("opening reference "+faidx);
+			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
+			
+			return doVcfToVcf(args,outputFile);
+		} catch (Exception e) {
+			LOG.error(e);
+			return -1;
 		}
+		finally
+			{
+			CloserUtil.close(this.indexedFastaSequenceFile);
+			this.indexedFastaSequenceFile=null;
+			}
+		}
+	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator r,
-			final VariantContextWriter w
-			) throws IOException
+	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) 
 		{
 		GenomicSequence genomicSequence=null;
 
@@ -72,7 +127,7 @@ public class VCFPolyX extends AbstractVCFPolyX
 		addMetaData(h2);
 		
 		final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
-				super.polyXtag.trim(),
+				this.polyXtag.trim(),
 				1,
 				VCFHeaderLineType.Integer,
 				"Number of repeated bases around REF")
@@ -124,7 +179,7 @@ public class VCFPolyX extends AbstractVCFPolyX
 			b.attribute(infoHeaderLine.getID(),count);
 			
 			/* filter */
-			if(super.filterTrehsold>-1 && count>=super.filterTrehsold)
+			if(this.filterTrehsold>-1 && count>=this.filterTrehsold)
 				{
 				b.filter(filterHeaderLine.getID());
 				}
@@ -138,34 +193,6 @@ public class VCFPolyX extends AbstractVCFPolyX
 		}
 
 
-	
-	@Override
-	public Collection<Throwable> initializeKnime() {
-		if(super.polyXtag.trim().isEmpty()) {
-			return wrapException("Empty tag in option -"+OPTION_POLYXTAG);
-		}
-		try {
-			if(this.REF==null)
-				{
-				return wrapException("Undefined Reference");
-				}
-			LOG.info("opening reference "+REF);
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
-			}
-		catch (final Exception e) {
-			return wrapException(e);
-			}
-		return super.initializeKnime();
-		}
-	@Override
-	public void disposeKnime() {
-		CloserUtil.close(this.indexedFastaSequenceFile);
-		this.indexedFastaSequenceFile=null;
-		}
-	
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args)
 		{
 		new VCFPolyX().instanceMainWithExit(args);
