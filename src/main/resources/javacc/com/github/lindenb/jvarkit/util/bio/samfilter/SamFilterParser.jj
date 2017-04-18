@@ -213,6 +213,32 @@ public class SamFilterParser {
         return b.toString();
 		}
 		
+		private static Predicate<SAMRecord> duplicateFilter() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getDuplicateReadFlag();}
+			}; }
+		private static Predicate<SAMRecord> unmappedFilter() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadUnmappedFlag();}
+			}; }
+		private static Predicate<SAMRecord> failsVendorQuality() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadFailsVendorQualityCheckFlag();}
+			}; }
+		private static Predicate<SAMRecord> readPaired() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadPairedFlag();}
+			}; }
+		private static Predicate<SAMRecord> mateUnmapped() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getMateUnmappedFlag();}
+			}; }
+		private static Predicate<SAMRecord> samFlag(final int flg) {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return (rec.getFlags() & flg) != 0;}
+			}; }
+		
+		
 	}
 	
 PARSER_END(SamFilterParser)
@@ -228,7 +254,10 @@ SKIP :
 
 TOKEN:
 {
-  <OR: "||">
+  <#DIGIT:["0"-"9"]>
+| <#LETTER: (["a"-"z"]|"_"|["A"-"Z"])>
+| <INT:<DIGIT>  (<DIGIT>)* >
+| <OR: "||">
 | <AND: "&&">
 | <OPAR: "(">
 | <CPAR: ")">
@@ -238,9 +267,11 @@ TOKEN:
 | <DOUBLE_QUOTE_LITERAL: "\"" ( (~["\"","\\","\n","\r"])|<ESCAPE_CHAR>)* "\"" >
 | <DUPLICATE: "Duplicate" >
 | <UNMAPPED: "Unmapped" >
+| <MATEUNMAPPED: "MateUnmapped" >
 | <FAILSVENDORQUALITY: "FailsVendorQuality" >
 | <PAIRED: "Paired" >
 | <OVERLAP: "overlap" >
+| <SAMFLAG: "samFlag" >
 }
 
 	
@@ -270,22 +301,16 @@ private Predicate<SAMRecord> AndExpr(): { Predicate<SAMRecord> root,other;}
 	root=UnaryExpr() ( <AND> other=UnaryExpr() {root = root.and(other); } )* { return root;}
 	}
 	
-private Predicate<SAMRecord> UnaryExpr(): {String str; }
+private Predicate<SAMRecord> UnaryExpr(): {String str; Token t;}
 	{
 	(
-	<DUPLICATE> { return new Predicate<SAMRecord>() {
-		 	@Override public boolean test(final SAMRecord rec) { return rec.getDuplicateReadFlag();}
-		};}
-	| <UNMAPPED> { return new Predicate<SAMRecord>() {
-		 	@Override public  boolean test(final SAMRecord rec) { return rec.getReadUnmappedFlag();}
-		};}
-	| <FAILSVENDORQUALITY> { return new Predicate<SAMRecord>() {
-		 	@Override public  boolean test(final SAMRecord rec) { return rec.getReadFailsVendorQualityCheckFlag();}
-		};}
-	| <PAIRED> { return new Predicate<SAMRecord>() {
-		 	@Override public  boolean test(final SAMRecord rec) { return rec.getReadPairedFlag();}
-		};}
+	  <DUPLICATE> { return duplicateFilter(); }
+	| <UNMAPPED> { return unmappedFilter();}
+	| <FAILSVENDORQUALITY> { return failsVendorQuality();}
+	| <PAIRED> {  return readPaired();}
+	| <MATEUNMAPPED> {  return mateUnmapped();}
 	| <OVERLAP> <OPAR>  str=characters() <CPAR> { return overlapBed(str);}
+	| <SAMFLAG> <OPAR> t=<INT> <CPAR> { return samFlag(Integer.parseInt(t.image));}
 	)
 	
 	}

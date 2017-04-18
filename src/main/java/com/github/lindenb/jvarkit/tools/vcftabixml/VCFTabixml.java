@@ -1,3 +1,36 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+BEGIN_DOC
+
+
+4th column of the BED indexed with TABIX is a XML string.
+It will be processed with the xslt-stylesheet and should procuce a xml result <properties><entry key='key1'>value1</property><property key='key2'>values1</property></properies>
+INFO fields. Carriage returns will be removed." 
+Parameters to be passed to the stylesheet: vcfchrom (string) vcfpos(int) vcfref(string) vcfalt(string). 
+
+END_DOC
+*/
 package com.github.lindenb.jvarkit.tools.vcftabixml;
 
 import java.io.BufferedReader;
@@ -28,9 +61,9 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -41,30 +74,25 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 
-
-public class VCFTabixml extends AbstractVCFFilter
+@Program(name="vcftabixml",description=" annotate a value from a vcf+xml file")
+public class VCFTabixml extends Launcher
 	{
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" annotate a value from a vcf+xml file."+
-		("4th column of the BED indexed with TABIX is a XML string." +
-		"It will be processed with the xslt-stylesheet and should procuce a xml result <properties><entry key='key1'>value1</property><property key='key2'>values1</property></properies>" +
-		" INFO fields. Carriage returns will be removed." +
-		"Parameters to be passed to the stylesheet: vcfchrom (string) vcfpos(int) vcfref(string) vcfalt(string). "
-		);
 	
-	private static final Log LOG=Log.getInstance(VCFTabixml.class);
+	private static final Logger LOG=Logger.build(VCFTabixml.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File fileout = null;
 
 	
-	@Option(shortName="BED",doc=" BED file indexed with tabix. The 4th column *is* a XML string.)",optional=false)
-	public String BEDFILE=null;
+	@Parameter(names="-B",description=" BED file indexed with tabix. The 4th column *is* a XML string.)",required=true)
+	private String BEDFILE=null;
 	
-	@Option(shortName="XSL",doc="x xslt-stylesheet. REQUIRED. Should produce a valid set of INFO field.",optional=false)
-	public File STYLESHEET=null;
+	@Parameter(names="-xsl",description="x xslt-stylesheet. REQUIRED. Should produce a valid set of INFO field.",required=true)
+	private File STYLESHEET=null;
 	
-	@Option(shortName="F",doc="file containing extra INFO headers line to add version: 4.1",optional=false)
+	@Parameter(names="-F",description="file containing extra INFO headers line to add version: 4.1",required=true)
 	public File TAGS=null;
 	
 	
@@ -109,11 +137,8 @@ public class VCFTabixml extends AbstractVCFFilter
 			}
 		}
 
-	
 	@Override
-	protected void doWork(VcfIterator r, VariantContextWriter w)
-			throws IOException
-		{
+	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
 		TabixReader tabixReader =null;
 
 		try {
@@ -127,8 +152,8 @@ public class VCFTabixml extends AbstractVCFFilter
 			Transformer transformer=this.stylesheet.newTransformer();
 			transformer.setOutputProperty(OutputKeys.METHOD,"xml");
 
-			VCFHeader header=r.getHeader();
-			VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());			
+			final VCFHeader header=r.getHeader();
+			final VCFHeader h2=new VCFHeader(header);			
 			
 			LOG.info("reading Tags "+TAGS);
 			BufferedReader rT=IOUtils.openFileForBufferedReading(TAGS);
@@ -191,7 +216,7 @@ public class VCFTabixml extends AbstractVCFFilter
 					if(tokens2.length<4)
 						{
 						LOG.error("[VCFTabixml] VCF. Error not enough columns in tabix.line "+line2);
-						return;
+						return -1;
 						}
 					
 					int chromStart=Integer.parseInt(tokens2[1]);
@@ -264,20 +289,26 @@ public class VCFTabixml extends AbstractVCFFilter
 					}
 				w.add(b.make());
 				}
+			return 0;
 			}
 		catch (IOException err)
 			{
 			err.printStackTrace();
-			throw err;
+			return -1;
 			}
 		catch (Throwable err)
 			{
 			err.printStackTrace();
-			throw new IOException(err);
+			return -1;
 			}
 		}
 	
 
+	@Override
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args, this.fileout);
+		}
+	
 	public static void main(String[] args) throws Exception
 		{
 		new VCFTabixml().instanceMainWithExit(args);

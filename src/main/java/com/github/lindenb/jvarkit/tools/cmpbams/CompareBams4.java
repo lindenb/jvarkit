@@ -127,7 +127,7 @@ public class CompareBams4  extends Launcher
 	private File chainFile = null;
 
 	@Parameter(names={"-m","--mismatch"},description="Default Lift Over mismatch. negative=use default")
-	private double liftOverMismatch = -1 ;
+	private double liftOverMismatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
 
 	@Parameter(names={"-novalidchain","--novalidchain"},description="Disable Lift Over chain validation")
 	private boolean disableChainValidation = false;
