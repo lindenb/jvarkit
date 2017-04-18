@@ -66,8 +66,9 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 @Program(name="vcf2hilbert",keywords={"vcf","image","vislualization"},description="Plot a Hilbert Curve from a VCF file.")
 public class VcfToHilbert extends Launcher
 	{
-	private static final Logger LOG=Logger.build(VcfToHilbert.class).make();
 	
+	private static final Logger LOG=Logger.build(VcfToHilbert.class).make();
+
 	/** graphics context */ 
 	private Graphics2D g;
 	/** dictionary */

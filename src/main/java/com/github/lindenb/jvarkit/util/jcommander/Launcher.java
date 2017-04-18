@@ -342,6 +342,7 @@ public static class SortingCollectionArgs
 
 public class WritingBamArgs
 	{
+	private File referenceFile = null;
 	
 	@Parameter(names={"--bamcompression"},description="Compression Level.")
 	public int compressionLevel=5;
@@ -359,9 +360,14 @@ public class WritingBamArgs
 		return sfw;
 		}
 	
+	public WritingBamArgs setReferenceFile(final File referenceFile) {
+		this.referenceFile = referenceFile;
+		return this;
+		}
+	
 	/** return reference file. default implementation returns null */
 	public File getReferenceFile() {
-		return null;
+		return this.referenceFile;
 		}
 	
 	

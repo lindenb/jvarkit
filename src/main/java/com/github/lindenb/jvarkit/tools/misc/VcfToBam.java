@@ -30,7 +30,6 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -45,22 +44,39 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeSet;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfToBam extends AbstractCommandLineProgram
+@Program(name="vcf2bam",description="vcf to bam")
+public class VcfToBam extends Launcher
 	{
+	private static final Logger LOG=Logger.build(VcfToBam.class).make();
+
+	@Parameter(names={"-o","--output"},description="Ouput file. Default: stdout")
+	private File outputFile=null;
+	
+	@Parameter(names={"-r","-R","--reference"},description="indexed fasta reference",required=true)
+	private File faidx=null;
+
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
+	
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	@Parameter(names="--fragmentsize",description="fragment size")
 	private int fragmentSize=600;
+	@Parameter(names="--readsize",description="read size")
 	private int readSize=100;
+	
 	
 	
 	
@@ -68,38 +84,38 @@ public class VcfToBam extends AbstractCommandLineProgram
 	private void run(VcfIterator vcfIterator) throws IOException
 		{
 		 long id_generator=0L;
+		 SAMFileWriter samFileWriter =null;
 		
-		
-		VCFHeader header = vcfIterator.getHeader();
+		final VCFHeader header = vcfIterator.getHeader();
 		SAMSequenceDictionary dict = header.getSequenceDictionary();
 		if(dict==null) throw new IOException("Sequence Dictionary missing in VCF");
 		if(!SequenceUtil.areSequenceDictionariesEqual(dict, indexedFastaSequenceFile.getSequenceDictionary()))
 			{
-			warning(
+			LOG.warning(
 					"REF/VCF: not the same Sequence dictonary "+dict+" "+ indexedFastaSequenceFile.getSequenceDictionary()
 					);
 			}
-		SAMFileHeader samHeader=new SAMFileHeader();
+		final SAMFileHeader samHeader=new SAMFileHeader();
 		samHeader.setSequenceDictionary(dict);
-		for(String sample:new TreeSet<>(header.getSampleNamesInOrder()))
+		for(final String sample:new TreeSet<>(header.getSampleNamesInOrder()))
 			{
-			SAMReadGroupRecord rg= new SAMReadGroupRecord(sample);
+			final SAMReadGroupRecord rg= new SAMReadGroupRecord(sample);
 			rg.setSample(sample);
 			rg.setLibrary(sample);
 			rg.setDescription(sample);
 			rg.setLibrary("illumina");
 			samHeader.addReadGroup(rg);
-			
 			}
 		samHeader.addComment("Generated with "+getProgramCommandLine());
 		samHeader.setSortOrder(SortOrder.unsorted);
-		SAMFileWriterFactory sfwf = new SAMFileWriterFactory();
-		SAMFileWriter samFileWriter= sfwf.makeSAMWriter(samHeader,true, System.out);
+		samFileWriter= this.writingBamArgs.
+				setReferenceFile(this.faidx).
+				openSAMFileWriter(this.outputFile, samHeader, true);
 		
 		/* looping over sequences */
-		for(SAMSequenceRecord ssr: dict.getSequences())
+		for(final SAMSequenceRecord ssr: dict.getSequences())
 			{
-			LinkedList<VariantContext> variantBuffer = new LinkedList<>();
+			final LinkedList<VariantContext> variantBuffer = new LinkedList<>();
 			GenomicSequence genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ssr.getSequenceName());
 			int x=1;
 			while(x+this.fragmentSize <= ssr.getSequenceLength())
@@ -118,16 +134,16 @@ public class VcfToBam extends AbstractCommandLineProgram
 						break;
 						}
 					
-					VariantContext ctx = vcfIterator.peek();
+					final VariantContext ctx = vcfIterator.peek();
 					if(ctx==null) break;
 					if(ctx.isIndel() || !ctx.isVariant())
 						{
-						warning("Cannot handle "+ctx.getReference()+"/"+ctx.getAlternateAlleles());
+						LOG.warning("Cannot handle "+ctx.getReference()+"/"+ctx.getAlternateAlleles());
 						vcfIterator.next();//consumme
 						continue;
 						}
 					
-					SAMSequenceRecord variantContig = dict.getSequence( ctx.getContig());
+					final SAMSequenceRecord variantContig = dict.getSequence( ctx.getContig());
 					if(variantContig == null) throw new IOException("Unknown contig "+ctx.getContig());
 					if(variantContig.getSequenceIndex()< ssr.getSequenceIndex())
 						{
@@ -145,7 +161,7 @@ public class VcfToBam extends AbstractCommandLineProgram
 				
 				if(variantBuffer.isEmpty())
 					{
-					info("no variant ?");
+					LOG.info("no variant ?");
 					//no variant on this chromosome
 					break;
 					}
@@ -314,82 +330,36 @@ public class VcfToBam extends AbstractCommandLineProgram
 		samFileWriter.close();
 		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "VcfToBam";
-		}
+	
+	
 	
 	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"VcfToBam";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
+	public int doWork(List<String> args)
 		{
-		out.println(" -R (ref) reference fasta file");
-		super.printOptions(out);
-		}
-
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'R':
-					try
-						{
-						this.indexedFastaSequenceFile= new IndexedFastaSequenceFile(new File(opt.getOptArg()));
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
-					break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		if(this.indexedFastaSequenceFile==null)
 			{
-			error("No REF defined");
+			LOG.error("No REF defined");
+			return -1;
+			}
+		if(readSize<=0) {
+			LOG.error("bad read size");
+			return -1;
+			}
+		if(fragmentSize<=readSize*2) {
+			LOG.error("bad fragment size");
 			return -1;
 			}
 		VcfIterator iter=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
-				{
-				iter = VCFUtils.createVcfIteratorStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				iter = VCFUtils.createVcfIterator(args[opt.getOptInd()]);
-				}
-			else
-				{
-				error("Illegal Number of args");
-				return -1;
-				}
+			this.indexedFastaSequenceFile= new IndexedFastaSequenceFile(this.faidx);
+			iter  = super.openVcfIterator(super.oneFileOrNull(args));
 			run(iter);
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
