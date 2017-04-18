@@ -1,42 +1,46 @@
 package com.github.lindenb.jvarkit.tools.fastq;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.util.List;
 
 import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.util.CloserUtil;
 
-
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
-public class ConvertPhred64toFastq33 extends AbstractCommandLineProgram
+
+@Program(name="fastqphred64to33",description="Convert Illumina Fastq 64 encoding to Fastq 33")
+public class ConvertPhred64toFastq33 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(ConvertPhred64toFastq33.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
 	private PrintStream pw= System.out;
 	private ConvertPhred64toFastq33()
 		{
 		
 		}
-	@Override
-	public String getProgramDescription() {
-		return "Convert Illumina Fastq 64 encoding to Fastq 33.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
+
 	
 	private void convert(InputStream in) throws IOException
 		{
 		FastqReader r=new FourLinesFastqReader(in);
 		while(r.hasNext() && !pw.checkError())
 			{
-			FastqRecord rec=r.next();
+			final FastqRecord rec=r.next();
 			byte quals[]=rec.getBaseQualityString().getBytes();
 			for(int i=0;i< quals.length;++i )
 				{
@@ -59,56 +63,39 @@ public class ConvertPhred64toFastq33 extends AbstractCommandLineProgram
 			}
 		r.close();
 		}
-	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	public int doWork(List<String> args) {		
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			this.pw = super.openFileOrStdoutAsPrintStream(this.outputFile);
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				convert(System.in);
+				LOG.info("Reading from stdin");
+				convert(stdin());
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(final String filename:args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
+					LOG.info("Reading from "+filename);
 					InputStream in=IOUtils.openURIForReading(filename);
 					convert(in);
 					in.close();
 					}
 				}
+			this.pw.flush();
+			this.pw.close();
+			this.pw = null;
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			
+			CloserUtil.close(pw);
 			}
 		}
 	/**

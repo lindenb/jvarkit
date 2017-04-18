@@ -31,14 +31,18 @@ package com.github.lindenb.jvarkit.tools.fastq;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.List;
 
 import htsjdk.samtools.fastq.BasicFastqWriter;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.fastq.FastqWriter;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
@@ -47,73 +51,47 @@ import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
  * @author lindenb
  *
  */
-public class FastqSplitInterleaved extends AbstractCommandLineProgram
+@Program(name="fastqsplitinterleaved",
+description="Split interleaved Fastq files.")
+public class FastqSplitInterleaved extends Launcher
 	{
+	private static final Logger LOG = Logger.build(FastqSplitInterleaved.class).make();
+	@Parameter(names={"-a"},description="(fastq1 file or '-' for stdout). Ignore 1st read if omitted. Optional.")
+	final String fileA=null;
+	@Parameter(names={"-b"},description="(fastq2 file or '-' for stdout). Ignore 2nd read if omitted. Optional.")
+	final String fileB=null;
+
+	
 	private FastqSplitInterleaved()
 		{
 		
 		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FastqSplitInterleaved";
-		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "Split interleaved Fastq files.";
-		}
-	
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -a (fastq1 file or '-' for stdout). Ignore 1st read if omitted. Optional.");
-		out.println(" -b (fastq2 file or '-' for stdout). Ignore 2nd read if omitted. Optional.");
-		super.printOptions(out);
-		}
 
 	@Override
-	public int doWork(String[] args)
-		{
-		String fileout[]={null,null};
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"a:b:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'a': fileout[0]= opt.getOptArg();break;
-				case 'b': fileout[1]= opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
+		final String fileout[]={this.fileA,this.fileB};
 		FastqReader r1=null;
 		FastqWriter writers[]={null,null};
 		try
 			{
-			if(opt.getOptInd() == args.length)
+			if(args.isEmpty())
 				{
-				r1=new FourLinesFastqReader(System.in);				
+				r1=new FourLinesFastqReader(stdin());				
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				r1=new FourLinesFastqReader(new File(args[opt.getOptInd()]));				
+				r1=new FourLinesFastqReader(new File(args.get(0)));				
 				}
 			else
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
 			
 			if(fileout[0]==null && fileout[1]==null)
 				{
-				error("Both outputs are undefined.");
+				LOG.error("Both outputs are undefined.");
 				return -1;
 				}
 			
@@ -177,7 +155,7 @@ public class FastqSplitInterleaved extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

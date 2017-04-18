@@ -26,11 +26,12 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.fastq;
 
 import java.io.DataInputStream;
+
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
@@ -44,14 +45,172 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+/**
+
+BEGIN_DOC
+
+
+Deprecated: use picard please
+
+Previous version was an Implementation of https://twitter.com/DNAntonie/status/402909852277932032
+
+
+
+Warnings
+
+	illumina  read is filtered is always "n"
+	illumina control number is always 0
+	Illumina index sequence is lost.
+
+
+
+Example
+piping bwa mem
+
+
+
+```
+
+$ bwa mem -M  human_g1k_v37.fasta  Sample1_L001_R1_001.fastq.gz Sample2_S5_L001_R2_001.fastq.gz |\
+  java -jar dist/bam2fastq.jar  -F tmpR1.fastq.gz -R tmpR2.fastq.gz
+
+```
+
+
+
+
+before:
+
+
+```
+
+$ ls -lah Sample1_L001_R1_001.fastq.gz Sample2_S5_L001_R2_001.fastq.gz
+-rw-r--r-- 1 lindenb lindenb 181M Jun 14 15:20 Sample1_L001_R1_001.fastq.gz
+-rw-r--r-- 1 lindenb lindenb 190M Jun 14 15:20 Sample1_L001_R2_001.fastq.gz
+
+```
+
+
+
+
+after (these are Haloplex Data, with a lot of duplicates )
+
+
+```
+
+$ ls -lah tmpR1.fastq.gz  tmpR2.fastq.gz
+-rw-rw-r-- 1 lindenb lindenb  96M Nov 20 17:10 tmpR1.fastq.gz
+-rw-rw-r-- 1 lindenb lindenb 106M Nov 20 17:10 tmpR2.fastq.gz
+
+```
+
+
+
+
+using BZ2:
+
+
+```
+
+$  ls -lah *.bz2
+-rw-rw-r-- 1 lindenb lindenb 77M Nov 20 17:55 tmpR1.fastq.bz2
+-rw-rw-r-- 1 lindenb lindenb 87M Nov 20 17:55 tmpR2.fastq.bz2
+
+```
+
+
+
+
+
+check the number of reads
+
+
+```
+
+$ gunzip -c Sample1_L001_R1_001.fastq.gz | wc -l
+5824676
+$ gunzip -c tmpR1.fastq.gz | wc -l
+5824676
+
+```
+
+
+verify one read
+
+
+```
+
+$ gunzip -c Sample1_L001_R1_001.fastq.gz | cat -n | head -n 4
+     1	@M00491:25:000000000-A46H3:1:1101:11697:2045 1:N:0:5
+     2	AGATCGGAAGAGCACACGTCTGAACTCCAGTCACACATTGGCAAATAGCATGCCGAGGTACGCTTAAAAAAAAAACGACGCGAGGCAGGGGGGGAGGAAGCAGGGGAGCAACAGGGGGAAGGGAAGGGAAGAGAAGAAGAACGAACGAAAG
+     3	+
+     4	AAAAAAAA1AC1FFGCGA0AFFBGAGHHFF2GBGHH0B2DBCF101111D211B////A11///B/1DE1E/>>E//?///</<><C////<?9-9-99A-;/---;---;-9--9=---------9:AF---9//:/9/:9---9-:-9-
+
+
+$ gunzip -c tmpR1.fastq.gz | cat -n | grep  -A 3 -w "@M00491:25:000000000-A46H3:1:1101:11697:2045"
+5771577	@M00491:25:000000000-A46H3:1:1101:11697:2045 1:N:0:1
+5771578	AGATCGGAAGAGCACACGTCTGAACTCCAGTCACACATTGGCAAATAGCATGCCGAGGTACGCTTAAAAAAAAAACGACGCGAGGCAGGGGGGGAGGAAGCAGGGGAGCAACAGGGGGAAGGGAAGGGAAGAGAAGAAGAACGAACGAAAG
+5771579	+
+5771580	AAAAAAAA1AC1FFGCGA0AFFBGAGHHFF2GBGHH0B2DBCF101111D211B////A11///B/1DE1E/>>E//?///</<><C////<?9-9-99A-;/---;---;-9--9=---------9:AF---9//:/9/:9---9-:-9-
+
+```
+
+
+
+Example 2 from BAM
+
+
+```
+
+$ java -jar dist/bam2fastq.jar \
+    -F tmpR1.fastq.gz -R tmpR2.fastq.gz file.bam
+
+(...)
+-rw-r--r-- 1 lindenb lindenb 565M Nov 18 10:44 Sample_S1_L001_R1_001.fastq.gz
+-rw-r--r-- 1 lindenb lindenb 649M Nov 18 10:45 Sample_S1_L001_R2_001.fastq.gz
+-rw-rw-r-- 1 lindenb lindenb 470M Nov 20 16:17 tmpR1.fastq.gz.fastq.gz
+-rw-rw-r-- 1 lindenb lindenb 554M Nov 20 16:17 tmpR2.fastq.gz.fastq.gz
+
+```
+
+
+END_DOC
+*/
+@Program(name="bam2fastq",
+description="Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. ",
+deprecatedMsg="use picard"
+)
 public class BamToFastq
-	extends AbstractBamToFastq
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamToFastq.class);
+
+	private static final Logger LOG = Logger.build(BamToFastq.class).make();
+
+
+
+
+	@Parameter(names={"-F","--forward"},description="Save fastq_R1 to file (default: stdout)")
+	private File forwardFile = null;
+
+	@Parameter(names={"-R","--reverse"},description="Save fastq_R2 to file (default: interlaced with forward)")
+	private File reverseFile = null;
+
+	@Parameter(names={"-r","--repair"},description="repair: insert missing read")
+	private boolean repair_missing_read = false;
+	
+	@Parameter(names={"-T","--tmpDir"},description="mp directory")
+	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+
+	@Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
+	private int maxRecordsInRam =50000;
 
 	
 	private static class MappedFastq
@@ -133,19 +292,10 @@ public class BamToFastq
 				));
 		}
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -t (dir) "+getMessageBundle("add.tmp.dir")+" . Optional.");
-		out.println(" -F (fastq) Save fastq_R1 to file (default: stdout) . Optional.");
-		out.println(" -R (fastq) Save fastq_R2 to file (default: interlaced with forward) . Optional.");
-		out.println(" -r  repair: insert missing read");
-		out.println(" -N (int) "+getMessageBundle("max.records.in.ram")+". Optional.");
-		super.printOptions(out);
-		}
 
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public int doWork(List<String> args) {
+
 		SamReader sfr=null;
 		SortingCollection<MappedFastq> fastqCollection=null;
 		try
@@ -154,14 +304,14 @@ public class BamToFastq
 			boolean found_paired=false;
 			long non_primary_alignmaned_flag=0L;
 			
-			sfr = openSamReader(inputName);
+			sfr = super.openSamReader(oneFileOrNull(args));
 			
 			fastqCollection = SortingCollection.newInstance(
 					MappedFastq.class,
 					new MappedFastqCodec(),
 					new MappedFastqComparator(),
-					super.maxRecordsInRam,
-					getTmpDirectories()
+					this.maxRecordsInRam,
+					this.tmpDir
 					);
 			fastqCollection.setDestructiveIteration(true);
 
@@ -250,7 +400,7 @@ public class BamToFastq
 				else
 					{
 					LOG.info("Writing to stdout");
-					fqw1=new BasicFastqWriter(new PrintStream(System.out));
+					fqw1=new BasicFastqWriter(new PrintStream(stdout()));
 					}
 				if(reverseFile!=null)
 					{
@@ -298,7 +448,7 @@ public class BamToFastq
 								}
 							if(!found_F)
 								{
-								if(super.repair_missing_read)
+								if(this.repair_missing_read)
 									{
 									LOG.warn("forward not found for "+row.get(0));
 									MappedFastq pad=new MappedFastq();

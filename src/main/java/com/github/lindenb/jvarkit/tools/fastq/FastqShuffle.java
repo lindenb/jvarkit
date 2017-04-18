@@ -33,6 +33,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Random;
 
 import htsjdk.samtools.fastq.BasicFastqWriter;
@@ -42,7 +43,10 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
@@ -52,10 +56,25 @@ import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
  * @author lindenb
  *
  */
-public class FastqShuffle extends AbstractCommandLineProgram
+@Program(name="fastqshuffle",description="Shuffle Fastq files")
+public class FastqShuffle extends Launcher
 	{
+	private static final Logger LOG = Logger.build(FastqShuffle.class).make();
+
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File fileout = null;
+
+	@Parameter(names={"-i"},description="single input is paired reads interleaved.(optional)")
+	private boolean interleaved_input=false;
+
+	
 	private Random random=new Random();
-	private int maxRecordsInRAM=500000;
+	@Parameter(names={"-T","--tmpDir"},description="mp directory")
+	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+
+	@Parameter(names={"-N","-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
+	private int maxRecordsInRam =50000;
 	
 	private static class OneRead
 		{
@@ -178,15 +197,6 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		{
 		
 		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FastqShuffle";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Shuffle Fastq files.";
-		}
 	
 	
 	private void runPaired(FastqReader r1, FastqReader r2,FastqWriter w1) throws IOException
@@ -196,8 +206,8 @@ public class FastqShuffle extends AbstractCommandLineProgram
 				TwoReads.class,
 				new TwoReadsCodec(),
 				new TwoReadsCompare(),
-				maxRecordsInRAM,
-				getTmpDirectories()
+				this.maxRecordsInRam,
+				this.tmpDir
 				);
 		sorting.setDestructiveIteration(true);
 		while(r1.hasNext())
@@ -217,9 +227,9 @@ public class FastqShuffle extends AbstractCommandLineProgram
 				p.second=r1.next();
 				}
 			
-			if((++nReads)%this.maxRecordsInRAM==0)
+			if((++nReads)%this.maxRecordsInRam==0)
 				{
-				info("Read "+nReads+" reads");
+				LOG.info("Read "+nReads+" reads");
 				}
 
 			
@@ -250,8 +260,8 @@ public class FastqShuffle extends AbstractCommandLineProgram
 				OneRead.class,
 				new OneReadCodec(),
 				new OneReadCompare(),
-				maxRecordsInRAM,
-				getTmpDirectories()
+				this.maxRecordsInRam,
+				this.tmpDir
 				);
 		sorting.setDestructiveIteration(true);
 		while(r1.hasNext())
@@ -261,9 +271,9 @@ public class FastqShuffle extends AbstractCommandLineProgram
 			r.index=nReads;
 			r.first=r1.next();
 			
-			if((++nReads)%this.maxRecordsInRAM==0)
+			if((++nReads)%this.maxRecordsInRam==0)
 				{
-				info("Read "+nReads+" reads");
+				LOG.info("Read "+nReads+" reads");
 				}
 
 			
@@ -282,42 +292,9 @@ public class FastqShuffle extends AbstractCommandLineProgram
 		CloserUtil.close(iter);
 		sorting.cleanup();
 		}
+	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -i single input is paired reads interleaved.(optional).");
-		out.println(" -o fastq interleaved output. (optional).");
-		out.println(" -N (int) "+getMessageBundle("max.records.in.ram")+" default:"+maxRecordsInRAM+". Optional.");
-		out.println(" -T (dir) "+getMessageBundle("add.tmp.dir")+" Optional.");
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		File fileout=null;
-		boolean interleaved_input=false;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:N:T:i"))!=-1)
-			{
-			switch(c)
-				{
-				case 'i': interleaved_input=true;break;
-				case 'o': fileout=new File(opt.getOptArg());break;
-				case 'N':this.maxRecordsInRAM=Integer.parseInt(opt.getOptArg());break;
-				case 'T':this.addTmpDirectory(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
 		FastqReader r1=null;
 		FastqReader r2=null;
 		FastqWriter w=null;
@@ -326,21 +303,17 @@ public class FastqShuffle extends AbstractCommandLineProgram
 			{
 			if(fileout==null)
 				{
-				w=	new BasicFastqWriter(System.out);
+				w=	new BasicFastqWriter(stdout());
 				}
 			else
 				{
-				w=	new BasicFastqWriter(fileout);
-				if(fileout.getParentFile()!=null && fileout.getParentFile().exists())
-					{
-					this.addTmpDirectory( fileout.getParentFile());
-					}
+				w=	new BasicFastqWriter(this.fileout);
 				}
 			
-			if(opt.getOptInd() == args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				r1=new FourLinesFastqReader(System.in);
+				LOG.info("Reading from stdin");
+				r1=new FourLinesFastqReader(stdin());
 				if(interleaved_input)
 					{
 					runPaired(r1, null,w);
@@ -350,9 +323,9 @@ public class FastqShuffle extends AbstractCommandLineProgram
 					runSingle(r1,w);
 					}
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				r1=new FourLinesFastqReader(new File(args[opt.getOptInd()]));
+				r1=new FourLinesFastqReader(new File(args.get(0)));
 
 				if(interleaved_input)
 					{
@@ -364,22 +337,22 @@ public class FastqShuffle extends AbstractCommandLineProgram
 					}
 				
 				}
-			else if(opt.getOptInd()+2==args.length)
+			else if(args.size()==2)
 				{
-				r1=new FourLinesFastqReader(new File(args[opt.getOptInd()  ]));
-				r2=new FourLinesFastqReader(new File(args[opt.getOptInd()+1]));
+				r1=new FourLinesFastqReader(new File(args.get(0)));
+				r2=new FourLinesFastqReader(new File(args.get(1)));
 				runPaired(r1, r2,w);
 				}
 			else
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

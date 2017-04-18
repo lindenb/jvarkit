@@ -1,25 +1,35 @@
 package com.github.lindenb.jvarkit.tools.fastq;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.util.List;
 import java.util.zip.Deflater;
 import java.util.zip.GZIPOutputStream;
 
 import htsjdk.samtools.fastq.FastqRecord;
 
-
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
-public class FastqEntropy extends AbstractCommandLineProgram
+@Program(name="fastqentropy",description="Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence))")
+public class FastqEntropy extends Launcher
 	{
+	private static final Logger LOG = Logger.build(FastqEntropy.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File fileout = null;
+
 	private PrintStream pw= System.out;
-	private Counter<Long> length2count=new Counter<Long>();
+	private final Counter<Long> length2count=new Counter<Long>();
 	
 	private static class BestCompressionOutputStream extends GZIPOutputStream
 		{
@@ -27,7 +37,6 @@ public class FastqEntropy extends AbstractCommandLineProgram
 			{
 			super(new NullOuputStream());
 			def.setLevel(Deflater.BEST_COMPRESSION);
-			
 			}
 		public long getByteWrittenCount()
 			{
@@ -36,22 +45,9 @@ public class FastqEntropy extends AbstractCommandLineProgram
 		}
 	private FastqEntropy()
 		{
-		
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FastqEntropy";
-		}
-	@Override
-	public String getProgramDescription() {
-		return "Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence)))";
 		}
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
+	
 	
 	private void convert(InputStream in) throws IOException
 		{
@@ -67,41 +63,21 @@ public class FastqEntropy extends AbstractCommandLineProgram
 			}
 		r.close();
 		}
-	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	public int doWork(List<String> args) {
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			this.pw = super.openFileOrStdoutAsPrintStream(this.fileout);
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				convert(System.in);
+				LOG.info("Reading from stdin");
+				convert(stdin());
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename: args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
+					LOG.info("Reading from "+filename);
 					InputStream in=IOUtils.openURIForReading(filename);
 					convert(in);
 					in.close();
@@ -114,11 +90,14 @@ public class FastqEntropy extends AbstractCommandLineProgram
 				pw.println(this.length2count.count(n));
 				if(pw.checkError()) break;
 				}
+			pw.flush();
+			pw.close();
+			pw=null;
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

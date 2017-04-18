@@ -32,12 +32,15 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -53,10 +56,34 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SortingCollection;
 
-
-public class CompareBamAndBuild  extends AbstractCompareBamAndBuild
+@Program(
+		name="cmpbamsandbuild",
+		description="Compare two  BAM files mapped on two different builds. Requires a liftover chain file")
+public class CompareBamAndBuild  extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(CompareBamAndBuild.class);
+	private static final Logger LOG = Logger.build(CompareBamAndBuild.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-c","--chain"},description=") Lift Over file from bam1 to bam2. REQUIRED",required=true)
+	private File chainFile = null;
+
+	@Parameter(names={"-d","--distance"},description="distance tolerance between two alignments")
+	private int distance_tolerance = 10 ;
+
+	@Parameter(names={"-r","--region"},description="restrict to that region chr:start-end")
+	private String REGION = null;
+
+	
+	@Parameter(names={"-T","--tmpDir"},description="mp directory")
+	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+
+	@Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
+	private int maxRecordsInRam =50000;
+
+	
 	private final File bamFiles[]=new File[2];
 	private SAMSequenceDictionary sequenceDictionaries[]=new SAMSequenceDictionary[2];
 	private LiftOver liftOver=null;
@@ -271,16 +298,13 @@ public class CompareBamAndBuild  extends AbstractCompareBamAndBuild
     	return false;
     	}
    
-
-	@Override
-	public Collection<Throwable> call() throws Exception {
-		PrintWriter out = null;
+    @Override
+    public int doWork(final List<String> args) {
+    	PrintWriter out = null;
 		SortingCollection<Match> database = null;
-		if(super.chainFile==null) {
-			return wrapException("Chain file is not defined Option -"+OPTION_CHAINFILE);
+		if(this.chainFile==null) {
+			return wrapException("Chain file is not defined Option");
 			}
-		
-		final List<String> args = super.getInputFiles();
 		
 		if(args.size()!=2)
 			{
@@ -290,13 +314,13 @@ public class CompareBamAndBuild  extends AbstractCompareBamAndBuild
 		try
 				{
 				LOG.info("load chain file");
-				this.liftOver=new LiftOver(super.chainFile);
+				this.liftOver=new LiftOver(this.chainFile);
 				database = SortingCollection.newInstance(
 						Match.class,
 						new MatchCodec(),
 						new MatchOrdererInSortingCollection(),
-						super.getMaxRecordsInRam(),
-						super.getTmpDirectories()
+						this.maxRecordsInRam,
+						this.tmpDir
 						);
 				
 				database.setDestructiveIteration(true);
@@ -374,7 +398,7 @@ public class CompareBamAndBuild  extends AbstractCompareBamAndBuild
 				database.doneAdding();
 				LOG.info("Writing results....");
 				
-				out = super.openFileOrStdoutAsPrintWriter();
+				out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 				
 				//compute the differences for each read
 				out.print("#READ-Name\tCOMPARE");
@@ -397,10 +421,14 @@ public class CompareBamAndBuild  extends AbstractCompareBamAndBuild
 				int curr_num_in_pair=-1;
 				for(;;)
 					{
-					Match nextMatch = null;
+					final Match nextMatch ;
 					if(iter.hasNext())
 						{
 						nextMatch = iter.next();
+						}
+					else
+						{
+						nextMatch = null;
 						}
 					if(nextMatch==null ||
 						(currReadName!=null && !currReadName.equals(nextMatch.readName)) ||
