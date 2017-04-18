@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -46,42 +47,29 @@ import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
-import htsjdk.samtools.util.Log;
-
+@Program(name="blastmapannots",description="Maps uniprot/genbank annotations on a blast result.")
 public class BlastMapAnnotations
-	extends CommandLineProgram
+	extends Launcher
 	{
-    private static Log LOG=Log.getInstance(BlastMapAnnotations.class); 
+    private static Logger LOG=Logger.build(BlastMapAnnotations.class).make(); 
 	
 	private BlastOutput blastOutput=null;
 	
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"Maps uniprot/genbank annotations on a blast result. ";
     
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="XML sequence file Genbank.xml or uniprot.xml.",optional=false)
-	public File IN=null;
-    @Option(shortName= "B", doc="BLAST XML output (or stdin).",optional=true)
-	public File BLAST=null;
-    @Option(shortName= "APC", doc="append the sequence accession before the feature name.",optional=true)
-	public boolean APPEND_ACN=false;
-   
+    @Parameter(names={"-u","-g","--genbank","--uniprot"}, description="XML sequence file Genbank.xml or uniprot.xml.",required=true)
+    private File IN=null;
+    @Parameter(names={"-APC"}, description="append the sequence accession before the feature name.",required=true)
+    private boolean APPEND_ACN=false;	
+    @Parameter(names= "--include", description="Restrict to uniprot/feature/type of genbank/feature/key.")
+	private Set<String> INCL=new HashSet<String>();
+    @Parameter(names= "--exclude", description="Exclude uniprot/feature/type of genbank/feature/key.")
+	private Set<String> EXCL=new HashSet<String>();
 	
-	@Option(shortName= "INCLUDE", doc="Restrict to uniprot/feature/type of genbank/feature/key.",optional=true,minElements=0)
-	public Set<String> INCL=new HashSet<String>();
-	@Option(shortName= "EXCLUDE", doc="Exclude uniprot/feature/type of genbank/feature/key.",optional=true,minElements=0)
-	public Set<String> EXCL=new HashSet<String>();
-	
-
-    @Override
-    public String getVersion()
-    	{
-    	return "1.0";
-    	}
 
 	
 	private static class BlastPos
@@ -405,7 +393,7 @@ public class BlastMapAnnotations
 			int bedEnd= Math.max(convertQuery(getEntryStart1()).hit,convertQuery(getEntryEnd1()).hit);
 			if(bedEnd==getBedStart())
 				{
-				LOG.warn("Empty bed:", this.toString());
+				LOG.warning("Empty bed:");
 				}
 			return bedEnd;
 			}
@@ -651,7 +639,7 @@ public class BlastMapAnnotations
 								{
 								continue;
 								}
-							System.out.println(bi.toBedString());
+							stdout().println(bi.toBedString());
 							}
 						}
 					
@@ -699,7 +687,7 @@ public class BlastMapAnnotations
 								LOG.debug("interval "+bi);
 								if(!bi.isGbForward()) LOG.info("CHECK INTERVAL REVERSE");
 								if(!bi.isFeatureOverlapHsp()) continue;
-								System.out.println(bi.toBedString());
+								stdout().println(bi.toBedString());
 								}
 							}
 						
@@ -713,11 +701,8 @@ public class BlastMapAnnotations
 		
 		}
 	
-
-	
 	@Override
-	protected int doWork()
-		{
+	public int doWork(List<String> args) {
 		try
 			{
 			/** xml parser */
@@ -769,15 +754,20 @@ public class BlastMapAnnotations
 				return -1;
 				}
 			Document blastDom;
-			if(BLAST!=null)
+			if(args.size()==1)
 				{
-				LOG.info("reading "+BLAST);
-				blastDom=docBuilder.parse(BLAST);
+				LOG.info("reading "+args.get(0));
+				blastDom=docBuilder.parse(new File(args.get(0)));
+				}
+			else if(args.isEmpty())
+				{
+				LOG.info("reading from stdin");
+				blastDom=docBuilder.parse(stdin());
 				}
 			else
 				{
-				LOG.info("reading from stdin");
-				blastDom=docBuilder.parse(System.in);
+				LOG.error("Illegal number of args");
+				return -1;
 				}
 			this.blastOutput=unmarshaller.unmarshal(blastDom,BlastOutput.class).getValue();	
 			if(uniprotSet!=null) printUniprot(uniprotSet);

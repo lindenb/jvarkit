@@ -35,13 +35,16 @@ package com.github.lindenb.jvarkit.tools.fastq;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Collection;
 import java.util.List;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptException;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
@@ -56,12 +59,55 @@ import htsjdk.samtools.util.CloserUtil;
  * Pierre Lindenbaum PhD @yokofakun
  * @author lindenb
  * filters FASTQ with javascript
- */
-public class FastqJavascript
-	extends AbstractFastqJavascript
-	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(FastqJavascript.class);
 
+
+	BEGIN_DOC
+
+
+
+
+### Motivation
+
+
+The script puts 'rec' a FastqRecord, or 'pair' for an interleaved input, into the script context 
+
+
+END_DOC
+	*/
+
+@Program(name="fastqjs",description="Filters a FASTQ file using javascript( java nashorn engine). ")
+public class FastqJavascript
+	extends Launcher
+	{
+	private static final Logger LOG = Logger.build(FastqJavascript.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-N","--limit"},description="limit to 'N' records -1:all")
+	private long LIMIT = -1L ;
+
+	@Parameter(names={"-i","--interleaved"},description="interleaved input")
+	private boolean interleaved = false;
+
+	@Parameter(names={"-X","--failing"},description="Save dicarded reads in that file. Optional. Default: no file")
+	private File failingReadsFile = null;
+
+	@Parameter(names={"-R1","--R1"},description="for paired/interleaved input, save R1 reads in this file")
+	private File R1FileOut = null;
+
+	@Parameter(names={"-R2","--R1"},description="for paired/interleaved input, save R2 reads in this file")
+	private File R2FileOut = null;
+
+	@Parameter(names={"-e"},description="javascript expression")
+	private String javascriptExpr = null;
+	@Parameter(names={"-f"},description="javascript file")
+	private File javascriptFile = null;
+
+	
+	
 	private CompiledScript  script=null;
 	//private File failingReadsFile=null;
 	private FastqWriter failingReadsWriter=null;
@@ -215,40 +261,40 @@ public class FastqJavascript
 				{
 				if(!interleaved)
 					{
-					if( super.R1FileOut!=null || super.R2FileOut!=null) {
-						throw new IllegalStateException("This is not an interleaved input but option "+OPTION_R1FILEOUT+"/"+OPTION_R2FILEOUT+" were defined.");
+					if( this.R1FileOut!=null || this.R2FileOut!=null) {
+						throw new IllegalStateException("This is not an interleaved input but option R1FILEOUT / OPTION_R2FILEOUT were defined.");
 						}
-					if(super.getOutputFile()==null)
+					if(this.outputFile==null)
 						{
 						fastqWriters[0] = new BasicFastqWriter(new PrintStream(stdout()));
 						}
 					else
 						{
-						fastqWriters[0] = new BasicFastqWriter(super.getOutputFile());
+						fastqWriters[0] = new BasicFastqWriter(outputFile);
 						}
 					fastqWriters[1] = fastqWriters[0];
 					}
 				else /* interleaved */
 					{
-					if( 	(super.R1FileOut==null && super.R2FileOut!=null) ||
-							(super.R1FileOut!=null && super.R2FileOut==null)) {
-							throw new IllegalStateException("Option "+OPTION_R1FILEOUT+" / " + OPTION_R2FILEOUT+" must be both defined");
+					if( 	(this.R1FileOut==null && this.R2FileOut!=null) ||
+							(this.R1FileOut!=null && this.R2FileOut==null)) {
+							throw new IllegalStateException("Option  _R1FILEOUT  /  OPTION_R2FILEOUT  must be both defined");
 						}
-					else if( super.R1FileOut==null && super.R2FileOut==null) {
-						if(super.getOutputFile()==null)
+					else if( this.R1FileOut==null && this.R2FileOut==null) {
+						if(this.outputFile==null)
 							{
 							fastqWriters[0] = new BasicFastqWriter(new PrintStream(stdout()));
 							}
 						else
 							{
-							fastqWriters[0] = new BasicFastqWriter(super.getOutputFile());
+							fastqWriters[0] = new BasicFastqWriter(this.outputFile);
 							}
 						fastqWriters[1] = fastqWriters[0];
 						}
 					else
 						{
-						fastqWriters[0] = new BasicFastqWriter(super.R1FileOut);
-						fastqWriters[1] = new BasicFastqWriter(super.R2FileOut);
+						fastqWriters[0] = new BasicFastqWriter(this.R1FileOut);
+						fastqWriters[1] = new BasicFastqWriter(this.R2FileOut);
 						}
 					}
 			
@@ -260,7 +306,7 @@ public class FastqJavascript
 					final Record record=new Record(r.next());
 					record.nLine=count;
 					
-					if(super.interleaved)
+					if(this.interleaved)
 						{
 						if(!r.hasNext()) throw new IOException("interleaved: mate missing");
 						final Record mate= new Record(r.next());
@@ -308,25 +354,16 @@ public class FastqJavascript
 			}
 	
 
-	
 	@Override
-	public void printOptions(PrintStream out) {
-
-		super.printOptions(out);
-		}
-
-	@Override
-	public Collection<Throwable> call() throws Exception {
-		final List<String> args = super.getInputFiles();
-		
-		if( (super.R1FileOut==null && super.R2FileOut!=null) ||
-			(super.R1FileOut!=null && super.R2FileOut==null)) {
-			return wrapException("Option "+OPTION_R1FILEOUT+" / " + OPTION_R2FILEOUT+" must be both defined");
+	public int doWork(List<String> args) {
+		if( (this.R1FileOut==null && this.R2FileOut!=null) ||
+			(this.R1FileOut!=null && this.R2FileOut==null)) {
+			return wrapException("Option OPTION_R1FILEOUT  / OPTION_R2FILEOUT must be both defined");
 		}
 		
 		try
 			{
-			this.script  = super.compileJavascript();
+			this.script  = super.compileJavascript(this.javascriptExpr,this.javascriptFile);
 			
 			
 			
@@ -342,7 +379,7 @@ public class FastqJavascript
 				final FastqReader in1=new FourLinesFastqReader(new File(args.get(0)));
 				final FastqReader in2=new FourLinesFastqReader(new File(args.get(1)));
 				final FastqReader in=new InterleavedFastqReader(in1,in2);
-				super.interleaved = true;
+				this.interleaved = true;
 				doWork(in);
 				in.close();
 				}

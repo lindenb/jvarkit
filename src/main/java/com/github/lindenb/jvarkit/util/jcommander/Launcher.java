@@ -1272,6 +1272,11 @@ protected int wrapException(final Object msg)
 	return -1;
 	}
 
+/** just created to make a transition with old programs. Remove in the future */
+@Deprecated
+protected String getMessageBundle(final String s){
+	return String.valueOf(s);
+	}
 
 public void instanceMainWithExit( final String args[]) {
 	System.exit( instanceMain(args) );

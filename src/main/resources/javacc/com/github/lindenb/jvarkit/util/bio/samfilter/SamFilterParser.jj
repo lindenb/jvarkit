@@ -1,0 +1,336 @@
+options {
+static=true;
+DEBUG_PARSER=false;
+IGNORE_CASE=true;
+JDK_VERSION="1.8";
+}
+
+PARSER_BEGIN(SamFilterParser)
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+package com.github.lindenb.jvarkit.util.bio.samfilter;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.filter.SamRecordFilter;
+import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+
+import java.util.List;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.function.Predicate;
+import javax.annotation.Generated;
+
+/**
+
+  <#DIGIT:["0"-"9"]>
+| <#LETTER: (["a"-"z"]|"_"|["A"-"Z"])>
+| <INT:<DIGIT>  (<DIGIT>)*  >
+| <#CMP: ("ge"|"gt"|"le"|"lt"|"eq"|"ne")>
+| <CPAR: ")">
+| <NOT: "(NOT">
+| <AND: "(AND">
+
+| <ANY: ~[]>
+| <MAPQ: "(MAPQ-" <CMP> >
+| <FLAG: "(flag" >
+| <LE: "(<=" >
+| <GE: "(>=" >
+| <EQ: "(==" >
+| <NE: "(!=" >
+| <LT: "(<" >
+| <GT: "(>" >
+
+  <OR>   list = nodelist() <CPAR> { return orNode(list);}
+	| <AND>  list =  nodelist() <CPAR> { return andNode(list);}
+	| <NOT> pf = node() <CPAR> { return pf.negate(); }
+	| <READMAPPED> <CPAR> { return readUnmapped().negate();}
+	| <READUNMAPPED> <CPAR> { return readUnmapped();}
+	| <FLAG>  t=<INT> <CPAR> { return testFlag(Integer.parseInt(t.image));}
+	| <OVERLAP> text=characters() <CPAR> { return overlapBed(text);}
+	
+
+private  ToIntFunction<SAMRecord> integer() : {Token t;}
+	{
+	(
+	  t=<INT> { return  toInt(Integer.parseInt(t.image)); }
+	 | <MAPQ> <CPAR> { return mapq(); 	}
+	 )}
+
+
+private java.util.Comparator<Integer> intcmp():{}
+	{
+	(
+	 <LT> { return null ;}
+	)
+	}	
+	
+	private List<Predicate<SAMRecord>> nodelist(): {
+			final List<Predicate<SAMRecord>> L = new ArrayList<Predicate<SAMRecord>>();
+			Predicate<SAMRecord> f=null;
+			}
+	{
+	f=node() { L.add(f);} (f=node() { L.add(f);} )* 
+		{
+		return L;
+		}
+	}
+*/
+
+
+@Generated("javacc")
+public class SamFilterParser {
+		private static final Logger LOG = Logger.build(SamFilterParser.class).make();
+
+		public static SamRecordFilter build(final String expr) throws ParseException {
+			
+			Reader r= null;
+			try {
+			r= new StringReader(expr);
+			SamFilterParser sfp =new SamFilterParser(r);
+			final Predicate<SAMRecord> pred= sfp.anyNode();
+			r.close();
+			return new SamRecordFilter() {
+				@Override
+				public boolean filterOut(SAMRecord first, SAMRecord second) {
+					throw new IllegalStateException("SamRecordFilter.filterOut(a,b); <- shouldn't happen");
+				}
+				
+				@Override
+				public boolean filterOut(final SAMRecord record) {
+					return pred.test(record);
+				}
+			};
+			} catch(final ParseException err) {
+				throw new RuntimeIOException(err);
+			} catch(final IOException err) {
+				throw new RuntimeIOException(err);
+			} finally
+			{
+				CloserUtil.close(r);
+			}
+		}
+
+	
+        private static Predicate<SAMRecord> overlapBed(final String fname) {
+            final File bedFile = new File(fname);
+            final BedLineCodec codec = new BedLineCodec();
+            final IntervalTreeMap<Boolean> intervals = new IntervalTreeMap<Boolean>();
+            BufferedReader r = null;
+            try {
+            	r = IOUtils.openFileForBufferedReading(bedFile);
+            	String line;
+            	while((line=r.readLine())!=null) {
+            		final BedLine bedline = codec.decode(line);
+            		if(bedline==null)  continue;
+            		intervals.put(new Interval(
+            			bedline.getContig(),
+            			bedline.getStart()+1,
+            			bedline.getEnd()),
+            			Boolean.TRUE
+            			);
+            	}
+            	CloserUtil.close(r);
+	            return new Predicate<SAMRecord>() {
+					@Override
+					public boolean test(final SAMRecord t) {
+						return !t.getReadUnmappedFlag() && 
+								intervals.containsContained(new Interval(t.getContig(), t.getStart(), t.getEnd()))
+								;
+					}
+				};
+            } catch(final IOException err) { 
+            	throw new RuntimeIOException(err);
+            }
+            finally {
+            	CloserUtil.close(r);
+            }
+        }
+
+	
+	private static String unescape(final String s) throws ParseException
+		{
+		final StringBuilder b=new StringBuilder(s.length());
+        int i=0;
+        while(i<s.length())
+        	{
+        	if(s.charAt(i)=='\\')
+        		{
+        		if( i+1== s.length())  throw new ParseException("Badly escaped string "+s);
+        		++i;
+        		switch(s.charAt(i))
+        			{
+        			case 'n': b.append("\n");break;
+        			case 'r': b.append("\r");break;
+        			case 't': b.append("\t");break;
+        			case '\\': b.append("\\");break;
+        			case '\'': b.append("\'");break;
+        			case '\"': b.append("\"");break;
+        			default: throw new ParseException("Badly escaped string "+s);
+        			}
+        		}
+        	else
+        		{
+        		b.append(s.charAt(i));
+        		}
+        	++i;
+        	}
+        return b.toString();
+		}
+		
+		private static Predicate<SAMRecord> duplicateFilter() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getDuplicateReadFlag();}
+			}; }
+		private static Predicate<SAMRecord> unmappedFilter() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadUnmappedFlag();}
+			}; }
+		private static Predicate<SAMRecord> failsVendorQuality() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadFailsVendorQualityCheckFlag();}
+			}; }
+		private static Predicate<SAMRecord> readPaired() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadPairedFlag();}
+			}; }
+		private static Predicate<SAMRecord> mateUnmapped() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return rec.getMateUnmappedFlag();}
+			}; }
+		private static Predicate<SAMRecord> samFlag(final int flg) {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return (rec.getFlags() & flg) != 0;}
+			}; }
+		
+		
+	}
+	
+PARSER_END(SamFilterParser)
+
+SKIP :
+{
+" "
+| "\t"
+| "\n"
+| "\r"
+}
+
+
+TOKEN:
+{
+  <#DIGIT:["0"-"9"]>
+| <#LETTER: (["a"-"z"]|"_"|["A"-"Z"])>
+| <INT:<DIGIT>  (<DIGIT>)* >
+| <OR: "||">
+| <AND: "&&">
+| <OPAR: "(">
+| <CPAR: ")">
+| <NOT: "!">
+| <#ESCAPE_CHAR: "\\" ["n","t","b","r","f","\\","'","\""] >
+| <SIMPLE_QUOTE_LITERAL:"\'" ( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\'" >
+| <DOUBLE_QUOTE_LITERAL: "\"" ( (~["\"","\\","\n","\r"])|<ESCAPE_CHAR>)* "\"" >
+| <DUPLICATE: "Duplicate" >
+| <UNMAPPED: "Unmapped" >
+| <MATEUNMAPPED: "MateUnmapped" >
+| <FAILSVENDORQUALITY: "FailsVendorQuality" >
+| <PAIRED: "Paired" >
+| <OVERLAP: "overlap" >
+| <SAMFLAG: "samFlag" >
+}
+
+	
+private Predicate<SAMRecord> anyNode(): { Predicate<SAMRecord> other;}
+	{
+	(
+	  other = NegateExpr() { return other;}
+	| other= OrExpr() { return other;}
+	| <OPAR> other=anyNode() <CPAR> { return other;}
+	)
+	}
+
+
+private Predicate<SAMRecord> NegateExpr(): { }
+	{
+	<NOT> OrExpr() { return null;}
+	}
+
+
+private Predicate<SAMRecord> OrExpr(): { Predicate<SAMRecord> root,other;}
+	{
+	root=AndExpr() ( <OR> other=AndExpr() {root = root.or(other); } )*  { return root;}
+	}
+
+private Predicate<SAMRecord> AndExpr(): { Predicate<SAMRecord> root,other;}
+	{
+	root=UnaryExpr() ( <AND> other=UnaryExpr() {root = root.and(other); } )* { return root;}
+	}
+	
+private Predicate<SAMRecord> UnaryExpr(): {String str; Token t;}
+	{
+	(
+	  <DUPLICATE> { return duplicateFilter(); }
+	| <UNMAPPED> { return unmappedFilter();}
+	| <FAILSVENDORQUALITY> { return failsVendorQuality();}
+	| <PAIRED> {  return readPaired();}
+	| <MATEUNMAPPED> {  return mateUnmapped();}
+	| <OVERLAP> <OPAR>  str=characters() <CPAR> { return overlapBed(str);}
+	| <SAMFLAG> <OPAR> t=<INT> <CPAR> { return samFlag(Integer.parseInt(t.image));}
+	)
+	
+	}
+
+	
+private String characters():
+	{
+	Token t;
+	}
+	{
+	(
+	t=<SIMPLE_QUOTE_LITERAL>
+		{
+		return  unescape(t.image.substring(1,t.image.length()-1));
+		}
+	| t=<DOUBLE_QUOTE_LITERAL>
+		{
+		return unescape(t.image.substring(1,t.image.length()-1));
+		}
+	)
+	}
+	
+	
