@@ -29,11 +29,11 @@ History:
 package com.github.lindenb.jvarkit.tools.bamindexnames;
 
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 
 
 public abstract class BaseBamIndexReadNames
-	extends AbstractCommandLineProgram
+	extends Launcher
 	{
 	protected static final int FILE_PREFIX_SIZE=4+8;
 	protected static final String NAME_IDX_EXTENSION=".names.idx";

@@ -41,7 +41,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 
@@ -56,10 +60,100 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
+/**
+
+BEGIN_DOC
+
+
+
+
+### History
+
+
+
+* Dec 2013 Added PROPER_PAIR_HMQ for @SolenaLS
+* Dec 2013 Added X and Y for @SolenaLS
+
+
+
+### Output
+
+
+See also: http://picard.sourceforge.net/explain-flags.html
+
+
+#### Counts
+
+
+* TOTAL : total number of reads (not PAIRS of reads)
+* PAIRED: total number of reads paired (should be equals to ALL for a paired-end assay)
+* UNMAPPED : count unmapped reads 
+* MAPPED  : count mapped reads
+* PROPER_PAIR  : count reads in proper pair (forward+reverse, same chromosome, distance is OK)
+* PROPER_PAIR_HMQ  : proper pairs with mapping quality >= user qual
+* PLUS : reads on plus strand
+* MINUS : reads on minus strand
+* PRIMARY_ALIGNMENT : alignment flagged as primary alignment (not alternative position)
+* FAIL_MAPPING_QUALITY : MAQ < user qual
+* DUPLICATE : the flag 'duplicate' was set
+* FAIL_VENDOR_QUALITY : the flag "read fails platform/vendor quality checks" was set
+* OK_FOR_PE_CALLING : reads ok for Paired-end mapping ( properly paired, not dup, not fails_vendor_qual,  not fails_mapping_qual, primary align )
+* X and Y : number of reads mapping the chromosomes X/chrX and Y/chrY
+
+
+#### Categories
+
+
+* ALL: all reads
+* IN_TARGET: reads overlapping user's BED (if provided)
+* OFF_TARGET: reads with no overlap with user's BED (if provided)
+
+
+
+### Example
+
+
+
+
+```
+$  java -jar dist/bamstats01.jar \
+		IN=my.bam \
+		BED=capture.bed
+
+(...)
+#Filename	Sample	ALL_TOTAL	ALL_PAIRED	ALL_UNMAPPED	ALL_MAPPED	ALL_PROPER_PAIR	ALL_PLUS_STRAND	ALL_MINUS_STRAND	ALL_PRIMARY_ALIGNMENT	ALL_FAIL_MAPPING_QUALITY	ALL_DUPLICATE	ALL_FAIL_VENDOR_QUALITY	IN_TARGET_TOTAL	IN_TARGET_PAIRED	IN_TARGET_UNMAPPED	IN_TARGET_MAPPED	IN_TARGET_PROPER_PAIR	IN_TARGET_PLUS_STRAND	IN_TARGET_MINUS_STRAND	IN_TARGET_PRIMARY_ALIGNMENT	IN_TARGET_FAIL_MAPPING_QUALITY	IN_TARGET_DUPLICATE	IN_TARGET_FAIL_VENDOR_QUALITY	OFF_TARGET_TOTAL	OFF_TARGET_PAIRED	OFF_TARGET_UNMAPPED	OFF_TARGET_MAPPED	OFF_TARGET_PROPER_PAIR	OFF_TARGET_PLUS_STRAND	OFF_TARGET_MINUS_STRAND	OFF_TARGET_PRIMARY_ALIGNMENT	OFF_TARGET_FAIL_MAPPING_QUALITY	OFF_TARGET_DUPLICATE	OFF_TARGET_FAIL_VENDOR_QUALITY
+my.bam	Sample	1617984	1617984	3966	1614018	1407862	806964	807054	1614018	56980	0	0	1293922	1293922	0	1293922	1133808	644741	649181	1293922	14087	0	0	320096	320096	0	320096	274054	162223	157873	320096	42893	0	0
+(...)
+
+```
+
+
+
+
+
+
+
+END_DOC
+*/
+
+
+@Program(name="samstats01",description="Statistics about the reads in a BAM.")
 public class BamStats01
-	extends AbstractBamStats01
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamStats01.class);
+
+	private static final Logger LOG = Logger.build(BamStats01.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-B","--bed"},description="capture bed file. Optional")
+	private File bedFile = null;
+
+	@Parameter(names={"-q","--qual"},description="min mapping quality")
+	private double minMappingQuality = 30.0 ;
 
 	private PrintStream out=System.out;
 	//private File bedFile=null;
@@ -376,11 +470,10 @@ public class BamStats01
 				}
 		}
 	@Override
-	public Collection<Throwable> call() throws Exception {
-		
-		final List<String> args= new ArrayList<>(IOUtils.unrollFiles(this.getInputFiles())); 
+	public int doWork(final List<String> inputs) {
+		final List<String> args= new ArrayList<>(IOUtils.unrollFiles(inputs)); 
 		try {
-			this.out = super.openFileOrStdoutAsPrintStream();
+			this.out = super.openFileOrStdoutAsPrintStream(this.outputFile);
 			
 			out.print("#Filename\tSample");
 			for(Category2 cat2: Category2.values())

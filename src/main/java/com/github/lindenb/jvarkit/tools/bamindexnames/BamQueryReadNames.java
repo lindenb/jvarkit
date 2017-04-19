@@ -48,13 +48,32 @@ import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
+@Program(description="Query a Bam file indexed with BamIndexReadNames")
 public class BamQueryReadNames extends BaseBamIndexReadNames
 	{
+	private static final Logger LOG=Logger.build(BamQueryReadNames.class).make();
+	@Parameter(names={"-o","--out"},description="Output file")
+	private File outputFile=null;
+
+	@Parameter(names={"-s"},description="user list of read names is sorted")
+	private boolean query_reads_is_sorted=false;
+	
+	@Parameter(names={"-N"},description=" save unmatched names here")
+	private File notFoundFile=null;
+
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
+	
 	private RandomAccessFile raf;
 	private NameIndexDef indexDef;
 
@@ -62,15 +81,6 @@ public class BamQueryReadNames extends BaseBamIndexReadNames
 		{
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"BamQueryReadNames";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Query a Bam file indexed with BamIndexReadNames";
-		}
 	
 	
 	private NameAndPos getNameAndPosAt(long index)
@@ -123,65 +133,30 @@ public class BamQueryReadNames extends BaseBamIndexReadNames
 			return first;
 		}
 
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -N (file) save unmatched names here. (Optional)");
-		out.println(" -s user list of read names is sorted. (Optional)");
-		out.println(" -b write binary bam (Optional)");
-		super.printOptions(out);
-		}
+
 
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		boolean binary_bam=false;
-		boolean query_reads_is_sorted=false;
+	public int doWork(List<String> args) {
 		PrintWriter notFoundStream=new PrintWriter(new NullOuputStream());
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"N:sb"))!=-1)
-			{
-			switch(c)
-				{
-				case 's': query_reads_is_sorted=true;break;
-				case 'b': binary_bam=true;break;
-				case 'N':
-					{
-					try
-						{
-						notFoundStream=new PrintWriter(new File(opt.getOptArg()));
-						}
-					catch(IOException err)
-						{
-						error(err);
-						return -1;
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
 		SamReader sfr=null;
 		SAMFileWriter bamw=null;
 		try
 			{
-			if(!(opt.getOptInd()+2==args.length || opt.getOptInd()+1==args.length))
+			
+			
+			if(!(2==args.size() ||1==args.size()))
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
-			File bamFile=new File(args[opt.getOptInd()+0]);
+			
+			if(this.notFoundFile==null)
+				{
+				notFoundStream=openFileOrStdoutAsPrintWriter(notFoundFile);
+				}
+			
+			File bamFile=new File(args.get(0));
 			sfr=SamReaderFactory.makeDefault().
 					validationStringency(ValidationStringency.SILENT).
 					open(bamFile);
@@ -193,31 +168,17 @@ public class BamQueryReadNames extends BaseBamIndexReadNames
 			
 			
 			LineIterator r=null;
-			if(opt.getOptInd()+2==args.length)
+			if(args.size()==2)
 				{
-				r=IOUtils.openURIForLineIterator(args[opt.getOptInd()+1]);
+				r=IOUtils.openURIForLineIterator(args.get(1));
 				}
 			else
 				{
 				r=IOUtils.openStdinForLineIterator();
 				}
 			SAMFileHeader header=sfr.getFileHeader().clone();
-			SAMProgramRecord spr=header.createProgramRecord();
-			spr.setProgramName(getProgramName());
-			spr.setCommandLine(getProgramCommandLine());
-			spr.setProgramVersion(getVersion());
 			
-			SAMFileWriterFactory sfw=new SAMFileWriterFactory();
-			sfw.setCreateIndex(false);
-			header.setSortOrder(SortOrder.unsorted);
-			if(binary_bam)
-				{
-				bamw=sfw.makeBAMWriter(header, false, System.out);
-				}
-			else
-				{
-				bamw=sfw.makeSAMWriter(header, false, System.out);
-				}
+			bamw=writingBamArgs.openSAMFileWriter(this.outputFile, header, true);
 			
 			
 			long iter_start = 0L;
@@ -341,7 +302,7 @@ public class BamQueryReadNames extends BaseBamIndexReadNames
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

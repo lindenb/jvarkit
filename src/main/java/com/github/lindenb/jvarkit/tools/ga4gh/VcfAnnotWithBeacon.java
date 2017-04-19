@@ -1,0 +1,353 @@
+package com.github.lindenb.jvarkit.tools.ga4gh;
+
+import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URLEncoder;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.entity.ContentType;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.sleepycat.bind.tuple.StringBinding;
+import com.sleepycat.bind.tuple.TupleBinding;
+import com.sleepycat.bind.tuple.TupleInput;
+import com.sleepycat.bind.tuple.TupleOutput;
+import com.sleepycat.je.Database;
+import com.sleepycat.je.DatabaseConfig;
+import com.sleepycat.je.DatabaseEntry;
+import com.sleepycat.je.Environment;
+import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.LockMode;
+import com.sleepycat.je.OperationStatus;
+import com.sleepycat.je.Transaction;
+
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
+/* 
+ BEGIN_DOC
+ 
+ 
+ END_DOC
+ */
+@Program(
+		name="vcfannotwithbeacon",
+		description="Annotate a VCF with ga4gh beacon"
+		)
+public class VcfAnnotWithBeacon extends Launcher {
+	private static final Logger LOG=Logger.build(VcfAnnotWithBeacon.class).make();
+	@Parameter(names={"-o","--out"},description="output file . Default:stdout")
+	private File outputFile = null;
+	
+	@Parameter(names={"-B","--bdb"},description="Optional BerkeleyDB directory to store result. Avoid to make the same calls to beacon")
+	private File bdbDir = null;
+	@Parameter(names={"--build"},description="genome build")
+	private String genomeBuild = "HG19";
+	@Parameter(names={"--tag","-T"},description="INFO TAG")
+	private String infoTag = "BEACON";
+	@Parameter(names={"--noupdate"},description="Don't query the variant already having the tag / do not update the existing annotation")
+	private boolean dontUpdateIfInfoIsPresent = false;
+	@Parameter(names={"--stopOnError"},description="Stop on network error.")
+	private boolean stopOnNetworkError = false;
+	@Parameter(names={"--baseurl"},description="Beacon Base URL API")
+	private String baseurl="https://beacon-network.org/api";
+	
+	
+	/** BerkeleyDB Environment to store results */
+	private Environment bdbEnv=null;
+	/** BerkeleyDB beacon buffer */
+	private Database beaconDatabase=null;
+	/** BerkeleyDB transaction */
+	private Transaction txn=null;
+	
+	private static class StoredResponse
+		{
+		long timeStamp;
+		Set<String> foundIn=new HashSet<>();
+		}
+	private static class StoredResponseBinding extends TupleBinding<StoredResponse>
+		{
+		@Override
+		public StoredResponse entryToObject(TupleInput in) {
+			StoredResponse st=new StoredResponse();
+			st.timeStamp = in.readLong();
+			int n= in.readInt();
+			for(int i=0;i< n;++i) st.foundIn.add(in.readString());
+			return st;
+		}
+		@Override
+		public void objectToEntry(StoredResponse st, TupleOutput out) {
+			out.writeLong(st.timeStamp);
+			out.writeInt(st.foundIn.size());
+			for(final String sw:st.foundIn)
+				out.writeString(sw.toString());
+			}
+		}
+
+	
+	
+	@Override
+	protected int doVcfToVcf(String inputName,final VcfIterator iter,final VariantContextWriter out) {
+		CloseableHttpClient httpClient=null;
+		InputStream contentInputStream = null;
+		
+		try 
+ {
+			httpClient = HttpClients.createDefault();
+			HttpGet httpGetRequest = null;
+
+			final Set<String> available_chromosomes = new HashSet<>();
+			try {
+				httpGetRequest = new HttpGet(baseurl+"/chromosomes");
+				httpGetRequest.setHeader("Accept", ContentType.APPLICATION_JSON.getMimeType());
+				contentInputStream = httpClient.execute(httpGetRequest).getEntity().getContent();
+				JsonParser jsonparser = new JsonParser();
+				final JsonElement root = jsonparser.parse(new InputStreamReader(contentInputStream));
+				Iterator<JsonElement> jsr = root.getAsJsonArray().iterator();
+				while (jsr.hasNext()) {
+					final String ctg = jsr.next().getAsString();
+					available_chromosomes.add(ctg);
+				}
+			} catch (final Exception err) {
+				LOG.error(err);
+				return -1;
+			} finally {
+				CloserUtil.close(contentInputStream);
+			}
+
+			final Set<String> available_alleles = new HashSet<>();
+
+			try {
+				httpGetRequest = new HttpGet(baseurl+"/alleles");
+				httpGetRequest.setHeader("Accept", ContentType.APPLICATION_JSON.getMimeType());
+				contentInputStream = httpClient.execute(httpGetRequest).getEntity().getContent();
+
+				JsonParser jsonparser = new JsonParser();
+				final JsonElement root = jsonparser.parse(new InputStreamReader(contentInputStream));
+				Iterator<JsonElement> jsr = root.getAsJsonArray().iterator();
+				while (jsr.hasNext()) {
+					final String allele = jsr.next().getAsString();
+					available_alleles.add(allele);
+				}
+			} catch (final Exception err) {
+				LOG.error(err);
+				return -1;
+			} finally {
+				CloserUtil.close(contentInputStream);
+			}
+
+			final StoredResponseBinding storedResponseBinding = new StoredResponseBinding();
+			final VCFHeader header = new VCFHeader(iter.getHeader());
+
+			final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(this.infoTag, VCFHeaderLineCount.UNBOUNDED,
+					VCFHeaderLineType.String, "Tag inserted with " + getProgramName());
+			header.addMetaDataLine(infoHeaderLine);
+			DatabaseEntry key = new DatabaseEntry();
+			DatabaseEntry data = new DatabaseEntry();
+			out.writeHeader(header);
+			while (iter.hasNext()) {
+				final VariantContext ctx = iter.next();
+				if (!ctx.isVariant() || ctx.getReference().isSymbolic()) {
+					out.add(ctx);
+					continue;
+				}
+
+				if (ctx.hasAttribute(infoHeaderLine.getID()) && this.dontUpdateIfInfoIsPresent) {
+					out.add(ctx);
+					continue;
+				}
+
+				String beaconContig = ctx.getContig();
+				if (!available_chromosomes.contains(beaconContig)) {
+					if (beaconContig.startsWith("chr")) {
+						beaconContig = beaconContig.substring(3);
+					}
+					if (!available_chromosomes.contains(beaconContig)) {
+						out.add(ctx);
+						continue;
+					}
+
+				}
+
+				final List<Allele> altAlleles = ctx.getAlternateAlleles();
+				if (altAlleles.isEmpty()) {
+					out.add(ctx);
+					continue;
+				}
+				final Set<String> newInfo = new HashSet<>();
+				for (final Allele alt : altAlleles) {
+					if (alt.isSymbolic() || alt.isNoCall())
+						continue;
+					final StringBuilder buildUrl = new StringBuilder();
+					buildUrl.append("chrom=");
+					buildUrl.append(URLEncoder.encode(beaconContig, "UTF-8"));
+					buildUrl.append("&pos=");
+					/*
+					 * "Coordinate within a chromosome. Position is a number and is 0-based"
+					 * .
+					 */
+					buildUrl.append(ctx.getStart() - 1);
+					buildUrl.append("&allele=");
+
+					final String allele;
+
+					if (ctx.getReference().length() > alt.length()) {
+						allele = "D";// del
+					} else if (ctx.getReference().length() > alt.length()) {
+						allele = "I";// ins
+					} else {
+						allele = alt.getDisplayString();
+					}
+					if (!available_alleles.contains(allele))
+						continue;
+					buildUrl.append(allele);
+					buildUrl.append("&ref=");
+					buildUrl.append(URLEncoder.encode(this.genomeBuild, "UTF-8"));
+
+					final String queryUrl = buildUrl.toString();
+
+					boolean foundInBdb = false;
+					Set<String> foundIn = null;
+					if (this.beaconDatabase != null) {
+						StringBinding.stringToEntry(queryUrl, key);
+						if (this.beaconDatabase.get(this.txn, key, data, LockMode.DEFAULT) == OperationStatus.SUCCESS) {
+							StoredResponse response = storedResponseBinding.entryToObject(data);
+							if (response.timeStamp < 0) // TODO check how old is
+														// that data
+							{
+								response = null;
+								this.beaconDatabase.delete(this.txn, key);
+							}
+							if (response != null) {
+								foundInBdb = true;
+								foundIn = response.foundIn;
+							}
+						}
+					}
+
+					if (foundIn == null) {
+						foundIn = new HashSet<>();
+
+						
+						LOG.debug(httpGetRequest.getURI());
+						try {
+							httpGetRequest = new HttpGet(baseurl+"/responses?" + queryUrl);
+							httpGetRequest.setHeader("Accept", ContentType.APPLICATION_JSON.getMimeType());
+							contentInputStream = httpClient.execute(httpGetRequest).getEntity().getContent();
+
+							JsonParser jsonparser = new JsonParser();
+							final JsonElement root = jsonparser.parse(new InputStreamReader(contentInputStream));
+							Iterator<JsonElement> jsr = root.getAsJsonArray().iterator();
+							while (jsr.hasNext()) {
+								final JsonObject b = jsr.next().getAsJsonObject();
+								if (!(b.has("beacon") && b.has("response")))
+									continue;
+								final String beacon_id = b.get("beacon").getAsJsonObject().get("id").getAsString();
+								final JsonElement response_prim = b.get("response");
+								if (response_prim.isJsonPrimitive() && response_prim.getAsBoolean()) {
+									foundIn.add(beacon_id);
+								}
+							}
+
+						} catch (final Exception err) {
+							LOG.error(err);
+							if (stopOnNetworkError) {
+								throw new RuntimeIOException(err);
+							}
+						}
+						finally {
+							CloserUtil.close(contentInputStream);
+							}
+						}
+					
+
+					if (this.beaconDatabase != null && !foundInBdb) {
+						StoredResponse response = new StoredResponse();
+						response.timeStamp = System.currentTimeMillis();
+						response.foundIn = foundIn;
+					}
+					// 17&pos=41244981&=G&ref=GRCh37")
+					newInfo.addAll(
+							foundIn.stream().map(S -> alt.getDisplayString() + "|" + S).collect(Collectors.toSet()));
+				}
+				if (newInfo.isEmpty()) {
+					out.add(ctx);
+					continue;
+				}
+
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				vcb.attribute(infoHeaderLine.getID(), newInfo);
+				out.add(vcb.make());
+			}
+			return 0;
+		}
+		catch(final Exception err)
+			{
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(httpClient);
+			}
+		}
+	
+	@Override
+		public int doWork(final List<String> args) {
+			try
+				{
+				if(this.bdbDir!=null) {
+					LOG.info("open BDB "+this.bdbDir);
+					IOUtil.assertDirectoryIsWritable(this.bdbDir);
+					final EnvironmentConfig envCfg=new EnvironmentConfig();
+					envCfg.setAllowCreate(true);
+					envCfg.setReadOnly(false);
+					this.bdbEnv = new Environment(this.bdbDir, envCfg);
+					
+					final DatabaseConfig cfg=new DatabaseConfig();
+					cfg.setAllowCreate(true);
+					cfg.setReadOnly(false);
+					this.beaconDatabase = this.bdbEnv.openDatabase(this.txn,"ga4ghBeaconBuffer",cfg);
+					}
+				return doVcfToVcf(args, outputFile);
+				}
+			catch(final Exception err)
+				{
+				LOG.error(err);
+				return -1;
+				}
+			finally
+				{
+				CloserUtil.close(beaconDatabase);
+				CloserUtil.close(bdbEnv);
+				}
+			
+			}
+	
+public static void main(String[] args) {
+	new VcfAnnotWithBeacon().instanceMainWithExit(args);
+	}
+}

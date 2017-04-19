@@ -28,11 +28,11 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.ensembl;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -68,20 +68,40 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.TeeInputStream;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-/**
- * 
- * VcfEnsemblVepRest
- *
- */
+@Program(name="vcfensemblvep",description="Annotate a VCF with ensembl REST API")
 public class VcfEnsemblVepRest 
-	extends AbstractVcfEnsemblVepRest
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfEnsemblVepRest.class);
+	private static final Logger LOG = Logger.build(VcfEnsemblVepRest.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-s","--server"},description="REST server")
+	private String server = "http://grch37.rest.ensembl.org";
+
+	@Parameter(names={"-e","--extension"},description="Path extension")
+	private String extension = "/vep/homo_sapiens/region";
+
+	@Parameter(names={"-n","--batchSize"},description="batch size")
+	private int batchSize = 100 ;
+
+	@Parameter(names={"-x","--base64"},description="save whole XML document as xml base 64")
+	private boolean xmlBase64 = false;
+
+	@Parameter(names={"-T","--tee"},description="'Tee' xml response to stderr")
+	private boolean teeResponse = false;
+
 	public static final String TAG="VEPTRCSQ";
 	@SuppressWarnings("unused")
 	private static final ObjectFactory _fool_javac=null;
@@ -217,20 +237,41 @@ public class VcfEnsemblVepRest
 		{
 		return (Document)generic_vep(contexts,true);
 		}
+	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception
-		{
-		return doVcfToVcf(inputName);
+	public int doWork(final List<String> args) {
+	try {
+		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+		this.documentBuilder=dbf.newDocumentBuilder();
+		
+		final JAXBContext context = JAXBContext.newInstance("org.ensembl.vep");
+		this.unmarshaller=context.createUnmarshaller();
+		
+		TransformerFactory trf=TransformerFactory.newInstance();
+		this.xmlSerializer = trf.newTransformer();
+		
+		/** create http client */
+		this.httpClient = HttpClients.createDefault();
+		return doVcfToVcf(args, this.outputFile);
 		}
-	
+	catch(Exception err) {
+		LOG.error(err);
+		return -1;
+	}
+	finally 
+		{
+		this.unmarshaller=null;
+		CloserUtil.close(this.httpClient);
+		this.httpClient=null;
+			
+		}
+	}
+		
 	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator vcfIn,
-			final VariantContextWriter out) throws IOException
-		{
-	    final java.util.Base64.Encoder  base64Encoder=java.util.Base64.getEncoder();
+	protected int doVcfToVcf(String inputName, VcfIterator vcfIn, VariantContextWriter out) {
+	    try {
+		final java.util.Base64.Encoder  base64Encoder=java.util.Base64.getEncoder();
 		final SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
 		VCFHeader header=vcfIn.getHeader();
 		List<VariantContext> buffer=new ArrayList<>(this.batchSize+1);
@@ -397,37 +438,14 @@ public class VcfEnsemblVepRest
 			}
 		progress.finish();
 		return RETURN_OK;
+	    } catch(Exception err)
+	    	{
+	    	LOG.error(err);
+	    	return -1;
+	    	}
+	
 		}
 	
-	@Override
-	public Collection<Throwable> initializeKnime() {
-		JAXBContext context;
-		try {
-			DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-			this.documentBuilder=dbf.newDocumentBuilder();
-			
-			context = JAXBContext.newInstance("org.ensembl.vep");
-			this.unmarshaller=context.createUnmarshaller();
-			
-			TransformerFactory trf=TransformerFactory.newInstance();
-			this.xmlSerializer = trf.newTransformer();
-			
-			
-		} catch (Exception e) {
-			return wrapException(e);
-		}
-		/** create http client */
-		this.httpClient = HttpClients.createDefault();
-		return super.initializeKnime();
-		}
-	
-	@Override
-	public void disposeKnime() {
-		this.unmarshaller=null;
-		CloserUtil.close(this.httpClient);
-		this.httpClient=null;
-		super.disposeKnime();
-		}
 	
 	public static void main(String[] args) {
 		new VcfEnsemblVepRest().instanceMainWithExit(args);

@@ -27,7 +27,6 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Set;
@@ -76,6 +75,9 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 @SuppressWarnings("serial")
 class BatchIGVPicturesFrame extends JFrame
@@ -1013,21 +1015,19 @@ class BatchIGVPicturesFrame extends JFrame
 	
 	}
 
-public class BatchIGVPictures extends AbstractBatchIGVPictures
+@Program(name="batchigvpictures")
+public class BatchIGVPictures extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BatchIGVPictures.class);
-	
+	private static final Logger LOG=Logger.build(BatchPictures.class).make();
 	
 		@Override
-		public Collection<Throwable> call() throws Exception
-			{
+		public int doWork(final List<String> args) {
 
 			final BatchIGVPicturesFrame app=new BatchIGVPicturesFrame();
 			
-			app.about=" Author:"+ getAuthorName()+
+			app.about=" Author: Pierre Lindenbaum "+
 						" Version:"+getVersion()+
 						" Htsjdk.version:"+HtsjdkVersion.getVersion()+
-						" WWW:"+ getOnlineDocUrl()+
 						" Date:"+getCompileDate()
 						;
 			try
@@ -1037,7 +1037,7 @@ public class BatchIGVPictures extends AbstractBatchIGVPictures
 					public void run()
 						{
 						Dimension win=Toolkit.getDefaultToolkit().getScreenSize();
-						app.setTitle(getName());
+						app.setTitle(getProgramName());
 						app.pack();
 						Dimension ps=app.getPreferredSize();
 						app.setLocation(

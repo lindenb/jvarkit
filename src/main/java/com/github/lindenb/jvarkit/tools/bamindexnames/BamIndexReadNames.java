@@ -35,7 +35,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
+import java.util.List;
 
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -48,9 +51,11 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
 
+@Program(description="Build a dictionary of read names to be searched with BamQueryReadNames")
 public class BamIndexReadNames
 	extends BaseBamIndexReadNames
 	{
+	private static final Logger LOG=Logger.build(BamIndexReadNames.class).make();
 	private BamIndexReadNames()
 		{
 		
@@ -113,7 +118,7 @@ public class BamIndexReadNames
 			NameIndexDef indexDef=new NameIndexDef();
 
 			SortingCollection<NameAndPos> sorting=null;
-			info("Opening "+bamFile);
+			LOG.info("Opening "+bamFile);
 			SamReader sfr=SamReaderFactory.makeDefault().
 					validationStringency(ValidationStringency.SILENT).
 					open(bamFile);
@@ -122,7 +127,7 @@ public class BamIndexReadNames
 					new NameAndPosCodec() ,
 					new NameAndPosComparator(),
 					maxRecordsInRAM,
-					getTmpDirectories()
+					bamFile.getParentFile()
 					);
 			sorting.setDestructiveIteration(true);
 			if(sfr.getFileHeader().getSortOrder()!=SortOrder.coordinate)
@@ -148,11 +153,11 @@ public class BamIndexReadNames
 			iter.close();
 			sfr.close();
 			sorting.doneAdding();
-			info("Done Adding. N="+indexDef.countReads);
+			LOG.info("Done Adding. N="+indexDef.countReads);
 			
 			File indexFile=new File(bamFile.getParentFile(), bamFile.getName()+NAME_IDX_EXTENSION);
 			
-			info("Writing index "+indexFile);
+			LOG.info("Writing index "+indexFile);
 			FileOutputStream raf=new FileOutputStream(indexFile);
 			
 			ByteBuffer byteBuff= ByteBuffer.allocate(8+4);
@@ -184,64 +189,24 @@ public class BamIndexReadNames
 			sorting.cleanup();
 			}
 		
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"BamIndexReadNames";
-		}
 	
 	@Override
-	public String getProgramDescription() {
-		return "Build a dictionary of read names to be searched with BamQueryReadNames";
-		}
+	public int doWork(final List<String> args) {	
 
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		
 		try
 			{
-			if(opt.getOptInd()+1!=args.length)
+			if(args.size()!=1)
 				{
-				info(getMessageBundle("illegal.number.of.arguments"));
+				LOG.info(getMessageBundle("illegal.number.of.arguments"));
 				return -1;
 				}
-			File bamFile=new File(args[opt.getOptInd()]);
-			if(bamFile.getParentFile()!=null)
-				{
-				addTmpDirectory(bamFile.getParentFile());
-				}
-			indexBamFile(bamFile);
+			
+			indexBamFile(new File(args.get(0)));
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

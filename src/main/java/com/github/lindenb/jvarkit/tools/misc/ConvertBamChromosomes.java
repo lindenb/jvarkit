@@ -1,179 +1,66 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import htsjdk.samtools.SAMFileHeader.SortOrder;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
-
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-
+@Program(name="bamrenamechr",description="Convert the names of the chromosomes in a BAM file")
 public class ConvertBamChromosomes
-	extends AbstractCommandLineProgram
+	extends Launcher
 	{
-	private boolean use_original_chrom_name_if_no_mapping=false;
-	private Map<String,String> customMapping=new HashMap<String,String>();
-	private Set<String> unmappedChromosomes=new HashSet<String>();
-	private boolean ignore_if_no_mapping=false;
+	private static final Logger LOG = Logger.build(ConvertBamChromosomes.class).make();
+	
+	
+	@Parameter(names={"-c","-convert"},description="What should I do when  a converstion is not found")
+	private ContigNameConverter.OnNotFound onNotFound=ContigNameConverter.OnNotFound.RAISE_EXCEPTION;
+	@Parameter(names={"-f","--mapping","-m"},description="load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+",required=true)
+	private File mappingFile=null;
+	@Parameter(names={"-o","--out"},description="output vcf")
+	private File output= null;
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
+
 	private ConvertBamChromosomes()
 		{
 		
 		}
 	
-	private String convertName(String chrom)throws IOException
-		{
-		if(chrom==null) throw new NullPointerException();
-		String newname=customMapping.get(chrom);
-		if(newname==null)
-			{
-			if(!unmappedChromosomes.contains(chrom))
-				{
-				warning("unmapped chromosome "+chrom);
-				unmappedChromosomes.add(chrom);
-				}
-			if(ignore_if_no_mapping) return null;
-			
-			if(use_original_chrom_name_if_no_mapping)
-				{	
-				return chrom;
-				}
-			throw new IOException("No mapping found to convert name of chromosome \""+chrom+"\"");
-			}
-		return newname;
-		}
-	
-	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BamRenameChromosomes";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Convert the names of the chromosomes in a BAM file.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -f (file) load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+");
-		out.println(" -i if no mapping found, skip that record.");
-		out.println(" -C if no mapping found, use the original name instead of throwing an error. ");
-		out.println(" -o (filenameout.bam) default: SAM as stdout");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		File bamout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"f:Cio:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': bamout=new File(opt.getOptArg());break;
-				case 'i': ignore_if_no_mapping=true;break;
-				case 'C': use_original_chrom_name_if_no_mapping=true;break;
-				case 'f':
-					{
-					File f=new File(opt.getOptArg());
-					BufferedReader in=null;
-					try
-						{
-						info("Loading custom mapping "+f);
-						in=IOUtils.openFileForBufferedReading(f);
-						String line;
-						while((line=in.readLine())!=null)
-							{
-							if(line.isEmpty() || line.startsWith("#")) continue;
-							String tokens[]=line.split("[\t]");
-							if(tokens.length!=2
-									|| tokens[0].trim().isEmpty()
-									|| tokens[1].trim().isEmpty()
-									|| tokens[0].equals(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME)
-									|| tokens[1].equals(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME)
-									) throw new IOException("Bad mapping line: \""+line+"\"");
-							tokens[0]=tokens[0].trim();
-							tokens[1]=tokens[1].trim();
-							if(customMapping.containsKey(tokens[0]))
-								{
-								throw new IOException("Mapping defined twice for: \""+tokens[0]+"\"");
-								}
-							customMapping.put(tokens[0], tokens[1]);
-							}
-						}
-					catch(Exception err)
-						{
-						error(err);
-						return -1;
-						}
-					finally
-						{
-						CloserUtil.close(in);
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
+		final Set<String> unmappedChromosomes = new HashSet<>();
 		try
 			{
+			final ContigNameConverter customMapping = ContigNameConverter.fromFile(mappingFile);
+			customMapping.setOnNotFound(this.onNotFound);
+
 			
-			
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				File fin=new File(args[opt.getOptInd()]);
-				info("Reading from "+fin);
-				sfr=SamFileReaderFactory.mewInstance().open(fin);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
+			sfr = super.openSamReader(oneFileOrNull(args));
 			
 			SAMFileHeader header1=sfr.getFileHeader();
 			if(header1==null)
 				{
-				error("File header missing");
+				LOG.error("File header missing");
 				return -1;
 				}
 			
@@ -184,14 +71,14 @@ public class ConvertBamChromosomes
 			final SAMSequenceDictionary dict1=header1.getSequenceDictionary();
 			if(dict1==null)
 				{
-				error("Sequence dict missing");
+				LOG.error("Sequence dict missing");
 				return -1;
 				}
-			List<SAMSequenceRecord> ssrs=new ArrayList<SAMSequenceRecord>(dict1.size());
+			final List<SAMSequenceRecord> ssrs=new ArrayList<SAMSequenceRecord>(dict1.size());
 			for(int i=0;i< dict1.size();++i)
 				{
 				SAMSequenceRecord ssr=dict1.getSequence(i);
-				String newName=convertName(ssr.getSequenceName());
+				String newName=customMapping.apply(ssr.getSequenceName());
 				if(newName==null)
 					{
 					//skip unknown chromosomes
@@ -204,27 +91,11 @@ public class ConvertBamChromosomes
 			
 			SAMSequenceDictionary dict2=new SAMSequenceDictionary(ssrs);
 			header2.setSequenceDictionary(dict2);
-			SAMProgramRecord prog=header2.createProgramRecord();
-			prog.setCommandLine(this.getProgramCommandLine());
-			prog.setProgramName(getProgramName());
-			prog.setProgramVersion(getVersion());
-			
-			
 			
 			
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict1);
 
-			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
-			boolean presorted=(header1.getSortOrder()!=null && (header1.getSortOrder()==SortOrder.coordinate || header1.getSortOrder()==SortOrder.queryname));
-			if(bamout!=null)
-				{
-				info("saving to "+bamout);
-				sfw=sfwf.makeSAMOrBAMWriter(header2, presorted, bamout);
-				}
-			else
-				{
-				sfw=sfwf.makeSAMWriter(header2, presorted, System.out);
-				}
+			sfw = this.writingBamArgs.openSAMFileWriter(output, header2, true);
 			
 			
 			long num_ignored=0L;
@@ -237,11 +108,11 @@ public class ConvertBamChromosomes
 				String newName2=null;
 				if(!SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(rec1.getReferenceName()))
 					{
-					newName1=convertName(rec1.getReferenceName());
+					newName1=customMapping.apply(rec1.getReferenceName());
 					}
 				if(rec1.getReadPairedFlag() && !SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(rec1.getMateReferenceName()))
 					{
-					newName2=convertName(rec1.getMateReferenceName());
+					newName2=customMapping.apply(rec1.getMateReferenceName());
 					}
 				rec1.setHeader(header2);
 
@@ -267,14 +138,14 @@ public class ConvertBamChromosomes
 				}
 			if(!unmappedChromosomes.isEmpty())
 				{
-				warning("Unmapped chromosomes: "+unmappedChromosomes);
+				LOG.warning("Unmapped chromosomes: "+unmappedChromosomes);
 				}
-			warning("num ignored read:"+num_ignored);
+			LOG.warning("num ignored read:"+num_ignored);
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
