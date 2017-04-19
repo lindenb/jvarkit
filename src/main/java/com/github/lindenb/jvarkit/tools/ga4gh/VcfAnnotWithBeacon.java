@@ -4,11 +4,16 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URLEncoder;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import javax.net.ssl.SSLContext;
 
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.ContentType;
@@ -74,7 +79,8 @@ public class VcfAnnotWithBeacon extends Launcher {
 	private boolean stopOnNetworkError = false;
 	@Parameter(names={"--baseurl"},description="Beacon Base URL API")
 	private String baseurl="https://beacon-network.org/api";
-	
+	@Parameter(names={"--cert"},description="ignore SSL certification errors")
+	private boolean ignoreCertErrors = false;
 	
 	/** BerkeleyDB Environment to store results */
 	private Environment bdbEnv=null;
@@ -115,12 +121,42 @@ public class VcfAnnotWithBeacon extends Launcher {
 		InputStream contentInputStream = null;
 		
 		try 
- {
-			httpClient = HttpClients.createDefault();
+			{
+
+
+		   final org.apache.http.impl.client.HttpClientBuilder hb=HttpClients.custom();
+			
+			if(this.ignoreCertErrors) {
+				//http://stackoverflow.com/questions/24720013/apache-http-client-ssl-certificate-error
+				System.setProperty("jsse.enableSNIExtension", "false");
+				final SSLContext sslContext = 
+
+			    	org.apache.http.conn.ssl.SSLContexts.custom()
+			            .loadTrustMaterial(null, new org.apache.http.conn.ssl.TrustStrategy ()
+			            		{
+				            	@Override
+				                public boolean isTrusted(final X509Certificate[] chain, final String authType) throws CertificateException {
+				                    return true;
+				                }
+			            		})
+			            .useTLS()
+			            .build();
+
+
+
+			   final  org.apache.http.conn.ssl.SSLConnectionSocketFactory connectionFactory =
+			            new org.apache.http.conn.ssl.SSLConnectionSocketFactory (sslContext, new org.apache.http.conn.ssl.AllowAllHostnameVerifier ());
+
+				
+				hb.setSSLSocketFactory(connectionFactory);
+				
+			}
+			httpClient = hb.build(); 	
 			HttpGet httpGetRequest = null;
 
 			final Set<String> available_chromosomes = new HashSet<>();
 			try {
+				
 				httpGetRequest = new HttpGet(baseurl+"/chromosomes");
 				httpGetRequest.setHeader("Accept", ContentType.APPLICATION_JSON.getMimeType());
 				contentInputStream = httpClient.execute(httpGetRequest).getEntity().getContent();
@@ -131,6 +167,7 @@ public class VcfAnnotWithBeacon extends Launcher {
 					final String ctg = jsr.next().getAsString();
 					available_chromosomes.add(ctg);
 				}
+				LOG.debug(available_chromosomes);
 			} catch (final Exception err) {
 				LOG.error(err);
 				return -1;
@@ -152,6 +189,7 @@ public class VcfAnnotWithBeacon extends Launcher {
 					final String allele = jsr.next().getAsString();
 					available_alleles.add(allele);
 				}
+				LOG.debug(available_alleles);
 			} catch (final Exception err) {
 				LOG.error(err);
 				return -1;
@@ -252,10 +290,13 @@ public class VcfAnnotWithBeacon extends Launcher {
 						foundIn = new HashSet<>();
 
 						
-						LOG.debug(httpGetRequest.getURI());
 						try {
 							httpGetRequest = new HttpGet(baseurl+"/responses?" + queryUrl);
 							httpGetRequest.setHeader("Accept", ContentType.APPLICATION_JSON.getMimeType());
+							
+							LOG.debug(httpGetRequest.getURI());
+							
+							
 							contentInputStream = httpClient.execute(httpGetRequest).getEntity().getContent();
 
 							JsonParser jsonparser = new JsonParser();
@@ -299,7 +340,7 @@ public class VcfAnnotWithBeacon extends Launcher {
 				}
 
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				vcb.attribute(infoHeaderLine.getID(), newInfo);
+				vcb.attribute(infoHeaderLine.getID(), new ArrayList<String>(newInfo));
 				out.add(vcb.make());
 			}
 			return 0;
@@ -318,7 +359,9 @@ public class VcfAnnotWithBeacon extends Launcher {
 	@Override
 		public int doWork(final List<String> args) {
 			try
-				{
+				{ 
+				
+				
 				if(this.bdbDir!=null) {
 					LOG.info("open BDB "+this.bdbDir);
 					IOUtil.assertDirectoryIsWritable(this.bdbDir);
