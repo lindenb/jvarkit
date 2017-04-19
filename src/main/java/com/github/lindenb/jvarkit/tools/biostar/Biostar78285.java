@@ -28,12 +28,17 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collection;
+import java.util.List;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -48,11 +53,16 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
-public class Biostar78285 extends AbstractBiostar78285
+@Program(name="biostar78285",description="Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/")
+public class Biostar78285 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar78285.class);
+	private static final Logger LOG = Logger.build(Biostar78285.class).make();
 
-    private  Collection<Throwable> scan(final SamReader samFileReader,final PrintStream out) throws IOException
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+    private  int scan(final SamReader samFileReader,final PrintStream out) throws IOException
     	{
     	SAMRecordIterator iter=null;
     	try
@@ -170,15 +180,14 @@ public class Biostar78285 extends AbstractBiostar78285
     		i=j;
     		}
     	}
-    
-    @Override
-    protected Collection<Throwable> call(String inputName) throws Exception {
+	@Override
+	public int doWork(final List<String> args) {
     	SamReader samReader=null;
     	PrintStream out=null;
 		try
 			{
-			out = openFileOrStdoutAsPrintStream();
-			samReader = openSamReader(inputName); 
+			out = openFileOrStdoutAsPrintStream(this.outputFile);
+			samReader = openSamReader(oneFileOrNull(args)); 
 			return scan(samReader,out);
 			}
 		catch(Exception err)

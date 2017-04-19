@@ -23,8 +23,8 @@ SOFTWARE.
 */
 
 package com.github.lindenb.jvarkit.tools.biostar;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -42,6 +42,11 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.transform.stream.StreamSource;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -53,11 +58,114 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 
+/**
 
-public class Biostar78400 extends AbstractBiostar78400
+BEGIN_DOC
+
+
+
+
+### Read names
+
+Reads' name should start with the following signature:
+
+
+
+
+### XML
+
+the XML should look like this:
+
+
+```
+
+<read-groups>
+<flowcell name="HS2000-1259_127">
+ <lane index="1">
+   <group ID="X1">
+     <library>L1</library>
+     <platform>P1</platform>
+     <sample>S1</sample>
+     <platformunit>PU1</platformunit>
+     <center>C1</center>
+     <description>blabla</description>
+   </group>
+ </lane>
+</flowcell>
+<flowcell name="HS2000-1259_128">
+ <lane index="2">
+   <group ID="x2">
+     <library>L2</library>
+     <platform>P2</platform>
+     <sample>S2</sample>
+     <platformunit>PU1</platformunit>
+     <center>C1</center>
+     <description>blabla</description>
+   </group>
+ </lane>
+</flowcell>
+</read-groups>
+
+```
+
+
+
+
+### Example
+
+
+
+```
+
+$ cat input.sam 
+@SQ SN:ref  LN:45
+@SQ SN:ref2 LN:40
+HS2000-1259_127:1:1210:15640:52255  163 ref 7   30  8M4I4M1D3M  =   37  39  
+TTAGATAAAGAGGATACTG *   XX:B:S,12561,2,20,112
+HS2000-1259_128:2:1210:15640:52255  0   ref 9   30  1S2I6M1P1I1P1I4M2I  *   0   
+0   AAAAGATAAGGGATAAA   *
+
+$java -jar dist/biostar78400.jar \
+    -x groups.xml \
+    input.sam \
+   
+
+@HD VN:1.4  SO:unsorted
+@SQ SN:ref  LN:45
+@SQ SN:ref2 LN:40
+@RG ID:X1   PL:P1   PU:P1   LB:L1   DS:blabla   SM:S1   CN:C1
+@RG ID:x2   PL:P2   PU:P2   LB:L2   DS:blabla   SM:S2   CN:C1
+@PG ID:Biostar78400 PN:Biostar78400 PP:Biostar78400 VN:1.0  (...)
+HS2000-1259_127:1:1210:15640:52255  163 ref 7   30  8M4I4M1D3M  =   37  39  TTAGATAAAGAGGATACTG *   RG:Z:X1 XX:B:S,12561,2,20,112
+HS2000-1259_128:2:1210:15640:52255  0   ref 9   30  1S2I6M1P1I1P1I4M2I  *   0   0AAAAGATAAGGGATAAA  *   RG:Z:x2
+
+```
+
+
+
+
+END_DOC
+*/
+
+
+@Program(name="biostar78400",description="add the read group info to the sam file on a per lane basis")
+public class Biostar78400 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar78400.class);
+	private static final Logger LOG = Logger.build(Biostar78400.class).make();
 
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-x","--xmlFile"},description="XML description of the groups.",required=true)
+	private File XML = null;
+
+	@Parameter(names={"-p","--regex"},description="Regular expression that can be used to parse read names in the incoming SAM file. Flowcell: (group 1)and the lane (group 2). Another pattern could be '[a-zA-Z0-9\\-]+:[0-9]+:([a-zA-Z0-9]+):([0-9]):[0-9]+:[0-9]+:[0-9]+.*.' (Highseq)")
+	private String readNameSignatureStr = "([a-zA-Z0-9]+):([0-9]):[0-9]+:[0-9]+:[0-9]+.*";
+
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
 	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class ReadGroup
@@ -104,19 +212,18 @@ public class Biostar78400 extends AbstractBiostar78400
 		public List<ReadGroup> readGroups=new ArrayList<ReadGroup>();
 		}
 	
-	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
+	public int doWork(List<String> args) {
 		if(this.XML==null)
 			{
-			return wrapException("XML file missing (option -"+OPTION_XML+")");
+			return wrapException("XML file missing");
 			}
 		final Map<String, Map<Integer,String>> flowcell2lane2id = new HashMap<String, Map<Integer,String>>();
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
-			final Pattern readNameSignature = Pattern.compile(super.readNameSignatureStr);
+			final Pattern readNameSignature = Pattern.compile(this.readNameSignatureStr);
 			final JAXBContext context = JAXBContext.newInstance(ReadGroup.class,ReadGroupList.class);
 			final Unmarshaller unmarshaller=context.createUnmarshaller();
 			final ReadGroupList rgl=unmarshaller.unmarshal(new StreamSource(XML),ReadGroupList.class).getValue();
@@ -124,10 +231,10 @@ public class Biostar78400 extends AbstractBiostar78400
 				{
 				return wrapException("empty XML "+XML);
 				}
-			sfr = openSamReader(inputName);
+			sfr = openSamReader(oneFileOrNull(args));
 			
 			final SAMFileHeader header = sfr.getFileHeader().clone();
-			header.addComment("Processed with "+getName());
+			header.addComment("Processed with "+getProgramName());
 			
 			final Set<String> seenids=new HashSet<String>();
 			final List<SAMReadGroupRecord> samReadGroupRecords=new ArrayList<SAMReadGroupRecord>();
@@ -164,7 +271,7 @@ public class Biostar78400 extends AbstractBiostar78400
 			header.setReadGroups(samReadGroupRecords);
 			
 		
-			sfw = openSAMFileWriter(header, true);
+			sfw = this.writingBamArgs.openSAMFileWriter(this.outputFile,header, true);
 			
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
 			final SAMRecordIterator iter=sfr.iterator();
@@ -181,7 +288,7 @@ public class Biostar78400 extends AbstractBiostar78400
 					}
 				else
 					{
-					return wrapException("Read name "+rec.getReadName()+" doesn't match regular expression "+readNameSignature.pattern()+". please check option -"+OPTION_READNAMESIGNATURESTR);
+					return wrapException("Read name "+rec.getReadName()+" doesn't match regular expression "+readNameSignature.pattern()+". please check options");
 					}
 				String RGID=null;
 				

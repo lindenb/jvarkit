@@ -28,11 +28,16 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -43,12 +48,52 @@ import htsjdk.samtools.util.CloserUtil;
 
 
 /**
- * 
- * Biostar234230
- *
- */
-public class Biostar234230 extends AbstractBiostar234230
+
+BEGIN_DOC
+
+
+Example:
+
+
+```
+$ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20110915_CEUtrio_b37_decoy_alignment/CEUTrio.HiSeq.WGS.b37_decoy.NA12892.clean.dedup.recal.bam" |  java -jar dist/biostar234230.jar 
+#contig	start	end	pairs_in_window	pairs_over_window	pairs_partial_overlap
+1	10000	10100	0	2	240
+1	10050	10150	4	615	274
+1	10100	10200	0	800	276
+1	10150	10250	0	216	649
+1	10200	10300	0	2982	809
+1	10250	10350	0	2918	207
+1	10300	10400	0	1923	2851
+1	10350	10450	0	227	4498
+1	10400	10500	0	31	1971
+(...)
+
+```
+
+
+
+
+
+END_DOC
+*/
+
+
+@Program(name="XXXXX",description="Sliding Window : discriminate partial and fully contained fragments (from a bam file)  see https://www.biostars.org/p/234230/")
+public class Biostar234230 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar234230.class).make();
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-w","--winsize"},description="Window size")
+	private int windowSize = 100 ;
+
+	@Parameter(names={"-s","--winshift"},description="Shift each window by 's' bases")
+	private int windowShift = 50 ;
+
+	
 	private static class SlidingWindow
 		{
 		final int start;
@@ -97,15 +142,13 @@ public class Biostar234230 extends AbstractBiostar234230
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception
-		{
+	public int doWork(final List<String> args) {		
 		
-		
-		if(super.windowSize<=0)
+		if(this.windowSize<=0)
 			{
 			return wrapException("Bad window size.");
 			}
-		if(super.windowShift<=0)
+		if(this.windowShift<=0)
 			{
 			return wrapException("Bad window shift.");
 			}
@@ -118,12 +161,12 @@ public class Biostar234230 extends AbstractBiostar234230
 		try
 			{
 			
-			in = super.openSamReader(inputName);
+			in = super.openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header = in.getFileHeader();
 			if(header.getSortOrder()!=SAMFileHeader.SortOrder.coordinate) {
 			return wrapException("Bam is not sorted on coordinate");
 			}
-			out = super.openFileOrStdoutAsPrintWriter();
+			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			
 			out.print("#contig");
 			out.print("\t");
@@ -172,13 +215,13 @@ public class Biostar234230 extends AbstractBiostar234230
 					{
 					buffer.remove(0).print(out,rec.getContig());;
 					}
-				final int winStart = fragStart - fragStart%super.windowSize;
-				final int winEnd = fragEnd - fragEnd%super.windowSize;
+				final int winStart = fragStart - fragStart%this.windowSize;
+				final int winEnd = fragEnd - fragEnd%this.windowSize;
 				
-				for(int winPos = winStart;winPos<=winEnd;winPos+=super.windowShift) {
+				for(int winPos = winStart;winPos<=winEnd;winPos+=this.windowShift) {
 					if(buffer.isEmpty() || buffer.get(buffer.size()-1).start < winPos)
 						{
-						buffer.add(new SlidingWindow(winPos,winPos+super.windowSize));
+						buffer.add(new SlidingWindow(winPos,winPos+this.windowSize));
 						}
 					}
 				for(SlidingWindow w:buffer)

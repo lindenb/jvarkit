@@ -22,11 +22,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
+import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -35,10 +39,114 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
+/**
 
-public class Biostar175929 extends AbstractBiostar175929
+BEGIN_DOC
+
+
+### Example
+
+```
+
+$ java -jar dist-2.0.1/biostar175929.jar -x 2 -R ~/src/gatk-ui/testdata/ref.fa -b ~/src/gatk-ui/testdata/S1.vcf.gz  | more
+
+>rotavirus:127|rotavirus:130-130(T)|rotavirus:232-232(T)|rotavirus:267-267(C)|rotavirus:286-286(G)|rotavirus:536-536(A)|rotavirus:693-693(T)|rotavirus:833-833(G)|rotavirus:916-916
+(A)|rotavirus:961-961(T)
+at[T]caatatgattacaatgaagtatttaccagagttaaaagtaaatttgattatgtga
+tggatgactctggtgttaaaaacaatcttttgggtaaagctataac[T]attgatcaggc
+gttaaatggaaagtttagctcag[C]tattagaaatagaaattg[G]atgactgattcta
+aaacggttgctaaattagatgaagacgtgaataaacttagaatgactttatcttctaaag
+ggatcgaccaaaagatgagagtacttaatgcttgttttagtgtaaaaagaataccaggaa
+aatcatcatcaataattaaatgcactagacttatgaaggataaaatagaacgtggagaag
+ttgaggttgatgattcatatgttgatgagaaaatggaaattgatactattgattgg[A]a
+atctcgttatgatcagttagaaaaaagatttgaatcactaaaacagagggttaatgagaa
+atacaatacttgggtacaaaaagcgaagaaagtaaatgaaaatatgtactctcttcagaa
+tgttatctcacaacagcaaaaccaaatagcagatc[T]tcaacaatattgtagtaaattg
+gaagctgatttgcaaggtaaatttagttcattagtgtcatcagttgagtggtatctaagg
+tctatggaattaccagatgatgtaaagaatgacattgaacagcagttaaattcaatt[G]
+atttaattaatcccattaatgctatagatgatatcgaatcgctgattagaaatttaattc
+aagattatgacagaacattttt[A]atgttaaaaggactgttgaagcaatgcaactatga
+atatgcata[T]tg
+>rotavirus:127|rotavirus:130-130(T)|rotavirus:232-232(T)|rotavirus:267-267(C)|rotavirus:286-286(G)|rotavirus:536-536(A)|rotavirus:693-693(T)|rotavirus:833-833(G)|rotavirus:916-916
+(A)|rotavirus:961-961(A)
+at[T]caatatgattacaatgaagtatttaccagagttaaaagtaaatttgattatgtga
+tggatgactctggtgttaaaaacaatcttttgggtaaagctataac[T]attgatcaggc
+gttaaatggaaagtttagctcag[C]tattagaaatagaaattg[G]atgactgattcta
+aaacggttgctaaattagatgaagacgtgaataaacttagaatgactttatcttctaaag
+ggatcgaccaaaagatgagagtacttaatgcttgttttagtgtaaaaagaataccaggaa
+aatcatcatcaataattaaatgcactagacttatgaaggataaaatagaacgtggagaag
+ttgaggttgatgattcatatgttgatgagaaaatggaaattgatactattgattgg[A]a
+atctcgttatgatcagttagaaaaaagatttgaatcactaaaacagagggttaatgagaa
+atacaatacttgggtacaaaaagcgaagaaagtaaatgaaaatatgtactctcttcagaa
+tgttatctcacaacagcaaaaccaaatagcagatc[T]tcaacaatattgtagtaaattg
+gaagctgatttgcaaggtaaatttagttcattagtgtcatcagttgagtggtatctaagg
+tctatggaattaccagatgatgtaaagaatgacattgaacagcagttaaattcaatt[G]
+atttaattaatcccattaatgctatagatgatatcgaatcgctgattagaaatttaattc
+aagattatgacagaacattttt[A]atgttaaaaggactgttgaagcaatgcaactatga
+atatgcata[A]tg
+>rotavirus:127|rotavirus:130-130(T)|rotavirus:232-232(T)|rotavirus:267-267(C)|rotavirus:286-286(G)|rotavirus:536-536(A)|rotavirus:693-693(T)|rotavirus:833-833(G)|rotavirus:916-916
+(T)|rotavirus:961-961(T)
+at[T]caatatgattacaatgaagtatttaccagagttaaaagtaaatttgattatgtga
+tggatgactctggtgttaaaaacaatcttttgggtaaagctataac[T]attgatcaggc
+gttaaatggaaagtttagctcag[C]tattagaaatagaaattg[G]atgactgattcta
+aaacggttgctaaattagatgaagacgtgaataaacttagaatgactttatcttctaaag
+ggatcgaccaaaagatgagagtacttaatgcttgttttagtgtaaaaagaataccaggaa
+aatcatcatcaataattaaatgcactagacttatgaaggataaaatagaacgtggagaag
+ttgaggttgatgattcatatgttgatgagaaaatggaaattgatactattgattgg[A]a
+atctcgttatgatcagttagaaaaaagatttgaatcactaaaacagagggttaatgagaa
+atacaatacttgggtacaaaaagcgaagaaagtaaatgaaaatatgtactctcttcagaa
+tgttatctcacaacagcaaaaccaaatagcagatc[T]tcaacaatattgtagtaaattg
+gaagctgatttgcaaggtaaatttagttcattagtgtcatcagttgagtggtatctaagg
+tctatggaattaccagatgatgtaaagaatgacattgaacagcagttaaattcaatt[G]
+atttaattaatcccattaatgctatagatgatatcgaatcgctgattagaaatttaattc
+aagattatgacagaacattttt[T]atgttaaaaggactgttgaagcaatgcaactatga
+atatgcata[T]tg
+>rotavirus:127|rotavirus:130-130(T)|rotavirus:232-232(T)|rotavirus:267-267(C)|rotavirus:286-286(G)|rotavirus:536-536(A)|rotavirus:693-693(T)|rotavirus:833-833(G)|rotavirus:916-916
+(T)|rotavirus:961-961(A)
+at[T]caatatgattacaatgaagtatttaccagagttaaaagtaaatttgattatgtga
+tggatgactctggtgttaaaaacaatcttttgggtaaagctataac[T]attgatcaggc
+gttaaatggaaagtttagctcag[C]tattagaaatagaaattg[G]atgactgattcta
+aaacggttgctaaattagatgaagacgtgaataaacttagaatgactttatcttctaaag
+ggatcgaccaaaagatgagagtacttaatgcttgttttagtgtaaaaagaataccaggaa
+aatcatcatcaataattaaatgcactagacttatgaaggataaaatagaacgtggagaag
+ttgaggttgatgattcatatgttgatgagaaaatggaaattgatactattgattgg[A]a
+atctcgttatgatcagttagaaaaaagatttgaatcactaaaacagagggttaatgagaa
+atacaatacttgggtacaaaaagcgaagaaagtaaatgaaaatatgtactctcttcagaa
+tgttatctcacaacagcaaaaccaaatagcagatc[T]tcaacaatattgtagtaaattg
+gaagctgatttgcaaggtaaatttagttcattagtgtcatcagttgagtggtatctaagg
+tctatggaattaccagatgatgtaaagaatgacattgaacagcagttaaattcaatt[G]
+atttaattaatcccattaatgctatagatgatatcgaatcgctgattagaaatttaattc
+aagattatgacagaacattttt[T]atgttaaaaggactgttgaagcaatgcaactatga
+atatgcata[A]tg
+
+```
+
+
+
+END_DOC
+*/
+
+
+@Program(name="biostar175929",description="Construct a combination set of fasta sequences from a vcf see also https://www.biostars.org/p/175929/")
+public class Biostar175929 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar175929.class);
+	private static final Logger LOG = Logger.build(Biostar175929.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-x","--extend"},description="extend FASTA sequence by 'n' bases")
+	private int extendBases = 100 ;
+
+	@Parameter(names={"-b","--bracket"},description="Surround variant with '[' and ']'")
+	private boolean bracket = false;
+	
+	@Parameter(names={"-R","--reference"},description="indexed Fasta reference",required=true)
+	private File faidx = null;
+
+	
 	private PrintWriter pw;
 	
 	private void recursive(
@@ -97,28 +205,28 @@ public class Biostar175929 extends AbstractBiostar175929
 			title.setLength(title_length);
 			sequence.setLength(sequence_length);
 			title.append("|"+ctx.getContig()+":"+ctx.getStart()+"-"+ctx.getEnd()+"("+allele.getBaseString()+")");
-			if(super.bracket) sequence.append("[");
+			if(this.bracket) sequence.append("[");
 			sequence.append(allele.getBaseString().toUpperCase());
-			if(super.bracket) sequence.append("]");
+			if(this.bracket) sequence.append("]");
 			recursive(chromosome, variants, index+1, title, sequence);
 			}
 		
 		
 		}
 	
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		if(super.faidx==null) 
+	public int doWork(List<String> args) {
+		
+		if(this.faidx==null) 
 			{
-			return wrapException("Option -"+OPTION_FAIDX+" was not defined.");
+			return wrapException("fasta reference was not defined.");
 			}
 		IndexedFastaSequenceFile reference = null;
 		VcfIterator iter=null;
 		try {
-			reference = new IndexedFastaSequenceFile(super.faidx);
-			iter = super.openVcfIterator(inputName);
-			this.pw = openFileOrStdoutAsPrintWriter();
+			reference = new IndexedFastaSequenceFile(this.faidx);
+			iter = super.openVcfIterator(oneFileOrNull(args));
+			this.pw = openFileOrStdoutAsPrintWriter(this.outputFile);
 			final List<VariantContext> variants = new ArrayList<>();
 			for(;;)
 				{

@@ -22,93 +22,162 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
-import java.util.Collection;
+import java.io.File;
+import java.util.List;
+import java.util.stream.Collectors;
 
-import htsjdk.samtools.util.BlockCompressedOutputStream;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordFactory;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 
+/**
 
-public class Biostar173114 extends AbstractBiostar173114
+BEGIN_DOC
+
+
+
+
+### Example
+
+
+
+```
+ $ java -jar dist/biostar173114.jar --formatout sam  my.bam  | samtools view -h | head -n 100
+
+@HD	VN:1.5	GO:none	SO:coordinate
+@SQ	SN:rotavirus	LN:1074
+R0	0	rotavirus	1	60	70M	*	0	0	GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAATATGGCGTCAACTCAGCAGATGGTCAGCTCTAATATT	*
+R1	0	rotavirus	1	60	70M	*	0	0	GGCTTTTACTGCTTTTCAGTGGTTGCTTCTCAAGATGGAGTGTACTCATCAGATGGTAAGCTCTATTATT	*
+R2	0	rotavirus	1	60	70M	*	0	0	GGCTTTTAATGCTTTTCATTTGATGCTGCTCAAGATGGAGTCTACACAGCAGATGGTCAGCTCTATTATT	*
+R3	0	rotavirus	1	60	70M	*	0	0	GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTCCTGAGCAGCTGGTAAGCTCTATTATT	*
+R4	0	rotavirus	1	60	70M	*	0	0	GGCATTTAATGCTTAACAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTCTTATT	*
+R5	0	rotavirus	2	60	70M	*	0	0	GCTTTTAAAGCTTTTCAGTTGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGTTACGCTCTATTATTA	*
+R6	0	rotavirus	2	60	51M19S	*	0	0	GCTTTTAATGCTTTTCAGTTGTTGCTGCACAAGATGGAGTCTACACAGCAGCTGTTCATCTCTCTTCATC	*
+R7	0	rotavirus	2	60	70M	*	0	0	GCTTTTAATGCTTTTCAGTGGTTTCTTCTCACGATGGAGTCTACTCAGCAGAAGGTAAGCACTATTATTA	*
+R8	0	rotavirus	2	60	70M	*	0	0	GCTTTTAAAGCATTACAGTTGTTGCAGCTCAAGAAGGAGACTACTCAGCAGATGGTAAGCTCTATAATTA	*
+R9	0	rotavirus	2	60	70M	*	0	0	GCTTTTAATTCTATTCAGTGGTTGCTGCTCCAGAAGGAGTCTACTCAGGAGATGGTACGCTCTCTTATTA	*
+Ra	0	rotavirus	2	60	70M	*	0	0	GCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCAATTATTA	*
+Rb	0	rotavirus	2	60	70M	*	0	0	GCTTTTAATGCTTTTCAGTTGTAGCTGCTCAAGATGGAGTCTACTCATCAGATGGTAAGCTCTCTTCTTA	*
+Rc	0	rotavirus	2	60	63M7S	*	0	0	TCTTTAAATGCTTTTCAGTGTTTGCTGCTCAAGATGGAGTCTACTCAGCAGAAGGTAAGCTCTCTTAAAC	*
+Rd	0	rotavirus	2	60	66M4S	*	0	0	GCATTTAATGCTTTTCAGTGGTTGCTGCACAAGATGGAGTCTACTCAGCAGATTGTAAGCTCTATTCTAA	*
+Re	0	rotavirus	3	60	70M	*	0	0	CTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGAAGGCGTCTCCTGATGAGATGGTAAGCTCTATTATTAA	*
+Rf	0	rotavirus	3	60	70M	*	0	0	CTTTTAATGGTTATGAGTGGTTGGTGCACAAGATGGAGTCTACTCAGCAGATGGTACTCTCTATAATTAA	*
+R10	0	rotavirus	3	60	70M	*	0	0	CTTTTAAAGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTACTCTCTATTCTTAA	*
+R11	0	rotavirus	3	60	70M	*	0	0	CTTTTAAAGCTTTTCAGAGGTTGCTGCTCAAGATGTAGTCTACTCAGGAGATTGTAAGCTCTATTATTAA	
+
+```
+
+
+
+
+END_DOC
+*/
+
+
+@Program(name="biostar173114",description="make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/")
+public class Biostar173114 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar173114.class);
+	private static final Logger LOG = Logger.build(Biostar173114.class).make();
 
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-keepSeq","--keepSequence"},description="keep read sequence")
+	private boolean keepSequence = false;
+	
+	@Parameter(names={"-keepName","--keepName","--name"},description="keep Read Name, do not try to create a shorter name")
+	private boolean keepName = false;
+	@Parameter(names={"-keepAtt","--keepAttributes"},description="keep Attributes")
+	private boolean keepAttributes = false;
+	@Parameter(names={"-keepRG","--keepReadGroup"},description="if attributes are removed, keep the RG")
+	private boolean keepReadGroup = false;
+	@Parameter(names={"-mate","--mate"},description="keep Mate/Paired Information")
+	private boolean keepMate = false;
+	@Parameter(names={"-keepQuals","--keepQualities"},description="keep base qualities")
+	private boolean keepQualities = false;
+	@Parameter(names={"-keepCigar","--keepCigar"},description="keep cigar : don't remove hard clip")
+	private boolean keepCigar = false;
 	
 	
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs =new WritingBamArgs().setBestCompression();
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public int doWork(final List<String> args) {
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		SAMRecordIterator iter=null;
 		try
- {
-			BlockCompressedOutputStream.setDefaultCompressionLevel(9);
-			sfr = super.openSamReader(inputName);
-			final SAMFileHeader header0 = sfr.getFileHeader();
-			final SAMFileHeader header = new SAMFileHeader();
-			header.setSequenceDictionary(header0.getSequenceDictionary());
-			header.setGroupOrder(header0.getGroupOrder());
-			header.setSortOrder(header0.getSortOrder());
-			sfw = super.openSAMFileWriter(header, true);
+			{
+			sfr = super.openSamReader(oneFileOrNull(args));
+			sfw = this.writingBamArgs.openSAMFileWriter(this.outputFile,sfr.getFileHeader(), true);
 			iter = sfr.iterator();
-			final SAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
+			//final SAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
 			long nReads = 0;
 			while (iter.hasNext()) {
 				final SAMRecord record = iter.next();
 
-				if (record.getReadUnmappedFlag())
-					continue;
-				if (record.getReadFailsVendorQualityCheckFlag())
-					continue;
-				if (record.isSecondaryOrSupplementary())
-					continue;
-				if (record.getDuplicateReadFlag())
-					continue;
-				if (record.getMappingQuality() < super.minMapQ)
-					continue;
-
-				final SAMRecord rec2 = samRecordFactory.createSAMRecord(header);
-				rec2.setReadUnmappedFlag(false);
-				rec2.setReadNegativeStrandFlag(record.getReadNegativeStrandFlag());
-				;
-				rec2.setReadName("R" + Long.toHexString(nReads++));
-				rec2.setReferenceIndex(record.getReferenceIndex());
-				rec2.setAlignmentStart(record.getAlignmentStart());
-				if (record.getCigar() != null) {
-					final Cigar cigar = record.getCigar();
-					final java.util.List<CigarElement> cl = new java.util.ArrayList<>(cigar.numCigarElements());
-					for (int i = 0; i < cigar.numCigarElements(); ++i) {
-						final CigarElement ce = cigar.getCigarElement(i);
-						if (ce.getOperator() == CigarOperator.H) {
-							continue;
+				
+				if(!this.keepAttributes)
+					{
+					final SAMReadGroupRecord g=record.getReadGroup();
+					record.clearAttributes();
+					if(g!=null && this.keepReadGroup)
+						{
+						record.setAttribute("RG",g.getId());
 						}
-						cl.add(ce);
 					}
-
-					rec2.setCigar(new Cigar(cl));
+					
+					
+				record.setReadName(this.keepName?
+						record.getReadName():
+						"R" + Long.toHexString(nReads++));
+				
+				if(!this.keepMate && record.getReadPairedFlag()) {
+					record.setReadPairedFlag(false);
+					record.setMateReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX);
+					record.setMateAlignmentStart(SAMRecord.NO_ALIGNMENT_START);
+					record.setMateUnmappedFlag(false); 
+					record.setMateNegativeStrandFlag(false);
+					record.setInferredInsertSize(0);
+					record.setProperPairFlag(false);
+					}
+				
+				
+				if (!this.keepCigar && !record.getReadUnmappedFlag() && record.getCigar() != null) {
+					record.setCigar(new Cigar(record.getCigar().
+							getCigarElements().stream().
+							filter(C->!C.getOperator().equals(CigarOperator.H)).
+							collect(Collectors.toList())));
+					}
+				
+				if(!this.keepSequence) {
+					record.setReadBases(SAMRecord.NULL_SEQUENCE);
+					}
+				if(!this.keepQualities) {
+					record.setBaseQualities(SAMRecord.NULL_QUALS);
+					}
+				sfw.addAlignment(record);
 				}
-
-				rec2.setMappingQuality(record.getMappingQuality());
-				rec2.setReadBases(super.rmSeq ? SAMRecord.NULL_SEQUENCE : record.getReadBases());
-				rec2.setBaseQualities(SAMRecord.NULL_QUALS);
-				sfw.addAlignment(rec2);
-			}
 			LOG.info("done");
 			return RETURN_OK;
 		}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

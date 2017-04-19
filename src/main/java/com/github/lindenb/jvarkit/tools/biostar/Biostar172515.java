@@ -28,15 +28,19 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
+import java.io.File;
 import java.io.OutputStream;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.BAMFileSpan;
 import htsjdk.samtools.BAMIndexMetaData;
@@ -52,25 +56,115 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
+/**
 
-public class Biostar172515 extends AbstractBiostar172515
+BEGIN_DOC
+
+
+
+
+### See also
+
+https://www.biostars.org/p/172515/	
+
+
+### Example
+
+
+
+
+```
+ 
+ find DIR -name "*.bam" | xargs java -jar dist/biostar172515.jar  | xmllint --format -
+
+<?xml version="1.0" encoding="UTF-8"?>
+<bai-list>
+<bam bam="DIR/exampleBAM.bam" has-index="true" n_ref="1">
+    <reference ref-id="0" ref-name="chr1" ref-length="100000" n_aligned="33" n_bin="12" n_no_coor="0">
+      <bin first-locus="1" last-locus="536870912" level="0" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="67108864" level="1" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="8388608" level="2" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="1048576" level="3" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="131072" level="4" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="16384" level="5" first-offset="828" n_chunk="1">
+        <chunk chunk_beg="828" chunk_end="1963"/>
+      </bin>
+      <bin first-locus="16385" last-locus="32768" level="5" first-offset="1963" n_chunk="1">
+        <chunk chunk_beg="1963" chunk_end="3323"/>
+      </bin>
+      <bin first-locus="32769" last-locus="49152" level="5" first-offset="3323" n_chunk="1">
+        <chunk chunk_beg="3323" chunk_end="4687"/>
+      </bin>
+      <bin first-locus="49153" last-locus="65536" level="5" first-offset="4687" n_chunk="1">
+        <chunk chunk_beg="4687" chunk_end="6501"/>
+      </bin>
+      <bin first-locus="65537" last-locus="81920" level="5" first-offset="0" n_chunk="0"/>
+      <bin first-locus="81921" last-locus="98304" level="5" first-offset="6501" n_chunk="1">
+        <chunk chunk_beg="6501" chunk_end="238223360"/>
+      </bin>
+      <bin first-locus="98305" last-locus="114688" level="5" first-offset="0" n_chunk="0"/>
+    </reference>
+  </bam>
+  <bam bam="/DIR/exampleBAM2.bam" has-index="true" n_ref="1">
+    <reference ref-id="0" ref-name="chr1" ref-length="100000" n_aligned="33" n_bin="12" n_no_coor="0">
+      <bin first-locus="1" last-locus="536870912" level="0" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="67108864" level="1" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="8388608" level="2" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="1048576" level="3" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="131072" level="4" first-offset="0" n_chunk="0"/>
+      <bin first-locus="1" last-locus="16384" level="5" first-offset="828" n_chunk="1">
+        <chunk chunk_beg="828" chunk_end="1963"/>
+      </bin>
+      <bin first-locus="16385" last-locus="32768" level="5" first-offset="1963" n_chunk="1">
+        <chunk chunk_beg="1963" chunk_end="3323"/>
+      </bin>
+      <bin first-locus="32769" last-locus="49152" level="5" first-offset="3323" n_chunk="1">
+        <chunk chunk_beg="3323" chunk_end="4687"/>
+      </bin>
+      <bin first-locus="49153" last-locus="65536" level="5" first-offset="4687" n_chunk="1">
+        <chunk chunk_beg="4687" chunk_end="6501"/>
+      </bin>
+      <bin first-locus="65537" last-locus="81920" level="5" first-offset="0" n_chunk="0"/>
+      <bin first-locus="81921" last-locus="98304" level="5" first-offset="6501" n_chunk="1">
+        <chunk chunk_beg="6501" chunk_end="238223360"/>
+      </bin>
+      <bin first-locus="98305" last-locus="114688" level="5" first-offset="0" n_chunk="0"/>
+    </reference>
+  </bam>
+</bai-list>
+```
+
+
+
+
+
+END_DOC
+*/
+
+
+@Program(name="biostar172515",description="Convert BAI to XML (see https://www.biostars.org/p/172515/)")
+public class Biostar172515 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar172515.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
 	private XMLStreamWriter w=null;
 	public Biostar172515() {
 		}
 	
-	
 	@Override
-	public Collection<Throwable> call() throws Exception
-		{
+	public int doWork(List<String> inputFiles) {
 		final SamReaderFactory samReaderFactory = SamReaderFactory.makeDefault().
 					setOption(SamReaderFactory.Option.CACHE_FILE_BASED_INDEXES, Boolean.TRUE).
 					validationStringency(ValidationStringency.LENIENT);
 		OutputStream stream=null;
 		SamReader samReader = null;
-		Set<String> args=IOUtils.unrollFiles(getInputFiles());
+		Set<String> args=IOUtils.unrollFiles(inputFiles);
 		try {
-			stream = super.openFileOrStdoutAsStream();
+			stream = super.openFileOrStdoutAsStream(this.outputFile);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			this.w = xof.createXMLStreamWriter(stream);
 			this.w.writeStartDocument("UTF-8", "1.0");
@@ -165,16 +259,19 @@ public class Biostar172515 extends AbstractBiostar172515
 			this.w.writeEndElement();
 			this.w.flush();
 			this.w.close();
-		} catch (Exception err) {
-			return wrapException(err);
-		}finally
+			return 0;
+			} 
+		catch (final Exception err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally
 			{
 			CloserUtil.close(this.w);
 			CloserUtil.close(stream);
 			CloserUtil.close(samReader);
 			this.w=null;
 			}
-		return null;
 		}
 
 	

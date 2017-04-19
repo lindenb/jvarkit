@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -39,26 +40,63 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.readers.LineIterator;
 
 
+/**
 
-public class Biostar178713 extends AbstractBiostar178713
+BEGIN_DOC
+
+
+
+
+### Example
+
+
+
+```
+
+java -jar dist/biostar178713.jar -d 100000 -o out.zip in1.bed in2.bed 
+
+```
+
+
+
+
+### See also
+
+
+https://www.biostars.org/p/178713/
+
+
+
+END_DOC
+*/
+
+
+@Program(name="biostar178713",description="split bed file into several bed files where each region is separated of any other by N bases https://www.biostars.org/p/178713/")
+public class Biostar178713 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar178713.class);
+	private static final Logger LOG = Logger.build(Biostar178713.class).make();
 
-	@Override
-	public Collection<Throwable> initializeKnime() {
-		if(super.outputFile==null || !outputFile.getName().endsWith(".zip")) {
-			return wrapException("output file option -"+OPTION_OUTPUTFILE+" must be declared and must en with .zip");
-		}
-		return super.initializeKnime();
-		}
+
+	@Parameter(names={"-o","--output"},description="Output file.zip .",required=true)
+	private File outputFile = null;
+
+
+	@Parameter(names={"-d","--distance"},description="Distance between bed features")
+	private int distancebed = 100 ;
+
+	
 	
 	private final void readBed( Collection<BedLine> bed,final LineIterator in) {
 		final BedLineCodec codec = new BedLineCodec();
@@ -69,11 +107,15 @@ public class Biostar178713 extends AbstractBiostar178713
 		bed.add(line);
 		}
 		CloserUtil.close(in);
-	}
+		}
 	
 	@Override
-	public Collection<Throwable> call() throws Exception {
-		final Set<String> inputs = IOUtils.unrollFiles(this.getInputFiles());
+	public int doWork(final List<String> args) {
+		if(this.outputFile==null || !outputFile.getName().endsWith(".zip")) {
+			return wrapException("output file option  must be declared and must en with .zip");
+		}
+		
+		final Set<String> inputs = IOUtils.unrollFiles(args);
 		List<BedLine> bedLines=new ArrayList<>();
 		FileOutputStream fos = null;
 		ZipOutputStream zout=null;
@@ -111,8 +153,8 @@ public class Biostar178713 extends AbstractBiostar178713
 				return wrapException("no bed line found");
 				}
 			
-			LOG.info("creating zip "+super.outputFile);
-			fos = new FileOutputStream(super.outputFile);
+			LOG.info("creating zip "+this.outputFile);
+			fos = new FileOutputStream(this.outputFile);
 			zout = new ZipOutputStream(fos);
 			int chunk=0;
 			while(!bedLines.isEmpty())
@@ -133,7 +175,7 @@ public class Biostar178713 extends AbstractBiostar178713
 					final BedLine curr = bedLines.get(i);
 					final double distance  = curr.getStart()- prev.getEnd();
 					if( !prev.getContig().equals(curr.getContig()) ||
-						distance > super.distancebed) {
+						distance > this.distancebed) {
 						pw.println(curr.join());
 						prev=curr;
 						bedLines.remove(i);

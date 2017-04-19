@@ -365,6 +365,13 @@ public class WritingBamArgs
 		return this;
 		}
 	
+	public WritingBamArgs setCompressionLevel(final int compressionLevel) {
+		this.compressionLevel = compressionLevel;
+		return this;
+		}
+	public WritingBamArgs setBestCompression() {
+		return setCompressionLevel(Deflater.BEST_COMPRESSION);
+		}
 	/** return reference file. default implementation returns null */
 	public File getReferenceFile() {
 		return this.referenceFile;

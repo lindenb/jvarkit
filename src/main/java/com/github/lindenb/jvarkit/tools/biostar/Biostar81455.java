@@ -24,14 +24,18 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -39,10 +43,19 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTree;
 import htsjdk.samtools.util.IntervalTreeMap;
 
-
-public class Biostar81455 extends AbstractBiostar81455
+@Program(name="biostar81455",description="Defining precisely the genomic context based on a position .")
+public class Biostar81455 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar81455.class);
+	private static final Logger LOG = Logger.build(Biostar81455.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-KG","--knownGene"},description="KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.",required=true)
+	private String kgUri = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	
 	private IntervalTreeMap<List<KnownGene>> kgMap=null;
 	
     private static int distance(int pos0,KnownGene kg)
@@ -59,20 +72,22 @@ public class Biostar81455 extends AbstractBiostar81455
     	return 0;
     	}
     
-    
     @Override
-    public Collection<Throwable> initializeKnime() {
-    	BufferedReader r=null;
+    public int doWork(List<String> args) {
+		BufferedReader r=null;
+		String line;
+		PrintStream out=null;
+		final Pattern tab=Pattern.compile("[\t]");
+		
+		
     	try
 			{
-    		if(super.kgUri==null || super.kgUri.trim().isEmpty())
+    		if(this.kgUri==null || this.kgUri.trim().isEmpty())
     			{
     			return wrapException("undefined kguri");
     			}
     		this.kgMap = new IntervalTreeMap<List<KnownGene>>();
 			LOG.info("readubf "+kgUri);
-			String line;
-			Pattern tab=Pattern.compile("[\t]");
 			r=IOUtils.openURIForBufferedReading(this.kgUri);
 			while((line=r.readLine())!=null)
 				{
@@ -96,32 +111,11 @@ public class Biostar81455 extends AbstractBiostar81455
     	finally {
 			CloserUtil.close(r);
 			}
-    	return super.initializeKnime();
-    	}
-    
-    @Override
-    public void disposeKnime() {
-    	this.kgMap= null;
-    	super.disposeKnime();
-    	}
-    
-    @Override
-    protected Collection<Throwable> call(String inputName) throws Exception {
-		BufferedReader r=null;
-		String line;
-		PrintStream out=null;
-		final Pattern tab=Pattern.compile("[\t]");
+		
     	try
     		{
-			if(inputName==null)
-				{
-				r=IOUtils.openStreamForBufferedReader(stdin());
-				}
-			else
-				{
-				r=IOUtils.openURIForBufferedReading(inputName);
-				}
-			out = openFileOrStdoutAsPrintStream();
+    		r = super.openBufferedReader(oneFileOrNull(args));
+			out = openFileOrStdoutAsPrintStream(this.outputFile);
 			while((line=r.readLine())!=null)
 				{
 				if(line.startsWith("#"))

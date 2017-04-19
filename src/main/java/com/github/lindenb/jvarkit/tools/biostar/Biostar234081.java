@@ -25,10 +25,15 @@ SOFTWARE.
 
 package com.github.lindenb.jvarkit.tools.biostar;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -39,17 +44,25 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-public class Biostar234081 extends AbstractBiostar234081
+@Program(name="biostar234081",description="convert extended CIGAR to regular CIGAR (https://www.biostars.org/p/234081/)")
+public class Biostar234081 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar234081.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
-@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	@Override
+	public int doWork(java.util.List<String> args) { 
 	SamReader in =null;
 	SAMFileWriter w=null;  
 	SAMRecordIterator iter=null;  
 	try {
-		in = super.openSamReader(inputName);
-		w = super.openSAMFileWriter(in.getFileHeader(),true);
+		in = super.openSamReader(oneFileOrNull(args));
+		w = this.writingBamArgs.openSAMFileWriter(this.outputFile,in.getFileHeader(),true);
 		iter=in.iterator();
 		while(iter.hasNext())
 			{
@@ -85,6 +98,7 @@ public class Biostar234081 extends AbstractBiostar234081
 				}
 			w.addAlignment(rec);
 			}
+		LOG.debug("done");
 		return RETURN_OK;
 	} catch (final Exception err) {
 		return wrapException(err);	

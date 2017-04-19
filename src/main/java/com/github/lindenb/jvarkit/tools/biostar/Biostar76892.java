@@ -23,9 +23,15 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.tools.biostar;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
@@ -33,21 +39,34 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
-
-public class Biostar76892 extends AbstractBiostar76892
+@Program(name="biostar76892",description="fix strand of two paired reads close but on the same strand. See http://www.biostars.org/p/76892/ ")
+public class Biostar76892 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Biostar76892.class);
 
-    
+	private static final Logger LOG = Logger.build(Biostar76892.class).make();
 	
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	
+	
+	@Parameter(names={"-osf","--osf"},description="only save pairs of reads which have been corrected by this program")
+	private boolean onlySaveFixed = false;
+	
+	@Parameter(names={"-d","--maxc"},description="distance beween two reads")
+	private int distance = 30 ;
+
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
+    
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public int doWork(final List<String> args) {
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
-			sfr= super.openSamReader(inputName);
-			sfw = super.openSAMFileWriter(sfr.getFileHeader(), true);
+			sfr= super.openSamReader(oneFileOrNull(args));
+			sfw = writingBamArgs.openSAMFileWriter(this.outputFile,sfr.getFileHeader(), true);
 			long nRecords=0;
 			final List<SAMRecord> buffer=new ArrayList<SAMRecord>();
 			SAMRecordIterator iter=sfr.iterator();
