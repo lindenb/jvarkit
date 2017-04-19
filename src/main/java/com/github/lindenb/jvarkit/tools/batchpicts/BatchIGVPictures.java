@@ -1018,7 +1018,7 @@ class BatchIGVPicturesFrame extends JFrame
 @Program(name="batchigvpictures")
 public class BatchIGVPictures extends Launcher
 	{
-	private static final Logger LOG=Logger.build(BatchPictures.class).make();
+	private static final Logger LOG=Logger.build(BatchIGVPictures.class).make();
 	
 		@Override
 		public int doWork(final List<String> args) {
