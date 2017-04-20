@@ -10,17 +10,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
-
-import com.github.lindenb.jvarkit.util.picard.cmdline.CommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
-import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.RuntimeEOFException;
 import htsjdk.samtools.util.SamRecordIntervalIteratorFactory;
 import htsjdk.samtools.SAMFileHeader;
@@ -33,20 +33,24 @@ import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
 
-public class ImpactOfDuplicates extends CommandLineProgram
+@Program(name="impactofduplicates",
+description="Impact of Duplicates per BAM.",
+keywords={"bam"}
+)
+public class ImpactOfDuplicates extends Launcher
     {
-    private static final Log log = Log.getInstance(ImpactOfDuplicates.class);
-    @Usage
-    public String USAGE = getStandardUsagePreamble() + "Impact of Duplicates per BAM.";
+	private static final Logger LOG = Logger.build(ImpactOfDuplicates.class).make();
 
     
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME, doc="SAM or BAM input file", minElements=1)
-    public List<File> INPUT = new ArrayList<File>();
-    @Option(shortName=StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="Save result as... default is stdout", optional=true)
-    public File OUTPUT = null;
-    @Option(shortName="B", doc="BED File", optional=true)
-    public File BEDFILE = null;
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names="-B", description="BED File")
+	private File BEDFILE = null;
 
+	@ParametersDelegate
+	private WritingSortingCollection sortingCollectionArgs=new WritingSortingCollection();
+	
+	
     /** sam file dict, to retrieve the sequences names  */
     private List< SAMSequenceDictionary> samFileDicts=new ArrayList<SAMSequenceDictionary>();
     /** buffer for Duplicates */
@@ -166,7 +170,7 @@ public class ImpactOfDuplicates extends CommandLineProgram
     
    
     
-    private void dumpDuplicatesBuffer()
+    private void dumpDuplicatesBuffer(final List<File> INPUT)
 		{
     	if(this.duplicatesBuffer.isEmpty()) return;
     	int counts[]=new int[INPUT.size()];
@@ -207,42 +211,41 @@ public class ImpactOfDuplicates extends CommandLineProgram
     	this.duplicatesBuffer.clear();
 		}
     
-
     
     @Override
-    protected int doWork()
-        {
-       this.duplicates=SortingCollection.newInstance(
-                Duplicate.class,
-                new DuplicateCodec(),
-                new Comparator<Duplicate>()
-	            	{
-	        		@Override
-	        		public int compare(Duplicate o1, Duplicate o2)
-	        			{
-	        			return o1.compareTo(o2);
-	        			}
-	            	},
-                super.MAX_RECORDS_IN_RAM,
-                super.TMP_DIR
-                );
+    public int doWork(final List<String> args) {
+    
+       
        CloseableIterator<Duplicate> dupIter=null;
-      
+       final List<File> INPUT = args.stream().map(S->new File(S)).collect(Collectors.toList());
        
         try
             {
-        	 
+        this.duplicates=SortingCollection.newInstance(
+                    Duplicate.class,
+                    new DuplicateCodec(),
+                    new Comparator<Duplicate>()
+    	            	{
+    	        		@Override
+    	        		public int compare(Duplicate o1, Duplicate o2)
+    	        			{
+    	        			return o1.compareTo(o2);
+    	        			}
+    	            	},
+                    this.sortingCollectionArgs.getMaxRecordsInRam(),
+                    this.sortingCollectionArgs.getTmpDirectories()
+                    );
         	
         	
             for(this.bamIndex=0;
-        		this.bamIndex< this.INPUT.size();
+        		this.bamIndex<  INPUT.size();
         		this.bamIndex++)
                 {
             	int prev_tid=-1;
             	int prev_pos=-1;
             	long nLines=0L;
-            	File inFile=this.INPUT.get(this.bamIndex);
-            	log.info("Processing "+inFile);
+            	File inFile= INPUT.get(this.bamIndex);
+            	LOG.info("Processing "+inFile);
                 IOUtil.assertFileIsReadable(inFile);
                 SamReader samReader=null;
                 CloseableIterator<SAMRecord> iter=null;
@@ -308,7 +311,7 @@ public class ImpactOfDuplicates extends CommandLineProgram
 	                    
 	                    if((++nLines)%1000000==0)
 	                    	{
-	                    	log.info("In "+inFile+" N="+nLines);
+	                    	LOG.info("In "+inFile+" N="+nLines);
 	                    	}
 	                    Duplicate dup=new Duplicate();
 	                	dup.bamIndex=this.bamIndex;
@@ -323,17 +326,16 @@ public class ImpactOfDuplicates extends CommandLineProgram
 	                if(iter!=null) iter.close();
 	                if(samReader!=null) samReader.close();
 	                }
-                log.info("done "+inFile);
+                LOG.info("done "+inFile);
                 }
             /** loop done, now scan the duplicates */
             
-            log.info("doneAdding");
+            LOG.info("doneAdding");
             this.duplicates.doneAdding();
             
-            if(this.OUTPUT!=null)
-            	{
-            	this.out=new PrintStream(OUTPUT);
-            	}
+           
+            this.out= super.openFileOrStdoutAsPrintStream(outputFile);
+            	
             
         	out.print("#INTERVAL\tMAX\tMEAN");
         	for(int i=0;i< INPUT.size();++i)
@@ -354,23 +356,23 @@ public class ImpactOfDuplicates extends CommandLineProgram
 	            	}
 	            else
 	            	{
-	            	dumpDuplicatesBuffer();
+	            	dumpDuplicatesBuffer(INPUT);
 	            	this.duplicatesBuffer.add(dup);
 	            	}
             	}
-            dumpDuplicatesBuffer();
-            log.info("end iterator");
+            dumpDuplicatesBuffer(INPUT);
+            LOG.info("end iterator");
             out.flush();
             out.close();
             }
         catch (Exception e) {
-            log.error(e);
+        	LOG.error(e);
             return -1;
             }
         finally
         	{
         	if(dupIter!=null) dupIter.close();
-        	log.info("cleaning duplicates");
+        	LOG.info("cleaning duplicates");
         	this.duplicates.cleanup();
         	}
         return 0;

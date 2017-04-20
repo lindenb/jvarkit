@@ -36,6 +36,7 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.filter.SamRecordFilter;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
@@ -237,7 +238,14 @@ public class SamFilterParser {
 			return new Predicate<SAMRecord>() {
 			 	@Override public boolean test(final SAMRecord rec) { return (rec.getFlags() & flg) != 0;}
 			}; }
-		
+        private static Predicate<SAMRecord> sample(final String s) {
+            return new Predicate<SAMRecord>() {
+                    @Override public boolean test(final SAMRecord rec) { SAMReadGroupRecord rg=rec.getReadGroup(); return rg!=null && s.equals(rg.getSample());}
+            }; }
+		private static Predicate<SAMRecord> group(final String s) {
+            return new Predicate<SAMRecord>() {
+                    @Override public boolean test(final SAMRecord rec) { SAMReadGroupRecord rg=rec.getReadGroup(); return rg!=null && s.equals(rg.getId());}
+            }; }
 		
 	}
 	
@@ -272,6 +280,8 @@ TOKEN:
 | <PAIRED: "Paired" >
 | <OVERLAP: "overlap" >
 | <SAMFLAG: "samFlag" >
+| <SAMPLE: "sample" >
+| <GROUP: "group" >
 }
 
 	
@@ -301,7 +311,7 @@ private Predicate<SAMRecord> AndExpr(): { Predicate<SAMRecord> root,other;}
 	root=UnaryExpr() ( <AND> other=UnaryExpr() {root = root.and(other); } )* { return root;}
 	}
 	
-private Predicate<SAMRecord> UnaryExpr(): {String str; Token t;}
+private Predicate<SAMRecord> UnaryExpr(): {String str; Token t;String str;}
 	{
 	(
 	  <DUPLICATE> { return duplicateFilter(); }
@@ -311,6 +321,9 @@ private Predicate<SAMRecord> UnaryExpr(): {String str; Token t;}
 	| <MATEUNMAPPED> {  return mateUnmapped();}
 	| <OVERLAP> <OPAR>  str=characters() <CPAR> { return overlapBed(str);}
 	| <SAMFLAG> <OPAR> t=<INT> <CPAR> { return samFlag(Integer.parseInt(t.image));}
+	| <SAMPLE> <OPAR> str=characters() <CPAR>  { return sample(str);}
+	| <GROUP> <OPAR> str=characters() <CPAR>  { return group(str);}
+	
 	)
 	
 	}
