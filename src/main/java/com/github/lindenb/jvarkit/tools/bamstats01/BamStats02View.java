@@ -48,7 +48,6 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -69,13 +68,57 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.treepack.TreePack;
 import com.github.lindenb.jvarkit.tools.treepack.TreePacker;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMFlag;
 
+/**
+
+BEGIN_DOC
+
+
+Explore those statistics with a graphical user interface. Left-click shows a popup menu used to include/exclude categories.
+
+
+
+### Synopsis
+
+
+```
+$java -jar dist/bamstats02view.jar output_of_bamstats02.tsv
+```
+
+
+
+### Example
+
+
+```
+$java -jar dist/bamstats02view.jar output.tsv
+```
+
+
+![img](http://i.imgur.com/xC6grmV.jpg)
+
+![img](http://i.imgur.com/cjItYY0.jp)
+
+
+
+### See also
+
+BamStats02
+
+
+END_DOC
+*/
+
+@Program(name="bamstats02view",description="Statistics about the flags and reads in a BAM. Visualize date from BamStats02")
 public class BamStats02View
-	extends AbstractBamStats02View
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamStats02View.class);
+	private static final Logger LOG = Logger.build(BamStats02View.class).make();
     
    
 	private static boolean isEmpty(String s)
@@ -732,8 +775,7 @@ public class BamStats02View
 	
 	
 	@Override
-	public Collection<Throwable> call() throws Exception {
-		final List<String> args = getInputFiles();
+	public int doWork(List<String> args) {
 		if(args.size()!=1)
 			{
 			return wrapException("Expected One file.");

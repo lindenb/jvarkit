@@ -453,8 +453,21 @@ public class CompareBams4  extends Launcher
 				}
 				if(recordLists.get(0).isEmpty() && recordLists.get(1).isEmpty() ) break;
 				
-				if(recordLists.get(0).size()>1) LOG.warn("size>2 for 1:"+recordLists.get(0));
-				if(recordLists.get(1).size()>1) LOG.warn("size>2 for 2:"+recordLists.get(1));
+				if(recordLists.get(0).size()>1) {
+					LOG.warn("size>2 for 1/2:"+recordLists.get(0).get(0).getReadName());
+					for(final SAMRecord sr:recordLists.get(0))
+						{	
+						LOG.warn(">> "+sr+" flags:"+sr.getFlags()+" pos:"+sr.getReferenceName()+":"+sr.getStart());
+						}
+					}
+				if(recordLists.get(1).size()>1) {
+					LOG.warn("size>2 for 2/2:"+recordLists.get(1).get(0).getReadName());
+					for(final SAMRecord sr:recordLists.get(1))
+						{	
+						LOG.warn(">> "+sr+" flags:"+sr.getFlags()+" pos:"+sr.getReferenceName()+":"+sr.getStart());
+						}
+
+				}
 				
 				final Diff diff = new Diff();
 				

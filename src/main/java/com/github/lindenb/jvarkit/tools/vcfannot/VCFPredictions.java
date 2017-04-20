@@ -26,9 +26,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfannot;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -49,10 +49,14 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -65,13 +69,33 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  * Annotator for VCF
  *
  */
-public class VCFPredictions extends AbstractVCFPredictions
+@Program(name="vcfpredictions",description="Basic Variant Effect prediction using ucsc-known gene")
+public class VCFPredictions extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFPredictions.class);
+	private static final Logger LOG = Logger.build(VCFPredictions.class).make();
+
 	private IntervalTreeMap<List<KnownGene>> knownGenes=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
-	
+
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-k","--knownGene"},description="KnownGene data URI/File. Beware chromosome names are formatted the same as your REFERENCE.",required=true)
+	private String kgURI = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+
+	@Parameter(names={"-soacn","--printsoacn"},description="Print SO:term accession rather than label")
+	private boolean print_SO_ACN = false;
+
+	@Parameter(names={"-vep","--vep"},description="Variant Effect Predictor output Syntax")
+	private boolean vepSyntax = false;
+
+	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+	private File referenceFile = null;
+
 	
 	private static class MutedSequence extends DelegateCharSequence
 		{
@@ -263,12 +287,12 @@ public class VCFPredictions extends AbstractVCFPredictions
 	
 	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(final String inputName, final VcfIterator r, VariantContextWriter w)
-			throws IOException {
+	protected int doVcfToVcf(final String inputName, final VcfIterator r, VariantContextWriter w)
+			 {
 		GenomicSequence genomicSequence=null;
 		try {
-		LOG.info("opening REF:"+super.referenceFile);
-		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(super.referenceFile);
+		LOG.info("opening REF:"+this.referenceFile);
+		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
 		loadKnownGenesFromUri();
 		final VCFHeader header=(VCFHeader)r.getHeader();
 		
@@ -277,7 +301,7 @@ public class VCFPredictions extends AbstractVCFPredictions
 		addMetaData(h2);
 		
 		
-		if(super.vepSyntax)
+		if(this.vepSyntax)
 			{
 			h2.addMetaDataLine(new VCFInfoHeaderLine("CSQ",
 					VCFHeaderLineCount.UNBOUNDED,
@@ -701,7 +725,7 @@ public class VCFPredictions extends AbstractVCFPredictions
 				}
 			
 			final VariantContextBuilder vb=new VariantContextBuilder(ctx);
-			vb.attribute((super.vepSyntax?"CSQ":TAG), info.toArray());
+			vb.attribute((this.vepSyntax?"CSQ":TAG), info.toArray());
 			w.add(vb.make());
 			}
 		
@@ -713,23 +737,17 @@ public class VCFPredictions extends AbstractVCFPredictions
 		}
 		}
 	
-	
 	@Override
-	public Collection<Throwable> initializeKnime() {
-		if(super.referenceFile==null) 
+	public int doWork(final List<String> args) {
+			if(this.referenceFile==null) 
 			{
-			return wrapException("Option -"+OPTION_REFERENCEFILE+" undefined.");
+			return wrapException("Reference undefined.");
 			}
-		if(super.kgURI==null || super.kgURI.trim().isEmpty()) 
+		if(this.kgURI==null || this.kgURI.trim().isEmpty()) 
 			{
-			return wrapException("Option -"+OPTION_KGURI+" undefined.");
+			return wrapException("knownGene undefined.");
 			}
-		return super.initializeKnime();
-		}
-	
-	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+		return doVcfToVcf(args,outputFile);
 		}
 	
 	public static void main(String[] args)

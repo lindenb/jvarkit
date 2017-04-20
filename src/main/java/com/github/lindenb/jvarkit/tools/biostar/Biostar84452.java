@@ -1,125 +1,88 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2015 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.List;
 
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class Biostar84452 extends AbstractCommandLineProgram
+@Program(name="biostar84452",description="remove clipped bases from BAM. See: http://www.biostars.org/p/84452/")
+public class Biostar84452 extends Launcher
 	{
-	private Biostar84452()
-		{
-		}
+	private static final Logger LOG = Logger.build(Biostar84452.class).make();
+	
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	
+	@ParametersDelegate
+	private WritingBamArgs WritingBamArgs=new WritingBamArgs();
+	@Parameter(names={"-t","--tag"},description="tag to flag samrecord as processed")
+	private String customTag=null;
 	
 	@Override
-	public String getProgramDescription()
-		{
-		return "remove clipped bases from BAM. See: http://www.biostars.org/p/84452/";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar84452";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (filename) output file. default: stdout.");
-		out.println(" -b force binary");
-		out.println(" -t (tag) tag to flag samrecord as processed. default:XS");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean binary=false;
-		String tag="XS";
-		SAMFileWriterFactory swf=new SAMFileWriterFactory();
-		File fileout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:bt:"))!=-1)
+	public int doWork(List<String> args) {
+		if(customTag!=null)
 			{
-			switch(c)
+			if(customTag.length()!=2 || !customTag.startsWith("X"))
 				{
-				case 'o': fileout=new File(opt.getOptArg());break;
-				case 'b': binary=true;break;
-				case 't':
-					{	
-					tag=opt.getOptArg();
-					if(tag.length()!=2 || !tag.startsWith("X"))
-						{
-						error("Bad tag: expect length=2 && start with 'X'");
-						return -1;
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				LOG.error("Bad tag: expect length=2 && start with 'X'");
+				return -1;
 				}
 			}
 		SAMFileWriter sfw=null;
 		SamReader sfr=null;
 		try
 			{
-			
-			if(opt.getOptInd()==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().open(args[opt.getOptInd()]);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
+			sfr = super.openSamReader(oneFileOrNull(args));
 			SAMFileHeader header=sfr.getFileHeader();
-			SAMProgramRecord prg=header.createProgramRecord();
-			prg.setProgramName(getProgramName());
-			prg.setProgramVersion(getVersion());
-			prg.setCommandLine(getProgramCommandLine());
+
+			sfw = this.WritingBamArgs.openSAMFileWriter(outputFile, header, true);
 			
 			
-			if(fileout==null)
-				{
-				sfw=(binary?
-						swf.makeBAMWriter(header, true, System.out)
-						:swf.makeSAMWriter(header, true, System.out));
-				}
-			else
-				{
-				sfw=(binary?
-						swf.makeBAMWriter(header, true,fileout)
-						:swf.makeSAMWriter(header, true,fileout));
-				}
 			long nChanged=0L;
 			SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
@@ -137,6 +100,7 @@ public class Biostar84452 extends AbstractCommandLineProgram
 					sfw.addAlignment(rec);
 					continue;
 					}
+				final String originalCigarSting = rec.getCigarString();
 				byte bases[]= rec.getReadBases();
 				if(bases==null)
 					{
@@ -192,17 +156,17 @@ public class Biostar84452 extends AbstractCommandLineProgram
 					continue;
 					}
 				++nChanged;
-				rec.setAttribute(tag, 1);
+				if(this.customTag!=null) rec.setAttribute(this.customTag,originalCigarSting);
 				rec.setCigar(new Cigar(L));
 				rec.setReadBases(nseq.toByteArray());
 				if(quals.length!=0)  rec.setBaseQualities(nqual.toByteArray());
 				sfw.addAlignment(rec);
 				}
-			info("Num records changed:"+nChanged);
+			LOG.info("Num records changed:"+nChanged);
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

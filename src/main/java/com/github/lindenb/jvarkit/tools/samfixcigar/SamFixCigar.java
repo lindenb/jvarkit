@@ -28,8 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.samfixcigar;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
@@ -43,20 +43,37 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
-public class SamFixCigar extends AbstractSamFixCigar
+@Program(name="samfixcigar",description="Fix Cigar String in SAM replacing 'M' by 'X' or '='")
+public class SamFixCigar extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamFixCigar.class);
+	private static final Logger LOG = Logger.build(SamFixCigar.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-r","--reference"},description="Indexed fasta Reference",required=true)
+	private File faidx = null;
+	
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
+
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
+	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		
-		
-		if(super.faidx==null)
+	public int doWork(List<String> args) {		
+		if(this.faidx==null)
 			{
-			return wrapException("Reference was not specified.");
+			LOG.error("Reference was not specified.");
+			return -1;
 			}
 		GenomicSequence genomicSequence=null;
 
@@ -66,9 +83,9 @@ public class SamFixCigar extends AbstractSamFixCigar
 			{
 			LOG.info("Loading reference");
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
-			sfr = openSamReader(inputName);
+			sfr = openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=sfr.getFileHeader();
-			sfw = openSAMFileWriter(header, true);
+			sfw = this.writingBamArgs.openSAMFileWriter(outputFile,header, true);
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
 			final List<CigarElement> newCigar=new ArrayList<CigarElement>();
 			final SAMRecordIterator iter=sfr.iterator();
@@ -157,7 +174,8 @@ public class SamFixCigar extends AbstractSamFixCigar
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

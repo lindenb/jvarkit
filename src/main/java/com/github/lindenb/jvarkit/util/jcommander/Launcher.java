@@ -54,6 +54,8 @@ import com.beust.jcommander.converters.IntegerConverter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -62,6 +64,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -338,7 +341,31 @@ public static class SortingCollectionArgs
 	@Parameter(names={"--xx"},description="Compression Level.",converter=CompressionConverter.class)
 	public int compressionLevel=5;
 	}
-
+public class WritingSortingCollection
+	{
+	@Parameter(names={"--maxRecordsInRam"},description="When writing  files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file  handles needed to sort a file, and increases the amount of RAM needed")
+	public int maxRecordsInRam=50000;
+	
+	@Parameter(names={"--tmpDir"},description= "tmp working directory. Default: java.io.tmpDir")
+	private List<File> tmpDirs=new ArrayList<>();
+	
+	
+	public WritingSortingCollection maxRecordsInRam(int n)
+		{
+		this.maxRecordsInRam = n;
+		return this;
+		}
+	public int getMaxRecordsInRam() { return this.maxRecordsInRam;}
+	public List<File> getTmpDirectories() {
+		final List<File> L= new ArrayList<>(this.tmpDirs);
+		if(L.isEmpty() )
+			{
+			L.add(new File(System.getProperty("java.io.tmpdir")));
+			}
+		return L;
+		}
+	
+	}	
 
 public class WritingBamArgs
 	{
@@ -1085,6 +1112,32 @@ protected boolean evalJavaScriptBoolean(
 		}
 
 
+/** reads a Bed file and convert it to a IntervalTreeMap<Boolean> */
+protected IntervalTreeMap<Boolean> readBedFileAsBooleanIntervalTreeMap(final java.io.File file) throws java.io.IOException
+	{
+	java.io.BufferedReader r=null;
+	try
+		{
+		final  IntervalTreeMap<Boolean> intervals = new IntervalTreeMap<Boolean>();
+		r=com.github.lindenb.jvarkit.io.IOUtils.openFileForBufferedReading(file);
+		final BedLineCodec bedCodec=new BedLineCodec();
+		r.lines().
+			filter(line->!(line.startsWith("#") ||  com.github.lindenb.jvarkit.util.bio.bed.BedLine.isBedHeader(line) ||  line.isEmpty())).
+			map(line->bedCodec.decode(line)).
+			filter(B->B!=null).
+			map(B->B.toInterval()).
+			filter(L->L.getStart()<L.getEnd()).
+			forEach(L->{intervals.put(L,true); }
+			);	
+		return intervals;
+		}
+	finally
+		{
+		htsjdk.samtools.util.CloserUtil.close(r);
+		}
+	}
+
+
 /** compile the javascript script. Can be either from JavascriptFile or JavascriptExpr */
 protected javax.script.CompiledScript compileJavascript(
 		final String jsExpression,
@@ -1270,6 +1323,32 @@ protected htsjdk.samtools.SamReader openSamReader(final String inputName)
 		return srf.open(htsjdk.samtools.SamInputResource.of(inputName));
 		}
 	}
+
+
+protected static class StringToMd5 implements Function<String, String>
+	{
+	private final java.security.MessageDigest _md5;
+
+	public StringToMd5() {
+		try {
+			_md5 = java.security.MessageDigest.getInstance("MD5");
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new RuntimeException("MD5 algorithm not found", e);
+		}}
+		
+	@Override
+	public String apply(String in) {
+		_md5.reset();
+		_md5.update(in.getBytes());
+		String s = new java.math.BigInteger(1, _md5.digest()).toString(16);
+		if (s.length() != 32) {
+			final String zeros = "00000000000000000000000000000000";
+			s = zeros.substring(0, 32 - s.length()) + s;
+		}
+		return s;
+		}
+	}
+
 
 /** just created to make a transition between XML and Jcommander. Remove in the future */
 @Deprecated

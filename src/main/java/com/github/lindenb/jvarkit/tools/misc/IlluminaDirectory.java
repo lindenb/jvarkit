@@ -30,32 +30,48 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 
 import java.io.BufferedReader;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.function.Function;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.google.gson.stream.JsonWriter;
 
 import htsjdk.samtools.util.CloserUtil;
 
+@Program(name="illuminadir",description="Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.")
 public class IlluminaDirectory
-	extends AbstractIlluminaDirectory
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(IlluminaDirectory.class);
+	
+	private static final Logger LOG = Logger.build(IlluminaDirectory.class).make();
 
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-J","--json"},description="Generate JSON output.")
+	private boolean JSON = false;
+	
+	private final Function<String, String> str2md5 = new StringToMd5();
+	
 	private int ID_GENERATOR=0;
 
     
@@ -197,7 +213,7 @@ public class IlluminaDirectory
 				{
 	    		out.beginObject();
 	    		out.name("id");out.value("p"+this.id);
-	    		out.name("md5pair");out.value(md5(forward.getFile().getPath()+reverse.getFile().getPath()));
+	    		out.name("md5pair");out.value(str2md5.apply(forward.getFile().getPath()+reverse.getFile().getPath()));
 	    		out.name("lane");out.value(""+forward.getLane());
 	    		out.name("index");
 	    		if(forward.getSeqIndex()!=null)
@@ -214,7 +230,7 @@ public class IlluminaDirectory
 	    		out.name("forward");
 	    		
 	    		out.beginObject();
-	    		out.name("md5filename");out.value(md5(forward.getFile().getPath()));
+	    		out.name("md5filename");out.value(str2md5.apply(forward.getFile().getPath()));
 	    		out.name("path");out.value(forward.getFile().getPath());
 	    		out.name("side");out.value(forward.getSide().ordinal());
 	    		out.name("file-size");out.value(forward.getFile().length());	    		
@@ -223,7 +239,7 @@ public class IlluminaDirectory
 	    		out.name("reverse");
 	    		
 	    		out.beginObject();
-	    		out.name("md5filename");out.value(md5(reverse.getFile().getPath()));
+	    		out.name("md5filename");out.value(str2md5.apply(reverse.getFile().getPath()));
 	    		out.name("path");out.value(reverse.getFile().getPath());
 	    		out.name("side");out.value(reverse.getSide().ordinal());
 	    		out.name("file-size");out.value(reverse.getFile().length());	    		
@@ -236,7 +252,7 @@ public class IlluminaDirectory
     			final FastQName F=(forward==null?reverse:forward);
     			out.beginObject();
 	    		out.name("id");out.value("p"+this.id);
-	    		out.name("md5filename");out.value(md5(F.getFile().getPath()));
+	    		out.name("md5filename");out.value(str2md5.apply(F.getFile().getPath()));
 	    		out.name("lane");out.value(""+F.getLane());
 	    		out.name("index");
 	    		if(F.getSeqIndex()!=null)
@@ -259,7 +275,7 @@ public class IlluminaDirectory
     	void write(XMLStreamWriter w,String tagName,FastQName fastqFile) throws XMLStreamException
     		{
 			w.writeStartElement(tagName);
-			w.writeAttribute("md5filename",md5(fastqFile.getFile().getPath()));
+			w.writeAttribute("md5filename",str2md5.apply(fastqFile.getFile().getPath()));
 			w.writeAttribute("file-size",String.valueOf( fastqFile.getFile().length()));
 			w.writeCharacters(fastqFile.getFile().getPath());
 			w.writeEndElement();
@@ -269,7 +285,7 @@ public class IlluminaDirectory
     		{
 			w.writeStartElement("fastq");
 			w.writeAttribute("id","p"+this.id);
-			w.writeAttribute("md5",md5(forward.getFile().getPath()+reverse.getFile().getPath()));
+			w.writeAttribute("md5",str2md5.apply(forward.getFile().getPath()+reverse.getFile().getPath()));
 			w.writeAttribute("lane", String.valueOf(forward.getLane()));
 			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(forward.getSeqIndex()));
 			w.writeAttribute("split", String.valueOf(forward.getSplit()));
@@ -297,7 +313,7 @@ public class IlluminaDirectory
     private Map<String,String> groupIdMap=new HashMap<>(); 
     private String getGroupId(final FastQName fastq)
     	{
-    	final String s= md5( fastq.getSample()+" "+fastq.getLane()+" "+fastq.getSeqIndex());
+    	final String s= str2md5.apply( fastq.getSample()+" "+fastq.getLane()+" "+fastq.getSeqIndex());
     	String gid = this.groupIdMap.get(s);
     	if(gid==null)
     		{
@@ -359,19 +375,14 @@ public class IlluminaDirectory
     	
 		}
     
-	    @Override
-	    protected Collection<Throwable> call(final String inputName) throws Exception {
-	    	BufferedReader in=null;;
+    @Override
+    public int doWork(List<String> args) {
+    	   	BufferedReader in=null;
 			try
 				{
-				if( inputName == null) 
-					{
-					in = IOUtils.openStreamForBufferedReader(stdin());
-					}
-				else
-					{
-					in = IOUtils.openURIForBufferedReading(inputName);
-					}
+				final String inputName= oneFileOrNull(args);
+				in= super.openBufferedReader(inputName);
+				
 				
 				final Folder folder=new Folder();
 				String line;
@@ -396,9 +407,9 @@ public class IlluminaDirectory
 					}
 				in.close();
 		    	
-				final PrintWriter pw = this.openFileOrStdoutAsPrintWriter();
+				final PrintWriter pw = this.openFileOrStdoutAsPrintWriter(outputFile);
 
-		    	if(super.isJSON())
+		    	if(this.JSON)
 		    		{
 		    		final JsonWriter js=new JsonWriter(pw);
 		    		folder.json(js);

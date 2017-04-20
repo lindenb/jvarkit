@@ -33,20 +33,33 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.Comparator;
+import java.util.List;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
-public class Biostar84786 extends AbstractCommandLineProgram
+@Program(name="biostar84786",description="Matrix transposition ( see  http://www.biostars.org/p/84786/ )")
+public class Biostar84786 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar84786.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names="-d",description="column delimter")
+	private char delim='\t';
+	
+			
 	private static class Cell
 		{
 		long row;
@@ -102,32 +115,14 @@ public class Biostar84786 extends AbstractCommandLineProgram
 		
 		}
 	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return DEFAULT_WIKI_PREFIX+"Biostar86363";
-		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -d (delim) column delimter: default = tab");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return " Matrix transposition ( see  http://www.biostars.org/p/84786/ ).";
-		}
-
-	
-	private int doWork(File IN,String DELIM) {
+	private int doWork(String filename,final String DELIM,PrintWriter pw) {
 		if(DELIM.length()!=1)
 			{
-			error("DELIM must have length==1 . Got "+DELIM.length());
+			LOG.error("DELIM must have length==1 . Got "+DELIM.length());
 			return -1;
 			}
-		InputStream in=System.in;
+		InputStream in=null;
 		SortingCollection<Cell> sorter=null;
 		final  Comparator<Cell> comparator=new Comparator<Biostar84786.Cell>() {
 			@Override
@@ -147,10 +142,14 @@ public class Biostar84786 extends AbstractCommandLineProgram
 				Cell.class, new CellCodec(), comparator,10000
 				);
 			sorter.setDestructiveIteration(true);
-			if(IN!=null)
+			if(filename!=null)
 				{
-				this.info("opening "+IN);
-				in=IOUtils.openFileForReading(IN);
+				LOG.info("opening "+filename);
+				in=IOUtils.openURIForReading(filename);
+				}
+			else
+				{
+				in = stdin();
 				}
 			long row=0L;
 			long col=0L;
@@ -165,7 +164,7 @@ public class Biostar84786 extends AbstractCommandLineProgram
 					col=0;
 					b.setLength(0);
 					if(c==-1) break;
-					if(row%10000==0) this.info("row:"+row);
+					if(row%10000==0) LOG.info("row:"+row);
 					}
 				else if(c==delimiter)
 					{
@@ -179,7 +178,7 @@ public class Biostar84786 extends AbstractCommandLineProgram
 					}
 				}
 			sorter.doneAdding();
-			if(IN!=null) in.close();
+			if(filename!=null) in.close();
 			in=null;
 			CloseableIterator<Cell> iter=sorter.iterator();
 			long curr_col=-1L;
@@ -189,27 +188,27 @@ public class Biostar84786 extends AbstractCommandLineProgram
 				
 				if(!iter.hasNext())
 					{
-					System.out.println();
+					pw.println();
 					break;
 					}
 				Cell c=iter.next();
 				if(c.col!=curr_col)
 					{
-					if(curr_col!=-1L) System.out.println();
+					if(curr_col!=-1L) pw.println();
 					x=0L;
 					curr_col=c.col;
 					}
-				if(x>0L) System.out.print(DELIM);
-				System.out.print(c.content);
+				if(x>0L) pw.print(DELIM);
+				pw.print(c.content);
 				x++;
 				}
 			iter.close();
-			this.info("Done.");
+			pw.flush();
+			LOG.info("Done.");
 			} 
 		catch (Exception e)
 			{
-			e.printStackTrace();
-			this.error(e,"BOUM");
+			LOG.error(e);
 			return -1;
 			}
 		finally
@@ -227,49 +226,27 @@ public class Biostar84786 extends AbstractCommandLineProgram
 		new Biostar84786().instanceMainWithExit(args);
 
 	}
-
 	
-	public int doWork(String[] args)
-		{
+	@Override
+	public int doWork(List<String> args) {
 		String delim="\t";
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"d:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'd': delim=opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+		PrintWriter pw=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
-				{
-				return doWork(null,delim);
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				return doWork(new File(args[opt.getOptInd()]),delim);
-				}
-			else
-				{
-				error("Illegal Number of arguments");
-				return -1;
-				}
+			pw= openFileOrStdoutAsPrintWriter(outputFile);
+			int ret= doWork(oneFileOrNull(args),delim,pw);
+			pw.flush();
+			pw.close();pw=null;
+					return ret;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(pw);	
 			}
 		}
 	

@@ -16,24 +16,29 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.bin.SamSequenceRecordBinMap;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class HtSeqCount extends AbstractCommandLineProgram
+@Program(name="deseqcount",description="java version of htseqcount",
+		deprecatedMsg="never tested, don't use this")
+public class HtSeqCount extends Launcher
 	{
+	private static final Logger LOG = Logger.build(HtSeqCount.class).make();
+
 	/** features we want in the GTF */
-	private Set<String> features=null;
+	@Parameter(names="-F",description=" add this feature. default are : CDS and exon")
+	private final Set<String> features=new HashSet<>();
 	/** first Dict found, to print chrom names and compare with others */
 	private SAMSequenceDictionary firstDict=null;
 	/** mapping position to transcript */
@@ -41,19 +46,25 @@ public class HtSeqCount extends AbstractCommandLineProgram
 	/** all filenames */
 	private List<String> filenames=new ArrayList<String>();
 	/** user GTF file */
+	@Parameter(names="-g",description="path to GTF file",required=true)
 	private File gtfFile=null;
 	
 	/* current file scanner in filenames */
 	private int file_index=0;
 	/* user feature  in the GTF */
+	@Parameter(names="-T",description="key for clustering info")
 	private String transcript_id="transcript_id";
 	/* all transcripts to print at the end */
 	private HashMap<String, Transcript> name2transcript=new HashMap<String, Transcript>();
 	/* first ouput line is header */
+	@Parameter(names="-H",description="first ouput line is header")
 	private boolean print_header=false;
 	/* remove lines with 0 coverage */
+	
 	private boolean removeZero=false;
 	/* print chrom/start-end  on the left*/
+	
+	@Parameter(names="-c",description="print chrom/start/end")
 	private boolean print_chromstartend=false;
 
 	
@@ -67,10 +78,6 @@ public class HtSeqCount extends AbstractCommandLineProgram
 		int end=0;
 		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "java version of htseqcount";
-		}
 	
 	private void parseGTF(BufferedReader in,SAMSequenceDictionary dict) throws IOException
 		{
@@ -90,7 +97,7 @@ public class HtSeqCount extends AbstractCommandLineProgram
 			int tid=dict.getSequenceIndex(chrom);
 			if(tid<0)
 				{
-				warning("Unknown chromosome "+chrom+" Ignoring "+line);
+				LOG.warning("Unknown chromosome "+chrom+" Ignoring "+line);
 				continue;
 				}
 			String transcript_name=null;
@@ -122,7 +129,7 @@ public class HtSeqCount extends AbstractCommandLineProgram
 				}
 			if(transcript_name==null)
 				{
-				info("No "+transcript_id+" in "+line);
+				LOG.info("No "+transcript_id+" in "+line);
 				continue;
 				}
 			
@@ -138,14 +145,14 @@ public class HtSeqCount extends AbstractCommandLineProgram
 				name2transcript.put(transcript_name,transcript);
 				if(name2transcript.size()%1000==0)
 					{
-					info("Transcripts: "+name2transcript.size()+" "+transcript_name);
+					LOG.info("Transcripts: "+name2transcript.size()+" "+transcript_name);
 					}
 				}
 			else
 				{
 				if(transcript.tid!=tid)
 					{
-					warning("Multiple chromosomes for "+transcript);
+					LOG.warning("Multiple chromosomes for "+transcript);
 					transcript.bad_flag=true;
 					continue;
 					}
@@ -165,7 +172,7 @@ public class HtSeqCount extends AbstractCommandLineProgram
 			while(x.hasNext()) if(transcript==x.next()) {ok=true;}
 			if(!ok) throw new IllegalStateException("boum");*/
 			}
-		info("Done Reading transcripts:"+name2transcript.size());
+		LOG.info("Done Reading transcripts:"+name2transcript.size());
 		}
 	
 	private void touch(int tid,int start1,int end1)
@@ -189,7 +196,7 @@ public class HtSeqCount extends AbstractCommandLineProgram
 			{
 			firstDict=header.getSequenceDictionary();
 			
-			info("Reading "+this.gtfFile);
+			LOG.info("Reading "+this.gtfFile);
 			BufferedReader gtfIn=IOUtils.openFileForBufferedReading(this.gtfFile);
 			parseGTF(gtfIn,header.getSequenceDictionary());
 			gtfIn.close();
@@ -215,7 +222,7 @@ public class HtSeqCount extends AbstractCommandLineProgram
 			if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 			if(nReads++%1E6==0)
 				{
-				info("Read "+nReads+" in "+this.filenames.get(this.file_index));
+				LOG.info("Read "+nReads+" in "+this.filenames.get(this.file_index));
 				}
 			touch(rec.getReferenceIndex(),
 					rec.getAlignmentStart(),
@@ -228,64 +235,20 @@ public class HtSeqCount extends AbstractCommandLineProgram
 
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -g (file) path to GTF file. REQUIRED");
-		out.println(" -z remove 0 covered file");
-		out.println(" -c print chrom/start/end");
-		out.println(" -H print header");
-		out.println(" -F <string> add this feature. default are : CDS and exon");
-		out.println(" -T <type> key for clustering info. Default is "+this.transcript_id);
+	public int doWork(List<String> args) {
 		
-		out.println(" -h get help (this screen)");
-		out.println(" -v print version and exit.");
-		out.println(" -L (level) log level. One of java.util.logging.Level . currently:"+getLogger().getLevel());
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args, "hvL:g:zcHF:T:"))!=-1)
+		
+		if(features.isEmpty())
 			{
-			switch(c)
-				{
-				
-				case 'F':
-					{
-					if(features==null) features=new HashSet<String>();
-					features.add(opt.getOptArg());
-					break;
-					}
-				case 'T':
-					{
-					this.transcript_id=opt.getOptArg();
-					break;
-					}
-				case 'g': this.gtfFile=new File(opt.getOptArg());break;
-				case 'z': this.removeZero=true; break;
-				case 'c': this.print_chromstartend=true; break;
-				case 'H': this.print_header=true; break;
-				case 'h': printUsage();return 0;
-				case 'v': System.out.println(getVersion());return 0;
-				case 'L': getLogger().setLevel(java.util.logging.Level.parse(opt.getOptArg()));break;
-				case ':': System.err.println("Missing argument for option -"+opt.getOptOpt());return -1;
-				default: System.err.println("Unknown option -"+opt.getOptOpt());return -1;
-				}
-			}
-		if(features==null)
-			{
-			features=new HashSet<String>();
 			for(String F:new String[]{"CDS","exon"})
 				{
-				info("Adding "+F+" as default feature.");
+				LOG.info("Adding "+F+" as default feature.");
 				features.add(F);
 				}
 			}
 		if( this.gtfFile==null)
 			{
-			error("undefined GTF file");
+			LOG.error("undefined GTF file");
 			return -1;
 			}
 		
@@ -294,27 +257,25 @@ public class HtSeqCount extends AbstractCommandLineProgram
 		try
 			{
 			this.file_index=0;
-			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Opening stdin");
+				LOG.info("Opening stdin");
 				filenames.add("stdin");
-				sfr=srf.open(SamInputResource.of(System.in));
+				sfr=super.openSamReader(null);
 				run(sfr);
 				sfr.close();
 				}
 			else 
 				{
-				for(int optind=opt.getOptInd();optind< args.length;++optind)
+				for(String filename:args)
 					{
-					String filename=args[optind];
 					filenames.add(filename);
 					}
 				
 				for(String filename:filenames)
 					{
-					info("Opening "+filename);
-					sfr=srf.open(new File(filename));
+					LOG.info("Opening "+filename);
+					sfr=super.openSamReader(filename);
 					run(sfr);
 					sfr.close();
 					this.file_index++;
@@ -323,17 +284,17 @@ public class HtSeqCount extends AbstractCommandLineProgram
 			
 			if(this.print_header)
 				{
-				System.out.print("#");
+				stdout().print("#");
 				if(this.print_chromstartend)
 					{
-					System.out.print("chrom\tstart\tend\t");
+					stdout().print("chrom\tstart\tend\t");
 					}
-				System.out.print("Transcript");
+				stdout().print("Transcript");
 				for(String filename:filenames)
 					{
-					System.out.print("\t"+filename);
+					stdout().print("\t"+filename);
 					}
-				System.out.println();
+				stdout().println();
 				}
 			
 			List<Transcript> ordered=new ArrayList<Transcript>(this.name2transcript.values());
@@ -366,20 +327,20 @@ public class HtSeqCount extends AbstractCommandLineProgram
 					}
 				if(this.print_chromstartend)
 					{
-					System.out.print(firstDict.getSequence(tr.tid).getSequenceName());
-					System.out.print("\t");
-					System.out.print(tr.start);
-					System.out.print("\t");
-					System.out.print(tr.end);
-					System.out.print("\t");
+					stdout().print(firstDict.getSequence(tr.tid).getSequenceName());
+					stdout().print("\t");
+					stdout().print(tr.start);
+					stdout().print("\t");
+					stdout().print(tr.end);
+					stdout().print("\t");
 					}
-				System.out.print(tr.name);
+				stdout().print(tr.name);
 				for(int C:tr.count)
 					{
-					System.out.print("\t");
-					System.out.print(C);
+					stdout().print("\t");
+					stdout().print(C);
 					}
-				System.out.println();
+				stdout().println();
 				}
 		
 		
@@ -387,7 +348,7 @@ public class HtSeqCount extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

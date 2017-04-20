@@ -14,14 +14,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
 import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.Log;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
@@ -38,41 +39,35 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
+import com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdf;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-/**
- * @author lindenb
- *
- */
-public class VCFAnnoBam extends AbstractVCFFilter {
+@Program(name="vcfannobam",
+	deprecatedMsg="useless: use DP/DP4 in the Genotypes",
+	description="Annotate a VCF with the Coverage statistics of a BAM file+  BED file of capture. It uses the Cigar string instead of the start/end to get the voverage")
+public class VCFAnnoBam extends Launcher {
 
-
-	private static final Log LOG=Log.getInstance(VCFAnnoBam.class);
+	private static final Logger LOG = Logger.build(VcfToRdf.class).make();
 	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+" Annotate a VCF with the Coverage statistics of a BAM file+  BED file of capture. " +
-			"It uses the Cigar string instead of the start/end to get the voverage";
 
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
 
-    @Option(shortName= "BED", doc="BED File capture.",
-    		optional=false)
-	public File BEDILE=null;
+    @Parameter(names= {"-BED"}, description="BED File capture.",required=true)
+	private File BEDILE=null;
     
-    @Option(shortName= "BAM", doc="indexed BAM File.",
-    		optional=false,
-    		minElements=1
-    		)
-	public List<File> BAMFILE=null;
+	@Parameter(names= {"-BAM"}, description="indexed BAM File.")		
+	private List<File> BAMFILE=null;
 
     
 
-    
-    @Option(shortName= "MIN_MAPING_QUALITY", doc="min mapping quality", optional=false)
+	@Parameter(names= {"-MIN_MAPING_QUALITY"}, description="min mapping quality")		
 	public int MMQ=0;
 
-    @Option(shortName= "MIN_COV", doc="min coverage to say the position is not covered", optional=false)
-	public int MIN_COVERAGE=0;
+	@Parameter(names= {"-MIN_COV"}, description="min coverage to say the position is not covered")		
+    public int MIN_COVERAGE=0;
 
    
     
@@ -204,10 +199,8 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 			
 			}
 	
-	@Override
-	protected void doWork(VcfIterator r, VariantContextWriter w)
-			throws IOException
-		{
+    @Override
+    protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
 		BufferedReader bedIn=null;
 		List<SamReader> samReaders=new ArrayList<SamReader>();
 		IntervalTreeMap<Rgn> capture=new IntervalTreeMap<Rgn>();
@@ -278,7 +271,7 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 			while(r.hasNext())
 				{
 				VariantContext ctx=r.next();
-				Interval interval=new Interval(ctx.getChr(), ctx.getStart(), ctx.getEnd());
+				Interval interval=new Interval(ctx.getContig(), ctx.getStart(), ctx.getEnd());
 				Collection<Rgn> rgns=capture.getOverlapping(interval);
 				Iterator<Rgn> it=rgns.iterator();
 				if(!it.hasNext())
@@ -296,6 +289,11 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 				b.attribute("CAPTURE", rgn.toString());
 				w.add(b.make());
 				}
+			return 0;
+			}
+		catch(final Exception err) {
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -303,6 +301,11 @@ public class VCFAnnoBam extends AbstractVCFFilter {
 			}
 		}
 
+    @Override
+    public int doWork(List<String> args) {
+    	return doVcfToVcf(args, outputFile);
+    	}
+    
 	/**
 	 * @param args
 	 */

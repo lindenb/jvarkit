@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
  * @author lindenb
  *
  */
+@Deprecated /* use Launcher */
 public abstract class AbstractVCFFilter2
 	extends AbstractCommandLineProgram
 	{

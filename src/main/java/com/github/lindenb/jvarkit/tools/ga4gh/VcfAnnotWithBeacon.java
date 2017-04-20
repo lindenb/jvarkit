@@ -126,30 +126,25 @@ public class VcfAnnotWithBeacon extends Launcher {
 
 		   final org.apache.http.impl.client.HttpClientBuilder hb=HttpClients.custom();
 			
-			if(this.ignoreCertErrors) {
-				//http://stackoverflow.com/questions/24720013/apache-http-client-ssl-certificate-error
+			if (this.ignoreCertErrors) {
+				// http://stackoverflow.com/questions/24720013/apache-http-client-ssl-certificate-error
 				System.setProperty("jsse.enableSNIExtension", "false");
-				final SSLContext sslContext = 
+				final SSLContext sslContext =
 
-			    	org.apache.http.conn.ssl.SSLContexts.custom()
-			            .loadTrustMaterial(null, new org.apache.http.conn.ssl.TrustStrategy ()
-			            		{
-				            	@Override
-				                public boolean isTrusted(final X509Certificate[] chain, final String authType) throws CertificateException {
-				                    return true;
-				                }
-			            		})
-			            .useTLS()
-			            .build();
+				org.apache.http.conn.ssl.SSLContexts.custom()
+						.loadTrustMaterial(null, new org.apache.http.conn.ssl.TrustStrategy() {
+							@Override
+							public boolean isTrusted(final X509Certificate[] chain, final String authType)
+									throws CertificateException {
+								return true;
+							}
+						}).useTLS().build();
 
+				final org.apache.http.conn.ssl.SSLConnectionSocketFactory connectionFactory = new org.apache.http.conn.ssl.SSLConnectionSocketFactory(
+						sslContext, new org.apache.http.conn.ssl.AllowAllHostnameVerifier());
 
-
-			   final  org.apache.http.conn.ssl.SSLConnectionSocketFactory connectionFactory =
-			            new org.apache.http.conn.ssl.SSLConnectionSocketFactory (sslContext, new org.apache.http.conn.ssl.AllowAllHostnameVerifier ());
-
-				
 				hb.setSSLSocketFactory(connectionFactory);
-				
+
 			}
 			httpClient = hb.build(); 	
 			HttpGet httpGetRequest = null;

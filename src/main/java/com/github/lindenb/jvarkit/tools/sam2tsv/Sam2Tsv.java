@@ -29,9 +29,14 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
+import java.io.File;
 import java.io.PrintWriter;
-import java.util.Collection;
+import java.util.List;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -48,10 +53,24 @@ import htsjdk.samtools.util.CloserUtil;
 /**
  * https://github.com/lindenb/jvarkit/wiki/SAM2Tsv
  */
+@Program(name="sam2tsv",description="Prints the SAM alignments as a TAB delimited file.")
 public class Sam2Tsv
-	extends AbstractSam2Tsv
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Sam2Tsv.class);
+	private static final Logger LOG = Logger.build(Sam2Tsv.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-A","--printAlignments"},description="Print Alignments")
+	private boolean printAlignment = false;
+
+	@Parameter(names={"-r","-R","--reference"},description="Indexed fasta Reference",required=true)
+	private File refFile = null;
+	
+	
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
@@ -357,13 +376,12 @@ public class Sam2Tsv
 			CloserUtil.close(iter);
 			}
 		}
-	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		
-		if(super.refFile==null)
+	public int doWork(List<String> args) {
+		if(this.refFile==null)
 			{
-			return wrapException(getMessageBundle("reference.undefined"));
+			LOG.error("reference.undefined");
+			return -1;
 			}
 		
 		if(printAlignment)
@@ -378,9 +396,9 @@ public class Sam2Tsv
 			{
 			
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
-			out  =  openFileOrStdoutAsPrintWriter();
+			out  =  openFileOrStdoutAsPrintWriter(outputFile);
 			out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
-			samFileReader= openSamReader(inputName);
+			samFileReader= openSamReader(oneFileOrNull(args));
 			
 			scan(samFileReader);
 			samFileReader.close();
@@ -388,9 +406,10 @@ public class Sam2Tsv
 			this.out.flush();
 			return RETURN_OK;
 			}
-		catch (Exception e)
+		catch (final Exception e)
 			{
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
 		finally
 			{

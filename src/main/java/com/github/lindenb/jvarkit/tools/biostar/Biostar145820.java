@@ -32,12 +32,10 @@ import htsjdk.samtools.BAMRecordCodec;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -47,18 +45,35 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Random;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 @Program(name="biostar145820",description="subsample BAM to fixed number of alignments.",biostars=145820)
-public class Biostar145820 extends AbstractCommandLineProgram
+public class Biostar145820 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar145820.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-n"},description=" number of reads. -1: all reads")
+	private long count=-1L;
+
+	
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
+
 	
 	private static class RandSamRecord
 		{
@@ -128,51 +143,11 @@ public class Biostar145820 extends AbstractCommandLineProgram
 			}
 		}
 	
-	
-
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -n (int) number of reads. -1: all reads"); 
-		out.println(" -o (file) output file (default stdout)"); 
-		out.println(" -N (int) max records in ram (optional)"); 
-		out.println(" -b force binary for stdout (optional)"); 
-		out.println(" -T (dir) add tmp directory (optional)"); 
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean compressed=false;
-		int maxRecordsInRAM=100000;
-		long count=-1L;
-		File fileout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:n:N:T:b"))!=-1)
+	public int doWork(final List<String> args) {
+		if(this.count<-1L) // -1 == infinite
 			{
-			switch(c)
-				{
-				case 'b': compressed=true;break;
-				case 'N': maxRecordsInRAM = Integer.parseInt(opt.getOptArg());break;				
-				case 'n': count = Long.parseLong(opt.getOptArg());break;				
-				case 'o': fileout = new File(opt.getOptArg());break;				
-				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;				
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
-		if(count<-1L) // -1 == infinite
-			{
-			error("Bad count:"+count);
+			LOG.error("Bad count:"+count);
 			return -1;
 			}
 		SamReader samReader=null;
@@ -182,47 +157,16 @@ public class Biostar145820 extends AbstractCommandLineProgram
 		CloseableIterator<RandSamRecord> iter2=null;
 		try
 			{
-			SamFileReaderFactory.setDefaultValidationStringency(ValidationStringency.SILENT);
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				samReader=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				File filename=new File(args[opt.getOptInd()]);
-				info("Reading from "+filename);
-				samReader=SamFileReaderFactory.mewInstance().open(filename);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
-			SAMFileHeader header=samReader.getFileHeader();
+			
+			samReader = super.openSamReader(oneFileOrNull(args));
+			
+			final SAMFileHeader header=samReader.getFileHeader().clone();
 						
-			header=header.clone();
 			header.setSortOrder(SortOrder.unsorted);
 			header.addComment("Processed with "+getProgramName()+" : "+getProgramCommandLine());
-			SAMFileWriterFactory sfw=new SAMFileWriterFactory();
-			sfw.setCreateIndex(false);
-			sfw.setCreateMd5File(false);
-			if(fileout==null)
-				{
-				if(compressed)
-					{
-					samWriter=sfw.makeBAMWriter(header,true, System.out);
-					}
-				else
-					{
-					samWriter=sfw.makeSAMWriter(header,true, System.out);
-					}
-				}
-			else 
-				{
-				samWriter=sfw.makeSAMOrBAMWriter(header,true,fileout);
-				this.addTmpDirectory(fileout);
-				}
+			
+			samWriter = writingBamArgs.openSAMFileWriter(outputFile, header, true);
+			
 			iter=samReader.iterator();
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader().getSequenceDictionary());
 			
@@ -230,8 +174,8 @@ public class Biostar145820 extends AbstractCommandLineProgram
 					RandSamRecord.class,
 					new RandSamRecordCodec(header),
 					new RandSamRecordComparator(), 
-					maxRecordsInRAM,
-					getTmpDirectories()
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			sorter.setDestructiveIteration(true);
 			while(iter.hasNext())
@@ -267,7 +211,7 @@ public class Biostar145820 extends AbstractCommandLineProgram
 			}
 		catch (Exception e)
 			{
-			error(e);
+			LOG.error(e);
 			return -1;
 			}
 		finally

@@ -27,11 +27,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.GranthamScore;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -76,9 +81,28 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
  * @SolenaLS 's idea: variant in the same codon give a new Amino acid undetected by annotaion tools.
  *
  */
-public class VCFCombineTwoSnvs extends AbstractVCFCombineTwoSnvs
+@Program(name="vcfcombinetwosnvs",description="Idea from @SolenaLS and then @AntoineRimbert")
+public class VCFCombineTwoSnvs extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFCombineTwoSnvs.class);
+	private static final Logger LOG = Logger.build(VCFCombineTwoSnvs.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-k","--knownGene"},description="KnownGene data URI/File. Beware chromosome names are formatted the same as your REFERENCE.",required=true)
+	private String kgURI = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+
+	@Parameter(names={"-B","--bam"},description="Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'")
+	private File bamIn = null;
+	
+	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+	private File referenceFile = null;
+
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
+	
+	
 	/** known Gene collection */
 	private final IntervalTreeMap<List<KnownGene>> knownGenes=new IntervalTreeMap<>();
 	/** reference genome */
@@ -465,12 +489,14 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		}
 
 	@Override
-	protected Collection<Throwable> doVcfToVcf(final String inputName,final VcfIterator r,final VariantContextWriter w) throws IOException {
-	throw new IllegalStateException("should be never called");
-	}
+	protected int doVcfToVcf(String inputName, VcfIterator iterin, VariantContextWriter out) {
+		throw new IllegalStateException("should be never called");
+		}
+	
+	
 	
 	@Override
-	protected java.util.Collection<Throwable> doVcfToVcf(String inputName) throws Exception
+	protected int doVcfToVcf(final String inputName,File saveAs)
 		{
 		BufferedReader bufferedReader = null;
 		htsjdk.variant.variantcontext.writer.VariantContextWriter w=null;
@@ -495,16 +521,16 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 	        final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
 	        if(dict==null) throw new IOException("dictionary missing");
 	        
-	        if(super.bamIn!=null)
+	        if(this.bamIn!=null)
 	        	{
 	        	/** unroll and open bam file */
-	        	for(final File bamFile : IOUtils.unrollFileCollection(Collections.singletonList(super.bamIn)))
+	        	for(final File bamFile : IOUtils.unrollFileCollection(Collections.singletonList(this.bamIn)))
 		        	{
-		        	LOG.info("opening BAM :"+super.bamIn);
+		        	LOG.info("opening BAM :"+this.bamIn);
 		        	final SamReader samReader = SamReaderFactory.makeDefault().
 		        			referenceSequence(this.referenceFile).
 		        			validationStringency(ValidationStringency.LENIENT).
-		        			open(super.bamIn)
+		        			open(this.bamIn)
 		        			;
 		        	if(!samReader.hasIndex())
 		        		{
@@ -518,7 +544,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		        	/* get sample name */
 		        	String sampleName=null;
 		        	for(final SAMReadGroupRecord rg:samHeader.getReadGroups()) {
-		        		if(rg.getSample()==null) return null;
+		        		if(rg.getSample()==null) continue;
 		        		if(sampleName!=null && !sampleName.equals(rg.getSample())) {
 		        			samReader.close();
 			        		 throw new IOException(bamFile+" Contains two samples "+sampleName+" "+rg.getSample());
@@ -544,8 +570,8 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			this.variants = SortingCollection.newInstance(Variant.class,
 					new VariantCodec(),
 					new VariantComparator(dict),
-					super.getMaxRecordsInRam(),
-					super.getTmpDirectories()
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			this.variants.setDestructiveIteration(true);
 			
@@ -593,8 +619,8 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			mutations = SortingCollection.newInstance(CombinedMutation.class,
 					new MutationCodec(),
 					new MutationComparator(dict),
-					super.getMaxRecordsInRam(),
-					super.getTmpDirectories()
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			mutations.setDestructiveIteration(true);
 			
@@ -889,7 +915,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			final ArrayList<CombinedMutation> mBuffer= new ArrayList<>();
 			
 			final VCFHeader header2 = new VCFHeader(header);
-			header2.addMetaDataLine(new VCFHeaderLine(getName()+"AboutQUAL", "QUAL is filled with Grantham Score  http://www.ncbi.nlm.nih.gov/pubmed/4843792"));
+			header2.addMetaDataLine(new VCFHeaderLine(getProgramName()+"AboutQUAL", "QUAL is filled with Grantham Score  http://www.ncbi.nlm.nih.gov/pubmed/4843792"));
 			
 			final StringBuilder infoDesc =new StringBuilder("Variant affected by two distinct mutation. Format is defined in the INFO column. ");
 			
@@ -910,7 +936,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				header2.addMetaDataLine(vcfFilterHeaderLine);
 				}
 			
-			w = super.openVariantContextWriter();
+			w = super.openVariantContextWriter(saveAs);
 			w.writeHeader(header2);
 			
 			progress=new SAMSequenceDictionaryProgress(header);
@@ -989,7 +1015,8 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -1114,18 +1141,19 @@ static private class MutationComparator implements Comparator<CombinedMutation>
     		this.variants.add(variant);
     		}
 		}
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public int doWork(List<String> args) {
 		if(this.referenceFile==null)
 			{
-			return wrapException("Undefined REFERENCE. option: -"+OPTION_REFERENCEFILE);
+			LOG.error("Undefined REFERENCE");
+			return -1;
 			}
 		if(this.kgURI==null || this.kgURI.trim().isEmpty())
 			{
-			return wrapException("Undefined kgURI. option: -"+OPTION_KGURI);
+			LOG.error("Undefined kgURI.");
+			return -1;
 			}
-		return doVcfToVcf(inputName);
+		return doVcfToVcf(args,outputFile);
 		}
 	
 	public static void main(String[] args)

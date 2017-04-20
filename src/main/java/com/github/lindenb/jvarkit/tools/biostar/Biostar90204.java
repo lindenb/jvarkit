@@ -29,105 +29,62 @@ History:
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
-import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.List;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-public class Biostar90204 extends AbstractCommandLineProgram
+@Program(name="biostar90204",description="Bam version of linux split. See also http://www.biostars.org/p/90204/",biostars=90204)
+public class Biostar90204 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(Biostar90204.class).make();
+
+	@Parameter(names="-p",description="(prefix) output file prefix.")
 	private String prefix="_splitbam";
+	@Parameter(names="-a",description="suffix length")
 	private int suffix_length=2;
+	@Parameter(names="-M",description=" manifest file. Optional")
+	private File manifestFile=null;
+	
+	@Parameter(names="-n",description="Records per file")
+	private long record_per_file=-1L;
+
+	
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
+	
+	
 	private  Biostar90204() {
 		}
 	
 	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/Biostar90204";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Bam version of linux split. See also http://www.biostars.org/p/90204/";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -n (int) put NUMBER of SAM RECORD per output file. REQUIRED.");
-		out.println(" -p (prefix) output file prefix. default:"+this.prefix);
-		out.println(" -a (int) suffix length. default:."+suffix_length);
-		out.println(" -M (fileout) manifest file. Optional");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		SAMFileWriterFactory swfactory=new SAMFileWriterFactory();
-		File manifestFile=null;
-		long record_per_file=-1L;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args,getGetOptDefault()+ "n:p:m:a:"))!=-1)
+	public int doWork(List<String> args) {
+		
+		
+		if(suffix_length<0)
 			{
-			switch(c)
-				{
-				case 'a':
-					{
-					suffix_length=Integer.parseInt(getopt.getOptArg());
-					if(suffix_length<0)
-						{
-						error("Bad value of suffix_length:"+suffix_length);
-						return -1;
-						}
-					break;
-					}
-				case 'n':
-					{
-					record_per_file=Long.parseLong(getopt.getOptArg());
-					if(record_per_file<1L)
-						{
-						error("Bad value of record_per_file:"+record_per_file);
-						return -1;
-						}
-					break;
-					}
-				case 'p':
-					{
-					prefix=getopt.getOptArg();
-					break;
-					}
-				case 'm':manifestFile=new File(getopt.getOptArg());break;
-				default: 
-					{
-					switch(handleOtherOptions(c, getopt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
-		if(record_per_file<0L)
-			{
-			System.err.println("Undefined number of record per file");
+			LOG.error("Bad value of suffix_length:"+suffix_length);
 			return -1;
 			}
+		if(record_per_file<1L)
+			{
+			LOG.error("Bad value of record_per_file:"+record_per_file);
+			return -1;
+			}
+		
 		
 		SAMFileWriter sfw=null;
 		SAMRecordIterator iter=null;
@@ -135,25 +92,9 @@ public class Biostar90204 extends AbstractCommandLineProgram
 		PrintWriter manifest=new PrintWriter(new NullOuputStream());
 		try
 			{
-			if(getopt.getOptInd()==args.length)
-				{
-				info("reading from stdin.");
-				samFileReader=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(getopt.getOptInd()+1==args.length)
-				{
-				samFileReader=SamFileReaderFactory.mewInstance().open(args[getopt.getOptInd()]);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
-			SAMFileHeader header=samFileReader.getFileHeader();
-			SAMProgramRecord prg=header.createProgramRecord();
-			prg.setCommandLine(this.getProgramCommandLine());
-			prg.setProgramName(this.getProgramName());
-			prg.setProgramVersion(this.getVersion());
+			samFileReader = super.openSamReader(oneFileOrNull(args));
+			final SAMFileHeader header=samFileReader.getFileHeader();
+			
 			
 			int split_file_number=0;
 			long nReads=0L;
@@ -174,7 +115,7 @@ public class Biostar90204 extends AbstractCommandLineProgram
 					split_file_number++;
 					String pathname=this.prefix+"."+String.format("%0"+suffix_length+"d", split_file_number)+".bam";
 					File out=new File(pathname);
-					info("Opening "+out);
+					LOG.info("Opening "+out);
 					manifest.write(pathname);
 					manifest.write("\t"+(nReads)+"\t");
 					
@@ -182,13 +123,13 @@ public class Biostar90204 extends AbstractCommandLineProgram
 					header2.addComment("SPLIT:"+split_file_number);
 					header2.addComment("SPLIT:Starting from Read"+nReads);
 					
-					sfw=swfactory.makeSAMOrBAMWriter(header2, true, out);
+					sfw=this.writingBamArgs.openSAMFileWriter(out,header2, true);
 					}
 				sfw.addAlignment(rec);
 				
 				if(nReads%record_per_file==0)
 					{
-					info("Closing "+sfw);
+					LOG.info("Closing "+sfw);
 					sfw.close();
 					manifest.write((nReads)+"\n");
 					sfw=null;
@@ -204,7 +145,7 @@ public class Biostar90204 extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

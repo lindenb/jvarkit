@@ -35,7 +35,6 @@ import java.net.URI;
 
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -49,21 +48,46 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
-
-public class VcfToRdf extends AbstractVcfToRdf
+@Program(name="vcf2rdf",description="convert VCF to RDF (N3 notation)")
+public class VcfToRdf extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractVcfToRdf.class);
+	private static final Logger LOG = Logger.build(VcfToRdf.class).make();
 
-	private long id_generator=0L;
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-a","--alleles"},description="print ALT alleles")
+	private boolean printAlleles = false;
+
+	@Parameter(names={"-f","--filters"},description="print FILTERs")
+	private boolean printFilters = false;
+
+	@Parameter(names={"-vep","--vep"},description="print VEP informations")
+	private boolean printVep = false;
+
+	@Parameter(names={"-g","--genotypes"},description="print Genotypes informations")
+	private boolean printGenotypes = false;
+
+	
+	
+	
+	
+	
+	//private long id_generator=0L;
 	private static final String XSD="http://www.w3.org/2001/XMLSchema#";
 	private static final String RDF=com.github.lindenb.jvarkit.util.ns.RDF.NS;
 	private static final String DC="http://purl.org/dc/elements/1.1/";
@@ -266,21 +290,21 @@ public class VcfToRdf extends AbstractVcfToRdf
 					"vcf:qual",(ctx.hasLog10PError()?ctx.getPhredScaledQual():null)
 					);
 				
-				if(super.printAlleles) {
+				if(this.printAlleles) {
 					for(final Allele alt: ctx.getAlternateAlleles())
 						{
 						emit(variant,"vcf:alt",alt.getBaseString());
 						}
 				}
 				
-				if(super.printFilters) {
+				if(this.printFilters) {
 				for(final String f:ctx.getFilters())
 					{
 					emit(variant,"vcf:filter",URI.create("urn:filter/"+f));
 					}
 				}
 				
-				if(super.printVep) {
+				if(this.printVep) {
 				for(final VepPrediction prediction : vepPredictionParser.getPredictions(ctx))
 					{
 					/* 
@@ -329,7 +353,7 @@ public class VcfToRdf extends AbstractVcfToRdf
 				}
 				
 				
-			if(super.printGenotypes) {
+			if(this.printGenotypes) {
 				for(final String sample: ctx.getSampleNames())
 					{
 					final Genotype g = ctx.getGenotype(sample);
@@ -399,11 +423,10 @@ public class VcfToRdf extends AbstractVcfToRdf
 		}
 	
 	@Override
-	public Collection<Throwable> call() throws Exception {
-		final List<String > args = super.getInputFiles();
+	public int doWork(List<String> args) {
 		try
 			{
-			this.w= super.openFileOrStdoutAsPrintWriter();
+			this.w= super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			prefix("rdf",RDF);
 			prefix("dc", DC);
 			prefix("vcf", NS);
@@ -434,7 +457,8 @@ public class VcfToRdf extends AbstractVcfToRdf
 			}
 		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

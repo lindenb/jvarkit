@@ -41,11 +41,11 @@ import htsjdk.tribble.readers.LineIterator;
 
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.util.Collection;
 import java.util.List;
 
 import javax.script.Bindings;
@@ -60,7 +60,11 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -78,10 +82,30 @@ import gov.nih.nlm.ncbi.insdseq.INSDSeq;
  * BioAlcidae
  *
  */
+
+@Program(name="bioAlcidae",description="javascript version of awk for bioinformatics")
 public class BioAlcidae
-	extends AbstractBioAlcidae
+	extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BioAlcidae.class);
+	private static final Logger LOG = Logger.build(BioAlcidae.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-F","--format"},description="force format: one of VCF BAM SAM FASTQ FASTA BLAST DBSNP. BLAST is BLAST XML version 1. DBSNP is XML output of NCBI dbsnp. INSDSEQ is XML output of NCBI EFetch rettype=gbc.")
+	private String formatString = null;
+
+	@Parameter(names={"-J","--json"},description="Optional. Reads a JSON File using google gson (https://google-gson.googlecode.com/svn/trunk/gson/docs/javadocs/index.html ) and injects it as 'userData' in the javascript context.")
+	private File jsonFile = null;
+	
+    @Parameter(names={"-f","--scriptfile"},description="Javascript file")
+    private File javascriptFile=null;
+    @Parameter(names={"-e","--expression"},description="Javascript expression")
+    private String javascriptExpr=null;
+
+	
 	@SuppressWarnings("unused")
 	private static gov.nih.nlm.ncbi.blast.ObjectFactory _fooljavac1 = null;
 	@SuppressWarnings("unused")
@@ -155,7 +179,7 @@ public class BioAlcidae
 
 	
 	/** moved to public for knime */
-	public  Collection<Throwable> executeAsVcf(final String source) throws IOException
+	public  int executeAsVcf(final String source) throws IOException
 		{
 		LOG.info("source: "+source);
 		VcfIterator in=null;
@@ -165,7 +189,8 @@ public class BioAlcidae
 			} 
 		catch (Exception e)
 			{
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
 		finally
 			{
@@ -173,7 +198,7 @@ public class BioAlcidae
 			}
 		}
 	
-	public  Collection<Throwable> executeAsVcf(final VcfIterator in) throws IOException
+	public  int executeAsVcf(final VcfIterator in) throws IOException
 		{
 		try {
 			bindings.put("codec",in.getCodec());
@@ -188,7 +213,8 @@ public class BioAlcidae
 			} 
 		catch (final Exception e)
 			{
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
 		finally
 			{
@@ -202,7 +228,7 @@ public class BioAlcidae
 
 	
 	
-	private  Collection<Throwable> execute_bam(String source) throws IOException
+	private int execute_bam(String source) throws IOException
 		{
 		SamReader in=null;
 		SAMRecordIterator iter=null;
@@ -227,7 +253,7 @@ public class BioAlcidae
 		catch (Exception e)
 			{
 			LOG.error(e);
-			return wrapException(e);
+			return -1;
 			}
 		finally
 			{
@@ -316,7 +342,7 @@ public class BioAlcidae
 			}
 		}
 	
-	private  Collection<Throwable> execute_fasta(String source) throws IOException
+	private  int execute_fasta(String source) throws IOException
 		{
 		FastaIterator iter=new FastaIterator();
 		try {
@@ -330,7 +356,7 @@ public class BioAlcidae
 		catch (Exception e)
 			{
 			LOG.error(e);
-			return wrapException(e);
+			return -1;
 			}
 		finally
 			{
@@ -340,7 +366,7 @@ public class BioAlcidae
 			}
 		}
 	
-	private  Collection<Throwable> execute_fastq(String source) throws IOException
+	private  int execute_fastq(String source) throws IOException
 		{
 		InputStream in=null;
 		FourLinesFastqReader iter=null;
@@ -363,7 +389,7 @@ public class BioAlcidae
 		catch (Exception e)
 			{
 			LOG.error(e);
-			return wrapException(e);
+			return -1;
 			}
 		finally
 			{
@@ -516,7 +542,7 @@ public class BioAlcidae
 		
 		}
 	
-	private  Collection<Throwable> execute_blast(String source) throws IOException
+	private  int execute_blast(String source) throws IOException
 		{
 		BlastIterator iter=null;
 		try {
@@ -530,7 +556,7 @@ public class BioAlcidae
 		catch (Exception e)
 			{
 			LOG.error(e);
-			return wrapException(e);
+			return -1;
 			}
 		finally
 			{
@@ -553,7 +579,7 @@ public class BioAlcidae
 
 	
 	
-	private  Collection<Throwable> execute_insdseq(String source) throws IOException
+	private  int execute_insdseq(String source) throws IOException
 		{
 		InsdSeqIterator iter=null;
 		try {
@@ -567,7 +593,7 @@ public class BioAlcidae
 		catch (Exception e)
 			{
 			LOG.error(e);
-			return wrapException(e);
+			return -1;
 			}
 		finally
 			{
@@ -578,7 +604,7 @@ public class BioAlcidae
 		}
 
 	
-	private  Collection<Throwable> execute_dbsnp(String source) throws IOException
+	private  int execute_dbsnp(String source) throws IOException
 		{
 		AbstractXMLIterator<Rs> iter=null;
 		try {
@@ -601,7 +627,7 @@ public class BioAlcidae
 		catch (Exception e)
 			{
 			LOG.error(e);
-			return wrapException(e);
+			return -1;
 			}
 		finally
 			{
@@ -613,7 +639,7 @@ public class BioAlcidae
 
 	
 	
-	private  Collection<Throwable> execute(FORMAT fmt,String source) throws IOException
+	private  int execute(FORMAT fmt,String source) throws IOException
 		{
 		switch(fmt)
 			{
@@ -624,63 +650,46 @@ public class BioAlcidae
 			case BLAST: return execute_blast(source);
 			case INSDSEQ: return execute_insdseq(source);
 			case DBSNP: return execute_dbsnp(source);
-			default: return wrapException(new IllegalStateException());
+			default: throw new IllegalStateException("Bad file format "+fmt);
 			}
 		}
+
 	
 	@Override
-	public Collection<Throwable> initializeKnime()
-		{
+	public int doWork(final List<String> args) {
+		
+		Reader jsonIn = null;
+		
 		if(this.formatString!=null)
 			{
 			try {
 				this.format=FORMAT.valueOf(this.formatString.toUpperCase());
-				} catch (Exception e) {
-				return wrapException(e);
+				} catch (Exception err) {
+				LOG.error(err);
+				return -1;
 				}
 			}
-		try
-			{
-			this.script = super.compileJavascript();
-			}
-		catch(Exception err)
-			{
-			return wrapException(err);
-			}
-		return super.initializeKnime();
-		}
-	
-	@Override
-	public void disposeKnime() {
-		CloserUtil.close(this.writer);
-		this.writer=null;
-		this.bindings=null;
-		this.bindings=null;
-		this.format=null;
-		super.disposeKnime();
-		}
-	
-	/** moved to public for knime */
-	public void initializeJavaScript() throws IOException
-		{
-		this.bindings = this.script.getEngine().createBindings();
-		this.writer = super.openFileOrStdoutAsPrintWriter();
-		this.bindings.put("out",this.writer);
-		}
-	
-	@Override
-	public Collection<Throwable> call() throws Exception
-		{
 		
-		final List<String> args = getInputFiles();
-		Reader jsonIn = null;
 		try
 			{
-			this.initializeJavaScript();
+			this.script = super.compileJavascript(this.javascriptExpr,this.javascriptFile);
+			}
+		catch(final Exception err)
+			{
+			LOG.error(err);
+			return -1;
+			}
+		
+		try
+			{
 			
-			if( super.jsonFile != null) {
-				LOG.info("Reading JSON FILE "+super.jsonFile);
-				jsonIn = IOUtils.openFileForBufferedReading(super.jsonFile);
+			this.bindings = this.script.getEngine().createBindings();
+			this.writer = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			this.bindings.put("out",this.writer);
+			
+			if( this.jsonFile != null) {
+				LOG.info("Reading JSON FILE "+this.jsonFile);
+				jsonIn = IOUtils.openFileForBufferedReading(this.jsonFile);
 				final JsonParser gsonParser = new JsonParser();
 				final JsonElement jsonElement = gsonParser.parse(jsonIn);
 				jsonIn.close();
@@ -695,7 +704,8 @@ public class BioAlcidae
 				{
 				if(this.format==null)
 					{
-					return wrapException("Format must be specified when reading from stdin");
+					LOG.error("Format must be specified when reading from stdin");
+					return -1;
 					}
 				return execute(this.format,null);
 				}
@@ -716,10 +726,11 @@ public class BioAlcidae
 					}
 				if(fmt==null)
 					{
-					return wrapException("Cannot get file format for "+filename+". Please specifiy using option -"+OPTION_FORMATSTRING);
+					LOG.error("Cannot get file format for "+filename+". Please specifiy using option -F");
+					return -1;
 					}
-				final Collection<Throwable> errors= execute(fmt,filename);
-				if(!errors.isEmpty())
+				final int errors= execute(fmt,filename);
+				if(errors!=0)
 					{
 					return errors;
 					}
@@ -735,12 +746,13 @@ public class BioAlcidae
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
 			if(this.writer!=null) this.writer.flush();
-			if(getOutputFile()!=null)
+			if(this.outputFile!=null)
 				{
 				CloserUtil.close(this.writer);
 				}

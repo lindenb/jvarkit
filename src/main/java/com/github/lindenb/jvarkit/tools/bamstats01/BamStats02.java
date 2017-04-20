@@ -35,9 +35,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.SAMFlag;
@@ -50,11 +54,119 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+/**
 
+BEGIN_DOC
+
+
+
+
+
+### Example
+
+
+
+
+```
+$  find dir -name "*final.bam" | xargs  java -jar dist/bamstats02.jar -B capture.bed  > output.tsv
+$  verticalize output.tsv
+
+>>> 2
+$1      #filename       dir/Sample0258.final.bam
+$2      sampleName      Sample0258
+$3      chromosome      2
+$4      mapq    60
+$5      inTarget        1
+$6      READ_PAIRED     1
+$7      READ_MAPPED_IN_PROPER_PAIR      1
+$8      READ_UNMAPPED   0
+$9      MATE_UNMAPPED   0
+$10     READ_REVERSE_STRAND     1
+$11     MATE_REVERSE_STRAND     0
+$12     FIRST_IN_PAIR   0
+$13     SECOND_IN_PAIR  1
+$14     NOT_PRIMARY_ALIGNMENT   0
+$15     READ_FAILS_VENDOR_QUALITY_CHECK 0
+$16     READ_IS_DUPLICATE       0
+$17     SUPPLEMENTARY_ALIGNMENT 0
+$18     count   463982
+<<< 2
+
+>>> 3
+
+
+>>> 3
+$1      #filename       dir/Sample0258.final.bam
+$2      sampleName      Sample0258
+$3      chromosome      .
+$4      mapq    0
+$5      inTarget        -1
+$6      READ_PAIRED     1
+$7      READ_MAPPED_IN_PROPER_PAIR      0
+$8      READ_UNMAPPED   1
+$9      MATE_UNMAPPED   1
+$10     READ_REVERSE_STRAND     0
+$11     MATE_REVERSE_STRAND     0
+$12     FIRST_IN_PAIR   1
+$13     SECOND_IN_PAIR  0
+$14     NOT_PRIMARY_ALIGNMENT   0
+$15     READ_FAILS_VENDOR_QUALITY_CHECK 0
+$16     READ_IS_DUPLICATE       0
+$17     SUPPLEMENTARY_ALIGNMENT 0
+$18     count   458630
+<<< 3
+
+>>> 4
+$1      #filename       dir/Sample0258.final.bam
+$2      sampleName      Sample0258
+$3      chromosome      .
+$4      mapq    0
+$5      inTarget        -1
+$6      READ_PAIRED     1
+$7      READ_MAPPED_IN_PROPER_PAIR      0
+$8      READ_UNMAPPED   1
+$9      MATE_UNMAPPED   1
+$10     READ_REVERSE_STRAND     0
+$11     MATE_REVERSE_STRAND     0
+$12     FIRST_IN_PAIR   0
+$13     SECOND_IN_PAIR  1
+$14     NOT_PRIMARY_ALIGNMENT   0
+$15     READ_FAILS_VENDOR_QUALITY_CHECK 0
+$16     READ_IS_DUPLICATE       0
+$17     SUPPLEMENTARY_ALIGNMENT 0
+$18     count   458630
+<<< 4
+```
+```
+
+
+
+
+
+### See also
+
+BamStats02View
+
+
+END_DOC
+*/
+
+
+@Program(name="bamstats02",description="Statistics about the flags and reads in a BAM")
 public class BamStats02
-	extends AbstractBamStats02
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamStats02.class);
+	AbstractBamStats02 x;
+	private static final Logger LOG = Logger.build(BamStats02.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-B","--bed"},description="Optional Bed File")
+	private File bedFile = null;
+
 	private IntervalTreeMap<Boolean> intervals=null;
     
    
@@ -243,8 +355,7 @@ public class BamStats02
 		}
 	
 	@Override
-	public Collection<Throwable> call() throws Exception {
-		final List<String> args = getInputFiles();
+	public int doWork(List<String> args) {
 		SamReader samFileReader=null;
 		PrintWriter out=null;
 		try
@@ -254,7 +365,7 @@ public class BamStats02
 				LOG.info("Reading BED file "+bedFile);
 				this.intervals= super.readBedFileAsBooleanIntervalTreeMap(bedFile);
 				}
-			out = 	super.openFileOrStdoutAsPrintWriter();
+			out = 	super.openFileOrStdoutAsPrintWriter(outputFile);
 			boolean first=true;
 			out.print("#");
 			for(final STRING_PROPS p:STRING_PROPS.values())

@@ -29,7 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -40,10 +39,20 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-public class HowManyBamDict extends AbstractHowManyBamDict {
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(HowManyBamDict.class);
+
+
+@Program(name="howmanybamdict",description="finds if there's are some differences in the sequence dictionaries.")
+public class HowManyBamDict extends Launcher {
+	private static final Logger LOG = Logger.build(HowManyBamDict.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
 
 	public HowManyBamDict()
 		{
@@ -152,12 +161,11 @@ public class HowManyBamDict extends AbstractHowManyBamDict {
  		}
 	
  	@Override
- 	public Collection<Throwable> call() throws Exception {
- 		final List<String> args = super.getInputFiles();
+ 	public int doWork(List<String> args) {
 		PrintWriter out=null;
 		try
 			{
-			out = super.openFileOrStdoutAsPrintWriter();
+			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
@@ -184,7 +192,8 @@ public class HowManyBamDict extends AbstractHowManyBamDict {
 			}
 		catch(IOException err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally {
 			CloserUtil.close(out);
