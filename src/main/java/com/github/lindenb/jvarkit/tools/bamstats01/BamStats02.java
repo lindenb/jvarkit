@@ -156,7 +156,6 @@ END_DOC
 public class BamStats02
 	extends Launcher
 	{
-	AbstractBamStats02 x;
 	private static final Logger LOG = Logger.build(BamStats02.class).make();
 
 
