@@ -35,8 +35,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
@@ -59,68 +61,33 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
  * @author lindenb
  *
  */
+@Program(name="vcfcomm",description="Equivalent of linux comm for VCF")
 public class VCFComm extends AbstractVCFCompareBase {
+	private final Logger LOG=Logger.build(VCFComm.class).make();
+
 	public VCFComm() 
 		{
 		}
-
+	@Parameter(names="-a",description="ignore variations present in ALL files")
+	private boolean ignore_everywhere=false;
+	@Parameter(names="-A",description="only print variations present in ALL files")
+	private boolean only_everywhere=false;
 	
 	@Override
-	public String getProgramDescription() {
-		return "Equivalent of linux comm for VCF";
-		}
+	public int doWork(List<String> args) {
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VCFComm";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -a  ignore variations present in ALL files");
-		out.println(" -A  only print variations present in ALL files");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean ignore_everywhere=false;
-		boolean only_everywhere=false;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"aA"))!=-1)
-			{
-			switch(c)
-				{	
-				case 'a':ignore_everywhere=true;break;
-				case 'A':only_everywhere=true;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
 		SortingCollection<LineAndFile> variants=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				error("Illegal number of arguments");
+				LOG.error("Illegal number of arguments");
 				return -1;
 				}
 			
 			Set<String> filenames=new HashSet<String>();
-			for(int i=opt.getOptInd();i< args.length;++i)
+			for(final String filename:args)
 				{
-				String filename=args[i];
 				
 				if(!filename.endsWith(".list"))
 					{
@@ -128,7 +95,7 @@ public class VCFComm extends AbstractVCFCompareBase {
 					}
 				else
 					{
-					info("Reading filenames from "+filename);
+					LOG.info("Reading filenames from "+filename);
 					BufferedReader in = IOUtils.openURIForBufferedReading(filename);
 					String line;
 					while((line=in.readLine())!=null)
@@ -144,23 +111,26 @@ public class VCFComm extends AbstractVCFCompareBase {
 			Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 			
 			final LineAndFileComparator posCompare=new LineAndFileComparator();
-
-			factory.setComponentType(LineAndFile.class);
-			factory.setComparator(posCompare);
-			factory.setTmpDirs(this.getTmpDirectories());
-			factory.setCodec(new LineAndFileCodec());
-			variants=this.factory.make();
+			
+			
+			variants=SortingCollection.newInstance(
+					LineAndFile.class, new LineAndFileCodec(),
+					posCompare,
+					super.sortingCollectionArgs.getMaxRecordsInRam(),
+					super.sortingCollectionArgs.getTmpDirectories()
+					);
 			variants.setDestructiveIteration(true);
 			
 			List<String> newSampleNames=new ArrayList<String>();
 			Set<String> sampleSet=new HashSet<String>();
 			
 			int vcfindex=0;
-			for(String vcffilename: filenames)
+			for(final String vcffilename:filenames)
 				{
-				info("Reading from "+vcffilename);
+				++vcfindex;
+				LOG.info("Reading from "+vcffilename);
 				Input input=super.put(variants, vcffilename);
-				String sampleName="f"+(1+vcfindex-opt.getOptInd());
+				final String sampleName="f"+(vcfindex);
 				newSampleNames.add(sampleName);
 				metaData.add(new VCFHeaderLine(sampleName,vcffilename));
 				
@@ -169,11 +139,12 @@ public class VCFComm extends AbstractVCFCompareBase {
 			
 			variants.doneAdding();
 			
+			/** unique sample name, if any */
 			String theSampleName=null;
 			if(sampleSet.size()==1)
 				{
 				theSampleName=sampleSet.iterator().next();
-				info("Unique sample name is "+theSampleName);
+				LOG.info("Unique sample name is "+theSampleName);
 				}
 			
 			metaData.add(new VCFHeaderLine(getClass().getSimpleName(),"version:"+getVersion()+" command:"+getProgramCommandLine()));
@@ -196,7 +167,7 @@ public class VCFComm extends AbstractVCFCompareBase {
 					);
 
 			
-			VariantContextWriter w= VCFUtils.createVariantContextWriterToStdout();
+			VariantContextWriter w= super.openVariantContextWriter(super.outputFile);
 			w.writeHeader(header);
 			List<LineAndFile> row=new ArrayList<LineAndFile>(super.inputs.size());
 			
@@ -328,7 +299,7 @@ public class VCFComm extends AbstractVCFCompareBase {
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

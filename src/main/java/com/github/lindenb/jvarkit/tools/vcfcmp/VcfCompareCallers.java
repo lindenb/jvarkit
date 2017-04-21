@@ -29,6 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -37,9 +38,9 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
+import java.io.File;
 import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,17 +53,43 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.Interval;
 
+@Program(name="vcfcomparecallers",description="Compare two VCFs and print common/exclusive information for each sample/genotype")
 public class VcfCompareCallers
-	extends AbstractVcfCompareCallers
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfCompareCallers.class);
+
+	private static final Logger LOG = Logger.build(VcfCompareCallers.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-n","--num"},description="number of variants to dump in the example file")
+	private int numberOfExampleVariants = 10 ;
+
+	@Parameter(names={"-e","--examplefile"},description="Write a few Variants in this XML file. Optional")
+	private File exampleFile = null;
+
+	@Parameter(names={"-B","--bed"},description="Limit to variants in that BED region")
+	private File captureFile = null;
+
+	@Parameter(names={"-c","--homref2nocall"},description="Treat HomRef as No Call (created when comparing merged vcf with GATK: there is no homref, everything is nocall)")
+	private boolean homRefIsNoCall = false;
+
+	@Parameter(names={"-d","--noindel"},description="Ignore indels (SNP only)")
+	private boolean ignoreIndels = false;
 
 	private enum Category
 		{
@@ -113,7 +140,7 @@ public class VcfCompareCallers
 			) throws XMLStreamException
 		{
 		long n=count.incr(cat);
-		if(out==null || n> super.numberOfExampleVariants) return;
+		if(out==null || n> this.numberOfExampleVariants) return;
 		final VariantContext variants[]=new VariantContext[]{ctx0,ctx1};
 		final Genotype gts[]=new Genotype[]{g0,g1};
 		out.writeStartElement("diff");
@@ -196,11 +223,9 @@ public class VcfCompareCallers
 		if(!g.isHomRef()) throw new IllegalStateException();
 		}
 	
-
 	@Override
-	public Collection<Throwable> call() throws Exception {
+	public int doWork(List<String> args) {
 		final VcfIterator vcfInputs[]=new VcfIterator[]{null,null};
-		final List<String> args = getInputFiles();
 		
 		internalTests();
 		
@@ -219,13 +244,15 @@ public class VcfCompareCallers
 				}
 			else
 				{
-				return wrapException(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error("illegal.number.of.arguments");
+				return -1;
 				}
 			return compare(vcfInputs[0],vcfInputs[1]);
 			}
 		catch (final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -234,7 +261,7 @@ public class VcfCompareCallers
 			}
 		}
 		
-	public  Collection<Throwable> compare(VcfIterator vcfIterator1,VcfIterator vcfIterator2)
+	public  int compare(VcfIterator vcfIterator1,VcfIterator vcfIterator2)
 		{
 		PrintWriter exampleWriter=null;
 		XMLStreamWriter  exampleOut=null;
@@ -243,10 +270,10 @@ public class VcfCompareCallers
 		htsjdk.samtools.util.IntervalTreeMap<Boolean> capture = null;
 		final VcfIterator vcfInputs[]=new VcfIterator[]{vcfIterator1,vcfIterator2};
 		try {	
-			if( super.captureFile !=null )
+			if( this.captureFile !=null )
 				{
-				LOG.info("Reading "+super.captureFile);
-				capture = super.readBedFileAsBooleanIntervalTreeMap(super.captureFile);
+				LOG.info("Reading "+this.captureFile);
+				capture = super.readBedFileAsBooleanIntervalTreeMap(this.captureFile);
 				}
 			
 			for(int i=0;i< vcfInputs.length;++i)
@@ -266,14 +293,16 @@ public class VcfCompareCallers
 				{
 				if( !SequenceUtil.areSequenceDictionariesEqual(dict0, dict1))
 					{
-					return wrapException(getMessageBundle("not.the.same.sequence.dictionaries"));
+					LOG.error("not.the.same.sequence.dictionaries");
+					return -1;
 					}
 				LOG.info("using createTidPosRefComparator");
 				ctxComparator = VCFUtils.createTidPosRefComparator(dict0);
 				}
 			else
 				{
-				return wrapException(getMessageBundle("not.the.same.sequence.dictionaries"));
+				LOG.error("not.the.same.sequence.dictionaries");
+				return -1;
 				}
 			/* samples */
 			final Set<String> samples0=new HashSet<>(headers[0].getSampleNamesInOrder());
@@ -287,7 +316,8 @@ public class VcfCompareCallers
 				}
 			if(samples.isEmpty())
 				{	
-				return wrapException("No common samples");
+				LOG.error("No common samples");
+				return -1;
 				}
 			
 			final Map<String, Counter<Category>> sample2info=new HashMap<String, Counter<Category>>(samples.size());
@@ -296,7 +326,7 @@ public class VcfCompareCallers
 				sample2info.put(sampleName, new  Counter<Category>());
 				}
 			
-			if(super.exampleFile!=null)
+			if(this.exampleFile!=null)
 				{
 				exampleWriter=new PrintWriter(exampleFile,"UTF-8");
 				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
@@ -322,11 +352,12 @@ public class VcfCompareCallers
 							/* check data are sorted */
 							if(prev[i]!=null && ctxComparator.compare(prev[i], buffer[i])>0)
 								{
-								return wrapException("Input "+(i+1)+"/2 is not sorted"+(
+								LOG.error("Input "+(i+1)+"/2 is not sorted"+(
 									((i==0 && dict0==null) ||(i==1 && dict1==null))?
 									"on chrom/pos/ref":
 									"on sequence dictionary"
 									)+". got\n"+buffer[i]+"\nafter\n"+prev[i]);
+								return -1;
 								}
 							}
 						else
@@ -366,7 +397,7 @@ public class VcfCompareCallers
 					interval = new Interval(ctx1.getContig(),ctx1.getStart(),ctx1.getEnd());
 					}
 				
-				if(super.ignoreIndels)
+				if(this.ignoreIndels)
 					{
 					if(ctx0!=null && !ctx0.isSNP()) continue;
 					if(ctx1!=null && !ctx1.isSNP()) continue;
@@ -407,8 +438,8 @@ public class VcfCompareCallers
 					 * because everything is no call. Problem when comparing 
 					 * with multiple called VCF.
 					 */
-					if(g0!=null && super.homRefIsNoCall && g0.isHomRef()) g0=null;
-					if(g1!=null && super.homRefIsNoCall && g1.isHomRef()) g1=null;
+					if(g0!=null && this.homRefIsNoCall && g0.isHomRef()) g0=null;
+					if(g1!=null && this.homRefIsNoCall && g1.isHomRef()) g1=null;
 					
 
 					if(g0==null && g1==null)
@@ -535,7 +566,7 @@ public class VcfCompareCallers
 				}
 			progress.finish();
 		
-			pw  = openFileOrStdoutAsPrintStream();
+			pw  = openFileOrStdoutAsPrintStream(this.outputFile);
 			pw.print("#Sample");
 			for(Category c:Category.values())
 				{
@@ -568,11 +599,12 @@ public class VcfCompareCallers
 			} 
 		catch (Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
-			if(getOutputFile()!=null)  CloserUtil.close(pw);
+			CloserUtil.close(pw);
 			CloserUtil.close(exampleWriter);
 			}
 		}

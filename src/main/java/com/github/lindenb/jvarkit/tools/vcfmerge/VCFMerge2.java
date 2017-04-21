@@ -31,11 +31,11 @@ package com.github.lindenb.jvarkit.tools.vcfmerge;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -69,20 +69,46 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-/** merge VCF files */
+@Program(name="vcfmerge",description="Merge VCF Files",deprecatedMsg="use GATK combineVariants ")
 public class VCFMerge2
-	extends AbstractVCFMerge2
+	extends Launcher
 	{
+
+	private static final Logger LOG = Logger.build(VCFMerge2.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-s","--sorted"},description="files are known to be ROD sorted")
+	private boolean filesAreSorted = false;
+
+	@Parameter(names={"-m","--nomerge"},description="Do NOT merge VariantContext lines, but create multiple lines")
+	private boolean doNotMergeRowLines = false;
+
+	@Parameter(names={"-homref","--homref"},description="Use HomRef 0/0 for unknown variant")
+	private boolean useHomRefForUnknown = false;
+
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	
+	
+	
 	private static final VCFInfoHeaderLine NO_MERGE_INFO_HEADER=
 			new VCFInfoHeaderLine("VcfMergeOrigin",1,VCFHeaderLineType.String, "VCFmerge: origin of variant");
 	
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFMerge2.class);
 
 	/** user input files */
 	private Set<String> userVcfFiles=new HashSet<String>();
@@ -230,7 +256,7 @@ public class VCFMerge2
 	
 	private Genotype createMissingGenotype(final String sampleName,final Allele ref)
 		{
-		if(super.useHomRefForUnknown)
+		if(this.useHomRefForUnknown)
 			{
 			return GenotypeBuilder.create(sampleName, Arrays.asList(
 					ref,
@@ -347,16 +373,18 @@ public class VCFMerge2
 		return Collections.singletonList(vcb.make());
 		}
 	
+	
 	@Override
-	public Collection<Throwable> call() throws Exception {
+	public int doWork(List<String> args) {
 		InputStream in=null;
 		try
 			{
-			this.userVcfFiles.addAll(IOUtils.unrollFiles(super.getInputFiles()));
+			this.userVcfFiles.addAll(IOUtils.unrollFiles(args));
 			
 			if(this.userVcfFiles.isEmpty())
 				{
-				return wrapException("No input");
+				LOG.error("No input");
+				return -1;
 				}
 			else if(this.userVcfFiles.size()==1)
 				{
@@ -373,7 +401,8 @@ public class VCFMerge2
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -383,7 +412,7 @@ public class VCFMerge2
 
 		}
 	
-	private Collection<Throwable> workUsingPeekOrSorting() throws IOException
+	private int workUsingPeekOrSorting() throws IOException
 		{
 		if(filesAreSorted)
 			{
@@ -395,26 +424,14 @@ public class VCFMerge2
 			}
 		}
 	
-	private VariantContextWriter createVariantContextWriter()
-		throws IOException
-		{
-		return super.outputFile==null?
-				VCFUtils.createVariantContextWriterToOutputStream(stdout()):
-				VCFUtils.createVariantContextWriter(this.outputFile)
-				;
-		}
+	
 	
 	
 	private void copyTo(InputStream in) throws IOException
 		{
 		final VcfIterator iter= VCFUtils.createVcfIteratorFromInputStream(in);
-		final VCFHeader h=iter.getHeader();
-		final VariantContextWriter out= this.createVariantContextWriter();
-		out.writeHeader(h);
-		while(iter.hasNext())
-			{
-			out.add(iter.next());
-			}
+		final VariantContextWriter out= this.openVariantContextWriter(outputFile);
+		VCFUtils.copyHeaderAndVariantsTo(iter, out);
 		CloserUtil.close(out);
 		CloserUtil.close(iter);
 		}
@@ -447,7 +464,7 @@ public class VCFMerge2
 		return 0;
 		}
 	
-	private Collection<Throwable> workUsingPeekIterator()
+	private int workUsingPeekIterator()
 		{
 		VariantContextWriter out = null;
 		final List<PeekVCF> input=new ArrayList<PeekVCF>();
@@ -479,13 +496,13 @@ public class VCFMerge2
 					throw new RuntimeException("Not the same Sequence dictionaries "+input.get(0).uri+" / "+p.uri);
 					}
 				}
-			super.addMetaData(metaData);
+			//super.addMetaData(metaData);
 			if(this.doNotMergeRowLines)
 				{
 				metaData.add(NO_MERGE_INFO_HEADER);
 				}
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-			out = this.createVariantContextWriter();
+			out = super.openVariantContextWriter(outputFile);
 			final VCFHeader headerOut=new VCFHeader(
 					metaData,
 					genotypeSampleNames);
@@ -545,7 +562,8 @@ public class VCFMerge2
 			return RETURN_OK;
 			}
 		catch(Exception err) {
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 		}
 		finally
 			{
@@ -558,7 +576,7 @@ public class VCFMerge2
 		}
 	
 	private SAMSequenceDictionary global_dictionary=null;
-	private Collection<Throwable> workUsingSortingCollection() 
+	private int workUsingSortingCollection() 
 		{
 		VariantContextWriter w=null;
 		SortingCollection<VariantOfFile> array = null;
@@ -572,8 +590,8 @@ public class VCFMerge2
 					VariantOfFile.class,
 					new VariantCodec(),
 					new VariantComparator(),
-					super.getMaxRecordsInRam(),
-					super.getTmpDirectories()
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			array.setDestructiveIteration(true);
 			for(int fileIndex=0;fileIndex<  IN.size();++fileIndex)
@@ -620,7 +638,7 @@ public class VCFMerge2
 	
 			/* CREATE THE NEW VCH Header */
 			VCFHeader mergeHeader=null;
-			super.addMetaData(metaData);
+			//super.addMetaData(metaData);
 			
 			if(this.doNotMergeRowLines)
 				{
@@ -635,7 +653,7 @@ public class VCFMerge2
 			
 	
 			//create the context writer
-			w= this.createVariantContextWriter();
+			w= super.openVariantContextWriter(outputFile);
 			w.writeHeader(mergeHeader);
 			iter= array.iterator();
 			final List<VariantOfFile> row=new ArrayList<VariantOfFile>();
@@ -676,10 +694,12 @@ public class VCFMerge2
 			return RETURN_OK;
 			}
 		catch(Exception err) {
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 			}
 		finally
 			{
+			this.userVcfFiles.clear();
 			CloserUtil.close(w);
 			CloserUtil.close(in);
 			CloserUtil.close(iter);
@@ -688,11 +708,6 @@ public class VCFMerge2
 		}
 
 	
-
-	@Override
-	public void disposeKnime() {
-		this.userVcfFiles.clear();
-	}
 
 	
 

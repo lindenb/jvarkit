@@ -29,17 +29,26 @@ History:
 */
 package com.github.lindenb.jvarkit.util.picard;
 
+import java.io.IOException;
+
+
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
 public class SAMSequenceDictionaryProgress
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SAMSequenceDictionaryProgress.class);
+    private static final Logger _LOG = Logger.build(SAMSequenceDictionaryProgress.class).make();
 
+    private Logger log = _LOG;
 	private long start_ticks=-1L;
 	private long last_ticks=-1L;
 	private long curr_ticks=-1L;
@@ -48,6 +57,15 @@ public class SAMSequenceDictionaryProgress
 	private long print_every_n_seconds=10L;
 	private String prefix=null;
 	private Handler handler=null;
+	
+	private Logger getLogger() {
+		return log==null?_LOG:log;
+		}
+	
+	public SAMSequenceDictionaryProgress logger(final Logger log) {
+		this.log = log;
+		return this;
+	}
 	
 	private abstract class Handler
 		{
@@ -65,7 +83,7 @@ public class SAMSequenceDictionaryProgress
 		
 		void printVoid()
 			{
-			LOG.info( (prefix==null?"":"["+prefix+"]")+" Count:"+
+			getLogger().info( (prefix==null?"":"["+prefix+"]")+" Count:"+
 					count+" Elapsed: "+duration(curr_ticks-start_ticks)+
 					(lastSeen==null?"":" Last: "+lastSeen)+speed()
 					);
@@ -159,7 +177,7 @@ public class SAMSequenceDictionaryProgress
 				{
 				if(pos<prev_pos) 
 					{
-					LOG.info((prefix==null?"":"["+prefix+"]")+
+					getLogger().info((prefix==null?"":"["+prefix+"]")+
 						"Data are not ordered on chromosome "+
 						samSequenceDictionary.getSequence(tid).getSequenceName()+
 						" saw "+pos+" after "+prev_pos
@@ -181,7 +199,7 @@ public class SAMSequenceDictionaryProgress
 			long timeRemain=(long)(numBasesRemains*millisecPerBase);
 			
 			
-			LOG.info(
+			getLogger().info(
 					String.format("%sCount: %d Elapsed: %s(%.2f%%) Remains: %s(%.2f%%) Last: %s:%d",
 					
 					(prefix==null?"":"["+prefix+"]"),
@@ -339,8 +357,72 @@ public class SAMSequenceDictionaryProgress
 	
 	public void finish()
 		{
-		LOG.info("done: N="+getCount());
+		getLogger().info("done: N="+getCount());
 		}
 
+	public static VcfIterator wrap(Logger log,VcfIterator r)
+		{
+		return new LogVcfIterator(log,r);
+		}
+	
+	private static class LogVcfIterator  implements VcfIterator
+		{
+		private final VcfIterator delegate;
+		private final SAMSequenceDictionaryProgress progress;
+		LogVcfIterator(final Logger log,VcfIterator delegate) {
+			this.delegate=delegate;
+			this.progress=new SAMSequenceDictionaryProgress(delegate.getHeader()).logger(log);
+			}
+		@Override
+		public AbstractVCFCodec getCodec() { return this.delegate.getCodec(); }
+		@Override
+		public VCFHeader getHeader() { return this.delegate.getHeader();}
+		@Override
+		public VariantContext peek() { return this.delegate.peek();}
 
+		@Override
+		public void close() throws IOException {
+			this.delegate.close();
+			this.progress.finish();
+			}
+		@Override
+		public boolean hasNext() {
+			return this.delegate.hasNext();
+		}
+		@Override
+		public VariantContext next() {
+			return this.progress.watch(this.delegate.next());
+			}
+		}
+	
+	public static CloseableIterator<SAMRecord> wrap(Logger log,SAMFileHeader header,CloseableIterator<SAMRecord> r)
+		{
+		return new LogSamRecordIterator(log,header,r);
+		}
+
+private static class LogSamRecordIterator  implements CloseableIterator<SAMRecord>
+	{
+	private final CloseableIterator<SAMRecord> delegate;
+	private final SAMSequenceDictionaryProgress progress;
+	LogSamRecordIterator(final Logger log,SAMFileHeader header,CloseableIterator<SAMRecord> delegate) {
+		this.delegate=delegate;
+		this.progress=new SAMSequenceDictionaryProgress(header).logger(log);
+		}
+
+	@Override
+	public void close(){
+		this.delegate.close();
+		this.progress.finish();
+		}
+	@Override
+	public boolean hasNext() {
+		return this.delegate.hasNext();
+	}
+	@Override
+	public SAMRecord next() {
+		return this.progress.watch(this.delegate.next());
+		}
+	}
+
+	
 	}

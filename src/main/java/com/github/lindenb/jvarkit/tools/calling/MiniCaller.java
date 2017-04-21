@@ -60,7 +60,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -68,16 +67,30 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public class MiniCaller extends AbstractMiniCaller
-    {
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractMiniCaller.class);
 
+@Program(name="minicaller",description="Simple and Stupid Variant Caller designed for @AdrienLeger2")
+public class MiniCaller extends Launcher
+    {
+	private static final Logger LOG = Logger.build(MiniCaller.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-d","--mindepth"},description="Min depth")
+	private int min_depth = 20 ;
+    @Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+    private File fastaFile = null;
+
+	
 	private SAMSequenceDictionary dictionary=null;
     private VariantContextWriter variantContextWriter = null;
     private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -85,7 +98,7 @@ public class MiniCaller extends AbstractMiniCaller
     private List<String> samples=new ArrayList<>();
     private List<MyVariantContext> buffer=new ArrayList<>();
     private double min_fraction_alt=1.0/1000.0;
-   
+
     
     private class Base2
         {
@@ -293,10 +306,10 @@ public class MiniCaller extends AbstractMiniCaller
         this.buffer.add(idx, ctx);
         return ctx;
         }
+    
     @Override
-    public Collection<Throwable> call() throws Exception {
+    public int doWork(final List<String> args) {
     	final Set<File> bamFileSet=new HashSet<File>();
-    	List<String> args = super.getInputFiles();
         List<SamReader> readers = new ArrayList<SamReader>();
         try {
             for(String filename:args)
@@ -318,13 +331,15 @@ public class MiniCaller extends AbstractMiniCaller
                     bamFileSet.add(new File(filename));
                     }
                 }
-            if(super.fastaFile==null)
+            if(this.fastaFile==null)
                 {
-                return wrapException("no REF");
+            	LOG.error("no REF");
+                return -1;
                 }
             if(bamFileSet.isEmpty())
 	            {
-	            return wrapException("No Bam Files");
+		        LOG.error("No Bam Files");
+		        return -1;
 	            }
             /* load faid */
             this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(fastaFile);
@@ -351,7 +366,8 @@ public class MiniCaller extends AbstractMiniCaller
                 SAMSequenceDictionary dict= header.getSequenceDictionary();
                 if(dict==null)
                 	{
-                	return wrapException("No SAMSequenceDictionary defined in "+bamFile);
+                	LOG.error("No SAMSequenceDictionary defined in "+bamFile);
+                	return -1;
                 	}
                 if(this.dictionary==null)
                 	{
@@ -360,14 +376,17 @@ public class MiniCaller extends AbstractMiniCaller
                 
                 if(!SequenceUtil.areSequenceDictionariesEqual(dict,this.dictionary))
                 	{
-                	return wrapException("Not same SAMSequenceDictionaries last was "+bamFile);
+                	LOG.error("Not same SAMSequenceDictionaries last was "+bamFile);
+                	return -1;
                 	}
+                
                 
                 	
                 List<SAMReadGroupRecord> groups = header.getReadGroups();
                 if(groups==null || groups.isEmpty())
                 	{
-                	return wrapException("No group defined in "+bamFile);
+                	LOG.error("No group defined in "+bamFile);
+                	return -1;
                 	}
                 
                 for(SAMReadGroupRecord srgr : groups)
@@ -441,14 +460,14 @@ public class MiniCaller extends AbstractMiniCaller
             metaData.addAll(VCFUtils.samSequenceDictToVCFContigHeaderLine(
             		this.dictionary
             		));
-            addMetaData(metaData);
+            //addMetaData(metaData);
             
             final VCFHeader vcfHeader=new VCFHeader(
                     metaData , this.sample2index.keySet()
                     );
             
             /* create variant context */
-            this.variantContextWriter = super.openVariantContextWriter();
+            this.variantContextWriter = super.openVariantContextWriter(outputFile);
             this.variantContextWriter.writeHeader(vcfHeader);
 
             GenomicSequence genomicSeq=null;
@@ -602,7 +621,8 @@ public class MiniCaller extends AbstractMiniCaller
             }
         catch (Exception e)
             {
-            return wrapException(e);
+        	LOG.error(e);
+            return -1;
             }
         finally
             {

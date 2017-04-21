@@ -28,15 +28,19 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcffixindels;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -56,9 +60,13 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
  * VCFFixIndels
  *
  */
-public class VCFFixIndels extends AbstractVCFFixIndels
+@Program(name="vcffixindels",description="Fix samtools indels (for @SolenaLS)")
+public class VCFFixIndels extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFFixIndels.class);
+	private static final Logger LOG = Logger.build(VCFFixIndels.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
 
 	public VCFFixIndels()
 		{
@@ -66,8 +74,8 @@ public class VCFFixIndels extends AbstractVCFFixIndels
 	
 	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName,
-			VcfIterator r, VariantContextWriter w) throws IOException
+	protected int doVcfToVcf(String inputName,
+			VcfIterator r, VariantContextWriter w)
 		{
 		long nChanged=0L;
 		final String TAG="INDELFIXED";
@@ -236,13 +244,15 @@ public class VCFFixIndels extends AbstractVCFFixIndels
 		return RETURN_OK;
 		}
 
+	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public int doWork(List<String> args) {
 		try {
-			return doVcfToVcf(inputName);
+			return doVcfToVcf(args,outputFile);
 			} 
 		catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
 		}
 	

@@ -1,5 +1,5 @@
 options {
-static=true;
+static=false;
 DEBUG_PARSER=false;
 IGNORE_CASE=true;
 JDK_VERSION="1.8";
@@ -39,7 +39,9 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.filter.SamRecordFilter;
 import java.util.function.Predicate;
-import java.util.function.ToIntFunction;
+
+import com.beust.jcommander.IStringConverter;
+import com.beust.jcommander.ParameterException;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -117,6 +119,32 @@ private java.util.Comparator<Integer> intcmp():{}
 @Generated("javacc")
 public class SamFilterParser {
 		private static final Logger LOG = Logger.build(SamFilterParser.class).make();
+
+        public static class StringConverter implements IStringConverter<SamRecordFilter>
+        	{
+        	@Override
+        	public SamRecordFilter convert(final String s) 
+        		{
+        		if(s==null || s.trim().isEmpty()) return new SamRecordFilter() {
+					@Override
+					public boolean filterOut(SAMRecord first, SAMRecord second) {
+						return false;
+					}
+					
+					@Override
+					public boolean filterOut(SAMRecord record) {
+						return false;
+					}
+				};
+				try {
+					return SamFilterParser.build(s);
+				} catch (final ParseException e) {
+					throw new ParameterException(e);
+					}
+        		}
+        	}
+
+
 
 		public static SamRecordFilter build(final String expr) throws ParseException {
 			
@@ -222,6 +250,12 @@ public class SamFilterParser {
 			return new Predicate<SAMRecord>() {
 			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadUnmappedFlag();}
 			}; }
+		
+		private static Predicate<SAMRecord> mappedFilter() {
+			return new Predicate<SAMRecord>() {
+			 	@Override public boolean test(final SAMRecord rec) { return !rec.getReadUnmappedFlag();}
+			}; }
+		
 		private static Predicate<SAMRecord> failsVendorQuality() {
 			return new Predicate<SAMRecord>() {
 			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadFailsVendorQualityCheckFlag();}
@@ -271,13 +305,15 @@ TOKEN:
 | <CPAR: ")">
 | <NOT: "!">
 | <#ESCAPE_CHAR: "\\" ["n","t","b","r","f","\\","'","\""] >
+| <#ISGET: ("is" | "get") >
 | <SIMPLE_QUOTE_LITERAL:"\'" ( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\'" >
 | <DOUBLE_QUOTE_LITERAL: "\"" ( (~["\"","\\","\n","\r"])|<ESCAPE_CHAR>)* "\"" >
-| <DUPLICATE: "Duplicate" >
-| <UNMAPPED: "Unmapped" >
-| <MATEUNMAPPED: "MateUnmapped" >
-| <FAILSVENDORQUALITY: "FailsVendorQuality" >
-| <PAIRED: "Paired" >
+| <DUPLICATE: (<ISGET>) ? "Duplicate" >
+| <UNMAPPED: (<ISGET>) ? ("Read")? "Unmapped" >
+| <MAPPED: (<ISGET>) ? ("Read")? "mapped" >
+| <MATEUNMAPPED: (<ISGET>)? "MateUnmapped"  >
+| <FAILSVENDORQUALITY: (<ISGET>) ? "FailsVendorQuality" >
+| <PAIRED: (<ISGET>) ? ("Read")? "Paired" >
 | <OVERLAP: "overlap" >
 | <SAMFLAG: "samFlag" >
 | <SAMPLE: "sample" >
@@ -311,14 +347,15 @@ private Predicate<SAMRecord> AndExpr(): { Predicate<SAMRecord> root,other;}
 	root=UnaryExpr() ( <AND> other=UnaryExpr() {root = root.and(other); } )* { return root;}
 	}
 	
-private Predicate<SAMRecord> UnaryExpr(): {String str; Token t;String str;}
+private Predicate<SAMRecord> UnaryExpr(): {String str; Token t; }
 	{
 	(
-	  <DUPLICATE> { return duplicateFilter(); }
-	| <UNMAPPED> { return unmappedFilter();}
-	| <FAILSVENDORQUALITY> { return failsVendorQuality();}
-	| <PAIRED> {  return readPaired();}
-	| <MATEUNMAPPED> {  return mateUnmapped();}
+	  <DUPLICATE> <OPAR> <CPAR> { return duplicateFilter(); }
+	| <UNMAPPED> <OPAR> <CPAR> { return unmappedFilter();}
+	| <MAPPED> <OPAR> <CPAR> { return mappedFilter();}
+	| <FAILSVENDORQUALITY> <OPAR> <CPAR> { return failsVendorQuality();}
+	| <PAIRED> <OPAR> <CPAR> {  return readPaired();}
+	| <MATEUNMAPPED> <OPAR> <CPAR> {  return mateUnmapped();}
 	| <OVERLAP> <OPAR>  str=characters() <CPAR> { return overlapBed(str);}
 	| <SAMFLAG> <OPAR> t=<INT> <CPAR> { return samFlag(Integer.parseInt(t.image));}
 	| <SAMPLE> <OPAR> str=characters() <CPAR>  { return sample(str);}

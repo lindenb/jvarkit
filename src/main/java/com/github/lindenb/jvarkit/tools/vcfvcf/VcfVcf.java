@@ -1,15 +1,18 @@
 package com.github.lindenb.jvarkit.tools.vcfvcf;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Log;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -17,164 +20,181 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 
 @Deprecated
-public class VcfVcf extends AbstractVCFFilter
+@Program(name="vcfvcf",
+	description="Get the INFO from a VCF and use it for another VCF",
+	deprecatedMsg="obsolete. use GATK"
+	)
+public class VcfVcf extends Launcher
 	{
-	 private static Log LOG=Log.getInstance(VcfVcf.class); 
+	 private static Logger LOG=Logger.build(VcfVcf.class).make(); 
 	
-	@Usage(programVersion="1.0")
-	public String USAGE=getStandardUsagePreamble()+"Get the INFO from a VCF and use it for another VCF. ";
+	 @Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	 private File outputFile = null;
 
-	@Option(shortName="TBX",doc="The VCF file indexed with TABIX. Source of the annotations")
+	@Parameter(names="-TBX",description="The VCF file indexed with TABIX. Source of the annotations")
 	public String TABIX;
 	
-	@Option(shortName="INFO",doc="The INFO keys to grab.",minElements=0)	
+	@Parameter(names="-INFO",description="The INFO keys to grab.")
 	public Set<String> INFO_IDS=new LinkedHashSet<String>();
 	
 	
 	
 	
-	@Option(shortName="RIF",doc="Replace the INFO field if it exists.",minElements=0)	
+	@Parameter(names="-RIF",description="Replace the INFO field if it exists.")	
 	public boolean REPLACE_INFO_FIELD=true;
-	@Option(shortName="RID",doc="Replace the ID field if it exists.",optional=true)			
+	@Parameter(names="-RID",description="Replace the ID field if it exists.")			
 	public boolean REPLACE_ID=true;
-	@Option(shortName="RAM",doc="REF allele matters.",optional=true)			
+	@Parameter(names="-RAM",description="REF allele matters.")			
 	public boolean REF_ALLELE_MATTERS=true;
-	@Option(shortName="AAM",doc="ALT alleles matters.",optional=true)			
+	@Parameter(names="-AAM",description="ALT alleles matters.")			
 	public boolean ALT_ALLELES_MATTERS=false;
-	@Option(shortName="ACF",doc="Flag to set if alternate alleles conflict.",optional=true)			
+	@Parameter(names="-ACF",description="Flag to set if alternate alleles conflict.")			
 	public String ALT_CONFLICT_FLAG=null;
 	
 	
 	@Override
-	protected void doWork(VcfIterator r, VariantContextWriter w)
-			throws IOException
-		{
-		CloseableIterator<VariantContext> iter=null;
-		LOG.info("opening file: "+this.TABIX);
-	    IndexedVcfFileReader tabix= new IndexedVcfFileReader(this.TABIX);
-		VCFHeader header3=tabix.getHeader();
-		VCFHeader header1=r.getHeader();
-		
-		VCFHeader h2=new VCFHeader(header1.getMetaDataInInputOrder(),header1.getSampleNamesInOrder());
-		for(String infoId:this.INFO_IDS)
+	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
+			try
 			{
-			VCFInfoHeaderLine vihl=header3.getInfoHeaderLine(infoId);
-			if(vihl==null)
-				{
-				LOG.warn("Not INFO="+infoId+" in "+TABIX);
-				continue;
-				}
-			if(h2.getInfoHeaderLine(infoId)!=null)
-				{
-				LOG.warn("Input already contains INFO="+vihl);
-				}
-			h2.addMetaDataLine(vihl);
-			}
-		
-		if(ALT_CONFLICT_FLAG!=null)
-			{
-			h2.addMetaDataLine(new VCFInfoHeaderLine(ALT_CONFLICT_FLAG,1,VCFHeaderLineType.Flag,"conflict ALT allele with "+this.TABIX));
-			}
-		
-		w.writeHeader(h2);
-		while(r.hasNext())
-			{
-			VariantContext ctx1=r.next();
+			CloseableIterator<VariantContext> iter=null;
 			
-			VariantContextBuilder  vcb=new VariantContextBuilder(ctx1);
-			String BEST_ID=null;
-			boolean best_id_match_alt=false;
-
-			List<VariantContext> variantsList=new ArrayList<VariantContext>();
+			LOG.info("opening file: "+this.TABIX);
+		    IndexedVcfFileReader tabix= new IndexedVcfFileReader(this.TABIX);
+			VCFHeader header3=tabix.getHeader();
+			VCFHeader header1=r.getHeader();
 			
-		
-			iter=tabix.iterator(ctx1.getChr(),
-					Math.max(0,ctx1.getStart()-1),
-					(ctx1.getEnd()+1)
-					);
-			
-			while(iter.hasNext())
+			VCFHeader h2=new VCFHeader(header1.getMetaDataInInputOrder(),header1.getSampleNamesInOrder());
+			for(String infoId:this.INFO_IDS)
 				{
-				VariantContext ctx3=iter.next();
-				if(!ctx3.getChr().equals(ctx1.getStart())) continue;
-				if(ctx3.getStart()!=ctx1.getStart()) continue;
-				if(ctx3.getEnd()!=ctx1.getEnd()) continue;
-				
-				if( ctx1.getReference().equals(ctx3.getReference()) &&
-					ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles())
-					)
+				VCFInfoHeaderLine vihl=header3.getInfoHeaderLine(infoId);
+				if(vihl==null)
 					{
-					variantsList.clear();
-					variantsList.add(ctx3);
-					break;
-					}
-				else
-					{
-					variantsList.add(ctx3);
-					}
-				}
-			CloserUtil.close(iter);iter=null;
-			
-			for(VariantContext ctx3:variantsList)
-				{
-				
-				
-				if(this.REF_ALLELE_MATTERS && !ctx1.getReference().equals(ctx3.getReference()))
-					{
+					LOG.warn("Not INFO="+infoId+" in "+TABIX);
 					continue;
 					}
-				if(this.ALT_ALLELES_MATTERS && !ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles()))
+				if(h2.getInfoHeaderLine(infoId)!=null)
 					{
-					continue;
+					LOG.warn("Input already contains INFO="+vihl);
 					}
+				h2.addMetaDataLine(vihl);
+				}
+			
+			if(ALT_CONFLICT_FLAG!=null)
+				{
+				h2.addMetaDataLine(new VCFInfoHeaderLine(ALT_CONFLICT_FLAG,1,VCFHeaderLineType.Flag,"conflict ALT allele with "+this.TABIX));
+				}
+			
+			w.writeHeader(h2);
+			while(r.hasNext())
+				{
+				VariantContext ctx1=r.next();
 				
-				if(ctx3.getID()!=null && this.REPLACE_ID)
+				VariantContextBuilder  vcb=new VariantContextBuilder(ctx1);
+				String BEST_ID=null;
+				boolean best_id_match_alt=false;
+	
+				List<VariantContext> variantsList=new ArrayList<VariantContext>();
+				
+			
+				iter=tabix.iterator(ctx1.getChr(),
+						Math.max(0,ctx1.getStart()-1),
+						(ctx1.getEnd()+1)
+						);
+				
+				while(iter.hasNext())
 					{
-					if(BEST_ID!=null && best_id_match_alt)
+					VariantContext ctx3=iter.next();
+					if(!ctx3.getChr().equals(ctx1.getStart())) continue;
+					if(ctx3.getStart()!=ctx1.getStart()) continue;
+					if(ctx3.getEnd()!=ctx1.getEnd()) continue;
+					
+					if( ctx1.getReference().equals(ctx3.getReference()) &&
+						ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles())
+						)
 						{
-						//nothing
+						variantsList.clear();
+						variantsList.add(ctx3);
+						break;
 						}
 					else
 						{
-						BEST_ID=ctx3.getID();
-						best_id_match_alt=ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles());
+						variantsList.add(ctx3);
 						}
 					}
+				CloserUtil.close(iter);iter=null;
 				
-				
-				for(String id:this.INFO_IDS)
+				for(VariantContext ctx3:variantsList)
 					{
-					Object info3=ctx3.getAttribute(id);
-					if(info3==null)
+					
+					
+					if(this.REF_ALLELE_MATTERS && !ctx1.getReference().equals(ctx3.getReference()))
 						{
 						continue;
 						}
-					Object info1=ctx1.getAttribute(id);
-					if(info1!=null && !this.REPLACE_INFO_FIELD)
+					if(this.ALT_ALLELES_MATTERS && !ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles()))
 						{
 						continue;
 						}
 					
-					vcb.attribute(id, info3);
+					if(ctx3.getID()!=null && this.REPLACE_ID)
+						{
+						if(BEST_ID!=null && best_id_match_alt)
+							{
+							//nothing
+							}
+						else
+							{
+							BEST_ID=ctx3.getID();
+							best_id_match_alt=ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles());
+							}
+						}
+					
+					
+					for(String id:this.INFO_IDS)
+						{
+						Object info3=ctx3.getAttribute(id);
+						if(info3==null)
+							{
+							continue;
+							}
+						Object info1=ctx1.getAttribute(id);
+						if(info1!=null && !this.REPLACE_INFO_FIELD)
+							{
+							continue;
+							}
+						
+						vcb.attribute(id, info3);
+						}
+					
+					if(ALT_CONFLICT_FLAG!=null && !ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles()))
+						{
+						vcb.attribute(ALT_CONFLICT_FLAG, true);
+						}
+					
 					}
-				
-				if(ALT_CONFLICT_FLAG!=null && !ctx1.getAlternateAlleles().equals(ctx3.getAlternateAlleles()))
+				if(BEST_ID!=null)
 					{
-					vcb.attribute(ALT_CONFLICT_FLAG, true);
+					vcb.id(BEST_ID);
 					}
-				
+				w.add(vcb.make());
 				}
-			if(BEST_ID!=null)
-				{
-				vcb.id(BEST_ID);
-				}
-			w.add(vcb.make());
+			tabix.close();
+			
+			return 0;
 			}
-		tabix.close();
+		catch(Exception err) 
+			{
+			LOG.error(err);
+			return -1;
+			}
+		}
+	
+	@Override
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args, outputFile);
 		}
 	
 	

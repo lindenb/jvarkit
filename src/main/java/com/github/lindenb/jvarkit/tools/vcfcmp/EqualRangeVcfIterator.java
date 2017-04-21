@@ -44,23 +44,23 @@ public class EqualRangeVcfIterator
 	implements Closeable
 	{	
 	private VcfIterator in;
-	private List<VariantContext> buffer=new ArrayList<>();
+	private final List<VariantContext> buffer=new ArrayList<>();
 	private VariantContext prev_ctx=null;
-	private Comparator<VariantContext> ctxComparator;
+	private final Comparator<VariantContext> ctxComparator;
 	public EqualRangeVcfIterator(
-			VcfIterator in,
-			Comparator<VariantContext> ctxComparator)
+			final VcfIterator in,
+			final Comparator<VariantContext> ctxComparator)
 		{
 		this.in = in;
 		this.ctxComparator=ctxComparator;
 		}
 	
-	public List<VariantContext> next(VariantContext ctx) throws IOException
+	public List<VariantContext> next(final VariantContext ctx) throws IOException
 		{
 		if(this.in==null) return Collections.emptyList();
 		if(!this.buffer.isEmpty())
 			{
-			int d= this.ctxComparator.compare(buffer.get(0), ctx);
+			final int d= this.ctxComparator.compare(buffer.get(0), ctx);
 			if( d == 0) return this.buffer;
 			else if( d >0 ) return Collections.emptyList();
 			//all variants in buffer was before ctx, continue
@@ -73,7 +73,7 @@ public class EqualRangeVcfIterator
 				close();
 				break;
 				}
-			VariantContext ctx2= this.in.peek();
+			final VariantContext ctx2= this.in.peek();
 			if(this.prev_ctx!=null && this.ctxComparator.compare(this.prev_ctx, ctx2)>0)
 				{
 				throw new IOException(

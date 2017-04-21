@@ -30,40 +30,47 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.MergingSamRecordIterator;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
-
-public class SamShortInvertion extends AbstractSamShortInvertion
+@Program(name="samshortinvert",description="Scan short inversions in SAM")
+public class SamShortInvertion extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractSamShortInvertion.class);
-	
+	private static final Logger LOG = Logger.build(SamShortInvertion.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-m","--maxsize"},description="max size of inversion")
+	private int max_size_inversion = 2000 ;
+
+	@Parameter(names={"-c","--mincov"},description="min coverage")
+	private int min_coverage = 10 ;
+
 	
 	private class SamRecordPair
 		{
@@ -157,18 +164,18 @@ public class SamShortInvertion extends AbstractSamShortInvertion
 		
 		}
 	
-	
 	@Override
-	public Collection<Throwable> call() throws Exception {
+	public int doWork(List<String> input) {
 		SamReader r=null;
 		PrintStream out = null;
 		//SAMFileWriter w=null;
 		try
 			{
 			final List<SamReaderList> samReaders = new ArrayList<>();
-			final Set<String> args = IOUtils.unrollFiles(super.getInputFiles());
+			final Set<String> args = IOUtils.unrollFiles(input);
 			if(args.isEmpty()) {
-				return wrapException("No input file");
+				LOG.error("No input file");
+				return -1;
 				}
 			SAMSequenceDictionary dict=null;
 			for(final String bam: args ) {
@@ -177,13 +184,15 @@ public class SamShortInvertion extends AbstractSamShortInvertion
 					{
 					if(samReaders.get(i).sample.equals(samReader.sample))
 						{
-						return wrapException("Sample defined in two bams "+samReader.sample);
+						LOG.error("Sample defined in two bams "+samReader.sample);
+						return -1;
 						}
 					if(dict==null) {
 						dict = samReader.dict;
 					} else if(!SequenceUtil.areSequenceDictionariesEqual(dict, samReader.dict))
 						{
-						return wrapException("bam contains two sequence dict.");
+						LOG.error("bam contains two sequence dict.");
+						return -1;
 						}
 					}
 				samReaders.add(samReader);
@@ -244,7 +253,7 @@ public class SamShortInvertion extends AbstractSamShortInvertion
 			
 			
 			r =  null;
-			out =  openFileOrStdoutAsPrintStream();
+			out =  openFileOrStdoutAsPrintStream(outputFile);
 			final SAMFileHeader header=r.getFileHeader();
 			OtherCanonicalAlignFactory xpalignFactory=new OtherCanonicalAlignFactory(header);
 			int prev_tid=-1;
@@ -373,7 +382,8 @@ public class SamShortInvertion extends AbstractSamShortInvertion
 
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

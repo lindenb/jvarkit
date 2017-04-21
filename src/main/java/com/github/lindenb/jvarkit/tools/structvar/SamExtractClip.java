@@ -25,7 +25,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.util.Collection;
+import java.io.File;
+
 import java.util.List;
 
 import htsjdk.samtools.fastq.BasicFastqWriter;
@@ -41,24 +42,42 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-
-public class SamExtractClip extends AbstractSamExtractClip
+@Program(name="samextractclip",description="Extract Clipped Sequences from a SAM. Ouput is a FASTQ")
+public class SamExtractClip extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamExtractClip.class);
 
+	private static final Logger LOG = Logger.build(SamExtractClip.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-m","--minsize"},description="Min size of clipped read")
+	private int min_clip_length = 5 ;
+
+	@Parameter(names={"-c","--clipped"},description="Print the original Read where the clipped regions have been removed")
+	private boolean print_clipped_read = false;
+
+	@Parameter(names={"-p","--original"},description="Print Original whole Read that contained a clipped region.")
+	private boolean print_original_read = false;
+
+	
 	@Override
-	public Collection<Throwable> call() throws Exception {
+	public int doWork(List<String> args) {
 		SamReader r=null;
 		BasicFastqWriter out=null;
-		final List<String> args = super.getInputFiles();
 		try
 				{
-				if(getOutputFile()!=null)
+				if(this.outputFile!=null)
 					{
-					LOG.info("writing to "+getOutputFile());
-					out=new BasicFastqWriter(getOutputFile());
+					LOG.info("writing to "+this.outputFile);
+					out=new BasicFastqWriter(this.outputFile);
 					}
 				else
 					{
@@ -87,7 +106,8 @@ public class SamExtractClip extends AbstractSamExtractClip
 				}
 			catch(final Exception err)
 				{
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 				}
 			finally
 				{

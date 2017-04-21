@@ -33,7 +33,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 
@@ -41,6 +40,10 @@ import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -54,9 +57,32 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VCFBigWig extends AbstractVCFBigWig
+
+@Program(name="vcfbigwig",description="annotate a VCF with values from a bigwig file")
+public class VCFBigWig extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFBigWig.class);
+
+	private static final Logger LOG = Logger.build(VCFBigWig.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-B","--bigwig"},description="Path to the bigwig file")
+	private String biwWigFile = null;
+
+	@Parameter(names={"-T","--tag"},description="Name of the INFO tag. default: name of the bigwig")
+	private String TAG = null;
+
+	@Parameter(names={"-C","--contained"},description="Specifies wig values must be contained by region. if false: return any intersecting region values")
+	private boolean contained = false;
+
+	@Parameter(names={"-a","--aggregate"},description="How to aggregate overlapping values: 'avg' average; 'median': median, 'first': use first, 'all' : print all the data")
+	private String aggregateMethodStr = "avg";
+
+	@Parameter(names={"-t","--transform"},description="Transform variant chromosome name to match bigwig file. can be 'identity':no change, 'ensembl2ucsc':remove chr prefix")
+	private String convertChrName = "identity";
+
 	private enum AggregateMethod
 		{
 		avg,median,first,all
@@ -69,98 +95,23 @@ public class VCFBigWig extends AbstractVCFBigWig
 		}
 	
 	
-	@Override
-	public Collection<Throwable> initializeKnime() {
-		if(super.convertChrName==null || super.convertChrName.equals("identity"))
-			{
-			this.variantChromNameConverter= S -> S;
-			}
-		else if(super.convertChrName.equals("ensembl2ucsc"))
-			{
-			this.variantChromNameConverter= S -> {
-				String s=S;
-				if(!s.toLowerCase().startsWith("chr")) s="chr"+s;
-				if(s.equals("chrMT")) s="M";
-				return s;
-				};
-			}
-		else
-			{
-			return wrapException("Undefined chromosome name converter type:"+this.convertChrName);
-			}
-		
-		if(super.biwWigFile==null || super.biwWigFile.isEmpty())
-			{
-			return wrapException("Undefined BigWig file option -"+OPTION_BIWWIGFILE);
-			}
-		try
-			{
-			
-			this.bbFileReader= new BBFileReader(super.biwWigFile);
-			if(!this.bbFileReader.isBigWigFile())
-				{
-				this.bbFileReader=null;
-				throw new IOException(super.biwWigFile+" is not a bigWIG file.");
-				}
-
-			if(this.TAG==null || this.TAG.isEmpty())
-				{
-				super.TAG=super.biwWigFile;
-				int i=TAG.lastIndexOf(File.separator);
-				if(i!=-1) TAG=TAG.substring(i+1);
-				i=super.TAG.indexOf('.');
-				super.TAG=super.TAG.substring(0,i);
-				LOG.info("setting tag to "+super.TAG);
-				}
-			
-			}
-		catch(final Exception err)
-			{
-			return wrapException(err);
-			}
-		return super.initializeKnime();
-		}
 	
+	 
 	@Override
-	public void disposeKnime() {
-		try
-			{
-			if(this.bbFileReader!=null)
-				{
-				CloserUtil.close(this.bbFileReader.getBBFis());
-				}
-			CloserUtil.close(this.bbFileReader);
-			this.bbFileReader=null;
-			}
-		catch(final Exception err)
-			{
-			LOG.error("Error",err);
-			}
-		super.disposeKnime();
-		}
-	
-	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		return doVcfToVcf(inputName);
-		}
-	
-	@Override
-	protected Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator r,
-			final VariantContextWriter w)
-			throws IOException {
-		if(super.aggregateMethodStr.isEmpty()) 
+	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
+		try {
+		if(this.aggregateMethodStr.isEmpty()) 
 			{
 			this.aggregateMethod = AggregateMethod.avg;
 			}
 		else
 			{
 			try {
-				this.aggregateMethod = AggregateMethod.valueOf(super.aggregateMethodStr);
+				this.aggregateMethod = AggregateMethod.valueOf(this.aggregateMethodStr);
 			} catch(final Exception err)
 				{
-				return wrapException("Bad value for -"+OPTION_AGGREGATEMETHODSTR+" must be one of "+Arrays.toString(AggregateMethod.values()));
+				LOG.error("Bad value for aggregateMethod must be one of "+Arrays.toString(AggregateMethod.values()));
+				return -1;
 				}
 			}
 		final VCFHeader header=r.getHeader();
@@ -169,7 +120,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 		if(this.aggregateMethod.equals(AggregateMethod.all))
 			{
 			h2.addMetaDataLine(new VCFInfoHeaderLine(
-					super.TAG,
+					this.TAG,
 					VCFHeaderLineCount.UNBOUNDED,
 					VCFHeaderLineType.Float,
 					"Values from bigwig file: "+this.biwWigFile
@@ -178,7 +129,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 		else
 			{
 			h2.addMetaDataLine(new VCFInfoHeaderLine(
-					super.TAG,1,
+					this.TAG,1,
 					VCFHeaderLineType.Float,
 					"Values from bigwig file: "+this.biwWigFile
 					));
@@ -200,7 +151,7 @@ public class VCFBigWig extends AbstractVCFBigWig
 					ctx.getStart()-1,
 					variantChrom,
 					ctx.getEnd(),
-					super.isContained()
+					this.contained
 					);
 			while(iter!=null && iter.hasNext())
 				{
@@ -254,8 +205,92 @@ public class VCFBigWig extends AbstractVCFBigWig
 			}
 		progress.finish();
 		return RETURN_OK;
+		} catch(Exception err) {
+			LOG.error(err);
+			return -1;
+		}
 		}
 	
+	@Override
+	public int doWork(List<String> args) {
+		
+		if(this.convertChrName==null || this.convertChrName.equals("identity"))
+		{
+		this.variantChromNameConverter= S -> S;
+		}
+	else if(this.convertChrName.equals("ensembl2ucsc"))
+		{
+		this.variantChromNameConverter= S -> {
+			String s=S;
+			if(!s.toLowerCase().startsWith("chr")) s="chr"+s;
+			if(s.equals("chrMT")) s="M";
+			return s;
+			};
+		}
+	else
+		{
+		LOG.info("Undefined chromosome name converter type:"+this.convertChrName);
+		return -1;
+		}
+	
+	if(this.biwWigFile==null || this.biwWigFile.isEmpty())
+		{
+		LOG.info("Undefined BigWig file ");
+		return -1;
+		}
+	try
+		{
+		
+		this.bbFileReader= new BBFileReader(this.biwWigFile);
+		if(!this.bbFileReader.isBigWigFile())
+			{
+			this.bbFileReader=null;
+			throw new IOException(this.biwWigFile+" is not a bigWIG file.");
+			}
+
+		if(this.TAG==null || this.TAG.isEmpty())
+			{
+			this.TAG=this.biwWigFile;
+			int i=TAG.lastIndexOf(File.separator);
+			if(i!=-1) TAG=TAG.substring(i+1);
+			i=this.TAG.indexOf('.');
+			this.TAG=this.TAG.substring(0,i);
+			LOG.info("setting tag to "+this.TAG);
+			}
+		
+		}
+	catch(final Exception err)
+		{
+		LOG.error(err);
+		return -1;
+		}
+
+		
+		try 
+			{
+			return doVcfToVcf(args, outputFile);
+			}
+		catch(Exception err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			try
+				{
+				if(this.bbFileReader!=null)
+					{
+					CloserUtil.close(this.bbFileReader.getBBFis());
+					}
+				CloserUtil.close(this.bbFileReader);
+				this.bbFileReader=null;
+				}
+			catch(final Exception err)
+				{
+				LOG.error("Error",err);
+				}
+			}
+		}
 	
 	public static void main(final String[] args) throws IOException
 		{

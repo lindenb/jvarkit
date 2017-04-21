@@ -164,7 +164,8 @@ public class Biostar105754 extends Launcher
 		public int doWork(List<String> args) {
 				if(this.bigWigFile==null)
 					{
-					return wrapException("Big wig file undefined option");
+					LOG.error("Big wig file undefined option");
+					return -1;
 					}
 				
 				try
@@ -173,7 +174,8 @@ public class Biostar105754 extends Launcher
 					this.bbFileReader=new BBFileReader(this.bigWigFile);
 					if(!this.bbFileReader.isBigWigFile())
 						{
-						return wrapException("File "+this.bigWigFile+" is not a bigwig file");
+						LOG.error("File "+this.bigWigFile+" is not a bigwig file");
+						return -1;
 						}
 					this.out = super.openFileOrStdoutAsPrintWriter(outputFile);
 					if(args.isEmpty())
@@ -199,7 +201,7 @@ public class Biostar105754 extends Launcher
 				catch(Exception err)
 					{
 					LOG.error(err);
-					return wrapException(err);
+					return -1;
 					}
 				finally
 					{

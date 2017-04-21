@@ -32,7 +32,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,19 +44,28 @@ import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
+import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public abstract class AbstractVCFCompareBase extends AbstractCommandLineProgram
+public abstract class AbstractVCFCompareBase extends Launcher
 	{
+	private final Logger LOG=Logger.build(AbstractVCFCompareBase.class).make();
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	protected File outputFile = null;
+
+	@ParametersDelegate
+	protected WritingSortingCollection sortingCollectionArgs= new WritingSortingCollection(); 
+
 	/** input files */
 	protected List<Input> inputs=new ArrayList<Input>();
-	protected SortingCollectionFactory<LineAndFile> factory=new SortingCollectionFactory<LineAndFile>();
 
 	/** filename, codec, header, file-id, count */
 	protected class Input
@@ -100,8 +108,15 @@ public abstract class AbstractVCFCompareBase extends AbstractCommandLineProgram
 				}
 			throw new IllegalStateException("Bad VCF line :"+line+" cannot get tokens["+index+"]");
 			}
-		
+		public ContigPosRef getContigPosRef() 
+			{
+			return new ContigPosRef(getContig(), getStart(), getReference());
+			}
 		public String getChrom()
+			{	
+			return getContig();
+			}
+		public String getContig()
 			{	
 			return token(0);
 			}
@@ -150,15 +165,9 @@ public abstract class AbstractVCFCompareBase extends AbstractCommandLineProgram
 	protected class LineAndFileComparator implements Comparator<LineAndFile>
 		{
 		@Override
-		public int compare(LineAndFile v1, LineAndFile v2)
+		public int compare(final LineAndFile v1,final LineAndFile v2)
 			{
-			int i=v1.getChrom().compareTo(v2.getChrom());
-			if(i!=0) return i;
-			i=v1.getStart()-v2.getStart();
-			if(i!=0) return i;
-			i=v1.getReference().compareTo(v2.getReference());
-			if(i!=0) return i;
-			return 0;
+			return v1.getContigPosRef().compareTo(v2.getContigPosRef());
 			}
 		}
 	
@@ -169,23 +178,6 @@ public abstract class AbstractVCFCompareBase extends AbstractCommandLineProgram
 		}
 	
 	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Compares two VCF files.";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -M (int) Max records in RAM. Optional.");
-		out.println(" -T (dir) add temporary directory. Optional");
-		super.printOptions(out);
-		}
-	
-	@Override
-	protected String getGetOptDefault() {
-		return super.getGetOptDefault()+"M:T:";
-		}
 	
 	protected Comparator<LineAndFile> createLineAndFileComparator()
 		{
@@ -198,9 +190,10 @@ public abstract class AbstractVCFCompareBase extends AbstractCommandLineProgram
 		return new Input();
 		}
 	
-	private Input createInput(String filename,List<String> headerLines)
+	/** creates a new input=(filename, codec , vcfheader ) */
+	private Input createInput(final String filename,final List<String> headerLines)
 		{
-		Input input=createInput();
+		final Input input=createInput();
 		input.filename=filename;
 		input.codecAndHeader = VCFUtils.parseHeader(headerLines);
 		return input;
@@ -211,15 +204,16 @@ public abstract class AbstractVCFCompareBase extends AbstractCommandLineProgram
 		return line;
 		}
 	
+	/** insert all  variant of vcfUri into the sorting collection */
 	protected Input put(SortingCollection<LineAndFile> variants, String vcfUri)
 		throws IOException
 		{
-		info("begin inserting "+vcfUri);
+		LOG.info("begin inserting "+vcfUri);
 		LineIterator iter=null;
 		if(vcfUri==null)
 			{
 			vcfUri="stdin";
-			iter=new LineIteratorImpl(new SynchronousLineReader(System.in));
+			iter=IOUtils.openStreamForLineIterator(stdin());
 			}
 		else
 			{
@@ -247,21 +241,8 @@ public abstract class AbstractVCFCompareBase extends AbstractCommandLineProgram
 			input.count++;
 			}
 		progress.finish();
-		info("end inserting "+vcfUri+" N="+input.count);
+		LOG.info("end inserting "+vcfUri+" N="+input.count);
 		CloserUtil.close(iter);
 		return input;
 		}
-	
-	@Override
-	protected GetOptStatus
-		handleOtherOptions(int c, GetOpt opt, String[] args)
-		{
-		switch(c)
-			{
-			case 'M': factory.setMaxRecordsInRAM(Math.max(1,Integer.parseInt(opt.getOptArg()))); return GetOptStatus.OK;
-			case 'T': super.addTmpDirectory(new File(opt.getOptArg())) ; return GetOptStatus.OK;
-			default: return super.handleOtherOptions(c, opt, args);
-			}
-		}
-	
 	}

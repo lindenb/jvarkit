@@ -9,6 +9,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
@@ -27,33 +29,19 @@ import htsjdk.variant.variantcontext.VariantContext;
  * @author lindenb
  *
  */
+@Program(name="vcfcmppred",description="Compare predictions (SNPEff, VEP) for several VCFs")
 public class VCFComparePredictions extends AbstractVCFCompareBase {
 	private VCFComparePredictions() {
 	}
+	private final Logger LOG=Logger.build(VCFComparePredictions.class).make();
+
+	
 	static private class PredictionTuple
 		{
 		VepPredictionParser vepPredictionParser;
 		SnpEffPredictionParser snpEffPredictionParser;
 		}
-	
 
-	
-	@Override
-	public String getProgramDescription() {
-		return "Compare predictions (SNPEff, VEP) for several VCFs";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VCFComparePredictions";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
 	private static void startLine(PrintWriter out,VariantContext ctx)
 		{
 		out.print(ctx.getContig());
@@ -142,51 +130,35 @@ public class VCFComparePredictions extends AbstractVCFCompareBase {
 
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{	
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		PrintWriter out=new PrintWriter(System.out);
+	public int doWork(List<String> args) {
+	
+		PrintWriter out=null;
 		SortingCollection<LineAndFile> variants=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				error("Illegal number of arguments");
+				LOG.error("Illegal number of arguments");
 				return -1;
 				}
-			
+			out= super.openFileOrStdoutAsPrintWriter(super.outputFile);
 			final AbstractVCFCompareBase.LineAndFileComparator posCompare=new AbstractVCFCompareBase.LineAndFileComparator();
 
-			factory.setComponentType(AbstractVCFCompareBase.LineAndFile.class);
-			factory.setComparator(posCompare);
-			factory.setTmpDirs(this.getTmpDirectories());
-			factory.setCodec(new AbstractVCFCompareBase.LineAndFileCodec());
-			variants=this.factory.make();
+			variants=SortingCollection.newInstance(
+					LineAndFile.class,
+					new AbstractVCFCompareBase.LineAndFileCodec(),
+					posCompare,
+					super.sortingCollectionArgs.getMaxRecordsInRam(),
+					super.sortingCollectionArgs.getTmpDirectories()
+					);
 			variants.setDestructiveIteration(true);
 			
 			
-			for(int i=opt.getOptInd();i< args.length;++i)
+			for(final String filename:args)
 				{
-				String filename=args[i];
-				info("Reading from "+filename);
+				LOG.info("Reading from "+filename);
 				Input input=super.put(variants, filename);
-				info("end reading "+input.filename);
+				LOG.info("end reading "+input.filename);
 				}
 			List<PredictionTuple> predictionTuples=new ArrayList<PredictionTuple>(super.inputs.size());
 			for(AbstractVCFCompareBase.Input input:this.inputs)
@@ -311,11 +283,12 @@ public class VCFComparePredictions extends AbstractVCFCompareBase {
 			iter.close();
 			
 			out.flush();
+			out.close();out=null;
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

@@ -1,0 +1,458 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2017 creation
+
+*/
+package com.github.lindenb.jvarkit.tools.structvar;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+
+import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMUtils;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
+
+@Program(name="samscansplitreads",description="scan split reads",keywords={"sam","sv","splitreads"})
+	public class SamScanSplitReads extends Launcher {
+	private static long ID_GENERATOR=0L;
+	private static final Logger LOG = Logger.build(SamScanSplitReads.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.")
+	private int extentd=20;
+	
+	@Parameter(names={"--format"},description="Output format. if 'vcf', will save the file as a vcf file")
+	private String outputFormat="txt";
+
+	
+	private Map<String,IntervalTreeMap<Set<Arc>>> sample2database = new HashMap<>();
+	
+	private final Comparator<SAMRecord> coordinateComparator=new Comparator<SAMRecord>()
+		{
+	    @Override
+	    public int compare(final SAMRecord samRecord1, final SAMRecord samRecord2) {
+	        final String ref1 = samRecord1.getReferenceName();
+	        final String ref2 = samRecord2.getReferenceName();
+	        final int cmp = ref1.compareTo(ref2);
+	        if (cmp != 0) return cmp;
+	        return samRecord1.getAlignmentStart() - samRecord2.getAlignmentStart();
+	    }
+	
+		};
+		
+		
+	private final Comparator<Interval> intervalComparator=new Comparator<Interval>()
+		{
+	    @Override
+	    public int compare(final Interval r1, final Interval r2) {
+	        final String ref1 = r1.getContig();
+	        final String ref2 = r2.getContig();
+	        final int cmp = ref1.compareTo(ref2);
+	        if (cmp != 0) return cmp;
+	        return r1.getStart() - r2.getStart();
+	    }
+	
+		};
+	
+	
+	private static class Arc
+		{
+		long id;
+		int countSupportingReads=0;
+		Interval intervalFrom;
+		Interval intervalTo;
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + (int) (id ^ (id >>> 32));
+			return result;
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) return true;
+			if (obj == null) return false;
+			final Arc other = (Arc) obj;
+			return id == other.id;
+			}
+		boolean intersects(final Arc arc) {
+			return intersects(arc.intervalFrom,arc.intervalTo);
+			}
+		boolean intersects(final Interval i1,final Interval i2) {
+			if( this.intervalFrom.intersects(i1) &&
+				    this.intervalTo.intersects(i2) ) return true;
+			
+			if( this.intervalFrom.intersects(i2) &&
+				    this.intervalTo.intersects(i1) ) return true;
+			return false;
+			}
+		@Override
+		public String toString() {
+			return "[" + intervalFrom.toString()+" -> "+intervalTo.toString()+"]";
+			}
+		}
+	
+	private Interval extendInterval(final Interval i1) {
+		if(this.extentd<=0) return i1;
+		return new Interval(i1.getContig(),
+				Math.max(i1.getStart()-this.extentd,0),
+				i1.getEnd()+this.extentd
+				);
+		}
+	
+	private Interval merge(Interval i1,Interval i2) {
+		if(!i1.intersects(i2)) throw new IllegalArgumentException(""+i1+"/"+i2);
+		return new Interval(i1.getContig(),
+				Math.min(i1.getStart(), i2.getStart()),
+				Math.max(i1.getEnd(), i2.getEnd())
+				);
+		}
+	
+	private void analyseSamPair(final IntervalTreeMap<Set<Arc>> database,final SAMRecord rec1,final SAMRecord rec2)
+		{
+		int diff = coordinateComparator.compare(rec1, rec2);
+		if(diff==0) return;
+		if(diff>0) {
+			analyseSamPair(database,rec2,rec1);
+			return;
+			}
+		
+		final Interval interval1 = extendInterval(new Interval(rec1.getReferenceName(),rec1.getAlignmentStart(), rec1.getAlignmentEnd()));
+		final Interval interval2 = extendInterval(new Interval(rec2.getReferenceName(),rec2.getAlignmentStart(), rec2.getAlignmentEnd()));
+		if( interval1.intersects(interval2)) return;
+		
+		
+		final Set<Arc> merge=new HashSet<>();
+		final Collection<Set<Arc>> col= database.getOverlapping(interval1);
+		for(final Set<Arc> arcset:col)
+			{
+			for(final Arc arc:arcset)
+				{
+				if(!arc.intersects(interval1,interval2)) continue;
+				merge.add(arc);
+				}
+			}
+		
+		if(!merge.isEmpty())
+			{
+			//remove from database
+			for(final Set<Arc> arcset:col)
+				{
+				arcset.removeAll(merge);
+				}
+			final List<Arc> mergeList=new ArrayList<>(merge);
+			//merge new arc with at least one arc in database
+			boolean check_one_overlap=false;
+			for(final Arc arc: mergeList)
+				{
+				if(!arc.intervalFrom.intersects(interval1)) continue;
+				if(!arc.intervalTo.intersects(interval2)) continue;
+				arc.intervalFrom = merge(arc.intervalFrom,interval1);
+				arc.intervalTo = merge(arc.intervalTo,interval2);
+				arc.countSupportingReads++;
+				check_one_overlap=true;
+				break;
+				}
+			if(!check_one_overlap) throw new IllegalStateException();
+			int x=0;
+			while(x+1<mergeList.size())
+				{
+				int y=x+1;
+				while(y<mergeList.size())
+					{
+					final Arc arcx = mergeList.get(x);
+					final Arc arcy = mergeList.get(y);
+					if(arcx.intersects(arcy))
+						{
+						LOG.debug("mergin "+arcx+" "+arcy+" "+ID_GENERATOR);
+						
+						arcx.intervalFrom = merge(arcx.intervalFrom,arcy.intervalFrom);
+						arcx.intervalTo = merge(arcx.intervalTo,arcy.intervalTo);
+						arcx.countSupportingReads+=arcx.countSupportingReads;
+						mergeList.remove(y);
+						}
+					else
+						{
+						++y;
+						}
+					}
+				
+				++x;
+				}
+			for(final Arc arc: mergeList)
+				{
+				Set<Arc> arcset = database.get(arc.intervalFrom);
+				if(arcset==null) {
+					arcset=new HashSet<>();
+					 database.put(arc.intervalFrom,arcset);
+					}
+				arcset.add(arc);
+				}
+			}
+		else
+			{
+			final Arc arc = new Arc();
+			arc.id = ++ID_GENERATOR;
+			arc.countSupportingReads=1;
+			arc.intervalFrom = interval1;
+			arc.intervalTo = interval2;
+			Set<Arc> arcset = database.get(interval1);
+			if(arcset==null) {
+				arcset=new HashSet<>();
+				database.put(interval1,arcset);
+				}
+			arcset.add(arc);
+			if(ID_GENERATOR%1000==0) LOG.info(ID_GENERATOR);
+			}
+		}
+	
+	private void analyseSamRecord(final SAMRecord rec) {
+		if(rec.getReadUnmappedFlag()) return;
+		if(rec.getReadFailsVendorQualityCheckFlag()) return;
+		if(rec.isSecondaryOrSupplementary()) return;
+		if(rec.getDuplicateReadFlag()) return;
+		
+		final List<SAMRecord> others= SAMUtils.getOtherCanonicalAlignments(rec);
+		if(others.isEmpty()) return;
+		String sample="UNDEFINED";
+		final SAMReadGroupRecord g=rec.getReadGroup();
+		if(g!=null) {
+			final String sa = g.getSample();
+			if(sa!=null) sample=sa;
+			}
+		
+		IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
+		if(database==null) {
+			database=new IntervalTreeMap<Set<Arc>>();
+			this.sample2database.put(sample, database);
+			}
+		
+		for(final SAMRecord other:others)
+			{
+			analyseSamPair(database,rec,other);
+			}
+		}
+	
+		private void scanFile(SamReader r) {
+			final SAMSequenceDictionaryProgress progess= new SAMSequenceDictionaryProgress(r.getFileHeader());
+			final SAMRecordIterator iter = r.iterator();
+			while(iter.hasNext())
+				{
+				analyseSamRecord(progess.watch(iter.next()));
+				}
+			progess.finish();
+			iter.close();
+			}
+	
+		private void saveAsVcf( ) throws IOException {
+			final Allele REF = Allele.create("N", true);
+			
+			final Set<VCFHeaderLine> meta=new HashSet<>();
+			VCFStandardHeaderLines.addStandardFormatLines(meta,false,
+					VCFConstants.GENOTYPE_KEY,
+					VCFConstants.DEPTH_KEY
+					);
+			VCFHeader header=new VCFHeader(meta,this.sample2database.keySet());
+			VariantContextWriter vcw = super.openVariantContextWriter(outputFile);
+			vcw.writeHeader(header);
+			Interval nextInterval=null;
+
+			for(;;)
+				{
+				Interval after=null;
+				final List<Genotype> genotypes = new ArrayList<>();
+				final Set<Allele> alleles =  new HashSet<>();
+				for(final String sample: this.sample2database.keySet())
+					{
+					final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
+					for(final Interval interval: database.keySet()) {
+						for(final Arc arc: database.get(interval))
+							{
+							if(nextInterval==null)
+								{
+								nextInterval=arc.intervalFrom;
+								}
+							else if(this.intervalComparator.compare(nextInterval, arc.intervalFrom)<0)
+								{	
+								continue;
+								}
+							else if(this.intervalComparator.compare(nextInterval, arc.intervalFrom)>0)
+								{
+								genotypes.clear();
+								alleles.clear();
+								
+								after=nextInterval;
+			
+								
+								
+								nextInterval=arc.intervalFrom;
+								
+								//
+								}
+							else // == 0
+								{
+								
+								}
+							final Allele alt = Allele.create(
+									new StringBuilder().append("<").
+									append(arc.intervalFrom.getContig()).append(":").append(arc.intervalFrom.getStart()).append("-").append(arc.intervalFrom.getEnd()).
+									append("|").
+									append(arc.intervalTo.getContig()).append(":").append(arc.intervalTo.getStart()).append("-").append(arc.intervalTo.getEnd()).
+									append(">").toString()
+									, false);
+							alleles.add(alt);
+							final Genotype g = new GenotypeBuilder(sample).alleles(Collections.singletonList(alt)).DP(arc.countSupportingReads).make();
+							genotypes.add(g);
+							}
+						}
+					}
+				if(genotypes.isEmpty()) break;
+				alleles.add(REF);
+				VariantContextBuilder vcb=new VariantContextBuilder().
+						chr(nextInterval.getContig()).
+						start(nextInterval.getStart()).
+						stop(nextInterval.getStart()).
+						alleles(alleles).
+						genotypes(genotypes);
+				vcw.add(vcb.make());
+				if(after==null) break;
+				nextInterval=after;
+				
+				}
+			vcw.close();
+			}
+
+		
+		private void saveAsText() throws IOException {
+			PrintWriter out = super.openFileOrStdoutAsPrintWriter(outputFile);
+			
+			for(final String sample: this.sample2database.keySet())
+				{
+				final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
+				for(final Interval interval: database.keySet()) {
+					for(final Arc arc: database.get(interval))
+						{
+						out.print(arc.intervalFrom.getContig());
+						out.print("\t");
+						out.print(arc.intervalFrom.getStart()-1);
+						out.print("\t");
+						out.print(arc.intervalFrom.getEnd());
+						out.print("\t");
+						out.print(arc.intervalTo.getContig());
+						out.print("\t");
+						out.print(arc.intervalTo.getStart()-1);
+						out.print("\t");
+						out.print(arc.intervalTo.getEnd());
+						out.print("\t");
+						out.print(arc.countSupportingReads);
+						out.print("\t");
+						out.print(sample);
+						out.println();
+						}
+					}
+				}
+			out.flush();
+			out.close();
+		}
+		
+		@Override
+		public int doWork(final List<String> args) {
+		 	 SamReader r = null;
+		 	 SAMSequenceDictionary dic=null;
+			try {
+				if(args.isEmpty()) {
+					LOG.info("read stdin");
+					r= openSamReader(null);
+					dic = r.getFileHeader().getSequenceDictionary();
+					scanFile(r);
+					r.close();
+					r=null;
+					}
+				else for(final String filename:args)
+					{
+					LOG.info("read "+filename);
+					r= openSamReader(filename);
+					
+					scanFile(r);
+					r.close();
+					r=null;
+					}
+				
+				if("vcf".equalsIgnoreCase(this.outputFormat)) {
+					saveAsVcf();
+					}
+				else
+					{
+					saveAsText();
+					}
+				
+				return 0;
+		} catch (Exception e) {
+			LOG.error(e);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(r);	
+			}
+		}
+	
+	public static void main(String[] args) {
+		new SamScanSplitReads().instanceMainWithExit(args);
+	}
+	// 
+}

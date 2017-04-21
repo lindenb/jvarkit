@@ -28,6 +28,35 @@ History:
 
 */package com.github.lindenb.jvarkit.tools.vcfgo;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import javax.xml.stream.XMLStreamException;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.go.GoTree;
+import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -39,57 +68,40 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Pattern;
-
-import javax.xml.stream.XMLStreamException;
-
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.KnimeApplication;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.go.GoTree;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
-import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
-
 /**
  * 
  * VcfGeneOntology
  *
  */
+@Program(name="",description="Find the GO terms for VCF annotated with SNPEFF or VEP")
 public class VcfGeneOntology
-	extends AbstractCommandLineProgram
-	implements KnimeApplication
+	extends Launcher
 	{
-	private File fileOut=null;
-	private int countVariants=0;
+	 private static Logger LOG=Logger.build(VcfGeneOntology.class).make(); 
+		
+	 @Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	 private File outputFile = null;
+
+	@Parameter(names="-G",description="(go  url)",required=true)
 	private String GO="http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz";
+	@Parameter(names="-A",description="(goa input url)",required=true)
 	private String GOA="http://cvsweb.geneontology.org/cgi-bin/cvsweb.cgi/go/gene-associations/gene_association.goa_human.gz?rev=HEAD";
 	private GoTree goTree=null;
 	private Map<String,Set<GoTree.Term>> name2go=null;
+	@Parameter(names="-T",description="INFO tag.")
 	private String TAG="GOA";
+	@Parameter(names="-C",description="(Go:Term) Add children to the list of go term to be filtered. Can be used multiple times.")
 	private Set<String> strGoTermToFilter=new HashSet<String>();
+	@Parameter(names="-F",description=" if -C is used, don't remove the variant but set the filter")
 	private String filterName=null;
+	@Parameter(names="-v",description="inverse filter if -C is used")
 	private boolean inverse_filter=false;
+	@Parameter(names="-r",description="remove variant if no GO term is found associated to variant")
 	private boolean removeIfNoGo=false;
+
 	private Set<GoTree.Term> goTermToFilter=null;
 
+	
 
 	/** moved to public for knime */
 	public VcfGeneOntology()
@@ -97,57 +109,16 @@ public class VcfGeneOntology
 		
 		}
 	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/VCFGeneOntology";
-		}
-    
-    @Override
-    public String getProgramDescription()
-    	{
-    	return "Find the GO terms for VCF annotated with SNPEFF or VEP. ";
-    	}
 
-    public void setGeneOntologyUrl(String gO) {
-		this.GO = gO;
-		}
-    
-    public void setGeneOntologyAnnotationUrl(String gOA)
-    	{
-    	this.GOA = gOA;
-		}
-    
-    public int getVariantCount()
-    	{
-		return countVariants;
-		}
-    
-    public void setInfoTag(String tAG) {
-		this.TAG = tAG;
-		}
-    
-    public void setRemoveIfNoGo(boolean removeIfNoGo) {
-		this.removeIfNoGo = removeIfNoGo;
-		}
-    
-    public void setInverseFilter(boolean inverse_filter) {
-		this.inverse_filter = inverse_filter;
-		}
-    
-    public void setFilterName(String filterName)
-    	{
-		this.filterName = filterName;
-		}
     
 	private void readGO() throws IOException
 		{
 		if(goTree!=null) return;
-		this.info("read GO "+GO);
+		LOG.info("read GO "+GO);
 		try
 			{
 			goTree=GoTree.parse(GO);
-			this.info("GO size:"+goTree.size());
+			LOG.info("GO size:"+goTree.size());
 			}
 		catch(XMLStreamException err)
 			{
@@ -158,7 +129,7 @@ public class VcfGeneOntology
 		{
 		if(this.name2go!=null) return;
 		this.name2go = new HashMap<String, Set<GoTree.Term>>();
-		this.info("read GOA "+GOA);
+		LOG.info("read GOA "+GOA);
 		Pattern tab=Pattern.compile("[\t]");
 		BufferedReader in=IOUtils.openURIForBufferedReading(GOA);
 		String line;
@@ -185,7 +156,7 @@ public class VcfGeneOntology
 			set.add(term);
 			}
 		in.close();
-		this.info("GOA size:"+this.name2go.size());
+		LOG.info("GOA size:"+this.name2go.size());
 		}
 	
 	
@@ -193,8 +164,7 @@ public class VcfGeneOntology
 	
 	
 	
-	@Override
-	public int initializeKnime()
+	private int initializeThings()
 		{
 		try
 			{
@@ -202,7 +172,7 @@ public class VcfGeneOntology
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		
@@ -212,7 +182,7 @@ public class VcfGeneOntology
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		
@@ -225,7 +195,7 @@ public class VcfGeneOntology
 				GoTree.Term t=this.goTree.getTermByAccession(acn);
 				if(t==null)
 					{
-					error("Cannot find GO acn "+acn);
+					LOG.error("Cannot find GO acn "+acn);
 					return -1;
 					}
 				goTermToFilter.add(t);
@@ -234,31 +204,18 @@ public class VcfGeneOntology
 		return 0;
 		}
 
-	@Override
-	public int executeKnime(List<String> args)
+	public int executeThings(List<String> args)
 		{
 		VcfIterator vcfIn=null;
 		try
 			{
-			if(args.isEmpty())
-				{
-				vcfIn = VCFUtils.createVcfIteratorStdin();
-				}
-			else if(args.size()==1)
-				{
-				vcfIn= VCFUtils.createVcfIterator(args.get(0));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
+			vcfIn = super.openVcfIterator(oneFileOrNull(args));
 			this.filterVcfIterator(vcfIn);
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
@@ -267,37 +224,9 @@ public class VcfGeneOntology
 			}
 		}
 
-	@Override
-	public void disposeKnime() {
-		
-	}
-
-	@Override
-	public void checkKnimeCancelled() {
-		
-	}
-
-	@Override
-	public void setOutputFile(File fileOut) {
-		this.fileOut=fileOut;
-	}
-	
-    @Override
-    public void printOptions(PrintStream out)
-    	{
-		out.println("-A (goa input url). Default:"+GOA);
-		out.println("-G (go url). Default:"+GO);	
-		out.println("-r remove variant if no GO term is found associated to variant");	
-		out.println("-T (string) INFO tag. Default:"+TAG);	
-		out.println("-C (Go:Term) Add children to the list of go term to be filtered. Can be used multiple times.");	
-		out.println("-v inverse filter if -C is used.");	
-		out.println("-F (filter) if -C is used, don't remove the variant but set the filter");	
-    	super.printOptions(out);
-    	}
     
-	private void filterVcfIterator(VcfIterator in) throws IOException
+	private void filterVcfIterator(final VcfIterator in) throws IOException
 		{
-		this.countVariants=0;
 		VariantContextWriter w = null;
 		try {
 			VCFHeader header=in.getHeader();
@@ -315,15 +244,7 @@ public class VcfGeneOntology
 						));
 				}
 			
-			if(this.fileOut==null)
-				{
-				w = VCFUtils.createVariantContextWriterToStdout();
-				}
-			else
-				{
-				info("opening vcf writer to "+this.fileOut);
-				w = VCFUtils.createVariantContextWriter(this.fileOut);
-				}
+			w = super.openVariantContextWriter(outputFile);
 
 			w.writeHeader(h2);
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
@@ -409,7 +330,6 @@ public class VcfGeneOntology
 					{
 					if(!removeIfNoGo)
 							{
-							this.countVariants++;
 							w.add(ctx);
 							}
 					continue;
@@ -442,7 +362,6 @@ public class VcfGeneOntology
 				/* add go terms */
 				vcb.attribute(this.TAG, atts);
 				w.add(vcb.make());
-				this.countVariants++;
 				}
 			progess.finish();
 			w.close();
@@ -459,46 +378,14 @@ public class VcfGeneOntology
 		{
 		this.strGoTermToFilter.add(term);
 		}
-		
+	
 	@Override
-	public int doWork(String[] args)
-			{
-			com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-			int c;
-			while((c=opt.getopt(args,getGetOptDefault()+"A:G:rT:C:vF:"))!=-1)
-				{
-				switch(c)
-					{
-					case 'T': this.setInfoTag(opt.getOptArg());break;
-					case 'A': this.setGeneOntologyAnnotationUrl(opt.getOptArg());break;
-					case 'G': this.setGeneOntologyUrl(opt.getOptArg());break;
-					case 'r': this.setRemoveIfNoGo(true);break;
-					case 'C': this.addGoTerm(opt.getOptArg());break;
-					case 'v': this.setInverseFilter(true);break;
-					case 'F': this.setFilterName(opt.getOptArg());break;
-					default:
-						{
-						switch(handleOtherOptions(c, opt, args))
-							{
-							case EXIT_FAILURE: return -1;
-							case EXIT_SUCCESS: return 0;
-							default:break;
-							}
-						}
-					}
-				}
-			
-			
-			if(this.initializeKnime()!=0)
+		public int doWork(final List<String> args) {			
+			if(this.initializeThings()!=0)
 				{
 				return -1;
 				}
-			List<String> L=new ArrayList<String>();
-			for(int i=opt.getOptInd();i<args.length;++i)
-				{
-				L.add(args[i]);
-				}
-			return this.executeKnime(L);
+			return this.executeThings(args);
 			}
 	
 		

@@ -28,14 +28,18 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -54,9 +58,30 @@ import htsjdk.samtools.util.CloserUtil;
  * VcfIn
  *
  */
-public class VcfIn extends AbstractVcfIn
+@Program(name="vcfin",description="Only prints variants that are contained/not contained into another VCF.")
+
+public class VcfIn extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfIn.class);
+	private static final Logger LOG = Logger.build(VcfIn.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-i","--inverse"},description="Print variant that are not part of the VCF-database.")
+	private boolean inverse = false;
+
+	@Parameter(names={"-t","--tabix"},description="Database is Tabix-ed")
+	private boolean databaseIsTabix = false;
+
+	@Parameter(names={"-A","--allalt"},description="ALL user ALT must be found in VCF-database ALT")
+	private boolean userAltInDatabase = false;
+
+	@Parameter(names={"-fi","--filterin"},description="Do not discard variant but add this FILTER if the variant is found in the database")
+	private String filterIn = "";
+
+	@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER if the variant is NOT found in the database")
+	private String filterOut = "";
 
 	public VcfIn()
 		{
@@ -68,7 +93,7 @@ public class VcfIn extends AbstractVcfIn
 			final VariantContext databaseVariants
 			)
 		{
-		if(!super.isUserAltInDatabase()) return true;
+		if(!this.userAltInDatabase) return true;
 		final Set<Allele> user_alts=new HashSet<Allele>(userVariants.getAlternateAlleles());
 		user_alts.removeAll(databaseVariants.getAlternateAlleles());
 		return user_alts.isEmpty();
@@ -76,12 +101,12 @@ public class VcfIn extends AbstractVcfIn
 	
 	@Override
 	protected VCFHeader addMetaData(VCFHeader header) {
-		if(!super.filterIn.isEmpty()) {
-			header.addMetaDataLine(new VCFFilterHeaderLine(super.filterIn,
+		if(!this.filterIn.isEmpty()) {
+			header.addMetaDataLine(new VCFFilterHeaderLine(this.filterIn,
 					"Variant overlapping database."));
 			}
-		if(!super.filterOut.isEmpty()) {
-			header.addMetaDataLine(new VCFFilterHeaderLine(super.filterOut,
+		if(!this.filterOut.isEmpty()) {
+			header.addMetaDataLine(new VCFFilterHeaderLine(this.filterOut,
 					"Variant non overlapping database."));
 			}
 		return super.addMetaData(header);
@@ -89,7 +114,7 @@ public class VcfIn extends AbstractVcfIn
 	
 	private void addVariant(final VariantContextWriter w,final VariantContext ctx,boolean keep)
 		{
-		if(isInverse()) keep=!keep;
+		if(this.inverse) keep=!keep;
 		if(!this.filterIn.isEmpty())
 			{
 			if(keep){
@@ -124,8 +149,7 @@ public class VcfIn extends AbstractVcfIn
 			}
 		}
 	
-	/* public for knime */
-	public Collection<Throwable> scanFileSorted(
+	private int scanFileSorted(
 			final VariantContextWriter vcw,
 			final String databaseVcfUri,
 			final VcfIterator userVcfIn
@@ -139,7 +163,8 @@ public class VcfIn extends AbstractVcfIn
 			/// NO need if(dict1==null)
 			if(userVcfDict==null)
 				{
-				return wrapException("NO SAM sequence Dict in user VCF");
+				LOG.error("NO SAM sequence Dict in user VCF");
+				return -1;
 				}
 			final Comparator<VariantContext> vcfComparator =
 					VCFUtils.createTidPosComparator(userVcfDict)
@@ -179,7 +204,8 @@ public class VcfIn extends AbstractVcfIn
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -189,7 +215,7 @@ public class VcfIn extends AbstractVcfIn
 			}
 		}
 	/* public for knime */
-	public Collection<Throwable> scanUsingTabix(final VariantContextWriter vcw,final String databaseVcfUri,final VcfIterator in2)
+	private int scanUsingTabix(final VariantContextWriter vcw,final String databaseVcfUri,final VcfIterator in2)
 		{
 		TabixVcfFileReader tabix=null;
 		try
@@ -229,7 +255,8 @@ public class VcfIn extends AbstractVcfIn
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -237,22 +264,17 @@ public class VcfIn extends AbstractVcfIn
 			CloserUtil.close(in2);
 			}
 		}
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		throw new IllegalStateException("shouldn't be called");
+	public int doWork(final List<String> args) {
+		if(!this.filterIn.isEmpty() && !this.filterOut.isEmpty()) {
+			 LOG.error("Option filterIn/filterOut both defined.");
+			 return -1;
 		}
-	
-	@Override
-	public Collection<Throwable> call() throws Exception {
-		if(!super.filterIn.isEmpty() && !super.filterOut.isEmpty()) {
-			return wrapException("Option -"+OPTION_FILTERIN+"  and  -"+OPTION_FILTEROUT+" both defined.");
-		}
-		if(super.inverse && (!super.filterIn.isEmpty() || !super.filterOut.isEmpty())) {
-			return wrapException("Option -"+OPTION_INVERSE+" cannot be used when Option -"+OPTION_FILTERIN+" or  -"+OPTION_FILTEROUT+" is defined.");
+		if(this.inverse && (!this.filterIn.isEmpty() || !this.filterOut.isEmpty())) {
+			 LOG.error("Option inverse cannot be used when Option filterin/filterou is defined.");
+			 return -1;
 		}
 		
-		final List<String> args=super.getInputFiles(); 
 		String databaseVcfUri;
 		String userVcfUri;
 		if(args.size()==1)
@@ -267,7 +289,8 @@ public class VcfIn extends AbstractVcfIn
 			}
 		else
 			{
-			return wrapException(getMessageBundle("illegal.number.of.arguments"));
+			LOG.error("illegal.number.of.arguments");
+			return -1;
 			}
 
 		VariantContextWriter w=null;
@@ -277,8 +300,8 @@ public class VcfIn extends AbstractVcfIn
 					VCFUtils.createVcfIteratorFromInputStream(stdin()):
 					VCFUtils.createVcfIterator(userVcfUri)
 					);
-			w= super.openVariantContextWriter();
-			if(super.databaseIsTabix)
+			w= super.openVariantContextWriter(outputFile);
+			if(this.databaseIsTabix)
 				{
 				return this.scanUsingTabix(w,databaseVcfUri, in);
 				}
@@ -287,7 +310,8 @@ public class VcfIn extends AbstractVcfIn
 				return this.scanFileSorted(w,databaseVcfUri, in);
 				}
 			} catch (Exception err) {
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 			} finally
 			{
 			CloserUtil.close(in);

@@ -31,7 +31,6 @@ History:
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.Reader;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -55,23 +54,26 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
-
-
-
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.biomart.BiomartQuery;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
 import com.github.lindenb.jvarkit.util.doid.DiseaseOntoglogyTree;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 public abstract class AbstractVCFDiseaseOntology
-	extends AbstractVCFFilter2
+	extends Launcher
 	{
+	private static final Logger LOG= Logger.build(AbstractVCFDiseaseOntology.class).make();
+	
 	/* Disease Ontology OWL file/URI. */
+	@Parameter(names="-D",description="Disease Ontology OWL file/URI")
 	protected String DOI_INPUT="http://www.berkeleybop.org/ontologies/doid.owl";
 	/* Disease Ontology Annotations.",optional=true */
+	@Parameter(names="-A",description="Disease Annotations")
 	protected String DOI_ANN="http://dga.nubic.northwestern.edu/ajax/Download.ajax.php?exportType=ids";
 	/*  used to reduce the number of mapped genes */
+	@Parameter(names="-R",description="Indexed  Genome Reference")
 	protected File REF=null;
 	
 	
@@ -82,40 +84,15 @@ public abstract class AbstractVCFDiseaseOntology
 	private IntervalTreeMap<String> ensemblProteinMap;
 	
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -D (url) Disease Ontology OWL file/URI. default:"+DOI_INPUT);
-		out.println(" -A (url) Disease Annotations. default:"+DOI_ANN);
-		out.println(" -R (fasta) Indexed  Genome Reference.");
-		super.printOptions(out);
-		}
 	
-	@Override
-	protected String getGetOptDefault()
-		{
-		return super.getGetOptDefault()+"D:A:R:";
-		}
-	@Override
-	protected GetOptStatus handleOtherOptions(int c, GetOpt opt, String[] args)
-		{
-		switch(c)
-			{
-			case 'D': DOI_INPUT=opt.getOptArg(); return GetOptStatus.OK;
-			case 'A': DOI_ANN=opt.getOptArg(); return GetOptStatus.OK;
-			case 'R': REF=new File(opt.getOptArg());return GetOptStatus.OK;
-			default:return super.handleOtherOptions(c, opt, args);
-			}
-		
-		}
 	
 	protected void readDiseaseOntoglogyTree() throws IOException
 		{
-		this.info("read DOI "+DOI_INPUT);
+		LOG.info("read DOI "+DOI_INPUT);
 		try
 			{
 			diseaseOntoglogyTree=DiseaseOntoglogyTree.parse(DOI_INPUT);
-			this.info("GO size:"+diseaseOntoglogyTree.size());
+			LOG.info("GO size:"+diseaseOntoglogyTree.size());
 			}
 		catch(XMLStreamException err)
 			{
@@ -124,7 +101,7 @@ public abstract class AbstractVCFDiseaseOntology
 		}
 	protected void readJensenLabAnnotations() throws IOException
 		{
-		this.info("read DOID-Annotation from "+DOI_ANN);
+		LOG.info("read DOID-Annotation from "+DOI_ANN);
 		BufferedReader in=IOUtils.openURIForBufferedReading(DOI_ANN);
 		String line;
 		while((line=in.readLine())!=null)
@@ -138,7 +115,7 @@ public abstract class AbstractVCFDiseaseOntology
 		{
 		try
 			{
-			this.info("read DOID-Annotation from "+DOI_ANN);
+			LOG.info("read DOID-Annotation from "+DOI_ANN);
 		XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
 		xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
 		xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
@@ -219,10 +196,10 @@ public abstract class AbstractVCFDiseaseOntology
 				"ensembl_peptide_id"
 				);
 		q.setUniqRows(true);
-		this.info("sending "+q);
-		this.info("invoking biomart "+q);
+		LOG.info("sending "+q);
+		LOG.info("invoking biomart "+q);
 		LineReader r=q.execute();
-		LineIterator iter = new LineIteratorImpl(r);
+		LineIteratorImpl iter = new LineIteratorImpl(r);
 		while(iter.hasNext()) {
 			String line=iter.next();
 			String param[]=line.split("[\t]");
@@ -233,7 +210,7 @@ public abstract class AbstractVCFDiseaseOntology
 			ensemblProteinMap.put(new Interval(param[0],Integer.parseInt(param[1]),Integer.parseInt(param[2])),ensp);
 		}
 		
-		
+		iter.close();
 		r.close();
 		}
 	
@@ -250,10 +227,10 @@ public abstract class AbstractVCFDiseaseOntology
 				"entrezgene"
 				);
 		q.setUniqRows(true);
-		this.info("sending "+q);
+		LOG.info("sending "+q);
 		
 		
-		this.info("invoking biomart "+q);
+		LOG.info("invoking biomart "+q);
 		LineReader r=q.execute();
 		@SuppressWarnings("resource")
 		LineIterator lr=new LineIteratorImpl(r);
@@ -275,7 +252,7 @@ public abstract class AbstractVCFDiseaseOntology
 				}
 			catch (Exception e)
 				{
-				warning(e);
+				LOG.warning(e);
 				continue;
 				}
 			

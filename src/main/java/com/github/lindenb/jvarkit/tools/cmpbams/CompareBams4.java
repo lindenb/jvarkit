@@ -142,74 +142,98 @@ public class CompareBams4  extends Launcher
 	private enum Shift {Zero,Le10,Le20,Le100,Gt100};
 	private enum Flag { Discordant,Same};
 	
-	/* see https://github.com/samtools/hts-specs/issues/5 */
-	private static int strnum_cmp(final String _a,final String _b)
-	{
+	
+	
+	/** see https://github.com/samtools/hts-specs/issues/5 */
+	static class SamToolsReadNameComparator implements Comparator<SAMRecord>
+		{
+		@Override
+		public int compare(final SAMRecord o1, final SAMRecord o2) {
+			int i= strnum_cmp(o1.getReadName(), o2.getReadName());
+			if(i!=0) return i;
+			return side(o1)-side(o2);
 
-		char ca='\0',cb='\0';
-	    int ia = 0, ib = 0;
-	    while(ia< _a.length() && ib<_b.length()) {
-	    	ca=(ia< _a.length()?_a.charAt(ia):'\0');
-	    	cb=(ib< _b.length()?_b.charAt(ib):'\0');
-	    	
-	    	
-	        if (Character.isDigit(ca) && Character.isDigit(cb))
-	        	{
-	            while (ca=='0'){
-	            	++ia;
-	            	ca=(ia< _a.length()?_a.charAt(ia):'\0');
-	            	}
-	            while (cb=='0'){
-	            	++ib;
-	            	cb=(ib< _b.length()?_b.charAt(ib):'\0');
-	            	}
-	            
-	            
-	            while (Character.isDigit(ca) && Character.isDigit(cb) && ca==cb)
-	            	{
-	            	++ia;
-	            	++ib;
+			}
+		
+		/* see https://github.com/samtools/hts-specs/issues/5 */
+		private int strnum_cmp(final String _a,final String _b)
+			{
+		
+				char ca='\0',cb='\0';
+			    int ia = 0, ib = 0;
+			    while(ia< _a.length() && ib<_b.length()) {
 			    	ca=(ia< _a.length()?_a.charAt(ia):'\0');
 			    	cb=(ib< _b.length()?_b.charAt(ib):'\0');
-	            	}
-	            
-	            if (Character.isDigit(ca) && Character.isDigit(cb)) {
-	                int i = 0;
-	                while((ia+i)< _a.length() &&
-	                	  (ib+i)< _b.length() &&
-	                	  Character.isDigit(_a.charAt(ia+i)) &&
-	                	  Character.isDigit(_b.charAt(ib+i))
-	                	  ) {
-	                	++i;
-	                	}
-			    	final char c1=((ia+i)< _a.length()?_a.charAt(ia+i):'\0');
-			    	final char c2=((ib+i)< _b.length()?_b.charAt(ib+i):'\0');
-	                return Character.isDigit(c1)? 1 : Character.isDigit(c2)? -1 : (int)ca - (int)cb;
-	            }
-	          else if (Character.isDigit(ca))
-	        	  {
-	        	  return 1;
-	        	  }
-	         else if (Character.isDigit(cb))
-	        	 {
-	        	 return -1;
-	        	 }
-	         else if (ia != ib)
-	        	 {
-	        	 return ia - ib;
-	        	 }
-	        	}/* end of is digit */
-	        else
-	        	{
-	            if (ca != cb) {
-	            	return (int)ca - (int)cb;
-	            }
-	            ++ia; ++ib;
-	        	}
-	    	}
-	    if(ca==cb) return 0;
-	    return ca=='\0'?1:cb=='\0'?-1: (int)ca - (int)cb;
-	}
+			    	
+			    	
+			        if (Character.isDigit(ca) && Character.isDigit(cb))
+			        	{
+			            while (ca=='0'){
+			            	++ia;
+			            	ca=(ia< _a.length()?_a.charAt(ia):'\0');
+			            	}
+			            while (cb=='0'){
+			            	++ib;
+			            	cb=(ib< _b.length()?_b.charAt(ib):'\0');
+			            	}
+			            
+			            
+			            while (Character.isDigit(ca) && Character.isDigit(cb) && ca==cb)
+			            	{
+			            	++ia;
+			            	++ib;
+					    	ca=(ia< _a.length()?_a.charAt(ia):'\0');
+					    	cb=(ib< _b.length()?_b.charAt(ib):'\0');
+			            	}
+			            
+			            if (Character.isDigit(ca) && Character.isDigit(cb)) {
+			                int i = 0;
+			                while((ia+i)< _a.length() &&
+			                	  (ib+i)< _b.length() &&
+			                	  Character.isDigit(_a.charAt(ia+i)) &&
+			                	  Character.isDigit(_b.charAt(ib+i))
+			                	  ) {
+			                	++i;
+			                	}
+					    	final char c1=((ia+i)< _a.length()?_a.charAt(ia+i):'\0');
+					    	final char c2=((ib+i)< _b.length()?_b.charAt(ib+i):'\0');
+			                return Character.isDigit(c1)? 1 : Character.isDigit(c2)? -1 : (int)ca - (int)cb;
+			            }
+			          else if (Character.isDigit(ca))
+			        	  {
+			        	  return 1;
+			        	  }
+			         else if (Character.isDigit(cb))
+			        	 {
+			        	 return -1;
+			        	 }
+			         else if (ia != ib)
+			        	 {
+			        	 return ia - ib;
+			        	 }
+			        	}/* end of is digit */
+			        else
+			        	{
+			            if (ca != cb) {
+			            	return (int)ca - (int)cb;
+			            }
+			            ++ia; ++ib;
+			        	}
+			    	}
+			    if(ca==cb) return 0;
+			    return ca=='\0'?1:cb=='\0'?-1: (int)ca - (int)cb;
+			}
+		}
+	
+	static class SimpleReadNameComparator implements Comparator<SAMRecord>
+		{
+		@Override
+		public int compare(final SAMRecord o1, final SAMRecord o2) {
+			int i=o1.getReadName().compareTo(o2.getReadName());
+			if(i!=0) return i;
+			return side(o1)-side(o2);
+			}
+		}
 
 	
 	private static int hash(final int prev,final Object o) {
@@ -340,7 +364,8 @@ public class CompareBams4  extends Launcher
 			);
 	}
 	
-	private static int side(final SAMRecord rec) {
+	/** used by Comm Bams */
+	static int side(final SAMRecord rec) {
 		if(rec.getReadPairedFlag()) {
 			if(rec.getFirstOfPairFlag()) return 1;
 			if(rec.getSecondOfPairFlag()) return 2;
@@ -363,13 +388,12 @@ public class CompareBams4  extends Launcher
 		final short NM_TAG = SAMTagUtil.getSingleton().NM;
 		if(args.size() !=2)
 			{
-			return wrapException("Expected two and only two bams please, but got "+args.size());
+			LOG.error("Expected two and only two bams please, but got "+args.size());
+			return -1;
 			}
 		
 		try
 			{
-			
-			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
 			
 			for(int i=0;i< args.size() && i< samFileReaders.length;++i)
@@ -379,11 +403,13 @@ public class CompareBams4  extends Launcher
 				samFileReaders[i]=srf.open(samFile);
 				final SAMFileHeader header = samFileReaders[i].getFileHeader();
 				if(header.getSortOrder()!=SAMFileHeader.SortOrder.queryname) {
-					return wrapException("Expected "+samFile+" to be sorted on "+SAMFileHeader.SortOrder.queryname+" but got "+header.getSortOrder());
+					LOG.error("Expected "+samFile+" to be sorted on "+SAMFileHeader.SortOrder.queryname+" but got "+header.getSortOrder());
+					return -1;	
 					}
 				dicts[i] = header.getSequenceDictionary();
 				if( dicts[i]==null || dicts[i].isEmpty()) {
-					return wrapException("In "+samFile+": No SAMSequenceDictionary in header.");
+					LOG.error("In "+samFile+": No SAMSequenceDictionary in header.");
+					return -1;
 					}
 				iters[i] = new PeekableIterator<>(samFileReaders[i].iterator());
 				}
@@ -402,25 +428,12 @@ public class CompareBams4  extends Launcher
 			
 			if( this.samtoolsquerysort) {
 				LOG.info("using the samtools sort -n comparator");
-				comparator = new Comparator<SAMRecord>() {
-					@Override
-					public int compare(final SAMRecord o1, final SAMRecord o2) {
-						int i= strnum_cmp(o1.getReadName(), o2.getReadName());
-						if(i!=0) return i;
-						return side(o1)-side(o2);
-						}
-					};			
+				comparator = new SamToolsReadNameComparator();
+					
 				}
 			else
 				{
-				comparator = new Comparator<SAMRecord>() {
-					@Override
-					public int compare(final SAMRecord o1, final SAMRecord o2) {
-						int i=o1.getReadName().compareTo(o2.getReadName());
-						if(i!=0) return i;
-						return side(o1)-side(o2);
-						}
-					};
+				comparator = new SimpleReadNameComparator();
 				}
 			
 			for(;;) {
@@ -611,7 +624,8 @@ public class CompareBams4  extends Launcher
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

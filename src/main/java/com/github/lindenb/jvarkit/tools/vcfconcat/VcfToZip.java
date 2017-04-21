@@ -28,9 +28,10 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfconcat;
 
+import java.io.File;
 import java.io.FileOutputStream;
+
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -41,24 +42,41 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfToZip extends AbstractVcfToZip
+@Program(name="vcf2zip",description="Reads a stream of concatenated VCFs and insert them into a Zip file")
+public class VcfToZip extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfToZip.class);
+	private static final Logger LOG = Logger.build(VcfToZip.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output zip file.")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-p","--prefix"},description="Prefix all zip entries with this prefix")
+	private String zipPrefix = "VCF";
+
+	@Parameter(names={"-t","--title"},description="Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the name of the inserted VCF file")
+	private String titleHeaderStr = "";
 
 	public VcfToZip()
 		{
 		}
 	
 	@Override
-	public Collection<Throwable> call() throws Exception {
+	public int doWork(List<String> args) {
 		
-		if(getOutputFile()!=null && !getOutputFile().getName().endsWith(".zip")) {
-			return wrapException("Filename must end with '.zip' "+getOutputFile());
+		if(this.outputFile!=null && this.outputFile.getName().endsWith(".zip")) {
+			LOG.error("Filename must end with '.zip' "+outputFile);
+			return -1;
 		}
 		LineIterator lr=null;
 		VcfIterator in = null;
@@ -66,12 +84,12 @@ public class VcfToZip extends AbstractVcfToZip
 		FileOutputStream fout=null;
 		int num_vcfs= 0;
 		VariantContextWriter vcw = null;
-		List<String> args = new ArrayList<>(IOUtils.unrollFiles(super.getInputFiles()));
+		args = new ArrayList<>(IOUtils.unrollFiles(args));
 		try {
 			int optind=0;
 			
-			if(getOutputFile()!=null) {
-				fout = new FileOutputStream(getOutputFile());
+			if(this.outputFile!=null) {
+				fout = new FileOutputStream(this.outputFile);
 				zout = new ZipOutputStream(fout);
 			} else
 				{
@@ -97,30 +115,30 @@ public class VcfToZip extends AbstractVcfToZip
 					in = VCFUtils.createVcfIteratorFromLineIterator(lr,true);
 					final VCFHeader header= in.getHeader();
 					String filename=null;
-					if(super.titleHeaderStr!=null && !super.titleHeaderStr.isEmpty()) {
-						final VCFHeaderLine h = header.getOtherHeaderLine(super.titleHeaderStr);
+					if(this.titleHeaderStr!=null && !this.titleHeaderStr.isEmpty()) {
+						final VCFHeaderLine h = header.getOtherHeaderLine(this.titleHeaderStr);
 						if(h!=null && !h.getValue().trim().isEmpty()) filename=h.getValue().trim();
 					}	
 					if(filename==null || filename.trim().isEmpty()) {
 						//create title
 						filename= String.format("vcf2zip.%05d.vcf", num_vcfs);
 						//set name in header
-						if(super.titleHeaderStr!=null && !super.titleHeaderStr.isEmpty()) {
-							header.addMetaDataLine(new VCFHeaderLine(super.titleHeaderStr.trim(),filename));
+						if(this.titleHeaderStr!=null && !this.titleHeaderStr.isEmpty()) {
+							header.addMetaDataLine(new VCFHeaderLine(this.titleHeaderStr.trim(),filename));
 						}
 					}
 					if(!filename.endsWith(".vcf")) {
 						filename+=".vcf";
 					}
-					if(!super.zipPrefix.isEmpty())
+					if(!this.zipPrefix.isEmpty())
 						{
-						filename= super.zipPrefix+
-								(super.zipPrefix.endsWith("/")?"":"/")+
+						filename= this.zipPrefix+
+								(this.zipPrefix.endsWith("/")?"":"/")+
 								filename;
 						}
 					LOG.info(filename);
 					final ZipEntry entry = new ZipEntry(filename);
-					entry.setComment("Created with "+getName());
+					entry.setComment("Created with "+getProgramName());
 					zout.putNextEntry(entry);
 					vcw = VCFUtils.createVariantContextWriterToOutputStream(
 							IOUtils.uncloseableOutputStream(zout)
@@ -149,7 +167,8 @@ public class VcfToZip extends AbstractVcfToZip
 			LOG.info("done. Number of VCFs:"+num_vcfs);
 			return RETURN_OK;
 		} catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(in);
 			CloserUtil.close(lr);

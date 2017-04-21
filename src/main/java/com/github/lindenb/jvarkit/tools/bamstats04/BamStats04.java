@@ -136,7 +136,7 @@ public class BamStats04 extends Launcher
 					if(line.isEmpty() || line.startsWith("#")) continue;
 					final BedLine bedLine = codec.decode(line);
 					if(bedLine==null) continue;
-					if(genomicSequence==null || !genomicSequence.getChrom().equals(bedLine.getContig())) {
+					if(indexedFastaSequenceFile!=null && (genomicSequence==null || !genomicSequence.getChrom().equals(bedLine.getContig()))) {
 						genomicSequence = new GenomicSequence(indexedFastaSequenceFile, bedLine.getContig());
 						}
 					

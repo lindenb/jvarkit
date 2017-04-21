@@ -32,7 +32,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -40,7 +39,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.logging.Level;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
@@ -59,18 +57,31 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.SortingCollectionFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
-public class VCFCompareGT extends AbstractCommandLineProgram
+@Program(name="vcfcomparegt",description="")
+public class VCFCompareGT extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VCFCompareGT.class).make();
+	@Parameter(names="-m",description="only print modified samples")
+	private boolean only_print_modified=false;
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
+	
 	private class Variant
 		{
 		String chrom="";
@@ -166,70 +177,43 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 		{
 		}
 	
+
+
 	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -M (int) Max recods in RAM. Optional.");
-		out.println(" -T (dir) add temporary directory. Optional");
-		out.println(" -m only print modified samples. Optional");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		SortingCollectionFactory<Variant> factory=new SortingCollectionFactory<Variant>();
-		boolean only_print_modified=false;
-		GetOpt getopt=new GetOpt();
-		int c;
-		while((c=getopt.getopt(args, super.getGetOptDefault()+"M:T:m"))!=-1)
-			{
-			switch(c)
-				{
-				case 'M': factory.setMaxRecordsInRAM(Math.max(1,Integer.parseInt(getopt.getOptArg())));break;
-				case 'T': this.addTmpDirectory(new File(getopt.getOptArg()));break;
-				case 'm': only_print_modified=true; break;
-				default:
-					{
-					switch(super.handleOtherOptions(c, getopt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(getopt.getOptInd()==args.length)
+	public int doWork(final List<String> args) {
+		if(args.isEmpty())
 			{
 			System.err.println("VCF missing.");
 			return -1;
 			}
 		VariantComparator varcmp=new VariantComparator();
-		factory.setCodec(new VariantCodec());
-		factory.setComponentType(Variant.class);
-		factory.setComparator(varcmp);
-		factory.setTmpDirs(this.getTmpDirectories());
-		SortingCollection<Variant> variants=factory.make();
+		SortingCollection<Variant> variants = null;
 		Set<String> sampleNames=new LinkedHashSet<String>();
 		try
 			{
 			
-			variants=factory.make();
+			variants=SortingCollection.newInstance(
+					Variant.class,
+					new VariantCodec(),
+					varcmp,
+					writingSortingCollection.getMaxRecordsInRam(),
+					writingSortingCollection.getTmpDirectories()
+					);
 			variants.setDestructiveIteration(true);
 			
 			Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 			metaData.add(new VCFHeaderLine(getClass().getSimpleName(),"version:"+getVersion()+" command:"+getProgramCommandLine()));
 			
 			
-			for(int i=getopt.getOptInd();i< args.length;++i)
+			for(int i=0;i< args.size();++i)
 				{
-				File vcfFile=new File(args[i]);
-				getLogger().info("Opening "+vcfFile);
+				File vcfFile=new File(args.get(i));
+				LOG.info("Opening "+vcfFile);
 				VcfIterator iter= new VcfIteratorImpl(IOUtils.openFileForReading(vcfFile));
 				VCFHeader header=iter.getHeader();
 				sampleNames.addAll(header.getSampleNamesInOrder());
 				
-				metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"_"+((i-getopt.getOptInd())+1),"File: "+vcfFile.getPath()));
+				metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"_"+((i)+1),"File: "+vcfFile.getPath()));
 
 				
 				long nLines=0;
@@ -239,7 +223,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 					
 					if(nLines++%10000==0)
 						{
-						getLogger().info(args[i]+" "+nLines);
+						LOG.info(args.get(i)+" "+nLines);
 						}
 					if(var.getReference()==null || var.getReference().isSymbolic()) continue;
 					if(!var.hasGenotypes()) continue;
@@ -250,7 +234,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 						if(!genotype.isCalled()) continue;
 						if(genotype.isNoCall()) continue;
 						
-						rec.file_index=(i-getopt.getOptInd())+1;
+						rec.file_index=i+1;
 						rec.sampleName=genotype.getSampleName();
 						rec.chrom=var.getContig();
 						rec.start=var.getStart();
@@ -299,14 +283,14 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 				}
 			variants.doneAdding();
 		
-			getLogger().info("Done Adding");
+			LOG.info("Done Adding");
 			
 			Set<String> newSampleNames=new HashSet<String>();
-			for(int i=getopt.getOptInd();i< args.length;++i)
+			for(int i=0;i< args.size();++i)
 				{
 				for(String sample:sampleNames)
 					{
-					newSampleNames.add(sample+"_"+((i-getopt.getOptInd())+1));
+					newSampleNames.add(sample+"_"+((i)+1));
 					}
 				}
 			final String GenpotypeChangedKey="GCH";
@@ -360,7 +344,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 						
 						for(String sampleName:samplesSeen.keySet())
 							{
-							if(samplesSeen.count(sampleName)!=args.length-getopt.getOptInd())
+							if(samplesSeen.count(sampleName)!=args.size())
 								{
 								samplesCreates.add(sampleName);
 								}
@@ -435,7 +419,7 @@ public class VCFCompareGT extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			getLogger().log(Level.SEVERE, ""+err.getMessage(),err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

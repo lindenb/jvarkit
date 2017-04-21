@@ -30,7 +30,6 @@ package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -39,27 +38,41 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+@Program(name="vcfcomparecallersonesample",
+description="For my colleague Julien: VCF with one sample called using different callers. Only keep variant if it was found in min<x=other-files<=max"
+
+			)
 public class VcfCompareCallersOneSample
-	extends AbstractVCFFilter3
+	extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VcfCompareCallersOneSample.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names="-f",description="VCF to be challenged.  Must be sorted on dict. Must contain a dict.")
 	private Set<File> challengerVcf=new HashSet<File>();
+	@Parameter(names="-m",description="min number of challengers found, inclusive.")
 	private int minCountInclusive=0;
+	@Parameter(names="-M",description=" max number of challengers found, inclusive.")
 	private int maxCountInclusive=Integer.MAX_VALUE-1;
+	@Parameter(names="-a",description="ignore ALT allele")
 	private boolean ignoreAlternate=false;
-	
 	
 	public VcfCompareCallersOneSample()
 		{
@@ -69,16 +82,6 @@ public class VcfCompareCallersOneSample
 		return challengerVcf;
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfCompareCallersOneSample";
-		}
-
-		@Override
-	public String getProgramDescription() {
-		return "For my colleague Julien: VCF with one sample called using different callers. *"
-				+ "Only keep variant if it was found in min<x=other-files<=max";
-		}
 	
 	public void setMinCountInclusive(int minCountInclusive) {
 		this.minCountInclusive = minCountInclusive;
@@ -92,50 +95,22 @@ public class VcfCompareCallersOneSample
 		this.ignoreAlternate = ignoreAlternate;
 		}
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -f (file.vcf|vcf.list) can be specified multiple time. List of VCF to be challenged. "
-				+ "Must be sorted on dict."
-				+ "Must contain a dict. "
-				+ "Only VCF containing the same sample will be considered.");
-		out.println(" -m (int) min number of challengers found, inclusive. default:0");
-		out.println(" -M (int) max number of challengers found, inclusive. default:unbounded");
-		out.println(" -a ignore ALT allele.");
-		super.printOptions(out);
-		}
 	
 	
-
-	@SuppressWarnings("resource")
-	@Override
-	public int executeKnime(List<String> args)
-		{
+@Override
+	public int doWork(List<String> args) {
 		File inputFile=null;
 		List<EqualRangeVcfIterator> listChallengers = new ArrayList<>();
 		VariantContextWriter vcw=null;
 		VcfIterator in=null;
 		try {
-			if(args.isEmpty())
-				{
-				in = VCFUtils.createVcfIteratorStdin();
-				}
-			else if(args.size()==1)
-				{
-				inputFile=new File(args.get(0));
-				in = VCFUtils.createVcfIteratorFromFile(inputFile);
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
+			 in  = super.openVcfIterator(oneFileOrNull(args));
 			
 			
 			VCFHeader header=in.getHeader();
 			if(header.getNGenotypeSamples()!=1)
 				{
-				error(getMessageBundle("vcf.must.have.only.one.sample"));
+				LOG.error("vcf.must.have.only.one.sample");
 				return -1;
 				}
 			
@@ -150,7 +125,7 @@ public class VcfCompareCallersOneSample
 			SAMSequenceDictionary dict = header.getSequenceDictionary();
 			if(dict==null)
 				{
-				error(getMessageBundle("no.dict.in.vcf"));
+				LOG.error("no.dict.in.vcf");
 				return -1;
 				}
 			Comparator<VariantContext> ctxComparator = VCFUtils.createTidPosComparator(dict);
@@ -161,21 +136,21 @@ public class VcfCompareCallersOneSample
 				//do not challenge vs itself
 				if(inputFile!=null && inputFile.equals(cf))
 					{
-					info("Ignoring challenger (self): "+cf);
+					LOG.error("Ignoring challenger (self): "+cf);
 					continue;
 					}
 				VcfIterator cin = VCFUtils.createVcfIteratorFromFile(cf);
 				VCFHeader ch=cin.getHeader();
 				if(ch.getNGenotypeSamples()!=1)
 					{
-					warning(getMessageBundle("vcf.must.have.only.one.sample"));
+					LOG.warning("vcf.must.have.only.one.sample");
 					cin.close();
 					continue;
 					}
 				if(!header.getSampleNamesInOrder().get(0).equals(
 						ch.getSampleNamesInOrder().get(0)))
 					{
-					warning("Ignoring "+cf+" because not the same sample.");
+					LOG.warning("Ignoring "+cf+" because not the same sample.");
 					cin.close();
 					continue;
 					}
@@ -183,27 +158,28 @@ public class VcfCompareCallersOneSample
 				if(hdict==null ||
 					!SequenceUtil.areSequenceDictionariesEqual(dict, hdict))
 					{
-					error(getMessageBundle("not.the.same.sequence.dictionaries"));
+					LOG.error("not.the.same.sequence.dictionaries");
 					return -1;
 					}
 				listChallengers.add(new EqualRangeVcfIterator(cin,ctxComparator));
 				}
 			
-			vcw= super.createVariantContextWriter();
+			vcw= super.openVariantContextWriter(outputFile);
 			vcw.writeHeader(h2);
 			
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			VariantContext prev_ctx=null;
-			while(in.hasNext() && !checkOutputError())
+			while(in.hasNext() && !vcw.checkError())
 				{
 				VariantContext ctx = progress.watch(in.next());
 				
 				//check input order
 				if(prev_ctx!=null && ctxComparator.compare(prev_ctx,ctx)>0)
 					{
-					throw new IOException("bad sort order : got\n\t"+
+					LOG.error("bad sort order : got\n\t"+
 							prev_ctx+"\nbefore\n\t"+
 							ctx+"\n");
+					return -1;
 					}
 				prev_ctx=ctx;
 				
@@ -236,7 +212,6 @@ public class VcfCompareCallersOneSample
 				if(countInOtherFiles >= minCountInclusive &&
 					countInOtherFiles <= maxCountInclusive)
 					{
-					this.incrVariantCount();
 					vcw.add(ctx);
 					}
 				
@@ -246,7 +221,7 @@ public class VcfCompareCallersOneSample
 			} 
 		catch (Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
@@ -259,53 +234,6 @@ public class VcfCompareCallersOneSample
 		}
 	
 	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"af:o:m:M:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'a': setIgnoreAlternate(true); break;
-				case 'm': setMinCountInclusive(Integer.parseInt(opt.getOptArg()));break;
-				case 'M': setMaxCountInclusive(Integer.parseInt(opt.getOptArg()));break;
-				case 'f':
-					File f=new File(opt.getOptArg());
-					if(f.getName().endsWith(".list"))
-						{
-						try {
-							for(String L: IOUtil.readLines(f))
-								{
-								if(L.trim().isEmpty() || L.startsWith("#")) continue;
-								this.getChallengerVcf().add(new File(L.trim()));
-								}
-						} catch (Exception e) {
-							error(e);
-							return -1;
-							}
-						}
-					else
-						{
-						this.getChallengerVcf().add(f);
-						}
-					break;
-				case 'o': this.setOutputFile(opt.getOptArg()); break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
 	public static void main(String[] args) {
 		new VcfCompareCallersOneSample().instanceMainWithExit(args);
 	}
