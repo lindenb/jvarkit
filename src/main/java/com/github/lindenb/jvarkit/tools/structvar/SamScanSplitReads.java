@@ -40,6 +40,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -47,6 +50,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -56,6 +60,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -75,8 +80,11 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.")
 	private int extentd=20;
 	
-	@Parameter(names={"--format"},description="Output format. if 'vcf', will save the file as a vcf file")
+	@Parameter(names={"-F","--format"},description="Output format. if 'vcf', will save the file as a vcf file")
 	private String outputFormat="txt";
+	@Parameter(names={"--defaultSampleName"},description="Default Sample name if not read group")
+	private String defaultSampleName="UNDEFINED";
+	
 
 	
 	private Map<String,IntervalTreeMap<Set<Arc>>> sample2database = new HashMap<>();
@@ -95,18 +103,6 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 		};
 		
 		
-	private final Comparator<Interval> intervalComparator=new Comparator<Interval>()
-		{
-	    @Override
-	    public int compare(final Interval r1, final Interval r2) {
-	        final String ref1 = r1.getContig();
-	        final String ref2 = r2.getContig();
-	        final int cmp = ref1.compareTo(ref2);
-	        if (cmp != 0) return cmp;
-	        return r1.getStart() - r2.getStart();
-	    }
-	
-		};
 	
 	
 	private static class Arc
@@ -268,7 +264,7 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 		
 		final List<SAMRecord> others= SAMUtils.getOtherCanonicalAlignments(rec);
 		if(others.isEmpty()) return;
-		String sample="UNDEFINED";
+		String sample=this.defaultSampleName;
 		final SAMReadGroupRecord g=rec.getReadGroup();
 		if(g!=null) {
 			final String sa = g.getSample();
@@ -298,7 +294,24 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 			iter.close();
 			}
 	
-		private void saveAsVcf( ) throws IOException {
+		private void saveAsVcf(Set<String> sampleNames,SAMSequenceDictionary dict) throws IOException {
+			 final Function<String,Integer> contig2tid = S -> {
+				 int i= dict.getSequenceIndex(S);
+				 if( i == -1 ) throw new IllegalArgumentException("cannot find contig "+S+" in dictionary");
+				 return i;
+			 }; 
+			
+			 final Comparator<Interval> intervalComparator=new Comparator<Interval>()
+				{
+			    @Override
+			    public int compare(final Interval r1, final Interval r2) {
+			        final int cmp = contig2tid.apply(r1.getContig())-contig2tid.apply(r2.getContig());
+			        if (cmp != 0) return cmp;
+			        return r1.getStart() - r2.getStart();
+			    	}
+				};
+
+			
 			final Allele REF = Allele.create("N", true);
 			
 			final Set<VCFHeaderLine> meta=new HashSet<>();
@@ -306,47 +319,37 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 					VCFConstants.GENOTYPE_KEY,
 					VCFConstants.DEPTH_KEY
 					);
-			VCFHeader header=new VCFHeader(meta,this.sample2database.keySet());
+			sampleNames.addAll(this.sample2database.keySet());
+			if(sampleNames.isEmpty()) sampleNames.add(this.defaultSampleName);
+			VCFHeader header=new VCFHeader(meta,sampleNames);
+			header.setSequenceDictionary(dict);
 			VariantContextWriter vcw = super.openVariantContextWriter(outputFile);
 			vcw.writeHeader(header);
-			Interval nextInterval=null;
-
-			for(;;)
+			final List<Arc> all_arcs = new ArrayList<>();
+			
+			for(final String sample: this.sample2database.keySet())
 				{
-				Interval after=null;
+				final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
+				for(final Interval interval: database.keySet()) {
+					for(final Arc arc: database.get(interval))
+						{
+						all_arcs.add(arc);
+						}
+					}
+				}
+			
+			Collections.sort(all_arcs, (A1,A2)->intervalComparator.compare(A1.intervalFrom, A2.intervalFrom));
+			
+			for(final Arc row:all_arcs)
+				{
 				final List<Genotype> genotypes = new ArrayList<>();
 				final Set<Allele> alleles =  new HashSet<>();
 				for(final String sample: this.sample2database.keySet())
 					{
 					final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
-					for(final Interval interval: database.keySet()) {
-						for(final Arc arc: database.get(interval))
+						for(final Arc arc: database.get(row.intervalFrom))
 							{
-							if(nextInterval==null)
-								{
-								nextInterval=arc.intervalFrom;
-								}
-							else if(this.intervalComparator.compare(nextInterval, arc.intervalFrom)<0)
-								{	
-								continue;
-								}
-							else if(this.intervalComparator.compare(nextInterval, arc.intervalFrom)>0)
-								{
-								genotypes.clear();
-								alleles.clear();
-								
-								after=nextInterval;
-			
-								
-								
-								nextInterval=arc.intervalFrom;
-								
-								//
-								}
-							else // == 0
-								{
-								
-								}
+							if(!arc.equals(row)) continue;
 							final Allele alt = Allele.create(
 									new StringBuilder().append("<").
 									append(arc.intervalFrom.getContig()).append(":").append(arc.intervalFrom.getStart()).append("-").append(arc.intervalFrom.getEnd()).
@@ -358,20 +361,15 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 							final Genotype g = new GenotypeBuilder(sample).alleles(Collections.singletonList(alt)).DP(arc.countSupportingReads).make();
 							genotypes.add(g);
 							}
-						}
 					}
-				if(genotypes.isEmpty()) break;
 				alleles.add(REF);
 				VariantContextBuilder vcb=new VariantContextBuilder().
-						chr(nextInterval.getContig()).
-						start(nextInterval.getStart()).
-						stop(nextInterval.getStart()).
+						chr(row.intervalFrom.getContig()).
+						start(row.intervalFrom.getStart()).
+						stop(row.intervalFrom.getStart()).
 						alleles(alleles).
 						genotypes(genotypes);
-				vcw.add(vcb.make());
-				if(after==null) break;
-				nextInterval=after;
-				
+				vcw.add(vcb.make());				
 				}
 			vcw.close();
 			}
@@ -409,15 +407,28 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 			out.close();
 		}
 		
+		private Set<String> samples(SAMFileHeader header )
+			{
+			return header.getReadGroups().stream().
+					map(G->G.getSample()).filter(S->S!=null).
+					collect(Collectors.toSet());
+			}
+		
 		@Override
 		public int doWork(final List<String> args) {
 		 	 SamReader r = null;
 		 	 SAMSequenceDictionary dic=null;
+		 	 final Set<String> sampleNames=new TreeSet<>();
 			try {
 				if(args.isEmpty()) {
 					LOG.info("read stdin");
 					r= openSamReader(null);
+					sampleNames.addAll(samples(r.getFileHeader()));
 					dic = r.getFileHeader().getSequenceDictionary();
+					if(dic==null) {
+						LOG.error("SAM input is missing a dictionary");
+						return -1;
+						}
 					scanFile(r);
 					r.close();
 					r=null;
@@ -426,14 +437,28 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 					{
 					LOG.info("read "+filename);
 					r= openSamReader(filename);
-					
+					sampleNames.addAll(samples(r.getFileHeader()));
+					final SAMSequenceDictionary dict2 = r.getFileHeader().getSequenceDictionary();
+					if(dict2==null) {
+						LOG.error("SAM input is missing a dictionary");
+						return -1;
+						}
+					else if(dic==null)
+						{
+						dic=dict2;
+						}
+					else if(!SequenceUtil.areSequenceDictionariesEqual(dic, dict2))
+						{
+						LOG.error("incompatibles sequences dictionaries");
+						return -1;
+						}
 					scanFile(r);
 					r.close();
 					r=null;
 					}
 				
-				if("vcf".equalsIgnoreCase(this.outputFormat)) {
-					saveAsVcf();
+				if("vcf".equalsIgnoreCase(this.outputFormat) || (this.outputFile!=null && (this.outputFile.getName().endsWith(".vcf") || this.outputFile.getName().endsWith(".vcf.gz")))) {
+					saveAsVcf(sampleNames,dic);
 					}
 				else
 					{
