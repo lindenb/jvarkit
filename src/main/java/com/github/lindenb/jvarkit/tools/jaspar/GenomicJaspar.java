@@ -2,7 +2,6 @@ package com.github.lindenb.jvarkit.tools.jaspar;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -13,44 +12,29 @@ import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.SynchronousLineReader;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SubSequence;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.RevCompCharSequence;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class GenomicJaspar extends AbstractCommandLineProgram
+@Program(name="genomicjaspar",description="Find jaspar patterns in FASTA sequences. Reports a BED file.")
+public class GenomicJaspar extends Launcher
 	{
-	private List<Matrix> jasparDb=new ArrayList<Matrix>();
+	private static final Logger LOG = Logger.build(GenomicJaspar.class).make();
+	@Parameter(names="-J",description=" jaspar PFM uri. required. example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt")
+	private String jasparUri=null;
+	@Parameter(names="-f",description="(0<ratio<1) fraction of best score")
 	private double fraction_of_max=0.95;
+
+	
+	private List<Matrix> jasparDb=new ArrayList<Matrix>();
 	private GenomicJaspar()
 		{
 		}
-
 	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Find jaspar patterns in FASTA sequences. Reports a BED file.";
-		}
-	
-	@Override
-	public String getProgramName()
-		{
-		return "GenomicJaspar";
-		}
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/GenomicJaspar";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -J (uri) jaspar PFM uri. required. example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt ");
-		out.println(" -f (0<ratio<1) fraction of best score. default:"+this.fraction_of_max);
-		super.printOptions(out);
-		}
 	
 	private void digest(
 			String seqName,
@@ -59,7 +43,7 @@ public class GenomicJaspar extends AbstractCommandLineProgram
 			)
 		{
 		
-		for(Matrix matrix:this.jasparDb)
+		for(final Matrix matrix:this.jasparDb)
 			{
 			if(matrix.length()>sequence.length()) continue;
 			
@@ -107,7 +91,7 @@ public class GenomicJaspar extends AbstractCommandLineProgram
 			{
 			longest=Math.max(m.length(), longest);
 			}
-		info("longest:"+longest);
+		LOG.info("longest:"+longest);
 		String seqName="";
 		int position0=0;
 		StringBuilder sequences=new StringBuilder(longest);
@@ -142,40 +126,18 @@ public class GenomicJaspar extends AbstractCommandLineProgram
 					sequences.deleteCharAt(0);
 					if(position0%1000000==0)
 						{
-						info(seqName+" "+position0);
+						LOG.info(seqName+" "+position0);
 						}
 					}
 				}
 			}
 		}
 
-	
 	@Override
-	public int doWork(String[] args)
-		{
-		String jasparUri=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "J:f:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'J': jasparUri=opt.getOptArg(); break;
-				case 'f': fraction_of_max=Double.parseDouble(opt.getOptArg()); break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
 		if(jasparUri==null)
 			{
-			error("Undefined jaspar-uri");
+			LOG.error("Undefined jaspar-uri");
 			return -1;
 			}
 		
@@ -183,7 +145,7 @@ public class GenomicJaspar extends AbstractCommandLineProgram
 		
 		try
 			{
-			info("Reading "+jasparUri);
+			LOG.info("Reading "+jasparUri);
 			LineReader lr=new SynchronousLineReader(IOUtils.openURIForReading(jasparUri));
 			LineIterator liter=new LineIteratorImpl(lr);
 			Iterator<Matrix> miter=Matrix.iterator(liter);
@@ -193,20 +155,20 @@ public class GenomicJaspar extends AbstractCommandLineProgram
 				this.jasparDb.add(matrix.convertToPWM());
 				}
 			lr.close();
-			info("JASPAR size: "+this.jasparDb.size());
+			LOG.info("JASPAR size: "+this.jasparDb.size());
 			
 			
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				run(new InputStreamReader(System.in));
+				LOG.info("Reading from stdin");
+				run(new InputStreamReader(stdin()));
 				}
 			else
 				{
-				for(int i=opt.getOptInd(); i<args.length;++i)
+				for(final String fname:args)
 					{
-					info("Opening "+args[i]);
-					Reader in=IOUtils.openURIForBufferedReading(args[i]);
+					LOG.info("Opening "+fname);
+					Reader in=IOUtils.openURIForBufferedReading(fname);
 					run(in);
 					in.close();
 					}
@@ -216,7 +178,7 @@ public class GenomicJaspar extends AbstractCommandLineProgram
 			}
 		catch(Throwable err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		}

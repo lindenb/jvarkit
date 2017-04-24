@@ -44,6 +44,7 @@ import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -80,11 +81,16 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.")
 	private int extentd=20;
 	
-	@Parameter(names={"-F","--format"},description="Output format. if 'vcf', will save the file as a vcf file")
+	@Parameter(names={"-F","--format"},
+			description="Output format. if 'vcf', will save the file as a vcf file",
+			hidden=true /* this option is not mature */
+			)
 	private String outputFormat="txt";
 	@Parameter(names={"--defaultSampleName"},description="Default Sample name if not read group")
 	private String defaultSampleName="UNDEFINED";
 	
+	@Parameter(names={"--normalize"},description="Optional. Normalize count to this value. e.g '1' ")
+	private Integer nomalizeReadCount=null;
 
 	
 	private Map<String,IntervalTreeMap<Set<Arc>>> sample2database = new HashMap<>();
@@ -378,6 +384,18 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 		private void saveAsText() throws IOException {
 			PrintWriter out = super.openFileOrStdoutAsPrintWriter(outputFile);
 			
+			double maxCount=0.0;
+			for(final String sample: this.sample2database.keySet())
+				{
+				final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
+				for(final Interval interval: database.keySet()) {
+					for(final Arc arc: database.get(interval))
+						{
+						maxCount=Math.max(arc.countSupportingReads, maxCount);
+						}
+					}
+				}
+			
 			for(final String sample: this.sample2database.keySet())
 				{
 				final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
@@ -396,7 +414,13 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 						out.print("\t");
 						out.print(arc.intervalTo.getEnd());
 						out.print("\t");
-						out.print(arc.countSupportingReads);
+						if(this.nomalizeReadCount==null) {
+							out.print(arc.countSupportingReads);
+							}
+						else
+							{
+							out.print(this.nomalizeReadCount.doubleValue()*(arc.countSupportingReads/maxCount));
+							}
 						out.print("\t");
 						out.print(sample);
 						out.println();

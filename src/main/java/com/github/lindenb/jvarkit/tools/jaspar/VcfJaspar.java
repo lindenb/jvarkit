@@ -3,9 +3,8 @@
  */
 package com.github.lindenb.jvarkit.tools.jaspar;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -23,16 +22,31 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SubSequence;
 import com.github.lindenb.jvarkit.util.bio.RevCompCharSequence;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-
-public class VcfJaspar extends AbstractVcfJaspar
+@Program(name="vcfjaspar",description="Finds JASPAR profiles in VCF")
+public class VcfJaspar extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfJaspar.class);
+	private static final Logger LOG = Logger.build(VcfJaspar.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names="-J",description=" jaspar PFM uri. required. example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt",required=true)
+	private String jasparUri=null;
+	@Parameter(names="-f",description="(0<ratio<1) fraction of best score")
+	private double fraction_of_max=0.95;
+	@Parameter(names={"-R","-r","--reference"},description="Indexed fasta reference",required=true)
+	private File fasta = null;
+
+	
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private List<Matrix> jasparDb=new ArrayList<Matrix>();
 	
@@ -40,10 +54,9 @@ public class VcfJaspar extends AbstractVcfJaspar
 	public VcfJaspar() {
 		}
 	
-
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out)
-			throws IOException {
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+		
 		final String ATT="JASPAR";
 		GenomicSequence genomicSequence=null;
 		final VCFHeader header=new VCFHeader(in.getHeader());
@@ -113,17 +126,19 @@ public class VcfJaspar extends AbstractVcfJaspar
 			}
 		return RETURN_OK;
 		}
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		if(super.jasparUri==null)
+	public int doWork(List<String> args) {
+		
+		if(this.jasparUri==null)
 			{
-			return wrapException("Undefined jaspar-uri");
+			LOG.error("Undefined jaspar-uri");
+			return -1;
 			}		
 		
-		if(super.fasta==null)
+		if(this.fasta==null)
 			{
-			return wrapException("Undefined fasta sequence");
+			LOG.error("Undefined fasta sequence");
+			return -1;
 			}
 		try
 			{
@@ -145,11 +160,12 @@ public class VcfJaspar extends AbstractVcfJaspar
 			
 			LOG.info("opening "+fasta);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(fasta);
-			return doVcfToVcf(inputName);
+			return doVcfToVcf(oneFileOrNull(args),outputFile);
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

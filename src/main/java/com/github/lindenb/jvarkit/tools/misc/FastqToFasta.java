@@ -2,43 +2,36 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.List;
 
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
+@Program(name="fastq2fasta",description="fastq -> fasta",deprecatedMsg="use awk, samtools...")
 public class FastqToFasta
-	extends AbstractCommandLineProgram
+	extends Launcher
 	{
+	private static final Logger LOG = Logger.build(FastqToFasta.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names="-N",description="fasta line length")
 	private int fastaLineLen=50;
+	@Parameter(names="-b",description="trim fasta header after space")
 	private boolean trim_after_space=false;
 	
 	private FastqToFasta()
 		{
-		}
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FastqToFasta";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "FastqToFasta";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (fileout) Filename output . Optional ");
-		out.println(" -N (fasta line length)  Optional. Default: "+fastaLineLen);
-		out.println(" -b trim fasta header after space.");
-		super.printOptions(out);
 		}
 	
 	
@@ -52,7 +45,7 @@ public class FastqToFasta
 			{
 			if(++nRec%1E6==0)
 				{
-				info("N-Reads:"+nRec);
+				LOG.info("N-Reads:"+nRec);
 				}
 			FastqRecord fastq=r.next();
 			out.print(">");
@@ -77,59 +70,27 @@ public class FastqToFasta
 			if(out.checkError()) break;
 			}
 		out.flush();
-		info("Done. N-Reads:"+nRec);
+		LOG.info("Done. N-Reads:"+nRec);
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		File fileout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args, getGetOptDefault()+"o:N:b"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': fileout=new File(getopt.getOptArg());break;
-				case 'b': trim_after_space=true;break;
-				case 'N': fastaLineLen=Math.max(1,Integer.parseInt(getopt.getOptArg()));break;
-				default: 
-					{
-					switch(handleOtherOptions(c, getopt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
-		
-		PrintStream out=System.out;
+	public int doWork(List<String> args) {
+		PrintStream out=null;
 		try
 			{
-			if(fileout!=null)
-				{
-				info("Writing to "+fileout);
-				out=new PrintStream(IOUtils.openFileForWriting(fileout));
-				}
-			else
-				{
-				info("Writing to stdout");
-				out=System.out;
-				}
+			out= super.openFileOrStdoutAsPrintStream(outputFile);
 			
-			if(getopt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				FastqReader fqR=new FourLinesFastqReader(System.in);
+				LOG.info("Reading from stdin");
+				FastqReader fqR=new FourLinesFastqReader(stdin());
 				run(fqR,out);
 				fqR.close();
 				}
-			else for(int optind=getopt.getOptInd(); optind < args.length; ++optind)
+			else for(String fname:args)
 				{
-				File f=new File(args[optind]);
-				info("Reading from "+f);
+				File f=new File(fname);
+				LOG.info("Reading from "+f);
 				FastqReader fqR=new FourLinesFastqReader(f);
 				run(fqR,out);
 				fqR.close();
@@ -138,7 +99,7 @@ public class FastqToFasta
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

@@ -28,8 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -40,7 +40,11 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 /**
@@ -48,22 +52,28 @@ import com.github.lindenb.jvarkit.io.IOUtils;
  * ConcatSam
  *
  */
-public class ConcatSam extends AbstractConcatSam
+@Program(name="concatsam",description="")
+public class ConcatSam extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(ConcatSam.class);
+	private static final Logger LOG = Logger.build(ConcatSam.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
 	
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 
 	@Override
-	public Collection<Throwable> call() throws Exception
-		{
+	public int doWork(List<String> args) {
+	
 		SAMFileWriter out=null;
 		try
 			{
-			final Set<String> set = IOUtils.unrollFiles(this.getInputFiles());
+			final Set<String> set = IOUtils.unrollFiles(args);
 			if(set.isEmpty()) {
 				LOG.info("Reading from stdin");
 				final SamReader r = openSamReader(null);
-				out = super.openSAMFileWriter(r.getFileHeader(), true);
+				out = this.writingBamArgs.openSAMFileWriter(outputFile,r.getFileHeader(), true);
 				final SAMRecordIterator iter = r.iterator();
 				while(iter.hasNext()) out.addAlignment(iter.next());
 				iter.close();
@@ -86,7 +96,7 @@ public class ConcatSam extends AbstractConcatSam
 						headers,
 						false
 						).getMergedHeader();
-				out = super.openSAMFileWriter(header, true);
+				out = this.writingBamArgs.openSAMFileWriter(outputFile,header, true);
 				for(final String fname:set)
 					{
 					LOG.info("Reading bam " + fname);
@@ -104,7 +114,8 @@ public class ConcatSam extends AbstractConcatSam
 			}
 		catch(Exception err) 
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

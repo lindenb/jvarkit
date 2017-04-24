@@ -26,48 +26,42 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.List;
 
 import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
-public class FastqRevComp extends AbstractCommandLineProgram
+@Program(name="fastqrevcomp",description="produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )")
+public class FastqRevComp extends Launcher
 	{
+	private static final Logger LOG = Logger.build(FastqRevComp.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
+	@Parameter(names="-1",description=" interleaced input : only reverse complement R1")
 	private boolean only_R1=false;
+	@Parameter(names="-2",description=" interleaced input : only reverse complement R2")
+
 	private boolean only_R2=false;
 
 	private FastqRevComp()
 		{
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FastqRevComp";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )";
-		}
-	
-	
-	
-	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (fileout) Filename output . Optional ");
-		out.println(" -1 interleaced input : only reverse complement R1 . Optional ");
-		out.println(" -2 interleaced input : only reverse complement R2 . Optional ");
-		super.printOptions(out);
-		}
+
 	
 	
 	
@@ -80,7 +74,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 			{
 			if(++nRec%1E6==0)
 				{
-				info("N-Reads:"+nRec);
+				LOG.info("N-Reads:"+nRec);
 				}
 			FastqRecord fastq=r.next();
 			
@@ -123,63 +117,35 @@ public class FastqRevComp extends AbstractCommandLineProgram
 			if(out.checkError()) break;
 			}
 		out.flush();
-		info("Done. N-Reads:"+nRec);
+		LOG.info("Done. N-Reads:"+nRec);
 		}
 	
+	
 	@Override
-	public int doWork(String[] args)
-		{
-		File fileout=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt getopt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=getopt.getopt(args, getGetOptDefault()+"o:12"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': fileout=new File(getopt.getOptArg());break;
-				case '1': only_R1=true; break;
-				case '2': only_R2=true; break;
-				default: 
-					{
-					switch(handleOtherOptions(c, getopt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
+		
 		if(only_R1 && only_R2)
 			{
-			error("Both options -1 && -2 used.");
+			LOG.error("Both options -1 && -2 used.");
 			return -1;
 			}
-		PrintStream out=System.out;
+		PrintStream out=null;
 		try
 			{
-			if(fileout!=null)
-				{
-				info("Writing to "+fileout);
-				out=new PrintStream(IOUtils.openFileForWriting(fileout));
-				}
-			else
-				{
-				info("Writing to stdout");
-				out=System.out;
-				}
+			out= super.openFileOrStdoutAsPrintStream(outputFile);
 			
-			if(getopt.getOptInd()==args.length)
+			
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				FastqReader fqR=new FourLinesFastqReader(System.in);
+				LOG.info("Reading from stdin");
+				FastqReader fqR=new FourLinesFastqReader(stdin());
 				run(fqR,out);
 				fqR.close();
 				}
-			else for(int optind=getopt.getOptInd(); optind < args.length; ++optind)
+			else for(final String fn : args)
 				{
-				File f=new File(args[optind]);
-				info("Reading from "+f);
+				File f=new File(fn);
+				LOG.info("Reading from "+f);
 				FastqReader fqR=new FourLinesFastqReader(f);
 				run(fqR,out);
 				fqR.close();
@@ -188,7 +154,7 @@ public class FastqRevComp extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

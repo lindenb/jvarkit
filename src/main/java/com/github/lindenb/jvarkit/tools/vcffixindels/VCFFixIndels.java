@@ -56,9 +56,13 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 
 /**
- * 
- * VCFFixIndels
- *
+BEGIN_DOC
+
+## See also
+
+https://academic.oup.com/bioinformatics/article-abstract/33/7/964/2623048/Improved-VCF-normalization-for-accurate-VCF?redirectedFrom=fulltext
+
+END_DOC
  */
 @Program(name="vcffixindels",description="Fix samtools indels (for @SolenaLS)")
 public class VCFFixIndels extends Launcher
