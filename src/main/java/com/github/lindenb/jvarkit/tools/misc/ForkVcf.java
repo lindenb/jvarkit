@@ -35,7 +35,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -44,18 +43,43 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-
+@Program(name="forkvcf",description="Fork a VCF.")
 public class ForkVcf
-	extends AbstractForkVcf
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(ForkVcf.class);
+	private static final Logger LOG = Logger.build(ForkVcf.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file Must contains "+REPLACE_GROUPID,required=true)
+	private File outputFile = null;
+
+
+	@Parameter(names={"-n","--count"},description="number of vcf files to generate")
+	private int number_of_files = 2 ;
+
+	@Parameter(names={"-c","--splitbychunk"},description="When this option is used, the variant are first saved in a temporary file, the number of variant is dividided by 'count' and the output files are lineray produced. The default is to dispatch the variants as they are coming in the stream.")
+	private boolean split_by_chunk = false;
+
+	@Parameter(names={"-m","--manifest"},description="optional save produced vcf filenames in this file.")
+	private File manifestFile = null;
+
+
+        @Parameter(names={"-T","--tmpDir"},description="mp directory")
+        private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+
+        @Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
+        private int maxRecordsInRam =50000;
 
 	private final static String REPLACE_GROUPID="__GROUPID__";
 
@@ -85,8 +109,8 @@ public class ForkVcf
 		public File getFile()
 			{
 			return new File(
-					ForkVcf.this.getOutputFile().getParentFile(),
-					ForkVcf.this.getOutputFile().getName().replaceAll(
+					ForkVcf.this.outputFile.getParentFile(),
+					ForkVcf.this.outputFile.getName().replaceAll(
 							ForkVcf.REPLACE_GROUPID,
 							String.valueOf(this.groupId)
 							));
@@ -125,20 +149,21 @@ public class ForkVcf
 		}
 	
 	
-	
-				
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		if (getOutputFile()==null || !getOutputFile().getName().contains(REPLACE_GROUPID)) {
-			return wrapException("Output file pattern undefined or doesn't contain " + REPLACE_GROUPID + " : "
-					+ this.getOutputFile());
+	public int doWork(List<String> args) {
+	if (this.outputFile==null || !this.outputFile.getName().contains(REPLACE_GROUPID)) {
+			LOG.error("Output file pattern undefined or doesn't contain " + REPLACE_GROUPID + " : "
+					+ this.outputFile);
+			return -1;
 		}
-		if (!(getOutputFile().getName().endsWith(".vcf") || getOutputFile().getName().endsWith(".vcf.gz"))) {
-			return wrapException("output file must end with '.vcf' or '.vcf.gz'");
+		if (!(this.outputFile.getName().endsWith(".vcf") || this.outputFile.getName().endsWith(".vcf.gz"))) {
+			LOG.error("output file must end with '.vcf' or '.vcf.gz'");
+			return -1;
 		}
 		
-		if(super.number_of_files<=0) {
-			return wrapException("Bad value for -"+OPTION_NUMBER_OF_FILES+":"+this.number_of_files);
+		if(this.number_of_files<=0) {
+			LOG.error("Bad value for number of files:"+this.number_of_files);
+			return -1;
 		}
 		
 		BufferedReader r=null;
@@ -148,17 +173,17 @@ public class ForkVcf
 		VCFBuffer vcfBuffer=null;
 		try 
 			{
-			in = openVcfIterator(inputName);
-			manifestWriter = (super.manifestFile==null?
+			in = openVcfIterator(oneFileOrNull(args));
+			manifestWriter = (this.manifestFile==null?
 					new PrintWriter(new NullOuputStream()):
-					IOUtils.openFileForPrintWriter(super.manifestFile)
+					IOUtils.openFileForPrintWriter(this.manifestFile)
 					);
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader());
 			
 			
-			if (!super.split_by_chunk)
+			if (!this.split_by_chunk)
 				{
-				while(groups.size()<super.number_of_files)
+				while(groups.size()<this.number_of_files)
 					{
 					final SplitGroup sg = new SplitGroup(groups.size()+1);
 					sg.open(in.getHeader());
@@ -168,14 +193,14 @@ public class ForkVcf
 				int idx=0;
 				while(in.hasNext()) {
 					final VariantContext ctx = progress.watch(in.next());
-					groups.get(idx%super.number_of_files)._writer.add(ctx);
+					groups.get(idx%this.number_of_files)._writer.add(ctx);
 					++idx;
 					}
 				in.close();
 				} 
 			else {
 				long count_variants=0;
-				vcfBuffer=new VCFBuffer(super.getMaxRecordsInRam(), super.getTmpdir());
+				vcfBuffer=new VCFBuffer(this.maxRecordsInRam,this.tmpDir);
 				vcfBuffer.writeHeader(in.getHeader());
 				while(in.hasNext()) {
 					final VariantContext ctx = progress.watch(in.next());
@@ -183,9 +208,9 @@ public class ForkVcf
 					++count_variants;
 					}
 				in.close();
-				final long variant_per_file= Math.max(1L,(long)Math.ceil(count_variants/(double)super.number_of_files));
+				final long variant_per_file= Math.max(1L,(long)Math.ceil(count_variants/(double)this.number_of_files));
 
-				LOG.info("done buffering. n="+count_variants+" now forking "+variant_per_file+" variants for "+super.number_of_files+" files.");
+				LOG.info("done buffering. n="+count_variants+" now forking "+variant_per_file+" variants for "+this.number_of_files+" files.");
 				VcfIterator iter2=vcfBuffer.iterator();
 				long count_ctx=0L;
 				while(iter2.hasNext()) {
@@ -209,7 +234,7 @@ public class ForkVcf
 				vcfBuffer=null;
 				
 				//save remaining empty VCFs
-				while(groups.size()<super.number_of_files)
+				while(groups.size()<this.number_of_files)
 					{
 					LOG.info("creating empty vcf");
 					final SplitGroup sg = new SplitGroup(groups.size()+1);

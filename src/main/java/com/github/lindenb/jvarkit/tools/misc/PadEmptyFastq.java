@@ -1,6 +1,7 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
+import java.util.List;
 
 import htsjdk.samtools.fastq.BasicFastqWriter;
 import htsjdk.samtools.fastq.FastqRecord;
@@ -9,13 +10,31 @@ import htsjdk.samtools.fastq.FastqWriterFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
-public class PadEmptyFastq extends AbstractCommandLineProgram
+
+@Program(name="pademptyfastq",
+description= "Pad empty fastq sequence/qual with N/#",
+deprecatedMsg="use awk"
+		)
+public class PadEmptyFastq extends Launcher
 	{
+	private static final Logger LOG=Logger.build(PadEmptyFastq.class).make();
+
+	@Parameter(names={"-o","--out"},description="Output VCF or stdout")
+    private File outFile=null;
+
+	
 	private static final int DEFAULT_LENGTH=50;
+	
+	
+
+	@Parameter(names={"-N"},description="number of bases/qual to be added.  -1=length of the first read ")
 	private int N=-1;//default , will use the first read length
 	
 	
@@ -39,7 +58,7 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 			
 			if(++nReads%1E6==0)
 				{
-				info("Read "+nReads +" reads. empty reads="+nFill);
+				LOG.info("Read "+nReads +" reads. empty reads="+nFill);
 				}
 			if(rec.getReadString().isEmpty())
 				{
@@ -69,85 +88,39 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 				}
 			w.write(rec);
 			}
-		info("Done. Read "+nReads +" reads. empty reads="+nFill);
-		}
-	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/PadEmptyFastq";
-		}
-	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Pad empty fastq sequence/qual with N/#";
-		}
-
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (Filename out). Default: stdout");
-		out.println(" -N (integer). number of bases/qual to be added.  Default: length of the first read  or "+DEFAULT_LENGTH);
-		super.printOptions(out);
+		LOG.info("Done. Read "+nReads +" reads. empty reads="+nFill);
 		}
 	
 	
-	
 	@Override
-	public int doWork(String[] args)
-		{
-		
-		File fileOut=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:N:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o':fileOut=new File(opt.getOptArg());break;
-				case 'N':N=Math.max(0,Integer.parseInt(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					break;
-					}
-				}
-			}
+	public int doWork(List<String> args) {
 		
 		FastqWriter fqw=null;		
 		try
 			{
 			
-			if(fileOut==null)
+			if(this.outFile==null)
 				{
-				info("writing to stdout");
-				fqw=new BasicFastqWriter(System.out);
+				LOG.info("writing to stdout");
+				fqw=new BasicFastqWriter(stdout());
 				}
 			else
 				{
-				info("writing to "+fileOut);
-				fqw=new FastqWriterFactory().newWriter(fileOut);
+				LOG.info("writing to "+this.outFile);
+				fqw=new FastqWriterFactory().newWriter(this.outFile);
 				}
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
+				LOG.info("Reading from stdin");
 				FastqReader fqr=new FourLinesFastqReader(System.in);
 				copyTo(fqr,fqw);
 				fqr.close();
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename:args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
+					LOG.info("Reading from "+filename);
 					FastqReader fqr=new FourLinesFastqReader(new File(filename));
 					copyTo(fqr,fqw);
 					fqr.close();
@@ -157,7 +130,7 @@ public class PadEmptyFastq extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

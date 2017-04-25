@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -42,6 +41,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
@@ -52,14 +52,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfGroupByPopulation extends AbstractVCFFilter3
+@Program(name="vcfgroupbypop",description="Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population")
+public class VcfGroupByPopulation extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VcfGroupByPopulation.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names="-p",description="mapping file: each line is (SAMPLE)\\t(POP)\\n",required=true)
+	private File mappingFile=null;
+
+
 	private Map<String,String> sample2population=new HashMap<>();
 	
 	private static class GCount
@@ -107,16 +118,14 @@ public class VcfGroupByPopulation extends AbstractVCFFilter3
 		{
 		}
 	
-	
 	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfGroupByPopulation";
-		}
-	
-	@Override
-	protected void doWork(String inputSource, VcfIterator vcfIn,
-			VariantContextWriter out) throws IOException
-		{
+	protected int doVcfToVcf(String inputName, VcfIterator vcfIn, VariantContextWriter out) {
+		try {
+			
+			Reader r=IOUtils.openFileForBufferedReading(this.mappingFile);
+			parsePopulationMapping(r);
+			r.close();
+			
 		VCFHeader header= vcfIn.getHeader();
 		Set<String> samplesInVcf=new HashSet<>( header.getSampleNamesInOrder());
 		
@@ -223,7 +232,7 @@ public class VcfGroupByPopulation extends AbstractVCFFilter3
 			{
 			VariantContext ctx=progress.watch(vcfIn.next());
 			VariantContextBuilder vcb=new VariantContextBuilder(
-					inputSource,
+					ctx.getSource(),
 					ctx.getContig(),
 					ctx.getStart(),
 					ctx.getEnd(),
@@ -288,20 +297,15 @@ public class VcfGroupByPopulation extends AbstractVCFFilter3
 			out.add(vcb.make());
 			}
 		progress.finish();
+		return 0;
 		}
+	catch(Exception err) {
+		LOG.error(err);
+		return -1;
+		}
+	}
 	
-	@Override
-	public String getProgramDescription() {
-		return "Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population";
-		}
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-o (output) default:stdout");
-		out.println("-f (mapping) mapping file: each line is (SAMPLE)\\t(POP)\\n");
-		super.printOptions(out);
-		}
 	
 	public void parsePopulationMapping(Reader in) throws IOException
 		{
@@ -324,48 +328,12 @@ public class VcfGroupByPopulation extends AbstractVCFFilter3
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:f:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': setOutputFile(opt.getOptArg());
-				case 'f':
-					{
-					Reader r=null;
-					try {
-						r=IOUtils.openURIForBufferedReading(opt.getOptArg());
-						parsePopulationMapping(r);
-					} catch (Exception e) {
-						info(e);
-						return -1;
-						}
-					finally
-						{
-						CloserUtil.close(r);
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		return mainWork(opt.getOptInd(), args);
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args, outputFile);
 		}
 
-public static void main(String[] args)
-	{
-	new VcfGroupByPopulation().instanceMainWithExit(args);
-	}
+	public static void main(String[] args)
+		{
+		new VcfGroupByPopulation().instanceMainWithExit(args);
+		}
 }

@@ -34,41 +34,58 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import java.io.IOException;
-import java.util.Collection;
+import java.io.File;
 import java.util.List;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+@Program(name="vcfmulti2oneinfo",description="'one INFO with N values' to 'N variants with one INFO'")
 public class VcfMultiToOneInfo
-	extends AbstractVcfMultiToOneInfo
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfMultiToOneInfo.class);
+	private static final Logger LOG = Logger.build(VcfMultiToOneInfo.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-i","--info"},description="The INFO tag",required=true)
+	private String infoTag = null;
 
 	 public VcfMultiToOneInfo()
 		{
 		}
 	 
-	@Override
-	/* public to be called by knime */
-	public Collection<Throwable> doVcfToVcf(final String inputName,
-			final VcfIterator in, final VariantContextWriter out) throws IOException {
+	 @Override
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	
 		
 		final VCFHeader srcHeader=in.getHeader();
 		final VCFInfoHeaderLine srcInfo = srcHeader.getInfoHeaderLine(this.infoTag);
 		if( srcInfo == null )
 			{
-			return wrapException("Cannot find INFO FIELD '"+ this.infoTag+"'");
+			LOG.error("Cannot find INFO FIELD '"+ this.infoTag+"'");
+			return -1;
 			}
 		switch( srcInfo.getCountType() )
 			{
 			case INTEGER:break;
 			case UNBOUNDED:break;
-			default: return wrapException("CountType is not supported '"+ srcInfo.getCountType() +"'");
+			default: {
+				LOG.error("CountType is not supported '"+ srcInfo.getCountType() +"'");
+				return -1;
+				}
 			}
 		switch( srcInfo.getType())
 			{
-			case Flag: return wrapException("Type is not supported '"+ srcInfo.getType() +"'");
+			case Flag: 
+				{
+				LOG.error("Type is not supported '"+ srcInfo.getType() +"'");
+				return -1;
+				}
 			default:break;
 			}
 		
@@ -88,7 +105,7 @@ public class VcfMultiToOneInfo
 				}
 			for(final Object o: L)
 				{
-				final VariantContextBuilder vcb = super.getVariantContextBuilderFactory().newVariantContextBuilder(ctx);
+				final VariantContextBuilder vcb =new VariantContextBuilder(ctx);
 				vcb.attribute(srcInfo.getID(), o);
 				out.add(vcb.make());
 				}
@@ -99,19 +116,13 @@ public class VcfMultiToOneInfo
 		}
 	
 	@Override
-	public Collection<Throwable> initializeKnime() {
-		if(super.infoTag==null || super.infoTag.isEmpty())
+	public int doWork(List<String> args) {
+		if(this.infoTag==null || this.infoTag.isEmpty())
 			{
-			return wrapException("No info tag defined");
+			LOG.error("No info tag defined");
+			return -1;
 			}
-		return super.initializeKnime();
-		}
-
-	
-	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		
-		return doVcfToVcf(inputName);
+		return doVcfToVcf(args,outputFile);
 		}
 	
 	public static void main(String[] args)

@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2015 creation
+
+*/
 package com.github.lindenb.jvarkit.tools.ngsfiles;
 
 import java.io.BufferedReader;
@@ -6,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Date;
+import java.util.List;
 
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -14,28 +43,29 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
+@Program(name="ngsfilessummary",description="Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)")
 public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 	{
+	private static final Logger LOG = Logger.build(NgsFilesSummary.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
     private NgsFilesSummary()
     	{
     	
     	}		
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/NgsFilesSummary";
-    	}
     
-    @Override
-    public String getProgramDescription() {
-    	return "Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)";
-    	}
-    
+  
     
     private void print(String sample,InfoType it,File f)
     	{
@@ -75,7 +105,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 			} 
     	catch (Exception e)
     		{
-    		warning(e, "Error in "+f);
+    		LOG.warning(e);
 			}
     	finally
     		{
@@ -104,7 +134,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
    protected void readVCF(File f)
 		{
     	if(!f.canRead()) return;
-    	debug("readVCF  "+f);
+    	LOG.debug("readVCF  "+f);
     	    	
 
     	VcfIterator r=null;
@@ -119,11 +149,10 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 	        	{
 	        	print(sample,InfoType.VCF, f);
 	    		}
-        	
     		}
     	catch(Exception err)
     		{
-    		error(err,"Error in VCF "+f);
+    		LOG.error(err);
     		}
     	finally
     		{
@@ -144,40 +173,20 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     	}
     
 	
-
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(super.handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS:return 0;
-						case OK:break;
-						}
-					}
-				}
-			}
+    @Override
+	public int doWork(List<String> args) {
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				scan(new BufferedReader(new InputStreamReader(System.in)));
+				LOG.info("Reading from stdin");
+				scan(new BufferedReader(new InputStreamReader(stdin())));
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(final String filename:args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
+					LOG.info("Reading from "+filename);
 					BufferedReader r=IOUtils.openURIForBufferedReading(filename);
 					scan(r);
 					r.close();
@@ -187,7 +196,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		}

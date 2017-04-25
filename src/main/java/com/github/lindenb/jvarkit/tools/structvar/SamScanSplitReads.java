@@ -71,7 +71,133 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
+/**
+BEGIN_DOC
 
+## Example:
+
+content of circos.conf 
+
+```
+karyotype = /commun/data/packages/circos/circos-0.69-2/data/karyotype/karyotype.human.hg19.txt
+chromosomes_units = 1000000
+
+
+<<include ideogram.conf>>
+<<include ticks.conf>>
+
+<links>
+<link>
+file          = __FILENAME__
+radius        = 0.99r
+bezier_radius = 0r
+color         = black_a4
+thickness     = 2
+</link>
+</links>
+
+
+<image>
+# Included from Circos distribution.
+<<include etc/image.conf>>
+</image>
+
+<<include etc/colors_fonts_patterns.conf>>
+
+# Debugging, I/O an dother system parameters
+# Included from Circos distribution.
+<<include etc/housekeeping.conf>>
+
+```
+
+content of ideogram.conf 
+
+```
+<ideogram>
+
+<spacing>
+## espace entre les contig
+default = 0r
+</spacing>
+
+radius    = 0.95r
+thickness = 30p
+fill      = yes
+
+## stroke du radius
+stroke_color     = red
+stroke_thickness = 3p
+
+# show labels (chromosome names )
+show_label       = yes
+label_font       = default 
+label_radius     = 1r + 75p
+label_size       = 30
+label_parallel   = yes
+
+
+</ideogram>
+```
+
+content of ticks.conf
+
+```
+show_ticks          = yes
+show_tick_labels    = yes
+
+<ticks>
+radius           = 1r
+color            = black
+thickness        = 2p
+
+# the tick label is derived by multiplying the tick position
+# by 'multiplier' and casting it in 'format':
+#
+# sprintf(format,position*multiplier)
+#
+
+multiplier       = 1e-6
+
+# %d   - integer
+# %f   - float
+# %.1f - float with one decimal
+# %.2f - float with two decimals
+#
+# for other formats, see http://perldoc.perl.org/functions/sprintf.html
+
+format           = %d
+
+<tick>
+spacing        = 5u
+size           = 10p
+</tick>
+
+<tick>
+spacing        = 25u
+size           = 15p
+show_label     = yes
+label_size     = 20p
+label_offset   = 10p
+format         = %d
+</tick>
+
+</ticks>
+```
+
+generate circos:
+
+
+```
+$ java -jar dist/samscansplitreads.jar -msr 2 input.bam > input.dat
+$ cut -f1-7 input.dat | awk '{OFS="\t";f=$7/50.0;if(f>1.0) f=1.0;if(f<0.5) f=0.5;$1=sprintf("hs%s",$1);$4=sprintf("hs%s",$4);$7=sprintf("thickness=%s,color=%s",f,($1==$4?"blue":"red"));print;}' > tmp.txt
+cat circos.conf | sed 's%__FILENAME__%tmp.txt%' >  tmp.txt.conf
+circos-0.69-2/bin/circos  -outputdir ./  -outputfile output  -conf  tmp.txt.conf
+```
+
+
+
+END_DOC
+*/
 @Program(name="samscansplitreads",description="scan split reads",keywords={"sam","sv","splitreads"})
 	public class SamScanSplitReads extends Launcher {
 	private static long ID_GENERATOR=0L;
@@ -92,7 +218,9 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 	@Parameter(names={"--normalize"},description="Optional. Normalize count to this value. e.g '1' ")
 	private Integer nomalizeReadCount=null;
 
-	
+	@Parameter(names={"-msr","--minSupportingReads"},description="Minimal number of supporting reads.")
+	private int minSupportingReads=0;
+
 	private Map<String,IntervalTreeMap<Set<Arc>>> sample2database = new HashMap<>();
 	
 	private final Comparator<SAMRecord> coordinateComparator=new Comparator<SAMRecord>()
@@ -402,6 +530,7 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 				for(final Interval interval: database.keySet()) {
 					for(final Arc arc: database.get(interval))
 						{
+						if(arc.countSupportingReads<this.minSupportingReads) continue;
 						out.print(arc.intervalFrom.getContig());
 						out.print("\t");
 						out.print(arc.intervalFrom.getStart()-1);

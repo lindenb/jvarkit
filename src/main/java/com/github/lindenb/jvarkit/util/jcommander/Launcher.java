@@ -880,6 +880,13 @@ public Launcher()
 	catch(final java.security.AccessControlException err) {
 		System.err.println("Cannot set file.encoding to UTF-8 for security reasons"+err.getMessage());
 		}
+	try {
+	/* https://bugs.openjdk.java.net/browse/JDK-8028111 */
+	System.setProperty("jdk.xml.entityExpansionLimit","0");
+	}
+	catch(final java.security.AccessControlException err) {
+	}
+	
 	 final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
 		    put(VcfWriterOnDemand.class, VcfWriterOnDemandConverter.class);
 		    put(VariantContextWriter.class, VcfWriterOnDemandConverter.class);

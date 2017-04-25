@@ -32,11 +32,12 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
+import java.io.OutputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.xml.stream.XMLEventFactory;
@@ -56,8 +57,11 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -72,8 +76,14 @@ import com.sleepycat.je.LockMode;
 import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Transaction;
 
+@Program(name="ngsfilesscanner",description="Build a persistent database of NGS file. Dump as XML.")
 public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	{
+	private static final Logger LOG = Logger.build(NgsFilesScanner.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
 	private static final String SUFFIXES[]=new String[]{".bam",".vcf",".vcf.gz"};
 	private Transaction txn=null;
 	private Database database=null;
@@ -117,16 +127,6 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     	{
     	
     	}		
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/NgsFilesScanner";
-    	}
-    
-    @Override
-    public String getProgramDescription() {
-    	return "Build a persistent database of NGS file. Dump as XML. ";
-    	}
-    
     
     private void writeFile(XMLStreamWriter out,File f) throws XMLStreamException
     	{
@@ -140,7 +140,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     
     private void put(File f,String xml)
     	{
-    	info("insert "+f);
+    	LOG.info("insert "+f);
 		DatabaseEntry key=new DatabaseEntry();
 		DatabaseEntry data=new DatabaseEntry();
 		StringBinding.stringToEntry(f.getAbsolutePath(), key);
@@ -196,7 +196,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 			} 
     	catch (Exception e)
     		{
-    		warning(e, "Error in "+f);
+    		LOG.warning(e);
 			}
     	finally
     		{
@@ -210,7 +210,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
    protected void readVCF(File f)
 		{
     	if(!f.canRead()) return;
-    	debug("readVCF  "+f);
+    	LOG.debug("readVCF  "+f);
     	    	
 
     	VcfIterator r=null;
@@ -246,7 +246,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     		}
     	catch(Exception err)
     		{
-    		error(err,"Error in VCF "+f);
+    		LOG.error(err);
     		}
     	finally
     		{
@@ -287,7 +287,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 		} 
    	catch (Exception e)
    		{
-   		warning(e, "Error in "+dir);
+   		LOG.warning(e);
 		}
    	finally
    		{
@@ -330,7 +330,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     		if(f.getName().equals("Intensities") && f.getParentFile()!=null &&
     				f.getParentFile().getName().equals("Data"))
     			{
-    			info("Skipping "+f);
+    			LOG.info("Skipping "+f);
     			return;
     			}
     		if(f.getName().startsWith("L") && f.getParentFile()!=null &&
@@ -338,14 +338,14 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     				 f.getParentFile().getName().equals("Processed")
     				))
     			{
-    			info("Skipping "+f);
+    			LOG.info("Skipping "+f);
     			return;
     			}
     		
     		long now=System.currentTimeMillis();
     		if(now-lastDirTimeMillis > 30*1000)
 	    		{
-    			info("In "+f);
+    			LOG.info("In "+f);
 	    		this.lastDirTimeMillis=now;
 	    		}
     		
@@ -376,64 +376,44 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     	return false;
     	}
     
-    @Override
-    public void printOptions(PrintStream out) {
-    	out.println("-B (dir) "+getMessageBundle("berkeley.db.home"));
-    	out.println("-D dump as XML to stdout and exit");
-    	super.printOptions(out);
-    	}
 
-	@Override
-	public int doWork(String[] args)
-		{
+    
+    @Parameter(names="-B",description="berkeley.db.home",required=true)
+    private File bdbHome=null;
+    @Parameter(names="-D",description="dump as XML to stdout and exit")
+    private boolean dump=false;
+    
+    @Override
+    public int doWork(List<String> args) {
 		boolean dump=false;
 		EnvironmentConfig envCfg=new EnvironmentConfig();
 		Environment env=null;
-		File bdbHome=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"B:D"))!=-1)
-			{
-			switch(c)
-				{
-				case 'D': dump=true;break;
-				case 'B': bdbHome=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(super.handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS:return 0;
-						case OK:break;
-						}
-					}
-				}
-			}
+		
 		
 		
 		if(bdbHome==null)
 			{
-			error("BDB home undefined");
+			LOG.error("BDB home undefined");
 			return -1;
 			}
-		if(!bdbHome.exists() || !bdbHome.isDirectory())
-			{
-			error("BDB doesn't exist or is not a directory");
+		if(!bdbHome.exists() || !bdbHome.isDirectory()) {
+			LOG.error("BDB doesn't exist or is not a directory");
 			return -1;
 			}
 		
 		File root=new File("/");
 		Cursor cursor=null;
+		OutputStream xmlout=null;
 		try
 			{
 			
-			if(!dump && opt.getOptInd()+1==args.length)
+			if(!dump && args.size()==1)
 				{
-				root=new File(args[opt.getOptInd()]);
+				root=new File(args.get(0));
 				}
-			else if(!(dump && opt.getOptInd()==args.length))
+			else if(!(dump && args.isEmpty()))
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error("illegal.number.of.arguments");
 				return -1;
 				}
 			
@@ -442,7 +422,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 			envCfg.setTransactional(false);
 			
 			
-			info("Opening env "+bdbHome);
+			LOG.info("Opening env "+bdbHome);
 			env=new Environment(bdbHome, envCfg);
 			
 			
@@ -450,7 +430,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 			//this.txn=env.beginTransaction(null, txnCfg);
 
 			
-			info("Opening database "+DATABASE_NAME);
+			LOG.info("Opening database "+DATABASE_NAME);
 			DatabaseConfig cfg=new DatabaseConfig();
 			cfg.setAllowCreate(!dump);
 			cfg.setReadOnly(dump);
@@ -465,8 +445,9 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 				XMLEventFactory xef=XMLEventFactory.newFactory();
 	    		XMLOutputFactory xof=XMLOutputFactory.newFactory();
 	    		XMLInputFactory xif=XMLInputFactory.newFactory();
+	    		xmlout  = openFileOrStdoutAsStream(outputFile);
+	    		XMLEventWriter out=xof.createXMLEventWriter(xmlout,"UTF-8");
 	    		
-	    		XMLEventWriter out=xof.createXMLEventWriter(System.out,"UTF-8");
 	    		out.add(xef.createStartDocument("UTF-8", "1.0"));
 	    		out.add(xef.createStartElement("", "","ngs-files"));
 	    		cursor=this.database.openCursor(this.txn, null);
@@ -475,7 +456,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	    			File file=new File(StringBinding.entryToString(key));
 	    			if(isEntryShouldBeDeleted(file))
 	    				{
-	    				info("deleting entry for "+file);
+	    				LOG.info("deleting entry for "+file);
 	    				//cursor.delete();//no env is read only
 	    				continue;
 	    				}
@@ -497,8 +478,9 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	    		out.add(xef.createEndDocument());
 	    		out.flush();
 	    		out.close();
-	    		System.out.flush();
-	    		System.out.close();
+	    		xmlout.flush();
+	    		xmlout.close();
+	    		xmlout=null;
 				}
 			else
 				{
@@ -512,7 +494,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	    			
 	    			if(isEntryShouldBeDeleted(file))
 	    				{
-	    				info("deleting entry for "+file);
+	    				LOG.info("deleting entry for "+file);
 	    				cursor.delete();
 	    				}
 	    			}
@@ -522,7 +504,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
@@ -532,6 +514,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 			if(this.txn!=null)try { this.txn.commit();} catch(Exception err){}
 			if(this.database!=null) try { this.database.close();} catch(Exception err){}
 			if(env!=null) try { env.close();} catch(Exception err){}
+			CloserUtil.close(xmlout);
 			}
 		}
 	

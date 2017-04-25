@@ -1,15 +1,15 @@
 package com.github.lindenb.jvarkit.tools.rnaseq;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.LineIterator;
 
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -17,7 +17,6 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMProgramRecord;
@@ -26,17 +25,32 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene.Exon;
 
-public class FindNewSpliceSites extends AbstractCommandLineProgram
+@Program(name="findnewsplicesites",description="use the 'N' operator in the cigar string to find unknown splice sites")
+public class FindNewSpliceSites extends Launcher
 	{
+	private static final Logger LOG = Logger.build(FindNewSpliceSites.class).make();
+
 	private IntervalTreeMap<List<KnownGene>> knownGenesMap=new IntervalTreeMap<>();
+	@Parameter(names={"-out","--out"},description="output")
+	private File outputFile = null;
+	@Parameter(names="-k",description="UCSC Known Gene URI")
+	private final Set<String> knownGeneUris = new LinkedHashSet<>();
+	@Parameter(names="-d",description="max distance between known splice site and cigar end")
 	private int max_distance=10;
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
+	
 	private SAMFileWriter sfw=null;
 	private SAMFileWriter weird=null;
 
@@ -198,52 +212,10 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 		progress.finish();
 		}
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FindNewSpliceSites";
-		}
-
-	@Override
-	public String getProgramDescription()
-		{
-		return "use the 'N' operator in the cigar string to find unknown splice sites";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-k (uri) UCSC Known Gene URI. Required. May be specified multiple times");
-		out.println("-d (int) max distance between known splice site and cigar end default:"+this.max_distance);
-		super.printOptions(out);
-		}
-
-	@Override
-	public int doWork(String[] args)
-		{
-		SAMFileWriterFactory swf=new SAMFileWriterFactory();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		Set<String> kgUris=new HashSet<String>();
-		while((c=opt.getopt(args,getGetOptDefault()+"k:d:"))!=-1)
+	public int doWork(List<String> args) {
+		if(this.knownGeneUris.isEmpty())
 			{
-			switch(c)
-				{
-				case 'k': kgUris.add( opt.getOptArg() );break;
-				case 'd': max_distance=Integer.parseInt(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		if(kgUris.isEmpty())
-			{
-			error("known Gene file undefined");
+			LOG.error("known Gene file undefined");
 			return -1;
 			}
 		
@@ -252,9 +224,9 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 			{
 
 			Pattern tab=Pattern.compile("[\t]");
-			for(String kgUri: kgUris)
+			for(String kgUri: this.knownGeneUris)
 				{
-				info("Opening "+kgUri);
+				LOG.info("Opening "+kgUri);
 				LineIterator r=IOUtils.openURIForLineIterator(kgUri);
 				while(r.hasNext())
 					{
@@ -268,44 +240,32 @@ public class FindNewSpliceSites extends AbstractCommandLineProgram
 					}
 					L.add(g);
 					}
-				info("Done reading: "+kgUri);
+				LOG.info("Done reading: "+kgUri);
 				}
-			if(opt.getOptInd()==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				sfr=SamFileReaderFactory.mewInstance().open(filename);
-				}
-			else
-				{
-				error("Illegal number of args");
-				return -1;
-				}
+			sfr = super.openSamReader(oneFileOrNull(args));
+			
 			SAMFileHeader header=sfr.getFileHeader().clone();
 			SAMProgramRecord p=header.createProgramRecord();
 			p.setCommandLine(getProgramCommandLine());
 			p.setProgramVersion(getVersion());
 			p.setProgramName(getProgramName());
-			this.sfw=swf.makeSAMWriter(header, true,System.out);
+			this.sfw=this.writingBamArgs.openSAMFileWriter(outputFile, header, true);
 			
 			header=sfr.getFileHeader().clone();
 			p=header.createProgramRecord();
 			p.setCommandLine(getProgramCommandLine());
 			p.setProgramVersion(getVersion());
 			p.setProgramName(getProgramName());
-			this.weird=swf.makeSAMWriter(header,true, new NullOuputStream());
+			this.weird=this.writingBamArgs.createSAMFileWriterFactory().makeSAMWriter(header,true, new NullOuputStream());
 			
 			scan(sfr);
 			sfr.close();
-			info("Done");
+			LOG.info("Done");
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

@@ -2,10 +2,13 @@ package com.github.lindenb.jvarkit.tools.ngsfiles;
 
 import java.io.File;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public abstract class AbstractScanNgsFilesProgram  extends AbstractCommandLineProgram
+public abstract class AbstractScanNgsFilesProgram  extends Launcher
 	{
+	private static final Logger LOG = Logger.build(AbstractScanNgsFilesProgram.class).make();
+
     protected enum InfoType { BAM,FASTQ,VCF};
     
     protected AbstractScanNgsFilesProgram()
@@ -28,25 +31,25 @@ public abstract class AbstractScanNgsFilesProgram  extends AbstractCommandLinePr
 		return true;
 		}
 	
-    protected void readBam(File f)
+    protected void readBam(final File f)
     	{
     	}
     
-    protected void readFastq(File f)
+    protected void readFastq(final File f)
 		{
 		}
     
-    protected void readVCF(File f)
+    protected void readVCF(final File f)
 		{
     	
 		}
 
     
-	protected void analyze(File f)
+	protected void analyze(final File f)
 		{
 		if(f==null) return;
 		if(!f.canRead() || !f.exists() || f.isDirectory()) return;
-		debug("Scanning "+f);
+		LOG.debug("Scanning "+f);
 		
 		
 		String name=f.getName();

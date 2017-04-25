@@ -29,13 +29,13 @@ History:
 package com.github.lindenb.jvarkit.tools.msa2vcf;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.io.File;
 import java.io.PrintWriter;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -53,13 +53,36 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.log.Logging;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class MsaToVcf extends AbstractMsaToVcf
+@Program(name="msa2vcf",description="Getting a VCF file from a CLUSTAW or a FASTA alignment. ")
+public class MsaToVcf extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = Logging.getLog(MsaToVcf.class);
+	private static final Logger LOG = Logger.build(MsaToVcf.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-R","--REF"},description="reference name used for the CHROM column. Optional")
+	private String REF = "chrUn";
+
+	@Parameter(names={"-c","--consensus"},description="ruse this sequence as CONSENSUS")
+	private String consensusRefName = null;
+
+	@Parameter(names={"-f","--fasta"},description="save computed fasta sequence in this file.")
+	private File outFasta = null;
+
+	@Parameter(names={"-m","--haploid"},description="haploid output")
+	private boolean haploid = false;
+
+	@Parameter(names={"-a","--allsites"},description="print all sites")
+	private boolean printAllSites = false;
 
 	private static final char CLIPPING=' ';
 	private static final char DELETION='-';
@@ -139,14 +162,13 @@ public class MsaToVcf extends AbstractMsaToVcf
 			}
 		}
 	
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		
+	public int doWork(List<String> args) {
 		VariantContextWriter w=null;
 		LineIterator r=null;
 		try
 			{
+			final String inputName= oneFileOrNull(args);
 			if(inputName==null)
 				{
 				LOG.info("Reading from stdin");
@@ -178,7 +200,8 @@ public class MsaToVcf extends AbstractMsaToVcf
 					}
 				else
 					{
-					return wrapException("MSA format not recognized in "+line);
+					LOG.error("MSA format not recognized in "+line);
+					return -1;
 					}
 				}
 			LOG.info("format : "+format);
@@ -196,7 +219,8 @@ public class MsaToVcf extends AbstractMsaToVcf
 						curr.name=line.substring(1).trim();
 						if(sample2sequence.containsKey(curr.name))
 							{
-							return wrapException("Sequence ID "+curr.name +" defined twice");
+							LOG.error("Sequence ID "+curr.name +" defined twice");
+							return -1;
 							}
 						sample2sequence.put(curr.name, curr);
 						}
@@ -245,7 +269,8 @@ public class MsaToVcf extends AbstractMsaToVcf
 						{
 						if(columnStart==-1)
 							{
-							return wrapException("illegal consensus line for "+line);
+							LOG.error("illegal consensus line for "+line);
+							return -1;
 							}	
 						/* if consensus doesn't exist in the first rows */
 						while(clustalconsensus.seq.length() < (this.align_length-(line.length()-columnStart) ))
@@ -261,7 +286,8 @@ public class MsaToVcf extends AbstractMsaToVcf
 							columnStart=line.indexOf(' ');
 							if(columnStart==-1)
 								{
-								return wrapException("no whithespace in "+line);
+								LOG.error("no whithespace in "+line);
+								return -1;
 								}
 							while(columnStart< line.length() && line.charAt(columnStart)==' ')
 								{
@@ -289,7 +315,8 @@ public class MsaToVcf extends AbstractMsaToVcf
 				}
 			else
 				{
-				return wrapException("Undefined input format");
+				LOG.error("Undefined input format");
+				return -1;
 				}
 			CloserUtil.close(r);
 			
@@ -299,7 +326,8 @@ public class MsaToVcf extends AbstractMsaToVcf
 				AlignSequence namedSequence=null;
 				if((namedSequence=sample2sequence.get(consensusRefName))==null)
 					{
-					return wrapException("Cannot find consensus sequence \""+consensusRefName+"\" in list of sequences: "+this.sample2sequence.keySet().toString());
+					LOG.error("Cannot find consensus sequence \""+consensusRefName+"\" in list of sequences: "+this.sample2sequence.keySet().toString());
+					return -1;
 					}
 				this.consensus = new NamedConsensus(namedSequence);
 				}
@@ -311,7 +339,7 @@ public class MsaToVcf extends AbstractMsaToVcf
 			vcfHeaderLines.add(new VCFInfoHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth."));
 			vcfHeaderLines.add(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_KEY, 1, VCFHeaderLineType.String, "Genotype"));
 			vcfHeaderLines.add(new VCFFormatHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth"));
-			super.addMetaData(vcfHeaderLines);
+			//super.addMetaData(vcfHeaderLines);
 			Map<String,String> mapping=new HashMap<String,String>();
 			mapping.put("ID", REF);
 			mapping.put("length",String.valueOf(this.align_length));
@@ -320,7 +348,7 @@ public class MsaToVcf extends AbstractMsaToVcf
 			Set<String> samples=new TreeSet<String>(this.sample2sequence.keySet());
 			VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
 			
-			w= super.openVariantContextWriter();
+			w= super.openVariantContextWriter(this.outputFile);
 			w.writeHeader(vcfHeader);
 			
 			/** loop over data, print header */
@@ -520,7 +548,8 @@ public class MsaToVcf extends AbstractMsaToVcf
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
