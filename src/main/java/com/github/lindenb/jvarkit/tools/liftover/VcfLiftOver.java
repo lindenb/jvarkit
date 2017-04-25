@@ -31,8 +31,11 @@ package com.github.lindenb.jvarkit.tools.liftover;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
@@ -53,7 +56,6 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -94,32 +96,33 @@ public class VcfLiftOver extends Launcher
 	private boolean checkAlleleSequence = false;
 	@Parameter(names={"--chainvalid"},description="Ignore LiftOver chain validation")
 	private boolean ignoreLiftOverValidation=false;
-
+	@Parameter(names={"--indel","--indels"},description="do not LiftOver indels")
+	private boolean ignoreIndels=false;
+	@Parameter(names={"--info"},description="remove attribute from INFO on the fly")
+	private Set<String> removeInfo=new HashSet<>();
 
 	private LiftOver liftOver=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
-	protected Allele revcomp(final Allele a)
-		{
-		if(a.isNoCall()) return a;
-		if(a.isSymbolic()) return a;
-		final String seq=a.getBaseString();
-		final StringBuilder sb=new StringBuilder(seq.length());
-		for(int i=seq.length()-1;i>=0;--i)
-			{
-			sb.append(AcidNucleics.complement(seq.charAt(i)));
-			}
-		return Allele.create(sb.toString(), a.isReference());
-		}
 	@Override
 	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 		VariantContextWriter failed=null;
 		GenomicSequence genomicSequence = null;
 		try {
-			final VCFHeader incomingHeader= in.getHeader();
+			final VCFHeader inputHeader= in.getHeader();
+			
+			final Set<VCFHeaderLine> headerLines=inputHeader.getMetaDataInInputOrder().
+					stream().filter(V->{
+				if(!(V instanceof VCFInfoHeaderLine)) return true;
+				final VCFInfoHeaderLine vih = VCFInfoHeaderLine.class.cast(V);
+				if(removeInfo.contains(vih.getID())) return false;
+				return true;
+				}).collect(Collectors.toSet());
+			
+			
 			if(this.failedFile!=null)
 				{
-				VCFHeader header2=new VCFHeader(incomingHeader);
+				final VCFHeader header2=new VCFHeader(headerLines,inputHeader.getSampleNamesInOrder());
 				header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 				header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 				header2.addMetaDataLine(new VCFInfoHeaderLine(this.failedinfoTag,1,VCFHeaderLineType.String,"Why the liftOver failed."));
@@ -128,10 +131,8 @@ public class VcfLiftOver extends Launcher
 				failed.writeHeader(header2);
 				}
 			
-			final VCFHeader header3=new VCFHeader(incomingHeader);
+			final VCFHeader header3=new VCFHeader(headerLines,inputHeader.getSampleNamesInOrder());
 			header3.setSequenceDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
-			
-			
 			header3.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			header3.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 			header3.addMetaDataLine(new VCFInfoHeaderLine(this.infoTag,1,VCFHeaderLineType.String,"Chromosome|Position before liftOver."));
@@ -139,7 +140,20 @@ public class VcfLiftOver extends Launcher
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(in.getHeader());
 			while(in.hasNext())
 				{
-				final VariantContext ctx=progress.watch(in.next());
+				VariantContext ctx=progress.watch(in.next());
+				if(!this.removeInfo.isEmpty())
+					{
+					VariantContextBuilder vcb= new VariantContextBuilder(ctx);
+					for(final String tag:this.removeInfo) vcb.rmAttribute(tag);
+					ctx = vcb.make();
+					}
+				
+				if(ctx.isIndel() && this.ignoreIndels)
+					{
+					if(failed!=null) failed.add(new VariantContextBuilder(ctx).attribute(this.failedinfoTag, "Indel").make());
+					continue;
+					}
+				
 				
 				final Interval lifted=liftOver.liftOver(
 						new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd(),
@@ -150,9 +164,9 @@ public class VcfLiftOver extends Launcher
 					{
 					if(failed!=null) failed.add(new VariantContextBuilder(ctx).attribute(this.failedinfoTag, "LiftOverFailed").make());
 					}
-				else if(this.checkAlleleSequence && this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(lifted.getContig())==null)
+				else if(this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(lifted.getContig())==null)
 					{
-					if(failed!=null) failed.add(new VariantContextBuilder(ctx).attribute(this.failedinfoTag, "ContigMissingInRef|"+lifted.getContig()).make());
+					if(failed!=null) failed.add(new VariantContextBuilder(ctx).attribute(this.failedinfoTag, "ContigMissingDictionary|"+lifted.getContig()).make());
 					}
 				else
 					{
@@ -241,9 +255,7 @@ public class VcfLiftOver extends Launcher
 			            fixedGenotypes.add(new GenotypeBuilder(genotype).alleles(fixedAlleles).make());
 			        	}
 			        vcb.genotypes(fixedGenotypes);
-				      
-					
-					out.add(vcb.make());
+				    out.add(vcb.make());
 					}
 				}
 			if(failed!=null)

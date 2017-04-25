@@ -1,150 +1,141 @@
 package com.github.lindenb.jvarkit.tools.liftover;
 
+import java.io.BufferedReader;
 import java.io.File;
-import java.io.PrintStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.List;
-import java.util.regex.Pattern;
 
-import htsjdk.tribble.readers.LineIterator;
-
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.liftover.LiftOver;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.CloserUtil;
 
 
-
-public class BedLiftOver extends AbstractCommandLineProgram
+@Program(name="bedliftover",description="Lift-over a VCF file")
+public class BedLiftOver extends Launcher
 	{
-	private LiftOver liftOver=null;
-	@Override
-	public String getProgramDescription() {
-		return "Lift-over a BED file.";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BedLiftOver";
-		}
+	private static final Logger LOG = Logger.build(BedLiftOver.class).make();
 
 	
-	private void scan(LineIterator r)
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
+	private File liftOverFile = null;
+	@Parameter(names={"-x","--failed"},description="  write bed failing the liftOver here. Optional.")
+	private File failedFile = null;
+	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
+	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
+	@Parameter(names={"-D","-R","-r","--reference"},description="indexed REFerence file.",required=true)
+	private File faidx = null;
+	@Parameter(names={"--chainvalid"},description="Ignore LiftOver chain validation")
+	private boolean ignoreLiftOverValidation=false;
+	
+	private LiftOver liftOver=null;
+
+	
+	private void scan(BufferedReader r,PrintWriter out,PrintWriter failed) throws IOException
 		{
-		Pattern tab=Pattern.compile("\t");
-		while(r.hasNext())
+		String line;
+		final BedLineCodec bedCodec=new BedLineCodec();
+		while((line=r.readLine())!=null)
 			{
-			String line=r.next();
+			
 			if(line.startsWith("#") || line.trim().isEmpty()) continue;
-			String tokens[]=tab.split(line, 4);
-			if(tokens.length<3) continue;
-			String chrom=tokens[0];
-			int start0=Integer.parseInt(tokens[1]);
-			int end0=Integer.parseInt(tokens[2]);
-			Interval srcInterval=new Interval(chrom, start0+1,end0);
+			final BedLine bedLine = bedCodec.decode(line);
+			if(bedLine==null) continue;
+			final Interval srcInterval = bedLine.toInterval();
 			Interval dest=this.liftOver.liftOver(srcInterval);
 			if(dest!=null)
 				{
-				System.out.print(dest.getContig());
-				System.out.print('\t');
-				System.out.print(dest.getStart()-1);
-				System.out.print('\t');
-				System.out.print(dest.getEnd());
-				System.out.print('\t');
-				System.out.print(line);
-				System.out.println();
+				out.print(dest.getContig());
+				out.print('\t');
+				out.print(dest.getStart()-1);
+				out.print('\t');
+				out.print(dest.getEnd());
+				for(int i=3;i< bedLine.getColumnCount();++i) { 
+					out.print('\t');
+					out.print(bedLine.get(i));
+					}
+				out.println();
 				}
-			else
+			else if(failed!=null)
 				{
-				List<LiftOver.PartialLiftover> L=this.liftOver.diagnosticLiftover(srcInterval);
-				if(L!=null && !L.isEmpty())
-					{	
-					for(LiftOver.PartialLiftover plo:L)
-						{	
-						System.out.print("#");
-						System.out.print(tokens[0]);
-						System.out.print('\t');
-						System.out.print(tokens[1]);
-						System.out.print('\t');
-						System.out.print(tokens[2]);
-						System.out.print('\t');
-						System.out.println(plo);
-						}
-					}
-				else
-					{
-					System.out.print("#");
-					System.out.print(line);
-					}
+				failed.println(line);
 				}			
 			}
 		}
 	
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -f (chain-file) LiftOver file. Required.");
-		out.println(" -m (double) lift over min-match. default:"+LiftOver.DEFAULT_LIFTOVER_MINMATCH);
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		double minMatch=LiftOver.DEFAULT_LIFTOVER_MINMATCH;
-		File liftOverFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "f:m:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'f': liftOverFile=new File(opt.getOptArg()); break;
-				case 'm': minMatch=Double.parseDouble(opt.getOptArg()); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
+		
 		if(liftOverFile==null)
 			{
-			error("LiftOver file is undefined.");
+			LOG.error("LiftOver file is undefined.");
 			return -1;
 			}
 		this.liftOver=new LiftOver(liftOverFile);
-		this.liftOver.setLiftOverMinMatch(minMatch);
+		this.liftOver.setLiftOverMinMatch(this.userMinMatch);
+		
+		PrintWriter out=null;
+		PrintWriter failed=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(!this.ignoreLiftOverValidation) {
+				IndexedFastaSequenceFile ref=new IndexedFastaSequenceFile(faidx);
+				this.liftOver.validateToSequences(ref.getSequenceDictionary());
+				ref.close();
+				}
+			
+			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			
+			if(this.failedFile!=null)
 				{
-				LineIterator r=IOUtils.openStdinForLineIterator();
-				scan(r);
+				failed= super.openFileOrStdoutAsPrintWriter(failedFile);
+				}
+			if(args.isEmpty())
+				{
+				BufferedReader r= openBufferedReader(null);
+				scan(r,out,failed);
 				CloserUtil.close(r);
 				}
 			else
 				{
-				for(int optind=opt.getOptInd();optind< args.length;++optind)
+				for(final String filename:args)
 					{
-					String filename=args[optind];
-					LineIterator r=IOUtils.openURIForLineIterator(filename);
-					scan(r);
+					BufferedReader r=openBufferedReader(filename);
+					scan(r,out,failed);
 					CloserUtil.close(r);
 					}
 				}
+			out.flush();
+			out.close();
+			out=null;
+			if(failed!=null) {
+				failed.flush();
+				failed.close();
+				failed=null;
+			}
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
-		
+		finally
+			{
+			CloserUtil.close(out);
+			CloserUtil.close(failed);
+			}
 		}
 
 	/**
