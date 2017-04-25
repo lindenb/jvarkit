@@ -37,16 +37,20 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 /**
@@ -54,14 +58,24 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  * @author lindenb
  *
  */
-public class VcfRemoveGenotypeIfInVcf extends AbstractVCFFilter2 {
+@Program(name="vcfresetvcf",description="Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix")
+public class VcfRemoveGenotypeIfInVcf extends Launcher {
 	private TabixVcfFileReader tabix=null;
+	
+	@Parameter(names="-x",description="remove variant if there is no called genotype")
 	private boolean removeVariantNoGenotype=false;
 	
+
+	private static final Logger LOG = Logger.build(VcfRemoveGenotypeIfInVcf.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	
 	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
-		{
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 		long genotypes_reset_count=0;
 		long genotypes_empty=0;
 		long variant_changed=0;
@@ -168,67 +182,34 @@ public class VcfRemoveGenotypeIfInVcf extends AbstractVCFFilter2 {
 			out.add(vcb.make());
 			++variant_changed;
 			}
-		info("Number of genotype set to ./. :"+genotypes_reset_count);
-		info("Number of variants without any ALT genotype:"+genotypes_empty);
-		info("Number of variants changed:"+variant_changed);
-		info("Number of variants unchanged:"+variant_unchanged);
-		}
-	@Override
-	public String getProgramDescription() {
-		return "Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfRemoveGenotypeIfInVcf";
+		LOG.info("Number of genotype set to ./. :"+genotypes_reset_count);
+		LOG.info("Number of variants without any ALT genotype:"+genotypes_empty);
+		LOG.info("Number of variants changed:"+variant_changed);
+		LOG.info("Number of variants unchanged:"+variant_unchanged);
+		return 0;
 		}
 	
+	@Parameter(names="-x",description="Tabix indexed VCF file",required=true)
+	private String tabixFilePath=null;
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -x (file.vcf.gz) Tabix indexed VCF file. Required");
-		out.println(" -r remove variant if there is no called genotype.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		String tabixFilePath=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"x:r"))!=-1)
-			{
-			switch(c)
-				{	
-				case 'x': tabixFilePath = opt.getOptArg();break;
-				case 'r': removeVariantNoGenotype = true;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
+
 		if( tabixFilePath==null)
 			{
-			error("Undefined VCF tabix  file");
+			LOG.error("Undefined VCF tabix  file");
 			return -1;
 			}
 		
 		try
 			{
-			info("Opening "+tabixFilePath);
+			LOG.info("Opening "+tabixFilePath);
 			this.tabix=new TabixVcfFileReader(tabixFilePath);
-			return super.doWork(opt.getOptInd(), args);
+			return doVcfToVcf(args, outputFile);
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

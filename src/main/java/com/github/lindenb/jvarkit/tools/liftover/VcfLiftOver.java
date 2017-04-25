@@ -163,7 +163,7 @@ public class VcfLiftOver extends Launcher
 
 	                for (final Allele oldAllele : ctx.getAlleles()) {
 	                	final Allele fixedAllele;
-	                	if( oldAllele.isSymbolic() || oldAllele.isNoCall())
+	                	if( oldAllele.isSymbolic() || oldAllele.isNoCall() || oldAllele.equals(Allele.SPAN_DEL))
 	                		{
 	                		alleles.add(oldAllele);
 	                		continue;
@@ -186,7 +186,7 @@ public class VcfLiftOver extends Launcher
                         	int x=0;
                         	while(x<alleleStr.length() && lifted.getStart()-1+x < genomicSequence.length())
                         		{
-                        		char refChar= genomicSequence.charAt(lifted.getStart()-1+x);
+                        		final char refChar= genomicSequence.charAt(lifted.getStart()-1+x);
                         		if(Character.toLowerCase(refChar)!=Character.toLowerCase(alleleStr.charAt(x)))
                         			{
                         			alleleAreValidatedVsRef=false;
@@ -207,13 +207,18 @@ public class VcfLiftOver extends Launcher
 	                	if(failed!=null) failed.add(new VariantContextBuilder(ctx).attribute(this.failedinfoTag, "AlleleMismatchRef").make());
 	                	continue;
 	                	}
-
-					
+	                
+	                if( lifted.getEnd() - lifted.getStart() != ctx.getEnd() - ctx.getStart())
+	                	{
+	                	if(failed!=null) failed.add(new VariantContextBuilder(ctx).attribute(this.failedinfoTag, "AlleleBadLength|"+lifted.length()).make());
+	                	continue;
+	                	}
+				
 					final VariantContextBuilder vcb=new VariantContextBuilder(
 							ctx.getSource(),
-							ctx.getContig(),
-							ctx.getStart(),
-							ctx.getEnd(),
+							lifted.getContig(),
+							lifted.getStart(),
+							lifted.getEnd(),
 							alleles
 							);
 					vcb.id(ctx.getID());

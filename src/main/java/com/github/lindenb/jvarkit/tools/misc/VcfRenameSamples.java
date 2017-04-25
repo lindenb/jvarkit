@@ -31,7 +31,6 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,6 +41,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.variant.variantcontext.Genotype;
@@ -53,38 +53,29 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
-public class VcfRenameSamples extends AbstractVCFFilter3
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="vcfrenamesamples",description="Rename the Samples in a VCF")
+public class VcfRenameSamples extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VcfRenameSamples.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
 	private Map<String,String> oldNameToNewName=new HashMap<String,String>();
-	private boolean missing_user_name_is_error=true;
 	
 	public VcfRenameSamples()
 		{
 		}
 	
-
 	@Override
-	public String getProgramDescription() {
-		return "Rename the Samples in a VCF";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfSampleRename";
-		}
-	
-	
-	
-	@Override
-	protected void doWork(String inputSource,
-			VcfIterator in,
-			VariantContextWriter out
-			)
-			throws IOException
-		{
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 		VCFHeader header1=in.getHeader();
 		final Set<String> samples1 = new LinkedHashSet<String>(header1.getSampleNamesInOrder());
 		
@@ -107,11 +98,12 @@ public class VcfRenameSamples extends AbstractVCFFilter3
 				{
 				if(missing_user_name_is_error)
 					{
-					throw new IOException("Source Sample "+srcName+" missing in "+samples1+". Use option -E to ignore");
+					LOG.error("Source Sample "+srcName+" missing in "+samples1+". Use option -E to ignore");
+					return -1;
 					}
 				else
 					{
-					warning("Missing src-sample:"+srcName);
+					LOG.warning("Missing src-sample:"+srcName);
 					}
 				}
 			}
@@ -145,21 +137,17 @@ public class VcfRenameSamples extends AbstractVCFFilter3
 				}
 			b.genotypes(genotypes);
 			out.add(b.make());
-			incrVariantCount();
-			if(checkOutputError()) break;
 			}
 		progress.finish();
+		return 0;
 		}
 	
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -f (filename). Tab delimited file containing old-name\\tnew-name");
-		out.println(" -E ignore error like src sample missing in VCF.");
-		out.println(" -o (file) ouput. Default: stdout.");
-		super.printOptions(out);
-		}
+	@Parameter(names="-f",description="Tab delimited file containing old-name\\tnew-name",required=true)
+	private File mappingFile=null;
+	@Parameter(names="-E",description= "error like src sample missing in VCF")
+	private boolean missing_user_name_is_error=false;
+	
 	
 	private void parseNames(File f) throws IOException
 		{
@@ -179,7 +167,7 @@ public class VcfRenameSamples extends AbstractVCFFilter3
 			if(tokens[1].isEmpty()) throw new IOException("Empty dest-name in \""+line+"\" : "+f);
 			if(tokens[0].equals(tokens[1]))
 				{
-				warning("Same src/dest in in \""+line+"\" : "+f);
+				LOG.warning("Same src/dest in in \""+line+"\" : "+f);
 				continue;
 				}
 			if(this.oldNameToNewName.containsKey(tokens[0]))
@@ -187,7 +175,7 @@ public class VcfRenameSamples extends AbstractVCFFilter3
 				String dest=this.oldNameToNewName.get(tokens[0]);
 				if(dest.equals(tokens[1]))
 					{
-					warning(tokens[0]+" -> "+tokens[1]+" defined twice");
+					LOG.warning(tokens[0]+" -> "+tokens[1]+" defined twice");
 					continue;
 					}
 				else
@@ -200,59 +188,38 @@ public class VcfRenameSamples extends AbstractVCFFilter3
 			}
 		in.close();
 		}
+	
 	@Override
-	public int doWork(String[] args)
-		{
+	public int doWork(List<String> args) {
 		
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "f:Eo:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': setOutputFile(opt.getOptArg()); break;
-				case 'E': missing_user_name_is_error=false;break;
-				case 'f':
-					{
-					try
-						{
-						parseNames(new File(opt.getOptArg()));
-						}
-					catch(IOException err)
-						{
-						error(err);
-						return -1;
-						}
-					break;
-					}
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		return mainWork(opt.getOptInd(), args);
+		if(mappingFile==null) {
+			LOG.error("undefined mapping file");
+			return -1;
 		}
-
-	@Override
-	public int initializeKnime() {
+		
+		try
+			{
+			parseNames(mappingFile);
+			}
+		catch(IOException err)
+			{
+			LOG.error(err);
+			return -1;
+			}
 		if(this.oldNameToNewName.isEmpty())
 			{
-			warning("No replacement was defined");
+			LOG.warning("No replacement was defined");
 			}
 		if(new HashSet<String>(this.oldNameToNewName.values()).size()!=this.oldNameToNewName.size())
 			{
-			error("Some dest-name have been defined twice.");
+			LOG.error("Some dest-name have been defined twice.");
 			return -1;
 			}
-		return super.initializeKnime();
+		
+		return doVcfToVcf(args, outputFile);
 		}
+
+	
 	
 	public static void main(String[] args)
 		{

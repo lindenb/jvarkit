@@ -29,7 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.util.Collection;
+import java.io.File;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -49,57 +49,118 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+/**
 
-public class BimToVcf extends AbstractBimToVcf
+BEGIN_DOC
+
+
+
+
+### Contig conversion
+
+chromosome 23 is converted to X or chrX, chromosome 24 is converted to Y or chrY, chromosome 25 is ignored, chromosome 26 is converted to chrM or MT.
+
+
+### Example
+
+
+
+```
+$ java -jar dist/bim2vcf.jar -R human_g1k_v37.fasta input.bim 
+
+##fileformat=VCFv4.2
+##INFO=<ID=MORGAN,Number=1,Type=Float,Description="Centimorgan">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Variation type">
+##contig=<ID=1,length=249250621,assembly=human_g1k_v37>
+(...)
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO
+1       12      rs73422 C       .       .       .       MORGAN=0.5224;SVTYPE=NOVARIATION
+1       13      rs30315 G       A       .       .       MORGAN=0.530874;SVTYPE=SNV
+1       14      rs14325 C       T       .       .       MORGAN=0.532596;SVTYPE=SNV
+1       15      rs31319 A       G       .       .       MORGAN=0.532682;SVTYPE=SNV
+1       16      rs954   C       T       .       .       MORGAN=0.537655;SVTYPE=SNV
+1       17      rs62034 G       A       .       .       MORGAN=0.548645;SVTYPE=SNV
+1       18      rs25996 A       G       .       .       MORGAN=0.575595;SVTYPE=SNV
+1       19      rs12117 G       A       .       .       MORGAN=0.582608;SVTYPE=SNV
+(...)
+
+```
+
+
+
+
+
+
+
+
+END_DOC
+*/
+
+
+@Program(name="bim2vcf",description="convert a .bim to a .vcf")
+public class BimToVcf extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BimToVcf.class);
+	private static final Logger LOG = Logger.build(BimToVcf.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+	private File REF = null;
 
 	public BimToVcf() {
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public int doWork(List<String> args) {
 		VariantContextWriter w=null;
 		BufferedReader r=null;
 		IndexedFastaSequenceFile faidx=null;
 		GenomicSequence genomic = null;
 		try {
-			if(super.REF==null) {
-				return wrapException("Reference -"+OPTION_REF+" missing.");
+			if(this.REF==null) {
+				LOG.error("Reference -R missing.");
+				return -1;
 			}
-			faidx = new IndexedFastaSequenceFile(super.REF);
+			faidx = new IndexedFastaSequenceFile(this.REF);
 			
 			final SAMSequenceDictionary dict=faidx.getSequenceDictionary();
 			if(dict==null) {
-				return wrapException("No dictionary in "+super.REF);
+				LOG.error("No dictionary in "+this.REF);
+				return -1;
 				}
 			
-			r = inputName==null?
-					IOUtils.openStreamForBufferedReader(stdin()):
-					IOUtils.openURIForBufferedReading(inputName)
-					;
+			r = super.openBufferedReader(oneFileOrNull(args));
 				
 			final Set<VCFHeaderLine> headerLines = new HashSet<>();
 			final VCFInfoHeaderLine morgan= new VCFInfoHeaderLine("MORGAN", 1, VCFHeaderLineType.Float,"Centimorgan");
 			final VCFInfoHeaderLine svtype= new VCFInfoHeaderLine("SVTYPE", 1, VCFHeaderLineType.String,"Variation type");
 			VCFStandardHeaderLines.addStandardInfoLines(headerLines, false, "");
-			super.addMetaData(headerLines);
+			//super.addMetaData(headerLines);
 			headerLines.add(morgan);
 			headerLines.add(svtype);
 
 			final List<String> genotypeSampleNames = Collections.emptyList();
 			final VCFHeader header=new VCFHeader(headerLines, genotypeSampleNames);
 			header.setSequenceDictionary(dict);
-			w = super.openVariantContextWriter();
+			w = super.openVariantContextWriter(this.outputFile);
 			w.writeHeader(header);
 			final Pattern tab=Pattern.compile("[\t]");
 			String line;
 			final Pattern iupacATGC = Pattern.compile("[atgcATGC]");
 			while((line=r.readLine())!=null) {
 				String tokens[]=tab.split(line);
-				if(tokens.length!=6) return wrapException("expected 6 column in "+line);
+				if(tokens.length!=6) {
+					LOG.error("expected 6 column in "+line);
+					return -1;
+				}
 				Allele a1=null;
 				Allele a2=null;
 				Allele ref=null;
@@ -137,7 +198,8 @@ public class BimToVcf extends AbstractBimToVcf
 					continue;
 				}
 				if(ssr==null){
-					 return wrapException("unknown chrom in "+line);
+					LOG.error("unknown chrom in "+line);
+					return -1;
 					}
 				if(genomic==null || !ssr.getSequenceName().equals(genomic.getChrom())) {
 					genomic=new GenomicSequence(faidx, ssr.getSequenceName());
@@ -190,7 +252,8 @@ public class BimToVcf extends AbstractBimToVcf
 					}
 				else
 					{
-					return wrapException("not handled: "+line);
+					LOG.error("not handled: "+line);
+					return -1;
 					}
 				final Set<Allele> alleles = new HashSet<>();
 				alleles.add(ref);
@@ -208,7 +271,8 @@ public class BimToVcf extends AbstractBimToVcf
 			w.close();w=null;
 			return RETURN_OK;
 		} catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(faidx);
 			CloserUtil.close(w);
