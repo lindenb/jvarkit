@@ -162,38 +162,45 @@ public class VcfLiftOver extends Launcher
 					final List<Allele> alleles = new ArrayList<Allele>();
 
 	                for (final Allele oldAllele : ctx.getAlleles()) {
-	                    if (lifted.isPositiveStrand() || oldAllele.isSymbolic() || oldAllele.isNoCall()) {
+	                	final Allele fixedAllele;
+	                	if( oldAllele.isSymbolic() || oldAllele.isNoCall())
+	                		{
+	                		alleles.add(oldAllele);
+	                		continue;
+	                		}
+	                	else if (lifted.isPositiveStrand()) {
+	                		fixedAllele = oldAllele;
 	                        alleles.add(oldAllele);
-	                    }
+	                    	}
 	                    else {
-	                        final Allele fixedAllele = Allele.create(SequenceUtil.reverseComplement(oldAllele.getBaseString()), oldAllele.isReference());
+	                        fixedAllele = Allele.create(SequenceUtil.reverseComplement(oldAllele.getBaseString()), oldAllele.isReference());
 	                        alleles.add(fixedAllele);
 	                        reverseComplementAlleleMap.put(oldAllele, fixedAllele);
-	                        
-	                        if(this.checkAlleleSequence) {
-	                        	if(genomicSequence==null || !genomicSequence.getChrom().equals(lifted.getContig())) {
-	                        		genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, lifted.getContig());
-	                        		}
-	                        	final String alleleStr = fixedAllele.getBaseString();
-	                        	int x=0;
-	                        	while(x<alleleStr.length() && lifted.getStart()-1+x < genomicSequence.length())
-	                        		{
-	                        		char refChar= genomicSequence.charAt(lifted.getStart()-1+x);
-	                        		if(Character.toLowerCase(refChar)!=Character.toLowerCase(alleleStr.charAt(x)))
-	                        			{
-	                        			alleleAreValidatedVsRef=false;
-	                        			break;
-	                        			}
-	                        		++x;
-	                        		}
-	                        	if(x!=alleleStr.length())
-	                        		{
-	                        		alleleAreValidatedVsRef=false;
-	                        		break;
-	                        		}
-	                        }
-	                    }
-	                }
+	                    	}
+	                    
+                        if(this.checkAlleleSequence) {
+                        	if(genomicSequence==null || !genomicSequence.getChrom().equals(lifted.getContig())) {
+                        		genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, lifted.getContig());
+                        		}
+                        	final String alleleStr = fixedAllele.getBaseString();
+                        	int x=0;
+                        	while(x<alleleStr.length() && lifted.getStart()-1+x < genomicSequence.length())
+                        		{
+                        		char refChar= genomicSequence.charAt(lifted.getStart()-1+x);
+                        		if(Character.toLowerCase(refChar)!=Character.toLowerCase(alleleStr.charAt(x)))
+                        			{
+                        			alleleAreValidatedVsRef=false;
+                        			break;
+                        			}
+                        		++x;
+                        		}
+                        	if(x!=alleleStr.length())
+                        		{
+                        		alleleAreValidatedVsRef=false;
+                        		break;
+                        		}
+                        	}
+	                	}
 	                
 	                if(!alleleAreValidatedVsRef)
 	                	{
