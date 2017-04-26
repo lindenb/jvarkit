@@ -63,6 +63,7 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
@@ -220,7 +221,13 @@ public class VCFComm extends AbstractVCFCompareBase {
 			
 			final VCFInfoHeaderLine foundInCountVcfInfo = new VCFInfoHeaderLine("NVCF",1,VCFHeaderLineType.Integer,"Number of VCF this variant was found");
 			metaData.add(foundInCountVcfInfo);
-
+			final VCFInfoHeaderLine variantTypesInfo = new VCFInfoHeaderLine("VTYPES",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Distinct Variants type");
+			metaData.add(variantTypesInfo);
+			final VCFFilterHeaderLine multipleTypeFilters = new VCFFilterHeaderLine("DiscordantTypes", "Discordant types at this position");
+			metaData.add(multipleTypeFilters);
+			final VCFFormatHeaderLine variantTypeFormat = new VCFFormatHeaderLine("VTYPE",1,VCFHeaderLineType.String,"Variant Type");
+			metaData.add(variantTypeFormat);
+			
 			
 			final VCFFilterHeaderLine uniqueVariantDiscordantGTFilter;
 
@@ -309,12 +316,12 @@ public class VCFComm extends AbstractVCFCompareBase {
 								alleles
 								);
 						final Set<String> filters = new HashSet<>();
-						
+						final Set<VariantContext.Type> variantContextTypes=new HashSet<>();
 						final List<Genotype> genotypes=new ArrayList<Genotype>();
 						for(final LineAndFile laf:row)
 							{
 							if(laf.getContext().isFiltered()) filters.add(variantWasFiltered.getID());
-							
+							variantContextTypes.add(laf.getContext().getType());
 							final GenotypeBuilder gbuilder=new GenotypeBuilder();
 							gbuilder.name(fileid2sampleName.get(laf.fileIdx));
 							if(unqueSampleName.isPresent())
@@ -352,7 +359,7 @@ public class VCFComm extends AbstractVCFCompareBase {
 							gbuilder.attribute(VCFConstants.ALLELE_COUNT_KEY, 
 									laf.getContext().getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->!(A.isReference() || A.isNoCall())).count()
 									);
-
+							gbuilder.attribute(variantTypeFormat.getID(),laf.getContext().getType().name());
 							
 							genotypes.add(gbuilder.make());
 							}
@@ -390,8 +397,15 @@ public class VCFComm extends AbstractVCFCompareBase {
 									filter(G->G.isCalled()).
 									mapToInt(G->G.getAlleles().size()).sum()
 								);
-						
-						
+						if(!variantContextTypes.isEmpty()) {
+							vcb.attribute(variantTypesInfo.getID(),
+								new ArrayList<>(variantContextTypes.stream().map(T->T.name()).collect(Collectors.toSet()))
+								);
+							if(variantContextTypes.size()>1)
+								{
+								filters.add(multipleTypeFilters.getID());
+								}
+							}
 						vcb.attribute(foundInCountVcfInfo.getID(), fileids_for_variant.size());
 						
 						boolean print=true;
