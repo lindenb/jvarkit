@@ -32,7 +32,6 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,7 +41,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import javax.swing.AbstractAction;
@@ -74,11 +72,11 @@ import javax.swing.event.InternalFrameAdapter;
 import javax.swing.event.InternalFrameEvent;
 import javax.swing.filechooser.FileFilter;
 
-
-
-
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
@@ -93,7 +91,7 @@ import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 public class SigFrame
 	extends JFrame
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(SigFrame.class).make();
 	/** desktop */
 	private JDesktopPane desktop;
 	/** map string to action */
@@ -1625,8 +1623,11 @@ public class SigFrame
 		
 		}
 	
-	private static class Main extends AbstractCommandLineProgram
+	@Program(name="sigframe")
+	public static class Main extends Launcher
 		{
+		@Parameter(names="-R",description="Reference indexed fasta file",required=true)
+		private File referenceFile;
 		private SigFrame app=new SigFrame();
 		private Main()
 			{
@@ -1637,63 +1638,38 @@ public class SigFrame
 			return "SigFrame";
 			}
 		
+
 		@Override
-		protected String getOnlineDocUrl() {
-			return "https://github.com/lindenb/jvarkit/wiki/SigFrame";
-			}
-		
-		@Override
-		public void printOptions(PrintStream out)
+		public int doWork(List<String> args) {
+			if(this.referenceFile==null)
 			{
-			out.println(" -R "+getMessageBundle("reference.faidx")+" (Required)");
-			super.printOptions(out);
+				LOG.error("ref missing");
+				return -1;
 			}
-		
-		public int doWork(String[] args)
-			{
 			try
 				{
-				com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-				int c;
-				while((c=opt.getopt(args,getGetOptDefault()+ "R:"))!=-1)
-					{
-					switch(c)
-						{
-						case 'R': app.doMenuOpenGenome(new File(opt.getOptArg()));break;
-						default: 
-							{
-							switch(handleOtherOptions(c, opt,args))
-								{
-								case EXIT_FAILURE:return -1;
-								case EXIT_SUCCESS: return 0;
-								default:break;
-								}
-							}
-						}
-					}
-				app.aboutMessage="Author:"+getAuthorName()+
-						"<br>Mail:"+getAuthorMail()+
-						"<br>Version:"+getVersion()+
-						"<br>"+getOnlineDocUrl();
+				app.doMenuOpenGenome(this.referenceFile);
+				app.aboutMessage="Author: Pierre Lindenbaum "+
+						"<br>Version:"+getVersion();
 				
 				JFrame.setDefaultLookAndFeelDecorated(true);
 				JDialog.setDefaultLookAndFeelDecorated(true);
 				
 			   /** loop over tabix file */
-	           if(opt.getOptInd()<args.length)
+	           if(!args.isEmpty())
 	                {
 	        	   	if(app.getSamSequenceDictionary()==null)
 	        	   		{
-	        	   		error("No indexed genome defined");
+	        	   		LOG.error("No indexed genome defined");
 	        	   		return -1;
 	        	   		}
 	            	LoadAtStartup startup= new LoadAtStartup(app);
-	                for(int i=opt.getOptInd();i< args.length;++i)
+	                for(final String fname:args)
 	                        {
-	                		File f=new File(args[i]);
+	                		final File f=new File(fname);
 	                		if(!TabixFileReader.isValidTabixFile(f))
 	                			{
-	                			error("Not a valid tabix file:"+f);
+	                			LOG.error("Not a valid tabix file:"+f);
 	                			return -1;
 	                			}
 	                		startup.sources.add(f);

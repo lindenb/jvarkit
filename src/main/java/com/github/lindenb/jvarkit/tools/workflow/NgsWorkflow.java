@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,7 +51,9 @@ public class NgsWorkflow extends Launcher
 	@Parameter(names={"-A","--attributes"},description="Dump available attributes and exit")
 	private boolean dumpAttributes = false;
 
-	
+	@Parameter(names={"--reannotatevcf"},description="This project is just reannotating vcfs")
+	private boolean reannotatevcfs = false;
+
 	
 	private abstract class RefSplit
 		{
@@ -448,9 +451,21 @@ public class NgsWorkflow extends Launcher
 		private final List<Sample> _samples=new ArrayList<>();
 		private final Optional<Capture> capture;
 		private final Pedigree pedigree;
+		private final Set<String> vcfToReannotate;
+		
 		Project(final JsonElement root) throws IOException
 			{
 			super(root);
+			
+			if(NgsWorkflow.this.reannotatevcfs)
+				{
+				this.vcfToReannotate=new LinkedHashSet<>();
+				}
+			else
+				{
+				this.vcfToReannotate=Collections.emptySet();
+				}
+			
 			if(!root.isJsonObject()) throw new IOException("project json is not object");
 			final JsonObject json = root.getAsJsonObject();
 			
@@ -493,6 +508,20 @@ public class NgsWorkflow extends Launcher
 						throw new IOException("Sample "+sample+" defined twice");
 						}
 					seen.add(sample.getName());
+					}
+				}
+			else if(NgsWorkflow.this.reannotatevcfs && json.has("vcfs")) 
+				{
+				for(final JsonElement vcfjson :json.get("vcfs").getAsJsonArray())
+					{
+					if(vcfjson.isJsonPrimitive())
+						{
+						this.vcfToReannotate.add(vcfjson.getAsString());
+						}
+					else
+						{
+						throw new IOException("Not a string "+vcfjson);
+						}
 					}
 				}
 			else
@@ -540,6 +569,36 @@ public class NgsWorkflow extends Launcher
 			{
 			return this.capture.get();
 			}
+		
+		/** when reannotation vcf, what will be the output filename */
+		public String getReannoteVcfFilename( String s)
+			{
+			if(!NgsWorkflow.this.reannotatevcfs) throw new IllegalStateException();
+			if(s==null || !(s.endsWith(".vcf") || s.endsWith(".vcf.gz"))) {
+				throw new IllegalArgumentException("Bad extension vcf:"+s);
+				}
+			int slash= s.lastIndexOf('/');
+			if(slash!=-1) s=s.substring(slash+1);
+			if(s.matches("20[0-9][0-9][0-1][0-9][0-3][0-9].*"))
+				{
+				s=s.substring(8);
+				}
+			while(s.startsWith("_") || s.startsWith("."))
+				{
+				s=s.substring(1);
+				}
+			if(s.endsWith(".vcf"))
+				{
+				s=s.substring(0, s.length()-4);
+				}
+			else if(s.endsWith(".vcf.gz"))
+				{
+				s=s.substring(0, s.length()-7);
+				}
+			s+=".vcf.gz";
+			return getOutputDirectory()+"/"+getFilePrefix()+s;
+			}
+		
 		public  String getHapCallerAnnotationVcf() {
 			return getVcfDirectory()+"/"+getFilePrefix()+"HCAnnotations.vcf.gz";
 			}
@@ -594,8 +653,21 @@ public class NgsWorkflow extends Launcher
 		}
 		
 		public void annotateVariants(PrintWriter out) {
-			new VariantAnnotator(this.getHapCallerAnnotationVcf(),this.getHapCallerGenotypedVcf()).print(out);
+			new VariantAnnotator(this.getHapCallerAnnotationVcf(),this.getHapCallerGenotypedVcf()).
+				setPedigree( getPedigree().getPedFilename()).
+				print(out);
 		}
+		
+		void reannoteVcfs(PrintWriter out) {
+			if(!NgsWorkflow.this.reannotatevcfs) throw new IllegalStateException();
+			for(final String invcf: this.vcfToReannotate)
+				{
+				new VariantAnnotator(this.getReannoteVcfFilename(invcf),invcf).
+					//setRemoveAnnotations().
+					print(out);
+				}
+			}
+
 		
 		
 		@Override
@@ -612,20 +684,63 @@ public class NgsWorkflow extends Launcher
 			{
 			private String target;
 			private String dep;
+			private String pedigree=null;
+			private boolean removeAnnotations=false;
 			public VariantAnnotator(String target,String dep)
 				{
 				this.target=target;
 				this.dep=dep;
 				}
+			
+			public VariantAnnotator setPedigree(final String ped)
+				{
+				if(!(ped==null || ped.trim().isEmpty()))
+					{
+					this.pedigree=ped;
+					}
+				return this;
+				}
+			public VariantAnnotator setRemoveAnnotations(boolean b) 
+				{
+				this.removeAnnotations=b;
+				return this;
+				}
+			public VariantAnnotator setRemoveAnnotations() 
+				{
+				return setRemoveAnnotations(true);
+				}
+			
 			void  print(final PrintWriter w)
 				{
 				w.print(this.target);
 				w.print(":");
 				w.print(this.dep);
+				if(this.pedigree!=null)
+					{
+					w.print(" ");
+					w.print(this.pedigree);
+					}
 				w.println();
 				w.print(rulePrefix());
 				w.print(" && rm -f  $(addsuffix .tmp1.vcf,$@)  $(addsuffix .tmp1.vcf.idx,$@) $(addsuffix .tmp2.vcf,$@)  $(addsuffix .tmp2.vcf.idx,$@) ");
-				w.print(" && gunzip -c $< |  $(call run_jvarkit,vcfbigwig) "
+				w.print(" && "+(this.dep.endsWith(".vcf")?"cat":"gunzip -c")+" $< | ");
+				
+				if( removeAnnotations ) {
+					w.print(" $(call run_jvarkit,vcfstripannot) -x '"
+							+ "INFO/DukeMapabilityUniqueness35bp,"
+							+ "FILTER/DukeMapabilityUniqueness35LT1,"
+							+ "FILTER/MapabilityConsensusExcludable,"
+							+ "FILTER/MapabilityRegionsExcludable,"
+							+ "FILTER/IN_EXAC,"
+							+ "FILTER/IN_GNOMAD,"
+							+ "INFO/ANN,"
+							+ "INFO/CSQ,"
+							+ "INFO/exac.AC,"
+							+ "INFO/PossibleDeNovo"
+							+ "' - | ");
+					}
+				
+				w.print(" $(call run_jvarkit,vcfbigwig) "
 						+ " -t ensembl2ucsc -T DukeMapabilityUniqueness35bp -B /commun/data/pubdb/ucsc/hg19/encodeDCC/wgEncodeDukeMapabilityUniqueness35bp.bigWig |");
 				w.print(" $(call run_jvarkit,vcffilterjs) -F DukeMapabilityUniqueness35LT1 -e '!variant.hasAttribute(\"DukeMapabilityUniqueness35bp\") || variant.getAttributeAsDouble(\"DukeMapabilityUniqueness35bp\",100.0)>=1.0;' > $(addsuffix .tmp1.vcf,$@) ");
 				//BED
@@ -645,8 +760,14 @@ public class NgsWorkflow extends Launcher
 				w.print(" && ${java.exe}   -Djava.io.tmpdir=$(dir $@)  -jar ${gatk.jar}  -T VariantAnnotator -R $(REF) "
 						+ " -o $(addsuffix .tmp2.vcf,$@) -L $(addsuffix .tmp1.vcf,$@) --variant $(addsuffix .tmp1.vcf,$@) "
 						+" --resource:exac /commun/data/pubdb/broadinstitute.org/exac/1.0/ExAC.r1.sites.vcf.gz   --resourceAlleleConcordance "
-						+" --expression exac.AC  "
-						+ " -A PossibleDeNovo -A HomopolymerRun -A TandemRepeatAnnotator  --pedigree "+ getPedigree().getPedFilename()+" "
+						+" --expression exac.AC  ");
+				if(this.pedigree!=null)
+					{
+					w.print(" --pedigree "+this.pedigree);
+					w.print(" -A PossibleDeNovo ");
+					}
+				w.print(
+						" -A HomopolymerRun -A TandemRepeatAnnotator  "
 						+ " && mv --verbose   $(addsuffix .tmp2.vcf,$@)  $(addsuffix .tmp1.vcf,$@)"
 						+ " && mv --verbose   $(addsuffix .tmp2.vcf.idx,$@)  $(addsuffix .tmp1.vcf.idx,$@)"
 						);
@@ -1779,78 +1900,86 @@ public class NgsWorkflow extends Launcher
 		
 		//out.println("define run_jvarkit\n${java.exe} -jar ${jvarkit.dir}/$(1).jar\nendef");
 
-		
-		out.print("all:"+project.getHapCallerAnnotationVcf());
-		
-		if(project.isTrue(PROP_USE_LUMPY_EXPRESS))
+		if(!reannotatevcfs) 
 			{
-			out.print(" ");
-			out.print(project.getLumpyVcf());
-			}
-		
-		out.println();
-		
-		out.println("all_final_bam:"+project.getSamples().stream().
-				map(S->S.getFinalBamBai()).
-				collect(Collectors.joining(" \\\n\t"))
-				);
-		
-		out.println("all_recal_bam:"+project.getSamples().stream().
-				filter(S->!S.isBamAlreadyProvided()).
-				map(S->S.getRecalBamBai()).
-				collect(Collectors.joining(" \\\n\t"))
-				);
-		
-		out.println("all_realigned_bam:"+project.getSamples().stream().
-				filter(S->!S.isBamAlreadyProvided()).
-				map(S->S.getRealignBamBai()).
-				collect(Collectors.joining(" \\\n\t"))
-				);
-		
-		out.println("all_markdup_bam:"+project.getSamples().stream().
-				filter(S->!S.isBamAlreadyProvided()).
-				map(S->S.getMarkdupBamBai()).
-				collect(Collectors.joining(" \\\n\t"))
-				);
-		
-		out.println("all_merged_bam:"+project.getSamples().stream().
-				filter(S->!S.isBamAlreadyProvided()).
-				map(S->S.getMergedBamBai()).
-				collect(Collectors.joining(" \\\n\t"))
-				);
-		
-		
-		project.lumpyExpress(out);
+			out.print("all:"+project.getHapCallerAnnotationVcf());
 			
-		
-		
-		for(final Sample sample: project.getSamples())
-			{
-			if(sample.getPairs().size()==1)
-				{	
-				out.println(sample.getPairs().get(0).bwamem());
-				
-				}
-			else if(sample.getPairs().size()>1)
+			if(project.isTrue(PROP_USE_LUMPY_EXPRESS))
 				{
-				sample.getPairs().forEach(P->{out.println(P.bwamem());});
-				out.println(sample.mergeSortedBams());
+				out.print(" ");
+				out.print(project.getLumpyVcf());
 				}
 			
-			out.println(sample.markDuplicates());
-			out.println(sample.realignAroundIndels());
-			out.println(sample.recalibrateBam());
-			out.println(sample.finalBam());
-			}
-		if(project.hasCapture())
+			out.println();
+			
+			out.println("all_final_bam:"+project.getSamples().stream().
+					map(S->S.getFinalBamBai()).
+					collect(Collectors.joining(" \\\n\t"))
+					);
+			
+			out.println("all_recal_bam:"+project.getSamples().stream().
+					filter(S->!S.isBamAlreadyProvided()).
+					map(S->S.getRecalBamBai()).
+					collect(Collectors.joining(" \\\n\t"))
+					);
+			
+			out.println("all_realigned_bam:"+project.getSamples().stream().
+					filter(S->!S.isBamAlreadyProvided()).
+					map(S->S.getRealignBamBai()).
+					collect(Collectors.joining(" \\\n\t"))
+					);
+			
+			out.println("all_markdup_bam:"+project.getSamples().stream().
+					filter(S->!S.isBamAlreadyProvided()).
+					map(S->S.getMarkdupBamBai()).
+					collect(Collectors.joining(" \\\n\t"))
+					);
+			
+			out.println("all_merged_bam:"+project.getSamples().stream().
+					filter(S->!S.isBamAlreadyProvided()).
+					map(S->S.getMergedBamBai()).
+					collect(Collectors.joining(" \\\n\t"))
+					);
+			
+			
+			project.lumpyExpress(out);
+				
+			
+			
+			for(final Sample sample: project.getSamples())
+				{
+				if(sample.getPairs().size()==1)
+					{	
+					out.println(sample.getPairs().get(0).bwamem());
+					
+					}
+				else if(sample.getPairs().size()>1)
+					{
+					sample.getPairs().forEach(P->{out.println(P.bwamem());});
+					out.println(sample.mergeSortedBams());
+					}
+				
+				out.println(sample.markDuplicates());
+				out.println(sample.realignAroundIndels());
+				out.println(sample.recalibrateBam());
+				out.println(sample.finalBam());
+				}
+			if(project.hasCapture())
+				{
+				project.getCapture().prepareCapture(out);
+				}
+			project.getPedigree().build(out);
+			project.bamList(out);
+			project.callVariants(out);
+			project.annotateVariants(out);
+			} 
+		else
+			/* reannotate vcf */ 
 			{
-			project.getCapture().prepareCapture(out);
+			
+			out.println("all:"+ project.vcfToReannotate.stream().map(S->project.getReannoteVcfFilename(S)).collect(Collectors.joining(" ")));
+			project.reannoteVcfs(out);
 			}
-		project.getPedigree().build(out);
-		project.bamList(out);
-		project.callVariants(out);
-		project.annotateVariants(out);
-		
 		
 		out.println();
 		out.flush();

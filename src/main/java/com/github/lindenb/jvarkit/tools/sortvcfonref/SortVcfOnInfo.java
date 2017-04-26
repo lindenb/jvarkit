@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -46,9 +47,13 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -61,35 +66,30 @@ import htsjdk.samtools.util.SortingCollection;
  * Sort a VCF on the INFO field
  *
  */
-public class SortVcfOnInfo extends AbstractKnimeApplication
+@Program(name="sortvcfoninfo",description="Sort a VCF a field in the INFO column")
+public class SortVcfOnInfo extends Launcher
 	{
+	private static final Logger LOG = Logger.build(SortVcfOnInfo.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-T","--tag","-t"},description="INFO tag",required=true)
     private String infoField=null;
     private  VCFInfoHeaderLine infoDecl;
     private AbstractVCFCodec codec;
-    private int maxRecordsInRam=5000;
-    private int countFilteredVariants=0;
+    
+    @ParametersDelegate
+    private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
+    
+
+
     
     public SortVcfOnInfo()
     {	
     	
     }
-    
-    @Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX +"SortVCFOnInfo";
-    	}
-	    
-    @Override
-    public String getProgramDescription() {
-    	return "Sort a VCF a field in the INFO column";
-    	}
-    
-    public void setMaxRecordsInRam(int maxRecordsInRam) {
-		this.maxRecordsInRam = maxRecordsInRam;
-		}
-    public void setInfoField(String infoField) {
-		this.infoField = infoField;
-		}
     
     private class VcfLine
     	implements Comparable<VcfLine>
@@ -99,7 +99,7 @@ public class SortVcfOnInfo extends AbstractKnimeApplication
     	VcfLine()
     		{
     		}
-    	public VcfLine(String line)
+    	public VcfLine(final String line)
     		{
     		this.line=line;
     		}
@@ -111,22 +111,27 @@ public class SortVcfOnInfo extends AbstractKnimeApplication
     		if(o.getClass().isArray())
     			{
     			Object array[]=(Object[])o;
-    			return array==null || array.length==0 ?null:array[0].toString();
+    			o = Arrays.asList(array);
     			}
     		if(o instanceof List)
     			{
     			@SuppressWarnings("rawtypes")
-				List L=(List)o;
+				final List L=(List)o;
     			if(L.isEmpty()) return null;
-    			return L.get(0).toString();
+    			for(Object o2:L)
+    				{
+    				if(o2==null || o2.equals(".")) continue;
+    				return o2.toString();
+    				}
+    			return null;
     			}
     		return o.toString();
     		}
     	@Override
-    	public int compareTo(VcfLine other)
+    	public int compareTo(final VcfLine other)
     		{
-    		String o1=getObject();
-    		String o2=other.getObject();
+    		final String o1=getObject();
+    		final String o2=other.getObject();
     		if(o1==null)
     			{
     			if(o2==null) return line.compareTo(other.line);
@@ -209,163 +214,105 @@ public class SortVcfOnInfo extends AbstractKnimeApplication
 			return o1.compareTo(o2);
 			}
 		}
-	
-	private void doWork(LineIterator r) throws IOException
+	@Override
+	public int doWork(final List<String> args)
 		{
-		VCFUtils.CodecAndHeader ch=VCFUtils.parseHeader(r);
-		VCFHeader header=ch.header;
-		this.codec=ch.codec;
-		this.infoDecl=header.getInfoHeaderLine(this.infoField);
-		if(this.infoDecl==null)
-			{
-			StringBuilder msg=new StringBuilder("VCF doesn't contain the INFO field :"+infoField+". Available:");
-			for(VCFInfoHeaderLine vil:header.getInfoHeaderLines()) msg.append(" ").append(vil.getID());
-			throw new IOException(msg.toString());
-			}
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
-
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-
+		CloseableIterator<VcfLine> iter=null;
 		VariantContextWriter w=null;
-		if(getOutputFile()==null)
+		SortingCollection<VcfLine> sorted=null;
+		LineIterator r=null;
+		try {
+			if(args.isEmpty())
 			{
-			w=VCFUtils.createVariantContextWriterToStdout();
+			LOG.info("reading from stdin");
+			r=IOUtils.openStreamForLineIterator(stdin());
+			}
+		else if(args.size()==1)
+			{
+			String filename=args.get(0);
+			LOG.info("Reading "+filename);
+			r=IOUtils.openURIForLineIterator(filename);
 			}
 		else
 			{
-			w=VCFUtils.createVariantContextWriter(getOutputFile());
-			}
-		w.writeHeader(header);
-		
-		
-		SortingCollection<VcfLine> sorted=SortingCollection.newInstance(
-				VcfLine.class,
-				new VariantCodec(),
-				new VariantComparator(),
-				maxRecordsInRam,
-				getTmpDirectories().get(0)
-				);
-		sorted.setDestructiveIteration(true);
-		while(r.hasNext())
-			{
-			VcfLine vc=new VcfLine(r.next());
-			progress.watch(vc.getContext());
-			sorted.add(vc);
-			}
-		sorted.doneAdding();
-		progress.finish();
-		
-		countFilteredVariants=0;
-		CloseableIterator<VcfLine> iter=sorted.iterator();
-		while(iter.hasNext())
-			{
-			w.add(iter.next().getContext());
-			countFilteredVariants++;
-			}
-		iter.close();
-		w.close();
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -F (field) INFO field for sorting. REQUIRED.");
-		out.println(" -T (dir) "+getMessageBundle("add.tmp.dir")+" (optional)");
-		out.println(" -N (int) "+getMessageBundle("max.records.in.ram")+" default: "+maxRecordsInRam);
-		super.printOptions(out);
-		}
-    
-	@Override
-	public int initializeKnime() {
-    	if(infoField==null || infoField.trim().isEmpty())
-			{
-			error("undefined or empty INFO field.");
+			LOG.error("Illegal number of arguments.");
 			return -1;
 			}
 
-		return super.initializeKnime();
-		}
-	
-	@Override
-	public void disposeKnime() {
-		
-		super.disposeKnime();
-		}
-	
-	
-	public int getVariantCount()
-		{
-		return this.countFilteredVariants;
-		}
-
-	
-    @Override
-    public int doWork(String[] args)
-    	{
-    
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"F:T:N:o:"))!=-1)
-			{
-			switch(c)
+			
+			
+			final VCFUtils.CodecAndHeader ch=VCFUtils.parseHeader(r);
+			VCFHeader header=ch.header;
+			this.codec=ch.codec;
+			this.infoDecl=header.getInfoHeaderLine(this.infoField);
+			if(this.infoDecl==null)
 				{
-				case 'o': setOutputFile(opt.getOptArg());break;
-				case 'F': infoField=opt.getOptArg();break;
-				case 'N': setMaxRecordsInRam(Integer.parseInt(opt.getOptArg()));break;
-				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-    	}
-		
-    @Override
-    public int executeKnime(List<String> args)
-    	{
-    	LineIterator r=null;
-		try
-			{
-			int ret=0;
-			if(args.isEmpty())
-				{
-				info("reading from stdin");
-				r=IOUtils.openStdinForLineIterator();
-				}
-			else if(args.size()==1)
-				{
-				String filename=args.get(0);
-				info("Reading "+filename);
-				r=IOUtils.openURIForLineIterator(filename);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
+				final StringBuilder msg=new StringBuilder("VCF doesn't contain the INFO field :"+infoField+". Available:");
+				for(VCFInfoHeaderLine vil:header.getInfoHeaderLines()) msg.append(" ").append(vil.getID());
+				LOG.error(msg.toString());
 				return -1;
 				}
-			doWork(r);
-			return ret;
-			}
+			
+			
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+	
+			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
+			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
+			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+	
+			w=super.openVariantContextWriter(this.outputFile);
+			
+			w.writeHeader(header);
+			
+			
+			sorted=SortingCollection.newInstance(
+					VcfLine.class,
+					new VariantCodec(),
+					new VariantComparator(),
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
+					);
+			sorted.setDestructiveIteration(true);
+			while(r.hasNext())
+				{
+				final VcfLine vc=new VcfLine(r.next());
+				progress.watch(vc.getContext());
+				sorted.add(vc);
+				}
+			CloserUtil.close(r);r=null;
+			
+			sorted.doneAdding();
+			progress.finish();
+			
+			iter =sorted.iterator();
+			while(iter.hasNext())
+				{
+				w.add(iter.next().getContext());
+				}
+			iter.close();
+			iter=null;
+			w.close();
+			w=null;
+			return 0;
+			} 
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
 			CloserUtil.close(r);
+			CloserUtil.close(iter);
+			try {
+				if(sorted!=null) sorted.cleanup();
+				} catch(Exception err){}
+			CloserUtil.close(w);
 			}
-    	}
+		}
+	
+    
  
 	/**
 	 * @param args

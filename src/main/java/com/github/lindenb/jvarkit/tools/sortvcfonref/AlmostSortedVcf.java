@@ -27,24 +27,29 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.sortvcfonref;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.List;
 
 import htsjdk.tribble.readers.LineIterator;
-
 import com.github.lindenb.jvarkit.io.IOUtils;
-
 import htsjdk.samtools.util.CloserUtil;
 
-/**
- * AlmostSortedVcfOnRef
- *
- */
-public class AlmostSortedVcf extends AbstractAlmostSortedVcf
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="almostsortedvcf",description="Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.")
+public class AlmostSortedVcf extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AlmostSortedVcf.class);
+	private static final Logger LOG = Logger.build(AlmostSortedVcf.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-N","--buffersize"},description="max records in ram")
+	private int MAX_RECORDS_IN_RAM = 1000 ;
 
     
     private static class ChromPosLine
@@ -94,24 +99,27 @@ public class AlmostSortedVcf extends AbstractAlmostSortedVcf
     		}
     	}
 	
-	@Override
-	protected Collection<Throwable> call(final  String inputName) throws Exception {
-			
+    @Override
+    public int doWork(List<String> args) {
 		PrintWriter out=null;
 		LineIterator in=null;
 		int n_fixed=0;
 		try
 			{
-			out= super.openFileOrStdoutAsPrintWriter();
+	    	final String inputName= oneFileOrNull(args);
+
+			
 			final ArrayList<ChromPosLine> buffer=new ArrayList<ChromPosLine>(this.MAX_RECORDS_IN_RAM);
 			if(inputName==null)
 				{
-				in=IOUtils.openStdinForLineIterator();
+				in=IOUtils.openStreamForLineIterator(stdin());
 				}
 			else 
 				{
 				in=IOUtils.openURIForLineIterator(inputName);
 				}
+			out= super.openFileOrStdoutAsPrintWriter(outputFile);
+
 			
 			while(in.hasNext() && in.peek().startsWith("#"))
 				{
@@ -163,11 +171,8 @@ public class AlmostSortedVcf extends AbstractAlmostSortedVcf
 							{
 							out.println(buffer.remove(0).line);
 							}
-
 						}
 					}
-				
-				
 				}
 			
 			//flush buffer
@@ -179,17 +184,18 @@ public class AlmostSortedVcf extends AbstractAlmostSortedVcf
 			out.flush();
 			if(n_fixed==0)
 				{
-				LOG.info("No VCF position was fixed: worth using "+getName()+" !");
+				LOG.info("No VCF position was fixed: worth using "+getProgramName()+" !");
 				}
 			else if(n_fixed>0)
 				{
-				LOG.info(""+n_fixed+" VCF positions were fixed: worth using "+getName()+ " !");
+				LOG.info(""+n_fixed+" VCF positions were fixed: worth using "+getProgramName()+ " !");
 				}
 			return RETURN_OK;
 			}
 		catch(final  Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -198,9 +204,6 @@ public class AlmostSortedVcf extends AbstractAlmostSortedVcf
 			}
     	}
     
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args) {
 	new AlmostSortedVcf().instanceMainWithExit(args);
 

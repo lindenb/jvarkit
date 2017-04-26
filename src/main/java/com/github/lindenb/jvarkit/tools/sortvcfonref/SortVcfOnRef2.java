@@ -31,9 +31,10 @@ package com.github.lindenb.jvarkit.tools.sortvcfonref;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.regex.Pattern;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -50,14 +51,57 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 /**
- * Sort a VCF on the REFERENCE
- *
- */
-public class SortVcfOnRef2 extends AbstractSortVcfOnRef2
+
+BEGIN_DOC
+
+### Deprecated
+
+Use picard SortVcf  http://broadinstitute.github.io/picard/command-line-overview.html#SortVcf.
+
+### Example
+
+```
+cat input.vcf |\
+   java -jar dist/sortvcfonref2.jar  -R ref.fa |\
+   bgzip -c > result.vcf.gz && \
+   tabix -p vcf -f result.vcf.gz
+```
+
+END_DOC
+*/
+
+
+
+@Program(name="sortvcfonref2",
+	description="Sort a VCF using the internal dictionary or an external reference order (Deprecated: use picard SortVcf).",
+	deprecatedMsg="use picard sortvcf"
+	)
+public class SortVcfOnRef2 extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SortVcfOnRef2.class);
-    private SAMSequenceDictionary dict=null;
+	
+	private static final Logger LOG = Logger.build(SortVcfOnRef2.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference")
+	private File refdict = null;
+
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
+	
+	
+
+	private SAMSequenceDictionary dict=null;
     private final Pattern tab=Pattern.compile("[\t]");
 	    
     
@@ -158,15 +202,11 @@ public class SortVcfOnRef2 extends AbstractSortVcfOnRef2
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
-		}
-	
-	@Override
-	protected Collection<Throwable> doVcfToVcf(final String inputName) throws Exception {
+	public int doWork(List<String> args) {
 		BufferedReader in =null;
 		try
 			{
+			final String inputName=oneFileOrNull(args);
 			if(inputName==null)
 				{
 				LOG.info("reading from stdin");
@@ -183,7 +223,8 @@ public class SortVcfOnRef2 extends AbstractSortVcfOnRef2
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -192,13 +233,13 @@ public class SortVcfOnRef2 extends AbstractSortVcfOnRef2
     	}
     
    
-	protected Collection<Throwable> sortvcf(BufferedReader in) throws IOException 
+	protected int sortvcf(BufferedReader in) throws IOException 
     	{
-		if(super.refdict!=null) {
-			LOG.info("load dict from "+super.refdict);
-			this.dict = new SAMSequenceDictionaryFactory().load(super.refdict);
+		if(this.refdict!=null) {
+			LOG.info("load dict from "+this.refdict);
+			this.dict = new SAMSequenceDictionaryFactory().load(this.refdict);
 			if(this.dict==null) {
-				return wrapException("cannot find sam sequence dictionary from "+refdict);
+				LOG.error("cannot find sam sequence dictionary from "+refdict);
 			}
 		}
 		
@@ -213,7 +254,8 @@ public class SortVcfOnRef2 extends AbstractSortVcfOnRef2
     		this.dict= h2.getSequenceDictionary();
     		if(this.dict==null)
     			{
-    			return wrapException("No internal sequence dictionay found in input");
+    			LOG.error("No internal sequence dictionay found in input");
+    			return -1;
     			}
     		}
     	
@@ -232,8 +274,8 @@ public class SortVcfOnRef2 extends AbstractSortVcfOnRef2
 					ChromPosLine.class,
 					new VariantCodec(),
 					new VariantComparator(),
-					super.maxRecordsInRam,
-					super.getTmpDirectories()
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			array.setDestructiveIteration(true);
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dict);
@@ -247,7 +289,7 @@ public class SortVcfOnRef2 extends AbstractSortVcfOnRef2
 			array.doneAdding();
 			progress.finish();
 			
-			w = super.openVariantContextWriter();
+			w = super.openVariantContextWriter(outputFile);
 			w.writeHeader(h2);
 			
 			iter=array.iterator();
@@ -260,7 +302,8 @@ public class SortVcfOnRef2 extends AbstractSortVcfOnRef2
 			}
     	catch (Exception e)
     		{
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
     	finally
 	    	{

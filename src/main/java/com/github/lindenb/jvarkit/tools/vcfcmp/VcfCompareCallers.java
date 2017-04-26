@@ -91,6 +91,10 @@ public class VcfCompareCallers
 	@Parameter(names={"-d","--noindel"},description="Ignore indels (SNP only)")
 	private boolean ignoreIndels = false;
 
+	@Parameter(names={"--vertical"},description="Vertical layout, to use with group-by tools")
+	private boolean verticalLayout = false;
+
+	
 	private enum Category
 		{
 		off_target_only_1,
@@ -224,7 +228,7 @@ public class VcfCompareCallers
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		final VcfIterator vcfInputs[]=new VcfIterator[]{null,null};
 		
 		internalTests();
@@ -307,21 +311,21 @@ public class VcfCompareCallers
 			/* samples */
 			final Set<String> samples0=new HashSet<>(headers[0].getSampleNamesInOrder());
 			final Set<String> samples1=new HashSet<>(headers[1].getSampleNamesInOrder());
-			final Set<String> samples= new TreeSet<>(samples0);
-			samples.retainAll(samples1);
+			final Set<String> commonSamples= new TreeSet<>(samples0);
+			commonSamples.retainAll(samples1);
 			
-			if(samples.size()!=samples0.size() || samples.size()!=samples1.size())
+			if(commonSamples.size()!=samples0.size() || commonSamples.size()!=samples1.size())
 				{
 				LOG.warn("Warning: Not the same samples set. Using intersection of both lists.");
 				}
-			if(samples.isEmpty())
+			if(commonSamples.isEmpty())
 				{	
 				LOG.error("No common samples");
 				return -1;
 				}
 			
-			final Map<String, Counter<Category>> sample2info=new HashMap<String, Counter<Category>>(samples.size());
-			for(final String sampleName:samples)
+			final Map<String, Counter<Category>> sample2info=new HashMap<String, Counter<Category>>(1+commonSamples.size());
+			for(final String sampleName:commonSamples)
 				{
 				sample2info.put(sampleName, new  Counter<Category>());
 				}
@@ -424,9 +428,12 @@ public class VcfCompareCallers
 					{
 					final Counter<Category> sampleInfo=sample2info.get(sampleName);
 					
+					Genotype g0,g1;
 					
-					Genotype g0=(ctx0==null?null:ctx0.getGenotype(sampleName));
-					Genotype g1=(ctx1==null?null:ctx1.getGenotype(sampleName));
+					
+				
+					 g0=(ctx0==null?null:ctx0.getGenotype(sampleName));
+					 g1=(ctx1==null?null:ctx1.getGenotype(sampleName));
 					
 					
 					
@@ -567,24 +574,46 @@ public class VcfCompareCallers
 			progress.finish();
 		
 			pw  = openFileOrStdoutAsPrintStream(this.outputFile);
-			pw.print("#Sample");
-			for(Category c:Category.values())
+			
+			if(verticalLayout)
 				{
-				pw.print('\t');
-				pw.print(c.name());
+				pw.print("#Sample\tCategory\tCount");
+				
+				for(final String sample: sample2info.keySet())
+					{
+					final Counter<Category> count=sample2info.get(sample);
+					for(final Category c:Category.values())
+						{
+						pw.print(sample);
+						pw.print('\t');
+						pw.print(c.name());
+						pw.print('\t');
+						pw.println(count.count(c));
+						}
+					if(pw.checkError()) break;
+					}
 				}
-			pw.println();
-			for(final String sample: sample2info.keySet())
+			else
 				{
-				Counter<Category> count=sample2info.get(sample);
-				pw.print(sample);
+				pw.print("#Sample");
 				for(Category c:Category.values())
 					{
 					pw.print('\t');
-					pw.print(count.count(c));
+					pw.print(c.name());
 					}
 				pw.println();
-				if(pw.checkError()) break;
+				for(final String sample: sample2info.keySet())
+					{
+					final Counter<Category> count=sample2info.get(sample);
+					pw.print(sample);
+					for(Category c:Category.values())
+						{
+						pw.print('\t');
+						pw.print(count.count(c));
+						}
+					pw.println();
+					if(pw.checkError()) break;
+					}
 				}
 			pw.flush();
 			

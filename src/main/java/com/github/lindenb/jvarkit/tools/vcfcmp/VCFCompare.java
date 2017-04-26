@@ -5,14 +5,13 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.logging.Level;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -31,35 +30,50 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.cli.GetOpt;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
+import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
-public class VCFCompare extends AbstractCommandLineProgram
+@Program(name="vcfcompare",description="Compares two VCF files")
+public class VCFCompare extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VCFCompare.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@ParametersDelegate
+	WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
+
 	private Input inputs[]=new Input[]{null,null};
 	
 	private abstract class Venn0
 		{
-		String title=null;
-		Venn0(String title)
+		final String title;
+		Venn0(final String title)
 			{
 			this.title=title;
 			}
-		VariantContext filter(VariantContext ctx,int file_id)
+		VariantContext filter(final VariantContext ctx,int file_id)
 			{
 			return ctx;
 			}
-		abstract void  visit(VariantContext ctx[]);
+		abstract void  visit(final VariantContext ctx[]);
 		
 		
 		void write(XMLStreamWriter w) throws XMLStreamException
@@ -276,6 +290,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 		AbstractVCFCodec codec;
 		SnpEffPredictionParser snpEffPredictionParser=null;
 		VepPredictionParser vepPredictionParser=null;
+		AnnPredictionParser annPredictionParser=null;
 		}
 	
 	private class LineAndFile
@@ -291,6 +306,10 @@ public class VCFCompare extends AbstractCommandLineProgram
 				this._ctx=inputs[this.fileIdx].codec.decode(this.line);
 				}
 			return this._ctx;
+			}
+		ContigPosRef getContigPosRef()
+			{
+			return new ContigPosRef(getContext());
 			}
 		}
 	
@@ -321,25 +340,14 @@ public class VCFCompare extends AbstractCommandLineProgram
 			}
 		}
 
-	
-	
-	
-	
-	
 	private class LineAndFileComparator implements Comparator<LineAndFile>
 		{
 		@Override
-		public int compare(LineAndFile v1, LineAndFile v2)
+		public int compare(final LineAndFile v1, final LineAndFile v2)
 			{
-			VariantContext ctx1=v1.getContext();
-			VariantContext ctx2=v2.getContext();
-			int i=ctx1.getContig().compareTo(ctx2.getContig());
-			if(i!=0) return i;
-			i=ctx1.getStart()-ctx2.getStart();
-			if(i!=0) return i;
-			i=ctx1.getReference().compareTo(ctx2.getReference());
-			if(i!=0) return i;
-			return 0;
+			final ContigPosRef ctx1=v1.getContigPosRef();
+			final ContigPosRef ctx2=v2.getContigPosRef();
+			return ctx1.compareTo(ctx2);
 			}
 		}
 	
@@ -350,51 +358,15 @@ public class VCFCompare extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/VcfCompare";
-		}
+	public int doWork(final List<String> args) {
 	
-	@Override
-	public String getProgramDescription()
-		{
-		return "Compares two VCF files.";
-		}
-	
-	@Override
-	public void printOptions(PrintStream out) {
-		out.println(" -M (int) Max records in RAM. Optional.");
-		out.println(" -T (dir) add temporary directory. Optional");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		int maxRecordsInRAM=50000;
-		GetOpt getopt=new GetOpt();
-		int c;
-		while((c=getopt.getopt(args, super.getGetOptDefault()+"M:T:"))!=-1)
+		if(args.isEmpty())
 			{
-			switch(c)
-				{
-				case 'M': maxRecordsInRAM=Math.max(1,Integer.parseInt(getopt.getOptArg()));break;
-				case 'T': super.addTmpDirectory(new File(getopt.getOptArg()));break;
-				default: switch(super.handleOtherOptions(c, getopt, args))
-					{
-					case EXIT_FAILURE: return -1;
-					case EXIT_SUCCESS: return 0;
-					default:break;
-					}
-				}
-			}
-		if(getopt.getOptInd()==args.length)
-			{
-			System.err.println("VCFs missing.");
+			LOG.error("VCFs missing.");
 			return -1;
 			}
 		
-		if(getopt.getOptInd()+2!=args.length)
+		if(args.size()!=2)
 			{
 			System.err.println("Illegal number or arguments. Expected two VCFs");
 			return -1;
@@ -404,7 +376,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 		
 
 		
-		
+		PrintWriter pw =null;
 		XMLStreamWriter w=null;
 		InputStream in=null;
 		SortingCollection<LineAndFile> variants=null;
@@ -415,8 +387,8 @@ public class VCFCompare extends AbstractCommandLineProgram
 			
 			variants=SortingCollection.newInstance(LineAndFile.class, new LineAndFileCodec(),
 					varcmp,
-					maxRecordsInRAM,
-					this.getTmpDirectories()
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			variants.setDestructiveIteration(true);
 
@@ -425,15 +397,16 @@ public class VCFCompare extends AbstractCommandLineProgram
 				{
 				this.inputs[i]= new Input();
 				this.inputs[i].codec=VCFUtils.createDefaultVCFCodec();
-				this.inputs[i].filename= args[getopt.getOptInd()+i];
-				info("Opening "+this.inputs[i].filename);
+				this.inputs[i].filename= args.get(i);
+				LOG.info("Opening "+this.inputs[i].filename);
 				in=IOUtils.openURIForReading(this.inputs[i].filename);
-				LineReader lr= new SynchronousLineReader(in);
-				LineIterator li=new LineIteratorImpl(lr);
+				final LineReader lr= new SynchronousLineReader(in);
+				final LineIterator li=new LineIteratorImpl(lr);
 				this.inputs[i].header=(VCFHeader)this.inputs[i].codec.readActualHeader(li);
 				
 				this.inputs[i].vepPredictionParser=new VepPredictionParserFactory(this.inputs[i].header).get();
 				this.inputs[i].snpEffPredictionParser=new SnpEffPredictionParserFactory(this.inputs[i].header).get();
+				this.inputs[i].annPredictionParser=new AnnPredictionParserFactory(this.inputs[i].header).get();
 				
 				while(li.hasNext())
 					{
@@ -442,13 +415,13 @@ public class VCFCompare extends AbstractCommandLineProgram
 					laf.line=li.next();
 					variants.add(laf);
 					}
-				info("Done Reading "+this.inputs[i].filename);
+				LOG.info("Done Reading "+this.inputs[i].filename);
 				CloserUtil.close(li);
 				CloserUtil.close(lr);
 				CloserUtil.close(in);
 				}
 			variants.doneAdding();
-			info("Done Adding");
+			LOG.info("Done Adding");
 			
 			Set<String> commonSamples=new TreeSet<String>(this.inputs[0].header.getSampleNamesInOrder());
 			commonSamples.retainAll(this.inputs[1].header.getSampleNamesInOrder());
@@ -509,6 +482,19 @@ public class VCFCompare extends AbstractCommandLineProgram
 						return tt;
 						}
 					});
+				venn1List.add(new VennPred("ANN",term)
+					{	
+					@Override
+					Set<Term> terms(VariantContext ctx, int file_id)
+						{
+						Set<Term> tt=new HashSet<SequenceOntologyTree.Term>();
+						for(AnnPredictionParser.AnnPrediction pred:VCFCompare.this.inputs[file_id].annPredictionParser.getPredictions(ctx))
+							{
+							tt.addAll(pred.getSOTerms());
+							}
+						return tt;
+						}
+					});
 				}
 			for(String s:commonSamples) 
 				{
@@ -537,7 +523,7 @@ public class VCFCompare extends AbstractCommandLineProgram
 							{
 							if(contexes_init[var.fileIdx]!=null)
 								{
-								error("Duplicate context in "+inputs[var.fileIdx].filename+" : "+var.line);
+								LOG.error("Duplicate context in "+inputs[var.fileIdx].filename+" : "+var.line);
 								continue;
 								}
 							contexes_init[var.fileIdx]=var.getContext();
@@ -555,9 +541,9 @@ public class VCFCompare extends AbstractCommandLineProgram
 				}
 			iter.close();
 			/* END : digest results ====================== */
-			
+			pw = super.openFileOrStdoutAsPrintWriter(outputFile);
 			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-			w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
+			w= xmlfactory.createXMLStreamWriter(pw);
 			w.writeStartElement("html");
 			w.writeStartElement("body");
 			
@@ -607,15 +593,21 @@ public class VCFCompare extends AbstractCommandLineProgram
 			
 			w.writeEndElement();//body
 			w.writeEndElement();//html
+			w.writeEndDocument();
+			w.close();w=null;
+			pw.flush();
+			pw.close();
+			pw=null;
 			}
 		catch(Exception err)
 			{
-			getLogger().log(Level.SEVERE, ""+err.getMessage(),err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
 			CloserUtil.close(w);
+			CloserUtil.close(pw);
 			if(variants!=null) variants.cleanup();
 			}
 		return 0;

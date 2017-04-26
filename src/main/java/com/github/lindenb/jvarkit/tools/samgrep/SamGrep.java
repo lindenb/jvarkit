@@ -30,9 +30,13 @@ package com.github.lindenb.jvarkit.tools.samgrep;
 
 
 import java.io.BufferedReader;
-import java.util.Collection;
+import java.io.File;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -43,24 +47,105 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-public class SamGrep extends AbstractSamGrep
+
+/**
+
+BEGIN_DOC
+
+
+### Examples
+
+
+#### Example 1
+
+
+```
+
+java -jar  dist/samgrep.jar -R r001  -- samtools-0.1.18/examples/toy.sam 
+
+@HD     VN:1.4  SO:unsorted
+@SQ     SN:ref  LN:45
+@SQ     SN:ref2 LN:40
+@PG     ID:0    PN:com.github.lindenb.jvarkit.tools.samgrep.SamGrep     VN:dac03b80e9fd88a15648b22550e57d10c9bed725     CL:-R r001 samtools-0.1.18/examples/toy.sam
+r001    163     ref     7       30      8M4I4M1D3M      =       37      39      TTAGATAAAGAGGATACTG     *       XX:B:S,12561,2,20,112
+r001    83      ref     37      30      9M      =       7       -39     CAGCGCCAT       *
+
+```
+
+
+#### Example 4
+
+
+```
+
+java -jar  dist/samgrep.jar -R r001 -- -n 1 samtools-0.1.18/examples/toy.sam 
+
+@HD     VN:1.4  SO:unsorted
+@SQ     SN:ref  LN:45
+@SQ     SN:ref2 LN:40
+@PG     ID:0    PN:com.github.lindenb.jvarkit.tools.samgrep.SamGrep     VN:dac03b80e9fd88a15648b22550e57d10c9bed725     CL:-R r001 -n 1 samtools-0.1.18/examples/toy.sam
+r001    163     ref     7       30      8M4I4M1D3M      =       37      39      TTAGATAAAGAGGATACTG     *       XX:B:S,12561,2,20,112
+
+```
+
+
+
+
+
+
+END_DOC
+*/
+
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+
+
+@Program(name="samgrep",description="grep read-names in a bam file")
+public class SamGrep extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamGrep.class);
+	private static final Logger LOG = Logger.build(SamGrep.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	
+	@Parameter(names={"-R","--readname"},description="add the read name")
+	private Set<String> nameStrings = new HashSet<>();
+	
+	
+	@Parameter(names={"-f","--readname"},description="file containing a list of read names")
+	private File namefile = null;
+	
+	@Parameter(names={"-x","--tee"},description="if output fileame specified, continue to output original input to stdout.")
+	private boolean divertToStdout = false;
+	
+	@Parameter(names={"-n","--stopafter"},description="when found, remove the read from the list of names when found more that 'n' time (increase speed)")
+	private int n_before_remove = -1 ;
+	
+	@Parameter(names={"-V","--invert"},description="invert")
+	private boolean inverse = false;
+	
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
+	
 
 	private final Map<String,Integer> readNames=new HashMap<String,Integer>(); 
-    private SamGrep()
-    	{
-    	}
+   
     
     @Override
-    public Collection<Throwable> initializeKnime() {
+    public int doWork(List<String> args) {
+    	
+    	
     	readNames.clear();
     	
     	if(namefile!=null) {
 	    	BufferedReader in=null;
 			try
 				{
-				in=IOUtils.openFileForBufferedReading(super.namefile);
+				in=IOUtils.openFileForBufferedReading(this.namefile);
 		    	String line;
 		    	while((line=in.readLine())!=null)
 		    		{
@@ -71,54 +156,42 @@ public class SamGrep extends AbstractSamGrep
 				}
 			catch(Exception err)
 				{
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 				}
 			finally
 				{
 				CloserUtil.close(in);
 				}
 	    	}
-    	for(final String line: super.nameStrings) {
+    	for(final String line: this.nameStrings) {
     		readNames.put(line,0);
     		}
     	if(readNames.isEmpty())
 			{
 			LOG.warn("no read found.");
 			}
-    	return super.initializeKnime();
-    }
-    
-    @Override
-    public void disposeKnime() {
-    	readNames.clear();
-    	super.disposeKnime();
-    }
-    
-	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
+    	
+    	
 		SAMFileWriter sfw=null;
 		SAMFileWriter samStdout=null;
 		SamReader sfr=null;
 		try {
-			sfr = super.openSamReader(inputName);
+			sfr = super.openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=sfr.getFileHeader().clone();
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
 
-			if(super.outputFile==null)
+			
+			
+			if(this.outputFile==null)
 				{
-				sfw= super.openSAMFileWriter(header, true);
+				sfw = this.writingBamArgs.openSAMFileWriter(null, header, true);
 				}
 			else
 				{
-				if(super.divertToStdout) {
-					if(SamReader.Type.SAM_TYPE.equals(super.samoutputformat)) {
-					samStdout= super.createSAMFileWriterFactory().makeSAMWriter(header, true,stdout());
-					} else
-					{
-					samStdout= super.createSAMFileWriterFactory().makeBAMWriter(header, true,stdout());
-					}
-				}
-				sfw= super.openSAMFileWriter(header, true);
+				samStdout= this.writingBamArgs.openSAMFileWriter(null, header, true);
+				
+				sfw= this.writingBamArgs.openSAMFileWriter(outputFile, header, true);
 				}
 		
 			SAMRecordIterator iter=sfr.iterator();
@@ -132,7 +205,7 @@ public class SamGrep extends AbstractSamGrep
 					{
 					keep=true;
 					}
-				if(super.inverse) keep=!keep;
+				if(this.inverse) keep=!keep;
 				if(keep)
 					{
 					sfw.addAlignment(rec);
@@ -154,8 +227,9 @@ public class SamGrep extends AbstractSamGrep
 				}
 			progress.finish();
 			return RETURN_OK;
-		} catch (final Exception e) {
-			return wrapException(e);
+		} catch (final Exception err) {
+			LOG.error(err);
+			return -1;
 		} finally {
 			CloserUtil.close(samStdout);
 			CloserUtil.close(sfw);

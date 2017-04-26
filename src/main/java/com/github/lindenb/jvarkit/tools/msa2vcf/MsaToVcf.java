@@ -99,7 +99,7 @@ public class MsaToVcf extends Launcher
 		@Override
 		public String toString()
 			{
-			StringBuilder b=new StringBuilder(align_length);
+			final StringBuilder b=new StringBuilder(align_length);
 			for(int i=0;i< align_length;++i) b.append(at(i));
 			return b.toString();
 			}
@@ -110,7 +110,7 @@ public class MsaToVcf extends Launcher
 	private abstract class Sequence extends AbstractSequence
 		{
 		StringBuilder seq=new StringBuilder();
-		char at(int index)
+		@Override char at(int index)
 			{
 			return(index< 0 || index >=seq.length()?CLIPPING:Character.toUpperCase(seq.charAt(index)));
 			}
@@ -136,8 +136,8 @@ public class MsaToVcf extends Launcher
 		@Override
 		char at(int index)
 			{
-			Counter<Character> count=new Counter<Character>();
-			for(AlignSequence a:sample2sequence.values()) count.incr(a.at(index));
+			final Counter<Character> count=new Counter<Character>();
+			for(final AlignSequence a:sample2sequence.values()) count.incr(a.at(index));
 			if(count.getCountCategories()<=1) return MATCH;
 			return ' ';
 			}
@@ -145,8 +145,8 @@ public class MsaToVcf extends Launcher
 		
 	private class NamedConsensus extends AbstractSequence implements Consensus
 		{
-		private AlignSequence namedConsensus;
-		NamedConsensus(AlignSequence namedConsensus)
+		private final AlignSequence namedConsensus;
+		NamedConsensus(final AlignSequence namedConsensus)
 			{
 			this.namedConsensus=namedConsensus;
 			}
@@ -163,7 +163,7 @@ public class MsaToVcf extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		VariantContextWriter w=null;
 		LineIterator r=null;
 		try
@@ -185,7 +185,7 @@ public class MsaToVcf extends Launcher
 			/** try to guess format */
 			while(r.hasNext() && format==Format.None)
 				{
-				String line=r.peek();
+				final String line=r.peek();
 				if( line.trim().isEmpty()) { r.next(); continue;}
 				if(line.startsWith("CLUSTAL"))
 					{
@@ -519,11 +519,11 @@ public class MsaToVcf extends Launcher
 			w.close();
 			if(outFasta!=null)
 				{
-				PrintWriter fasta=new PrintWriter(outFasta);
-				for(String sample:samples)
+				final PrintWriter fasta= super.openFileOrStdoutAsPrintWriter(outFasta);
+				for(final String sample:samples)
 					{
 					fasta.println(">"+sample);
-					Sequence seq=this.sample2sequence.get(sample);
+					final Sequence seq=this.sample2sequence.get(sample);
 					for(int i=0;i< align_length;++i)
 						{
 						fasta.print(seq.at(i));

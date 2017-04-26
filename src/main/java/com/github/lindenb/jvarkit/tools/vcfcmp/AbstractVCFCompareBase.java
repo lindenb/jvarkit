@@ -39,8 +39,6 @@ import java.util.List;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
-import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
@@ -199,13 +197,14 @@ public abstract class AbstractVCFCompareBase extends Launcher
 		return input;
 		}
 	
+	/** give a chance to simplify the vcf line. returned null string will be ignored */
 	protected String simplify(String line,int input_idx)
 		{
 		return line;
 		}
 	
 	/** insert all  variant of vcfUri into the sorting collection */
-	protected Input put(SortingCollection<LineAndFile> variants, String vcfUri)
+	protected Input put(final SortingCollection<LineAndFile> variants, String vcfUri)
 		throws IOException
 		{
 		LOG.info("begin inserting "+vcfUri);
@@ -220,22 +219,23 @@ public abstract class AbstractVCFCompareBase extends Launcher
 			iter=IOUtils.openFileForLineIterator(new File(vcfUri));
 			}
 		
-		List<String> headerLines=new ArrayList<String>();
+		final List<String> headerLines=new ArrayList<String>();
 		while(iter.hasNext() && iter.peek().startsWith("#"))
 			{
 			headerLines.add(iter.next());
 			}
 		if(headerLines.isEmpty()) throw new IOException("Not header found in "+vcfUri);
-		Input input=createInput(vcfUri, headerLines);
+		final Input input=createInput(vcfUri, headerLines);
 		input.file_id=this.inputs.size();
 		this.inputs.add(input);
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(input.codecAndHeader.header.getSequenceDictionary());
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(input.codecAndHeader.header.getSequenceDictionary());
 		while(iter.hasNext())
 			{
-			String line=iter.next();
-			LineAndFile laf=new LineAndFile();
+			final String line=iter.next();
+			final LineAndFile laf=new LineAndFile();
 			laf.fileIdx=input.file_id;
 			laf.line=simplify(line,laf.fileIdx);
+			if(laf.line==null) continue;
 			progress.watch(laf.getChrom(), laf.getStart());
 			variants.add(laf);
 			input.count++;
