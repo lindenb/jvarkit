@@ -216,7 +216,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	nozerovariationvcf	pademptyfastq	paintcontext	pubmeddump	pubmedorcidgraph pubmedfilterjs	referencetovcf	sam2json \
 	sam2psl	sam2tsv	sam4weblogo	samclipindelfraction	samextractclip	samfindclippedregions	samfixcigar \
 	samgrep	samjs	samshortinvert	samstats01	sigframe	sortvcfoninfo \
-	sortvcfonref2	splitbam3	splitbytile	splitread	tview	tview.cgi \
+	sortvcfonref2	splitbam3	splitbytile	splitread \
 	vcf2hilbert	vcf2ps	vcf2rdf	vcf2sql	vcf2xml	vcfannobam	 \
 	vcfbiomart	vcfcadd	vcfcmppred	vcfcomm	vcfcompare	vcfcomparegt \
 	vcfconcat	vcfcutsamples	vcffilterdoid		vcfgo \
