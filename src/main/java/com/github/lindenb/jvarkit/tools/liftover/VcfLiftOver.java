@@ -86,6 +86,8 @@ public class VcfLiftOver extends Launcher
 	private File failedFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
 	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
+	@Parameter(names={"--adaptivematch"},description="Use adapative liftover minmatch using the ratio between the min allele size and the longest allele size")
+	private boolean adaptivematch = false ;
 	@Parameter(names={"-D","-R","-r","--reference"},description="indexed REFerence file.",required=true)
 	private File faidx = null;
 	@Parameter(names={"-T","--tag"},description="INFO tag")
@@ -152,6 +154,13 @@ public class VcfLiftOver extends Launcher
 					{
 					if(failed!=null) failed.add(new VariantContextBuilder(ctx).attribute(this.failedinfoTag, "Indel").make());
 					continue;
+					}
+				
+				if(adaptivematch)
+					{
+					double minAlleleLength = Math.min(0,ctx.getAlleles().stream().mapToInt(A->A.length()).min().orElse(0));
+					double maxAlleleLength =Math.max(1,ctx.getAlleles().stream().mapToInt(A->A.length()).max().orElse(1));
+					this.liftOver.setLiftOverMinMatch(minAlleleLength /maxAlleleLength);
 					}
 				
 				

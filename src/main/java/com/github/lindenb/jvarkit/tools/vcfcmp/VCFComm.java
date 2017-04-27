@@ -31,6 +31,7 @@ package com.github.lindenb.jvarkit.tools.vcfcmp;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -124,12 +125,12 @@ public class VCFComm extends AbstractVCFCompareBase {
 			
 			Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 			
-			final LineAndFileComparator posCompare=new LineAndFileComparator();
 			
 			
 			variants=SortingCollection.newInstance(
-					LineAndFile.class, new LineAndFileCodec(),
-					posCompare,
+					LineAndFile.class, 
+					new LineAndFileCodec(),
+					new LineAndFileComparator(),
 					super.sortingCollectionArgs.getMaxRecordsInRam(),
 					super.sortingCollectionArgs.getTmpDirectories()
 					);
@@ -158,7 +159,7 @@ public class VCFComm extends AbstractVCFCompareBase {
 					sampleName = sampleName.substring(0, sampleName.length()-4);
 					}
 				int slash=sampleName.lastIndexOf(File.separatorChar);
-				if(slash!=-1) sampleName=sampleName.substring(0,slash);
+				if(slash!=-1) sampleName=sampleName.substring(slash+1);
 				int suffix=1;
 				// loop until we find a uniq name
 				for(;;)
@@ -274,7 +275,8 @@ public class VCFComm extends AbstractVCFCompareBase {
 			w.writeHeader(header);
 			final List<LineAndFile> row=new ArrayList<LineAndFile>(super.inputs.size());
 			
-			
+			final Comparator<LineAndFile> posCompare = (A,B)->A.getContigPosRef().compareTo(B.getContigPosRef());
+
 			
 			
 			iter=variants.iterator();
@@ -293,140 +295,196 @@ public class VCFComm extends AbstractVCFCompareBase {
 						{
 						final VariantContext first=row.get(0).getContext();
 						/* in which file id we find this variant */
-						final Set<Integer> fileids_for_variant= row.stream().map(LAF->LAF.fileIdx).collect(Collectors.toSet());
+						Set<Integer> fileids_for_variant= row.stream().map(LAF->LAF.fileIdx).collect(Collectors.toSet());
 						
-						
+						// see with HAS multiple chrom/pos/ref but different alt
 						if(row.size()!=fileids_for_variant.size())
 							{
-							LOG.error("There are some duplicated variants at the position "+new ContigPosRef(first)+" in the same vcf file");
-							return -1;
-							}
-
-						
-						
-						final Set<Allele> alleles= row.stream().
-								flatMap(R->R.getContext().getAlleles().
-								stream()).collect(Collectors.toSet());
-						
-						final VariantContextBuilder vcb=new VariantContextBuilder(
-								getClass().getName(),
-								first.getContig(),
-								first.getStart(),
-								first.getEnd(),
-								alleles
-								);
-						final Set<String> filters = new HashSet<>();
-						final Set<VariantContext.Type> variantContextTypes=new HashSet<>();
-						final List<Genotype> genotypes=new ArrayList<Genotype>();
-						for(final LineAndFile laf:row)
-							{
-							if(laf.getContext().isFiltered()) filters.add(variantWasFiltered.getID());
-							variantContextTypes.add(laf.getContext().getType());
-							final GenotypeBuilder gbuilder=new GenotypeBuilder();
-							gbuilder.name(fileid2sampleName.get(laf.fileIdx));
-							if(unqueSampleName.isPresent())
+							for(;;)
 								{
-								final Genotype g0=laf.getContext().getGenotype(unqueSampleName.get());
-								if(g0==null){
-									iter.close();
-									w.close();
-									throw new IllegalStateException("Cannot find genotype for "+unqueSampleName.get());
-								}
-								if(g0.hasDP()) gbuilder.DP(g0.getDP());
-								if(g0.hasGQ()) gbuilder.GQ(g0.getGQ());
-								gbuilder.alleles(g0.getAlleles());
-								}
-							else
-								{
-								gbuilder.alleles(Arrays.asList(first.getReference(),first.getReference()));
-								if(laf.getContext().hasAttribute(VCFConstants.DEPTH_KEY))
+								boolean ok=true;
+								for(int x=0;ok && x+1<row.size();++x)
 									{
-									gbuilder.DP(laf.getContext().getAttributeAsInt(VCFConstants.DEPTH_KEY, 0));
-									}
-								}
-							if(laf.getContext().isFiltered() )
-								{
-								gbuilder.filter("VCFILTERED");
-								}
-							if(laf.getContext().hasLog10PError())
-								{
-								gbuilder.attribute(variantQUALFormat.getID(), laf.getContext().getPhredScaledQual());
-								}
-							
-							gbuilder.attribute(VCFConstants.ALLELE_NUMBER_KEY, 
-									laf.getContext().getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->!A.isNoCall()).count()
-									);
-							gbuilder.attribute(VCFConstants.ALLELE_COUNT_KEY, 
-									laf.getContext().getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->!(A.isReference() || A.isNoCall())).count()
-									);
-							gbuilder.attribute(variantTypeFormat.getID(),laf.getContext().getType().name());
-							
-							genotypes.add(gbuilder.make());
-							}
-						final String id=String.join(";",row.stream().map(LAF->LAF.getContext()).
-								filter(V->V.hasID()).map(V->V.getID()).
-								collect(Collectors.toSet()))
-								;
-						if(!id.isEmpty()) vcb.id(id);
-						
-						
-						vcb.genotypes(genotypes);
-						
-						if(unqueSampleName.isPresent())
-							{
-							boolean all_same=true;
-							for(int x=0;all_same && x+1< genotypes.size();++x)
-								{
-								if(!genotypes.get(x).isCalled()) continue;
-								for(int y=x+1;all_same && y< genotypes.size();++y)
-									{
-									if(!genotypes.get(y).isCalled()) continue;
-									if(!genotypes.get(x).sameGenotype(genotypes.get(y),true))
+									final VariantContext ctxx=row.get(x).getContext();
+									final List<Allele> altsx=ctxx.getAlternateAlleles();
+									for(int y=x+1;ok && y< row.size();++y)
 										{
-										all_same=false;
+										if(row.get(x).fileIdx!=row.get(y).fileIdx) continue;
+										final VariantContext ctxy=row.get(y).getContext();
+										final List<Allele> altsy=ctxy.getAlternateAlleles();
+										if(altsx.equals(altsy)) continue;
+										if(!ctxx.isVariant() && ctxy.isVariant())
+											{
+											row.remove(x);
+											}
+										else if(ctxx.isVariant() && !ctxy.isVariant())
+											{
+											row.remove(y);
+											}
+										else if(!ctxx.isSNP() && ctxy.isSNP())
+											{
+											row.remove(x);
+											}
+										else if(ctxx.isSNP() && !ctxy.isSNP())
+											{
+											row.remove(y);
+											}
+										else if(altsx.size()> altsy.size()) {
+											row.remove(x);
+											}
+										else if(altsx.size()< altsy.size()) {
+											row.remove(y);
+											}
+										else
+											{
+											row.remove(y);
+											}
+										ok=false;
 										break;
 										}
 									}
+								if(ok) break;
 								}
-							if(!all_same) filters.add(uniqueVariantDiscordantGTFilter.getID());
-							}
-						
-						//Add AN
-						vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,
-								genotypes.stream().
-									filter(G->G.isCalled()).
-									mapToInt(G->G.getAlleles().size()).sum()
-								);
-						if(!variantContextTypes.isEmpty()) {
-							vcb.attribute(variantTypesInfo.getID(),
-								new ArrayList<>(variantContextTypes.stream().map(T->T.name()).collect(Collectors.toSet()))
-								);
-							if(variantContextTypes.size()>1)
+							fileids_for_variant= row.stream().
+									map(LAF->LAF.fileIdx).
+									collect(Collectors.toSet());
+							}	
+						if(row.size()!=fileids_for_variant.size())
+							{
+							LOG.error("There are some duplicated variants at the position "+new ContigPosRef(first)+" in the same vcf file");
+							for(final LineAndFile laf:row)
 								{
-								filters.add(multipleTypeFilters.getID());
+								LOG.error("File ["+laf.fileIdx+"]"+fileid2sampleName.get(laf.fileIdx));
+								LOG.error("\t"+laf.getContigPosRef());
 								}
+							row.clear();
 							}
-						vcb.attribute(foundInCountVcfInfo.getID(), fileids_for_variant.size());
-						
-						boolean print=true;
-						if(row.size()==super.inputs.size() && ignore_everywhere)
+						else
 							{
-							print=false;
-							}
-						if(fileids_for_variant.size()!=fileid2sampleName.size())
-							{
-							filters.add(variantNotCalledInAllVcf.getID());
-							if(only_everywhere)
+							final Set<Allele> alleles= row.stream().
+									flatMap(R->R.getContext().getAlleles().
+									stream()).collect(Collectors.toSet());
+							
+							final VariantContextBuilder vcb=new VariantContextBuilder(
+									getClass().getName(),
+									first.getContig(),
+									first.getStart(),
+									first.getEnd(),
+									alleles
+									);
+							final Set<String> filters = new HashSet<>();
+							final Set<VariantContext.Type> variantContextTypes=new HashSet<>();
+							final List<Genotype> genotypes=new ArrayList<Genotype>();
+							for(final LineAndFile laf:row)
+								{
+								if(laf.getContext().isFiltered()) filters.add(variantWasFiltered.getID());
+								variantContextTypes.add(laf.getContext().getType());
+								final GenotypeBuilder gbuilder=new GenotypeBuilder();
+								gbuilder.name(fileid2sampleName.get(laf.fileIdx));
+								if(unqueSampleName.isPresent())
+									{
+									final Genotype g0=laf.getContext().getGenotype(unqueSampleName.get());
+									if(g0==null){
+										iter.close();
+										w.close();
+										throw new IllegalStateException("Cannot find genotype for "+unqueSampleName.get());
+									}
+									if(g0.hasDP()) gbuilder.DP(g0.getDP());
+									if(g0.hasGQ()) gbuilder.GQ(g0.getGQ());
+									gbuilder.alleles(g0.getAlleles());
+									}
+								else
+									{
+									gbuilder.alleles(Arrays.asList(first.getReference(),first.getReference()));
+									if(laf.getContext().hasAttribute(VCFConstants.DEPTH_KEY))
+										{
+										gbuilder.DP(laf.getContext().getAttributeAsInt(VCFConstants.DEPTH_KEY, 0));
+										}
+									}
+								if(laf.getContext().isFiltered() )
+									{
+									gbuilder.filter("VCFILTERED");
+									}
+								if(laf.getContext().hasLog10PError())
+									{
+									gbuilder.attribute(variantQUALFormat.getID(), laf.getContext().getPhredScaledQual());
+									}
+								
+								gbuilder.attribute(VCFConstants.ALLELE_NUMBER_KEY, 
+										laf.getContext().getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->!A.isNoCall()).count()
+										);
+								gbuilder.attribute(VCFConstants.ALLELE_COUNT_KEY, 
+										laf.getContext().getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->!(A.isReference() || A.isNoCall())).count()
+										);
+								gbuilder.attribute(variantTypeFormat.getID(),laf.getContext().getType().name());
+								
+								genotypes.add(gbuilder.make());
+								}
+							final String id=String.join(";",row.stream().map(LAF->LAF.getContext()).
+									filter(V->V.hasID()).map(V->V.getID()).
+									collect(Collectors.toSet()))
+									;
+							if(!id.isEmpty()) vcb.id(id);
+							
+							
+							vcb.genotypes(genotypes);
+							
+							if(unqueSampleName.isPresent())
+								{
+								boolean all_same=true;
+								for(int x=0;all_same && x+1< genotypes.size();++x)
+									{
+									if(!genotypes.get(x).isCalled()) continue;
+									for(int y=x+1;all_same && y< genotypes.size();++y)
+										{
+										if(!genotypes.get(y).isCalled()) continue;
+										if(!genotypes.get(x).sameGenotype(genotypes.get(y),true))
+											{
+											all_same=false;
+											break;
+											}
+										}
+									}
+								if(!all_same) filters.add(uniqueVariantDiscordantGTFilter.getID());
+								}
+							
+							//Add AN
+							vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,
+									genotypes.stream().
+										filter(G->G.isCalled()).
+										mapToInt(G->G.getAlleles().size()).sum()
+									);
+							if(!variantContextTypes.isEmpty()) {
+								vcb.attribute(variantTypesInfo.getID(),
+									new ArrayList<>(variantContextTypes.stream().map(T->T.name()).collect(Collectors.toSet()))
+									);
+								if(variantContextTypes.size()>1)
+									{
+									filters.add(multipleTypeFilters.getID());
+									}
+								}
+							vcb.attribute(foundInCountVcfInfo.getID(), fileids_for_variant.size());
+							
+							boolean print=true;
+							if(row.size()==super.inputs.size() && ignore_everywhere)
 								{
 								print=false;
 								}
-							}
-						
-						vcb.filters(filters);
-						
-						if(print)
-							{
-							w.add(vcb.make());
+							if(fileids_for_variant.size()!=fileid2sampleName.size())
+								{
+								filters.add(variantNotCalledInAllVcf.getID());
+								if(only_everywhere)
+									{
+									print=false;
+									}
+								}
+							
+							vcb.filters(filters);
+							
+							if(print)
+								{
+								w.add(vcb.make());
+								}
 							}
 						row.clear();
 						}

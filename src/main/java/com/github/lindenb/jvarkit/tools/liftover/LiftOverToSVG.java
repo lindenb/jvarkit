@@ -46,17 +46,23 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
  * Convert a chain file to animated SVG.
  *
  */
-public class LiftOverToSVG extends AbstractCommandLineProgram
+@Program(name="liftover2svg",description="Convert LiftOver chain files to animated SVG")
+public class LiftOverToSVG extends Launcher
 	{
+	private final Logger LOG=Logger.build(LiftOverToSVG.class).make();
+
 	private class ChromName
 		{
 		String name;
@@ -228,15 +234,19 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 	/** max number of chromosome per build */
 	private int maxCountChrom=0;
 	/** svg width */
+	@Parameter(names="-w",description="width")
 	private int width=1000;
 	/** distance between two chroms */
 	private int featureHeight=30;
 	/** chromosome height */
 	private int chromosomeHeigh=25;
 	/** duration */
+	@Parameter(names="-t",description=" seconds per step")
 	private float secondsPerStep=20f;
-
 	
+	@Parameter(names="-b",description="add this build name")
+	private List<String> buildNames=new ArrayList<>();
+
 	
 	private LiftOverToSVG()
 		{
@@ -245,21 +255,10 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 	
 	
 	
-    @Override
-    protected String getOnlineDocUrl()
-    		{
-    	return "https://github.com/lindenb/jvarkit/wiki/LiftOverToSVG";
-    	}
-	
-    @Override
-    public String getProgramDescription()
-    	{
-    	return  "Convert LiftOver chain files to animated SVG.";
-    	}
     
     private void readChain(String uri) throws IOException
     	{
-    	info("Reading chain file "+uri);
+    	LOG.info("Reading chain file "+uri);
     	BufferedReader in=IOUtils.openURIForBufferedReading(uri);
     	readChain(in);
     	in.close();
@@ -320,7 +319,7 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
     		
     		chain.add(ch);
     		}
-    	info("chain.size: "+chain.size());
+    	LOG.info("chain.size: "+chain.size());
     	}
     private double baseToPos(int pos)
     	{
@@ -347,8 +346,6 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 		w.writeStartElement(SVG.NS,"description");
 		w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
 		w.writeCharacters("Version:"+getVersion()+"\n");
-		w.writeCharacters("Author:"+getAuthorName()+" "+getAuthorMail()+"\n");
-		w.writeCharacters("WWW:"+getOnlineDocUrl()+"\n");
 		w.writeCharacters("Htsjdk: "+HtsjdkVersion.getHome()+" "+HtsjdkVersion.getVersion()+"\n");
 		w.writeEndElement();
 
@@ -638,52 +635,17 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
     	}
     
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -t (float) seconds per step. Default:"+this.secondsPerStep);
-		out.println(" -w (int) width. Default:"+this.width);
-		out.println(" -b (string) add this build name. Optional , multiple");
-		super.printOptions(out);
-		}
-	
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		List<String> buildNames=new ArrayList<String>();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"t:w:b:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'b': buildNames.add(opt.getOptArg());break;
-				case 't': this.secondsPerStep= Float.parseFloat(opt.getOptArg());break;
-				case 'w': this.width= Integer.parseInt(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	public int doWork(List<String> args) {
 		try {
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				readChain(new BufferedReader(new InputStreamReader(System.in)));
+				readChain(new BufferedReader(new InputStreamReader(stdin())));
 				}
 			else
 				{
-				for(int optind=opt.getOptInd();
-						optind< args.length;
-						++optind)
+				for(String fname:args)
 					{
-					readChain(args[optind]);
+					readChain(fname);
 					}
 				}
 		
@@ -695,18 +657,18 @@ public class LiftOverToSVG extends AbstractCommandLineProgram
 				this.builds.get(i).name=buildNames.get(i);
 				}
 			
-			info("Max count chroms: "+this.maxCountChrom);
-			info("Max length chroms: "+this.maxLength);
-			info("Transitions: "+this.chains.size());
+			LOG.info("Max count chroms: "+this.maxCountChrom);
+			LOG.info("Max length chroms: "+this.maxLength);
+			LOG.info("Transitions: "+this.chains.size());
 			
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			XMLStreamWriter w=xof.createXMLStreamWriter(System.out, "UTF-8");
 			write(w);
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		}

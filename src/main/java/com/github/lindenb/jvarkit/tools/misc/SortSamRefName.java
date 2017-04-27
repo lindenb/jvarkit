@@ -40,21 +40,37 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class SortSamRefName extends AbstractSortSamRefName
+@Program(name="sortsamrefname",description="Sort a BAM of contig and then on name")
+public class SortSamRefName extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SortSamRefName.class);
+	private static final Logger LOG = Logger.build(SortSamRefName.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
+
+
 	
 	
 	private static class RefNameComparator implements
 		Comparator<SAMRecord>
 		{
-		private SAMRecordQueryNameComparator nameCmp=new SAMRecordQueryNameComparator();
+		private final SAMRecordQueryNameComparator nameCmp=new SAMRecordQueryNameComparator();
 		
 		@Override
 		public int compare(final SAMRecord o1, final SAMRecord o2)
@@ -79,7 +95,7 @@ public class SortSamRefName extends AbstractSortSamRefName
 		}
 
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {	
+	public int doWork(List<String> args) {
 		SamReader in=null;
 		SAMFileWriter out=null;
 		SAMRecordIterator iter=null;
@@ -87,7 +103,7 @@ public class SortSamRefName extends AbstractSortSamRefName
 		SortingCollection<SAMRecord> sorter=null;
 		try
 			{
-			in  = openSamReader(inputName);
+			in  = openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header= in.getFileHeader();
 			
 			final BAMRecordCodec bamRecordCodec=new BAMRecordCodec(header);
@@ -96,8 +112,8 @@ public class SortSamRefName extends AbstractSortSamRefName
 					SAMRecord.class,
 					bamRecordCodec,
 					refNameComparator,
-					super.getMaxRecordsInRam(),
-					getTmpDirectories()
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			sorter.setDestructiveIteration(true);
 			
@@ -111,9 +127,9 @@ public class SortSamRefName extends AbstractSortSamRefName
 			sorter.doneAdding();
 			
 			final SAMFileHeader header2=header.clone();
-			header2.addComment(getName()+" "+getVersion()+" "+getProgramCommandLine());
+			header2.addComment(getProgramName()+" "+getVersion()+" "+getProgramCommandLine());
 			header2.setSortOrder(SortOrder.unsorted);
-			out = super.openSAMFileWriter(header2, true);
+			out = this.writingBamArgs.openSAMFileWriter(outputFile,header2, true);
 			iter2 = sorter.iterator();
 			while(iter2.hasNext())
 				{
@@ -127,7 +143,8 @@ public class SortSamRefName extends AbstractSortSamRefName
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

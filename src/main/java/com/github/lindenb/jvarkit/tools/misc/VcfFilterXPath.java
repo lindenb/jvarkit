@@ -30,9 +30,8 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -42,7 +41,6 @@ import javax.xml.namespace.NamespaceContext;
 import javax.xml.namespace.QName;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathException;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathVariableResolver;
@@ -57,23 +55,37 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-
+@Program(name="vcffilterxpath",description="Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document")
 public class VcfFilterXPath
-	extends AbstractVCFFilter3
+	extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VcfFilterXPath.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	
 	/** the INFO tag to use in the VCF input */
+	@Parameter(names="-T",description=" (info tag) INFO tag containing a base64-encoded XML document")
 	private String infoTag=null;
 	/** user xpath expression */
+	@Parameter(names="-x",description="(xpath) XPath expression")
+
 	private String xpathExpression=null;
 	/** compiled XPath expression */
 	private XPathExpression xpathExpr=null;
 	/** namespace mapping for xpath object */
 	private final Map<String, String> prefix2uri = new HashMap<String, String>();
+	@Parameter(names="-n",description="prefix=uri (add this namespace mapping to xpath context)")
+	private List<String> __prefix2uri = new ArrayList<String>();
+
+	
 	/** variable mapping for xpath object */
 	private final Map<QName,Object> xpathVariableMap = new HashMap<QName, Object>();
 	
@@ -89,33 +101,20 @@ public class VcfFilterXPath
 		}
 	
 	@Override
-	public String getProgramDescription() {
-		return "Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfFilterXPath";
-		}
-	
-	@Override
-	protected void doWork(String inpuSource,VcfIterator in, VariantContextWriter out)
-		throws IOException
-		{
-		setVariantCount(0);
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 		try {
 			//TODO in jdk8 replace with http://docs.oracle.com/javase/8/docs/api/java/util/Base64.html
-			sun.misc.BASE64Decoder base64Decoder=new sun.misc.BASE64Decoder();
 			VCFHeader header=in.getHeader();
 			VCFInfoHeaderLine infoHeader = header.getInfoHeaderLine(this.infoTag);
 			if(infoHeader==null)
 				{
-				warning("No INFO header line for "+this.infoTag+" in "+inpuSource);
+				LOG.warning("No INFO header line for "+this.infoTag+" in "+inputName);
 				}
 			else if(!(infoHeader.getCountType()==VCFHeaderLineCount.INTEGER &&
 					 infoHeader.getCount()==1 &&
 					 infoHeader.getType()==VCFHeaderLineType.String))
 				{
-				warning("Bad definition of INFO header line for "+this.infoTag+" in "+inpuSource+" expected one 'string' got "+infoHeader);
+				LOG.warning("Bad definition of INFO header line for "+this.infoTag+" in "+inputName+" expected one 'string' got "+infoHeader);
 				infoHeader=null;
 				}
 			
@@ -132,7 +131,6 @@ public class VcfFilterXPath
 				VariantContext ctx = progess.watch(in.next());
 				if(infoHeader==null)//no tag in header
 					{
-					incrVariantCount();
 					out.add(ctx);
 					continue;
 					}
@@ -140,13 +138,12 @@ public class VcfFilterXPath
 				Object o=ctx.getAttribute(this.infoTag);
 				if(o==null)
 					{
-					incrVariantCount();
 					out.add(ctx);
 					continue;
 					}
 				StringBuilder base64=new StringBuilder(o.toString());
 				while(base64.length()%4!=0) base64.append('=');
-				ByteArrayInputStream xmlBytes =  new ByteArrayInputStream(base64Decoder.decodeBuffer(base64.toString()));
+				ByteArrayInputStream xmlBytes =  new ByteArrayInputStream(Base64.getDecoder().decode(base64.toString()));
 				InputSource inputSource=new InputSource(xmlBytes);
 				xpathVariableMap.put(new QName("chrom"), ctx.getContig());
 				xpathVariableMap.put(new QName("start"), ctx.getStart());
@@ -155,137 +152,105 @@ public class VcfFilterXPath
 				boolean accept=(Boolean)xpathExpr.evaluate(inputSource, XPathConstants.BOOLEAN);
 				if(accept)
 					{
-					incrVariantCount();
 					out.add(ctx);
 					}
-				if(checkOutputError()) break;
+				if(out.checkError()) break;
 				}
 			
 			progess.finish();
+			return 0;
 			}
-		catch(XPathException err)
+		catch(Exception err)
 			{
-			throw new IOException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
 			xpathVariableMap.clear();
 			}
 		}
-		
+	
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -T (info tag) INFO tag containing a base64-encoded XML document.");
-		out.println(" -x (xpath) XPath expression.");
-		out.println(" -o (file) filename out . Default: stdout ");
-		out.println(" -n prefix=uri (add this namespace mapping to xpath context) ");
-		super.printOptions(out);
-		}
-		
-	@Override
-	public int initializeKnime() {
+	public int doWork(List<String> args) {
 		if(this.infoTag==null || this.infoTag.isEmpty())
 			{
-			error("Info Tag is undefined");
+			LOG.error("Info Tag is undefined");
 			return -1;
 			}
 		if(this.xpathExpression==null || this.xpathExpression.isEmpty())
 			{
-			error("XPath Expression is undefined");
+			LOG.error("XPath Expression is undefined");
 			return -1;
 			}
-		try {
-			XPathFactory xpf = XPathFactory.newInstance();
-			XPath xpath= xpf.newXPath();
-			xpath.setXPathVariableResolver(new XPathVariableResolver()
+		
+		for(final String s:__prefix2uri) {
+			int eq=s.indexOf('=');
+			if(eq<=0)
 				{
-				@Override
-				public Object resolveVariable(QName qname)
-					{
-					return xpathVariableMap.get(qname);
-					}
-				});
-			xpath.setNamespaceContext(new NamespaceContext()
-				{
-				@Override
-				public Iterator<? extends Object> getPrefixes(String namespaceURI)
-					{
-					List<String> L=new ArrayList<>();
-					for(String pfx:prefix2uri.keySet())
-						{
-						if(prefix2uri.get(pfx).equals(namespaceURI))
-							{
-							L.add(pfx);
-							}
-						}
+				LOG.error("'=' missing in "+s);
+				return -1;
+				}
+			
+			this.prefix2uri.put(s.substring(0,eq),s.substring(eq+1));
+			}
 
-					return L.iterator();
-					}
-				
-				@Override
-				public String getPrefix(String namespaceURI)
+	try {
+		XPathFactory xpf = XPathFactory.newInstance();
+		XPath xpath= xpf.newXPath();
+		xpath.setXPathVariableResolver(new XPathVariableResolver()
+			{
+			@Override
+			public Object resolveVariable(QName qname)
+				{
+				return xpathVariableMap.get(qname);
+				}
+			});
+		xpath.setNamespaceContext(new NamespaceContext()
+			{
+			@Override
+			public Iterator<? extends Object> getPrefixes(String namespaceURI)
+				{
+				List<String> L=new ArrayList<>();
+				for(String pfx:prefix2uri.keySet())
 					{
-					for(String pfx:prefix2uri.keySet())
+					if(prefix2uri.get(pfx).equals(namespaceURI))
 						{
-						if(prefix2uri.get(pfx).equals(namespaceURI))
-							{
-							return pfx;
-							}
+						L.add(pfx);
 						}
-					return null;
 					}
-				
-				@Override
-				public String getNamespaceURI(String prefix)
+
+				return L.iterator();
+				}
+			
+			@Override
+			public String getPrefix(String namespaceURI)
+				{
+				for(String pfx:prefix2uri.keySet())
 					{
-					return prefix2uri.get(prefix);
+					if(prefix2uri.get(pfx).equals(namespaceURI))
+						{
+						return pfx;
+						}
 					}
-				});
-			this.xpathExpr=xpath.compile(this.xpathExpression);
-		} catch (Exception e) {
-			error(e);
-			return -1;
-			}
-		return super.initializeKnime();
+				return null;
+				}
+			
+			@Override
+			public String getNamespaceURI(String prefix)
+				{
+				return prefix2uri.get(prefix);
+				}
+			});
+		this.xpathExpr=xpath.compile(this.xpathExpression);
+		return doVcfToVcf(args, outputFile);
+		}
+	catch(Exception er) {
+		LOG.error(er);
+		return -1;
 		}
 	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "T:x:o:n:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				case 'x': this.setXpathExpression(opt.getOptArg()); break;
-				case 'T': this.setInfoTag(opt.getOptArg()); break;
-				case 'n': 
-					{
-					String s= opt.getOptArg();
-					int eq=s.indexOf('=');
-					if(eq<=0)
-						{
-						error("'=' missing in "+s);
-						}
-					this.prefix2uri.put(s.substring(0,eq),s.substring(eq+1));
-					break;
-					}
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
+	}
 		
 		
 		

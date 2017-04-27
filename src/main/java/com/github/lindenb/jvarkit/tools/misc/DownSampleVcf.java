@@ -28,8 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -40,15 +39,26 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
-public class DownSampleVcf extends AbstractVCFFilter2
+@Program(name="downsamplevcf",description="DownSample a VCF")
+public class DownSampleVcf extends Launcher
 	{
+	private final Logger LOG=Logger.build(DownSampleVcf.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	protected File outputFile = null;
+
+	@Parameter(names="-n",description="output size")
 	private int reservoir_size=10;
+	@Parameter(names="-N",description=" random seed")
+
 	private long seed=System.currentTimeMillis();
 	private DownSampleVcf()
 		{
@@ -56,28 +66,15 @@ public class DownSampleVcf extends AbstractVCFFilter2
 	
 
 	@Override
-	public String getProgramDescription() {
-		return "DownSample a VCF";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/DownSampleVcf";
-		}
-	
-	
-
-	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
-		{
-		Random rand=new Random(this.seed);
-		List<VariantContext>  buffer=new ArrayList<VariantContext>(this.reservoir_size);
-		VCFHeader h2=new VCFHeader(in.getHeader());
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+		final Random rand=new Random(this.seed);
+		final List<VariantContext>  buffer=new ArrayList<VariantContext>(this.reservoir_size);
+		final VCFHeader h2=new VCFHeader(in.getHeader());
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-		SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader());
+		final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader());
 		out.writeHeader(h2);
 		if(this.reservoir_size!=0)
 			{
@@ -99,42 +96,13 @@ public class DownSampleVcf extends AbstractVCFFilter2
 			out.add(ctx);
 			}
 		progess.finish();
+		LOG.info("done");
+		return 0;
 		}
-	
-	
 	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -N (long) random seed. Optional.");
-		out.println(" -n (int) output size. Optional");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
+	public int doWork(List<String> args) {
 		
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "N:n:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'N': seed=Long.parseLong(opt.getOptArg()); break;
-				case 'n': reservoir_size=Math.max(0, Integer.parseInt(opt.getOptArg())); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		return doWork(opt.getOptInd(), args);
+		return doVcfToVcf(args, outputFile);
 		}
 
 	public static void main(String[] args)

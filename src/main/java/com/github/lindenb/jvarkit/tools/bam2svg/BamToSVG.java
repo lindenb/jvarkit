@@ -856,13 +856,15 @@ public class BamToSVG extends Launcher
 			/* parse interval */
 			if(this.intervalStr==null)
 				{
-				return wrapException("bed.interval0.undefined");
+				LOG.error("bed.interval0.undefined");
+				return -1;
 				}
 			int colon= this.intervalStr.indexOf(':');
 			int hyphen=this.intervalStr.indexOf('-',colon+1);
 			if(colon<1 || hyphen<=colon || hyphen+1==intervalStr.length())
 				{
-				return wrapException("Bad interval "+this.intervalStr);
+				LOG.error("Bad interval "+this.intervalStr);
+				return -1;
 				}
 			
 			this.interval=new Interval();
@@ -952,7 +954,8 @@ public class BamToSVG extends Launcher
 				}
 			catch(Exception err)
 				{
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 				}
 			finally
 				{

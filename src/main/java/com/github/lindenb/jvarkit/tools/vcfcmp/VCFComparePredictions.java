@@ -5,6 +5,7 @@ package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -142,12 +143,11 @@ public class VCFComparePredictions extends AbstractVCFCompareBase {
 				return -1;
 				}
 			out= super.openFileOrStdoutAsPrintWriter(super.outputFile);
-			final AbstractVCFCompareBase.LineAndFileComparator posCompare=new AbstractVCFCompareBase.LineAndFileComparator();
 
 			variants=SortingCollection.newInstance(
 					LineAndFile.class,
 					new AbstractVCFCompareBase.LineAndFileCodec(),
-					posCompare,
+					new AbstractVCFCompareBase.LineAndFileComparator(),
 					super.sortingCollectionArgs.getMaxRecordsInRam(),
 					super.sortingCollectionArgs.getTmpDirectories()
 					);
@@ -176,7 +176,8 @@ public class VCFComparePredictions extends AbstractVCFCompareBase {
 			
 			
 			CloseableIterator<LineAndFile> iter=variants.iterator();
-			
+			final Comparator<LineAndFile> posCompare = (A,B)->A.getContigPosRef().compareTo(B.getContigPosRef());
+
 			for(;;)
 				{
 				LineAndFile rec=null;

@@ -131,9 +131,9 @@ public abstract class AbstractVCFCompareBase extends Launcher
 	protected class LineAndFileCodec extends AbstractDataCodec<LineAndFile>
 		{
 		@Override
-		public LineAndFile decode(DataInputStream dis) throws IOException
+		public LineAndFile decode(final DataInputStream dis) throws IOException
 			{
-			LineAndFile v=new LineAndFile();
+			final LineAndFile v=new LineAndFile();
 			try {
 				v.fileIdx=dis.readInt();
 			} catch (Exception e) {
@@ -143,29 +143,30 @@ public abstract class AbstractVCFCompareBase extends Launcher
 			return v;
 			}
 		@Override
-		public void encode(DataOutputStream dos, LineAndFile v)
+		public void encode(final DataOutputStream dos, final LineAndFile v)
 				throws IOException
 			{
 			dos.writeInt(v.fileIdx);
 			writeString(dos,v.line);
 			}
 		@Override
-		public AbstractDataCodec<LineAndFile> clone() {
+		public LineAndFileCodec clone() {
 			return new LineAndFileCodec();
 			}
 		}
-
 	
 	
 	
-	
-	
-	protected class LineAndFileComparator implements Comparator<LineAndFile>
+	protected static class LineAndFileComparator implements Comparator<LineAndFile>
 		{
 		@Override
 		public int compare(final LineAndFile v1,final LineAndFile v2)
 			{
-			return v1.getContigPosRef().compareTo(v2.getContigPosRef());
+			int i= v1.getContigPosRef().compareTo(v2.getContigPosRef());
+			if(i!=0) return i;
+			i =  v1.fileIdx - v2.fileIdx;
+			if(i!=0) return i;
+			return v1.line.compareTo(v2.line);
 			}
 		}
 	
@@ -175,13 +176,13 @@ public abstract class AbstractVCFCompareBase extends Launcher
 		{
 		}
 	
+/*	
 	
-	
-	protected Comparator<LineAndFile> createLineAndFileComparator()
+	private Comparator<LineAndFile> createLineAndFileComparator()
 		{
 		return new LineAndFileComparator();
 		}
-
+*/
 	
 	protected Input createInput()
 		{

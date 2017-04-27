@@ -33,7 +33,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.util.Collection;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -52,22 +52,31 @@ import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SamJsonWriterFactory;
 import com.google.gson.stream.JsonWriter;
 
-public class GBrowserHtml extends AbstractGBrowserHtml
+@Program(name="forkvcf",description="Fork a VCF.")
+public class GBrowserHtml extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(GBrowserHtml.class);
-	
-	
+	private static final Logger LOG = Logger.build(GBrowserHtml.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-prefix","--prefix"},description="Zip Prefix")
+	private String prefix = "gbrowse/";
+
 	public GBrowserHtml()
 		{
 		}
 
 	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
+	public int doWork(List<String> args) {
 		final int DEFAULT_EXTEND_INTERVAL=0;
 		SamReader samReader = null;
 		ZipOutputStream zout=null;
@@ -77,6 +86,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 		String line;
 		IndexedFastaSequenceFile faidx = null;
 		long snapshot_id=0L;
+		final String inputName = oneFileOrNull(args);
 		try {
 			final SamJsonWriterFactory samJsonWriterFactory=SamJsonWriterFactory.newInstance().
 					printHeader(true).
@@ -85,10 +95,11 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 					printReadQualities(false).
 					closeStreamAtEnd(false)
 					;
-			if(super.getOutputFile()!=null)
+			if(this.outputFile!=null)
 				{
-				if(!super.getOutputFile().getName().endsWith(".zip")) {
-					return wrapException("Output file should end with *.zip");
+				if(!this.outputFile.getName().endsWith(".zip")) {
+					LOG.error("Output file should end with *.zip");
+					return -1;
 					}
 				}
 			
@@ -109,7 +120,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			
 
 			
-			zout= new ZipOutputStream(openFileOrStdoutAsStream());
+			zout= new ZipOutputStream(super.openFileOrStdoutAsStream(this.outputFile));
 			File bamFile = null;
 			File faidxFile = null;
 			String sampleName = null;
@@ -169,7 +180,8 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 						int B = Integer.parseInt(matcher.group(2).replaceAll("[,]",""));
 						int E = Integer.parseInt(matcher.group(3).replaceAll("[,]",""));
 						if(B>E) {
-							return wrapException("bad interval :"+line);
+							LOG.error("bad interval :"+line);
+							return -1;
 						}
 						interval = new Interval(c,Math.max(1, B-extend_interval),E+extend_interval);
 						continue;
@@ -184,7 +196,8 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 						interval = new Interval(c,Math.max(1, B-(x+extend_interval)),B+(x+extend_interval));
 						continue;
 						}
-					return wrapException("bad interval :"+line);
+					LOG.error("bad interval :"+line);
+					return -1;
 					}
 				else if(line.toLowerCase().equals("snapshot"))
 					{
@@ -251,7 +264,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 					jsw.close();
 					jsonFileWriter.close();
 					
-					ZipEntry entry = new ZipEntry(super.prefix+"_snapshot."+String.format("%05d",snapshot_id)+".json");
+					ZipEntry entry = new ZipEntry(this.prefix+"_snapshot."+String.format("%05d",snapshot_id)+".json");
 					zout.putNextEntry(entry);
 					IOUtils.copyTo(tmpFile1, zout);
 					zout.closeEntry();
@@ -297,9 +310,10 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			for(final String jssrc:new String[]{"gbrowse","hershey","samtools","com.github.lindenb.jvarkit.tools.misc.GBrowserHtml"}) {
 				InputStream is = this.getClass().getResourceAsStream("/META-INF/js/"+jssrc+".js");
 				if(is==null) {
-					return wrapException("Cannot read resource /META-INF/js/"+jssrc+".js");
+					LOG.error("Cannot read resource /META-INF/js/"+jssrc+".js");
+					return -1;
 				}
-				ZipEntry entry = new ZipEntry(super.prefix+jssrc+".js");
+				ZipEntry entry = new ZipEntry(this.prefix+jssrc+".js");
 				entry.setComment("JAVASCRIPT SOURCE "+jssrc);
 				zout.putNextEntry(entry);
 				IOUtils.copyTo(is, zout);
@@ -315,13 +329,13 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			paramsWriter.flush();
 			paramsJsonWriter.close();
 			paramsWriter.close();
-			zout.putNextEntry(new ZipEntry(super.prefix+"config.js"));
+			zout.putNextEntry(new ZipEntry(this.prefix+"config.js"));
 			IOUtils.copyTo(tmpFile2, zout);
 			zout.closeEntry();
 			tmpFile2.delete();
 			
 			//save index.html
-			zout.putNextEntry(new ZipEntry(super.prefix+"index.html"));
+			zout.putNextEntry(new ZipEntry(this.prefix+"index.html"));
 			XMLOutputFactory xof = XMLOutputFactory.newFactory();
 			XMLStreamWriter w  = xof.createXMLStreamWriter(zout,"UTF-8");
 			w.writeStartElement("html");
@@ -334,7 +348,7 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 				w.writeAttribute("content", "Pierre Lindenbaum Phd @yokofakun");
 			
 			w.writeStartElement("title");
-			w.writeCharacters(getName()+":"+getVersion());
+			w.writeCharacters(getProgramName()+":"+getVersion());
 			w.writeEndElement();//title
 			
 			w.writeStartElement("style");
@@ -421,7 +435,8 @@ public class GBrowserHtml extends AbstractGBrowserHtml
 			zout.close();
 			return RETURN_OK;
 		} catch(Throwable  err) {
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 		} finally
 			{
 			CloserUtil.close(paramsJsonWriter);
