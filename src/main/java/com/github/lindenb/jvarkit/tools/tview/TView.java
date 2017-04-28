@@ -24,6 +24,7 @@ import htsjdk.samtools.util.Interval;
 //import htsjdk.samtools.util.Log;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
@@ -65,13 +66,27 @@ public class TView implements Closeable
 		
 		Colorizer(PrintStream out) {this.out=out;}
 		public Colorizer pen(AnsiColor c) {
-			opcodes.add(c.pen());
+			if(c==null)
+				{
+				for(AnsiColor ansi:AnsiColor.values()) opcodes.remove(ansi.pen());
+				}
+			else
+				{
+				opcodes.add(c.pen());
+				}
 			return this;
 		}
 		public Colorizer paper(AnsiColor c) {
+			if(c==null)
+			{
+			for(AnsiColor ansi:AnsiColor.values()) opcodes.remove(ansi.paper());
+			}
+		else
+			{
 			opcodes.add(c.paper());
-			return this;
-		}
+			}
+		return this;
+	}
 		public Colorizer bold(boolean b) {
 			if(b) {opcodes.add(1);}
 			else { opcodes.remove(1);}
@@ -83,9 +98,17 @@ public class TView implements Closeable
 			else { opcodes.remove(4);}
 			return this;
 		}
-		public Colorizer print(Object o)
+		
+		
+		public Colorizer print(final Object o)
 			{
 			out.print(o);
+			return this;
+			}
+		public Colorizer println(final Object o)
+			{
+			this.print(o);
+			out.println();
 			return this;
 			}
 		}
@@ -105,9 +128,10 @@ public class TView implements Closeable
 			
 			out.print(o);
 			if(!opcodes.isEmpty()) {
+				this.opcodes.clear();
 				out.print(ANSI_RESET);
 				}
-			opcodes.clear();
+			
 			return this;
 			}
 		}
@@ -121,8 +145,13 @@ public class TView implements Closeable
 	private File referenceFile=null;
 	@Parameter(names={"--insert"},description="Show insertions")
 	private boolean showInsertions=false;
-	@Parameter(names={"--readname"},description="Show read name")
+	@Parameter(names={"--readName"},description="Show read name")
 	private boolean showReadName=false;
+	@Parameter(names={"--plain"},description="Plain text, disable ANSI colors")
+	private boolean disableANSIColors=false;
+	@Parameter(names={"--hideBases"},description="Hide bases")
+	private boolean hideBases=false;
+	
 	
 	private int distance_between_reads=2;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -183,7 +212,12 @@ public class TView implements Closeable
 	}
 	
 	public Function<SAMRecord,String> getRecordGroup() {
-		return R->"ALL";
+		
+		return R->{
+			final SAMReadGroupRecord rg= R.getReadGroup();
+			if(rg!=null && rg.getSample()!=null) return rg.getSample();
+			return "UNDEFINED";
+		};
 	}
 	
 	
@@ -200,7 +234,11 @@ public class TView implements Closeable
 
 	
 	void paint(final PrintStream out) {
-		Colorizer colorizer = new Colorizer(out);//new AnsiColorizer(out);
+		final Colorizer colorizer = disableANSIColors?
+				new Colorizer(out):
+				new  AnsiColorizer(out)
+				;
+				
 		if(interval==null) 
 			{
 			LOG.warn("No interval defined");
@@ -228,10 +266,18 @@ public class TView implements Closeable
 			refPosToBase = POS -> 'N';
 			}
 		
-		 
+		/** test if genomic position is in interval */
+		final Predicate<Integer> testInInterval = new Predicate<Integer>() {
+			@Override
+			public boolean test(final Integer pos) {
+				return interval.getStart() <= pos && pos <= interval.getEnd();
+			}
+		};
+		
+		final int pixelWidth= this.interval.length() ;
+		final Map<Integer, Integer> genomicpos2insertlen = new TreeMap<>();
 		
 
-		
 		final Map<String, List<SAMRecord>> group2record=new TreeMap<>();
 		
 		for(final SamReader samReader:this.samReaders)
@@ -259,97 +305,90 @@ public class TView implements Closeable
 					group2record.put(group,records);
 					}
 				records.add(rec);
+				
+				//loop over cigar, get the longest insert
+				int refpos=rec.getAlignmentStart();
+				for(final CigarElement ce:rec.getCigar().getCigarElements()) {
+					if(!this.showInsertions) break;
+					final CigarOperator op = ce.getOperator();
+
+					if(op.equals(CigarOperator.I) && testInInterval.test(refpos))
+						{
+						final Integer longestInsert= genomicpos2insertlen.get(refpos);
+						if(longestInsert==null|| longestInsert.compareTo(ce.getLength())<0)
+							{
+							genomicpos2insertlen.put(refpos, ce.getLength());
+							}
+						}
+					if(op.consumesReferenceBases())
+						{
+						refpos += ce.getLength();
+						}
+					if(refpos > interval.getEnd()) break;
+					}
 				}
 			CloserUtil.close(iter);
 			CloserUtil.close(samReader);
 			}
 		
-		/** test if genomic position is in interval */
-		final Predicate<Integer> testInInterval = new Predicate<Integer>() {
-			@Override
-			public boolean test(final Integer pos) {
-				return interval.getStart() <= pos && pos <= interval.getEnd();
-			}
-		};
+
 		
-		/** convert pixel to genomic position , value can be INSERTION_OPCODE */
-		final int pixelToRef[] = new int[ this.interval.length() ];
 		
 		
 		/** compute where are the insertions */
-		int x=0;
-		int ref = interval.getStart();
-		while( x < pixelToRef.length )
-			{
-			Integer longestInsert = null;
-			for(final SAMRecord rec: group2record.values().stream().
-					flatMap(G->G.stream()).collect(Collectors.toList())) 
-				{	
-				if(!showInsertions) break;
-				if(rec.getAlignmentEnd() < ref) continue;
-				if(ref < rec.getAlignmentStart()) continue;
-				int readref = rec.getAlignmentStart();
-				
-				for(final CigarElement ce:rec.getCigar().getCigarElements()) {
-					final CigarOperator op = ce.getOperator();
-
-					if(op.equals(CigarOperator.I) && 
-						ref==readref &&
-						(longestInsert==null || longestInsert.compareTo(ce.getLength())<0)
-						)
-						{
-						longestInsert = ce.getLength();
-						}
-					
-					if(op.consumesReferenceBases())
-						{
-						readref += ce.getLength();
-						if(readref > ref) break;
-						}
-					}
-				}
-			if(!this.showInsertions || longestInsert==null)
+		LOG.debug(genomicpos2insertlen);
+		final Predicate<Integer> insertIsPresentAtX = SCREENX ->{
+			int x=0;
+			int ref= interval.getStart();
+			while(x < pixelWidth)
 				{
-				pixelToRef[x]=ref;
-				++x;
-				++ref;
-				}
-			else
-				{
-				LOG.debug(longestInsert+" at "+ref);
-				for(int i=0;i<longestInsert && x< pixelToRef.length;++i )
+				if(x>SCREENX) return false;
+				final Integer insertLen = genomicpos2insertlen.get(ref);
+				if(insertLen==null)
 					{
-					pixelToRef[x]=INSERTION_OPCODE;
 					++x;
+					++ref;
 					}
-				++ref;
+				else
+					{
+					if(x<=SCREENX && SCREENX <x+insertLen) return true;
+					x+=(insertLen+1);//(+1) I DON'T UNDERSTAND WHY, BUT IT WORKS
+					++ref;
+					}
 				}
-			}
-		
-		
-		//final Map<Integer,Integer> posToInsertLength =new HashMap<>(this.interval.length());
-		
+			return false;
+			};
 
-		
+		final Function<Character,AnsiColor> base2ansiColor = BASE->{
+			switch(Character.toUpperCase(BASE))
+				{
+				case 'A': return AnsiColor.BLUE;
+				case 'T': return AnsiColor.GREEN;
+				case 'G': return AnsiColor.CYAN;
+				case 'C': return AnsiColor.YELLOW;
+				default: return null;
+				}
+			};
 		
 		/** paint base position */
-		ref = this.interval.getStart();
-		x=0;
-		while(x < pixelToRef.length)
+		int ref = this.interval.getStart();
+		int x=0;
+		
+		while(x < pixelWidth)
 			{
 			
-			if(pixelToRef[x]==INSERTION_OPCODE)
+			if(insertIsPresentAtX.test(x))
 				{
-				out.print("^");
+				colorizer.pen(AnsiColor.RED).print("^");
 				++x;
 				}
 			else if((ref-this.interval.getStart())%10==0)
 				{
 				final String f=String.format("%d", ref);
-				for(int i=0;i< f.length() && x < pixelToRef.length;++i)
+				for(int i=0;i< f.length() && x < pixelWidth;++i)
 					{
-					out.print(f.charAt(i));
-					if(pixelToRef[x]!=INSERTION_OPCODE) ++ref;
+					colorizer.pen(AnsiColor.GREEN).print(f.charAt(i));
+					if(!insertIsPresentAtX.test(x)) ++ref;
 					++x;
 					}
 				}
@@ -366,16 +405,17 @@ public class TView implements Closeable
 		/* paint ref base */
 		ref = this.interval.getStart();
 		x=0;
-		while(x < pixelToRef.length)
+		while(x < pixelWidth)
 			{
-			if(pixelToRef[x]==INSERTION_OPCODE)
+			if(insertIsPresentAtX.test(x))
 				{
-				out.print("*");
+				colorizer.paper(AnsiColor.YELLOW).print("*");
 				++x;
 				}
 			else
 				{
-				out.print(refPosToBase.apply(ref-1));
+				char refBase= refPosToBase.apply(ref-1);
+				colorizer.pen(base2ansiColor.apply(refBase)).print(refBase);
 				++ref;
 				++x;
 				}
@@ -383,16 +423,16 @@ public class TView implements Closeable
 		out.println();
 
 		
-		for(x=0;x< pixelToRef.length;++x)
+		for(x=0;x< pixelWidth;++x)
 			{
-			out.print(pixelToRef[x]==INSERTION_OPCODE?"^":" ");
+			out.print(insertIsPresentAtX.test(x)?"^":" ");
 			}
 		out.println();
 		
 		
 		for(final String groupName : group2record.keySet())
 			{
-			out.println(groupName);
+			colorizer.pen(AnsiColor.BLUE).println(groupName);
 			final List<List<SAMRecord>> rows = new ArrayList<>();
 			
 			/* pileup reads */
@@ -423,11 +463,11 @@ public class TView implements Closeable
 				for(final SAMRecord rec: row) {
 					int readRef=  left().apply(rec);
 					// pad before record
-					while( x < pixelToRef.length &&
+					while( x < pixelWidth &&
 							ref <  readRef &&
 							testInInterval.test(ref))
 						{
-						if( pixelToRef[x] != NOT_VISIBLE ) ++ref;
+						if(!insertIsPresentAtX.test(x) ) ++ref;
 						++x;
 						out.print(' ');
 						}
@@ -439,16 +479,7 @@ public class TView implements Closeable
 						@Override
 						public Character apply(final Integer readpos) {
 							if(readpos<0 || readpos>=rec.getReadLength()) return '?';
-							final byte 	c= rec.getReadBases()[readpos];
-								
-							if(rec.getReadNegativeStrandFlag())
-								{
-								return (char)Character.toLowerCase(c);
-								}
-							else
-								{
-								return (char)Character.toUpperCase(c);
-								}
+							return (char) rec.getReadBases()[readpos];
 							}
 						};
 					
@@ -459,12 +490,12 @@ public class TView implements Closeable
 						
 						if(this.showInsertions && op.equals(CigarOperator.I)) {
 							int cigarIdx =0;
-							while( x < pixelToRef.length &&
+							while( x < pixelWidth &&
 									cigarIdx < ce.getLength()
 									)
 								{
 								if(testInInterval.test(readRef)) {
-									out.print(baseAt.apply(readpos));
+									colorizer.paper(AnsiColor.RED).print(baseAt.apply(readpos));
 									++x;
 									}
 								++cigarIdx;
@@ -475,15 +506,15 @@ public class TView implements Closeable
 
 												
 						int cigarIdx =0;
-						while( x < pixelToRef.length &&
+						while( x < pixelWidth &&
 								cigarIdx < ce.getLength() 
 								)
 							{
-							
+							colorizer.opcodes.clear();
 							//pad before base
-							while( x < pixelToRef.length &&
+							while( x < pixelWidth &&
 									testInInterval.test(readRef) &&
-									(pixelToRef[x] == NOT_VISIBLE || pixelToRef[x]<readRef)
+									(insertIsPresentAtX.test(x))
 									)
 								{
 								++x;
@@ -507,7 +538,7 @@ public class TView implements Closeable
 									if(showClip)
 										{
 										if(testInInterval.test(readRef)) {
-											out.print('N');
+											colorizer.paper(AnsiColor.YELLOW).print('N');
 											++x;
 											}
 										++readRef;
@@ -519,7 +550,7 @@ public class TView implements Closeable
 									if(showClip)
 										{
 										if(testInInterval.test(readRef)) {
-											out.print((char)rec.getReadBases()[readpos]);
+											colorizer.paper(AnsiColor.YELLOW).print((char)rec.getReadBases()[readpos]);
 											++x;
 											}
 										++readpos;
@@ -534,7 +565,7 @@ public class TView implements Closeable
 								case D: case N:
 									{
 									if(testInInterval.test(readRef)) {
-										colorizer.paper(AnsiColor.YELLOW).print('-');
+										colorizer.paper(AnsiColor.RED).print('-');
 										++x;
 										}
 									++readRef;
@@ -543,12 +574,22 @@ public class TView implements Closeable
 								case EQ: case M : case X:
 									{
 									if(testInInterval.test(readRef)) {
-										char refBase =  Character.toUpperCase(refPosToBase.apply(readRef));
+										final char refBase =  Character.toUpperCase(refPosToBase.apply(readRef-1));
 										char readBase = Character.toUpperCase(baseAt.apply(readpos));
-										if(!(refBase!='N' &&  readBase!='N'  && readBase!=refBase))
+										if(op.equals(CigarOperator.X) || (refBase!='N' &&  readBase!='N'  && readBase!=refBase))
 											{
 											colorizer.pen(AnsiColor.RED);
-											//readBase=',';
+											}
+										else if(hideBases)
+											{
+											if(rec.getReadNegativeStrandFlag())
+												{
+												readBase=',';
+												}
+											else
+												{
+												readBase='.';
+												}
 											}
 										
 										if(showReadName)
@@ -562,9 +603,15 @@ public class TView implements Closeable
 												readBase = readName.charAt(readpos);
 												}
 											}
-										
+										if(rec.getReadNegativeStrandFlag())
+											{
+											readBase=Character.toLowerCase(readBase);
+											}
+										else
+											{
+											readBase=Character.toUpperCase(readBase);
+											}
 										colorizer.print(readBase);
-										//out.print(readBase);
 										++x;
 										}
 									++readpos;
@@ -579,7 +626,7 @@ public class TView implements Closeable
 					}//end of loop read
 				
 				//out.println( " "+ref+" "+row.get(0).getAlignmentStart()+" "+row.get(0).getCigarString()+" "+row.get(0).getReadString());
-				while(x<pixelToRef.length)
+				while(x<pixelWidth)
 					{
 					out.print(" ");
 					++x;

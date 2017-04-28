@@ -54,11 +54,13 @@ public class TViewCmd extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-r","--region"},description="Interval list")
 	private Set<String> intervalStr = new HashSet<>();
+	@Parameter(names={"-width","--width"},description="default screen width")
+	private int defaultScreenWidth=-1;
 	
 	@ParametersDelegate
 	TView tview = new TView();
 
-	private static Interval parseInterval(String regionStr) {
+	private  Interval parseInterval(String regionStr) {
 		final int colon=regionStr.indexOf(':');
 		;
 		int chromStart;
@@ -69,12 +71,25 @@ public class TViewCmd extends Launcher
 			
 		
 		final int hyphen=regionStr.indexOf('-', colon+1);
-		if(hyphen==-1) throw new IllegalArgumentException("hyphen missing in "+regionStr);
-
-		
-		chromStart=Integer.parseInt(regionStr.substring(colon+1,hyphen));
-		chromEnd=Integer.parseInt(regionStr.substring(hyphen+1));
+		if(hyphen==-1)
+			{
+			int cols = defaultScreenWidth;
 			
+			chromStart=Integer.parseInt(regionStr.substring(colon+1));
+			String COLUMNS=System.getenv("COLUMNS");
+			if(COLUMNS!=null && COLUMNS.matches("[0-9]+")) {
+				cols = Integer.parseInt(COLUMNS);
+				LOG.info(cols);
+				}
+			if(cols<=1) cols=80;
+			chromEnd = chromStart + cols;
+			}
+		else
+			{
+		
+			chromStart=Integer.parseInt(regionStr.substring(colon+1,hyphen));
+			chromEnd=Integer.parseInt(regionStr.substring(hyphen+1));
+			}
 		if(chromStart<0 || chromEnd<chromStart)
 			{
 			throw new IllegalArgumentException("bad position in "+regionStr);
