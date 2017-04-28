@@ -15,12 +15,18 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
 //import htsjdk.samtools.util.Log;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -31,6 +37,7 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 
 
 public class TView implements Closeable
@@ -137,8 +144,6 @@ public class TView implements Closeable
 		}
 	
 	
-	private final static int INSERTION_OPCODE = -1; 
-    private final static int NOT_VISIBLE = -1; 
 	private boolean showClip=false;
 	private Interval interval=null;
 	@Parameter(names={"-R","--reference"},description="Indexed Reference file.",required=true)
@@ -151,12 +156,17 @@ public class TView implements Closeable
 	private boolean disableANSIColors=false;
 	@Parameter(names={"--hideBases"},description="Hide bases")
 	private boolean hideBases=false;
-	
+	@Parameter(names={"-V","--variant","--variants","--vcf"},description="Variant file. "+IOUtils.UNROLL_FILE_MESSAGE)
+	private File variantFiles = null;
+	@Parameter(names=SamFilterParser.DEFAULT_OPT,description=SamFilterParser.FILTER_DESCRIPTION)
+	private SamRecordFilter samRecordFilter = SamFilterParser.buildDefault();
+
 	
 	private int distance_between_reads=2;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private final List<SamInputResource> samInputResources=new ArrayList<>();
 	private final List<SamReader> samReaders=new ArrayList<>();
+	private final List<VCFFileReader> vcfReaders=new ArrayList<>();
 
 	
 	public TView() {
@@ -182,15 +192,25 @@ public class TView implements Closeable
 		if(this.referenceFile!=null) {
 			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFile);
 			}
+		if(this.samRecordFilter==null) {
+			this.samRecordFilter = SamFilterParser.ACCEPT_ALL;
+		}
 		final SamReaderFactory srf=SamReaderFactory.makeDefault().
 				referenceSequence(this.referenceFile).
 				validationStringency(ValidationStringency.LENIENT)
 				; 
 		for(final SamInputResource sir:this.samInputResources)
 			{
-			 final SamReader samReader= srf.open(sir);
+			final SamReader samReader= srf.open(sir);
 			this.samReaders.add(samReader);
 			}
+		
+		for(final File vcfFile:IOUtils.unrollFile(this.variantFiles))
+			{
+			final VCFFileReader vcfReader= new VCFFileReader(vcfFile,true);
+			this.vcfReaders.add(vcfReader);
+			}
+		
 		return 0;
 		}
 	
@@ -203,12 +223,18 @@ public class TView implements Closeable
 			{
 			CloserUtil.close(r);
 			}
+
+		for(final VCFFileReader r: this.vcfReaders)
+			{
+			CloserUtil.close(r);
+			}
 		this.samInputResources.clear();
 		this.samReaders.clear();
+		this.vcfReaders.clear();
 		}
 	
-	public Predicate<SAMRecord> getRecordFilter() {
-		return R->true;
+	public SamRecordFilter getRecordFilter() {
+		return this.samRecordFilter;
 	}
 	
 	public Function<SAMRecord,String> getRecordGroup() {
@@ -293,7 +319,7 @@ public class TView implements Closeable
 				final SAMRecord rec = iter.next();
 				if(rec.getReadUnmappedFlag()) continue;
 				if(rec.getCigar()==null) continue;
-				if(!getRecordFilter().test(rec)) continue;
+				if(getRecordFilter().filterOut(rec)) continue;
 				if( !rec.getContig().equals(interval.getContig())) continue;
 				if(right().apply(rec) < this.interval.getStart()) continue;
 				if(this.interval.getEnd() < left().apply(rec) ) continue;
@@ -576,12 +602,16 @@ public class TView implements Closeable
 									if(testInInterval.test(readRef)) {
 										final char refBase =  Character.toUpperCase(refPosToBase.apply(readRef-1));
 										char readBase = Character.toUpperCase(baseAt.apply(readpos));
+										
+										colorizer.pen(base2ansiColor.apply(readBase));
+										
 										if(op.equals(CigarOperator.X) || (refBase!='N' &&  readBase!='N'  && readBase!=refBase))
 											{
 											colorizer.pen(AnsiColor.RED);
 											}
 										else if(hideBases)
 											{
+											
 											if(rec.getReadNegativeStrandFlag())
 												{
 												readBase=',';
@@ -637,6 +667,25 @@ public class TView implements Closeable
 			if(out.checkError()) break;
 			}
 		
+		/** variant section*/
+		if(this.vcfReaders.isEmpty() && !out.checkError()) {
+			out.println();
+			for(final VCFFileReader r:vcfReaders)
+				{
+				if(out.checkError()) break;
+				final VCFHeader header = r.getFileHeader();
+				final CloseableIterator<VariantContext> iter = r.query(this.interval.getContig(), interval.getStart(), interval.getEnd());
+				final List<VariantContext> variants = new ArrayList<>();
+				while(iter.hasNext())
+					{}
+				iter.close();
+				if(header.hasGenotypingData())
+					{}
+				else
+					{}
+				}
+			}
+		LOG.debug("done");
 		}
 	
     

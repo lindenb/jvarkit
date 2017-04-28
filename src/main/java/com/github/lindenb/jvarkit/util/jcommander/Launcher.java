@@ -56,6 +56,7 @@ import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -63,6 +64,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -338,9 +340,10 @@ public static class SortingCollectionArgs
 	SortingCollectionArgs(TmpDirectoryArgs tmpDirArgs) {
 		this.tmpDirArgs=tmpDirArgs;
 		}
-	@Parameter(names={"--xx"},description="Compression Level.",converter=CompressionConverter.class)
+	@Parameter(names={"--xxx"},description="Compression Level.",converter=CompressionConverter.class)
 	public int compressionLevel=5;
 	}
+
 public class WritingSortingCollection
 	{
 	@Parameter(names={"--maxRecordsInRam"},description="When writing  files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file  handles needed to sort a file, and increases the amount of RAM needed")
@@ -891,6 +894,7 @@ public Launcher()
 		    put(VcfWriterOnDemand.class, VcfWriterOnDemandConverter.class);
 		    put(VariantContextWriter.class, VcfWriterOnDemandConverter.class);
 		    put(Dimension.class,DimensionConverter.class);
+		    put(SamRecordFilter.class,SamFilterParser.StringConverter.class);
 		}};	
 	this.jcommander.addConverterFactory(new IStringConverterFactory() {
 			@Override

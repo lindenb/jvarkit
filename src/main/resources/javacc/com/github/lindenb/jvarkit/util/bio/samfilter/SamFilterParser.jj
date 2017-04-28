@@ -120,14 +120,13 @@ private java.util.Comparator<Integer> intcmp():{}
 public class SamFilterParser {
 		private static final Logger LOG = Logger.build(SamFilterParser.class).make();
 
-        public static class StringConverter implements IStringConverter<SamRecordFilter>
-        	{
-        	@Override
-        	public SamRecordFilter convert(final String s) 
-        		{
-        		if(s==null || s.trim().isEmpty()) return new SamRecordFilter() {
+		public static final String FILTER_DESCRIPTION = "A filter expression";
+		public static final String DEFAULT_FILTER = "Duplicate() || FailsVendorQuality()";
+		public static final String DEFAULT_OPT = "--samFilter";
+
+		public static final SamRecordFilter  ACCEPT_ALL = new SamRecordFilter() {
 					@Override
-					public boolean filterOut(SAMRecord first, SAMRecord second) {
+					public boolean filterOut(final SAMRecord first, SAMRecord second) {
 						return false;
 					}
 					
@@ -136,6 +135,14 @@ public class SamFilterParser {
 						return false;
 					}
 				};
+
+
+        public static class StringConverter implements IStringConverter<SamRecordFilter>
+        	{
+        	@Override
+        	public SamRecordFilter convert(final String s) 
+        		{
+        		if(s==null || s.trim().isEmpty()) return ACCEPT_ALL;
 				try {
 					return SamFilterParser.build(s);
 				} catch (final ParseException e) {
@@ -144,7 +151,15 @@ public class SamFilterParser {
         		}
         	}
 
-
+		public static SamRecordFilter buildDefault() {
+			try {
+				return build(DEFAULT_FILTER);
+				}
+			catch(final ParseException err)
+				{
+				throw new IllegalArgumentException(err);
+				}
+			}
 
 		public static SamRecordFilter build(final String expr) throws ParseException {
 			
@@ -164,10 +179,16 @@ public class SamFilterParser {
 				public boolean filterOut(final SAMRecord record) {
 					return pred.test(record);
 				}
+				@Override
+				public String toString() {
+					return expr;
+					}
 			};
 			} catch(final ParseException err) {
+				LOG.error(err);
 				throw new RuntimeIOException(err);
 			} catch(final IOException err) {
+				LOG.error(err);
 				throw new RuntimeIOException(err);
 			} finally
 			{
@@ -203,7 +224,8 @@ public class SamFilterParser {
 								;
 					}
 				};
-            } catch(final IOException err) { 
+            } catch(final IOException err) {
+            	LOG.error(err);
             	throw new RuntimeIOException(err);
             }
             finally {
@@ -306,9 +328,10 @@ TOKEN:
 | <NOT: "!">
 | <#ESCAPE_CHAR: "\\" ["n","t","b","r","f","\\","'","\""] >
 | <#ISGET: ("is" | "get") >
+| <#READFLAG: ("Read" | "Flag" | "ReadFlag") >
 | <SIMPLE_QUOTE_LITERAL:"\'" ( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\'" >
 | <DOUBLE_QUOTE_LITERAL: "\"" ( (~["\"","\\","\n","\r"])|<ESCAPE_CHAR>)* "\"" >
-| <DUPLICATE: (<ISGET>) ? "Duplicate" >
+| <DUPLICATE: (<ISGET>) ? "Duplicate" (<READFLAG>)?>
 | <UNMAPPED: (<ISGET>) ? ("Read")? "Unmapped" >
 | <MAPPED: (<ISGET>) ? ("Read")? "mapped" >
 | <MATEUNMAPPED: (<ISGET>)? "MateUnmapped"  >

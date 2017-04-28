@@ -50,7 +50,10 @@ import java.io.Writer;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -384,6 +387,23 @@ public class IOUtils {
 			byte array[]=s.getBytes();
 			os.writeInt(array.length);
 			os.write(array);
+			}
+		}
+    public static final String UNROLL_FILE_MESSAGE="if filename ends with '.list' it is interpreted as a list of file (one file per line)";
+	/** unrol one file if needed, If file is null, returns empty list*/
+    public static List<File> unrollFile(final File file)
+		{
+		if(file==null) return Collections.emptyList();
+		IOUtil.assertFileIsReadable(file);
+		if(!file.getName().endsWith(".list")) return Collections.emptyList();
+		try {
+			return Files.readAllLines(file.toPath()).stream().
+				filter(L->!(L.isEmpty() || L.startsWith("#"))).
+				map(L->new File(L)).
+				collect(Collectors.toList());
+			} 
+		catch (IOException e) {
+			throw new RuntimeIOException(e);
 			}
 		}
     
