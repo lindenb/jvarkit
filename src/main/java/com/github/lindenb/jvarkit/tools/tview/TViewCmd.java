@@ -61,34 +61,51 @@ public class TViewCmd extends Launcher
 	TView tview = new TView();
 
 	private  Interval parseInterval(String regionStr) {
+		int cols = defaultScreenWidth;
+		final String COLUMNS=System.getenv("COLUMNS");
+		if(COLUMNS!=null && COLUMNS.matches("[0-9]+")) {
+			cols = Integer.parseInt(COLUMNS);
+			LOG.info(cols);
+			}
+		if(cols<=1) cols=60;
+		
 		final int colon=regionStr.indexOf(':');
-		;
+		
 		int chromStart;
 		int chromEnd;
 
-		if(colon==-1) throw new IllegalArgumentException("colon missing in "+regionStr);
+		if(colon==-1)
+			{
+			return new Interval(regionStr,1,1+cols,false,regionStr);
+			}
 		final String chrom=regionStr.substring(0,colon);
 			
-		
 		final int hyphen=regionStr.indexOf('-', colon+1);
-		if(hyphen==-1)
+		final int plus=regionStr.indexOf('+', colon+1);
+
+		if(plus!=-1 && hyphen!=-1) 
 			{
-			int cols = defaultScreenWidth;
-			
+			throw new IllegalArgumentException("colon/plus both in "+regionStr);
+			}
+		else if(hyphen==-1 && plus==-1)
+			{
 			chromStart=Integer.parseInt(regionStr.substring(colon+1));
-			String COLUMNS=System.getenv("COLUMNS");
-			if(COLUMNS!=null && COLUMNS.matches("[0-9]+")) {
-				cols = Integer.parseInt(COLUMNS);
-				LOG.info(cols);
-				}
-			if(cols<=1) cols=80;
 			chromEnd = chromStart + cols;
 			}
 		else
 			{
-		
-			chromStart=Integer.parseInt(regionStr.substring(colon+1,hyphen));
-			chromEnd=Integer.parseInt(regionStr.substring(hyphen+1));
+			if(plus!=-1)
+				{
+				int pivot = Integer.parseInt(regionStr.substring(colon+1,plus));
+				int dx = Integer.parseInt(regionStr.substring(plus+1));
+				chromStart=Math.max(1,pivot-dx);
+				chromEnd=pivot+dx;
+				}
+			else
+				{
+				chromStart= Integer.parseInt(regionStr.substring(colon+1,hyphen));
+				chromEnd= Integer.parseInt(regionStr.substring(hyphen+1));
+				}
 			}
 		if(chromStart<0 || chromEnd<chromStart)
 			{

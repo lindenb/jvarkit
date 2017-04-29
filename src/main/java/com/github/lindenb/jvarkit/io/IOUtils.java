@@ -395,7 +395,7 @@ public class IOUtils {
 		{
 		if(file==null) return Collections.emptyList();
 		IOUtil.assertFileIsReadable(file);
-		if(!file.getName().endsWith(".list")) return Collections.emptyList();
+		if(!file.getName().endsWith(".list")) return Collections.singletonList(file);
 		try {
 			return Files.readAllLines(file.toPath()).stream().
 				filter(L->!(L.isEmpty() || L.startsWith("#"))).

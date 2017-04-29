@@ -24,6 +24,7 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
@@ -160,6 +161,14 @@ public class TView implements Closeable
 	private File variantFiles = null;
 	@Parameter(names=SamFilterParser.DEFAULT_OPT,description=SamFilterParser.FILTER_DESCRIPTION)
 	private SamRecordFilter samRecordFilter = SamFilterParser.buildDefault();
+	@Parameter(names={"-left","--leftmargin"},description="left margin width")
+	private int leftMarginWidth=15;
+	@Parameter(names={"-maxrows","--maxrowss"},description="maximum number of rows per read group. -1 == all")
+	private int maxReadRowPerGroup=-1;
+	@Parameter(names={"--hideHomRef"},description="Hide HOM_REF variations")
+	private boolean hideHomRef=false;
+	@Parameter(names={"--hideNoCall"},description="Hide NO_CALL variations")
+	private boolean hideNoCall=false;
 
 	
 	private int distance_between_reads=2;
@@ -173,6 +182,24 @@ public class TView implements Closeable
 		
 	}
 	
+	private String margin(final Object o)
+		{
+		if(this.leftMarginWidth<=0) return "";
+		StringBuilder str = new StringBuilder(o==null?"":o.toString());
+		if(str.length() < this.leftMarginWidth)
+			{
+			str.append(" ");
+			}
+		while(str.length() < this.leftMarginWidth)
+			{
+			str.insert(0, " ");
+			}
+		while(str.length() > this.leftMarginWidth)
+			{
+			str.deleteCharAt(0);
+			}
+		return str.toString();
+		}
 	
 	public void setBamFiles(List<SamInputResource> bamFiles)
 		{
@@ -207,6 +234,7 @@ public class TView implements Closeable
 		
 		for(final File vcfFile:IOUtils.unrollFile(this.variantFiles))
 			{
+			LOG.debug("OPEN "+vcfFile);
 			final VCFFileReader vcfReader= new VCFFileReader(vcfFile,true);
 			this.vcfReaders.add(vcfReader);
 			}
@@ -362,7 +390,7 @@ public class TView implements Closeable
 		
 		
 		/** compute where are the insertions */
-		LOG.debug(genomicpos2insertlen);
+		//LOG.debug(genomicpos2insertlen);
 		final Predicate<Integer> insertIsPresentAtX = SCREENX ->{
 			int x=0;
 			int ref= interval.getStart();
@@ -399,10 +427,9 @@ public class TView implements Closeable
 		/** paint base position */
 		int ref = this.interval.getStart();
 		int x=0;
-		
+		out.print(margin("POS:"));
 		while(x < pixelWidth)
 			{
-			
 			if(insertIsPresentAtX.test(x))
 				{
 				colorizer.pen(AnsiColor.RED).print("^");
@@ -429,6 +456,7 @@ public class TView implements Closeable
 		
 		
 		/* paint ref base */
+		out.print(margin("REF:"));
 		ref = this.interval.getStart();
 		x=0;
 		while(x < pixelWidth)
@@ -448,19 +476,19 @@ public class TView implements Closeable
 			}
 		out.println();
 
-		
+		/*
 		for(x=0;x< pixelWidth;++x)
 			{
 			out.print(insertIsPresentAtX.test(x)?"^":" ");
 			}
 		out.println();
-		
+		*/
 		
 		for(final String groupName : group2record.keySet())
 			{
-			colorizer.pen(AnsiColor.BLUE).println(groupName);
+			int y_group=0;
 			final List<List<SAMRecord>> rows = new ArrayList<>();
-			
+			out.println(margin(""));
 			/* pileup reads */
 			for(final SAMRecord rec: group2record.get(groupName)) {
 				int y=0;
@@ -482,6 +510,10 @@ public class TView implements Closeable
 			/* print each row */
 			for(final List<SAMRecord> row : rows)
 				{
+				++y_group;
+				if(this.maxReadRowPerGroup>=0 && y_group>= this.maxReadRowPerGroup) break;
+				out.print(margin(y_group==1?groupName:""));
+				
 				ref = interval.getStart();
 
 				x=0;
@@ -668,25 +700,77 @@ public class TView implements Closeable
 			}
 		
 		/** variant section*/
-		if(this.vcfReaders.isEmpty() && !out.checkError()) {
+		if(!this.vcfReaders.isEmpty() && !out.checkError()) {
 			out.println();
-			for(final VCFFileReader r:vcfReaders)
+			for(final VCFFileReader r:this.vcfReaders)
 				{
 				if(out.checkError()) break;
 				final VCFHeader header = r.getFileHeader();
 				final CloseableIterator<VariantContext> iter = r.query(this.interval.getContig(), interval.getStart(), interval.getEnd());
 				final List<VariantContext> variants = new ArrayList<>();
 				while(iter.hasNext())
-					{}
+					{
+					variants.add(iter.next());
+					}
 				iter.close();
 				if(header.hasGenotypingData())
-					{}
+					{
+					for(final String sample:header.getSampleNamesInOrder()) {
+						if( !variants.stream().
+								map(V->V.getGenotype(sample)).
+								filter(G->!hideNoCall || (hideNoCall && !G.isNoCall())).
+								filter(G->!hideHomRef || (hideHomRef && !G.isHomRef())).
+								findAny().isPresent()
+								)
+							{
+							continue;
+							}
+						out.print(margin(sample));
+						ref = this.interval.getStart();
+						x=0;
+						while(x < pixelWidth)
+							{
+							if(insertIsPresentAtX.test(x))
+								{
+								out.print("*");
+								++x;
+								}
+							else
+								{
+								char refBase= ' ';
+								for(final VariantContext ctx:variants)
+									{
+									if( ctx.getStart() == ref ) {
+										final Genotype g = ctx.getGenotype(sample);
+										if( g.isNoCall() && this.hideNoCall) continue;
+										if( g.isHomRef() && this.hideHomRef) continue;
+										switch(g.getType())
+											{
+											case NO_CALL: refBase='?';break;
+											case HOM_REF: refBase='0';break;
+											case HET: refBase='1';break;
+											case HOM_VAR: refBase='2';break;
+											case MIXED: refBase='m';break;
+											case UNAVAILABLE: refBase='u';break;
+											}
+										break;
+										}
+									}
+								out.print(refBase);
+								++ref;
+								++x;
+								}
+							}
+						out.println();
+						}
+					}
 				else
-					{}
+					{
+					LOG.info("TODO");
+					}
 				}
 			}
 		LOG.debug("done");
 		}
-	
     
 	}
