@@ -81,6 +81,9 @@ private static final Logger LOG=Logger.build().
 			prefix("Launcher").
 			make();
 public static final String[]OUTPUT_OPTIONS={"-o","--out"};
+public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Reference file. "+
+		"This file must be indexed with samtools faidx and with picard CreateSequenceDictionary";
+
 protected static final int RETURN_OK=0;
 public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 

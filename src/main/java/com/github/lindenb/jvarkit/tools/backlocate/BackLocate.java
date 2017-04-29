@@ -125,7 +125,7 @@ public class BackLocate
 	@Parameter(names={"-x","--kgxref"},description="UCSC kgXRef URI")
 	private String kgXRef = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz";
 
-	@Parameter(names={"-R","--reference"},description="Indexed Fasta REFerence",required=true)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File indexedRefFile=null;
 	
 	@Parameter(names={"-o","--out"},description="File output. Default:stdout")

@@ -81,7 +81,7 @@ public class VCFPolyX extends Launcher
 	@Parameter(names={"-t","--tag"},description="Tag used in INFO and FILTER columns.")
 	private String polyXtag = "POLYX";
 
-	@Parameter(names={"-R","--reference"},description="Indexed fasta reference")
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File faidx = null;
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;

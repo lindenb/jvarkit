@@ -50,7 +50,6 @@ import javax.xml.stream.XMLStreamWriter;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
@@ -71,6 +70,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 
@@ -103,10 +103,12 @@ public class BamToSVG extends Launcher
 	@Parameter(names={"-S","--vcf"},description="add VCF indexed with tabix. Optinal. the Samples's name must be the same than in the BAM")
 	private Set<String> vcfFileSet = new LinkedHashSet<>() ;
 
-	@Parameter(names={"-R","--reference"},description="indexed fasta reference")
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File referenceFile = null;
 
-	
+	@Parameter(names={"--groupby"},description="Group Reads by")
+	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
+
 	
 		private int HEIGHT_RULER=200;
 		private Hershey hershey=new Hershey();
@@ -236,13 +238,9 @@ public class BamToSVG extends Launcher
 				if( right(rec)  < this.interval.getStart()) continue;
 				if( left(rec)  > this.interval.getEnd())continue;
 				
-				String sampleName="undefined sample name";
-				SAMReadGroupRecord srg = rec.getReadGroup();
-				if(srg!=null)
-					{
-					String sm=srg.getSample();
-					if(sm!=null) sampleName=sm;
-					}
+				String sampleName=this.samRecordPartition.getPartion(rec);
+				if(sampleName==null) sampleName = "undefined sample name";
+				
 				Sample sample= this.sampleHash.get(sampleName);
 				if(sample==null)
 					{

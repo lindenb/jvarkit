@@ -75,6 +75,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 
@@ -87,8 +88,10 @@ public class MiniCaller extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-d","--mindepth"},description="Min depth")
 	private int min_depth = 20 ;
-    @Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+    @Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
     private File fastaFile = null;
+	@Parameter(names={"--groupby"},description="Group Reads by")
+	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
 
 	
 	private SAMSequenceDictionary dictionary=null;
@@ -389,9 +392,10 @@ public class MiniCaller extends Launcher
                 	return -1;
                 	}
                 
-                for(SAMReadGroupRecord srgr : groups)
+                for(final SAMReadGroupRecord srgr : groups)
                     {
-                    String sampleName=srgr.getSample();
+                    String sampleName=this.samRecordPartition.apply(srgr);
+                    if( sampleName == null ) sampleName=samRecordPartition.name();
                     if(!this.sample2index.containsKey(sampleName))
                         {
                         int sample_index=this.samples.size();
@@ -506,14 +510,8 @@ public class MiniCaller extends Launcher
                     int refPos0 = rec.getAlignmentStart() -1;//0 based-reference
                     byte bases[]=rec.getReadBases();
                     byte quals[]=rec.getBaseQualities();
-                    String sampleName=null;
-                    SAMReadGroupRecord sgr=rec.getReadGroup();
-                    if(sgr!=null) sampleName = sgr.getSample();
-                    if(sampleName==null)
-                    	{
-                    	LOG.warn("Cannot get sample name for "+rec.getReadName());
-                    	continue;
-                    	}
+                    String sampleName= this.samRecordPartition.getPartion(rec);
+                    if( sampleName == null ) sampleName=samRecordPartition.name();
                     
                     for(CigarElement ce: cigar.getCigarElements())
                         {

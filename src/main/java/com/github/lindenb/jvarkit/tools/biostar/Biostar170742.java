@@ -83,16 +83,17 @@ public class Biostar170742 extends Launcher
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
-	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx = null;
 
 	
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		if(this.faidx==null)
 			{
-			return wrapException("Reference sequence was not defined");
+			LOG.error("Reference sequence was not defined");
+			return -1;
 			}
 		PrintStream out=null;
 		SamReader sfr=null;

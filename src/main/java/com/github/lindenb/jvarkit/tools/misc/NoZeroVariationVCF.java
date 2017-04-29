@@ -41,7 +41,7 @@ public class NoZeroVariationVCF extends Launcher
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
-	@Parameter(names={"-R","-r","--reference"},description="Indexed fasta reference")
+	@Parameter(names={"-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File faidx = null;
 
 	

@@ -216,7 +216,8 @@ public class Biostar78400 extends Launcher
 	public int doWork(List<String> args) {
 		if(this.XML==null)
 			{
-			return wrapException("XML file missing");
+			LOG.error("XML file missing");
+			return -1;
 			}
 		final Map<String, Map<Integer,String>> flowcell2lane2id = new HashMap<String, Map<Integer,String>>();
 		SamReader sfr=null;
@@ -229,7 +230,7 @@ public class Biostar78400 extends Launcher
 			final ReadGroupList rgl=unmarshaller.unmarshal(new StreamSource(XML),ReadGroupList.class).getValue();
 			if(rgl.flowcells.isEmpty())
 				{
-				return wrapException("empty XML "+XML);
+				LOG.error("empty XML "+XML); return -1;
 				}
 			sfr = openSamReader(oneFileOrNull(args));
 			
@@ -247,7 +248,7 @@ public class Biostar78400 extends Launcher
 						{
 						if(seenids.contains(rg.id))
 							{
-							return wrapException("Group id "+rg.id +" defined twice");
+							LOG.error("Group id "+rg.id +" defined twice"); return -1;
 							}
 						seenids.add(rg.id);
 						 // create the read group we'll be using
@@ -264,7 +265,7 @@ public class Biostar78400 extends Launcher
 					}
 				if(flowcell2lane2id.containsKey(fc.name))
 					{
-					return wrapException("FlowCell id "+fc.name +" defined twice in XML");
+					LOG.error("FlowCell id "+fc.name +" defined twice in XML");return -1;
 					}
 				flowcell2lane2id.put(fc.name,lane2id);
 				}
@@ -288,7 +289,8 @@ public class Biostar78400 extends Launcher
 					}
 				else
 					{
-					return wrapException("Read name "+rec.getReadName()+" doesn't match regular expression "+readNameSignature.pattern()+". please check options");
+					LOG.error("Read name "+rec.getReadName()+" doesn't match regular expression "+readNameSignature.pattern()+". please check options");
+					return -1;
 					}
 				String RGID=null;
 				
@@ -301,7 +303,8 @@ public class Biostar78400 extends Launcher
 					}
 				catch (final Exception e)
 					{
-					return wrapException("bad lane-Id in "+rec.getReadName());
+					LOG.error("bad lane-Id in "+rec.getReadName());
+					return -1;
 					}
 				
 				if(RGID==null) 
@@ -318,7 +321,8 @@ public class Biostar78400 extends Launcher
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

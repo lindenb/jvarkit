@@ -28,25 +28,42 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+/*
+BEGIN_DOC
 
-public class SamReadLengthDistribution extends AbstractSamReadLengthDistribution
+Because gatk is buggy: http://gatkforums.broadinstitute.org/gatk/discussion/8342/duplicate-columns-in-readlengthdistribution#latest
+
+END_DOC
+
+ */
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+ 
+@Program(name="samreadlengthdistribution",description="Sam read length distribution<")
+public class SamReadLengthDistribution extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamReadLengthDistribution.class);
-
+	private static final Logger LOG = Logger.build(SamReadLengthDistribution.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"--groupby"},description="Group Reads by")
+	private SAMRecordPartition partition=SAMRecordPartition.sample;
 	
 	private final Map<String,Counter<Integer>> lengths=new TreeMap<>();
 	private int max_length=0;
@@ -65,10 +82,8 @@ public class SamReadLengthDistribution extends AbstractSamReadLengthDistribution
     	while(iter.hasNext())
 			{
     		final SAMRecord rec = iter.next();
-    		final SAMReadGroupRecord srg = rec.getReadGroup();
-    		String sampleName= null;
-    		if(srg!=null) sampleName = srg.getSample();
-    		if(sampleName==null || sampleName.isEmpty()) sampleName="__UNDEFINED_SAMPLE_";
+    		String sampleName= this.partition.getPartion(rec);
+    		if(sampleName==null || sampleName.isEmpty()) sampleName="__UNDEFINED_"+this.partition.name().toUpperCase()+"_";
     		
     		Counter<Integer> counter = this.lengths.get(sampleName);
     		if(counter==null) {
@@ -84,20 +99,15 @@ public class SamReadLengthDistribution extends AbstractSamReadLengthDistribution
     	}
     
 
-	
 	@Override
-	public Collection<Throwable> initializeKnime() {
+	public int doWork(final List<String> inputs)
+		{
 		this.lengths.clear();
 		this.max_length=0;
-		return super.initializeKnime();
-		}
-	
-	@Override
-	public Collection<Throwable> call() throws Exception {
 		SamReader r= null;
 		try
 			{
-			final Set<String> args = IOUtils.unrollFiles(super.getInputFiles());
+			final Set<String> args = IOUtils.unrollFiles(inputs);
 
 			
 			if(args.isEmpty())
@@ -115,7 +125,7 @@ public class SamReadLengthDistribution extends AbstractSamReadLengthDistribution
 					r.close();
 					}
 				}
-			final PrintWriter out=super.openFileOrStdoutAsPrintWriter();
+			final PrintWriter out=super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			out.print("#ReadLength");
 			for(final String sample:this.lengths.keySet())
 				{
@@ -142,7 +152,8 @@ public class SamReadLengthDistribution extends AbstractSamReadLengthDistribution
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

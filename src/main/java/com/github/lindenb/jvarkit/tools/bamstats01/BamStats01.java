@@ -35,7 +35,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,11 +47,11 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -154,6 +153,11 @@ public class BamStats01
 
 	@Parameter(names={"-q","--qual"},description="min mapping quality")
 	private double minMappingQuality = 30.0 ;
+	
+	@Parameter(names={"--groupby"},description="Group Reads by")
+	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
+
+	
 
 	private PrintStream out=System.out;
 	//private File bedFile=null;
@@ -403,17 +407,9 @@ public class BamStats01
 			final SAMRecordIterator iter=samFileReader.iterator();
 			while(iter.hasNext())
 				{
-				String sampleName=null;
-				final SAMRecord rec=iter.next();
+				final SAMRecord rec=progess.watch(iter.next());
 				
-				progess.watch(rec);
-				
-				final SAMReadGroupRecord grp=rec.getReadGroup();
-				if(grp!=null)
-					{
-					sampleName=grp.getSample();
-					}
-				
+				String sampleName = groupBy.getPartion(rec);
 				if(sampleName==null || sampleName.isEmpty()) sampleName="undefined";
 				
 				Histogram hist=sample2hist.get(sampleName);
@@ -509,7 +505,8 @@ public class BamStats01
 			this.out.close();
 			return RETURN_OK;
 		} catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally
 			{
 			CloserUtil.close(out);

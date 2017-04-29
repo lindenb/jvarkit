@@ -44,6 +44,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
@@ -58,7 +59,6 @@ import htsjdk.variant.vcf.VCFHeader;
 //import htsjdk.samtools.util.Log;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -180,11 +180,7 @@ public class TView implements Closeable
 		File vcfFile;
 		VCFFileReader vcfFileReader;
 		}
-	private enum GroupBy
-		{
-		SAMPLE,
-		RG, LIBRARY
-		}
+	
 	
 	@Parameter(names={"--clip"},description="Show clip")
 	private boolean showClip=false;
@@ -212,7 +208,7 @@ public class TView implements Closeable
 	@Parameter(names={"--hideNoCall"},description="Hide NO_CALL variations")
 	private boolean hideNoCall=false;
 	@Parameter(names={"--groupby"},description="Group Reads by")
-	private GroupBy groupBy=GroupBy.SAMPLE;
+	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 	
 	private int distance_between_reads=2;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -315,29 +311,6 @@ public class TView implements Closeable
 		return this.samRecordFilter;
 	}
 	
-	public Function<SAMRecord,String> getRecordGroup() {
-		final String undefined="UNDEFINED";
-		switch(this.groupBy)
-			{
-			case LIBRARY: return R->{
-					final SAMReadGroupRecord rg= R.getReadGroup();
-					if(rg!=null ) return rg.getLibrary();
-					return undefined;
-				};
-			case RG: return R->{
-				final SAMReadGroupRecord rg= R.getReadGroup();
-				if(rg!=null ) return rg.getId();
-				return undefined;
-			};
-			case SAMPLE: return R->{
-					final SAMReadGroupRecord rg= R.getReadGroup();
-					if(rg!=null && rg.getSample()!=null) return rg.getSample();
-					return undefined;
-				};
-			default:
-				return R->undefined;
-			}
-	}
 	
 	
 	public Function<SAMRecord,Integer> left() {
@@ -416,8 +389,10 @@ public class TView implements Closeable
 				if( !rec.getContig().equals(interval.getContig())) continue;
 				if(right().apply(rec) < this.interval.getStart()) continue;
 				if(this.interval.getEnd() < left().apply(rec) ) continue;
-				final String group = getRecordGroup().apply(rec);
-				if(group==null || group.isEmpty()) continue;
+				String group = this.groupBy.getPartion(rec);
+				if(group==null || group.isEmpty()) {
+					group="undefined_"+this.groupBy.name();
+					}
 				List<SAMRecord> records = group2record.get(group);
 				if( records == null) {
 					records = new ArrayList<>();

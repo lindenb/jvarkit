@@ -88,7 +88,7 @@ public class VcfLiftOver extends Launcher
 	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
 	@Parameter(names={"--adaptivematch"},description="Use adapative liftover minmatch using the ratio between the min allele size and the longest allele size")
 	private boolean adaptivematch = false ;
-	@Parameter(names={"-D","-R","-r","--reference"},description="indexed REFerence file.",required=true)
+	@Parameter(names={"-D","-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx = null;
 	@Parameter(names={"-T","--tag"},description="INFO tag")
 	private String infoTag = "LIFTOVER";

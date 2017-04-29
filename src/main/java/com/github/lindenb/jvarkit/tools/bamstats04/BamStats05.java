@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 
 
 import com.beust.jcommander.Parameter;
@@ -51,6 +50,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -89,6 +89,10 @@ public class BamStats05 extends Launcher
 
 	@Parameter(names={"-q","--minmapq"},description="min mapping quality")
 	private int MMQ = 0 ;
+	
+	@Parameter(names={"--groupby"},description="Group Reads by")
+	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
+
 
 	private Map<String, List<Interval>> readBedFile(File bedFile) throws IOException
     	{
@@ -155,21 +159,14 @@ public class BamStats05 extends Launcher
 			{
 			LOG.info("Scanning "+filename);
 			final SAMFileHeader header = IN.getFileHeader();
-			List<SAMReadGroupRecord> rgs = header.getReadGroups();
+			final List<SAMReadGroupRecord> rgs = header.getReadGroups();
 			if(rgs==null || rgs.isEmpty())
 				throw new IOException("No read groups in "+filename);
-			final Set<String> samples = new TreeSet<>();
-			for(final SAMReadGroupRecord rg:rgs)
+			final Set<String> groupNames = this.groupBy.getPartitions(rgs);
+			
+			for(final String partition : groupNames)
 				{
-				String sample = rg.getSample();
-				if(sample==null || sample.trim().isEmpty())
-					{
-					throw new IOException("Empty sample in "+rg);
-					}
-				samples.add(sample);
-				}
-			for(final String sample : samples)
-				{
+				if(partition.isEmpty()) throw new IOException("Empty "+groupBy.name());
 				for(final String gene: gene2interval.keySet())
 					{
 					int geneStart = Integer.MAX_VALUE;
@@ -223,9 +220,9 @@ public class BamStats05 extends Launcher
 								{
 								continue;
 								}
-							SAMReadGroupRecord rg = rec.getReadGroup();
-							if(rg==null || !sample.equals(rg.getSample())) continue;
-							Cigar cigar=rec.getCigar();
+							final SAMReadGroupRecord rg = rec.getReadGroup();
+							if(rg==null || !partition.equals(this.groupBy.apply(rg))) continue;
+							final Cigar cigar=rec.getCigar();
 							if(cigar==null) continue;
 				    		int refpos1=rec.getAlignmentStart();
 				    		for(CigarElement ce:cigar.getCigarElements())
@@ -266,7 +263,7 @@ public class BamStats05 extends Launcher
 						
 					pw.println(
 							gene2interval.get(gene).get(0).getContig()+"\t"+
-							geneStart+"\t"+geneEnd+"\t"+gene+"\t"+sample+"\t"+
+							geneStart+"\t"+geneEnd+"\t"+gene+"\t"+partition+"\t"+
 							counts.size()+"\t"+
 							counts.get(0)+"\t"+
 							counts.get(counts.size()-1)+"\t"+
@@ -278,9 +275,10 @@ public class BamStats05 extends Launcher
 				}//end sample
 		return RETURN_OK;
 		}
-	catch(Exception err)
+	catch(final Exception err)
 		{
-		return wrapException(err);
+		LOG.error(err);
+		return -1;
 		}
 	finally
 		{
@@ -292,7 +290,8 @@ public class BamStats05 extends Launcher
 	public int doWork(List<String> args) {
 		if(BEDILE==null)
 			{
-			return wrapException("missing bed file");
+			LOG.error( "missing bed file");
+			return -1;
 			}
 		SamReader in=null;
 		BufferedReader r=null;
@@ -314,7 +313,8 @@ public class BamStats05 extends Launcher
 					if(line.startsWith("#") || line.trim().isEmpty()) continue;
 					if(!line.endsWith(".bam"))
 						{
-						return wrapException("line should end with .bam :"+line);
+						LOG.error("line should end with .bam :"+line);
+						return -1;
 						}
 					}
 				CloserUtil.close(r);
@@ -344,7 +344,8 @@ public class BamStats05 extends Launcher
 			return RETURN_OK;
 			}
 		catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
 		finally
 			{

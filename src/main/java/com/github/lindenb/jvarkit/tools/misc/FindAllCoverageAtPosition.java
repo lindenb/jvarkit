@@ -62,6 +62,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
 /**
  BEGIN_DOC
@@ -108,6 +109,8 @@ public class FindAllCoverageAtPosition extends Launcher
 
 	@Parameter(names={"-o","--out"},description="output file. Default: stdout")
 	private File outputFile = null;
+	@Parameter(names={"--groupby"},description="Group Reads by")
+	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 
 	
 	private static class Mutation implements Comparable<Mutation>
@@ -254,7 +257,7 @@ public class FindAllCoverageAtPosition extends Launcher
 						{
 						if(rg!=null)
 							{
-							String sn= rg.getSample();
+							String sn=this.groupBy.apply(rg);
 							if(sn!=null && !sn.trim().isEmpty())
 								{
 								sample2count.put(sn, new CigarAndBases());
@@ -287,7 +290,7 @@ public class FindAllCoverageAtPosition extends Launcher
 						final SAMReadGroupRecord rg=rec.getReadGroup();
 						if(rg!=null)
 							{
-							String sn= rg.getSample();
+							String sn= groupBy.apply(rg);
 							if(sn!=null && !sn.trim().isEmpty())
 								{
 								sampleName=sn;
@@ -465,7 +468,7 @@ public class FindAllCoverageAtPosition extends Launcher
 			out.print('\t');
 			out.print("POS");
 			out.print('\t');
-			out.print("SAMPLE");
+			out.print(this.groupBy.name().toUpperCase());
 			out.print('\t');
 			out.print("DEPTH");
 			for(final CigarOperator op:CigarOperator.values())
