@@ -120,8 +120,8 @@ private java.util.Comparator<Integer> intcmp():{}
 public class SamFilterParser {
 		private static final Logger LOG = Logger.build(SamFilterParser.class).make();
 
-		public static final String FILTER_DESCRIPTION = "A filter expression";
-		public static final String DEFAULT_FILTER = "Duplicate() || FailsVendorQuality()";
+		public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out";
+		public static final String DEFAULT_FILTER = "Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()";
 		public static final String DEFAULT_OPT = "--samFilter";
 
 		public static final SamRecordFilter  ACCEPT_ALL = new SamRecordFilter() {
@@ -302,7 +302,14 @@ public class SamFilterParser {
             return new Predicate<SAMRecord>() {
                     @Override public boolean test(final SAMRecord rec) { SAMReadGroupRecord rg=rec.getReadGroup(); return rg!=null && s.equals(rg.getId());}
             }; }
-		
+		private static Predicate<SAMRecord> notPrimaryAlignmentFlag() {
+		return new Predicate<SAMRecord>() {
+		 	@Override public boolean test(final SAMRecord rec) { return rec.getNotPrimaryAlignmentFlag();}
+		}; }		
+		private static Predicate<SAMRecord> supplementaryAlignmentFlag() {
+		return new Predicate<SAMRecord>() {
+		 	@Override public boolean test(final SAMRecord rec) { return rec.getSupplementaryAlignmentFlag();}
+		}; }		
 	}
 	
 PARSER_END(SamFilterParser)
@@ -336,6 +343,8 @@ TOKEN:
 | <MAPPED: (<ISGET>) ? ("Read")? "mapped" >
 | <MATEUNMAPPED: (<ISGET>)? "MateUnmapped"  >
 | <FAILSVENDORQUALITY: (<ISGET>) ? "FailsVendorQuality" >
+| <NOTPRIMARYALIGNMENT: (<ISGET>) ? "NotPrimaryAlignment" (<READFLAG>)?>
+| <SUPPLEMENTARYALIGNMENT: (<ISGET>) ? "SupplementaryAlignment" (<READFLAG>)?>
 | <PAIRED: (<ISGET>) ? ("Read")? "Paired" >
 | <OVERLAP: "overlap" >
 | <SAMFLAG: "samFlag" >
@@ -379,6 +388,8 @@ private Predicate<SAMRecord> UnaryExpr(): {String str; Token t; }
 	| <FAILSVENDORQUALITY> <OPAR> <CPAR> { return failsVendorQuality();}
 	| <PAIRED> <OPAR> <CPAR> {  return readPaired();}
 	| <MATEUNMAPPED> <OPAR> <CPAR> {  return mateUnmapped();}
+	| <NOTPRIMARYALIGNMENT> <OPAR> <CPAR> {  return notPrimaryAlignmentFlag();}
+	| <SUPPLEMENTARYALIGNMENT> <OPAR> <CPAR> {  return supplementaryAlignmentFlag();}
 	| <OVERLAP> <OPAR>  str=characters() <CPAR> { return overlapBed(str);}
 	| <SAMFLAG> <OPAR> t=<INT> <CPAR> { return samFlag(Integer.parseInt(t.image));}
 	| <SAMPLE> <OPAR> str=characters() <CPAR>  { return sample(str);}

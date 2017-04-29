@@ -1,3 +1,28 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.tview;
 
 import java.io.Closeable;
@@ -24,7 +49,9 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
@@ -34,6 +61,7 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -95,12 +123,14 @@ public class TView implements Closeable
 			}
 		return this;
 	}
+		@SuppressWarnings("unused")
 		public Colorizer bold(boolean b) {
 			if(b) {opcodes.add(1);}
 			else { opcodes.remove(1);}
 			return this;
 		}
 		
+		@SuppressWarnings("unused")
 		public Colorizer underscore(boolean b) {
 			if(b) {opcodes.add(4);}
 			else { opcodes.remove(4);}
@@ -113,6 +143,7 @@ public class TView implements Closeable
 			out.print(o);
 			return this;
 			}
+		@SuppressWarnings("unused")
 		public Colorizer println(final Object o)
 			{
 			this.print(o);
@@ -143,11 +174,22 @@ public class TView implements Closeable
 			return this;
 			}
 		}
+
+	private static class VcfSource
+		{
+		File vcfFile;
+		VCFFileReader vcfFileReader;
+		}
+	private enum GroupBy
+		{
+		SAMPLE,
+		RG, LIBRARY
+		}
 	
-	
+	@Parameter(names={"--clip"},description="Show clip")
 	private boolean showClip=false;
 	private Interval interval=null;
-	@Parameter(names={"-R","--reference"},description="Indexed Reference file.",required=true)
+	@Parameter(names={"-R","--reference"},description="Indexed Reference file.")
 	private File referenceFile=null;
 	@Parameter(names={"--insert"},description="Show insertions")
 	private boolean showInsertions=false;
@@ -169,18 +211,24 @@ public class TView implements Closeable
 	private boolean hideHomRef=false;
 	@Parameter(names={"--hideNoCall"},description="Hide NO_CALL variations")
 	private boolean hideNoCall=false;
-
+	@Parameter(names={"--groupby"},description="Group Reads by")
+	private GroupBy groupBy=GroupBy.SAMPLE;
 	
 	private int distance_between_reads=2;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private final List<SamInputResource> samInputResources=new ArrayList<>();
 	private final List<SamReader> samReaders=new ArrayList<>();
-	private final List<VCFFileReader> vcfReaders=new ArrayList<>();
+	private final List<VcfSource> vcfReaders=new ArrayList<>();
 
 	
 	public TView() {
 		
 	}
+	
+	public File getReferenceFile()
+		{
+		return referenceFile;
+		}
 	
 	private String margin(final Object o)
 		{
@@ -234,9 +282,11 @@ public class TView implements Closeable
 		
 		for(final File vcfFile:IOUtils.unrollFile(this.variantFiles))
 			{
+			final VcfSource vcfSource = new VcfSource();
 			LOG.debug("OPEN "+vcfFile);
-			final VCFFileReader vcfReader= new VCFFileReader(vcfFile,true);
-			this.vcfReaders.add(vcfReader);
+			vcfSource.vcfFile = vcfFile;
+			vcfSource.vcfFileReader = new VCFFileReader(vcfFile,true);
+			this.vcfReaders.add(vcfSource);
 			}
 		
 		return 0;
@@ -252,9 +302,9 @@ public class TView implements Closeable
 			CloserUtil.close(r);
 			}
 
-		for(final VCFFileReader r: this.vcfReaders)
+		for(final VcfSource r: this.vcfReaders)
 			{
-			CloserUtil.close(r);
+			CloserUtil.close(r.vcfFileReader);
 			}
 		this.samInputResources.clear();
 		this.samReaders.clear();
@@ -266,12 +316,27 @@ public class TView implements Closeable
 	}
 	
 	public Function<SAMRecord,String> getRecordGroup() {
-		
-		return R->{
-			final SAMReadGroupRecord rg= R.getReadGroup();
-			if(rg!=null && rg.getSample()!=null) return rg.getSample();
-			return "UNDEFINED";
-		};
+		final String undefined="UNDEFINED";
+		switch(this.groupBy)
+			{
+			case LIBRARY: return R->{
+					final SAMReadGroupRecord rg= R.getReadGroup();
+					if(rg!=null ) return rg.getLibrary();
+					return undefined;
+				};
+			case RG: return R->{
+				final SAMReadGroupRecord rg= R.getReadGroup();
+				if(rg!=null ) return rg.getId();
+				return undefined;
+			};
+			case SAMPLE: return R->{
+					final SAMReadGroupRecord rg= R.getReadGroup();
+					if(rg!=null && rg.getSample()!=null) return rg.getSample();
+					return undefined;
+				};
+			default:
+				return R->undefined;
+			}
 	}
 	
 	
@@ -302,8 +367,8 @@ public class TView implements Closeable
 		final Function<Integer, Character> refPosToBase;
 		if(indexedFastaSequenceFile!=null)
 			{
-				
-			if(indexedFastaSequenceFile.getSequenceDictionary().getSequence(this.interval.getContig())==null)
+			final SAMSequenceDictionary dict=SAMSequenceDictionaryExtractor.extractDictionary(referenceFile);	
+			if(dict.getSequence(this.interval.getContig())==null)
 				{
 				LOG.warn("No interval with contig "+interval+" in REF");
 				return;
@@ -701,18 +766,37 @@ public class TView implements Closeable
 		
 		/** variant section*/
 		if(!this.vcfReaders.isEmpty() && !out.checkError()) {
+			final Function<GenotypeType, Character> gTypeToSymbol = new Function<GenotypeType, Character>()
+				{
+				@Override
+				public Character apply(final GenotypeType gt) {
+					switch(gt)
+						{
+						case NO_CALL: return '?';
+						case HOM_REF: return '0';
+						case HET: return '1';
+						case HOM_VAR: return '2';
+						case MIXED: return 'm';
+						case UNAVAILABLE: return 'u';
+						default: return '.';
+						}			
+					}
+				};
 			out.println();
-			for(final VCFFileReader r:this.vcfReaders)
+			for(final VcfSource r:this.vcfReaders)
 				{
 				if(out.checkError()) break;
-				final VCFHeader header = r.getFileHeader();
-				final CloseableIterator<VariantContext> iter = r.query(this.interval.getContig(), interval.getStart(), interval.getEnd());
+				final VCFHeader header = r.vcfFileReader.getFileHeader();
+				final CloseableIterator<VariantContext> iter = r.vcfFileReader.query(this.interval.getContig(), interval.getStart(), interval.getEnd());
 				final List<VariantContext> variants = new ArrayList<>();
 				while(iter.hasNext())
 					{
 					variants.add(iter.next());
 					}
 				iter.close();
+				if(variants.isEmpty()) continue;
+				
+				out.println(r.vcfFile.getPath());
 				if(header.hasGenotypingData())
 					{
 					for(final String sample:header.getSampleNamesInOrder()) {
@@ -744,15 +828,7 @@ public class TView implements Closeable
 										final Genotype g = ctx.getGenotype(sample);
 										if( g.isNoCall() && this.hideNoCall) continue;
 										if( g.isHomRef() && this.hideHomRef) continue;
-										switch(g.getType())
-											{
-											case NO_CALL: refBase='?';break;
-											case HOM_REF: refBase='0';break;
-											case HET: refBase='1';break;
-											case HOM_VAR: refBase='2';break;
-											case MIXED: refBase='m';break;
-											case UNAVAILABLE: refBase='u';break;
-											}
+										refBase = gTypeToSymbol.apply(g.getType());
 										break;
 										}
 									}
@@ -764,13 +840,37 @@ public class TView implements Closeable
 						out.println();
 						}
 					}
-				else
+				else //no genotype
 					{
-					LOG.info("TODO");
+					for(final VariantContext ctx:variants)
+						{
+						out.print(
+							margin(String.valueOf(ctx.getStart())+":"+
+							ctx.getReference().getDisplayString()+"/"+
+							ctx.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(","))
+							));
+						
+						ref = this.interval.getStart();
+						x=0;
+						while(x < pixelWidth)
+							{
+							if(insertIsPresentAtX.test(x))
+								{
+								out.print("*");
+								++x;
+								}
+							else
+								{
+								out.print(ctx.getStart() == ref?'+':' ');
+								++ref;
+								++x;
+								}
+							}
+						out.println();
+						}
 					}
 				}
 			}
-		LOG.debug("done");
 		}
     
 	}

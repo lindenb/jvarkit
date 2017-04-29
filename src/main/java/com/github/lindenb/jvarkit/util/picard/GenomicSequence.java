@@ -211,4 +211,5 @@ public class GenomicSequence
 		return gcp;
 		}
 	
+	
 	}

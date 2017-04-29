@@ -113,8 +113,8 @@ private java.util.Comparator<Integer> intcmp():{}
 public class SamFilterParser implements SamFilterParserConstants {
                 private static final Logger LOG = Logger.build(SamFilterParser.class).make();
 
-                public static final String FILTER_DESCRIPTION = "A filter expression";
-                public static final String DEFAULT_FILTER = "Duplicate() || FailsVendorQuality()";
+                public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out";
+                public static final String DEFAULT_FILTER = "Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()";
                 public static final String DEFAULT_OPT = "--samFilter";
 
                 public static final SamRecordFilter  ACCEPT_ALL = new SamRecordFilter() {
@@ -295,6 +295,14 @@ public class SamFilterParser implements SamFilterParserConstants {
             return new Predicate<SAMRecord>() {
                     @Override public boolean test(final SAMRecord rec) { SAMReadGroupRecord rg=rec.getReadGroup(); return rg!=null && s.equals(rg.getId());}
             }; }
+                private static Predicate<SAMRecord> notPrimaryAlignmentFlag() {
+                return new Predicate<SAMRecord>() {
+                        @Override public boolean test(final SAMRecord rec) { return rec.getNotPrimaryAlignmentFlag();}
+                }; }
+                private static Predicate<SAMRecord> supplementaryAlignmentFlag() {
+                return new Predicate<SAMRecord>() {
+                        @Override public boolean test(final SAMRecord rec) { return rec.getSupplementaryAlignmentFlag();}
+                }; }
 
   final private Predicate<SAMRecord> anyNode() throws ParseException {
                                           Predicate<SAMRecord> other;
@@ -308,6 +316,8 @@ public class SamFilterParser implements SamFilterParserConstants {
     case MAPPED:
     case MATEUNMAPPED:
     case FAILSVENDORQUALITY:
+    case NOTPRIMARYALIGNMENT:
+    case SUPPLEMENTARYALIGNMENT:
     case PAIRED:
     case OVERLAP:
     case SAMFLAG:
@@ -418,6 +428,18 @@ public class SamFilterParser implements SamFilterParserConstants {
       jj_consume_token(CPAR);
                                           {if (true) return mateUnmapped();}
       break;
+    case NOTPRIMARYALIGNMENT:
+      jj_consume_token(NOTPRIMARYALIGNMENT);
+      jj_consume_token(OPAR);
+      jj_consume_token(CPAR);
+                                                 {if (true) return notPrimaryAlignmentFlag();}
+      break;
+    case SUPPLEMENTARYALIGNMENT:
+      jj_consume_token(SUPPLEMENTARYALIGNMENT);
+      jj_consume_token(OPAR);
+      jj_consume_token(CPAR);
+                                                    {if (true) return supplementaryAlignmentFlag();}
+      break;
     case OVERLAP:
       jj_consume_token(OVERLAP);
       jj_consume_token(OPAR);
@@ -488,7 +510,7 @@ public class SamFilterParser implements SamFilterParserConstants {
       jj_la1_init_0();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0xffc1400,0x100,0x200,0xffc0000,0x30000,};
+      jj_la1_0 = new int[] {0x3ffc1400,0x100,0x200,0x3ffc0000,0x30000,};
    }
 
   /** Constructor with InputStream. */
@@ -605,7 +627,7 @@ public class SamFilterParser implements SamFilterParserConstants {
   /** Generate ParseException. */
   public ParseException generateParseException() {
     jj_expentries.clear();
-    boolean[] la1tokens = new boolean[28];
+    boolean[] la1tokens = new boolean[30];
     if (jj_kind >= 0) {
       la1tokens[jj_kind] = true;
       jj_kind = -1;
@@ -619,7 +641,7 @@ public class SamFilterParser implements SamFilterParserConstants {
         }
       }
     }
-    for (int i = 0; i < 28; i++) {
+    for (int i = 0; i < 30; i++) {
       if (la1tokens[i]) {
         jj_expentry = new int[1];
         jj_expentry[0] = i;

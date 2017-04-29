@@ -71,15 +71,19 @@ public interface SamFilterParserConstants {
   /** RegularExpression Id. */
   int FAILSVENDORQUALITY = 22;
   /** RegularExpression Id. */
-  int PAIRED = 23;
+  int NOTPRIMARYALIGNMENT = 23;
   /** RegularExpression Id. */
-  int OVERLAP = 24;
+  int SUPPLEMENTARYALIGNMENT = 24;
   /** RegularExpression Id. */
-  int SAMFLAG = 25;
+  int PAIRED = 25;
   /** RegularExpression Id. */
-  int SAMPLE = 26;
+  int OVERLAP = 26;
   /** RegularExpression Id. */
-  int GROUP = 27;
+  int SAMFLAG = 27;
+  /** RegularExpression Id. */
+  int SAMPLE = 28;
+  /** RegularExpression Id. */
+  int GROUP = 29;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -109,6 +113,8 @@ public interface SamFilterParserConstants {
     "<MAPPED>",
     "<MATEUNMAPPED>",
     "<FAILSVENDORQUALITY>",
+    "<NOTPRIMARYALIGNMENT>",
+    "<SUPPLEMENTARYALIGNMENT>",
     "<PAIRED>",
     "\"overlap\"",
     "\"samFlag\"",
