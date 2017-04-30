@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -181,6 +182,40 @@ public class TView implements Closeable
 		VCFFileReader vcfFileReader;
 		}
 	
+	private static class Consensus
+		{
+		private final Counter<Character> count=new Counter<>();
+		void watch(char c) {
+			if(Character.isWhitespace(c)) return;
+			count.incr(Character.toUpperCase(c));
+			}
+		
+		public char getConsensus() {
+			if(count.isEmpty()) return ' ';
+			if(count.getCountCategories()!=1) return 'N';
+			return  count.getMostFrequent();
+			}
+		public int getCoverage() {
+			return (int)this.count.getTotal();
+			}
+		}
+	
+	private static class ConsensusBuilder
+		{
+		private int x=0;
+		private final List<Consensus> bases = new ArrayList<>();
+		void add(final char c) {
+			while(bases.size() <= this.x) this.bases.add(new Consensus());
+			this.bases.get(this.x).watch(c);
+			++this.x;
+			}
+		// end of line builder, reset to begin of line
+		public void eol() {
+			this.x=0;
+			}
+		
+		}
+
 	
 	@Parameter(names={"--clip"},description="Show clip")
 	private boolean showClip=false;
@@ -209,6 +244,11 @@ public class TView implements Closeable
 	private boolean hideNoCall=false;
 	@Parameter(names={"--groupby"},description="Group Reads by")
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
+	@Parameter(names={"--noconsensus"},description="Hide Consensus line")
+	private boolean hideConsensus=false;
+	@Parameter(names={"--coverage","--depth"},description="Number of rows for coverage (hide:<=0)")
+	private int numCoverageRows=10;
+
 	
 	private int distance_between_reads=2;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -523,12 +563,16 @@ public class TView implements Closeable
 			}
 		out.println();
 		*/
-		
+		/* loop over samples **/
 		for(final String groupName : group2record.keySet())
 			{
+			if(this.maxReadRowPerGroup==0) continue;
+			final ConsensusBuilder consensus = new ConsensusBuilder();
 			int y_group=0;
 			final List<List<SAMRecord>> rows = new ArrayList<>();
 			out.println(margin(""));
+			
+			
 			/* pileup reads */
 			for(final SAMRecord rec: group2record.get(groupName)) {
 				int y=0;
@@ -551,8 +595,9 @@ public class TView implements Closeable
 			for(final List<SAMRecord> row : rows)
 				{
 				++y_group;
-				if(this.maxReadRowPerGroup>=0 && y_group>= this.maxReadRowPerGroup) break;
-				out.print(margin(y_group==1?groupName:""));
+				boolean print_this_line = (this.maxReadRowPerGroup<0 || y_group <= this.maxReadRowPerGroup);
+				
+				if(print_this_line) out.print(margin(y_group==1?groupName:""));
 				
 				ref = interval.getStart();
 
@@ -567,7 +612,8 @@ public class TView implements Closeable
 						{
 						if(!insertIsPresentAtX.test(x) ) ++ref;
 						++x;
-						out.print(' ');
+						if(print_this_line) out.print(' ');
+						consensus.add(' ');
 						}
 										
 					int readpos=0;
@@ -586,6 +632,7 @@ public class TView implements Closeable
 						final CigarOperator op = ce.getOperator();
 						if(op.equals(CigarOperator.PADDING)) continue;
 						
+						/* IN INSERTION, only print if showInsertions is true */
 						if(this.showInsertions && op.equals(CigarOperator.I)) {
 							int cigarIdx =0;
 							while( x < pixelWidth &&
@@ -593,7 +640,9 @@ public class TView implements Closeable
 									)
 								{
 								if(testInInterval.test(readRef)) {
-									colorizer.paper(AnsiColor.RED).print(baseAt.apply(readpos));
+									final char readbase = baseAt.apply(readpos);
+									if(print_this_line) colorizer.paper(AnsiColor.RED).print(readbase);
+									consensus.add(readbase);
 									++x;
 									}
 								++cigarIdx;
@@ -616,7 +665,8 @@ public class TView implements Closeable
 									)
 								{
 								++x;
-								colorizer.paper(AnsiColor.YELLOW).print("*");
+								if(print_this_line) colorizer.paper(AnsiColor.YELLOW).print("*");
+								consensus.add(' ');
 								continue;
 								}
 
@@ -636,7 +686,8 @@ public class TView implements Closeable
 									if(showClip)
 										{
 										if(testInInterval.test(readRef)) {
-											colorizer.paper(AnsiColor.YELLOW).print('N');
+											if(print_this_line) colorizer.paper(AnsiColor.YELLOW).print('N');
+											consensus.add(' ');//CLIPPED base not part of consensus 
 											++x;
 											}
 										++readRef;
@@ -648,7 +699,9 @@ public class TView implements Closeable
 									if(showClip)
 										{
 										if(testInInterval.test(readRef)) {
-											colorizer.paper(AnsiColor.YELLOW).print((char)rec.getReadBases()[readpos]);
+											final char readBase = baseAt.apply(readpos);
+											if(print_this_line) colorizer.paper(AnsiColor.YELLOW).print(readBase);
+											consensus.add(' ');//CLIPPED base not part of consensus
 											++x;
 											}
 										++readpos;
@@ -663,7 +716,8 @@ public class TView implements Closeable
 								case D: case N:
 									{
 									if(testInInterval.test(readRef)) {
-										colorizer.paper(AnsiColor.RED).print('-');
+										if(print_this_line) colorizer.paper(AnsiColor.RED).print('-');
+										consensus.add(' ');//deletion not not part of consensus
 										++x;
 										}
 									++readRef;
@@ -674,6 +728,7 @@ public class TView implements Closeable
 									if(testInInterval.test(readRef)) {
 										final char refBase =  Character.toUpperCase(refPosToBase.apply(readRef-1));
 										char readBase = Character.toUpperCase(baseAt.apply(readpos));
+										consensus.add(readBase);
 										
 										colorizer.pen(base2ansiColor.apply(readBase));
 										
@@ -683,7 +738,6 @@ public class TView implements Closeable
 											}
 										else if(hideBases)
 											{
-											
 											if(rec.getReadNegativeStrandFlag())
 												{
 												readBase=',';
@@ -713,7 +767,7 @@ public class TView implements Closeable
 											{
 											readBase=Character.toUpperCase(readBase);
 											}
-										colorizer.print(readBase);
+										if(print_this_line) colorizer.print(readBase);
 										++x;
 										}
 									++readpos;
@@ -730,14 +784,63 @@ public class TView implements Closeable
 				//out.println( " "+ref+" "+row.get(0).getAlignmentStart()+" "+row.get(0).getCigarString()+" "+row.get(0).getReadString());
 				while(x<pixelWidth)
 					{
-					out.print(" ");
+					if(print_this_line) out.print(" ");
 					++x;
 					}
-				out.println();
+				if(print_this_line) out.println();
+				consensus.eol();
 				if(out.checkError()) break;
 				}
 			if(out.checkError()) break;
-			}
+			
+			if(!this.hideConsensus &&  consensus.bases.stream().anyMatch(C->C.getCoverage()>0))
+				{
+				out.print(margin(groupName+" CONSENSUS"));
+				x=0;
+				ref=interval.getStart();
+				while(x< consensus.bases.size())
+					{
+					final char refBase =  Character.toUpperCase(refPosToBase.apply(ref-1));
+					final char consensusBase  = consensus.bases.get(x).getConsensus();
+					if( Character.isWhitespace(consensusBase) ) {
+						//nothing
+						}
+					else if( refBase!='N' &&  consensusBase!=refBase)
+						{
+						colorizer.pen(AnsiColor.RED);
+						}
+					else
+						{
+						colorizer.pen(base2ansiColor.apply(consensusBase));
+						}
+					if(!insertIsPresentAtX.test(x)) ++ref;
+					colorizer.print(consensusBase);
+					++x;
+					}
+				out.println();
+				}
+			if(this.numCoverageRows>0)
+				{
+				int minCov = consensus.bases.stream().mapToInt(C->C.getCoverage()).min().orElse(0);
+				final int maxCov = consensus.bases.stream().mapToInt(C->C.getCoverage()).max().orElse(0);
+				for(int y=0;maxCov>0 && y<this.numCoverageRows;++y)
+					{
+					if(minCov==maxCov) minCov--;
+					double fract = (maxCov-minCov)/((double)this.numCoverageRows);
+					int inverse_y = (this.numCoverageRows-1)-y;
+					int d0 = (int)((fract) * inverse_y);
+					//int d1 = (int)((fract) * (inverse_y+1));
+					
+					out.print(margin(y==0 ? groupName+" "+maxCov:(y+1==this.numCoverageRows?String.valueOf(minCov):"")));
+					for(x=0;x< consensus.bases.size();++x)
+						{
+						int depth = consensus.bases.get(x).getCoverage() - minCov;
+						out.print(depth >= d0 ?(this.disableANSIColors?'*':'\u25A0'):' ');
+						}
+					out.println();
+					}
+				}
+			}/* end of loop over sample */
 		
 		/** variant section*/
 		if(!this.vcfReaders.isEmpty() && !out.checkError()) {

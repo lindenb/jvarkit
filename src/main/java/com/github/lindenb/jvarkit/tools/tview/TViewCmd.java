@@ -54,7 +54,7 @@ BEGIN_DOC
 ## Example
 
 ```
-$ java -jar dist/tview.jar -R toy.fa toy.bam --clip --groupby LIBRARY
+$ java -jar dist/tview.jar -R toy.fa toy.bam --clip --groupby library
 
           POS: 1.........11........21........31........41........51........6
           REF: AGCATGTTAGATAAGATAGCTGTGCTAGTAGGCAGTCAGCGCCATNNNNNNNNNNNNNNNN

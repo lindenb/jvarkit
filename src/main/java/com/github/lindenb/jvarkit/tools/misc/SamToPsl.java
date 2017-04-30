@@ -25,9 +25,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.awt.Color;
+import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 
@@ -39,17 +39,26 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.PslAlign;
 
-public class SamToPsl extends AbstractSamToPsl
+@Program(name="sam2psl",description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12")
+public class SamToPsl extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractSamToPsl.class);
+	private static final Logger LOG = Logger.build(SamToPsl.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
 
+	@Parameter(names={"-s","--single"},description="treat all reads as single end")
+	private boolean handle_paired_reads=false;
+	@Parameter(names={"-B","bed12"},description="export as BED 12")
+	private boolean output_bed12=false;
+	
 	private PrintWriter out = null;
-	private SamToPsl()
-		{
-		}
 	
 	
 	
@@ -279,7 +288,7 @@ public class SamToPsl extends AbstractSamToPsl
 	
 	private String toString(final PslAlign a,final  SAMRecord rec)
 		{
-		if(super.output_bed12)
+		if(this.output_bed12)
 			{
 			final StringBuilder b=new StringBuilder();
 		    //chrom - The name of the chromosome (e.g. chr3, chrY, chr2_random) or scaffold (e.g. scaffold10671).
@@ -339,15 +348,14 @@ public class SamToPsl extends AbstractSamToPsl
 			}
 		}
 	
-
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		
+	public int doWork(List<String> args)
+		{
 		SamReader sfr=null;
 		try
 			{
-			sfr = super.openSamReader(inputName);
-			this.out = super.openFileOrStdoutAsPrintWriter();
+			sfr = super.openSamReader(oneFileOrNull(args));
+			this.out = super.openFileOrStdoutAsPrintWriter(outputFile);
 			scan(sfr);
 			this.out.flush();
 			LOG.info("done");
@@ -355,7 +363,8 @@ public class SamToPsl extends AbstractSamToPsl
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

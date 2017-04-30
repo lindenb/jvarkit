@@ -28,8 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.File;
 import java.io.PrintStream;
-import java.util.Collection;
 import java.util.List;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -38,38 +38,31 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
-public class AlleleFrequencyCalculator extends AbstractAlleleFrequencyCalculator
+public class AlleleFrequencyCalculator extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(AlleleFrequencyCalculator.class);
+	private static final Logger LOG = Logger.build(AlleleFrequencyCalculator.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
 
 	public AlleleFrequencyCalculator()
 		{
 		
 		}
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public int doWork(List<String> args)
+		{
 		PrintStream out = null;
 		VcfIterator in = null;
 		try
 			{
-			final List<String> args = this.getInputFiles();
-			if(inputName==null)
-				{
-				LOG.info("reading stdin");
-				in=new VcfIteratorImpl(stdin());
-				}
-			else
-				{
-				LOG.info("reading "+args.get(0));
-				in=VCFUtils.createVcfIterator(inputName);
-				}
-			
-			out = openFileOrStdoutAsPrintStream();
+			in = super.openVcfIterator(oneAndOnlyOneFile(args));
+		
+			out = openFileOrStdoutAsPrintStream(outputFile);
 			
 			
 			out.println("CHR\tPOS\tID\tREF\tALT\tTOTAL_CNT\tALT_CNT\tFRQ");
@@ -130,7 +123,8 @@ public class AlleleFrequencyCalculator extends AbstractAlleleFrequencyCalculator
 		}
 	catch(Exception err)
 		{
-		return wrapException(err);
+		LOG.error(err);
+		return -1;
 		}
 	finally
 		{
