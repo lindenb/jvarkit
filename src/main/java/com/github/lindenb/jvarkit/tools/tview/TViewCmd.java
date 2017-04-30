@@ -54,16 +54,27 @@ BEGIN_DOC
 ## Example
 
 ```
-$ java -jar dist/tview.jar -R toy.fa toy.bam --clip --groupby library
+$ java -jar dist/tview.jar -R toy.fa toy.bam --clip  --groupby sample  --insert  --plain
 
-          POS: 1.........11........21........31........41........51........6
-          REF: AGCATGTTAGATAAGATAGCTGTGCTAGTAGGCAGTCAGCGCCATNNNNNNNNNNNNNNNN
+ref:1-61
+          POS: 1.......^^..11..^^^^....^^..21........31...^.....41........51
+          REF: AGCATGTT**AGATAA****GATA**GCTGTGCTAGTAGGCAG*TCAGCGCCATNNNNNNN
                
-     UNDEFINED       TTAGATAAGATA-CTG              cagcgccat                
-                      AAGATAAGATA    NNNNNNtaggc                            
-                  NNNNNAGCTAA                                               
-                              ATAGCT--------------TCAGC 
-
+ndefined_sample      TT**AGATAAAGAGGATA**-CTG               cagcgccat       
+                      AAAAGATAAGG**GATAAA    NNNNNNtaggc                    
+                  NNNNN**AGCTAA                                             
+                                    ATA**GCT--------------CTCAGC            
+ample CONSENSUS      TTAAAGNTAANGAGGATAAAGCTG      TAGGC  CTCAGCGCCAT
+efined_sample 3          ********  ****   **                ****     
+                         ********  ****   **                ****     
+                         ********  ****   **                ****     
+                     ************************      *****  ***********
+                     ************************      *****  ***********
+                     ************************      *****  ***********
+               ******************************************************
+               ******************************************************
+               ******************************************************
+             0 ******************************************************
 ```
             
 END_DOC

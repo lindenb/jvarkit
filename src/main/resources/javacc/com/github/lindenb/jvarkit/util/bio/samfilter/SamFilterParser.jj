@@ -35,6 +35,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.filter.SamRecordFilter;
@@ -120,7 +121,7 @@ private java.util.Comparator<Integer> intcmp():{}
 public class SamFilterParser {
 		private static final Logger LOG = Logger.build(SamFilterParser.class).make();
 
-		public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out";
+		public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out. Empty String means 'filter out nothing/Accept all'.";
 		public static final String DEFAULT_FILTER = "Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()";
 		public static final String DEFAULT_OPT = "--samFilter";
 
@@ -133,6 +134,10 @@ public class SamFilterParser {
 					@Override
 					public boolean filterOut(SAMRecord record) {
 						return false;
+					}
+					@Override
+					public String toString() {
+						return "Accept All/ Filter out nothing";
 					}
 				};
 
@@ -310,6 +315,23 @@ public class SamFilterParser {
 		return new Predicate<SAMRecord>() {
 		 	@Override public boolean test(final SAMRecord rec) { return rec.getSupplementaryAlignmentFlag();}
 		}; }		
+		
+        private static Predicate<SAMRecord> readClipped() {
+        return new Predicate<SAMRecord>() {
+                @Override public boolean test(final SAMRecord rec) {
+                if(rec.getReadUnmappedFlag()) return false;
+                final Cigar c= rec.getCigar();
+                if(c==null || c.isEmpty()) return false;
+                return c.isClipped();
+                	
+                }
+        }; }
+        
+        private static Predicate<SAMRecord>  mapqUnavailable() {
+		return new Predicate<SAMRecord>() {
+	 	@Override public boolean test(final SAMRecord rec) { return  (rec.getMappingQuality() == SAMRecord.NO_MAPPING_QUALITY);}
+		}; }		
+		
 	}
 	
 PARSER_END(SamFilterParser)
@@ -346,6 +368,8 @@ TOKEN:
 | <NOTPRIMARYALIGNMENT: (<ISGET>) ? "NotPrimaryAlignment" (<READFLAG>)?>
 | <SUPPLEMENTARYALIGNMENT: (<ISGET>) ? "SupplementaryAlignment" (<READFLAG>)?>
 | <PAIRED: (<ISGET>) ? ("Read")? "Paired" >
+| <CLIPPED: (<ISGET>) ? ("Read")? "Clipped" >
+| <MAPQUNAVAILABLE: (<ISGET>) ? "MapQ" ("uality")? "Unavailable" >
 | <OVERLAP: "overlap" >
 | <SAMFLAG: "samFlag" >
 | <SAMPLE: "sample" >
@@ -387,6 +411,8 @@ private Predicate<SAMRecord> UnaryExpr(): {String str; Token t; }
 	| <MAPPED> <OPAR> <CPAR> { return mappedFilter();}
 	| <FAILSVENDORQUALITY> <OPAR> <CPAR> { return failsVendorQuality();}
 	| <PAIRED> <OPAR> <CPAR> {  return readPaired();}
+	| <CLIPPED> <OPAR> <CPAR> {  return readClipped();}
+	| <MAPQUNAVAILABLE> <OPAR> <CPAR> {  return mapqUnavailable();}
 	| <MATEUNMAPPED> <OPAR> <CPAR> {  return mateUnmapped();}
 	| <NOTPRIMARYALIGNMENT> <OPAR> <CPAR> {  return notPrimaryAlignmentFlag();}
 	| <SUPPLEMENTARYALIGNMENT> <OPAR> <CPAR> {  return supplementaryAlignmentFlag();}

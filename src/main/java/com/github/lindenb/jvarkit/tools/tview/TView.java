@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,10 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -72,10 +77,49 @@ import htsjdk.samtools.filter.SamRecordFilter;
 
 public class TView implements Closeable
 	{
+	private static final String BLACK_SQUARE="\u25A0";
 	private static final Logger LOG = Logger.build(TView.class).make();
-	
+	private enum LayoutReads {pileup,name};
+	private enum Formatout {tty,plain,html};
 	public static final String ANSI_ESCAPE = "\u001B[";
 	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
+	
+	@Parameter(names={"--clip"},description="Show clip")
+	private boolean showClip=false;
+	private Interval interval=null;
+	@Parameter(names={"-R","--reference"},description="Indexed Reference file.")
+	private File referenceFile=null;
+	@Parameter(names={"--insert"},description="Show insertions")
+	private boolean showInsertions=false;
+	@Parameter(names={"--readName"},description="Show read name")
+	private boolean showReadName=false;
+	@Parameter(names={"--format","--outputformat"},description="Output format")
+	private Formatout formatOut=Formatout.tty;
+	@Parameter(names={"--hideBases"},description="Hide bases")
+	private boolean hideBases=false;
+	@Parameter(names={"-V","--variant","--variants","--vcf"},description="Variant file. "+IOUtils.UNROLL_FILE_MESSAGE)
+	private File variantFiles = null;
+	@Parameter(names=SamFilterParser.DEFAULT_OPT,description=SamFilterParser.FILTER_DESCRIPTION)
+	private SamRecordFilter samRecordFilter = SamFilterParser.buildDefault();
+	@Parameter(names={"-left","--leftmargin"},description="left margin width")
+	private int leftMarginWidth=15;
+	@Parameter(names={"-maxrows","--maxrowss"},description="maximum number of rows per read group. -1 == all")
+	private int maxReadRowPerGroup=-1;
+	@Parameter(names={"--hideHomRef"},description="Hide HOM_REF variations")
+	private boolean hideHomRef=false;
+	@Parameter(names={"--hideNoCall"},description="Hide NO_CALL variations")
+	private boolean hideNoCall=false;
+	@Parameter(names={"--groupby"},description="Group Reads by")
+	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
+	@Parameter(names={"--noconsensus"},description="Hide Consensus line")
+	private boolean hideConsensus=false;
+	@Parameter(names={"--coverage","--depth"},description="Number of rows for coverage (hide:<=0)")
+	private int numCoverageRows=10;
+	@Parameter(names={"-layout","--layout"},description="Layout reads")
+	private LayoutReads layoutReads=LayoutReads.pileup;
+
+	
+	
 	private enum AnsiColor {
     	BLACK (30),
     	RED (31),
@@ -93,38 +137,33 @@ public class TView implements Closeable
     	final int opcode;
     	int pen() { return (opcode);}
     	int paper() { return (opcode+10);}
+    	String rgb() {
+    		return this.name().toLowerCase();
+    		}
     	}
 	
 
 	private class Colorizer
 		{
-		protected Set<Integer> opcodes=new HashSet<>();
+		protected AnsiColor _pen = null;
+		protected AnsiColor _paper = null;
 		protected PrintStream out;
 		
-		Colorizer(PrintStream out) {this.out=out;}
+		Colorizer(final PrintStream out) {this.out=out;}
 		public Colorizer pen(AnsiColor c) {
-			if(c==null)
-				{
-				for(AnsiColor ansi:AnsiColor.values()) opcodes.remove(ansi.pen());
-				}
-			else
-				{
-				opcodes.add(c.pen());
-				}
+			this._pen = c;
 			return this;
 		}
 		public Colorizer paper(AnsiColor c) {
-			if(c==null)
-			{
-			for(AnsiColor ansi:AnsiColor.values()) opcodes.remove(ansi.paper());
-			}
-		else
-			{
-			opcodes.add(c.paper());
-			}
-		return this;
-	}
-		@SuppressWarnings("unused")
+			this._paper= c;
+			return this;
+		}
+		public Colorizer clear() {
+			this._pen=null;
+			this._paper=null;
+			return this;
+		}
+		/*@SuppressWarnings("unused")
 		public Colorizer bold(boolean b) {
 			if(b) {opcodes.add(1);}
 			else { opcodes.remove(1);}
@@ -136,12 +175,12 @@ public class TView implements Closeable
 			if(b) {opcodes.add(4);}
 			else { opcodes.remove(4);}
 			return this;
-		}
+		}*/
 		
 		
 		public Colorizer print(final Object o)
 			{
-			out.print(o);
+			out.print(BLACK_SQUARE.equals(o)?"*":o);
 			return this;
 			}
 		@SuppressWarnings("unused")
@@ -158,6 +197,9 @@ public class TView implements Closeable
 
 		@Override
 		public Colorizer print(Object o) {
+			final Set<Integer> opcodes = new HashSet<>();
+			if(this._paper!=null) opcodes.add(this._paper.paper());
+			if(this._pen!=null) opcodes.add(this._pen.pen());
 			if(!opcodes.isEmpty())
 				{
 				final StringBuilder sb=new StringBuilder(ANSI_ESCAPE);
@@ -168,14 +210,62 @@ public class TView implements Closeable
 			
 			out.print(o);
 			if(!opcodes.isEmpty()) {
-				this.opcodes.clear();
 				out.print(ANSI_RESET);
 				}
-			
+			clear();
 			return this;
 			}
 		}
 
+	private class HtmlColorizer extends Colorizer {
+		private final XMLStreamWriter wout;
+		HtmlColorizer(final PrintStream out) {
+			super(out);
+			try {
+				this.wout=XMLOutputFactory.newFactory().createXMLStreamWriter(out, "UTF-8");
+				}
+			catch(Throwable err) {
+				throw new RuntimeException(err);
+				}
+			}
+	
+		@Override
+		public Colorizer print(final Object o) {
+			try {
+				if( _pen!=null ||  _paper!=null) {
+					wout.writeStartElement("span");
+					final StringBuilder sb=new StringBuilder();
+					if(_pen!=null) {
+						sb.append("color:").append(_pen.rgb()).append(";");
+						}
+					if(_paper!=null) {
+						sb.append("background-color:").append(_paper.rgb()).append(";");
+						}
+					wout.writeAttribute("style", sb.toString());
+					}
+				if(BLACK_SQUARE.equals(o)) {
+					wout.writeEntityRef("#x25A0");
+					}	
+				else
+					{
+					wout.writeCharacters(String.valueOf(o));
+					}
+				
+				if( _pen!=null ||  _paper!=null) {
+					wout.writeEndElement();
+					}
+				clear();
+				}
+			catch(XMLStreamException err) 
+				{
+				throw new RuntimeException(err);
+				}
+			return this;
+			}
+		}
+
+	
+	
 	private static class VcfSource
 		{
 		File vcfFile;
@@ -217,37 +307,6 @@ public class TView implements Closeable
 		}
 
 	
-	@Parameter(names={"--clip"},description="Show clip")
-	private boolean showClip=false;
-	private Interval interval=null;
-	@Parameter(names={"-R","--reference"},description="Indexed Reference file.")
-	private File referenceFile=null;
-	@Parameter(names={"--insert"},description="Show insertions")
-	private boolean showInsertions=false;
-	@Parameter(names={"--readName"},description="Show read name")
-	private boolean showReadName=false;
-	@Parameter(names={"--plain"},description="Plain text, disable ANSI colors")
-	private boolean disableANSIColors=false;
-	@Parameter(names={"--hideBases"},description="Hide bases")
-	private boolean hideBases=false;
-	@Parameter(names={"-V","--variant","--variants","--vcf"},description="Variant file. "+IOUtils.UNROLL_FILE_MESSAGE)
-	private File variantFiles = null;
-	@Parameter(names=SamFilterParser.DEFAULT_OPT,description=SamFilterParser.FILTER_DESCRIPTION)
-	private SamRecordFilter samRecordFilter = SamFilterParser.buildDefault();
-	@Parameter(names={"-left","--leftmargin"},description="left margin width")
-	private int leftMarginWidth=15;
-	@Parameter(names={"-maxrows","--maxrowss"},description="maximum number of rows per read group. -1 == all")
-	private int maxReadRowPerGroup=-1;
-	@Parameter(names={"--hideHomRef"},description="Hide HOM_REF variations")
-	private boolean hideHomRef=false;
-	@Parameter(names={"--hideNoCall"},description="Hide NO_CALL variations")
-	private boolean hideNoCall=false;
-	@Parameter(names={"--groupby"},description="Group Reads by")
-	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
-	@Parameter(names={"--noconsensus"},description="Hide Consensus line")
-	private boolean hideConsensus=false;
-	@Parameter(names={"--coverage","--depth"},description="Number of rows for coverage (hide:<=0)")
-	private int numCoverageRows=10;
 
 	
 	private int distance_between_reads=2;
@@ -366,10 +425,15 @@ public class TView implements Closeable
 
 	
 	void paint(final PrintStream out) {
-		final Colorizer colorizer = disableANSIColors?
-				new Colorizer(out):
-				new  AnsiColorizer(out)
-				;
+		final Colorizer colorizer;
+		switch(this.formatOut)
+			{
+			case html: colorizer = new HtmlColorizer(out);break;
+			case tty: colorizer = new AnsiColorizer(out);break;
+			case plain: colorizer = new Colorizer(out);break;
+			default: throw new IllegalStateException();
+			}
+	
 				
 		if(interval==null) 
 			{
@@ -503,7 +567,8 @@ public class TView implements Closeable
 				default: return null;
 				}
 			};
-		
+		/** print interval title */
+		out.println(interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd());
 		/** paint base position */
 		int ref = this.interval.getStart();
 		int x=0;
@@ -572,32 +637,74 @@ public class TView implements Closeable
 			final List<List<SAMRecord>> rows = new ArrayList<>();
 			out.println(margin(""));
 			
-			
-			/* pileup reads */
-			for(final SAMRecord rec: group2record.get(groupName)) {
-				int y=0;
-				for(y=0;y< rows.size();++y)
-					{
-					final List<SAMRecord> row = rows.get(y);
-					final SAMRecord last = row.get(row.size()-1);
-					if(right().apply(last) + this.distance_between_reads < left().apply(rec)) {
-						row.add(rec);
+			switch(this.layoutReads) 
+				{
+				case name:
+						{
+						rows.addAll(group2record.get(groupName).
+							stream().
+							sorted((R1,R2)->R1.getReadName().
+							compareTo(R2.getReadName())).
+							map(R->Collections.singletonList(R)).
+							collect(Collectors.toList())
+							);
 						break;
 						}
-					}
-				if(y==rows.size()) {
-					final List<SAMRecord> row = new ArrayList<>();
-					row.add(rec);
-					rows.add(row);
+				default:
+					{
+					/* pileup reads */
+					for(final SAMRecord rec: group2record.get(groupName)) {
+						int y=0;
+						for(y=0;y< rows.size();++y)
+							{
+							final List<SAMRecord> row = rows.get(y);
+							final SAMRecord last = row.get(row.size()-1);
+							if(right().apply(last) + this.distance_between_reads < left().apply(rec)) {
+								row.add(rec);
+								break;
+								}
+							}
+						if(y==rows.size()) {
+							final List<SAMRecord> row = new ArrayList<>();
+							row.add(rec);
+							rows.add(row);
+							}
+						}
+					break;
 					}
 				}
+			//each row is only one read, so we need to print the groupName
+			if(layoutReads==LayoutReads.name)
+					{
+					out.print(margin(groupName));
+					out.println();
+					}
 			/* print each row */
 			for(final List<SAMRecord> row : rows)
 				{
 				++y_group;
 				boolean print_this_line = (this.maxReadRowPerGroup<0 || y_group <= this.maxReadRowPerGroup);
 				
-				if(print_this_line) out.print(margin(y_group==1?groupName:""));
+				if(print_this_line) {
+					//each row is only one read, print the read name
+					if(layoutReads==LayoutReads.name)
+						{
+						String readName = row.get(0).getReadName();
+						if(row.get(0).getReadPairedFlag()) {
+							if(row.get(0).getFirstOfPairFlag()) {
+								readName+="/1";
+								}
+							if(row.get(0).getSecondOfPairFlag()) {
+								readName+="/2";
+								}
+							}
+						out.print(margin(readName));
+						}
+					else
+						{
+						out.print(margin(y_group==1?groupName:""));
+						}
+					}
 				
 				ref = interval.getStart();
 
@@ -622,8 +729,10 @@ public class TView implements Closeable
 					final Function<Integer,Character> baseAt=new Function<Integer, Character>() {
 						@Override
 						public Character apply(final Integer readpos) {
+							final byte readBases[] = rec.getReadBases();
+							if( readBases == SAMRecord.NULL_SEQUENCE) return 'N';
 							if(readpos<0 || readpos>=rec.getReadLength()) return '?';
-							return (char) rec.getReadBases()[readpos];
+							return (char) readBases[readpos];
 							}
 						};
 					
@@ -657,7 +766,7 @@ public class TView implements Closeable
 								cigarIdx < ce.getLength() 
 								)
 							{
-							colorizer.opcodes.clear();
+							colorizer.clear();
 							//pad before base
 							while( x < pixelWidth &&
 									testInInterval.test(readRef) &&
@@ -835,7 +944,7 @@ public class TView implements Closeable
 					for(x=0;x< consensus.bases.size();++x)
 						{
 						int depth = consensus.bases.get(x).getCoverage() - minCov;
-						out.print(depth >= d0 ?(this.disableANSIColors?'*':'\u25A0'):' ');
+						colorizer.print(depth>=d0?BLACK_SQUARE:' ');
 						}
 					out.println();
 					}

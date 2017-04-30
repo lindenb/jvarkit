@@ -28,6 +28,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.filter.SamRecordFilter;
@@ -113,7 +114,7 @@ private java.util.Comparator<Integer> intcmp():{}
 public class SamFilterParser implements SamFilterParserConstants {
                 private static final Logger LOG = Logger.build(SamFilterParser.class).make();
 
-                public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out";
+                public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out. Empty String means 'filter out nothing/Accept all'.";
                 public static final String DEFAULT_FILTER = "Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()";
                 public static final String DEFAULT_OPT = "--samFilter";
 
@@ -126,6 +127,10 @@ public class SamFilterParser implements SamFilterParserConstants {
                                         @Override
                                         public boolean filterOut(SAMRecord record) {
                                                 return false;
+                                        }
+                                        @Override
+                                        public String toString() {
+                                                return "Accept All/ Filter out nothing";
                                         }
                                 };
 
@@ -304,6 +309,22 @@ public class SamFilterParser implements SamFilterParserConstants {
                         @Override public boolean test(final SAMRecord rec) { return rec.getSupplementaryAlignmentFlag();}
                 }; }
 
+        private static Predicate<SAMRecord> readClipped() {
+        return new Predicate<SAMRecord>() {
+                @Override public boolean test(final SAMRecord rec) {
+                if(rec.getReadUnmappedFlag()) return false;
+                final Cigar c= rec.getCigar();
+                if(c==null || c.isEmpty()) return false;
+                return c.isClipped();
+
+                }
+        }; }
+
+        private static Predicate<SAMRecord>  mapqUnavailable() {
+                return new Predicate<SAMRecord>() {
+                @Override public boolean test(final SAMRecord rec) { return  (rec.getMappingQuality() == SAMRecord.NO_MAPPING_QUALITY);}
+                }; }
+
   final private Predicate<SAMRecord> anyNode() throws ParseException {
                                           Predicate<SAMRecord> other;
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -319,6 +340,8 @@ public class SamFilterParser implements SamFilterParserConstants {
     case NOTPRIMARYALIGNMENT:
     case SUPPLEMENTARYALIGNMENT:
     case PAIRED:
+    case CLIPPED:
+    case MAPQUNAVAILABLE:
     case OVERLAP:
     case SAMFLAG:
     case SAMPLE:
@@ -422,6 +445,18 @@ public class SamFilterParser implements SamFilterParserConstants {
       jj_consume_token(CPAR);
                                     {if (true) return readPaired();}
       break;
+    case CLIPPED:
+      jj_consume_token(CLIPPED);
+      jj_consume_token(OPAR);
+      jj_consume_token(CPAR);
+                                     {if (true) return readClipped();}
+      break;
+    case MAPQUNAVAILABLE:
+      jj_consume_token(MAPQUNAVAILABLE);
+      jj_consume_token(OPAR);
+      jj_consume_token(CPAR);
+                                             {if (true) return mapqUnavailable();}
+      break;
     case MATEUNMAPPED:
       jj_consume_token(MATEUNMAPPED);
       jj_consume_token(OPAR);
@@ -510,7 +545,7 @@ public class SamFilterParser implements SamFilterParserConstants {
       jj_la1_init_0();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x3ffc1400,0x100,0x200,0x3ffc0000,0x30000,};
+      jj_la1_0 = new int[] {0xfffc1400,0x100,0x200,0xfffc0000,0x30000,};
    }
 
   /** Constructor with InputStream. */
@@ -627,7 +662,7 @@ public class SamFilterParser implements SamFilterParserConstants {
   /** Generate ParseException. */
   public ParseException generateParseException() {
     jj_expentries.clear();
-    boolean[] la1tokens = new boolean[30];
+    boolean[] la1tokens = new boolean[32];
     if (jj_kind >= 0) {
       la1tokens[jj_kind] = true;
       jj_kind = -1;
@@ -641,7 +676,7 @@ public class SamFilterParser implements SamFilterParserConstants {
         }
       }
     }
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 32; i++) {
       if (la1tokens[i]) {
         jj_expentry = new int[1];
         jj_expentry[0] = i;
