@@ -28,30 +28,36 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.jmx;
 
-import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamInputResource;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.util.CloserUtil;
-
+import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
+import java.util.List;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import com.github.lindenb.jvarkit.util.picard.AbstractBamWriterProgram;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-/**
- * @author lindenb
- *
- */
-public class SamJmx extends AbstractBamWriterProgram
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.util.CloserUtil;
+
+
+@Program(name="samjmx",description="Monitor/interrupt/break a BAM/SAM stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html")
+public class SamJmx extends Launcher
 	{
+	private static final Logger LOG=Logger.build(SamJmx.class).make();
+	@Parameter(names={"-o","--out"},description="Output vcf , or stdout")
+	private File output=null;
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
+	@Parameter(names={"-p"},required=false,description="Stream identifier")
 	private String projectName=null;
 	
 	public SamJmx() {
@@ -81,7 +87,7 @@ public class SamJmx extends AbstractBamWriterProgram
 		SAMRecordIterator iter=null;
 		try
 			{
-		    out = openSAMFileWriter(in.getFileHeader(), true);
+		    out = this.writingBamArgs.openSAMFileWriter(output,in.getFileHeader(), true);
 		    
 		    objectMBean = new ObjectName(
 		    		dynamicMBean.getClass().getPackage()
@@ -98,19 +104,19 @@ public class SamJmx extends AbstractBamWriterProgram
 				if( status == LocatableStreamInfo.Status.ABORT ||
 				    status == LocatableStreamInfo.Status.BREAK)
 					{
-					error("#### Process \""+name+"\" received message "+status.name());
+					LOG.error("#### Process \""+name+"\" received message "+status.name());
 					break;
 					}
 				}
 			if(status == LocatableStreamInfo.Status.ABORT)
 				{
-				error("#### Process \""+name+"\" : Exit failure");
+				LOG.error("#### Process \""+name+"\" : Exit failure");
 				mbeanServer.unregisterMBean(objectMBean);
-				if(getOutputFile()!=null)
+				if(this.output!=null)
 					{
 					CloserUtil.close(out);
 					out=null;
-					getOutputFile().delete();
+					this.output.delete();
 					}
 				System.exit(-1);
 				}
@@ -118,7 +124,7 @@ public class SamJmx extends AbstractBamWriterProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
@@ -132,68 +138,18 @@ public class SamJmx extends AbstractBamWriterProgram
 				}
 			}
 		}
-
 	@Override
-	public String getProgramDescription() {
-		return "Monitor/interrupt/break a BAM/SAM stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"SamJmx";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
+	public int doWork(List<String> args)
 		{
-		out.println(" -p (stream-identifier). Optional.");
-		super.printOptions(out);
-		}
-
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'p': this.setProjectName(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		SamReader in=null;
 		try
 			{
-			SamReaderFactory srf= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-			if(opt.getOptInd()==args.length)
-				{
-				in = srf.open(SamInputResource.of(System.in));
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				in = srf.open(SamInputResource.of(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error("Illegal number of arguments");
-				return -1;
-				}
+			in = super.openSamReader(super.oneFileOrNull(args));
 			return doWork(in); 
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

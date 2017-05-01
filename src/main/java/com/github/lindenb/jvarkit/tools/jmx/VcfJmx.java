@@ -31,22 +31,27 @@ package com.github.lindenb.jvarkit.tools.jmx;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 
+import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
+import java.util.List;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-/**
- * @author lindenb
- *
- */
-public class VcfJmx extends AbstractVCFFilter3
+@Program(name="vcfjmx",description="Monitor/interrupt/break a VCF stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html")
+public class VcfJmx extends Launcher
 	{
+	private static final Logger LOG=Logger.build(VcfJmx.class).make();
+	@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
+	private File outputFile=null;
+	@Parameter(names={"-p"},required=false,description="Stream identifier")
 	private String projectName=null;
 	
 	public VcfJmx() {
@@ -57,15 +62,9 @@ public class VcfJmx extends AbstractVCFFilter3
 		}
 	
 	
-
-	/* (non-Javadoc)
-	 * @see com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2#doWork(com.github.lindenb.jvarkit.util.vcf.VcfIterator, htsjdk.variant.variantcontext.writer.VariantContextWriter)
-	 */
 	@Override
-	protected void doWork(
-			String source,
-			VcfIterator in, VariantContextWriter out)
-			throws IOException
+	protected int doVcfToVcf(String inputName, VcfIterator in,
+			VariantContextWriter out)
 		{
 		String name=this.projectName;
 		if(name==null || name.trim().isEmpty())
@@ -91,26 +90,27 @@ public class VcfJmx extends AbstractVCFFilter3
 				{
 				VariantContext ctx = in.next();
 				out.add(ctx);
-				incrVariantCount();
 				status = dynamicMBean.watch(ctx);
 				if( status == LocatableStreamInfo.Status.ABORT ||
 				    status == LocatableStreamInfo.Status.BREAK)
 					{
-					error("#### Process \""+name+"\" received message "+status.name());
+					LOG.error("#### Process \""+name+"\" received message "+status.name());
 					break;
 					}
 				if(System.out.checkError()) break;
 				}
 			if(status == LocatableStreamInfo.Status.ABORT)
 				{
-				error("#### Process \""+name+"\" : Exit failure");
+				LOG.error("#### Process \""+name+"\" : Exit failure");
 				mbeanServer.unregisterMBean(objectMBean);
 				System.exit(-1);
 				}
+			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -123,45 +123,9 @@ public class VcfJmx extends AbstractVCFFilter3
 		}
 
 	@Override
-	public String getProgramDescription() {
-		return "Monitor/interrupt/break a VCF stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"VcfJmx";
-    }
-	
-	@Override
-	public void printOptions(PrintStream out)
+	public int doWork(final List<String> args)
 		{
-		out.println(" -p (stream-identifier). Optional.");
-		super.printOptions(out);
-		}
-
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"p:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'p': this.setProjectName(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
+		return doVcfToVcf(args, outputFile);
 		}
 
 	

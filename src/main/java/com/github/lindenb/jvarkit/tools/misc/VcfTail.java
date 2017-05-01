@@ -66,7 +66,7 @@ END_DOC
 public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfTail.class).make();
-	@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
+	@Parameter(names={"-o","--out"},description="Output vcf   or stdout",required=false)
 	private File output=null;
 	@Parameter(names={"-n","--count"},description="number of variants")
 	private int count=10;

@@ -53,6 +53,7 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.bdb.AlleleBinding;
@@ -80,13 +81,6 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		//,UNAVAILABLE
 		}
 	
-	/** position on genome */
-	private static class ChromPosRef
-		{
-		String chrom;
-		int pos1;
-		Allele ref;
-		}
 	
 	
 	private static class Call
@@ -207,23 +201,22 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 
 	
 	private static class ChromPosRefBinding
-		extends TupleBinding<ChromPosRef>
+		extends TupleBinding<ContigPosRef>
 		{
 		AlleleBinding alleleBinding=new AlleleBinding();
 		@Override
-		public ChromPosRef entryToObject(TupleInput in)
+		public ContigPosRef entryToObject(TupleInput in)
 			{
-			ChromPosRef o=new ChromPosRef();
-			o.chrom=in.readString();
-			o.pos1=in.readInt();
-			o.ref = alleleBinding.entryToObject(in);
-			return o;
+			final String c = in.readString();
+			int p = in.readInt();
+			final Allele a = alleleBinding.entryToObject(in);
+			return new ContigPosRef(c,p,a);
 			}
 		@Override
-		public void objectToEntry(ChromPosRef o, TupleOutput out) {
-			out.writeString(o.chrom);
-			out.writeInt(o.pos1);
-			alleleBinding.objectToEntry(o.ref, out);
+		public void objectToEntry(ContigPosRef o, TupleOutput out) {
+			out.writeString(o.getContig());
+			out.writeInt(o.getStart());
+			alleleBinding.objectToEntry(o.getReference(), out);
 			}
 		}
 	private ChromPosRefBinding chromPosRefBindingInstance=new ChromPosRefBinding();
@@ -729,14 +722,11 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 
 		DatabaseEntry key = new DatabaseEntry();
 		DatabaseEntry data = new DatabaseEntry();
-		ChromPosRef chromPosRef=new ChromPosRef();
+		
 		while(in.hasNext())
 			{
 			VariantContext ctx = in.next();
-			
-			chromPosRef.chrom=ctx.getChr();
-			chromPosRef.pos1=ctx.getStart();
-			chromPosRef.ref=ctx.getReference();
+			ContigPosRef chromPosRef=new ContigPosRef(ctx);
 			
 			
 			chromPosRefBindingInstance.objectToEntry(chromPosRef, key);

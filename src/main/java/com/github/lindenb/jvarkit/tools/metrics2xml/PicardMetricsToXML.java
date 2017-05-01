@@ -1,3 +1,29 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
+
 package com.github.lindenb.jvarkit.tools.metrics2xml;
 
 import java.io.FileReader;
@@ -8,7 +34,6 @@ import java.io.Reader;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -17,16 +42,27 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.metrics.Header;
 import htsjdk.samtools.metrics.MetricBase;
 import htsjdk.samtools.metrics.MetricsFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Histogram;
 
+@Program(name="samjmx",description="transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html")
 public class PicardMetricsToXML
-	extends AbstractPicardMetricsToXML
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PicardMetricsToXML.class);
+	private static final Logger LOG=Logger.build(PicardMetricsToXML.class).make();
+	@Parameter(names={"-o","--out"},description="Output or stdout")
+	private File output=null;
+	@Parameter(names="-s",description="print sum")
+	private boolean print_sums=false;
+
 
 	private static final String NS="http://picard.sourceforge.net/";
 	private static class MinMax
@@ -36,7 +72,7 @@ public class PicardMetricsToXML
 		double sum=0.0;
 		int count=0;
 		}
-	private boolean print_sums=false;
+	
 	private MetricsFile<MetricBase, Comparable<?>> metricsFile;
 	private XMLStreamWriter out;
 	
@@ -221,14 +257,13 @@ public class PicardMetricsToXML
 		{
 		parse(file.toString(),new FileReader(file));
 		}
-	
 	@Override
-	public Collection<Throwable> call() throws Exception {
+	public int doWork(List<String> args)
+		{
 		OutputStream pstream=null;
-		final List<String> args = super.getInputFiles();
 		try
 			{
-			pstream = super.openFileOrStdoutAsStream();
+			pstream = super.openFileOrStdoutAsStream(output);
 			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 			this.out= xmlfactory.createXMLStreamWriter(pstream,"UTF-8");
 			this.out.setDefaultNamespace(NS);
@@ -258,7 +293,8 @@ public class PicardMetricsToXML
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

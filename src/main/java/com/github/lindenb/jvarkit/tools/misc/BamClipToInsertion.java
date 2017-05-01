@@ -29,8 +29,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -45,12 +45,24 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+@Program(name="bamclip2insertion",description="Convert SOFT clip to Insertion of other read confirm it")
 public class BamClipToInsertion
-	extends AbstractBamClipToInsertion
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractBamClipToInsertion.class);
+	private static final Logger LOG=Logger.build(BamClipToInsertion.class).make();
+	@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
+	private File output=null;
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
+	
 	private static class Base
 		{
 		CigarOperator op=null;
@@ -189,32 +201,34 @@ public class BamClipToInsertion
 	public BamClipToInsertion()
 		{
 		}
-
 	@Override
-	public Collection<Throwable> call(final String inputName) throws Exception 
-		{					SAMRecordIterator iter=null;
+	public int doWork(final List<String> args)
+		{
+		SAMRecordIterator iter=null;
 		SamReader sfr=null;
 		SAMFileWriter sfw =null;
 		try
 			{			
-			sfr = openSamReader(inputName);
+			sfr = super.openSamReader(oneFileOrNull(args));
 			
 			final SAMFileHeader header1=sfr.getFileHeader();
 			if(header1==null)
 				{
-				return wrapException("File header missing");
+				LOG.error("File header missing");
+				return -1;
 				}
 			
 			if(header1.getSortOrder()!=SortOrder.coordinate)
 				{
-				return wrapException("Input is not sorted on coordinate.");
+				LOG.error("Input is not sorted on coordinate.");
+				return -1;
 				}
 			
 			final SAMFileHeader header2=header1.clone();
-			header2.addComment(getName()+":"+getVersion()+":"+getProgramCommandLine());
+			header2.addComment(getProgramName()+":"+getVersion()+":"+getProgramCommandLine());
 			header2.setSortOrder(SortOrder.unsorted);
 			
-			sfw =  openSAMFileWriter(header2, true);
+			sfw =  this.writingBamArgs.openSAMFileWriter(output,header2, true);
 			
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1);
 			iter=sfr.iterator();
@@ -276,7 +290,8 @@ public class BamClipToInsertion
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
