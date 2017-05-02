@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Set;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
@@ -18,16 +18,21 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.ProgressLoggerInterface;
 import htsjdk.samtools.SAMFileWriter;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-import com.github.lindenb.jvarkit.util.picard.SamFlag;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
-public class FindMyVirus extends AbstractCommandLineProgram
+@Program(name="findmyvirus",description="Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. ")
+public class FindMyVirus extends Launcher
 	{
+	private static final Logger LOG= Logger.build(FindMyVirus.class).make();
+	
 	/* how to split the bam, witch categories */
 	private enum CAT{
 		both_ref()
@@ -120,64 +125,25 @@ public class FindMyVirus extends AbstractCommandLineProgram
 			}
 		};
 
+	@Parameter(names={"-o","--out"},description="output",required=true)
+	private File outputFile=null;
 
+	@Parameter(names={"-V"},description=" virus chrom name")
+	private	Set<String> virusNames=new HashSet<String>();
 
-
-
-	@Override
-        protected String getOnlineDocUrl()
-                {
-                return "https://github.com/lindenb/jvarkit/wiki/FindMyVirus";
-                }
-
-	@Override
-	public String getProgramDescription() {
-		return "Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. ";
-		}
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
+	
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (file) bam out prefix");
-		out.println(" -V (name) virus chrom name (may be called multiple times)");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		Set<String> virusNames=new HashSet<String>();
-		File bamOut=null;
-		SAMFileWriterFactory sfwf= new SAMFileWriterFactory();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:V:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'V': virusNames.add(opt.getOptArg());break;
-				case 'o': bamOut=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
+		
 		if(virusNames.isEmpty())
 			{
-			error("no virus name");
+			LOG.error("no virus name");
 			return -1;
 			}
-		if(bamOut==null || (bamOut.exists() && bamOut.isDirectory()))
-			{
-			error("Bam file undefined");
-			return -1;
-			}
+		
 		
 		
 		
@@ -185,24 +151,11 @@ public class FindMyVirus extends AbstractCommandLineProgram
 		SAMFileWriter sfwArray[]=new SAMFileWriter[CAT.values().length];
 		try
 			{
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				sfr=SamFileReaderFactory.mewInstance().open(new File(args[opt.getOptInd()]));
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
+			sfr = openSamReader(oneFileOrNull(args));
 			SAMFileHeader header=sfr.getFileHeader();
 			for(CAT category:CAT.values())
 				{
-				info("Opening "+category);
+				LOG.info("Opening "+category);
 				SAMFileHeader header2=header.clone();
 				header2.addComment("Category:"+category.name());
 				header2.addComment("Description:"+category.getDescription());
@@ -211,10 +164,10 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				rec.setProgramName(getProgramName());
 				rec.setProgramVersion(getVersion());
 				rec.setAttribute("CAT", category.name());
-				File outputFile=new File(bamOut.getParentFile(),bamOut.getName()+"."+category.name()+".bam");
-				info("Opening "+outputFile);
-				File countFile=new File(bamOut.getParentFile(),bamOut.getName()+"."+category.name()+".count.txt");
-				SAMFileWriter sfw=sfwf.makeBAMWriter(header2, true,outputFile);
+				File outputFile=new File(this.outputFile.getParentFile(),this.outputFile.getName()+"."+category.name()+".bam");
+				LOG.info("Opening "+outputFile);
+				File countFile=new File(outputFile.getParentFile(),outputFile.getName()+"."+category.name()+".count.txt");
+				SAMFileWriter sfw= writingBamArgs.openSAMFileWriter(outputFile, header2,  true);
 				sfw=new SAMFileWriterCount(sfw, countFile,category);
 				sfwArray[category.ordinal()]=sfw;
 				}
@@ -363,26 +316,26 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				/*dispatch */
 				if(category==null)
 					{
-					warning("Not handled: "+rec);
+					LOG.warning("Not handled: "+rec);
 					category=CAT.undetermined;
 					}
 				sfwArray[category.ordinal()].addAlignment(rec);
 				}
 			for(SAMFileWriter sfw:sfwArray)
 				{
-				info("Closing "+sfw);
+				LOG.info("Closing "+sfw);
 				sfw.close();
 				}
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			info("Closing");
+			LOG.info("Closing");
 			CloserUtil.close(sfr);
 			CloserUtil.close(sfwArray);
 			}
@@ -440,12 +393,12 @@ public class FindMyVirus extends AbstractCommandLineProgram
 		@Override
 		public void close()
 			{
-			info("Closing SAMFileWriterCount ");
+			LOG.info("Closing SAMFileWriterCount ");
 			
 			PrintWriter fw=null;
 			try
 				{
-				info("Writing "+countFile);
+				LOG.info("Writing "+countFile);
 				fw=new PrintWriter(countFile);
 				fw.println(this.category.name());
 				fw.println(this.category.getDescription());
@@ -460,7 +413,7 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				for(Integer c:this.flags.keySetDecreasing())
 					{
 					fw.print(c+"\t"+this.flags.count(c)+"\t");
-					for(SamFlag flg:SamFlag.values())
+					for(SAMFlag flg:SAMFlag.values())
 						{
 						if(flg.isSet(c))
 							{
@@ -473,7 +426,7 @@ public class FindMyVirus extends AbstractCommandLineProgram
 				}
 			catch(Exception err)
 				{
-				error(err);
+				LOG.error(err);
 				throw new RuntimeException("Boum:"+countFile,err);
 				}
 			finally

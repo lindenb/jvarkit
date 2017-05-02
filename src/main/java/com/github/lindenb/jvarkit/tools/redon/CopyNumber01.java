@@ -65,8 +65,12 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
@@ -76,8 +80,11 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
  * CopyNumber01
  *
  */
-public class CopyNumber01 extends AbstractCommandLineProgram
+@Program(name="copynumber01",description="")
+public class CopyNumber01 extends Launcher
 	{
+	private static final Logger LOG = Logger.build(CopyNumber01.class).make();
+	
 	/** sample Name */
 	private String sampleName="SAMPLE";
 	/** reference */
@@ -89,6 +96,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	/** map interval to depths and GC */
 	private List<GCAndDepth> interval2row=new ArrayList<GCAndDepth>(1000);
 	/** size of a window */
+	@Parameter(names={"-w"},description="BED capture file (optional)")
 	private int windowSize=150;
 	
 	
@@ -253,7 +261,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 					{
 					if(!not_found.contains(tokens[0]))
 						{
-						info("Cannot resolve chromosome "+tokens[0]+ " in "+line);
+						LOG.info("Cannot resolve chromosome "+tokens[0]+ " in "+line);
 						not_found.add(tokens[0]);
 						}
 					continue;
@@ -262,7 +270,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			
 			if(ignoreChromosomeName(chrom))
 				{
-				info("Ignoring "+chrom);
+				LOG.info("Ignoring "+chrom);
 				continue;
 				}
 			String chrom_for_seq=tokens[0];//TODO
@@ -279,7 +287,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			long now=System.currentTimeMillis();
 			if( now - start > 10*1000)
 				{
-				info("BED:"+line+" "+this.interval2row.size());
+				LOG.info("BED:"+line+" "+this.interval2row.size());
 				start=now;
 				}
 			}
@@ -297,14 +305,14 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				chrom = this.resolveChromName.get(chrom);
 				if(chrom==null)
 					{
-					info("Cannot resolve "+chrom);
+					LOG.info("Cannot resolve "+chrom);
 					continue;
 					}
 				}
 			
 			if(ignoreChromosomeName(chrom))
 				{
-				info("Ignoring "+ssr.getSequenceName());
+				LOG.info("Ignoring "+ssr.getSequenceName());
 				continue;
 				}
 			
@@ -435,7 +443,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		/* reduce size of x et y */
 		if(k != x.length)
 			{
-			info("Compacting X from "+x.length+" to "+k);
+			LOG.info("Compacting X from "+x.length+" to "+k);
 			x = Arrays.copyOf(x, k);
 			y  =Arrays.copyOf(y, k);
 			}
@@ -461,7 +469,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				double norm = spline.value(r.getX());
 				if(Double.isNaN(norm) || Double.isInfinite(norm)  )
 					{
-					info("NAN "+r);
+					LOG.info("NAN "+r);
 					this.interval2row.remove(i);
 					++points_removed;
 					continue;
@@ -471,12 +479,12 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 				++i;
 				}
 			}
-		info("Removed "+points_removed+" because GC% is too small (Sexual chrom)" );
+		LOG.info("Removed "+points_removed+" because GC% is too small (Sexual chrom)" );
 		spline=null;
 		
 		
 		//fit to min, fill new y for median calculation
-		info("min:"+min_depth);
+		LOG.info("min:"+min_depth);
 
 		y= new double[this.interval2row.size()];
 		for(i=0;i< this.interval2row.size();++i)
@@ -488,7 +496,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		
 		//normalize on median
 		double median_depth =  medianOp.evaluate(y, 0, y.length);
-		info("median:"+median_depth);
+		LOG.info("median:"+median_depth);
 		for(i=0;i< this.interval2row.size();++i)
 			{
 			GCAndDepth gc= this.interval2row.get(i);
@@ -535,7 +543,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 	
 	private void saveCoverage(GZIPOutputStream zout)
 		{
-		info("Dumping coverage ");
+		LOG.info("Dumping coverage ");
 		PrintWriter pw=new PrintWriter(zout);
 		
 		/* header */
@@ -561,74 +569,28 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		}
 	
 	
-	
-	
-	@Override
-	public String getProgramDescription() {
-		return "CopyNumber01";
-		}
-	
-	 @Override
-	protected String getOnlineDocUrl() {
-		return "";
-	 	}
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private File refFile=null;
+	@Parameter(names={"-b"},description="BED capture file (optional)")
+	private File bedFile=null;
+	@Parameter(names={"-N"},description="chrom name helper (name1)(tab2)(name2)")
+	private File chromNameFile=null;
+	@Parameter(names={"-o","--out"},description="output base name",required=true)
+	private String outputFile="output";
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -R (fasta) "+getMessageBundle("reference.faidx")+". Required");
-		out.println(" -b (file) BED capture file (optional)");
-		out.println(" -w (window size) default:"+this.windowSize);
-		out.println(" -N (file) chrom name helper (name1)(tab2)(name2).");
-		out.println(" -o  output base name.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		String outfile="output";
-		File bedFile=null;
-		File refFile=null;
-		String chromNameFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:w:b:N:o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'w': this.windowSize=Integer.parseInt(opt.getOptArg());break;
-				case 'b': bedFile=new File(opt.getOptArg());break;
-				case 'R': refFile=new File(opt.getOptArg());break;
-				case 'o': outfile = opt.getOptArg();break;
-				case 'N':
-					{
-					chromNameFile=opt.getOptArg();
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	public int doWork(List<String> args) {
 		
 		if(refFile==null)
 			{
-			error("Undefined REF file");
+			LOG.error("Undefined REF file");
 			return -1;
 			}
 		
 		
-		if(outfile==null)
+		if(this.outputFile==null)
 			{
-			error("Undefined output file.");
+			LOG.error("Undefined output file.");
 			return -1;
 			}
 	
@@ -638,20 +600,12 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 		
 		try
 			{
-			File bamFile=null;
-			if(opt.getOptInd()+1==args.length)
-				{
-				bamFile=new File(args[opt.getOptInd()]);
-				}
-			else
-				{
-				error("Illegal Number of arguments.");
-				return -1;
-				}
+			File bamFile=new File(oneAndOnlyOneFile(args));
+			
 			
 			final SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
 			
-			info("get Dict for "+bamFile);
+			LOG.info("get Dict for "+bamFile);
 			samReader = srf.open(bamFile);
 			this.samDictionary=samReader.getFileHeader().getSequenceDictionary();
 			for(SAMReadGroupRecord rg:samReader.getFileHeader().getReadGroups())
@@ -665,20 +619,20 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			
 			
 			/* loading REF Reference */
-			info("Loading "+refFile);
+			LOG.info("Loading "+refFile);
 			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(refFile);
 			SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
 			if(dict==null)
 				{
-				error("Cannot get sequence dictionary for "+refFile);
+				LOG.error("Cannot get sequence dictionary for "+refFile);
 				return -1;
 				}
 			
 			
 			if(chromNameFile!=null)
 				{
-				info("Reading "+chromNameFile);
-				LineIterator r=IOUtils.openURIForLineIterator(chromNameFile);
+				LOG.info("Reading "+chromNameFile);
+				LineIterator r=IOUtils.openFileForLineIterator(chromNameFile);
 				while(r.hasNext())
 					{
 					String tokens[]=r.next().split("[\t]");
@@ -702,14 +656,14 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			
 			
 			/* save raw coverage */
-			GZIPOutputStream zout = new GZIPOutputStream(new FileOutputStream(outfile+"_raw.tsv.gz"));
+			GZIPOutputStream zout = new GZIPOutputStream(new FileOutputStream(this.outputFile+"_raw.tsv.gz"));
 			saveCoverage(zout);
 			zout.finish();zout.close();
 			
 			normalizeCoverage();
 			
 			/* save normalized coverage */
-			zout = new GZIPOutputStream(new FileOutputStream(outfile+"_normalized.tsv.gz"));
+			zout = new GZIPOutputStream(new FileOutputStream(this.outputFile+"_normalized.tsv.gz"));
 			saveCoverage(zout);
 			zout.finish();zout.close();
 
@@ -718,7 +672,7 @@ public class CopyNumber01 extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
