@@ -607,7 +607,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 		 * */
 		public Iterator<Integer> iterator(boolean useTranscriptDirection)
 			{
-			IntIter iter=new IntIter();
+			final IntIter iter=new IntIter();
 			if(useTranscriptDirection && isNegativeStrand())
 				{
 				iter.beg=txEnd-1;
@@ -652,7 +652,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 		abstract class RNA extends DelegateCharSequence
 			{
 			private Integer _length=null;
-			RNA(CharSequence sequence)
+			RNA(final CharSequence sequence)
 				{
 				super(sequence);
 				}
@@ -660,10 +660,49 @@ public class KnownGene implements Iterable<Integer>,Feature
 				{
 				return KnownGene.this;
 				}
+			/** start of mRNA (could be transcription or traduction */
 			protected abstract int start();
+			/** end of mRNA (could be transcription or traduction */
 			protected abstract int end();
 			
 		
+			/** convert the genomic position to the position in the RNA, return -1 if RNA not in genomic pos */
+			public int convertGenomicToRnaCoordinate(int genomicPos0)
+				{
+				int rnaPos0=0;
+				if(getKnownGene().isPositiveStrand())
+					{
+					for(final Exon ex:getKnownGene().getExons())
+						{
+						if(this.start()>=ex.getEnd()) continue;
+						if(this.end()<=ex.getStart()) break;
+						final int beg=Math.max(this.start(), ex.getStart());
+						final int end=Math.min(this.end(), ex.getEnd());
+						if(beg<= genomicPos0 && genomicPos0<end)
+							{
+							return (genomicPos0-beg)+rnaPos0;
+							}
+						rnaPos0+=(end-beg);
+						}
+					}
+				else
+					{
+					for(int idx=getKnownGene().getExonCount()-1;idx>=0;idx--)
+						{
+						final Exon ex=getExon(idx);
+						if(this.start()>=ex.getEnd()) break;
+						if(this.end()<=ex.getStart()) continue;
+						final int beg=Math.max(this.start(), ex.getStart());
+						final int end=Math.min(this.end(), ex.getEnd());
+						if(beg<= genomicPos0 && genomicPos0<end)
+							{
+							return ((end-1)-genomicPos0) + rnaPos0;
+							}
+						rnaPos0+=(end-beg);
+						}
+					}
+				return -1;
+				}
 			
 			public int convertToGenomicCoordinate(int rnaPos0)
 				{
@@ -708,7 +747,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			
 			public Exon getExonAt(int rnaPos0)
 				{
-				for(Exon ex:getKnownGene().getExons())
+				for(final Exon ex:getKnownGene().getExons())
 					{
 					if(this.start()>=ex.getEnd()) continue;
 					if(this.end()<=ex.getStart()) break;
@@ -756,9 +795,11 @@ public class KnownGene implements Iterable<Integer>,Feature
 			
 			}
 		
+		
+		
 		public class CodingRNA  extends RNA
 			{
-			CodingRNA(CharSequence sequence)
+			CodingRNA(final CharSequence sequence)
 				{
 				super(sequence);
 				}
@@ -793,7 +834,8 @@ public class KnownGene implements Iterable<Integer>,Feature
 				}
 				});
 			}
-		public CodingRNA getCodingRNA(CharSequence genomic)
+		/** returns the coding RNA for this gene */
+		public CodingRNA getCodingRNA(final CharSequence genomic)
 			{
 			return new CodingRNA(genomic);
 			}
@@ -801,7 +843,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 		
 		public class MessengerRNA  extends RNA
 			{
-			MessengerRNA(CharSequence sequence)
+			MessengerRNA(final CharSequence sequence)
 				{
 				super(sequence);
 				}
@@ -820,11 +862,11 @@ public class KnownGene implements Iterable<Integer>,Feature
 		public class Peptide extends DelegateCharSequence
 			{
 			private Integer _length=null;
-			private GeneticCode gc;
-			Peptide(GeneticCode gc,CodingRNA rna)
+			private final GeneticCode geneticCode;
+			Peptide(final GeneticCode gc,CodingRNA rna)
 				{
 				super(rna);
-				this.gc=gc;
+				this.geneticCode=gc;
 				}
 			public CodingRNA getCodingRNA()
 				{
@@ -840,16 +882,16 @@ public class KnownGene implements Iterable<Integer>,Feature
 						{
 						return 0;
 						}
-					int idx1=getCodingRNA().convertToGenomicCoordinate((_length-1)*3+0);
-					int idx2=getCodingRNA().convertToGenomicCoordinate((_length-1)*3+1);
-					int idx3=getCodingRNA().convertToGenomicCoordinate((_length-1)*3+2);
+					final int idx1=getCodingRNA().convertToGenomicCoordinate((_length-1)*3+0);
+					final int idx2=getCodingRNA().convertToGenomicCoordinate((_length-1)*3+1);
+					final int idx3=getCodingRNA().convertToGenomicCoordinate((_length-1)*3+2);
 					if(idx1==-1 || idx2==-1 || idx3==-1)
 						{
 						System.err.println("Bizarre pour "+KnownGene.this.getName()+" "+getStrand());
 						return _length;
 						}
 					
-					char last=this.gc.translate(
+					final char last=this.getGeneticCode().translate(
 							getCodingRNA().charAt((_length-1)*3+0),	
 							getCodingRNA().charAt((_length-1)*3+1),	
 							getCodingRNA().charAt((_length-1)*3+2)
@@ -869,6 +911,16 @@ public class KnownGene implements Iterable<Integer>,Feature
 				}
 
 			
+			/** convert the genomic position to the position in the peptide, return -1 if peptide not in genomic pos */
+			public int convertGenomicToPeptideCoordinate(int genomicPos0)
+				{
+				int rnaIdx=getCodingRNA().convertGenomicToRnaCoordinate(genomicPos0);
+				if(rnaIdx==-1) return -1;
+				return rnaIdx/3;
+				}
+			
+			
+			
 			public int[] convertToGenomicCoordinates(int pepPos0)
 				{
 				if(pepPos0<0) throw new IndexOutOfBoundsException("negative offset : "+pepPos0);
@@ -882,13 +934,18 @@ public class KnownGene implements Iterable<Integer>,Feature
 				}
 			
 			@Override
-			public char charAt(int pepPos0) {
-				return this.gc.translate(
+			public char charAt(final int pepPos0) {
+				return this.getGeneticCode().translate(
 						getCodingRNA().charAt(pepPos0*3+0),	
 						getCodingRNA().charAt(pepPos0*3+1),	
 						getCodingRNA().charAt(pepPos0*3+2)
 						);
 				}
+			
+			public GeneticCode getGeneticCode() {
+				return this.geneticCode;
+				}
+			
 			}
 		
 	}

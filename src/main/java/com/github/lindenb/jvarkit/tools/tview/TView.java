@@ -47,10 +47,13 @@ import javax.xml.stream.XMLStreamWriter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.util.ucsc.TabixKnownGeneFileReader;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
@@ -117,6 +120,8 @@ public class TView implements Closeable
 	private int numCoverageRows=10;
 	@Parameter(names={"-layout","--layout"},description="Layout reads")
 	private LayoutReads layoutReads=LayoutReads.pileup;
+	@Parameter(names={"-kg","--knownGens"},description="Tabix indexed UCSC knownGene File",hidden=true)
+	private String knownGeneUri = null;
 
 	
 	
@@ -163,20 +168,6 @@ public class TView implements Closeable
 			this._paper=null;
 			return this;
 		}
-		/*@SuppressWarnings("unused")
-		public Colorizer bold(boolean b) {
-			if(b) {opcodes.add(1);}
-			else { opcodes.remove(1);}
-			return this;
-		}
-		
-		@SuppressWarnings("unused")
-		public Colorizer underscore(boolean b) {
-			if(b) {opcodes.add(4);}
-			else { opcodes.remove(4);}
-			return this;
-		}*/
-		
 		
 		public Colorizer print(final Object o)
 			{
@@ -314,7 +305,7 @@ public class TView implements Closeable
 	private final List<SamInputResource> samInputResources=new ArrayList<>();
 	private final List<SamReader> samReaders=new ArrayList<>();
 	private final List<VcfSource> vcfReaders=new ArrayList<>();
-
+	private TabixKnownGeneFileReader tabixKnownGene =null;
 	
 	public TView() {
 		
@@ -383,7 +374,9 @@ public class TView implements Closeable
 			vcfSource.vcfFileReader = new VCFFileReader(vcfFile,true);
 			this.vcfReaders.add(vcfSource);
 			}
-		
+		if(this.tabixKnownGene!=null) {
+			this.tabixKnownGene = new TabixKnownGeneFileReader(this.knownGeneUri);
+			}
 		return 0;
 		}
 	
@@ -404,6 +397,8 @@ public class TView implements Closeable
 		this.samInputResources.clear();
 		this.samReaders.clear();
 		this.vcfReaders.clear();
+		CloserUtil.close(this.tabixKnownGene);
+		this.tabixKnownGene =null;
 		}
 	
 	public SamRecordFilter getRecordFilter() {
@@ -950,6 +945,67 @@ public class TView implements Closeable
 					}
 				}
 			}/* end of loop over sample */
+		/** known gene section */
+		
+		if(this.tabixKnownGene!=null && this.indexedFastaSequenceFile!=null)
+			{
+			final List<KnownGene> genes =  this.tabixKnownGene.getItemsInInterval(this.interval);
+			if(!genes.isEmpty()) {
+				out.println(this.knownGeneUri);
+				for(final KnownGene gene: genes) {
+					final KnownGene.CodingRNA codingRna=gene.getCodingRNA(contigSequence);
+					final KnownGene.Peptide peptide = codingRna.getPeptide();
+
+					out.print(margin(gene.getName()));
+					x = 0;
+					int ref0 = this.interval.getStart()-1;
+					while(x<pixelWidth)
+						{
+						if(insertIsPresentAtX.test(x))
+							{
+							out.print("*");
+							++x;
+							}
+						else
+							{
+							char pepChar = ' ';
+							if(ref0>=gene.getTxStart() && ref0<gene.getTxEnd())
+								{
+								pepChar=(gene.isPositiveStrand()?'>':'<');
+								int pepIdx = peptide.convertGenomicToPeptideCoordinate(ref0);
+								if(pepIdx!=-1)
+									{
+									final String aa3 = GeneticCode.aminoAcidTo3Letters(peptide.charAt(pepIdx));
+									final int offset[] = peptide.convertToGenomicCoordinates(pepIdx);
+									if(offset!=null && offset.length==3 && aa3!=null && aa3.length()==3) {
+										if(offset[0]==ref0 ) pepChar=aa3.charAt(0);
+										else if(offset[1]==ref0 ) pepChar=aa3.charAt(1);
+										else if(offset[2]==ref0 ) pepChar=aa3.charAt(2);
+										else pepChar='?';
+										}
+									else
+										{
+										pepChar='?';
+										}
+									}
+								}
+							out.print(pepChar);
+							++ref0;
+							++x;
+							}
+						}
+					
+					while(x<pixelWidth)
+						{
+						out.print(" ");
+						++x;
+						}
+					out.println();
+					}
+				}
+			out.println();
+			}
+		
 		
 		/** variant section*/
 		if(!this.vcfReaders.isEmpty() && !out.checkError()) {

@@ -29,7 +29,10 @@ package com.github.lindenb.jvarkit.util.tabix;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
@@ -78,6 +81,20 @@ public abstract class AbstractTabixObjectReader<T> implements Closeable
 		{
 		return iterator(tabix.iterator(interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd()));
 		}
+    
+    /** returns a list of items in the interval */
+    public List<T> getItemsInInterval(final Interval interval)
+		{
+    	final Iterator<T> t = this.iterator(interval);
+    	if(!t.hasNext()) return Collections.emptyList();
+    	final List<T> items= new ArrayList<>();
+    	while(t.hasNext())
+    		{
+    		items.add(t.next());
+    		}
+    	return items;
+		}
+
     
     protected  abstract Iterator<T> iterator(Iterator<String> delegate);
     

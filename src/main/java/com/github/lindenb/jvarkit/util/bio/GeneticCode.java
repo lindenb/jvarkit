@@ -92,4 +92,33 @@ public abstract class GeneticCode
 		return MITOCHONDRIAL;
 		}
 	
+	/** returns aminoacid to the 3 letter code. Returns *** for stop, return null if to correspondance */
+	public static String aminoAcidTo3Letters(char c)
+		{
+		switch(Character.toUpperCase(c))
+			{
+			case 'A': return "Ala";
+			case 'R': return "Arg";
+			case 'N': return "Asn";
+			case 'D': return "Asp";
+			case 'C': return "Cys";
+			case 'E': return "Glu";
+			case 'Q': return "Gln";
+			case 'G': return "Gly";
+			case 'H': return "His";
+			case 'I': return "Ile";
+			case 'L': return "Leu";
+			case 'K': return "Lys";
+			case 'M': return "Met";
+			case 'F': return "Phe";
+			case 'P': return "Pro";
+			case 'S': return "Ser";
+			case 'T': return "Thr";
+			case 'W': return "Trp";
+			case 'Y': return "Tyr";
+			case 'V': return "Val";
+			case '*': return "***";
+			default: return null;
+			}
+		}
 	}
