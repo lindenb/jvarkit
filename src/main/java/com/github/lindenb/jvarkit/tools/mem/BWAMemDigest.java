@@ -6,17 +6,17 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.AbstractCommandLineProgram;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
-import com.github.lindenb.jvarkit.util.picard.cmdline.Option;
-import com.github.lindenb.jvarkit.util.picard.cmdline.StandardOptionDefinitions;
-import htsjdk.samtools.util.Log;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
@@ -31,17 +31,16 @@ import htsjdk.samtools.util.CloserUtil;
  * 			java -jar dist/bwamemdigest.jar BED=<(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt.gz" | gunzip -c | cut -f2,3,4 ) XBED=500  | tee /dev/tty | gzip --best > /tmp/jeter.mem.bed.gz
 
  */
-public class BWAMemDigest extends AbstractCommandLineProgram
+@Program(name="bwamemdigest",description="")
+public class BWAMemDigest extends Launcher
 	{
-    private static final Log LOG = Log.getInstance(BWAMemDigest.class);
+    private static final Logger LOG = Logger.build(BWAMemDigest.class).make();
 
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME, doc="SAM or BAM input file or stdin.", optional=true)
-    public File IN = null;
 
-    @Option(shortName="BED", doc="Regions to ignore.", optional=true)
+    @Parameter(names={"-B"}, description="BED of Regions to ignore.")
     public File IGNORE_BED = null;
  
-    @Option(shortName="XBED", doc=" Extend BED Regions to ignore by 'x' bases. ", optional=true)
+    @Parameter(names={"-x"}, description=" Extend BED Regions to ignore by 'x' bases. ")
     public int IGNORE_EXTEND = 0;
     
     
@@ -54,11 +53,11 @@ public class BWAMemDigest extends AbstractCommandLineProgram
     
     private class DefaultMemOuput extends AbstractMemOuput
 		{
-    	PrintWriter out=new PrintWriter(System.out);
+    	PrintWriter out=new PrintWriter(stdout());
     	
     	public void insertion(SAMRecord record,long readNum,float countS,float countM)
 	    	{
-	    	System.out.println(
+	    	stdout().println(
 					bed(record)+
 					"\t"+readNum+
 					"\tINSERT\t"+
@@ -68,7 +67,7 @@ public class BWAMemDigest extends AbstractCommandLineProgram
     	
     	public void xp(SAMRecord record,long readNum,OtherCanonicalAlign xp)
     		{
-    		System.out.println(
+    		stdout().println(
 					bed(record)+
 					"\t"+readNum+
 					"\tXP"+
@@ -81,7 +80,7 @@ public class BWAMemDigest extends AbstractCommandLineProgram
     		}
     	public void orphan(SAMRecord record,long readNum)
 	    	{
-	    	System.out.println(
+    		stdout().println(
 					bed(record)+
 					"\t"+readNum+
 				    "\tORPHAN"
@@ -89,7 +88,7 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 	    	}
     	public void deletion(SAMRecord record,long readNum)
 	    	{
-	    	System.out.println(
+    		stdout().println(
 					bed(record)+
 					"\t"+readNum+
 				    "\tDEL"+
@@ -98,7 +97,7 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 	    	}
     	public void transloc(SAMRecord record,long readNum)
 	    	{
-	    	System.out.println(
+    		stdout().println(
 					bed(record)+
 					"\t"+readNum+
 				    "\tTRANSLOC"+
@@ -136,25 +135,16 @@ public class BWAMemDigest extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	protected int doWork()
-		{
+	public int doWork(List<String> args) {
 		SamSequenceRecordTreeMap<Boolean> ignore=null;
 		DefaultMemOuput output=new DefaultMemOuput();
 		
 		final float limitcigar=0.15f;
 		SamReader r=null;
 		try {
+			r = super.openSamReader(oneFileOrNull(args));
 			
-			
-			if(IN==null)
-				{
-				r=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else
-				{
-				r=SamFileReaderFactory.mewInstance().open(IN);
-				}
-		SAMFileHeader header=r.getFileHeader();
+			SAMFileHeader header=r.getFileHeader();
 		
 		if(IGNORE_BED!=null)
 			{
