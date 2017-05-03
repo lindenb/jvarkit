@@ -29,6 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.evs2bed;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -50,27 +51,22 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import edu.washington.gs.evs.SnpData;
 
-public class EvsToVcf extends AbstractCommandLineProgram
+@Program(name="evs2vcf",description= "Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.")
+public class EvsToVcf extends Launcher
 	{
+	private static final Logger LOG=Logger.build(EvsToVcf.class).make();
+
 	private EvsToVcf()
 		{
 		
-		}
-	@Override
-	public String getProgramDescription() {
-		return "";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
 		}
 	
 	private void _fillDict(SAMSequenceDictionary dict,String name,int sequenceLength)
@@ -92,34 +88,15 @@ public class EvsToVcf extends AbstractCommandLineProgram
 			return null;
 			}
 		}
-	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
 		
 		VariantContextWriter out=null;
 		try
 			{
-			if(opt.getOptInd()!=args.length)
+			if(!args.isEmpty())
 				{
-				error("Illegal number of arguments");
+				LOG.error("Illegal number of arguments");
 				return -1;
 				}
 			JAXBContext jc = JAXBContext.newInstance(SnpData.class);
@@ -229,7 +206,7 @@ public class EvsToVcf extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

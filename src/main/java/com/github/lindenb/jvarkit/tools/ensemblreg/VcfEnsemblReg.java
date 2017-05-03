@@ -58,13 +58,23 @@ import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
 import com.github.lindenb.jvarkit.util.igv.SeekableStreamAdaptor;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfEnsemblReg extends AbstractVCFFilter2
+@Program(name="vcfensemblreg",description="Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.")
+public class VcfEnsemblReg extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VcfEnsemblReg.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
 	private static class Track
 		{
 		String id;
@@ -75,6 +85,8 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		URL url=null;
 		}
 	private List<Track> tracks=new ArrayList<Track>();
+	
+	@Parameter(names="-d",description="trackDB.txt URL.")
 	private String trackDBUrl="http://ngs.sanger.ac.uk/production/ensembl/regulation/hg19/trackDb.txt";
 
 	private static final String BrightRed="187,0,0";
@@ -117,7 +129,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		case Gold : return "UnannotatedActiveTFBS";
 		case Yellow: return "UnannotatedActiveOpenChromatinRegions" ;
 		case LightGray: return "InactiveRegions"; 
-		default: warning("projectedSegments: undefined color: "+color); return null;
+		default: LOG.warning("projectedSegments: undefined color: "+color); return null;
 		}
 	}
 	/** http://ngs.sanger.ac.uk/production/ensembl/regulation/hg19/overview/ */
@@ -132,7 +144,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		case Blue : return "CTCFBindingSite";
 		case Gold : return "UnannotatedTFBS";
 		case Yellow: return "UnannotatedOpenChromatinRegions" ;
-		default: warning("regBuildOverview: undefined color: "+color);return null;
+		default: LOG.warning("regBuildOverview: undefined color: "+color);return null;
 		}
 	}
 	
@@ -156,7 +168,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 	private void annotate(Track track,File inf,File outf) throws IOException
 		{
 		boolean contained=false;
-		info("Processing "+track.id+" ("+track.shortLabel+") "+track.url);
+		LOG.info("Processing "+track.id+" ("+track.shortLabel+") "+track.url);
 		VcfIterator in=VCFUtils.createVcfIteratorFromFile(inf);
 		VCFHeader header=in.getHeader();
 		VCFInfoHeaderLine info=null;
@@ -279,11 +291,10 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		in.close();
 		w1.close();
 		}
-	
 	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException {
-		File tmpDir= this.getTmpDirectories().get(0);
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+		try {
+		File tmpDir= new File(System.getProperty("java.io.tmpdir"));
 		File tmp1=File.createTempFile("tmp_",".vcf", tmpDir);
 		File tmp2=File.createTempFile("tmp_",".vcf", tmpDir);
 		tmp1.deleteOnExit();
@@ -321,11 +332,16 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		in.close();
 		tmp1.delete();
 		tmp2.delete();
+		return 0;
+		} catch(Exception err ) {
+			LOG.error(err);
+			return -1;
+		}
 		}
 	
 	private void parseTrackDB(URL url) throws IOException
 		{
-		info("Parsing "+url);
+		LOG.info("Parsing "+url);
 		BufferedReader r=new BufferedReader(new InputStreamReader(url.openStream(),"UTF-8"));
 		String line;
 		Track track=null;
@@ -356,7 +372,7 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 			int w=line.indexOf(' ');
 			if(w==-1)
 				{
-				info("No whitespace in "+line+" ?");
+				LOG.info("No whitespace in "+line+" ?");
 				continue;
 				}
 			if(track==null) track=new Track();
@@ -377,54 +393,18 @@ public class VcfEnsemblReg extends AbstractVCFFilter2
 		
 		CloserUtil.close(r);
 		}
-	@Override
-	public String getProgramDescription() {
-		return "Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.";
-		}
-
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -d (url) trackDB.txt URL. Default is: "+this.trackDBUrl);
-		out.println(" -t (dir). "+getMessageBundle("add.tmp.dir"));
-		super.printOptions(out);
-		}
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfEnsemblReg";
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"t:"))!=-1)
-			{
-			switch(c)
-				{
-				case 't': trackDBUrl=opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
 		try
 			{
 			parseTrackDB(new URL(trackDBUrl));
 			
-			return doWork(opt.getOptInd(), args);
+			return doVcfToVcf(args,outputFile);
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		

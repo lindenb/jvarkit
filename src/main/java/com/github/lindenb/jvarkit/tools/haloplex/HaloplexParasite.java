@@ -25,10 +25,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.haloplex;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -55,8 +53,47 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-public class HaloplexParasite extends AbstractHaloplexParasite {
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(HaloplexParasite.class);
+/**
+
+BEGIN_DOC
+
+### Examples
+
+```
+
+echo "input.bam" > all.list
+gunzip -c input.vcf.gz |
+  java -jar dist/haloplexparasite.jar -B all.list
+rm all.list
+
+
+```
+
+
+END_DOC
+*/
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="haloplexparasite",description="for @SolenaLS : remove artctifacts from haloplex that gives indels in GATK hapcaller ")
+public class HaloplexParasite extends Launcher {
+	private static final Logger LOG = Logger.build(HaloplexParasite.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-B","--bams"},description="A list of path to indexed BAM files")
+	private File bamList = null;
+
+	@Parameter(names={"-m","--clipsize"},description="Min. Soft Clipping size")
+	private int minClipSize = 10 ;
+
+	@Parameter(names={"-t","--treshold"},description="treshold")
+	private double tresholdFraction = 0.0005 ;
 
 	private static class Mutation {
 		final String contig;
@@ -70,16 +107,13 @@ public class HaloplexParasite extends AbstractHaloplexParasite {
 			this.alleles = ctx.getAlleles();
 		}
 	}
+	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(final String inputName, VcfIterator in, VariantContextWriter out)
-			throws IOException {
-	if(super.bamList==null) {
-		return wrapException("Option -"+OPTION_BAMLIST+" undefined");
-	}
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 	SamReader samReader = null;
 	final List<Mutation> mutations = new ArrayList<>();
 	try {
-		final Set<File> bamFiles =  Files.lines(super.bamList.toPath()).
+		final Set<File> bamFiles =  Files.lines(this.bamList.toPath()).
 			filter(T-> !(T.isEmpty() || T.startsWith("#"))).
 			map(T->new File(T)).collect(Collectors.toSet());
 		
@@ -205,7 +239,7 @@ public class HaloplexParasite extends AbstractHaloplexParasite {
 				vcb.attribute(infoWord.getID(), worstString);
 			}
 			
-			if(worstFraction!=null && worstFraction.doubleValue()>=super.tresholdFraction) {
+			if(worstFraction!=null && worstFraction.doubleValue()>=this.tresholdFraction) {
 				vcb.filter(filter.getID());
 				
 			}
@@ -216,18 +250,19 @@ public class HaloplexParasite extends AbstractHaloplexParasite {
 		
 		return RETURN_OK;
 	} catch (Exception e) {
-		return wrapException(e);
+		LOG.error(e);
+		return -1;
 	} finally {
 		CloserUtil.close(samReader);
 		}
 	}
-
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		if(super.bamList==null) {
-			return wrapException("Option -"+OPTION_BAMLIST+" undefined");
+	public int doWork(List<String> args) {
+		if(this.bamList==null) {
+			LOG.error("BAM list undefined");
+			return -1;
 		}
-		return doVcfToVcf(inputName);
+		return doVcfToVcf(args,outputFile);
 		}
 	
 	public static void main(final String[] args) {

@@ -49,6 +49,67 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+/**
+
+BEGIN_DOC
+
+
+### Example
+
+
+the input file
+
+
+```
+$ cat toy.sam
+
+@SQ     SN:ref  LN:45
+@SQ     SN:ref2 LN:40
+r001    163     ref     7       30      8M4I4M1D3M      =       37      39      TTAGATAAAGAGGATACTG     *       XX:B:S,12561,2,20,112
+r002    0       ref     9       30      1S2I6M1P1I1P1I4M2I      *       0       0       AAAAGATAAGGGATAAA       *
+r003    0       ref     9       30      5H6M    *       0       0       AGCTAA  *
+r004    0       ref     16      30      6M14N1I5M       *       0       0       ATAGCTCTCAGC    *
+r003    16      ref     29      30      6H5M    *       0       0       TAGGC   *
+r001    83      ref     37      30      9M      =       7       -39     CAGCGCCAT       *
+x1      0       ref2    1       30      20M     *       0       0       aggttttataaaacaaataa    ????????????????????
+x2      0       ref2    2       30      21M     *       0       0       ggttttataaaacaaataatt   ?????????????????????
+x3      0       ref2    6       30      9M4I13M *       0       0       ttataaaacAAATaattaagtctaca      ??????????????????????????
+x4      0       ref2    10      30      25M     *       0       0       CaaaTaattaagtctacagagcaac       ?????????????????????????
+x5      0       ref2    12      30      24M     *       0       0       aaTaattaagtctacagagcaact        ????????????????????????
+x6      0       ref2    14      30      23M     *       0       0       Taattaagtctacagagcaacta ???????????????????????
+
+```
+
+
+processing with samfixcigar
+
+
+```
+$ java -jar dist/samfixcigar.jar \
+     -r samtools-0.1.19/examples/toy.fa \
+     samtools-0.1.19/examples/toy.sam
+@HD     VN:1.4  SO:unsorted
+@SQ     SN:ref  LN:45
+@SQ     SN:ref2 LN:40
+r001    163     ref     7       30      8=4I4=1D3=      =       37      39      TTAGATAAAGAGGATACTG     *       XX:B:S,12561,2,20,112
+r002    0       ref     9       30      1S2I6=1P1I1P1I1X1=2X2I  *       0       0       AAAAGATAAGGGATAAA       *
+r003    0       ref     9       30      2=1X3=  *       0       0       AGCTAA  *
+r004    0       ref     16      30      6=14N1I5=       *       0       0       ATAGCTCTCAGC    *
+r003    16      ref     29      30      5=      *       0       0       TAGGC   *
+r001    83      ref     37      30      9=      =       7       -39     CAGCGCCAT       *
+x1      0       ref2    1       30      16=1X3= *       0       0       AGGTTTTATAAAACAAATAA    ????????????????????
+x2      0       ref2    2       30      15=1X3=1X1=     *       0       0       GGTTTTATAAAACAAATAATT   ?????????????????????
+x3      0       ref2    6       30      9=4I13= *       0       0       TTATAAAACAAATAATTAAGTCTACA      ??????????????????????????
+x4      0       ref2    10      30      1X3=1X20=       *       0       0       CAAATAATTAAGTCTACAGAGCAAC       ?????????????????????????
+x5      0       ref2    12      30      2=1X21= *       0       0       AATAATTAAGTCTACAGAGCAACT        ????????????????????????
+x6      0       ref2    14      30      1X22=   *       0       0       TAATTAAGTCTACAGAGCAACTA ???????????????????????
+```
+
+### Usage in the literature
+
+This tool was cited in Extensive sequencing of seven human genomes to characterize benchmark reference materials Sci Data. 2016; 3: 160025..
+
+*/
 
 @Program(name="samfixcigar",description="Fix Cigar String in SAM replacing 'M' by 'X' or '='")
 public class SamFixCigar extends Launcher
@@ -59,7 +120,7 @@ public class SamFixCigar extends Launcher
 	private File outputFile = null;
 
 
-	@Parameter(names={"-r","--reference"},description="Indexed fasta Reference",required=true)
+	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx = null;
 	
 	@ParametersDelegate
@@ -81,11 +142,12 @@ public class SamFixCigar extends Launcher
 		SAMFileWriter sfw=null;
 		try
 			{
-			LOG.info("Loading reference");
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
 			sfr = openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=sfr.getFileHeader();
-			sfw = this.writingBamArgs.openSAMFileWriter(outputFile,header, true);
+			sfw = this.writingBamArgs.
+					setReferenceFile(this.faidx).
+					openSAMFileWriter(outputFile,header, true);
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
 			final List<CigarElement> newCigar=new ArrayList<CigarElement>();
 			final SAMRecordIterator iter=sfr.iterator();
@@ -115,7 +177,7 @@ public class SamFixCigar extends Launcher
 				
 				for(final CigarElement ce:cigar.getCigarElements())
 					{
-					CigarOperator op = ce.getOperator();
+					final CigarOperator op = ce.getOperator();
 					if(op.equals(CigarOperator.M))
 						{
 						for(int i=0;i< ce.getLength();++i)
@@ -146,13 +208,13 @@ public class SamFixCigar extends Launcher
 				int i=0;
 				while(i< newCigar.size())
 					{
-					CigarOperator op1 = newCigar.get(i).getOperator();
-					int length1 = newCigar.get(i).getLength();
+					final CigarOperator op1 = newCigar.get(i).getOperator();
+					final int length1 = newCigar.get(i).getLength();
 					
 					if( i+1 <  newCigar.size() &&
 						newCigar.get(i+1).getOperator()==op1)
 						{
-						CigarOperator op2= newCigar.get(i+1).getOperator();
+						final CigarOperator op2= newCigar.get(i+1).getOperator();
 						int length2=newCigar.get(i+1).getLength();
 
 						 newCigar.set(i,new CigarElement(length1+length2, op2));

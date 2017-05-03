@@ -415,8 +415,6 @@ public class WritingBamArgs
 	public SAMFileWriter openSAMFileWriter(File outputFileOrNull,SAMFileHeader header,boolean presorted)
 	{
 		final htsjdk.samtools.SAMFileWriterFactory sfw= this.createSAMFileWriterFactory();
-		
-		
 		if(outputFileOrNull==null)
 			{
 			if( this.samoutputformat!=null &&
@@ -441,9 +439,7 @@ public class WritingBamArgs
 			{
 			return sfw.makeWriter(header, presorted, outputFileOrNull, getReferenceFile());
 			}
-
 		}
-	
 	}
 
 public static class PrintWriterOnDemand

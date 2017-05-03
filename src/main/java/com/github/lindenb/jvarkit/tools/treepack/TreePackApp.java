@@ -3,7 +3,6 @@ package com.github.lindenb.jvarkit.tools.treepack;
 import java.awt.Rectangle;
 import java.awt.geom.Rectangle2D;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,15 +22,19 @@ import javax.xml.stream.events.XMLEvent;
 
 import htsjdk.samtools.util.CloserUtil;
 
-
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 public class TreePackApp
-	extends AbstractCommandLineProgram
+	extends Launcher
 	{
+	private static final Logger LOG = Logger.build(TreePackApp.class).make();
+
+	@Parameter(names="-x",description="{width}x{height} dimension of the output rectangle")
 	protected Rectangle viewRect=new Rectangle(1000,1000);
 	protected final String SVG="http://www.w3.org/2000/svg";
 	protected final String XLINK="http://www.w3.org/1999/xlink";
@@ -179,7 +182,7 @@ public class TreePackApp
 		   {
 		   if(getWeight()<=0)
 			   {
-			   info("weight < 0 for "+getPath());
+			   LOG.info("weight < 0 for "+getPath());
 			   return ;
 			   }
 		   final Rectangle2D bounds=this.getBounds();
@@ -275,7 +278,7 @@ public class TreePackApp
 	
 	protected void svg() throws XMLStreamException
 	  	{
-	  	info("writing svg");
+		LOG.info("writing svg");
 		XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 		XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
 		w.writeStartDocument("UTF-8","1.0");
@@ -328,7 +331,7 @@ public class TreePackApp
 
 	private void layout()
 		{
-		info("layout");
+		LOG.info("layout");
 		this.root.setBounds(new Rectangle2D.Double(0, 0, this.viewRect.getWidth(), this.viewRect.getHeight()));
 		TreePacker packer=new TreePacker();
 		this.root.layout(packer);
@@ -416,73 +419,34 @@ public class TreePackApp
 		return n;
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -x {width}x{height} dimension of the output rectangle. default:"+this.viewRect.width+"x"+this.viewRect.height);
-		super.printOptions(out);
-		}
-	
 	
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"x:"))!=-1)
+	public int doWork(List<String> args) {
+		if(viewRect.x<=0 ||this.viewRect.y<=0 )
 			{
-			switch(c)
-				{
-				case 'x':
-					{
-					String s=opt.getOptArg();
-					int x=s.indexOf('x');
-					if(x==-1)
-						{
-						error("'x' missing in "+s);
-						return -1;
-						}
-					this.viewRect.x=Integer.parseInt(s.substring(0, x));
-					this.viewRect.y=Integer.parseInt(s.substring(x+1));
-					if(viewRect.x<=0 ||this.viewRect.y<=0 )
-						{
-						error("bad viewRect "+viewRect);
-						return -1;
-						}
-					break;
-					}
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
+			LOG.error("bad viewRect "+viewRect);
+			return -1;
 			}
-		
 		
 		try
 			{
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				this.root=scan(System.in);
+				LOG.info("Reading from stdin");
+				this.root=scan(stdin());
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
+				String filename=args.get(0);
+				LOG.info("Reading from "+filename);
 				InputStream in=IOUtils.openURIForReading(filename);
 				this.root=scan(in);
 				CloserUtil.close(in);
 				}
 			else
 				{
-				error("Illegal number of arguments.");
+				LOG.error("Illegal number of arguments.");
 				return -1;
 				}
 			layout();
@@ -490,7 +454,7 @@ public class TreePackApp
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

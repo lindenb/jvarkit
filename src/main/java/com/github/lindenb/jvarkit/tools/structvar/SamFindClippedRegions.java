@@ -71,21 +71,31 @@ import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+
 import java.util.function.Predicate;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-public class SamFindClippedRegions extends AbstractCommandLineProgram
+public class SamFindClippedRegions extends Launcher
 	{
+	private static final Logger LOG=Logger.build(SamFindClippedRegions.class).make();
+
+	@Parameter(names="-B",description="bed file")
+	private File bedFile = null;
+
+	@Parameter(names="-c",description="min size of clipped read")
 	private int min_clip_length=20;
 	//private boolean ignore_poly_x=false;
 	//private int rounding_pos=5;
 	//private float min_fraction_of_clipped_records=0.3f;
 	private int min_depth=15;
 	
+
 
 	
 	private static class FilteringIterator<T>
@@ -145,7 +155,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 		String sampleName=null;
 		Input(File bamFile)
 			{
-			info("Reading from "+bamFile);
+			LOG.info("Reading from "+bamFile);
 			this.bamFile=bamFile;
 			
 			SamReaderFactory srf=SamReaderFactory.make().
@@ -158,7 +168,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 				{
 				if(g.getSample()==null || g.getSample().isEmpty())
 					{
-					warning("Read group "+g.getId()+" has no sample in "+bamFile);
+					LOG.warning("Read group "+g.getId()+" has no sample in "+bamFile);
 					continue;
 					}
 				if(sampleName!=null && !sampleName.equals(g.getSample()))
@@ -171,7 +181,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 				{
 				throw new RuntimeException("Bam "+this.bamFile+" doesn't contain a sample defined in header/read-group");
 				}
-			info("In "+bamFile+" Sample is "+sampleName);
+			LOG.info("In "+bamFile+" Sample is "+sampleName);
 			}
 		
 		@Override
@@ -180,10 +190,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 			}
 		}
 	
-	@Override
-	public String getProgramDescription() {
-		return "";
-		}
+
 	
 
 	/*private static boolean closeTo(int pos1,int pos2, int max)
@@ -198,48 +205,16 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 		return Character.toUpperCase(c1)==Character.toUpperCase(c2);
 		}*/
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -c (int) min size of clipped read. default:"+min_clip_length);
-		out.println(" -x ignore poly-X");
-		out.println(" -B (file) bed file (optional)");
-		out.println(" -R (ref) "+getMessageBundle("reference.faidx")+". Optional");
-		super.printOptions(out);
-		}
+
+	
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		//final int CLOSE_DISTANCE=5;
+	public int doWork(List<String> args) {
 		int readLength=150;
-		File bedFile=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"c:B:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'B': bedFile=new File(opt.getOptArg());break;
-				//case 'x': ignore_poly_x=true;break;
-				case 'c':min_clip_length=Integer.parseInt(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		
-	
-		
-		if(opt.getOptInd()==args.length)
+		if(args.isEmpty())
 			{
-			error(getMessageBundle("illegal.number.of.arguments"));
+			LOG.error("illegal.number.of.arguments");
 			return -1;
 			}
 		
@@ -253,17 +228,15 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 
 			/* create input, collect sample names */
 			Map<String,Input> sample2input=new HashMap<String,Input>();
-			for(int optind=opt.getOptInd();
-					optind< args.length;//TODO
-					++optind)
+			for(final String filename:args)
 				{
-				Input input=new Input(new File(args[optind]));
+				Input input=new Input(new File(filename));
 				//input.index=inputs.size();
 				inputs.add(input);
 				
 				if(sample2input.containsKey(input.sampleName))
 					{
-					error("Duplicate sample "+input.sampleName+" in "+input.bamFile+" and "+sample2input.get(input.sampleName).bamFile);
+					LOG.error("Duplicate sample "+input.sampleName+" in "+input.bamFile+" and "+sample2input.get(input.sampleName).bamFile);
 					return -1;
 					}
 				sample2input.put(input.sampleName, input);
@@ -273,12 +246,12 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 					}
 				else if(!SequenceUtil.areSequenceDictionariesEqual(dict, input.header.getSequenceDictionary()))
 					{
-					error("Found more than one dictint sequence dictionary");
+					LOG.error("Found more than one dictint sequence dictionary");
 					return -1;
 					}
 					
 				}
-			info("Sample N= "+sample2input.size());
+			LOG.info("Sample N= "+sample2input.size());
 			
 			
 			/* create merged iterator */
@@ -338,7 +311,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 			if(bedFile!=null)
 				{
 				intervals=new SamSequenceRecordTreeMap<Boolean>(dict);
-				info("Reading "+bedFile);
+				LOG.info("Reading "+bedFile);
 				LineIterator r=IOUtils.openFileForLineIterator(bedFile);
 				while(r.hasNext())
 					{
@@ -347,12 +320,12 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 					String tokens[]=line.split("[\t]");
 					if(tokens.length<3)
 						{
-						warning("Bad bed line in "+bedFile+" "+line);
+						LOG.warning("Bad bed line in "+bedFile+" "+line);
 						continue;
 						}
 					if(dict!=null && dict.getSequence(tokens[0])==null)
 						{
-						warning("undefined chromosome  in "+bedFile+" "+line);
+						LOG.warning("undefined chromosome  in "+bedFile+" "+line);
 						continue;
 						}
 					intervals.put(tokens[0],Integer.parseInt(tokens[1]), Integer.parseInt(tokens[2]), true);
@@ -514,7 +487,7 @@ public class SamFindClippedRegions extends AbstractCommandLineProgram
 
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

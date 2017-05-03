@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
@@ -48,19 +49,36 @@ import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.circular.CircularContext;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
-public class WorldMapGenome extends AbstractCommandLineProgram
+@Program(name="worldmapgenome",description="Genome/Map of the world. Input is a BED file: chrom/start/end/country.")
+public class WorldMapGenome extends Launcher
 	{
+	private static final Logger LOG = Logger.build(WorldMapGenome.class).make();
+
+
+	@Parameter(names="-R",description=" (ref) fasta reference file indexed with samtools. Required.")
+	File faidx=null;
+	@Parameter(names="-w",description=" (int: size) square size")
+	private int squareSize=1000;
+	@Parameter(names="-T",description=" just list countries and exit.",help=true)
+	private  boolean listCountries=false;
+	@Parameter(names="-o",description=" (file.jpg) ouput file. Required")
+	private File fileout=null;
+		
 	private CircularContext context=null;
 	/* ouput size */
 	private Dimension viewRect=new Dimension(1000, 1000);
     private Map<String,Shape> country2shape=new HashMap<String,Shape>();
     /* SVG map location */
+    @Parameter(names="-u",description=" (uri) URL world SVG map.")
     private String svgMapUri="http://upload.wikimedia.org/wikipedia/commons/7/76/World_V2.0.svg";
     /* number of time we saw each country */
     private Counter<String> seen=new Counter<String>();
@@ -68,21 +86,12 @@ public class WorldMapGenome extends AbstractCommandLineProgram
     private WorldMapGenome()
 		{
 		}
-    @Override
-	public String getProgramDescription()
-		{
-		return "Genome/Map of the world. Input is a BED file: chrom/start/end/country.";
-		}
-    
-    @Override
-    protected String getOnlineDocUrl() {
-    	return "https://github.com/lindenb/jvarkit/wiki/WorldMapGenome";
-    	}
+  
 		
 	private void loadWorld() throws IOException,XMLStreamException
 		{
 		Source source;
-		warning("openingg "+svgMapUri);
+		LOG.warning("openingg "+svgMapUri);
 		if(IOUtils.isRemoteURI(svgMapUri))
 			{
 			source=new StreamSource(svgMapUri);
@@ -179,53 +188,12 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 		return  shape;
 		}
 
-	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -R (ref) fasta reference file indexed with samtools. Required.");
-		out.println(" -w (int: size) square size default:"+viewRect.width);
-		out.println(" -o (file.jpg) ouput file. Required");
-		out.println(" -T just list countries and exit.");
-		out.println(" -u (uri) URL world SVG map. Default is: "+svgMapUri);
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		boolean listCountries=false;
-		File fileout=null;
-		File faidx=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:w:o:Tu:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'u': this.svgMapUri=opt.getOptArg();break;
-				case 'T': listCountries=true;break;
-				case 'w':
-					int size=Integer.parseInt(opt.getOptArg());
-					viewRect.width=size;
-					viewRect.height=size;
-					break;
-				case 'R': faidx=new File(opt.getOptArg());break;
-				case 'o': fileout=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
+	public int doWork(List<String> args) {
 		try
 			{
+			viewRect.width=squareSize;
+			viewRect.height=squareSize;
 			loadWorld();
 			if(listCountries)
 				{
@@ -237,16 +205,16 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 				}
 			if(faidx==null)
 				{
-				error("undefined reference file");
+				LOG.error("undefined reference file");
 				return -1;
 				}
 			if(fileout==null)
 				{
-				error("undefined output file");
+				LOG.error("undefined output file");
 				return -1;
 				}
 			
-			info("loading "+faidx);
+			LOG.info("loading "+faidx);
 			this.context=new CircularContext(new SAMSequenceDictionaryFactory().load(faidx));
 			this.context.setCenter(viewRect.width/2,viewRect.height/2);
 			BufferedImage offscreen=new  BufferedImage(
@@ -256,17 +224,16 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 			Graphics2D g=(Graphics2D)offscreen.getGraphics();
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
-				scan(g,System.in);
+				LOG.info("Reading from stdin");
+				scan(g,stdin());
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename :args)
 					{
-					String filename=args[i];
-					info("Reading from "+filename);
+					LOG.info("Reading from "+filename);
 					InputStream in=IOUtils.openURIForReading(filename);
 					scan(g,in);
 					CloserUtil.close(in);
@@ -292,7 +259,7 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
@@ -398,13 +365,13 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 			String tokens[]=tab.split(line,5);
 			if(tokens.length<4)
 				{
-				warning("Ignoring "+line);
+				LOG.warning("Ignoring "+line);
 				continue;
 				}
 			SAMSequenceRecord rec=this.context.getDictionary().getSequence(tokens[0]);
 			if(rec==null)
 				{
-				warning("unknown chromosome "+tokens[0]);
+				LOG.warning("unknown chromosome "+tokens[0]);
 				continue;
 				}
 			String country=tokens[3].toLowerCase().replaceAll("[ ]", "");
@@ -414,7 +381,7 @@ public class WorldMapGenome extends AbstractCommandLineProgram
 				if(!unknownC.contains(country))
 					{
 					unknownC.add(country);
-					warning("unknown country "+country);
+					LOG.warning("unknown country "+country);
 					}
 				continue;
 				}

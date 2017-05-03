@@ -332,6 +332,25 @@ public class SamFilterParser {
 	 	@Override public boolean test(final SAMRecord rec) { return  (rec.getMappingQuality() == SAMRecord.NO_MAPPING_QUALITY);}
 		}; }		
 		
+		
+		
+		 private static Predicate<SAMRecord>  hasFlag(final int flg) {
+		return new Predicate<SAMRecord>() {
+	 	@Override public boolean test(final SAMRecord rec) { return   (rec.getFlags() & flg) != 0;}
+		}; }	
+		
+		
+        private static Predicate<SAMRecord>  discordant() {
+            return new Predicate<SAMRecord>() {
+            @Override public boolean test(final SAMRecord rec) {
+            	return  rec.getReadPairedFlag() &&
+            			!rec.getReadUnmappedFlag() &&
+            			!rec.getMateUnmappedFlag() &&
+            			rec.getReferenceIndex()!=rec.getMateReferenceIndex();
+            		}
+            }; }
+		
+		
 	}
 	
 PARSER_END(SamFilterParser)
@@ -374,6 +393,8 @@ TOKEN:
 | <SAMFLAG: "samFlag" >
 | <SAMPLE: "sample" >
 | <GROUP: "group" >
+| <HASFLAG: "hasFlag" >
+| <DISCORDANT: ("is")? "discordant" >
 }
 
 	
@@ -403,7 +424,7 @@ private Predicate<SAMRecord> AndExpr(): { Predicate<SAMRecord> root,other;}
 	root=UnaryExpr() ( <AND> other=UnaryExpr() {root = root.and(other); } )* { return root;}
 	}
 	
-private Predicate<SAMRecord> UnaryExpr(): {String str; Token t; }
+private Predicate<SAMRecord> UnaryExpr(): {String str; Token t; int flg; }
 	{
 	(
 	  <DUPLICATE> <OPAR> <CPAR> { return duplicateFilter(); }
@@ -420,7 +441,8 @@ private Predicate<SAMRecord> UnaryExpr(): {String str; Token t; }
 	| <SAMFLAG> <OPAR> t=<INT> <CPAR> { return samFlag(Integer.parseInt(t.image));}
 	| <SAMPLE> <OPAR> str=characters() <CPAR>  { return sample(str);}
 	| <GROUP> <OPAR> str=characters() <CPAR>  { return group(str);}
-	
+	| <HASFLAG> <OPAR> flg=integer() <CPAR> { return hasFlag(flg);}
+	| <DISCORDANT> <OPAR> <CPAR> {  return discordant();}
 	)
 	
 	}
@@ -442,5 +464,9 @@ private String characters():
 		}
 	)
 	}
-	
+private  int integer() : {Token t;}
+	{
+	t=<INT> { return  Integer.parseInt(t.image); }
+	}
+
 	

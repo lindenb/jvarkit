@@ -34,9 +34,12 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
@@ -44,8 +47,12 @@ import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 
 @Deprecated
-public class PaintContext extends AbstractCommandLineProgram
+@Program(name="paintcontext",description="")
+public class PaintContext extends Launcher
 	{
+	private static final Logger LOG = Logger.build(PaintContext.class).make();
+
+	
 	private static final String XLINK=com.github.lindenb.jvarkit.util.ns.XLINK.NS;
 	private static final String REPLACE="__REGION__";
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -56,7 +63,9 @@ public class PaintContext extends AbstractCommandLineProgram
 	private Insets insets=new Insets(100, 100, 100, 100);
 	private int screenWidth=2000;
 	private int gcWindowSize=5;
+	@Parameter(names="-o",description="output file")
 	private String fileOutPattern=null;
+	
 	private Hershey hershey=new Hershey();
 	private final int TRANSCRIPT_HEIGHT=30;
 	private final int GC_PERCENT_HEIGHT=100;
@@ -118,11 +127,6 @@ public class PaintContext extends AbstractCommandLineProgram
 	
 	
 	
-	@Override
-	public String getProgramDescription() {
-		return "";
-		}
-	
 	
 	private double baseToPixel(int pos0)
 		{
@@ -178,7 +182,7 @@ public class PaintContext extends AbstractCommandLineProgram
 				}
 			catch(Exception err)
 				{
-				error(err);
+				LOG.error(err);
 				throw new RuntimeException(err);
 				}
 			finally
@@ -654,7 +658,7 @@ public class PaintContext extends AbstractCommandLineProgram
 		if(this.indexedFastaSequenceFile!=null &&
 			font_size*this.interval.distance()< drawinAreaWidth)
 			{
-			info("paint DNA sequence");
+			LOG.info("paint DNA sequence");
 			if(genomicSequence==null || !this.interval.getChrom().equals(genomicSequence.getChrom()))
 				{
 				this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.getChrom());
@@ -683,7 +687,7 @@ public class PaintContext extends AbstractCommandLineProgram
 			}
 		else
 			{
-			info("won't display bases."+font_size*this.interval.distance()+" "+drawinAreaWidth);
+			LOG.info("won't display bases."+font_size*this.interval.distance()+" "+drawinAreaWidth);
 			}
 		
 		if(this.indexedFastaSequenceFile!=null)
@@ -818,7 +822,7 @@ public class PaintContext extends AbstractCommandLineProgram
 								gType="g_"+genotype.getType().name();
 								break;
 								}
-							default: error("Cannot handle "+genotype.getType());break;
+							default: LOG.error("Cannot handle "+genotype.getType());break;
 							}
 						
 						if(gType==null) continue;
@@ -881,7 +885,7 @@ public class PaintContext extends AbstractCommandLineProgram
 		{
 		if(R==null || R.end<R.start) return;
 		this.interval=R;
-		info("Processing "+this.interval);
+		LOG.info("Processing "+this.interval);
 		XMLOutputFactory xof=XMLOutputFactory.newFactory();
 		xof.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.TRUE);
 
@@ -891,7 +895,7 @@ public class PaintContext extends AbstractCommandLineProgram
 		if(fileOutPattern!=null)
 			{
 			File fout=new File(this.fileOutPattern.replaceAll(REPLACE, String.format("%s:%09d-%09d",this.interval.chrom,this.interval.start,this.interval.end)));
-			info("Wrting to "+fout);
+			LOG.info("Wrting to "+fout);
 			if(fout.getParentFile()!=null)
 				{
 				fout.getParentFile().mkdirs();
@@ -944,7 +948,7 @@ public class PaintContext extends AbstractCommandLineProgram
 				this.interval=parseIntervalString(tokens[0]);
 				if(this.interval==null)
 					{
-					error("info bad interval "+tokens[0]);
+					LOG.error("info bad interval "+tokens[0]);
 					continue;
 					}
 				}
@@ -953,72 +957,49 @@ public class PaintContext extends AbstractCommandLineProgram
 		}
 	
 	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -r (region chr:start-end) . Optional");
-		out.println(" -R (file) "+getMessageBundle("reference.faidx")+". Optional");
-		out.println(" -k (file)  knownGene file."+getMessageBundle("file.tabix")+" Optional");
-		super.printOptions(out);
-		}
-
+	
+	@Parameter(names="-r",description="(region chr:start-end")
+	private String intervalStr=null;
+	@Parameter(names="-k",description="knownGene file")
+	private String knownGeneUri=null;
+	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private File faidx=null;
+	@Parameter(names="-B",description="bam files")
+	private List<File> bamList=new ArrayList<>();
+	@Parameter(names="-V",description="VCF file")
+	private String vcfFile=null;
 	
 	@Override
-	public int doWork(String[] args)
-		{
+	public int doWork(List<String> args) {
 		Interval userInterval=null;
 		String vcfFile=null;
-		File faidx=null;
-		String knownGeneUri=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"k:R:B:V:o:r:"))!=-1)
-			{
-			switch(c)
-				{			
-				case 'r': 
-					{
-					if((userInterval=parseIntervalString(opt.getOptArg()))==null)
-						{
-						error("Bad interval. "+opt.getOptArg());
-						return -1;
-						}
-					break;
-					}
-				case 'o': fileOutPattern=opt.getOptArg();break;
-				case 'B':
-					{
-					BamFile bf=new BamFile();
-					bf.file=(new File(opt.getOptArg()));
-					this.samFileReaders.add(bf);
-					break;
-					}
-				case 'R': faidx=new File(opt.getOptArg());break;
-				case 'k': knownGeneUri=opt.getOptArg();break;
-				case 'V': vcfFile=opt.getOptArg();break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			
-			}
+		
+		
 		
 		if(knownGeneUri==null)
 			{
-			warning("KnownGene URI undefined.");
+			LOG.warning("KnownGene URI undefined.");
 			}
 		if(faidx==null)
 			{
-			warning("Undefined fasta Reference.");
+			LOG.warning("Undefined fasta Reference.");
 			}
 		
+		for(File b:bamList)
+			{
+			BamFile bf=new BamFile();
+			bf.file=(b);
+			this.samFileReaders.add(bf);
+			}
 		
+		if(intervalStr!=null)
+			{
+			if((userInterval=parseIntervalString(intervalStr))==null)
+				{
+				LOG.error("Bad interval. "+intervalStr);
+				return -1;
+				}
+			}
 		
 		try
 			{
@@ -1026,7 +1007,7 @@ public class PaintContext extends AbstractCommandLineProgram
 			
 			if(faidx!=null)
 				{
-				info("Opening "+faidx);
+				LOG.info("Opening "+faidx);
 				this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
 				dict=this.indexedFastaSequenceFile.getSequenceDictionary();
 				}
@@ -1034,32 +1015,32 @@ public class PaintContext extends AbstractCommandLineProgram
 			final SamReaderFactory srf= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT); 
 			for(BamFile input: samFileReaders)
 				{
-				info("Opening "+input.file);
+				LOG.info("Opening "+input.file);
 				input.sfr=srf.open(input.file);
 				if(dict!=null && !SequenceUtil.areSequenceDictionariesEqual(
 						input.sfr.getFileHeader().getSequenceDictionary(),
 						dict))
 					{
 					input.sfr.close();
-					error("NOT the same sequence dictionaries between "+faidx+" and "+input.file);
+					LOG.error("NOT the same sequence dictionaries between "+faidx+" and "+input.file);
 					return -1;
 					}
 				}
 				
 			if(vcfFile!=null)
 				{
-				info("Opening "+vcfFile);
+				LOG.info("Opening "+vcfFile);
 				this.tabixReader=new TabixVcfFileReader(vcfFile);
 				
 				}
 			
 			if(knownGeneUri!=null)
 				{
-				info("Opening "+knownGeneUri);
+				LOG.info("Opening "+knownGeneUri);
 				this.knownGenes=new TabixFileReader(knownGeneUri);
 				}
 			
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
 				if(userInterval!=null)
 					{
@@ -1067,23 +1048,22 @@ public class PaintContext extends AbstractCommandLineProgram
 					return 0;
 					}
 				
-				info("Reading chr:start-end or BED from stdin");
+				LOG.info("Reading chr:start-end or BED from stdin");
 				LineIterator lr=IOUtils.openStdinForLineIterator();
 				run(lr);
 				CloserUtil.close(lr);
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename:args)
 					{
 					if(userInterval!=null)
 						{
-						error("Illegal number of arguments (user interval specified).");
+						LOG.error("Illegal number of arguments (user interval specified).");
 						return -1;
 						}
 					
-					String filename=args[i];
-					info("Reading chr:start-end or BED from "+filename);
+					LOG.info("Reading chr:start-end or BED from "+filename);
 					LineIterator lr=IOUtils.openURIForLineIterator(filename);
 					run(lr);
 					CloserUtil.close(lr);
@@ -1094,7 +1074,7 @@ public class PaintContext extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

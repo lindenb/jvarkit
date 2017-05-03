@@ -23,9 +23,9 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfstats;
 
+import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -49,7 +49,7 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -61,10 +61,17 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFac
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class VcfStats extends AbstractVcfStats
+@Program(name="vcfstats",description="VCF statitics")
+public class VcfStats extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfStats.class);
+	private static final Logger LOG = Logger.build(VcfStats.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
 
 	private static final int HISTOGRAM_STEP=5;
 	private VepPredictionParser vepPredictionParser=null;
@@ -542,28 +549,18 @@ public class VcfStats extends AbstractVcfStats
 			default: return null;
 			}
 		}
-	
 	@Override
-	protected Collection<Throwable> call(String filename) throws Exception {
+	public int doWork(List<String> args) {
 		VcfIterator iter=null;
 		XMLStreamWriter xout=null;
 		InputStream vcfInputStream=null;
 		OutputStream ostream = null;
 		try
 			{			
+			vcfInputStream = super.openInputStream(oneFileOrNull(args));
 			
-			if(filename==null)
-				{
-				filename="stdin";
-				vcfInputStream=stdin();
-				}
-			else
-				{
-				vcfInputStream=IOUtils.openURIForReading(filename);
-				}
 			
-			LOG.info("Reading from "+filename);
-			ostream= super.openFileOrStdoutAsStream();
+			ostream= super.openFileOrStdoutAsStream(outputFile);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			xout=xof.createXMLStreamWriter(ostream,"UTF-8");
 			
@@ -599,7 +596,7 @@ public class VcfStats extends AbstractVcfStats
 			
 			xout.writeEmptyElement("meta");
 			xout.writeAttribute("name", "input");
-			xout.writeAttribute("content", filename);
+			xout.writeAttribute("content", String.valueOf(oneFileOrNull(args)));
 
 			xout.writeEmptyElement("meta");
 			xout.writeAttribute("name", "date");
@@ -766,7 +763,8 @@ public class VcfStats extends AbstractVcfStats
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

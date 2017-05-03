@@ -88,6 +88,10 @@ public interface SamFilterParserConstants {
   int SAMPLE = 30;
   /** RegularExpression Id. */
   int GROUP = 31;
+  /** RegularExpression Id. */
+  int HASFLAG = 32;
+  /** RegularExpression Id. */
+  int DISCORDANT = 33;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -126,6 +130,8 @@ public interface SamFilterParserConstants {
     "\"samFlag\"",
     "\"sample\"",
     "\"group\"",
+    "\"hasFlag\"",
+    "<DISCORDANT>",
   };
 
 }

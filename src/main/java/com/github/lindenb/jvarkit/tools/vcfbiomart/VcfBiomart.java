@@ -1,9 +1,9 @@
 package com.github.lindenb.jvarkit.tools.vcfbiomart;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -44,33 +44,27 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class VcfBiomart extends AbstractVCFFilter2
+@Program(name="vcfbiomart",description="BiomartQueries with VCF")
+public class VcfBiomart extends Launcher
 	{
-	private int batchSize=200;
-	private String TAG="BIOMART";
+	private static final Logger LOG = Logger.build(VcfBiomart.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
 	private List<Element> attributes=new ArrayList<Element>();
 	private Document dom=null;
 	private Element queryElement=null;
 	private Element dataSetElement=null;
 	private Element filterElementChromosomalLocation=null;
-	private int chromColumn1=-1;
-	private int startColumn1=-1;
-	private int endColumn1=-1;
 	private Set<Integer> visibleIndexes0=new HashSet<Integer>();
-	private String serviceUrl="http://www.biomart.org/biomart/martservice/result";
 	
-	@Override
-	public String getProgramDescription() {
-		return "BiomartQueries with VCF.";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfBiomart";
-		}
 	
 	private String escapeInfo(String s)
 		{
@@ -79,9 +73,8 @@ public class VcfBiomart extends AbstractVCFFilter2
 		}
 
 	@Override
-	protected void doWork(VcfIterator in, VariantContextWriter out)
-			throws IOException
-		{
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+		try {
 		Pattern tab=Pattern.compile("[\t]");
 		final String encoding="UTF-8";
 		TransformerFactory factory=TransformerFactory.newInstance();
@@ -94,7 +87,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			throw new IOException(err);
 			}
 
@@ -165,11 +158,11 @@ public class VcfBiomart extends AbstractVCFFilter2
 						}
 					catch (Exception e)
 						{
-						error(e);
+						LOG.error(e);
 						throw new IOException(e);
 						}
 					
-					 info("POSTing to "+this.serviceUrl+" buffer.size="+buffer.size());
+					LOG.info("POSTing to "+this.serviceUrl+" buffer.size="+buffer.size());
 				     URLConnection connection = new URL(this.serviceUrl).openConnection();
 				     connection.setDoOutput(true); 
 				     connection.setRequestProperty("Accept-Charset",encoding);
@@ -182,7 +175,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 				             }
 				     
 				     String q="query="+URLEncoder.encode(xmlToSend.toString(),encoding);
-				     debug(q);
+				     LOG.debug(q);
 				     OutputStream output = null;
 				     try {
 				          output = connection.getOutputStream();
@@ -200,9 +193,9 @@ public class VcfBiomart extends AbstractVCFFilter2
 					while(li.hasNext())
 						{
 						String line=li.next();
-						debug(line);
+						LOG.debug(line);
 						String tokens[]=tab.split(line);
-						debug(line+" L="+tokens.length );
+						LOG.debug(line+" L="+tokens.length );
 						Interval interval=new Interval(
 								tokens[this.chromColumn1-1],
 								Integer.parseInt(tokens[this.startColumn1-1]),
@@ -250,6 +243,12 @@ public class VcfBiomart extends AbstractVCFFilter2
 				}
 			buffer.add(in.next());
 			}
+		return 0;
+		}
+		catch(Exception err) {
+			LOG.error(err);
+			return -1;
+		}
 
 		}
 	
@@ -262,10 +261,10 @@ public class VcfBiomart extends AbstractVCFFilter2
 			Attr att=e.getAttributeNode(tag);
 			if(att!=null && att.getValue().equals("true"))
 				{
-				info("Attribute @"+tag+" was specified in the XML");
+				LOG.info("Attribute @"+tag+" was specified in the XML");
 				if(column!=-1)
 					{
-					error("XML: Two @"+tag+"=true ?");
+					LOG.error("XML: Two @"+tag+"=true ?");
 					return -1;
 					}
 				column=(i+1);
@@ -303,57 +302,38 @@ public class VcfBiomart extends AbstractVCFFilter2
 			
 		if(column<1 || column> this.attributes.size())
 			{
-			error("Cannot use column for \""+tag+"\".");
+			LOG.error("Cannot use column for \""+tag+"\".");
 			return -1;
 			}
 		return column;
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -X (XML-file) XML biomart template.");
-		out.println(" -n (int) batch size. default:"+this.batchSize);
-		out.println(" -T (string) VCF output tag.");
-		out.println(" -C (int) column index (1-based) for chromosome . Optional.");
-		out.println(" -S (int) column index (1-based) for start . Optional.");
-		out.println(" -E (int) column index (1-based) for end . Optional.");
-		out.println(" -u (url) biomart service url. default:"+this.serviceUrl);
-		
-		super.printOptions(out);
-		}
+	@Parameter(names="-X",description=" (XML-file) XML biomart template.")
+	String xmlTemplate=null;
+	@Parameter(names="-n",description=" (int) batch size.);")
+	private int batchSize=200;
 
+	@Parameter(names="-T",description=" (string) VCF output tag.")
+	private String TAG="BIOMART";
+
+	@Parameter(names="-C",description=" (int) column index (1-based) for chromosome . Optional")
+	private int chromColumn1=-1;
+	
+
+	@Parameter(names="-S",description=" (int) column index (1-based) for start . Optional")
+	private int startColumn1=-1;
+	@Parameter(names="-E",description=" (int) column index (1-based) for end . Optional")
+	private int endColumn1=-1;
+	@Parameter(names="-u",description=" (url) biomart service url")
+	private String serviceUrl="http://www.biomart.org/biomart/martservice/result";
+
+	
 	@Override
-	public int doWork(String[] args)
-		{
-		String xmlTemplate=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "n:T:X:C:S:E:u:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'u': this.serviceUrl=opt.getOptArg();break;
-				case 'C': this.chromColumn1=Integer.parseInt(opt.getOptArg());break;
-				case 'S': this.startColumn1=Integer.parseInt(opt.getOptArg());break;
-				case 'E': this.endColumn1=Integer.parseInt(opt.getOptArg());break;
-				case 'X': xmlTemplate=opt.getOptArg();break;
-				case 'n': this.batchSize=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
-				case 'T': this.TAG=opt.getOptArg(); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
+		
 		if(xmlTemplate==null)
 			{
-			error("Undefined XML template");
+			LOG.error("Undefined XML template");
 			return -1;
 			}
 		try
@@ -366,14 +346,14 @@ public class VcfBiomart extends AbstractVCFFilter2
 			f.setIgnoringComments(false);
 			f.setIgnoringElementContentWhitespace(true);
 			DocumentBuilder docBuilder= f.newDocumentBuilder();
-			info("Parsing xml "+xmlTemplate);
+			LOG.info("Parsing xml "+xmlTemplate);
 			InputStream in=IOUtils.openURIForReading(xmlTemplate);
 			this.dom=docBuilder.parse(in);
 			in.close();
 			this.queryElement=this.dom.getDocumentElement();
 			if(this.queryElement==null || !this.queryElement.getNodeName().equals("Query"))
 				{
-				error("XML root is not <Query/> but "+this.queryElement.getNodeName());
+				LOG.error("XML root is not <Query/> but "+this.queryElement.getNodeName());
 				return -1;
 				}
 			this.queryElement.setAttribute("formatter", "TSV");
@@ -387,7 +367,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 					{
 					if(this.dataSetElement!=null)
 						{
-						error("XML: Two <DataSet> elements ?");
+						LOG.error("XML: Two <DataSet> elements ?");
 						return -1;
 						}
 					this.dataSetElement=Element.class.cast(c1);
@@ -399,7 +379,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 							{
 							if(e2.getAttributeNode("name")==null)
 								{
-								error("XML: Attribute without @name ?");
+								LOG.error("XML: Attribute without @name ?");
 								return -1;
 								}
 							this.attributes.add(Element.class.cast(c2));
@@ -411,7 +391,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 								{
 								if(this.filterElementChromosomalLocation!=null)
 									{
-									error("XML: two Filter@chromosomal_region ?");
+									LOG.error("XML: two Filter@chromosomal_region ?");
 									return -1;
 									}
 								this.filterElementChromosomalLocation=e2;
@@ -432,12 +412,12 @@ public class VcfBiomart extends AbstractVCFFilter2
 				}
 			if(this.dataSetElement==null)
 				{
-				error("DataSet element missing");
+				LOG.error("DataSet element missing");
 				return -1;
 				}
 			if(this.attributes.size()<2)
 				{
-				error("Expected at least two elementss <Attribute>");
+				LOG.error("Expected at least two elementss <Attribute>");
 				return -1;
 				}
 			
@@ -449,7 +429,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 				}
 			if(this.chromColumn1< 1 || this.chromColumn1> attributes.size())
 				{
-				error("CHROM column index out of range");
+				LOG.error("CHROM column index out of range");
 				return -1;
 				}
 			if(startColumn1==-1)
@@ -459,7 +439,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 				}
 			if(this.startColumn1< 1 || this.startColumn1> attributes.size())
 				{
-				error("START column index out of range");
+				LOG.error("START column index out of range");
 				return -1;
 				}
 			if(endColumn1==-1)
@@ -469,7 +449,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 				}
 			if(this.endColumn1< 1 || this.endColumn1> attributes.size())
 				{
-				error("END column index out of range");
+				LOG.error("END column index out of range");
 				return -1;
 				}
 			
@@ -477,7 +457,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		
@@ -489,7 +469,7 @@ public class VcfBiomart extends AbstractVCFFilter2
 			this.visibleIndexes0.add(i);
 			}
 		
-		return doWork(opt.getOptInd(), args);
+		return doVcfToVcf(args, outputFile);
 		}
 	
 	/**

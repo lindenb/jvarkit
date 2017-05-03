@@ -54,16 +54,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class XContaminations extends AbstractKnimeApplication
+@Program(name="xcontaminations",description="For @AdrienLeger2 : cross contamination between samples in same lane")
+public class XContaminations extends Launcher
 	{
+	private static final Logger LOG=Logger.build(XContaminations.class).make();
+	@Parameter(names={"-o","--out"},description="Output file or stdout")
+	private File outputFile = null;
+
 	private Set<File> bamFiles=new HashSet<File>();
 	
 	private static class SampleAlleles
@@ -172,14 +179,7 @@ public class XContaminations extends AbstractKnimeApplication
 			}
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"XContaminations";
-		}
-	@Override
-	public String getProgramDescription() {
-		return "For @AdrienLeger2 : cross contamination between samples in same lane";
-		}
+	
 	
 	public void addBamFile(File bamFile)
 		{
@@ -187,11 +187,11 @@ public class XContaminations extends AbstractKnimeApplication
 		}
 	
 	@Override
-	public int executeKnime(List<String> args)
-		{
+	public int doWork(List<String> args) {
+		
 		if(args.size()<2)
 			{
-			error("Illegal Number of args");
+			LOG.error("Illegal Number of args");
 			return -1;
 			}
 		
@@ -202,7 +202,7 @@ public class XContaminations extends AbstractKnimeApplication
 			
 		if(this.bamFiles.isEmpty())
 			{
-			error("Undefined BAM file(s)");
+			LOG.error("Undefined BAM file(s)");
 			return -1;
 			}	
 		
@@ -215,11 +215,11 @@ public class XContaminations extends AbstractKnimeApplication
 			
 			if(args.get(0).equals("-"))
 				{
-				in = VCFUtils.createVcfIteratorStdin();
+				in = super.openVcfIterator(null);
 				}
 			else
 				{
-				in = VCFUtils.createVcfIteratorFromFile(new File(args.get(0)));
+				in = super.openVcfIterator(args.get(0));
 				}
 			
 			
@@ -227,41 +227,41 @@ public class XContaminations extends AbstractKnimeApplication
 			SAMSequenceDictionary dict1=vcfHeader.getSequenceDictionary();
 			if(dict1==null)
 				{
-				error("VCF is missing a SAM sequence dictionary");
+				LOG.error("VCF is missing a SAM sequence dictionary");
 				return -1;
 				}
 			
 			Set<String> sampleNames= new HashSet<>(vcfHeader.getSampleNamesInOrder());
 			if( sampleNames.isEmpty())
 				{
-				error("VCF contains no sample");
+				LOG.error("VCF contains no sample");
 				return -1;
 				}
 			
 			for(File bamFile:this.bamFiles)
 				{
-				info("Opening "+bamFile);
+				LOG.info("Opening "+bamFile);
 				SamReader samReader=srf.open(bamFile);
 				SAMFileHeader samHeader= samReader.getFileHeader();
 				SAMSequenceDictionary dict2=samHeader.getSequenceDictionary();
 				if(dict2==null)
 					{
 					samReader.close();
-					error("BAM is missing a SAM sequence dictionary");
+					LOG.error("BAM is missing a SAM sequence dictionary");
 					return -1;
 					}
 				
 				if(!SequenceUtil.areSequenceDictionariesEqual(dict1, dict2))
 					{
 					samReader.close();
-					error("VCF/BAM Not the same dictionaries");
+					LOG.error("VCF/BAM Not the same dictionaries");
 					return -1;
 					}
 				
 				if(!samReader.hasIndex())
 					{
 					samReader.close();
-					error("sam is not index");
+					LOG.error("sam is not index");
 					return -1;
 					}
 				String sampleName=null;
@@ -276,26 +276,26 @@ public class XContaminations extends AbstractKnimeApplication
 					else if(!sampleName.equals(s))
 						{
 						samReader.close();
-						error("Cannot handle more than one sample/bam");
+						LOG.error("Cannot handle more than one sample/bam");
 						return -1;
 						}
 					}
 				if(sampleName==null)
 					{
 					samReader.close();
-					error("No sample in "+bamFile);
+					LOG.error("No sample in "+bamFile);
 					continue;//skip this bam
 					}
 				if(!sampleNames.contains(sampleName))
 					{
 					samReader.close();
-					error("Not in VCF header: sample "+sampleName+" "+bamFile);
+					LOG.error("Not in VCF header: sample "+sampleName+" "+bamFile);
 					continue;//skip this bam
 					}
 				if(sample2samReader.containsKey(sampleName))
 					{
 					samReader.close();
-					error("Cannot handle more than one bam/sample");
+					LOG.error("Cannot handle more than one bam/sample");
 					return -1;
 					}
 				
@@ -304,7 +304,7 @@ public class XContaminations extends AbstractKnimeApplication
 			
 			if(sample2samReader.size()<2)
 				{
-				error("Not engough BAM/samples. Expected at least two valid BAMs");
+				LOG.error("Not engough BAM/samples. Expected at least two valid BAMs");
 				return -1;
 				}
 			
@@ -384,7 +384,7 @@ public class XContaminations extends AbstractKnimeApplication
 						ShortReadName readName = ShortReadName.parse(record);
 						if(!readName.isValid())
 							{
-							info("No a valid read name "+record.getReadName());
+							LOG.info("No a valid read name "+record.getReadName());
 							continue;
 							}
 						
@@ -484,7 +484,7 @@ public class XContaminations extends AbstractKnimeApplication
 									{
 									sampleAlleles=new SampleAlleles();
 									contaminationTable.put(samplePair,sampleAlleles);
-									if( contaminationTable.size()%10000==0) info("n(pairs)=" + contaminationTable.size() ); 
+									if( contaminationTable.size()%10000==0) LOG.info("n(pairs)=" + contaminationTable.size() ); 
 									}
 								
 								for(Allele allele: counter1.keySet())
@@ -532,15 +532,8 @@ public class XContaminations extends AbstractKnimeApplication
 				}
 			progress.finish();
 			boolean somethingPrinted=false;
-			PrintWriter pw= null;
-			if(getOutputFile()==null)
-				{
-				pw=new PrintWriter(System.out);
-				}
-			else
-				{
-				pw=new PrintWriter(getOutputFile());
-				}
+			PrintWriter pw= super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			
 			/* we're done, print the result */
 			pw.print("#");
 			pw.print("Machine:FlowCell:Run:Lane-1\tsample1");
@@ -604,7 +597,7 @@ public class XContaminations extends AbstractKnimeApplication
 			return 0;
 			}
 		catch (Exception e) {
-			error(e);
+			LOG.error(e);
 			return -1;
 			}
 		finally
@@ -618,29 +611,7 @@ public class XContaminations extends AbstractKnimeApplication
 		
 		}
 
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': setOutputFile(opt.getOptArg()); break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default: break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
+	
 	
 	public static void main(String[] args)
 		{

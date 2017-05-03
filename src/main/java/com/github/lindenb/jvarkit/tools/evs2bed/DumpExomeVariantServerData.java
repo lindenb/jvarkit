@@ -21,13 +21,19 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-
+@Program(name="evs2bed",description= "Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.")
 public class DumpExomeVariantServerData
-	extends AbstractCommandLineProgram
+	extends Launcher
 	{
+	private static final Logger LOG=Logger.build(DumpExomeVariantServerData.class).make();
+	@Parameter(names="-N",description=" download using a step of  'N' bases")
 	private int STEP_SIZE=25000;
+	@Parameter(names="-L",description="limit to L records (for debugging)")
     private long LIMIT=-1L;
 	private long count_records=0L;
 	private long genome_total_size=0L;
@@ -58,7 +64,7 @@ public class DumpExomeVariantServerData
 		{
 		double ratio=100.0*(this.genome_curr_size+start)/(double)this.genome_total_size;
 		
-		info(chrom+":"+start+"-"+end+ " N="+count_records+" "+(int)ratio+"%");
+		LOG.info(chrom+":"+start+"-"+end+ " N="+count_records+" "+(int)ratio+"%");
 		try
 			{
 		    URL url = new URL("http://gvs-1.gs.washington.edu/wsEVS/EVSDataQueryService");
@@ -253,52 +259,8 @@ public class DumpExomeVariantServerData
 			}
 		return 0;
 		}
-	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/EVS2Bed";
-		}
-	
-	@Override
-	public String getProgramName() {
-		return "EVS2Bed";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println("-N (integer) download using a step of  'N' bases. Optional. Default:"+STEP_SIZE);
-		out.println("-L (integer) limit to L records (for debugging). Optional. ");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"N:L:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'N': this.STEP_SIZE=Math.max(1, Integer.parseInt(opt.getOptArg())); break;
-				case 'L': this.LIMIT=  Integer.parseInt(opt.getOptArg()); break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
 		
 		
 		try
@@ -307,7 +269,7 @@ public class DumpExomeVariantServerData
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

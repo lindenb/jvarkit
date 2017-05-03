@@ -51,8 +51,10 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -71,8 +73,10 @@ import com.sleepycat.je.LockMode;
 import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Transaction;
 
-public class VcfPhyloTree extends AbstractCommandLineProgram
+public class VcfPhyloTree extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VcfPhyloTree.class).make();
+
 	private enum GType
 		{
 		HOM_REF,
@@ -551,7 +555,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 				}*/
 			}
 		cursor.close();
-		info("After cleanup, removed "+count_deleted+" snps.");
+		LOG.info("After cleanup, removed "+count_deleted+" snps.");
 		}
 	private final int MAX_NODES=2000000;
 	
@@ -582,7 +586,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 				long now=System.currentTimeMillis();
 				if(now-last > 10*1000)
 					{
-					info("iteration "+nVar+"/"+this.snp_count+" for "+parents.size());
+					LOG.info("iteration "+nVar+"/"+this.snp_count+" for "+parents.size());
 					last=now;
 					}
 				
@@ -609,7 +613,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 					nodes.get(0).weight == nodes.get(1).weight
 					)
 				{
-				warning("Score ambiguity for "+nodes.get(0)+" and "+nodes.get(1));
+				LOG.warning("Score ambiguity for "+nodes.get(0)+" and "+nodes.get(1));
 				}
 				
 			return nodes.get(0);
@@ -628,7 +632,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 					long now=System.currentTimeMillis();
 					if(now-last > 10*1000)
 						{
-						info("iteration ["+(x+1)+","+(y+1)+"]/"+parents.size());
+						LOG.info("iteration ["+(x+1)+","+(y+1)+"]/"+parents.size());
 						last=now;
 						}
 					
@@ -671,7 +675,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		while(nodes.size()>1)
 			{
 			long now= System.currentTimeMillis();
-			info("nodes.count= "+nodes.size());
+			LOG.info("nodes.count= "+nodes.size());
 			
 			/* no, want to get the distance between the two nodes 
 			if(nodes.size()==2)
@@ -685,7 +689,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			
 			
 			TreeNode best = matrix(txn, nodes);
-			info(best);
+			LOG.info(best);
 			Set<Integer> bestsamples= best.getSamples();
 			
 			ArrayList<TreeNode> newnodes=new ArrayList<TreeNode>();
@@ -699,7 +703,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			
 			nodes=newnodes;
 			
-			info("That took :"+ (System.currentTimeMillis()-now)/1000f  +" seconds");
+			LOG.info("That took :"+ (System.currentTimeMillis()-now)/1000f  +" seconds");
 			}
 		return nodes.get(0);
 		}
@@ -753,55 +757,23 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 
 	
 	
-	@Override
-	public String getProgramDescription() {
-		return "";
-		}
 	private enum OUT_FMT
 		{
 		dot,gexf,newick
 		};
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/VcfPhyloTree";
-		}
 		
+	@Parameter(names="-B",description="bdb home")
+	private 	File bdbHome=null;;
+	@Parameter(names="-f",description="output format")
+	private 	OUT_FMT outformat=OUT_FMT.dot;
+
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -B bdb home. "+getMessageBundle("berkeley.db.home"));
-		out.println(" -f (format) one of "+Arrays.toString(OUT_FMT.values()));
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		OUT_FMT outformat=OUT_FMT.dot;
-		File bdbHome=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"B:f:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'B': bdbHome=new File(opt.getOptArg());break;
-				case 'f': outformat=OUT_FMT.valueOf(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+	public int doWork(List<String> args) {
+
 		if(bdbHome==null)
 			{
-			error("undefined bdb home");
+			LOG.error("undefined bdb home");
 			return -1;
 			}
 		
@@ -810,7 +782,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 		VcfIterator iter=null;
 		try
 			{
-			info("Opening "+bdbHome);
+			LOG.info("Opening "+bdbHome);
 			EnvironmentConfig cfg=new EnvironmentConfig();
 			cfg.setAllowCreate(true);
 			cfg.setReadOnly(false);
@@ -827,19 +799,18 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			this.pos2cov=this.env.openDatabase(txn, "vcf", cfg2);
 			
 			
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("reading from stdin");
-				iter=VCFUtils.createVcfIteratorStdin();
+				LOG.info("reading from stdin");
+				iter=super.openVcfIterator(null);
 				readvcf(txn,iter);
 				iter.close();
 				}
 			else
 				{
-				for(int i=opt.getOptInd();i< args.length;++i)
+				for(String filename:args)
 					{
-					String filename=args[i];
-					info("reading "+filename);
+					LOG.info("reading "+filename);
 					iter=VCFUtils.createVcfIterator(filename);
 					readvcf(txn,iter);
 					iter.close();
@@ -848,7 +819,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			
 			if(this.sampleList.size()<2)
 				{
-				error("Not enoug samples");
+				LOG.error("Not enoug samples");
 				return -1;
 				}
 			
@@ -857,12 +828,12 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			cleanup(txn);
 			
 			this.snp_count= this.pos2cov.count();
-			info("Samples: "+this.sampleList.size());
-			info("SNPs: "+this.snp_count);
+			LOG.info("Samples: "+this.sampleList.size());
+			LOG.info("SNPs: "+this.snp_count);
 
 			if(this.snp_count==0L)
 				{
-				error("Not enough SNPS.");
+				LOG.error("Not enough SNPS.");
 				return -1;
 				}
 			
@@ -886,7 +857,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 					w.writeAttribute("version", "1.2");
 					w.writeStartElement("meta");
 					  w.writeStartElement("creator");
-					  w.writeCharacters(getProgramName()+" by "+getAuthorName());
+					  w.writeCharacters(getProgramName()+" by Pierre Lindenbaum");
 					  w.writeEndElement();
 					 
 					  w.writeStartElement("description");
@@ -947,7 +918,7 @@ public class VcfPhyloTree extends AbstractCommandLineProgram
 			}
 		catch(Throwable err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
