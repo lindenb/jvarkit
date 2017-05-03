@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.jar.Manifest;
 import java.util.prefs.Preferences;
@@ -54,7 +55,6 @@ import com.beust.jcommander.converters.IntegerConverter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -517,6 +517,36 @@ public static class DimensionConverter
 		}
 }
 
+
+public static class RandomConverter
+implements IStringConverter<Random>
+{
+public static Random now() {
+	return new Random(System.currentTimeMillis());
+}
+
+@Override
+public Random convert(final String v) {	
+	if(v==null || v.isEmpty() || v.equals("-1") || v.equals("now") || v.equals("timestamp"))
+		{
+		return now();
+		}
+	else
+		{
+		try {
+			final long t = Long.parseLong(v);
+			return new Random(t);
+			}
+		catch(NumberFormatException err)
+			{
+			throw new ParameterException(err);
+			}
+		}
+	
+	}
+}
+
+
 public static class VcfWriterOnDemand
 	implements VariantContextWriter
 	{
@@ -898,6 +928,7 @@ public Launcher()
 		    put(VariantContextWriter.class, VcfWriterOnDemandConverter.class);
 		    put(Dimension.class,DimensionConverter.class);
 		    put(SamRecordFilter.class,SamFilterParser.StringConverter.class);
+		    put(Random.class,RandomConverter.class);
 		}};	
 	this.jcommander.addConverterFactory(new IStringConverterFactory() {
 			@Override
@@ -905,6 +936,8 @@ public Launcher()
 				return MAP.get(forType);
 				}
 			});
+	
+	
 	this.jcommander.addObject(this);	
 	}
 

@@ -26,10 +26,15 @@ import javax.xml.stream.events.XMLEvent;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.bio.blast.BlastHspAlignment;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class MergeSplittedBlast extends AbstractCommandLineProgram {
+@Program(name="mergesplittedblast",description="merge blast Hits from splitted BLAST database. See http://www.biostars.org/p/90186/",biostars=90186)
+public class MergeSplittedBlast extends Launcher {
+	private static final Logger LOG=Logger.build(MergeSplittedBlast.class).make();
+	
 	private Unmarshaller unmarshaller;
 	private Marshaller marshaller;
 	
@@ -75,7 +80,7 @@ public class MergeSplittedBlast extends AbstractCommandLineProgram {
 			}
 		catch(NumberFormatException err)
 			{
-			error(err,"expect (chrom:start-end:length) Cannot parse Hit.def: "+s );
+			LOG.error("expect (chrom:start-end:length) Cannot parse Hit.def: "+s ,err);
 			return null;
 			}
 		return split;
@@ -161,7 +166,7 @@ public class MergeSplittedBlast extends AbstractCommandLineProgram {
 				found_hit=a.getHitIndex1();
 				if(expect_hit!=found_hit)
 					{
-					info("Not the expected hit position "+expect_hit+"/"+found_hit);
+					LOG.info("Not the expected hit position "+expect_hit+"/"+found_hit);
 					return null;
 					}
 				}
@@ -339,44 +344,8 @@ public class MergeSplittedBlast extends AbstractCommandLineProgram {
 			}
 		}
 	
-	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/MergeSplittedBlast";
-		}
-	@Override
-	public String getProgramDescription() {
-		return "merge blast Hits from splitted BLAST database. See http://www.biostars.org/p/90186/";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
-		
+	public int doWork(List<String> args) {
 		XMLEventReader rx=null;
 		XMLEventWriter wx=null;
 		try
@@ -398,26 +367,26 @@ public class MergeSplittedBlast extends AbstractCommandLineProgram {
 				public Object resolveEntity(String arg0, String arg1, String arg2,
 						String arg3) throws XMLStreamException
 					{
-					info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
+					LOG.info("resolveEntity:" +arg0+"/"+arg1+"/"+arg2);
 					return null;
 					}
 				});
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			wx=xof.createXMLEventWriter(System.out, "UTF-8");
 			
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading from stdin");
+				LOG.info("Reading from stdin");
 				rx=xmlInputFactory.createXMLEventReader(System.in);
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				info("Reading from "+args[opt.getOptInd()]);
-				rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(args[opt.getOptInd()]));
+				LOG.info("Reading from "+args.get(0));
+				rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(args.get(0)));
 				}
 			else
 				{
-				error("Illegal number of args");
+				LOG.error("Illegal number of args");
 				return -1;
 				}
 			run(rx,wx);
@@ -426,7 +395,7 @@ public class MergeSplittedBlast extends AbstractCommandLineProgram {
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
