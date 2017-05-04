@@ -67,11 +67,6 @@ public class SamJmx extends Launcher
 		this.projectName = projectName;
 		}
 	
-	
-
-	/* (non-Javadoc)
-	 * @see com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter2#doWork(com.github.lindenb.jvarkit.util.vcf.VcfIterator, htsjdk.variant.variantcontext.writer.VariantContextWriter)
-	 */
 	private int doWork( SamReader in) throws IOException
 		{
 		String name=this.projectName;

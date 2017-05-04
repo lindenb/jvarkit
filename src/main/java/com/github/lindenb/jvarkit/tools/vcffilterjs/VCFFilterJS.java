@@ -31,22 +31,26 @@ History:
 package com.github.lindenb.jvarkit.tools.vcffilterjs;
 
 
-import java.io.IOException;
+import java.io.File;
+import java.io.FileReader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
-import javax.script.ScriptException;
 
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -60,32 +64,63 @@ import htsjdk.variant.vcf.VCFHeader;
  * Author: Pierre Lindenbaum PhD. @yokofakun
  * Motivation http://www.biostars.org/p/66319/ 
  */
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="vcffilterjs",description="Filtering VCF with javascript (java Nashorn).")
 public class VCFFilterJS
-	extends AbstractVCFFilterJS
+	extends Launcher
 	{	
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractVCFFilterJS.class);
+	private static final Logger LOG = Logger.build(VCFFilterJS.class).make();
+
+
+	
 	private CompiledScript compiledScript = null;
 	
-	/** 2015-02-10 : moved to public , so we can use it in knime */
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-F","--filter"},description="If not empty, variants won't be discarded and this name will be used in the FILTER column")
+	private String filteredTag = "";
+
+	@Parameter(names={"-vep","--vep"},description="Decode prediction tag of ensembl VEP")
+	private boolean use_vep = false;
+
+	@Parameter(names={"-snpeff","--snpeff"},description="Decode prediction tag of SNPEFF")
+	private boolean use_snpeff = false;
+
+	@Parameter(names={"-casecontrol","--casecontrol"},description="Decode Case-Control injected with VcfInjectPedigree")
+	private boolean use_casecontrol = false;
+
+	
+	@Parameter(names={"-e","--expression"},description=" (js expression). Optional.")
+	private String scriptExpr=null;
+	@Parameter(names={"-f","--script"},description=" (js file). Optional.")
+	private File scriptFile=null;
+	@Parameter(names={"-json","--json"},description="json files. syntax key=path/to/file.json . Inject the json object parsed with google gson into the javascript context as 'key'")
+	private List<String> jsonFiles=new  ArrayList<>();
+
+	
 	public VCFFilterJS()
 		{
 		
 		}
+	
 	@Override
-	public Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator r,
-			final VariantContextWriter w
-			) throws IOException
-		{
+	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
 		try
 			{
+			
 			final VCFHeader header = r.getHeader();
-			final SnpEffPredictionParser snpEffPredictionParser =(super.use_snpeff ?
+			final VcfTools vcfTools = new VcfTools(header);
+			final SnpEffPredictionParser snpEffPredictionParser =(this.use_snpeff ?
 					new SnpEffPredictionParserFactory().header(header).get():
 					null
 					);
-			final VepPredictionParser vepPredictionParser = (super.use_vep?
+			final VepPredictionParser vepPredictionParser = (this.use_vep?
 					new VepPredictionParserFactory().header(header).get():
 					null
 					);
@@ -93,13 +128,13 @@ public class VCFFilterJS
 			final  VCFHeader h2 = new VCFHeader(header);
 			addMetaData(h2);
 			
-			final List<Pedigree.Person> individuals =(super.use_casecontrol?
-						new ArrayList<>(super.getCasesControlsInPedigree(header)):
+			final List<Pedigree.Person> individuals =(this.use_casecontrol?
+						new ArrayList<>(this.getCasesControlsInPedigree(header)):
 						null
 						);
 			
 			final VCFFilterHeaderLine filterHeaderLine = (filteredTag.trim().isEmpty()?null:
-				new VCFFilterHeaderLine(super.filteredTag.trim(),"Filtered with "+getName())
+				new VCFFilterHeaderLine(this.filteredTag.trim(),"Filtered with "+getProgramName())
 				);
 			
 			
@@ -110,11 +145,23 @@ public class VCFFilterJS
 			final  Bindings bindings = this.compiledScript.getEngine()
 					.createBindings();
 			bindings.put("header", header);
-			if(super.use_casecontrol) {
+			bindings.put("tools", vcfTools);
+			
+			if(this.use_casecontrol) {
 				bindings.put("individuals", individuals);
 			}
 			
-			
+			for(final String jsonkv :this.jsonFiles)
+				{
+				int eq=jsonkv.indexOf("=");
+				if(eq<=0) throw new JvarkitException.UserError("Bad format for json . expected key=/path/to/file.json but got '"+jsonkv+"'");
+				final String key=jsonkv.substring(0,eq);
+				final FileReader jsonFile = new FileReader(jsonkv.substring(eq+1));
+				JsonParser jsonParser=new JsonParser();
+				final JsonElement root=jsonParser.parse(jsonFile);
+				jsonFile.close();
+				bindings.put(key, root);
+				}
 
 			w.writeHeader(h2);
 			while (r.hasNext() && !w.checkError())
@@ -122,12 +169,12 @@ public class VCFFilterJS
 				final  VariantContext variation = progress.watch(r.next());
 
 				bindings.put("variant", variation);
-				if(super.use_snpeff)
+				if(this.use_snpeff)
 					{
 					bindings.put("snpEff",
 						snpEffPredictionParser.getPredictions(variation));
 					}
-				if(super.use_vep) {
+				if(this.use_vep) {
 					bindings.put("vep",
 						vepPredictionParser.getPredictions(variation));
 					}
@@ -146,9 +193,10 @@ public class VCFFilterJS
 				}
 			return RETURN_OK;
 			}
-		catch (ScriptException err)
+		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -156,32 +204,26 @@ public class VCFFilterJS
 			}
 		}
 	
+	
 	@Override
-	public Collection<Throwable> initializeKnime()
-		{
-		try
+	public int doWork(List<String> args) {
+		try 
 			{
-			this.compiledScript = super.compileJavascript();
+			this.compiledScript = super.compileJavascript(this.scriptExpr,this.scriptFile);
+			
+			return doVcfToVcf(args, outputFile);
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
-		return super.initializeKnime();
+		finally
+			{
+			this.compiledScript=null;
+			}
 		}
 	
-	@Override
-	public void disposeKnime()
-		{
-		this.compiledScript=null;
-		super.disposeKnime();
-		}
-	
-	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		LOG.info("INPUT ="+inputName+" "+getInputFiles());
-		return doVcfToVcf(inputName);
-		}
 	
 	public static void main(String[] args) throws Exception
 		{

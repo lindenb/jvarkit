@@ -31,7 +31,6 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Collection;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -47,7 +46,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFRecordCodec;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.AbstractVCFFilter3;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 

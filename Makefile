@@ -432,7 +432,7 @@ $(eval $(call compile-htsjdk-cmd,vcf2zip,${jvarkit.package}.tools.vcfconcat.VcfT
 $(eval $(call compile-htsjdk-cmd,vcfcutsamples,${jvarkit.package}.tools.misc.VcfCutSamples,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfdas,${jvarkit.package}.tools.vcfdas.VcfDistributedAnnotationSystem, ${jetty.jars}))
 $(eval $(call compile-htsjdk-cmd,vcffilterdoid,${jvarkit.package}.tools.vcfdo.VcfFilterDoid,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterjs.VCFFilterJS,galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterjs.VCFFilterJS,${jcommander.jar}  ${gson.jar} galaxy_flag))
 $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.vcffilterso.VcfFilterSequenceOntology,${jcommander.jar} vcfpredictions))
 $(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,${jcommander.jar} galaxy_flag wiki_flag))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology,${jcommander.jar}))
@@ -465,7 +465,7 @@ $(eval $(call compile-htsjdk-cmd,vcftreepack,${jvarkit.package}.tools.treepack.V
 $(eval $(call compile-htsjdk-cmd,vcftrio,${jvarkit.package}.tools.vcftrios.VCFTrios,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,worldmapgenome,${jvarkit.package}.tools.circular.WorldMapGenome,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,${jcommander.jar} ${generated.dir}/java/org/uniprot/package-info.java ))
+$(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,${jcommander.jar} ${generated.dir}/java/org/uniprot/package-info.java ))
 $(eval $(call compile-htsjdk-cmd,blastfilterjs,${jvarkit.package}.tools.blast.BlastFilterJS,api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,skipxmlelements,${jvarkit.package}.tools.misc.SkipXmlElements,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,minicaller,${jvarkit.package}.tools.calling.MiniCaller,${commander.jar}))
@@ -572,6 +572,7 @@ all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar, buildwpontology batchigvpi
 
 ${generated.dir}/java/org/uniprot/package-info.java : api.uniprot
 api.uniprot :
+	rm -rf ${generated.dir}/java/org/uniprot/
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java -p org.uniprot ${xjc.proxy} "http://www.uniprot.org/support/docs/uniprot.xsd" 
 
