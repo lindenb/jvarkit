@@ -28,11 +28,22 @@ History:
 */
 package com.github.lindenb.jvarkit.util.vcf;
 
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+
 import htsjdk.variant.vcf.VCFHeader;
 
 /** bean to be injected in various contexts like javascript context, etc... */
 public class VcfTools {
 private VCFHeader header=null;
+private SnpEffPredictionParser snpEffPredictionParser=null;
+private VepPredictionParser vepPredictionParser=null;
+private AnnPredictionParser annPredictionParser=null;
+
 public VcfTools() {
 	
 	}
@@ -41,5 +52,18 @@ public VcfTools(final VCFHeader header) {
 	}
 public void init(final VCFHeader header) {
 	this.header=header;
+	if(header!=null)
+		{
+		this.snpEffPredictionParser=new SnpEffPredictionParserFactory().header(header).get();
+		this.vepPredictionParser=new VepPredictionParserFactory().header(header).get();
+		this.annPredictionParser=new AnnPredictionParserFactory().header(header).get();
+		}
+	else
+		{
+		this.snpEffPredictionParser = null;
+		this.vepPredictionParser= null;
+		this.annPredictionParser= null;
+		}
+	
 	}
 }

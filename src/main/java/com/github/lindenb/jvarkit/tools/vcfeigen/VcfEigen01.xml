@@ -10,7 +10,7 @@
 	xmlns:svg="http://www.w3.org/2000/svg"
 	app="&name;"
 	package="&package;"
-	ui-swing="true"
+	ui-swing="false"
 	__placeholder__="1"
 	xmlns:galaxy="https://usegalaxy.org/"
 	>

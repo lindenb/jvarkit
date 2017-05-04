@@ -11,7 +11,7 @@
 	app="&name;" 
 	package="&package;" 
 	__placeholder__="1"
-	ui-swing="true"
+	ui-swing="false"
 	>
 <description>After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.</description>
 <input type="vcf"/>
