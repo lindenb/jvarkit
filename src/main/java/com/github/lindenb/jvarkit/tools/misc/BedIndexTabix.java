@@ -33,7 +33,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Comparator;
 import java.util.List;
 
@@ -47,20 +46,35 @@ import htsjdk.tribble.index.tabix.TabixIndexCreator;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.util.TabixUtils;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
-
+@Program(name="bedindextabix",description="Index and sort a Bed on the fly with Tabix.")
 public class BedIndexTabix
-	extends AbstractKnimeApplication
+	extends Launcher
 	{
+	private static final Logger LOG = Logger.build(BedIndexTabix.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file.",required=true)
+	private File outputFile = null;
+
+	@Parameter(names={"-s","--sort"},description="sort BED prior to saving")
 	private boolean sort=false;
-	private int MAX_RECORDS_IN_RAM=10000;
-	private BedLineCodec bedCodec=new BedLineCodec();
-	private int bedLineCount=0;
+	
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	
+	private final BedLineCodec bedCodec=new BedLineCodec();
+	
+	
 	
 	private static class BedDataCodec extends  AbstractDataCodec<String>
 			{
@@ -91,41 +105,12 @@ public class BedIndexTabix
 		}
 	
 	
-	@Override
-	public String getProgramDescription() {
-		return "Index and sort a Bed on the fly with Tabix.";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"BedIndexTabix";
-		}
-	
-	public void setSort(boolean sort) {
-		this.sort = sort;
-		}
-	
-	public void setMaxRecordsInRam(int n) {
-		this.MAX_RECORDS_IN_RAM = n;
-		}
-	
-	public int getBedLineCount()
-		{
-		return bedLineCount;
-		}
 	
 	protected void run(LineIterator in) throws IOException
 		{
-		this.bedLineCount=0;
-		File out=getOutputFile();
-		if(out==null)
-			{
-			throw new IOException(getProgramName()+" output file undefined.");
-			}
-		if(!out.getName().endsWith(".bed.gz"))
-			{
-			throw new IOException("output file should en with .bed.gz but got "+out);
-			}
-		File tbi = new File(getOutputFile().getPath()+TabixUtils.STANDARD_INDEX_EXTENSION);
+		int bedLineCount=0;
+		
+		File tbi = new File(outputFile.getPath()+TabixUtils.STANDARD_INDEX_EXTENSION);
 		BlockCompressedOutputStream writer=null;
 		SortingCollection<String> sorter=null;
 		final Comparator<String> comparator=new Comparator<String>	()
@@ -148,8 +133,8 @@ public class BedIndexTabix
 
 		try {
 			TabixIndexCreator indexCreator=new TabixIndexCreator(TabixFormat.BED);
-			info("Opening"+getOutputFile());
-			writer = new BlockCompressedOutputStream(getOutputFile());
+			LOG.info("Opening"+outputFile);
+			writer = new BlockCompressedOutputStream(this.outputFile);
 			
 			StringBuilder header=new StringBuilder();
 			while(in.hasNext())
@@ -161,20 +146,20 @@ public class BedIndexTabix
 			//write header
 			if(header.length()>0)
 				{
-				info("Writing header");
+				LOG.info("Writing header");
 				writer.write(header.toString().getBytes());
 				}
 			
 			if(this.sort)
 				{
-				info("Sorting");
+				LOG.info("Sorting");
 				
 				sorter =  SortingCollection.newInstance(
 		                        String.class,
 		                        new BedDataCodec(),
 		                        comparator,
-		                        MAX_RECORDS_IN_RAM,
-		                        BedIndexTabix.this.getTmpDirectories().get(0)
+		                        this.writingSortingCollection.getMaxRecordsInRam(),
+		                        this.writingSortingCollection.getTmpDirectories()
 		                        );
 				while(in.hasNext())
 					{
@@ -193,7 +178,6 @@ public class BedIndexTabix
 					BedLine bed = this.bedCodec.decode(line);
 					writer.write(line.getBytes());
 					writer.write('\n');
-					this.bedLineCount++;
 					indexCreator.addFeature(bed, filePosition);
 					filePosition = writer.getFilePointer();
 					}
@@ -209,26 +193,25 @@ public class BedIndexTabix
 					if(bed==null) continue;
 					writer.write(line.getBytes());
 					writer.write('\n');
-					this.bedLineCount++;
 					indexCreator.addFeature(bed, filePosition);
 					filePosition = writer.getFilePointer();
 					}
 				}
 			writer.flush();
-			info("Creating index");
+			LOG.info("Creating index");
 			Index index = indexCreator.finalizeIndex(writer.getFilePointer());
-			info("Writing index to "+tbi+ " using "+index.getClass());
-			index.writeBasedOnFeatureFile(getOutputFile());
+			LOG.info("Writing index to "+tbi+ " using "+index.getClass());
+			index.writeBasedOnFeatureFile(this.outputFile);
 			writer.close();
 			writer=null;
-			info("Done  N="+bedLineCount);
+			LOG.info("Done  N="+bedLineCount);
 			} 
 		catch (Exception e)
 			{
-			if(getOutputFile().exists() && getOutputFile().isFile())
+			if(this.outputFile.exists() &&this.outputFile.isFile())
 				{
-				warning("Deleting "+getOutputFile());
-				getOutputFile().delete();
+				LOG.warning("Deleting "+this.outputFile);
+				this.outputFile.delete();
 				if(tbi.exists() && tbi.isFile()) tbi.delete();
 				}
 			throw new IOException(e);
@@ -243,17 +226,18 @@ public class BedIndexTabix
 	
 	
 	@Override
-	public int initializeKnime() {
-		return super.initializeKnime();
-		}
-	@Override
-	public void disposeKnime() {
-		super.disposeKnime();
-		}
-	
-	@Override
-	public int executeKnime(List<String> args) {
+	public int doWork(final List<String> args) {
 		LineIterator r = null;
+		if(this.outputFile==null)
+			{
+			LOG.error(getProgramName()+" output file undefined.");
+			return -1;
+			}
+		if(!this.outputFile.getName().endsWith(".bed.gz"))
+			{
+			LOG.error("output file should en with .bed.gz but got "+outputFile);
+			return -1;
+			}
 		try {
 			if(args.isEmpty())
 				{
@@ -265,14 +249,14 @@ public class BedIndexTabix
 				}
 			else
 				{
-				error("Illegal number of arguments.");
+				LOG.error("Illegal number of arguments.");
 				return -1;
 				}
 			run(r);
 			return 0;
 		} catch (Exception e)
 			{
-			error(e);
+			LOG.error(e);
 			return -1;
 			}
 		finally
@@ -281,43 +265,8 @@ public class BedIndexTabix
 			}
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (file) filename.bed.gz out. Required.");
-		out.println(" -s sort BED prior to saving.");
-		out.println(" -n (max-record-in-ram). If defined, bed will be sorted using this cache size. Default:"+MAX_RECORDS_IN_RAM);
-		out.println(" -T (tmp).add tmp dir. optional)");
-		super.printOptions(out);
-		}
-		
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:n:sT:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'T': this.addTmpDirectory(new File(opt.getOptArg()));break;
-				case 's': this.setSort(true);break;
-				case 'n': this.setMaxRecordsInRam(Integer.parseInt(opt.getOptArg()));break;
-				case 'o': this.setOutputFile(new File(opt.getOptArg()));break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		return mainWork(opt.getOptInd(), args);
-		}
-		
+	
+	
 		
 		
 	public static void main(String[] args)

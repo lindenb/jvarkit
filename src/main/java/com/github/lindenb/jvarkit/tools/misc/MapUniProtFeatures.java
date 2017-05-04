@@ -56,6 +56,9 @@ import org.uniprot.FeatureType;
 import org.uniprot.LocationType;
 
 import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.Log;
@@ -63,6 +66,7 @@ import htsjdk.samtools.util.ProgressLogger;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
@@ -70,11 +74,12 @@ import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import org.uniprot.*;
 
 @SuppressWarnings("unused")
-public class MapUniProtFeatures extends AbstractCommandLineProgram
+@Program(name="mapuniprot",description="map uniprot features on reference genome")
+public class MapUniProtFeatures extends Launcher
 	{
 	private static final String UNIPROT_NS="http://uniprot.org/uniprot";
 	private org.uniprot.ObjectFactory forceJavacCompiler=null;
-	private static Log LOG=Log.getInstance(MapUniProtFeatures.class);
+	private static Logger LOG=Logger.build(MapUniProtFeatures.class).make();
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private Map<String,List<KnownGene>> prot2genes=new HashMap<String,List<KnownGene>>();
     private static class Range
@@ -141,59 +146,27 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 			pw.println(this.toString());
 			}
 		}
-    
-	@Override
-	public String getProgramDescription() {
-		return "map uniprot features on reference genome. ";
-		}
-	
-	@Override
-    protected String getOnlineDocUrl() {
-    	return DEFAULT_WIKI_PREFIX+"MapUniProtFeatures";
-    }
+	@Parameter(names="-k",description=" (uri) UCSC KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.")
 	private String kgUri="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	
+	@Parameter(names="-u",description="Uniprot.xml.gz URL/File.")
 	private String UNIPROT="ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz";
 	
-	@Override
-	public void printOptions(PrintStream  out)
-		{
-		out.println(" -u (uri) Uniprot.xml.gz URL/File. default:"+UNIPROT);
-		out.println(" -k (uri) UCSC KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE. default:"+kgUri);
-		out.println(" -R (fasta) Reference file");
-		out.println(" -o output file");
-		
-		super.printOptions(out);
-		}
+
+	@Parameter(names="-R",description=Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private File REF=null;
+	@Parameter(names="-o",description=" output file")
+	private File OUT=null;
 
 	
+	
+	
 	@Override
-	public int doWork(String[] args)
+	public int doWork(List<String> args)
 		{
 
 
-		File REF=null;
-		File OUT=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:o:k:u:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'k': kgUri=opt.getOptArg();break;
-				case 'u': UNIPROT=opt.getOptArg();break;
-				case 'R':REF=new File(opt.getOptArg())  ;break;
-				case 'o':OUT=new File(opt.getOptArg())  ;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
+		
 		
 		PrintWriter pw=null;
 		try
@@ -203,7 +176,7 @@ public class MapUniProtFeatures extends AbstractCommandLineProgram
 			Marshaller uniprotMarshaller=jc.createMarshaller();
 
 			
-			pw=(OUT==null?new PrintWriter(System.out):new PrintWriter(OUT));
+			pw=super.openFileOrStdoutAsPrintWriter(OUT);
 			LOG.info("read "+REF);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
 			if(this.indexedFastaSequenceFile.getSequenceDictionary()==null)

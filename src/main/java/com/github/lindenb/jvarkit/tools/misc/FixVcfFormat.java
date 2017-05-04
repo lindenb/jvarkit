@@ -1,57 +1,31 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class FixVcfFormat extends AbstractCommandLineProgram
+@Program(name="fixvcfformat",description="Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453")
+public class FixVcfFormat extends Launcher
 	{
+	private static Logger LOG=Logger.build(FixVcfFormat.class).make();
+
+	
+
 	private FixVcfFormat()
 		{
 		
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/FixVcfFormat";
-		}
 	
 	@Override
-	public String getProgramDescription() {
-		return "Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
+	public int doWork(List<String> args)
 		{
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		long n_var=0L;
 		BufferedReader in=null;
 		long n_fix=0L;
@@ -61,23 +35,8 @@ public class FixVcfFormat extends AbstractCommandLineProgram
 			Pattern tab=Pattern.compile("[\t]");
 			Pattern colon=Pattern.compile("[\\:]");
 			Pattern comma=Pattern.compile("[,]");
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				in=new BufferedReader(new InputStreamReader(System.in));
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				in=IOUtils.openURIForBufferedReading(filename);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
+			in  = super.openBufferedReader(oneFileOrNull(args));
+			
 			String line;
 			while((line=in.readLine())!=null)
 				{
@@ -93,12 +52,12 @@ public class FixVcfFormat extends AbstractCommandLineProgram
 					}
 				if(++n_var%10000==0)
 					{
-					info("Variant:"+n_var+" fix:"+n_fix);
+					LOG.info("Variant:"+n_var+" fix:"+n_fix);
 					}
 				String tokens[]=tab.split(line);
 				if(tokens.length<9)
 					{
-					warning("not enought column in "+line);
+					LOG.warning("not enought column in "+line);
 					System.out.println(line);
 					continue;
 					}
@@ -129,14 +88,14 @@ public class FixVcfFormat extends AbstractCommandLineProgram
 					String calls[]=colon.split(tokens[sample]);
 					if(calls.length>formats.length)
 						{
-						error("not same number of columns between FORMAT and call:"+tokens[8]+" vs "+tokens[sample]);
+						LOG.error("not same number of columns between FORMAT and call:"+tokens[8]+" vs "+tokens[sample]);
 						return -1;
 						}
 					else if(calls.length<formats.length)
 						{
 						if(report_mismatch_sample_call<10)
 							{
-							warning("not same number of columns between FORMAT and call:"+tokens[8]+" vs "+tokens[sample]);
+							LOG.warning("not same number of columns between FORMAT and call:"+tokens[8]+" vs "+tokens[sample]);
 							}
 						report_mismatch_sample_call++;
 						}
@@ -177,12 +136,12 @@ public class FixVcfFormat extends AbstractCommandLineProgram
 				System.out.println();
 				if(System.out.checkError()) break;
 				}
-			info("Number of FIX: "+n_fix);
+			LOG.info("Number of FIX: "+n_fix);
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

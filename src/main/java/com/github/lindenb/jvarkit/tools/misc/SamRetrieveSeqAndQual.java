@@ -33,14 +33,10 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.util.CloserUtil;
@@ -48,33 +44,28 @@ import htsjdk.samtools.util.CloserUtil;
 import java.io.File;
 import java.util.List;
 
-
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
+@Program(name="samretrieveseqandqual",description="I have a query-sorted BAM file without read/qual sequences and a FASTQ file with the read/qual sequences. Is there a tool to add seq to BAM?  for @sjackman https://twitter.com/sjackman/status/575368165531611136")
+public class SamRetrieveSeqAndQual extends Launcher
 	{
+	private static final Logger LOG = Logger.build(SamRetrieveSeqAndQual.class).make();
 
-	@Override
-	public String getProgramDescription() {
-		return "I have a query-sorted BAM file without read/qual sequences and a FASTQ file with the read/qual sequences. Is there a tool to add seq to BAM?  for @sjackman https://twitter.com/sjackman/status/575368165531611136";
-		}			
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/SamRetrieveSeqAndQual";
-		}
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -o (file.out) optional. default: stdout");
-		out.println(" -F (fastq / fastqF) required.");
-		out.println(" -R (fastqR ) required.");
-		super.printOptions(out);
-		}
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File bamOut = null;
+	@Parameter(names={"-F"},description=" (fastq / fastqF) required",required=true)
+	private File fastqFin = null;
+	@Parameter(names={"-R"},description=" (fastq / fastqR) required",required=true)
+	private File fastqRin = null;
+
+	@Parameter
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	
 	private String normalizeFastqName(String s)
 		{
@@ -85,33 +76,7 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 		}
 	
 	@Override
-	public int doWork(String[] args)
-		{
-		
-		File fastqFin=null;
-		File fastqRin=null;
-		File bamOut=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"o:F:R:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'o': bamOut=new File(opt.getOptArg()); break;
-				case 'F': fastqFin=new File(opt.getOptArg()); break;
-				case 'R': fastqRin=new File(opt.getOptArg()); break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-			
+	public int doWork(List<String> args) {
 		FastqReader[] fastqReaders=null;
 		SamReader samReader=null;
 		SAMFileWriter samWriter=null;
@@ -121,12 +86,12 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 			
 			if(fastqFin==null)
 				{
-				error("undefined fastq file");
+				LOG.error("undefined fastq file");
 				return -1;
 				}
 			else 
 				{
-				info("opening "+fastqFin);
+				LOG.info("opening "+fastqFin);
 				FastqReader r1=new FastqReader(fastqFin);
 				if(fastqRin==null)
 					{
@@ -134,41 +99,21 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 					}
 				else
 					{
-					info("opening "+fastqRin);
+					LOG.info("opening "+fastqRin);
 					FastqReader r2=new FastqReader(fastqRin);
 					fastqReaders=new FastqReader[]{r1,r2};
 					}
 				}
 
-			
-			
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-			
-			int optind = opt.getOptInd();
-			if(optind==args.length)
-				{
-				info("Reading BAM from stdin");
-				samReader  = srf.open(SamInputResource.of(System.in));
-				}
-			else if(optind+1==args.length)
-				{
-				info("Reading BAM from "+args[optind]);
-				samReader  = srf.open(new File(args[optind]));
-				}
-			else
-				{
-				error("illegal.number.of.arguments");
-				return -1;
-				}
-			
-			SAMFileHeader.SortOrder sortOrder = samReader.getFileHeader().getSortOrder();
+			samReader = super.openSamReader(oneFileOrNull(args));
+			final SAMFileHeader.SortOrder sortOrder = samReader.getFileHeader().getSortOrder();
 			if(sortOrder==null)
 				{
-				warning("undefined sort order read are in the sam order");
+				LOG.warning("undefined sort order read are in the sam order");
 				}
-			else if(sortOrder.equals(SAMFileHeader.SortOrder.coordinate))
+			else if(!sortOrder.equals(SAMFileHeader.SortOrder.queryname))
 				{
-				error("Bad Sort Order. Sort this input on read name");
+				LOG.error("Bad Sort Order. Sort this input on read name");
 				return -1;
 				}
 			
@@ -179,17 +124,7 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 			prg.setProgramName(this.getProgramName());
 			prg.setProgramVersion(this.getVersion());
 			
-			SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
-			sfwf.setCreateIndex(false);
-			sfwf.setCreateMd5File(false);
-			if(bamOut!=null)
-				{
-				samWriter = sfwf.makeSAMOrBAMWriter(header, true, bamOut);
-				}
-			else
-				{
-				samWriter =sfwf.makeSAMWriter(header, true, System.out);
-				}
+			samWriter  = writingBamArgs.openSAMFileWriter(bamOut, header, true);
 			iter=samReader.iterator();
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			FastqRecord currFastq[]=new FastqRecord[]{null,null};
@@ -202,7 +137,7 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 					{
 					if(fastqReaders.length!=2)
 						{
-						error("Not paired but number of fastq!=2");
+						LOG.error("Not paired but number of fastq!=2");
 						return  -1;
 						}
 					fastq_index = (rec.getFirstOfPairFlag()?0:1);
@@ -211,7 +146,7 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 					{
 					if(fastqReaders.length!=1)
 						{
-						error("Not paired but number of fastq!=1");
+						LOG.error("Not paired but number of fastq!=1");
 						return  -1;
 						}
 					fastq_index=0;
@@ -223,13 +158,13 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 						{
 						if(! fastqReaders[ fastq_index ].hasNext())
 							{
-							error("Read Missing for "+readName);
+							LOG.error("Read Missing for "+readName);
 							return -1;
 							}
 						currFastq[fastq_index] = fastqReaders[ fastq_index ].next();
 						if(normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)>0)
 							{
-							error("Read Missing for "+readName);
+							LOG.error("Read Missing for "+readName);
 							return -1;
 							}
 						}
@@ -238,14 +173,14 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 					{
 					if(! fastqReaders[ fastq_index ].hasNext())
 						{
-						error("Read Missing for "+readName);
+						LOG.error("Read Missing for "+readName);
 						return -1;
 						}
 					currFastq[fastq_index] = fastqReaders[ fastq_index ].next();
 					}
 				if(normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)!=0)
 					{
-					error("Read Missing/Error for "+readName+" current:" + currFastq[fastq_index].getReadHeader());
+					LOG.error("Read Missing/Error for "+readName+" current:" + currFastq[fastq_index].getReadHeader());
 					return -1;
 					}
 				String fastqBases = currFastq[fastq_index].getReadString();
@@ -289,7 +224,7 @@ public class SamRetrieveSeqAndQual extends AbstractCommandLineProgram
 			}
 		catch (Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

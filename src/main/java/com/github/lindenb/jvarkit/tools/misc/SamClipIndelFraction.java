@@ -33,25 +33,28 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
-import java.io.File;
-import java.util.Arrays;
+import java.util.List;
 import java.util.TreeSet;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 /**
  * SamClippingFraction
  */
-public class SamClipIndelFraction extends AbstractCommandLineProgram
+@Program(name="Samclipindelfraction",description="Extract clipping/indel fraction from BAM")
+
+public class SamClipIndelFraction extends Launcher
 	{
+	private static final Logger LOG = Logger.build(SamClipIndelFraction.class).make();
+
 	private enum Type {
 		leftclip,
 		rightclip,
@@ -59,74 +62,18 @@ public class SamClipIndelFraction extends AbstractCommandLineProgram
 		insert,
 		deletion
 		};
+	@Parameter(names="-t",description="type")
 	private Type type=Type.allclip;
 		
-	private SamClipIndelFraction()
-		{
-		}
-	
 	@Override
-	public String getProgramDescription()
+	public int doWork(final List<String> args)
 		{
-		return "Extract clipping/indel fraction from BAM";
-		}
-	
-	@Override
-	protected String getOnlineDocUrl()
-		{
-		return "https://github.com/lindenb/jvarkit/wiki/SamClipIndelFraction";
-		}
-
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -t (type) one of: "+Arrays.toString(Type.values())+" (default:"+this.type+")");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-	
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"t:"))!=-1)
-			{
-			switch(c)
-				{
-				case 't': type= Type.valueOf(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
 		SamReader sfr=null;
 		SAMRecordIterator iter=null;
 		try
 			{
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-			if(opt.getOptInd()==args.length)
-				{
-				sfr=srf.open(SamInputResource.of(System.in));
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{	
-				String filename=args[opt.getOptInd()];
-				sfr=srf.open(new File(filename));
-				}
-			else
-				{
-				error(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
+			sfr = openSamReader(oneFileOrNull(args));
+			
 			long total_bases_count=0L;
 			long count_clipped_reads=0L;
 			long count_clipped_left_reads=0L;
@@ -240,7 +187,7 @@ public class SamClipIndelFraction extends AbstractCommandLineProgram
 					case allclip:  counter.incr(left_clip_length+right_clip_length); break;
 					case deletion: counter.incr(deletion_D_length+ deletion_N_length); break;
 					case insert: counter.incr(insertion_length); break;
-					default: error("Bad type: "+type);return -1;
+					default: LOG.error("Bad type: "+type);return -1;
 					}
 				}
 			progress.finish();
@@ -260,7 +207,7 @@ public class SamClipIndelFraction extends AbstractCommandLineProgram
 				case allclip:  System.out.print("CLIP"); break;
 				case deletion:  System.out.print("DELETION"); break;
 				case insert:  System.out.print("INSERTION"); break;
-				default: error("Bad type: "+type);return -1;
+				default: LOG.error("Bad type: "+type);return -1;
 				}
 			System.out.println("\tCOUNT\tFRACTION_OF_MAPPED_READS");
 			
@@ -277,7 +224,7 @@ public class SamClipIndelFraction extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

@@ -56,8 +56,11 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -69,17 +72,31 @@ import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
  * GcPercentAndDepth
  *
  */
-public class GcPercentAndDepth extends AbstractKnimeApplication
+@Program(name="gcpercentanddepth",description="Extracts GC% and depth for multiple bam using a sliding window")
+public class GcPercentAndDepth extends Launcher
 	{
+	private static Logger LOG=Logger.build(GcPercentAndDepth.class).make();
+
+	
+	@Parameter(names="-o",description=" (output file) . default stdout.")
+	private File outPutFile=null;
+	@Parameter(names="-w",description=" (window size)")
 	private int windowSize=100;
+	@Parameter(names="-s",description=" (window shift) ")
 	private int windowStep=50;
+	@Parameter(names="-m",description=" min depth ")
 	private int min_depth=0;
 	private SAMSequenceDictionary firstSamDict=null;
+	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File refFile=null;
+	@Parameter(names="-B",description=" (file.bed) (optional). If not defined: use whole genome. Warning memory consumming: must alloc sizeof(int)*win.size()*num(samples).")
 	private File bedFile=null;
+	@Parameter(names="-n",description=" skip window if Reference contains one 'N'.")
 	private boolean skip_if_contains_N=false;
+	@Parameter(names="-N",description=" (file) . chrom.name.helper .")
 	private String chromNameFile=null;
-	private boolean print_genomic_index=true;
+	@Parameter(names="-x",description=" don't print genomic index.")
+	private boolean hide_genomic_index=false;
 
 	
 	/** A bed segment from the catpure */
@@ -241,90 +258,32 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 		{
 		}
 	
-		
-	@Override
-	public String getProgramDescription() {
-		return "Extracts GC% and depth for multiple bam using a sliding window";
-		}
 	
-	 @Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"GCAndDepth";
-	 	}
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
+	public int doWork(List<String> args)
 		{
-		out.println(" -R (fasta) "+getMessageBundle("reference.faidx")+". Required");
-		out.println(" -B (file) "+getMessageBundle("capure.bed")+" (optional). If not defined: use whole genome. Warning memory consumming: must alloc sizeof(int)*win.size()*num(samples).");
-		out.println(" -w (window size) default:"+this.windowSize);
-		out.println(" -s (window shift) default:"+this.windowStep);
-		out.println(" -N (file) ."+getMessageBundle("chrom.name.helper")+" Optional.");
-		out.println(" -m min depth :" +min_depth);
-		out.println(" -n skip window if Reference contains one 'N'.");
-		out.println(" -o (output file) . default stdout.");
-		out.println(" -x don't print genomic index.");
-		
-		
-		
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
-		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"R:w:s:B:N:m:o:x"))!=-1)
-			{
-			switch(c)
-				{
-				case 'w': this.windowSize=Integer.parseInt(opt.getOptArg());break;
-				case 'B': this.bedFile=new File(opt.getOptArg());break;
-				case 's': this.windowStep=Integer.parseInt(opt.getOptArg());break;
-				case 'R': this.refFile=new File(opt.getOptArg());break;
-				case 'm': this.min_depth=Integer.parseInt(opt.getOptArg());break;
-				case 'n': this.skip_if_contains_N=true;break;
-				case 'N': this.chromNameFile=opt.getOptArg(); break;
-				case 'o': setOutputFile(opt.getOptArg()); break;
-				case 'x': this.print_genomic_index=false;break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		
 		if(this.windowSize<=0)
 			{
-			error("Bad window size.");
+			LOG.error("Bad window size.");
 			return -1;
 			}
 		if(this.windowStep<=0)
 			{
-			error("Bad window step.");
+			LOG.error("Bad window step.");
 			return -1;
 			}
 		
 		if(refFile==null)
 			{
-			error("Undefined REF file");
+			LOG.error("Undefined REF file");
 			return -1;
 			}
-		return mainWork(opt.getOptInd(), args);
-		}
-	
-	@Override
-	public int executeKnime(List<String> args)
-		{
+		
 		if(args.isEmpty())
 			{
-			error("Illegal Number of arguments.");
+			LOG.error("Illegal Number of arguments.");
 			return -1;
 			}
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -335,19 +294,19 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 			{
 			Map<String,String> resolveChromName=new HashMap<String, String>();
 
-			info("Loading "+refFile);
+			LOG.info("Loading "+refFile);
 			indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
 			SAMSequenceDictionary dict= indexedFastaSequenceFile.getSequenceDictionary();
 			if(dict==null)
 				{
-				error("Cannot get sequence dictionary for "+refFile+". "+
-						this.getMessageBundle("picard.dictionary.needed"));
+				LOG.error("Cannot get sequence dictionary for "+refFile+". "+
+						"picard.dictionary.needed");
 				return -1;
 				}
 			/* load chrom aliases */
 			if(chromNameFile!=null)
 				{
-				info("Reading "+chromNameFile);
+				LOG.info("Reading "+chromNameFile);
 				LineIterator r=IOUtils.openURIForLineIterator(chromNameFile);
 				while(r.hasNext())
 					{
@@ -356,7 +315,7 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 					String tokens[]=line.split("[\t]");
 					if(tokens.length<2)
 						{
-						warning("Bad conversion line (column count<2) in "+line);
+						LOG.warning("Bad conversion line (column count<2) in "+line);
 						continue;
 						}
 					resolveChromName.put(tokens[0], tokens[1]);
@@ -365,14 +324,7 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 				CloserUtil.close(r);
 				}
 			
-			if(getOutputFile()==null)
-				{
-				out=new PrintWriter(System.out);
-				}
-			else
-				{	
-				out=new PrintWriter(getOutputFile());
-				}
+			out= super.openFileOrStdoutAsPrintWriter(outPutFile);
 			
 			Set<String> all_samples=new TreeSet<String>();
 			/* create input, collect sample names */
@@ -381,7 +333,7 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 					++optind)
 				{
 				File bamFile=new File(args.get(optind));
-				info("Opening "+bamFile);
+				LOG.info("Opening "+bamFile);
 				SamReader samFileReaderScan=SamFileReaderFactory.mewInstance().open(bamFile);
 				readers.add(samFileReaderScan);
 				
@@ -392,7 +344,7 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 					}
 				else if(!SequenceUtil.areSequenceDictionariesEqual(firstSamDict, header.getSequenceDictionary()))
 					{
-					error(getMessageBundle("not.the.same.sequence.dictionaries"));
+					LOG.error("not.the.same.sequence.dictionaries");
 					return -1;
 					}
 				
@@ -400,18 +352,18 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 					{
 					if(g.getSample()==null || g.getSample().isEmpty())
 						{
-						warning("Read group "+g.getId()+" has no sample in merged dictionary");
+						LOG.warning("Read group "+g.getId()+" has no sample in merged dictionary");
 						continue;
 						}
 					all_samples.add(g.getSample());
 					}
 				}
 			
-			info("NSample:"+all_samples.size());
+			LOG.info("NSample:"+all_samples.size());
 			
 			/* print header */
 			out.print("#");
-			if( this.print_genomic_index)
+			if( !this.hide_genomic_index)
 				{
 				out.print("id");
 				out.print("\t");
@@ -435,7 +387,7 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 			if(bedFile!=null)
 				{
 				int N=0;
-				info("Reading BED:" +bedFile);
+				LOG.info("Reading BED:" +bedFile);
 				Pattern tab=Pattern.compile("[\t]");
 				LineIterator r=IOUtils.openFileForLineIterator(bedFile);
 				while(r.hasNext())
@@ -445,7 +397,7 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 					String tokens[]=tab.split(line,4);
 					if(tokens.length<3)
 						{
-						warning("No enough column in "+line+" "+bedFile);
+						LOG.warning("No enough column in "+line+" "+bedFile);
 						continue;
 						}
 					RegionCaptured roi=new RegionCaptured();
@@ -455,19 +407,19 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 						String altName= resolveChromName.get(tokens[0]);
 						if(altName!=null)
 								{
-								info(tokens[0]+" was resolved to "+altName);
+							LOG.info(tokens[0]+" was resolved to "+altName);
 								roi.tid=firstSamDict.getSequenceIndex(altName);
 								}
 						else
 								{
-								warning("Cannot resolve "+tokens[0]+ " from "+new ArrayList<String>(resolveChromName.keySet()));
+							LOG.warning("Cannot resolve "+tokens[0]+ " from "+new ArrayList<String>(resolveChromName.keySet()));
 								}
 						}
 					
 					
 					if(roi.tid==-1)
 						{
-						warning("not in reference: chromosome "+tokens[0]+" in \""+line+"\" "+bedFile);
+						LOG.warning("not in reference: chromosome "+tokens[0]+" in \""+line+"\" "+bedFile);
 						continue;
 						}
 					roi.start0=Integer.parseInt(tokens[1]);
@@ -476,12 +428,12 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 					++N;
 					}
 				CloserUtil.close(r);
-				info("end Reading BED:" +bedFile+"  N="+N);
+				LOG.info("end Reading BED:" +bedFile+"  N="+N);
 				Collections.sort(regionsCaptured);
 				}
 			else
 				{
-				info("No capture, peeking everything");
+				LOG.info("No capture, peeking everything");
 				for(SAMSequenceRecord ssr:this.firstSamDict.getSequences())
 					{
 					RegionCaptured roi=new RegionCaptured();
@@ -518,8 +470,8 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 					else
 						{
 						
-						error(
-								"when looking for genomic sequence "+getMessageBundle("chrom.missing.in.sequence.dictionary")+" "+
+						LOG.error(
+								"when looking for genomic sequence "+ "chrom.missing.in.sequence.dictionary" +" "+
 										chromName+
 								" conversions available:"+resolveChromName);
 						return -1;
@@ -633,7 +585,7 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 						sample2meanDepth.put(sample,mean);
 						}
 					if(max_depth_for_win< this.min_depth) continue;
-					if( this.print_genomic_index)
+					if(!this.hide_genomic_index)
 						{
 						out.print(win.getGenomicIndex());
 						out.print("\t");
@@ -661,7 +613,7 @@ public class GcPercentAndDepth extends AbstractKnimeApplication
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

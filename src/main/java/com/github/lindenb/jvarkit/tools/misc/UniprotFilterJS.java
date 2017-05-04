@@ -32,10 +32,9 @@ package com.github.lindenb.jvarkit.tools.misc;
 import org.uniprot.*;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.PrintWriter;
+import java.util.List;
 
-import javax.script.Compilable;
 import javax.script.CompiledScript;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -53,73 +52,40 @@ import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 
-/**
- * PubmedFilterJS
- *
- */
+@Program(name="uniprotfilterjs",description= "Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. "
+		+ "Context contain 'entry' an uniprot entry "
+		+ "and 'index', the index in the XML file.")
 public class UniprotFilterJS
-	extends AbstractCommandLineProgram
+	extends Launcher
 	{
-	
+	private static Logger LOG=Logger.build(UniprotFilterJS.class).make();
+
 	@SuppressWarnings("unused")
 	private static ObjectFactory _fool_javac=null;
+	
+	@Parameter(names="-e",description=" (js expression). Optional.")
+	private String scriptExpr=null;
+	@Parameter(names="-f",description=" (js file). Optional.")
+	private File scriptFile=null;
+
 	
 	private UniprotFilterJS()
 		{
 		
 		}
-	@Override
-	public String getProgramDescription() {
-		return "Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. "
-				+ "Context contain 'entry' an uniprot entry "
-				+ "and 'index', the index in the XML file.";
-		}			
 	
 	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/UniprotFilterJS";
-		}
-	
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -e (js expression). Optional.");
-		out.println(" -f (js file). Optional.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
+	public int doWork(List<String> args)
 		{
 		
 
-		String scriptExpr=null;
-		File scriptFile=null;
-		CompiledScript compiledScript=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"e:f:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'e': scriptExpr=opt.getOptArg();break;
-				case 'f': scriptFile=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		
 		Unmarshaller unmarshaller;
 		Marshaller marshaller;
@@ -129,28 +95,11 @@ public class UniprotFilterJS
 			ScriptEngine engine = manager.getEngineByName("js");
 			if(engine==null)
 				{
-				error("not available: javascript. Use the SUN/Oracle JDK ?");
+				LOG.error("not available: javascript. Use the SUN/Oracle JDK ?");
 				return -1;
 				}
-			Compilable compilingEngine = (Compilable)engine;
-			if(scriptFile!=null)
-				{
-				info("Compiling "+scriptFile);
-				FileReader r=new FileReader(scriptFile);
-				compiledScript=compilingEngine.compile(r);
-				r.close();
-				}
-			else if(scriptExpr!=null)
-				{
-				info("Compiling "+scriptExpr);
-				compiledScript=compilingEngine.compile(scriptExpr);
-				}
-			else
-				{
-				error("Undefined script");
-				return -1;
-				}
-
+			CompiledScript compiledScript = super.compileJavascript(scriptExpr, scriptFile);
+			
 			
 			
 			JAXBContext jc = JAXBContext.newInstance("org.uniprot");
@@ -176,19 +125,17 @@ public class UniprotFilterJS
 			
 			
 			StreamSource src=null;
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading stdin");
-				src=new StreamSource(System.in);
+				src=new StreamSource(stdin());
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				info("Reading file");
-				src=new StreamSource(new File(args[opt.getOptInd()]));
+				src=new StreamSource(new File(args.get(0)));
 				}
 			else
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error("illegal.number.of.arguments");
 				return -1;
 				}
 			XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
@@ -249,7 +196,7 @@ public class UniprotFilterJS
 								}
 							else
 								{
-								warning("Script returned something that is not a boolean or a number:"+result.getClass());
+								LOG.warning("Script returned something that is not a boolean or a number:"+result.getClass());
 								break;
 								}
 							
@@ -278,7 +225,7 @@ public class UniprotFilterJS
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

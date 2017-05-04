@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-* 2015 moved to AbstractCommandLineProgram
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 

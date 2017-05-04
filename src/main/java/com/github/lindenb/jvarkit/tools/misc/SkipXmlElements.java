@@ -30,16 +30,12 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import javax.script.Compilable;
 import javax.script.CompiledScript;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.SimpleBindings;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -51,17 +47,25 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
+@Program(name="skipxmlelements",description="Filter XML elements with a javascript  (java rhino) expression. "
+		+ "Context contain 'element' the current element. It implements" +
+		"the interface Tag described in  SkipXmlElements.class")
 
-
-/**
- * PubmedFilterJS
- *
- */
 public class SkipXmlElements
-	extends AbstractCommandLineProgram
+	extends Launcher
 	{
+	private static Logger LOG=Logger.build(SkipXmlElements.class).make();
+	@Parameter(names="-e",description=" (js expression). Optional.")
+	private String scriptExpr=null;
+	@Parameter(names="-f",description=" (js file). Optional.")
+	private File scriptFile=null;
+
+	
 	private static final int KEEP_ELEMENT=1;
 	@SuppressWarnings("unused")
 	private static final int SKIP_ELEMENT=0;
@@ -151,84 +155,20 @@ public class SkipXmlElements
 		{
 		
 		}
-	@Override
-	public String getProgramDescription() {
-		return "Filter XML elements with a javascript  (java rhino) expression. "
-				+ "Context contain 'element' the current element. It implements" +
-				"the interface Tag described in "+SkipXmlElements.class.getName();
-		}			
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/SkipXmlElements";
-		}
 	
 	
 	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -e (js expression). Optional.");
-		out.println(" -f (js file). Optional.");
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
+	public int doWork(List<String> args)
 		{
 		
 
 		String scriptExpr=null;
 		File scriptFile=null;
 		CompiledScript compiledScript=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"e:f:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'e': scriptExpr=opt.getOptArg();break;
-				case 'f': scriptFile=new File(opt.getOptArg());break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		
 		try
 			{
-			ScriptEngineManager manager = new ScriptEngineManager();
-			ScriptEngine engine = manager.getEngineByName("js");
-			if(engine==null)
-				{
-				error("not available: javascript. Use the SUN/Oracle JDK ?");
-				return -1;
-				}
-			Compilable compilingEngine = (Compilable)engine;
-			if(scriptFile!=null)
-				{
-				info("Compiling "+scriptFile);
-				FileReader r=new FileReader(scriptFile);
-				compiledScript=compilingEngine.compile(r);
-				r.close();
-				}
-			else if(scriptExpr!=null)
-				{
-				info("Compiling "+scriptExpr);
-				compiledScript=compilingEngine.compile(scriptExpr);
-				}
-			else
-				{
-				error("Undefined script");
-				return -1;
-				}
-
-			
+			compiledScript = super.compileJavascript(scriptExpr, scriptFile);
 			
 			
 
@@ -244,19 +184,17 @@ public class SkipXmlElements
 			XMLEventWriter w=xof.createXMLEventWriter(pw);
 			
 			StreamSource src=null;
-			if(opt.getOptInd()==args.length)
+			if(args.isEmpty())
 				{
-				info("Reading stdin");
-				src=new StreamSource(System.in);
+				src=new StreamSource(stdin());
 				}
-			else if(opt.getOptInd()+1==args.length)
+			else if(args.size()==1)
 				{
-				info("Reading file");
-				src=new StreamSource(new File(args[opt.getOptInd()]));
+				src=new StreamSource(new File(args.get(0)));
 				}
 			else
 				{
-				error(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error("illegal.number.of.arguments");
 				return -1;
 				}
 			XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
@@ -368,7 +306,7 @@ public class SkipXmlElements
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

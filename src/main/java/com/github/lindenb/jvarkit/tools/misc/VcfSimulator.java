@@ -28,8 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -51,13 +49,19 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-
-public class VcfSimulator extends AbstractCommandLineProgram
+@Program(name="ccfSimulator",description="Generate a VCF")
+public class VcfSimulator extends Launcher
 	{
-	private Random random;
+	private static Logger LOG=Logger.build(SkipXmlElements.class).make();
+	@Parameter(names="-S",description="random seed",converter=Launcher.RandomConverter.class)
+	private Random random = RandomConverter.now();
+	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION,converter=Launcher.IndexedFastaSequenceFileConverter.class,required=true)
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	private Set<String> samples=new HashSet<String>();
 	private Integer numSamples=null;
@@ -67,61 +71,21 @@ public class VcfSimulator extends AbstractCommandLineProgram
 		}
 	
 
-	@Override
-	public String getProgramDescription() {
-		return "Generate a VCF";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfSimulator";
-		}
-	
 	
 
 	@Override
-	public void printOptions(PrintStream out)
+	public int doWork(List<String> args)
 		{
-		out.println(" -R (file) Fasta Reference (REQUIRED) .");
-		out.println(" -S (long) seed .");
-		super.printOptions(out);
-		}
-	@Override
-	public int doWork(String[] args)
-		{
-		long seed=System.currentTimeMillis();
-
-		File reference=null;
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "S:R:"))!=-1)
+		if(this.indexedFastaSequenceFile==null)
 			{
-			switch(c)
-				{
-				case 'S': seed=Long.parseLong(opt.getOptArg());break;
-				case 'R': reference=new File(opt.getOptArg());break;
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		if(reference==null)
-			{
-			error("Reference is undefined");
+			LOG.error("Reference is undefined");
 			return -1;
 			}
-		this.random=new Random(seed);
 		if(numSamples==null) numSamples=1+this.random.nextInt(10);
 		while(this.samples.size()<numSamples) this.samples.add("SAMPLE"+(1+this.samples.size()));
 		VariantContextWriter writer=null;
 		try
 			{
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(reference);
 			Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 			metaData.add(new VCFFormatHeaderLine(
 					"GT",
@@ -203,7 +167,7 @@ public class VcfSimulator extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

@@ -8,6 +8,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -21,19 +22,28 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
-public class CoverageNormalizer extends AbstractCommandLineProgram
+@Program(name="coveragenormalizer",description="normalize BAM coverage" )
+public class CoverageNormalizer extends Launcher
 	{
-	private int maxRecordsInRAM=500000;
+	private static Logger LOG=Logger.build(CoverageNormalizer.class).make();
+
+	@Parameter(names="-w",description=" (size) sliding window size")
 	private int window_size=100;
+	@Parameter(names="-s",description=" (size) sliding window shift")
 	private int window_shift=50;
-	private File tmpDir=null;
+	
 	private int min_coverage=10;
 	
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 
 	
 	private static class FloatCodec extends AbstractDataCodec<Float>
@@ -67,19 +77,15 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 		{
 		
 		}
-	@Override
-	public String getProgramDescription() {
-		return "normalize BAM coverage";
-		}
 	
 	private int run(SamReader sfr) throws IOException
 		{
 		SAMSequenceDictionary dictionary=sfr.getFileHeader().getSequenceDictionary();
 		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dictionary);
-		File tmpFile1=File.createTempFile("cov_", ".dat.gz", this.tmpDir);
+		File tmpFile1=File.createTempFile("cov_", ".dat.gz", this.writingSortingCollection.getTmpDirectories().get(0));
 		tmpFile1.deleteOnExit();
 
-		info("Opening tmp File "+tmpFile1);
+		LOG.info("Opening tmp File "+tmpFile1);
 		GZIPOutputStream gos=null;
 		DataInputStream dis=null;
 		SortingCollection<Float> median=null;
@@ -109,7 +115,7 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 					{
 					if(curr_tid!=-1)
 						{
-						info("Writing data for chromosome "+dictionary.getSequence(curr_tid).getSequenceName());
+						LOG.info("Writing data for chromosome "+dictionary.getSequence(curr_tid).getSequenceName());
 						for(int i=0;
 								i + window_size <= array.length;
 								i+=window_shift
@@ -126,16 +132,16 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 							maxCov=(float)Math.max(maxCov, v);
 							num_written[curr_tid]++;
 							}
-						info("End writing data N="+num_written[curr_tid]);
+						LOG.info("End writing data N="+num_written[curr_tid]);
 						}
 					if(rec==null) break;
 					curr_tid=rec.getReferenceIndex();
 					SAMSequenceRecord ssr=dictionary.getSequence(curr_tid);
-					info("allocate "+ssr.getSequenceLength()+" for "+ssr.getSequenceName());
+					LOG.info("allocate "+ssr.getSequenceLength()+" for "+ssr.getSequenceName());
 					array=null;
 					System.gc();
 					array=new short[ssr.getSequenceLength()];
-					info("done: allocate.");
+					LOG.info("done: allocate.");
 					Arrays.fill(array, (short)0);
 					}
 				for(int i=rec.getAlignmentStart();i< rec.getAlignmentEnd() && i< array.length ; ++i)
@@ -144,10 +150,10 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 					}
 				}
 			array=null;
-			info("Closing BAM");
+			LOG.info("Closing BAM");
 			CloserUtil.close(sfr);
 			
-			info("Closing "+tmpFile1);
+			LOG.info("Closing "+tmpFile1);
 			daos.flush();
 			gos.finish();
 			gos.flush();
@@ -159,8 +165,8 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 					Float.class,
 					new FloatCodec(),
 					new FloatCmp(),
-					this.maxRecordsInRAM,
-					this.tmpDir
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			 median.setDestructiveIteration(true);
 			 dis=new DataInputStream(new GZIPInputStream(new FileInputStream(tmpFile1)));
@@ -188,7 +194,7 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 				--half;
 				if(half<=0)
 					{
-					info("median = "+median_value);
+					LOG.info("median = "+median_value);
 					break;
 					}
 			 	}
@@ -257,7 +263,7 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
@@ -270,76 +276,27 @@ public class CoverageNormalizer extends AbstractCommandLineProgram
 		
 		
 		}
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		out.println(" -T (dir) tmpDir");
-		out.println(" -w (size) sliding window size");
-		out.println(" -s (size) sliding window shift");
-		super.printOptions(out);
-		}
 	
 	@Override
-	public int doWork(String[] args)
+	public int doWork(List<String> args)
 		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+"T:w:s:"))!=-1)
-			{
-			switch(c)
-				{
-				case 'T':tmpDir=new File(opt.getOptArg());break;
-				case 'w':window_size=Math.max(1, Integer.parseInt(opt.getOptArg()));break;
-				case 's':window_shift=Math.max(1, Integer.parseInt(opt.getOptArg()));break;
-				default:
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
-		
 		SamReader sfr=null;
 		try
 			{
-			if(opt.getOptInd()==args.length)
-				{
-				info("Reading from stdin");
-				sfr=SamFileReaderFactory.mewInstance().openStdin();
-				}
-			else if(opt.getOptInd()+1==args.length)
-				{
-				String filename=args[opt.getOptInd()];
-				info("Reading from "+filename);
-				File f=new File(filename);
-				if(tmpDir==null) tmpDir=f.getParentFile();
-				sfr=SamFileReaderFactory.mewInstance().open(f);
-				}
-			else
-				{
-				error("Illegal number of arguments.");
-				return -1;
-				}
+			sfr = super.openSamReader(oneFileOrNull(args));
+			
 			if(sfr.getFileHeader().getSortOrder()!=SortOrder.coordinate)
 				{
-				error("BAM file is not sorted.");
+				LOG.error("BAM file is not sorted.");
 				return -1;
 				}
-			if(tmpDir==null)
-				{
-				tmpDir=new File(System.getProperty("java.io.tmpdir"));
-				info("Setting tmpDir to "+tmpDir);
-				}
+			
 			run(sfr);
 			return 0;
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

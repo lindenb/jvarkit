@@ -30,9 +30,9 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -53,8 +53,9 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.knime.AbstractKnimeApplication;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -62,16 +63,38 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
-public class VcfBurden extends AbstractKnimeApplication
-	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurden.class);
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 
+@Program(name="vcfburden",description="Solena: vcf to (chrom/pos/ref/alt/individus(G:0/1/2/-9)",deprecatedMsg="deprecated")
+public class VcfBurden extends Launcher
+	{
+	private static final Logger LOG = Logger.build(VcfBurden.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names="-H",description=" only high damage")
 	private boolean highdamage=false;
 	private Map<String,Boolean> _gene2seen=null;
+	@Parameter(names="-d",description=" (dir) base zip dir")
 	private String dirName="burden";
+	@Parameter(names="-f",description=" print ALL consequence+ colum, SO terms (mail matilde 11/10/2015 11:38 AM)")
 	private boolean printSOTerms = false;//mail matilde 11/10/2015 11:38 AM
+	@Parameter(names="-p",description=" print position in CDS")
 	private boolean printPositionInCDS = false;
+	@Parameter(names="-q",description=" print VQSLOD")
 	private boolean printVQSLOD=false;
+	
+	
+	@Parameter(names="-g",description=" (file) optional list of gene names (restrict genes, print genes without data)")
+	private File userlistOfGene= null;
+	
+	
+	
+
+	
+	
 	public VcfBurden()
 		{
 		}
@@ -162,24 +185,6 @@ public class VcfBurden extends AbstractKnimeApplication
 		
 		}
 
-	@Override
-	public String getProgramDescription() {
-		return "Solena: vcf to (chrom/pos/ref/alt/individus(G:0/1/2/-9)";
-		}
-	@Override
-	protected String getOnlineDocUrl() {
-		return DEFAULT_WIKI_PREFIX+"VcfBurden";
-		}
-	
-	@Override
-	public int initializeKnime() {
-		return super.initializeKnime();
-		}
-
-	@Override
-	public void disposeKnime() {
-		super.disposeKnime();
-		}
 	
 	
 	private void dumpVariants(
@@ -202,7 +207,7 @@ public class VcfBurden extends AbstractKnimeApplication
 		
 		
 		int outCount=0;
-		info(this.dirName+"/"+contig+"_"+filename+".txt");
+		LOG.info(this.dirName+"/"+contig+"_"+filename+".txt");
 		final ZipEntry ze = new ZipEntry(this.dirName+"/"+contig+"_"+filename+".txt");
 		zout.putNextEntry(ze);
 		final  PrintWriter pw = new PrintWriter(zout);
@@ -293,9 +298,7 @@ public class VcfBurden extends AbstractKnimeApplication
 		LOG.info(this.dirName+"/"+contig+"_"+filename+".txt N="+outCount);
 		}
 	
-	@Override
-	public int executeKnime(final List<String> args)
-		{
+	private int doWork2(List<String> args) {
 		ZipOutputStream zout=null;
 		FileOutputStream fout=null;
 		VcfIterator in=null;
@@ -303,33 +306,33 @@ public class VcfBurden extends AbstractKnimeApplication
 			{
 			if(args.isEmpty())
 				{
-				info("reading from stdin.");
+				LOG.info("reading from stdin.");
 				in = VCFUtils.createVcfIteratorStdin();
 				}
 			else if(args.size()==1)
 				{
 				String filename=args.get(0);
-				info("reading from "+filename);
+				LOG.info("reading from "+filename);
 				in = VCFUtils.createVcfIterator(filename);
 				}
 			else
 				{
-				error("Illegal number of arguments.");
+				LOG.error("Illegal number of arguments.");
 				return -1;
 				}
-			if(getOutputFile()==null)
+			if(outputFile==null)
 				{
-				error("undefined output");
+				LOG.error("undefined output");
 				return -1;
 				}
-			else if(!getOutputFile().getName().endsWith(".zip"))
+			else if(!outputFile.getName().endsWith(".zip"))
 				{
-				error("output "+getOutputFile()+" should end with .zip");
+				LOG.error("output "+outputFile+" should end with .zip");
 				return -1;
 				}
 			else
 				{
-				fout = new FileOutputStream(getOutputFile());
+				fout = new FileOutputStream(outputFile);
 				zout = new ZipOutputStream(fout);
 				}
 			final List<String> samples= in.getHeader().getSampleNamesInOrder();
@@ -392,7 +395,7 @@ public class VcfBurden extends AbstractKnimeApplication
 				
 				if(ctx1==null || !ctx1.getContig().equals(prev_chrom))
 					{
-					info("DUMP to zip n="+gene2variants.size());
+					LOG.info("DUMP to zip n="+gene2variants.size());
 					final Set<String> geneNames= new HashSet<>();
 					for(GeneTranscript gene_transcript:gene2variants.keySet() )
 						{
@@ -488,7 +491,7 @@ public class VcfBurden extends AbstractKnimeApplication
 					final String transcriptName = pred.getFeature();
 					if(transcriptName==null || transcriptName.trim().isEmpty())
 						{
-						info("No transcript in "+ctx1);
+						LOG.info("No transcript in "+ctx1);
 						continue;
 						}
 					
@@ -537,7 +540,7 @@ public class VcfBurden extends AbstractKnimeApplication
 				for(final String gene:this._gene2seen.keySet())
 					{
 					if(this._gene2seen.get(gene).equals(Boolean.TRUE)) continue;
-					warning("Gene not found : "+gene);
+					LOG.warning("Gene not found : "+gene);
 					dumpVariants(zout,
 							"UNDEFINED",
 							gene+"_000000000000000.txt",
@@ -557,7 +560,7 @@ public class VcfBurden extends AbstractKnimeApplication
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally
@@ -568,72 +571,37 @@ public class VcfBurden extends AbstractKnimeApplication
 			}
 		}
 	
-	@Override
-	public void printOptions(PrintStream out)
-		{
-		out.println(" -o (file) output file (default stdout)");
-		out.println(" -g (file) optional list of gene names (restrict genes, print genes without data)");
-		out.println(" -d (dir) base zip dir default:"+this.dirName);
-		out.println(" -H only high damage");
-		out.println(" -f print ALL consequence+ colum, SO terms (mail matilde 11/10/2015 11:38 AM)");
-		out.println(" -p print position in CDS");
-		out.println(" -q print VQSLOD");
-		super.printOptions(out);
-		}
+
 	
 	
 	@Override
-	public int doWork(String[] args)
+	public int doWork(List<String> args)
 		{
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+ "o:d:g:Hfpq"))!=-1)
-			{
-			switch(c)
-				{
-				case 'p': this.printPositionInCDS = true; break;
-				case 'q': this.printVQSLOD = true; break;
-				case 'f': this. printSOTerms = true; break;
-				case 'H':  this.highdamage=true;break;
-				case 'o': setOutputFile(opt.getOptArg()); break;
-				case 'd': this.dirName=opt.getOptArg();break;
-				case 'g': 
+		
+		BufferedReader in=null;
+		try {
+			if(userlistOfGene!=null) {
+				if(this._gene2seen==null) this._gene2seen=new HashMap<>();
+				in = IOUtils.openFileForBufferedReading(userlistOfGene);
+				String line;
+				while((line=in.readLine())!=null)
 					{
-						BufferedReader in=null;
-					try {
-						if(this._gene2seen==null) this._gene2seen=new HashMap<>();
-						in = IOUtils.openURIForBufferedReading(opt.getOptArg());
-						String line;
-						while((line=in.readLine())!=null)
-							{
-							line=line.trim();
-							if(line.isEmpty()||line.startsWith("#")) continue;
-							this._gene2seen.put(line, Boolean.FALSE);
-							}
-						}
-					catch (Exception e) {
-						error(e);
-						return -1;
-						}
-					finally
-						{
-						CloserUtil.close(in);
-						}
-					break;
+					line=line.trim();
+					if(line.isEmpty()||line.startsWith("#")) continue;
+					this._gene2seen.put(line, Boolean.FALSE);
 					}
-					
-				default: 
-					{
-					switch(handleOtherOptions(c, opt, null))
-						{
-						case EXIT_FAILURE:return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
+				in.close();
 				}
+			return doWork2(args);
 			}
-		return mainWork(opt.getOptInd(), args);
+		catch (Exception e) {
+			LOG.error(e);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(in);
+			}
 		}
 
 	public static void main(String[] args)

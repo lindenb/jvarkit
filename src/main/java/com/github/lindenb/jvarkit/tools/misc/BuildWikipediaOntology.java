@@ -13,6 +13,7 @@ import java.io.PrintWriter;
 import java.net.URLEncoder;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.swing.AbstractAction;
@@ -49,13 +50,17 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.RDF;
 
 @SuppressWarnings("serial")
-public class BuildWikipediaOntology extends AbstractCommandLineProgram
+@Program(name="buildwpontology",description="Build a simple RDFS/XML ontology from the Wikipedia Categories")
+public class BuildWikipediaOntology extends Launcher
 	{
 	final static String RDFS="http://www.w3.org/2000/01/rdf-schema#";
+	private static final Logger LOG = Logger.build(BuildWikipediaOntology.class).make();
 
 	private static long ID_GENERATOR=0L;
 	private class Frame extends JFrame
@@ -409,7 +414,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 				}
 			catch (Exception err)
 				{
-				error(err);
+				LOG.error(err);
 				}	
 			}	
 		
@@ -431,7 +436,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 						URLEncoder.encode(term,"UTF-8")+
 						(cmcontinue==null?"":"&cmcontinue="+cmcontinue)
 						;
-				info(url);
+				LOG.info(url);
 				cmcontinue=null;
 				r=xif.createXMLEventReader(new StreamSource(url));
 				while(r.hasNext())
@@ -453,7 +458,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 				}
 			catch (Exception err)
 				{
-				error(err);
+				LOG.error(err);
 				}
 			return set;
 			}
@@ -466,43 +471,12 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 		
 		}
 	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/BuildWikipediaOntology";
-		}
+	
 	
 	@Override
-	public String getProgramDescription() {
-		return "Build a simple RDFS/XML ontology from the Wikipedia Categories";
-		}
-	
-	@Override
-	public void printOptions(java.io.PrintStream out)
-		{
-		super.printOptions(out);
-		}
-	
-	@Override
-	public int doWork(String[] args)
+	public int doWork(List<String> args)
 		{
 		final Frame frame=new Frame();
-		com.github.lindenb.jvarkit.util.cli.GetOpt opt=new com.github.lindenb.jvarkit.util.cli.GetOpt();
-		int c;
-		while((c=opt.getopt(args,getGetOptDefault()+""))!=-1)
-			{
-			switch(c)
-				{
-				default:
-					{
-					switch(handleOtherOptions(c, opt,args))
-						{
-						case EXIT_FAILURE: return -1;
-						case EXIT_SUCCESS: return 0;
-						default:break;
-						}
-					}
-				}
-			}
 		
 		
 		try
@@ -520,7 +494,7 @@ public class BuildWikipediaOntology extends AbstractCommandLineProgram
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			return -1;
 			}
 		finally

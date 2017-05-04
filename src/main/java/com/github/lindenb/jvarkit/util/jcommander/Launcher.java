@@ -8,6 +8,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -65,6 +66,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -542,6 +544,21 @@ public Random convert(final String v) {
 	}
 }
 
+public static class IndexedFastaSequenceFileConverter
+implements IStringConverter<IndexedFastaSequenceFile>
+	{
+	@Override
+	public IndexedFastaSequenceFile convert(final String path) {
+		if(path==null) return null;
+		File faidx=new File(path);
+		if(!faidx.exists()) throw new ParameterException("file doesn't exists: "+path);
+		try {
+			return new IndexedFastaSequenceFile(faidx);
+		} catch (FileNotFoundException err) {
+			throw new ParameterException(err);
+		}
+		}	
+	}
 
 public static class VcfWriterOnDemand
 	implements VariantContextWriter
