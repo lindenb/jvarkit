@@ -75,7 +75,35 @@ $ java -jar dist/pubmeddump.jar 'Bioinformatics 2017' | java -jar dist/pubmedcod
 
 ```
 
+Plotting:
 
+```
+cut -f2,4 output.txt  | sort | uniq -c |\
+awk '{printf("%s\t%s\t%s\n",$3,$2,$1);}' | ./yxv2table -n 0 | grep -v '^null' | grep -v '^     ' | sed 's/^#/Year/' > table.txt && \
+gnuplot script.gnuplot
+``` 
+
+
+
+```
+set terminal png size 2000,1500;
+set output "output.png"
+set title "Bioinformatics/language"
+set key invert reverse Left outside
+set key autotitle columnheader
+set yrange [0:]
+set auto x
+unset xtics
+set xlabel "Year"
+set ylabel "Count"
+set xtics nomirror rotate by -45 scale 0
+set style data histogram
+set style histogram rowstacked
+set style fill solid border -1
+set boxwidth 0.75
+N=`awk 'NR==1 {print NF}' table.txt`
+plot 'table.txt' using 2:xtic(1), for [i=3:N] '' using i;
+```
 
 
 END_DOC
@@ -176,6 +204,20 @@ public class PubmedCodingLanguages
 		this.languages.add(new ProgLanguageImpl("mysql"));
 		this.languages.add(new ProgLanguageImpl("bash"));
 		this.languages.add(new ProgLanguageImpl("perl"));
+		this.languages.add(new ProgLanguageImpl("php"));
+		this.languages.add(new ProgLanguageImpl("c#"));
+		this.languages.add(new ProgLanguageImpl("objective-c"));
+		this.languages.add(new ProgLanguageImpl("haskell"));
+		this.languages.add(new ProgLanguageImpl("lua"));
+		this.languages.add(new ProgLanguageImpl("clojure"));
+		this.languages.add(new ProgLanguageImpl("mathlab"));
+		this.languages.add(new ProgLanguageImpl("groovy"));
+		this.languages.add(new ProgLanguageImpl("javascript"));
+		this.languages.add(new ProgLanguageImpl("nodejs"));
+		this.languages.add(new ProgLanguageImpl("pascal"));
+		this.languages.add(new ProgLanguageImpl("erlang"));
+		this.languages.add(new ProgLanguageImpl("smalltalk"));
+		this.languages.add(new ProgLanguageImpl("fortran"));
 		}
 	
 	private void scanArticle(
