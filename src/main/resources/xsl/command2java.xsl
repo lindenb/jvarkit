@@ -1088,7 +1088,7 @@ public abstract class <xsl:apply-templates select="." mode="abstract-class-name"
 		
 		</xsl:if>
 	
-	<xsl:if test="@ui-swing = 'true'">
+	<xsl:if test="@ui-swing = 'truexxxx'">
 	/** BEGIN SECTION SWING */
 	
 		@SuppressWarnings("serial")
