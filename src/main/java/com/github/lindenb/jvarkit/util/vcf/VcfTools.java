@@ -28,6 +28,13 @@ History:
 */
 package com.github.lindenb.jvarkit.util.vcf;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
@@ -35,10 +42,19 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFac
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /** bean to be injected in various contexts like javascript context, etc... */
 public class VcfTools {
+public static final Logger LOG = Logger.build(VcfTools.class).make();
+
 private VCFHeader header=null;
 private SnpEffPredictionParser snpEffPredictionParser=null;
 private VepPredictionParser vepPredictionParser=null;
@@ -50,20 +66,136 @@ public VcfTools() {
 public VcfTools(final VCFHeader header) {
 	init(header);
 	}
+
+public VCFHeader getHeader() {
+	return header;
+}
+
 public void init(final VCFHeader header) {
 	this.header=header;
 	if(header!=null)
 		{
 		this.snpEffPredictionParser=new SnpEffPredictionParserFactory().header(header).get();
 		this.vepPredictionParser=new VepPredictionParserFactory().header(header).get();
-		this.annPredictionParser=new AnnPredictionParserFactory().header(header).get();
+		this.annPredictionParser=new AnnPredictionParserFactory(header).get();	
+
 		}
 	else
 		{
 		this.snpEffPredictionParser = null;
 		this.vepPredictionParser= null;
-		this.annPredictionParser= null;
+		this.annPredictionParser=new AnnPredictionParserFactory().createDefaultParser();
+		}
+	}
+public void initSnpEffParser(final String definition)
+	{
+	failIf(definition==null || definition.trim().isEmpty(),"SnpEff definition is empty");
+	final VCFHeader header=new VCFHeader();
+	final VCFInfoHeaderLine info=new VCFInfoHeaderLine(
+			VepPredictionParser.getDefaultTag(),
+			VCFHeaderLineCount.UNBOUNDED,
+			VCFHeaderLineType.String,
+			definition
+			);
+	header.addMetaDataLine(info);
+	this.vepPredictionParser=new VepPredictionParserFactory(header).get();
+	}
+protected static void failIf(boolean testFailed, String msg) {
+	if (!testFailed)
+		return;
+	LOG.error("FAILURE: " + msg);
+	throw new RuntimeException("The following test failed: " + msg);
+	}
+public SequenceOntologyTree getSequenceOntologyTree() {
+	return  SequenceOntologyTree.getInstance();
+}
+
+public List<AnnPredictionParser.AnnPrediction> getAnnPredictions(final VariantContext ctx) {
+	if(this.annPredictionParser==null) return Collections.emptyList();
+	return this.annPredictionParser.getPredictions(ctx);
+	}
+
+public List<VepPredictionParser.VepPrediction> getVepPredictions(final VariantContext ctx) {
+	if(this.vepPredictionParser==null) return Collections.emptyList();
+	return this.vepPredictionParser.getPredictions(ctx);
+	}
+
+public List<SnpEffPredictionParser.SnpEffPrediction> getSnpEffPredictions(final VariantContext ctx) {
+	if(this.snpEffPredictionParser==null) return Collections.emptyList();
+	return this.snpEffPredictionParser.getPredictions(ctx);
+	}
+
+
+/** return true if variant has any prediction with a SO term (or its children) with this label */
+public boolean hasSequenceOntologyLabel(final VariantContext ctx,final String lbl)
+	{
+	if(lbl==null) return false;
+	final SequenceOntologyTree.Term t= this.getSequenceOntologyTree().getTermByLabel(lbl);
+	if(t==null) LOG.warning("don't know SO.label "+lbl);
+	return hasSequenceOntologyTerm(ctx,t);
+	}
+/** return true if variant has any prediction with a SO term (or its children) with this accession */
+public boolean hasSequenceOntologyAccession(final VariantContext ctx,final String acn)
+	{
+	if(acn==null) return false;
+	final SequenceOntologyTree.Term t= this.getSequenceOntologyTree().getTermByAcn(acn);
+	if(t==null) LOG.warning("don't know SO.acn "+acn);
+	return hasSequenceOntologyTerm(ctx,t);
+	}
+
+/** return true if variant has any prediction with a SO term (or its children) */
+public boolean hasSequenceOntologyTerm(final VariantContext ctx,final SequenceOntologyTree.Term t)
+	{
+	if(t==null) return false;
+	final Set<SequenceOntologyTree.Term> children=t.getAllDescendants();
+	for(AnnPredictionParser.AnnPrediction a: getAnnPredictions(ctx)) {
+		if(!Collections.disjoint(a.getSOTerms(),children)) return true;
+		}
+	for(VepPredictionParser.VepPrediction a: getVepPredictions(ctx)) {
+		if(!Collections.disjoint(a.getSOTerms(),children)) return true;
+		}
+	for(SnpEffPredictionParser.SnpEffPrediction a: getSnpEffPredictions(ctx)) {
+		if(!Collections.disjoint(a.getSOTerms(),children)) return true;
 		}
 	
+	
+	return false;
 	}
+
+public boolean isMendelianIncompatibility(final Genotype child,final Genotype parent)
+	{
+	if(child==null || parent==null) return false;
+	if(child.isNoCall() || parent.isNoCall()) return false;
+	if(child.getPloidy()!=2 || parent.getPloidy()!=2) return false;
+	for(final Allele childAllele:child.getAlleles())
+		{
+		if(parent.getAlleles().contains(childAllele)) return false;
+		}
+	
+	return true;
+	}
+public boolean isMendelianIncompatibility(final Genotype child,final Genotype father,final Genotype mother)
+	{
+	if(child==null || child.isNoCall()) return false;
+	if(father==null || father.isNoCall()) {
+		return this.isMendelianIncompatibility(child,mother);
+		}
+	if(mother==null || mother.isNoCall()) {
+		return this.isMendelianIncompatibility(child,father);
+		}
+	final Allele alleles[]=new Allele[2];
+	for(final Allele af:father.getAlleles())
+	{
+		alleles[0]=af;
+		for(final Allele am:mother.getAlleles())
+		{
+			alleles[1]=am;
+			final Genotype sim = new GenotypeBuilder(child.getSampleName()).alleles(Arrays.asList(alleles)).make();
+			if(child.sameGenotype(sim, true)) return false;
+		}	
+	}
+	
+	return true;
+	}
+
 }

@@ -25,6 +25,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 public class AnnPredictionParserFactory extends AbstractPredictionParserFactory<AnnPredictionParser,AnnPredictionParserFactory>
 	{
@@ -40,4 +43,17 @@ public class AnnPredictionParserFactory extends AbstractPredictionParserFactory<
 		return new AnnPredictionParser(getHeader(), getTag());
 	}
 	
+	/** create a parser without the VCF header */
+	public AnnPredictionParser createDefaultParser() 
+		{
+		final VCFHeader tmpheader=new VCFHeader();
+		final VCFInfoHeaderLine info=new VCFInfoHeaderLine(
+				AnnPredictionParser.getDefaultTag(),
+				VCFHeaderLineCount.UNBOUNDED,
+				VCFHeaderLineType.String,
+				""
+				);
+		tmpheader.addMetaDataLine(info);
+		return new AnnPredictionParser(tmpheader, getTag());
+		}
 }
