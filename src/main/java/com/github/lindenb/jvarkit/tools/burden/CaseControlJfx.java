@@ -24,6 +24,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
@@ -44,7 +45,6 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
@@ -259,7 +259,8 @@ public class CaseControlJfx extends Launcher {
 		double dataOpacity=0.4;
 		@Parameter(names={"-o","--out"},description="Save the image in a file and then exit.")
 		File outputFile=null;
-		
+		@Parameter(names={"-mafTag","--mafTag"},description="Do not calculate MAF, but use this tag for Control")
+		String controlTag =null;
 		
 		@Override
 		public void start(final Stage primaryStage) throws Exception {
@@ -316,6 +317,17 @@ public class CaseControlJfx extends Launcher {
 					{
 					pedigree = Pedigree.newParser().parse(in.getHeader());
 					}
+				if(this.controlTag!=null)
+					{
+					final VCFInfoHeaderLine infoHeaderLine=in.getHeader().getInfoHeaderLine(this.controlTag);
+					if(infoHeaderLine==null) {
+						LOG.error("No such attribute in the VCF header: "+this.controlTag);
+						Platform.exit();
+						return;
+						}
+					}
+				
+				
 				int count = 0;
 				final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader());
 				while(in.hasNext() && (this.limit_to_N_variants<0 || count<this.limit_to_N_variants)) 
@@ -326,26 +338,47 @@ public class CaseControlJfx extends Launcher {
 					
 					++count;
 					
-					for(final Allele alt: ctx.getAlternateAlleles()) {
-						Double mafs[]={null,null};
+					final List<Allele> alternates = ctx.getAlternateAlleles();
+					for(int alt_idx=0;alt_idx < alternates.size();++alt_idx) {
+						final Allele alt = alternates.get(alt_idx);
+						final Double mafs[]={null,null};
 						
 						for(int i=0;i< 2;++i)
 							{
-							final MafCalculator mafCalculator = new MafCalculator(alt, ctx.getContig());
-							mafCalculator.setNoCallIsHomRef(no_call_is_homref);
-							for(Pedigree.Person person: (i==0?pedigree.getAffected():pedigree.getUnaffected()))
+							if(i==1 && this.controlTag!=null)
 								{
-								if(selectSamples.equals(SelectSamples.males) && !person.isMale()) continue;
-								if(selectSamples.equals(SelectSamples.females) && !person.isFemale()) continue;
-								
-								final Genotype genotype = ctx.getGenotype(person.getId());
-								if(genotype==null) continue;
-								if(ignore_gt_filtered && genotype.isFiltered()) continue;
-								mafCalculator.add(genotype, person.isMale());
+								if(ctx.hasAttribute(this.controlTag)) {
+									try 
+										{
+										final List<Double> dvals =ctx.getAttributeAsDoubleList(this.controlTag, Double.NaN);
+										if(alt_idx< dvals.size() && dvals.get(alt_idx)!=null) {	
+										    final double d= dvals.get(alt_idx);
+											if(!Double.isNaN(d) && d>=0 && d<=1.0) mafs[1]=d;
+											}
+										}
+									catch(NumberFormatException err)
+										{
+										}
+									}
 								}
-							if(!mafCalculator.isEmpty())
+							else
 								{
-								mafs[i]=mafCalculator.getMaf();
+								final MafCalculator mafCalculator = new MafCalculator(alt, ctx.getContig());
+								mafCalculator.setNoCallIsHomRef(no_call_is_homref);
+								for(Pedigree.Person person: (i==0?pedigree.getAffected():pedigree.getUnaffected()))
+									{
+									if(selectSamples.equals(SelectSamples.males) && !person.isMale()) continue;
+									if(selectSamples.equals(SelectSamples.females) && !person.isFemale()) continue;
+									
+									final Genotype genotype = ctx.getGenotype(person.getId());
+									if(genotype==null) continue;
+									if(ignore_gt_filtered && genotype.isFiltered()) continue;
+									mafCalculator.add(genotype, person.isMale());
+									}
+								if(!mafCalculator.isEmpty())
+									{
+									mafs[i]=mafCalculator.getMaf();
+									}
 								}
 							}
 						if(mafs[0]==null || mafs[1]==null) continue;
@@ -375,11 +408,10 @@ public class CaseControlJfx extends Launcher {
 	        xAxis.setLabel("Cases");
 	        
 	        final NumberAxis yAxis = new NumberAxis(0.0,1.0,0.1);
-	        yAxis.setLabel("Controls");
+	        yAxis.setLabel("Controls"+(this.controlTag==null?"":"["+this.controlTag+"]"));
 	        final ScatterChart<Number, Number>   chart =  new ScatterChart<>(xAxis,yAxis);
 	        for(final XYChart.Series<Number,Number> series:partition.getSeries())
 		        {
-	        	
 				chart.getData().add(series);
 		        }
 			String title="Case/Control";
