@@ -1046,7 +1046,12 @@ protected void cleanup() {
 
 
 public String getProgramCommandLine() {
-	return String.join(" ",this.argcargv);
+	return String.join(" ",this.getRawArguments());
+	}
+
+/** get the original args on the command line, before jcommander processnig */
+public List<String> getRawArguments() {
+	return this.argcargv;
 	}
 
 protected Status parseArgs(final String args[])

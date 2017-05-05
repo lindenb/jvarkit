@@ -60,7 +60,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -78,11 +77,61 @@ import com.github.lindenb.jvarkit.util.BufferedList;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+/**
 
-public class BamCmpCoverage extends AbstractBamCmpCoverage
+BEGIN_DOC
+
+
+
+
+### Screenshot
+
+![img](https://pbs.twimg.com/media/B3in9wrIAAElLz8.jpg)
+
+
+```
+$ java -jar distBamCmpCoverage.jar  -o out.png file1.bam file2.bam fileN.bam
+```
+
+
+
+
+END_DOC
+*/
+
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="bamcmpcoverage",description="Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2")
+public class BamCmpCoverage extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BamCmpCoverage.class);
+	private static final Logger LOG = Logger.build(BamCmpCoverage.class).make();
 
+
+	@Parameter(names={"-o","--output"},description="Output image file. Required")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-w","--width"},description="image width")
+	private int imgageSize = 1000 ;
+
+	@Parameter(names={"-m","--minDepth"},description="min depth")
+	private int minDepth = 0 ;
+
+	@Parameter(names={"-M","--maxDepth"},description="max depth")
+	private int maxDepth = 1000 ;
+
+	@Parameter(names={"-r","--region"},description="restrict to region")
+	private String regionStr = null;
+
+	
+	@Parameter(names={"-b","--bed"},description="restrict to region")
+	private File bedFile = null;
+
+	
 	private double sampleWidth=0;
 	private double marginWidth=0;
 	private BufferedImage image=null;
@@ -283,36 +332,40 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 		}
 	
 	@Override
-	public Collection<Throwable> call() throws Exception
-		{
+	public int doWork(List<String> args) {
 		
-		if(getOutputFile()==null)
+		if(outputFile==null)
 			{
-			return wrapException("output image file not defined");
+			LOG.error("output image file not defined");
+			return -1;
 			}
 		
 		if(this.imgageSize<1)
 			{
-			return wrapException("Bad image size:" +this.imgageSize);
+			LOG.error("Bad image size:" +this.imgageSize);
+			return -1;
 			}
 		
 		if(this.minDepth<0)
 			{
-			return wrapException("Bad min depth : "+this.minDepth);
+			LOG.error("Bad min depth : "+this.minDepth);
+			return -1;
 			}
 		if(this.minDepth>=this.maxDepth)
 			{
-			return wrapException("Bad min<max depth : "+this.minDepth+"<"+this.maxDepth);
+			LOG.error("Bad min<max depth : "+this.minDepth+"<"+this.maxDepth);
+			return 1;
 			}
 		
-		if(this.getBedFile()!=null)
+		if(this.bedFile!=null)
 			{
-			readBedFile(this.getBedFile());
+			readBedFile(this.bedFile);
 			}
 		
 		if(regionStr!=null && this.intervals!=null)
 			{
-			return wrapException("bed and interval both defined.");
+			LOG.error("bed and interval both defined.");
+			return -1;
 			}
 		
 		final SamRecordFilter filter=new SamRecordFilter()
@@ -353,7 +406,6 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 			srf.disable(SamReaderFactory.Option.EAGERLY_DECODE);
 			srf.disable(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS);
 			srf.disable(SamReaderFactory.Option.VALIDATE_CRC_CHECKSUMS);
-			final List<String> args = this.getInputFiles();
 			for(String arg: args)
 				{
 				File f=new File(arg);
@@ -376,7 +428,8 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 				}
 			if(files.isEmpty())
 				{
-				return wrapException("No BAM defined");
+				LOG.error("No BAM defined");
+				return -1;
 				}
 			
 			Comparator<SAMRecord> comparator=new Comparator<SAMRecord>()
@@ -419,7 +472,8 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 				if(h.getSortOrder()!=SortOrder.coordinate)
 					{
 					r.close();
-					return wrapException("file "+bamFile+" not sorted on coordinate");
+					LOG.error("file "+bamFile+" not sorted on coordinate");
+					return -1;
 					}
 				if(dict==null)
 					{
@@ -722,21 +776,22 @@ public class BamCmpCoverage extends AbstractBamCmpCoverage
 			for(SamReader r:readers) r.close();
 			
 			//save file
-			LOG.info("saving "+getOutputFile());
-			if(getOutputFile().getName().toLowerCase().endsWith(".png"))
+			LOG.info("saving " + this.outputFile);
+			if(this.outputFile.getName().toLowerCase().endsWith(".png"))
 				{
-				ImageIO.write(this.image, "PNG", getOutputFile());
+				ImageIO.write(this.image, "PNG",this.outputFile);
 				}
 			else
 				{
-				ImageIO.write(this.image, "JPG", getOutputFile());
+				ImageIO.write(this.image, "JPG", this.outputFile);
 				}
 			
-			return Collections.emptyList();
+			return 0;
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

@@ -39,12 +39,9 @@ import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
@@ -52,25 +49,74 @@ import javax.script.CompiledScript;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-
 /**
- * VcfRemoveGenotypeJs
- * @author lindenb
- *
- */
-public class VcfRemoveGenotypeJs extends AbstractVcfRemoveGenotypeJs {
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfRemoveGenotypeJs.class);
 
+BEGIN_DOC
+
+
+
+
+### Example
+
+The script injects in the context:
+ *  header a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html
+ *  variant a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html
+ *  genotype a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/Genotype.html
+
+if the returned value is false, the genotype is set to no call or to hom-ref.
+
+
+```
+$ cat  ~/src/gatk-ui/testdata/mutations.vcf | java -jar dist/vcfresetgenotypejs.jar -homref -e '!genotype.isHomRef()' |grep -v "##"
+
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  S1      S2      S3      S4
+rotavirus       51      .       A       G       22.55   .       AC1=2;AF1=0.25;BQB=1;DP=944;DP4=849,0,93,0;FQ=23.7972;G3=0.75,0,0.25;HWE=0.033921;MQ=60;MQ0F=0;MQB=1;PV4=1,1,1,1;RPB=0.993129;SGB=-61.9012;VDB=3.53678e-05  GT:PL   0/0:0,255,134   0/0:0,255,127   0/0:0,255,137   1/1:70,255,0
+rotavirus       91      .       A       T       5.45    .       AC1=1;AF1=0.124963;BQB=0.951201;DP=1359;DP4=1134,0,225,0;FQ=5.8713;MQ=60;MQ0F=0;MQB=1;PV4=1,4.80825e-05,1,1;RPB=0.0393173;SGB=-369.163;VDB=0.313337 GT:PL   0/0:0,255,133   0/1:40,0,31     0/0:0,255,134   0/0:0,255,82
+rotavirus       130     .       T       C       4.12    .       AC1=1;AF1=0.124933;BQB=1;DP=1349;DP4=1139,0,204,0;FQ=4.48321;MQ=60;MQ0F=0;MQB=1;PV4=1,1,1,1;RPB=0.762964;SGB=-335.275;VDB=0.00084636  GT:PL0/1:38,0,35      0/0:0,255,132   0/0:0,255,132   0/0:0,255,79
+
+
+```
+
+
+ */
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="vcfremovegenotypejs",description="Reset Genotype in VCF using a javascript expression")
+public class VcfRemoveGenotypeJs extends Launcher {
+	private static final Logger LOG = Logger.build(VcfRemoveGenotypeJs.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	
+	@Parameter(names={"-e","--expression"},description=" (js expression). Optional.")
+	private String scriptExpr=null;
+	@Parameter(names={"-f","--script"},description=" (js file). Optional.")
+	private File scriptFile=null;
+
+
+	@Parameter(names={"-g","--removeCtxNoGenotype"},description="Remove variants having no called genotype or all home Ref.")
+	private boolean removeCtxNoGenotype = false;
+
+	@Parameter(names={"-homref","--homref"},description="Replace variant with homref instead of nocall")
+	private boolean replaceByHomRef = false;
+
+	@Parameter(names={"-filter","--filter"},description="if not empty, don't delete the genotype but filter it.")
+	private String filterName = "";
+	
 	private CompiledScript  script=null;
 
+	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out)
-			throws IOException {
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 		try {
-		this.script  = super.compileJavascript();
+		this.script  = super.compileJavascript(scriptExpr, scriptFile);
 		final	VCFHeader h2=new VCFHeader(in.getHeader());
 		
-		if(!super.filterName.isEmpty() )
+		if(!this.filterName.isEmpty() )
 			{
 			h2.addMetaDataLine(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_FILTER_KEY, 1, VCFHeaderLineType.String, "Genotype-level filter"));
 			}	
@@ -99,13 +145,13 @@ public class VcfRemoveGenotypeJs extends AbstractVcfRemoveGenotypeJs {
 					}
 				else if(genotype.isCalled() &&
 					!super.evalJavaScriptBoolean(this.script, bindings)) {
-					if(!super.filterName.isEmpty()) {
+					if(!this.filterName.isEmpty()) {
 						if(!genotype.isFiltered()) 
 							{
-							genotype = new GenotypeBuilder(genotype).filters(super.filterName).make();
+							genotype = new GenotypeBuilder(genotype).filters(this.filterName).make();
 							}
 						}
-					else if(super.replaceByHomRef){
+					else if(this.replaceByHomRef){
 						List<Allele> homRefList=new ArrayList<>(genotype.getPloidy());
 						for(int p=0;p< genotype.getPloidy();++p)
 							{
@@ -121,7 +167,7 @@ public class VcfRemoveGenotypeJs extends AbstractVcfRemoveGenotypeJs {
 					}
 				genotypes.add(genotype);
 				}
-			if(countCalled==0 && super.removeCtxNoGenotype) {
+			if(countCalled==0 && this.removeCtxNoGenotype) {
 				continue;
 			}
 			vcb.genotypes(genotypes);
@@ -132,7 +178,8 @@ public class VcfRemoveGenotypeJs extends AbstractVcfRemoveGenotypeJs {
 		
 		return RETURN_OK;
 		} catch(Exception err) {
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 		} finally
 		{
 			this.script=null;
@@ -140,8 +187,8 @@ public class VcfRemoveGenotypeJs extends AbstractVcfRemoveGenotypeJs {
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args, outputFile);
 		}
 	
 	/**

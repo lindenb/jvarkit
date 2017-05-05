@@ -30,7 +30,6 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.util.ArrayList;
@@ -55,15 +54,11 @@ import org.uniprot.Entry;
 import org.uniprot.FeatureType;
 import org.uniprot.LocationType;
 
-import com.github.lindenb.jvarkit.util.AbstractCommandLineProgram;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
-import htsjdk.samtools.util.Log;
-import htsjdk.samtools.util.ProgressLogger;
-import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
@@ -71,13 +66,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
-import org.uniprot.*;
 
-@SuppressWarnings("unused")
 @Program(name="mapuniprot",description="map uniprot features on reference genome")
 public class MapUniProtFeatures extends Launcher
 	{
 	private static final String UNIPROT_NS="http://uniprot.org/uniprot";
+	@SuppressWarnings("unused")
 	private org.uniprot.ObjectFactory forceJavacCompiler=null;
 	private static Logger LOG=Logger.build(MapUniProtFeatures.class).make();
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;

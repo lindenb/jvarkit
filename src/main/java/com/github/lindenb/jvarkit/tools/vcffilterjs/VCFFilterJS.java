@@ -34,6 +34,8 @@ package com.github.lindenb.jvarkit.tools.vcffilterjs;
 import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import javax.script.Bindings;
@@ -179,17 +181,72 @@ public class VCFFilterJS
 						vepPredictionParser.getPredictions(variation));
 					}
 
-				if (!evalJavaScriptBoolean(this.compiledScript, bindings) )
+				final Object result = compiledScript.eval(bindings);
+				// result is an array of a collection of variants
+				if(result!=null && (result.getClass().isArray() || (result instanceof Collection)))
 					{
-					if(filterHeaderLine!=null)
+					final  Collection<?> col;
+					if(result.getClass().isArray())
 						{
-						final VariantContextBuilder vcb = new VariantContextBuilder(variation);
-						vcb.filter(filterHeaderLine.getID());
-						w.add(vcb.make());
+						final Object array[]=(Object[])result;
+						col= Arrays.asList(array);
 						}
-					continue;
+					else
+						{
+						col =( Collection<?>)result;
+						}
+					// write all of variants
+					for(final Object item:col)
+						{
+						if(item==null) throw new JvarkitException.UserError("item in array is null");
+						if(!(item instanceof VariantContext)) throw new JvarkitException.UserError("item in array is not a VariantContext "+item.getClass());
+						w.add(VariantContext.class.cast(item));
+						}
 					}
-				w.add(variation);
+				// result is a VariantContext
+				else if(result!=null && (result instanceof VariantContext)) {
+					w.add(VariantContext.class.cast(result));
+					}
+				else
+					{
+					boolean accept=true;
+					if(result==null)
+						{
+						accept=false;
+						}
+					else if(result instanceof Boolean)
+						{
+						if(Boolean.FALSE.equals(result)) accept = false;
+						}
+					else if(result instanceof Number)
+						{
+						if(((Number)result).intValue()!=1) accept = false;
+						}
+					else
+						{
+						LOG.warn("Script returned something that is not a boolean or a number:"+result.getClass());
+						accept = false;
+						}
+					if (!accept)
+						{
+						if(filterHeaderLine!=null)
+							{
+							final VariantContextBuilder vcb = new VariantContextBuilder(variation);
+							vcb.filter(filterHeaderLine.getID());
+							w.add(vcb.make());
+							}
+						continue;
+						}
+					
+					// set PASS filter if needed
+					if(filterHeaderLine!=null && !variation.isFiltered())
+						{
+						w.add( new VariantContextBuilder(variation).passFilters().make());
+						continue;
+						}
+					
+					w.add(variation);
+					}
 				}
 			return RETURN_OK;
 			}
@@ -206,7 +263,7 @@ public class VCFFilterJS
 	
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try 
 			{
 			this.compiledScript = super.compileJavascript(this.scriptExpr,this.scriptFile);

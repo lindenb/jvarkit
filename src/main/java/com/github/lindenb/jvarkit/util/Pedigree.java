@@ -41,6 +41,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -48,7 +49,8 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 
 public class Pedigree
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(Pedigree.class);
+	private static final Logger LOG = Logger.build(Pedigree.class).make();
+	
 	private Map<String,FamilyImpl > families=new TreeMap<String, Pedigree.FamilyImpl>();
 	
 	public enum Status
@@ -411,16 +413,6 @@ public class Pedigree
 		{
 		return getPersons().stream().filter(P->P.getStatus()==Status.unaffected).collect(Collectors.toSet());
 		}
-	private void read(final String tokens[])
-		{
-		final String fam= tokens[0];
-		final String indi = tokens[1];
-		final String father = tokens[2];
-		final String mother = tokens[3];
-		final String sex = (tokens.length>4?tokens[4]:"");
-		final String status = (tokens.length>5?tokens[5]:"");
-		build(fam,indi,father,mother,sex,status);
-		}
 	
 	private void build(final String famId,final String indiId,final String fatherId,final String motherId,final String sexxx,final String status)
 		{
@@ -453,98 +445,28 @@ public class Pedigree
 		fam.individuals.put(p.id, p);		
 		}
 	
-	private void read(final BufferedReader r) throws IOException
-		{
-		final Pattern tab = Pattern.compile("[\t]");
-		String line;
-		while((line=r.readLine())!=null)
-			{
-			if(line.isEmpty() || line.startsWith("#")) continue;
-			read(tab.split(line));
-			}
-		}
 	
+	@Deprecated //use Pedigree.Parser.parse
 	public static Pedigree readPedigree(final File f) throws IOException
 		{
-		final BufferedReader r= IOUtils.openFileForBufferedReading(f);
-		final Pedigree ped=Pedigree.readPedigree(r);
-		r.close();
-		return ped;
+		return newParser().parse(f);
 		}	
+	@Deprecated //use Pedigree.Parser.parse
 	public static Pedigree readPedigree(final BufferedReader r) throws IOException
 		{
-		final Pedigree ped=new Pedigree();
-		ped.read(r);
-		return ped;
+		return newParser().parse(r);
 		}	
 	
 	public static final String VcfHeaderKey="Sample";
+	
+	@Deprecated //use Pedigree.Parser.parse
 	public static Pedigree readPedigree(final VCFHeader header) {
-		return readPedigree(header.getMetaDataInInputOrder());
+		return newParser().parse(header);
 		}
-	/** should be readPedigree(header.getMetaDataInInputOrder()) */
+	@Deprecated //use Pedigree.Parser.parse
 	public static Pedigree readPedigree(final Collection<VCFHeaderLine> metadata) {
-		final Pattern comma = Pattern.compile("[,]");
-		final Pedigree ped=new Pedigree();
-		for(final VCFHeaderLine h:metadata) {
-			final String key = h.getKey();
-			if(!VcfHeaderKey.equals(key)) continue;
-			final String value =h.getValue();
-			if(!value.startsWith("<")) {
-				LOG.warn("in "+VcfHeaderKey+" value doesn't start with '<' "+value);
-				continue;
-			}
-			if(!value.endsWith(">")) {
-				LOG.warn("in "+VcfHeaderKey+" value doesn't end with '>' "+value);
-				continue;
-			}
-			
-			String familyId=null;
-			String indiId=null;
-			String fatherId=null;
-			String motherId=null;
-			String sexx=null;
-			String status=null;
-
-			for(final String t:comma.split(value.substring(1, value.length()-1))) {
-				final int eq = t.indexOf("=");
-				if(eq==-1) 
-					{
-					LOG.warn("'=' missing in "+t+" of "+value);
-					continue;
-					}
-				final String left = t.substring(0,eq);
-				if(left.equals("Family")) {
-					if(familyId!=null) throw new IllegalArgumentException("Family defined twice in " +value);
-					familyId= t.substring(eq+1).trim();
-					}
-				else if(left.equals("ID")) {
-					if(indiId!=null) throw new IllegalArgumentException("ID defined twice in " +value);
-					indiId= t.substring(eq+1).trim();
-					}
-				else if(left.equals("Father")) {
-					if(fatherId!=null) throw new IllegalArgumentException("fatherId defined twice in " +value);
-					fatherId= t.substring(eq+1).trim();
-					}
-				else if(left.equals("Mother")) {
-					if(motherId!=null) throw new IllegalArgumentException("mother defined twice in " +value);
-					motherId= t.substring(eq+1).trim();
-					}
-				else if(left.equals("Sex")) {
-					if(sexx!=null) throw new IllegalArgumentException("sex defined twice in " +value);
-					sexx= t.substring(eq+1).trim();
-					}
-				else if(left.equals("Status")) {
-					if(status!=null) throw new IllegalArgumentException("status defined twice in " +value);
-					status= t.substring(eq+1).trim();
-					}
-				}
-			if(familyId==null) throw new IllegalArgumentException("Family undefined  in " +value);
-			if(indiId==null) throw new IllegalArgumentException("ID undefined in " +value);
-			ped.build(familyId,indiId,fatherId,motherId,sexx,status);
-			}
-		return ped;
-		}
+		return newParser().parse(metadata);
+	}
 	
 	public Set<VCFHeaderLine> toVCFHeaderLines()  {
 		final Set<VCFHeaderLine> set = new LinkedHashSet<>();
@@ -571,4 +493,117 @@ public class Pedigree
 		
 		return set;
 		}
+	
+	/** creates a new PEdigree parser */
+	public static Parser newParser()
+		{
+		return new Parser();
+		}
+	
+	public static class Parser
+		{
+		final Pattern tab = Pattern.compile("[\t]");
+
+		
+		
+		public Pedigree parse(final File f) throws IOException
+			{
+			try(BufferedReader r= IOUtils.openFileForBufferedReading(f)) {
+				return this.parse(r);
+				}
+			}
+		public Pedigree parse(final BufferedReader r)throws IOException
+			{
+			final Pedigree ped = new Pedigree();
+			r.lines().forEach(L->{
+				if(L.isEmpty() || L.startsWith("#")) return;
+				read(ped,tab.split(L));
+				});
+			return ped;
+			}
+		
+		
+		private void read(final Pedigree ped,final String tokens[])
+			{
+			final String fam= tokens[0];
+			final String indi = tokens[1];
+			final String father = tokens[2];
+			final String mother = tokens[3];
+			final String sex = (tokens.length>4?tokens[4]:"");
+			final String status = (tokens.length>5?tokens[5]:"");
+			ped.build(fam,indi,father,mother,sex,status);
+			}
+
+		
+		public Pedigree parse(final VCFHeader h)
+			{
+			return this.parse(h.getMetaDataInInputOrder());
+			}
+		
+		/** should be readPedigree(header.getMetaDataInInputOrder()) */
+		public Pedigree parse(final Collection<VCFHeaderLine> metadata)
+			{
+			final Pattern comma = Pattern.compile("[,]");
+			final Pedigree ped=new Pedigree();
+			for(final VCFHeaderLine h:metadata) {
+				final String key = h.getKey();
+				if(!VcfHeaderKey.equals(key)) continue;
+				final String value =h.getValue();
+				if(!value.startsWith("<")) {
+					LOG.warn("in "+VcfHeaderKey+" value doesn't start with '<' "+value);
+					continue;
+				}
+				if(!value.endsWith(">")) {
+					LOG.warn("in "+VcfHeaderKey+" value doesn't end with '>' "+value);
+					continue;
+				}
+				
+				String familyId=null;
+				String indiId=null;
+				String fatherId=null;
+				String motherId=null;
+				String sexx=null;
+				String status=null;
+
+				for(final String t:comma.split(value.substring(1, value.length()-1))) {
+					final int eq = t.indexOf("=");
+					if(eq==-1) 
+						{
+						LOG.warn("'=' missing in "+t+" of "+value);
+						continue;
+						}
+					final String left = t.substring(0,eq);
+					if(left.equals("Family")) {
+						if(familyId!=null) throw new IllegalArgumentException("Family defined twice in " +value);
+						familyId= t.substring(eq+1).trim();
+						}
+					else if(left.equals("ID")) {
+						if(indiId!=null) throw new IllegalArgumentException("ID defined twice in " +value);
+						indiId= t.substring(eq+1).trim();
+						}
+					else if(left.equals("Father")) {
+						if(fatherId!=null) throw new IllegalArgumentException("fatherId defined twice in " +value);
+						fatherId= t.substring(eq+1).trim();
+						}
+					else if(left.equals("Mother")) {
+						if(motherId!=null) throw new IllegalArgumentException("mother defined twice in " +value);
+						motherId= t.substring(eq+1).trim();
+						}
+					else if(left.equals("Sex")) {
+						if(sexx!=null) throw new IllegalArgumentException("sex defined twice in " +value);
+						sexx= t.substring(eq+1).trim();
+						}
+					else if(left.equals("Status")) {
+						if(status!=null) throw new IllegalArgumentException("status defined twice in " +value);
+						status= t.substring(eq+1).trim();
+						}
+					}
+				if(familyId==null) throw new IllegalArgumentException("Family undefined  in " +value);
+				if(indiId==null) throw new IllegalArgumentException("ID undefined in " +value);
+				ped.build(familyId,indiId,fatherId,motherId,sexx,status);
+				}
+			return ped;
+			}
+		}
+	
 	}

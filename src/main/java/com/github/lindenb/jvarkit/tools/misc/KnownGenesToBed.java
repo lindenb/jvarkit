@@ -28,9 +28,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -39,10 +39,36 @@ import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class KnownGenesToBed extends AbstractKnownGenesToBed
+
+@Program(name="kg2bed",description="converts UCSC knownGenes file to BED.")
+public class KnownGenesToBed extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(KnownGenesToBed.class);
+	private static final Logger LOG = Logger.build(KnownGenesToBed.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-i","--intron"},description="Hide Introns")
+	private boolean hide_introns = false;
+
+	@Parameter(names={"-u","--utr"},description="Hide UTRs")
+	private boolean hide_utr = false;
+
+	@Parameter(names={"-c","--cds"},description="Hide CDSs")
+	private boolean hide_cds = false;
+
+	@Parameter(names={"-x","--exon"},description="Hide Exons")
+	private boolean hide_exons = false;
+
+	@Parameter(names={"-t","--transcript"},description="Hide Transcript")
+	private boolean hide_transcripts = false;
 
 	private PrintStream out;
 	
@@ -75,19 +101,19 @@ public class KnownGenesToBed extends AbstractKnownGenesToBed
 			if(out.checkError()) break;
 			String tokens[]=tab.split(line);
 			final KnownGene kg=new KnownGene(tokens);
-			if(!super.hide_transcripts) print(kg,kg.getTxStart(),kg.getTxEnd(),"TRANSCRIPT",kg.getName());
+			if(!this.hide_transcripts) print(kg,kg.getTxStart(),kg.getTxEnd(),"TRANSCRIPT",kg.getName());
 			for(int i=0;i< kg.getExonCount();++i)
 				{
 				final KnownGene.Exon exon=kg.getExon(i);
-				if(!super.hide_exons) print(kg,exon.getStart(),exon.getEnd(),"EXON",exon.getName());
+				if(!this.hide_exons) print(kg,exon.getStart(),exon.getEnd(),"EXON",exon.getName());
 				
-				if(!super.hide_utr && kg.getCdsStart()>exon.getStart())
+				if(!this.hide_utr && kg.getCdsStart()>exon.getStart())
 					{
 					print(kg,exon.getStart(),
 							Math.min(kg.getCdsStart(),exon.getEnd()),"UTR","UTR"+(kg.isPositiveStrand()?"5":"3"));
 					}
 				
-				if(!super.hide_cds && !(kg.getCdsStart()>=exon.getEnd() || kg.getCdsEnd()<exon.getStart()))
+				if(!this.hide_cds && !(kg.getCdsStart()>=exon.getEnd() || kg.getCdsEnd()<exon.getStart()))
 					{
 					print(kg,
 							Math.max(kg.getCdsStart(),exon.getStart()),
@@ -97,12 +123,12 @@ public class KnownGenesToBed extends AbstractKnownGenesToBed
 					}
 				
 				KnownGene.Intron intron=exon.getNextIntron();
-				if(!super.hide_introns && intron!=null)
+				if(!this.hide_introns && intron!=null)
 					{
 					print(kg,intron.getStart(),intron.getEnd(),"INTRON",intron.getName());
 					}
 				
-				if(!super.hide_utr && kg.getCdsEnd()<exon.getEnd())
+				if(!this.hide_utr && kg.getCdsEnd()<exon.getEnd())
 					{
 					print(kg,Math.max(kg.getCdsEnd(),exon.getStart()),
 							exon.getEnd(),
@@ -113,14 +139,12 @@ public class KnownGenesToBed extends AbstractKnownGenesToBed
 			}
 		}
 
-	
 	@Override
-	public Collection<Throwable> call() throws Exception {
+	public int doWork(List<String> args) {
 		BufferedReader r=null;
-		final List<String> args = super.getInputFiles();
 		try
 			{
-			this.out = super.openFileOrStdoutAsPrintStream();
+			this.out = super.openFileOrStdoutAsPrintStream(outputFile);
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
@@ -143,7 +167,8 @@ public class KnownGenesToBed extends AbstractKnownGenesToBed
 			}
 		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

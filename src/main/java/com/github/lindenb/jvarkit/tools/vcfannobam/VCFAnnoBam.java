@@ -18,7 +18,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-import com.github.lindenb.jvarkit.util.picard.cmdline.Usage;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -50,7 +49,6 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 public class VCFAnnoBam extends Launcher {
 
 	private static final Logger LOG = Logger.build(VcfToRdf.class).make();
-	@Usage(programVersion="1.0")
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;

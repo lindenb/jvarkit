@@ -10,24 +10,20 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.util.CloserUtil;
 
+@Program(name="",description="CGI/Web based version of samtools tview")
 public class SamtoolsTviewCGI extends AbstractCGICallApp
 	{
+	private static final Logger LOG=Logger.build(SamtoolsTviewCGI.class).make();
+
 	private SamtoolsTviewCGI()
 		{
 		}
 
-	
-	@Override
-	protected String getOnlineDocUrl() {
-		return "https://github.com/lindenb/jvarkit/wiki/TViewWeb";
-		}
-	
-	@Override
-	public String getProgramDescription() {
-		return "CGI/Web based version of samtools tview";
-		}
 	/*
 	private File convertFile(File f) throws IOException
 		{
@@ -402,7 +398,7 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 			}
 		catch(Exception err)
 			{
-			error(err);
+			LOG.error(err);
 			}
 		finally
 			{

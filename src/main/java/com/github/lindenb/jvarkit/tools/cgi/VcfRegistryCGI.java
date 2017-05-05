@@ -23,6 +23,8 @@ import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.BlockCompressedInputStream;
@@ -32,8 +34,10 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 
-
+@Program(name="vcfregistry.cg",description="")
 public class VcfRegistryCGI extends AbstractCGI {
+	private static final Logger LOG=Logger.build(VcfRegistryCGI.class).make();
+
 	 private static final String GROUPID_PARAM="g";
 	    private static final String RGN_PARAM="r";
 	    private Throwable lastException=null;
@@ -82,10 +86,6 @@ public class VcfRegistryCGI extends AbstractCGI {
 	        {
 	        }
 	   
-	    @Override
-	    protected String getOnlineDocUrl() {
-	    	return "https://github.com/lindenb/jvarkit/wiki/VcfRegistryWeb";
-	    	}
 	    
 	    private Position parsePosition()
 	    	{
@@ -261,7 +261,7 @@ public class VcfRegistryCGI extends AbstractCGI {
 	        catch(Exception err)
 	            {
 	        	
-	            error(err);
+	            LOG.error(err);
 	            }
 	        finally
 	            {
@@ -620,8 +620,7 @@ public class VcfRegistryCGI extends AbstractCGI {
 	            }
 	        catch(Exception err)
 	            {
-	        	
-	            error(err);
+	        	LOG.error(err);
 	            }
 	        finally
 	            {

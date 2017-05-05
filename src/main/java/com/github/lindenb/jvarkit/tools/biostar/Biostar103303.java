@@ -280,7 +280,8 @@ public class Biostar103303 extends Launcher
 		
 		if(this.gtfuri==null)
 			{
-			return wrapException("GTF input misssing");
+			LOG.error("GTF input misssing");
+			return -1;
 			}
 		SamReader samReader=null;
 		SAMRecordIterator iter=null;
@@ -297,20 +298,22 @@ public class Biostar103303 extends Launcher
 				}
 			else if(args.isEmpty())
 				{
-				File filename=new File(args.get(0));
+				final File filename=new File(args.get(0));
 				LOG.info("Reading from "+filename);
 				samReader=srf.open(filename);
 				}
 			else
 				{
-				return wrapException("Illegal number of arguments.");
+				LOG.error("Illegal number of arguments.");
+				return -1;
 				}
 			
 			this.readGTF(gtfuri,samReader.getFileHeader().getSequenceDictionary());
 			
 			if(this.exonMap.isEmpty())
 				{
-				return wrapException("no exon found");
+				LOG.error("no exon found");
+				return -1;
 				}
 			iter=samReader.iterator();
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader().getSequenceDictionary());
@@ -474,7 +477,8 @@ public class Biostar103303 extends Launcher
 			}
 		catch (Exception e)
 			{
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
 		finally
 			{

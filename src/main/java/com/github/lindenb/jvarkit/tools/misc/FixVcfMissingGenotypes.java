@@ -35,8 +35,6 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -51,7 +49,6 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -63,29 +60,103 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
+
+/**
+
+BEGIN_DOC
+
+
+
+
+
+### Example
+
+
+
+
+```
+
+$ yourtool-mergingvcf 1.vcf 2.vcf 3.vcf > merged.vcf
+$ find ./ -name "*.bam" > bams.list
+$  java -jar dist/fixvcfmissinggenotypes.jar -f bams.list < merged.vcf > out.vcf
+
+```
+
+
+
+
+
+```
+
+$ find DIR1 -name "PREFIX_*_variations.gatk.annotations.vcf.gz" |\
+grep -E '(S1|S2|S3|S4)' |\
+xargs perl  vcftools_0.1.12b/perl vcftools_0.1.12b/bin/vcf-merge |\
+java -jar dist/fixvcfmissinggenotypes.jar -d 10 -f <( find DIR1 -name "PREFIX_*final.bam"  | grep -E '(S1|S2|S3|S4)' ) |\
+gzip --best > out.vcf.gz
+
+```
+
+
+
+
+
+### See also
+
+
+
+ *  https://www.biostars.org/p/119007/
+
+
+
+
+### History
+
+
+
+ *  2014: Creation
+
+
+
+
+END_DOC
+*/
+
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="fixvcfmissinggenotypes",description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.")
+
+public class FixVcfMissingGenotypes extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(FixVcfMissingGenotypes.class);
-	
-	public FixVcfMissingGenotypes()
-		{
-		
-		}
+	private static final Logger LOG = Logger.build(FixVcfMissingGenotypes.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-d","--depth"},description="min depth")
+	private int minDepth = 10 ;
+
+	@Parameter(names={"-B","--bams"},description=">path of indexed BAM path with read Groups. You can put those paths in a text file having a *.list sufffix")
+	private List<String> bamList=new ArrayList<>();
+
 	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
+	public int doWork(List<String> args) {
 		VcfIterator in=null;
 		try {
-			final Set<File> bamFiles=  IOUtils.unrollFileCollection(super.bamList);
+			final Set<String> bamFiles=  IOUtils.unrollFiles(bamList);
 			final Map<String,Set<File>> sample2bam=new HashMap<>(bamFiles.size());
 
-			final SamReaderFactory srf=SamReaderFactory.makeDefault();
-			srf.validationStringency(ValidationStringency.SILENT);
 			
-			for(final File bam: bamFiles)
+			for(final String bamFile: bamFiles)
 				{
-				LOG.info("Reading header for "+bam);
-				final SamReader reader=srf.open(bam);
+				LOG.info("Reading header for "+bamFile);
+				final SamReader reader=super.openSamReader(bamFile);
 				final SAMFileHeader header=reader.getFileHeader();
 				for(final SAMReadGroupRecord g:header.getReadGroups())
 					{
@@ -98,14 +169,14 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 						set=new HashSet<>();
 						sample2bam.put(sample,set);
 						}
-					set.add(bam);
+					set.add(new File(bamFile));
 					}
 				reader.close();
 				}
-			in =  openVcfIterator(inputName);
+			in =  openVcfIterator(oneFileOrNull(args));
 			
-			final File tmpFile1 = File.createTempFile("fixvcf", ".vcf",getTmpDirectories().get(0));
-			final File tmpFile2 = File.createTempFile("fixvcf", ".vcf",getTmpDirectories().get(0));
+			final File tmpFile1 = File.createTempFile("fixvcf", ".vcf");
+			final File tmpFile2 = File.createTempFile("fixvcf", ".vcf");
 			VCFHeader header=in.getHeader();
 			VCFHeader h2=new VCFHeader(header);
 			final String FIXED_TAG="FXG";
@@ -131,7 +202,7 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 				for(File bam:bams)
 					{
 					LOG.info("Opening "+bam);
-					samReaders.add(srf.open(bam));
+					samReaders.add(super.openSamReader(bam.getPath()));
 					}
 				final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
 				final VariantContextWriter w = VCFUtils.createVariantContextWriter(i%2==0?tmpFile1:tmpFile2);	
@@ -233,7 +304,7 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 				h2= in.getHeader();
 				}
 			
-			final VariantContextWriter w = super.openVariantContextWriter();
+			final VariantContextWriter w = super.openVariantContextWriter(this.outputFile);
 			w.writeHeader(h2);
 			while(in.hasNext())
 				{
@@ -247,7 +318,8 @@ public class FixVcfMissingGenotypes extends AbstractFixVcfMissingGenotypes
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

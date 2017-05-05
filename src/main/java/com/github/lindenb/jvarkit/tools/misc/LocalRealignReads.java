@@ -12,8 +12,8 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.lang.SubSequence;
@@ -22,9 +22,28 @@ import com.github.lindenb.jvarkit.util.bio.RevCompCharSequence;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class LocalRealignReads extends AbstractLocalRealignReads
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="localrealignreads",description="Local Realignment of Reads")
+public class LocalRealignReads extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(LocalRealignReads.class);
+	private static final Logger LOG = Logger.build(LocalRealignReads.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference")
+	private File faidxFile = null;
+	
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
+	
+
 	private int MIN_ALIGN_LEN=15;
 	
 	
@@ -60,10 +79,11 @@ public class LocalRealignReads extends AbstractLocalRealignReads
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		if(super.faidxFile==null)
+	public int doWork(List<String> args) {
+		if(this.faidxFile==null)
 			{
-			return wrapException("REFerence file missing;");
+			LOG.error("REFerence file missing;");
+			return -1;
 			}
 		IndexedFastaSequenceFile  indexedFastaSequenceFile =null;
 		SamReader samReader =null;
@@ -74,11 +94,11 @@ public class LocalRealignReads extends AbstractLocalRealignReads
 		try {
 			indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidxFile);
 			
-			samReader  = openSamReader(inputName);
+			samReader  = openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header1 = samReader.getFileHeader();
 			final SAMFileHeader header2 = header1.clone();
 			header2.setSortOrder(SortOrder.unsorted);
-			w = openSAMFileWriter(header2, true);
+			w = this.writingBamArgs.setReferenceFile(faidxFile).openSAMFileWriter(outputFile,header2, true);
 			final SAMSequenceDictionaryProgress progress = new  SAMSequenceDictionaryProgress(header1);
 			iter = samReader.iterator();
 			while(iter.hasNext())
