@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -11,6 +12,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.Genotype;
@@ -19,6 +21,7 @@ import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.Pedigree;
@@ -26,6 +29,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -46,6 +50,8 @@ public class VCFComposite extends Launcher {
 	private Type modelType=null;
 	@Parameter(names={"-models"},description="List the available models and exits",help=true)
 	private boolean listModels=false;
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 
 	
 	
@@ -100,8 +106,18 @@ public class VCFComposite extends Launcher {
 	
 	
 	public static enum Type {
-		RecessiveHomVar,
-		RecessiveComposite
+		//RecessiveHomVar(""),
+		RecessiveComposite("child carry at least two HET variant in the same gene unit.")
+		;
+		
+		private final String desc;
+		Type(final String desc ) {
+			this.desc = desc;
+		}
+		
+		public String getDescription() {
+			return desc;
+		}
 	};
 	
 	private abstract class DiseaseModel
@@ -125,7 +141,9 @@ public class VCFComposite extends Launcher {
 				}).collect(Collectors.toList());
 			}
 		public abstract boolean accept(final VariantContext ctx);
-		public abstract void scan(final String geneName,List<VariantContext> variants);
+		
+		
+		public abstract void scan(final String geneName,List<VariantContext> variants,PrintWriter out);
 		}
 	
 	private class RecessiveHomVar extends DiseaseModel
@@ -136,14 +154,16 @@ public class VCFComposite extends Launcher {
 			if(getGenotypesOfUnaffected(ctx).stream().anyMatch(G->G.isHomVar())) return false;
 			return true;
 			}
-		public void scan(final String geneName,List<VariantContext> variants)
+		@Override public void scan(final String geneName,List<VariantContext> variants,PrintWriter out)
 			{
 			LOG.info(geneName);
 			}
 		}
+	/* affected individual contains at least two HET variants  */
 	private class RecessiveComposite extends DiseaseModel
 		{
-		protected boolean isGenotypeForAffected(Genotype g)
+		/** affected can be HET or HOM_VAR */
+		private boolean isGenotypeForAffected(final Genotype g)
 			{
 			if(g==null) return false;
 			return g.isHet() || g.isHomVar();
@@ -155,21 +175,28 @@ public class VCFComposite extends Launcher {
 					anyMatch(G->isGenotypeForAffected(G))) return false;			
 			return true;
 			}
-		public void scan(final String geneName,List<VariantContext> variants)
+		
+		@Override
+		public void scan(final String geneName,final List<VariantContext> variants,final PrintWriter out)
 			{
 
 			if(variants.size()<2) return;
-			for(Pedigree.Person c: pedigree.getAffected()) {
+			/* loop over affected */
+			for(final Pedigree.Person c: pedigree.getAffected()) {
 				for(int x=0;x+1< variants.size();++x)
 					{
+					
 					final Genotype gcx = variants.get(x).getGenotype(c.getId());
+					// child variant  n°y  must be HOM_VAR or HET
 					if(gcx==null || !isGenotypeForAffected(gcx)) continue;
+					// search for the second snp
 					for(int y=x+1;y< variants.size();++y)
 						{
 						final Genotype gcy = variants.get(y).getGenotype(c.getId());
+						// child variant n°y must be HOM_VAR or HET
 						if(gcy==null || !isGenotypeForAffected(gcy)) continue;
 						boolean unaffected_are_ok=true;
-						//check unaffected don't have same haplotype
+						//check unaffected indididual don't have same haplotype
 						for(final Pedigree.Person unaffected: pedigree.getUnaffected()) {
 							final Genotype gux = variants.get(x).getGenotype(unaffected.getId());
 							final Genotype guy = variants.get(y).getGenotype(unaffected.getId());
@@ -178,15 +205,26 @@ public class VCFComposite extends Launcher {
 								guy.sameGenotype(gcy, true)
 								)
 								{
-								LOG.debug("same in unaffected");
 								unaffected_are_ok=false;
 								break;
 								}
 							}
 						if(unaffected_are_ok)
 							{
-							LOG.info(">>>>>>>>>>><<"+geneName);
-							
+							out.print(geneName);
+							out.print("\t");
+							out.print(c.getFamily());
+							out.print("\t");
+							out.print(c.getId());
+							out.print("\t");
+							out.print(new ContigPosRef(variants.get(x)));
+							out.print("\t");
+							out.print(gcx.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/")));
+							out.print("\t");
+							out.print(new ContigPosRef(variants.get(y)));
+							out.print("\t");
+							out.print(gcy.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/")));
+							out.println();
 							}
 						}
 					}
@@ -198,25 +236,28 @@ public class VCFComposite extends Launcher {
 	protected DiseaseModel createModel() {
 		if(this.modelType==null) throw new NullPointerException();
 		switch(this.modelType) {
-			case RecessiveHomVar: return new RecessiveHomVar();
+			//case RecessiveHomVar: return new RecessiveHomVar();
 			case RecessiveComposite: return new RecessiveComposite();
 			default: throw new IllegalStateException();
 			}
 		
 		}
 	@Override
-	public int doWork(final List<String> args)
-		{
-		if(listModels)
-			{
-			for(final Type t:Type.values()) {
-				stdout().print(t.name());
-				stdout().println();
-				}
-			return 0;
-			}
-
+	public int doWork(final List<String> args) {
+		PrintWriter out=null;
 		try {
+			out= super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			
+			if(listModels)
+				{
+				for(final Type t:Type.values()) {
+					out.println(t.name());
+					out.println("\t"+t.getDescription());
+					}
+				out.flush();
+				return 0;
+				}
+			
 			this.pedigree = Pedigree.newParser().parse(pedigreeFile);
 			
 			if(this.pedigree.getAffected().isEmpty()) {
@@ -276,7 +317,8 @@ public class VCFComposite extends Launcher {
 								variants.get(0).gene,
 								variants.stream().
 									map(L->codec.decode(L.ctxLine)).
-									collect(Collectors.toList())
+									collect(Collectors.toList()),
+								out
 								);
 							}
 						eqiter.close();
@@ -305,7 +347,8 @@ public class VCFComposite extends Launcher {
 					sorting = SortingCollection.newInstance(GeneAndVariant.class,
 							new GeneAndVariantCodec(),
 							(A,B)->{int i=A.gene.compareTo(B.gene);if(i!=0) return i;return A.ctxLine.compareTo(B.ctxLine);},
-							50000
+							this.writingSortingCollection.getMaxRecordsInRam(),
+							this.writingSortingCollection.getTmpDirectories()
 							);
 					sorting.setDestructiveIteration(true);
 					}
@@ -319,6 +362,9 @@ public class VCFComposite extends Launcher {
 					}
 				
 				}
+			out.flush();
+			out.close();
+			out=null;
 			return 0;
 			}
 		catch(Exception err)
@@ -328,7 +374,7 @@ public class VCFComposite extends Launcher {
 			}
 		finally
 			{
-			
+			CloserUtil.close(out);
 			}
 		}
 	public static void main(String[] args) {

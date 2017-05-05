@@ -37,6 +37,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -81,7 +82,6 @@ public class Pedigree
 				default:throw new IllegalStateException();
 				}
 			}
-		
 		}
 	
 	public interface Family extends Comparable<Family>
@@ -414,36 +414,6 @@ public class Pedigree
 		return getPersons().stream().filter(P->P.getStatus()==Status.unaffected).collect(Collectors.toSet());
 		}
 	
-	private void build(final String famId,final String indiId,final String fatherId,final String motherId,final String sexxx,final String status)
-		{
-		FamilyImpl fam=this.families.get(famId);
-		if(fam==null)
-			{
-			fam=new FamilyImpl();
-			fam.id = famId;
-			this.families.put(famId, fam);
-			}
-		if(fam.getPersonById(indiId)!=null) throw new IllegalArgumentException("duplicate individual: "+String.join(" ; ", famId,indiId,fatherId,motherId,sexxx,status));
-		final PersonImpl p=new PersonImpl();
-		p.family=fam;
-		p.id=indiId;
-		p.fatherId=fatherId;
-		p.motherId=motherId;
-		
-		if(sexxx!=null)
-			{
-			if(sexxx.equals("1")) p.sex=Sex.male;
-			else if(sexxx.equals("2")) p.sex=Sex.female;
-			}
-		
-		if(status!=null)
-			{
-			if(status.equals("1")) p.status=Status.affected;
-			else if(status.equals("0")) p.status=Status.unaffected;
-			}
-		
-		fam.individuals.put(p.id, p);		
-		}
 	
 	
 	@Deprecated //use Pedigree.Parser.parse
@@ -500,11 +470,27 @@ public class Pedigree
 		return new Parser();
 		}
 	
+	/** how to interpret the 'affected' column */
+	public enum StatusModel implements Function<String, Status>{
+		un0af1() {
+			@Override
+			public Status apply(String status) {
+				if(status==null) return null;
+				if(status.equals("1")) return Status.affected;
+				else if(status.equals("0")) return Status.unaffected;	
+				return null;
+				}
+		};
+		
+	};
+	
+	public static final StatusModel DefaultStatusModel = StatusModel.un0af1;
+	
 	public static class Parser
 		{
-		final Pattern tab = Pattern.compile("[\t]");
-
-		
+		private final Pattern tab = Pattern.compile("[\t]");
+		private StatusModel statusModel = Pedigree.DefaultStatusModel;
+		private boolean statusRequired=false;
 		
 		public Pedigree parse(final File f) throws IOException
 			{
@@ -522,7 +508,17 @@ public class Pedigree
 			return ped;
 			}
 		
-		
+		public Parser statusModel(StatusModel statusModel)
+			{
+			this.statusModel = statusModel;
+			return this;
+			}
+		public Parser statusIsRequired(boolean statusRequired)
+			{
+			this.statusRequired = statusRequired;
+			return this;
+			}
+
 		private void read(final Pedigree ped,final String tokens[])
 			{
 			final String fam= tokens[0];
@@ -531,14 +527,51 @@ public class Pedigree
 			final String mother = tokens[3];
 			final String sex = (tokens.length>4?tokens[4]:"");
 			final String status = (tokens.length>5?tokens[5]:"");
-			ped.build(fam,indi,father,mother,sex,status);
+			build(ped,fam,indi,father,mother,sex,status);
 			}
-
+		
 		
 		public Pedigree parse(final VCFHeader h)
 			{
 			return this.parse(h.getMetaDataInInputOrder());
 			}
+		
+		private void build(final Pedigree ped,final String famId,final String indiId,final String fatherId,final String motherId,final String sexxx,final String status)
+			{
+			FamilyImpl fam=ped.families.get(famId);
+			if(fam==null)
+				{
+				fam=ped.new FamilyImpl();
+				fam.id = famId;
+				ped.families.put(famId, fam);
+				}
+			if(fam.getPersonById(indiId)!=null) throw new IllegalArgumentException("duplicate individual: "+String.join(" ; ", famId,indiId,fatherId,motherId,sexxx,status));
+			final PersonImpl p=ped.new PersonImpl();
+			p.family=fam;
+			p.id=indiId;
+			p.fatherId=fatherId;
+			p.motherId=motherId;
+			
+			if(sexxx!=null)
+				{
+				if(sexxx.equals("1")) p.sex=Sex.male;
+				else if(sexxx.equals("2")) p.sex=Sex.female;
+				}
+			
+			if(status!=null)
+				{
+				final Status st= this.statusModel.apply(status);
+				if(st!=null ) p.status=st;
+				}
+			else if(this.statusRequired) {
+				throw new IllegalArgumentException("status must be declared");
+				}
+			
+			
+			fam.individuals.put(p.id, p);		
+			}
+
+		
 		
 		/** should be readPedigree(header.getMetaDataInInputOrder()) */
 		public Pedigree parse(final Collection<VCFHeaderLine> metadata)
@@ -600,7 +633,7 @@ public class Pedigree
 					}
 				if(familyId==null) throw new IllegalArgumentException("Family undefined  in " +value);
 				if(indiId==null) throw new IllegalArgumentException("ID undefined in " +value);
-				ped.build(familyId,indiId,fatherId,motherId,sexx,status);
+				build(ped,familyId,indiId,fatherId,motherId,sexx,status);
 				}
 			return ped;
 			}
