@@ -1,3 +1,31 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+History:
+* 2014 creation
+
+*/
 package com.github.lindenb.jvarkit.util.jcommander;
 
 import java.awt.BorderLayout;
@@ -56,6 +84,7 @@ import com.beust.jcommander.converters.IntegerConverter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -90,28 +119,58 @@ protected static final int RETURN_OK=0;
 public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 
 
-/** custom instance of jcommander, don't add same command twice. */
-private class MyJCommander extends JCommander
+/** need to decouple from Launcher for JXF applications that cannot extends 'Launcher' */
+public static  class UsageBuider
 	{
-	/** when registering the option for jcommander, we take care of not visiting object twice */
-	private Collection<Object> ojectsVisitedByJCommander = new ArrayList<>();
+	/** git hash in the manifest */
+	private String gitHash = null;
+	/** compile date in the manifest */
+	private String compileDate = null;
+	/** main class */
+	private Class<?> mainClass=Object.class;
+	
+	@Parameter(names = {"-h","--help"},description="print help and exits", help = true)
+	public boolean print_help = false;
+	@Parameter(names = {"--markdownhelp"},description="print Markdown help and exits", help = true,hidden=true)
+	public boolean print_markdown_help = false;
+
+	@Parameter(names = {"--version"}, help = true,description="print version and exits")
+	public boolean print_version = false;
+
+	public UsageBuider(Class<?> mainClass) {
+		this.mainClass = mainClass;
+	}
+	
+	public boolean shouldPrintUsage() {
+		return this.print_help || this.print_markdown_help;
+	}
+	
+	public void usage(final JCommander jc) {
+		System.out.println(getUsage(jc));
+		}
 
 	
-	@Override
-	public void usage(final StringBuilder sb) {
-		final Class<?> clazz=Launcher.this.getClass();
+	public String getUsage(final JCommander jc) {
+		final StringBuilder sb=new StringBuilder();
+		this.usage(jc,sb);
+		return sb.toString();
+		}
+	
+	public void usage(final JCommander jc,final StringBuilder sb) {
+
+		final Class<?> clazz=getMainClass();
 		
-		final Program programdesc=clazz.getAnnotation(Program.class);
+		final Program programdesc = clazz.getAnnotation(Program.class);
 		
 		if(programdesc!=null){
-			this.setProgramName(programdesc.name());
+			jc.setProgramName(programdesc.name());
 		} else
 			{
-			this.setProgramName(Launcher.this.getProgramName());
+			jc.setProgramName(clazz.getSimpleName());
 			}
 		
 		if(print_markdown_help) sb.append("\n```\n");
-		super.usage(sb);
+		jc.usage(sb);
 		if(print_markdown_help) sb.append("\n```\n\n");
 
 		if(programdesc!=null){
@@ -242,7 +301,93 @@ private class MyJCommander extends JCommander
 			{
 			CloserUtil.close(in);
 			}
+		
 		}
+	
+	public Class<?> getMainClass()
+		{
+		return mainClass;
+		}
+	
+	public String getCompileDate()
+		{
+		if(this.compileDate==null)
+			{
+			this.compileDate="undefined";
+			loadManifest();
+			}
+		return compileDate;
+		}
+
+	public String getGitHash()
+		{
+		if(this.gitHash==null)
+			{
+			this.gitHash="1.0";
+			loadManifest();
+			}
+		return this.gitHash;
+		}
+	public String getVersion()
+		{
+		return getGitHash();
+		}
+	
+	
+	private void loadManifest()
+		{
+		try
+			{
+			final Enumeration<URL> resources = getMainClass().getClassLoader()
+					  .getResources("META-INF/MANIFEST.MF");//not '/META-INF'
+			while (resources.hasMoreElements())
+				{
+				final URL url=resources.nextElement();
+				InputStream in=url.openStream();
+				if(in==null)
+					{
+					continue;
+					}
+				
+				Manifest m=new Manifest(in);
+				in.close();
+				in=null;
+				final java.util.jar.Attributes attrs=m.getMainAttributes();
+				if(attrs==null)
+					{
+					continue;
+					}
+				String s =attrs.getValue("Git-Hash");
+				if(s!=null && !s.isEmpty() && !s.contains("$")) //ant failed
+					{
+					this.gitHash=s;
+					}
+				s =attrs.getValue("Compile-Date");
+				if(s!=null && !s.isEmpty()) //ant failed
+					{
+					this.compileDate=s;
+					}
+				}
+			}	
+		catch(Exception err)
+			{
+			
+			}
+		
+		}
+
+	}
+
+@ParametersDelegate
+private UsageBuider usageBuilder = null;
+
+/** custom instance of jcommander, don't add same command twice. */
+private class MyJCommander extends JCommander
+	{
+	/** when registering the option for jcommander, we take care of not visiting object twice */
+	private Collection<Object> ojectsVisitedByJCommander = new ArrayList<>();
+
+	
 	
 	@Override
 	public void addCommand(String name, Object object, String... aliases) 
@@ -298,18 +443,7 @@ extends IntegerConverter implements Function<String, Integer> {
 /** original arc/argv */
 private List<String> argcargv=Collections.emptyList();
 private final JCommander jcommander = new MyJCommander();
-/** git hash in the manifest */
-private String gitHash = null;
-/** compile date in the manifest */
-private String compileDate = null;
 
-@Parameter(names = {"-h","--help"},description="print help and exits", help = true)
-private boolean print_help = false;
-@Parameter(names = {"--markdownhelp"},description="print Markdown help and exits", help = true,hidden=true)
-private boolean print_markdown_help = false;
-
-@Parameter(names = {"--version"}, help = true,description="print version and exits")
-private boolean print_version = false;
 @Parameter(description = "Files")
 private List<String> files = new ArrayList<>();
 
@@ -612,6 +746,7 @@ public static class VcfWriterOnDemand
 		}
 	}
 
+@SuppressWarnings("serial")
 public static class JConsole extends JFrame
 	{
 	private final Preferences prefs;
@@ -663,7 +798,6 @@ public static class JConsole extends JFrame
 		
 		}
 	
-	@SuppressWarnings("serial")
 	JConsole(Class<? extends Launcher> clazz) {
 		super("JConsole");
 		
@@ -820,7 +954,7 @@ public static class JConsole extends JFrame
 			return;
 			}
 		Runner run =new Runner();
-		final Launcher instance;
+		//final Launcher instance;
 		try {
 			run.instance = this.clazz.newInstance();
 			}
@@ -906,6 +1040,7 @@ public static class JConsole extends JFrame
 public Launcher()
 	{
 	final Class<?> clazz=Launcher.this.getClass();
+	this.usageBuilder = new UsageBuider(clazz);
 	final Program programdesc=clazz.getAnnotation(Program.class);
 	if(programdesc!=null)
 		{
@@ -936,7 +1071,8 @@ public Launcher()
 	catch(final java.security.AccessControlException err) {
 	}
 	
-	 final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
+	 @SuppressWarnings({"rawtypes","unchecked","serial"})
+	final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
 		    put(VcfWriterOnDemand.class, VcfWriterOnDemandConverter.class);
 		    put(VariantContextWriter.class, VcfWriterOnDemandConverter.class);
 		    put(Dimension.class,DimensionConverter.class);
@@ -944,8 +1080,9 @@ public Launcher()
 		    put(Random.class,RandomConverter.class);
 		}};	
 	this.jcommander.addConverterFactory(new IStringConverterFactory() {
+			@SuppressWarnings("unchecked")
 			@Override
-			public Class<? extends IStringConverter<?>> getConverter(Class forType) {		
+			public Class<? extends IStringConverter<?>> getConverter(@SuppressWarnings("rawtypes") Class forType) {		
 				return MAP.get(forType);
 				}
 			});
@@ -961,71 +1098,20 @@ public String getProgramName()
 
 public String getCompileDate()
 	{
-	if(this.compileDate==null)
-		{
-		this.compileDate="undefined";
-		loadManifest();
-		}
-	return compileDate;
+	return this.usageBuilder.getCompileDate();
 }
 
 public String getGitHash()
 {
-if(this.gitHash==null)
-	{
-	this.gitHash="1.0";
-	loadManifest();
-	}
-return this.gitHash;
+	return this.usageBuilder.getGitHash();
 }
 
 public String getVersion()
 {
-return getGitHash();
+	return this.usageBuilder.getVersion();
 }
 
 
-private void loadManifest()
-	{
-	try
-		{
-		final Enumeration<URL> resources = getClass().getClassLoader()
-				  .getResources("META-INF/MANIFEST.MF");//not '/META-INF'
-		while (resources.hasMoreElements())
-			{
-			final URL url=resources.nextElement();
-			InputStream in=url.openStream();
-			if(in==null)
-				{
-				continue;
-				}
-			
-			Manifest m=new Manifest(in);
-			in.close();
-			in=null;
-			final java.util.jar.Attributes attrs=m.getMainAttributes();
-			if(attrs==null)
-				{
-				continue;
-				}
-			String s =attrs.getValue("Git-Hash");
-			if(s!=null && !s.isEmpty() && !s.contains("$")) //ant failed
-				{
-				this.gitHash=s;
-				}
-			s =attrs.getValue("Compile-Date");
-			if(s!=null && !s.isEmpty()) //ant failed
-				{
-				this.compileDate=s;
-				}
-			}
-		}	
-	catch(Exception err)
-		{
-		
-		}
-	
-}
 
 
 
@@ -1067,8 +1153,8 @@ protected Status parseArgs(final String args[])
 		return Status.EXIT_FAILURE; 
 	 	}
 	 
-	 if (this.print_help || this.print_markdown_help) return Status.PRINT_HELP;
-	 if (this.print_version) return Status.PRINT_VERSION;
+	 if (this.usageBuilder.shouldPrintUsage()) return Status.PRINT_HELP;
+	 if (this.usageBuilder.print_version) return Status.PRINT_VERSION;
 	 return Status.OK;
 	}
 
@@ -1268,8 +1354,8 @@ public int instanceMain(final String args[]) {
 			{
 			case EXIT_FAILURE: return -1;
 			case EXIT_SUCCESS: return 0;
-			case PRINT_HELP: getJCommander().usage(); return 0;
-			case PRINT_VERSION: return 0;
+			case PRINT_HELP: this.usageBuilder.usage(getJCommander()); return 0;
+			case PRINT_VERSION: System.out.println(getVersion());return 0;
 			case OK:break;
 			}
 		
@@ -1415,7 +1501,7 @@ protected static class StringToMd5 implements Function<String, String>
 	}
 /** extract case controls in VCF header injected with VcfInjectPedigree */
 protected java.util.Set<com.github.lindenb.jvarkit.util.Pedigree.Person> getCasesControlsInPedigree(final htsjdk.variant.vcf.VCFHeader header) {
-	final com.github.lindenb.jvarkit.util.Pedigree pedigree = com.github.lindenb.jvarkit.util.Pedigree.readPedigree(header);
+	final com.github.lindenb.jvarkit.util.Pedigree pedigree = Pedigree.newParser().parse(header);
 	if(pedigree.isEmpty())
 		{
 		throw new IllegalArgumentException("No pedigree found in header. use VcfInjectPedigree to add it");

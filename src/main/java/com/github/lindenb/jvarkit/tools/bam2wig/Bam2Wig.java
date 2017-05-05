@@ -35,6 +35,7 @@ import java.util.List;
 
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMRecord;
@@ -44,6 +45,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -112,18 +114,17 @@ public class Bam2Wig extends Launcher
 	@Parameter(names={"-w","--windowSize"},description="window size")
 	private int WINDOW_SIZE = 100 ;
 
-	@Parameter(names={"-q","--mapq"},description="min MAPQ")
-	private int min_qual = 0 ;
-
 	@Parameter(names={"-i","--integer"},description="cast to integer")
 	private boolean cast_to_integer = false;
 
 	@Parameter(names={"-g","--zerolength"},description="minimal zero-coverage length before writing a new header")
 	private int min_gap = 200 ;
 
-	@Parameter(names={"-d","--zerolength"},description="minimal depth before setting depth to zero")
+	@Parameter(names={"-d","--mindepth"},description="minimal depth before setting depth to zero")
 	private int min_depth = 0 ;
 
+	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter samRecordFilter = SamFilterParser.ACCEPT_ALL;
 
 	
 	public Bam2Wig()
@@ -156,8 +157,7 @@ public class Bam2Wig extends Launcher
 				rec=iter.next();
 				progess.watch(rec);
 				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.getMappingQuality()==0) continue;
-				if(rec.getMappingQuality()< min_qual) continue;
+				if(samRecordFilter.filterOut(rec)) continue;
 				}
 			
 			if(		rec==null ||
@@ -309,7 +309,7 @@ public class Bam2Wig extends Launcher
 			catch(final Exception err)
 				{
 				LOG.error(err);
-				return wrapException(err);
+				return -1;
 				}
 			finally
 				{

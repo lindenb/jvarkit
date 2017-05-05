@@ -56,6 +56,7 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Genotype;
@@ -64,6 +65,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -109,6 +111,9 @@ public class BamToSVG extends Launcher
 	@Parameter(names={"--groupby"},description="Group Reads by")
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
 
+	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter samRecordFilter = SamFilterParser.ACCEPT_ALL;
+	
 	
 		private int HEIGHT_RULER=200;
 		private Hershey hershey=new Hershey();
@@ -228,12 +233,13 @@ public class BamToSVG extends Launcher
 			tfr.close();
 			}
 		
-		private void readBamStream(SAMRecordIterator iter) throws IOException
+		private void readBamStream(final SAMRecordIterator iter) throws IOException
 			{
 			while(iter.hasNext())
 				{
-				SAMRecord rec = iter.next();
+				final SAMRecord rec = iter.next();
 				if(rec.getReadUnmappedFlag()) continue;
+				if( this.samRecordFilter.filterOut(rec)) continue;
 				if( !rec.getReferenceName().equals(this.interval.getChrom())) continue;
 				if( right(rec)  < this.interval.getStart()) continue;
 				if( left(rec)  > this.interval.getEnd())continue;

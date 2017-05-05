@@ -12,9 +12,11 @@ import javax.imageio.ImageIO;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher.UsageBuider;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -40,7 +42,6 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.WritableImage;
@@ -50,8 +51,31 @@ import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 
-@Program(name="casectrljfx")
-public class CaseControlJfx extends Launcher {
+/**
+BEGIN_DOC
+
+### Example
+
+```
+java -jar dist/casectrljfx.jar --pedigree  mutations.ped mutations.vcf
+```
+### See also:
+
+  * https://twitter.com/yokofakun/status/860495863633805312
+
+## screenshot
+
+![screenshot](https://pbs.twimg.com/media/C_EYa54W0AAopkl.jpg)
+
+
+END_DOC
+ */
+@Program(
+	name="casectrljfx",
+	description="display jfx chart of case/control maf from a VCF and a pedigree",
+	keywords={"vcf","pedigree","case","control","visualization","jfx","chart","maf"}
+	)
+public class CaseControlJfx extends Application {
 	
 	private static final Logger LOG = Logger.build(CaseControlJfx.class).make();
 
@@ -231,19 +255,17 @@ public class CaseControlJfx extends Launcher {
 			}
 		}
 	
+	
 	private enum SelectSamples { all,males,females};
 	
-	public static class Viewer extends Application
-		{
-		final TextField tfVcfPath=new TextField();
-		@Parameter(names={"-h","--help"},description="Show Help",help=true)
-		boolean help=false;
-
+	@ParametersDelegate
+	private Launcher.UsageBuider usageBuider=null;
+	
 		@Parameter(description = "Files")
 		List<String> args = new ArrayList<>();
 		@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree File. If not defined, try to use the pedigree inserted in the VCF header.")
 		File pedigreeFile = null;
-		@Parameter(names={"-partition","--partition"},description="partition type. How series are built.")
+		@Parameter(names={"-partition","--partition"},description="partition type. How series are built. For example 'variantType' will produces some series for INDEL, SNP, etc... ")
 		VariantPartitionType partitionType=VariantPartitionType.variantType;
 		@Parameter(names={"-nchr","--nocallishomref"},description="treat no call as HomRef")
 		boolean no_call_is_homref=false;
@@ -253,13 +275,13 @@ public class CaseControlJfx extends Launcher {
 		boolean ignore_gt_filtered=false;
 		@Parameter(names={"--legendside"},description="Legend side")
 		Side legendSide = Side.RIGHT;
-		@Parameter(names={"--tooltip"},description="add tooltip (consummes more memory)")
+		@Parameter(names={"--tooltip"},description="add mouse Tooltip the point (requires more memory)")
 		boolean add_tooltip = false;
-		@Parameter(names={"--limit"},description="Limit to 'N' variants. negative==no limit")
+		@Parameter(names={"--limit"},description="Limit to 'N' variants. negative==no limit; All point are loaded in memory. The more variants you have, the more your need memory")
 		int limit_to_N_variants = -1;
-		@Parameter(names={"--sex"},description="Select samples on their gender")
+		@Parameter(names={"--sex"},description="Select/Filter samples on their gender.")
 		SelectSamples selectSamples=SelectSamples.all;
-		@Parameter(names={"--title"},description="Default title")
+		@Parameter(names={"--title"},description="Default title for the graph")
 		String userTitle=null;
 		@Parameter(names={"--opacity"},description="Point opaciy [0-1]")
 		double dataOpacity=0.4;
@@ -267,6 +289,11 @@ public class CaseControlJfx extends Launcher {
 		File outputFile=null;
 		@Parameter(names={"-mafTag","--mafTag"},description="Do not calculate MAF for controls, but use this tag to get Controls' MAF")
 		String controlTag =null;
+		
+		public CaseControlJfx()
+			{
+			this.usageBuider = new UsageBuider(this.getClass());
+			}
 		
 		@Override
 		public void start(final Stage primaryStage) throws Exception {
@@ -279,9 +306,9 @@ public class CaseControlJfx extends Launcher {
 				final List<String> unammed=this.getParameters().getUnnamed();
 				jCommander.parse(unammed.toArray(new String[unammed.size()]));
 				
-				if(help)
+				if(this.usageBuider.shouldPrintUsage())
 					{
-					jCommander.usage();
+					this.usageBuider.usage(jCommander);
 					Platform.exit();
 					return;
 					}
@@ -389,7 +416,7 @@ public class CaseControlJfx extends Launcher {
 							}
 						if(mafs[0]==null || mafs[1]==null) continue;
 						final XYChart.Data<Number,Number> data = new  XYChart.Data<Number,Number>(mafs[0],mafs[1]);
-						if(add_tooltip && this.outputFile==null)
+						if(this.add_tooltip && this.outputFile==null)
 							{
 							data.setExtraValue(ctx.getContig()+":"+ctx.getStart());
 							}
@@ -486,20 +513,19 @@ public class CaseControlJfx extends Launcher {
 	        	//http://stackoverflow.com/questions/14117867
 		        for(final XYChart.Series<Number,Number> series:partition.getSeries())
 			        {
-		        	
 		        	for (XYChart.Data<Number, Number> d : series.getData()) {
 		        		if(dataOpacity>=0 && dataOpacity<1.0)
 		        			{
 		        			d.getNode().setStyle(d.getNode().getStyle()+"-fx-opacity:0.3;");
 		        			}
 		        		if(this.add_tooltip) {
-		        			 	final Tooltip tooltip = new Tooltip();
-		        	            tooltip.setText(
-				                        String.format("%s (%f  = %f)",
-				                        		String.valueOf(d.getExtraValue()),
-				                                d.getXValue().doubleValue(), 
-				                                d.getYValue().doubleValue()));
-		        	            Tooltip.install(d.getNode(), tooltip);
+	        			 	final Tooltip tooltip = new Tooltip();
+	        	            tooltip.setText(
+			                        String.format("%s (%f / %f)",
+			                        		String.valueOf(d.getExtraValue()),
+			                                d.getXValue().doubleValue(), 
+			                                d.getYValue().doubleValue()));
+	        	            Tooltip.install(d.getNode(), tooltip);
 		        		}
 		            }
 			        }
@@ -532,26 +558,9 @@ public class CaseControlJfx extends Launcher {
             ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
 		 	}
 		
-		}
-	
-	
-	@Override
-	public int instanceMain(final String[] args) {
-		try {
-			Application.launch(Viewer.class, args);
-			return 0;
-		} catch (Exception err) {
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			
-			}
-		}
 	
 	public static void main(String[] args) {
-		new CaseControlJfx().instanceMain(args);
+		Application.launch(args);
 	}
 	
 	
