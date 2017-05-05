@@ -159,8 +159,14 @@ public class CaseControlJfx extends Launcher {
 			final String str ;
 			if(vc.hasLog10PError())
 				{		
-				int qual=10*(int)(vc.getPhredScaledQual()/10.0);
-				str=String.valueOf(qual);
+				int qual=(int)vc.getPhredScaledQual();
+				if(qual <10) str="<10";
+				else if(qual <20) str="<20";
+				else if(qual <30) str="<30";
+				else if(qual <40) str="<40";
+				else if(qual <50) str="<50";
+				else if(qual <100) str="<100";
+				else str=">=100";
 				}
 			else
 				{
@@ -237,9 +243,9 @@ public class CaseControlJfx extends Launcher {
 		List<String> args = new ArrayList<>();
 		@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree File. If not defined, try to use the pedigree inserted in the VCF header.")
 		File pedigreeFile = null;
-		@Parameter(names={"-partition","--partition"},description="partition type")
+		@Parameter(names={"-partition","--partition"},description="partition type. How series are built.")
 		VariantPartitionType partitionType=VariantPartitionType.variantType;
-		@Parameter(names={"-nchr","--nocallishomred"},description="treat no call as HomRef")
+		@Parameter(names={"-nchr","--nocallishomref"},description="treat no call as HomRef")
 		boolean no_call_is_homref=false;
 		@Parameter(names={"-filter","--filter"},description="Ignore FILTERed variants")
 		boolean ignore_ctx_filtered=false;

@@ -186,6 +186,7 @@ public class VCFComposite extends Launcher {
 						if(unaffected_are_ok)
 							{
 							LOG.info(">>>>>>>>>>><<"+geneName);
+							
 							}
 						}
 					}
