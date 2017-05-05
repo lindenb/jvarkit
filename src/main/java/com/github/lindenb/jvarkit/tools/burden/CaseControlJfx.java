@@ -265,7 +265,7 @@ public class CaseControlJfx extends Launcher {
 		double dataOpacity=0.4;
 		@Parameter(names={"-o","--out"},description="Save the image in a file and then exit.")
 		File outputFile=null;
-		@Parameter(names={"-mafTag","--mafTag"},description="Do not calculate MAF, but use this tag for Control")
+		@Parameter(names={"-mafTag","--mafTag"},description="Do not calculate MAF for controls, but use this tag to get Controls' MAF")
 		String controlTag =null;
 		
 		@Override

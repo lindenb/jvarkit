@@ -217,7 +217,7 @@ public class VCFComposite extends Launcher {
 			}
 
 		try {
-			this.pedigree = Pedigree.readPedigree(pedigreeFile);
+			this.pedigree = Pedigree.newParser().parse(pedigreeFile);
 			
 			if(this.pedigree.getAffected().isEmpty()) {
 				LOG.error("No Affected sample in "+this.pedigreeFile);
