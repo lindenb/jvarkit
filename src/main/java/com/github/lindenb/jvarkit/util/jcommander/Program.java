@@ -13,5 +13,7 @@ public @interface Program {
 	public String[] keywords() default {};
 	public String[] authors() default "Pierre Lindenbaum PhD @yokofakun";
 	public int[] biostars() default {};
+	/** shall we generate the Markdown Documentation ? */
+	public boolean generate_doc() default true;
 	public com.github.lindenb.semontology.Term[] terms() default {};
 }

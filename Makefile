@@ -97,6 +97,7 @@ $(1)  : ${htsjdk.jars} \
 		$(filter-out wiki_flag,$(filter-out galaxy_flag,$(3))) ${apache.commons.cli.jars} ${slf4j.jars} \
 		${dist.dir}/annotproc.jar
 	echo "### COMPILING $(1) ######"
+	rm -f ${tmp.dir}/markdown.flag
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
 	mkdir -p ${tmp.dir}/$(dir $(subst .,/,$(2)))
 	cp -v "$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" "${tmp.dir}/$(dir $(subst .,/,$(2)))"
@@ -133,6 +134,8 @@ $(1)  : ${htsjdk.jars} \
 	#compile
 	${JAVAC} \
 		-J-Djvarkit.libs.jars='$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))' \
+		-J-Djvarkit.main.class='$(2)' \
+		-J-Djvarkit.this.dir='${this.dir}' \
 		-processorpath ${dist.dir}/annotproc.jar \
 		-d ${tmp.dir} \
 		-g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))" \
@@ -162,8 +165,10 @@ else
 endif
 	echo '$$$$*' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
+	# generate markdown if needed
+	-if [ -e "${tmp.dir}/markdown.flag" ]  ; then  ${JAVA} -jar "${dist.dir}/$(1).jar" --markdownhelp > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ; fi
 	#cleanup
-	rm -rf ${tmp.dir}
+	rm -rf "${tmp.dir}"
 
 
 endef
@@ -787,11 +792,11 @@ $(word 1,${ga4gh.schemas.avpr}) : ${avro.libs}
 include jfx.mk
 
 ## Java annotation processing:
-${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/WebStartAnnotationProcessor.java
+${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/JVarkitAnnotationProcessor.java
 	mkdir -p $(dir $@) 
 	rm -rf "${tmp.dir}"
 	mkdir -p ${tmp.dir}/META-INF/services
-	echo "com.github.lindenb.jvarkit.annotproc.WebStartAnnotationProcessor" > ${tmp.dir}/META-INF/services/javax.annotation.processing.Processor
+	echo "com.github.lindenb.jvarkit.annotproc.JVarkitAnnotationProcessor" > ${tmp.dir}/META-INF/services/javax.annotation.processing.Processor
 	echo '### Printing javac version : it should be Oracle 1.8 (NOT OpenJDK). if Not, check your $$$${PATH}.'
 	${JAVAC} -version
 	#compile
