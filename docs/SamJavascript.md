@@ -1,3 +1,7 @@
+#SamJavascript
+
+
+## Usage
 
 ```
 Usage: samjs [options] Files

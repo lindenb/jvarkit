@@ -168,8 +168,8 @@ public static  class UsageBuider
 			{
 			jc.setProgramName(clazz.getSimpleName());
 			}
-		
-		if(print_markdown_help) sb.append("\n```\n");
+		if(print_markdown_help)  sb.append("#"+clazz.getSimpleName()+"\n\n");
+		if(print_markdown_help) sb.append("\n## Usage\n\n```\n");
 		jc.usage(sb);
 		if(print_markdown_help) sb.append("\n```\n\n");
 

@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 
@@ -111,7 +112,8 @@ END_DOC
 @Program(name="pubmedcodinglang",
 	description="Programming language use distribution from recent programs / articles",
 	keywords={"pubmed","xml","code","programming"},
-	biostars=251002
+	biostars=251002,
+	terms=Term.ID_0000015
 	)
 public class PubmedCodingLanguages
 	extends Launcher
