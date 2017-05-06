@@ -116,6 +116,7 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 									newDocumentBuilder().
 									parse(index_html);
 							Element tr= dom.createElement("tr");
+							tr.setAttribute("id", prog.name());
 							// name
 							Element td = dom.createElement("th");
 							tr.appendChild(td);
@@ -155,9 +156,9 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 							
 							
 							final XPath xpath = XPathFactory.newInstance().newXPath();
-							final NodeList nodeList=(NodeList)xpath.evaluate("//table/tbody/tr/th[1][text()='"+prog.name()+"']", dom, XPathConstants.NODESET);
+							final NodeList nodeList=(NodeList)xpath.evaluate("//table/tbody/tr[@id='"+prog.name()+"']", dom, XPathConstants.NODESET);
 							for(int i=0;i< nodeList.getLength();++i) {
-								Node oldTr= nodeList.item(i).getParentNode();
+								Node oldTr= nodeList.item(i);
 								if(tr!=null) {
 									oldTr.getParentNode().replaceChild(tr, oldTr);
 									tr=null;
