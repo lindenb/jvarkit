@@ -1,30 +1,17 @@
-# SamJavascript
+# Biostar105754
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: biostar105754 [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    -B, --bigwig
+      Big Wig file
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
     --version
       print version and exits
 
@@ -33,7 +20,12 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+bigwig : peak distance from specific genomic region
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/105754
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +42,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make biostar105754
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +60,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar105754.java
 
 ## Contribute
 
@@ -81,7 +73,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **biostar105754** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +83,16 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+## Example
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+```
+$  echo -e "1\t1000\t20000\n3\t100\t200\nUn\t10\t11"  |\
+  java -jar dist/biostar105754.jar -B path/to//All_hg19_RS_noprefix.b
+
+
+#no data found for	Un	10	11
+1	1000	1001	0.0	1	1000	20000
+3	100	101	0.0	3	100	200
+```
 
 

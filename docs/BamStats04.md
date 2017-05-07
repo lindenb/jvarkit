@@ -1,30 +1,28 @@
-# SamJavascript
+# BamStats04
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: bamstats04 [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+  * -B, --bed
+      Bed File. Required
+    -cov, --cov
+      min coverage to say the position is not covered
+      Default: 0
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
+    -keeporphan, --keeporphan
+      if set: accept not properly aligned pairs.
+      Default: false
+    -mmq, --mmq
+      min mapping quality
+      Default: 0
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -R, --ref
+      Optional REFerence Genome. If set, a column with the GC% will be added
     --version
       print version and exits
 
@@ -33,7 +31,15 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Coverage statistics for a BED file.
+
+##Keywords
+
+ * bam
+ * coverage
+ * statistics
+ * bed
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +56,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make bamstats04
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +74,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamstats04/BamStats04.java
 
 ## Contribute
 
@@ -81,7 +87,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **bamstats04** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +97,22 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+## Example
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+```
+$ java -jar dist/bamstats04.jar \
+	-B data.bed \
+	f.bam
+#chrom	start	end	length	mincov	maxcov	mean	nocoveragebp	percentcovered
+1	429665	429785	120	42	105	72.36666666666666	0	100
+1	430108	430144	36	9	9	9.0	0	100
+1	439811	439904	93	0	36	3.6451612903225805	21	77
+1	550198	550246	48	1325	1358	1344.4583333333333	0	100
+1	629855	629906	51	223	520	420.70588235294116	0	100
+1	689960	690029	69	926	1413	1248.9420289855072	0	100
+1	690852	690972	120	126	193	171.24166666666667	0	100
+1	787283	787406	123	212	489	333.9756097560976	0	100
+1	789740	789877	137	245	688	528.6715328467153	0	1
+```
 
 

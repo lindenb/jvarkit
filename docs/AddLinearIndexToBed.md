@@ -1,30 +1,17 @@
-# SamJavascript
+# AddLinearIndexToBed
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: addlinearindextobed [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
-    -o, --output
-      Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -o, --out
+      Output file or stdout
+  * -R, --reference
+      Indexed Reference File.
     --version
       print version and exits
 
@@ -33,7 +20,13 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.
+
+##Keywords
+
+ * bed
+ * reference
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +43,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make addlinearindextobed
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +61,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/AddLinearIndexToBed.java
 
 ## Contribute
 
@@ -81,7 +74,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **addlinearindextobed** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +84,18 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+## EXAMPLE
+ 
+```
+$ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta 
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+10000   1       10000   177417
+227417  1       227417  267719
+317719  1       317719  471368
+(...)
+3060255274      Y       23951428        28819361
+3095123207      Y       58819361        58917656
+3095271502      Y       58967656        59363566
+```
 
 

@@ -1,39 +1,44 @@
-# SamJavascript
+# PcrSliceReads
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: pcrslicereads [options] Files
   Options:
     --bamcompression
       Compression Level.
       Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    -B, --bed
+      bed file containing non-overlapping PCR fragments. Column name is 
+      required. 
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
-    -o, --output
-      Output file. Optional . Default: stdout
+    -o, --out
+      output file (or stdout)
+    --random
+       random seed
+      Default: java.util.Random@19af9a9
     --samoutputformat
       Sam output format.
       Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
     --version
       print version and exits
+    -a
+       if a read is mapped on multiple PCR fragments, how to resolve ambiguity
+      Default: closer
+      Possible Values: [zero, random, closer]
+    -c
+      clip read to their PCR fragments. see 
+      https://github.com/lindenb/jvarkit/wiki/PcrClipReads 
+      Default: false
 
 ```
 
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +55,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make pcrslicereads
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +73,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pcr/PcrSliceReads.java
 
 ## Contribute
 
@@ -81,7 +86,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **pcrslicereads** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +96,10 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+	out.println(" -a (strategy) if a read is mapped on multiple PCR fragments, how to resolve ambiguity ? default:"+this.ambiguityStrategy.name()+" . Where strategy is"); 
+	out.println("     "+AmbiguityStrategy.random.name() + " : choose a random fragment"); 
+	out.println("     "+AmbiguityStrategy.zero.name() + " : set MAPQ to zero and ignore."); 
+	out.println("     "+AmbiguityStrategy.closer.name() + " : choose PCR fragment closest to NGS-fragment boundaries."); 
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
 
 

@@ -1,39 +1,30 @@
-# SamJavascript
+# Biostar234230
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: XXXXX [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
     --version
       print version and exits
+    -s, --winshift
+      Shift each window by 's' bases
+      Default: 50
+    -w, --winsize
+      Window size
+      Default: 100
 
 ```
 
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Sliding Window : discriminate partial and fully contained fragments (from a bam file)  see https://www.biostars.org/p/234230/
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +41,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make XXXXX
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +59,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar234230.java
 
 ## Contribute
 
@@ -81,7 +72,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **XXXXX** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +82,28 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+Example:
+
+
+```
+$ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20110915_CEUtrio_b37_decoy_alignment/CEUTrio.HiSeq.WGS.b37_decoy.NA12892.clean.dedup.recal.bam" |  java -jar dist/biostar234230.jar 
+#contig	start	end	pairs_in_window	pairs_over_window	pairs_partial_overlap
+1	10000	10100	0	2	240
+1	10050	10150	4	615	274
+1	10100	10200	0	800	276
+1	10150	10250	0	216	649
+1	10200	10300	0	2982	809
+1	10250	10350	0	2918	207
+1	10300	10400	0	1923	2851
+1	10350	10450	0	227	4498
+1	10400	10500	0	31	1971
+(...)
+
+```
+
+
+
+
 
 

@@ -1,30 +1,27 @@
-# SamJavascript
+# VCFTrios
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: vcftrio [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    -A, --attribute
+      INFO Attribute name
+      Default: MENDEL
+    -f, --filter
+      filter name. create a filter in the FILTER column
+    -gf, --gfilter
+      genotype filter name. create a filter in the GENOTYPE column
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
+    -if, --inversefilter
+      inverse FILTER, flag variant having NO mendelian incompat.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+  * -p, --pedigree
+      Pedigree file
     --version
       print version and exits
 
@@ -33,7 +30,14 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Find mendelian incompatibilitie in a VCF
+
+##Keywords
+
+ * vcf
+ * mendelian
+ * pedigree
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +54,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make vcftrio
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +72,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcftrios/VCFTrios.java
 
 ## Contribute
 
@@ -81,7 +85,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcftrio** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +95,59 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+## Example
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+a pedigree file:
 
+```
+$  cat pedigree.txt 
+
+A	SAMPLE_P	0	0	0
+A	SAMPLE_M	0	0	0
+A	SAMPLE_E	SAMPLE_P	SAMPLE_M	0
+```
+
+
+find mendelian incompatibilities:
+
+```
+$  gunzip -c input.vcf.gz |\
+   java -jar dist/vcftrio.jar -p pedigree.txt | grep -E '(#CHROM|MENDEL=SAMPLE_E)' |\
+   verticalize 
+
+(...)
+>>> 23
+$1	#CHROM	X
+$2	POS	0573
+$3	ID	rs358
+$4	REF	G
+$5	ALT	A
+$6	QUAL	85.60
+$7	FILTER	PASS
+$8	INFO	MENDEL=SAMPLE_E
+$9	FORMAT	GT:DP:DP4:GP:GQ:PL
+$10	SAMPLE_E	0/1:11:6,0,5,0:97,0,122:97:96,0,118
+$11	SAMPLE_M	1/1:5:0,0,5,0:134,19,0:19:120,15,0
+$12	SAMPLE_P	1/1:6:0,0,6,0:136,22,0:22:121,18,0
+<<< 23
+(...)
+>>> 59
+$1	#CHROM	Y
+$2	POS	19
+$3	ID	rs5678
+$4	REF	CA
+$5	ALT	C,CAA
+$6	QUAL	31.86
+$7	FILTER	PASS
+$8	INFO	MENDEL=SAMPLE_E
+$9	FORMAT	GT:DP:DP4:GP:GQ
+$10	SAMPLE_E	2/2:80:3,0,43,34:.,.,108,.,203,0:99
+$11	SAMPLE_M	.
+$12	SAMPLE_P	1/1:53:0,0,27,26:81,99,0,.,.,.:81
+<<< 59
+
+```
+
+
+ 
 

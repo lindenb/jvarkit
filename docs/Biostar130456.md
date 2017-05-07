@@ -1,30 +1,23 @@
-# SamJavascript
+# Biostar130456
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: biostar130456 [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
+    -z, --homref
+      remove homzygote REF/REF
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+  * -p, --pattern
+      output file pattern. Must contain the word __SAMPLE__
+    -x, --uncalled
+      remove uncalled genotypes
+      Default: false
     --version
       print version and exits
 
@@ -33,7 +26,12 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Individual VCF files from main VCF file
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/130456
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +48,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make biostar130456
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +66,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar130456.java
 
 ## Contribute
 
@@ -81,7 +79,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **biostar130456** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +89,28 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+## Example
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+```
+bash
+$   curl -sL "https://raw.githubusercontent.com/arq5x/bedtools2/bc2f97d565c36a82c1a0b12f570fed4398001e5f/test/map/test.vcf" |\
+    java -jar dist/biostar130456.jar -x -z -p "sample.__SAMPLE__.vcf.gz" 
+sample.NA00003.vcf.gz
+sample.NA00001.vcf.gz
+sample.NA00002.vcf.gz
+
+$ gunzip -c sample.NA00003.vcf.gz
+(...)
+##source=myImputationProgramV3.1
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA00003
+chr1	10	rs6054257	G	A	29	PASS	AF=0.5;DB;DP=14;H2;NS=3	GT:DP:GQ:HQ	1/1:5:43
+chr1	20	rs6040355	A	G,T	67	PASS	AA=T;AF=0.333,0.667;DB;DP=10;NS=2	GT:DP:GQ	2/2:4:35
+chr1	130	microsat1	GTC	G,GTCT	50	PASS	AA=G;DP=9;NS=3	GT:DP:GQ	1/1:3:40
+chr2	130	microsat1	GTC	G,GTCT	50	PASS	AA=G;DP=9;NS=3	GT:DP:GQ	1/1:3:40
+```
+
+## See also
+
+ * GATK SelectVariants with option -sn 
 
 

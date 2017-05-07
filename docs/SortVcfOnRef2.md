@@ -1,39 +1,39 @@
-# SamJavascript
+# SortVcfOnRef2
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: sortvcfonref2 [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -R, --reference
+      Indexed fasta Reference
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exits
 
 ```
 
 
+##DEPRECATED
+
+use picard sortvcf
+
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Sort a VCF using the internal dictionary or an external reference order (Deprecated: use picard SortVcf).
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +50,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make sortvcfonref2
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +68,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sortvcfonref/SortVcfOnRef2.java
 
 ## Contribute
 
@@ -81,7 +81,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **sortvcfonref2** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +91,17 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+### Deprecated
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+Use picard SortVcf  http://broadinstitute.github.io/picard/command-line-overview.html#SortVcf.
+
+### Example
+
+```
+cat input.vcf |\
+   java -jar dist/sortvcfonref2.jar  -R ref.fa |\
+   bgzip -c > result.vcf.gz && \
+   tabix -p vcf -f result.vcf.gz
+```
 
 

@@ -1,30 +1,26 @@
-# SamJavascript
+# ExtendReferenceWithReads
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: extendrefwithreads [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    -f, --callingfraction
+      (0.0<float<=1.0) new base must have fraction greater than this number
+      Default: 0.8
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
-    -o, --output
-      Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -N, --mincontig
+      onsider only gaps in reference with size&gt;=N
+      Default: 100
+    -d, --mindepth
+      min depth
+      Default: 1
+    -o, --out
+      Output file or stdout
+  * -R, --reference
+      Indexed Reference Fasta
     --version
       print version and exits
 
@@ -33,7 +29,12 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Extending ends of sequences with the help of reads
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/148089
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +51,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make extendrefwithreads
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +69,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/extendref/ExtendReferenceWithReads.java
 
 ## Contribute
 
@@ -81,7 +82,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **extendrefwithreads** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -90,11 +91,24 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
+ 
+ ## Example
 
-## Motivation
+```
+$  java   -jar dist/extendrefwithreads.jar \
+     -R human_g1k_v37.fasta -f 0.3 \
+     f1.bam f2.bam f3.bam 2> /dev/null |\
+  cat -n | grep -E '(>|[atgc])' 
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+     1	>1
+   167	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNncgattaccctaacgctcac
+   168	cctaaccctcnccctntnccnncnncccnncttcttccgaTAACCCTAACCCTAACCCTA
+  3791	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNatt
+  3792	tatgcNctttntgctgtGATTCATGGCTGAAATCGTGTTTGACCAGCTATGTGTGTCTCT
+  8691	NNNNNNNNNNNNNNNNNNNNNNNNctagGATCCTTGAAGCGCCCCCAAGGGCATCTTCTC
+ 64089	TGGTGAGGGAAATTAGAACCACGACAATTTGGGAACTTAGCTTCTGCCctgctccNNNNN
+ 66589	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNgagtAGCTGAGACTAC
+ 
+ ```
 
 

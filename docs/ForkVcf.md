@@ -1,30 +1,32 @@
-# SamJavascript
+# ForkVcf
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: forkvcf [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    -n, --count
+      number of vcf files to generate
+      Default: 2
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
-    -o, --output
-      Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -m, --manifest
+      optional save produced vcf filenames in this file.
+    -maxRecordsInRam, --maxRecordsInRam
+      Max records in RAM
+      Default: 50000
+  * -o, --output
+      Output file Must contains __GROUPID__
+    -c, --splitbychunk
+      When this option is used, the variant are first saved in a temporary 
+      file, the number of variant is dividided by 'count' and the output files 
+      are lineray produced. The default is to dispatch the variants as they 
+      are coming in the stream.
+      Default: false
+    -T, --tmpDir
+      mp directory
+      Default: /tmp
     --version
       print version and exits
 
@@ -33,7 +35,7 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Fork a VCF.
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +52,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make forkvcf
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +70,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ForkVcf.java
 
 ## Contribute
 
@@ -81,7 +83,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **forkvcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +93,55 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+
+
+### Output
+
+Output filename (option -o) MUST contain the word __GROUPID__.
+
+
+
+### Example
+
+
+
+```
+$ 
+
+```
+
+
+
+
+
+
+```
+
+
+```
+
+cat input.vcf | java -jar dist/forkvcf.jar -n 3 -o "_tmp.__GROUPID__.vcf"
+[main] INFO jvarkit - opening VCF file "_tmp.00001.vcf" for writing
+[main] INFO jvarkit - opening VCF file "_tmp.00002.vcf" for writing
+[main] INFO jvarkit - opening VCF file "_tmp.00003.vcf" for writing
+
+$ wc _tmp.0000*
+   226   6819 143947 _tmp.00001.vcf
+   226   6819 140792 _tmp.00002.vcf
+   225   6161 125219 _tmp.00003.vcf
+   
+   
+   
+
+
+### See also
+
+
+ *  https://github.com/lindenb/jvarkit/wiki/SplitVcf
+
+
+
+
 
 

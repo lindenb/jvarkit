@@ -1,39 +1,55 @@
-# SamJavascript
+# BamToSVG
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: bam2svg [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'.
+      Default: Accept All/ Filter out nothing
+    --groupby
+      Group Reads by
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
+  * -i, --interval
+      interval
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    -c, --showclipping
+      Show clipping
+      Default: false
+    -S, --vcf
+      add VCF indexed with tabix. Optinal. the Samples's name must be the same 
+      than in the BAM
+      Default: []
     --version
       print version and exits
+    -w, --width
+      Page width
+      Default: 1000
 
 ```
 
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+BAM to raster graphics
+
+##Keywords
+
+ * bam
+ * alignment
+ * graphics
+ * visualization
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +66,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make bam2svg
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +84,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/BamToSVG.java
 
 ## Contribute
 
@@ -81,7 +97,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **bam2svg** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -89,12 +105,5 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
-
-
-## Motivation
-
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
 
 

@@ -1,30 +1,13 @@
-# SamJavascript
+# BamStats02View
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: bamstats02view [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
-    -o, --output
-      Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
     --version
       print version and exits
 
@@ -33,7 +16,7 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Statistics about the flags and reads in a BAM. Visualize date from BamStats02
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +33,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make bamstats02view
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +51,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamstats01/BamStats02View.java
 
 ## Contribute
 
@@ -81,7 +64,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **bamstats02view** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +74,37 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+Explore those statistics with a graphical user interface. Left-click shows a popup menu used to include/exclude categories.
+
+
+
+### Synopsis
+
+
+```
+$java -jar dist/bamstats02view.jar output_of_bamstats02.tsv
+```
+
+
+
+### Example
+
+
+```
+$java -jar dist/bamstats02view.jar output.tsv
+```
+
+
+![img](http://i.imgur.com/xC6grmV.jpg)
+
+![img](http://i.imgur.com/cjItYY0.jp)
+
+
+
+### See also
+
+BamStats02
+
 
 

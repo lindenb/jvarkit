@@ -1,30 +1,21 @@
-# SamJavascript
+# VcfTail
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: vcftail [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    -c, --bycontig
+      number of variants
+      Default: false
+    -n, --count
+      number of variants
+      Default: 10
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
-    -o, --output
-      Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -o, --out
+      Output vcf   or stdout
     --version
       print version and exits
 
@@ -33,7 +24,12 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+print the last variants of a vcf
+
+##Keywords
+
+ * vcf
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +46,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make vcftail
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +64,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfTail.java
 
 ## Contribute
 
@@ -81,7 +77,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcftail** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +87,16 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+## Example
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+```
+$  curl -s "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
+java -jar dist/vcftail.jar -n2 |\
+grep -v "##"| cut -f 1,2,4,5
+
+#CHROM  POS REF ALT
+chr1    935492  G   T
+chr1    1334052 CTAGAG  C
+```
 
 

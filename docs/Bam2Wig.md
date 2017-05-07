@@ -1,39 +1,53 @@
-# SamJavascript
+# Bam2Wig
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: bam2wig [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'.
+      Default: Accept All/ Filter out nothing
+    -t, --header
+      print a UCSC custom track header
+      Default: false
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
+    -i, --integer
+      cast to integer
+      Default: false
+    -d, --mindepth
+      minimal depth before setting depth to zero
+      Default: 0
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
     --version
       print version and exits
+    -s, --windowShift
+      window shift
+      Default: 25
+    -w, --windowSize
+      window size
+      Default: 100
+    -g, --zerolength
+      minimal zero-coverage length before writing a new header
+      Default: 200
 
 ```
 
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)
+
+##Keywords
+
+ * bam
+ * wig
+ * wiggle
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +64,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make bam2wig
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +82,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2wig/Bam2Wig.java
 
 ## Contribute
 
@@ -81,7 +95,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **bam2wig** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +105,41 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+## Example
+the input file
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+```bash
+java -jar dist/bam2wig.jar -w 1 -s 3 -i -t -L OFF examples/toy.bam
+```
+
+```
+track type=wiggle_0 name="__REPLACE_WIG_NAME__" description="__REPLACE_WIG_DESC__"
+fixedStep chrom=ref start=7 step=3 span=1
+1
+3
+3
+3
+1
+1
+0
+0
+1
+0
+2
+2
+1
+fixedStep chrom=ref2 start=1 step=3 span=1
+1
+2
+3
+4
+5
+6
+6
+5
+4
+3
+3
+```
 
 

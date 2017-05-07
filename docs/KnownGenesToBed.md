@@ -1,30 +1,30 @@
-# SamJavascript
+# KnownGenesToBed
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: kg2bed [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    -c, --cds
+      Hide CDSs
+      Default: false
+    -x, --exon
+      Hide Exons
+      Default: false
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
+    -i, --intron
+      Hide Introns
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -t, --transcript
+      Hide Transcript
+      Default: false
+    -u, --utr
+      Hide UTRs
+      Default: false
     --version
       print version and exits
 
@@ -33,7 +33,7 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+converts UCSC knownGenes file to BED.
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +50,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make kg2bed
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +68,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBed.java
 
 ## Contribute
 
@@ -81,7 +81,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **kg2bed** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +91,54 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+
+
+### Example
+
+
+
+```
+$ curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" |\
+  gunzip -c |\
+  java -jar dist/kg2bed.jar
+chr1	11873	14409	+	uc001aaa.3	TRANSCRIPT	uc001aaa.3
+chr1	11873	12227	+	uc001aaa.3	EXON	Exon 1
+chr1	12227	12612	+	uc001aaa.3	INTRON	Intron 1
+chr1	11873	12227	+	uc001aaa.3	UTR	UTR3
+chr1	12612	12721	+	uc001aaa.3	EXON	Exon 2
+chr1	12721	13220	+	uc001aaa.3	INTRON	Intron 2
+chr1	12612	12721	+	uc001aaa.3	UTR	UTR3
+chr1	13220	14409	+	uc001aaa.3	EXON	Exon 3
+chr1	13220	14409	+	uc001aaa.3	UTR	UTR3
+chr1	11873	14409	+	uc010nxr.1	TRANSCRIPT	uc010nxr.1
+chr1	11873	12227	+	uc010nxr.1	EXON	Exon 1
+chr1	12227	12645	+	uc010nxr.1	INTRON	Intron 1
+chr1	11873	12227	+	uc010nxr.1	UTR	UTR3
+chr1	12645	12697	+	uc010nxr.1	EXON	Exon 2
+chr1	12697	13220	+	uc010nxr.1	INTRON	Intron 2
+
+```
+
+
+
+
+
+### See also
+
+
+ *  https://www.biostars.org/p/151628
+
+
+
+
+### History
+
+
+ *  2014: Creation
+ *  2015-07-21 : removed duplicate exon
+
+
+
 
 

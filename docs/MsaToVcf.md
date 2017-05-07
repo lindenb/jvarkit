@@ -1,39 +1,41 @@
-# SamJavascript
+# MsaToVcf
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: msa2vcf [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    -R, --REF
+      reference name used for the CHROM column. Optional
+      Default: chrUn
+    -a, --allsites
+      print all sites
+      Default: false
+    -c, --consensus
+      ruse this sequence as CONSENSUS
+    -f, --fasta
+      save computed fasta sequence in this file.
+    -m, --haploid
+      haploid output
+      Default: false
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
     --version
       print version and exits
 
 ```
 
 
+##DEPRECATED
+
+use https://github.com/sanger-pathogens/snp_sites
+
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Getting a VCF file from a CLUSTAW or a FASTA alignment. 
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +52,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make msa2vcf
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +70,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/msa2vcf/MsaToVcf.java
 
 ## Contribute
 
@@ -81,7 +83,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **msa2vcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +93,9 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+Deprecated: use https://github.com/sanger-pathogens/snp_sites
+
+
 
 

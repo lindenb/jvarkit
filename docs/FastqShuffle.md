@@ -1,39 +1,33 @@
-# SamJavascript
+# FastqShuffle
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: fastqshuffle [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
+    -N, -maxRecordsInRam, --maxRecordsInRam
+      Max records in RAM
+      Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -T, --tmpDir
+      mp directory
+      Default: /tmp
     --version
       print version and exits
+    -i
+      single input is paired reads interleaved.(optional)
+      Default: false
 
 ```
 
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Shuffle Fastq files
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +44,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make fastqshuffle
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +62,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqShuffle.java
 
 ## Contribute
 
@@ -81,7 +75,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **fastqshuffle** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -89,12 +83,5 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
-
-
-## Motivation
-
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
 
 

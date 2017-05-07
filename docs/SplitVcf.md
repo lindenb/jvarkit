@@ -1,30 +1,25 @@
-# SamJavascript
+# SplitVcf
 
 
 ## Usage
 
 ```
-Usage: samjs [options] Files
+Usage: splitvcf [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -e, --expression
-      javascript expression
-    -X, --fail
-      Save dicarded reads in that file
-    -f, --file
-      javascript file
+    -g, --groupfile
+      Chromosome group file. Intervals are 1-based. If undefined, splitvcf 
+      will use the sequence dictionary to output one vcf per contig.
     -h, --help
       print help and exits
-    -N, --limit
-      limit to 'N' records.
-      Default: -1
-    -o, --output
-      Output file. Optional . Default: stdout
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    -m, --multi
+      if set, allow one variant to be mapped on multiple chromosome group (the 
+      record is duplicated)
+      Default: false
+  * -o, --out
+      Output file (or stdout). Name must contain '__GROUPID__'
+    -u, --unmapped
+      unmapped interval name
+      Default: OTHER
     --version
       print version and exits
 
@@ -33,7 +28,12 @@ Usage: samjs [options] Files
 
 ##Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+split a vcf...
+
+##Keywords
+
+ * vcf
+
 ##Compilation
 
 ### Requirements / Dependencies
@@ -50,7 +50,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjs
+$ make splitvcf
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -68,7 +68,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SplitVcf.java
 
 ## Contribute
 
@@ -81,7 +81,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **splitvcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -91,10 +91,25 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Motivation
+## Example
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+```
+$ cat groups.txt
+10:112583204-112583210
+G2	11
+```
+
+
+```
+$ java -jar dist/splitvcf.jar  -o tmp__GROUPID__.vcf.gz -g groups.txt in.vcf
+$ ls tmp*
+tmpG1.vcf.gz
+tmpG2.vcf.gz
+tmpOTHER.vcf.gz
+```
+
+## See also
+
+* https://github.com/lindenb/jvarkit/wiki/SplitBam3
 
 
