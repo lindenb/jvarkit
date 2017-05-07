@@ -48,6 +48,105 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+
+/**
+
+BEGIN_DOC
+
+
+
+
+
+
+### Example
+
+
+
+
+```
+
+$ curl -L -s "https://raw.githubusercontent.com/samtools/samtools/develop/test/dat/mpileup.1.sam" | java -jar dist/samextractclip.jar 2> /dev/null 
+@ERR013140.3521432/1:0:17:1:99
+AGAGGTCCCCAACTTCTTTGCA
++
+@AEDGBHIIIIIFJGIKHGHIJ
+@ERR156632.12704932/2:0:17:1:163
+TGGAGAAGGGGACAAGAGGTCCCCAACTTCTTTGCA
++
+BFAFGFEIGFEFHHEIDKJGHHHJIIE=@KKGGKJG
+@ERR156632.9601178/1:0:17:1:99
+CTATGACAGGGAGGTCATGTGCAGGCTGGAGAAGGGGACAAGAGGTCCCCAACTTCTTTGCA
++
+DEEEIIHHKIJILKHLHIKEKHHMKLKKJGKKKKLKLFIHEKIKL=KLJLKIILHKMH9LJJ
+@ERR162872.21706338/1:0:17:1:99
+CTTCTTTGCA
++
+BHBFH<EIFG
+@ERR243039.1049231/2:0:17:1:163
+TGCAGGCTGGAGAAGGGGACAAGAGGTCCCCAACTTCTTTGCA
++
+AEEFIFHIJDGIGIJHHIAGGGLGJIEJHJHHFIJGJJDFJIG
+@ERR013140.20277196/2:1:17:97:163
+AAACTGTCCAGCGCATACCCGCATCCCCCCAAAAGAAGCCACCGCCCCAACACACACCCCCCACCCGCATAACC
++
+00($,+3(*+..,%%+6%*#%2,/001)%%$2%%/$.%$00(,%+,1'*.%7(%&$&#'$$$#%#%#($+%+)"
+@ERR013140.19887184/1:0:17:99:113
+GTGTGTGTCGGGGGTGTCTGGGGTCTCACCCACGACCAAC
++
+%$($&$*+#%%#1'$$%2-'0&3$/$/$-73/69:7=1%2
+@ERR013140.4461044/1:0:17:114:113
+ACTCCCTGGGCCTGGCA
++
+/=1:/=44-348<0(91
+@ERR013140.3521432/2:0:17:226:147
+CACCCCTAGAAGTGACGGC
++
+71%??A9A792/7-2%(&:
+@ERR013140.11659627/1:0:17:645:83
+TTAGCAACAAAAAGGAC
++
+%5?-$)89<=;9>(.14
+@ERR013140.7259970/1:0:17:660:83
+ACGCCTGGTACA
++
+40&/81&8:/<<
+@ERR013140.29762488/1:0:17:716:83
+GGACTCA
++
+)/4/142
+@ERR013140.11567710/1:0:17:984:83
+TGCTTGA
++
+/36>+5/
+```
+
+
+
+
+
+### See also
+
+
+ *  https://www.biostars.org/p/125874
+
+
+
+
+### Cited In
+
+
+ *  Perlman syndrome nuclease DIS3L2 controls cytoplasmic non-coding RNAs and provides surveillance pathway for maturing snRNAs : http://nar.oxfordjournals.org/content/44/21/10437.full
+
+
+
+
+
+
+
+END_DOC
+*/
+
+
 @Program(name="samextractclip",description="Extract Clipped Sequences from a SAM. Ouput is a FASTQ")
 public class SamExtractClip extends Launcher
 	{

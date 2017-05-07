@@ -127,6 +127,70 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+
+
+/**
+
+BEGIN_DOC
+
+
+
+
+
+### Example
+
+
+
+
+```
+
+$ yourtool-mergingvcf 1.vcf 2.vcf 3.vcf > merged.vcf
+$ find ./ -name "*.bam" > bams.list
+$  java -jar dist/fixvcfmissinggenotypes.jar -f bams.list < merged.vcf > out.vcf
+
+```
+
+
+
+
+
+```
+
+$ find DIR1 -name "PREFIX_*_variations.gatk.annotations.vcf.gz" |\
+grep -E '(S1|S2|S3|S4)' |\
+xargs perl  vcftools_0.1.12b/perl vcftools_0.1.12b/bin/vcf-merge |\
+java -jar dist/fixvcfmissinggenotypes.jar -d 10 -f <( find DIR1 -name "PREFIX_*final.bam"  | grep -E '(S1|S2|S3|S4)' ) |\
+gzip --best > out.vcf.gz
+
+```
+
+
+
+
+
+### See also
+
+
+
+ *  https://www.biostars.org/p/119007/
+
+
+
+
+### History
+
+
+
+ *  2014: Creation
+
+
+
+
+
+END_DOC
+*/
+
+
 @Program(name="fixvcfmissinggenotypes",description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.")
 
 public class FixVcfMissingGenotypes extends Launcher

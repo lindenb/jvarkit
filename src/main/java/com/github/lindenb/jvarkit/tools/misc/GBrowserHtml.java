@@ -60,6 +60,31 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SamJsonWriterFactory;
 import com.google.gson.stream.JsonWriter;
 
+/**
+
+BEGIN_DOC
+
+
+
+
+### Example
+
+
+
+```
+$ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf
+(...)
+```
+
+
+
+
+
+
+END_DOC
+*/
+
+
 @Program(name="forkvcf",description="Fork a VCF.")
 public class GBrowserHtml extends Launcher
 	{

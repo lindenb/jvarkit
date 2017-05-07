@@ -54,6 +54,65 @@ import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+
+BEGIN_DOC
+
+
+
+
+### Output
+
+Output filename (option -o) MUST contain the word __GROUPID__.
+
+
+
+### Example
+
+
+
+```
+$ 
+
+```
+
+
+
+
+
+
+```
+
+
+```
+
+cat input.vcf | java -jar dist/forkvcf.jar -n 3 -o "_tmp.__GROUPID__.vcf"
+[main] INFO jvarkit - opening VCF file "_tmp.00001.vcf" for writing
+[main] INFO jvarkit - opening VCF file "_tmp.00002.vcf" for writing
+[main] INFO jvarkit - opening VCF file "_tmp.00003.vcf" for writing
+
+$ wc _tmp.0000*
+   226   6819 143947 _tmp.00001.vcf
+   226   6819 140792 _tmp.00002.vcf
+   225   6161 125219 _tmp.00003.vcf
+   
+   
+   
+
+
+### See also
+
+
+ *  https://github.com/lindenb/jvarkit/wiki/SplitVcf
+
+
+
+
+
+END_DOC
+*/
+
+
 @Program(name="forkvcf",description="Fork a VCF.")
 public class ForkVcf
 	extends Launcher

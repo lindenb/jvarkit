@@ -46,6 +46,66 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.PslAlign;
 
+/**
+
+BEGIN_DOC
+
+
+Convert **SAM/BAM** to **PSL** http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or **BED12** .
+
+Properly-paired reads are extended to the mate's position.
+
+What ? **bamtobed** http://bedtools.readthedocs.org/en/latest/content/tools/bamtobed.html does the same job ?! too late.
+
+
+
+
+### Example
+
+
+
+
+```
+$ samtools view -b  http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/wgEncodeCaltechRnaSeq/wgEncodeCaltechRnaSeq10t12C3hFR2x75Th131Il200AlnRep1.bam "chr15:81575506-81616397" |\
+   java -jar ~/src/jvarkit-git/dist/sam2psl.jar -s   > out.psl
+
+$ tail out.psl
+6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:1105:11756:193850_2:N:0:/2_147	101	0	101	chr15	10349497481616327	81622456	3	1,5,95,	0,1,6,	81616327,81616393,81622362,
+6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:1301:4643:94800_2:N:0:/2_147	101	0	101	chr15	103494974	81616334	81622456	3	1,5,95,	0,1,6,	81616334,81616393,81622362,
+6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:1308:18580:185579_2:Y:0:/2_147	101	0	101	chr15	10349497481616327	81622456	3	1,5,95,	0,1,6,	81616327,81616393,81622362,
+6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:2205:10117:76559_2:N:0:/2_147	101	0	101	chr15	10349497481616321	81622456	3	1,5,95,	0,1,6,	81616321,81616393,81622362,
+6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:2206:7885:15613_2:N:0:/2_403	101	0	101	chr15	103494974	81613633	81622456	3	1,5,95,	0,1,6,	81613633,81616393,81622362,
+6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:2206:7885:15613_2:N:0:/2_147	101	0	101	chr15	103494974	81616308	81622456	3	1,5,95,	0,1,6,	81616308,81616393,81622362,
+6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:2303:12879:149117_1:Y:0:/1_83	101	0	101	chr15	10349497481616334	81622456	3	1,5,95,	0,1,6,	81616334,81616393,81622362,
+6064	0	0	0	0	0	0	5964	+	HWI-ST0787:100:C02F9ACXX:3:1301:11600:100190_1:N:0:/1_99	100	0	100	chr15	10349497481616393	81622457	2	4,96,	0,4,	81616393,81622361,
+6064	0	0	0	0	0	0	5964	+	HWI-ST0787:100:C02F9ACXX:3:2304:5980:187674_1:Y:0:/1_99	100	0	100	chr15	103494974	81616393	81622457	2	4,96,	0,4,	81616393,81622361,
+6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:1306:18607:99733_2:N:0:/2_147	101	0	101	chr15	10349497481616334	81622457	3	1,4,96,	0,1,5,	81616334,81616394,81622362,
+
+
+```
+
+
+
+used as a custom track in the **UCSC genome browser**.
+
+![img](http://i.imgur.com/Gi6Sd0M.png)
+
+
+
+
+### See also
+
+
+* bedtools/bamtobed : http://bedtools.readthedocs.org/en/latest/content/tools/bamtobed.html
+
+
+
+
+
+END_DOC
+*/
+
+
 @Program(name="sam2psl",description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12")
 public class SamToPsl extends Launcher
 	{

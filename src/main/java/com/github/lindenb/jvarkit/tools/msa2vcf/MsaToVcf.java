@@ -60,7 +60,22 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="msa2vcf",description="Getting a VCF file from a CLUSTAW or a FASTA alignment. ")
+/**
+
+BEGIN_DOC
+
+
+Deprecated: use https://github.com/sanger-pathogens/snp_sites
+
+
+
+END_DOC
+*/
+
+
+@Program(name="msa2vcf",
+	description="Getting a VCF file from a CLUSTAW or a FASTA alignment. ",
+	deprecatedMsg="use https://github.com/sanger-pathogens/snp_sites")
 public class MsaToVcf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(MsaToVcf.class).make();

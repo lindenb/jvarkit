@@ -51,6 +51,57 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+
+BEGIN_DOC
+
+
+
+
+### Motivation
+
+This tool was used to create a zip from the output of VCFburdensplitter which is a stream of VCFs.
+
+
+
+### Example
+
+
+
+```
+
+$ cat ~/input.vcf ~/input.vcf ~/input.vcf | java -jar dist/vcf2zip.jar -o jeter.zip
+[main] INFO jvarkit - Command Line args : -o jeter.zip
+[main] INFO jvarkit - Executing as lindenb@kaamelot-master01 on Linux 2.6.32-431.17.1.el6.x86_64 amd64; Java HotSpot(TM) 64-Bit Server VM 1.8.0_60-b27
+[main] INFO jvarkit - reading concatenated vcf from stdin
+[main] INFO jvarkit - VCF/vcf2zip.00001.vcf
+[main] INFO jvarkit - Count: 499 Elapsed: 10 seconds(0.05%) Remains: 6 hours(99.95%) Last: 1:1431105
+[main] INFO jvarkit - done: N=870
+[main] INFO jvarkit - VCF/vcf2zip.00002.vcf
+[main] INFO jvarkit - Count: 530 Elapsed: 10 seconds(0.05%) Remains: 5 hours(99.95%) Last: 1:1510577
+[main] INFO jvarkit - done: N=870
+[main] INFO jvarkit - VCF/vcf2zip.00003.vcf
+[main] INFO jvarkit - Count: 530 Elapsed: 10 seconds(0.05%) Remains: 5 hours(99.95%) Last: 1:1510577
+[main] INFO jvarkit - done: N=870
+[main] INFO jvarkit - done. Number of VCFs:3
+[main] INFO jvarkit - End JOB  [Mon May 02 12:30:24 CEST 2016] VcfToZip done. Elapsed time: 0.85 minutes.
+$ unzip -t jeter.zip 
+Archive:  jeter.zip
+    testing: VCF/vcf2zip.00001.vcf    OK
+    testing: VCF/vcf2zip.00002.vcf    OK
+    testing: VCF/vcf2zip.00003.vcf    OK
+No errors detected in compressed data of jeter.zip.
+
+```
+
+
+
+
+
+END_DOC
+*/
+
+
 @Program(name="vcf2zip",description="Reads a stream of concatenated VCFs and insert them into a Zip file")
 public class VcfToZip extends Launcher
 	{

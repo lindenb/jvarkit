@@ -45,6 +45,64 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 
+/**
+
+BEGIN_DOC
+
+
+
+
+### Example
+
+
+
+```
+$ curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" |\
+  gunzip -c |\
+  java -jar dist/kg2bed.jar
+chr1	11873	14409	+	uc001aaa.3	TRANSCRIPT	uc001aaa.3
+chr1	11873	12227	+	uc001aaa.3	EXON	Exon 1
+chr1	12227	12612	+	uc001aaa.3	INTRON	Intron 1
+chr1	11873	12227	+	uc001aaa.3	UTR	UTR3
+chr1	12612	12721	+	uc001aaa.3	EXON	Exon 2
+chr1	12721	13220	+	uc001aaa.3	INTRON	Intron 2
+chr1	12612	12721	+	uc001aaa.3	UTR	UTR3
+chr1	13220	14409	+	uc001aaa.3	EXON	Exon 3
+chr1	13220	14409	+	uc001aaa.3	UTR	UTR3
+chr1	11873	14409	+	uc010nxr.1	TRANSCRIPT	uc010nxr.1
+chr1	11873	12227	+	uc010nxr.1	EXON	Exon 1
+chr1	12227	12645	+	uc010nxr.1	INTRON	Intron 1
+chr1	11873	12227	+	uc010nxr.1	UTR	UTR3
+chr1	12645	12697	+	uc010nxr.1	EXON	Exon 2
+chr1	12697	13220	+	uc010nxr.1	INTRON	Intron 2
+
+```
+
+
+
+
+
+### See also
+
+
+ *  https://www.biostars.org/p/151628
+
+
+
+
+### History
+
+
+ *  2014: Creation
+ *  2015-07-21 : removed duplicate exon
+
+
+
+
+END_DOC
+*/
+
+
 @Program(name="kg2bed",description="converts UCSC knownGenes file to BED.")
 public class KnownGenesToBed extends Launcher
 	{

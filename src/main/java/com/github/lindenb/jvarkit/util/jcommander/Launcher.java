@@ -168,7 +168,7 @@ public static  class UsageBuider
 			{
 			jc.setProgramName(clazz.getSimpleName());
 			}
-		if(print_markdown_help)  sb.append("#"+clazz.getSimpleName()+"\n\n");
+		if(print_markdown_help)  sb.append("# "+clazz.getSimpleName()+"\n\n");
 		if(print_markdown_help) sb.append("\n## Usage\n\n```\n");
 		jc.usage(sb);
 		if(print_markdown_help) sb.append("\n```\n\n");
@@ -1548,6 +1548,17 @@ protected String getMessageBundle(final String s){
 
 public void instanceMainWithExit( final String args[]) {
 	System.exit( instanceMain(args) );
+	}
+
+/** check we're running under webstart http://stackoverflow.com/questions/216315*/
+public static boolean isRunningJavaWebStart() {
+    try {
+      Class.forName("javax.jnlp.ServiceManager"); // or System.getProperty("javawebstart.version", null) != null;
+      return true;
+    	} 
+    catch (ClassNotFoundException ex) {
+       return false;
+    	}
 	}
 
 }

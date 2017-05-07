@@ -105,6 +105,29 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+
+/**
+
+BEGIN_DOC
+
+
+
+
+### Screenshot
+
+![img](https://pbs.twimg.com/media/B3in9wrIAAElLz8.jpg)
+
+
+```
+$ java -jar distBamCmpCoverage.jar  -o out.png file1.bam file2.bam fileN.bam
+```
+
+
+
+
+END_DOC
+*/
+
 @Program(name="bamcmpcoverage",description="Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2")
 public class BamCmpCoverage extends Launcher
 	{
