@@ -43,18 +43,20 @@ Usage: vcf2svg [options] Files
 ```
 
 
-##Description
+## Description
 
 write a vcf to svg , with gene context
 
-##Keywords
+
+## Keywords
 
  * vcf
  * svg
  * xlm
  * visualization
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

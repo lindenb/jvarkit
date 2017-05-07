@@ -34,14 +34,15 @@ Usage: vcfmerge [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 use GATK combineVariants 
 
-##Description
+## Description
 
 Merge VCF Files
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

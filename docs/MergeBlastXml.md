@@ -22,15 +22,17 @@ Usage: mergeblastxml [options] Files
 ```
 
 
-##Description
+## Description
 
 merge XML blast results (same Iteration/Iteration_query-def in multiple xml files
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/246958
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

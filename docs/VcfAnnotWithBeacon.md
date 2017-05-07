@@ -38,10 +38,11 @@ Usage: vcfannotwithbeacon [options] Files
 ```
 
 
-##Description
+## Description
 
 Annotate a VCF with ga4gh beacon
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

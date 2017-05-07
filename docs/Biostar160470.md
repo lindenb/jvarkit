@@ -20,15 +20,17 @@ Usage: biostar160470 [options] Files
 ```
 
 
-##Description
+## Description
 
 Getting untranslated nucleotide sequences on tblastn standalone 
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/160470
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

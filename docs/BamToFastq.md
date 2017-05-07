@@ -27,14 +27,15 @@ Usage: bam2fastq [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 use picard
 
-##Description
+## Description
 
 Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

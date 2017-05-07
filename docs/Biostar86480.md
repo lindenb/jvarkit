@@ -19,15 +19,17 @@ Usage: biostar86480 [options] Files
 ```
 
 
-##Description
+## Description
 
 Genomic restriction finder
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/86480
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

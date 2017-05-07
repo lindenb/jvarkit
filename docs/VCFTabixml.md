@@ -22,10 +22,11 @@ Usage: vcftabixml [options] Files
 ```
 
 
-##Description
+## Description
 
  annotate a value from a vcf+xml file
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -14,10 +14,11 @@ Usage: batchigvpictures [options] Files
 ```
 
 
-##Description
+## Description
 
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -37,10 +37,11 @@ Usage: cmpbams [options] Files
 ```
 
 
-##Description
+## Description
 
 Compare two or more BAM files
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -23,15 +23,17 @@ Usage: ,biostar77288 [options] Files
 ```
 
 
-##Description
+## Description
 
 Low resolution sequence alignment visualization
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/77288
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

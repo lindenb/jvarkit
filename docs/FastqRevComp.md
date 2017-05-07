@@ -22,10 +22,11 @@ Usage: fastqrevcomp [options] Files
 ```
 
 
-##Description
+## Description
 
 produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

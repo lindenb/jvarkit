@@ -25,15 +25,17 @@ Usage: biostar139647 [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert alignment in Fasta/Clustal format to SAM/BAM file
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/139647
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

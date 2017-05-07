@@ -22,15 +22,17 @@ Usage: vcfhead [options] Files
 ```
 
 
-##Description
+## Description
 
 print the first variants of a vcf
 
-##Keywords
+
+## Keywords
 
  * vcf
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

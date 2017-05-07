@@ -26,10 +26,11 @@ Usage: ccfregulomedb [options] Files
 ```
 
 
-##Description
+## Description
 
 Annotate a VCF with the Regulome data (http://regulome.stanford.edu/
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

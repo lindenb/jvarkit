@@ -16,10 +16,11 @@ Usage: biostar172515 [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert BAI to XML (see https://www.biostars.org/p/172515/)
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

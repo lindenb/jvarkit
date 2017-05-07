@@ -19,10 +19,11 @@ Usage: forkvcf [options] Files
 ```
 
 
-##Description
+## Description
 
 Fork a VCF.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

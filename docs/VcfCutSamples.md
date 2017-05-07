@@ -30,19 +30,21 @@ Usage: vcfcutsamples [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 use bcftools or gatk SelectVariants
 
-##Description
+## Description
 
 Select/Exclude some samples from a VCF
 
-##Keywords
+
+## Keywords
 
  * vcf
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

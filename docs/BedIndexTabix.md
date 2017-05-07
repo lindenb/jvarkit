@@ -28,10 +28,11 @@ Usage: bedindextabix [options] Files
 ```
 
 
-##Description
+## Description
 
 Index and sort a Bed on the fly with Tabix.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

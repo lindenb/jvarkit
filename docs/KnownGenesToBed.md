@@ -31,10 +31,11 @@ Usage: kg2bed [options] Files
 ```
 
 
-##Description
+## Description
 
 converts UCSC knownGenes file to BED.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

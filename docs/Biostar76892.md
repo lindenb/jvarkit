@@ -28,10 +28,11 @@ Usage: biostar76892 [options] Files
 ```
 
 
-##Description
+## Description
 
 fix strand of two paired reads close but on the same strand. See http://www.biostars.org/p/76892/ 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

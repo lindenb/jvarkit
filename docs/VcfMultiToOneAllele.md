@@ -26,10 +26,11 @@ Usage: vcfmulti2oneallele [options] Files
 ```
 
 
-##Description
+## Description
 
 'one variant with N ALT alleles' to 'N variants with one ALT'
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

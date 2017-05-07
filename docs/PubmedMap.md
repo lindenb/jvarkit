@@ -16,18 +16,20 @@ Usage: pubmedmap [options] Files
 ```
 
 
-##Description
+## Description
 
 Use Pubmed Author's Affiliation to map the authors .
 
-##Keywords
+
+## Keywords
 
  * pubmed
  * xml
  * gis
  * map
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

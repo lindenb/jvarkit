@@ -37,10 +37,11 @@ Usage: vcffilterjs [options] Files
 ```
 
 
-##Description
+## Description
 
 Filtering VCF with javascript (java Nashorn).
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

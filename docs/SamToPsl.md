@@ -22,10 +22,11 @@ Usage: sam2psl [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

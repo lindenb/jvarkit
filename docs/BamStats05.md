@@ -31,18 +31,20 @@ Usage: bamstats05 [options] Files
 ```
 
 
-##Description
+## Description
 
 Coverage statistics for a BED file, group by gene
 
-##Keywords
+
+## Keywords
 
  * bam
  * coverage
  * statistics
  * bed
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

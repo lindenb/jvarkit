@@ -20,10 +20,11 @@ Usage: ccfSimulator [options] Files
 ```
 
 
-##Description
+## Description
 
 Generate a VCF
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

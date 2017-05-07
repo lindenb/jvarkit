@@ -27,10 +27,11 @@ Usage: referencetovcf [options] Files
 ```
 
 
-##Description
+## Description
 
 Creates a VCF containing all the possible substitutions from a Reference Genome.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

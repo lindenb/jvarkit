@@ -16,10 +16,11 @@ Usage: vcfconcat [options] Files
 ```
 
 
-##Description
+## Description
 
 Concatenante sorted VCF with same sample, does NOT merge genotypes
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

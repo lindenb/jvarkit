@@ -27,14 +27,15 @@ Usage: sortvcfonref2 [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 use picard sortvcf
 
-##Description
+## Description
 
 Sort a VCF using the internal dictionary or an external reference order (Deprecated: use picard SortVcf).
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

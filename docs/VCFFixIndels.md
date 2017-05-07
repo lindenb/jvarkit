@@ -16,10 +16,11 @@ Usage: vcffixindels [options] Files
 ```
 
 
-##Description
+## Description
 
 Fix samtools indels (for @SolenaLS)
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

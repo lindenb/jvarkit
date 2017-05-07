@@ -25,15 +25,17 @@ Usage: biostar214299 [options] Files
 ```
 
 
-##Description
+## Description
 
 Extract allele specific reads from bamfiles
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/214299
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

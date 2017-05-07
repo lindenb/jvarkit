@@ -29,19 +29,21 @@ Usage: vcfpeekvcf [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 Use GATK or vcftools
 
-##Description
+## Description
 
 Get the INFO from a VCF and use it for another VCF
 
-##Keywords
+
+## Keywords
 
  * vcf
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

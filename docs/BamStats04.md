@@ -29,18 +29,20 @@ Usage: bamstats04 [options] Files
 ```
 
 
-##Description
+## Description
 
 Coverage statistics for a BED file.
 
-##Keywords
+
+## Keywords
 
  * bam
  * coverage
  * statistics
  * bed
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

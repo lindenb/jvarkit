@@ -16,10 +16,11 @@ Usage: biostar78285 [options] Files
 ```
 
 
-##Description
+## Description
 
 Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

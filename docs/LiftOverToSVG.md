@@ -23,10 +23,11 @@ Usage: liftover2svg [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert LiftOver chain files to animated SVG
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

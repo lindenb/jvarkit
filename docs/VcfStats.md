@@ -16,10 +16,11 @@ Usage: vcfstats [options] Files
 ```
 
 
-##Description
+## Description
 
 VCF statitics
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

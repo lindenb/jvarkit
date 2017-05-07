@@ -40,17 +40,19 @@ Usage: vcfgnomad [options] Files
 ```
 
 
-##Description
+## Description
 
 Peek annotations from gnomad
 
-##Keywords
+
+## Keywords
 
  * vcf
  * annotation
  * gnomad
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

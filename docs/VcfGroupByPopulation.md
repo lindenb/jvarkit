@@ -18,10 +18,11 @@ Usage: vcfgroupbypop [options] Files
 ```
 
 
-##Description
+## Description
 
 Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

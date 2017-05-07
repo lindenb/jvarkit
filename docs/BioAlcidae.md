@@ -28,10 +28,11 @@ Usage: bioAlcidae [options] Files
 ```
 
 
-##Description
+## Description
 
 javascript version of awk for bioinformatics
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

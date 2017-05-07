@@ -29,10 +29,11 @@ Usage: coveragenormalizer [options] Files
 ```
 
 
-##Description
+## Description
 
 normalize BAM coverage
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -27,10 +27,11 @@ Usage:  [options] Files
 ```
 
 
-##Description
+## Description
 
 Query a Bam file indexed with BamIndexReadNames
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

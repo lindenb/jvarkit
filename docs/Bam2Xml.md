@@ -16,17 +16,19 @@ Usage: bam2xml [options] Files
 ```
 
 
-##Description
+## Description
 
 converts a BAM to XML
 
-##Keywords
+
+## Keywords
 
  * sam
  * bam
  * xml
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -19,10 +19,11 @@ Usage: biostar84786 [options] Files
 ```
 
 
-##Description
+## Description
 
 Matrix transposition ( see  http://www.biostars.org/p/84786/ )
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

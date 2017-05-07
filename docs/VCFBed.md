@@ -34,22 +34,25 @@ Usage: vcfbed [options] Files
 ```
 
 
-##Description
+## Description
 
 Transfer information from a BED to a VCF
 
-##Keywords
+
+## Keywords
 
  * bed
  * vcf
  * annotation
 
 
+
 ## See also in Biostars
 
  * https://www.biostars.org/p/247224
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

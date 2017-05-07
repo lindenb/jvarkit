@@ -20,14 +20,15 @@ Usage: vcfsetdict [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 Use picard UpdateVcfSequenceDictionary
 
-##Description
+## Description
 
 Set the ##contig lines in a VCF header
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

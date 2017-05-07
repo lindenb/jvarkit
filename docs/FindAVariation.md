@@ -32,17 +32,19 @@ Usage: findavariation [options] Files
 ```
 
 
-##Description
+## Description
 
 Finds a specific mutation in a list of VCF files
 
-##Keywords
+
+## Keywords
 
  * vcf
  * variation
  * search
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

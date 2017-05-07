@@ -14,10 +14,11 @@ Usage: buildwpontology [options] Files
 ```
 
 
-##Description
+## Description
 
 Build a simple RDFS/XML ontology from the Wikipedia Categories
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

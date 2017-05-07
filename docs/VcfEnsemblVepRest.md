@@ -31,10 +31,11 @@ Usage: vcfensemblvep [options] Files
 ```
 
 
-##Description
+## Description
 
 Annotate a VCF with ensembl REST API
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

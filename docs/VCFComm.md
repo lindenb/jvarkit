@@ -34,10 +34,11 @@ Usage: vcfcomm [options] Files
 ```
 
 
-##Description
+## Description
 
 Equivalent of linux comm for VCF
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -18,10 +18,11 @@ Usage: bamstats02 [options] Files
 ```
 
 
-##Description
+## Description
 
 Statistics about the flags and reads in a BAM
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

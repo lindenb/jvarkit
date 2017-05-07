@@ -18,10 +18,11 @@ Usage: bim2vcf [options] Files
 ```
 
 
-##Description
+## Description
 
 convert a .bim to a .vcf
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

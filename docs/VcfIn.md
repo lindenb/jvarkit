@@ -33,10 +33,11 @@ Usage: vcfin [options] Files
 ```
 
 
-##Description
+## Description
 
 Only prints variants that are contained/not contained into another VCF.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

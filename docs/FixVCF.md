@@ -19,10 +19,11 @@ Usage: fixvcf [options] Files
 ```
 
 
-##Description
+## Description
 
 Fix a VCF if INFO or FILTER are missing
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

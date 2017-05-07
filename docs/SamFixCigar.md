@@ -25,10 +25,11 @@ Usage: samfixcigar [options] Files
 ```
 
 
-##Description
+## Description
 
 Fix Cigar String in SAM replacing 'M' by 'X' or '='
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

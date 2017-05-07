@@ -14,7 +14,7 @@ Usage: downsamplevcf [options] Files
       print version and exits
     -N
        random seed
-      Default: 1494156603201
+      Default: 1494159799082
     -n
       output size
       Default: 10
@@ -22,10 +22,11 @@ Usage: downsamplevcf [options] Files
 ```
 
 
-##Description
+## Description
 
 DownSample a VCF
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

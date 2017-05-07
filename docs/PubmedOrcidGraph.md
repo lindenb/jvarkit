@@ -34,17 +34,19 @@ Usage: pubmedorcidgraph [options] Files
 ```
 
 
-##Description
+## Description
 
 Creates a graph from Pubmed and Authors' Orcid identifiers
 
-##Keywords
+
+## Keywords
 
  * pubmed
  * ncbi
  * orcid
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

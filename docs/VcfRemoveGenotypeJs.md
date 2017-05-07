@@ -29,10 +29,11 @@ Usage: vcfremovegenotypejs [options] Files
 ```
 
 
-##Description
+## Description
 
 Reset Genotype in VCF using a javascript expression
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -22,10 +22,11 @@ Usage: gff2knowngene [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert GFF3 format to UCSC knownGene format.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

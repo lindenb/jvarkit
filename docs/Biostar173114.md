@@ -43,10 +43,11 @@ Usage: biostar173114 [options] Files
 ```
 
 
-##Description
+## Description
 
 make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

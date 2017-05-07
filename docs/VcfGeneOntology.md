@@ -37,10 +37,11 @@ Usage:  [options] Files
 ```
 
 
-##Description
+## Description
 
 Find the GO terms for VCF annotated with SNPEFF or VEP
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

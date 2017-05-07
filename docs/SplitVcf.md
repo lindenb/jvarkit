@@ -26,15 +26,17 @@ Usage: splitvcf [options] Files
 ```
 
 
-##Description
+## Description
 
 split a vcf...
 
-##Keywords
+
+## Keywords
 
  * vcf
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

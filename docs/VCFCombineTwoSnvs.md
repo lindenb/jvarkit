@@ -34,10 +34,11 @@ Usage: vcfcombinetwosnvs [options] Files
 ```
 
 
-##Description
+## Description
 
 Idea from @SolenaLS and then @AntoineRimbert
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

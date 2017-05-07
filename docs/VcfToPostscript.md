@@ -19,10 +19,11 @@ Usage: vcf2postscript [options] Files
 ```
 
 
-##Description
+## Description
 
 Print VCF context as Postscript
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

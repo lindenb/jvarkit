@@ -19,10 +19,11 @@ Usage: almostsortedvcf [options] Files
 ```
 
 
-##Description
+## Description
 
 Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

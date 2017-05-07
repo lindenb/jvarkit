@@ -28,10 +28,11 @@ Usage: vcfpredictions [options] Files
 ```
 
 
-##Description
+## Description
 
 Basic Variant Effect prediction using ucsc-known gene
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

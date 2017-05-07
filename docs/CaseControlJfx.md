@@ -55,11 +55,12 @@ Usage: casectrljfx [options] Files
 ```
 
 
-##Description
+## Description
 
 display jfx chart of case/control maf from a VCF and a pedigree
 
-##Keywords
+
+## Keywords
 
  * vcf
  * pedigree
@@ -70,7 +71,8 @@ display jfx chart of case/control maf from a VCF and a pedigree
  * chart
  * maf
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

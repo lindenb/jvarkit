@@ -14,10 +14,11 @@ Usage: fixvcfformat [options] Files
 ```
 
 
-##Description
+## Description
 
 Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

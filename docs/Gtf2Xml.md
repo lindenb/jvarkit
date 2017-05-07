@@ -19,10 +19,11 @@ Usage: gtf2xml [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert GTF to XML
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

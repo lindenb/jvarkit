@@ -19,17 +19,19 @@ Usage: ncbitaxonomy2xml [options] Files
 ```
 
 
-##Description
+## Description
 
 Dump NCBI taxonomy tree as a hierarchical XML document
 
-##Keywords
+
+## Keywords
 
  * taxonomy
  * ncbi
  * xml
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

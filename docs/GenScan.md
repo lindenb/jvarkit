@@ -25,10 +25,11 @@ Usage: genscan [options] Files
 ```
 
 
-##Description
+## Description
 
 Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

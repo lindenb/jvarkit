@@ -28,10 +28,11 @@ Usage: cmpbams4 [options] Files
 ```
 
 
-##Description
+## Description
 
 Compare two BAM files. Print a tab-delimited report
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

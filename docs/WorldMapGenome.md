@@ -26,10 +26,11 @@ Usage: worldmapgenome [options] Files
 ```
 
 
-##Description
+## Description
 
 Genome/Map of the world. Input is a BED file: chrom/start/end/country.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

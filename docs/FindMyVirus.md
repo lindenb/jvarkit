@@ -25,10 +25,11 @@ Usage: findmyvirus [options] Files
 ```
 
 
-##Description
+## Description
 
 Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

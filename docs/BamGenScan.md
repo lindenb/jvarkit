@@ -23,10 +23,11 @@ Usage: bamgenscan [options] Files
 ```
 
 
-##Description
+## Description
 
 Paint a Genome Scan picture from a BAM
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

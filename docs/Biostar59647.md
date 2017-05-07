@@ -18,15 +18,17 @@ Usage: biostar59647 [options] Files
 ```
 
 
-##Description
+## Description
 
 SAM/BAM to XML
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/59647
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

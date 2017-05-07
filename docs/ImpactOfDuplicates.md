@@ -27,15 +27,17 @@ Usage: impactofduplicates [options] Files
 ```
 
 
-##Description
+## Description
 
 Impact of Duplicates per BAM.
 
-##Keywords
+
+## Keywords
 
  * bam
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

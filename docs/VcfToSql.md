@@ -28,16 +28,18 @@ Usage: vcf2sql [options] Files
 ```
 
 
-##Description
+## Description
 
 Generate the SQL code to insert a VCF into mysql
 
-##Keywords
+
+## Keywords
 
  * vcf
  * sql
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -21,18 +21,20 @@ Usage: pubmedgender [options] Files
 ```
 
 
-##Description
+## Description
 
 Add gender-related attributes in the Author tag of pubmed xml. 
 
-##Keywords
+
+## Keywords
 
  * pubmed
  * gender
  * ncbi
  * xml
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -48,10 +48,11 @@ Usage: vcfliftover [options] Files
 ```
 
 
-##Description
+## Description
 
 Lift-over a VCF file
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

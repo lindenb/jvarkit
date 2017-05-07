@@ -33,10 +33,11 @@ Usage: vcfcomparecallers [options] Files
 ```
 
 
-##Description
+## Description
 
 Compare two VCFs and print common/exclusive information for each sample/genotype
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

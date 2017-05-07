@@ -25,16 +25,18 @@ Usage: vcfmulti2one [options] Files
 ```
 
 
-##Description
+## Description
 
 >Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column
 
-##Keywords
+
+## Keywords
 
  * vcf
  * sample
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

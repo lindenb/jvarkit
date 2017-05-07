@@ -22,10 +22,11 @@ Usage: splitbytile [options] Files
 ```
 
 
-##Description
+## Description
 
 Split Bam By tile
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

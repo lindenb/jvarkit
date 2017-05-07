@@ -176,24 +176,24 @@ public static  class UsageBuider
 		if(programdesc!=null){
 			if(!programdesc.deprecatedMsg().isEmpty())
 				{
-				sb.append("\n##DEPRECATED\n\n").
+				sb.append("\n## DEPRECATED\n\n").
 					append(programdesc.deprecatedMsg()).
 					append("\n");
 				}
 			
-			sb.append("\n##Description\n\n").
+			sb.append("\n## Description\n\n").
 				append(programdesc.description()).
-				append("\n");
+				append("\n\n");
 			
 			if(programdesc.keywords()!=null && programdesc.keywords().length>0) {
-				sb.append("\n##Keywords\n\n");
+				sb.append("\n## Keywords\n\n");
 				for(String sk:programdesc.keywords()) sb.append(" * "+sk+"\n");
-				sb.append("\n");
+				sb.append("\n\n");
 			}
 			if(programdesc.biostars()!=null && programdesc.biostars().length>0) {
 				sb.append("\n## See also in Biostars\n\n");
 				for(int postid:programdesc.biostars()) sb.append(" * https://www.biostars.org/p/"+postid+"\n");
-				sb.append("\n");
+				sb.append("\n\n");
 			}
 			
 		}
@@ -201,7 +201,7 @@ public static  class UsageBuider
 		if(print_markdown_help)
 			{
 			final String progName=(programdesc==null?"software":programdesc.name());
-			sb.append("##Compilation\n");
+			sb.append("## Compilation\n");
 			sb.append("\n");
 			sb.append("### Requirements / Dependencies\n");
 			sb.append("\n");

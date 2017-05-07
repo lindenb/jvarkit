@@ -31,17 +31,19 @@ Usage: sam2json [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert a SAM input to JSON
 
-##Keywords
+
+## Keywords
 
  * sam
  * bam
  * json
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

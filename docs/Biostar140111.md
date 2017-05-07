@@ -16,15 +16,17 @@ Usage: biostar140111 [options] Files
 ```
 
 
-##Description
+## Description
 
 How to obtain human genotype data from dpSNP ftp?
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/140111
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

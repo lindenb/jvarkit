@@ -27,18 +27,20 @@ Usage: bam2sql [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert a SAM/BAM to sqlite statements
 
-##Keywords
+
+## Keywords
 
  * bam
  * sam
  * sql
  * sqlite
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

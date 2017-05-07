@@ -25,10 +25,11 @@ Usage: blastmapannots [options] Files
 ```
 
 
-##Description
+## Description
 
 Maps uniprot/genbank annotations on a blast result.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

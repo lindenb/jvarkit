@@ -24,15 +24,17 @@ Usage: biostar130456 [options] Files
 ```
 
 
-##Description
+## Description
 
 Individual VCF files from main VCF file
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/130456
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

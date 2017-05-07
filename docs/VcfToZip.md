@@ -23,10 +23,11 @@ Usage: vcf2zip [options] Files
 ```
 
 
-##Description
+## Description
 
 Reads a stream of concatenated VCFs and insert them into a Zip file
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

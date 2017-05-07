@@ -16,10 +16,11 @@ Usage: fastqentropy [options] Files
 ```
 
 
-##Description
+## Description
 
 Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence))
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

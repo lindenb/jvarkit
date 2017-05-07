@@ -28,10 +28,11 @@ Usage: backlocate [options] Files
 ```
 
 
-##Description
+## Description
 
 Mapping a mutation on a protein back to the genome.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -35,10 +35,11 @@ Usage: commbams [options] Files
 ```
 
 
-##Description
+## Description
 
 Equivalent of unix 'comm' for bams sorted on queryname
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

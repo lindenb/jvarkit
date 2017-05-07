@@ -21,22 +21,25 @@ Usage: sam4weblogo [options] Files
 ```
 
 
-##Description
+## Description
 
 Sequence logo for different alleles or generated from SAM/BAM 
 
-##Keywords
+
+## Keywords
 
  * sam
  * bam
  * visualization
 
 
+
 ## See also in Biostars
 
  * https://www.biostars.org/p/73021
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

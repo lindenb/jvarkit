@@ -36,10 +36,11 @@ Usage: pcrslicereads [options] Files
 ```
 
 
-##Description
+## Description
 
 Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

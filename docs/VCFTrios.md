@@ -28,17 +28,19 @@ Usage: vcftrio [options] Files
 ```
 
 
-##Description
+## Description
 
 Find mendelian incompatibilitie in a VCF
 
-##Keywords
+
+## Keywords
 
  * vcf
  * mendelian
  * pedigree
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -31,10 +31,11 @@ Usage: biostar78400 [options] Files
 ```
 
 
-##Description
+## Description
 
 add the read group info to the sam file on a per lane basis
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

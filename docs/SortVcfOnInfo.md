@@ -27,10 +27,11 @@ Usage: sortvcfoninfo [options] Files
 ```
 
 
-##Description
+## Description
 
 Sort a VCF a field in the INFO column
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

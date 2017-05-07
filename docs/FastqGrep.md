@@ -28,14 +28,15 @@ Usage: fastqgrep [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 use picard
 
-##Description
+## Description
 
 Grep reads names in fastq
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

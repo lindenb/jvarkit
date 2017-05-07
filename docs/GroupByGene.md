@@ -31,16 +31,18 @@ Usage: groupbygene [options] Files
 ```
 
 
-##Description
+## Description
 
 Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff
 
-##Keywords
+
+## Keywords
 
  * vcf
  * gene
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

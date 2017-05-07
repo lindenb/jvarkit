@@ -27,17 +27,19 @@ Usage: samscansplitreads [options] Files
 ```
 
 
-##Description
+## Description
 
 scan split reads
 
-##Keywords
+
+## Keywords
 
  * sam
  * sv
  * splitreads
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

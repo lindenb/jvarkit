@@ -34,15 +34,17 @@ Usage: biostar145820 [options] Files
 ```
 
 
-##Description
+## Description
 
 subsample BAM to fixed number of alignments.
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/145820
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

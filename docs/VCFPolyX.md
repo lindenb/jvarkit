@@ -26,10 +26,11 @@ Usage: vcfpolyx [options] Files
 ```
 
 
-##Description
+## Description
 
 Number of repeated REF bases around POS.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

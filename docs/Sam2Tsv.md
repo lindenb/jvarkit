@@ -21,10 +21,11 @@ Usage: sam2tsv [options] Files
 ```
 
 
-##Description
+## Description
 
 Prints the SAM alignments as a TAB delimited file.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

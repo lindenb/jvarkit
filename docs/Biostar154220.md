@@ -25,15 +25,17 @@ Usage: biostar154220 [options] Files
 ```
 
 
-##Description
+## Description
 
 Cap BAM to a given coverage
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/154220
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

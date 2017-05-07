@@ -19,10 +19,11 @@ Usage: biostar178713 [options] Files
 ```
 
 
-##Description
+## Description
 
 split bed file into several bed files where each region is separated of any other by N bases https://www.biostars.org/p/178713/
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

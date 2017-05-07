@@ -18,10 +18,11 @@ Usage: biostar86363 [options] Files
 ```
 
 
-##Description
+## Description
 
 Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

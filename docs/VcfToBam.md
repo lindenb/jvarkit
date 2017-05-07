@@ -30,10 +30,11 @@ Usage: vcf2bam [options] Files
 ```
 
 
-##Description
+## Description
 
 vcf to bam
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -18,15 +18,17 @@ Usage: biostar105754 [options] Files
 ```
 
 
-##Description
+## Description
 
 bigwig : peak distance from specific genomic region
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/105754
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

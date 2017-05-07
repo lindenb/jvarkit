@@ -14,10 +14,11 @@ Usage:  [options] Files
 ```
 
 
-##Description
+## Description
 
 Build a dictionary of read names to be searched with BamQueryReadNames
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

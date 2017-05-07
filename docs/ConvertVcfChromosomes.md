@@ -22,10 +22,11 @@ Usage: vcfrenamechr [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert the names of the chromosomes in a VCF file
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

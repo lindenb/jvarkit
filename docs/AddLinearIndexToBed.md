@@ -18,16 +18,18 @@ Usage: addlinearindextobed [options] Files
 ```
 
 
-##Description
+## Description
 
 Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.
 
-##Keywords
+
+## Keywords
 
  * bed
  * reference
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -14,15 +14,17 @@ Usage: mergesplittedblast [options] Files
 ```
 
 
-##Description
+## Description
 
 merge blast Hits from splitted BLAST database. See http://www.biostars.org/p/90186/
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/90186
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -22,10 +22,11 @@ Usage: bamtile [options] Files
 ```
 
 
-##Description
+## Description
 
 Answer to @sjackman : Is there a bedtools command to determine a minimal tiling path? A minimal set of features that cover a maximum of the target.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

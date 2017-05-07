@@ -28,10 +28,11 @@ Usage: bamrenamechr [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert the names of the chromosomes in a BAM file
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

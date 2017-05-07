@@ -24,10 +24,11 @@ Usage: biostar175929 [options] Files
 ```
 
 
-##Description
+## Description
 
 Construct a combination set of fasta sequences from a vcf see also https://www.biostars.org/p/175929/
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

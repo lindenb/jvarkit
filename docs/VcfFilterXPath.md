@@ -23,10 +23,11 @@ Usage: vcffilterxpath [options] Files
 ```
 
 
-##Description
+## Description
 
 Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

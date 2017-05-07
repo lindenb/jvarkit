@@ -22,15 +22,17 @@ Usage: vcftail [options] Files
 ```
 
 
-##Description
+## Description
 
 print the last variants of a vcf
 
-##Keywords
+
+## Keywords
 
  * vcf
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

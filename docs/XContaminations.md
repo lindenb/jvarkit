@@ -16,10 +16,11 @@ Usage: xcontaminations [options] Files
 ```
 
 
-##Description
+## Description
 
 For @AdrienLeger2 : cross contamination between samples in same lane
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

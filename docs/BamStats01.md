@@ -25,10 +25,11 @@ Usage: samstats01 [options] Files
 ```
 
 
-##Description
+## Description
 
 Statistics about the reads in a BAM.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

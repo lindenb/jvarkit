@@ -24,10 +24,11 @@ Usage: localrealignreads [options] Files
 ```
 
 
-##Description
+## Description
 
 Local Realignment of Reads
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

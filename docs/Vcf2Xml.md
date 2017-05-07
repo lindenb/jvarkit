@@ -16,16 +16,18 @@ Usage: vcf2xml [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert VCF to XML
 
-##Keywords
+
+## Keywords
 
  * vcf
  * xml
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

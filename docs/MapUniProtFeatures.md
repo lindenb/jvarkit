@@ -27,10 +27,11 @@ Usage: mapuniprot [options] Files
 ```
 
 
-##Description
+## Description
 
 map uniprot features on reference genome
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

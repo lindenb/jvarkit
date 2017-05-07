@@ -19,10 +19,11 @@ Usage: biostar170742 [options] Files
 ```
 
 
-##Description
+## Description
 
 convert sam format to axt Format
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

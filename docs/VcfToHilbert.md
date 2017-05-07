@@ -22,17 +22,19 @@ Usage: vcf2hilbert [options] Files
 ```
 
 
-##Description
+## Description
 
 Plot a Hilbert Curve from a VCF file.
 
-##Keywords
+
+## Keywords
 
  * vcf
  * image
  * vislualization
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -24,10 +24,11 @@ Usage: samjmx [options] Files
 ```
 
 
-##Description
+## Description
 
 Monitor/interrupt/break a BAM/SAM stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

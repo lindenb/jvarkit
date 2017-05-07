@@ -25,10 +25,11 @@ Usage: fastqshuffle [options] Files
 ```
 
 
-##Description
+## Description
 
 Shuffle Fastq files
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

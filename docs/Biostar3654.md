@@ -19,22 +19,25 @@ Usage: biostar3654 [options] Files
 ```
 
 
-##Description
+## Description
 
 show blast alignment with annotations
 
-##Keywords
+
+## Keywords
 
  * blast
  * xml
  * annotation
 
 
+
 ## See also in Biostars
 
  * https://www.biostars.org/p/3654
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

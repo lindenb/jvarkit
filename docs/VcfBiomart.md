@@ -36,10 +36,11 @@ Usage: vcfbiomart [options] Files
 ```
 
 
-##Description
+## Description
 
 BiomartQueries with VCF
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

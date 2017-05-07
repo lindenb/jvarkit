@@ -25,10 +25,11 @@ Usage: samextractclip [options] Files
 ```
 
 
-##Description
+## Description
 
 Extract Clipped Sequences from a SAM. Ouput is a FASTQ
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

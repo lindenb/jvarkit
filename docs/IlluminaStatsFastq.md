@@ -19,10 +19,11 @@ Usage: IlluminaStatsFastq [options] Files
 ```
 
 
-##Description
+## Description
 
 Reads filenames from stdin: Count FASTQs in Illumina Result.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

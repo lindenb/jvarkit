@@ -18,10 +18,11 @@ Usage: vcfjmx [options] Files
 ```
 
 
-##Description
+## Description
 
 Monitor/interrupt/break a VCF stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

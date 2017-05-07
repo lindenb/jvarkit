@@ -25,10 +25,11 @@ Usage: biostar77828 [options] Files
 ```
 
 
-##Description
+## Description
 
 Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

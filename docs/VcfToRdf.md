@@ -28,10 +28,11 @@ Usage: vcf2rdf [options] Files
 ```
 
 
-##Description
+## Description
 
 convert VCF to RDF (N3 notation)
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

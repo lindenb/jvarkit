@@ -17,10 +17,11 @@ Usage: fixvarscanmissingheader  [options] Files
 ```
 
 
-##Description
+## Description
 
 Fix the sample name in the #CHROM header and fix VCF header missingh in varscan2. Sometimes, but not always, it happends. See  http://seqanswers.com/forums/showthread.php?t=33235 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

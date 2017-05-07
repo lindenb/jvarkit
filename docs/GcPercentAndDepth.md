@@ -39,10 +39,11 @@ Usage: gcpercentanddepth [options] Files
 ```
 
 
-##Description
+## Description
 
 Extracts GC% and depth for multiple bam using a sliding window
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

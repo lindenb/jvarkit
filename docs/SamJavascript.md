@@ -31,10 +31,11 @@ Usage: samjs [options] Files
 ```
 
 
-##Description
+## Description
 
 Filters a BAM using javascript ( java nashorn engine  ).
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

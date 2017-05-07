@@ -18,10 +18,11 @@ Usage: vcfmulti2oneinfo [options] Files
 ```
 
 
-##Description
+## Description
 
 'one INFO with N values' to 'N variants with one INFO'
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

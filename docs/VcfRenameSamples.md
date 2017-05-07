@@ -21,10 +21,11 @@ Usage: vcfrenamesamples [options] Files
 ```
 
 
-##Description
+## Description
 
 Rename the Samples in a VCF
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

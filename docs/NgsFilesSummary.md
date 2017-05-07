@@ -16,10 +16,11 @@ Usage: ngsfilessummary [options] Files
 ```
 
 
-##Description
+## Description
 
 Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

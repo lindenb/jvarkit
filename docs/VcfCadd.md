@@ -22,10 +22,11 @@ Usage: vcfcadd [options] Files
 ```
 
 
-##Description
+## Description
 
 Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

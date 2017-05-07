@@ -25,10 +25,11 @@ Usage: vcfshuffle [options] Files
 ```
 
 
-##Description
+## Description
 
 Shuffle a VCF
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

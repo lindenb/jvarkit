@@ -16,10 +16,11 @@ Usage: howmanybamdict [options] Files
 ```
 
 
-##Description
+## Description
 
 finds if there's are some differences in the sequence dictionaries.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

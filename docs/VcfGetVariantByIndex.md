@@ -18,10 +18,11 @@ Usage: vcfgetvariantbyIndex [options] Files
 ```
 
 
-##Description
+## Description
 
 Access a Plain or BGZF-compressed VCF file by index
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

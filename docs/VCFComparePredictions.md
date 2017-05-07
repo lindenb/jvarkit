@@ -25,10 +25,11 @@ Usage: vcfcmppred [options] Files
 ```
 
 
-##Description
+## Description
 
 Compare predictions (SNPEff, VEP) for several VCFs
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

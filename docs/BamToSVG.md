@@ -39,18 +39,20 @@ Usage: bam2svg [options] Files
 ```
 
 
-##Description
+## Description
 
 BAM to raster graphics
 
-##Keywords
+
+## Keywords
 
  * bam
  * alignment
  * graphics
  * visualization
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

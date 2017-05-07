@@ -19,10 +19,11 @@ Usage: samjmx [options] Files
 ```
 
 
-##Description
+## Description
 
 transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

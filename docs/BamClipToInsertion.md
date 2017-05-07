@@ -22,10 +22,11 @@ Usage: bamclip2insertion [options] Files
 ```
 
 
-##Description
+## Description
 
 Convert SOFT clip to Insertion of other read confirm it
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

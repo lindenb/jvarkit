@@ -20,10 +20,11 @@ Usage: samreadlengthdistribution [options] Files
 ```
 
 
-##Description
+## Description
 
 Sam read length distribution<
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

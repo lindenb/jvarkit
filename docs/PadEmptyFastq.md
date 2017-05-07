@@ -19,14 +19,15 @@ Usage: pademptyfastq [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 use awk
 
-##Description
+## Description
 
 Pad empty fastq sequence/qual with N/#
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

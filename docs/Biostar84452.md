@@ -24,10 +24,11 @@ Usage: biostar84452 [options] Files
 ```
 
 
-##Description
+## Description
 
 remove clipped bases from BAM. See: http://www.biostars.org/p/84452/
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -22,10 +22,11 @@ Usage: samshortinvert [options] Files
 ```
 
 
-##Description
+## Description
 
 Scan short inversions in SAM
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

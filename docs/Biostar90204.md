@@ -31,15 +31,17 @@ Usage: biostar90204 [options] Files
 ```
 
 
-##Description
+## Description
 
 Bam version of linux split. See also http://www.biostars.org/p/90204/
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/90204
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

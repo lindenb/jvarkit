@@ -20,10 +20,11 @@ Usage: evs2bed [options] Files
 ```
 
 
-##Description
+## Description
 
 Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

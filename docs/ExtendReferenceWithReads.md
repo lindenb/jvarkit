@@ -27,15 +27,17 @@ Usage: extendrefwithreads [options] Files
 ```
 
 
-##Description
+## Description
 
 Extending ends of sequences with the help of reads
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/148089
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -19,10 +19,11 @@ Usage: illuminadir [options] Files
 ```
 
 
-##Description
+## Description
 
 Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

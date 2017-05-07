@@ -22,10 +22,11 @@ Usage: biostar234081 [options] Files
 ```
 
 
-##Description
+## Description
 
 convert extended CIGAR to regular CIGAR (https://www.biostars.org/p/234081/)
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

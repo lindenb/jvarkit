@@ -31,10 +31,11 @@ Usage: sortsamrefname [options] Files
 ```
 
 
-##Description
+## Description
 
 Sort a BAM of contig and then on name
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

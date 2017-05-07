@@ -19,10 +19,11 @@ Usage: nozerovariationvcf [options] Files
 ```
 
 
-##Description
+## Description
 
 cat a whole VCF, or, if there is no variant, creates a fake one
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

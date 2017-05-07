@@ -25,10 +25,11 @@ Usage: vcfcompare [options] Files
 ```
 
 
-##Description
+## Description
 
 Compares two VCF files
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

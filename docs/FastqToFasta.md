@@ -22,14 +22,15 @@ Usage: fastq2fasta [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 use awk, samtools...
 
-##Description
+## Description
 
 fastq -> fasta
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

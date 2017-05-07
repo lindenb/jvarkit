@@ -22,10 +22,11 @@ Usage: biostar234230 [options] Files
 ```
 
 
-##Description
+## Description
 
 Sliding Window : discriminate partial and fully contained fragments (from a bam file)  see https://www.biostars.org/p/234230/
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

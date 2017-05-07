@@ -18,15 +18,17 @@ Usage: biostar103303 [options] Files
 ```
 
 
-##Description
+## Description
 
 Calculate Percent Spliced In (PSI).
+
 
 ## See also in Biostars
 
  * https://www.biostars.org/p/103303
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

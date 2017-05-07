@@ -19,19 +19,21 @@ Usage: vcfstripannot [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 Use bcftools annotate -x 
 
-##Description
+## Description
 
 Removes one or more field from the INFO/FORMAT column of a VCF.
 
-##Keywords
+
+## Keywords
 
  * vcf
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

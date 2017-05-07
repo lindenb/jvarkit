@@ -22,15 +22,17 @@ Usage: vcfreplacetag [options] Files
 ```
 
 
-##Description
+## Description
 
 Replace the key for INFO/FORMAT/FILTER
 
-##Keywords
+
+## Keywords
 
  * vcf
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

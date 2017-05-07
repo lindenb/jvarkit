@@ -18,10 +18,11 @@ Usage: Samclipindelfraction [options] Files
 ```
 
 
-##Description
+## Description
 
 Extract clipping/indel fraction from BAM
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

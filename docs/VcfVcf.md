@@ -35,14 +35,15 @@ Usage: vcfvcf [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 obsolete. use GATK
 
-##Description
+## Description
 
 Get the INFO from a VCF and use it for another VCF
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -29,10 +29,11 @@ Usage: cmpbamsandbuild [options] Files
 ```
 
 
-##Description
+## Description
 
 Compare two  BAM files mapped on two different builds. Requires a liftover chain file
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

@@ -49,7 +49,7 @@ Usage: Launcher [options] Files
 
 ```
 
-##Compilation
+## Compilation
 
 ### Requirements / Dependencies
 

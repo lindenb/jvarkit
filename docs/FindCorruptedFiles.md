@@ -24,18 +24,20 @@ Usage: findcorruptedfiles [options] Files
 ```
 
 
-##Description
+## Description
 
 Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED/TBI/BAI)
 
-##Keywords
+
+## Keywords
 
  * vcf
  * bam
  * fastq
  * bed
 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

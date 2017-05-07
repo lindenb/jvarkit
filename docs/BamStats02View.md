@@ -14,10 +14,11 @@ Usage: bamstats02view [options] Files
 ```
 
 
-##Description
+## Description
 
 Statistics about the flags and reads in a BAM. Visualize date from BamStats02
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

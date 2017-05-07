@@ -19,10 +19,11 @@ Usage: genomicjaspar [options] Files
 ```
 
 
-##Description
+## Description
 
 Find jaspar patterns in FASTA sequences. Reports a BED file.
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

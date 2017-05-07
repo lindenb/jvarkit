@@ -29,14 +29,15 @@ Usage: msa2vcf [options] Files
 ```
 
 
-##DEPRECATED
+## DEPRECATED
 
 use https://github.com/sanger-pathogens/snp_sites
 
-##Description
+## Description
 
 Getting a VCF file from a CLUSTAW or a FASTA alignment. 
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 

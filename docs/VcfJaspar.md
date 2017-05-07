@@ -23,10 +23,11 @@ Usage: vcfjaspar [options] Files
 ```
 
 
-##Description
+## Description
 
 Finds JASPAR profiles in VCF
-##Compilation
+
+## Compilation
 
 ### Requirements / Dependencies
 
