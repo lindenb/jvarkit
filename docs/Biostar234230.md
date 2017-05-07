@@ -4,7 +4,7 @@
 ## Usage
 
 ```
-Usage: XXXXX [options] Files
+Usage: biostar234230 [options] Files
   Options:
     -h, --help
       print help and exits
@@ -41,7 +41,7 @@ Sliding Window : discriminate partial and fully contained fragments (from a bam 
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make XXXXX
+$ make biostar234230
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -72,7 +72,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **XXXXX** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **biostar234230** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 

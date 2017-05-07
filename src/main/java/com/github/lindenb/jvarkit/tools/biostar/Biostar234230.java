@@ -79,7 +79,7 @@ END_DOC
 */
 
 
-@Program(name="XXXXX",description="Sliding Window : discriminate partial and fully contained fragments (from a bam file)  see https://www.biostars.org/p/234230/")
+@Program(name="biostar234230",description="Sliding Window : discriminate partial and fully contained fragments (from a bam file)  see https://www.biostars.org/p/234230/")
 public class Biostar234230 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar234230.class).make();
