@@ -239,7 +239,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
 	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
-	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx
+	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649
 	
 
 
@@ -330,6 +330,7 @@ $(eval $(call compile_biostar_cmd,178713,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,214299,${jcommander.jar} wiki_flag))
 $(eval $(call compile_biostar_cmd,234081,${jcommander.jar} wiki_flag))
 $(eval $(call compile_biostar_cmd,234230,${jcommander.jar} wiki_flag))
+$(eval $(call compile_biostar_cmd,251649,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,api.ncbi.blast wiki_flag))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,blastmapannots,${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations,${jcommander.jar} api.ncbi.blast api.ncbi.gb ${generated.dir}/java/org/uniprot/package-info.java))
