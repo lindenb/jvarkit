@@ -29,9 +29,8 @@ import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
 
-import java.io.PrintStream;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import javax.xml.bind.JAXBContext;
@@ -59,14 +58,138 @@ import htsjdk.samtools.SAMRecordFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.blast.BlastHspAlignment;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
-public class BlastToSam extends AbstractBlastToSam
+
+
+/**
+
+BEGIN_DOC
+
+
+
+
+
+### Example
+
+The following Makefile downloads a reference , generates some FASTQs, align them with blastn and convert it to SAM:
+
+
+```
+BLASTN=/commun/data/packages/ncbi/ncbi-blast-2.2.28+/bin/blastn
+SAMTOOLS=/commun/data/packages/samtools-0.1.19
+JVARKIT=/home/lindenb/src/jvarkit-git/dist/
+SHELL=/bin/bash
+.PHONY:all reads clean
+all: out.sam
+
+
+
+out.sam: ref.fa ref.fa.fai out.read1.fq out.read2.fq
+	paste \
+		<(cat out.read1.fq | paste - - - - | cut -f 1,2 ) \
+		<(cat out.read2.fq | paste - - - - | cut -f 1,2 ) |\
+	tr "\t" "\n" |\
+	sed 's/^@/>/' |\
+	${BLASTN} -subject ref.fa -dust no -outfmt 5 | \
+	java -jar ${JVARKIT}/blast2sam.jar -r ref.fa -p 500  |\
+	${SAMTOOLS}/samtools view -Sh -f 2 - > $@
+	
+reads: out.read1.fq out.read2.fq
+out.read1.fq out.read2.fq: ref.fa ref.fa.fai
+	${SAMTOOLS}/misc/wgsim  -d 100 -N 500 -1 50 -2 50   $< out.read1.fq out.read2.fq > /dev/null
+
+ref.fa:
+	curl -k -o $@ "https://raw.github.com/lindenb/genomehub/master/data/rotavirus/rf/rf.fa"
+
+ref.fa.fai: ref.fa
+	${SAMTOOLS}/samtools faidx $<
+
+clean:
+	rm -f ref.fa.fai ref.fa out.sam 
+
+```
+
+
+
+
+
+### Output
+
+
+
+```
+@HD	VN:1.4	SO:unsorted
+@SQ	SN:RF01	LN:3302
+@SQ	SN:RF02	LN:2687
+@SQ	SN:RF03	LN:2592
+@SQ	SN:RF04	LN:2362
+@SQ	SN:RF05	LN:1579
+@SQ	SN:RF06	LN:1356
+@SQ	SN:RF07	LN:1074
+@SQ	SN:RF08	LN:1059
+@SQ	SN:RF09	LN:1062
+@SQ	SN:RF10	LN:751
+@SQ	SN:RF11	LN:666
+@RG	ID:g1	LB:blast	DS:blast	SM:blast
+@PG	ID:0	PN:blastn	VN:BLASTN_2.2.28+
+@PG	ID:1	PN:com.github.lindenb.jvarkit.tools.blast2sam.BlastToSam	PP:0	VN:3365d9b714aa43d4fba44bfbf102a179a1f1573fCL:-r ref.fa -p 500
+RF01_445_573_0:0:0_0:0:0_0/1	83	RF01	524	40	50=	=	445	-30	GTGCCTTGGTACACCATATTTATTTACTGTTGAAGCTACTATAGTGAATA	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:93.4528	BE:f:9.71473e-24	RG:Z:g1	NM:i:0	BS:f:50
+RF01_445_573_0:0:0_0:0:0_0/2	163	RF01	445	40	50=	=	524	30	AATGCAGTTATGTTCTGGTTGGAAAAACATGAAAATGACGTTGCTGAAAA	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:93.4528	BE:f:9.71473e-24	RG:Z:g1	NM:i:0	BS:f:50
+RF01_1193_1294_1:0:0_1:0:0_1/1	83	RF01	1245	40	38=1X11=	=	1193	-3	CCATTACATGCATATTCTTTTTAGTCGAAAAAATTGTCATTCTACCAAAT	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:87.9128	BE:f:4.51982e-22	RG:Z:g1	NM:i:0	BS:f:47
+RF01_1193_1294_1:0:0_1:0:0_1/2	163	RF01	1193	40	4=1X45=	=	1245	3	CTGGATTACTATCAATGTCATCAGCGTCGAATGGTGAATCAAGACAACTA	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:87.9128	BE:f:4.51982e-22	RG:Z:g1	NM:i:0	BS:f:47
+RF01_638_718_1:0:0_0:0:0_2/1	83	RF01	669	40	50=	=	638	18	ATGACAGTACTATCAGTTCTCTCGCAATTAAATAATCTTCATGAGAAAAA	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:93.4528	BE:f:9.71473e-24	RG:Z:g1	NM:i:0	BS:f:50
+RF01_638_718_1:0:0_0:0:0_2/2	163	RF01	638	40	4=1X45=	=	669	-18	CAAAATCTTCAATTGAAATGCTGATGTCAGTTTTTTCTCATGAAGATTAT	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:87.9128	BE:f:4.51982e-22	RG:Z:g1	NM:i:0	BS:f:47
+RF01_1404_1584_0:0:0_2:0:0_3/1	99	RF01	1404	40	50=	=	1535	179	ATTTATCTTACCATATGAATATTTCATAGCACAACATGCTGTAGTTGAAA	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:93.4528	BE:f:9.71473e-24	RG:Z:g1	NM:i:0	BS:f:50
+RF01_1404_1584_0:0:0_2:0:0_3/2	147	RF01	1535	40	1S42=1X6=	=	1404	-179	NGACACGTCTGTATATAGTACCATAGAGTTATTAGATAAAAAGGGTGTAA	#JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:86.0662	BE:f:1.62562e-21	RG:Z:g1	NM:i:0	BS:f:46
+RF01_284_373_0:0:0_1:0:0_5/1	99	RF01	284	40	50=	=	324	89	TAGTAAAATATGCAAAAGGTAAGCCGCTAGAAGCAGATTTGACAGTGAAT	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:93.4528	BE:f:9.71473e-24	RG:Z:g1	NM:i:0	BS:f:50
+RF01_284_373_0:0:0_1:0:0_5/2	147	RF01	324	40	8=1X41=	=	284	-89	AAAGTTCATATGTTATCTTGTTATTTTCATAATCCAACTCATTCACTGTC	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:87.9128	BE:f:4.51982e-22	RG:Z:g1	NM:i:0	BS:f:47
+RF01_1704_1823_1:0:0_0:0:0_7/1	83	RF01	1774	40	50=	=	1704	-21	ATTGAATTCGCTGCTTTCGTCTGCTTCTCTCCTGACGCTACAGCCCCATA	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:93.4528	BE:f:9.71473e-24	RG:Z:g1	NM:i:0	BS:f:50
+RF01_1704_1823_1:0:0_0:0:0_7/2	163	RF01	1704	40	5=1X44=	=	1774	21	ACAGAGGCAAATTAATCTAATGGATTCATACGTTCAAATACCAGATGGTA	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:87.9128	BE:f:4.51982e-22	RG:Z:g1	NM:i:0	BS:f:47
+RF01_689_741_1:0:0_1:0:0_8/1	83	RF01	692	40	19=1X30=	=	689	46	TGCCAGAGTCGATCTATTATAATATGACAGTACTATCAGTTCTCTCGCAA	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:87.9128	BE:f:4.51982e-22	RG:Z:g1	NM:i:0	BS:f:47
+RF01_689_741_1:0:0_1:0:0_8/2	163	RF01	689	40	30=1X19=	=	692	-46	TAATTGCGAGAGAACTGATAGTACTGTCATCTTCTAATAGATCGACTCTG	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:87.9128	BE:f:4.51982e-22	RG:Z:g1	NM:i:0	BS:f:47
+RF01_532_688_0:0:0_1:0:0_9/1	99	RF01	532	40	50=	=	639	156	ATAGTAGCTTCAACAGTAAATAAATATGGTGTACCAAGGCACAACGCGAA	JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ	BB:f:93.4528	BE:f:9.71473e-24	RG:Z:g1	NM:i:0	BS:f:50
+(...)
+
+```
+
+
+
+
+
+END_DOC
+*/
+
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="blast2sam",description="Convert a **BLASTN-XML** input to SAM")
+
+public class BlastToSam extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BlastToSam.class);
+	private static final Logger LOG = Logger.build(BlastToSam.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-p","--expect_size"},description="input is an interleaved list of sequences forward and reverse (paired-ends). 0: not interleaved")
+	private int EXPECTED_SIZE = 0 ;
+
+	@Parameter(names={"-r","--reference"},description="Indexed fasta Reference")
+	private File faidx = null;
+	
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs=new WritingBamArgs();
+	
 
 	private SAMSequenceDictionary dictionary;
 	private Unmarshaller unmarshaller;
@@ -635,13 +758,14 @@ public class BlastToSam extends AbstractBlastToSam
 		
 		}
 	
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		if(super.faidx==null || !super.faidx.exists() || !super.faidx.isFile()) {
-			return wrapException("Option "+OPTION_FAIDX+" was not defined or dictionary missing");
+	public int doWork(List<String> args) {
+		
+		if(this.faidx==null || !this.faidx.exists() || !this.faidx.isFile()) {
+			LOG.error("Option -R was not defined or dictionary missing");
+			return -1;
 		}
-		final boolean interleaved_input=super.EXPECTED_SIZE>0;
+		final boolean interleaved_input=this.EXPECTED_SIZE>0;
 		final int maxRecordsInRam=5000;
 		SAMFileWriter sfw=null;
 		XMLEventReader rx=null;
@@ -651,11 +775,10 @@ public class BlastToSam extends AbstractBlastToSam
 		sfwf.setCreateMd5File(false);
 		sfwf.setUseAsyncIo(false);
 		final SAMFileHeader header=new SAMFileHeader();
-		final List<String> args = super.getInputFiles();
 		try
 			{
 			LOG.info("opening "+faidx);
-			this.dictionary=new SAMSequenceDictionaryFactory().load(super.faidx);
+			this.dictionary=SAMSequenceDictionaryExtractor.extractDictionary(faidx);
 			header.setSortOrder(SortOrder.unsorted);
 			header.setSequenceDictionary(this.dictionary);
 			
@@ -677,6 +800,7 @@ public class BlastToSam extends AbstractBlastToSam
 					return null;
 					}
 				});
+			final String inputName=oneFileOrNull(args);
 			if(inputName==null)
 				{
 				LOG.info("Reading from stdin");
@@ -689,7 +813,8 @@ public class BlastToSam extends AbstractBlastToSam
 				}
 			else
 				{
-				return wrapException("Illegal number of args");
+				LOG.error("Illegal number of args");
+				return -1;
 				}
 			
 			
@@ -698,7 +823,7 @@ public class BlastToSam extends AbstractBlastToSam
 			final SAMProgramRecord prg1=header.createProgramRecord();
 			prg1.setCommandLine(getProgramCommandLine());
 			prg1.setProgramVersion(getVersion());
-			prg1.setProgramName(getName());
+			prg1.setProgramName(getProgramName());
 			prg1.setPreviousProgramGroupId(prg2.getId());
 			final SAMReadGroupRecord rg1=new SAMReadGroupRecord("g1");
 			rg1.setLibrary("blast");
@@ -706,7 +831,7 @@ public class BlastToSam extends AbstractBlastToSam
 			rg1.setDescription("blast");
 			header.addReadGroup(rg1);
 			
-			sfw = super.openSAMFileWriter(header, true);
+			sfw = this.writingBamArgs.openSAMFileWriter(outputFile,header, true);
 			
 			if(interleaved_input)
 				{
@@ -720,7 +845,8 @@ public class BlastToSam extends AbstractBlastToSam
 			}
 		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}	
 		finally
 			{

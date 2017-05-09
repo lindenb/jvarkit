@@ -32,7 +32,8 @@ import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.ObjectFactory;
 import java.io.File;
 import java.io.PrintWriter;
-import java.util.Collection;
+import java.util.List;
+
 import javax.script.CompiledScript;
 import javax.script.SimpleBindings;
 import javax.xml.stream.XMLEventFactory;
@@ -47,16 +48,128 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+/**
+
+BEGIN_DOC
+
+
+
+
+### Examples
+
+Filter Hit having <Hit_len> <1500
+
+
+```
+
+$ java -jar dist/blastfilterjs.jar blastn.xml  -e 'parseInt(hit.getHitLen())<1500' 2> /dev/null |\
+  xmllint --format - | grep "Hit_len"
+  
+   <Hit_len>1492</Hit_len>
+   <Hit_len>1488</Hit_len>
+   <Hit_len>1477</Hit_len>
+   <Hit_len>1452</Hit_len>
+   <Hit_len>1430</Hit_len>
+   <Hit_len>1064</Hit_len>
+   <Hit_len>1283</Hit_len>
+   <Hit_len>1052</Hit_len>
+   <Hit_len>1272</Hit_len>
+   <Hit_len>693</Hit_len>
+     
+
+```
+
+
+keep hsp having 100 > Hsp_align-len <= 200 
+
+
+```
+
+$ cat filter.js
+
+// keep hsp having 100>= Hsp_align-len <= 200 
+function rmhsps()
+	{
+	var hsps = hit.getHitHsps().getHsp();
+	var i=0;
+	while(i< hsps.size())
+		{
+		var hsp = hsps.get(i);
+		var hsplen = parseInt(hsp.getHspAlignLen());
+		
+		if( hsplen < 100 || hsplen > 300 )
+			{
+			hsps.remove(i);
+			}
+		else
+			{
+			i++;
+			}
+		}
+	return true;
+	}
+rmhsps();
+
+```
+
+
+
+
+
+
+```
+
+$ java -jar dist/blastfilterjs.jar -f filter.js blastn.xml 2> /dev/null |\
+	xmllint --format - | grep -F 'Hsp_align-len'
+
+	 <Hsp_align-len>289</Hsp_align-len>
+	 <Hsp_align-len>291</Hsp_align-len>
+	 <Hsp_align-len>197</Hsp_align-len>
+	 <Hsp_align-len>227</Hsp_align-len>
+
+```
+
+
+
+
+
+### See also
+
+
+ *  
+
+
+
+
+
+
+END_DOC
+*/
 
 
 /**
  * BlastFilterJS
  *
  */
+@Program(name="blastfilterjs",description="Filters a BlastOutput with a javascript expression. The script injects each <Hit> as the variable 'blasthit'. The user script should return 'true' to keep the hit.")
 public class BlastFilterJS
-	extends AbstractBlastFilterJS
+	extends Launcher
 	{
-	private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(BlastFilterJS.class);
+	private static final Logger LOG = Logger.build(BlastFilterJS.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	@Parameter(names={"-e","--expression"},description=" (js expression). Optional.")
+	private String scriptExpr=null;
+	@Parameter(names={"-f","--script"},description=" (js file). Optional.")
+	private File scriptFile=null;
+
 
 	@SuppressWarnings("unused")
 	private static ObjectFactory _fool_javac=null;
@@ -65,16 +178,14 @@ public class BlastFilterJS
 		{
 		
 		}
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		
-		final CompiledScript compiledScript;
+	public int doWork(List<String> args) {
+	final CompiledScript compiledScript;
 		Unmarshaller unmarshaller;
 		Marshaller marshaller;
 		try
 			{
-			compiledScript = super.compileJavascript();
+			compiledScript = super.compileJavascript(scriptExpr,scriptFile);
 			
 			
 			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
@@ -91,13 +202,13 @@ public class BlastFilterJS
 			marshaller.setProperty(Marshaller.JAXB_FRAGMENT, true);
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
 			
-			PrintWriter pw=openFileOrStdoutAsPrintWriter();
+			PrintWriter pw=openFileOrStdoutAsPrintWriter(outputFile);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			xof.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.FALSE);
 			XMLEventWriter w=xof.createXMLEventWriter(pw);
 			
 			
-			
+			final String inputName=oneFileOrNull(args);
 			StreamSource src=null;
 			if(inputName==null)
 				{
@@ -172,7 +283,8 @@ public class BlastFilterJS
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

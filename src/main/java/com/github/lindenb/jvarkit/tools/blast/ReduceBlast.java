@@ -28,8 +28,9 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.blast;
 
+import java.io.File;
 import java.io.PrintWriter;
-import java.util.Collection;
+import java.util.List;
 
 import gov.nih.nlm.ncbi.blast.Iteration;
 
@@ -53,10 +54,26 @@ import htsjdk.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.io.IOUtils;
 
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class ReduceBlast extends AbstractReduceBlast
+@Program(name="reduceblast",description="Reduce the size of XML blast, by removing iterations that have no Hit")
+public class ReduceBlast extends Launcher
 {
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(ReduceBlast.class);
+	private static final Logger LOG = Logger.build(ReduceBlast.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-stats","--stats"},description="Keep <Iteration_stats>")
+	private boolean keep_stats = false;
+
+	@Parameter(names={"-message","--message"},description="Keep <Iteration_message>")
+	private boolean keep_message = false;
 
 	private Unmarshaller unmarshaller;
 	private Marshaller marshaller;
@@ -83,8 +100,8 @@ public class ReduceBlast extends AbstractReduceBlast
 				{
 				final Iteration iteration =  this.unmarshaller.unmarshal(r, Iteration.class).getValue();
 				if(!iteration.getIterationHits().getHit().isEmpty()) {
-					if(!super.keep_message) iteration.setIterationMessage(null);
-					if(!super.keep_stats) iteration.setIterationStat(null);
+					if(!this.keep_message) iteration.setIterationMessage(null);
+					if(!this.keep_stats) iteration.setIterationStat(null);
 					this.marshaller.marshal(
 							new JAXBElement<Iteration>(qname,Iteration.class , iteration),
 							w);
@@ -113,13 +130,13 @@ public class ReduceBlast extends AbstractReduceBlast
 	}
 
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
+	public int doWork(List<String> args) {
 		PrintWriter pw=null;
 		XMLEventReader rx=null;
 		XMLEventWriter wx=null;
 		try
 			{
-			
+			final String inputName = oneFileOrNull(args);
 			final JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 			this.marshaller=jc.createMarshaller();
@@ -151,7 +168,7 @@ public class ReduceBlast extends AbstractReduceBlast
 				rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(inputName));
 				}
 			final XMLOutputFactory xmlOutputFactory= XMLOutputFactory.newFactory();
-			pw = super.openFileOrStdoutAsPrintWriter();
+			pw = super.openFileOrStdoutAsPrintWriter(outputFile);
 			wx = xmlOutputFactory.createXMLEventWriter(pw);
 			run(rx,wx);
 			wx.close();
@@ -160,7 +177,8 @@ public class ReduceBlast extends AbstractReduceBlast
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
