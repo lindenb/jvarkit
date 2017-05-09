@@ -200,20 +200,20 @@ public  class ProjectServer extends AbstractProjectServer {
 	
 	@Override
 	public java.util.Collection<Throwable> call() throws Exception
-	{
-	try {
-		final List<String> inputFiles = super.getInputFiles();
-		if( inputFiles.size()!=1) {
-			return wrapException("Illegal Argument. Expected one config file");
-		}
-		super.createAndRunServer(inputFiles);
-	    return RETURN_OK;
-		}
-	catch (Exception e) {
-		return wrapException(e);
-		}
-	
-	}	
+		{
+		try {
+			final List<String> inputFiles = super.getInputFiles();
+			if( inputFiles.size()!=1) {
+				return wrapException("Illegal Argument. Expected one config file");
+			}
+			super.createAndRunServer(inputFiles);
+		    return RETURN_OK;
+			}
+		catch (Exception e) {
+			return wrapException(e);
+			}
+		
+		}	
 
 
 public static void main(String[] args) throws Exception{

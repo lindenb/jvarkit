@@ -29,8 +29,8 @@ History:
 package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -49,10 +49,133 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-public class PcrClipReads extends AbstractPcrClipReads
-	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(PcrClipReads.class);
 
+/**
+
+BEGIN_DOC
+
+
+
+ Soft clip BAM files based on PCR target regions https://www.biostars.org/p/147136/
+
+
+ *  mapping quality is set to zero if a read on strand - overlap the 5' side of the PCR fragment
+ *  mapping quality is set to zero if a read on strand + overlap the 3' side of the PCR fragment
+ *  mapping quality is set to zero if no PCR fragment is found
+
+
+after processing the BAM file should be sorted, processed with samtools calmd and picard fixmate
+
+
+
+
+### Example
+
+
+
+
+
+```
+
+echo  "seq2\t1100\t1200" > test.bed
+java -jar dist-1.133/pcrclipreads.jar -B test.bed -b  samtools-0.1.19/examples/ex1.bam  |\
+	samtools  view -q 1 -F 4 -bu  -  |\
+	samtools  sort - clipped && samtools index clipped.bam
+
+samtools tview -p seq2:1100  clipped.bam  samtools-0.1.19/examples/ex1.fa
+
+
+```
+
+
+
+
+### output
+
+
+![img](http://i.imgur.com/bjDEnMW.jpg)
+
+
+
+
+```
+
+    1091      1101      1111      1121      1131      1141      1151      1161      1171      1181      1191
+AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCACCTAACACAAGACTACCCAGATTCATAAAACAAATNNNNN
+              ...................................                               ..................................
+              ,,,                                                               ..................................
+              ,,,,,                                                              .................................
+              ,,,,,,,,,,,                                                        .............................N...
+              ,,,,,,,,                                                             ...............................
+              ,,g,,,,,,,,,,,,,                                                        ............................
+              ,,,,,,,,,,,,,,,,,,,,                                                    ............................
+              ,,,,,,,,,,,,,,,,,,,                                                       ..........................
+              ,,,,,,,,,,,,,,,,,,,,,,                                                    ..........................
+              ,,,,,,,,,,,,,,,,,,,,,,,                                                       ......................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,                                                        ..................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,                                                        ..................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                       .................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                       ................
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                        ...............
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                         ............
+              ,,,,,,,,,,,,a,,,,,,,,,,,,,,,,,,,                                                             .......
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                            ......
+              ,,a,,,a,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                              ....
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                             ....
+              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                                .
+                                                                                                                 .
+
+```
+
+
+
+
+
+### See also
+
+
+ *  https://www.biostars.org/p/147136/
+ *  https://www.biostars.org/p/178308
+
+
+
+
+
+END_DOC
+*/
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="pcrclipreads",description="Soft clip bam files based on PCR target regions https://www.biostars.org/p/147136/")
+
+public class PcrClipReads extends Launcher
+	{
+	private static final Logger LOG = Logger.build(PcrClipReads.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-B","--bed"},description="Bed file containing non-overlapping PCR fragments")
+	private File bedFile = null;
+
+	@Parameter(names={"-flag","--flag"},description="Only run on reads having sam flag (flag). -1 = all reads. (as https://github.com/lindenb/jvarkit/issues/43)")
+	private int onlyFlag = -1 ;
+
+	@Parameter(names={"-largest","--largest"},description="see if a read overlaps two bed intervals use the bed region sharing the longest sequence with a read. see https://github.com/lindenb/jvarkit/issues/44")
+	private boolean chooseLargestOverlap = false;
+
+	@Parameter(names={"-pr","--programId"},description="add a program ID to the clipped SAM records")
+	private boolean addProgramId = false;
+
+	
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
+	
 	private final IntervalTreeMap<Interval> bedIntervals=new IntervalTreeMap<Interval>();
 	
 	private Interval findInterval(final SAMRecord rec)
@@ -66,7 +189,7 @@ public class PcrClipReads extends AbstractPcrClipReads
 		final List<Interval> L= new ArrayList<>(this.bedIntervals.getOverlapping(i));
 		if(L.isEmpty()) return null;
 		if(L.size()==1) return L.get(0);
-		if(super.chooseLargestOverlap)
+		if(this.chooseLargestOverlap)
 			{
 			Interval best = null;
 			Integer dist = null;
@@ -83,29 +206,29 @@ public class PcrClipReads extends AbstractPcrClipReads
 		else
 			{
 			throw new IllegalStateException(
-					"Option -"+OPTION_CHOOSELARGESTOVERLAP+" not used. Overlapping PCR intervals samRecord "+i+": "+L);
+					"Option chooseLargestOverlap not used. Overlapping PCR intervals samRecord "+i+": "+L);
 			}
 		}
 	
 	
-	private Collection<Throwable> run(final SamReader reader)
+	private int run(final SamReader reader)
 		{
 		final SAMFileHeader header1= reader.getFileHeader();
 		final SAMFileHeader header2 = header1.clone();
 		Optional<SAMProgramRecord> samProgramRecord = Optional.empty();
-		if(super.addProgramId) {
+		if(this.addProgramId) {
 			final SAMProgramRecord spr = header2.createProgramRecord();
 			samProgramRecord = Optional.of(spr);
-			spr.setProgramName(this.getName());
+			spr.setProgramName(this.getProgramName());
 			spr.setProgramVersion(this.getGitHash());
 			}
-		header2.addComment(getName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
+		header2.addComment(getProgramName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
 		header2.setSortOrder(SortOrder.unsorted);
 		SAMFileWriter sw=null;
 		SAMRecordIterator iter = null;
 		try
 			{
-			sw = super.openSAMFileWriter(header2, false);
+			sw = this.writingBamArgs.openSAMFileWriter(outputFile,header2, false);
 			
 			final SAMSequenceDictionaryProgress progress =new SAMSequenceDictionaryProgress(header1);
 			iter =  reader.iterator();
@@ -113,7 +236,7 @@ public class PcrClipReads extends AbstractPcrClipReads
 				{
 				SAMRecord rec= progress.watch(iter.next());
 				
-				if(super.onlyFlag!=-1 &&  (rec.getFlags() & super.onlyFlag) != 0) {
+				if(this.onlyFlag!=-1 &&  (rec.getFlags() & this.onlyFlag) != 0) {
 					sw.addAlignment(rec);
 					continue;
 				}
@@ -169,7 +292,8 @@ public class PcrClipReads extends AbstractPcrClipReads
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -177,35 +301,37 @@ public class PcrClipReads extends AbstractPcrClipReads
 			CloserUtil.close(sw);
 			}
 		}
-	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-
-		if(super.bedFile==null)
+	public int doWork(List<String> args) {
+		if(this.bedFile==null)
 			{
-			return wrapException("undefined bed file option -"+OPTION_BEDFILE);
+			LOG.error("undefined bed file ");
+			return -1;
 			}
 		BufferedReader r=null;
 		SamReader samReader=null;
 		try {
+			final String inputName = oneFileOrNull(args);
 			samReader = openSamReader(inputName);
-			LOG.info("reading bed File "+super.bedFile);
+			LOG.info("reading bed File "+this.bedFile);
 			final Pattern tab= Pattern.compile("[\t]");
-			r= IOUtils.openFileForBufferedReading(super.bedFile);
+			r= IOUtils.openFileForBufferedReading(this.bedFile);
 			String line;
 			while((line=r.readLine())!=null)
 				{
 				String tokens[]=tab.split(line);
 				if(tokens.length<3)
 					{
-					return wrapException("Bad bed line "+line);
+					LOG.error("Bad bed line "+line);
+					return -1;
 					}
 				String chrom = tokens[0];
 				int chromStart1 = Integer.parseInt(tokens[1])+1;
 				int chromEnd1 = Integer.parseInt(tokens[2])+0;
 				if(chromStart1<1 || chromStart1>chromEnd1)
 					{
-					wrapException("Bad bed line "+line);
+					LOG.error("Bad bed line "+line);
+					return -1;
 					}
 				Interval i =new Interval(chrom, chromStart1, chromEnd1);
 				this.bedIntervals.put(i, i);
@@ -216,7 +342,8 @@ public class PcrClipReads extends AbstractPcrClipReads
 			return run(samReader);
 			}
 		catch (Exception err) {
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
