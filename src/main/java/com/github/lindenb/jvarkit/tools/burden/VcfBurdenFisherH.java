@@ -27,9 +27,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -49,17 +48,71 @@ import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 
 /**
- *     
- * VcfBurdenFisherH
- * @author lindenb
- *
- */
+
+BEGIN_DOC
+
+
+Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
+VCF header must contain a pedigree ( see VCFinjectPedigree ).
+
+
+
+
+### Output
+
+
+
+
+#### INFO column
+
+
+ *  BurdenFisher : Fisher test
+
+
+
+
+
+#### FILTER column
+
+
+ *  BurdenFisher :Fisher test doesn't meet  user's requirements
+
+
+
+
+
+### see also
+
+
+ *  VcfBurdenMAF
+ *  VcfBurdenFilterExac
+
+
+
+
+
+
+END_DOC
+*/
+
+@Program(name="vcfburdenfisherh",description="Fisher Case /Controls per Variant")
 public class VcfBurdenFisherH
-	extends AbstractVcfBurdenFisherH
+	extends Launcher
 	{	
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFisherH.class);
+	private static final Logger LOG = Logger.build(VcfBurdenFisherH.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-fisher","--minFisherPValue"},description="if p-value fisher(case/control vs have alt/have not alt) lower than 'fisher' the FILTER Column is Filled")
+	private double minFisherPValue = 0.05 ;
 	
 	private static class Count {
 		int case_have_alt =0;
@@ -72,13 +125,8 @@ public class VcfBurdenFisherH
 		{
 		}
 	 
-	/* public for knime */
 	@Override
-	public Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator in,
-			final VariantContextWriter out
-			) throws IOException {
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 		final VCFHeader header=in.getHeader();
 		final Set<Pedigree.Person> individuals = super.getCasesControlsInPedigree(header);
 		
@@ -89,7 +137,7 @@ public class VcfBurdenFisherH
 					"BurdenHFisher",VCFHeaderLineCount.A,VCFHeaderLineType.Float,"Fisher Exact Test Case/Control."
 					);
 			final VCFFilterHeaderLine fisherAlleleFilterHeader = new VCFFilterHeaderLine(
-					fisherAlleleInfoHeader.getID(),"Fisher case:control vs miss|have ALT is lower than "+super.minFisherPValue
+					fisherAlleleInfoHeader.getID(),"Fisher case:control vs miss|have ALT is lower than "+this.minFisherPValue
 					);
 			
 			final VCFInfoHeaderLine fisherDetailInfoHeader = new VCFInfoHeaderLine(
@@ -173,7 +221,7 @@ public class VcfBurdenFisherH
 							));
 					
 					found_one_alt_to_compute = true;
-					if( fisherAlt.getAsDouble() >= super.minFisherPValue ) {
+					if( fisherAlt.getAsDouble() >= this.minFisherPValue ) {
 						set_filter = false;
 						}
 					} //end of for each ALT allele
@@ -192,15 +240,16 @@ public class VcfBurdenFisherH
 			LOG.info("done");
 			return RETURN_OK;
 			} catch(Exception err) {
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 			} finally {
 				CloserUtil.close(in);
 			}
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args, outputFile);
 		}
 	 	
 	

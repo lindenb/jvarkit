@@ -15,7 +15,7 @@ Usage: ccfSimulator [options] Files
       faidx and with picard CreateSequenceDictionary
     -S
       random seed
-      Default: java.util.Random@67424e82
+      Default: java.util.Random@17050dc
 
 ```
 

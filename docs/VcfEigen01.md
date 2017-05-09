@@ -1,36 +1,100 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<!DOCTYPE app [
- <!ENTITY name "VcfEigen01">
- <!ENTITY package "com.github.lindenb.jvarkit.tools.vcfeigen">
-]>
-<app xmlns="http://github.com/lindenb/jvarkit/"
-	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-	xmlns:xi="http://www.w3.org/2001/XInclude"
-	xmlns:h="http://www.w3.org/1999/xhtml"
-	xmlns:svg="http://www.w3.org/2000/svg"
-	app="&name;"
-	package="&package;"
-	ui-swing="false"
-	__placeholder__="1"
-	xmlns:galaxy="https://usegalaxy.org/"
-	>
-<description>Annotator for the data of https://xioniti01.u.hpc.mssm.edu/v1.1/ : Eigen makes use of a variety of functional annotations in both coding and noncoding regions (such as made available by the ENCODE and Roadmap Epigenomics projects), and combines them into one single measure of functional importance.</description>
-<input type="vcf"/>
-<output type="vcf"/>
+# VcfEigen01
 
-<options>
-	<option name="eigenDirStr" type="string" opt="D" longopt="directory" arname="DIRECTORY" label="Filter" >
-		<description>Eigen directory containing the tabix files *.tab.gz</description>
-	</option>
-</options>
 
-<documentation>
-Annotate a VCF with the Eigen data ( <h:a>http://www.columbia.edu/~ii2135/eigen.html</h:a>)
+## Usage
 
-<h:h3>About Eigen</h:h3>
-<h:cite>"Eigen is a spectral approach to the functional annotation of genetic variants in coding and noncoding regions. Eigen makes use of a variety of functional annotations in both coding and noncoding regions (such as made available by the ENCODE and Roadmap Epigenomics projects), and combines them into one single measure of functional importance. Eigen is an unsupervised approach, and, unlike most existing methods, is not based on any labelled training data. Eigen produces estimates of predictive accuracy for each functional annotation score, and subsequently uses these estimates of accuracy to derive the aggregate functional score for variants of interest as a weighted linear combination of individual annotations. We show that the resulting meta-score has good discriminatory ability using disease associated and putatively benign variants from published studies (for both Mendelian and complex diseases). The Eigen score is particularly useful in prioritizing likely causal variants in a region of interest when it is combined with population-level genetic data in the framework of a hierarchical model. Furthermore, an important advantage of the Eigen score is that it can be easily adapted to a specific tissue or cell type. More information about the Eigen score can be found in the accompanying manuscript: <h:a href="http://www.columbia.edu/~ii2135/Eigen_11_24.pdf">A spectral approach integrating functional genomic annotations for coding and noncoding variants (Iuliana Ionita-Laza, Kenneth McCallum, Bin Xu, Joseph Buxbaum).</h:a> </h:cite>
-<h:h3>Example</h:h3>
-<h:pre><![CDATA[
+```
+Usage: vcfeigen [options] Files
+  Options:
+    -D, --directory
+      Eigen directory containing the tabix files *.tab.gz
+    -h, --help
+      print help and exits
+    -o, --output
+      Output file. Optional . Default: stdout
+    --version
+      print version and exits
+
+```
+
+
+## Description
+
+Annotator for the data of https://xioniti01.u.hpc.mssm.edu/v1.1/ : Eigen makes use of a variety of functional annotations in both coding and noncoding regions (such as made available by the ENCODE and Roadmap Epigenomics projects), and combines them into one single measure of functional importance.
+
+## Compilation
+
+### Requirements / Dependencies
+
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* GNU Make >= 3.81
+* curl/wget
+* git
+* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
+
+
+### Download and Compile
+
+```bash
+$ git clone "https://github.com/lindenb/jvarkit.git"
+$ cd jvarkit
+$ make vcfeigen
+```
+
+The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
+The required libraries will be downloaded and installed in the `dist` directory.
+
+### edit 'local.mk' (optional)
+
+The a file **local.mk** can be created edited to override/add some definitions.
+
+For example it can be used to set the HTTP proxy:
+
+```
+http.proxy.host=your.host.com
+http.proxy.port=124567
+```
+## Source code 
+
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfeigen/VcfEigen01.java
+
+## Contribute
+
+- Issue Tracker: http://github.com/lindenb/jvarkit/issues
+- Source Code: http://github.com/lindenb/jvarkit
+
+## License
+
+The project is licensed under the MIT license.
+
+## Citing
+
+Should you cite **vcfeigen** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+
+The current reference is:
+
+http://dx.doi.org/10.6084/m9.figshare.1425030
+
+> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
+> http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+
+Annotate a VCF with the Eigen data ( http://www.columbia.edu/~ii2135/eigen.html)
+
+
+
+### About Eigen
+
+"Eigen is a spectral approach to the functional annotation of genetic variants in coding and noncoding regions. Eigen makes use of a variety of functional annotations in both coding and noncoding regions (such as made available by the ENCODE and Roadmap Epigenomics projects), and combines them into one single measure of functional importance. Eigen is an unsupervised approach, and, unlike most existing methods, is not based on any labelled training data. Eigen produces estimates of predictive accuracy for each functional annotation score, and subsequently uses these estimates of accuracy to derive the aggregate functional score for variants of interest as a weighted linear combination of individual annotations. We show that the resulting meta-score has good discriminatory ability using disease associated and putatively benign variants from published studies (for both Mendelian and complex diseases). The Eigen score is particularly useful in prioritizing likely causal variants in a region of interest when it is combined with population-level genetic data in the framework of a hierarchical model. Furthermore, an important advantage of the Eigen score is that it can be easily adapted to a specific tissue or cell type. More information about the Eigen score can be found in the accompanying manuscript: A spectral approach integrating functional genomic annotations for coding and noncoding variants (Iuliana Ionita-Laza, Kenneth McCallum, Bin Xu, Joseph Buxbaum). 
+
+
+### Example
+
+
+
+```
+
 $ gunzip -c input.vcf.gz | cut -f 1-8 | java -jar dist/vcfeigen01.jar -D eigen_data_dir  | grep -i eigen
 
 ##INFO=<ID=EIGEN_CODING_Consequence,Number=A,Type=String,Description="Consequence">
@@ -89,8 +153,7 @@ $ gunzip -c input.vcf.gz | cut -f 1-8 | java -jar dist/vcfeigen01.jar -D eigen_d
 
 
 
-]]></h:pre>
 
-</documentation>
+```
 
-</app>
+

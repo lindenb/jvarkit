@@ -1,18 +1,19 @@
-# FixVCF
+# VcfBurdenFisherH
 
 
 ## Usage
 
 ```
-Usage: fixvcf [options] Files
+Usage: vcfburdenfisherh [options] Files
   Options:
     -h, --help
       print help and exits
+    -fisher, --minFisherPValue
+      if p-value fisher(case/control vs have alt/have not alt) lower than 
+      'fisher' the FILTER Column is Filled
+      Default: 0.05
     -o, --output
       Output file. Optional . Default: stdout
-    -T, --tmpDir
-      mp directory
-      Default: /tmp
     --version
       print version and exits
 
@@ -21,7 +22,7 @@ Usage: fixvcf [options] Files
 
 ## Description
 
-Fix a VCF if INFO or FILTER are missing
+Fisher Case /Controls per Variant
 
 ## Compilation
 
@@ -39,7 +40,7 @@ Fix a VCF if INFO or FILTER are missing
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make fixvcf
+$ make vcfburdenfisherh
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -57,7 +58,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVCF.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFisherH.java
 
 ## Contribute
 
@@ -70,7 +71,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **fixvcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfburdenfisherh** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -78,5 +79,47 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+
+Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
+VCF header must contain a pedigree ( see VCFinjectPedigree ).
+
+
+
+
+### Output
+
+
+
+
+#### INFO column
+
+
+ *  BurdenFisher : Fisher test
+
+
+
+
+
+#### FILTER column
+
+
+ *  BurdenFisher :Fisher test doesn't meet  user's requirements
+
+
+
+
+
+### see also
+
+
+ *  VcfBurdenMAF
+ *  VcfBurdenFilterExac
+
+
+
+
+
 
 

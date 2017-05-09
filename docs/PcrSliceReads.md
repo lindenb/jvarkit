@@ -18,7 +18,7 @@ Usage: pcrslicereads [options] Files
       output file (or stdout)
     --random
        random seed
-      Default: java.util.Random@2cdf8d8a
+      Default: java.util.Random@19af9a9
     --samoutputformat
       Sam output format.
       Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}

@@ -27,10 +27,10 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -43,39 +43,58 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-
 /**
- * VcfMoveFiltersToInfo
- *
- */
+
+BEGIN_DOC
+
+
+For Matilde: move the information in FILTER to the INFO column to keep a trace of the FILTERs.
+
+
+END_DOC
+*/
+
+@Program(name="vcfmovefilterstoinfo",
+		description="Move any FILTER to the INFO column. reset FILTER to PASS",
+		keywords={"vcf","burden","format","info"}
+		)
 public class VcfMoveFiltersToInfo
-	extends AbstractVcfMoveFiltersToInfo
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfMoveFiltersToInfo.class);
+	private static final Logger LOG = Logger.build(VcfMoveFiltersToInfo.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-f","--filter"},description="INFO name. This tag will be used to store the previous filters")
+	private String infoName = "PREVIOUSLY_FILTERED_AS";
+
+	@Parameter(names={"-t","--limitto"},description="If not empty, limit to those FILTERS. Multiple separated by comma/space.")
+	private String onlyThoseFiltersTagStr = null;
 	
 	
 	public VcfMoveFiltersToInfo()
 		{
 		}
 	 
-	
-	/* public for knime */
 	@Override
-	public Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator in,
-			final VariantContextWriter out
-			) throws IOException {
-		if(StringUtil.isBlank(super.infoName)) {
-			return wrapException("undefined option -"+OPTION_INFONAME);
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+		if(StringUtil.isBlank(this.infoName)) {
+			LOG.error("undefined option for infoName");
+			return -1;
 			}
 		final VCFHeader header = in.getHeader();
 		final Set<String> limitToThoseFilters = new HashSet<>();
-		if(!StringUtil.isBlank(super.onlyThoseFiltersTagStr)) {
-			for(final String f:super.onlyThoseFiltersTagStr.split("[, ]"))
+		if(!StringUtil.isBlank(this.onlyThoseFiltersTagStr)) {
+			for(final String f:this.onlyThoseFiltersTagStr.split("[, ]"))
 				{
 				if(StringUtil.isBlank(f)) continue;
 				limitToThoseFilters.add(f.trim());
@@ -84,14 +103,15 @@ public class VcfMoveFiltersToInfo
 		
 		try {
 			final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
-					super.infoName.trim(),
+					this.infoName.trim(),
 					VCFHeaderLineCount.UNBOUNDED,
 					VCFHeaderLineType.String,
 					"Variant was previously FILTERed with the given values."
 					);
 			if(header.getInfoHeaderLine(infoHeaderLine.getID())!=null)
 				{
-				return wrapException("INFO["+infoHeaderLine.getID()+"] already exists in input VCF.");
+				LOG.error("INFO["+infoHeaderLine.getID()+"] already exists in input VCF.");
+				return -1;
 				}
 			
 			
@@ -149,7 +169,8 @@ public class VcfMoveFiltersToInfo
 			LOG.info("done.");
 			return RETURN_OK;
 			} catch(Exception err) {
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 			} finally {
 				CloserUtil.close(in);
 				CloserUtil.close(out);
@@ -157,8 +178,8 @@ public class VcfMoveFiltersToInfo
 		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args,outputFile);
 		}
 	 	
 	

@@ -22,7 +22,7 @@ Usage: cmpbamsandbuild [options] Files
       restrict to that region chr:start-end
     -T, --tmpDir
       mp directory
-      Default: /var/folders/zm/23lwd0tn43q33r32881s0p680000gn/T
+      Default: /tmp
     --version
       print version and exits
 

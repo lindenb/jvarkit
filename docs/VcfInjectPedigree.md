@@ -1,18 +1,32 @@
-# FixVCF
+# VcfInjectPedigree
 
 
 ## Usage
 
 ```
-Usage: fixvcf [options] Files
+Usage: vcfinjectpedigree [options] Files
   Options:
+    -clean, --clean
+      Remove all previous data about pedigree in the VCF header before adding 
+      the new one.
+      Default: false
     -h, --help
       print help and exits
+    -imih, --ignoreMissingInHeader
+      Ignore errors if a sample is declared in the pedigree but is missing in 
+      the VCF header
+      Default: false
+    -imip, --ignoreMissingInPedigree
+      Ignore errors if a sample is declared in the VCF header but is missing 
+      in the pedigree
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -T, --tmpDir
-      mp directory
-      Default: /tmp
+    -p, --pedigree
+      Path to a pedigree file.
+    -valid, --valid
+      Ignore pedigree validation
+      Default: false
     --version
       print version and exits
 
@@ -21,7 +35,15 @@ Usage: fixvcf [options] Files
 
 ## Description
 
-Fix a VCF if INFO or FILTER are missing
+Injects a pedigree (.ped) file in the VCF header
+
+
+## Keywords
+
+ * vcf
+ * pedigree
+ * burden
+
 
 ## Compilation
 
@@ -39,7 +61,7 @@ Fix a VCF if INFO or FILTER are missing
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make fixvcf
+$ make vcfinjectpedigree
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -57,7 +79,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVCF.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java
 
 ## Contribute
 
@@ -70,7 +92,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **fixvcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfinjectpedigree** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -78,5 +100,29 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+
+This tools reads a pedigree file and inject it in the VCF header  
+
+
+
+```
+$ java -jar dist/vcfinjectpedigree.jar \
+	-imih -imip -p input.ped \
+	input.vcf.gz > out.vcf
+
+$ grep Sample out.vcf
+(...)
+##Sample=<Family=F1,ID=INDI1,Father=0,Mother=0,Sex=1,Status=1>
+##Sample=<Family=F2,ID=INDI2,Father=0,Mother=0,Sex=2,Status=1>
+##Sample=<Family=F3,ID=INDI3,Father=INDI1,Mother=INDI2,Sex=1,Status=1>
+(...)
+
+```
+
+
+
+
 
 

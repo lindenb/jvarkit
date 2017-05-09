@@ -27,9 +27,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -48,41 +47,88 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-
 /**
- * Burden F2: 
- *    
- *    * tests MAF cas/control
- *     
- * @author lindenb
- *
- */
+
+BEGIN_DOC
+
+
+Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
+
+
+### Output
+
+
+
+
+#### INFO column
+
+
+ *  BurdenMAFCas : MAF cases
+ *  BurdenMAFControls : MAF controls
+
+
+
+
+
+#### FILTER column
+
+
+ *  BurdenMAFCas : MAF for cases  doesn't meet  user's requirements
+ *  BurdenMAFControls : MAF for controls  doesn't meet  user's requirements
+ *  BurdenMAFCaseOrControls : MAF for controls or cases  doesn't meet  user's requirements
+
+
+
+
+
+### see also
+
+
+ *  VcfBurdenFilterExac
+ *  VcfBurdenFisherH
+
+
+END_DOC
+*/
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="vcfburdenmaf",
+	description="Burden : MAF for Cases / Controls ",
+	keywords={"vcf","burden","maf","case","control"}
+	)
 public class VcfBurdenMAF
-	extends AbstractVcfBurdenMAF
+	extends Launcher
 	{
 	private static final int CASE_POP=0;
 	
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenMAF.class);
+	private static final Logger LOG = Logger.build(VcfBurdenMAF.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@Parameter(names={"-maxMAF","--maxMAF"},description="if MAF of cases OR MAF of control is greater than maxMAF, the the FILTER Column is Filled")
+	private double maxMAF = 0.05 ;
+
+	@Parameter(names={"-c","--homref"},description="Treat No Call './.' genotypes as HomRef")
+	private boolean noCallAreHomRef = false;
 	
 	
 	public VcfBurdenMAF()
 		{
 		}
 	 
-	
-	
-	/* public for knime */
 	@Override
-	public Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator in,
-			final VariantContextWriter out
-			) throws IOException {
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 		final VCFHeader header=in.getHeader();
-		final Pedigree pedigree = Pedigree.readPedigree(header);
+		final Pedigree pedigree = Pedigree.newParser().parse(header);
 		if(pedigree.isEmpty())
 			{
-			throw new IOException("No pedigree found in header "+inputName+". use VcfInjectPedigree to add it");
+			LOG.error("No pedigree found in header "+inputName+". use VcfInjectPedigree to add it");
+			return -1;
 			}
 		
 		final Set<Pedigree.Person> caseSamples = pedigree.getAffected();
@@ -98,13 +144,13 @@ public class VcfBurdenMAF
 					"BurdenMAFControls",VCFHeaderLineCount.A,VCFHeaderLineType.Float,"Burden Filter F2. MAF Controls"
 					);
 			final VCFFilterHeaderLine filterCasHeader = new VCFFilterHeaderLine(
-					mafCasInfoHeader.getID(),"MAF of cases is greater than "+super.maxMAF
+					mafCasInfoHeader.getID(),"MAF of cases is greater than "+this.maxMAF
 					);
 			final VCFFilterHeaderLine filterControlsHeader = new VCFFilterHeaderLine(
-					mafControlsInfoHeader.getID(),"MAF of controls is greater than "+super.maxMAF
+					mafControlsInfoHeader.getID(),"MAF of controls is greater than "+this.maxMAF
 					);
 			final VCFFilterHeaderLine filterCaseOrControlsHeader = new VCFFilterHeaderLine(
-					"BurdenMAFCaseOrControls","MAF of (cases OR controls) is greater than "+super.maxMAF
+					"BurdenMAFCaseOrControls","MAF of (cases OR controls) is greater than "+this.maxMAF
 					);			
 			
 			h2.addMetaDataLine(mafCasInfoHeader);
@@ -130,7 +176,7 @@ public class VcfBurdenMAF
 					/* loop over two populations : 0 = case, 1=controls */
 					for(int pop=0;pop<2;++pop) {
 						final MafCalculator mafCalculator = new MafCalculator(observed_alt, ctx.getContig());
-						mafCalculator.setNoCallIsHomRef(super.noCallAreHomRef);
+						mafCalculator.setNoCallIsHomRef(this.noCallAreHomRef);
 						
 						
 						/* loop over persons in this pop */
@@ -153,14 +199,14 @@ public class VcfBurdenMAF
 								/* add INFO attribute */
 								mafCasList.add(maf);
 								/* remove FILTER if needed */
-								if(maf<=super.maxMAF)  set_max_maf_cas=false;
+								if(maf<=this.maxMAF)  set_max_maf_cas=false;
 								}
 							else
 								{
 								/* add INFO attribute */
 								mafCtrlList.add(maf);
 								/* remove FILTER if needed */
-								if(maf<=super.maxMAF)  set_max_maf_control=false;
+								if(maf<=this.maxMAF)  set_max_maf_control=false;
 								}
 							} 
 						else
@@ -195,15 +241,15 @@ public class VcfBurdenMAF
 			LOG.info("done");
 			return RETURN_OK;
 			} catch(Exception err) {
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 			} finally {
 				CloserUtil.close(in);
 			}
 		}
-	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args,outputFile);
 		}
 	 	
 	

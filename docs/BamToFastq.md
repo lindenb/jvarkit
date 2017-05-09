@@ -20,7 +20,7 @@ Usage: bam2fastq [options] Files
       Save fastq_R2 to file (default: interlaced with forward)
     -T, --tmpDir
       mp directory
-      Default: /var/folders/zm/23lwd0tn43q33r32881s0p680000gn/T
+      Default: /tmp
     --version
       print version and exits
 
