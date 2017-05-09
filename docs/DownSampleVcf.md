@@ -14,7 +14,7 @@ Usage: downsamplevcf [options] Files
       print version and exits
     -N
        random seed
-      Default: 1494159799082
+      Default: 1494328936925
     -n
       output size
       Default: 10

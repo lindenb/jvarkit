@@ -472,7 +472,7 @@ $(eval $(call compile-htsjdk-cmd,vcftrio,${jvarkit.package}.tools.vcftrios.VCFTr
 $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,worldmapgenome,${jvarkit.package}.tools.circular.WorldMapGenome,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,${jcommander.jar} ${generated.dir}/java/org/uniprot/package-info.java ))
-$(eval $(call compile-htsjdk-cmd,blastfilterjs,${jvarkit.package}.tools.blast.BlastFilterJS,api.ncbi.blast))
+$(eval $(call compile-htsjdk-cmd,blastfilterjs,${jvarkit.package}.tools.blast.BlastFilterJS,${jcommander.jar} api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,skipxmlelements,${jvarkit.package}.tools.misc.SkipXmlElements,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,minicaller,${jvarkit.package}.tools.calling.MiniCaller,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallersonesample,${jvarkit.package}.tools.vcfcmp.VcfCompareCallersOneSample,${jcommander.jar}))
@@ -585,8 +585,8 @@ api.uniprot :
 
 ${generated.dir}/java/com/github/lindenb/semontology/Term.java:
 	mkdir -p $(dir $@)
-	wget -O $@ "https://raw.githubusercontent.com/lindenb/semontology/master/ontologies/Term.java"
-
+	wget -O $(addsuffix .tmp,$@) "https://raw.githubusercontent.com/lindenb/semontology/master/ontologies/Term.java"
+	mv $(addsuffix .tmp,$@) $@
 
 api.ncbi.pubmed : 
 	rm -rf  ${generated.dir}/java/gov/nih/nlm/ncbi/pubmed/

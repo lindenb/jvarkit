@@ -1,44 +1,36 @@
-# PcrSliceReads
+# VcfIndexTabix
 
 
 ## Usage
 
 ```
-Usage: pcrslicereads [options] Files
+Usage: vcfindextabix [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
-    -B, --bed
-      bed file containing non-overlapping PCR fragments. Column name is 
-      required. 
     -h, --help
       print help and exits
-    -o, --out
-      output file (or stdout)
-    --random
-       random seed
-      Default: java.util.Random@2cdf8d8a
-    --samoutputformat
-      Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
+    -o, --output
+      Output file. Optional . Default: stdout
+    -s, --sort
+      sort VCF prior to saving
+      Default: false
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exits
-    -a
-       if a read is mapped on multiple PCR fragments, how to resolve ambiguity
-      Default: closer
-      Possible Values: [zero, random, closer]
-    -c
-      clip read to their PCR fragments. see 
-      https://github.com/lindenb/jvarkit/wiki/PcrClipReads 
-      Default: false
 
 ```
 
 
 ## Description
 
-Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/
+Index and sort a VCF on the fly with Tabix
 
 ## Compilation
 
@@ -56,7 +48,7 @@ Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make pcrslicereads
+$ make vcfindextabix
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -74,7 +66,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pcr/PcrSliceReads.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfIndexTabix.java
 
 ## Contribute
 
@@ -87,7 +79,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **pcrslicereads** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfindextabix** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -95,12 +87,5 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
-
-
-	out.println(" -a (strategy) if a read is mapped on multiple PCR fragments, how to resolve ambiguity ? default:"+this.ambiguityStrategy.name()+" . Where strategy is"); 
-	out.println("     "+AmbiguityStrategy.random.name() + " : choose a random fragment"); 
-	out.println("     "+AmbiguityStrategy.zero.name() + " : set MAPQ to zero and ignore."); 
-	out.println("     "+AmbiguityStrategy.closer.name() + " : choose PCR fragment closest to NGS-fragment boundaries."); 
-
 
 

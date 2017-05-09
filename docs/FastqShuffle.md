@@ -15,7 +15,7 @@ Usage: fastqshuffle [options] Files
       Output file. Optional . Default: stdout
     -T, --tmpDir
       mp directory
-      Default: /tmp
+      Default: /var/folders/zm/23lwd0tn43q33r32881s0p680000gn/T
     --version
       print version and exits
     -i

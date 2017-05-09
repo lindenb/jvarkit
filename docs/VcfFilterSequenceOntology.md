@@ -1,10 +1,10 @@
-# Launcher
+# VcfFilterSequenceOntology
 
 
 ## Usage
 
 ```
-Usage: Launcher [options] Files
+Usage: vcffilterso [options] Files
   Options:
     -A, --acn
       add this SO:ACN.
@@ -49,6 +49,21 @@ Usage: Launcher [options] Files
 
 ```
 
+
+## Description
+
+Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.<
+
+
+## Keywords
+
+ * vcf
+ * filter
+ * sequenceontology
+ * prediction
+ * so
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -65,7 +80,7 @@ Usage: Launcher [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make software
+$ make vcffilterso
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -83,7 +98,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterso/VcfFilterSequenceOntology$Launcher.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterso/VcfFilterSequenceOntology.java
 
 ## Contribute
 
@@ -96,7 +111,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **software** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcffilterso** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
