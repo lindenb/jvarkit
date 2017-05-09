@@ -29,7 +29,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.util.Collection;
+import java.io.File;
+import java.util.List;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.Cigar;
@@ -43,21 +44,43 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
+/**
+
+BEGIN_DOC
+
+
+Supplementary and secondary reads are ignored.
+Output Bam is unsorted and reads are all unmapped.
+
+
+
+END_DOC
+*/
+@Program(name="sammaskalignedbases",description="Mask bases aligned on Reference.")
 public class SamMaskAlignedBases
-	extends AbstractSamMaskAlignedBases
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(SamMaskAlignedBases.class);
+	private static final Logger LOG = Logger.build(SamMaskAlignedBases.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs =new WritingBamArgs();
 	
 	
 	public SamMaskAlignedBases()
 	{
 	}
 	
-
 	@Override
-	public Collection<Throwable> call(final String inputName) throws Exception 
-		{
+	public int doWork(List<String> args) {
+	
 		final byte RESET_CHAR=(byte)'N';
 		final byte RESET_QUAL=(byte)SAMUtils.fastqToPhred('#');
 		
@@ -70,19 +93,20 @@ public class SamMaskAlignedBases
 		SAMFileWriter sfw =null;
 		try
 			{			
-			sfr = openSamReader(inputName);
+			sfr = openSamReader(oneFileOrNull(args));
 			
 			final SAMFileHeader header1=sfr.getFileHeader();
 			
 			if(header1==null)
 				{
-				return wrapException("File header missing");
+				LOG.error("File header missing");
+				return -1;
 				}
 			final SAMFileHeader header2=header1.clone();
-			header2.addComment(getName()+":"+getVersion()+":"+getProgramCommandLine());
+			header2.addComment(getProgramName()+":"+getVersion()+":"+getProgramCommandLine());
 			header2.setSortOrder(SortOrder.unsorted);
 			
-			sfw =  openSAMFileWriter(header2, true);
+			sfw =  this.writingBamArgs.openSAMFileWriter(outputFile,header2, true);
 			
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1);
 			iter = sfr.iterator();
@@ -139,7 +163,8 @@ public class SamMaskAlignedBases
 			}
 		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

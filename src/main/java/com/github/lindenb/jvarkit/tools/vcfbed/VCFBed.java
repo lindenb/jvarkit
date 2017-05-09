@@ -387,11 +387,13 @@ public class VCFBed extends Launcher
 			{
 			if(this.tabixFile==null && this.treeMapFile==null)
 				{
-				return wrapException("Undefined tabix or memory file");
+				LOG.error("Undefined tabix or memory file");
+				return -1;
 				}
 			else if(this.tabixFile!=null && this.treeMapFile!=null)
 				{
-				return wrapException("You cannot use both options: tabix/in memory bed");
+				LOG.error("You cannot use both options: tabix/in memory bed");
+				return -1;
 				}
 			else if( this.tabixFile!=null) {
 				LOG.info("opening Bed "+this.tabixFile);
@@ -404,13 +406,15 @@ public class VCFBed extends Launcher
 					LOG.info("Number of items in "+this.treeMapFile+" "+this.intervalTreeMap.size());
 				}
 				catch(final Exception err) {
-					return wrapException(err);
+					LOG.error(err);
+					return -1;
 					}
 				}
 			
 			if(this.infoName==null || this.infoName.trim().isEmpty())
 				{
-				return wrapException("Undefined INFO name.");
+				LOG.error("Undefined INFO name.");
+				return -1;
 				}
 			
 			LOG.info("parsing "+this.formatPattern);
@@ -422,7 +426,7 @@ public class VCFBed extends Launcher
 		catch(final Exception err)
 			{
 			LOG.error(err);
-			return wrapException(err);
+			return -1;
 			}
 		finally
 			{

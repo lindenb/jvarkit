@@ -37,7 +37,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -60,16 +59,71 @@ import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+/**
+
+BEGIN_DOC
 
 
+### Example
+
+
+```
+
+$ gunzip -c input.vcf.gz |\
+	java -jar dist/vcfgenesplitter.jar -tmpdir . -o out.zip -maxRecordsInRam 5000 -zipdir BASE
+
+```
+
+
+
+END_DOC
+*/
+@Program(name="vcfgenesplitter",description="Split VCF+VEP by gene.")
 public class VcfGeneSplitter
-	extends AbstractVcfGeneSplitter
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfGeneSplitter.class);
+	private static final Logger LOG = Logger.build(VcfGeneSplitter.class).make();
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-zipdir","--zipdir"},description="Base zip entry")
+	private String baseZipDir = "splitbygene";
+
+	@Parameter(names={"-enst","--noENST"},description="Ignore ENST entries")
+	private boolean ignoreEnst = false;
+
+	@Parameter(names={"-hgns","--noHGNC"},description="Ignore HGNC entries")
+	private boolean ignoreHgnc = false;
+
+	@Parameter(names={"-feature","--noFeature"},description="Ignore FEATURE entries")
+	private boolean ignoreFeature = false;
+
+	@Parameter(names={"-ensg","--noENSG"},description="Ignore ENSG entries")
+	private boolean ignoreEnsg = false;
+
+	@Parameter(names={"-refseq","--noREFSEQ"},description="Ignore ENSG entries")
+	private boolean ignoreRefSeq = false;
+
+	@Parameter(names={"-symbol","--noSymbol"},description="Ignore SYMBOL entries")
+	private boolean ignoreSymbol = false;
+
+	@Parameter(names={"-ensp","--noENSP"},description="Ignore ENSP entries")
+	private boolean ignoreENSP = false;
+
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	
 	private static class KeyAndLine {
 		final String key;
 		final String ctx;
@@ -130,11 +184,11 @@ public class VcfGeneSplitter
 			final Set<String> keys = new HashSet<>();
 			for(final VepPrediction pred: vepPredictionParser.getPredictions(ctx)) {
 				String s= pred.getHGNC();
-				if(!isEmpty(s) && !super.ignoreHgnc) {
+				if(!isEmpty(s) && !this.ignoreHgnc) {
 					keys.add(String.format("HGNC_%s_%s",ctx.getContig(),s));
 					}
 				s= pred.getEnsemblGene();
-				if(!isEmpty(s) && !super.ignoreEnsg) {
+				if(!isEmpty(s) && !this.ignoreEnsg) {
 					keys.add(String.format("ENSG_%s_%s",ctx.getContig(),s));
 					}
 				/* same as feature 
@@ -144,25 +198,25 @@ public class VcfGeneSplitter
 					}*/
 					
 				s= pred.getFeature();
-				if(!isEmpty(s)  && !super.ignoreFeature) {
+				if(!isEmpty(s)  && !this.ignoreFeature) {
 					keys.add(String.format("FEATURE_%s_%s",ctx.getContig(),s));
 					
-					if((s.startsWith("XM_") || s.startsWith("NM_")) &&  !super.ignoreRefSeq)
+					if((s.startsWith("XM_") || s.startsWith("NM_")) &&  !this.ignoreRefSeq)
 						{
 						keys.add(String.format("REFSEQ_%s_%s",ctx.getContig(),s));
 						}
-					else if(s.startsWith("ENST_")&&  !super.ignoreEnst)
+					else if(s.startsWith("ENST_")&&  !this.ignoreEnst)
 						{
 						keys.add(String.format("ENST_%s_%s",ctx.getContig(),s));
 						}
 					}
 
 				s= pred.getSymbol();
-				if(!isEmpty(s) && !super.ignoreSymbol) {
+				if(!isEmpty(s) && !this.ignoreSymbol) {
 					keys.add(String.format("SYMBOL_%s_%s",ctx.getContig(),s));
 					}
 				s= pred.getENSP();
-				if(!isEmpty(s) && !super.isIgnoreENSP()) {
+				if(!isEmpty(s) && !this.ignoreENSP) {
 					keys.add(String.format("ENSP_%s_%s",ctx.getContig(),s));
 					}
 				}
@@ -173,27 +227,12 @@ public class VcfGeneSplitter
 	public VcfGeneSplitter()
 		{
 		}
-	 
-	@Override
-	public Collection<Throwable> initializeKnime() {
-		if(super.outputFile==null || !outputFile.getName().endsWith(".zip")) {
-			return wrapException("output file option -"+OPTION_OUTPUTFILE+" must be declared and must en with .zip");
-		}	
-	return super.initializeKnime();
-	}
 	
-	/* public for knime */
-	@Override
-	public Collection<Throwable> doVcfToVcf(
-			String inputName,
-			VcfIterator in,
-			VariantContextWriter out
-			) throws IOException {
-		throw new IllegalArgumentException("should be never called");
-		}
+	
+	
 	
 	@Override
-	protected Collection<Throwable> doVcfToVcf(String inputName) throws Exception {
+	protected int doVcfToVcf(String inputName, File outputFile) {
 		SortingCollection<KeyAndLine> sortingcollection=null;
 		BufferedReader in = null;
 		FileOutputStream fos = null;
@@ -214,8 +253,8 @@ public class VcfGeneSplitter
 					KeyAndLine.class,
 					new KeyAndLineCodec(),
 					new KeyAndLineComparator(),
-					super.maxRecordsInRam,
-					super.getTmpDirectories()
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			sortingcollection.setDestructiveIteration(true);
 			
@@ -234,12 +273,12 @@ public class VcfGeneSplitter
 			progess.finish();
 			sortingcollection.doneAdding();
 			
-			LOG.info("creating zip "+super.outputFile);
-			fos = new FileOutputStream(super.outputFile);
+			LOG.info("creating zip "+ outputFile);
+			fos = new FileOutputStream(outputFile);
 			zout = new ZipOutputStream(fos);
 			
 
-			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", super.getTmpdir());
+			final File tmpReportFile = File.createTempFile("_tmp.", ".txt", writingSortingCollection.getTmpDirectories().get(0));
 			tmpReportFile.deleteOnExit();
 			pw = IOUtils.openFileForPrintWriter(tmpReportFile);
 			pw.println("#chrom\tstart\tend\tkey\tCount_Variants");
@@ -282,7 +321,7 @@ public class VcfGeneSplitter
 						);
 				
 				// save vcf file
-				final ZipEntry ze = new ZipEntry(super.baseZipDir+"/"+first.key+".vcf");
+				final ZipEntry ze = new ZipEntry(this.baseZipDir+"/"+first.key+".vcf");
 				zout.putNextEntry(ze);
 				final VariantContextWriter out = VCFUtils.createVariantContextWriterToOutputStream(IOUtils.uncloseableOutputStream(zout));
 				final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
@@ -303,7 +342,7 @@ public class VcfGeneSplitter
 			LOG.info("saving report");
 			pw.flush();
 			pw.close();
-			final ZipEntry entry = new ZipEntry(super.baseZipDir+"/manifest.bed");
+			final ZipEntry entry = new ZipEntry(this.baseZipDir+"/manifest.bed");
 			zout.putNextEntry(entry);
 			IOUtils.copyTo(tmpReportFile,zout);
 			zout.closeEntry();
@@ -314,7 +353,8 @@ public class VcfGeneSplitter
 			}
 		catch(final Exception err) 
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -325,10 +365,15 @@ public class VcfGeneSplitter
 			CloserUtil.close(pw);
 			}
 		}
-		
+	
+	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+	public int doWork(List<String> args) {
+		if(this.outputFile==null || !outputFile.getName().endsWith(".zip")) {
+			LOG.error("output file option -o must be declared and must en with .zip");
+			return -1;
+			}	
+		return doVcfToVcf(args, outputFile);
 		}
 	 	
 	

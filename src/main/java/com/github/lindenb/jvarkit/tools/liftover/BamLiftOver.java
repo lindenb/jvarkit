@@ -25,10 +25,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.liftover;
 
-import java.util.Collection;
+import java.io.File;
+import java.util.List;
 
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.util.Interval;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SamReader;
@@ -41,22 +43,51 @@ import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
-public class BamLiftOver extends AbstractBamLiftOver
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="bamLiftOver",
+	description="Lift-over a BAM file.",
+	keywords={"bam","liftover"}
+		)
+public class BamLiftOver extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamLiftOver.class);
+	private static final Logger LOG = Logger.build(BamLiftOver.class).make();
 
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-f","--chain"},description="LiftOver file. Require")
+	private File liftOverFile = null;
+
+	@Parameter(names={"-m","--minmatch"},description="lift over min-match. default:-1 == use default value from htsjdk LiftOver.DEFAULT_LIFTOVER_MINMATCH")
+	private double userMinMatch = -1 ;
+
+	@Parameter(names={"-D","--reference"},description="indexed REFerence file for the new sequence dictionary. Required")
+	private File faidx = null;
+
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs =new WritingBamArgs();
+	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		final double minMatch=(super.userMinMatch<=0.0?LiftOver.DEFAULT_LIFTOVER_MINMATCH:super.userMinMatch);
-		if(super.liftOverFile==null)
+	public int doWork(final List<String> args) {
+		final double minMatch=(this.userMinMatch<=0.0?LiftOver.DEFAULT_LIFTOVER_MINMATCH:this.userMinMatch);
+		if(this.liftOverFile==null)
 			{
-			return wrapException("LiftOver file is undefined.");
+			LOG.error("LiftOver file is undefined.");
+			return -1;
 			}
-		if(super.faidx==null)
+		if(this.faidx==null)
 			{
-			return wrapException("New Sequence Dictionary file is undefined.");
+			LOG.error("New Sequence Dictionary file is undefined.");
+			return -1;
 			}
 		SAMRecordIterator iter=null;
 		SamReader sfr=null;
@@ -68,17 +99,17 @@ public class BamLiftOver extends AbstractBamLiftOver
 			liftOver.setLiftOverMinMatch(minMatch);
 
 			
-			final SAMSequenceDictionary newDict=new SAMSequenceDictionaryFactory().load(super.faidx);
+			final SAMSequenceDictionary newDict=SAMSequenceDictionaryExtractor.extractDictionary(faidx);
 			
 			
-			sfr=super.openSamReader(inputName);
+			sfr=super.openSamReader(oneFileOrNull(args));
 			
 
 			final SAMFileHeader headerIn=sfr.getFileHeader();
 			final SAMFileHeader headerOut=headerIn.clone();
 			headerOut.setSortOrder(SortOrder.unsorted);
 			
-			sfw = openSAMFileWriter(headerOut, true);
+			sfw = this.writingBamArgs.openSAMFileWriter(outputFile,headerOut, true);
 			
 			
 			iter=sfr.iterator();
@@ -101,7 +132,8 @@ public class BamLiftOver extends AbstractBamLiftOver
 							{
 							sfr.close();
 							sfr=null;
-							return wrapException("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
+							LOG.error("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
+							return -1;
 							}
 						copy.setReferenceName(ssr.getSequenceName());
 						copy.setReferenceIndex(ssr.getSequenceIndex());
@@ -140,7 +172,8 @@ public class BamLiftOver extends AbstractBamLiftOver
 							{
 							sfr.close();
 							sfr=null;
-							return wrapException("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
+							LOG.error("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
+							return -1;
 							}
 						copy.setMateReferenceName(ssr.getSequenceName());
 						copy.setMateReferenceIndex(ssr.getSequenceIndex());
@@ -173,7 +206,8 @@ public class BamLiftOver extends AbstractBamLiftOver
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

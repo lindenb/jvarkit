@@ -31,7 +31,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.List;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -44,16 +44,34 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder.OutputType;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFRecordCodec;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+@Program(name="vcfindextabix",description="Index and sort a VCF on the fly with Tabix")
 
 public class VcfIndexTabix
-	extends AbstractVcfIndexTabix
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfIndexTabix.class);
+	private static final Logger LOG = Logger.build(VcfIndexTabix.class).make();
 
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-s","--sort"},description="sort VCF prior to saving")
+	private boolean sort = false;
+
+
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	
 	private class SortingVCFWriter implements VariantContextWriter
 		{
 		VariantContextWriter delegate;
@@ -78,8 +96,8 @@ public class VcfIndexTabix
 	                        VariantContext.class,
 	                        new VCFRecordCodec(header),
 	                        header.getVCFRecordComparator(),
-	                        VcfIndexTabix.this.getMaxRecordsInRam(),
-	                        VcfIndexTabix.this.getTmpDirectories().get(0)
+	                        VcfIndexTabix.this.writingSortingCollection.getMaxRecordsInRam(),
+	                        VcfIndexTabix.this.writingSortingCollection.getTmpDirectories()
 	                        );
 			
 			}
@@ -121,16 +139,8 @@ public class VcfIndexTabix
 		{
 		}
 	
-	/* public for knime */
-	public Collection<Throwable> doVcfToVcf(String inputName, final VcfIterator vcfIn,final File outFile) throws IOException {
-		if(outFile==null)
-			{
-			throw new IOException(getName()+" output file undefined.");
-			}
-		if(!outFile.getName().endsWith(".vcf.gz"))
-			{
-			return wrapException("output file should en with .vcf.gz but got "+outFile);
-			}
+	private int doVcfToVcf(String inputName, final VcfIterator vcfIn,final File outFile) throws IOException {
+		
 
 		SortingVCFWriter sortingVCW=null;
 		VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
@@ -164,14 +174,15 @@ public class VcfIndexTabix
 			} 
 		catch (Exception e)
 			{
-			if(getOutputFile().exists() && getOutputFile().isFile())
+			if(outFile.exists() && outFile.isFile())
 				{
 				LOG.warn("Deleting "+outFile);
-				getOutputFile().delete();
-				File tbi = new File(getOutputFile().getPath()+TabixUtils.STANDARD_INDEX_EXTENSION);
+				outFile.delete();
+				File tbi = new File(outFile.getPath()+TabixUtils.STANDARD_INDEX_EXTENSION);
 				if(tbi.exists() && tbi.isFile()) tbi.delete();
 				}
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
 		finally
 			{
@@ -180,35 +191,31 @@ public class VcfIndexTabix
 		}
 	
 	@Override
-	public Collection<Throwable> initializeKnime() {
-		return super.initializeKnime();
-		}
-	
-	@Override
-	public void disposeKnime() {
-		super.disposeKnime();
-		}
-	
-	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		if(getOutputFile()==null)
+	public int doWork(List<String> args) {
+		if(outputFile==null)
 			{
-			return wrapException("output file is required");
+			LOG.error(" output file undefined.");
+			return -1;
 			}
+		if(!outputFile.getName().endsWith(".vcf.gz"))
+			{
+			LOG.error("output file should en with .vcf.gz but got "+outputFile);
+			return 1;
+			}
+		
 		VcfIterator iter = null;
 		try {
+			
+			final String inputName=oneFileOrNull(args);
 			iter =  super.openVcfIterator(inputName);
-			return doVcfToVcf(inputName==null?"STDIN":inputName, iter, getOutputFile());
+			return doVcfToVcf(inputName==null?"STDIN":inputName, iter, outputFile);
 		} catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(iter);
+			}
 		}
-		
-		
-		}
-		
-		
 		
 	public static void main(String[] args)
 		{

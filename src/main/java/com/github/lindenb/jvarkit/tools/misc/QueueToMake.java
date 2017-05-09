@@ -33,7 +33,6 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.AbstractList;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -45,10 +44,56 @@ import java.util.stream.Collectors;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class QueueToMake extends AbstractQueueToMake
+/**
+
+BEGIN_DOC
+
+
+
+
+### Example
+
+
+
+```
+
+$ java -Xmx4g -cp ${classpath} \
+     org.broadinstitute.gatk.queue.QCommandLine \
+     -S ${SV_DIR}/qscript/SVPreprocess.q \
+     -S ${SV_DIR}/qscript/SVQScript.q \
+     -cp ${classpath} \
+     -gatk ${SV_DIR}/lib/gatk/GenomeAnalysisTK.jar \
+     -configFile ${SV_DIR}/conf/genstrip_parameters.txt \
+     -R ${REF} \
+     -I bam.list \
+     -md output_metadata_directory \
+     -bamFilesAreDisjoint true \
+     -jobLogDir logDir 2> shell.txt
+   
+$ java -jar dist/queue2make.jar shell.txt   > shell.mk
+
+```
+
+
+
+
+
+
+END_DOC
+*/
+@Program(name="queue2make",description="Convert Broad/Queue genomestrip Log stream to Makefile.")
+public class QueueToMake extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(QueueToMake.class);
+	private static final Logger LOG = Logger.build(QueueToMake.class).make();
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
 	private Map<String,Target> file2target = new HashMap<>();
 	final List<Target> orderedTargets = new ArrayList<>();
 
@@ -568,11 +613,13 @@ public class QueueToMake extends AbstractQueueToMake
         				}
     	        };
     	}
+    
     @Override
-    protected Collection<Throwable> call(String inputName) throws Exception {
-    	BufferedReader in=null;
+    public int doWork(List<String> args) {
+    BufferedReader in=null;
     	PrintWriter out=null;
     	try {
+    		final String inputName = oneFileOrNull(args);
     		final String pendingLine=" QGraph - Pending:";
 			in = (inputName==null?
 					IOUtils.openStreamForBufferedReader(stdin()):
@@ -595,12 +642,13 @@ public class QueueToMake extends AbstractQueueToMake
 						}
 					}
 				if(x==this.decoders.length) {
-					return wrapException("Cannot decode:\n"+command);
+					LOG.error("Cannot decode:\n"+command);
+					return -1;
 					}
 				}
 			in.close();in=null;
 			
-			out = super.openFileOrStdoutAsPrintWriter();
+			out = super.openFileOrStdoutAsPrintWriter(outputFile);
 			
 			out.println(".PHONY:all");
 			out.print("all:");
@@ -626,7 +674,8 @@ public class QueueToMake extends AbstractQueueToMake
 			LOG.info("done");
 			return RETURN_OK;
 		} catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
     	finally
     		{

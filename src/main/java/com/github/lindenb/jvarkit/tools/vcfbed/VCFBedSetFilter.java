@@ -28,7 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfbed;
 
-import java.util.Collection;
+import java.io.File;
+import java.util.List;
 
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
@@ -44,6 +45,10 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 /**
@@ -51,9 +56,57 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  * VCFBedSetFilter
  *
  */
-public class VCFBedSetFilter extends AbstractVCFBedSetFilter
+/**
+
+BEGIN_DOC
+
+
+
+
+### Examples
+
+
+```
+$java -jar dist/vcfbedsetfilter.jar -f MYFILTER - -B in.bed in.vcf 
+
+```
+
+
+
+END_DOC
+*/
+
+
+
+@Program(name="vcfbedsetfilter",
+	description="Set FILTER for VCF if it doesn't intersects with BED.",
+	deprecatedMsg="use GATK FilterVariants",
+	keywords={"vcf","bed","filter"}
+		)
+public class VCFBedSetFilter extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VCFBedSetFilter.class);
+	private static final Logger LOG = Logger.build(VCFBedSetFilter.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-f","--filter"},description="FILTER name")
+	private String filterName = "VCFBED";
+
+	@Parameter(names={"-i","--inverse"},description="inverse selection")
+	private boolean inverse = false;
+
+	@Parameter(names={"-B","--bed"},description="Tribble or Tabix bed file")
+	private File tabixFile = null;
+
+	@Parameter(names={"-m","--map"},description="unindexed bed file, will be loaded in memory (faster than tribble/tabix but memory consumming)")
+	private File treeMapFile = null;
+
+	@Parameter(names={"-d","--discard"},description="Discard filtered variants")
+	private boolean discardFlag = false;
+
 	private IntervalTreeMap<Boolean> intervalTreeMap=null;
 	private IndexedBedReader bedReader =null;
 	
@@ -62,93 +115,98 @@ public class VCFBedSetFilter extends AbstractVCFBedSetFilter
 		}
 		
 	@Override
-	public Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator r,
-			final VariantContextWriter w)  throws java.io.IOException {
-		final VCFHeader h2=new VCFHeader(r.getHeader());
-		addMetaData(h2);
-		final VCFFilterHeaderLine filter = new VCFFilterHeaderLine(
-				this.filterName,
-				"Filtered with "+getName()+", "+
-				(super.inverse?" NOT  ":"")+
-				"overlapping "+
-				(super.tabixFile==null?super.treeMapFile:super.tabixFile)
-				);
-		
-		
-		if(!super.discardFlag) {
-			h2.addMetaDataLine(filter);
-		}
-		
-		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(h2);
-		w.writeHeader(h2);
-		while(r.hasNext())
-			{
-			final VariantContext ctx= progress.watch(r.next());
-			boolean set_filter=true;
+	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
+		try {
+			final VCFHeader h2=new VCFHeader(r.getHeader());
+			addMetaData(h2);
+			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine(
+					this.filterName,
+					"Filtered with "+getProgramName()+", "+
+					(this.inverse?" NOT  ":"")+
+					"overlapping "+
+					(this.tabixFile==null?this.treeMapFile:this.tabixFile)
+					);
 			
 			
-			if(this.intervalTreeMap!=null) {
-				if( this.intervalTreeMap.containsOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd())))
-					{
-					set_filter = false;	
-					}
-				}
-			
-			else 
-				{
-				final CloseableIterator<BedLine> iter = this.bedReader.iterator(
-						ctx.getContig(),
-						ctx.getStart()-1,
-						ctx.getEnd()+1
-						);
-				while(iter.hasNext())
-					{
-					final BedLine bed = iter.next();
-					if(!ctx.getContig().equals(bed.getContig())) continue;
-					if(ctx.getStart() > bed.getEnd() ) continue;
-					if(ctx.getEnd() < bed.getStart() ) continue;
-					set_filter=false;
-					break;
-					}
-				CloserUtil.close(iter);
-				}
-			
-			if(super.inverse) set_filter=!set_filter;
-			
-			
-			
-			if(!set_filter)
-				{
-				w.add(ctx);
-				continue;
-				}
-			
-			if(!super.discardFlag)
-				{
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.filter(filter.getID());
-				w.add(vcb.make());
-				}
-			
-			if(w.checkError()) break;
+			if(!this.discardFlag) {
+				h2.addMetaDataLine(filter);
 			}
-		progress.finish();
-		return RETURN_OK;
+			
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(h2);
+			w.writeHeader(h2);
+			while(r.hasNext())
+				{
+				final VariantContext ctx= progress.watch(r.next());
+				boolean set_filter=true;
+				
+				
+				if(this.intervalTreeMap!=null) {
+					if( this.intervalTreeMap.containsOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd())))
+						{
+						set_filter = false;	
+						}
+					}
+				
+				else 
+					{
+					final CloseableIterator<BedLine> iter = this.bedReader.iterator(
+							ctx.getContig(),
+							ctx.getStart()-1,
+							ctx.getEnd()+1
+							);
+					while(iter.hasNext())
+						{
+						final BedLine bed = iter.next();
+						if(!ctx.getContig().equals(bed.getContig())) continue;
+						if(ctx.getStart() > bed.getEnd() ) continue;
+						if(ctx.getEnd() < bed.getStart() ) continue;
+						set_filter=false;
+						break;
+						}
+					CloserUtil.close(iter);
+					}
+				
+				if(this.inverse) set_filter=!set_filter;
+				
+				
+				
+				if(!set_filter)
+					{
+					w.add(ctx);
+					continue;
+					}
+				
+				if(!this.discardFlag)
+					{
+					final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+					vcb.filter(filter.getID());
+					w.add(vcb.make());
+					}
+				
+				if(w.checkError()) break;
+				}
+			progress.finish();
+			return RETURN_OK;
+		} catch(Exception err) {
+			LOG.error(err);
+			return -1;
+			}
 		}
 
+	
 	@Override
-	public Collection<Throwable> initializeKnime() {
+	public int doWork(List<String> args) {
 		try
 			{
-			if(super.tabixFile==null && super.treeMapFile==null)
+			if(this.tabixFile==null && this.treeMapFile==null)
 				{
-				return wrapException("Undefined tabix or memory file -"+OPTION_TABIXFILE+" -"+OPTION_TREEMAPFILE);
+				LOG.error("Undefined tabix or memory file");
+				return -1;
 				}
-			else if(super.tabixFile!=null && super.treeMapFile!=null)
+			else if(this.tabixFile!=null && this.treeMapFile!=null)
 				{
-				return wrapException("You cannot use both options: -"+OPTION_TABIXFILE+" -"+OPTION_TREEMAPFILE);
+				LOG.error("You cannot use both options: treemap/tabix");
+				return -1;
 				}
 			else if( this.tabixFile!=null) {
 				LOG.info("opening Bed "+this.tabixFile);
@@ -162,28 +220,23 @@ public class VCFBedSetFilter extends AbstractVCFBedSetFilter
 			
 			if(this.filterName==null || this.filterName.trim().isEmpty())
 				{
-				return wrapException("Undefined filter name. -"+OPTION_FILTERNAME);
+				LOG.error("Undefined filter name");
+				return -1;
 				}
+			
+			return doVcfToVcf(args, outputFile);
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
-		return super.initializeKnime();
-		}
-	
-	@Override
-	public void disposeKnime()
-		{
-		CloserUtil.close(this.bedReader);
-		this.bedReader = null;
-		this.intervalTreeMap=null;
-		super.disposeKnime();
-		}
-	
-	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+		finally
+			{
+			CloserUtil.close(this.bedReader);
+			this.bedReader = null;
+			this.intervalTreeMap=null;
+			}
 		}
 	
 	public static void main(final String[] args) throws Exception

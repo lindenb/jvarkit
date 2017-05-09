@@ -43,6 +43,7 @@ import htsjdk.samtools.util.BufferedLineReader;
 import htsjdk.samtools.util.IOUtil;
 
 /** utility to load a SAMSequenceDictionary */
+@Deprecated //use htsjdk SAMSequenceDictionaryExtractor
 public class SAMSequenceDictionaryFactory 
 {
 public SAMSequenceDictionaryFactory()
