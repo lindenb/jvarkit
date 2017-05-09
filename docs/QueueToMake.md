@@ -1,32 +1,15 @@
-# ForkVcf
+# QueueToMake
 
 
 ## Usage
 
 ```
-Usage: forkvcf [options] Files
+Usage: queue2make [options] Files
   Options:
-    -n, --count
-      number of vcf files to generate
-      Default: 2
     -h, --help
       print help and exits
-    -m, --manifest
-      optional save produced vcf filenames in this file.
-    -maxRecordsInRam, --maxRecordsInRam
-      Max records in RAM
-      Default: 50000
-  * -o, --output
-      Output file Must contains __GROUPID__
-    -c, --splitbychunk
-      When this option is used, the variant are first saved in a temporary 
-      file, the number of variant is dividided by 'count' and the output files 
-      are lineray produced. The default is to dispatch the variants as they 
-      are coming in the stream.
-      Default: false
-    -T, --tmpDir
-      mp directory
-      Default: /var/folders/zm/23lwd0tn43q33r32881s0p680000gn/T
+    -o, --output
+      Output file. Optional . Default: stdout
     --version
       print version and exits
 
@@ -35,7 +18,7 @@ Usage: forkvcf [options] Files
 
 ## Description
 
-Fork a VCF.
+Convert Broad/Queue genomestrip Log stream to Makefile.
 
 ## Compilation
 
@@ -53,7 +36,7 @@ Fork a VCF.
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make forkvcf
+$ make queue2make
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -71,7 +54,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ForkVcf.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/QueueToMake.java
 
 ## Contribute
 
@@ -84,7 +67,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **forkvcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **queue2make** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -97,49 +80,29 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
 
-### Output
-
-Output filename (option -o) MUST contain the word __GROUPID__.
-
-
-
 ### Example
 
 
 
 ```
-$ 
+
+$ java -Xmx4g -cp ${classpath} \
+     org.broadinstitute.gatk.queue.QCommandLine \
+     -S ${SV_DIR}/qscript/SVPreprocess.q \
+     -S ${SV_DIR}/qscript/SVQScript.q \
+     -cp ${classpath} \
+     -gatk ${SV_DIR}/lib/gatk/GenomeAnalysisTK.jar \
+     -configFile ${SV_DIR}/conf/genstrip_parameters.txt \
+     -R ${REF} \
+     -I bam.list \
+     -md output_metadata_directory \
+     -bamFilesAreDisjoint true \
+     -jobLogDir logDir 2> shell.txt
+   
+$ java -jar dist/queue2make.jar shell.txt   > shell.mk
 
 ```
 
-
-
-
-
-
-```
-
-
-```
-
-cat input.vcf | java -jar dist/forkvcf.jar -n 3 -o "_tmp.__GROUPID__.vcf"
-[main] INFO jvarkit - opening VCF file "_tmp.00001.vcf" for writing
-[main] INFO jvarkit - opening VCF file "_tmp.00002.vcf" for writing
-[main] INFO jvarkit - opening VCF file "_tmp.00003.vcf" for writing
-
-$ wc _tmp.0000*
-   226   6819 143947 _tmp.00001.vcf
-   226   6819 140792 _tmp.00002.vcf
-   225   6161 125219 _tmp.00003.vcf
-   
-   
-   
-
-
-### See also
-
-
- *  https://github.com/lindenb/jvarkit/wiki/SplitVcf
 
 
 

@@ -1,30 +1,30 @@
-# DownSampleVcf
+# SamMaskAlignedBases
 
 
 ## Usage
 
 ```
-Usage: downsamplevcf [options] Files
+Usage: sammaskalignedbases [options] Files
   Options:
+    --bamcompression
+      Compression Level.
+      Default: 5
     -h, --help
       print help and exits
     -o, --output
       Output file. Optional . Default: stdout
+    --samoutputformat
+      Sam output format.
+      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
     --version
       print version and exits
-    -N
-       random seed
-      Default: 1494334370712
-    -n
-      output size
-      Default: 10
 
 ```
 
 
 ## Description
 
-DownSample a VCF
+Mask bases aligned on Reference.
 
 ## Compilation
 
@@ -42,7 +42,7 @@ DownSample a VCF
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make downsamplevcf
+$ make sammaskalignedbases
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -60,7 +60,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/DownSampleVcf.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SamMaskAlignedBases.java
 
 ## Contribute
 
@@ -73,7 +73,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **downsamplevcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **sammaskalignedbases** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -81,5 +81,12 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+
+Supplementary and secondary reads are ignored.
+Output Bam is unsorted and reads are all unmapped.
+
+
 
 
