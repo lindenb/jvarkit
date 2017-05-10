@@ -1,3 +1,28 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.util.swing;
 
 import java.awt.Color;
@@ -6,13 +31,28 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.lang.Function;
+import com.beust.jcommander.IStringConverter;
+import com.beust.jcommander.ParameterException;
+
 
 public class ColorUtils
-	implements Function<String, Color>
 	{
+	public static class Converter implements IStringConverter<Color> {
+		private final ColorUtils cols= new ColorUtils();
+		@Override
+		public Color convert(final String s) {
+			try {
+				return this.cols.parse(s);
+				}
+			catch(Exception err)
+				{
+				throw new ParameterException("Cannot convert "+s+" to color", err);
+				}
+			}
+		}
+	
+	
     private Map<String,Color> text2color=null;
-    private static ColorUtils INSTANCE=null;
     public ColorUtils()
 		{
         text2color= new HashMap<String,Color>(150);
@@ -170,29 +210,14 @@ public class ColorUtils
     	{
     	return Collections.unmodifiableSet(this.text2color.keySet());
     	}
-    
-    public static ColorUtils getInstance()
-    	{
-    	if(INSTANCE==null)
-    		{
-    		synchronized (ColorUtils.class)
-    			{
-    			if(INSTANCE==null)
-        			{
-    				INSTANCE=new ColorUtils();
-        			}
-    			}
-    		}
-    	return INSTANCE;
-    	}
-    
+        
     
     /**
      * Inverse RGB of a color
      * @param c
      * @return
      */
-    public Color negative(Color c)
+    public Color negative(final Color c)
     	{
     	return new Color(
     		255-c.getRed(),
@@ -208,7 +233,7 @@ public class ColorUtils
     	}
     
     /**
-     * Choose a gradient color between twio colors
+     * Choose a gradient color between two colors
      * @param first the first Color
      * @param second the second Color
      * @param ratio the fraction of the first/second colors
@@ -287,19 +312,14 @@ public class ColorUtils
                 return null;
                 }
             }
-        Color color= (Color)text2color.get(c);
+        final Color color= (Color)text2color.get(c);
         if(color==null) throw new IllegalArgumentException("Illegal Color:"+c);
         return color;
         }
-    @Override
-    public Color apply(String param)
-    	{
-    	return this.parse(param);
-    	}
     
     @Override
     public String toString() {
     	return "ColorUtils";
     	}
-
-}
+    
+	}

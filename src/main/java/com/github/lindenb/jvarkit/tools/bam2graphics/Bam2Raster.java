@@ -57,11 +57,15 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.imageio.ImageIO;
 
@@ -69,6 +73,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -84,14 +89,14 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
 @Program(name="bam2raster",
 	description="BAM to raster graphics",
-	keywords={"bam","alignment","graphics","visualization"}
+	keywords={"bam","alignment","graphics","visualization","png"}
 	)
 public class Bam2Raster extends Launcher
 	{
@@ -102,11 +107,11 @@ public class Bam2Raster extends Launcher
 	private File outputFile = null;
 
 
-	@Parameter(names={"-b","--bases"},description="print bases")
-	private boolean printBases = false;
+	@Parameter(names={"-nobase","--nobase"},description="hide bases")
+	private boolean hideBases = false;
 
 	@Parameter(names={"-r","--region"},description="restrict to that region. REQUIRED",required=true)
-	private String region = null;
+	private String regionStr = null;
 
 	@Parameter(names={"-R","--reference"},description="indexed fasta reference")
 	private File referenceFile = null;
@@ -114,10 +119,25 @@ public class Bam2Raster extends Launcher
 	@Parameter(names={"-w","--width"},description="Image width")
 	private int WIDTH = 1000 ;
 
-	@Parameter(names={"-N","--name"},description="print read name")
+	@Parameter(names={"-N","--name"},description="print read name instead of base")
 	private boolean printName = false;
 
+	@Parameter(names={"-srf","--samRecordFilter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter samRecordFilter = SamFilterParser.buildDefault();
+	@Parameter(names={"-minh","--minh"},description="Min. distance between two reads.")
+	private int minHDistance=2;
+	@Parameter(names={"-clip","--clip"},description="Show clipping")
+	private boolean showClip=false;
+	@Parameter(names={"--limit","--maxrows"},description="Limit number of rows to 'N' lines. negative: no limit.")
+	private int maxNumberOfRows=-1;
+	@Parameter(names={"-depth","--depth"},description="Depth size")
+	private int depthSize=100;
+	@Parameter(names={"--noReadGradient"},description="Do not use gradient for reads")
+	private boolean noReadGradient=false;
+	@Parameter(names={"--highlight"},description="hightligth those positions.",converter=com.beust.jcommander.converters.IntegerConverter.class)
+	private Set<Integer> highlightPositions = new HashSet<>() ;
 
+	
 	public Bam2Raster()
     	{
     	}
@@ -152,108 +172,129 @@ public class Bam2Raster extends Launcher
 	private File bamFile=null;
 	private Interval interval=null;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-	private int minHDistance=2;
 	private int minArrowWidth=2;
 	private int maxArrowWidth=5;
 	private int featureHeight=30;
+	@Parameter(names={"--spaceyfeature"},description="number of pixels between features")
 	private int spaceYbetweenFeatures=4;
-	private Hershey hersheyFont=new Hershey();
+	private final Hershey hersheyFont=new Hershey();
 	private Colorizer strokeColorizer=new FlagColorizer();
 	
-	protected double convertToX(int genomic)
+	private double convertToX(int genomic)
 		{
 		return WIDTH*(genomic-interval.getStart())/(double)(interval.getEnd()-interval.getStart()+1);
 		}
 	
-	protected double left(final SAMRecord rec)
+	private double left2pixel(final SAMRecord rec)
 		{
-		return convertToX(rec.getAlignmentStart());
+		return convertToX(readStart(rec));
 		}
 
-	protected double right(final SAMRecord rec)
+	private double right2pixel(final SAMRecord rec)
 		{
-		return convertToX(rec.getAlignmentEnd());
+		return convertToX(readEnd(rec));
 		}
 	
-	private Color base2color(char c)
+	private int readStart(final SAMRecord rec)
 		{
-		switch(Character.toUpperCase(c))
-			{
-			case 'N': return Color.BLACK;
-			case 'A': return Color.RED;
-			case 'T': return Color.GREEN;
-			case 'G': return Color.YELLOW;
-			case 'C': return Color.BLUE;
-			default: return Color.ORANGE;
-			}
+		return showClip?rec.getUnclippedStart():rec.getAlignmentStart();
 		}
+	
+	private int readEnd(final SAMRecord rec)
+		{
+		return showClip?rec.getUnclippedEnd():rec.getAlignmentEnd();
+		}
+
 	
 	private BufferedImage build(final SamReader r)
 		{
-		List<List<SAMRecord>> rows=new ArrayList<List<SAMRecord>>();
+		final Function<Character, Color> base2color = C ->
+			{
+			switch(Character.toUpperCase(C))
+				{
+				case 'N': return Color.BLACK;
+				case 'A': return Color.RED;
+				case 'T': return Color.GREEN;
+				case 'G': return Color.YELLOW;
+				case 'C': return Color.BLUE;
+				default: return Color.ORANGE;
+				}
+			};
+			
+		final Predicate<Integer> inInterval = refPos-> !(refPos< this.interval.getStart() || refPos> this.interval.getEnd());
+		
+	
+			
+		
+		final List<List<SAMRecord>> rows=new ArrayList<List<SAMRecord>>();
 		SAMRecordIterator iter=null;
 		if(bamFile!=null)//got index
 			{
-			iter=r.queryOverlapping(interval.getContig(),interval.getStart(), interval.getEnd());
+			iter=r.query(
+					interval.getContig(),interval.getStart(), interval.getEnd(),
+					false
+					);
 			}
 		else //loop until we get the data
 			{
 			iter=r.iterator();
 			}
 		
-		int countReads=0;
 		while(iter.hasNext())
 			{
 			SAMRecord rec=iter.next();
 			if(rec.getReadUnmappedFlag()) continue;
-			
-			//when reading from stdin  we're in the right interval
-			if(this.bamFile==null)
+			if(this.samRecordFilter.filterOut(rec)) continue;
+		
+			if(!this.interval.getContig().equals(rec.getReferenceName())) continue;
+			if(readEnd(rec) < this.interval.getStart()) 
 				{
-				if(!this.interval.getContig().equals(rec.getReferenceName())) continue;
-				if(rec.getAlignmentEnd() < this.interval.getStart()) continue;
-				if(rec.getAlignmentStart() > this.interval.getEnd()) break;
+				continue;
 				}
+			if(readStart(rec) > this.interval.getEnd()) {
+				break;
 			
-			//when interval is not declared, check only one chromosome
+			}
+						
 			
-			countReads++;			
-			
-			for(List<SAMRecord> row:rows)
+			// pileup
+			for(final List<SAMRecord> row:rows)
 				{
-				SAMRecord last=row.get(row.size()-1);
-				if(this.interval!=null )
-					{
-					if(right(last)+ this.minHDistance > left(rec)) continue;
-					}
-				else
-					{
-					if(last.getAlignmentEnd()+1> rec.getAlignmentStart()) continue;
-					}
+				final SAMRecord last=row.get(row.size()-1);
+				if(right2pixel(last)+ this.minHDistance > left2pixel(rec)) continue;
 				row.add(rec);
 				rec=null;
 				break;
 				}
 			if(rec!=null)
 				{
-				List<SAMRecord>  row=new ArrayList<SAMRecord>();
+			
+				final List<SAMRecord>  row=new ArrayList<SAMRecord>();
 				row.add(rec);
 				rows.add(row);
+					
 				}
 			}
 		iter.close();
 		
 	
-		
-		LOG.info("Reads:"+countReads);
-		final int ruler_height=String.valueOf(this.interval.getEnd()).length()*20;
+		final String positionFormat="%,d";
+		final int ruler_height=String.format(positionFormat,this.interval.getEnd()).length()*20;
 		final int refw=(int)Math.max(1.0, WIDTH/(double)(1+interval.getEnd()-interval.getStart()));
-		LOG.info("refw:"+refw+" "+WIDTH+" "+(1+interval.getEnd()-interval.getStart()));
-		final int margin_top=10+(refw*2)+ruler_height;
-		Dimension imageSize=new Dimension(WIDTH,
-				margin_top+ rows.size()*(this.spaceYbetweenFeatures+this.featureHeight)+this.spaceYbetweenFeatures
+		this.featureHeight = refw;
+		
+
+		
+		//final int margin_top=10+(refw*3)+ruler_height;
+		final Dimension imageSize=new Dimension(WIDTH,
+				refw+ this.spaceYbetweenFeatures + //contig name
+				ruler_height + this.spaceYbetweenFeatures + //position
+				refw + this.spaceYbetweenFeatures + //ref seq
+				refw + this.spaceYbetweenFeatures + //consensus
+				(Math.max(0, this.depthSize))+(this.depthSize>0?this.spaceYbetweenFeatures:0)+//depth
+				(this.maxNumberOfRows<0?rows.size():Math.min(rows.size(), this.maxNumberOfRows))*(this.spaceYbetweenFeatures+this.featureHeight)+this.spaceYbetweenFeatures
 				);
-		BufferedImage img=new BufferedImage(
+		final BufferedImage img=new BufferedImage(
 				imageSize.width,
 				imageSize.height,
 				BufferedImage.TYPE_INT_RGB
@@ -261,11 +302,12 @@ public class Bam2Raster extends Launcher
 		
 		
 		
-		CharSequence genomicSequence=null;
+		final CharSequence genomicSequence;
 		if(this.indexedFastaSequenceFile !=null)
 			{
 			genomicSequence=new GenomicSequence(
-					this.indexedFastaSequenceFile, this.interval.getContig());
+					this.indexedFastaSequenceFile,
+					this.interval.getContig());
 			}
 		else
 			{
@@ -274,7 +316,7 @@ public class Bam2Raster extends Launcher
 					@Override
 					public int length()
 						{
-						return interval.getStart()+10;
+						return interval.getEnd()+10;
 						}
 					
 					@Override
@@ -284,12 +326,39 @@ public class Bam2Raster extends Launcher
 						}
 				};
 			}
-		Graphics2D g=img.createGraphics();
+		final Graphics2D g=img.createGraphics();
 		g.setColor(Color.WHITE);
 		g.fillRect(0, 0, imageSize.width, imageSize.height);
 		LOG.info("image : "+imageSize.width+"x"+imageSize.height);
 		Map<Integer, Counter<Character>> ref2consensus=new HashMap<Integer,  Counter<Character>>();
 		//draw bases positions
+		
+		
+		// paint hightlight bckg
+		for(final Integer refpos: this.highlightPositions) {
+			g.setColor(new Color(255,235,246)); 
+			g.fill(new Rectangle2D.Double(
+						convertToX(refpos),
+						0,
+						refw,
+						img.getHeight()
+						));
+			
+					}
+		
+		int y=0;
+		//print name
+		
+		g.setColor(Color.BLACK);
+		hersheyFont.paint(g,
+				interval.getContig(),
+				new Rectangle2D.Double(
+					1,1,
+					interval.getContig().length()*refw,
+					this.featureHeight
+					)
+				);
+		y+=  refw + this.spaceYbetweenFeatures;
 		
 		for(int x=this.interval.getStart();x<=this.interval.getEnd();++x)
 			{
@@ -301,10 +370,10 @@ public class Bam2Raster extends Launcher
 			if((x-this.interval.getStart())%10==0)
 				{
 				g.setColor(Color.BLACK);
-				final String xStr=String.format("%,d",x);
+				final String xStr=String.format(positionFormat,x);
 				final AffineTransform tr=g.getTransform();
 				final AffineTransform tr2=new AffineTransform(tr);
-				tr2.translate(convertToX( x + 1 ), 0);
+				tr2.translate(convertToX( x + 1 ), y);
 				tr2.rotate(Math.PI/2.0);
 				g.setTransform(tr2);
 				hersheyFont.paint(g,
@@ -316,39 +385,65 @@ public class Bam2Raster extends Launcher
 						);
 				g.setTransform(tr);
 				}
-			
+			}
+		y+=  ruler_height + this.spaceYbetweenFeatures;
+		
+		// draw ref bases
+		for(int x=this.interval.getStart();x<=this.interval.getEnd();++x)
+			{
+			final double oneBaseWidth=convertToX(x+1)-convertToX(x);
 			//paint genomic sequence
-			char c=genomicSequence.charAt(x-1);
-			g.setColor(base2color(c));
-			hersheyFont.paint(g,
+			final char c=x > genomicSequence.length() ? 'N':genomicSequence.charAt(x-1);
+			g.setColor(base2color.apply(c));
+			this.hersheyFont.paint(g,
 					String.valueOf(c),
 					convertToX(x)+1,
-					ruler_height,
+					y,
 					oneBaseWidth-2,
 					oneBaseWidth-2
 					);
 				
 			}
+		y+=  refw + this.spaceYbetweenFeatures;
 		
+		// draw consensus here
+		final int consensus_y = y;
 		
-		int y=margin_top+this.spaceYbetweenFeatures;
-		for(List<SAMRecord> row:rows)
+		y+=  refw + this.spaceYbetweenFeatures;
+		
+		final int depth_y = y;
+		final int depth_array[]=new int[1+(interval.getEnd()-interval.getStart())];
+		if(depthSize>0)
 			{
-			for(SAMRecord rec:row)
+			Arrays.fill(depth_array, 0);
+			y+= depthSize+this.spaceYbetweenFeatures;
+			}
+		
+		
+		// draw reads
+		for(int rowIndex=0;rowIndex < rows.size();++rowIndex)
+			{
+			final List<SAMRecord> row = rows.get(rowIndex);
+			
+			boolean printThisRow= (this.maxNumberOfRows <0 || rowIndex < this.maxNumberOfRows );
+			
+			
+			for(final SAMRecord rec:row)
 				{
-				
-				double x0=left(rec);
-				double x1=right(rec);
-				double y0=y;
-				double y1=y0+this.featureHeight;
+				final Set<Integer> refposOfInsertions = new HashSet<>();
+
+				double x0 = left2pixel(rec);
+				double x1 = right2pixel(rec);
+				double y0 = y;
+				double y1 = y0 + this.featureHeight;
 				Shape shapeRec=null;
-				if(x1-x0 < minArrowWidth)
+				if(x1-x0 < this.minArrowWidth)
 					{
 					shapeRec=new Rectangle2D.Double(x0, y0, x1-x0, y1-y0);
 					}
 				else
 					{
-					GeneralPath path=new GeneralPath();
+					final GeneralPath path=new GeneralPath();
 					double arrow=Math.max(this.minArrowWidth,Math.min(this.maxArrowWidth, x1-x0));
 					if(!rec.getReadNegativeStrandFlag())
 						{
@@ -370,59 +465,118 @@ public class Bam2Raster extends Launcher
 					shapeRec=path;
 					}
 				
-				Stroke oldStroke=g.getStroke();
-				g.setStroke(new BasicStroke(2f));
+				if(printThisRow) {
+					final Stroke oldStroke = g.getStroke();
+					g.setStroke(new BasicStroke(2f));
+					if(noReadGradient) {
+						g.setColor(new Color(255,222,173));
+						g.fill(shapeRec);
+					}
+					else
+						{
+						final Paint oldpaint=g.getPaint();
+						final LinearGradientPaint gradient=new LinearGradientPaint(
+								0f, (float)shapeRec.getBounds2D().getY(),
+								0f, (float)shapeRec.getBounds2D().getMaxY(),
+								new float[]{0f,0.5f,1f},
+								new Color[]{Color.DARK_GRAY,Color.WHITE,Color.DARK_GRAY}
+								);
+						g.setPaint(gradient);
+						g.fill(shapeRec);
+						g.setPaint(oldpaint);
+						}
+					g.setColor(this.strokeColorizer.getColor(rec));
+					g.draw(shapeRec);
+					g.setStroke(oldStroke);
+					}
 				
-				Paint oldpaint=g.getPaint();
-				LinearGradientPaint gradient=new LinearGradientPaint(
-						0f, (float)shapeRec.getBounds2D().getY(),
-						0f, (float)shapeRec.getBounds2D().getMaxY(),
-						new float[]{0f,0.5f,1f},
-						new Color[]{Color.DARK_GRAY,Color.WHITE,Color.DARK_GRAY}
-						);
-				g.setPaint(gradient);
-				g.fill(shapeRec);
-				g.setPaint(oldpaint);
-				g.setColor(this.strokeColorizer.getColor(rec));
-				g.draw(shapeRec);
-				g.setStroke(oldStroke);
-				
-				Shape oldClip=g.getClip();
+				final Shape oldClip=g.getClip();
 				g.setClip(shapeRec);
 				
 				
-				Cigar cigar=rec.getCigar();
+				final Cigar cigar=rec.getCigar();
 				if(cigar!=null)
 					{
-					byte bases[]=rec.getReadBases();
-					int refpos=rec.getAlignmentStart();
+					final Function<Integer,Character> readBaseAt= IDX -> {
+						final byte bases[]=rec.getReadBases();
+						if(SAMRecord.NULL_SEQUENCE.equals(bases)) return 'N';
+						if(IDX<0 || IDX>=bases.length) return 'N';
+						return (char)bases[IDX];
+						};
+					
+						
+					final Function<Integer,Character> readNameAt= readpos -> {		
+						char c1;
+						if(readpos<rec.getReadName().length())
+							{
+							c1=rec.getReadName().charAt(readpos);
+							c1=rec.getReadNegativeStrandFlag()?
+									Character.toLowerCase(c1):Character.toUpperCase(c1);
+							}
+						else
+							{
+							c1=' ';
+							}
+						return c1;
+						};
+						
+					int refpos= rec.getUnclippedStart();
 					int readpos=0;
-					for(CigarElement ce:cigar.getCigarElements())
+					for(final CigarElement ce:cigar.getCigarElements())
 						{
 						switch(ce.getOperator())
 							{
-							case H: break;
-							case S: readpos+=ce.getLength();break;
+							case S: 
+							case H: 
+								{
+								if(this.showClip)
+									{
+									g.setColor(Color.PINK); 
+									if(printThisRow)   g.fill(new Rectangle2D.Double(
+												convertToX(refpos),
+												y0,
+												convertToX(refpos+ce.getLength())-convertToX(refpos),
+												y1-y0
+												));
+									if(ce.getOperator().equals(CigarOperator.S))
+										{
+										final double mutW=convertToX(refpos+1)-convertToX(refpos);
+										for(int i=0;i< ce.getLength();++i)
+											{
+											if(!inInterval.test(refpos+i)) continue;
+											char c1=readBaseAt.apply(readpos+i);											
+											g.setColor(base2color.apply(c1));
+											final Shape mut= new Rectangle2D.Double(
+													convertToX(refpos+i),
+													y0,
+													mutW,
+													y1-y0
+													);
+											if( this.printName) c1=readNameAt.apply(readpos+i);
+											if(printThisRow)   this.hersheyFont.paint(g,String.valueOf(c1),mut);
+											}
+										}
+									}
+								refpos+=ce.getLength();
+								if(ce.getOperator().equals(CigarOperator.S)) readpos+=ce.getLength();
+								break;
+								}
 							case I:
 								{
-								g.setColor(Color.GREEN); 
-								g.fill(new Rectangle2D.Double(
-											convertToX(refpos),
-											y0,
-											2,
-											y1-y0
-											));
+								refposOfInsertions.add(refpos);
+								
 								readpos+=ce.getLength();
 									
 								
 								break;
 								}
+							case P: break;
 							case D:
 							case N:
-							case P:
 								{
+								
 								g.setColor(Color.ORANGE); 
-								g.fill(new Rectangle2D.Double(
+								if(printThisRow)  g.fill(new Rectangle2D.Double(
 											convertToX(refpos),
 											y0,
 											convertToX(refpos+ce.getLength())-convertToX(refpos),
@@ -436,14 +590,14 @@ public class Bam2Raster extends Launcher
 							case X:
 							case M:
 								{
+								
 								for(int i=0;i< ce.getLength();++i)
 									{
-									if(readpos>=bases.length)
-										{
-										System.err.println(rec.getReadName()+" "+rec.getCigarString()+" "+rec.getReadString());
-										}
+									boolean drawbase=!this.hideBases;
 									
-									char c1=(char)bases[readpos];
+									
+									
+									char c1=readBaseAt.apply(readpos);
 									
 									/* handle consensus */
 									Counter<Character> consensus=ref2consensus.get(refpos);
@@ -459,41 +613,49 @@ public class Bam2Raster extends Launcher
 									
 									double mutW=convertToX(refpos+1)-convertToX(refpos);
 									g.setColor(Color.BLACK);
-									Shape mut= new Rectangle2D.Double(
+									final Shape mut= new Rectangle2D.Double(
 											convertToX(refpos),
 											y0,
 											mutW,
 											y1-y0
 											);
 									if(ce.getOperator()==CigarOperator.X ||
-										(c2!='N' && c2!='n' && Character.toUpperCase(c1)!=Character.toUpperCase(c2)))
+										(c2!='N' && c2!='n' && 
+										Character.toUpperCase(c1)!=Character.toUpperCase(c2)))
 										{
+										drawbase=true;
 										g.setColor(Color.RED);
-										g.fill(mut);
+										if(printThisRow)  g.fill(mut);
 										g.setColor(Color.WHITE);
+										}
+									else
+										{
+										g.setColor(base2color.apply(c1));
 										}
 									
 									//print read name instead of base
 									if(this.printName)
 										{
-										
-										if(readpos<rec.getReadName().length())
-											{
-											c1=rec.getReadName().charAt(readpos);
-											c1=rec.getReadNegativeStrandFlag()?
-													Character.toLowerCase(c1):Character.toUpperCase(c1);
-											}
-										else
-											{
-											c1=' ';
-											}
+										drawbase=true;
+										c1= readNameAt.apply(readpos);
 										}
-									else
-										{
-										c1=' ';
-										}
-									this.hersheyFont.paint(g,String.valueOf(c1),mut);
 									
+									if(!inInterval.test(refpos))
+										{
+										drawbase=false;
+										}
+									if(!printThisRow)
+										{
+										drawbase=false;
+										}
+									if(drawbase) 
+										{
+										this.hersheyFont.paint(g,String.valueOf(c1),mut);
+										}
+									
+									if(inInterval.test(refpos)) {
+										depth_array[refpos-this.interval.getStart()]++;
+										}
 									readpos++;
 									refpos++;
 									}
@@ -504,11 +666,24 @@ public class Bam2Raster extends Launcher
 						}
 					}
 				
-				
+				// paint insertions
+				for(final Integer refpos: refposOfInsertions) {
+					g.setColor(Color.GREEN); 
+					if(printThisRow)  g.fill(new Rectangle2D.Double(
+								convertToX(refpos),
+								y0,
+								2,
+								y1-y0
+								));
+					
+					}
 				
 				g.setClip(oldClip);
 				}
-			y+=this.featureHeight+this.spaceYbetweenFeatures;
+			if(printThisRow) 
+				{
+				y+=this.featureHeight+this.spaceYbetweenFeatures;
+				}
 			}
 		
 		//print consensus
@@ -522,9 +697,8 @@ public class Bam2Raster extends Launcher
 			final double oneBaseWidth=(convertToX(x+1)-convertToX(x))-1;
 
 			double x0=convertToX(x)+1;
-			for(Character c:cons.keySetDecreasing())
+			for(final Character c:cons.keySetDecreasing())
 				{
-				
 				double weight=oneBaseWidth*(cons.count(c)/(double)cons.getTotal());
 				g.setColor(Color.BLACK);
 				
@@ -538,7 +712,7 @@ public class Bam2Raster extends Launcher
 				hersheyFont.paint(g,
 						String.valueOf(c),
 						x0,
-						ruler_height+refw,
+						consensus_y,
 						weight,
 						oneBaseWidth-2
 						);
@@ -546,7 +720,57 @@ public class Bam2Raster extends Launcher
 				}
 				
 			}
+		// print depth
+		if(this.depthSize>0)
+			{
+			double minDepth = Arrays.stream(depth_array).min().orElse(0);
+			double maxDepth = Arrays.stream(depth_array).max().orElse(1);
 		
+			if(minDepth==maxDepth) minDepth--;
+			for(int i=0;i< depth_array.length;++i)
+				{
+				final double d= depth_array[i];
+				final double h= ((d-minDepth)/(maxDepth-minDepth))*this.depthSize;
+				final Rectangle2D.Double rd= new  Rectangle2D.Double();
+				rd.x= convertToX(interval.getStart()+i);
+				rd.y= depth_y + this.depthSize - h;
+				rd.width = refw;
+				rd.height = h;
+				g.setColor(d < 10?Color.RED:(d<50?Color.BLUE:Color.GREEN));
+				g.fill(rd);
+				g.setColor(Color.BLACK);
+				g.draw(rd);
+				}
+			
+			
+			final String label="Depth ["+(int)minDepth+" - "+(int)maxDepth+"]";
+			for(int x=0;x<2;++x) {	
+				g.setColor(x==0?Color.WHITE:Color.BLACK);
+			hersheyFont.paint(g,
+					label,
+					new Rectangle2D.Double(
+						1+x,
+						depth_y +x + this.depthSize-this.featureHeight,
+						label.length()*refw,
+						this.featureHeight
+						)
+					);
+			}
+			}
+		
+		
+		// paint hightlight
+		for(final Integer refpos: this.highlightPositions) {
+			g.setColor(Color.RED); 
+			g.draw(new Rectangle2D.Double(
+						convertToX(refpos),
+						0,
+						refw,
+						img.getHeight()
+						));
+			
+			}
+
 		
 		g.dispose();
 		return img;
@@ -555,24 +779,13 @@ public class Bam2Raster extends Launcher
 		
 	@Override
 	public int doWork(List<String> args) {
-			if(this.region==null)
+			if(this.regionStr==null)
 				{
-				return wrapException("Region was not defined.");
+				LOG.error("Region was not defined.");
+				return -1;
 				}
-			
-			if(args.isEmpty())
-				{
-				//stdin
-				this.bamFile=null;
-				}
-			else if(args.size()==1)
-				{
-				this.bamFile=new File(args.get(0));
-				}
-			else
-				{
-				return wrapException("illegal number of arguments.");
-				}
+			this.bamFile = (args.isEmpty()?null:new File(oneFileOrNull(args)));
+		
 		    if(this.WIDTH<100)
 		    	{
 		    	LOG.info("adjusting WIDTH to 100");
@@ -582,12 +795,16 @@ public class Bam2Raster extends Launcher
 			SamReader samFileReader=null;
 			try
 				{
+				
+				final SamReaderFactory srf = super.createSamReaderFactory();
+				
 				if(this.referenceFile!=null)
 					{
 					LOG.info("loading reference");
 					this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
+					srf.referenceSequence(this.referenceFile);
 					}
-				SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+				
 				if(this.bamFile==null)
 					{
 					LOG.warn("READING from stdin");
@@ -602,21 +819,21 @@ public class Bam2Raster extends Launcher
 				final SAMFileHeader header=samFileReader.getFileHeader();
 				this.interval=IntervalUtils.parseOne(
 						header.getSequenceDictionary(),
-						region);
+						this.regionStr);
 				if(this.interval==null)
 					{
-					return wrapException("Cannot parse interval "+region+" or chrom doesn't exists in sam dictionary.");
+					LOG.error("Cannot parse interval "+regionStr+" or chrom doesn't exists in sam dictionary.");
+					return -1;
 					}
 				LOG.info("Interval is "+this.interval );
 		
-				BufferedImage img=build(samFileReader);
-				
-				
+				final BufferedImage img= this.build(samFileReader);
 				samFileReader.close();
 				samFileReader=null;
 				if(img==null)
 					{
-					return wrapException("No image was generated.");
+					LOG.error("No image was generated.");
+					return -1;
 					}
 				if(this.outputFile==null)
 					{
@@ -625,13 +842,15 @@ public class Bam2Raster extends Launcher
 				else
 					{
 					LOG.info("saving to "+this.outputFile);
-					ImageIO.write(img, "PNG", this.outputFile);
+					final String format=(this.outputFile.getName().toLowerCase().endsWith(".png")?"PNG":"JPG");
+					ImageIO.write(img,format, this.outputFile);
 					}
 				return RETURN_OK;
 				}
-			catch(IOException err)
+			catch(Exception err)
 				{
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 				}
 			finally
 				{

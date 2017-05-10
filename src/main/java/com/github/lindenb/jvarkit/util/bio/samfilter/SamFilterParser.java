@@ -115,7 +115,7 @@ private java.util.Comparator<Integer> intcmp():{}
 public class SamFilterParser implements SamFilterParserConstants {
                 private static final Logger LOG = Logger.build(SamFilterParser.class).make();
 
-                public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out. Empty String means 'filter out nothing/Accept all'.";
+                public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out. Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj for a complete syntax. ";
                 public static final String DEFAULT_FILTER = "Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()";
                 public static final String DEFAULT_OPT = "--samFilter";
 

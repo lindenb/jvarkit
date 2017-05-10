@@ -5,6 +5,7 @@ import java.io.PrintWriter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -19,10 +20,46 @@ import htsjdk.samtools.util.PeekableIterator;
 /**
  BEGIN_DOC
  
+## Example
+
+### Example 1 
+
+``` 
+ $ java -jar dist/commbams.jar --samtools \
+ 	 -f but_metadata -delim '\n' \
+ 	B00GWFP_std.hg19.qname.bam B00GWFP_S1.hg19.qname.bam
+PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/1	83	chr5	21564864	40	151M	=	21564540	-475	CTCCCAGAGAGAAGCATCAACAGCTTAGGGTGTAGTCTAAACAGAAATCTTGCACTCCTCCTGCAGTAGCGTCTCTATTTTTTATGCTGAACATTATTTGCTAATTCCAACTGGCTCTAAGCTAATGTGTTTCCCAGGTTTTCTCAATGAN	AFAA<,,,<,,,,,,,,7,,,,7,,,,A7KKF<,F,,7,7,A,A7F7,K<A,,,,7,,,7KKKFAFA,7,A7F7,7,,,KFF,,AKKFFFF<<K<<KAFAKA,A,,A7,AAAFKFA,A,FKKAA,AKKKKFFFKF<KKKKKKKFFAAAA<#
+PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/1	77	*	0	0	*	*	0	0	NTCATTGAGAAAACCTGGGAAACACATTAGCTTAGAGCCAGTTGGAATTAGCAAATAATGTTCAGCATAAAAAATAGAGACGCTACTGCAGGAGGAGTGCAAGATTTCTGTTTAGACTACACCCTAAGCTGTTGATGCTTCTCTCTGGGA	!<AAAAFFKKKKKKK<FKFFFKKKKA,AAKKF,A,AFKFAAA,7A,,A,AKAFAK<<K<<FFFFKKA,,FFK,,,7,7F7A,7,AFAFKKK7,,,7,,,,A<K,7F7A,A,7,7,,F,<FKK7A,,,,7,,,,7,,,,,,,,<,,,<AAF
+PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	163	chr5	21564540	60	8S106M37S	=	21564864	475	NTAAGAATATTTCACACTTAAAACAAAATCTGATTAGACAAACACTTTGATTGTTATTATTCGCGTATATCATCTACCAGAAGCAAATAGACATCTACTACATCTTTCAAGAAAGTTTACCTATCAATATTACTCAACTGGACCCAATAAT	#<A,<,,A,,K<7FKFF,7,,AF,,7,7AAF,,7<<,,7,AF,,7,7A<,7FA,,7,,7F,,A7FKK7,7,,,,,7,,,,,<,<,,,,7,<,,,,,,7FF7AF<7,,<,,,,7,7,,,,,,,<,,,,,,,,,,,,,,,,,,<,,,,,,,,,
+PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	141	*	0	0	*	*	0	0	NTAAGAATATTTCACACTTAAAACAAAATCTGATTAGACAAACACTTTGATTGTTATTATTCGCGTATATCATCTACCAGAAGCAAATAGACATCTACTACATCTTTCAAGAAAGTTTACCTATCAATATTACTCAACTGGACCCAATAA	!<A,<,,A,,K<7FKFF,7,,AF,,7,7AAF,,7<<,,7,AF,,7,7A<,7FA,,7,,7F,,A7FKK7,7,,,,,7,,,,,<,<,,,,7,<,,,,,,7FF7AF<7,,<,,,,7,7,,,,,,,<,,,,,,,,,,,,,,,,,,<,,,,,,,,
+```
+
+### Example 2 
+
+```
+ $ java -jar dist/commbams.jar --samtools \
+ 	B00GWFP_std.hg19.qname.bam B00GWFP_S1.hg19.qname.bam
+
+.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/1
+.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2
+.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:6513/1
+.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:6513/2
+.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:7181/1
+.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:7181/2
+.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10205/1
+.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10205/2
+.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10380/1	.
+.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10380/2	.
+
+
+
  END_DOC
  */
 @Program(name="commbams",description="Equivalent of unix 'comm' for bams sorted on queryname")
 public class CommBams extends Launcher {
+	
+	private enum WhatToPrint { name,but_metadata,all}
+	
 	private static final Logger LOG=Logger.build(CommBams.class).make();
 	@Parameter(names={"-o","--out"},description="output file . Default:stdout")
 	private File outputFile = null;
@@ -38,8 +75,10 @@ public class CommBams extends Launcher {
 	private String delim = "\t";
 	@Parameter(names={"-empty","--empty"},description="Empty content symbol")
 	private String emptySymbol = ".";
-
+	@Parameter(names={"-f","--format"},description="What should I print ? (only the read name ? etc...)")
+	private WhatToPrint whatPrint=WhatToPrint.name;
 	
+	private final Pattern tab=Pattern.compile("[\t]");
 	
 	private static int side(final SAMRecord rec)
 		{
@@ -57,7 +96,10 @@ public class CommBams extends Launcher {
 		}
 	}
 	
-	private void dump(PrintWriter out,final String name,int col)
+	private void dump(final PrintWriter out,
+			final String name,
+			int col
+			)
 		{
 		boolean first=true;
 		for(int i=1;i<=3;++i)
@@ -78,6 +120,72 @@ public class CommBams extends Launcher {
 			}
 		out.println();
 		}
+	
+	
+	
+	private void dump(final PrintWriter out,
+			final SAMRecord rec0,
+			final SAMRecord rec1
+			)
+		{
+		switch(this.whatPrint)
+			{
+			case name:
+				if(rec0==null && rec1!=null)
+					{
+					if(!hide2) dump(out,readName(rec1),2);
+					}
+				else if(rec0!=null && rec1==null)
+					{
+					if(!hide1) dump(out,readName(rec0),1);
+					}
+				else
+					{
+					if(!hide3) dump(out,readName(rec0),3);
+					}
+				break;
+			case but_metadata:
+			case all:
+				{
+				for(int side=0;side<2;++side) {
+					final SAMRecord r= (side==0?rec0:rec1);
+					if(r==null)
+						{
+						for(int j=0;j< 11;++j)
+							{
+							if(j>0) out.print('\t');
+							out.print(this.emptySymbol);
+							}
+						continue;
+						}
+					
+					String samStr = r.getSAMString();
+					if(samStr.charAt(samStr.length()-1)=='\n')
+						{
+						samStr= samStr.substring(0,samStr.length()-1);
+						}
+					if(this.whatPrint.equals(WhatToPrint.all))
+						{
+						out.print(samStr);
+						}
+					else
+						{
+						final String tokens[] = this.tab.split(samStr);
+						tokens[0]=readName(r);
+						for(int j=0;j< 11;++j)
+							{
+							if(j>0) out.print('\t');
+							out.print(j<tokens.length?tokens[j]:this.emptySymbol);
+							}
+						}					
+					if(side==0) out.print(this.delim);
+					}
+				out.println();
+				break;
+				}
+			}
+		}
+	
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -103,12 +211,13 @@ public class CommBams extends Launcher {
 		Optional<SAMRecord> rec0  = Optional.empty();
 		Optional<SAMRecord> rec1  = Optional.empty();
 		
-		if(hide1 && hide2 && hide3) {
+		if(whatPrint.equals(WhatToPrint.name) && hide1 && hide2 && hide3) {
 			LOG.error("all flags hide** are on");
 			return -1;
 		}
 		try
 			{
+			if( this.delim.equals("\\n")) this.delim = "\n";
 			for(int i=0;i< args.size() && i< samFileReaders.length;++i)
 				{
 				final String samFile=args.get(i);
@@ -173,18 +282,18 @@ public class CommBams extends Launcher {
 				   (rec0.isPresent() && rec1.isPresent() && comparator.compare(rec0.get(),rec1.get())>0)
 					)
 					{
-					if(!hide2) dump(out,readName(rec1.get()),2);
+					dump(out,null,rec1.get());
 					rec1 =Optional.empty();
 					}
 				else if((rec0.isPresent() && !rec1.isPresent()) ||
 						(rec0.isPresent() && rec1.isPresent() && comparator.compare(rec0.get(), rec1.get())<0))
 					{
-					if(!hide1) dump(out,readName(rec0.get()),1);
+					dump(out,rec0.get(),null);
 					rec0 =Optional.empty();
 					}
 				else
 					{
-					if(!hide3) dump(out,readName(rec0.get()),3);
+					dump(out,rec0.get(),rec1.get());
 					rec0 =Optional.empty();
 					rec1 =Optional.empty();
 					}

@@ -6,13 +6,31 @@
 ```
 Usage: bam2raster [options] Files
   Options:
-    -b, --bases
-      print bases
+    -clip, --clip
+      Show clipping
       Default: false
+    -depth, --depth
+      Depth size
+      Default: 100
     -h, --help
       print help and exits
+    --highlight
+      hightligth those positions.
+      Default: []
+    --limit, --maxrows
+      Limit number of rows to 'N' lines. negative: no limit.
+      Default: -1
+    -minh, --minh
+      Min. distance between two reads.
+      Default: 2
     -N, --name
-      print read name
+      print read name instead of base
+      Default: false
+    --noReadGradient
+      Do not use gradient for reads
+      Default: false
+    -nobase, --nobase
+      hide bases
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
@@ -20,6 +38,14 @@ Usage: bam2raster [options] Files
       indexed fasta reference
   * -r, --region
       restrict to that region. REQUIRED
+    -srf, --samRecordFilter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+    --spaceyfeature
+      number of pixels between features
+      Default: 4
     --version
       print version and exits
     -w, --width
@@ -40,6 +66,7 @@ BAM to raster graphics
  * alignment
  * graphics
  * visualization
+ * png
 
 
 ## Compilation
