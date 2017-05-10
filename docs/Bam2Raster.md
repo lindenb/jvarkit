@@ -12,6 +12,10 @@ Usage: bam2raster [options] Files
     -depth, --depth
       Depth size
       Default: 100
+    --groupby
+      Group Reads by
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -h, --help
       print help and exits
     --highlight
@@ -46,6 +50,9 @@ Usage: bam2raster [options] Files
     --spaceyfeature
       number of pixels between features
       Default: 4
+    -V, --variants, --vcf
+      VCF files used to fill the position to hightlight with POS
+      Default: []
     --version
       print version and exits
     -w, --width
@@ -126,7 +133,10 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-## Example
+## Examples
+
+
+### Example 1
 
 ```
 java -jar dist/bam2raster.jar \
@@ -134,6 +144,12 @@ java -jar dist/bam2raster.jar \
         -r 2:17379500-17379550 \
         -R  human_g1k_v37.fasta \
         sample.bam
+```
+
+### Example 2
+
+```
+java -jar dist/bam2raster.jar -R ref.fa -r rotavirus:150-200 data/*.bam -o out.png --limit 10 --clip  --noReadGradient  --highlight 175 
 ```
 
 <img src="https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png"/>
