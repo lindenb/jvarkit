@@ -48,7 +48,12 @@ java -jar dist/bam2raster.jar \
 java -jar dist/bam2raster.jar -R ref.fa -r rotavirus:150-200 data/*.bam -o out.png --limit 10 --clip  --noReadGradient  --highlight 175 
 ```
 
+## Screenshots
+
 <img src="https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png"/>
+
+<img src="https://pbs.twimg.com/media/C_eTeXtW0AAAC-v.jpg"/>
+
 
 END_DOC
 */
@@ -121,7 +126,6 @@ public class Bam2Raster extends Launcher
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
-
 
 	@Parameter(names={"-nobase","--nobase"},description="hide bases")
 	private boolean hideBases = false;

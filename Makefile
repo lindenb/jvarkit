@@ -239,7 +239,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
 	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
-	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649
+	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag
 	
 
 
@@ -408,6 +408,7 @@ $(eval $(call compile-htsjdk-cmd,samfindclippedregions,${jvarkit.package}.tools.
 $(eval $(call compile-htsjdk-cmd,samfixcigar,${jvarkit.package}.tools.samfixcigar.SamFixCigar,${jcommander.jar} wiki_flag))
 $(eval $(call compile-htsjdk-cmd,samgrep,${jvarkit.package}.tools.samgrep.SamGrep,${jcommander.jar} wiki_flag))
 $(eval $(call compile-htsjdk-cmd,samjs,${jvarkit.package}.tools.samjs.SamJavascript,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,samcolortag,${jvarkit.package}.tools.samjs.SamColorTag,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samshortinvert,${jvarkit.package}.tools.structvar.SamShortInvertion,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samstats01,${jvarkit.package}.tools.bamstats01.BamStats01,${jcommander.jar} wiki_flag))
 $(eval $(call compile-htsjdk-cmd,scanshortinvert,${jvarkit.package}.tools.mem.ScanShortInvert))
