@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -69,7 +69,7 @@ The script should return
 * a String for a named color ('blue', 'red'...)
 * a hexa color #FFFFF
 * a rgb color 'rgb(100,200,100)'
-* null or empty string (no YC tag)
+* null or empty string (no YC tag, the tag is cleared)
 
 ## Example
 
@@ -153,7 +153,7 @@ public class SamColorTag
 	
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		SAMRecordIterator iter=null;
 		SamReader samFileReader=null;
 		SAMFileWriter sw=null;
@@ -164,7 +164,7 @@ public class SamColorTag
 			samFileReader= openSamReader(oneFileOrNull(args));
 			final SAMFileHeader srcheader=samFileReader.getFileHeader();
 			final SAMFileHeader header = srcheader.clone();
-			header.addComment("YC attribute added with "+getProgramName()+" "+getProgramCommandLine());
+			header.addComment(ColorUtils.YC_TAG+" attribute added with "+getProgramName()+" "+getProgramCommandLine());
 			sw = this.writingBamArgs.openSAMFileWriter(outputFile,header, true);
 			
 	        final Bindings bindings = script.getEngine().createBindings();
@@ -185,7 +185,7 @@ public class SamColorTag
 					{
 					result = script.eval(bindings);
 					}
-				catch(Exception err)
+				catch(final Exception err)
 					{
 					if(!ignoreErrors) {
 						LOG.error(err);
@@ -216,7 +216,7 @@ public class SamColorTag
 							c2 = colorUtils.parse(s);
 							}
 						}
-					catch(Exception err)
+					catch(final Exception err)
 						{
 						if(!ignoreErrors) {
 							LOG.error(err);
@@ -236,11 +236,15 @@ public class SamColorTag
 					}
 				if(color!=null)
 					{
-					record.setAttribute("YC",
-						String.valueOf(color.getRed())+","+
-						color.getGreen()+","+
-						color.getBlue()
+					record.setAttribute(
+						ColorUtils.YC_TAG,
+						ColorUtils.colorToSamAttribute(color)
 						);
+					}
+				else
+					{
+					//clear attribute
+					record.setAttribute(ColorUtils.YC_TAG,null);
 					}
 				sw.addAlignment(record);
 				}

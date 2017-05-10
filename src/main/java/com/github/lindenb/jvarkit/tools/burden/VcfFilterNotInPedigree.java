@@ -27,10 +27,10 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.IOException;
-import java.util.Collection;
+import java.io.File;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -44,15 +44,41 @@ import htsjdk.variant.vcf.VCFHeader;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
  * VcfFilterNotInPedigree
  *
  */
+@Program(name="vcffilternotinpedigree",
+	description="Adds a FILTER NotInPedigree if the only not(homref) genotypes are not in a pedigree",
+	keywords={"burden","vcf","pedigree"}
+	)
 public class VcfFilterNotInPedigree
-	extends AbstractVcfFilterNotInPedigree
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfFilterNotInPedigree.class);
+
+	private static final Logger LOG = Logger.build(VcfFilterNotInPedigree.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-f","--filter"},description="FILTER name. Will be set for variant where the only genotypes non-homref are NOT in the pedigree")
+	private String filterName = "NoGenotypeInPedigree";
+
+	@Parameter(names={"-r","--remove"},description="remove the variant instead of setting the FILTER")
+	private boolean dicardVariant = false;
+
+	@Parameter(names={"-s","--singleton"},description="Variant is flagged/FILTERed as SingletonAlt if the ALT if found in less or equal times 'singleton-times' in the genotypes. -1:ignore")
+	private int singleton = 1 ;
+
+	@Parameter(names={"-sf","--sfilter"},description="FILTER name for option singleton")
+	private String singletonfilterName = "SingletonAlt";
 	
 	
 	public VcfFilterNotInPedigree()
@@ -60,23 +86,20 @@ public class VcfFilterNotInPedigree
 		}
 	 
 	
-	/* public for knime */
 	@Override
-	public Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator in,
-			final VariantContextWriter out
-			) throws IOException {
-		final int IGNORE_SINGLETON=-1;
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	final int IGNORE_SINGLETON=-1;
 		final VCFHeader header = in.getHeader();
 		
 		try {
-			final Pedigree pedigree = Pedigree.readPedigree(header);
+			final Pedigree pedigree = Pedigree.newParser().parse(header);
 			if(pedigree.isEmpty()) {
-				return wrapException("No pedigree found in header "+inputName+". use VcfInjectPedigree to add it");
+				LOG.error("No pedigree found in header "+inputName+". use VcfInjectPedigree to add it");
+				return -1;
 				}
 			if(!pedigree.verifyPersonsHaveUniqueNames()) {
-				return wrapException("I can't use this pedigree in VCF because two samples have the same ID in  "+inputName);
+				LOG.error("I can't use this pedigree in VCF because two samples have the same ID in  "+inputName);
+				return -1;
 			}
 
 			final Set<String> samplesNames= new HashSet<>(header.getSampleNamesInOrder());
@@ -92,17 +115,17 @@ public class VcfFilterNotInPedigree
 			}
 			
 			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine(
-					super.filterName,
+					this.filterName,
 					"Will be set for variant where the only genotypes non-homref are NOT in the pedigree "
 					);
 			final VCFFilterHeaderLine singletonFilter = new VCFFilterHeaderLine(
-					super.singletonfilterName,
-					"The ALT allele is found in less or equals than "+super.singleton+" individuals in the cases/controls"
+					this.singletonfilterName,
+					"The ALT allele is found in less or equals than "+this.singleton+" individuals in the cases/controls"
 					);
 			
 			final VCFHeader h2= new VCFHeader(header);
 			h2.addMetaDataLine(filter);
-			if(super.singleton!=IGNORE_SINGLETON) {
+			if(this.singleton!=IGNORE_SINGLETON) {
 				h2.addMetaDataLine(singletonFilter);
 			}
 			
@@ -122,7 +145,7 @@ public class VcfFilterNotInPedigree
 				
 								
 				if(!in_pedigree) {
-					if(super.dicardVariant) continue;
+					if(this.dicardVariant) continue;
 					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 					vcb.filter(filter.getID());
 					out.add(vcb.make());
@@ -130,13 +153,13 @@ public class VcfFilterNotInPedigree
 				else
 					{
 					boolean is_singleton;
-					if(super.singleton!=IGNORE_SINGLETON) {
+					if(this.singleton!=IGNORE_SINGLETON) {
 						is_singleton = true;
 						for(final Allele alt:ctx.getAlternateAlleles()) {
 							if( individuals.stream().
 									map(P->ctx.getGenotype(P.getId())).
 									filter(g->g.isCalled()&& g.getAlleles().contains(alt)).
-									count() > super.singleton) 
+									count() > this.singleton) 
 								{
 								is_singleton =false;
 								break;
@@ -148,7 +171,7 @@ public class VcfFilterNotInPedigree
 						is_singleton=false;
 						}
 					if(is_singleton) {
-						if(super.dicardVariant) continue;
+						if(this.dicardVariant) continue;
 						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 						vcb.filter(singletonFilter.getID());
 						out.add(vcb.make());
@@ -162,17 +185,19 @@ public class VcfFilterNotInPedigree
 			progess.finish();
 			return RETURN_OK;
 			} catch(Exception err) {
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 			} finally {
 				CloserUtil.close(in);
 			}
 		}
 	
+	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
-		}
-	 	
+	public int doWork(final List<String> args) {
+		return doVcfToVcf(args, outputFile);
+	}
+	
 	
 	public static void main(String[] args)
 		{

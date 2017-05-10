@@ -47,6 +47,9 @@ java -jar dist/bam2raster.jar \
 ```
 java -jar dist/bam2raster.jar -R ref.fa -r rotavirus:150-200 data/*.bam -o out.png --limit 10 --clip  --noReadGradient  --highlight 175 
 ```
+## Misc
+
+I use the UCSC/IGV color tag 'YC' when available (see also samcolortag)
 
 ## Screenshots
 
@@ -96,6 +99,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.Interval;
@@ -260,6 +264,8 @@ public class Bam2Raster extends Launcher
 	
 		private void build()
 			{
+			final Function<SAMRecord,Color> samRecord2color = new ColorUtils.SAMRecordColorExtractor();
+			
 			final Function<Character, Color> base2color = C ->
 				{
 				switch(Character.toUpperCase(C))
@@ -466,20 +472,24 @@ public class Bam2Raster extends Launcher
 						}
 					
 					if(printThisRow) {
+						Color ycColor = samRecord2color.apply(rec);
+						
 						final Stroke oldStroke = g.getStroke();
 						g.setStroke(new BasicStroke(2f));
 						if(noReadGradient) {
-							g.setColor(new Color(255,222,173));
+							if(ycColor==null) ycColor=new Color(255,222,173);
+							g.setColor(ycColor);
 							g.fill(shapeRec);
 						}
 						else
 							{
+							if(ycColor==null) ycColor=Color.DARK_GRAY;
 							final Paint oldpaint=g.getPaint();
 							final LinearGradientPaint gradient=new LinearGradientPaint(
 									0f, (float)shapeRec.getBounds2D().getY(),
 									0f, (float)shapeRec.getBounds2D().getMaxY(),
 									new float[]{0f,0.5f,1f},
-									new Color[]{Color.DARK_GRAY,Color.WHITE,Color.DARK_GRAY}
+									new Color[]{ycColor,Color.WHITE,ycColor}
 									);
 							g.setPaint(gradient);
 							g.fill(shapeRec);

@@ -29,12 +29,21 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.tools.vcfcmp.EqualRangeVcfIterator;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -46,48 +55,81 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.tools.vcfcmp.EqualRangeVcfIterator;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+/**
+
+BEGIN_DOC
+
+Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
 
 
+### Output
+
+#### INFO column
+
+
+ *  FreqExac : Exac frequency.
+ *  AC_* and AN_*: Transpose original population data from original Exac file
+
+
+#### FILTER column
+
+ *  BurdenExac : if FreqExac doesn't fit the criteria maxFreq
+
+
+### see also
+
+
+ *  VcfBurdenMAF
+
+
+END_DOC
+*/
+@Program(name="vcfburdenexac",description="Burden filter 3 - Exac",
+		keywords={"vcf","burden","exac"}
+		)
 public class VcfBurdenFilterExac
-	extends AbstractVcfBurdenFilterExac
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFilterExac.class);
+	private static final Logger LOG = Logger.build(VcfBurdenFilterExac.class).make();
+
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-exac","--exac"},description="Path to Exac VCF file. At the time of writing, you'd better use a normalized version of Exac (see https://github.com/lindenb/jvarkit/wiki/VCFFixIndels )")
+	private File exacFile = null;
+
+	@Parameter(names={"-d","--discardNotInExac"},description="if variant was not found in Exac, discard the variant (set the FILTER). Default: don't set the FILTER.")
+	private boolean ifNotInExacThenDiscard = false;
+
+	@Parameter(names={"-maxFreq","--maxFreq"},description="set FILTER if max(exac frequency in any pop) is greater than this value)")
+	private double maxFreq = 0.001 ;
+
+	@Parameter(names={"-pop","--population"},description="comma separated populations in exac")
+	private String exacPopulationStr = "AFR,AMR,EAS,FIN,NFE,SAS";
+
+	@Parameter(names={"-tabix","--tabix"},description="use tabix index for Exac it is present. Might speed up things if the number of variant is low.")
+	private boolean useTabixIndex = false;
 	
 	public VcfBurdenFilterExac()
 		{
 		}
 	 
 	@Override
-	public Collection<Throwable> initializeKnime() {
-		if(super.exacFile==null || !super.exacFile.exists())
-			{
-			return wrapException("Undefined Exac file option -"+OPTION_EXACFILE);
-			}
-		return super.initializeKnime();
-	 	}
-	/* public for knime */
-	@Override
-	public Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator vcfIterator,
-			final VariantContextWriter out
-			) throws IOException {
+	protected int doVcfToVcf(String inputName, VcfIterator vcfIterator, VariantContextWriter out) {
+		
 		VcfIterator exacIn =null;
 		TabixVcfFileReader tabix=null;
 		final VcfIterator in = VCFUtils.createAssertSortedVcfIterator(vcfIterator, VCFUtils.createTidPosComparator(vcfIterator.getHeader().getSequenceDictionary()));
 		EqualRangeVcfIterator equalRange = null;
-		final String exacPopulations[]= super.exacPopulationStr.split("[,]+");
+		final String exacPopulations[]= this.exacPopulationStr.split("[,]+");
 		final VCFHeader exacHeader;
 		try {
-			LOG.info("open "+super.exacFile);
-			if(super.useTabixIndex && VCFUtils.isTabixVcfFile(super.exacFile))
+			LOG.info("open "+this.exacFile);
+			if(this.useTabixIndex && VCFUtils.isTabixVcfFile(this.exacFile))
 				{
-				tabix = new TabixVcfFileReader(super.exacFile.getPath());
+				tabix = new TabixVcfFileReader(this.exacFile.getPath());
 				exacIn = null;
 				equalRange = null;
 				exacHeader = tabix.getHeader();
@@ -95,7 +137,7 @@ public class VcfBurdenFilterExac
 			else
 				{
 				tabix=null;
-				exacIn = VCFUtils.createVcfIteratorFromFile(super.exacFile);
+				exacIn = VCFUtils.createVcfIteratorFromFile(this.exacFile);
 				equalRange = new EqualRangeVcfIterator(exacIn, VCFUtils.createTidPosComparator(exacIn.getHeader().getSequenceDictionary()));
 				exacHeader = exacIn.getHeader();
 				}
@@ -103,7 +145,7 @@ public class VcfBurdenFilterExac
 			
 			final VCFHeader header=in.getHeader();
 			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine("BurdenExac",
-					"Freq:"+this.maxFreq+" Pop:"+super.exacPopulationStr);
+					"Freq:"+this.maxFreq+" Pop:"+this.exacPopulationStr);
 			final VCFInfoHeaderLine freqExacInfoHeader = new VCFInfoHeaderLine(
 					"FreqExac",1,VCFHeaderLineType.Float,"Freq in Exac AC/AN"
 					);
@@ -125,7 +167,8 @@ public class VcfBurdenFilterExac
 				boolean set_filter = false;
 				final VariantContext ctx = progess.watch(in.next());
 				if(	ctx.getAlternateAlleles().size()!=1) {
-					return wrapException("Expected only one allele per variant. Please use ManyAlleletoOne.");
+					LOG.error("Expected only one allele per variant. Please use ManyAlleletoOne.");
+					return -1;
 					}
 				final Allele alt = ctx.getAlternateAllele(0);
 				
@@ -184,11 +227,11 @@ public class VcfBurdenFilterExac
 						}
 					}
 
-				if(!freqInExac.isPresent() && super.ifNotInExacThenDiscard) {
+				if(!freqInExac.isPresent() && this.ifNotInExacThenDiscard) {
 					set_filter = true;
 				}
 				
-				if(freqInExac.isPresent() && freqInExac.get() > (super.maxFreq)) {
+				if(freqInExac.isPresent() && freqInExac.get() > (this.maxFreq)) {
 					set_filter = true;
 				}
 				
@@ -203,7 +246,8 @@ public class VcfBurdenFilterExac
 			progess.finish();
 			return RETURN_OK;
 			} catch(final Exception err) {
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 			} finally {
 				CloserUtil.close(equalRange);
 				CloserUtil.close(exacIn);
@@ -212,11 +256,17 @@ public class VcfBurdenFilterExac
 			}
 		}
 	
+	 
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+	public int doWork(List<String> args) {
+		if(this.exacFile==null || !this.exacFile.exists())
+			{
+			LOG.error("Undefined Exac file option");
+			return  -1;
+			}
+		return doVcfToVcf(args, outputFile);
 		}
-	 	
+	
 	
 	public static void main(String[] args)
 		{

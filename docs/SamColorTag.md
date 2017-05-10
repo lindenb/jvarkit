@@ -113,7 +113,7 @@ The script should return
 * a String for a named color ('blue', 'red'...)
 * a hexa color #FFFFF
 * a rgb color 'rgb(100,200,100)'
-* null or empty string (no YC tag)
+* null or empty string (no YC tag, the tag is cleared)
 
 ## Example
 

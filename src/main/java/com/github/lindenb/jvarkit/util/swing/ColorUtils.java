@@ -30,13 +30,26 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.ParameterException;
 
+import htsjdk.samtools.SAMRecord;
+
 
 public class ColorUtils
 	{
+
+	 /**
+	  * YC tag used by the UCSC/IGV
+	  * 
+	  * See http://software.broadinstitute.org/software/igv/book/export/html/6
+	  * http://genome.ucsc.edu/goldenPath/help/hgBamTrackHelp.html
+	  */
+	public static final String YC_TAG="YC";
+
+	
 	public static class Converter implements IStringConverter<Color> {
 		private final ColorUtils cols= new ColorUtils();
 		@Override
@@ -255,7 +268,7 @@ public class ColorUtils
      * @param c the color
      * @return null if c is null or the rgb string
      */
-    public static String toRGB(Color c)
+    public static String toRGB(final Color c)
         {
         if(c==null) return null;
         return "rgb("+c.getRed()+","+c.getGreen()+","+c.getBlue()+")";
@@ -320,6 +333,45 @@ public class ColorUtils
     @Override
     public String toString() {
     	return "ColorUtils";
+    	}
+    
+    /** extract the YC tag of a read */
+    public static class SAMRecordColorExtractor 
+    	implements Function<SAMRecord,Color>
+    		{
+    		/** return the Color for this read. return null on error or if there is no YC tag*/
+    		@Override
+    		public Color apply(final SAMRecord rec) {
+    			if( rec==null) return null;
+    			final Object o=rec.getAttribute(YC_TAG);
+    			if(o==null || !(o instanceof String)) return null;
+    			final String tag =  String.class.cast(o);
+    			final int comma1 = tag.indexOf(',');
+    			if( comma1 <= 0) return null;
+    			final int comma2 = tag.indexOf(',',comma1+1);
+    			if( comma2 == -1) return null;
+    			try 
+    				{
+    				final int r= Integer.parseInt(tag.substring(0, comma1));
+    				final int g= Integer.parseInt(tag.substring(comma1+1,comma2));
+    				final int b= Integer.parseInt(tag.substring(comma2+1));
+    				if(r<0 || r> 255 || g<0 || g>255 || b<0 || b>255) return null;
+    				return new Color(r,g,b);
+    				}
+    			catch(final NumberFormatException err)
+    				{
+    				return null;
+    				}
+    			}
+    		}
+    	
+
+    /** converts a java.awt.Color to a YC SAMRecord attribute value */
+    public static String colorToSamAttribute(final Color color) {
+    	return String.valueOf(color.getRed())+","+
+    			color.getGreen()+","+
+    			color.getBlue()
+    			;
     	}
     
 	}
