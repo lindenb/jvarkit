@@ -211,7 +211,7 @@ public class VcfDoest
 			
 		final VCFHeader header=in.getHeader();
 		
-		final Pedigree pedigree = Pedigree.readPedigree(header);
+		final Pedigree pedigree = Pedigree.newParser().parse(header);
 		if(pedigree.isEmpty())
 			{
 			throw new IOException("No pedigree found in header VCF header. use VcfInjectPedigree to add it");

@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 import javax.swing.AbstractAction;
 import javax.swing.DefaultListModel;
@@ -23,7 +24,6 @@ import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
-import com.github.lindenb.jvarkit.lang.Predicate;
 
  @SuppressWarnings("serial")
 public class MultipleInputChooser extends AbstractFileChooser
@@ -149,7 +149,7 @@ public class MultipleInputChooser extends AbstractFileChooser
 	
 	private boolean addString(String s)
 		{
-		if(getPredicate()!=null && !getPredicate().apply(s)) return false;
+		if(getPredicate()!=null && !getPredicate().test(s)) return false;
 		for(int i=0;i< listModel.size();++i)
 			{
 			if(listModel.elementAt(i).equals(s))

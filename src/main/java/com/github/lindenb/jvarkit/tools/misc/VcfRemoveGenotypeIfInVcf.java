@@ -54,9 +54,23 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 /**
- * VcfRemoveGenotypeIfInVcf
- * @author lindenb
- *
+BEGIN_DOC
+## Example
+
+```bash
+$ gunzip -c input.vcf.gz | grep -E '1308871'
+1	1308871	.	A	T	6.2	.	.	GT:PL:DP:GQ	1/1:35,3,0:1:4
+
+
+
+$ gunzip -c input.vcf.gz | grep -E '(^#|1308871)' |\
+  java -jar dist/vcfresetvcf.jar -x ALL.wgs.phase1_release_v3.20101123.snps_indels_sv.sites.vcf.gz |\
+  grep -v '^#'
+1	1308871	.	A	T	6.20	.	.	GT	./.
+
+```
+END_DOC
+
  */
 @Program(name="vcfresetvcf",description="Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix")
 public class VcfRemoveGenotypeIfInVcf extends Launcher {

@@ -108,19 +108,9 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 BEGIN_DOC
 
-
-
-
-
-
 ### Examples
 
-
-
 #### Example 1
-
-
-
 
 ```
 
@@ -154,8 +144,6 @@ java -jar  dist/samgrep.jar -R r001 -- -n 1 samtools-0.1.18/examples/toy.sam
 r001	163	ref	7	30	8M4I4M1D3M	=	37	39	TTAGATAAAGAGGATACTG	*	XX:B:S,12561,2,20,112
 
 ```
-
-
 
 
 

@@ -45,8 +45,41 @@ import com.github.lindenb.jvarkit.util.bio.Rebase;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+/**
+BEGIN_DOC
 
-@Program(name="biostar86480",description="Genomic restriction finder",biostars=86480)
+## Example
+```bash
+curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/chromosomes/chr3.fa.gz" |\
+gunzip -c  |\
+java -jar dist/biostar86480.jar -E AarI -E EcoRI  
+
+chr3	60645	60651	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	60953	60959	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	68165	68172	GCAGGTG	1000	-	AarI	CACCTGC(4/8)
+chr3	70263	70269	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	70945	70952	GCAGGTG	1000	-	AarI	CACCTGC(4/8)
+chr3	71140	71146	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	72264	72270	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	74150	74156	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	75063	75069	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	78438	78444	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	81052	81059	CACCTGC	1000	+	AarI	CACCTGC(4/8)
+chr3	84498	84504	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	84546	84552	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	84780	84787	CACCTGC	1000	+	AarI	CACCTGC(4/8)
+chr3	87771	87777	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	95344	95351	GCAGGTG	1000	-	AarI	CACCTGC(4/8)
+chr3	96358	96364	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	96734	96740	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	105956	105962	GAATTC	1000	+	EcoRI	G^AATTC
+chr3	107451	107457	GAATTC	1000	+	EcoRI	G^AATTC
+(...)
+```
+END_DOC
+ */
+@Program(name="biostar86480",description="Genomic restriction finder",biostars=86480,
+		keywords={"rebase","genome","enzyme","restricion","genome"})
 public class Biostar86480 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar86480.class).make();

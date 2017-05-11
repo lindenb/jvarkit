@@ -49,7 +49,36 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="biostar84452",description="remove clipped bases from BAM. See: http://www.biostars.org/p/84452/")
+/**
+BEGIN_DOC
+
+## Example
+
+```bash
+$  java -jar dist/biostar84452.jar samtools-0.1.18/examples/toy.sam > out.sam
+
+@HD	VN:1.4	SO:unsorted
+@SQ	SN:ref	LN:45
+@SQ	SN:ref2	LN:40
+@PG	ID:0	PN:com.github.lindenb.jvarkit.tools.biostar.Biostar84452	VN:b5ebf67dd2926d8a6afadb4d1e36a4959508057f	CL:samtools-0.1.18/examples/toy.sam
+(...)
+r002	0	ref	9	0	2I6M1P1I1P1I4M2I	*	0	0	AAAGATAAGGGATAAA	*
+(...)
+
+
+$ grep r002 samtools-0.1.18/examples/toy.sam
+r002	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0	AAAAGATAAGGGATAAA	*
+
+```
+END_DOC
+
+
+ */
+@Program(name="biostar84452",
+	biostars=84452,
+	description="remove clipped bases from BAM",
+	keywords={"sam","bam","clip"}
+	)
 public class Biostar84452 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar84452.class).make();

@@ -148,7 +148,9 @@ END_DOC
 */
 
 
-@Program(name="biostar78400",description="add the read group info to the sam file on a per lane basis")
+@Program(name="biostar78400",
+	keywords={"sam","bam","xml","read-group"},
+	description="add the read group info to the sam file on a per lane basis")
 public class Biostar78400 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar78400.class).make();

@@ -60,9 +60,153 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /*
- * VcfMultiToOne
+BEGIN_DOC
+
+## Example
+
+```bash
+$ curl -s "http://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5.20130502.genotypes.vcf.gz" |\
+gunzip -c |\
+java -jar dist/vcfmulti2one.jar  -c -r -a  |\
+grep -v '##' |\
+grep -E '(CHROM|SAMPLENAME)' | head | verticalize 
+
+
+>>> 2
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00096;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 2
+
+>>> 3
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00097;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 0|1
+<<< 3
+
+>>> 4
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00099;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 0|1
+<<< 4
+
+>>> 5
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00100;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 5
+
+>>> 6
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00102;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 6
+
+>>> 7
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00103;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 7
+
+>>> 8
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00105;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 8
+
+>>> 9
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00106;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 9
+
+>>> 10
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00114;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 0|1
+<<< 10
+```
+
+
+
+END_DOC
  */
-@Program(name="vcfmulti2one",description=">Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column",keywords={"vcf","sample"})
+@Program(name="vcfmulti2one",
+	biostars=130456,
+	description=">Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column",
+		keywords={"vcf","sample"})
 public class VcfMultiToOne extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfMultiToOne.class).make();
@@ -92,7 +236,7 @@ public class VcfMultiToOne extends Launcher
 	 */
 	static Set<String> extractSampleNames(final VCFHeader header)
 		{
-		List<String> sample_list =header.getSampleNamesInOrder();
+		final List<String> sample_list =header.getSampleNamesInOrder();
 		if(sample_list.size()!=1 || !sample_list.get(0).equals(DEFAULT_VCF_SAMPLE_NAME))
 			{
 			throw new IllegalArgumentException("Not a VCF produced by VcfMultiToOne");
@@ -138,10 +282,10 @@ public class VcfMultiToOne extends Launcher
 			SAMSequenceDictionary dict=null;
 			Set<String> sampleNames=new HashSet<String>();
 
-			Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
+			final Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
 			for(VcfIterator in:inputs)
 				{
-				VCFHeader header = in.getHeader();
+				final VCFHeader header = in.getHeader();
 				if(dict==null)
 					{
 					dict = header.getSequenceDictionary();
@@ -190,7 +334,7 @@ public class VcfMultiToOne extends Launcher
 			
 			out= super.openVariantContextWriter(this.outputFile);
 			out.writeHeader(h2);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			for(;;)
 				{
 				if(out.checkError()) break;
@@ -201,7 +345,7 @@ public class VcfMultiToOne extends Launcher
 				
 				while(idx < inputs.size())
 					{
-					VcfIterator in= inputs.get(idx);
+					final VcfIterator in= inputs.get(idx);
 					if(!in.hasNext())
 						{
 						CloserUtil.close(in);
@@ -210,7 +354,7 @@ public class VcfMultiToOne extends Launcher
 						}
 					else
 						{
-						VariantContext ctx = in.peek();
+						final VariantContext ctx = in.peek();
 						if( smallest==null ||
 							comparator.compare(smallest,ctx)>0)
 							{

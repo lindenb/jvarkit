@@ -36,6 +36,7 @@ import java.util.BitSet;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -47,13 +48,34 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
-@Program(name="biostar78285",description="Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/")
+/**
+
+BEGIN_DOC
+
+## Example
+
+```bash
+ $ java -jar dist/biostar78285.jar  sorted.bam 
+ 	
+
+seq1	1569	1575
+seq2	1567	1584
+```
+
+END_DOC
+
+*/
+@Program(name="biostar78285",
+	biostars=78285,
+	keywords={"sam","bam","depth","coverage"},
+	description="Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/")
 public class Biostar78285 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar78285.class).make();
@@ -62,6 +84,10 @@ public class Biostar78285 extends Launcher
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
 
+	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter = SamFilterParser.buildDefault();
+
+	
     private  int scan(final SamReader samFileReader,final PrintStream out) throws IOException
     	{
     	SAMRecordIterator iter=null;
@@ -71,12 +97,14 @@ public class Biostar78285 extends Launcher
 	    	SAMFileHeader header=samFileReader.getFileHeader();
 	    	if(header.getSortOrder()!=SortOrder.coordinate)
 	    		{
-	    		return wrapException("Sam file is not sorted on coordinate :"+header.getSortOrder());
+	    		LOG.error("Sam file is not sorted on coordinate :"+header.getSortOrder());
+	    		return -1;
 	    		}
 	    	SAMSequenceDictionary dict=header.getSequenceDictionary();
 	    	if(dict==null)
 	    		{
-	    		return wrapException("SamFile doesn't contain a SAMSequenceDictionary.");
+	    		LOG.error("SamFile doesn't contain a SAMSequenceDictionary.");
+	    		return -1;
 	    		}
 	    	/* flag, do we saw all chromosomes in dictionary ? */
 	    	boolean seen_tid[]=new boolean[dict.getSequences().size()];
@@ -107,7 +135,8 @@ public class Biostar78285 extends Launcher
 	    			ssr=dict.getSequence(rec.getReferenceIndex());
 	    			if(ssr==null)
 	    				{
-	    				return wrapException("Sequence not in dict :"+rec);
+	    				LOG.error("Sequence not in dict :"+rec);
+	    				return -1;
 	    				}
 	    			LOG.info("allocating bitset for "+ssr.getSequenceName()+" LENGTH="+ssr.getSequenceLength());
 	    			mapped=new BitSet(ssr.getSequenceLength());
@@ -152,7 +181,8 @@ public class Biostar78285 extends Launcher
 	    	}
     	catch(Exception err)
     		{
-    		return wrapException(err);
+    		LOG.error(err);
+    		return -1;
     		}
     	finally
     		{
@@ -192,7 +222,8 @@ public class Biostar78285 extends Launcher
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

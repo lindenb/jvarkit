@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.sigframe;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -77,7 +78,6 @@ import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
@@ -85,9 +85,47 @@ import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 
 
 /**
- * SigFrame
+ 
+BEGIN_DOC
+
+##Input file:
+
+tab delimited text file, compressed with **tabix/bgzip** and indexed with **tabix/tabix.**
+Columns are:
+* chrom (string)
+* start (int)
+* end (int)
+* value (double)
+* color (optional: 3 comma-separated integers [0-255] for R,G,B )
+
+```tsv
+chrM	0	10	0.005661	120,120,120
+chrM	0	10	0.114468	
+chrM	0	10	-0.877466
+chrM	0	10	1.456670	120,220,120
+chrM	0	10	-1.720711
+chrM	1	11	-1.427848
+chrM	1	11	-1.433984
+chrM	1	11	1.891983
+chrM	1	11	2.255700
+```
+
+## Synopsis
+
+```
+$ java -jar dist/sigframe.jar
+```
+
+or start from the command-line
+
+```
+$ java -jar dist/sigframe.jar -R ref.fasta tabix1.gz tabix2.gz  tabix3.gz 
+```
+
+END_DOC
  */
 @SuppressWarnings("serial")
+
 public class SigFrame
 	extends JFrame
 	{
@@ -1562,7 +1600,7 @@ public class SigFrame
 		{	
 		LOG.info("open faidx "+f);
 		this.actionMap.get("ACTION_OPEN").setEnabled(false);
-		this.genome=new SAMSequenceDictionaryFactory().load(f);
+		this.genome= SAMSequenceDictionaryExtractor.extractDictionary(f);
 		this.actionMap.get("ACTION_OPEN").setEnabled(true);
 		}
 	
@@ -1623,7 +1661,10 @@ public class SigFrame
 		
 		}
 	
-	@Program(name="sigframe")
+	@Program(name="sigframe",
+			description="SigFrame displays CGH/ position+values in a GUI",
+			keywords={"cgh","gui","visualization"}
+			)
 	public static class Main extends Launcher
 		{
 		@Parameter(names="-R",description="Reference indexed fasta file",required=true)
@@ -1699,7 +1740,7 @@ public class SigFrame
 				return -1;
 				}
 			}
-		private void startInstance(String[] args)
+		private void startInstance(final String[] args)
 			{
 			instanceMain(args);
 			}

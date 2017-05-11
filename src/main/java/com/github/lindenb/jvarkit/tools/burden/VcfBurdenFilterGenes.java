@@ -27,11 +27,10 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.IOException;
+import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -49,63 +48,70 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 /**
- * Filter by genes
- *
- */
+
+BEGIN_DOC
+
+### Example
+
+```
+echo "IL2" > genes.txt
+ echo "NOCTH2" >>  genes.txt
+ gunzip -c inputx.vcf.gz |\
+ java -jar dit/vcfburdenfiltergenes.jar -g genes.txt
+```
+
+
+
+END_DOC
+*/
+@Program(
+		name="vcfburdenfiltergenes",
+		description="Filter VEP Output from a list of genes.",
+		keywords={"gene","vcf","vep"})
 public class VcfBurdenFilterGenes
-	extends AbstractVcfBurdenFilterGenes
+	extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VcfBurdenFilterGenes.class).make();
+
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-g","--genes"},description="Gene file: one name per line")
+	private File geneFile = null;
+
+	@Parameter(names={"-filter","--filter"},description="If empty: remove the variants from the VCF. If not empty, add a token in the column filter.")
+	private String filterTag = "";
+
 	private final Set<String> geneNames= new HashSet<>();
 	
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFilterGenes.class);
 	
 	
 	public VcfBurdenFilterGenes()
 		{
 		}
-	 
-	@Override
-	public Collection<Throwable> initializeKnime() {
-		if(super.geneFile==null || !super.geneFile.exists()) {
-		return wrapException("Undefined gene file option -"+OPTION_GENEFILE);
-		}
-		
-		try {
-			this.geneNames.clear();
-			this.geneNames.addAll(Files.readAllLines(super.geneFile.toPath()));
-		} catch (IOException e) {
-			return wrapException(e);
-		}
-		geneNames.remove(".");
-		geneNames.remove("");
-		LOG.info("number of genes : "+geneNames.size());
-		return super.initializeKnime();
-	 	}
-
-	@Override
-	public void disposeKnime() {
-		this.geneNames.clear();
-		super.disposeKnime();
-	}
 	
-	
-	/* public for knime */
 	@Override
-	public Collection<Throwable> doVcfToVcf(
+	protected int doVcfToVcf(
 			final String inputName,
 			final VcfIterator in,
 			final VariantContextWriter out
-			) throws IOException {
+			) 
+		{
 		final VCFHeader header=in.getHeader();		
 		try {
 			final VCFHeader h2=addMetaData(new VCFHeader(header));
 
 			final VCFFilterHeaderLine filterControlsHeader;
-			if(!super.filterTag.trim().isEmpty())
+			if(!this.filterTag.trim().isEmpty())
 				{
 				filterControlsHeader = new VCFFilterHeaderLine(
-						super.filterTag.trim(),
+						this.filterTag.trim(),
 						"Genes in list "+this.filterTag
 						);
 				h2.addMetaDataLine(filterControlsHeader);
@@ -173,18 +179,34 @@ public class VcfBurdenFilterGenes
 				}
 			progess.finish();
 			return RETURN_OK;
-			} catch(Exception err) {
-				return wrapException(err);
+			} catch(final Exception err) {
+				LOG.error(err);
+				return -1;
 			} finally {
 				CloserUtil.close(in);
 			}
 		}
 	
-	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
-		}
 	 	
+	@Override
+	public int doWork(final List<String> args) {
+		if(this.geneFile==null || !this.geneFile.exists()) {
+			LOG.error("Undefined gene file option.");
+			return -1;
+			}
+			
+		try {
+			this.geneNames.clear();
+			this.geneNames.addAll(Files.readAllLines(this.geneFile.toPath()));
+			geneNames.remove(".");
+			geneNames.remove("");
+			LOG.info("number of genes : "+geneNames.size());
+			return doVcfToVcf(args,outputFile);
+		} catch (final Exception err) {
+			LOG.error(err);
+			return -1;
+			}
+		}
 	
 	public static void main(String[] args)
 		{

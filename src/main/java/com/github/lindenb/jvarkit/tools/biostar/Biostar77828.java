@@ -18,7 +18,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="biostar77828",description="Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ ")
+@Program(name="biostar77828",
+description="Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ ",
+		biostars=77828
+		)
 public class Biostar77828 extends Launcher
 	{
 

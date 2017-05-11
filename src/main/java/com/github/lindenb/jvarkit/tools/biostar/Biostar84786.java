@@ -45,7 +45,23 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
-@Program(name="biostar84786",description="Matrix transposition ( see  http://www.biostars.org/p/84786/ )")
+/**
+
+BEGIN_DOC
+
+## Example:
+
+```bash
+java -jar dist/biostar84786.jar  /path/to/input.tsv 
+```
+
+END_DOC
+ */
+@Program(name="biostar84786",
+	biostars=84786,
+	description="Matrix transposition",
+	keywords={"matrix","util"}
+	)
 public class Biostar84786 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar84786.class).make();

@@ -62,8 +62,32 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
+/**
+BEGIN_DOC
 
-@Program(name="biostar95652",description="Drawing a schematic genomic context tree. See also http://www.biostars.org/p/95652/",biostars=95652)
+## Example
+
+```bash
+$ java -jar dist/biostar95652.jar \
+   NP_077719.2 \
+   XP_513697.3 XP_001114248.1 \
+   XP_540266.3 XP_002686160.2 \
+   NP_035058.2 NP_077334.1 \
+   NP_001238962.1 NP_001108566.1 > result.svg
+```
+
+Result:
+
+![Hosted by imgur.com](http://i.imgur.com/SYn6IAal.png)
+
+END_DOC
+
+ */
+
+@Program(name="biostar95652",
+	keywords={"genbank","svg","tree","evolution"},
+	description="Drawing a schematic genomic context tree.",
+	biostars=95652)
 public class Biostar95652 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar95652.class).make();

@@ -1,9 +1,11 @@
 package com.github.lindenb.jvarkit.util.picard;
 
 import htsjdk.samtools.util.Interval;
+
+import java.util.function.Function;
+
 import htsjdk.samtools.SAMSequenceDictionary;
 
-import com.github.lindenb.jvarkit.lang.Function;
 
 
 @Deprecated

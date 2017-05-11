@@ -72,9 +72,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 BEGIN_DOC
 
-
 ### Example
-
 
 ```
 
@@ -82,8 +80,6 @@ $ gunzip -c input.vcf.gz |\
 	java -jar dist/vcfgenesplitter.jar -tmpdir . -o out.zip -maxRecordsInRam 5000 -zipdir BASE
 
 ```
-
-
 
 END_DOC
 */

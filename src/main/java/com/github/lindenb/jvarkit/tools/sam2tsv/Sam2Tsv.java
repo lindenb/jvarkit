@@ -53,7 +53,7 @@ import htsjdk.samtools.util.CloserUtil;
 
 BEGIN_DOC
 
-
+### Output
 
 Columns are:
 
@@ -66,8 +66,6 @@ Columns are:
  *  ref-pos
  *  ref-base
  *  cigar-op
-
-	
 
 
 
@@ -237,23 +235,16 @@ x2	0	ref2	20	T	30	22	t	M
 
 ### History
 
-
  *  Moved to a standard argc/argv command line
  *  2014-04: added qual and samflag. Fixed a bug in soft-clip
  *  2014-11: manage hard+soft clip
 
 
 
-
-
 ### See also
-
 
  *  [[Biostar59647]]
  *  https://www.biostars.org/p/157232/
-
-
-
 
 
 ### Citations
@@ -265,11 +256,11 @@ Sam2tsv was cited in :
 
 
 
-
-
 END_DOC
 */
-@Program(name="sam2tsv",description="Prints the SAM alignments as a TAB delimited file.")
+@Program(name="sam2tsv",
+	description="Prints the SAM alignments as a TAB delimited file.",
+	keywords={"sam","bam","table","tsv"})
 public class Sam2Tsv
 	extends Launcher
 	{

@@ -52,6 +52,34 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+/**
+BEGIN_DOC
+
+## Example
+
+```bash
+$  java -jar dist/sortsamrefname.jar /commun/data/packages/samtools/1.2/samtools/examples/toy.sam  2> /dev/null 
+@HD	VN:1.4	SO:unsorted
+@SQ	SN:ref	LN:45
+@SQ	SN:ref2	LN:40
+@CO	SortSamRefName 1c7bc5e674136947586779a2aac53e576db4a67f /commun/data/packages/samtools/1.2/samtools/examples/toy.sam
+r001	83	ref	37	30	9M	=	7	-39	CAGCGCCAT	*
+r001	163	ref	7	30	8M4I4M1D3M	=	37	39	TTAGATAAAGAGGATACTG	*	XX:B:S,12561,2,20,112
+r002	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0	AAAAGATAAGGGATAAA	*
+r003	0	ref	9	30	5H6M	*	0	0	AGCTAA	*
+r003	16	ref	29	30	6H5M	*	0	0	TAGGC	*
+r004	0	ref	16	30	6M14N1I5M	*	0	0	ATAGCTCTCAGC	*
+x1	0	ref2	1	30	20M	*	0	0	AGGTTTTATAAAACAAATAA	????????????????????
+x2	0	ref2	2	30	21M	*	0	0	GGTTTTATAAAACAAATAATT	?????????????????????
+x3	0	ref2	6	30	9M4I13M	*	0	0	TTATAAAACAAATAATTAAGTCTACA	??????????????????????????
+x4	0	ref2	10	30	25M	*	0	0	CAAATAATTAAGTCTACAGAGCAAC	?????????????????????????
+x5	0	ref2	12	30	24M	*	0	0	AATAATTAAGTCTACAGAGCAACT	????????????????????????
+x6	0	ref2	14	30	23M	*	0	0	TAATTAAGTCTACAGAGCAACTA	???????????????????????
+```
+
+END_DOC
+ */
+
 @Program(name="sortsamrefname",description="Sort a BAM of contig and then on name")
 public class SortSamRefName extends Launcher
 	{

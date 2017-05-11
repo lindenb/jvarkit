@@ -1561,4 +1561,89 @@ public static boolean isRunningJavaWebStart() {
     	}
 	}
 
+/** when using doVcfToVcfMultipleStream, this will be the name of the zip */
+protected String getVcfMultipleStreamZipDirectory() {
+	return getProgramName();
+	}
+
+/** can be called instead of doVcfVcf to hande a stream of multiple vcfs */
+protected int doVcfToVcfMultipleStream(final String inputName,final File outputFile) throws Exception {
+	java.io.FileOutputStream fout = null;
+	java.util.zip.ZipOutputStream zout = null;
+	htsjdk.tribble.readers.LineIterator lineIter = null;
+	java.io.PrintStream pw = null;
+	htsjdk.variant.variantcontext.writer.VariantContextWriter vcw=null;
+	try {
+		if(inputName==null) {
+			lineIter = com.github.lindenb.jvarkit.io.IOUtils.openStreamForLineIterator(stdin());
+		} else {
+			lineIter = com.github.lindenb.jvarkit.io.IOUtils.openURIForLineIterator(inputName);
+		}
+		if(!lineIter.hasNext()) {
+			LOG.warn("No input found. Couldn't read any VCF header file");
+		}
+		
+		if(outputFile!=null && outputFile.getName().endsWith(".zip")) {
+			fout = new java.io.FileOutputStream(outputFile);
+			zout = new java.util.zip.ZipOutputStream(fout);
+		} else {
+			pw = openFileOrStdoutAsPrintStream(outputFile);
+		}
+		
+		int n_vcf=0;
+		while(lineIter.hasNext()) {
+		final String filename = String.format("%04d.vcf",(++n_vcf));
+			
+		/* create VCF iterator */
+		final com.github.lindenb.jvarkit.util.vcf.VcfIterator in = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVcfIteratorFromLineIterator(lineIter, true);
+		
+			
+		/* if zip: add new entry */
+		if(zout!=null) {
+			final java.util.zip.ZipEntry entry = new java.util.zip.ZipEntry(getVcfMultipleStreamZipDirectory()+"/"+filename);
+			entry.setComment("Generated with "+getProgramName()+" v."+getVersion());
+			zout.putNextEntry(entry);
+			pw = new java.io.PrintStream(zout);
+		}
+		
+		/* create VariantWriter */
+		vcw = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVariantContextWriterToOutputStream(
+		  com.github.lindenb.jvarkit.io.IOUtils.uncloseableOutputStream(pw));
+		
+		int errors = doVcfToVcf(filename, in, vcw);
+		if(errors!=0) {
+			return errors;
+		}
+		in.close();
+		vcw.close();
+		vcw=null;
+		if(zout!=null)   {
+			zout.closeEntry();
+			pw=null;
+		}
+		}			
+		
+		if(zout!=null) {
+			zout.finish();
+			zout.flush(); zout=null;
+			fout.close(); fout=null;
+		}
+		else {
+			pw.flush();
+			}
+		return RETURN_OK;
+	} catch(final Exception err) {
+		LOG.error(err);
+		return -1;
+	} finally {
+		htsjdk.samtools.util.CloserUtil.close(zout);
+		htsjdk.samtools.util.CloserUtil.close(fout);
+		htsjdk.samtools.util.CloserUtil.close(lineIter);
+		htsjdk.samtools.util.CloserUtil.close(pw);
+	}
+	
+}
+
+
+
 }

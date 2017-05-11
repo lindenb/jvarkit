@@ -6,6 +6,11 @@
 ```
 Usage: biostar78285 [options] Files
   Options:
+    -f, --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exits
     -o, --output
@@ -19,6 +24,21 @@ Usage: biostar78285 [options] Files
 ## Description
 
 Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/
+
+
+## Keywords
+
+ * sam
+ * bam
+ * depth
+ * coverage
+
+
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/78285
+
 
 ## Compilation
 
@@ -75,5 +95,16 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+## Example
+
+```bash
+ $ java -jar dist/biostar78285.jar  sorted.bam 
+ 	
+
+seq1	1569	1575
+seq2	1567	1584
+```
 
 

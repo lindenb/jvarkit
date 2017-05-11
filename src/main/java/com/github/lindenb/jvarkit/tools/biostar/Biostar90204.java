@@ -47,7 +47,39 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-@Program(name="biostar90204",description="Bam version of linux split. See also http://www.biostars.org/p/90204/",biostars=90204)
+
+/**
+BEGIN_DOC
+
+##Example
+
+```bash
+$ java -jar dist/biostar90204.jar -m bam.manifest -n 3 -a 5 samtools-0.1.18/examples/toy.sam
+
+$ cat bam.manifest
+_splitbam.00001.bam	1	3
+_splitbam.00002.bam	4	6
+_splitbam.00003.bam	7	9
+_splitbam.00004.bam	10	12
+
+$ samtools-0.1.18/samtools view -h _splitbam.00003.bam 
+@HD	VN:1.4	SO:unsorted
+@SQ	SN:ref	LN:45
+@SQ	SN:ref2	LN:40
+@PG	ID:0	PN:com.github.lindenb.jvarkit.tools.biostar.Biostar90204	VN:7e17f8bd273cf081d4415bc4f579cd34e2c681d1	CL:-m bam.manifest -n 3 -a 5 samtools-0.1.
+18/examples/toy.sam
+@CO	SPLIT:3
+@CO	SPLIT:Starting from Read7
+x1	0	ref2	1	30	20M	*	0	0	AGGTTTTATAAAACAAATAA	????????????????????
+x2	0	ref2	2	30	21M	*	0	0	GGTTTTATAAAACAAATAATT	?????????????????????
+x3	0	ref2	6	30	9M4I13M	*	0	0	TTATAAAACAAATAATTAAGTCTACA	??????????????????????????
+```
+
+END_DOC
+*/
+@Program(name="biostar90204",
+	keywords={"sam","bam","split","util"},
+	description="Bam version of linux split. See also http://www.biostars.org/p/90204/",biostars=90204)
 public class Biostar90204 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar90204.class).make();

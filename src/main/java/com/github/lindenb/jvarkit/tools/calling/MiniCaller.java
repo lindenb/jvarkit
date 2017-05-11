@@ -78,7 +78,19 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
+/*
+BEGIN_DOC
 
+
+## Example
+
+```bash
+$  java -jar dist/minicaller.jar -R ref.fa  bam.list > out.vcf
+
+```
+
+END_DOC
+ */
 @Program(name="minicaller",description="Simple and Stupid Variant Caller designed for @AdrienLeger2")
 public class MiniCaller extends Launcher
     {

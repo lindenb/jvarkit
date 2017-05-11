@@ -60,10 +60,43 @@ import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Transaction;
 
 /**
- * @author lindenb
+BEGIN_DOC
+
+##Example
+
+```bash
+$ cat input.txt
+A1	A2
+A2	A3
+A3	A4
+A4	A5
+A1	A6
+
+
+$ mkdir -p tmp
+$  java -jar dist/biostar92368.jar -D tmp input.txt
+
+A1	A2	0
+A1	A3	1
+A1	A4	2
+A1	A6	0
+A2	A3	0
+A2	A4	1
+A2	A5	2
+A2	A6	1
+A3	A4	0
+A3	A5	1
+A3	A6	2
+A4	A5	0
+
+```
+END_DOC
+
  *
  */
-@Program(name="biostar92368",biostars=92368,description="Binary interactions depth See also http://www.biostars.org/p/92368/")
+@Program(name="biostar92368",biostars=92368,
+	keywords={"protein","interaction","interactome"},
+	description="Binary interactions depth See also http://www.biostars.org/p/92368/")
 public class Biostar92368 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar92368.class).make();

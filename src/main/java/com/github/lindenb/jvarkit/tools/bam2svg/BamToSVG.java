@@ -76,9 +76,37 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 
+
+/**
+BEGIN_DOC
+
+## Example
+
+```bash
+$ java -jar dist/bam2svg.jar \
+    -R human_g1k_v37.fasta \
+    -i "19:252-260" \
+    -S variants.vcf.gz \
+    file.bam > out.svg
+```
+
+## Gallery
+
+https://twitter.com/yokofakun/status/523031098541232128
+
+![bam2svg](https://pbs.twimg.com/media/B0IuAw2IgAAYfNM.jpg)
+
+https://twitter.com/yokofakun/status/522415314425090048
+
+![bam2svg-2](https://pbs.twimg.com/media/Bz_99ayIMAAK57s.jpg)
+
+
+
+END_DOC
+ */
 @Program(name="bam2svg",
 description="BAM to raster graphics",
-keywords={"bam","alignment","graphics","visualization"}
+keywords={"bam","alignment","graphics","visualization","svg"}
 )
 public class BamToSVG extends Launcher
 	{

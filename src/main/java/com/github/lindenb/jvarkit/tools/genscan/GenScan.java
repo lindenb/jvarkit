@@ -24,13 +24,13 @@ import javax.imageio.ImageIO;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.SynchronousLineReader;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -445,8 +445,8 @@ public class GenScan extends AbstractGeneScan
 			if(faidxFile!=null)
 				{
 				LOG.info("Reading "+faidxFile);
-				SAMSequenceDictionary dict=new SAMSequenceDictionaryFactory().load(faidxFile);
-				for(SAMSequenceRecord rec: dict.getSequences())
+				final SAMSequenceDictionary dict= SAMSequenceDictionaryExtractor.extractDictionary(faidxFile);
+				for(final SAMSequenceRecord rec: dict.getSequences())
 					{
 					ChromInfo ci=new ChromInfo();
 					ci.dictSequenceLength=rec.getSequenceLength();

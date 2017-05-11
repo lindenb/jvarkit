@@ -56,6 +56,19 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+/*
+BEGIN_DOC
+
+## Example
+
+```bash
+$ java -jar dist/biostar145820.jar -n 10  -o out.bam  in.bam 
+
+```
+END_DOC
+
+ */
+
 @Program(name="biostar145820",description="subsample BAM to fixed number of alignments.",biostars=145820)
 public class Biostar145820 extends Launcher
 	{

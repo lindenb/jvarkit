@@ -53,8 +53,22 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-@Program(name="vcfindextabix",description="Index and sort a VCF on the fly with Tabix")
+/**
 
+
+BEGIN_DOC
+
+## Example
+
+```bash
+$ java -jar dist/vcfshuffle.jar in.vcf |\
+  java -jar dist/vcfindextabix.jar -s -o out.vcf.gz
+
+```
+END_DOC
+*/
+
+@Program(name="vcfindextabix",description="Index and sort a VCF on the fly with Tabix")
 public class VcfIndexTabix
 	extends Launcher
 	{

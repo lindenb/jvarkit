@@ -64,6 +64,21 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+/** 
+
+BEGIN_DOC
+
+##Example
+
+```bash
+$   curl -s "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeCshlLongRnaSeq/wgEncodeCshlLongRnaSeqA549CellLongnonpolyaAlnRep1.bam" |\
+  java -jar dist/biostar103303.jar -g "http://atgu.mgh.harvard.edu/plinkseq/dist/aux/gencodeBasicV11-hg19.gtf.gz"  > result.tsv
+```
+
+END_DOC
+
+*/
+
 @Program(name="biostar103303",
 description="Calculate Percent Spliced In (PSI).", biostars=103303)
 public class Biostar103303 extends Launcher

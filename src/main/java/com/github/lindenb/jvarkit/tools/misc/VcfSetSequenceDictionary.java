@@ -38,7 +38,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.util.CloserUtil;
-
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -48,7 +48,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -61,7 +60,7 @@ public class VcfSetSequenceDictionary extends Launcher
 	private File outputFile=null;
 
 
-	@Parameter(names={"-r","--reference"},description="indexed reference")
+	@Parameter(names={"-r","-R","--reference"},description="indexed reference")
 	private File faidx=null;
 
 	@Parameter(names={"-d"},description="at the end, save an alternate dict in that file.")
@@ -135,7 +134,7 @@ public class VcfSetSequenceDictionary extends Launcher
 		FileWriter out = null;
 		try {
 			if (this.faidx != null) {
-				this.dict = new SAMSequenceDictionaryFactory().load(faidx);
+				this.dict = SAMSequenceDictionaryExtractor.extractDictionary(faidx);
 			}
 
 			int err = doVcfToVcf(args, outputFile);

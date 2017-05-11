@@ -123,7 +123,7 @@ private double variantIndelOpacity = 1.0;
 
 
 
-private void title(XMLStreamWriter w,String title) throws XMLStreamException
+private void title(final XMLStreamWriter w,final String title) throws XMLStreamException
 	{
 	w.writeStartElement("title");
 	w.writeCharacters(title);

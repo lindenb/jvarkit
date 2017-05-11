@@ -45,9 +45,30 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 
+/**
+
+BEGIN_DOC
+
+## Example
+
+```bash
+curl -s "http://www.tcoffee.org/Courses/Exercises/saragosa_pb_2010/practicals/practical_2/ex.1.19/file/clustalw.msa" |\
+	java -jar dist/biostar77288.jar  > result.svg
+```
+![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/biostar77288.png)
+
+```bash
+$ java -jar dist/sam4weblogo.jar IN=in.bam   REGION="1:630-719" |\
+	java -jar dist/biostar77288.jar  SEQLOGO=true > result.svg
+```
+
+END_DOC
+
+*/
 @Program(name=",biostar77288",
 	description="Low resolution sequence alignment visualization",
-	biostars=77288
+	biostars=77288,
+	keywords={"bam","sam","visualization","svg"}
 	)
 public class Biostar77288 extends Launcher
     {
@@ -88,7 +109,7 @@ public class Biostar77288 extends Launcher
         return (n/(double)this.max_length)*this.ALN_WIDTH + max_name*(double)featureHeight;
         }
    
-    private void readingClustal(String IN) throws IOException
+    private void readingClustal(final String IN) throws IOException
     	{
     	LOG.info("reading CLUSTALW");
         String line;

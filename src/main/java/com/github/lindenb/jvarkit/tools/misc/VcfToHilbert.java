@@ -63,6 +63,20 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+
+BEGIN_DOC
+
+##Example
+
+```bash
+$  curl -s "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20140123_NA12878_Illumina_Platinum/NA12878.wgs.illumina_platinum.20140404.snps_v2.vcf.gz" | gunzip -c |\
+ java -jar dist/vcf2hilbert.jar  -r 1.1 -w 1000 -o hilbert.png
+```
+
+END_DOC
+
+ */
 @Program(name="vcf2hilbert",keywords={"vcf","image","vislualization"},description="Plot a Hilbert Curve from a VCF file.")
 public class VcfToHilbert extends Launcher
 	{
