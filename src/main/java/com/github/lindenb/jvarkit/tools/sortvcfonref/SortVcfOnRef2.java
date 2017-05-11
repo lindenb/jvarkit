@@ -36,13 +36,14 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Pattern;
+
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
@@ -237,7 +238,7 @@ public class SortVcfOnRef2 extends Launcher
     	{
 		if(this.refdict!=null) {
 			LOG.info("load dict from "+this.refdict);
-			this.dict = new SAMSequenceDictionaryFactory().load(this.refdict);
+			this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.refdict);
 			if(this.dict==null) {
 				LOG.error("cannot find sam sequence dictionary from "+refdict);
 			}
