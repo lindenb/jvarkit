@@ -66,6 +66,8 @@ import htsjdk.variant.vcf.VCFHeader;
 
 /**
 
+BEGIN_DOC
+
 ## Example 
 
 ```
