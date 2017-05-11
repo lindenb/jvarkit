@@ -35,6 +35,15 @@ Usage: biostar78400 [options] Files
 
 add the read group info to the sam file on a per lane basis
 
+
+## Keywords
+
+ * sam
+ * bam
+ * xml
+ * read-group
+
+
 ## Compilation
 
 ### Requirements / Dependencies

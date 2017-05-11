@@ -21,7 +21,20 @@ Usage: biostar84786 [options] Files
 
 ## Description
 
-Matrix transposition ( see  http://www.biostars.org/p/84786/ )
+Matrix transposition
+
+
+## Keywords
+
+ * matrix
+ * util
+
+
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/84786
+
 
 ## Compilation
 
@@ -78,5 +91,12 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+## Example:
+
+```bash
+java -jar dist/biostar84786.jar  /path/to/input.tsv 
+```
 
 

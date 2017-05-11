@@ -25,6 +25,13 @@ Usage: vcfrenamesamples [options] Files
 
 Rename the Samples in a VCF
 
+
+## Keywords
+
+ * vcf
+ * sample
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -80,5 +87,23 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+```bash
+$ curl -s "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
+grep -A 2 CHROM  | cut -f 1-5,10-
+
+#CHROM	POS	ID	REF	ALT	1094PC0005	1094PC0009	1094PC0012	1094PC0013
+chr1	30860	.	G	C	0/0:7,0:7:15.04:0,15,177	0/0:2,0:2:3.01:0,3,39	0/0:6,0:6:12.02:0,12,143	0/0:4,0:4:9.03:0,9,119
+chr1	69270	.	A	G	./.	./.	1/1:0,3:3:9.03:106,9,0	1/1:0,6:6:18.05:203,18,0
+
+curl -s "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
+java -jar dist/vcfrenamesamples.jar -f <(echo -e "1094PC0005\tALPHA\n1094PC0012\tBETA\nSAMPLE\tGAMMA\n1094PC0009\tEPSILON") -E  |\
+grep -A 2 "#CHROM" | cut -f 1-5,10-
+
+#CHROM	POS	ID	REF	ALT	ALPHA	EPSILON	BETA	1094PC0013
+chr1	30860	.	G	C	0/0:7,0:7:15:0,15,177	0/0:2,0:2:3:0,3,39	0/0:6,0:6:12:0,12,143	0/0:4,0:4:9:0,9,119
+chr1	69270	.	A	G	./.	./.	1/1:0,3:3:9:106,9,0	1/1:0,6:6:18:203,18,0
+```
 
 

@@ -28,6 +28,15 @@ Usage: ,biostar77288 [options] Files
 Low resolution sequence alignment visualization
 
 
+## Keywords
+
+ * bam
+ * sam
+ * visualization
+ * svg
+
+
+
 ## See also in Biostars
 
  * https://www.biostars.org/p/77288
@@ -88,5 +97,19 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+## Example
+
+```bash
+curl -s "http://www.tcoffee.org/Courses/Exercises/saragosa_pb_2010/practicals/practical_2/ex.1.19/file/clustalw.msa" |\
+	java -jar dist/biostar77288.jar  > result.svg
+```
+![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/biostar77288.png)
+
+```bash
+$ java -jar dist/sam4weblogo.jar IN=in.bam   REGION="1:630-719" |\
+	java -jar dist/biostar77288.jar  SEQLOGO=true > result.svg
+```
 
 

@@ -85,3 +85,11 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
+##Example
+
+```bash
+$   curl -s "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeCshlLongRnaSeq/wgEncodeCshlLongRnaSeqA549CellLongnonpolyaAlnRep1.bam" |\
+  java -jar dist/biostar103303.jar -g "http://atgu.mgh.harvard.edu/plinkseq/dist/aux/gencodeBasicV11-hg19.gtf.gz"  > result.tsv
+```
+
+

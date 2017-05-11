@@ -110,9 +110,7 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-
 ### Example
-
 
 ```
 
@@ -120,7 +118,5 @@ $ gunzip -c input.vcf.gz |\
 	java -jar dist/vcfgenesplitter.jar -tmpdir . -o out.zip -maxRecordsInRam 5000 -zipdir BASE
 
 ```
-
-
 
 

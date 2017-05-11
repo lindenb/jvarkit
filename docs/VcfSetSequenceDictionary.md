@@ -10,7 +10,7 @@ Usage: vcfsetdict [options] Files
       print help and exits
     -o, --output
       Ouput file. Default: stdout
-    -r, --reference
+    -r, -R, --reference
       indexed reference
     --version
       print version and exits

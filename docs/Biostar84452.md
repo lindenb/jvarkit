@@ -26,7 +26,21 @@ Usage: biostar84452 [options] Files
 
 ## Description
 
-remove clipped bases from BAM. See: http://www.biostars.org/p/84452/
+remove clipped bases from BAM
+
+
+## Keywords
+
+ * sam
+ * bam
+ * clip
+
+
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/84452
+
 
 ## Compilation
 
@@ -84,4 +98,23 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
+
+## Example
+
+```bash
+$  java -jar dist/biostar84452.jar samtools-0.1.18/examples/toy.sam > out.sam
+
+@HD	VN:1.4	SO:unsorted
+@SQ	SN:ref	LN:45
+@SQ	SN:ref2	LN:40
+@PG	ID:0	PN:com.github.lindenb.jvarkit.tools.biostar.Biostar84452	VN:b5ebf67dd2926d8a6afadb4d1e36a4959508057f	CL:samtools-0.1.18/examples/toy.sam
+(...)
+r002	0	ref	9	0	2I6M1P1I1P1I4M2I	*	0	0	AAAGATAAGGGATAAA	*
+(...)
+
+
+$ grep r002 samtools-0.1.18/examples/toy.sam
+r002	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0	AAAAGATAAGGGATAAA	*
+
+```
 

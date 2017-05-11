@@ -91,3 +91,11 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
+##Example
+
+```bash
+$  curl -s "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20140123_NA12878_Illumina_Platinum/NA12878.wgs.illumina_platinum.20140404.snps_v2.vcf.gz" | gunzip -c |\
+ java -jar dist/vcf2hilbert.jar  -r 1.1 -w 1000 -o hilbert.png
+```
+
+

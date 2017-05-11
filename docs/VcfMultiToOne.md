@@ -36,6 +36,12 @@ Usage: vcfmulti2one [options] Files
  * sample
 
 
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/130456
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -91,5 +97,145 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+## Example
+
+```bash
+$ curl -s "http://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5.20130502.genotypes.vcf.gz" |\
+gunzip -c |\
+java -jar dist/vcfmulti2one.jar  -c -r -a  |\
+grep -v '##' |\
+grep -E '(CHROM|SAMPLENAME)' | head | verticalize 
+
+
+>>> 2
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00096;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 2
+
+>>> 3
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00097;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 0|1
+<<< 3
+
+>>> 4
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00099;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 0|1
+<<< 4
+
+>>> 5
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00100;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 5
+
+>>> 6
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00102;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 6
+
+>>> 7
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00103;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 7
+
+>>> 8
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00105;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 8
+
+>>> 9
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00106;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 1|0
+<<< 9
+
+>>> 10
+$1   #CHROM : 1
+$2      POS : 10177
+$3       ID : .
+$4      REF : A
+$5      ALT : AC
+$6     QUAL : 100
+$7   FILTER : PASS
+$8     INFO : AA=|||unknown(NO_COVERAGE);AC=2130;AF=0.425319;AFR_AF=0.4909;AMR_AF=0.3602;AN=5008;DP=103152;EAS_AF=0.3363;EUR_AF=0.4056;NS=2504;SAMPLENAME=HG00114;SAS_AF=0
+.4949
+$9   FORMAT : GT
+$10  SAMPLE : 0|1
+<<< 10
+```
+
+
 
 

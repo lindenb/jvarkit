@@ -40,7 +40,7 @@
 <tr id="backlocate"><th><a href="BackLocate.html" title="BackLocate">backlocate</a></th><td>Mapping a mutation on a protein back to the genome.</td><td></td><td></td><td></td></tr>
 <tr id="bam2fastq"><th><a href="BamToFastq.html" title="BamToFastq">bam2fastq</a></th><td>Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. </td><td></td><td></td><td><span style="color:orange;" title="deprecated">use picard</span>. </td></tr>
 <tr id="bam2raster"><th><a href="Bam2Raster.html" title="Bam2Raster">bam2raster</a></th><td>BAM to raster graphics</td><td>bam alignment graphics visualization png</td><td></td><td></td></tr>
-<tr id="bam2svg"><th><a href="BamToSVG.html" title="BamToSVG">bam2svg</a></th><td>BAM to raster graphics</td><td>bam alignment graphics visualization</td><td></td><td></td></tr>
+<tr id="bam2svg"><th><a href="BamToSVG.html" title="BamToSVG">bam2svg</a></th><td>BAM to raster graphics</td><td>bam alignment graphics visualization svg</td><td></td><td></td></tr>
 <tr id="bam2xml"><th><a href="Bam2Xml.html" title="Bam2Xml">bam2xml</a></th><td>converts a BAM to XML</td><td>sam bam xml</td><td></td><td></td></tr>
 <tr id="bam2wig"><th><a href="Bam2Wig.html" title="Bam2Wig">bam2wig</a></th><td>Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)</td><td>bam wig wiggle</td><td></td><td></td></tr>
 <tr id="bamcmpcoverage"><th><a href="BamCmpCoverage.html" title="BamCmpCoverage">bamcmpcoverage</a></th><td>Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2</td><td></td><td></td><td></td></tr>
@@ -56,18 +56,18 @@
 <tr id="biostar130456"><th><a href="Biostar130456.html" title="Biostar130456">biostar130456</a></th><td>Individual VCF files from main VCF file</td><td></td><td></td><td></td></tr>
 <tr id="biostar59647"><th><a href="Biostar59647.html" title="Biostar59647">biostar59647</a></th><td>SAM/BAM to XML</td><td></td><td></td><td></td></tr>
 <tr id="biostar76892"><th><a href="Biostar76892.html" title="Biostar76892">biostar76892</a></th><td>fix strand of two paired reads close but on the same strand. See http://www.biostars.org/p/76892/ </td><td></td><td></td><td></td></tr>
-<tr id=",biostar77288"><th><a href="Biostar77288.html" title="Biostar77288">,biostar77288</a></th><td>Low resolution sequence alignment visualization</td><td></td><td></td><td></td></tr>
+<tr id=",biostar77288"><th><a href="Biostar77288.html" title="Biostar77288">,biostar77288</a></th><td>Low resolution sequence alignment visualization</td><td>bam sam visualization svg</td><td></td><td></td></tr>
 <tr id="biostar77828"><th><a href="Biostar77828.html" title="Biostar77828">biostar77828</a></th><td>Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ </td><td></td><td></td><td></td></tr>
 <tr id="biostar78285"><th><a href="Biostar78285.html" title="Biostar78285">biostar78285</a></th><td>Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/</td><td>sam bam depth coverage</td><td></td><td></td></tr>
-<tr id="biostar78400"><th><a href="Biostar78400.html" title="Biostar78400">biostar78400</a></th><td>add the read group info to the sam file on a per lane basis</td><td></td><td></td><td></td></tr>
-<tr id="biostar81455"><th><a href="Biostar81455.html" title="Biostar81455">biostar81455</a></th><td>Defining precisely the genomic context based on a position .</td><td></td><td></td><td></td></tr>
-<tr id="biostar84452"><th><a href="Biostar84452.html" title="Biostar84452">biostar84452</a></th><td>remove clipped bases from BAM. See: http://www.biostars.org/p/84452/</td><td></td><td></td><td></td></tr>
-<tr id="biostar84786"><th><a href="Biostar84786.html" title="Biostar84786">biostar84786</a></th><td>Matrix transposition ( see  http://www.biostars.org/p/84786/ )</td><td></td><td></td><td></td></tr>
-<tr id="biostar86363"><th><a href="Biostar86363.html" title="Biostar86363">biostar86363</a></th><td>Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/</td><td></td><td></td><td></td></tr>
-<tr id="biostar86480"><th><a href="Biostar86480.html" title="Biostar86480">biostar86480</a></th><td>Genomic restriction finder</td><td></td><td></td><td></td></tr>
-<tr id="biostar90204"><th><a href="Biostar90204.html" title="Biostar90204">biostar90204</a></th><td>Bam version of linux split. See also http://www.biostars.org/p/90204/</td><td></td><td></td><td></td></tr>
+<tr id="biostar78400"><th><a href="Biostar78400.html" title="Biostar78400">biostar78400</a></th><td>add the read group info to the sam file on a per lane basis</td><td>sam bam xml read-group</td><td></td><td></td></tr>
+<tr id="biostar81455"><th><a href="Biostar81455.html" title="Biostar81455">biostar81455</a></th><td>Defining precisely the genomic context based on a position .</td><td>bed gene knownGene ucsc</td><td></td><td></td></tr>
+<tr id="biostar84452"><th><a href="Biostar84452.html" title="Biostar84452">biostar84452</a></th><td>remove clipped bases from BAM</td><td>sam bam clip</td><td></td><td></td></tr>
+<tr id="biostar84786"><th><a href="Biostar84786.html" title="Biostar84786">biostar84786</a></th><td>Matrix transposition</td><td>matrix util</td><td></td><td></td></tr>
+<tr id="biostar86363"><th><a href="Biostar86363.html" title="Biostar86363">biostar86363</a></th><td>Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/</td><td>sample genotype vcf</td><td></td><td></td></tr>
+<tr id="biostar86480"><th><a href="Biostar86480.html" title="Biostar86480">biostar86480</a></th><td>Genomic restriction finder</td><td>rebase genome enzyme restricion genome</td><td></td><td></td></tr>
+<tr id="biostar90204"><th><a href="Biostar90204.html" title="Biostar90204">biostar90204</a></th><td>Bam version of linux split. See also http://www.biostars.org/p/90204/</td><td>sam bam split util</td><td></td><td></td></tr>
 <tr id="msa2vcf"><th><a href="MsaToVcf.html" title="MsaToVcf">msa2vcf</a></th><td>Getting a VCF file from a CLUSTAW or a FASTA alignment. </td><td></td><td></td><td><span style="color:orange;" title="deprecated">use https://github.com/sanger-pathogens/snp_sites</span>. </td></tr>
-<tr id="biostar95652"><th><a href="Biostar95652.html" title="Biostar95652">biostar95652</a></th><td>Drawing a schematic genomic context tree. See also http://www.biostars.org/p/95652/</td><td></td><td></td><td></td></tr>
+<tr id="biostar95652"><th><a href="Biostar95652.html" title="Biostar95652">biostar95652</a></th><td>Drawing a schematic genomic context tree.</td><td>genbank svg tree evolution</td><td></td><td></td></tr>
 <tr id="biostar139647"><th><a href="Biostar139647.html" title="Biostar139647">biostar139647</a></th><td>Convert alignment in Fasta/Clustal format to SAM/BAM file</td><td></td><td></td><td></td></tr>
 <tr id="biostar145820"><th><a href="Biostar145820.html" title="Biostar145820">biostar145820</a></th><td>subsample BAM to fixed number of alignments.</td><td></td><td></td><td></td></tr>
 <tr id="blastmapannots"><th><a href="BlastMapAnnotations.html" title="BlastMapAnnotations">blastmapannots</a></th><td>Maps uniprot/genbank annotations on a blast result.</td><td></td><td></td><td></td></tr>
@@ -123,7 +123,7 @@
 <tr id="referencetovcf"><th><a href="ReferenceToVCF.html" title="ReferenceToVCF">referencetovcf</a></th><td>Creates a VCF containing all the possible substitutions from a Reference Genome.</td><td></td><td></td><td></td></tr>
 <tr id="sam2json"><th><a href="SamToJson.html" title="SamToJson">sam2json</a></th><td>Convert a SAM input to JSON</td><td>sam bam json</td><td></td><td></td></tr>
 <tr id="sam2psl"><th><a href="SamToPsl.html" title="SamToPsl">sam2psl</a></th><td>Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12</td><td></td><td></td><td></td></tr>
-<tr id="sam2tsv"><th><a href="Sam2Tsv.html" title="Sam2Tsv">sam2tsv</a></th><td>Prints the SAM alignments as a TAB delimited file.</td><td></td><td></td><td></td></tr>
+<tr id="sam2tsv"><th><a href="Sam2Tsv.html" title="Sam2Tsv">sam2tsv</a></th><td>Prints the SAM alignments as a TAB delimited file.</td><td>sam bam table tsv</td><td></td><td></td></tr>
 <tr id="sam4weblogo"><th><a href="SAM4WebLogo.html" title="SAM4WebLogo">sam4weblogo</a></th><td>Sequence logo for different alleles or generated from SAM/BAM </td><td>sam bam visualization logo</td><td></td><td></td></tr>
 <tr id="Samclipindelfraction"><th><a href="SamClipIndelFraction.html" title="SamClipIndelFraction">Samclipindelfraction</a></th><td>Extract clipping/indel fraction from BAM</td><td></td><td></td><td></td></tr>
 <tr id="samextractclip"><th><a href="SamExtractClip.html" title="SamExtractClip">samextractclip</a></th><td>Extract Clipped Sequences from a SAM. Ouput is a FASTQ</td><td></td><td></td><td></td></tr>
@@ -155,7 +155,7 @@
 <tr id="vcfmulti2one"><th><a href="VcfMultiToOne.html" title="VcfMultiToOne">vcfmulti2one</a></th><td>&gt;Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column</td><td>vcf sample</td><td></td><td></td></tr>
 <tr id="ccfregulomedb"><th><a href="VcfRegulomeDB.html" title="VcfRegulomeDB">ccfregulomedb</a></th><td>Annotate a VCF with the Regulome data (http://regulome.stanford.edu/</td><td></td><td></td><td></td></tr>
 <tr id="vcfrenamechr"><th><a href="ConvertVcfChromosomes.html" title="ConvertVcfChromosomes">vcfrenamechr</a></th><td>Convert the names of the chromosomes in a VCF file</td><td></td><td></td><td></td></tr>
-<tr id="vcfrenamesamples"><th><a href="VcfRenameSamples.html" title="VcfRenameSamples">vcfrenamesamples</a></th><td>Rename the Samples in a VCF</td><td></td><td></td><td></td></tr>
+<tr id="vcfrenamesamples"><th><a href="VcfRenameSamples.html" title="VcfRenameSamples">vcfrenamesamples</a></th><td>Rename the Samples in a VCF</td><td>vcf sample</td><td></td><td></td></tr>
 <tr id="vcfresetvcf"><th><a href="VcfRemoveGenotypeIfInVcf.html" title="VcfRemoveGenotypeIfInVcf">vcfresetvcf</a></th><td>Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix</td><td></td><td></td><td></td></tr>
 <tr id="vcfsetdict"><th><a href="VcfSetSequenceDictionary.html" title="VcfSetSequenceDictionary">vcfsetdict</a></th><td>Set the ##contig lines in a VCF header</td><td></td><td></td><td><span style="color:orange;" title="deprecated">Use picard UpdateVcfSequenceDictionary</span>. </td></tr>
 <tr id="vcfshuffle"><th><a href="VCFShuffle.html" title="VCFShuffle">vcfshuffle</a></th><td>Shuffle a VCF</td><td></td><td></td><td></td></tr>
@@ -246,8 +246,9 @@
 <tr id="vcfinjectpedigree"><th><a href="VcfInjectPedigree.html" title="VcfInjectPedigree">vcfinjectpedigree</a></th><td>Injects a pedigree (.ped) file in the VCF header</td><td>vcf pedigree burden</td><td></td><td></td></tr>
 <tr id="samcolortag"><th><a href="SamColorTag.html" title="SamColorTag">samcolortag</a></th><td>Add the UCSC 'YC' color tag in a BAM. See http://software.broadinstitute.org/software/igv/book/export/html/6 and http://genome.ucsc.edu/goldenPath/help/hgBamTrackHelp.html</td><td>sam bam metadata javascript igv visualization</td><td></td><td></td></tr>
 <tr id="vcffilternotinpedigree"><th><a href="VcfFilterNotInPedigree.html" title="VcfFilterNotInPedigree">vcffilternotinpedigree</a></th><td>Adds a FILTER NotInPedigree if the only not(homref) genotypes are not in a pedigree</td><td>burden vcf pedigree</td><td></td><td></td></tr>
-<tr id="vcfburdenexac"><th><a href="VcfBurdenFilterExac.html" title="VcfBurdenFilterExac">vcfburdenexac</a></th><td>Burden filter 3 - Exac</td><td></td><td></td><td></td></tr>
+<tr id="vcfburdenexac"><th><a href="VcfBurdenFilterExac.html" title="VcfBurdenFilterExac">vcfburdenexac</a></th><td>Burden filter 3 - Exac</td><td>vcf burden exac</td><td></td><td></td></tr>
 <tr id="vcf2table"><th><a href="VcfToTable.html" title="VcfToTable">vcf2table</a></th><td>convert a vcf to a table, to ease display in the terminal</td><td>vcf table visualization</td><td></td><td></td></tr>
+<tr id="vcfburdenfiltergenes"><th><a href="VcfBurdenFilterGenes.html" title="VcfBurdenFilterGenes">vcfburdenfiltergenes</a></th><td>Filter VEP Output from a list of genes.</td><td>gene vcf vep</td><td></td><td></td></tr>
 </tbody>
 
 </table>

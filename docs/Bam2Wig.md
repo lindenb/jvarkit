@@ -8,7 +8,8 @@ Usage: bam2wig [options] Files
   Options:
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'.
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
       Default: Accept All/ Filter out nothing
     -t, --header
       print a UCSC custom track header

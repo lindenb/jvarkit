@@ -82,3 +82,27 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
+## Example
+
+```bash
+$  java -jar dist-1.139/biostar165777.jar -o out__SPLIT__.xml -T Hit -N 5 ~/blastn.xml
+
+$ ls -la ~/blastn.xml out*.xml
+-rw-rw-r-- 1 lindenb lindenb 422606 nov.  14 12:47 /home/lindenb/blastn.xml
+-rw-rw-r-- 1 lindenb lindenb  86319 nov.  14 16:17 out001.xml
+-rw-rw-r-- 1 lindenb lindenb  83570 nov.  14 16:17 out002.xml
+-rw-rw-r-- 1 lindenb lindenb  85096 nov.  14 16:17 out003.xml
+-rw-rw-r-- 1 lindenb lindenb  88297 nov.  14 16:17 out004.xml
+-rw-rw-r-- 1 lindenb lindenb  87123 nov.  14 16:17 out005.xml
+
+
+$ grep -cF "<Hit>" ~/blastn.xml out*.xml
+/home/lindenb/blastn.xml:100
+out001.xml:20
+out002.xml:20
+out003.xml:20
+out004.xml:20
+out005.xml:20
+
+```
+

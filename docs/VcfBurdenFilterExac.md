@@ -38,6 +38,14 @@ Usage: vcfburdenexac [options] Files
 
 Burden filter 3 - Exac
 
+
+## Keywords
+
+ * vcf
+ * burden
+ * exac
+
+
 ## Compilation
 
 ### Requirements / Dependencies

@@ -25,6 +25,15 @@ Usage: sam2tsv [options] Files
 
 Prints the SAM alignments as a TAB delimited file.
 
+
+## Keywords
+
+ * sam
+ * bam
+ * table
+ * tsv
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -82,7 +91,7 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-
+### Output
 
 Columns are:
 
@@ -95,8 +104,6 @@ Columns are:
  *  ref-pos
  *  ref-base
  *  cigar-op
-
-	
 
 
 
@@ -266,23 +273,16 @@ x2	0	ref2	20	T	30	22	t	M
 
 ### History
 
-
  *  Moved to a standard argc/argv command line
  *  2014-04: added qual and samflag. Fixed a bug in soft-clip
  *  2014-11: manage hard+soft clip
 
 
 
-
-
 ### See also
-
 
  *  [[Biostar59647]]
  *  https://www.biostars.org/p/157232/
-
-
-
 
 
 ### Citations
@@ -291,8 +291,6 @@ x2	0	ref2	20	T	30	22	t	M
 Sam2tsv was cited in : 
 
  *  Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements* . McCoy RC, Taylor RW, Blauwkamp TA, Kelley JL, Kertesz M, et al. (2014) Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements. PLoS ONE 9(9): e106689. doi: 10.1371/journal.pone.0106689  http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0106689
-
-
 
 
 

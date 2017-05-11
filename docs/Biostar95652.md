@@ -18,7 +18,16 @@ Usage: biostar95652 [options] Files
 
 ## Description
 
-Drawing a schematic genomic context tree. See also http://www.biostars.org/p/95652/
+Drawing a schematic genomic context tree.
+
+
+## Keywords
+
+ * genbank
+ * svg
+ * tree
+ * evolution
+
 
 
 ## See also in Biostars
@@ -81,5 +90,21 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+## Example
+
+```bash
+$ java -jar dist/biostar95652.jar \
+   NP_077719.2 \
+   XP_513697.3 XP_001114248.1 \
+   XP_540266.3 XP_002686160.2 \
+   NP_035058.2 NP_077334.1 \
+   NP_001238962.1 NP_001108566.1 > result.svg
+```
+
+Result:
+
+![Hosted by imgur.com](http://i.imgur.com/SYn6IAal.png)
 
 

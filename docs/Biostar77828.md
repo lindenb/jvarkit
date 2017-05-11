@@ -29,6 +29,12 @@ Usage: biostar77828 [options] Files
 
 Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ 
 
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/77828
+
+
 ## Compilation
 
 ### Requirements / Dependencies

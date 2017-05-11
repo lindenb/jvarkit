@@ -8,6 +8,15 @@ Usage: vcf2table [options] Files
   Options:
     -h, --help
       print help and exits
+    -g, --hideGenotypes
+      Hide All genotypes
+      Default: false
+    -hr, --hideHomRefs
+      Hide HOM_REF genotypes
+      Default: false
+    -nc, --hideNoCalls
+      Hide NO_CALL genotypes
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --version

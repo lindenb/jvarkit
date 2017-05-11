@@ -8,7 +8,8 @@ Usage: bam2svg [options] Files
   Options:
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'.
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
       Default: Accept All/ Filter out nothing
     --groupby
       Group Reads by
@@ -50,6 +51,7 @@ BAM to raster graphics
  * alignment
  * graphics
  * visualization
+ * svg
 
 
 ## Compilation
@@ -107,5 +109,28 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+## Example
+
+```bash
+$ java -jar dist/bam2svg.jar \
+    -R human_g1k_v37.fasta \
+    -i "19:252-260" \
+    -S variants.vcf.gz \
+    file.bam > out.svg
+```
+
+## Gallery
+
+https://twitter.com/yokofakun/status/523031098541232128
+
+![bam2svg](https://pbs.twimg.com/media/B0IuAw2IgAAYfNM.jpg)
+
+https://twitter.com/yokofakun/status/522415314425090048
+
+![bam2svg-2](https://pbs.twimg.com/media/Bz_99ayIMAAK57s.jpg)
+
+
 
 

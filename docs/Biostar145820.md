@@ -101,3 +101,10 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
+## Example
+
+```bash
+$ java -jar dist/biostar145820.jar -n 10  -o out.bam  in.bam 
+
+```
+
