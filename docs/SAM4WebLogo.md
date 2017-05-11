@@ -6,13 +6,18 @@
 ```
 Usage: sam4weblogo [options] Files
   Options:
-    -c, --clipped
-      Use Soft Clipped Bases
+    -c, --clipped, --clip
+      Use Clipped Bases
       Default: false
     -h, --help
       print help and exits
     -o, --output
       Output file. Optional . Default: stdout
+    -readFilter, --readFilter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: Accept All/ Filter out nothing
   * -r, --region
       Region to observe: chrom:start-end
     --version
@@ -31,6 +36,7 @@ Sequence logo for different alleles or generated from SAM/BAM
  * sam
  * bam
  * visualization
+ * logo
 
 
 
@@ -94,5 +100,66 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+## Motivation
+
+"Sequence logo ( http://weblogo.berkeley.edu/logo.cgi ) for different alleles or generated from SAM/BAM" http://www.biostars.org/p/73021
+
+![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/sam2weblogo.png)
+
+
+## Example
+
+```bash
+$ java -jar dist/sam4weblogo.jar -r seq1:80-110  sorted.bam  2> /dev/null | head -n 50
+>B7_593:4:106:316:452/1
+TGTTG--------------------------
+>B7_593:4:106:316:452a/1
+TGTTG--------------------------
+>B7_593:4:106:316:452b/1
+TGTTG--------------------------
+>B7_589:8:113:968:19/2
+TGGGG--------------------------
+>B7_589:8:113:968:19a/2
+TGGGG--------------------------
+>B7_589:8:113:968:19b/2
+TGGGG--------------------------
+>EAS54_65:3:321:311:983/1
+TGTGGG-------------------------
+>EAS54_65:3:321:311:983a/1
+TGTGGG-------------------------
+>EAS54_65:3:321:311:983b/1
+TGTGGG-------------------------
+>B7_591:6:155:12:674/2
+TGTGGGGG-----------------------
+>B7_591:6:155:12:674a/2
+TGTGGGGG-----------------------
+>B7_591:6:155:12:674b/2
+TGTGGGGG-----------------------
+>EAS219_FC30151:7:51:1429:1043/2
+TGTGGGGGGCGCCG-----------------
+>EAS219_FC30151:7:51:1429:1043a/2
+TGTGGGGGGCGCCG-----------------
+>EAS219_FC30151:7:51:1429:1043b/2
+TGTGGGGGGCGCCG-----------------
+>B7_591:5:42:540:501/1
+TGTGGGGGCCGCAGTG---------------
+>EAS192_3:5:223:142:410/1
+TGGGGGGGGCGCAGT----------------
+>B7_591:5:42:540:501a/1
+TGTGGGGGCCGCAGTG---------------
+>EAS192_3:5:223:142:410a/1
+TGGGGGGGGCGCAGT----------------
+>B7_591:5:42:540:501b/1
+TGTGGGGGCCGCAGTG---------------
+>EAS192_3:5:223:142:410b/1
+TGGGGGGGGCGCAGT----------------
+```
+
+## See also
+
+* https://www.biostars.org/p/103052/
+* http://www.sciencedirect.com/science/article/pii/S1874778715300210
 
 

@@ -38,11 +38,11 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import htsjdk.samtools.SamReader;
@@ -56,6 +56,86 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SortingCollection;
 
+/**
+ BEGIN_DOC
+ 
+
+## Example
+
+The following **Makefile** compares two BAMs mapped on hg19 and hg38.
+
+```makefile
+BWA=bwa
+SAMTOOLS=samtools
+.PHONY:all
+
+all: file.diff
+
+file.diff.gz : hg19ToHg38.over.chain hg19.bam hg38.bam
+	java -jar jvarkit-git/dist/cmpbamsandbuild.jar -d 20 \
+	    -c hg19ToHg38.over.chain hg19.bam hg38.bam | gzip --best > $@
+
+hg38.bam:file1.fastq.gz file2.fastq.gz
+	${BWA} mem  index-bwa-0.7.6a/hg38.fa $^ |\
+		${SAMTOOLS} view -Sb - |\
+		${SAMTOOLS}  sort - hg38 && \
+		${SAMTOOLS} index hg38.bam
+		
+hg19.bam: file1.fastq.gz file2.fastq.gz
+		${BWA} mem index-bwa-0.7.6a/hg19.fa $^ |\
+		${SAMTOOLS} view -Sb - |\
+		${SAMTOOLS}  sort - hg19 && \
+		${SAMTOOLS} index hg19.bam
+
+
+hg19ToHg38.over.chain:
+	curl -o $@.gz http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/$@.gz && gunzip -f $@.gz
+
+```
+
+file.diff :
+```tsv
+#READ-Name	COMPARE	hg19.bam	hg38.bam
+HWI-1KL149:18:C0RNBACXX:3:1101:10375:80749/2	NE	chrMasked:581319279->chrMasked:581415967	chrMasked:581703411
+HWI-1KL149:18:C0RNBACXX:3:1101:10394:60111/1	NE	chrMasked:581319428->chrMasked:581416116	chrMasked:581703560
+HWI-1KL149:18:C0RNBACXX:3:1101:10394:60111/2	NE	chrMasked:581319428->chrMasked:581416116	chrMasked:581703560
+HWI-1KL149:18:C0RNBACXX:3:1101:10413:69955/1	NE	chrMasked:581318674->chrMasked:581415362	chrMasked:581702806
+HWI-1KL149:18:C0RNBACXX:3:1101:10413:69955/2	NE	chrMasked:581318707->chrMasked:581415395	chrMasked:581702839
+HWI-1KL149:18:C0RNBACXX:3:1101:10484:89477/1	NE	chrMasked:581319428->chrMasked:581416116	chrMasked:581703560
+HWI-1KL149:18:C0RNBACXX:3:1101:10484:89477/2	NE	chrMasked:581319428->chrMasked:581416116	chrMasked:581703560
+HWI-1KL149:18:C0RNBACXX:3:1101:10527:3241/1	NE	chrMasked:581319279->chrMasked:581415967	chrMasked:581703411
+HWI-1KL149:18:C0RNBACXX:3:1101:10527:3241/2	NE	chrMasked:581319279->chrMasked:581415967	chrMasked:581703411
+HWI-1KL149:18:C0RNBACXX:3:1101:10580:13030/1	NE	chrMasked:581319331->chrMasked:581416019	chrMasked:581703463
+HWI-1KL149:18:C0RNBACXX:3:1101:10580:13030/2	NE	chrMasked:581319331->chrMasked:581416019	chrMasked:581703463
+HWI-1KL149:18:C0RNBACXX:3:1101:10618:51813/1	EQ	chrMasked:581318674->chrMasked:581415362	chrMasked:581415362
+HWI-1KL149:18:C0RNBACXX:3:1101:10618:51813/2	NE	chrMasked:581318707->chrMasked:581415395	chrMasked:581702839
+HWI-1KL149:18:C0RNBACXX:3:1101:10803:23593/1	NE	chrMasked:581319091->chrMasked:581415779	chrMasked:581703223
+HWI-1KL149:18:C0RNBACXX:3:1101:10803:23593/2	NE	chrMasked:581319091->chrMasked:581415779	chrMasked:581703223
+HWI-1KL149:18:C0RNBACXX:3:1101:11290:76217/1	EQ	chrMasked:581318674->chrMasked:581415362	chrMasked:581415362
+HWI-1KL149:18:C0RNBACXX:3:1101:11290:76217/2	NE	chrMasked:581318707->chrMasked:581415395	chrMasked:581702839
+HWI-1KL149:18:C0RNBACXX:3:1101:11307:71853/1	NE	chrMasked:581319254->chrMasked:581415942	chrMasked:581703386
+HWI-1KL149:18:C0RNBACXX:3:1101:11307:71853/2	NE	chrMasked:581319258->chrMasked:581415946	chrMasked:581703390
+HWI-1KL149:18:C0RNBACXX:3:1101:11359:100655/1	EQ	chrMasked:581318923->chrMasked:581415611	chrMasked:581415611
+HWI-1KL149:18:C0RNBACXX:3:1101:11359:100655/2	EQ	chrMasked:581318923->chrMasked:581415611	chrMasked:581415611
+HWI-1KL149:18:C0RNBACXX:3:1101:11467:8793/1	NE	chrMasked:581319428->chrMasked:581416116	chrMasked:581703560
+HWI-1KL149:18:C0RNBACXX:3:1101:11467:8793/2	NE	chrMasked:581319428->chrMasked:581416116	chrMasked:581703560
+HWI-1KL149:18:C0RNBACXX:3:1101:11560:69825/1	EQ	chrMasked:581319331->chrMasked:581416019	chrMasked:581416019
+HWI-1KL149:18:C0RNBACXX:3:1101:11560:69825/2	EQ	chrMasked:581319335->chrMasked:581416023	chrMasked:581416023
+
+```
+
+
+## See also
+
+* CmpBams
+
+## History
+
+* 2014: Creation
+ 
+ 
+ END_DOC
+ */
 @Program(
 		name="cmpbamsandbuild",
 		description="Compare two  BAM files mapped on two different builds. Requires a liftover chain file")
@@ -303,12 +383,14 @@ public class CompareBamAndBuild  extends Launcher
     	PrintWriter out = null;
 		SortingCollection<Match> database = null;
 		if(this.chainFile==null) {
-			return wrapException("Chain file is not defined Option");
+			LOG.error("Chain file is not defined Option");
+			return -1;
 			}
 		
 		if(args.size()!=2)
 			{
-			return wrapException("Illegal number of arguments. Expected two indexed BAMS.");
+			LOG.error("Illegal number of arguments. Expected two indexed BAMS.");
+			return -1;
 			}
 			
 		try
@@ -339,18 +421,21 @@ public class CompareBamAndBuild  extends Launcher
 					if(dict.isEmpty())
 						{
 						samFileReader.close();
-						return wrapException("Empty Dict  in "+samFile);
+						LOG.error("Empty Dict  in "+samFile);
+						return -1;
 						}
 					
 				
 					final Interval interval;
 					if(REGION!=null)
 						{
-						interval=IntervalUtils.parseOne(dict, REGION);
+						IntervalParser intervalParser = new IntervalParser(dict);
+						interval=intervalParser.parse(this.REGION);
 						if(interval==null)
 							{
 							samFileReader.close();
-							return wrapException("Cannot parse "+REGION+" (bad syntax or not in dictionary");
+							LOG.error("Cannot parse "+REGION+" (bad syntax or not in dictionary");
+							return -1;
 							}
 						}
 					else
@@ -478,7 +563,8 @@ public class CompareBamAndBuild  extends Launcher
 				}
 			catch(final Exception err)
 				{
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 				}
 			finally
 				{

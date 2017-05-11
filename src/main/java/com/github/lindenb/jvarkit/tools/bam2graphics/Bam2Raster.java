@@ -92,12 +92,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.IntervalUtils;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
@@ -847,7 +847,10 @@ public class Bam2Raster extends Launcher
 					this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
 					srf.referenceSequence(this.referenceFile);
 					}
-				this.interval = IntervalUtils.parseOne(this.regionStr);
+				final IntervalParser intervalParser = new IntervalParser(this.indexedFastaSequenceFile.getSequenceDictionary()).
+						setFixContigName(true);
+
+				this.interval = intervalParser.parse(this.regionStr);
 				if(this.interval==null)
 					{
 					LOG.error("Cannot parse interval "+regionStr+" or chrom doesn't exists in sam dictionary.");

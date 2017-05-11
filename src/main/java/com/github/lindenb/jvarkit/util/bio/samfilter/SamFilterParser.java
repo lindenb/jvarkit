@@ -160,6 +160,11 @@ public class SamFilterParser implements SamFilterParserConstants {
                                 }
                         }
 
+                public static SamRecordFilter buildAcceptAll() {
+                        return ACCEPT_ALL;
+                        }
+
+
                 public static SamRecordFilter build(final String expr) throws ParseException {
 
                         Reader r= null;

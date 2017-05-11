@@ -46,6 +46,7 @@ import javax.xml.transform.stream.StreamSource;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.SynchronousLineReader;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -56,7 +57,51 @@ import com.github.lindenb.jvarkit.util.bio.circular.CircularContext;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryFactory;
+
+
+/**
+BEGIN_DOC
+
+## Example
+
+```
+head map.bed
+
+1	141535	143008	taiwan
+1	564463	570304	china
+1	564463	570304	china
+1	564463	564813	canada
+1	564510	569779	estonia
+1	564510	569779	estonia
+1	564510	569170	germany
+1	564633	569139	italy
+1	564660	565200	iran
+1	564733	569130	brazil
+1	564776	569431	mexico
+```
+
+
+```bash
+$  cat map.bed |\
+     java -jar dist/worldmapgenome.jar \
+     -u World_V2.0.svg \
+     -w 2000 -o ~/ouput.jpg \
+     -R human_g1k_v37.fasta
+
+```
+![worldmapgenome](https://pbs.twimg.com/media/BfGE0X4CMAAfRAR.jpg)
+
+## See also
+
+* https://twitter.com/yokofakun/status/428269474869817344
+* https://twitter.com/GenomeBrowser/status/426398651103997953
+
+
+
+END_DOC
+
+ */
+
 
 @Program(name="worldmapgenome",description="Genome/Map of the world. Input is a BED file: chrom/start/end/country.")
 public class WorldMapGenome extends Launcher
@@ -215,7 +260,7 @@ public class WorldMapGenome extends Launcher
 				}
 			
 			LOG.info("loading "+faidx);
-			this.context=new CircularContext(new SAMSequenceDictionaryFactory().load(faidx));
+			this.context=new CircularContext(SAMSequenceDictionaryExtractor.extractDictionary(faidx));
 			this.context.setCenter(viewRect.width/2,viewRect.height/2);
 			BufferedImage offscreen=new  BufferedImage(
 					viewRect.width,
