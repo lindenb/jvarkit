@@ -55,9 +55,24 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
+
+/*
+
+BEGIN_DOC
+
+## Example
+
+```
+$ find  DIR1 DIR2 -type f |\
+java -jar dist/findcorruptedfiles.jar \
+	-V SILENT 2> /dev/null > redo.txt
+```
+
+END_DOC
+
+ */
 
 @Program(name="findcorruptedfiles",keywords={"vcf","bam","fastq","bed"},description="Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED/TBI/BAI)")
 public class FindCorruptedFiles extends Launcher
@@ -77,7 +92,7 @@ public class FindCorruptedFiles extends Launcher
     	{
     	if(this.emptyIsError)
     		{
-    		System.out.println(f);
+    		stdout().println(f);
     		}
     	else
     		{
@@ -96,14 +111,14 @@ public class FindCorruptedFiles extends Launcher
     		if(type!=BlockCompressedInputStream.FileTermination.HAS_TERMINATOR_BLOCK)
     			{
     			LOG.warning("bgz:"+type+" for "+f);
-        		System.out.println(f);
+        		stdout().println(f);
         		return;
     			}
     		}
     	catch(IOException err)
     		{
     		LOG.warning("Error in "+f);
-    		System.out.println(f);
+    		stdout().println(f);
     		return;
     		}
     	
@@ -112,7 +127,7 @@ public class FindCorruptedFiles extends Launcher
     	SamReader r=null;
     	SAMRecordIterator iter=null;
     	try {
-			r=SamFileReaderFactory.mewInstance().stringency(this.validationStringency).open(f);
+			r= super.createSamReaderFactory().validationStringency(this.validationStringency).open(f);
 			r.getFileHeader();
 			iter=r.iterator();
 			while(iter.hasNext() && (NUM<0 || n<NUM))
@@ -128,7 +143,7 @@ public class FindCorruptedFiles extends Launcher
     	catch (final Exception e)
     		{
     		LOG.warning( "Error in "+f);
-    		System.out.println(f);
+    		stdout().println(f);
 			}
     	finally
     		{
@@ -153,13 +168,13 @@ public class FindCorruptedFiles extends Launcher
 				if(tokens.length<3)
 					{
 					LOG.warning( "BED error. Line "+(n+1)+" not enough columns in "+f);
-					System.out.println(f);
+					stdout().println(f);
 					break;
 					}
 				if(tokens[0].trim().isEmpty())
 					{
 					LOG.warning( "BED error. Line "+(n+1)+" Bad chrom in "+f);
-					System.out.println(f);
+					stdout().println(f);
 					break;
 					}
 				int start=0;
@@ -172,14 +187,14 @@ public class FindCorruptedFiles extends Launcher
 				catch(NumberFormatException err)
 					{
 					LOG.warning( "BED error. Line "+(n+1)+" Bad start in "+f);
-					System.out.println(f);
+					stdout().println(f);
 					break;
 					}
 				
 				if(start<0)
 					{
 					LOG.warning( "BED error. Line "+(n+1)+" Bad start in "+f);
-					System.out.println(f);
+					stdout().println(f);
 					break;
 					}
 				
@@ -190,13 +205,13 @@ public class FindCorruptedFiles extends Launcher
 				catch(NumberFormatException err)
 					{
 					LOG.warning( "BED error. Line "+(n+1)+" Bad end in "+f);
-					System.out.println(f);
+					stdout().println(f);
 					break;
 					}
 				if(end<start)
 					{
 					LOG.warning( "BED error. Line "+(n+1)+" end<start in "+f);
-					System.out.println(f);
+					stdout().println(f);
 					break;
 					}
 
@@ -211,7 +226,7 @@ public class FindCorruptedFiles extends Launcher
     	catch (Exception e)
 			{
     		LOG.warning( "Error in "+f);
-			System.out.println(f);
+			stdout().println(f);
 			}
 		finally
 			{
@@ -260,7 +275,7 @@ public class FindCorruptedFiles extends Launcher
     	catch(Exception err)
     		{
     		LOG.fine("Cannot read "+f);
-    		System.out.println(f);
+    		stdout().println(f);
     		}
     	finally
     		{
@@ -294,13 +309,13 @@ public class FindCorruptedFiles extends Launcher
 	    		if(type!=BlockCompressedInputStream.FileTermination.HAS_TERMINATOR_BLOCK)
 	    			{
 	    			LOG.warning("bgz:"+type+" for "+f);
-	        		System.out.println(f);
+	        		stdout().println(f);
 	        		return;
 	    			}
 	    		}
 	    	catch(Exception err)
 	    		{
-	    		System.out.println(f);
+	    		stdout().println(f);
 	    		return;
 	    		}
     		
@@ -326,7 +341,7 @@ public class FindCorruptedFiles extends Launcher
     		if(in2!=null) try{ in2.close();} catch(IOException e) {}
     		}
     	LOG.fine("Not a BGZIP file / Error in VCF: "+f);
-    	System.out.println(f);
+    	stdout().println(f);
 		}
 
     private void testTbi(File f)
@@ -339,7 +354,7 @@ public class FindCorruptedFiles extends Launcher
     	File baseFile=new File(f.getParentFile(),filename);
     	if(baseFile.exists() && baseFile.isFile()) return;
     	LOG.fine("Missing associated file for : "+f);
-    	System.out.println(f);		
+    	stdout().println(f);		
 		}
     
     private void testBai(File f)
@@ -361,7 +376,7 @@ public class FindCorruptedFiles extends Launcher
     	File bam=new File(f.getParentFile(),filename);
     	if(bam.exists() && bam.isFile()) return;
     	LOG.fine("Missing associated BAM file for : "+f);
-    	System.out.println(f);		
+    	stdout().println(f);		
 		}
     
 	private void analyze(File f)
@@ -402,9 +417,7 @@ public class FindCorruptedFiles extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
-	
-		
+	public int doWork(final List<String> args) {
 		if(!args.isEmpty())
 			{
 			LOG.fatal("Too many arguments");

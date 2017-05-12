@@ -94,3 +94,12 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
+## Example
+
+```
+$ find  DIR1 DIR2 -type f |\
+java -jar dist/findcorruptedfiles.jar \
+	-V SILENT 2> /dev/null > redo.txt
+```
+
+

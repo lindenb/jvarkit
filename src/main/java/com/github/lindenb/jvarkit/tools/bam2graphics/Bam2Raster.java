@@ -66,6 +66,7 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.LinearGradientPaint;
 import java.awt.Paint;
+import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
@@ -331,6 +332,7 @@ public class Bam2Raster extends Launcher
 					};
 				}
 			final Graphics2D g= this.image.createGraphics();
+			g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
 			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, imageSize.width, imageSize.height);
 			LOG.info("image : "+imageSize.width+"x"+imageSize.height);
@@ -902,6 +904,8 @@ public class Bam2Raster extends Launcher
 				
 				final BufferedImage img= new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
 				final Graphics2D g=img.createGraphics();
+				g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+
 				int y=0;
 				for(final String key:this.key2partition.keySet()) {
 					BufferedImage subImg = this.key2partition.get(key).image;
