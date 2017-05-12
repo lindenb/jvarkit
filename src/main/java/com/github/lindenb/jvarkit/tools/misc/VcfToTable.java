@@ -55,8 +55,10 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFEncoder;
@@ -531,6 +533,7 @@ public class VcfToTable extends Launcher {
 			final List<String> h = new ArrayList<>(Arrays.asList("Idx","REF","Sym","Bases","Length"));
 			if(vc.hasGenotypes())
 				{
+				h.add("HW");
 				h.add("AC");
 				h.add("AN");
 				h.add("AF");
@@ -563,6 +566,22 @@ public class VcfToTable extends Launcher {
 						));
 				if(vc.hasGenotypes())
 					{
+					Double hw =null;
+					if(!(a.isReference() || a.isNoCall()))
+						{
+						final Genotype aa = new GenotypeBuilder("dummy", Arrays.asList(vc.getReference(),vc.getReference())).make();
+						final Genotype ab = new GenotypeBuilder("dummy", Arrays.asList(vc.getReference(),a)).make();
+						final Genotype bb = new GenotypeBuilder("dummy", Arrays.asList(a,a)).make();
+						hw=HardyWeinbergCalculation.hwCalculate(
+								(int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(aa, true)).count()),
+								(int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(ab, true)).count()),
+								(int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(bb, true)).count())
+								);
+						if(hw<0) hw=null;
+						}
+					
+					r.add(hw);
+					
 					final int AC = (int)vc.getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
 					r.add(AC);
 					r.add(AN);

@@ -118,7 +118,8 @@ public class Biostar81455 extends Launcher
 			{
     		if(this.kgUri==null || this.kgUri.trim().isEmpty())
     			{
-    			return wrapException("undefined kguri");
+    			LOG.error("undefined kguri");
+    			return -1;
     			}
     		this.kgMap = new IntervalTreeMap<List<KnownGene>>();
 			LOG.info("readubf "+kgUri);
@@ -138,9 +139,10 @@ public class Biostar81455 extends Launcher
 				L.add(kg);
 				}
 			}
-    	catch(Exception err)
+    	catch(final Exception err)
     		{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
     		}
     	finally {
 			CloserUtil.close(r);
@@ -222,19 +224,17 @@ public class Biostar81455 extends Launcher
 					out.println(line+"\tNULL");
 					}
 				}
-
-			LOG.info("done");
 			return RETURN_OK;
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
     	finally
     		{
     		CloserUtil.close(r);
     		CloserUtil.close(out);
-    		
     		}
 		}
 	

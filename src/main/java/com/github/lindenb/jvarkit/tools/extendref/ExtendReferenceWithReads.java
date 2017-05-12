@@ -87,6 +87,7 @@ $  java   -jar dist/extendrefwithreads.jar \
 @Program(name="extendrefwithreads",
 	description="Extending ends of sequences with the help of reads",
 	biostars=148089,
+	keywords={"read","fastq","reference","sam","bam"},
 	terms=Term.ID_0000015
 	)
 public class ExtendReferenceWithReads extends Launcher

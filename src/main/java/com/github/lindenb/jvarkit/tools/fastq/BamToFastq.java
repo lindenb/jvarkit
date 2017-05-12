@@ -52,6 +52,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.semontology.Term;
 
 /**
 
@@ -185,9 +186,11 @@ $ java -jar dist/bam2fastq.jar \
 END_DOC
 */
 @Program(name="bam2fastq",
-description="Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. ",
-deprecatedMsg="use picard"
-)
+	description="Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. ",
+	deprecatedMsg="use picard",
+	keywords={"fastq"},
+	terms={Term.ID_0000005}
+	)
 public class BamToFastq
 	extends Launcher
 	{

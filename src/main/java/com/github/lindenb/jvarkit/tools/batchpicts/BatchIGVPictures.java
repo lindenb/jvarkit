@@ -79,7 +79,24 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+/*
+BEGIN_DOC
+## Motivation
+
+Takes IGV pictures in batch. Save as HTML+png images or OpenOffice/ODP.
+
+## Screenshot
+
+![screenshot](http://i.imgur.com/pasROkt.jpg)
+
+END_DOC
+*/
+
 @SuppressWarnings("serial")
+@Program(name="batchigvpictures",
+		description="Takes IGV pictures in batch. Save as HTML+png image",
+		keywords={"gui","igv","visualization"}
+		)
 class BatchIGVPicturesFrame extends JFrame
 	{
 	private static final String PREF_EXTEND="snp.extend";
@@ -1015,7 +1032,6 @@ class BatchIGVPicturesFrame extends JFrame
 	
 	}
 
-@Program(name="batchigvpictures")
 public class BatchIGVPictures extends Launcher
 	{
 	private static final Logger LOG=Logger.build(BatchIGVPictures.class).make();
@@ -1052,7 +1068,7 @@ public class BatchIGVPictures extends Launcher
 			catch(Exception err)
 				{
 				LOG.error(err);
-				return wrapException(err);
+				return -1;
 				}
 			finally
 				{

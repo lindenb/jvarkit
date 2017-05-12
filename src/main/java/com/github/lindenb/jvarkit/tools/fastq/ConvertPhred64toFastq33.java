@@ -17,9 +17,14 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+import com.github.lindenb.semontology.Term;
 
 
-@Program(name="fastqphred64to33",description="Convert Illumina Fastq 64 encoding to Fastq 33")
+@Program(name="fastqphred64to33",
+	keywords={"fastq"},
+	description="Convert Illumina Fastq 64 encoding to Fastq 33",
+	terms={Term.ID_0000005}
+	)
 public class ConvertPhred64toFastq33 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(ConvertPhred64toFastq33.class).make();

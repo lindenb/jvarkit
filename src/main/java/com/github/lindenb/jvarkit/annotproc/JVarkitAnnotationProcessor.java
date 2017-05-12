@@ -92,7 +92,8 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 			filter(E->{final Program prog=E.getAnnotation(Program.class); return prog!=null && prog.generate_doc();}).
 			forEach(E->{
 				final String className=E.toString();
-				if(mainClass==null || !mainClass.equals(className)) return;
+				if(mainClass==null ) return;
+				if(!mainClass.equals(className)) return;
 				final Program prog=E.getAnnotation(Program.class);
 				if(prog==null || !prog.generate_doc()) return;
 

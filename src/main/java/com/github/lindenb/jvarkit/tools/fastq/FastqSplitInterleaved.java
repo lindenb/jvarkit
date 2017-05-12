@@ -45,14 +45,38 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+import com.github.lindenb.semontology.Term;
 
 /**
- * FastqSplitInterleaved
- * @author lindenb
- *
+
+BEGIN_DOC
+
+## Example
+
+```bash
+$ curl -sk "https://raw.githubusercontent.com/bigdatagenomics/adam/fff8ae259e8f6958eefd8de9a3ec39d33392fb21/adam-core/src/test/resources/interleaved_fastq_sample1.fq" |\
+java -jar dist/fastqsplitinterleaved.jar  -a -  | grep "^@"
+
+@H06HDADXX130110:2:2116:3345:91806/1
+@H06HDADXX130110:1:2103:11970:57672/1
+@H06JUADXX130110:1:1108:6424:55322/1
+
+$ curl -sk "https://raw.githubusercontent.com/bigdatagenomics/adam/fff8ae259e8f6958eefd8de9a3ec39d33392fb21/adam-core/src/test/resources/interleaved_fastq_sample1.fq" |\
+java -jar dist/fastqsplitinterleaved.jar  -b -  | grep "^@"
+@H06HDADXX130110:2:2116:3345:91806/2
+@H06HDADXX130110:1:2103:11970:57672/2
+@H06JUADXX130110:1:1108:6424:55322/2
+
+$ curl -sk "https://raw.githubusercontent.com/bigdatagenomics/adam/fff8ae259e8f6958eefd8de9a3ec39d33392fb21/adam-core/src/test/resources/interleaved_fastq_sample1.fq" |\
+java -jar dist/fastqsplitinterleaved.jar  -a x1.fq.gz -b x2.fq.gz
+
+END_DOC
+
  */
 @Program(name="fastqsplitinterleaved",
-description="Split interleaved Fastq files.")
+	description="Split interleaved Fastq files.",
+	keywords="fastq",
+	terms={Term.ID_0000005})
 public class FastqSplitInterleaved extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FastqSplitInterleaved.class).make();
@@ -69,7 +93,7 @@ public class FastqSplitInterleaved extends Launcher
 	
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		final String fileout[]={this.fileA,this.fileB};
 		FastqReader r1=null;
 		FastqWriter writers[]={null,null};
@@ -85,7 +109,7 @@ public class FastqSplitInterleaved extends Launcher
 				}
 			else
 				{
-				LOG.error(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error("illegal.number.of.arguments");
 				return -1;
 				}
 			
@@ -136,7 +160,7 @@ public class FastqSplitInterleaved extends Launcher
 					{
 					r1.close();
 					r1=null;
-					throw new IOException(getMessageBundle("fastq.paired.read.missing"));
+					throw new IOException("fastq.paired.read.missing");
 					}
 				records[1]=r1.next();
 				

@@ -19,8 +19,13 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+import com.github.lindenb.semontology.Term;
 
-@Program(name="fastqentropy",description="Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence))")
+@Program(name="fastqentropy",
+	description="Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence))",
+	keywords={"fastq"},
+	terms={Term.ID_0000005}
+	)
 public class FastqEntropy extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FastqEntropy.class).make();

@@ -109,10 +109,11 @@ public class Biostar130456 extends Launcher
 	
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 			if(this.filepattern==null || !filepattern.contains(SAMPLE_TAG))
 				{
-				return wrapException("File pattern is missing "+SAMPLE_TAG);
+				LOG.error("File pattern is missing "+SAMPLE_TAG);
+				return -1;
 				}
 			PrintStream out = null;
 			VcfIterator in=null;
@@ -128,7 +129,8 @@ public class Biostar130456 extends Launcher
 	
 				if(samples.isEmpty())
 					{
-					return wrapException("VCF doesn't contain any sample");
+					LOG.error("VCF doesn't contain any sample");
+					return -1;
 					}
 				LOG.info("N sample:"+samples.size());
 				for(final String sample:samples)
@@ -177,9 +179,10 @@ public class Biostar130456 extends Launcher
 				out.flush();
 				return RETURN_OK;
 				}
-			catch (Exception e)
+			catch (final Exception e)
 				{
-				return wrapException(e);
+				LOG.error(e);
+				return -1;
 				}
 			finally
 				{

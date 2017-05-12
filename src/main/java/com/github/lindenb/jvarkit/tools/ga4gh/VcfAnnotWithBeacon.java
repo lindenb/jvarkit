@@ -25,6 +25,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.semontology.Term;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -60,7 +61,9 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
  */
 @Program(
 		name="vcfannotwithbeacon",
-		description="Annotate a VCF with ga4gh beacon"
+		description="Annotate a VCF with ga4gh beacon",
+		keywords={"ga4gh","beacon","vcf","annotation"},
+		terms={Term.ID_0000017}
 		)
 public class VcfAnnotWithBeacon extends Launcher {
 	private static final Logger LOG=Logger.build(VcfAnnotWithBeacon.class).make();

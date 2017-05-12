@@ -74,4 +74,15 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
+##Motivation
+
+Takes IGV pictures in batch. Save as HTML+png images or OpenOffice/ODP.
+
+This application is available as a [[JavaWebStart]] application.
+
+
+##Screenshot
+
+![screenshot](http://i.imgur.com/pasROkt.jpg)
+
 

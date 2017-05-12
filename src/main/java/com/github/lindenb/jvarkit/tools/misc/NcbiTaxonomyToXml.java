@@ -52,6 +52,78 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 
+/*
+ * 
+BEGIN_DOC
+## Example
+
+producing taxonomy.xml using make:
+
+```bash
+taxonomy.xml: nodes.dmp names.dmp
+	java -jar dist/ncbitaxonomy2xml.jar . | xmllint --format - > $@
+
+nodes.dmp : taxdump.tar.gz
+	tar xvfz $< $@
+names.dmp :taxdump.tar.gz
+	tar xvfz $< $@
+
+taxdump.tar.gz:
+	curl -o $@  "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
+
+```
+
+output:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<TaxaSet>
+  <!--NcbiTaxonomyToXml by Pierre Lindenbaum PhD.-->
+  <!--.-->
+  <Taxon id="1">
+    <TaxId>1</TaxId>
+    <ScientificName>root</ScientificName>
+    <TaxaSet>
+      <Taxon id="131567">
+        <TaxId>131567</TaxId>
+        <ScientificName>cellular organisms</ScientificName>
+        <ParentTaxId>1</ParentTaxId>
+        <TaxaSet>
+          <Taxon id="2">
+            <TaxId>2</TaxId>
+            <Rank>superkingdom</Rank>
+            <ScientificName>Bacteria</ScientificName>
+            <ParentTaxId>131567</ParentTaxId>
+            <TaxaSet>
+              <Taxon id="51290">
+                <TaxId>51290</TaxId>
+                <Rank>superphylum</Rank>
+                <ScientificName>Chlamydiae/Verrucomicrobia group</ScientificName>
+                <ParentTaxId>2</ParentTaxId>
+                <TaxaSet>
+                  <Taxon id="256845">
+                    <TaxId>256845</TaxId>
+                    <Rank>phylum</Rank>
+                    <ScientificName>Lentisphaerae</ScientificName>
+                    <ParentTaxId>51290</ParentTaxId>
+                    <TaxaSet>
+                      <Taxon id="278094">
+                        <TaxId>278094</TaxId>
+                        <ScientificName>environmental samples</ScientificName>
+                        <ParentTaxId>256845</ParentTaxId>
+                        <TaxaSet>
+                          <Taxon id="278095">
+                            <TaxId>278095</TaxId>
+                            <Rank>species</Rank>
+                            <ScientificName>uncultured Lentisphaerae bacterium</ScientificName>
+                            <ParentTaxId>278094</ParentTaxId>
+                            <TaxaSet/>
+                          </Taxon>
+(...)
+```
+
+END_DOC
+*/
+
 @Program(name="ncbitaxonomy2xml",
 	description="Dump NCBI taxonomy tree as a hierarchical XML document",
 	keywords={"taxonomy","ncbi","xml"}

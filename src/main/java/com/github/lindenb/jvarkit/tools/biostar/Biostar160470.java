@@ -299,7 +299,8 @@ public class Biostar160470 extends Launcher
 		{
 		if(blastDb==null)
 			{
-			return wrapException("undefined blastdb");
+			LOG.error("undefined blastdb");
+			return -1;
 			}
 		XMLEventReader r=null;
 		try {
@@ -341,7 +342,8 @@ public class Biostar160470 extends Launcher
 				}
 			return RETURN_OK;
 		} catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		}
 	}
 

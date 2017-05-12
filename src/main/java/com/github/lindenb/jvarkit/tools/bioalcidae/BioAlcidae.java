@@ -459,27 +459,15 @@ rs1116904 snp genomic
 
 
 
-
-### See also
-
-
- *  https://github.com/lh3/bioawk
- *  https://www.biostars.org/p/152016/
- *  https://www.biostars.org/p/152720/
- *  https://www.biostars.org/p/152820/
- *  https://www.biostars.org/p/153060/
- *  https://www.biostars.org/p/183197
- *  https://www.biostars.org/p/185162/#185168
-
-
-
-
-
 END_DOC
 */
 
 
-@Program(name="bioAlcidae",description="javascript version of awk for bioinformatics")
+@Program(name="bioAlcidae",
+	description="javascript version of awk for bioinformatics",
+	keywords={"sam","bam","vcf","javascript","js","nashorn"},
+	biostars={183197,185162,153060,152016,152720,152820,218444,224402,241751,240452,248385,186610,242127,167389,187494,183197,152820,178004,156250,202400,183982,173201}
+	)
 public class BioAlcidae
 	extends Launcher
 	{

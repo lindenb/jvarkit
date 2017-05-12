@@ -77,6 +77,7 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.semontology.Term;
 
 /*
 BEGIN_DOC
@@ -91,7 +92,11 @@ $  java -jar dist/minicaller.jar -R ref.fa  bam.list > out.vcf
 
 END_DOC
  */
-@Program(name="minicaller",description="Simple and Stupid Variant Caller designed for @AdrienLeger2")
+@Program(name="minicaller",
+	description="Simple and Stupid Variant Caller designed for @AdrienLeger2",
+	terms=Term.ID_0000005,
+	keywords={"bam","sam","calling","vcf"}
+	)
 public class MiniCaller extends Launcher
     {
 	private static final Logger LOG = Logger.build(MiniCaller.class).make();

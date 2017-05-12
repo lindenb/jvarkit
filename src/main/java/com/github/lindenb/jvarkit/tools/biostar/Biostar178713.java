@@ -112,7 +112,8 @@ public class Biostar178713 extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		if(this.outputFile==null || !outputFile.getName().endsWith(".zip")) {
-			return wrapException("output file option  must be declared and must en with .zip");
+			LOG.error("output file option  must be declared and must en with .zip");
+			return -1;
 		}
 		
 		final Set<String> inputs = IOUtils.unrollFiles(args);
@@ -150,7 +151,8 @@ public class Biostar178713 extends Launcher
 			
 			if(bedLines.isEmpty())
 				{
-				return wrapException("no bed line found");
+				LOG.error("no bed line found");
+				return -1;
 				}
 			
 			LOG.info("creating zip "+this.outputFile);
@@ -195,7 +197,8 @@ public class Biostar178713 extends Launcher
 			zout.close();
 			return RETURN_OK;
 		} catch (Exception e) {
-		return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(fos);
 		}

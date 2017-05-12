@@ -57,6 +57,7 @@ import com.github.lindenb.jvarkit.util.bio.circular.CircularContext;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 
 /**
@@ -103,7 +104,11 @@ END_DOC
  */
 
 
-@Program(name="worldmapgenome",description="Genome/Map of the world. Input is a BED file: chrom/start/end/country.")
+@Program(name="worldmapgenome",
+	description="Genome/Map of the world. Input is a BED file: chrom/start/end/country.",
+	keywords="gis",
+	terms=Term.ID_0000017
+	)
 public class WorldMapGenome extends Launcher
 	{
 	private static final Logger LOG = Logger.build(WorldMapGenome.class).make();

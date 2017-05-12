@@ -79,31 +79,15 @@ chr1	12697	13220	+	uc010nxr.1	INTRON	Intron 2
 ```
 
 
-
-
-
-### See also
-
-
- *  https://www.biostars.org/p/151628
-
-
-
-
-### History
-
-
- *  2014: Creation
- *  2015-07-21 : removed duplicate exon
-
-
-
-
 END_DOC
 */
 
 
-@Program(name="kg2bed",description="converts UCSC knownGenes file to BED.")
+@Program(name="kg2bed",
+	description="converts UCSC knownGenes file to BED.",
+	keywords={"ucsc","bed","knownGenes"},
+	biostars=151628
+	)
 public class KnownGenesToBed extends Launcher
 	{
 	private static final Logger LOG = Logger.build(KnownGenesToBed.class).make();
@@ -157,7 +141,7 @@ public class KnownGenesToBed extends Launcher
 		while((line=r.readLine())!=null)
 			{
 			if(out.checkError()) break;
-			String tokens[]=tab.split(line);
+			final String tokens[]=tab.split(line);
 			final KnownGene kg=new KnownGene(tokens);
 			if(!this.hide_transcripts) print(kg,kg.getTxStart(),kg.getTxEnd(),"TRANSCRIPT",kg.getName());
 			for(int i=0;i< kg.getExonCount();++i)
@@ -202,7 +186,7 @@ public class KnownGenesToBed extends Launcher
 		BufferedReader r=null;
 		try
 			{
-			this.out = super.openFileOrStdoutAsPrintStream(outputFile);
+			this.out = super.openFileOrStdoutAsPrintStream(this.outputFile);
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
@@ -235,10 +219,9 @@ public class KnownGenesToBed extends Launcher
 			this.out=null;
 			}
 		}
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+
+	
+	public static void main(final String[] args) {
 	new KnownGenesToBed().instanceMainWithExit(args);
 
 	}

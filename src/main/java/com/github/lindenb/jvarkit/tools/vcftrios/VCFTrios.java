@@ -122,13 +122,17 @@ $12	SAMPLE_P	1/1:53:0,0,27,26:81,99,0,.,.,.:81
 END_DOC
 
  */
-@Program(name="vcftrio",description="Find mendelian incompatibilitie in a VCF",keywords={"vcf","mendelian","pedigree"})
+@Program(
+		name="vcftrio",
+		description="Find mendelian incompatibilitie in a VCF",
+		keywords={"vcf","mendelian","pedigree"}
+		)
 public class VCFTrios
 	extends Launcher
 	{
 	private static final  Logger LOG = Logger.build(VCFTrios.class).make();
 
-	@Parameter(names={"-p","--pedigree"},description="Pedigree file",required=true)
+	@Parameter(names={"-p","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION,required=true)
 	private File pedigreeFile = null;
 
 	@Parameter(names={"-f","--filter"},description="filter name. create a filter in the FILTER column")
@@ -217,11 +221,11 @@ public class VCFTrios
 	
 	
 	@Override
-	public int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w)
+	public int doVcfToVcf(final String inputName, VcfIterator r, VariantContextWriter w)
 		{
 		int count_incompats=0;
 		final VCFHeader header=r.getHeader();
-		final VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
+		final VCFHeader h2=new VCFHeader(header);
 		h2.addMetaDataLine(new VCFInfoHeaderLine(
 				this.attributeName,
 				VCFHeaderLineCount.UNBOUNDED,
@@ -248,9 +252,9 @@ public class VCFTrios
 		for(final String sampleName:h2.getSampleNamesInOrder())
 			{
 			Pedigree.Person p=null;
-			for(Pedigree.Family f:this.pedigree.getFamilies())
+			for(final Pedigree.Family f:this.pedigree.getFamilies())
 				{
-				for(Pedigree.Person child:f.getIndividuals())
+				for(final Pedigree.Person child:f.getIndividuals())
 					{
 					if(child.getId().equals(sampleName))
 						{
@@ -280,8 +284,8 @@ public class VCFTrios
 			final VariantContext ctx= progress.watch(r.next());
 			
 			final VariantContextBuilder vcb= new VariantContextBuilder(ctx);
-			final Map<String,Genotype> sample2genotype = ctx.getGenotypes().stream().
-					collect(Collectors.toMap(G->G.getSampleName(), G->G));
+			final Map<String,Genotype> sample2genotype = new HashMap<>( ctx.getGenotypes().stream().
+					collect(Collectors.toMap(G->G.getSampleName(), G->G)));
 			
 						
 			final Set<String> incompatibilities=new HashSet<String>();
@@ -394,7 +398,7 @@ public class VCFTrios
 		try {
 			LOG.info("reading pedigree "+this.pedigreeFile);
 			 in=IOUtils.openFileForBufferedReading(this.pedigreeFile);
-			this.pedigree=Pedigree.readPedigree(in);
+			this.pedigree=Pedigree.newParser().parse(in);
 			in.close();
 			}
 		catch(final Exception err)

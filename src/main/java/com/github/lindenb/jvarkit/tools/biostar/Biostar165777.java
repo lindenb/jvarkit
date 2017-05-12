@@ -107,19 +107,23 @@ public class Biostar165777 extends Launcher
 	
 		if(this.outputFile==null)
 			{
-			return wrapException("output file must be defined.");
+			LOG.error("output file must be defined.");
+			return -1;
 			}
 		if(!this.outputFile.getName().contains(SPLIT_TOKEN))
 			{
-			return wrapException("output file "+outputFile+" should contains the word "+SPLIT_TOKEN);
+			LOG.error("output file "+outputFile+" should contains the word "+SPLIT_TOKEN);
+			return -1;
 			}
 		if(this.tagName==null)
 			{
-			return wrapException("Tag name was not defined");
+			LOG.error("Tag name was not defined");
+			return -1;
 			}
 		if(this.count<1)
 			{	
-			return wrapException("bad count "+this.count);
+			LOG.error("bad count "+this.count);
+			return -1;
 			}
 		XMLEventReader r = null;
 		try {

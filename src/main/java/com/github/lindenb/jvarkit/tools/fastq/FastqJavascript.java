@@ -47,6 +47,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.fastq.BasicFastqWriter;
@@ -75,7 +76,10 @@ The script puts 'rec' a FastqRecord, or 'pair' for an interleaved input, into th
 END_DOC
 	*/
 
-@Program(name="fastqjs",description="Filters a FASTQ file using javascript( java nashorn engine). ")
+@Program(name="fastqjs",
+	keywords={"fastq"},
+	terms={Term.ID_0000005},
+	description="Filters a FASTQ file using javascript( java nashorn engine). ")
 public class FastqJavascript
 	extends Launcher
 	{

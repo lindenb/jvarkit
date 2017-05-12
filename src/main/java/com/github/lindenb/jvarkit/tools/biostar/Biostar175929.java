@@ -219,7 +219,8 @@ public class Biostar175929 extends Launcher
 		
 		if(this.faidx==null) 
 			{
-			return wrapException("fasta reference was not defined.");
+			LOG.error("fasta reference was not defined.");
+			return -1;
 			}
 		IndexedFastaSequenceFile reference = null;
 		VcfIterator iter=null;
@@ -254,7 +255,8 @@ public class Biostar175929 extends Launcher
 			this.pw.close();
 			return RETURN_OK;
 		} catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		}
 			finally {
 				CloserUtil.close(reference);
