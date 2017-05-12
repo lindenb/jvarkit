@@ -124,6 +124,16 @@ Dict
 | chrY                  | 59373566  | hg19 |
 +-----------------------+-----------+------+
 
+Samples
++--------+---------+--------+--------+--------+------------+
+| Family | Sample  | Father | Mother | Sex    | Status     |
++--------+---------+--------+--------+--------+------------+
+| FAM    | M10475  |        |        | male   | affected   |
+| FAM    | M10478  |        |        | female | unaffected |
+| FAM    | M10500  | M10475 | M10478 | female | affected   |
+| FAM    | M128215 | M10500 |        | male   | unaffected |
++--------+---------+--------+--------+--------+------------+
+
 >>chr1/10001/T (n°1)
  Variant
  +--------+--------------------+
@@ -480,6 +490,7 @@ public class VcfToTable extends Launcher {
 						r.add(person==null?null:person.getMotherId());
 						r.add(person==null?null:person.getSex());
 						r.add(person==null?null:person.getStatus());
+						t.addList(r);
 						}
 					
 					t.print(margin,out);
