@@ -332,7 +332,7 @@ public class Bam2Raster extends Launcher
 					};
 				}
 			final Graphics2D g= this.image.createGraphics();
-			g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+			//g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
 			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, imageSize.width, imageSize.height);
 			LOG.info("image : "+imageSize.width+"x"+imageSize.height);
@@ -849,7 +849,7 @@ public class Bam2Raster extends Launcher
 					this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
 					srf.referenceSequence(this.referenceFile);
 					}
-				final IntervalParser intervalParser = new IntervalParser(this.indexedFastaSequenceFile.getSequenceDictionary()).
+				final IntervalParser intervalParser = new IntervalParser(this.indexedFastaSequenceFile==null?null:this.indexedFastaSequenceFile.getSequenceDictionary()).
 						setFixContigName(true);
 
 				this.interval = intervalParser.parse(this.regionStr);
@@ -904,7 +904,7 @@ public class Bam2Raster extends Launcher
 				
 				final BufferedImage img= new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
 				final Graphics2D g=img.createGraphics();
-				g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+				//g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
 
 				int y=0;
 				for(final String key:this.key2partition.keySet()) {
