@@ -20,6 +20,12 @@ Usage: fastqphred64to33 [options] Files
 
 Convert Illumina Fastq 64 encoding to Fastq 33
 
+
+## Keywords
+
+ * fastq
+
+
 ## Compilation
 
 ### Requirements / Dependencies

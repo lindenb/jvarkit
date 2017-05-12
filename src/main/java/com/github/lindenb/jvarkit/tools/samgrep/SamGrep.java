@@ -163,7 +163,7 @@ public class SamGrep extends Launcher
 	private Set<String> nameStrings = new HashSet<>();
 	
 	
-	@Parameter(names={"-f","--readname"},description="file containing a list of read names")
+	@Parameter(names={"-f","--readfile"},description="file containing a list of read names")
 	private File namefile = null;
 	
 	@Parameter(names={"-x","--tee"},description="if output fileame specified, continue to output original input to stdout.")

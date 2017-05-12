@@ -45,12 +45,20 @@ import java.io.File;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+/**
+
+BEGIN_DOC
+
+END_DOC
+
+**/
 @Program(name="samretrieveseqandqual",description="I have a query-sorted BAM file without read/qual sequences and a FASTQ file with the read/qual sequences. Is there a tool to add seq to BAM?  for @sjackman https://twitter.com/sjackman/status/575368165531611136")
 public class SamRetrieveSeqAndQual extends Launcher
 	{
@@ -64,7 +72,7 @@ public class SamRetrieveSeqAndQual extends Launcher
 	@Parameter(names={"-R"},description=" (fastq / fastqR) required",required=true)
 	private File fastqRin = null;
 
-	@Parameter
+	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	
 	private String normalizeFastqName(String s)

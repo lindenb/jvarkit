@@ -38,7 +38,7 @@ public class HtSeqCount extends Launcher
 
 	/** features we want in the GTF */
 	@Parameter(names="-F",description=" add this feature. default are : CDS and exon")
-	private final Set<String> features=new HashSet<>();
+	private Set<String> features=new HashSet<>();
 	/** first Dict found, to print chrom names and compare with others */
 	private SAMSequenceDictionary firstDict=null;
 	/** mapping position to transcript */

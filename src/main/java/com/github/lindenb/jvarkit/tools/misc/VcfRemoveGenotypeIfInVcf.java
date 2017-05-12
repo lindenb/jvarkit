@@ -203,7 +203,7 @@ public class VcfRemoveGenotypeIfInVcf extends Launcher {
 		return 0;
 		}
 	
-	@Parameter(names="-x",description="Tabix indexed VCF file",required=true)
+	@Parameter(names={"-t","--tabix"},description="Tabix indexed VCF file",required=true)
 	private String tabixFilePath=null;
 	
 	@Override

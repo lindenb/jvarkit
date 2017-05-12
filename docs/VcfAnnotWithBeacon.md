@@ -42,6 +42,15 @@ Usage: vcfannotwithbeacon [options] Files
 
 Annotate a VCF with ga4gh beacon
 
+
+## Keywords
+
+ * ga4gh
+ * beacon
+ * vcf
+ * annotation
+
+
 ## Compilation
 
 ### Requirements / Dependencies

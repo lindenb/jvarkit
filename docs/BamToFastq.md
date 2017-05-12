@@ -35,6 +35,12 @@ use picard
 
 Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. 
 
+
+## Keywords
+
+ * fastq
+
+
 ## Compilation
 
 ### Requirements / Dependencies

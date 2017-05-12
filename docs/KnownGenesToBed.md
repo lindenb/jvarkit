@@ -35,6 +35,20 @@ Usage: kg2bed [options] Files
 
 converts UCSC knownGenes file to BED.
 
+
+## Keywords
+
+ * ucsc
+ * bed
+ * knownGenes
+
+
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/151628
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -120,26 +134,6 @@ chr1	12645	12697	+	uc010nxr.1	EXON	Exon 2
 chr1	12697	13220	+	uc010nxr.1	INTRON	Intron 2
 
 ```
-
-
-
-
-
-### See also
-
-
- *  https://www.biostars.org/p/151628
-
-
-
-
-### History
-
-
- *  2014: Creation
- *  2015-07-21 : removed duplicate exon
-
-
 
 
 

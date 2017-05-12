@@ -56,7 +56,7 @@ public class ConvertBedChromosomes
 	{
 	private static final Logger LOG = Logger.build(ConvertBedChromosomes.class).make();
 	
-	@Parameter(names={"-c","-convert"},description="What should I do when  a converstion is not found")
+	@Parameter(names={"-convert","--convert"},description="What should I do when  a converstion is not found")
 	private ContigNameConverter.OnNotFound onNotFound=ContigNameConverter.OnNotFound.RAISE_EXCEPTION;
 	@Parameter(names={"-f","--mapping","-m"},description="load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+",required=true)
 	private File mappingFile=null;

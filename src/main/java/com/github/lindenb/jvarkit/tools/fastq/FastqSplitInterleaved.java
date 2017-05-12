@@ -81,9 +81,9 @@ public class FastqSplitInterleaved extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FastqSplitInterleaved.class).make();
 	@Parameter(names={"-a"},description="(fastq1 file or '-' for stdout). Ignore 1st read if omitted. Optional.")
-	final String fileA=null;
+	private String fileA=null;
 	@Parameter(names={"-b"},description="(fastq2 file or '-' for stdout). Ignore 2nd read if omitted. Optional.")
-	final String fileB=null;
+	private String fileB=null;
 
 	
 	private FastqSplitInterleaved()

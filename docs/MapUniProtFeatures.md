@@ -31,6 +31,17 @@ Usage: mapuniprot [options] Files
 
 map uniprot features on reference genome
 
+
+## Keywords
+
+ * uniprot
+ * bed
+ * fasta
+ * reference
+ * xjc
+ * xml
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -87,4 +98,26 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
+
+##Example
+
+```bash
+$ java  -jar dist/mapuniprot.jar \
+	-R /path/to/human_g1k_v37.fasta \
+	-u /path/uri/uniprot.org/uniprot_sprot.xml.gz  \
+	-k <(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '        ' '{if($2 ~ ".*_.*") next; OFS="       "; gsub(/chr/,"",$2);print;}'   ) |\
+	LC_ALL=C sort -t '	' -k1,1 -k2,2n -k3,3n  | uniq | head
+
+
+1	69090	69144	topological_domain	1000	+	69090	69144	255,0,0	1	54	0
+1	69144	69216	transmembrane_region	1000	+	69144	69216	255,0,0	1	72	0
+1	69216	69240	topological_domain	1000	+	69216	69240	255,0,0	1	24	0
+1	69240	69306	transmembrane_region	1000	+	69240	69306	255,0,0	1	66	0
+1	69306	69369	topological_domain	1000	+	69306	69369	255,0,0	1	63	0
+1	69357	69636	disulfide_bond	1000	+	69357	69636	255,0,0	1	279	0
+1	69369	69429	transmembrane_region	1000	+	69369	69429	255,0,0	1	60	0
+1	69429	69486	topological_domain	1000	+	69429	69486	255,0,0	1	57	0
+1	69486	69543	transmembrane_region	1000	+	69486	69543	255,0,0	1	57	0
+1	69543	69654	topological_domain	1000	+	69543	69654	255,0,0	1	111	0
+```
 

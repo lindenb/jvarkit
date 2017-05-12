@@ -32,6 +32,16 @@ Usage: extendrefwithreads [options] Files
 Extending ends of sequences with the help of reads
 
 
+## Keywords
+
+ * read
+ * fastq
+ * reference
+ * sam
+ * bam
+
+
+
 ## See also in Biostars
 
  * https://www.biostars.org/p/148089

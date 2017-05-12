@@ -26,7 +26,7 @@ public class VcfFilterDoid
 
 	
 	@Parameter(names={"-o","--out"},description="Output File")
-	final File outputFile=null;
+	private File outputFile=null;
    /* list of DOID accessions for gene having a DOID-term children of the user output. */
 	@Parameter(names="-C",description="list of DOID accessions for gene having a DOID-term children of the user output")
 	private Set<String> CHILD_OF=new HashSet<String>();

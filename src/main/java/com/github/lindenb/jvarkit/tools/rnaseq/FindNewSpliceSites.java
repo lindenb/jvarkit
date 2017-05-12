@@ -45,7 +45,7 @@ public class FindNewSpliceSites extends Launcher
 	@Parameter(names={"-out","--out"},description="output")
 	private File outputFile = null;
 	@Parameter(names="-k",description="UCSC Known Gene URI")
-	private final Set<String> knownGeneUris = new LinkedHashSet<>();
+	private Set<String> knownGeneUris = new LinkedHashSet<>();
 	@Parameter(names="-d",description="max distance between known splice site and cigar end")
 	private int max_distance=10;
 	@ParametersDelegate

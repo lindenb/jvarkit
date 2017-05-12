@@ -32,6 +32,44 @@ Usage: bioAlcidae [options] Files
 
 javascript version of awk for bioinformatics
 
+
+## Keywords
+
+ * sam
+ * bam
+ * vcf
+ * javascript
+ * js
+ * nashorn
+
+
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/183197
+ * https://www.biostars.org/p/185162
+ * https://www.biostars.org/p/153060
+ * https://www.biostars.org/p/152016
+ * https://www.biostars.org/p/152720
+ * https://www.biostars.org/p/152820
+ * https://www.biostars.org/p/218444
+ * https://www.biostars.org/p/224402
+ * https://www.biostars.org/p/241751
+ * https://www.biostars.org/p/240452
+ * https://www.biostars.org/p/248385
+ * https://www.biostars.org/p/186610
+ * https://www.biostars.org/p/242127
+ * https://www.biostars.org/p/167389
+ * https://www.biostars.org/p/187494
+ * https://www.biostars.org/p/183197
+ * https://www.biostars.org/p/152820
+ * https://www.biostars.org/p/178004
+ * https://www.biostars.org/p/156250
+ * https://www.biostars.org/p/202400
+ * https://www.biostars.org/p/183982
+ * https://www.biostars.org/p/173201
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -461,22 +499,6 @@ rs1116904 snp genomic
 (...)
 
 ```
-
-
-
-
-
-
-### See also
-
-
- *  https://github.com/lh3/bioawk
- *  https://www.biostars.org/p/152016/
- *  https://www.biostars.org/p/152720/
- *  https://www.biostars.org/p/152820/
- *  https://www.biostars.org/p/153060/
- *  https://www.biostars.org/p/183197
- *  https://www.biostars.org/p/185162/#185168
 
 
 

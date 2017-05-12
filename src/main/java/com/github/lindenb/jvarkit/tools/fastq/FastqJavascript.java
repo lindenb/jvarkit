@@ -102,7 +102,7 @@ public class FastqJavascript
 	@Parameter(names={"-R1","--R1"},description="for paired/interleaved input, save R1 reads in this file")
 	private File R1FileOut = null;
 
-	@Parameter(names={"-R2","--R1"},description="for paired/interleaved input, save R2 reads in this file")
+	@Parameter(names={"-R2","--R2"},description="for paired/interleaved input, save R2 reads in this file")
 	private File R2FileOut = null;
 
 	@Parameter(names={"-e"},description="javascript expression")

@@ -21,7 +21,10 @@ Usage: vcftrio [options] Files
     -o, --output
       Output file. Optional . Default: stdout
   * -p, --pedigree
-      Pedigree file
+      Pedigree file. A pedigree is a text file delimited with tabs. No header. 
+      Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother 
+      Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 
+      unaffected, 1 affected,-9 unknown
     --version
       print version and exits
 
