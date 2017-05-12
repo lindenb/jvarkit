@@ -356,6 +356,13 @@ public class SamFilterParser {
             }; }
 		
 		
+		 private static Predicate<SAMRecord>  mapqLowerThan(final int mapq) {
+            return new Predicate<SAMRecord>() {
+            @Override public boolean test(final SAMRecord rec) {
+            		return  rec.getMappingQuality() < mapq;
+            		}
+            }; }
+		
 	}
 	
 PARSER_END(SamFilterParser)
@@ -400,6 +407,7 @@ TOKEN:
 | <GROUP: "group" >
 | <HASFLAG: "hasFlag" >
 | <DISCORDANT: ("is")? "discordant" >
+| <MAPQLT:  "mapqlt" >
 }
 
 	
@@ -448,6 +456,7 @@ private Predicate<SAMRecord> UnaryExpr(): {String str; Token t; int flg; }
 	| <GROUP> <OPAR> str=characters() <CPAR>  { return group(str);}
 	| <HASFLAG> <OPAR> flg=integer() <CPAR> { return hasFlag(flg);}
 	| <DISCORDANT> <OPAR> <CPAR> {  return discordant();}
+	| <MAPQLT> <OPAR> flg=integer() <CPAR> { return mapqLowerThan(flg);}
 	)
 	
 	}

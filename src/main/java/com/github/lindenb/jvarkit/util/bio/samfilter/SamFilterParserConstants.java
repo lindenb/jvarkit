@@ -92,6 +92,8 @@ public interface SamFilterParserConstants {
   int HASFLAG = 32;
   /** RegularExpression Id. */
   int DISCORDANT = 33;
+  /** RegularExpression Id. */
+  int MAPQLT = 34;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -132,6 +134,7 @@ public interface SamFilterParserConstants {
     "\"group\"",
     "\"hasFlag\"",
     "<DISCORDANT>",
+    "\"mapqlt\"",
   };
 
 }
