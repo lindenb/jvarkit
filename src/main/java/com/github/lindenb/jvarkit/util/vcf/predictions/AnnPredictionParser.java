@@ -108,7 +108,7 @@ public class AnnPredictionParser
 		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(this.tag));
 		if(info==null || info.getDescription()==null)
 			{
-			LOG.warning("no INFO["+tag+"] or no description ");
+			LOG.warning("no INFO["+tag+"] or no description This VCF was probably NOT annotated with SnpEff . But it's not a problem if this tool doesn't need to access SnpEff Annotations.");
 			this.valid=false;
 			return;
 			}

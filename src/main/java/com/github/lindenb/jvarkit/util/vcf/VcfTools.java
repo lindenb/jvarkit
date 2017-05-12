@@ -73,19 +73,21 @@ public VCFHeader getHeader() {
 
 public void init(final VCFHeader header) {
 	this.header=header;
-	if(header!=null)
-		{
-		this.snpEffPredictionParser=new SnpEffPredictionParserFactory().header(header).get();
-		this.vepPredictionParser=new VepPredictionParserFactory().header(header).get();
-		this.annPredictionParser=new AnnPredictionParserFactory(header).get();	
+	this.snpEffPredictionParser=new SnpEffPredictionParserFactory().header(header).get();
+	this.vepPredictionParser=new VepPredictionParserFactory().header(header).get();
+	this.annPredictionParser=new AnnPredictionParserFactory(header).get();	
+	}
 
-		}
-	else
-		{
-		this.snpEffPredictionParser = null;
-		this.vepPredictionParser= null;
-		this.annPredictionParser=new AnnPredictionParserFactory().createDefaultParser();
-		}
+public VepPredictionParser getVepPredictionParser() {
+	return vepPredictionParser;
+	}
+
+public SnpEffPredictionParser getSnpEffPredictionParser() {
+	return snpEffPredictionParser;
+	}
+
+public AnnPredictionParser getAnnPredictionParser() {
+	return annPredictionParser;
 	}
 public void initSnpEffParser(final String definition)
 	{
@@ -116,13 +118,13 @@ public List<AnnPredictionParser.AnnPrediction> getAnnPredictions(final VariantCo
 	}
 
 public List<VepPredictionParser.VepPrediction> getVepPredictions(final VariantContext ctx) {
-	if(this.vepPredictionParser==null) return Collections.emptyList();
-	return this.vepPredictionParser.getPredictions(ctx);
+	if(this.getVepPredictionParser()==null) return Collections.emptyList();
+	return this.getVepPredictionParser().getPredictions(ctx);
 	}
 
 public List<SnpEffPredictionParser.SnpEffPrediction> getSnpEffPredictions(final VariantContext ctx) {
-	if(this.snpEffPredictionParser==null) return Collections.emptyList();
-	return this.snpEffPredictionParser.getPredictions(ctx);
+	if(this.getSnpEffPredictionParser()==null) return Collections.emptyList();
+	return this.getSnpEffPredictionParser().getPredictions(ctx);
 	}
 
 

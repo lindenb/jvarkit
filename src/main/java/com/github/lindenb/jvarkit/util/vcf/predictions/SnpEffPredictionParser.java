@@ -36,13 +36,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
 
@@ -54,7 +54,7 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
  */
 public class SnpEffPredictionParser implements PredictionParser
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(SnpEffPredictionParser.class).make();
 
 	private enum COLS{ Effect , Effect_Impact , Functional_Class,Codon_Change, 
 		Amino_Acid_change,Amino_Acid_length,Gene_Name , Gene_BioType , Coding , Transcript,
@@ -84,10 +84,10 @@ public class SnpEffPredictionParser implements PredictionParser
 	public SnpEffPredictionParser(final VCFHeader header,final String tag)
 		{	
 		this.tag=(tag==null?getDefaultTag():tag);
-		VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
+		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(tag));
 		if(info==null || info.getDescription()==null)
 			{
-			LOG.warning("no INFO["+tag+"] or no description ");
+			LOG.warning("no INFO["+tag+"] or no description. This VCF was probably NOT annotated with SnpEff (old version). But it's not a problem if this tool doesn't need to access SnpEff Annotations. ");
 			return;
 			}
 		String description=info.getDescription();

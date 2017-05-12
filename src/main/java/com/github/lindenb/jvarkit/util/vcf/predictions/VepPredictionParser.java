@@ -117,10 +117,10 @@ public class VepPredictionParser implements PredictionParser
 	VepPredictionParser(final VCFHeader header,final String tag)
 		{	
 		this.tag=(tag==null?getDefaultTag():tag);
-		final VCFInfoHeaderLine info=header.getInfoHeaderLine(tag);
+		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(tag));
 		if(info==null || info.getDescription()==null)
 			{
-			LOG.warning("NO "+tag+" found in header. This VCF was probably NOT annotated with VEP.");
+			LOG.warning("NO INFO["+tag+"] found in header. This VCF was probably NOT annotated with VEP. But it's not a problem if this tool doesn't need to access VEP Annotations.");
 			this.valid = false;
 			return;
 			}

@@ -51,7 +51,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 public class Pedigree
 	{
 	private static final Logger LOG = Logger.build(Pedigree.class).make();
-	
+	public static final String OPT_DESCRIPTION="A pedigree is a text file delimited with tabs. No header. Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 affected,-9 unknown ";
 	private Map<String,FamilyImpl > families=new TreeMap<String, Pedigree.FamilyImpl>();
 	
 	public enum Status
@@ -157,6 +157,16 @@ public class Pedigree
 		public Person getFather();
 		public boolean hasMother();
 		public Person getMother();
+		/** returns the father id or null if there is no father */
+		public default String getFatherId() { 
+			final Person p = getFather();
+			return p==null?null:p.getId();
+			}
+		public default String getMotherId() { 
+			final Person p = getMother();
+			return p==null?null:p.getId();
+			}
+		
 		public Sex getSex();
 		public boolean isMale();
 		public boolean isFemale();
@@ -464,6 +474,8 @@ public class Pedigree
 		return set;
 		}
 	
+
+	
 	/** creates a new PEdigree parser */
 	public static Parser newParser()
 		{
@@ -571,7 +583,6 @@ public class Pedigree
 			fam.individuals.put(p.id, p);		
 			}
 
-		
 		
 		/** should be readPedigree(header.getMetaDataInInputOrder()) */
 		public Pedigree parse(final Collection<VCFHeaderLine> metadata)

@@ -19,6 +19,12 @@ Usage: vcf2table [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -p, --ped, --pedigree
+      Optional Pedigree file:A pedigree is a text file delimited with tabs. No 
+      header. Columns are (1) Family (2) Individual-ID (3) Father Id or '0' 
+      (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 
+      0 unaffected, 1 affected,-9 unknown  If undefined, this tool will try to 
+      get the pedigree from the header.
     --version
       print version and exits
     -H
@@ -100,8 +106,16 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 ## Example 
 
 ```
-$ curl -s "https://raw.githubusercontent.com/arq5x/gemini/master/test/test.region.vep.vcf" | java -jar dist/vcf2table.jar -H
+$ cat input.ped
 
+FAM	M10475	0	0	1	1
+FAM	M10478	0	0	2	0
+FAM	M10500	M10475	M10478	2	1
+
+
+$ curl -s "https://raw.githubusercontent.com/arq5x/gemini/master/test/test.region.vep.vcf" | java -jar dist/vcf2table.jar -H -p input.ped
+
+ 
 INFO
 +-----------------+---------+-------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
 | ID              | Type    | Count | Description                                                                                                                                             |
@@ -110,6 +124,7 @@ INFO
 | AF              | Float   |       | Allele Frequency, for each ALT allele, in the same order as listed                                                                                      |
 | AN              | Integer | 1     | Total number of alleles in called genotypes                                                                                                             |
 | BaseQRankSum    | Float   | 1     | Z-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities                                                                                       |
+| CSQ             | String  |       | Consequence type as predicted by VEP. Format: Consequence|Codons|Amino_acids|Gene|SYMBOL|Feature|EXON|PolyPhen|SIFT|Protein_position|BIOTYPE|ALLELE_NUM |
 | DP              | Integer | 1     | Approximate read depth; some reads may have been filtered                                                                                               |
 | DS              | Flag    | 0     | Were any of the samples downsampled?                                                                                                                    |
 | Dels            | Float   | 1     | Fraction of Reads Containing Spanning Deletions                                                                                                         |
@@ -122,10 +137,9 @@ INFO
 | MQRankSum       | Float   | 1     | Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities                                                                               |
 | QD              | Float   | 1     | Variant Confidence/Quality by Depth                                                                                                                     |
 | ReadPosRankSum  | Float   | 1     | Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias                                                                                   |
-| CSQ             | String  |       | Consequence type as predicted by VEP. Format: Consequence|Codons|Amino_acids|Gene|SYMBOL|Feature|EXON|PolyPhen|SIFT|Protein_position|BIOTYPE|ALLELE_NUM |
 +-----------------+---------+-------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-INFO
+FORMAT
 +----+---------+-------+----------------------------------------------------------------------------------------+
 | ID | Type    | Count | Description                                                                            |
 +----+---------+-------+----------------------------------------------------------------------------------------+
@@ -143,81 +157,67 @@ Dict
 +-----------------------+-----------+------+
 | chr1                  | 249250621 | hg19 |
 (...)
-| chr10                 | 135534747 | hg19 |
+| chrX                  | 155270560 | hg19 |
 | chrY                  | 59373566  | hg19 |
 +-----------------------+-----------+------+
 
->>chr1/10001/T 1
-Variant
-+-------+--------------------+
-| Key   | Value              |
-+-------+--------------------+
-| CHROM | chr1               |
-| POS   | 10001              |
-| end   | 10001              |
-| ID    | .                  |
-| REF   | T                  |
-| ALT   | TC                 |
-| QUAL  | 175.91000000000003 |
-+-------+--------------------+
-Alleles
-+-----+-----+-----+-------+--------+
-| Idx | REF | Sym | Bases | Length |
-+-----+-----+-----+-------+--------+
-| 0   | *   |     | T     | 1      |
-| 1   |     |     | TC    | 2      |
-+-----+-----+-----+-------+--------+
-INFO
-+----------------+-------+----------------------------------------------------------------------------------------------------------+
-| key            | Index | Value                                                                                                    |
-+----------------+-------+----------------------------------------------------------------------------------------------------------+
-| AC             |       | 4                                                                                                        |
-| AF             |       | 0.50                                                                                                     |
-| AN             |       | 8                                                                                                        |
-| BaseQRankSum   |       | 4.975                                                                                                    |
-| CSQ            | 1     | upstream_gene_variant|||ENSG00000223972|DDX11L1|ENST00000456328|||||processed_transcript|1               |
-| CSQ            | 2     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000488147|||||unprocessed_pseudogene|1            |
-| CSQ            | 3     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000541675|||||unprocessed_pseudogene|1            |
-| CSQ            | 4     | upstream_gene_variant|||ENSG00000223972|DDX11L1|ENST00000450305|||||transcribed_unprocessed_pseudogene|1 |
-| CSQ            | 5     | upstream_gene_variant|||ENSG00000223972|DDX11L1|ENST00000515242|||||transcribed_unprocessed_pseudogene|1 |
-| CSQ            | 6     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000538476|||||unprocessed_pseudogene|1            |
-| CSQ            | 7     | upstream_gene_variant|||ENSG00000223972|DDX11L1|ENST00000518655|||||transcribed_unprocessed_pseudogene|1 |
-| CSQ            | 8     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000438504|||||unprocessed_pseudogene|1            |
-| CSQ            | 9     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000423562|||||unprocessed_pseudogene|1            |
-| DP             |       | 76                                                                                                       |
-| FS             |       | 12.516                                                                                                   |
-| HRun           |       | 0                                                                                                        |
-| HaplotypeScore |       | 218.6157                                                                                                 |
-| MQ             |       | 35.31                                                                                                    |
-| MQ0            |       | 0                                                                                                        |
-| MQRankSum      |       | -0.238                                                                                                   |
-| QD             |       | 2.31                                                                                                     |
-| ReadPosRankSum |       | 2.910                                                                                                    |
-+----------------+-------+----------------------------------------------------------------------------------------------------------+
-VEP
-+----------+------+------+------------+-----------------+---------+------------------+-------------------------+-------------+--------+-----------------+------------------------------------+
-| PolyPhen | EXON | SIFT | ALLELE_NUM | Gene            | SYMBOL  | Protein_position | Consequence             | Amino_acids | Codons | Feature         | BIOTYPE                            |
-+----------+------+------+------------+-----------------+---------+------------------+-------------------------+-------------+--------+-----------------+------------------------------------+
-|          |      |      | 1          | ENSG00000223972 | DDX11L1 |                  | upstream_gene_variant   |             |        | ENST00000456328 | processed_transcript               |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000488147 | unprocessed_pseudogene             |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000541675 | unprocessed_pseudogene             |
-|          |      |      | 1          | ENSG00000223972 | DDX11L1 |                  | upstream_gene_variant   |             |        | ENST00000450305 | transcribed_unprocessed_pseudogene |
-|          |      |      | 1          | ENSG00000223972 | DDX11L1 |                  | upstream_gene_variant   |             |        | ENST00000515242 | transcribed_unprocessed_pseudogene |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000538476 | unprocessed_pseudogene             |
-|          |      |      | 1          | ENSG00000223972 | DDX11L1 |                  | upstream_gene_variant   |             |        | ENST00000518655 | transcribed_unprocessed_pseudogene |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000438504 | unprocessed_pseudogene             |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000423562 | unprocessed_pseudogene             |
-+----------+------+------+------------+-----------------+---------+------------------+-------------------------+-------------+--------+-----------------+------------------------------------+
-Genotypes
-+---------+------+-------+----+-------+-----+---------+
-| Sample  | Type | AD    | DP | GQ    | GT  | PL      |
-+---------+------+-------+----+-------+-----+---------+
-| M10475  | HET  | 10,2  | 15 | 10.41 | 0/1 | 25,0,10 |
-| M10478  | HET  | 10,4  | 16 | 5.30  | 0/1 | 40,0,5  |
-| M10500  | HET  | 10,10 | 21 | 7.48  | 0/1 | 111,0,7 |
-| M128215 | HET  | 15,5  | 24 | 0.26  | 0/1 | 49,0,0  |
-+---------+------+-------+----+-------+-----+---------+
-<<1
+>>chr1/10001/T (n°1)
+ Variant
+ +--------+--------------------+
+ | Key    | Value              |
+ +--------+--------------------+
+ | CHROM  | chr1               |
+ | POS    | 10001              |
+ | end    | 10001              |
+ | ID     | .                  |
+ | REF    | T                  |
+ | ALT    | TC                 |
+ | QUAL   | 175.91000000000003 |
+ | FILTER |                    |
+ | Type   | INDEL              |
+ +--------+--------------------+
+ Alleles
+ +-----+-----+-----+-------+--------+----+----+-----+-------------+---------------+---------+-----------+
+ | Idx | REF | Sym | Bases | Length | AC | AN | AF  | AC_affected | AC_unaffected | AC_male | AC_female |
+ +-----+-----+-----+-------+--------+----+----+-----+-------------+---------------+---------+-----------+
+ | 0   | *   |     | T     | 1      | 4  | 8  | 0.5 | 2           | 1             | 1       | 2         |
+ | 1   |     |     | TC    | 2      | 4  | 8  | 0.5 | 2           | 1             | 1       | 2         |
+ +-----+-----+-----+-------+--------+----+----+-----+-------------+---------------+---------+-----------+
+ INFO
+ +----------------+-------+----------+
+ | key            | Index | Value    |
+ +----------------+-------+----------+
+ | AC             |       | 4        |
+ | AF             |       | 0.50     |
+ | AN             |       | 8        |
+ | BaseQRankSum   |       | 4.975    |
+ | DP             |       | 76       |
+ | FS             |       | 12.516   |
+ | HRun           |       | 0        |
+ | HaplotypeScore |       | 218.6157 |
+ | MQ             |       | 35.31    |
+ | MQ0            |       | 0        |
+ | MQRankSum      |       | -0.238   |
+ | QD             |       | 2.31     |
+ | ReadPosRankSum |       | 2.910    |
+ +----------------+-------+----------+
+ Genotypes
+ +---------+------+-------+----+----+-----+---------+
+ | Sample  | Type | AD    | DP | GQ | GT  | PL      |
+ +---------+------+-------+----+----+-----+---------+
+ | M10475  | HET  | 10,2  | 15 | 10 | 0/1 | 25,0,10 |
+ | M10478  | HET  | 10,4  | 16 | 5  | 0/1 | 40,0,5  |
+ | M10500  | HET  | 10,10 | 21 | 7  | 0/1 | 111,0,7 |
+ | M128215 | HET  | 15,5  | 24 | 0  | 0/1 | 49,0,0  |
+ +---------+------+-------+----+----+-----+---------+
+ TRIOS
+ +-----------+-----------+-----------+-----------+----------+----------+-----------+
+ | Father-ID | Father-GT | Mother-ID | Mother-GT | Child-ID | Child-GT | Incompat. |
+ +-----------+-----------+-----------+-----------+----------+----------+-----------+
+ | M10475    | 0/1       | M10478    | 0/1       | M10500   | 0/1      |           |
+ +-----------+-----------+-----------+-----------+----------+----------+-----------+
+<<chr1/10001/T n°1
+
 (...)
 ```
 

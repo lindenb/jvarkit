@@ -92,7 +92,6 @@ define compile-htsjdk-cmd
 
 $(1)  : ${htsjdk.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
-		${generated.dir}/java/com/github/lindenb/semontology/Term.java \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
 		$(filter-out wiki_flag,$(filter-out galaxy_flag,$(3))) ${apache.commons.cli.jars} ${slf4j.jars} \
 		${dist.dir}/annotproc.jar
@@ -584,10 +583,6 @@ api.uniprot :
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java -p org.uniprot ${xjc.proxy} "http://www.uniprot.org/support/docs/uniprot.xsd" 
 
-${generated.dir}/java/com/github/lindenb/semontology/Term.java:
-	mkdir -p $(dir $@)
-	wget -O $(addsuffix .tmp,$@) "https://raw.githubusercontent.com/lindenb/semontology/master/ontologies/Term.java"
-	mv $(addsuffix .tmp,$@) $@
 
 api.ncbi.pubmed : 
 	rm -rf  ${generated.dir}/java/gov/nih/nlm/ncbi/pubmed/

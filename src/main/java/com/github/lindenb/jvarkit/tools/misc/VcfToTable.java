@@ -35,23 +35,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
-import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -71,8 +69,16 @@ BEGIN_DOC
 ## Example 
 
 ```
-$ curl -s "https://raw.githubusercontent.com/arq5x/gemini/master/test/test.region.vep.vcf" | java -jar dist/vcf2table.jar -H
+$ cat input.ped
 
+FAM	M10475	0	0	1	1
+FAM	M10478	0	0	2	0
+FAM	M10500	M10475	M10478	2	1
+
+
+$ curl -s "https://raw.githubusercontent.com/arq5x/gemini/master/test/test.region.vep.vcf" | java -jar dist/vcf2table.jar -H -p input.ped
+
+ 
 INFO
 +-----------------+---------+-------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
 | ID              | Type    | Count | Description                                                                                                                                             |
@@ -81,6 +87,7 @@ INFO
 | AF              | Float   |       | Allele Frequency, for each ALT allele, in the same order as listed                                                                                      |
 | AN              | Integer | 1     | Total number of alleles in called genotypes                                                                                                             |
 | BaseQRankSum    | Float   | 1     | Z-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities                                                                                       |
+| CSQ             | String  |       | Consequence type as predicted by VEP. Format: Consequence|Codons|Amino_acids|Gene|SYMBOL|Feature|EXON|PolyPhen|SIFT|Protein_position|BIOTYPE|ALLELE_NUM |
 | DP              | Integer | 1     | Approximate read depth; some reads may have been filtered                                                                                               |
 | DS              | Flag    | 0     | Were any of the samples downsampled?                                                                                                                    |
 | Dels            | Float   | 1     | Fraction of Reads Containing Spanning Deletions                                                                                                         |
@@ -93,10 +100,9 @@ INFO
 | MQRankSum       | Float   | 1     | Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities                                                                               |
 | QD              | Float   | 1     | Variant Confidence/Quality by Depth                                                                                                                     |
 | ReadPosRankSum  | Float   | 1     | Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias                                                                                   |
-| CSQ             | String  |       | Consequence type as predicted by VEP. Format: Consequence|Codons|Amino_acids|Gene|SYMBOL|Feature|EXON|PolyPhen|SIFT|Protein_position|BIOTYPE|ALLELE_NUM |
 +-----------------+---------+-------+---------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-INFO
+FORMAT
 +----+---------+-------+----------------------------------------------------------------------------------------+
 | ID | Type    | Count | Description                                                                            |
 +----+---------+-------+----------------------------------------------------------------------------------------+
@@ -114,81 +120,67 @@ Dict
 +-----------------------+-----------+------+
 | chr1                  | 249250621 | hg19 |
 (...)
-| chr10                 | 135534747 | hg19 |
+| chrX                  | 155270560 | hg19 |
 | chrY                  | 59373566  | hg19 |
 +-----------------------+-----------+------+
 
->>chr1/10001/T 1
-Variant
-+-------+--------------------+
-| Key   | Value              |
-+-------+--------------------+
-| CHROM | chr1               |
-| POS   | 10001              |
-| end   | 10001              |
-| ID    | .                  |
-| REF   | T                  |
-| ALT   | TC                 |
-| QUAL  | 175.91000000000003 |
-+-------+--------------------+
-Alleles
-+-----+-----+-----+-------+--------+
-| Idx | REF | Sym | Bases | Length |
-+-----+-----+-----+-------+--------+
-| 0   | *   |     | T     | 1      |
-| 1   |     |     | TC    | 2      |
-+-----+-----+-----+-------+--------+
-INFO
-+----------------+-------+----------------------------------------------------------------------------------------------------------+
-| key            | Index | Value                                                                                                    |
-+----------------+-------+----------------------------------------------------------------------------------------------------------+
-| AC             |       | 4                                                                                                        |
-| AF             |       | 0.50                                                                                                     |
-| AN             |       | 8                                                                                                        |
-| BaseQRankSum   |       | 4.975                                                                                                    |
-| CSQ            | 1     | upstream_gene_variant|||ENSG00000223972|DDX11L1|ENST00000456328|||||processed_transcript|1               |
-| CSQ            | 2     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000488147|||||unprocessed_pseudogene|1            |
-| CSQ            | 3     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000541675|||||unprocessed_pseudogene|1            |
-| CSQ            | 4     | upstream_gene_variant|||ENSG00000223972|DDX11L1|ENST00000450305|||||transcribed_unprocessed_pseudogene|1 |
-| CSQ            | 5     | upstream_gene_variant|||ENSG00000223972|DDX11L1|ENST00000515242|||||transcribed_unprocessed_pseudogene|1 |
-| CSQ            | 6     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000538476|||||unprocessed_pseudogene|1            |
-| CSQ            | 7     | upstream_gene_variant|||ENSG00000223972|DDX11L1|ENST00000518655|||||transcribed_unprocessed_pseudogene|1 |
-| CSQ            | 8     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000438504|||||unprocessed_pseudogene|1            |
-| CSQ            | 9     | downstream_gene_variant|||ENSG00000227232|WASH7P|ENST00000423562|||||unprocessed_pseudogene|1            |
-| DP             |       | 76                                                                                                       |
-| FS             |       | 12.516                                                                                                   |
-| HRun           |       | 0                                                                                                        |
-| HaplotypeScore |       | 218.6157                                                                                                 |
-| MQ             |       | 35.31                                                                                                    |
-| MQ0            |       | 0                                                                                                        |
-| MQRankSum      |       | -0.238                                                                                                   |
-| QD             |       | 2.31                                                                                                     |
-| ReadPosRankSum |       | 2.910                                                                                                    |
-+----------------+-------+----------------------------------------------------------------------------------------------------------+
-VEP
-+----------+------+------+------------+-----------------+---------+------------------+-------------------------+-------------+--------+-----------------+------------------------------------+
-| PolyPhen | EXON | SIFT | ALLELE_NUM | Gene            | SYMBOL  | Protein_position | Consequence             | Amino_acids | Codons | Feature         | BIOTYPE                            |
-+----------+------+------+------------+-----------------+---------+------------------+-------------------------+-------------+--------+-----------------+------------------------------------+
-|          |      |      | 1          | ENSG00000223972 | DDX11L1 |                  | upstream_gene_variant   |             |        | ENST00000456328 | processed_transcript               |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000488147 | unprocessed_pseudogene             |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000541675 | unprocessed_pseudogene             |
-|          |      |      | 1          | ENSG00000223972 | DDX11L1 |                  | upstream_gene_variant   |             |        | ENST00000450305 | transcribed_unprocessed_pseudogene |
-|          |      |      | 1          | ENSG00000223972 | DDX11L1 |                  | upstream_gene_variant   |             |        | ENST00000515242 | transcribed_unprocessed_pseudogene |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000538476 | unprocessed_pseudogene             |
-|          |      |      | 1          | ENSG00000223972 | DDX11L1 |                  | upstream_gene_variant   |             |        | ENST00000518655 | transcribed_unprocessed_pseudogene |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000438504 | unprocessed_pseudogene             |
-|          |      |      | 1          | ENSG00000227232 | WASH7P  |                  | downstream_gene_variant |             |        | ENST00000423562 | unprocessed_pseudogene             |
-+----------+------+------+------------+-----------------+---------+------------------+-------------------------+-------------+--------+-----------------+------------------------------------+
-Genotypes
-+---------+------+-------+----+-------+-----+---------+
-| Sample  | Type | AD    | DP | GQ    | GT  | PL      |
-+---------+------+-------+----+-------+-----+---------+
-| M10475  | HET  | 10,2  | 15 | 10.41 | 0/1 | 25,0,10 |
-| M10478  | HET  | 10,4  | 16 | 5.30  | 0/1 | 40,0,5  |
-| M10500  | HET  | 10,10 | 21 | 7.48  | 0/1 | 111,0,7 |
-| M128215 | HET  | 15,5  | 24 | 0.26  | 0/1 | 49,0,0  |
-+---------+------+-------+----+-------+-----+---------+
-<<1
+>>chr1/10001/T (n°1)
+ Variant
+ +--------+--------------------+
+ | Key    | Value              |
+ +--------+--------------------+
+ | CHROM  | chr1               |
+ | POS    | 10001              |
+ | end    | 10001              |
+ | ID     | .                  |
+ | REF    | T                  |
+ | ALT    | TC                 |
+ | QUAL   | 175.91000000000003 |
+ | FILTER |                    |
+ | Type   | INDEL              |
+ +--------+--------------------+
+ Alleles
+ +-----+-----+-----+-------+--------+----+----+-----+-------------+---------------+---------+-----------+
+ | Idx | REF | Sym | Bases | Length | AC | AN | AF  | AC_affected | AC_unaffected | AC_male | AC_female |
+ +-----+-----+-----+-------+--------+----+----+-----+-------------+---------------+---------+-----------+
+ | 0   | *   |     | T     | 1      | 4  | 8  | 0.5 | 2           | 1             | 1       | 2         |
+ | 1   |     |     | TC    | 2      | 4  | 8  | 0.5 | 2           | 1             | 1       | 2         |
+ +-----+-----+-----+-------+--------+----+----+-----+-------------+---------------+---------+-----------+
+ INFO
+ +----------------+-------+----------+
+ | key            | Index | Value    |
+ +----------------+-------+----------+
+ | AC             |       | 4        |
+ | AF             |       | 0.50     |
+ | AN             |       | 8        |
+ | BaseQRankSum   |       | 4.975    |
+ | DP             |       | 76       |
+ | FS             |       | 12.516   |
+ | HRun           |       | 0        |
+ | HaplotypeScore |       | 218.6157 |
+ | MQ             |       | 35.31    |
+ | MQ0            |       | 0        |
+ | MQRankSum      |       | -0.238   |
+ | QD             |       | 2.31     |
+ | ReadPosRankSum |       | 2.910    |
+ +----------------+-------+----------+
+ Genotypes
+ +---------+------+-------+----+----+-----+---------+
+ | Sample  | Type | AD    | DP | GQ | GT  | PL      |
+ +---------+------+-------+----+----+-----+---------+
+ | M10475  | HET  | 10,2  | 15 | 10 | 0/1 | 25,0,10 |
+ | M10478  | HET  | 10,4  | 16 | 5  | 0/1 | 40,0,5  |
+ | M10500  | HET  | 10,10 | 21 | 7  | 0/1 | 111,0,7 |
+ | M128215 | HET  | 15,5  | 24 | 0  | 0/1 | 49,0,0  |
+ +---------+------+-------+----+----+-----+---------+
+ TRIOS
+ +-----------+-----------+-----------+-----------+----------+----------+-----------+
+ | Father-ID | Father-GT | Mother-ID | Mother-GT | Child-ID | Child-GT | Incompat. |
+ +-----------+-----------+-----------+-----------+----------+----------+-----------+
+ | M10475    | 0/1       | M10478    | 0/1       | M10500   | 0/1      |           |
+ +-----------+-----------+-----------+-----------+----------+----------+-----------+
+<<chr1/10001/T n°1
+
 (...)
 ```
 END_DOC
@@ -199,7 +191,7 @@ END_DOC
 		keywords={"vcf","table","visualization"})
 public class VcfToTable extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToTable.class).make();
-
+	private static final String DEFAULT_MARGIN=" ";
 	private static class Column
 		{
 		final String label;
@@ -222,9 +214,9 @@ public class VcfToTable extends Launcher {
 			}
 		public Table(final List<String> labels)
 			{
-			this.columns=labels.stream().
+			this.columns= new ArrayList<>(labels.stream().
 					map(L->new Column(L)).
-					collect(Collectors.toList());
+					collect(Collectors.toList()));
 			}
 		public Table setCaption(final String t) {
 			this.caption=t;
@@ -236,7 +228,7 @@ public class VcfToTable extends Launcher {
 			}
 		public void addList(final List<Object> row)
 			{
-			rows.add(row);
+			this.rows.add(new ArrayList<>(row));
 			for(int i=0;i< row.size()&& i< this.columns.size() ;++i)
 				{
 				final Object o = row.get(i);
@@ -246,6 +238,37 @@ public class VcfToTable extends Launcher {
 				this.columns.get(i).maxLength = Math.max(this.columns.get(i).maxLength,len);
 				}
 			}
+		
+		public Table removeEmptyColumns()
+			{
+			int i=0;
+			while(i < this.columns.size())
+				{
+				boolean empty=true;
+				for(final List<Object> row:this.rows)
+					{
+					if(i>=row.size()) continue;
+					final Object o= row.get(i);
+					if(o==null || "".equals(o)) continue;
+					empty=false;
+					break;
+					}
+				if(empty)
+					{
+					this.columns.remove(i);
+					for(final List<Object> row:this.rows)
+						{
+						if(row.size()>=i) continue;
+						row.remove(i);
+						}
+					}
+				else
+					{
+					++i;
+					}
+				}
+			return this;
+			}
 		/*
 		private int tableWidth() {
 			return this.columns.stream().mapToInt(C->C.maxLength +2 ).sum() 
@@ -254,9 +277,11 @@ public class VcfToTable extends Launcher {
 			}*/
 	
 		
-		public void print(final PrintStream out) {
-			if(this.rows.isEmpty()) return;
+		public void print(final String margin,final PrintStream out) {
+			if(this.rows.isEmpty() || this.columns.isEmpty()) return;
 			final StringBuilder hr= new StringBuilder();
+			
+			out.print(margin);
 			
 			out.println(this.caption);
 			hr.append('+');
@@ -266,8 +291,10 @@ public class VcfToTable extends Launcher {
 				for(int j=0;j< this.columns.get(i).maxLength;j++)hr.append('-');
 				hr.append("-+");
 				}
+			out.print(margin);
 			out.println(hr.toString());
 			
+			out.print(margin);
 			out.print('|');
 			for(int i=0;i< this.columns.size();i++)
 				{
@@ -277,10 +304,13 @@ public class VcfToTable extends Launcher {
 				out.print(" |");
 				}
 			out.println();
+			
+			out.print(margin);
 			out.println(hr.toString());
 			
 			for(int y=0;y< this.rows.size();++y) {
 				final List<Object> row= this.rows.get(y);
+				out.print(margin);
 				out.print("|");
 				for(int i=0;i< this.columns.size() && i< row.size();i++)
 					{
@@ -293,6 +323,7 @@ public class VcfToTable extends Launcher {
 				out.println();
 				
 			}
+			out.print(margin);
 			out.println(hr.toString());
 					
 			}
@@ -311,30 +342,49 @@ public class VcfToTable extends Launcher {
 		private boolean hideNoCallGenotypes=false;
 		@Parameter(names={"-hr","--hideHomRefs"},description="Hide HOM_REF genotypes")
 		private boolean hideHomRefGenotypes=false;
+		@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+Pedigree.OPT_DESCRIPTION+" If undefined, this tool will try to get the pedigree from the header.")
+		private File pedigreeFile=null;
 		
 		private int countVariants=0;
 		
 		private PrintStream out= System.out;
 		private VCFHeader header=null;
-		private VepPredictionParser vepPredictionParser=null;
-		private AnnPredictionParser annPredictionParser=null;
 		private VCFEncoder vcfEncoder=null;
+		private Pedigree pedigree = null;
+		private VcfTools vcfTools = null;
 		TerminalViewer() {
 			}
 		@Override
-		public void writeHeader(VCFHeader header) {
+		public void writeHeader(final VCFHeader header) {
+			String margin="";
 			this.header = header;
 			this.vcfEncoder = new VCFEncoder(header, true, true);
-			this.vepPredictionParser = new VepPredictionParserFactory(this.header).get();
-			this.annPredictionParser = new AnnPredictionParserFactory(this.header).get();
+			this.vcfTools = new VcfTools(header);
 			if(outputFile!=null) {
 				try {
 					this.out = new PrintStream(IOUtils.openFileForWriting(this.outputFile));
 				} catch (final IOException e) {
 					throw new RuntimeIOException(e);
-				}
+					}
 				
 				}
+			
+			if(this.pedigreeFile!=null) {
+				try {
+					this.pedigree = Pedigree.newParser().parse(this.pedigreeFile);
+				} catch (final IOException e) {
+					throw new RuntimeIOException(e);
+					}
+			} else
+				{
+				this.pedigree = Pedigree.newParser().parse(header);
+				}
+			
+			if(this.pedigree.isEmpty())
+				{
+				this.pedigree = null;
+				}
+			
 			if(printHeader)
 				{
 				/** INFO */
@@ -350,12 +400,12 @@ public class VcfToTable extends Launcher {
 								return r;
 								}).
 						forEach(R->t.addList(R));
-					t.print(out);
+					t.print(margin,out);
 					out.println();
 					}
 				/** FORMAT */
 					{
-					Table t=new Table("ID","Type","Count","Description").setCaption("INFO");
+					Table t=new Table("ID","Type","Count","Description").setCaption("FORMAT");
 					header.getFormatHeaderLines().stream().
 						map(F->{
 								final List<Object> r=new ArrayList<>();
@@ -366,54 +416,87 @@ public class VcfToTable extends Launcher {
 								return r;
 								}).
 						forEach(R->t.addList(R));
-					t.print(out);
+					t.print(margin,out);
 					out.println();
 					}
 				/** FILTER */
-				
 					{
-					Table t=new Table("ID","Description").setCaption("FILTERS");
+					final Table t=new Table("ID","Description").setCaption("FILTERS");
 					header.getFilterLines().forEach(
 						L->t.addRow(L.getID(),L.getDescription())
 						);
-					t.print(out);
+					
+					t.removeEmptyColumns().print(margin,out);
 					out.println();
 					}
 				
+				/** OTHER METADATA */
+					{
+					final Table t=new Table("ID","Description").setCaption("Metadata");
+					header.getOtherHeaderLines().forEach(
+						L->t.addRow(L.getKey(),L.getValue())
+						);
 					
-					
-				final SAMSequenceDictionary dict = header.getSequenceDictionary();
-				if (dict != null) {
-					final List<String> h = new ArrayList<>();
-					h.add("Name");
-					h.add("Length");
-					final Set<String> all_attributes = dict.getSequences().stream()
-							.flatMap(S -> S.getAttributes().stream()).map(A -> A.getKey())
-							.filter(S -> !(S.equals("Name") || S.equals("length") || S.equals("Length"))).collect(Collectors.toSet());
-					h.addAll(all_attributes);
-					Table t2 = new Table(h).setCaption("Dict");
-
-					for (final SAMSequenceRecord ssr : dict.getSequences()) {
-						final List<Object> r = new ArrayList<>();
-						r.add(ssr.getSequenceName());
-						r.add(ssr.getSequenceLength());
-						for (final String key : all_attributes) {
-							r.add(ssr.getAttribute(key));
-						}
-						t2.addList(r);
+					t.removeEmptyColumns().print(margin,out);
+					out.println();
 					}
-					t2.print(out);
-				}
-
+					
+				/** DICT */
+					{
+					final SAMSequenceDictionary dict = header.getSequenceDictionary();
+					if (dict != null) {
+						final List<String> h = new ArrayList<>();
+						h.add("Name");
+						h.add("Length");
+						final Set<String> all_attributes = dict.getSequences().stream()
+								.flatMap(S -> S.getAttributes().stream()).map(A -> A.getKey())
+								.filter(S -> !(S.equals("Name") || S.equals("length") || S.equals("Length"))).collect(Collectors.toSet());
+						h.addAll(all_attributes);
+						final Table t2 = new Table(h).setCaption("Dict");
+	
+						for (final SAMSequenceRecord ssr : dict.getSequences()) {
+							final List<Object> r = new ArrayList<>();
+							r.add(ssr.getSequenceName());
+							r.add(ssr.getSequenceLength());
+							for (final String key : all_attributes) {
+								r.add(ssr.getAttribute(key));
+							}
+							t2.addList(r);
+						}
+						t2.print(margin,out);
+						}
+					}
+				if(this.pedigree!=null)
+					{
+					final Table t=new Table("Family","Sample","Father","Mother","Sex","Status").setCaption("Samples");
+					for(final String sample: this.header.getSampleNamesInOrder())
+						{
+						final List<Object> r = new ArrayList<>();
+						final Pedigree.Person person = this.pedigree.getPersonById(sample);
+						
+						r.add(person==null?null:person.getFamily().getId());
+						r.add(sample);
+						r.add(person==null?null:person.getFatherId());
+						r.add(person==null?null:person.getMotherId());
+						r.add(person==null?null:person.getSex());
+						r.add(person==null?null:person.getStatus());
+						}
+					
+					t.print(margin,out);
+					}
+					
+					
 				out.println();
 				}
 			}
 		@Override
 		public void add(final VariantContext vc) {
 			if(out==null) return;
-			++countVariants;
-			out.println(">>"+vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString()+" "+countVariants);
 			
+			final String variantName=vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
+			++countVariants;
+			out.println(">>"+ variantName+" (n°"+countVariants+")");
+			String margin=DEFAULT_MARGIN;
 			{
 			final Table t=new Table("Key","Value").setCaption("Variant");
 			t.addRow("CHROM",vc.getContig());
@@ -423,23 +506,90 @@ public class VcfToTable extends Launcher {
 			t.addRow("REF",vc.getReference().getDisplayString());
 			t.addRow("ALT",vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
 			t.addRow("QUAL",vc.hasLog10PError()?vc.getPhredScaledQual():null);
+			t.addRow("FILTER",vc.isFiltered()?vc.getFilters().stream().collect(Collectors.joining(";")):null);
+			t.addRow("Type",vc.getType());
 			
 			
-			t.print(out);
+			
+			t.print(margin,out);
 			}
 		
 			{
-			 final Table t=new Table("Idx","REF","Sym","Bases","Length").setCaption("Alleles");
+			boolean has_affected_cols=false;
+			int AN=-1;
+			final List<String> h = new ArrayList<>(Arrays.asList("Idx","REF","Sym","Bases","Length"));
+			if(vc.hasGenotypes())
+				{
+				h.add("AC");
+				h.add("AN");
+				h.add("AF");
+				AN = (int)vc.getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->A.isCalled()).count();
+				
+				if(this.pedigree!=null &&
+					this.pedigree.getPersons().stream().filter(P->P.getStatus()!=Pedigree.Status.missing).findAny().isPresent()
+					) {
+					has_affected_cols=true;
+					h.add("AC_affected");
+					h.add("AC_unaffected");
+					}
+				if(this.pedigree!=null ) {
+					h.add("AC_male");
+					h.add("AC_female");
+					}
+				
+				}
+			
+			
+			 final Table t=new Table(h).
+					 setCaption("Alleles");
 			 for(final Allele a: vc.getAlleles())
 			 	{
-				t.addRow(vc.getAlleleIndex(a),
+				final ArrayList<Object> r = new ArrayList<>(Arrays.asList(vc.getAlleleIndex(a),
 						a.isReference()?"*":"",
 						a.isSymbolic()?"*":"",
 						a.getDisplayString(),
 						a.isSymbolic()?null:a.length()
-						);
+						));
+				if(vc.hasGenotypes())
+					{
+					final int AC = (int)vc.getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+					r.add(AC);
+					r.add(AN);
+					r.add(AN<=0?".":String.valueOf(AC/(double)AN));
+					if(has_affected_cols)
+						{
+						int AC_aff=  (int)vc.getGenotypes().stream().filter(G->{
+									final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+									if(p==null || !p.isAffected()) return false;
+									return true;
+									}).
+								flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+						int AC_unaff=  (int)vc.getGenotypes().stream().filter(G->{
+							final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+							if(p==null || !p.isUnaffected()) return false;
+							return true;
+							}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+						r.add(AC_aff);
+						r.add(AC_unaff);
+						}
+					if(this.pedigree!=null ) {
+						int AC_male=  (int)vc.getGenotypes().stream().filter(G->{
+							final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+							if(p==null || !p.isMale()) return false;
+							return true;
+							}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+						int AC_female=  (int)vc.getGenotypes().stream().filter(G->{
+							final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+							if(p==null || !p.isFemale()) return false;
+							return true;
+							}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+						r.add(AC_male);
+						r.add(AC_female);
+						}
+					}
+				t.addList(r);
 			 	}
-			t.print(out);
+			t.print(margin,out);
 			}
 			
 			{
@@ -449,48 +599,47 @@ public class VcfToTable extends Launcher {
 			 	{
 				t.addRow(f);
 			 	}
-			t.print(out);
+			t.print(margin,out);
 			}
 			
-					{		
-					/* INFO */
-					final Table t=new Table("key","Index","Value").setCaption("INFO");
-					final Map<String,Object> atts = vc.getAttributes();
-					for(final String key: new TreeSet<>(atts.keySet()))
-						{
-						Object v= atts.get(key);
-						final List<?> L;
-						if(v instanceof List)
-							{
-							L=(List<?>)v;
-							}
-						else if(v.getClass().isArray())
-							{
-							Object a[]=(Object[])v;
-							L=Arrays.asList(a);
-							}
-						else
-							{
-							L=Collections.singletonList(v);
-							}
-						for(int x=0;x< L.size();++x)
-							{
-							t.addRow(key,(L.size()==1?null:x+1),L.get(x));
-							}
-						}
-					
-					
-					
-				t.print(out);
-				}
-			
-			/** VEP */
-			if(this.vepPredictionParser.isValid())
+			{		
+			/* INFO */
+			final Table t=new Table("key","Index","Value").setCaption("INFO");
+			final Map<String,Object> atts = vc.getAttributes();
+			for(final String key: new TreeSet<>(atts.keySet()))
 				{
-				final List<String> cats = new ArrayList<>(this.vepPredictionParser.getCategories());
+				if(key.equals(this.vcfTools.getVepPredictionParser().getTag()) && this.vcfTools.getVepPredictionParser().isValid()) continue;
+				if(key.equals(this.vcfTools.getAnnPredictionParser().getTag()) && this.vcfTools.getAnnPredictionParser().isValid()) continue;
+				Object v= atts.get(key);
+				final List<?> L;
+				if(v instanceof List)
+					{
+					L=(List<?>)v;
+					}
+				else if(v.getClass().isArray())
+					{
+					Object a[]=(Object[])v;
+					L=Arrays.asList(a);
+					}
+				else
+					{
+					L=Collections.singletonList(v);
+					}
+				for(int x=0;x< L.size();++x)
+					{
+					t.addRow(key,(L.size()==1?null:x+1),L.get(x));
+					}
+				}
+			t.print(margin,out);
+			}
+				
+			/** VEP */
+			if(this.vcfTools.getVepPredictionParser().isValid())
+				{
+				final List<String> cats = new ArrayList<>(this.vcfTools.getVepPredictionParser().getCategories());
 				
 				final Table t = new Table(cats).setCaption("VEP");
-				for(VepPrediction pred: this.vepPredictionParser.getPredictions(vc))
+				for(VepPrediction pred: this.vcfTools.getVepPredictionParser().getPredictions(vc))
 					{
 					final List<Object> r=new ArrayList<>();
 					for(final String cat:cats) {
@@ -498,17 +647,18 @@ public class VcfToTable extends Launcher {
 						}
 					t.addList(r);
 					}
-				t.print(out);
+				t.removeEmptyColumns();
+				t.print(margin,out);
 				}
 
 				
 			/** ANN */
-			if(this.annPredictionParser.isValid())
+			if(this.vcfTools.getAnnPredictionParser().isValid())
 				{
 				Table t = new Table("SO","Allele","Impact","GeneName","GeneId","FeatureType","FeatureId",
 						"BioType","HGVsc","Rank","cDNA-pos","CDS-pos","AA-pos","Distance","Msg").setCaption("ANN");
 				
-				for(final AnnPrediction P: this.annPredictionParser.getPredictions(vc)) {
+				for(final AnnPrediction P: this.vcfTools.getAnnPredictionParser().getPredictions(vc)) {
 					final List<Object> r=new ArrayList<>();
 					r.add(P.getSOTermsString());
 					r.add(P.getAllele());
@@ -526,16 +676,21 @@ public class VcfToTable extends Launcher {
 					r.add(P.getDistance());
 					r.add(P.getMessages());
 					t.addList(r);
-					}					
-				t.print(out);
+					}			
+				t.removeEmptyColumns();
+				t.print(margin,out);
 				}
 			if(!this.hideGenotypes)
 				{
+				//margin = margin+ DEFAULT_MARGIN;
 				final Pattern tab = Pattern.compile("\t");
 				final Pattern colon = Pattern.compile("\\:");
 				final List<String> hds = new ArrayList<>();
+				
 				hds.add("Sample");
 				hds.add("Type");
+				
+				final int prefix_header_size = hds.size();
 				hds.addAll(header.getFormatHeaderLines().
 						stream().
 						map(F->F.getID()).
@@ -552,7 +707,7 @@ public class VcfToTable extends Launcher {
 					final List<Object> r= new ArrayList<>(hds.size());
 					r.add(g.getSampleName());
 					r.add(g.getType().name());
-					for(int j=2 /* 0== sample 1==type*/;j< hds.size();++j)
+					for(int j=prefix_header_size;j< hds.size();++j)
 						{
 						int x=formats.indexOf(hds.get(j));
 						if( x==-1 || x>=gstr.size()) {
@@ -565,9 +720,62 @@ public class VcfToTable extends Launcher {
 						}
 					t.addList(r);
 					}
-				t.print(out);
+				t.removeEmptyColumns();
+				t.print(margin,out);
+				
+				
+				
+				if(this.pedigree!=null) {
+					final Function<Genotype,String> genotype2str = G->
+						G.getAlleles().stream().
+							map(A->A.isNoCall()?Allele.NO_CALL_STRING:String.valueOf(vc.getAlleleIndex(A))).
+							collect(Collectors.joining(G.isPhased()?"|":"/"))
+						;
+						
+					final Table t2=new Table(
+							"Father-ID",
+							"Father-GT",
+							"Mother-ID",
+							"Mother-GT",
+							"Child-ID",
+							"Child-GT",
+							"Incompat."
+							).setCaption("TRIOS");
+					for(final String childId:this.header.getSampleNamesInOrder())
+						{
+						final Pedigree.Person child = this.pedigree.getPersonById(childId);
+						if(child==null) continue;
+						final Genotype gc = vc.getGenotype(childId);
+						if(gc==null) continue;
+						
+						final  Pedigree.Person father= child.getFather();
+						final Genotype gf =  (father==null?null:vc.getGenotype(father.getId()));
+						
+						final  Pedigree.Person mother= child.getMother();
+						final Genotype gm =  (mother==null?null:vc.getGenotype(mother.getId()));
+						
+						if(gf==null && gm==null) continue;
+						final List<Object> r= new ArrayList<>();
+						r.add(father==null?null:father.getId());
+						r.add(gf==null?null:genotype2str.apply(gf));
+						r.add(mother==null?null:mother.getId());
+						r.add(gm==null?null:genotype2str.apply(gm));
+						r.add(child.getId());
+						r.add(genotype2str.apply(gc));
+						r.add(this.vcfTools.isMendelianIncompatibility(gc, gf, gm)?"*":null);
+						
+						
+						t2.addList(r);
+						}
+					
+					t2.print(margin,out);
 				}
-			out.println("<<"+countVariants);
+				
+				
+				
+				}
+			out.println("<<"+variantName+" n°"+countVariants);
+			out.println();
 			out.println();
 			}
 		@Override
@@ -595,7 +803,11 @@ public class VcfToTable extends Launcher {
 		
 		try {
 			in = super.openVcfIterator(oneFileOrNull(args));
-			VCFUtils.copyHeaderAndVariantsTo(in, viewer);
+			viewer.writeHeader(in.getHeader());
+			while(!this.viewer.checkError() && in.hasNext())
+				{
+				viewer.add(in.next());
+				}
 			viewer.out.close();viewer.out=null;
 			in.close();in=null;
 			return 0;
