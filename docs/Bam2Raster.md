@@ -21,6 +21,10 @@ Usage: bam2raster [options] Files
     --highlight
       hightligth those positions.
       Default: []
+    --mapqopacity
+      How to handle the MAPQ/ opacity of the reads.
+      Default: all_opaque
+      Possible Values: [all_opaque, handler1]
     --limit, --maxrows
       Limit number of rows to 'N' lines. negative: no limit.
       Default: -1

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,10 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-
 */
 package com.github.lindenb.jvarkit.tools.bam2graphics;
+import java.awt.AlphaComposite;
 /**
 BEGIN_DOC
 
@@ -62,6 +61,7 @@ END_DOC
 */
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.LinearGradientPaint;
@@ -120,14 +120,45 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 
+
+/**
+
+BEGIN_DOC
+
+## Example
+
+```
+$ java -jar  dist/bam2raster.jar -r "scf7180000354095:168-188"   \
+	-o pit.png \
+	-R  scf_7180000354095.fasta  scf7180000354095.bam 
+	
+	
+
+
+![https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png](https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png)
+
+![https://pbs.twimg.com/media/BYi0X4_CYAAdXl-.png](https://pbs.twimg.com/media/BYi0X4_CYAAdXl-.png)
+
+![https://pbs.twimg.com/media/C_eTeXtW0AAAC-v.jpg](https://pbs.twimg.com/media/C_eTeXtW0AAAC-v.jpg)
+
+![http://i.imgur.com/lBSpTSW.png](http://i.imgur.com/lBSpTSW.png)
+
+```
+
+END_DOC
+
+ */
+
 @Program(name="bam2raster",
 	description="BAM to raster graphics",
-	keywords={"bam","alignment","graphics","visualization","png"}
+	keywords={"bam","alignment","graphics","visualization","png"},
+	biostars=252491
 	)
 public class Bam2Raster extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Bam2Raster.class).make();
 
+	
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
@@ -168,6 +199,12 @@ public class Bam2Raster extends Launcher
 	@Parameter(names={"-V","--variants","--vcf"},description="VCF files used to fill the position to hightlight with POS")
 	private List<String> variants=new ArrayList<>();
 
+	
+	private enum AlphaHandler {all_opaque,handler1}
+	@Parameter(names={"--mapqopacity"},description="How to handle the MAPQ/ opacity of the reads.")
+	private AlphaHandler alpha_handler=AlphaHandler.all_opaque;
+
+	
 	
 	public Bam2Raster()
     	{
@@ -267,6 +304,26 @@ public class Bam2Raster extends Launcher
 			{
 			final Function<SAMRecord,Color> samRecord2color = new ColorUtils.SAMRecordColorExtractor();
 			
+			final Function<SAMRecord,Float> samRecord2alpha = R->{
+				final int mapq = R.getMappingQuality();
+				switch(alpha_handler)
+					{
+					case handler1:
+						if( mapq ==  SAMRecord.UNKNOWN_MAPPING_QUALITY) return 0.5f;
+						if( mapq >= 60 ) return 1f;
+						if(mapq >50 && mapq <= 60) return 0.9f;
+						if(mapq >40 && mapq <= 50) return 0.8f;
+						if(mapq >30 && mapq <= 40) return 0.7f;
+						if(mapq >20 && mapq <= 30) return 0.6f;
+						if(mapq >10 && mapq <= 20) return 0.5f;
+						return 0.4f;
+					case all_opaque: return 1f;
+					default: return 1f;
+					}
+				
+			};
+
+			
 			final Function<Character, Color> base2color = C ->
 				{
 				switch(Character.toUpperCase(C))
@@ -332,7 +389,10 @@ public class Bam2Raster extends Launcher
 					};
 				}
 			final Graphics2D g= this.image.createGraphics();
-			//g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+			g.setRenderingHint(
+					RenderingHints.KEY_RENDERING,
+					RenderingHints.VALUE_RENDER_QUALITY
+					);
 			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, imageSize.width, imageSize.height);
 			LOG.info("image : "+imageSize.width+"x"+imageSize.height);
@@ -472,8 +532,12 @@ public class Bam2Raster extends Launcher
 						path.closePath();
 						shapeRec=path;
 						}
-					
+					final Composite oldComposite = g.getComposite();
 					if(printThisRow) {
+						
+						g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,samRecord2alpha.apply(rec)));
+						
+					
 						Color ycColor = samRecord2color.apply(rec);
 						
 						final Stroke oldStroke = g.getStroke();
@@ -500,6 +564,7 @@ public class Bam2Raster extends Launcher
 						g.setColor(Bam2Raster.this.strokeColorizer.getColor(rec));
 						g.draw(shapeRec);
 						g.setStroke(oldStroke);
+						
 						}
 					
 					final Shape oldClip=g.getClip();
@@ -691,6 +756,7 @@ public class Bam2Raster extends Launcher
 						}
 					
 					g.setClip(oldClip);
+					g.setComposite(oldComposite);
 					}
 				if(printThisRow) 
 					{
@@ -904,7 +970,10 @@ public class Bam2Raster extends Launcher
 				
 				final BufferedImage img= new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
 				final Graphics2D g=img.createGraphics();
-				//g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+				g.setRenderingHint(
+						RenderingHints.KEY_RENDERING,
+						RenderingHints.VALUE_RENDER_QUALITY
+						);
 
 				int y=0;
 				for(final String key:this.key2partition.keySet()) {

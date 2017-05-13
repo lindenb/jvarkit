@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+import com.github.lindenb.semontology.Term;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
@@ -74,14 +75,15 @@ BEGIN_DOC
 
 
 Filters a VCF with javascript ( java Nashorn engine http://www.oracle.com/technetwork/articles/java/jf14-nashorn-2126515.html )
+
 This tool is not safe for a public Galaxy server, because the javascript code can access the filesystem.
 
 
 the script binds the following variables:
 
 
- *   variant : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html )
- *   header : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html ).
+ *   variant : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) )
+ *   header : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html) ).
 
 
 
@@ -319,14 +321,19 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="vcffilterjs",description="Filtering VCF with javascript (java Nashorn).")
+@Program(
+		name="vcffilterjs",
+		description="Filtering VCF with javascript expressions",
+		keywords={"vcf","filter","javascript","json","nashorn"},
+		terms=Term.ID_0000003,
+		biostars={88921,233587,104021,213032,215885,243972,111924,196057,142215,229935,181358,184966,245802,7403,245181,
+				117974,242281,252580}
+		)
 public class VCFFilterJS
 	extends Launcher
 	{	
 	private static final Logger LOG = Logger.build(VCFFilterJS.class).make();
 
-
-	
 	private CompiledScript compiledScript = null;
 	
 	
@@ -499,7 +506,7 @@ public class VCFFilterJS
 				}
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -517,9 +524,9 @@ public class VCFFilterJS
 			{
 			this.compiledScript = super.compileJavascript(this.scriptExpr,this.scriptFile);
 			
-			return doVcfToVcf(args, outputFile);
+			return doVcfToVcf(args, this.outputFile);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

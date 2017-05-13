@@ -39,7 +39,40 @@ Usage: vcffilterjs [options] Files
 
 ## Description
 
-Filtering VCF with javascript (java Nashorn).
+Filtering VCF with javascript expressions
+
+
+## Keywords
+
+ * vcf
+ * filter
+ * javascript
+ * json
+ * nashorn
+
+
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/88921
+ * https://www.biostars.org/p/233587
+ * https://www.biostars.org/p/104021
+ * https://www.biostars.org/p/213032
+ * https://www.biostars.org/p/215885
+ * https://www.biostars.org/p/243972
+ * https://www.biostars.org/p/111924
+ * https://www.biostars.org/p/196057
+ * https://www.biostars.org/p/142215
+ * https://www.biostars.org/p/229935
+ * https://www.biostars.org/p/181358
+ * https://www.biostars.org/p/184966
+ * https://www.biostars.org/p/245802
+ * https://www.biostars.org/p/7403
+ * https://www.biostars.org/p/245181
+ * https://www.biostars.org/p/117974
+ * https://www.biostars.org/p/242281
+ * https://www.biostars.org/p/252580
+
 
 ## Compilation
 
@@ -100,14 +133,15 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
 Filters a VCF with javascript ( java Nashorn engine http://www.oracle.com/technetwork/articles/java/jf14-nashorn-2126515.html )
+
 This tool is not safe for a public Galaxy server, because the javascript code can access the filesystem.
 
 
 the script binds the following variables:
 
 
- *   variant : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html )
- *   header : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html ).
+ *   variant : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) )
+ *   header : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html) ).
 
 
 
