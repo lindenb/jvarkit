@@ -83,12 +83,12 @@ public class Biostar81455 extends Launcher
 	private static final Logger LOG = Logger.build(Biostar81455.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
-	@Parameter(names={"-KG","--knownGene"},description="KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.",required=true)
-	private String kgUri = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	@Parameter(names={"-KG","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC,required=true)
+	private String kgUri = KnownGene.getDefaultUri();
 	
 	private IntervalTreeMap<List<KnownGene>> kgMap=null;
 	

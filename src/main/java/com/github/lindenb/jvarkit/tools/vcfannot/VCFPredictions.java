@@ -159,12 +159,12 @@ public class VCFPredictions extends Launcher
 
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
-	@Parameter(names={"-k","--knownGene"},description="KnownGene data URI/File. Beware chromosome names are formatted the same as your REFERENCE.",required=true)
-	private String kgURI = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	@Parameter(names={"-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC,required=true)
+	private String kgURI =KnownGene.getDefaultUri();
 
 	@Parameter(names={"-soacn","--printsoacn"},description="Print SO:term accession rather than label")
 	private boolean print_SO_ACN = false;
@@ -172,7 +172,7 @@ public class VCFPredictions extends Launcher
 	@Parameter(names={"-vep","--vep"},description="Variant Effect Predictor output Syntax")
 	private boolean vepSyntax = false;
 
-	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File referenceFile = null;
 
 	
@@ -305,7 +305,7 @@ public class VCFPredictions extends Launcher
 		try {
 			if (this.indexedFastaSequenceFile.getSequenceDictionary() == null) {
 				throw new IOException(
-						"Cannot get sequence dictionary for REF : " + getMessageBundle("picard.dictionary.needed"));
+						"Cannot get sequence dictionary for reference");
 			}
 			int n_genes = 0;
 			this.knownGenes = new IntervalTreeMap<>();
@@ -810,7 +810,8 @@ public class VCFPredictions extends Launcher
 		
 		return RETURN_OK;
 		} catch(Exception err ) {
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 		} finally {
 			CloserUtil.close(this.indexedFastaSequenceFile);
 		}
@@ -820,11 +821,13 @@ public class VCFPredictions extends Launcher
 	public int doWork(final List<String> args) {
 			if(this.referenceFile==null) 
 			{
-			return wrapException("Reference undefined.");
+			LOG.error("Reference undefined.");
+			return -1;
 			}
 		if(this.kgURI==null || this.kgURI.trim().isEmpty()) 
 			{
-			return wrapException("knownGene undefined.");
+			LOG.error("knownGene undefined.");
+			return -1;
 			}
 		return doVcfToVcf(args,outputFile);
 		}

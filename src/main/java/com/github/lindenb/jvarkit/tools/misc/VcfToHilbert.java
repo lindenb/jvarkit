@@ -97,7 +97,7 @@ public class VcfToHilbert extends Launcher
     /** radius of a point */
     @Parameter(names={"-r","--radius"},description="Radius Size")
     private float radiusSize =3.0f;
-    @Parameter(names={"-o","--out"},description="Output File")
+    @Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
     private File imgOut =null;
     
     private abstract class HilbertSegmentHandler

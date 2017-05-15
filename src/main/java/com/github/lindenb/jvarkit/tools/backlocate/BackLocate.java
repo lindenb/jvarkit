@@ -120,7 +120,7 @@ public class BackLocate
 	private boolean printSequences = false;
 
 	@Parameter(names={"-k","--kg"},description="UCSC knownGene URI")
-	private String knownGeneURI = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	private String knownGeneURI = KnownGene.getDefaultUri();
 
 	@Parameter(names={"-x","--kgxref"},description="UCSC kgXRef URI")
 	private String kgXRef = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz";
@@ -128,7 +128,7 @@ public class BackLocate
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File indexedRefFile=null;
 	
-	@Parameter(names={"-o","--out"},description="File output. Default:stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 
 	

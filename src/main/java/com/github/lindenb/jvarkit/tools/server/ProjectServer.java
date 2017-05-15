@@ -35,6 +35,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -53,13 +54,67 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public  class ProjectServer extends AbstractProjectServer {
 
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(ProjectServer.class);
+@Program(name="projectserver",
+	description="Jetty Based http server serving VCF, BAM files")
+public  class ProjectServer extends Launcher {
+	private static final Logger LOG = Logger.build(ProjectServer.class).make();
+	
+	@Parameter(names="--port",description="server port")
+	private int serverPort = 8080;
+
+	
+	
+	/** create jetty handlers */
+	protected org.eclipse.jetty.server.handler.HandlerCollection createHandlers(final java.util.List<String> args) {
+		final org.eclipse.jetty.server.handler.HandlerCollection handlers= new org.eclipse.jetty.server.handler.HandlerCollection();
+		final  org.eclipse.jetty.server.Handler handler = createDefaultHandler(args);
+		if(handler!=null) {
+			handlers.addHandler(handler);
+			}
+		else
+			{
+			LOG.warn("No default handler defined");
+			}
+		return handlers;
+	}
+	
+	
+	/** create a new void jetty server */
+	protected org.eclipse.jetty.server.Server createServer() {
+		LOG.info("creating server listening on port "+this.serverPort);
+	   return new org.eclipse.jetty.server.Server(this.serverPort);
+	}
+	
+	/** create a new void jetty server */
+	protected org.eclipse.jetty.server.Server configure(final org.eclipse.jetty.server.Server server,final java.util.List<String> args) {
+	     server.setHandler(createHandlers(args));
+	    return server;
+		}
+	
+	
+	/** create the server, start and join, should be called by 'call()' */
+	protected void createAndRunServer(final java.util.List<String> args) throws Exception
+		{
+	    final org.eclipse.jetty.server.Server server = this.createServer();
+	    configure(server,args);
+	    LOG.info("Starting server "+getProgramName()+" on port "+this.serverPort);
+	    server.start();
+	    LOG.info("Server started Press Ctrl-C to stop");
+	    server.join();
+		}
+	
+	
+	
 	
 	private static class UserPrefs {
 		
@@ -146,7 +201,10 @@ public  class ProjectServer extends AbstractProjectServer {
 			{
 			CloserUtil.close(in);
 			}
+		//TODO
+		projects= new ArrayList<>();
 		}
+		
 		@Override
 		public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
 				throws IOException, ServletException
@@ -193,24 +251,24 @@ public  class ProjectServer extends AbstractProjectServer {
 		
 	}
 	
-	@Override
 	protected Handler createDefaultHandler(final List<String> args) {
 		return new ProjectHandler(new File(args.get(0)));
 	}
 	
+	
 	@Override
-	public java.util.Collection<Throwable> call() throws Exception
-		{
+	public int doWork(List<String> args) {
+	
 		try {
-			final List<String> inputFiles = super.getInputFiles();
-			if( inputFiles.size()!=1) {
+			if( args.size()!=1) {
 				return wrapException("Illegal Argument. Expected one config file");
 			}
-			super.createAndRunServer(inputFiles);
+			this.createAndRunServer(args);
 		    return RETURN_OK;
 			}
-		catch (Exception e) {
-			return wrapException(e);
+		catch (Exception err) {
+			LOG.error(err);
+			return -1;
 			}
 		
 		}	

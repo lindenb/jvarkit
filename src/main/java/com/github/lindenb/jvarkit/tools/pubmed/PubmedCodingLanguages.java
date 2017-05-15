@@ -56,8 +56,8 @@ import htsjdk.samtools.util.CloserUtil;
 /**
 BEGIN_DOC
 
-
 ## Example
+
 
 ```
 $ java -jar dist/pubmeddump.jar 'Bioinformatics 2017' | java -jar dist/pubmedcodinglang.jar
@@ -107,6 +107,8 @@ plot 'table.txt' using 2:xtic(1), for [i=3:N] '' using i;
 ```
 
 
+![https://pbs.twimg.com/media/C_AZTzFXoAUpiuI.jpg:large](https://pbs.twimg.com/media/C_AZTzFXoAUpiuI.jpg:large)
+
 END_DOC
  */
 @Program(name="pubmedcodinglang",
@@ -119,7 +121,7 @@ public class PubmedCodingLanguages
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(PubmedCodingLanguages.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
 
 	private interface ProgLanguage {

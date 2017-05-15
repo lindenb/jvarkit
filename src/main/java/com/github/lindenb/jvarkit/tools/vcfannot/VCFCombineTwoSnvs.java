@@ -170,12 +170,12 @@ public class VCFCombineTwoSnvs extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFCombineTwoSnvs.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
-	@Parameter(names={"-k","--knownGene"},description="KnownGene data URI/File. Beware chromosome names are formatted the same as your REFERENCE.",required=true)
-	private String kgURI = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	@Parameter(names={"-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC ,required=true)
+	private String kgURI  = KnownGene.getDefaultUri();
 
 	@Parameter(names={"-B","--bam"},description="Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'")
 	private File bamIn = null;

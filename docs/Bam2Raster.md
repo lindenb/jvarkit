@@ -50,7 +50,7 @@ Usage: bam2raster [options] Files
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
       for a complete syntax.
-      Default: Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     --spaceyfeature
       number of pixels between features
       Default: 4
@@ -78,6 +78,12 @@ BAM to raster graphics
  * graphics
  * visualization
  * png
+
+
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/252491
 
 
 ## Compilation
@@ -165,5 +171,26 @@ I use the UCSC/IGV color tag 'YC' when available (see also samcolortag)
 
 <img src="https://pbs.twimg.com/media/C_eTeXtW0AAAC-v.jpg"/>
 
+
+
+## Example
+
+```
+$ java -jar  dist/bam2raster.jar -r "scf7180000354095:168-188"   \
+	-o pit.png \
+	-R  scf_7180000354095.fasta  scf7180000354095.bam 
+	
+	
+
+
+![https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png](https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png)
+
+![https://pbs.twimg.com/media/BYi0X4_CYAAdXl-.png](https://pbs.twimg.com/media/BYi0X4_CYAAdXl-.png)
+
+![https://pbs.twimg.com/media/C_eTeXtW0AAAC-v.jpg](https://pbs.twimg.com/media/C_eTeXtW0AAAC-v.jpg)
+
+![http://i.imgur.com/lBSpTSW.png](http://i.imgur.com/lBSpTSW.png)
+
+```
 
 

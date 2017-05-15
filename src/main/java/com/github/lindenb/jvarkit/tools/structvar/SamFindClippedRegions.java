@@ -76,11 +76,13 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 
 import java.util.function.Predicate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
+@Program(name="samfindclippedregions")
 public class SamFindClippedRegions extends Launcher
 	{
 	private static final Logger LOG=Logger.build(SamFindClippedRegions.class).make();

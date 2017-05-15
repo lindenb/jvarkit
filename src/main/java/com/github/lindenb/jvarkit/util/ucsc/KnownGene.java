@@ -48,6 +48,20 @@ import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 
 public class KnownGene implements Iterable<Integer>,Feature
 	{
+	public static final String OPT_KNOWNGENE_DESC="UCSC knownGene URI. Beware chromosome names are formatted the same as your REFERENCE";
+	
+	/** returns the UCSC URL for knownGene for the given UCSC build e.g: 'hg19' */
+	public static String getUri(final String ucscBuild)
+		{
+		return "http://hgdownload.cse.ucsc.edu/goldenPath/"+ ucscBuild +"/database/knownGene.txt.gz";
+		}
+	
+	/** returns the default UCSC URL for knownGene */
+	public static String getDefaultUri()
+		{
+		return getUri("hg19");
+		}
+	
 	private String name;
 	private String chrom;
 	private char strand;

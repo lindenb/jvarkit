@@ -202,7 +202,7 @@ END_DOC
 	public class SamScanSplitReads extends Launcher {
 	private static long ID_GENERATOR=0L;
 	private static final Logger LOG = Logger.build(SamScanSplitReads.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.")
 	private int extentd=20;

@@ -29,11 +29,13 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+
+
 @Program(name="vcf2postscript",description="Print VCF context as Postscript")
 public class VcfToPostscript extends Launcher
 	{
 	private final static Logger LOG=Logger.build(VcfToPostscript.class).make();
-	@Parameter(names={"-o","--out"},description="OUtput file")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 
 	private List<KnownGene> genes=new ArrayList<KnownGene>();
@@ -42,8 +44,8 @@ public class VcfToPostscript extends Launcher
 	private int chromStart=Integer.MAX_VALUE;
 	private int chromEnd=Integer.MIN_VALUE;
 	
-	@Parameter(names={"-kg","-k","--knownGene"},description="UCSC known Genes URI")
-	private String ucscKnownGene="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	@Parameter(names={"-kg","-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC)
+	private String ucscKnownGene=KnownGene.getDefaultUri();
 
 
 	private Map<String,List<KnownGene>> chrom2knownGenes=new HashMap<String,List<KnownGene>>();

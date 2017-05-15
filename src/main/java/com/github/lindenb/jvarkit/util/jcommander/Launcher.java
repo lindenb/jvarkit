@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,7 +62,6 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.converters.IntegerConverter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -79,7 +77,6 @@ import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -89,10 +86,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 
 
 public class Launcher {
-private static final Logger LOG=Logger.build().
-			prefix("Launcher").
-			make();
-public static final String[]OUTPUT_OPTIONS={"-o","--out"};
+private static final Logger LOG=Logger.build( Launcher.class).make();
 public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Default: stdout";
 public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Reference file. "+
 		"This file must be indexed with samtools faidx and with picard CreateSequenceDictionary";
@@ -560,60 +554,7 @@ public class WritingBamArgs
 		}
 	}
 
-public static class PrintWriterOnDemand
-	extends PrintWriter
-	{
-	private final File fileout;
-	private boolean delegate_created;
-	public PrintWriterOnDemand(final File out) {
-		super(new NullOuputStream());
-		this.fileout=out;
-		}
-	public PrintWriterOnDemand() {
-		this(null);
-		}
-	@Override
-	public void write(char[] buf, int off, int len) {
-		if(!this.delegate_created)
-			{
-			 try {
-		         synchronized (lock)
-		          	{
-		        	if(this.delegate_created) {
-		        		}
-		        	else if(this.fileout==null)
-					   {
-					   super.out=new PrintWriter(System.out);
-					   }
-		        	else
-						{
-						super.out =IOUtils.openFileForPrintWriter(fileout);
-						}
-		          	}
-		         this.delegate_created=true;
-				}    
-		    catch(final Exception err)
-		    	{
-		    	throw new RuntimeIOException(err);
-		    	}
-			}
-		super.write(buf, off, len);
-		}
-	}
 
-public static class VcfWriterOnDemandConverter
-	implements IStringConverter<VcfWriterOnDemand> {
-	@Override
-	public VcfWriterOnDemand convert(String s) {
-		if(s.equals("-") || s.equals("stdin") || s.isEmpty()) {
-			return new VcfWriterOnDemand();
-			}
-		else
-			{
-			return new VcfWriterOnDemand(new File(s));
-			}
-		}
-	}
 
 public static class DimensionConverter
 	implements IStringConverter<Dimension>
@@ -765,8 +706,6 @@ public Launcher()
 	
 	 @SuppressWarnings({"rawtypes","unchecked","serial"})
 	final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
-		    put(VcfWriterOnDemand.class, VcfWriterOnDemandConverter.class);
-		    put(VariantContextWriter.class, VcfWriterOnDemandConverter.class);
 		    put(Dimension.class,DimensionConverter.class);
 		    put(SamRecordFilter.class,SamFilterParser.StringConverter.class);
 		    put(Random.class,RandomConverter.class);

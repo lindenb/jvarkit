@@ -83,7 +83,8 @@ END_DOC
 
 @Program(name="sortvcfonref2",
 	description="Sort a VCF using the internal dictionary or an external reference order (Deprecated: use picard SortVcf).",
-	deprecatedMsg="use picard sortvcf"
+	deprecatedMsg="use picard sortvcf",
+	keywords={"vcf","sort"}
 	)
 public class SortVcfOnRef2 extends Launcher
 	{
@@ -91,10 +92,10 @@ public class SortVcfOnRef2 extends Launcher
 	private static final Logger LOG = Logger.build(SortVcfOnRef2.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference")
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File refdict = null;
 
 	@ParametersDelegate

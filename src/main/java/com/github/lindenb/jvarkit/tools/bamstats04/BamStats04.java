@@ -38,6 +38,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -50,6 +51,7 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 
 /**
@@ -84,23 +86,20 @@ public class BamStats04 extends Launcher
 	private static final Logger LOG = Logger.build(BamStats04.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
 	@Parameter(names={"-cov","--cov"},description="min coverage to say the position is not covered")
 	private int MIN_COVERAGE = 0 ;
 
-	@Parameter(names={"-mmq","--mmq"},description="min mapping quality")
-	private int MMQ = 0 ;
-
-	@Parameter(names={"-keeporphan","--keeporphan"},description="if set: accept not properly aligned pairs.")
-	private boolean keep_orphans = false;
+	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 
 	@Parameter(names={"-B","--bed"},description="Bed File. Required",required=true)
 	private File bedFile = null;
 
-	@Parameter(names={"-R","--ref"},description="Optional REFerence Genome. If set, a column with the GC% will be added")
+	@Parameter(names={"-R","--ref"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION+" If set, a column with the GC% will be added")
 	private File faidxFile = null;
 
 	@Override
@@ -160,20 +159,9 @@ public class BamStats04 extends Launcher
 						{
 						final SAMRecord rec=r.next();
 						if(rec.getReadUnmappedFlag()) continue;
-						if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-						if(rec.getDuplicateReadFlag() ) continue;
-						if(!this.keep_orphans && rec.getReadPairedFlag() && !rec.getProperPairFlag())
-							{
-							continue;
-							}
-						if(rec.isSecondaryOrSupplementary()) continue;
+						if(this.filter.filterOut(rec)) continue;
 						if(!rec.getReferenceName().equals(bedLine.getContig())) continue;
-						if(rec.getMappingQuality()==255 ||
-							rec.getMappingQuality()==0 ||
-							rec.getMappingQuality()< this.MMQ)
-							{
-							continue;
-							}
+						
 						final Cigar cigar=rec.getCigar();
 						if(cigar==null) continue;
 			    		int refpos1=rec.getAlignmentStart();

@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.tools.treepack;
 
 import java.awt.Rectangle;
 import java.awt.geom.Rectangle2D;
+import java.io.File;
 import java.io.IOException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -46,16 +47,24 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 
 
 public abstract class AbstractTreePackCommandLine
-	extends com.github.lindenb.jvarkit.util.command.Command
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(AbstractTreePackCommandLine.class);
+	private static final Logger LOG = Logger.build(AbstractTreePackCommandLine.class).make();
 
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+	
 	protected Rectangle viewRect=new Rectangle(1000,1000);
 	private final String XLINK="http://www.w3.org/1999/xlink";
 	private final String JVARKIT_NS="https://github.com/lindenb/jvarkit";
@@ -394,14 +403,13 @@ public abstract class AbstractTreePackCommandLine
 				;
 		}
 	
-	protected abstract java.io.OutputStream openFileOrStdoutAsStream() throws java.io.IOException;
 	
-	protected void svg() throws XMLStreamException,IOException
+	protected void svg(final File out) throws XMLStreamException,IOException
 	  	{
 	  	LOG.info("writing svg");
 		XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 		XMLStreamWriter w= xmlfactory.createXMLStreamWriter(
-				openFileOrStdoutAsStream(),"UTF-8");
+				super.openFileOrStdoutAsStream(out),"UTF-8");
 		w.writeStartDocument("UTF-8","1.0");
 		w.writeStartElement("svg","svg",SVG.NS);
 		
@@ -423,11 +431,11 @@ public abstract class AbstractTreePackCommandLine
 
 		
 		w.writeStartElement("svg","title",SVG.NS);
-		w.writeCharacters(getName());
+		w.writeCharacters(getProgramName());
 		w.writeEndElement();
 		w.writeComment("Cmd-Line:"+getProgramCommandLine());
 		w.writeComment("Version "+getVersion());
-		w.writeComment("Author "+getAuthorName());
+		w.writeComment("Author Pierre Lindenbaum");
 		rootNode.svg(w);
 		w.writeEndElement();//svg
 		w.writeEndDocument();

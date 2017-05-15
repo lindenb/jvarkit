@@ -325,7 +325,7 @@ public class VcfToRdf extends Launcher
 	private static final Logger LOG = Logger.build(VcfToRdf.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
@@ -484,7 +484,7 @@ public class VcfToRdf extends Launcher
 					"dc:description",h.getValue()
 					);
 			}
-		final Pedigree pedigree = Pedigree.readPedigree(header);
+		final Pedigree pedigree = Pedigree.newParser().parse(header);
 		for(final Pedigree.Person pe:pedigree.getPersons()) {
 			final URI sample = URI.create("urn:sample/"+pe.getId());
 			emit(sample,

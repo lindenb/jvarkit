@@ -8,6 +8,11 @@ Usage: bamcmpcoverage [options] Files
   Options:
     -b, --bed
       restrict to region
+    -filter, --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exits
     -M, --maxDepth
@@ -17,7 +22,7 @@ Usage: bamcmpcoverage [options] Files
       min depth
       Default: 0
     -o, --output
-      Output image file. Required
+      Output file. Optional . Default: stdout
     -r, --region
       restrict to region
     --version
@@ -32,6 +37,15 @@ Usage: bamcmpcoverage [options] Files
 ## Description
 
 Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2
+
+
+## Keywords
+
+ * sam
+ * bam
+ * visualization
+ * coverage
+
 
 ## Compilation
 

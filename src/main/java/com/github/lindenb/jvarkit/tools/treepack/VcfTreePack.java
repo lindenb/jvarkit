@@ -28,8 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.treepack;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 
 import javax.script.CompiledScript;
@@ -51,10 +51,131 @@ import htsjdk.variant.vcf.VCFHeader;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-public class VcfTreePack extends  AbstractVcfTreePack
+
+/**
+
+BEGIN_DOC
+
+
+
+
+### Synopsis
+
+
+
+
+```
+$ java -jar dist/vcftreepack.jar -c config.xml (stdin|vcf1 vcf2 vcf3) > out.svg
+```
+
+
+
+
+
+### XML config
+
+
+XML root is <treepack>. children are '<node>' or '<sample>'.
+A '<node>' has an attribute 'name'. The text content of the <node> will be evaluated as a javascript expression with the embedded javascript engine.
+The javascript engine injects :
+
+ *  variant a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html
+ *  header a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html.
+ *  style a java.util.concurrent.atomic.AtomicReference<String> that, if it is not empty, will be used as the SVG/CSS style of the current node.
+
+
+A special node '<sample>' can be called once. <sample> will generate a new node splitting by sample name and injects a new variable 'genotype' a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/Genotype.html .
+A special node '<alt>' can be called once. <sample> will generate a new node splitting by ALT allele name and injects a new variable 'alt' a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/Allele.html .
+
+
+
+### Example
+
+
+
+
+```
+$ cat config.xml
+
+<?xml version="1.0"?>
+<treepack>
+  <samples/>
+  <node name="ref">variant.getReference()</node>
+  <node name="alt">variant.getAlternateAlleles()</node>
+</treepack>
+
+```
+
+
+
+
+
+
+```
+
+<?xml version="1.0"?>
+<treepack>
+  <samples/>
+  <node name="indels">
+  function fun() {
+	  if(variant.isSNP()) return null;
+	  if(genotype.isNoCall() || genotype.isHomRef()) return null;
+	  return "INDEL";
+	  }
+fun(); 
+  </node>
+</treepack>
+
+$ echo 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y MT |\
+tr " " "\n" |\
+awk '{printf("ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/ByPopulation/YRI-1412-%s.vcf.gz\n",$1);}' |\
+xargs java -jar dist/vcftreepack.jar -c config.xml -x 5000x5000 > output.svg
+
+```
+
+
+
+![img](https://pbs.twimg.com/media/BeR15u-CAAAwE9Z.png:large)
+
+
+
+### See also
+
+
+
+ *  BamTreePack
+ *  FastqRecordTreePack
+ *  http://www.cs.umd.edu/hcil/treemap-history/
+
+
+
+
+
+
+END_DOC
+*/
+
+
+@Program(name="vcftreepack",description="Create a TreeMap from one or more VCF. Ouput is a SVG file.")
+public class VcfTreePack extends  AbstractTreePackCommandLine
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfTreePack.class);
+	
+	private static final Logger LOG = Logger.build(VcfTreePack.class).make();
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile = null;
+
+
+	@Parameter(names={"-c","--config"},description="XML config file")
+	private File configFile = null;
+
+	@Parameter(names={"-x","--dimension"},description="dimension of the output rectangle")
+	private String dimensionStr = "1000x1000";
+
+	
 	
 	private class SampleNodeFactory extends NodeFactory {
 		@Override
@@ -116,8 +237,8 @@ public class VcfTreePack extends  AbstractVcfTreePack
 		 }
 
 	private void parseConfigFile() throws IOException{
-		if(super.configFile==null || !super.configFile.exists()) {
-			throw new IOException("Undefined config file option -"+OPTION_CONFIGFILE);
+		if(this.configFile==null || !this.configFile.exists()) {
+			throw new IOException("Undefined config file option");
 		}
 		try {
 			LOG.info("getting javascript manager");
@@ -132,7 +253,7 @@ public class VcfTreePack extends  AbstractVcfTreePack
 			final DocumentBuilderFactory dbf=DocumentBuilderFactory.newInstance();
 			final DocumentBuilder db=dbf.newDocumentBuilder();
 			LOG.info("parsing "+configFile);
-			final Document dom = db.parse(super.configFile);
+			final Document dom = db.parse(this.configFile);
 			final Element root=dom.getDocumentElement();
 			if(root==null) throw new RuntimeException("not root node in "+this.configFile);
 			if(!root.getTagName().equals("treepack"))
@@ -154,12 +275,12 @@ public class VcfTreePack extends  AbstractVcfTreePack
 				Element e1=Element.class.cast(c);
 				if(e1.getTagName().equals("node")) {
 				att= e1.getAttributeNode("name");
-				if(att==null) throw new IOException("missing attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+				if(att==null) throw new IOException("missing attribute 'name' in element " +e1.getTagName()+" in "+this.configFile);
 				final String name=att.getValue().trim();
-				if(name.isEmpty())  throw new IOException("empty attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+				if(name.isEmpty())  throw new IOException("empty attribute 'name' in element " +e1.getTagName()+" in "+this.configFile);
 				
 				final String content=e1.getTextContent();
-				if(content==null || content.trim().isEmpty())  throw new IOException("empty text content under element " +e1.getTagName()+" in "+super.configFile);
+				if(content==null || content.trim().isEmpty())  throw new IOException("empty text content under element " +e1.getTagName()+" in "+this.configFile);
 				CompiledScript compiled =null;
 				try {
 					compiled=compilingEngine.compile(content);
@@ -194,23 +315,21 @@ public class VcfTreePack extends  AbstractVcfTreePack
 			}
 		}
 
-	
-	
 	@Override
-	public Collection<Throwable> call() throws Exception {
-		setDimension(super.dimensionStr);
+	public int doWork(List<String> args) {
+		setDimension(this.dimensionStr);
 		
 		
 		
 		VcfIterator in=null;
-		final List<String> args= super.getInputFiles();
-		try
+ 		try
 			{
 			parseConfigFile();
 			
 			if(super.nodeFactoryChain.next==null)
 				{
-				return wrapException("no path defined");
+				LOG.error("no path defined");
+				return -1;
 				}
 			
 			if(args.isEmpty())
@@ -230,12 +349,13 @@ public class VcfTreePack extends  AbstractVcfTreePack
 					}
 				}
 			this.layout();
-			this.svg();
+			this.svg(this.outputFile);
 			return RETURN_OK;
 			}
 		catch (final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

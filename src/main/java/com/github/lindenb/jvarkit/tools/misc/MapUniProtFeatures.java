@@ -65,7 +65,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.semontology.Term;
 
 /**
 
@@ -172,8 +171,8 @@ public class MapUniProtFeatures extends Launcher
 			pw.println(this.toString());
 			}
 		}
-	@Parameter(names="-k",description=" (uri) UCSC KnownGene data URI/File. should look like http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz . Beware chromosome names are formatted the same as your REFERENCE.")
-	private String kgUri="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz";
+	@Parameter(names="-k",description=KnownGene.OPT_KNOWNGENE_DESC)
+	private String kgUri=KnownGene.getDefaultUri();
 	
 	@Parameter(names="-u",description="Uniprot.xml.gz URL/File.")
 	private String UNIPROT="ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz";
@@ -181,7 +180,7 @@ public class MapUniProtFeatures extends Launcher
 
 	@Parameter(names="-R",description=Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File REF=null;
-	@Parameter(names="-o",description=" output file")
+	@Parameter(names="-o",description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File OUT=null;
 
 	

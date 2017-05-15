@@ -24,8 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.treepack;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 
 import javax.script.CompiledScript;
@@ -47,11 +47,108 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.CloserUtil;
 
+/**
 
-public class BamTreePack extends AbstractBamTreePack
+BEGIN_DOC
+
+
+
+
+### Synopsis
+
+
+
+
+```
+$ $ java -jar dist/bamtreemap.jar -c config.xml (stdin|bam1 bam2 ....) > out.svg
+```
+
+
+
+
+
+### XML config
+
+
+XML root is <treepack>. children is '<node>' .
+A '<node>' has an attribute 'name'. The text content of the <node> will be evaluated as a javascript expression with the embedded javascript engine.
+The javascript engine injects record a https://github.com/samtools/htsjdk/blob/master/src/java/htsjdk/samtools/SAMRecord.java and
+header a https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html.
+
+
+
+
+
+### Example
+
+
+
+
+```
+$ cat config.xml
+
+<?xml version="1.0"?>
+<treepack>
+  <node name="chr">(record.getReadUnmappedFlag()?"UNMAPPED":record.getContig())</node>
+  <node name="mapq">(record.getReadUnmappedFlag()?null:record.getMappingQuality())</node>
+</treepack>
+
+
+```
+
+
+
+
+
+```
+$ java  -jar dist/bamtreepack.jar -c config.xml  \
+  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/data/NA12340/alignment/NA12340.mapped.ILLUMINA.bwa.CEU.low_coverage.20101123.bam" \
+  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/data/NA12273/alignment/NA12273.mapped.ILLUMINA.bwa.CEU.low_coverage.20101123.bam" > out.svg
+
+```
+
+
+
+![img](https://pbs.twimg.com/media/BeaCYQgCEAAZxio.png:large)
+
+
+
+### See also
+
+
+
+ *  VcfTreePack
+ *  http://www.cs.umd.edu/hcil/treemap-history/
+
+
+
+
+
+
+END_DOC
+*/
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="bamtreepack",description="Create a TreeMap from one or more SAM/BAM file. Ouput is a SVG file.")
+
+public class BamTreePack extends AbstractTreePackCommandLine
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(BamTreePack.class);
+	private static final Logger LOG = Logger.build(BamTreePack.class).make();
 
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+
+
+	@Parameter(names={"-c","--config"},description="XML config file")
+	private File configFile = null;
+
+	@Parameter(names={"-x","--dimension"},description="dimension of the output rectangle")
+	private String dimensionStr = "1000x1000";
+
+	
 	public BamTreePack()
 		{
 		
@@ -74,8 +171,8 @@ public class BamTreePack extends AbstractBamTreePack
 	  
 	
 		private void parseConfigFile() throws IOException{
-			if(super.configFile==null || !super.configFile.exists()) {
-				throw new IOException("Undefined config file option -"+OPTION_CONFIGFILE);
+			if(this.configFile==null || !this.configFile.exists()) {
+				throw new IOException("Undefined config file ");
 			}
 			try {
 				LOG.info("getting javascript manager");
@@ -90,7 +187,7 @@ public class BamTreePack extends AbstractBamTreePack
 				final DocumentBuilderFactory dbf=DocumentBuilderFactory.newInstance();
 				final DocumentBuilder db=dbf.newDocumentBuilder();
 				LOG.info("parsing "+configFile);
-				final Document dom = db.parse(super.configFile);
+				final Document dom = db.parse(this.configFile);
 				final Element root=dom.getDocumentElement();
 				if(root==null) throw new RuntimeException("not root node in "+this.configFile);
 				if(!root.getTagName().equals("treepack"))
@@ -110,12 +207,12 @@ public class BamTreePack extends AbstractBamTreePack
 					Element e1=Element.class.cast(c);
 					if(e1.getTagName().equals("node")) {
 					att= e1.getAttributeNode("name");
-					if(att==null) throw new IOException("missing attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+					if(att==null) throw new IOException("missing attribute 'name' in element " +e1.getTagName()+" in "+this.configFile);
 					final String name=att.getValue().trim();
-					if(name.isEmpty())  throw new IOException("empty attribute 'name' in element " +e1.getTagName()+" in "+super.configFile);
+					if(name.isEmpty())  throw new IOException("empty attribute 'name' in element " +e1.getTagName()+" in "+this.configFile);
 					
 					final String content=e1.getTextContent();
-					if(content==null || content.trim().isEmpty())  throw new IOException("empty text content under element " +e1.getTagName()+" in "+super.configFile);
+					if(content==null || content.trim().isEmpty())  throw new IOException("empty text content under element " +e1.getTagName()+" in "+this.configFile);
 					CompiledScript compiled =null;
 					try {
 						compiled=compilingEngine.compile(content);
@@ -143,21 +240,20 @@ public class BamTreePack extends AbstractBamTreePack
 				}
 			}
 
-		
-	@Override
-	public Collection<Throwable> call() throws Exception {
-		
-		setDimension(super.dimensionStr);
+
+		@Override
+		public int doWork(List<String> args) {
+		setDimension(this.dimensionStr);
 		
 		
 		SamReader in=null;
-		final List<String> args= super.getInputFiles();
 		try
 			{
 			parseConfigFile();
 			if(super.nodeFactoryChain.next==null)
 				{
-				return wrapException("no path defined");
+				LOG.error("no path defined");
+				return -1;
 				}
 
 			
@@ -182,12 +278,13 @@ public class BamTreePack extends AbstractBamTreePack
 					}
 				}
 			this.layout();
-			this.svg();
+			this.svg(this.outputFile);
 			return RETURN_OK;
 			}
 		catch (final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

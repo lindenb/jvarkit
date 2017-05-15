@@ -63,16 +63,37 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 /**
- * Sort a VCF on the INFO field
- *
+BEGIN_DOC
+
+##Example
+
+```bash
+]$ curl  "https://raw.github.com/arq5x/gemini/master/test/test4.vep.snpeff.vcf" |\
+   java -jar dist/sortvcfoninfo.jar -F BaseQRankSum | grep -vE "^#" 
+
+chr10	1142208	.	T	C	3404.30	.	AC=8;AF=1.00;AN=8;
+chr10	135336656	.	G	A	38.34	.	AC=4;AF=1.00;AN=4;
+chr10	52004315	.	T	C	40.11	.	AC=4;AF=1.00;AN=4;
+chr10	52497529	.	G	C	33.61	.	AC=4;AF=1.00;AN=4;
+chr10	126678092	.	G	A	89.08	.	AC=1;AF=0.13;AN=8;BaseQRankSum=-3.120;
+chr16	72057435	.	C	T	572.98	.	AC=1;AF=0.13;AN=8;BaseQRankSum=-2.270;
+chr10	48003992	.	C	T	1047.87	.	AC=4;AF=0.50;AN=8;BaseQRankSum=-0.053;
+chr10	135210791	.	T	C	65.41	.	AC=4;AF=0.50;AN=8;BaseQRankSum=2.054;
+chr10	135369532	.	T	C	122.62	.	AC=2;AF=0.25;AN=8;BaseQRankSum=2.118;
+```
+
+END_DOC
  */
-@Program(name="sortvcfoninfo",description="Sort a VCF a field in the INFO column")
+@Program(name="sortvcfoninfo"
+,description="Sort a VCF a field in the INFO column",
+keywords={"vcf","sort","annotation"}
+)
 public class SortVcfOnInfo extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SortVcfOnInfo.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-T","--tag","-t"},description="INFO tag",required=true)
@@ -87,9 +108,9 @@ public class SortVcfOnInfo extends Launcher
 
     
     public SortVcfOnInfo()
-    {	
-    	
-    }
+	    {	
+	    	
+	    }
     
     private class VcfLine
     	implements Comparable<VcfLine>
