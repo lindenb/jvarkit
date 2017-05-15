@@ -11,6 +11,8 @@ Usage: sam4weblogo [options] Files
       Default: false
     -h, --help
       print help and exits
+  * -r, --region, --interval
+      Region to observe: chrom:start-end
     -o, --output
       Output file. Optional . Default: stdout
     -readFilter, --readFilter
@@ -18,8 +20,6 @@ Usage: sam4weblogo [options] Files
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
       for a complete syntax.
       Default: Accept All/ Filter out nothing
-  * -r, --region
-      Region to observe: chrom:start-end
     --version
       print version and exits
 

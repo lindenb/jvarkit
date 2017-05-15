@@ -68,6 +68,7 @@ import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -147,7 +148,8 @@ END_DOC
 @Program(name="sam4weblogo",
 	description="Sequence logo for different alleles or generated from SAM/BAM ",
 	biostars=73021,
-	keywords={"sam","bam","visualization","logo"}
+	keywords={"sam","bam","visualization","logo"},
+	terms= Term.ID_0000015
 	)
 public class SAM4WebLogo extends Launcher
 	{
@@ -156,7 +158,7 @@ public class SAM4WebLogo extends Launcher
 	@Parameter(names={"-c","--clipped","--clip"},description="Use Clipped Bases")
 	private boolean useClip = false;
 	
-	@Parameter(names={"-r","--region"},description="Region to observe: chrom:start-end",required=true)
+	@Parameter(names={"-r","--region","--interval"},description="Region to observe: chrom:start-end",required=true)
 	private String regionStr = null;
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
@@ -222,7 +224,7 @@ public class SAM4WebLogo extends Launcher
         			}
         		case D: case N:
         			{
-        			for(int j=0;j< ce.getLength() ;++j)
+        			for(int j=0;j< ce.getLength() && refPos<= interval.getEnd();++j)
         				{
         				if(inInterval.test(refPos))
         					{
@@ -234,7 +236,7 @@ public class SAM4WebLogo extends Launcher
         			}
         		case H:
         			{
-        			for(int j=0;j< ce.getLength() ;++j)
+        			for(int j=0;j< ce.getLength() && refPos<= interval.getEnd();++j)
         				{
         				if(inInterval.test(refPos) )
         					{
@@ -246,7 +248,7 @@ public class SAM4WebLogo extends Launcher
         			}
         		case S:
         			{
-        			for(int j=0;j< ce.getLength() ;++j)
+        			for(int j=0;j< ce.getLength() && refPos<= interval.getEnd();++j)
         				{
         				if(inInterval.test(refPos) )
         					{
@@ -266,7 +268,7 @@ public class SAM4WebLogo extends Launcher
         			}
         		case M:case X: case EQ:
         			{
-        			for(int j=0;j< ce.getLength() ;++j)
+        			for(int j=0;j< ce.getLength() && refPos<= interval.getEnd();++j)
         				{
         				if(inInterval.test(refPos))
         					{
@@ -281,7 +283,7 @@ public class SAM4WebLogo extends Launcher
         		}	
         	}
        
-        while(refPos< interval.getEnd())
+        while(refPos<= interval.getEnd())
         	{
         	seq.append('-');
         	refPos++;
