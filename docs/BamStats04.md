@@ -11,18 +11,19 @@ Usage: bamstats04 [options] Files
     -cov, --cov
       min coverage to say the position is not covered
       Default: 0
+    -f, --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exits
-    -keeporphan, --keeporphan
-      if set: accept not properly aligned pairs.
-      Default: false
-    -mmq, --mmq
-      min mapping quality
-      Default: 0
     -o, --output
       Output file. Optional . Default: stdout
     -R, --ref
-      Optional REFerence Genome. If set, a column with the GC% will be added
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary If set, a column with the 
+      GC% will be added
     --version
       print version and exits
 
