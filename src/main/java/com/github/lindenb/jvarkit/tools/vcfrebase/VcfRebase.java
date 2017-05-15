@@ -51,6 +51,8 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.Rebase;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
@@ -94,229 +96,198 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  END_DOC
  
  */
-public class VcfRebase {
-	private static final Logger LOG = Logger.build().prefix("vcfRebase").make();
-	
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-	private Rebase rebase=Rebase.createDefaultRebase();
+@SuppressWarnings("unused")
+@Program(name="vcfrefbase",
+	description="Restriction sites overlaping variations in a vcf",
+	keywords={"vcf","rebase","restriction","enzyme"})
+public class VcfRebase extends Launcher {
+	private static final Logger LOG = Logger.build(VcfRebase.class).make();
+	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile=null;
 	@Parameter(names={"-A","--attribute"},description="VCF INFO attribute")
 	private String ATT="ENZ";
+	@Parameter(names={"-R","-reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	File referenceFile;
+	@Parameter(names={"-E","-enzyme"},description="restrict to that enzyme name")
+	private Set<String> selEnzymesStr = new HashSet<>();
+	@Parameter(names={"-w","-weight"},description="min enzyme weight")
+	private float weight= 5f;		
+
+	
+	private Rebase rebase=Rebase.createDefaultRebase();
+
+	
 	public VcfRebase() {
 		}
 	
-	public  VcfRebase indexedFastaSequenceFile(final IndexedFastaSequenceFile ref) {
-		this.indexedFastaSequenceFile=ref;
-		return this;
-	}
-	public  VcfRebase tag(final String tag) {
-		this.ATT=tag;
-		return this;
-	}
-	public  VcfRebase rebase(final  Rebase reb) {
-		this.rebase=reb;
-		return this;
-	}
 
-	public VariantContextWriter open(final VariantContextWriter delegate)
-		{
-		if(this.indexedFastaSequenceFile==null)
-			throw new JvarkitException.UserError("Indexed fasta file was not provided.");
-		if(this.rebase==null)
-			throw new JvarkitException.UserError("Rebase missing.");
-		return new Worker(delegate,
-				this.indexedFastaSequenceFile,
-				this.rebase,
-				this.ATT
-				);
-		}
-	
-	private static class Worker extends DelegateVariantContextWriter
-		{
-		private	final String ATT;
-		private GenomicSequence genomicSequence=null;
-		private final IndexedFastaSequenceFile indexedFastaSequenceFile;
-		private final Rebase rebase;
-		Worker( final VariantContextWriter delegate,
-				final IndexedFastaSequenceFile indexedFastaSequenceFile,
-				final Rebase rebase,
-				final String att
-				) {
-			super(delegate);
-			this.indexedFastaSequenceFile=indexedFastaSequenceFile;
-			this.rebase=rebase;
-			this.ATT=att;
-			}
-		@Override
-		public void writeHeader(final VCFHeader header) {
-			final VCFHeader header2=new VCFHeader(header);
-			header2.addMetaDataLine(new VCFInfoHeaderLine(ATT, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Enzyme overlapping: Format: (Name,Site,Sequence,pos-1,strand)"));
-			super.writeHeader(header2);
-			}
-		@Override
-		public void add(VariantContext var)
+	@Override
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+
+		try
 			{
-			if(genomicSequence==null || !genomicSequence.getChrom().equals(var.getContig()))
-				{
-				LOG.info("Current contig "+var.getContig());
-				this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile,var.getContig());
-				}
+			indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFile);
 			
-			final Set<String> hits=new HashSet<String>();
-			for(final Rebase.Enzyme enz:this.rebase)
+			final VCFHeader header2=new VCFHeader(in.getHeader());
+			header2.addMetaDataLine(new VCFInfoHeaderLine(ATT, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Enzyme overlapping: Format: (Name,Site,Sequence,pos-1,strand)"));
+			out.writeHeader(header2);
+			GenomicSequence genomicSequence=null;
+			while(in.hasNext())
 				{
-				int start0=Math.max(0, var.getStart() - enz.size());
-				for(int y=start0;y<=var.getStart();++y)
+				final VariantContext var = in.next();
+
+				if(genomicSequence==null || !genomicSequence.getChrom().equals(var.getContig()))
 					{
-					//run each strand
-					for(int strand=0;strand<2;++strand)
+					LOG.info("Current contig "+var.getContig());
+					genomicSequence=new GenomicSequence(indexedFastaSequenceFile,var.getContig());
+					}
+				
+				final Set<String> hits=new HashSet<String>();
+				for(final Rebase.Enzyme enz:this.rebase)
+					{
+					int start0=Math.max(0, var.getStart() - enz.size());
+					for(int y=start0;y<=var.getStart();++y)
 						{
-						int x=0;
-						//loop over bases of the enzyme
-						for(x=0;x< enz.size() && y+x < this.genomicSequence.length() ;++x )
+						//run each strand
+						for(int strand=0;strand<2;++strand)
 							{
-							char c=(strand==0?
-									enz.at(x):
-									AcidNucleics.complement(enz.at((enz.size()-1)-x))
-									);
-							if(!Rebase.compatible(genomicSequence.charAt(y+x),c)) break;
-							}
-						// match found
-						if(x==enz.size())
-							{
-							StringBuilder b=new StringBuilder("(");
-							b.append(enz.getName());
-							b.append("|");
-							b.append(enz.getDecl());
-							b.append("|");
-							for(x=0;x < enz.size();++x)
+							int x=0;
+							//loop over bases of the enzyme
+							for(x=0;x< enz.size() && y+x <  genomicSequence.length() ;++x )
 								{
-								char c=genomicSequence.charAt(y+x);
-								if(y+x>=var.getStart()-1 && y+x<=var.getEnd()-1)
-									{
-									c=Character.toLowerCase(c);
-									}
-								b.append(c);
+								char c=(strand==0?
+										enz.at(x):
+										AcidNucleics.complement(enz.at((enz.size()-1)-x))
+										);
+								if(!Rebase.compatible(genomicSequence.charAt(y+x),c)) break;
 								}
-							b.append("|");
-							b.append(y+1);
-							b.append("|");
-							b.append(strand==0?"+":"-");
-							b.append(")");
-							hits.add(b.toString());
-							break;
+							// match found
+							if(x==enz.size())
+								{
+								StringBuilder b=new StringBuilder("(");
+								b.append(enz.getName());
+								b.append("|");
+								b.append(enz.getDecl());
+								b.append("|");
+								for(x=0;x < enz.size();++x)
+									{
+									char c=genomicSequence.charAt(y+x);
+									if(y+x>=var.getStart()-1 && y+x<=var.getEnd()-1)
+										{
+										c=Character.toLowerCase(c);
+										}
+									b.append(c);
+									}
+								b.append("|");
+								b.append(y+1);
+								b.append("|");
+								b.append(strand==0?"+":"-");
+								b.append(")");
+								hits.add(b.toString());
+								break;
+								}
+							if(enz.isPalindromic()) break;
 							}
-						if(enz.isPalindromic()) break;
 						}
 					}
-				}
-			if(hits.isEmpty())
-				{
-				super.add(var);
-				}
-			else
-				{
-				VariantContextBuilder vcb=new VariantContextBuilder(var);
-				vcb.attribute(ATT, hits.toArray(new String[hits.size()]));
-				super.add(vcb.make());
-				}
-			}
-		
-		}
-		
-	public static class Launcher extends com.github.lindenb.jvarkit.util.jcommander.Launcher
-		{
-		@ParametersDelegate
-		private VcfRebase instance=new VcfRebase();
-		@Parameter(names={"-R","-reference"},description="Reference fasta file")
-		File referenceFile;
-		@Parameter(names={"-E","-enzyme"},description="restrict to that enzyme name")
-		private Set<String> selEnzymesStr = new HashSet<>();
-		@Parameter(names={"-w","-weight"},description="min enzyme weight")
-		private float weight= 5f;		
-		@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
-		private VariantContextWriter out=new VcfWriterOnDemand();
-
-		@Override
-		public int doWork(List<String> args) {
-			Rebase rebase=Rebase.createDefaultRebase();
-
-			if(!this.selEnzymesStr.isEmpty())
-				{
-				Rebase rebase2=new Rebase();
-				for(String e:selEnzymesStr)
+				if(hits.isEmpty())
 					{
-					if(e.isEmpty()) continue;
-					Rebase.Enzyme enz=rebase.getEnzymeByName(e);
-					if(enz==null)
-						{
-						StringBuilder msg= new StringBuilder();
-						msg.append("Cannot find enzyme \""+e +"\" in RE list.\n");
-						msg.append("Current list is:\n");
-						for(Rebase.Enzyme E: rebase)
-							{
-							msg.append("\t"+E+"\n");
-							}
-						throw new JvarkitException.UserError(msg.toString());
-						}
-					rebase2.getEnzymes().add(enz);
-					}
-				rebase=rebase2;
-				}
-		
-			int i=0;
-			while(i< rebase.size())
-				{
-				if(rebase.get(i).getWeight()< weight)
-					{
-					rebase.getEnzymes().remove(i);
+					out.add(var);
 					}
 				else
 					{
-					++i;
+					final VariantContextBuilder vcb=new VariantContextBuilder(var);
+					vcb.attribute(ATT, hits.toArray(new String[hits.size()]));
+					out.add(vcb.make());
 					}
 				}
-		
-			if(rebase.size()==0)
-				{
-				LOG.warn("REBASE IS EMPTY");
-				}
-	
-			if(referenceFile==null)
-				{
-				throw new JvarkitException.ReferenceMissing("reference.undefined");
-				}
-			IOUtil.assertFileIsReadable(referenceFile);
-			IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-			VcfIterator in=null;
-			VariantContextWriter out=null;
-			try
-				{
-				this.instance.
-					rebase(rebase).
-					indexedFastaSequenceFile(indexedFastaSequenceFile);
-				indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
-				in = VCFUtils.createVcfIterator(super.oneFileOrNull(args));
-				out=instance.open(this.out);
-				VCFUtils.copyHeaderAndVariantsTo(in,out);
-				in.close();
-				out.close();
-				}
-			catch(final IOException err)
-				{
-				throw new RuntimeIOException(err);
-				}
-			finally
-				{
-				CloserUtil.close(indexedFastaSequenceFile);
-				CloserUtil.close(out);
-				CloserUtil.close(in);
-				}
-			return super.doWork(args);
+			return 0;
+			}
+		catch(Exception err)
+			{
+			LOG.error(err);
+			return -1;
+			}
+		finally {
+			CloserUtil.close(indexedFastaSequenceFile);
 			}
 		}
+		
+		
+		
+	@Override
+	public int doWork(List<String> args) {
+		this.rebase=Rebase.createDefaultRebase();
+
+		if(!this.selEnzymesStr.isEmpty())
+			{
+			final Rebase rebase2=new Rebase();
+			for(final String e:this.selEnzymesStr)
+				{
+				if(e.isEmpty()) continue;
+				final Rebase.Enzyme enz=rebase.getEnzymeByName(e);
+				if(enz==null)
+					{
+					final StringBuilder msg= new StringBuilder();
+					msg.append("Cannot find enzyme \""+e +"\" in RE list.\n");
+					msg.append("Current list is:\n");
+					for(Rebase.Enzyme E: rebase)
+						{
+						msg.append("\t"+E+"\n");
+						}
+					LOG.error(msg.toString());
+					return -1;
+					}
+				rebase2.getEnzymes().add(enz);
+				}
+			this.rebase=rebase2;
+			}
+	
+		int i=0;
+		while(i< rebase.size())
+			{
+			if(rebase.get(i).getWeight()< weight)
+				{
+				rebase.getEnzymes().remove(i);
+				}
+			else
+				{
+				++i;
+				}
+			}
+	
+		if(rebase.size()==0)
+			{
+			LOG.warn("REBASE IS EMPTY");
+			}
+
+		if(this.referenceFile==null)
+			{
+			throw new JvarkitException.ReferenceMissing("reference.undefined");
+			}
+		
+		VcfIterator in=null;
+		VariantContextWriter out=null;
+		try
+			{
+			return doVcfToVcf(args, outputFile);
+			}
+		catch(final Exception err)
+			{
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(out);
+			CloserUtil.close(in);
+			}
+		}
+		
 	
 	public static void main(String[] args)
 		{
-		new VcfRebase.Launcher().instanceMainWithExit(args);
+		new VcfRebase().instanceMainWithExit(args);
 		}
 	}

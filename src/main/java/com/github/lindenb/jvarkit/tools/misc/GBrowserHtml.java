@@ -72,7 +72,6 @@ BEGIN_DOC
 
 
 ```
-$ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf
 (...)
 ```
 

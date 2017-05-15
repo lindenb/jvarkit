@@ -47,14 +47,19 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
-@Program(name="fastqgrep",description="Grep reads names in fastq",deprecatedMsg="use picard")
+@Program(
+	name="fastqgrep",
+	description="Grep reads names in fastq",
+	deprecatedMsg="use picard",
+	keywords={"fastq"}
+	)
 public class FastqGrep
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FastqGrep.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names="-f",description=" file containing a list of read names")
 	private File readNameFile=null;

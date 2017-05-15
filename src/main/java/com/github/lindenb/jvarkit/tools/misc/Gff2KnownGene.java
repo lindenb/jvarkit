@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -90,12 +91,12 @@ END_DOC
 @Program(name="gff2knowngene",description="Convert GFF3 format to UCSC knownGene format.")
 public class Gff2KnownGene extends Launcher {
 	private static final Logger LOG = Logger.build(Gff2KnownGene.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-bin","--bin"},description="Preppend with 'bin' column")
 	private boolean writeBin = false;
-	@Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
-	private int maxRecordsInRam =50000;
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
 	
 	private static final String NO_TRANSCRIPT_NAME="\0\0NOTRANSCRIPT";
@@ -311,7 +312,8 @@ public class Gff2KnownGene extends Launcher {
 					GffLine.class,
 					new GffLineCodec(),
 					comparator,
-					this.maxRecordsInRam
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			sorting.setDestructiveIteration(true);
 			String line;
@@ -352,7 +354,8 @@ public class Gff2KnownGene extends Launcher {
 				final String strand  =  tokens[6];
 				final String meta  =  tokens[8];
 				if(!(strand.equals("+") || strand.equals("-"))) {
-					throw new IOException("Bad strand in "+first.line);
+					LOG.error("Bad strand in "+first.line);
+					return -1;
 				}
 				final List<Interval> exons= new ArrayList<>();
 				Interval tx= null;
@@ -362,17 +365,23 @@ public class Gff2KnownGene extends Launcher {
 					item.decode();//force decode components
 					tokens = tab.split(item.line);
 					if(!contig.equals(item.getContig())) {
-						throw new IOException("Conflict in contig!!");
+						LOG.error("Conflict in contig!!");
+						return -1;
 					}
 					if(!name.equals(item.getTranscript())) {
-						throw new IOException("Conflict in name!!");
+						LOG.error("Conflict in name!!");
+						return -1;
 					}
 					if(tokens[2].equals("gene")) {
 						continue;
 					}
 					
 					else if(tokens[2].equals("transcript")) {
-						if(tx!=null)throw new IOException("Transcript found twice for "+name);
+						if(tx!=null)
+							{
+							LOG.error("Transcript found twice for "+name);
+							return -1;
+							}
 						tx = item.interval;
 						continue;
 					}
@@ -479,7 +488,8 @@ public class Gff2KnownGene extends Launcher {
 			LOG.info("done");
 			return RETURN_OK;
 		} catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 			}
 		finally {
 			CloserUtil.close(eq);

@@ -147,7 +147,7 @@ public class VCFTrios
 	@Parameter(names={"-A","--attribute"},description="INFO Attribute name")
 	private String attributeName = "MENDEL";
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	

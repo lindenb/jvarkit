@@ -185,7 +185,7 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 								{
 								final Transformer transformer = TransformerFactory.newInstance().newTransformer();
 								transformer.setOutputProperty(OutputKeys.INDENT, "no");
-								transformer.setOutputProperty(OutputKeys.METHOD, "html");
+								transformer.setOutputProperty(OutputKeys.METHOD, "xml");
 								transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
 								transformer.transform(new DOMSource(dom), new StreamResult(index_html));
 								}

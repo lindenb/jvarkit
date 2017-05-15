@@ -14,15 +14,42 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+/**
+BEGIN_DOC
 
-@Program(name="fastq2fasta",description="fastq -> fasta",deprecatedMsg="use awk, samtools...")
+
+## Example
+
+```bash
+$ java -jar dist/fastq2fasta.jar  -N 60 -b file.fastq.gz
+
+>HWI-1KL149:61:D2C11TCXX:2:1213:4591:29626
+GAGTTGCTTTGTTTGAATATAGGTTGACTATACGAAGTGTGCGAGGACCTGCACCACGCA
+GTAGGCCAAGATCAACTGAAACAGTGCTATCTGCACGACAA
+>HWI-1KL149:61:D2C11TCXX:2:1213:4525:29650
+CCTAGTAGTTCGTGGCCCCGGGCCCCTACTTAAACTCCTAGAACCACTCCTAGAAAGGGG
+TGTTGCAGTTCGGCTCAGTCCCCGTGGTCGACTACTGTTTC
+>HWI-1KL149:61:D2C11TCXX:2:1213:4569:29706
+GCGCAGAGTTGTTTTAGCTATGCTGTGTTTGCATGGTTAGGTGGTGTACCTAGTGGTTTT
+CTGAGACTTCTCTGAGGTTCTTGAGTAGATTAATACATCCC
+>HWI-1KL149:61:D2C11TCXX:2:1213:4594:29713
+
+```
+
+
+END_DOC
+
+ */
+@Program(name="fastq2fasta",description="fastq -> fasta",
+	deprecatedMsg="use awk, samtools...",
+	keywords={"fastq","fasta"})
 public class FastqToFasta
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FastqToFasta.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names="-N",description="fasta line length")
@@ -74,7 +101,7 @@ public class FastqToFasta
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		PrintStream out=null;
 		try
 			{

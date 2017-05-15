@@ -136,9 +136,10 @@ B06PYABXX110322:8:1204:19832:68914 -3
 END_DOC
 */
 @Program(
-			name="bamtile",
-			description="Answer to @sjackman : Is there a bedtools command to determine a minimal tiling path? A minimal set of features that cover a maximum of the target."
-			)
+		name="bamtile",
+		description="Answer to @sjackman : Is there a bedtools command to determine a minimal tiling path? A minimal set of features that cover a maximum of the target.",
+		keywords={"bam","sam"}
+		)
 public class BamTile
 	extends Launcher
 	{

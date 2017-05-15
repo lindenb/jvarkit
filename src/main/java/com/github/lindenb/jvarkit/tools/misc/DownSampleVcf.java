@@ -47,12 +47,30 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+BEGIN_DOC
 
-@Program(name="downsamplevcf",description="DownSample a VCF")
+
+## Example
+
+```bash
+$ curl -skL "ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |\
+  gunzip -c |\
+java -jar dist/downsamplevcf.jar -n 100 > output.vcf
+```
+
+END_DOC
+ */
+
+@Program(
+	name="downsamplevcf",
+	description="DownSample a VCF",
+	keywords={"vcf"}
+	)
 public class DownSampleVcf extends Launcher
 	{
 	private final Logger LOG=Logger.build(DownSampleVcf.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected File outputFile = null;
 
 	@Parameter(names="-n",description="output size")

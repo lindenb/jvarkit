@@ -374,7 +374,9 @@ END_DOC
 
 
 
-@Program(name="illuminadir",description="Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.")
+@Program(name="illuminadir",
+	description="Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.",
+	keywords={"json","xml","illumina","fastq"})
 public class IlluminaDirectory
 	extends Launcher
 	{
@@ -382,7 +384,7 @@ public class IlluminaDirectory
 	private static final Logger LOG = Logger.build(IlluminaDirectory.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
@@ -716,11 +718,13 @@ public class IlluminaDirectory
 					final File f=new File(line);
 					if(!f.exists())
 						{
-						return wrapException("Doesn't exist:"+f);
+						LOG.error("Doesn't exist:"+f);
+						return -1;
 						}
 					if(!f.isFile())
 						{
-						return wrapException("Not a file:"+f);
+						LOG.error("Not a file:"+f);
+						return -1;
 						}
 					folder.scan(f);
 					}
@@ -750,7 +754,8 @@ public class IlluminaDirectory
 				}
 			catch(final Exception err)
 				{
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 				}
 			finally
 				{

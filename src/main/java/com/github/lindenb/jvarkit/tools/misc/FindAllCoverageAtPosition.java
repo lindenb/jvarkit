@@ -52,6 +52,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
@@ -59,6 +60,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -93,7 +95,9 @@ $ find ./  -type f -name "*.bam" |\
 
 END_DOC
  */
-@Program(name="findallcoverageatposition",keywords={"bam","coverage","search","depth"},description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?")
+@Program(name="findallcoverageatposition",
+	keywords={"bam","coverage","search","depth"},
+	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?")
 public class FindAllCoverageAtPosition extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FindAllCoverageAtPosition.class).make();
@@ -107,10 +111,13 @@ public class FindAllCoverageAtPosition extends Launcher
 	@Parameter(names={"-f","--posfile"},description="File containing positions. if file suffix is '.bed': all positions in the range will be scanned.")
 	private File positionFile = null;
 
-	@Parameter(names={"-o","--out"},description="output file. Default: stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"--groupby"},description="Group Reads by")
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
+	
+	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter = SamFilterParser.buildDefault();
 
 	
 	private static class Mutation implements Comparable<Mutation>
@@ -278,11 +285,7 @@ public class FindAllCoverageAtPosition extends Launcher
 					while(iter.hasNext())
 						{
 						final SAMRecord rec=iter.next();
-						if(rec.getReadUnmappedFlag()) continue;
-						if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-						if(rec.getNotPrimaryAlignmentFlag()) continue;
-						if(rec.isSecondaryOrSupplementary()) continue;
-						if(rec.getDuplicateReadFlag()) continue;
+						if(this.filter.filterOut(rec)) continue;
 						final Cigar cigar=rec.getCigar();
 						if(cigar==null) continue;
 						final String readString = rec.getReadString().toUpperCase();

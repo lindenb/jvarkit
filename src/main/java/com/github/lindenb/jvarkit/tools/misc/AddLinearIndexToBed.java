@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 /**
  BEGIN_DOC
 
@@ -64,7 +65,11 @@ $ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta
 
  END_DOC
  */
-@Program(name="addlinearindextobed",description="Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.",keywords={"bed","reference"})
+@Program(
+		name="addlinearindextobed",
+		description="Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.",
+		keywords={"bed","reference"}
+		)
 public class AddLinearIndexToBed extends Launcher
 {
 	private static final Logger LOG = Logger.build(AddLinearIndexToBed.class).make();

@@ -55,8 +55,18 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+/**
 
-@Program(name="bedindextabix",description="Index and sort a Bed on the fly with Tabix.")
+BEGIN_DOC
+
+END_DOC
+
+ */
+@Program(
+	name="bedindextabix",
+	description="Index and sort a Bed on the fly with Tabix.",
+	keywords={"bed","tabix"}
+	)
 public class BedIndexTabix
 	extends Launcher
 	{

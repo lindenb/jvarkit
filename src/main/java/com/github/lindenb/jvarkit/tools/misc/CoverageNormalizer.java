@@ -30,6 +30,12 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+/**
+BEGIN_DOC
+
+
+END_DOC
+ */
 @Program(name="coveragenormalizer",description="normalize BAM coverage" )
 public class CoverageNormalizer extends Launcher
 	{

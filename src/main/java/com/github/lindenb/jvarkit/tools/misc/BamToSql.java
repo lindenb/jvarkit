@@ -268,7 +268,10 @@ S4.bam    S4      163   rotavirus  M         0         T          10         5  
  
  END_DOC
  */
-@Program(name="bam2sql",description="Convert a SAM/BAM to sqlite statements",keywords={"bam","sam","sql","sqlite"})
+@Program(name="bam2sql",
+	description="Convert a SAM/BAM to sqlite statements",
+	keywords={"bam","sam","sql","sqlite"}
+		)
 public class BamToSql
 	extends Launcher
 	{

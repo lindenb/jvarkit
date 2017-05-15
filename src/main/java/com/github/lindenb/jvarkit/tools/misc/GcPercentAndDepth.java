@@ -78,7 +78,7 @@ public class GcPercentAndDepth extends Launcher
 	private static Logger LOG=Logger.build(GcPercentAndDepth.class).make();
 
 	
-	@Parameter(names="-o",description=" (output file) . default stdout.")
+	@Parameter(names="-o",description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outPutFile=null;
 	@Parameter(names="-w",description=" (window size)")
 	private int windowSize=100;

@@ -75,6 +75,7 @@ import javax.imageio.ImageIO;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.BufferedList;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 /**
@@ -128,13 +129,17 @@ $ java -jar distBamCmpCoverage.jar  -o out.png file1.bam file2.bam fileN.bam
 END_DOC
 */
 
-@Program(name="bamcmpcoverage",description="Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2")
+@Program(
+	name="bamcmpcoverage",
+	description="Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2",
+	keywords={"sam","bam","visualization","coverage"}
+	)
 public class BamCmpCoverage extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BamCmpCoverage.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output image file. Required")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
@@ -154,6 +159,8 @@ public class BamCmpCoverage extends Launcher
 	@Parameter(names={"-b","--bed"},description="restrict to region")
 	private File bedFile = null;
 
+	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter= SamFilterParser.buildDefault();
 	
 	private double sampleWidth=0;
 	private double marginWidth=0;
@@ -391,36 +398,6 @@ public class BamCmpCoverage extends Launcher
 			return -1;
 			}
 		
-		final SamRecordFilter filter=new SamRecordFilter()
-			{
-			@Override
-			public boolean filterOut(SAMRecord first, SAMRecord second) {
-				return filterOut(first);
-				}
-			
-			@Override
-			public boolean filterOut(SAMRecord rec) {
-				if(rec.getReadUnmappedFlag()) return true;
-				if(rec.isSecondaryOrSupplementary()) return true;
-				if(rec.getDuplicateReadFlag())return true;
-				if(rec.getNotPrimaryAlignmentFlag()) return true;
-				if(rec.getReadFailsVendorQualityCheckFlag())return true;
-				if(rec.getMappingQuality()==0) return true;
-				/* ignore non-overlapping BED, already checked with QuertInterval 
-				if( intervals!=null &&
-					! intervals.containsOverlapping(
-					new Interval(rec.getReferenceName(),
-							rec.getAlignmentStart(),
-							rec.getAlignmentEnd()))
-							)
-					{
-					return true;
-					}
-					*/
-
-				return false;
-				}
-			};
 		Set<File> files=new HashSet<File>();
 		try
 			{
@@ -504,7 +481,8 @@ public class BamCmpCoverage extends Launcher
 					}
 				else if(!SequenceUtil.areSequenceDictionariesEqual(dict,h.getSequenceDictionary()))
 					{
-					return wrapException("Found more than one dictint sequence dictionary");
+					LOG.error("Found more than one dictint sequence dictionary");
+					return -1;
 					}
 				
 				//fill query interval once
@@ -675,8 +653,8 @@ public class BamCmpCoverage extends Launcher
 			LOG.info("Scanning bams...");
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
-				if(filter.filterOut(rec)) continue;
+				final SAMRecord rec=iter.next();
+				if(this.filter.filterOut(rec)) continue;
 				progress.watch(rec);
 
 				SAMReadGroupRecord gr=rec.getReadGroup();

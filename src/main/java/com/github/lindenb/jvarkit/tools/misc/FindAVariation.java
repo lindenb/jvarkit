@@ -78,13 +78,15 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
  
  END_DOC
  */
-@Program(name="findavariation",description="Finds a specific mutation in a list of VCF files",keywords={"vcf","variation","search"})
+@Program(name="findavariation",
+	description="Finds a specific mutation in a list of VCF files",
+	keywords={"vcf","variation","search"})
 public class FindAVariation extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FindAVariation.class).make();
 	@Parameter(names={"-p","--position"},description="A list of 'chrom/position'")
 	private Set<String> positionsList = new HashSet<>();
-	@Parameter(names={"-o","--out"},description="Output file.")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-f","--posfile"},description="Add this file containing chrom:position")
 	private Set<String> positionFilesList = new HashSet<>();

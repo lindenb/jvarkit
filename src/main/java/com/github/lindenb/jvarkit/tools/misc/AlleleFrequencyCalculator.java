@@ -71,13 +71,19 @@ import htsjdk.variant.variantcontext.VariantContext;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+@Program(
+	name="allelefreqcalc",
+	description="Allele Frequency Calculator",
+	keywords={"vcf","af"}
+	)
 public class AlleleFrequencyCalculator extends Launcher
 	{
 	private static final Logger LOG = Logger.build(AlleleFrequencyCalculator.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=Launcher.OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	public AlleleFrequencyCalculator()

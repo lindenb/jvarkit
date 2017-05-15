@@ -53,12 +53,22 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-@Program(name="bamclip2insertion",description="Convert SOFT clip to Insertion of other read confirm it")
+/**
+BEGIN_DOC
+
+
+END_DOC
+
+ */
+@Program(name="bamclip2insertion",
+	description="Convert SOFT clip to Insertion of other read confirm it",
+	keywords={"sam","bam","clip"}
+	)
 public class BamClipToInsertion
 	extends Launcher
 	{
 	private static final Logger LOG=Logger.build(BamClipToInsertion.class).make();
-	@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
+	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output=null;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();

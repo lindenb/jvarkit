@@ -23,7 +23,68 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
-@Program(name="bamrenamechr",description="Convert the names of the chromosomes in a BAM file")
+/**
+BEGIN_DOC
+
+
+## Example
+
+```bash
+$ cat samtools-0.1.19/examples/toy.sam
+
+@SQ	SN:ref	LN:45
+@SQ	SN:ref2	LN:40
+r001	163	ref	7	30	8M4I4M1D3M	=	37	39	TTAGATAAAGAGGATACTG	*	XX:B:S,12561,2,20,112
+r002	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0	AAAAGATAAGGGATAAA	*
+r003	0	ref	9	30	5H6M	*	0	0	AGCTAA	*
+r004	0	ref	16	30	6M14N1I5M	*	0	0	ATAGCTCTCAGC	*
+r003	16	ref	29	30	6H5M	*	0	0	TAGGC	*
+r001	83	ref	37	30	9M	=	7	-39	CAGCGCCAT	*
+x1	0	ref2	1	30	20M	*	0	0	aggttttataaaacaaataa	????????????????????
+x2	0	ref2	2	30	21M	*	0	0	ggttttataaaacaaataatt	?????????????????????
+x3	0	ref2	6	30	9M4I13M	*	0	0	ttataaaacAAATaattaagtctaca	??????????????????????????
+x4	0	ref2	10	30	25M	*	0	0	CaaaTaattaagtctacagagcaac	?????????????????????????
+x5	0	ref2	12	30	24M	*	0	0	aaTaattaagtctacagagcaact	????????????????????????
+x6	0	ref2	14	30	23M	*	0	0	Taattaagtctacagagcaacta	???????????????????????
+
+java -jar dist/bamrenamechr.jar \
+   -f <(echo -e "ref\tCHROM1\nref2\tCHROM2")
+   samtools-0.1.19/examples/toy.sam
+
+@HD	VN:1.4	SO:unsorted
+@SQ	SN:CHROM1	LN:45
+@SQ	SN:CHROM2	LN:40
+@PG	ID:0	PN:com.github.lindenb.jvarkit.tools.misc.ConvertBamChromosomes	VN:dfab75cb8c06e47e9989e59df62ec8f3242934c4	CL:-f /dev/fd/63 /commun/data/packages/samtools-0.1.19/examples/toy.sam
+r001	163	CHROM1	7	30	8M4I4M1D3M	=	37	39	TTAGATAAAGAGGATACTG	*	XX:B:S,12561,2,20,112
+r002	0	CHROM1	9	30	1S2I6M1P1I1P1I4M2I	*	0	0	AAAAGATAAGGGATAAA	*
+r003	0	CHROM1	9	30	5H6M	*	0	0	AGCTAA	*
+r004	0	CHROM1	16	30	6M14N1I5M	*	0	0	ATAGCTCTCAGC	*
+r003	16	CHROM1	29	30	6H5M	*	0	0	TAGGC	*
+r001	83	CHROM1	37	30	9M	=	7	-39	CAGCGCCAT	*
+x1	0	CHROM2	1	30	20M	*	0	0	AGGTTTTATAAAACAAATAA	????????????????????
+x2	0	CHROM2	2	30	21M	*	0	0	GGTTTTATAAAACAAATAATT	?????????????????????
+x3	0	CHROM2	6	30	9M4I13M	*	0	0	TTATAAAACAAATAATTAAGTCTACA	??????????????????????????
+x4	0	CHROM2	10	30	25M	*	0	0	CAAATAATTAAGTCTACAGAGCAAC	?????????????????????????
+x5	0	CHROM2	12	30	24M	*	0	0	AATAATTAAGTCTACAGAGCAACT	????????????????????????
+x6	0	CHROM2	14	30	23M	*	0	0	TAATTAAGTCTACAGAGCAACTA	???????????????????????
+
+```
+
+## See also
+
+* https://github.com/lindenb/jvarkit/blob/master/src/main/resources/chromnames/g1kv37_to_hg19.tsv
+* https://github.com/lindenb/jvarkit/blob/master/src/main/resources/chromnames/hg19_to_g1kv37.tsv
+* [[VcfRenameChromosomes]]
+* http://plindenbaum.blogspot.fr/2013/07/g1kv37-vs-hg19.html
+
+
+END_DOC
+
+ */
+@Program(
+	name="bamrenamechr",description="Convert the names of the chromosomes in a BAM file",
+	keywords={"sam","bam","chromosome","contig"}
+	)
 public class ConvertBamChromosomes
 	extends Launcher
 	{
