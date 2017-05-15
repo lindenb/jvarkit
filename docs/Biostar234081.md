@@ -24,7 +24,21 @@ Usage: biostar234081 [options] Files
 
 ## Description
 
-convert extended CIGAR to regular CIGAR (https://www.biostars.org/p/234081/)
+convert extended CIGAR to regular CIGAR
+
+
+## Keywords
+
+ * sam
+ * bam
+ * cigar
+
+
+
+## See also in Biostars
+
+ * https://www.biostars.org/p/234081
+
 
 ## Compilation
 

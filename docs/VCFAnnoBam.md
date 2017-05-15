@@ -6,6 +6,14 @@
 ```
 Usage: vcfannobam [options] Files
   Options:
+    -MIN_COV, --coverage
+      min coverage to say the position is not covered
+      Default: 0
+    -filter, --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exits
     -o, --output
@@ -16,12 +24,6 @@ Usage: vcfannobam [options] Files
       indexed BAM File.
   * -BED
       BED File capture.
-    -MIN_COV
-      min coverage to say the position is not covered
-      Default: 0
-    -MIN_MAPING_QUALITY
-      min mapping quality
-      Default: 0
 
 ```
 
@@ -89,5 +91,23 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+
+### Example
+
+```bash
+$  java -jar dist/vcfannobam.jar \
+		-BAM input.bam\
+		-BED capture.bed \
+		input.vcf.gz
+
+(...)
+##INFO=<ID=CAPTURE,Number=1,Type=String,Description="Capture stats: Format is (start|end|mean|min|max|length|not_covered|percent_covered) ">
+(...)
+2	16100665	.	A	T	13261.77	.	CAPTURE=16100619|16100715|1331.96|1026.0|1773.0|97|0|100
+2	178395141	.	T	A	1940.77	.	CAPTURE=178394991|178395199|193.11|100.0|276.0|209|0|100
+(...)
+```
 
 

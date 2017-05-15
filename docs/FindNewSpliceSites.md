@@ -12,7 +12,7 @@ Usage: findnewsplicesites [options] Files
     -h, --help
       print help and exits
     -out, --out
-      output
+      Output file. Optional . Default: stdout
     --samoutputformat
       Sam output format.
       Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
@@ -22,8 +22,9 @@ Usage: findnewsplicesites [options] Files
       max distance between known splice site and cigar end
       Default: 10
     -k
-      UCSC Known Gene URI
-      Default: []
+      UCSC knownGene URI. Beware chromosome names are formatted the same as 
+      your REFERENCE
+      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
 
 ```
 
@@ -31,6 +32,13 @@ Usage: findnewsplicesites [options] Files
 ## Description
 
 use the 'N' operator in the cigar string to find unknown splice sites
+
+
+## Keywords
+
+ * rnaseq
+ * splice
+
 
 ## Compilation
 
@@ -87,5 +95,15 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+
+## Example
+
+```bash
+$  java -jar dist/findnewsplicesites.jar \
+     -k http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz \
+      hg19.bam > out.sam
+```
 
 

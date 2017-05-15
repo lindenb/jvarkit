@@ -15,7 +15,7 @@ Usage: backlocate [options] Files
       UCSC kgXRef URI
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz
     -o, --out
-      File output. Default:stdout
+      Output file. Optional . Default: stdout
     -p, --printSeq
       print mRNA & protein sequences
       Default: false

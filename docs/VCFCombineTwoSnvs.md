@@ -12,8 +12,8 @@ Usage: vcfcombinetwosnvs [options] Files
     -h, --help
       print help and exits
   * -k, --knownGene
-      KnownGene data URI/File. Beware chromosome names are formatted the same 
-      as your REFERENCE.
+      UCSC knownGene URI. Beware chromosome names are formatted the same as 
+      your REFERENCE
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 

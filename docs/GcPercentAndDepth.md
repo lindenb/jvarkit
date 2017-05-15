@@ -6,6 +6,11 @@
 ```
 Usage: gcpercentanddepth [options] Files
   Options:
+    -filter, --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exits
     --version
@@ -25,7 +30,7 @@ Usage: gcpercentanddepth [options] Files
        skip window if Reference contains one 'N'.
       Default: false
     -o
-       (output file) . default stdout.
+      Output file. Optional . Default: stdout
     -s
        (window shift)
       Default: 50

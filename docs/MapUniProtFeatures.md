@@ -14,12 +14,11 @@ Usage: mapuniprot [options] Files
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     -k
-       (uri) UCSC KnownGene data URI/File. should look like 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      . Beware chromosome names are formatted the same as your REFERENCE.
+      UCSC knownGene URI. Beware chromosome names are formatted the same as 
+      your REFERENCE
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
     -o
-       output file
+      Output file. Optional . Default: stdout
     -u
       Uniprot.xml.gz URL/File.
       Default: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz

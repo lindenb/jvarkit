@@ -9,8 +9,8 @@ Usage: vcfpredictions [options] Files
     -h, --help
       print help and exits
   * -k, --knownGene
-      KnownGene data URI/File. Beware chromosome names are formatted the same 
-      as your REFERENCE.
+      UCSC knownGene URI. Beware chromosome names are formatted the same as 
+      your REFERENCE
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
     -o, --output
       Output file. Optional . Default: stdout
@@ -18,7 +18,8 @@ Usage: vcfpredictions [options] Files
       Print SO:term accession rather than label
       Default: false
   * -R, --reference
-      Indexed fasta Reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     -vep, --vep
       Variant Effect Predictor output Syntax
       Default: false

@@ -9,7 +9,7 @@ Usage: pademptyfastq [options] Files
     -h, --help
       print help and exits
     -o, --out
-      Output VCF or stdout
+      Output file. Optional . Default: stdout
     --version
       print version and exits
     -N
@@ -26,6 +26,12 @@ use awk
 ## Description
 
 Pad empty fastq sequence/qual with N/#
+
+
+## Keywords
+
+ * fastq
+
 
 ## Compilation
 
@@ -82,5 +88,22 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+### AWK
+
+compiled version of awk:
+
+```awk
+{if(NR%4==2 && length($0)==0) { printf("NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\n");} else if(NR%4==0 && length($0)==0) { printf("##################################################\n");} else {print;}}
+```
+
+
+### Example
+
+```bash
+$ cutadapt -a AGATCGGAAGAGCGTCGT  2> /dev/null in.fastq.gz |\
+  java -jar dist/pademptyfastq.jar -o pad.fastq.gz
+```
 
 

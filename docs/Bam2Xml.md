@@ -117,14 +117,14 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
     <name>r002</name>
     <seq>AAAAGATAAGGGATAAA</seq>
     <cigar>
-      <ce op="S" length="1" read-pos="0"/>
+      <ce op="S" length="1" read-pos="0" ref-pos="8"/>
       <ce op="I" length="2" read-pos="1"/>
-      <ce op="M" length="6" read-pos="3" ref-pos="8"/>
+      <ce op="M" length="6" read-pos="3" ref-pos="9"/>
       <ce op="P" length="1"/>
       <ce op="I" length="1" read-pos="9"/>
       <ce op="P" length="1"/>
       <ce op="I" length="1" read-pos="10"/>
-      <ce op="M" length="4" read-pos="11" ref-pos="14"/>
+      <ce op="M" length="4" read-pos="11" ref-pos="15"/>
       <ce op="I" length="2" read-pos="15"/>
     </cigar>
     <attributes/>
@@ -133,8 +133,8 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
     <name>r003</name>
     <seq>AGCTAA</seq>
     <cigar>
-      <ce op="H" length="5"/>
-      <ce op="M" length="6" read-pos="0" ref-pos="4"/>
+      <ce op="H" length="5" ref-pos="4"/>
+      <ce op="M" length="6" read-pos="0" ref-pos="9"/>
     </cigar>
     <attributes/>
   </record>
@@ -153,8 +153,8 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
     <name>r003</name>
     <seq>TAGGC</seq>
     <cigar>
-      <ce op="H" length="6"/>
-      <ce op="M" length="5" read-pos="0" ref-pos="23"/>
+      <ce op="H" length="6" ref-pos="23"/>
+      <ce op="M" length="5" read-pos="0" ref-pos="29"/>
     </cigar>
     <attributes/>
   </record>
@@ -223,6 +223,7 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
     <attributes/>
   </record>
 </sam>
+
 ```
 
 

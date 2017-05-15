@@ -9,6 +9,11 @@ Usage: extendrefwithreads [options] Files
     -f, --callingfraction
       (0.0<float<=1.0) new base must have fraction greater than this number
       Default: 0.8
+    -filter, --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exits
     -N, --mincontig
@@ -20,7 +25,8 @@ Usage: extendrefwithreads [options] Files
     -o, --out
       Output file or stdout
   * -R, --reference
-      Indexed Reference Fasta
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exits
 

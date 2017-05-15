@@ -4,7 +4,7 @@
 ## Usage
 
 ```
-Usage:  [options] Files
+Usage: vcfgo [options] Files
   Options:
     -h, --help
       print help and exits
@@ -41,6 +41,13 @@ Usage:  [options] Files
 
 Find the GO terms for VCF annotated with SNPEFF or VEP
 
+
+## Keywords
+
+ * vcf
+ * go
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -57,7 +64,7 @@ Find the GO terms for VCF annotated with SNPEFF or VEP
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make 
+$ make vcfgo
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -88,7 +95,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfgo** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 

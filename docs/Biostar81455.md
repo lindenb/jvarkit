@@ -9,9 +9,8 @@ Usage: biostar81455 [options] Files
     -h, --help
       print help and exits
   * -KG, --knownGene
-      KnownGene data URI/File. should look like 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      . Beware chromosome names are formatted the same as your REFERENCE.
+      UCSC knownGene URI. Beware chromosome names are formatted the same as 
+      your REFERENCE
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
     -o, --output
       Output file. Optional . Default: stdout

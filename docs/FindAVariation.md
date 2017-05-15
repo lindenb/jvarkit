@@ -15,7 +15,7 @@ Usage: findavariation [options] Files
       Hide NO_CALL genotypes
       Default: false
     -o, --out
-      Output file.
+      Output file. Optional . Default: stdout
     -f, --posfile
       Add this file containing chrom:position
       Default: []

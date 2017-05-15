@@ -14,7 +14,7 @@ Usage: downsamplevcf [options] Files
       print version and exits
     -N
        random seed
-      Default: 1494608867540
+      Default: 1494864025973
     -n
       output size
       Default: 10
@@ -25,6 +25,12 @@ Usage: downsamplevcf [options] Files
 ## Description
 
 DownSample a VCF
+
+
+## Keywords
+
+ * vcf
+
 
 ## Compilation
 
@@ -81,5 +87,15 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
+
+## Example
+
+```bash
+$ curl -skL "ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |\
+  gunzip -c |\
+java -jar dist/downsamplevcf.jar -n 100 > output.vcf
+```
 
 

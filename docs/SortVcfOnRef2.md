@@ -17,7 +17,8 @@ Usage: sortvcfonref2 [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
-      Indexed fasta Reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
@@ -34,6 +35,13 @@ use picard sortvcf
 ## Description
 
 Sort a VCF using the internal dictionary or an external reference order (Deprecated: use picard SortVcf).
+
+
+## Keywords
+
+ * vcf
+ * sort
+
 
 ## Compilation
 

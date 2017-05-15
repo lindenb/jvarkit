@@ -35,7 +35,14 @@ Usage: vcfin [options] Files
 
 ## Description
 
-Only prints variants that are contained/not contained into another VCF.
+Only prints variants that are contained/not contained into another VCF
+
+
+## Keywords
+
+ * vcf
+ * compare
+
 
 ## Compilation
 

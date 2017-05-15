@@ -23,6 +23,15 @@ Usage: illuminadir [options] Files
 
 Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.
 
+
+## Keywords
+
+ * json
+ * xml
+ * illumina
+ * fastq
+
+
 ## Compilation
 
 ### Requirements / Dependencies

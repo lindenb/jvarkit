@@ -29,7 +29,7 @@ Usage: vcffilterso [options] Files
       disable reasoning, don't use term's children.
       Default: false
     -o, --out
-      Output file or stdout
+      Output file. Optional . Default: stdout
     -owluri, --owluri
       If not empty, don't use the internal SO ontology but load a OWL 
       description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl

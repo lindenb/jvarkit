@@ -88,7 +88,6 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
 ```
-$ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf
 (...)
 ```
 

@@ -9,10 +9,11 @@ Usage: vcf2postscript [options] Files
     -h, --help
       print help and exits
     -kg, -k, --knownGene
-      UCSC known Genes URI
+      UCSC knownGene URI. Beware chromosome names are formatted the same as 
+      your REFERENCE
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
     -o, --out
-      OUtput file
+      Output file. Optional . Default: stdout
     --version
       print version and exits
 

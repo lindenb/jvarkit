@@ -12,7 +12,7 @@ Usage: bamclip2insertion [options] Files
     -h, --help
       print help and exits
     -o, --out
-      Output vcf , ot stdin
+      Output file. Optional . Default: stdout
     --samoutputformat
       Sam output format.
       Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
@@ -25,6 +25,14 @@ Usage: bamclip2insertion [options] Files
 ## Description
 
 Convert SOFT clip to Insertion of other read confirm it
+
+
+## Keywords
+
+ * sam
+ * bam
+ * clip
+
 
 ## Compilation
 
@@ -81,5 +89,7 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
+
+
 
 

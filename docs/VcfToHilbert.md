@@ -9,7 +9,7 @@ Usage: vcf2hilbert [options] Files
     -h, --help
       print help and exits
     -o, --out
-      Output File
+      Output file. Optional . Default: stdout
     -r, --radius
       Radius Size
       Default: 3.0
@@ -31,7 +31,7 @@ Plot a Hilbert Curve from a VCF file.
 
  * vcf
  * image
- * vislualization
+ * visualization
 
 
 ## Compilation

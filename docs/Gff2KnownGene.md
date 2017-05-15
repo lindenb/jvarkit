@@ -11,11 +11,17 @@ Usage: gff2knowngene [options] Files
       Default: false
     -h, --help
       print help and exits
-    -maxRecordsInRam, --maxRecordsInRam
-      Max records in RAM
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exits
 

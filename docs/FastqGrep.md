@@ -36,6 +36,12 @@ use picard
 
 Grep reads names in fastq
 
+
+## Keywords
+
+ * fastq
+
+
 ## Compilation
 
 ### Requirements / Dependencies

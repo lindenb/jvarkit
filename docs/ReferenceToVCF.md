@@ -31,6 +31,14 @@ Usage: referencetovcf [options] Files
 
 Creates a VCF containing all the possible substitutions from a Reference Genome.
 
+
+## Keywords
+
+ * vcf
+ * reference
+ * fasta
+
+
 ## Compilation
 
 ### Requirements / Dependencies
