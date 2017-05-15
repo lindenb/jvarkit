@@ -77,7 +77,7 @@ $  curl -s "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20140123
 END_DOC
 
  */
-@Program(name="vcf2hilbert",keywords={"vcf","image","vislualization"},description="Plot a Hilbert Curve from a VCF file.")
+@Program(name="vcf2hilbert",keywords={"vcf","image","visualization"},description="Plot a Hilbert Curve from a VCF file.")
 public class VcfToHilbert extends Launcher
 	{
 	

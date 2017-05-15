@@ -136,7 +136,7 @@ public class PubmedMap
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(PubmedMap.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
 
 	private static class Country {

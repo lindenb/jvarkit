@@ -56,7 +56,7 @@ public abstract class AbstractVCFCompareBase extends Launcher
 	{
 	private final Logger LOG=Logger.build(AbstractVCFCompareBase.class).make();
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected File outputFile = null;
 
 	@ParametersDelegate

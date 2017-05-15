@@ -125,7 +125,7 @@ public class VCFBed extends Launcher
 	private static final Logger LOG = Logger.build(VCFBed.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-f","--format"},description="format pattern ${xx} will be replaced by column xx in the bed line. Empty lines will be ignored (no tag) but the FILTERs will be set.")

@@ -55,16 +55,38 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+/**
 
+## Example
+
+```bash
+$   java -jar dist/referencetovcf.jar -L regions.bed -i 1 -d 1  human_g1k_v37.fasta |\
+grep -v "##" | cut -f 1-5
+
+#CHROM	POS	ID	REF	ALT
+1	10874	.	A	C
+1	10874	.	A	G
+1	10874	.	A	T
+1	10874	.	AC	AGC
+1	10874	.	ACA	AA
+1	10875	.	C	A
+1	10875	.	C	G
+1	10875	.	C	T
+1	10875	.	CA	CTA
+
+```
+
+ */
 @Program(name="referencetovcf",
-	description="Creates a VCF containing all the possible substitutions from a Reference Genome."
-		)
+	description="Creates a VCF containing all the possible substitutions from a Reference Genome.",
+	keywords={"vcf","reference","fasta"}
+	)
 public class ReferenceToVCF extends Launcher
 	{
 	private static final Logger LOG = Logger.build(ReferenceToVCF.class).make();
 	
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-L","--bed"},description="limit to this BED")
 	private File  bedFile = null;
@@ -112,7 +134,7 @@ public class ReferenceToVCF extends Launcher
 		VariantContextWriter out=null;
 		try
 			{
-			IndexedFastaSequenceFile fasta=new IndexedFastaSequenceFile(new File(oneAndOnlyOneFile(args)));
+			final IndexedFastaSequenceFile fasta=new IndexedFastaSequenceFile(new File(oneAndOnlyOneFile(args)));
 			SAMSequenceDictionary dict=fasta.getSequenceDictionary();
 			out= super.openVariantContextWriter(this.outputFile);
 			

@@ -161,7 +161,7 @@ public class PubmedGender
 
 	@Parameter(names={"-d","--database"},description="REQUIRED: A comma delimited file containing the following columns: 1) Name 2) sex (M/F) 3) Score. See http://cpansearch.perl.org/src/EDALY/Text-GenderFromName-0.33/GenderFromName.pm or https://www.ssa.gov/oact/babynames/names.zip",required=true)
 	private File dataFile = null;
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	

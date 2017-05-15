@@ -31,10 +31,10 @@ package com.github.lindenb.jvarkit.tools.biostar;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -44,6 +44,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 
 
@@ -84,7 +85,7 @@ public class Biostar234230 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar234230.class).make();
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-w","--winsize"},description="Window size")
@@ -92,6 +93,9 @@ public class Biostar234230 extends Launcher
 
 	@Parameter(names={"-s","--winshift"},description="Shift each window by 's' bases")
 	private int windowShift = 50 ;
+
+	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 
 	
 	private static class SlidingWindow
@@ -146,11 +150,13 @@ public class Biostar234230 extends Launcher
 		
 		if(this.windowSize<=0)
 			{
-			return wrapException("Bad window size.");
+			LOG.error("Bad window size.");
+			return -1;
 			}
 		if(this.windowShift<=0)
 			{
-			return wrapException("Bad window shift.");
+			LOG.error("Bad window shift.");
+			return -1;
 			}
 		
 		
@@ -164,7 +170,8 @@ public class Biostar234230 extends Launcher
 			in = super.openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header = in.getFileHeader();
 			if(header.getSortOrder()!=SAMFileHeader.SortOrder.coordinate) {
-			return wrapException("Bam is not sorted on coordinate");
+			LOG.error("Bam is not sorted on coordinate");
+			return -1;
 			}
 			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			
@@ -190,7 +197,7 @@ public class Biostar234230 extends Launcher
 				if(rec!=null )
 					{
 					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.isSecondaryOrSupplementary()) continue;
+					if(this.filter.filterOut(rec)) continue;
 					if(rec.getReadUnmappedFlag()) continue;
 					if(!rec.getReadPairedFlag()) continue;
 					if(rec.getMateUnmappedFlag()) continue;
@@ -237,7 +244,8 @@ public class Biostar234230 extends Launcher
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

@@ -44,7 +44,11 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-@Program(name="biostar234081",description="convert extended CIGAR to regular CIGAR (https://www.biostars.org/p/234081/)")
+@Program(name="biostar234081",
+	description="convert extended CIGAR to regular CIGAR",
+	keywords={"sam","bam","cigar"},
+	biostars=234081
+	)
 public class Biostar234081 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar234081.class).make();
@@ -101,7 +105,8 @@ public class Biostar234081 extends Launcher
 		LOG.debug("done");
 		return RETURN_OK;
 	} catch (final Exception err) {
-		return wrapException(err);	
+		LOG.error(err);
+		return -1;
 	}	
 	finally {
 		CloserUtil.close(iter);

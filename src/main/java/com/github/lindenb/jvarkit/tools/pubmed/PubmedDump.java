@@ -93,7 +93,7 @@ public class PubmedDump
 
 	@Parameter(names={"-e","--email"},description="optional user email")
 	private String email = null;
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	private String tool="pubmedump";

@@ -36,6 +36,8 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
+import java.io.File;
+import java.io.PrintWriter;
 import java.util.List;
 import java.util.TreeSet;
 
@@ -47,13 +49,54 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 /**
- * SamClippingFraction
+ * 
+BEGIN_DOC
+
+## Example
+
+```bash
+$ samtools view -h -F3844 my.bam  | java -jar dist/samclipindelfraction.jar 
+
+##UNMAPPED_READS=0
+##MAPPED_READS=3028359
+##CLIPPED_READS=1182730
+##CLIPPED_READS_5_PRIME=597757
+##CLIPPED_READS_3_PRIME=617399
+##UNCLIPPED_READS=1845629
+##COUNT_BASES=338644685
+#CLIP	COUNT	FRACTION_OF_MAPPED_READS
+0	1845629	0.5
+1	7	1.8963724562195327E-6
+2	6756	0.0018302703306027376
+3	695	1.8828269386751074E-4
+4	794	2.1510281860547272E-4
+5	819	2.2187557737768533E-4
+6	471	1.275987752684857E-4
+7	447	1.210969268471616E-4
+(...)
+```
+
+plotting:
+```bash
+$ java -jar dist/samclipindelfraction.jar |\
+   grep -v "##" | cut -f1,2 | tr -d '#' > output.txt
+```
+
+then, in R:
+```R
+T<-read.table('output.txt',header=TRUE)
+plot(T[T$CLIP>0,])
+```
+
+END_DOC
  */
 @Program(name="Samclipindelfraction",description="Extract clipping/indel fraction from BAM")
 
 public class SamClipIndelFraction extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamClipIndelFraction.class).make();
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile = null;
 
 	private enum Type {
 		leftclip,
@@ -70,10 +113,11 @@ public class SamClipIndelFraction extends Launcher
 		{
 		SamReader sfr=null;
 		SAMRecordIterator iter=null;
+		PrintWriter pw=null;
 		try
 			{
 			sfr = openSamReader(oneFileOrNull(args));
-			
+			pw =  super.openFileOrStdoutAsPrintWriter(outputFile);
 			long total_bases_count=0L;
 			long count_clipped_reads=0L;
 			long count_clipped_left_reads=0L;
@@ -192,34 +236,36 @@ public class SamClipIndelFraction extends Launcher
 				}
 			progress.finish();
 			
-			System.out.println("##UNMAPPED_READS="+count_unmapped_reads);
-			System.out.println("##MAPPED_READS="+(count_clipped_reads+count_unclipped_reads));
-			System.out.println("##CLIPPED_READS="+count_clipped_reads);
-			System.out.println("##CLIPPED_READS_5_PRIME="+count_clipped_left_reads);
-			System.out.println("##CLIPPED_READS_3_PRIME="+count_clipped_right_reads);
-			System.out.println("##UNCLIPPED_READS="+count_unclipped_reads);
-			System.out.println("##COUNT_BASES="+total_bases_count);
-			System.out.print("#");
+			pw.println("##UNMAPPED_READS="+count_unmapped_reads);
+			pw.println("##MAPPED_READS="+(count_clipped_reads+count_unclipped_reads));
+			pw.println("##CLIPPED_READS="+count_clipped_reads);
+			pw.println("##CLIPPED_READS_5_PRIME="+count_clipped_left_reads);
+			pw.println("##CLIPPED_READS_3_PRIME="+count_clipped_right_reads);
+			pw.println("##UNCLIPPED_READS="+count_unclipped_reads);
+			pw.println("##COUNT_BASES="+total_bases_count);
+			pw.print("#");
 			switch(type)
 				{
-				case leftclip:  System.out.print("CLIP_5_PRIME"); break;
-				case rightclip:  System.out.print("CLIP_3_PRIME"); break;
-				case allclip:  System.out.print("CLIP"); break;
-				case deletion:  System.out.print("DELETION"); break;
-				case insert:  System.out.print("INSERTION"); break;
+				case leftclip:  pw.print("CLIP_5_PRIME"); break;
+				case rightclip:  pw.print("CLIP_3_PRIME"); break;
+				case allclip:  pw.print("CLIP"); break;
+				case deletion:  pw.print("DELETION"); break;
+				case insert:  pw.print("INSERTION"); break;
 				default: LOG.error("Bad type: "+type);return -1;
 				}
-			System.out.println("\tCOUNT\tFRACTION_OF_MAPPED_READS");
+			pw.println("\tCOUNT\tFRACTION_OF_MAPPED_READS");
 			
 			for(Integer size: new TreeSet<Integer>(counter.keySet()))
 				{
-				System.out.print(size);
-				System.out.print('\t');
-				System.out.print(counter.count(size));
-				System.out.print('\t');
-				System.out.println(counter.count(size)/(double)(count_unclipped_reads+count_unclipped_reads));
+				pw.print(size);
+				pw.print('\t');
+				pw.print(counter.count(size));
+				pw.print('\t');
+				pw.println(counter.count(size)/(double)(count_unclipped_reads+count_unclipped_reads));
 				}
-			
+			pw.flush();
+			pw.close();
+			pw=null;
 			return 0;
 			}
 		catch(Exception err)
@@ -231,6 +277,7 @@ public class SamClipIndelFraction extends Launcher
 			{
 			CloserUtil.close(iter);
 			CloserUtil.close(sfr);
+			CloserUtil.close(pw);
 			}
 		}
 	/**

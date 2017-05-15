@@ -202,13 +202,15 @@ Please not that variant 1	11167517 is not flagged because is alternate allele is
 END_DOC
 */
 
-@Program(name="vcfin",description="Only prints variants that are contained/not contained into another VCF.")
-
+@Program(name="vcfin",
+	description="Only prints variants that are contained/not contained into another VCF",
+	keywords={"vcf","compare"}
+	)
 public class VcfIn extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfIn.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

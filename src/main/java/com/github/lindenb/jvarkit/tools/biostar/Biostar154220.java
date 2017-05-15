@@ -38,6 +38,7 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 
 import java.io.File;
@@ -49,6 +50,7 @@ import java.util.List;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -65,6 +67,9 @@ public class Biostar154220 extends Launcher
 	@Parameter(names={"-n","--depth"},description="number of reads")
 	private int capDepth=20;
 	
+	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+
 	@ParametersDelegate
 	private WritingBamArgs writingBams=new WritingBamArgs();
 	
@@ -143,21 +148,19 @@ public class Biostar154220 extends Launcher
 						Counter<Integer> readposition2coverage=new Counter<Integer>();
 						
 						boolean dump_this_buffer=true;
-						for(SAMRecord sr:buffer)
+						for(final SAMRecord sr:buffer)
 							{
 							if(!dump_this_buffer) break;
-							if(sr.isSecondaryOrSupplementary()) continue;
-							if(sr.getDuplicateReadFlag()) continue;
-							if(sr.getMappingQuality()==0) continue;
+							if(this.filter.filterOut(sr)) continue;
 							
 							
-							Cigar cigar=sr.getCigar();
+							final Cigar cigar=sr.getCigar();
 							if(cigar==null)
 								{
 								throw new IOException("Cigar missing in "+rec.getSAMString());
 								}
 							int refPos1=sr.getAlignmentStart();
-							for(CigarElement ce:cigar.getCigarElements())
+							for(final CigarElement ce:cigar.getCigarElements())
 								{
 								final CigarOperator op =ce.getOperator();
 								if(!op.consumesReferenceBases()) continue;

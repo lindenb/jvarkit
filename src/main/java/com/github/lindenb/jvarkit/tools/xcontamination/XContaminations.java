@@ -39,6 +39,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -57,6 +58,7 @@ import java.util.Set;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -142,7 +144,10 @@ public class XContaminations extends Launcher
 	private static final Logger LOG=Logger.build(XContaminations.class).make();
 	@Parameter(names={"-o","--out"},description="Output file or stdout")
 	private File outputFile = null;
+	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 
+	
 	private Set<File> bamFiles=new HashSet<File>();
 	
 	private static class SampleAlleles
@@ -440,9 +445,7 @@ public class XContaminations extends Launcher
 						{
 						SAMRecord record= iter.next();
 						if(record.getReadUnmappedFlag()) continue;
-						if(record.isSecondaryOrSupplementary()) continue;
-						if(record.getDuplicateReadFlag()) continue;
-						if(record.getMappingQuality()==0 || record.getMappingQuality()==255) continue;
+						if(this.filter.filterOut(record)) continue;
 						if(record.getReadPairedFlag())
 							{
 							if(!record.getProperPairFlag()) continue;

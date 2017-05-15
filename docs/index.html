@@ -54,7 +54,7 @@
 <tr id="bam2wig"><th><a href="Bam2Wig.html" title="Bam2Wig">bam2wig</a></th><td>Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)</td><td>bam wig wiggle</td><td/><td/></tr>
 <tr id="bamcmpcoverage"><th><a href="BamCmpCoverage.html" title="BamCmpCoverage">bamcmpcoverage</a></th><td>Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2</td><td>sam bam visualization coverage</td><td/><td/></tr>
 <tr id="bamgenscan"><th><a href="BamGenScan.html" title="BamGenScan">bamgenscan</a></th><td>Paint a Genome Scan picture from a BAM</td><td/><td/><td/></tr>
-<tr id=""><th><a href="VcfGeneOntology.html" title="VcfGeneOntology"/></th><td>Find the GO terms for VCF annotated with SNPEFF or VEP</td><td/><td/><td/></tr>
+<tr id="vcfgo"><th><a href="VcfGeneOntology.html" title="VcfGeneOntology"/></th><td>Find the GO terms for VCF annotated with SNPEFF or VEP</td><td/><td/><td/></tr>
 <tr id="bamrenamechr"><th><a href="ConvertBamChromosomes.html" title="ConvertBamChromosomes">bamrenamechr</a></th><td>Convert the names of the chromosomes in a BAM file</td><td/><td/><td/></tr>
 <tr id="bamstats04"><th><a href="BamStats04.html" title="BamStats04">bamstats04</a></th><td>Coverage statistics for a BED file.</td><td>bam coverage statistics bed</td><td/><td/></tr>
 <tr id="bamstats05"><th><a href="BamStats05.html" title="BamStats05">bamstats05</a></th><td>Coverage statistics for a BED file, group by gene</td><td>bam coverage statistics bed</td><td/><td/></tr>
@@ -260,6 +260,7 @@
 <tr id="vcfburdenfiltergenes"><th><a href="VcfBurdenFilterGenes.html" title="VcfBurdenFilterGenes">vcfburdenfiltergenes</a></th><td>Filter VEP Output from a list of genes.</td><td>gene vcf vep</td><td/><td/></tr>
 <tr id="vcfrefbase"><th><a href="VcfRebase.html" title="VcfRebase">vcfrefbase</a></th><td>Restriction sites overlaping variations in a vcf</td><td>vcf rebase restriction enzyme</td><td/><td/></tr>
 <tr id="projectserver"><th><a href="ProjectServer.html" title="ProjectServer">projectserver</a></th><td>Jetty Based http server serving VCF, BAM files</td><td/><td/><td/></tr>
+<tr id="vcfwindowvariants"><th><a href="VariantsInWindow.html" title="VariantsInWindow">vcfwindowvariants</a></th><td>Annotate Variants using a sliding window.</td><td>vcf annotation</td><td/><td/></tr>
 </tbody>
 
 </table>

@@ -41,6 +41,7 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SamReaderFactory.Option;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -54,6 +55,7 @@ import java.util.Map;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -96,7 +98,7 @@ public class ExtendReferenceWithReads extends Launcher
 	
 	@Parameter(names={"-o","--out"},description="Output file or stdout")
 	private File outputFile = null;
-	@Parameter(names={"-R","--reference"},description="Indexed Reference Fasta",required=true)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx=null;
 	@Parameter(names={"-f","--callingfraction"},description="(0.0<float<=1.0) new base must have fraction greater than this number")
 	private double callingFraction=0.8;
@@ -104,6 +106,10 @@ public class ExtendReferenceWithReads extends Launcher
 	private int minDepth=1;
 	@Parameter(names={"-N","--mincontig"},description="onsider only gaps in reference with size&gt;=N")
 	private int minLenNNNNContig=100;
+	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+
+	
 	
 	private List<SamReader> samReaders=new ArrayList<>();
 	private enum Rescue {LEFT,CENTER,RIGHT};
@@ -173,8 +179,7 @@ public class ExtendReferenceWithReads extends Launcher
 					{
 					final SAMRecord rec = iter.next();
 					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.getMappingQuality()==0) continue;
-					if(rec.isSecondaryOrSupplementary()) continue;
+					if(this.filter.filterOut(rec)) continue;
 					final Cigar cigar=rec.getCigar();
 					if(cigar==null) continue;
 					final byte bases[]=rec.getReadBases();

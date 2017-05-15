@@ -217,7 +217,7 @@ public class VcfMultiToOne extends Launcher
 	private boolean discard_hom_ref = false;
 	@Parameter(names={"-a","--discard_non_available"},description="discard if variant is not available")
 	private boolean discard_non_available = false;
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	

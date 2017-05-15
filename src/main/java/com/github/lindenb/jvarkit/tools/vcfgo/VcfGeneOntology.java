@@ -73,13 +73,16 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
  * VcfGeneOntology
  *
  */
-@Program(name="",description="Find the GO terms for VCF annotated with SNPEFF or VEP")
+@Program(
+		name="vcfgo",
+		description="Find the GO terms for VCF annotated with SNPEFF or VEP",
+		keywords={"vcf","go"})
 public class VcfGeneOntology
 	extends Launcher
 	{
 	 private static Logger LOG=Logger.build(VcfGeneOntology.class).make(); 
 		
-	 @Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	 private File outputFile = null;
 
 	@Parameter(names="-G",description="(go  url)",required=true)

@@ -32,7 +32,6 @@ package com.github.lindenb.jvarkit.tools.bamstats01;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
@@ -159,7 +158,7 @@ public class BamStats02
 	private static final Logger LOG = Logger.build(BamStats02.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

@@ -3,9 +3,7 @@ package com.github.lindenb.jvarkit.tools.rnaseq;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.LineIterator;
@@ -35,17 +33,35 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene.Exon;
+import com.github.lindenb.semontology.Term;
+/**
+BEGIN_DOC
 
-@Program(name="findnewsplicesites",description="use the 'N' operator in the cigar string to find unknown splice sites")
+
+## Example
+
+```bash
+$  java -jar dist/findnewsplicesites.jar \
+     -k http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz \
+      hg19.bam > out.sam
+```
+
+END_DOC
+*/
+@Program(name="findnewsplicesites",
+	description="use the 'N' operator in the cigar string to find unknown splice sites",
+	keywords={"rnaseq","splice"},
+	terms=Term.ID_0000008
+	)
 public class FindNewSpliceSites extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FindNewSpliceSites.class).make();
 
 	private IntervalTreeMap<List<KnownGene>> knownGenesMap=new IntervalTreeMap<>();
-	@Parameter(names={"-out","--out"},description="output")
+	@Parameter(names={"-out","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names="-k",description="UCSC Known Gene URI")
-	private Set<String> knownGeneUris = new LinkedHashSet<>();
+	@Parameter(names="-k",description=KnownGene.OPT_KNOWNGENE_DESC)
+	private String knownGeneUri = KnownGene.getDefaultUri();
 	@Parameter(names="-d",description="max distance between known splice site and cigar end")
 	private int max_distance=10;
 	@ParametersDelegate
@@ -213,7 +229,7 @@ public class FindNewSpliceSites extends Launcher
 		}
 	@Override
 	public int doWork(List<String> args) {
-		if(this.knownGeneUris.isEmpty())
+		if(this.knownGeneUri==null || this.knownGeneUri.trim().isEmpty())
 			{
 			LOG.error("known Gene file undefined");
 			return -1;
@@ -223,11 +239,10 @@ public class FindNewSpliceSites extends Launcher
 		try
 			{
 
-			Pattern tab=Pattern.compile("[\t]");
-			for(String kgUri: this.knownGeneUris)
+			final Pattern tab=Pattern.compile("[\t]");
 				{
-				LOG.info("Opening "+kgUri);
-				LineIterator r=IOUtils.openURIForLineIterator(kgUri);
+				LOG.info("Opening "+this.knownGeneUri);
+				LineIterator r=IOUtils.openURIForLineIterator(this.knownGeneUri);
 				while(r.hasNext())
 					{
 					final KnownGene g=new KnownGene(tab.split(r.next()));
@@ -240,7 +255,7 @@ public class FindNewSpliceSites extends Launcher
 					}
 					L.add(g);
 					}
-				LOG.info("Done reading: "+kgUri);
+				LOG.info("Done reading: "+this.knownGeneUri);
 				}
 			sfr = super.openSamReader(oneFileOrNull(args));
 			

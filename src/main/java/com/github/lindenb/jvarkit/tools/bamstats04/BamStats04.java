@@ -78,13 +78,12 @@ $ java -jar dist/bamstats04.jar \
 END_DOC
  */
 @Program(name="bamstats04",
-description="Coverage statistics for a BED file.",
-keywords={"bam","coverage","statistics","bed"}
-)
+	description="Coverage statistics for a BED file.",
+	keywords={"bam","coverage","statistics","bed"}
+	)
 public class BamStats04 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BamStats04.class).make();
-
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

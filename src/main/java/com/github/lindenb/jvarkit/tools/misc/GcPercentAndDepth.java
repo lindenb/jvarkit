@@ -48,6 +48,7 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -58,6 +59,7 @@ import htsjdk.samtools.util.SequenceUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -97,6 +99,8 @@ public class GcPercentAndDepth extends Launcher
 	private String chromNameFile=null;
 	@Parameter(names="-x",description=" don't print genomic index.")
 	private boolean hide_genomic_index=false;
+	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 
 	
 	/** A bed segment from the catpure */
@@ -508,13 +512,10 @@ public class GcPercentAndDepth extends Launcher
 					}
 				while(merginIter.hasNext())
 					{
-					SAMRecord rec=merginIter.next();
+					final SAMRecord rec=merginIter.next();
 					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.isSecondaryOrSupplementary()) continue;
-					if(rec.getDuplicateReadFlag()) continue;
-					if(rec.getReadFailsVendorQualityCheckFlag())  continue;
-					if(rec.getMappingQuality()==0 || rec.getMappingQuality()==255) continue;
-					
+					if(this.filter.filterOut(rec)) continue;
+										
 					SAMReadGroupRecord g=rec.getReadGroup();
 					if(g==null) continue;
 					progress.watch(rec);

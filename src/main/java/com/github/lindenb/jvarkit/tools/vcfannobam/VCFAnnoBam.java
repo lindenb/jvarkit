@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -26,6 +27,7 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.IntervalList;
@@ -40,17 +42,37 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdf;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+/**
+BEGIN_DOC
 
+
+### Example
+
+```bash
+$  java -jar dist/vcfannobam.jar \
+		-BAM input.bam\
+		-BED capture.bed \
+		input.vcf.gz
+
+(...)
+##INFO=<ID=CAPTURE,Number=1,Type=String,Description="Capture stats: Format is (start|end|mean|min|max|length|not_covered|percent_covered) ">
+(...)
+2	16100665	.	A	T	13261.77	.	CAPTURE=16100619|16100715|1331.96|1026.0|1773.0|97|0|100
+2	178395141	.	T	A	1940.77	.	CAPTURE=178394991|178395199|193.11|100.0|276.0|209|0|100
+(...)
+```
+
+END_DOC
+
+ */
 @Program(name="vcfannobam",
 	deprecatedMsg="useless: use DP/DP4 in the Genotypes",
 	description="Annotate a VCF with the Coverage statistics of a BAM file+  BED file of capture. It uses the Cigar string instead of the start/end to get the voverage")
 public class VCFAnnoBam extends Launcher {
+	private static final Logger LOG = Logger.build(VCFAnnoBam.class).make();
 
-	private static final Logger LOG = Logger.build(VcfToRdf.class).make();
-
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
     @Parameter(names= {"-BED"}, description="BED File capture.",required=true)
@@ -60,12 +82,12 @@ public class VCFAnnoBam extends Launcher {
 	private List<File> BAMFILE=null;
 
     
+	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 
-	@Parameter(names= {"-MIN_MAPING_QUALITY"}, description="min mapping quality")		
-	public int MMQ=0;
 
-	@Parameter(names= {"-MIN_COV"}, description="min coverage to say the position is not covered")		
-    public int MIN_COVERAGE=0;
+	@Parameter(names= {"-MIN_COV","--coverage"}, description="min coverage to say the position is not covered")		
+	private int MIN_COVERAGE=0;
 
    
     
@@ -130,14 +152,9 @@ public class VCFAnnoBam extends Launcher {
 				{
 				SAMRecord rec=r.next();
 				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-				if(rec.getDuplicateReadFlag()) continue;
+				if(this.filter.filterOut(rec)) continue;
 				if(!rec.getReferenceName().equals(rgn.interval.getContig())) continue;
-				if(rec.getMappingQuality()==255 && rec.getMappingQuality()< this.MMQ)
-					{
-					continue;
-					}
-				
+			
 				Cigar cigar=rec.getCigar();
 				if(cigar==null) continue;
 	    		int refpos1=rec.getAlignmentStart();

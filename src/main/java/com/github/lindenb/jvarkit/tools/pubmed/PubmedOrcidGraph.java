@@ -125,7 +125,7 @@ public class PubmedOrcidGraph
 	private static final Logger LOG = Logger.build(PubmedOrcidGraph.class).make();
 	private static final String NAME_NOT_FOUND="<NOT FOUND IN PUBMED>";
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-D","--berkeydb"},description="BerkeleyDB tmpDir",required=true)
 	private File bdbDir = null;

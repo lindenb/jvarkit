@@ -16,17 +16,39 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+/*
+BEGIN_DOC
 
+### AWK
+
+compiled version of awk:
+
+```awk
+{if(NR%4==2 && length($0)==0) { printf("NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\n");} else if(NR%4==0 && length($0)==0) { printf("##################################################\n");} else {print;}}
+```
+
+
+### Example
+
+```bash
+$ cutadapt -a AGATCGGAAGAGCGTCGT  2> /dev/null in.fastq.gz |\
+  java -jar dist/pademptyfastq.jar -o pad.fastq.gz
+```
+
+END_DOC
+ 
+ */
 
 @Program(name="pademptyfastq",
 description= "Pad empty fastq sequence/qual with N/#",
-deprecatedMsg="use awk"
+deprecatedMsg="use awk",
+keywords="fastq"
 		)
 public class PadEmptyFastq extends Launcher
 	{
 	private static final Logger LOG=Logger.build(PadEmptyFastq.class).make();
 
-	@Parameter(names={"-o","--out"},description="Output VCF or stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
     private File outFile=null;
 
 	

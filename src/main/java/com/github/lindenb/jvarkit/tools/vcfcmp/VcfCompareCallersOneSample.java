@@ -53,6 +53,47 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+
+BEGIN_DOC
+
+## Misc.
+
+I used 
+```
+java -jar dist/VcfCompareCallersOneSample.jar  -m1 -M1 -f samtools.vcf gatk.vcf
+java -jar dist/VcfCompareCallersOneSample.jar  -m1 -M1 -f gatk.vcf samtools.vcf
+```
+
+shouldn't I get the same number of variants in both files ?
+**Answer** is "not always" in the following case:
+
+in gatk.vcf:
+
+```
+11	244197	rs1128322	T	C
+````
+
+in samtools.vcf:
+```
+11	244197	rs1128322	T	C,G
+```
+
+in
+```
+java -jar dist/VcfCompareCallersOneSample.jar  -m1 -M1 -f samtools.vcf gatk.vcf
+```
+we keep the variant because we found 'C' in samtools and 'gatk'
+
+```
+java -jar dist/VcfCompareCallersOneSample.jar  -m1 -M1 -f gatk.vcf samtools.vcf
+```
+
+the variant is discarded because 'G' is found in samtools but not in 'gatk.vcf'
+
+END_DOC
+
+ */
 @Program(name="vcfcomparecallersonesample",
 description="For my colleague Julien: VCF with one sample called using different callers. Only keep variant if it was found in min<x=other-files<=max"
 

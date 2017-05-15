@@ -136,8 +136,10 @@ SO:0001599	3D_polypeptide_structure_variant
  * END_DOC
  *
  */
-@Program(name="vcffilterso",keywords={"vcf","filter","sequenceontology","prediction","so"},
-	description="Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.<")
+@Program(name="vcffilterso",
+	keywords={"vcf","filter","sequenceontology","prediction","so"},
+	description="Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.<"
+	)
 public class VcfFilterSequenceOntology
 	extends Launcher
 	{
@@ -172,7 +174,7 @@ public class VcfFilterSequenceOntology
 
 	@Parameter(names={"-S","--showacn"},description="list the available SO accession and exit.")
 	private boolean showList = false;
-	@Parameter(names={"-o","--out"},description="Output file or stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-owluri","--owluri"},description="If not empty, don't use the internal SO ontology but load a OWL description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl")

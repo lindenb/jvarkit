@@ -337,7 +337,7 @@ public class VCFFilterJS
 	private CompiledScript compiledScript = null;
 	
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
