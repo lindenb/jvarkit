@@ -30,10 +30,10 @@ package com.github.lindenb.jvarkit.tools.burden;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.SortedSet;
@@ -58,10 +58,47 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+/**
+
+BEGIN_DOC
+
+
+END_DOC
+*/
+
+@Program(name="vcfdoest",
+	description="generate Transcript information for DOEST test",
+	keywords={"vcf","burden","doest"}
+		)
 public class VcfDoest
-	extends AbstractVcfDoest
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfDoest.class);
+	private static final Logger LOG = Logger.build(VcfDoest.class).make();
+
+
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile = null;
+
+
+	@Parameter(names={"-k","--kg"},description=KnownGene.OPT_KNOWNGENE_DESC,required=true)
+	private String knownGeneURI = KnownGene.getDefaultUri();
+
+	@Parameter(names={"-knc","--keepnoncoding"},description="keep non coding transcripts")
+	private boolean keepNonCoding = false;
+
+	@Parameter(names={"-f","--function"},description="User defined R function to be called after each VCF")
+	private String userDefinedFunName = "";
+
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	
+	
 	private IntervalTreeMap<List<KnownGene>> knownGenesMap = null;
 	
 	private static class TranscriptInfo implements Comparable<TranscriptInfo>
@@ -238,8 +275,8 @@ public class VcfDoest
 		sorting = SortingCollection.newInstance(TranscriptInfo.class,
 				new TranscriptInfoCodec(),
 				new TranscriptInfoCmp(),
-				super.getMaxRecordsInRam(),
-				super.getTmpDirectories()
+				this.writingSortingCollection.getMaxRecordsInRam(),
+				this.writingSortingCollection.getTmpDirectories()
 				);
 		
 		sorting.setDestructiveIteration(true);
@@ -476,13 +513,13 @@ public class VcfDoest
 			pw.println(")");
 			pw.println("stopifnot(NROW(variants) * NROW(population) == length(genotypes) )");
 
-			if(super.userDefinedFunName==null || super.userDefinedFunName.trim().isEmpty()) {
+			if(this.userDefinedFunName==null || this.userDefinedFunName.trim().isEmpty()) {
 				pw.println("## WARNING not user-defined R function was defined");
 				}
 			else
 				{
 				pw.println("# consumme data with user-defined R function ");
-				pw.println(super.userDefinedFunName+"()");
+				pw.println(this.userDefinedFunName+"()");
 				}
 			
 			pw.println("# END TRANSCRIPT "+front.transcriptName+" ##########################################");
@@ -502,33 +539,29 @@ public class VcfDoest
 	}
 	
 	
-	@Override
-	public void disposeKnime() {
-		this.knownGenesMap=null;
-		super.disposeKnime();
-		}
 	
 	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		if(super.knownGeneURI==null || super.knownGeneURI.trim().isEmpty())
-		{
-		return wrapException("undefined option -"+OPTION_KNOWNGENEURI);
-		}
+	public int doWork(final List<String> args) {
+		if(this.knownGeneURI==null || this.knownGeneURI.trim().isEmpty())
+			{
+			LOG.error("undefined option knownGeneURI");
+			return -1;
+			}
 		
-		LOG.info("reading "+super.knownGeneURI);
+		LOG.info("reading "+this.knownGeneURI);
 		BufferedReader r=null;
 		VcfIterator in=null;
 		PrintWriter pw=null;
 		try {
 			int nKG=0;
 			final Pattern delim=Pattern.compile("[\t]");
-			r = IOUtils.openURIForBufferedReading(super.knownGeneURI);
+			r = IOUtils.openURIForBufferedReading(this.knownGeneURI);
 			
 			this.knownGenesMap = new IntervalTreeMap<>();
 			String line ;
 			while((line=r.readLine())!=null) {
 				final KnownGene kg=new KnownGene(delim.split(line));
-				if(kg.isNonCoding() && !super.keepNonCoding) continue;
+				if(kg.isNonCoding() && !this.keepNonCoding) continue;
 				
 				final Interval interval  = new Interval(kg.getContig(), kg.getTxStart()+1, kg.getTxEnd());
 				List<KnownGene> L = this.knownGenesMap.get(interval);
@@ -542,23 +575,23 @@ public class VcfDoest
 			r.close();r=null;
 			LOG.info("known Gene size:"+nKG);
 			
-			in=super.openVcfIterator(inputName);
-			pw=super.openFileOrStdoutAsPrintWriter();
-			
-			
+			in=super.openVcfIterator(oneFileOrNull(args));
+			pw=super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			run(in,pw);
 			in.close();in=null;
 			pw.flush();pw.close();pw=null;
 			LOG.info("done");
 			return RETURN_OK;
 		} catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return  -1;
 		} finally 
 		{
 			CloserUtil.close(r);
 			CloserUtil.close(in);
 			CloserUtil.close(pw);
 			this.knownGenesMap=null;
+			
 		}
 		
 		}

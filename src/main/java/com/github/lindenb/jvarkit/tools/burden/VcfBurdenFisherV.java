@@ -28,13 +28,16 @@ History:
 package com.github.lindenb.jvarkit.tools.burden;
 
 
-import java.io.IOException;
-import java.util.Collection;
+import java.io.File;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -46,23 +49,55 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import com.beust.jcommander.Parameter;
 
 /**
- *     
- * VcfBurdenFisherV
- * @author lindenb
- *
- */
+
+BEGIN_DOC
+
+Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
+
+### Output
+
+
+#### INFO column
+
+ *  BurdenF1Fisher : Fisher test
+
+
+#### FILTER column
+
+ *  BurdenF1Fisher :Fisher test doesn't meet  user's requirements
+
+
+### see also
+
+
+ *  VcfBurdenFilter3
+
+
+END_DOC
+*/
+
+@Program(name="vcfburdenfisherv",description="Fisher Case / Controls per Variant (Vertical)")
 public class VcfBurdenFisherV
-	extends AbstractVcfBurdenFisherV
+	extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VcfBurdenFisherV.class).make();
+
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile = null;
+
+
+	@Parameter(names={"-if","--ignorefilter"},description="accept variants having a FILTER column. Default is ignore variants with a FILTER column")
+	private boolean acceptFiltered = false;
+
 	public static final String VCF_HEADER_FISHER_VALUE="VCFBurdenFisherV";
 
 	private enum SuperVariant
 		{
 		SV0,AT_LEAST_ONE_VARIANT
 		}
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenFisherV.class);
 	
 	private static class Count {
 		int count_case_sv0 =0;
@@ -75,13 +110,9 @@ public class VcfBurdenFisherV
 		{
 		}
 	 
-	/* public for knime */
 	@Override
-	public Collection<Throwable> doVcfToVcf(
-			final String inputName,
-			final VcfIterator in,
-			final VariantContextWriter out
-			) throws IOException {
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+		final File tmpDir = new File(System.getProperty("java.io.tmpdir"));
 		final VCFHeader header=in.getHeader();
 		
 		final Map<Pedigree.Person,SuperVariant> indi2supervariant = new HashMap<>();
@@ -89,12 +120,11 @@ public class VcfBurdenFisherV
 			indi2supervariant.put(person, SuperVariant.SV0);
 		}
 		
-		
 		VCFBuffer tmpw = null;
 		VcfIterator in2=null;
 		try {
 			final VCFHeader h2=addMetaData(new VCFHeader(header));
-			tmpw = new VCFBuffer(1000,this.getTmpdir());
+			tmpw = new VCFBuffer(1000,tmpDir);
 			tmpw.writeHeader(header);
 			final Count count= new Count();
 		
@@ -104,7 +134,7 @@ public class VcfBurdenFisherV
 				final VariantContext ctx = progess.watch(in.next());
 				tmpw.add(ctx);
 				
-				if(ctx.isFiltered() && !super.acceptFiltered) continue;
+				if(ctx.isFiltered() && !this.acceptFiltered) continue;
 				int n_alts = ctx.getAlternateAlleles().size();
 				
 				
@@ -163,7 +193,8 @@ public class VcfBurdenFisherV
 			LOG.info("Fisher "+fisher.getAsDouble());
 			if(h2.getMetaDataLine(VCF_HEADER_FISHER_VALUE)!=null)
 				{
-				return wrapException("VCF Header "+VCF_HEADER_FISHER_VALUE+" already specified in input");
+				LOG.error("VCF Header "+VCF_HEADER_FISHER_VALUE+" already specified in input");
+				return -1;
 				}
 			h2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE,
 					String.valueOf(fisher.getAsDouble())));
@@ -187,7 +218,8 @@ public class VcfBurdenFisherV
 			LOG.info("done");
 			return RETURN_OK;
 			} catch(Exception err) {
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 			} finally {
 				CloserUtil.close(tmpw);
 				if(tmpw!=null) tmpw.dispose();
@@ -196,10 +228,14 @@ public class VcfBurdenFisherV
 			}
 		}
 	
+	@Override
+	protected int doVcfToVcf(List<String> args, File outorNull) {
+		return doVcfToVcfMultipleStream(oneFileOrNull(args), outorNull);
+		}
 	
 	@Override
-	protected Collection<Throwable> call(String inputName) throws Exception {
-		return doVcfToVcf(inputName);
+	public int doWork(List<String> args) {
+		return doVcfToVcf(args,this.outputFile);
 		}
 	
 	public static void main(String[] args)

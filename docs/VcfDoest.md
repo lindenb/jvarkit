@@ -1,35 +1,50 @@
-# DownSampleVcf
+# VcfDoest
 
 
 ## Usage
 
 ```
-Usage: downsamplevcf [options] Files
+Usage: vcfdoest [options] Files
   Options:
+    -f, --function
+      User defined R function to be called after each VCF
+      Default: <empty string>
     -h, --help
       print help and exits
+    -knc, --keepnoncoding
+      keep non coding transcripts
+      Default: false
+  * -k, --kg
+      UCSC knownGene URI. Beware chromosome names are formatted the same as 
+      your REFERENCE
+      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exits
-    -N
-       random seed
-      Default: 1494871038734
-    -n
-      output size
-      Default: 10
 
 ```
 
 
 ## Description
 
-DownSample a VCF
+generate Transcript information for DOEST test
 
 
 ## Keywords
 
  * vcf
+ * burden
+ * doest
 
 
 ## Compilation
@@ -48,7 +63,7 @@ DownSample a VCF
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make downsamplevcf
+$ make vcfdoest
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -66,7 +81,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/DownSampleVcf.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfDoest.java
 
 ## Contribute
 
@@ -79,7 +94,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **downsamplevcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfdoest** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -89,13 +104,5 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
-
-## Example
-
-```bash
-$ curl -skL "ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |\
-  gunzip -c |\
-java -jar dist/downsamplevcf.jar -n 100 > output.vcf
-```
 
 

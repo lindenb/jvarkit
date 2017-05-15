@@ -1215,7 +1215,9 @@ protected String getVcfMultipleStreamZipDirectory() {
 	}
 
 /** can be called instead of doVcfVcf to hande a stream of multiple vcfs */
-protected int doVcfToVcfMultipleStream(final String inputName,final File outputFile) throws Exception {
+protected int doVcfToVcfMultipleStream(
+		final String inputName,final File outputFile)
+	{
 	java.io.FileOutputStream fout = null;
 	java.util.zip.ZipOutputStream zout = null;
 	htsjdk.tribble.readers.LineIterator lineIter = null;

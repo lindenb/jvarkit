@@ -1,10 +1,10 @@
-# DownSampleVcf
+# AlleleFrequencyCalculator
 
 
 ## Usage
 
 ```
-Usage: downsamplevcf [options] Files
+Usage: allelefreqcalc [options] Files
   Options:
     -h, --help
       print help and exits
@@ -12,24 +12,19 @@ Usage: downsamplevcf [options] Files
       Output file. Optional . Default: stdout
     --version
       print version and exits
-    -N
-       random seed
-      Default: 1494871038734
-    -n
-      output size
-      Default: 10
 
 ```
 
 
 ## Description
 
-DownSample a VCF
+Allele Frequency Calculator
 
 
 ## Keywords
 
  * vcf
+ * af
 
 
 ## Compilation
@@ -48,7 +43,7 @@ DownSample a VCF
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make downsamplevcf
+$ make allelefreqcalc
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -66,7 +61,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/DownSampleVcf.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/AlleleFrequencyCalculator.java
 
 ## Contribute
 
@@ -79,7 +74,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **downsamplevcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **allelefreqcalc** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -90,12 +85,27 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
 
-## Example
 
-```bash
-$ curl -skL "ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |\
-  gunzip -c |\
-java -jar dist/downsamplevcf.jar -n 100 > output.vcf
+
 ```
+
+ curl -s  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/integrated_call_sets/ALL.chr22.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.vcf.gz" | gunzip -c | \
+java -jar dist/allelefreqcalc.jar | head
+
+CHR	POS	ID	REF	ALT	TOTAL_CNT	ALT_CNT	FRQ
+22	16050408	rs149201999	T	C	2184	134	0.06135531
+22	16050612	rs146752890	C	G	2184	184	0.08424909
+22	16050678	rs139377059	C	T	2184	113	0.051739927
+22	16050984	rs188945759	C	G	2184	5	0.0022893774
+22	16051107	rs6518357	C	A	2184	127	0.058150183
+22	16051249	rs62224609	T	C	2184	157	0.07188645
+22	16051347	rs62224610	G	C	2184	650	0.29761904
+22	16051453	rs143503259	A	C	2184	160	0.07326008
+22	16051477	rs192339082	C	A	2184	2	9.157509E-4
+
+```
+
+
+
 
 

@@ -1,36 +1,28 @@
-# DownSampleVcf
+# VcfBurdenFisherV
 
 
 ## Usage
 
 ```
-Usage: downsamplevcf [options] Files
+Usage: vcfburdenfisherv [options] Files
   Options:
     -h, --help
       print help and exits
+    -if, --ignorefilter
+      accept variants having a FILTER column. Default is ignore variants with 
+      a FILTER column
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --version
       print version and exits
-    -N
-       random seed
-      Default: 1494871038734
-    -n
-      output size
-      Default: 10
 
 ```
 
 
 ## Description
 
-DownSample a VCF
-
-
-## Keywords
-
- * vcf
-
+Fisher Case / Controls per Variant (Vertical)
 
 ## Compilation
 
@@ -48,7 +40,7 @@ DownSample a VCF
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make downsamplevcf
+$ make vcfburdenfisherv
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -66,7 +58,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/DownSampleVcf.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFisherV.java
 
 ## Contribute
 
@@ -79,7 +71,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **downsamplevcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfburdenfisherv** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -89,13 +81,25 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
+Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
 
-## Example
+### Output
 
-```bash
-$ curl -skL "ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |\
-  gunzip -c |\
-java -jar dist/downsamplevcf.jar -n 100 > output.vcf
-```
+
+#### INFO column
+
+ *  BurdenF1Fisher : Fisher test
+
+
+#### FILTER column
+
+ *  BurdenF1Fisher :Fisher test doesn't meet  user's requirements
+
+
+### see also
+
+
+ *  VcfBurdenFilter3
+
 
 

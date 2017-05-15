@@ -43,7 +43,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -59,13 +58,356 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
+/**
 
+BEGIN_DOC
+
+
+
+
+### Input VCF
+
+The tool is optimized for storing very similar VCF files into an apache derby database , for example a big VCF file which would have been splitted into one VCF per transcript.
+
+
+
+### Schema
+
+At the time of writing this document, the current schema is:
+
+
+```
+
+CREATE TABLE ROWCONTENT(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,MD5SUM CHAR(32) UNIQUE,CONTENT CLOB,CONTIG VARCHAR(20),FILTERED SMALLINT NOT NULL,START INT,STOP INT,ALLELE_REF VARCHAR(50));
+CREATE TABLE VCF(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,NAME VARCHAR(255));
+CREATE TABLE VCFROW(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,VCF_ID INTEGER CONSTRAINT row2vcf REFERENCES VCF,ROW_ID INTEGER CONSTRAINT row2content REFERENCES ROWCONTENT);
+
+```
+
+
+The database is created the first time the database is created. It can be a slow process.
+Whole VCF lines are stored in a CBLOB.
+The embedded database is local and can be removed by a simple 
+
+```
+rm -rf database.db 
+```
+
+
+
+
+
+### Inserting VCFs into the database
+
+Inserting one VCF:
+
+
+```
+$ java -jar dist/vcfderby01.jar -a read -d database.db input.vcf input2.vcf.gz
+
+#ID	NAME
+1	input.vcf
+2	input2.vcf.gz
+```
+
+
+
+You can insert a VCF any number of times:
+
+
+```
+$ java -jar dist/vcfderby01.jar -a read -d database.db input.vcf input.vcf input2.vcf.gz
+#ID	NAME
+3	input.vcf
+4	input2.vcf.gz
+```
+
+
+
+The program also accepts concatenated VCF files:
+
+
+```
+$ gunzip -c input2.vcf.gz input2.vcf.gz input2.vcf.gz input2.vcf.gz | java -jar dist/vcfderby01.jar -a read -d database.db 2> /dev/null 
+#ID	NAME
+5	vcf1461860749175
+6	vcf1461860749176
+7	vcf1461860749177
+8	vcf1461860749178
+```
+
+
+
+
+
+### Listing the available VCFs
+
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a list
+#ID	NAME	COUNT_VARIANTS
+1	input.vcf	35
+2	input2.vcf.gz	35
+3	input.vcf	35
+4	input2.vcf.gz	35
+5	vcf1461860749175	35
+6	vcf1461860749176	35
+7	vcf1461860749177	35
+8	vcf1461860749178	35
+
+```
+
+
+
+
+
+### Export one or more VCFs by ID
+
+if more that one ID is given, the output is a stream of concatenated VCF.
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a dump 5 8 3 2> /dev/null | grep "CHROM"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+```
+
+
+
+if the output name ends with '*.zip', each VCF is saved in the zip as a new entry.
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a dump -o out.zip 5 8 3
+$ unzip -t out.zip
+
+Archive:  out.zip
+    testing: input.vcf.vcf            OK
+    testing: vcf1461860749175.vcf     OK
+    testing: vcf1461860749178.vcf     OK
+No errors detected in compressed data of out.zip.
+
+```
+
+
+
+
+### Dumping all VCFs
+
+In a zip:
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a dumpall -o out.zip
+$ unzip -t out.zip
+Archive:  out.zip
+    testing: input.vcf.vcf            OK
+    testing: input2.vcf.gz.vcf        OK
+    testing: 00001.ID3.vcf            OK
+    testing: 00001.ID4.vcf            OK
+    testing: vcf1461860749175.vcf     OK
+    testing: vcf1461860749176.vcf     OK
+    testing: vcf1461860749177.vcf     OK
+    testing: vcf1461860749178.vcf     OK
+No errors detected in compressed data of out.zip.
+
+```
+
+
+
+as a concatenated stream of VCFs:
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a dumpall|\
+  grep CHROM
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+
+```
+
+
+
+
+
+### Delete some VCFs by ID
+
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a delete 1 8 10 
+```
+
+
+
+
+
+### Dumping all VCFs
+
+
+
+
+### Accessing the database using ij
+
+ij is an interactive SQL scripting tool that comes with Derby.
+The libraries for ij is available in http://mvnrepository.com/artifact/org.apache.derby/derbytools or you can use something like:
+
+
+```
+sudo apt-get install derby-tools
+```
+
+
+
+
+
+```
+
+ echo " connect 'jdbc:derby:database.db'; select count(*) from VCF; exit" |
+ java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
+ij version 10.12
+ij> ij> 1          
+-----------
+8          
+
+1 row selected
+
+```
+
+
+
+
+
+```
+$ echo " connect 'jdbc:derby:database.db'; select ID,NAME from VCF; exit" | java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
+ij version 10.12
+ij> ij> ID         |NAME                                                                                                                            
+--------------------------------------------------------------------------------------------------------------------------------------------
+1          |input.vcf                                                                                                                       
+2          |input2.vcf.gz                                                                                                                   
+3          |input.vcf                                                                                                                       
+4          |input2.vcf.gz                                                                                                                   
+5          |vcf1461860749175                                                                                                                
+6          |vcf1461860749176                                                                                                                
+7          |vcf1461860749177                                                                                                                
+8          |vcf1461860749178                                                                                                                
+
+8 rows selected
+ij>>
+```
+
+
+
+Adding a column in the VCF:
+
+
+```
+
+$ echo " connect 'jdbc:derby:database.db'; ALTER TABLE VCF ADD COLStatValue DOUBLE DEFAULT -1.0; select * from VCF; exit" | java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
+ij version 10.12
+ij> ij> 0 rows inserted/updated/deleted
+ij> ID         |NAME                                                                                                                            |MYSTATVALUE             
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1          |input.vcf                                                                                                                       |-1.0                    
+2          |input2.vcf.gz                                                                                                                   |-1.0                    
+3          |input.vcf                                                                                                                       |-1.0                    
+4          |input2.vcf.gz                                                                                                                   |-1.0                    
+5          |vcf1461860749175                                                                                                                |-1.0                    
+6          |vcf1461860749176                                                                                                                |-1.0                    
+7          |vcf1461860749177                                                                                                                |-1.0                    
+8          |vcf1461860749178                                                                                                                |-1.0                    
+
+8 rows selected
+
+```
+
+
+
+Updating the new column MYSTATVALUE:
+
+
+```
+echo " connect 'jdbc:derby:database.db'; UPDATE VCF SET MyStatValue =999 WHERE ID=1 OR ID=5 OR ID=8; select ID,MyStatValue from VCF; exit" | java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
+ij version 10.12
+ij>
+ij> 3 rows inserted/updated/deleted
+ij> ID         |MYSTATVALUE             
+------------------------------------
+1          |999.0                   
+2          |-1.0                    
+3          |-1.0                    
+4          |-1.0                    
+5          |999.0                   
+6          |-1.0                    
+7          |-1.0                    
+8          |999.0                   
+
+8 rows selected
+
+```
+
+
+
+When a new column is added in a VCF, it is handled by vcderby01 and the action: 'list'
+
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a list
+#ID	MYSTATVALUE	NAME	COUNT_VARIANTS
+1	999.0	input.vcf	35
+2	-1.0	input2.vcf.gz	35
+3	-1.0	input.vcf	35
+4	-1.0	input2.vcf.gz	35
+5	999.0	vcf1461860749175	35
+6	-1.0	vcf1461860749176	35
+7	-1.0	vcf1461860749177	35
+8	999.0	vcf1461860749178	35
+```
+
+
+
+
+
+END_DOC
+*/
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="vcfderby01",description="Insert similar VCFs into an Apache Derby Database")
 public class VcfDerby01
-	extends AbstractVcfDerby01
+	extends Launcher
 	{
+	private static final Logger LOG = Logger.build(VcfDerby01.class).make();
+	private StringToMd5 toMd5 = new StringToMd5();
+	
+	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private File outputFile = null;
+	
+	
+	@Parameter(names={"-d","--derby"},description="REQUIRED. path to Derby database storage directory.")
+	private String derbyFilePath = "";
+	
+	@Parameter(names={"-a","--action"},description="REQUIRED. action to perform. 'read': read a zip or a concatenated stream of vcf files and insert it into a derby database. 'list': list the available vcf. 'dump' dump one or more VCF. 'dumpall' dump all VCFs. 'dumpuniq' dum all as a one and only uniq vcf. 'delete' : delete one or more VCF by ID")
+	private String actionStr = "";
+	
+	@Parameter(names={"-t","--title"},description="Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the name of the inserted VCF file")
+	private String titleHeaderStr = "";
+
+	
 	private static int MAX_REF_BASE_LENGTH=50;
 	private long ID_GENERATOR = System.currentTimeMillis();
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfDerby01.class);
 	private Connection conn=null;
 	private static final String VCF_HEADER_FILE_ID="##VcfDerby01VcfId=";
 	private static final String VCF_HEADER_FILE_NAME="##VcfDerby01VcfName=";
@@ -73,21 +415,6 @@ public class VcfDerby01
 		{
 		}
 	 
-	@Override
-	public Collection<Throwable> initializeKnime() {
-		if(super.derbyFilePath==null ||super.derbyFilePath.isEmpty())
-			{
-			return wrapException("Undefined Derby DB Directory: option -"+OPTION_DERBYFILEPATH);
-			}
-		try {
-			Class.forName("org.apache.derby.jdbc.ClientDriver").newInstance();
-		} catch(Exception err ){
-			LOG.error("Cannot get derby driver");
-			return wrapException(err);
-		}
-		return super.initializeKnime();
-	 	}
-	
 	
 	private File getDerbyDirectory() {
 		return new File(this.derbyFilePath);
@@ -200,7 +527,7 @@ public class VcfDerby01
 		}
 		pstmt.close();
 		} catch(Exception err) {
-			LOG.warn("Cannot compress", err);
+			LOG.warn("Cannot compress" + err.getMessage());
 		}
 		finally 
 		{
@@ -213,12 +540,13 @@ public class VcfDerby01
 		
 	}
 	
-	private Collection<Throwable> doCommandDumpAll(){
+	private int doCommandDumpAll(final List<String> args){
 		Statement stmt = null;
 		ResultSet row = null;
 		final Set<Long> vcfids = new TreeSet<>();
-		if(!getInputFiles().isEmpty()) {
-			return wrapException("Too many arguments");
+		if(!args.isEmpty()) {
+			LOG.error("Too many arguments");
+			return -1;
 		}
 		try {
 			stmt = this.conn.createStatement();
@@ -230,16 +558,18 @@ public class VcfDerby01
 			stmt.close();stmt=null;
 			return dump(vcfids);
 		} catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(row);
 			CloserUtil.close(stmt);
 		}
 	}
 	
-	private Collection<Throwable> doCommandDumpUniq(){
-		if(!getInputFiles().isEmpty()) {
-			return wrapException("Too many arguments");
+	private int doCommandDumpUniq(final List<String> args){
+		if(!args.isEmpty()) {
+			LOG.error("Too many arguments");
+			return -1;
 		}
 		PreparedStatement pstmt2 = null;
 		ResultSet row = null;
@@ -254,7 +584,7 @@ public class VcfDerby01
 						);
 				LOG.info(sql);
 				pstmt2 = this.conn.prepareStatement(sql);
-				pwOut = openFileOrStdoutAsPrintWriter();
+				pwOut = openFileOrStdoutAsPrintWriter(this.outputFile);
 				row =  pstmt2.executeQuery();
 				while(row.next()) {
 					final Clob clob = row.getClob(1);
@@ -296,7 +626,8 @@ public class VcfDerby01
 			
 			return RETURN_OK;
 		} catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(pwOut);
 			CloserUtil.close(row);
@@ -304,7 +635,8 @@ public class VcfDerby01
 		}
 	}
 
-	private Collection<Throwable> dumpAll(){
+	@SuppressWarnings("unused")
+	private int ___dumpAll(List<String> args){
 		PreparedStatement pstmt2 = null;
 		ResultSet row = null;
 		PrintWriter pwOut = null;
@@ -312,7 +644,7 @@ public class VcfDerby01
 		try {
 			pstmt2 = this.conn.prepareStatement(
 					"SELECT ROWCONTENT.CONTENT,VCF.ID,VCF.NAME FROM VCF,VCFROW,ROWCONTENT WHERE VCFROW.VCF_ID=VCF.ID AND VCFROW.ROW_ID = ROWCONTENT.ID AND ORDER BY VCF.ID,VCFROW.ID ");
-			pwOut = openFileOrStdoutAsPrintWriter();
+			pwOut = openFileOrStdoutAsPrintWriter(this.outputFile);
 			row =  pstmt2.executeQuery();
 			final String CHROM_prefix="#CHROM\t";
 			final StringBuilder chrom_header_line = new StringBuilder(CHROM_prefix.length());
@@ -356,7 +688,8 @@ public class VcfDerby01
 			LOG.info("count(VCF) exported "+num_vcf_exported);
 			return RETURN_OK;
 		} catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(pwOut);
 			CloserUtil.close(row);
@@ -365,7 +698,7 @@ public class VcfDerby01
 	}
 	
 
-	private Collection<Throwable> dump(final Set<Long> vcfIds){
+	private int dump(final Set<Long> vcfIds){
 		final double timeStart = System.currentTimeMillis();
 
 		PreparedStatement pstmt = null;
@@ -378,7 +711,7 @@ public class VcfDerby01
 			pstmt2 = this.conn.prepareStatement("SELECT ROWCONTENT.CONTENT FROM VCF,VCFROW,ROWCONTENT WHERE VCFROW.VCF_ID=VCF.ID AND VCFROW.ROW_ID = ROWCONTENT.ID AND VCF.ID=? ORDER BY VCFROW.ID ");
 			
 			
-			pwOut = openFileOrStdoutAsPrintWriter();
+			pwOut = openFileOrStdoutAsPrintWriter(this.outputFile);
 			
 			
 			for(final long vcf_id : vcfIds)
@@ -396,7 +729,8 @@ public class VcfDerby01
 				row.close();
 				if(vcfName==null) 
 					{
-					return wrapException("Cannot find VCF ID "+vcf_id);
+					LOG.error("Cannot find VCF ID "+vcf_id);
+					return -1;
 					}
 				LOG.info("dumping "+vcfName+" ID:"+vcf_id);
 				pstmt2.setLong(1, vcf_id);
@@ -446,7 +780,8 @@ public class VcfDerby01
 			LOG.info("count(VCF) exported "+num_vcf_exported);
 			return RETURN_OK;
 		} catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(pwOut);
 			CloserUtil.close(row);
@@ -457,9 +792,8 @@ public class VcfDerby01
 
 	
 	
-	private Collection<Throwable> doCommandDump(){
+	private int doCommandDump(List<String> args){
 		final Pattern comma = Pattern.compile("[,]");
-		final List<String> args = getInputFiles();
 		final Set<Long> vcfIds = new TreeSet<>();
 		try {
 			for(final String token: args) {
@@ -471,38 +805,40 @@ public class VcfDerby01
 					try {
 						vcf_id = Long.parseLong(idStr);
 					} catch(final NumberFormatException err) {
-						return wrapException("Bad VCF ID :"+idStr);
+						LOG.error("Bad VCF ID :"+idStr);
+						return -1;
 					}
 					vcfIds.add(vcf_id);
 					}
 				}
 			return dump(vcfIds);
 		} catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 		}
 	}
 
 	
-	private Collection<Throwable> doReadConcatenatedVcf(){
+	private int doReadConcatenatedVcf(List<String> args){
 		int number_of_ref_allele_truncated=0;
 		PreparedStatement pstmt = null;
 		PreparedStatement pstmt2 = null;
 		PreparedStatement pstmt3 = null;
 		ResultSet row = null;
 		PrintWriter pw = null;
-		final List<String> args = new ArrayList<>(IOUtils.unrollFiles(getInputFiles()));
+		args = new ArrayList<>(IOUtils.unrollFiles(args));
 		LOG.info(args.toString());
 		LineIterator lineIter=null;
 		final String titleHeaderTag = (
-				super.titleHeaderStr==null || super.titleHeaderStr.trim().isEmpty()?
+				this.titleHeaderStr==null || this.titleHeaderStr.trim().isEmpty()?
 				null:
 				"##"+titleHeaderStr+"="
 				);
 		try {
 			int fileidx=0;
 			
-			pw = openFileOrStdoutAsPrintWriter();
+			pw = openFileOrStdoutAsPrintWriter(this.outputFile);
 			pw.println("#ID\tNAME");
 
 			do
@@ -541,7 +877,8 @@ public class VcfDerby01
 					pstmt = this.conn.prepareStatement("INSERT INTO VCF(NAME) VALUES(?)",PreparedStatement.RETURN_GENERATED_KEYS);
 					pstmt.setString(1, filename);
 					if(pstmt.executeUpdate()!=1) {
-						return wrapException("Cannot insert VCF ?");
+						LOG.error("Cannot insert VCF ?");
+						return -1;
 					}
 					final long vcf_id =getLastGeneratedId(pstmt);
 					pstmt.close();
@@ -559,7 +896,7 @@ public class VcfDerby01
 					final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(cah.header);
 					/* insert VCF header lines */
 					for(final String line:headerLines) {
-						final String md5=super.md5(line);
+						final String md5=this.toMd5.apply(line);
 						long content_id = -1L;
 						pstmt.setString(1, md5);
 						row = pstmt.executeQuery();
@@ -579,7 +916,8 @@ public class VcfDerby01
 							pstmt2.setNull(6,Types.VARCHAR);
 							pstmt2.setShort(7, (short)1);
 							if(pstmt2.executeUpdate()!=1) {
-								return wrapException("Cannot insert ROWCONTENT ?");
+								LOG.error("Cannot insert ROWCONTENT ?");
+								return -1;
 							}
 							content_id =getLastGeneratedId(pstmt2);
 						}
@@ -587,14 +925,15 @@ public class VcfDerby01
 						/* insert new VCF row */
 						pstmt3.setLong(2, content_id);
 						if(pstmt3.executeUpdate()!=1) {
-							return wrapException("Cannot insert VCFROW ?");
+							LOG.error("Cannot insert VCFROW ?");
+							return -1;
 						}
 					}
 					
 					LOG.info("Inserted "+filename+" ID="+vcf_id);
 					while(lineIter.hasNext() && !lineIter.peek().startsWith("#")) {
 						final String line = lineIter.next();
-						final String md5 = super.md5(line);
+						final String md5 = this.toMd5.apply(line);
 						
 						long content_id = -1L;
 						pstmt.setString(1, md5);
@@ -624,7 +963,8 @@ public class VcfDerby01
 							pstmt2.setString(6,refBase );
 							pstmt2.setShort(7, (short)(ctx.isFiltered()?1:0));
 							if(pstmt2.executeUpdate()!=1) {
-								return wrapException("Cannot insert ROWCONTENT ?");
+								LOG.error("Cannot insert ROWCONTENT ?");
+								return -1;
 							}
 							content_id =getLastGeneratedId(pstmt2);
 						}
@@ -632,7 +972,8 @@ public class VcfDerby01
 						/* insert new VCF row */
 						pstmt3.setLong(2, content_id);
 						if(pstmt3.executeUpdate()!=1) {
-							return wrapException("Cannot insert VCFROW ?");
+							LOG.error("Cannot insert VCFROW ?");
+							return -1;
 						}
 					}
 					pstmt2.close();
@@ -653,7 +994,8 @@ public class VcfDerby01
 			LOG.warn("Number of REF alleles length(REF)> VARCHAR("+MAX_REF_BASE_LENGTH+") truncated:"+number_of_ref_allele_truncated);
 			return RETURN_OK;
 		} catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(pw);
 			CloserUtil.close(row);
@@ -666,12 +1008,13 @@ public class VcfDerby01
 
 			
 	
-	private Collection<Throwable> doCommandList(){
+	private int doCommandList(List<String> args){
 		Statement pstmt = null;
 		ResultSet row = null;
 		PrintWriter pw = null;
-		if(!getInputFiles().isEmpty()) {
-			return wrapException("Too many arguments");
+		if(!args.isEmpty()) {
+			LOG.error("Too many arguments");
+			return -1;
 		}
 		try {
 			/** user can add extra columns in the VCF, we collect the names of the columns */
@@ -698,7 +1041,7 @@ public class VcfDerby01
 			pstmt = this.conn.createStatement();
 			row = pstmt.executeQuery(sql);
 			final ResultSetMetaData meta = row.getMetaData();
-			pw = super.openFileOrStdoutAsPrintWriter();
+			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			for(int i=0;i< meta.getColumnCount();i++)
 				{
 				pw.print((i==0?"#":"\t"));
@@ -717,7 +1060,8 @@ public class VcfDerby01
 			pw.flush();
 			return RETURN_OK;
 		} catch (Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(pw);
 			CloserUtil.close(row);
@@ -725,9 +1069,8 @@ public class VcfDerby01
 		}
 	}
 	
-	private Collection<Throwable> doCommandDelete(){
+	private int doCommandDelete(List<String> args){
 		final Pattern comma = Pattern.compile("[,]");
-		final List<String> args = getInputFiles();
 		PreparedStatement pstmt1=null;
 		PreparedStatement pstmt2=null;
 		try {
@@ -757,41 +1100,57 @@ public class VcfDerby01
 			compress();
 			return RETURN_OK;
 		} catch (final Exception e) {
-			return wrapException(e);
+			LOG.error(e);
+			return -1;
 		} finally {
 			CloserUtil.close(pstmt1);
 			CloserUtil.close(pstmt2);
 		}
 	}
 
-	
 	@Override
-	public Collection<Throwable> call() throws Exception {
+	public int doWork(final List<String> args) {
 		try {
+			if(this.derbyFilePath==null ||this.derbyFilePath.isEmpty())
+				{
+				LOG.error("Undefined Derby DB Directory");
+				return -1;
+				}
+			try {
+				Class.forName("org.apache.derby.jdbc.ClientDriver").newInstance();
+			} catch(final Exception err ){
+				LOG.error("Cannot get derby driver",err);
+				return -1;
+			}
+			
+			
 			openDerby();
-			final String command  = String.valueOf(super.actionStr);
+			final String command  = String.valueOf(this.actionStr);
 			
 			if(command.equals("read")) {
-				return doReadConcatenatedVcf();
+				return doReadConcatenatedVcf(args);
 			} else if(command.equals("list")) {
-				return doCommandList();
+				return doCommandList(args);
 			}else if(command.equals("dump")) {
-				return doCommandDump();
+				return doCommandDump(args);
 			}
 			else if(command.equals("dumpall")) {
-				return doCommandDumpAll();
+				return doCommandDumpAll(args);
 			}
 			else if(command.equals("dumpuniq")) {
-				return doCommandDumpUniq();
+				return doCommandDumpUniq(args);
 			}
 			else if(command.equals("delete")) {
-				return doCommandDelete();
+				return doCommandDelete(args);
 			}
 			else {
-				return wrapException("unknown command : "+command);
+				LOG.error("unknown command : "+command);
+				return -1;
 			}			
-		} catch (Exception e) {
-			return wrapException(e);
+		} 
+		catch (final Exception e) {
+			LOG.error(e);
+			return -1;
 		} finally {
 			closeDerby();
 		}

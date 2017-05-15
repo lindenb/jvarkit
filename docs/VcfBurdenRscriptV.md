@@ -1,35 +1,45 @@
-# DownSampleVcf
+# VcfBurdenRscriptV
 
 
 ## Usage
 
 ```
-Usage: downsamplevcf [options] Files
+Usage: vcfburdenrscriptv [options] Files
   Options:
+    -f, --function
+      User defined R function to be called after each VCF
+      Default: <empty string>
     -h, --help
       print help and exits
+    -if, --ignorefilter
+      accept variants having a FILTER column. Default is ignore variants with 
+      a FILTER column
+      Default: false
+    -minusnineiszero, --minusnineiszero
+      No Call is '0' (default is -9)
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -t, --title
+      Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the 
+      name of the VCF chunk
+      Default: <empty string>
     --version
       print version and exits
-    -N
-       random seed
-      Default: 1494871038734
-    -n
-      output size
-      Default: 10
 
 ```
 
 
 ## Description
 
-DownSample a VCF
+Fisher Case / Controls per Variant (Vertical)
 
 
 ## Keywords
 
  * vcf
+ * burden
+ * fisher
 
 
 ## Compilation
@@ -48,7 +58,7 @@ DownSample a VCF
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make downsamplevcf
+$ make vcfburdenrscriptv
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -66,7 +76,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/DownSampleVcf.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenRscriptV.java
 
 ## Contribute
 
@@ -79,7 +89,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **downsamplevcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfburdenrscriptv** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -89,13 +99,49 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
+Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
 
-## Example
 
-```bash
-$ curl -skL "ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |\
-  gunzip -c |\
-java -jar dist/downsamplevcf.jar -n 100 > output.vcf
-```
+### Output
+
+
+#### INFO column
+
+ *  BurdenF1Fisher : Fisher test
+
+#### FILTER column
+
+ *  BurdenF1Fisher :Fisher test doesn't meet  user's requirements
+
+### see also
+
+ *  VcfBurdenFilter3
+
+
+
+
+
+
+### Output
+
+
+
+#### INFO column
+
+
+ *  BurdenF1Fisher : Fisher test
+
+
+#### FILTER column
+
+ *  BurdenF1Fisher :Fisher test doesn't meet  user's requirements
+
+
+### see also
+
+
+ *  VcfBurdenFilter3
+
+
 
 

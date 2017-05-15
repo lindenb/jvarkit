@@ -1,35 +1,26 @@
-# DownSampleVcf
+# SamFindClippedRegions
 
 
 ## Usage
 
 ```
-Usage: downsamplevcf [options] Files
+Usage: samfindclippedregions [options] Files
   Options:
     -h, --help
       print help and exits
-    -o, --output
-      Output file. Optional . Default: stdout
     --version
       print version and exits
-    -N
-       random seed
-      Default: 1494871038734
-    -n
-      output size
-      Default: 10
+    -B
+      bed file
+    -c
+      min size of clipped read
+      Default: 20
 
 ```
 
 
 ## Description
 
-DownSample a VCF
-
-
-## Keywords
-
- * vcf
 
 
 ## Compilation
@@ -48,7 +39,7 @@ DownSample a VCF
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make downsamplevcf
+$ make samfindclippedregions
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -66,7 +57,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/DownSampleVcf.java
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamFindClippedRegions.java
 
 ## Contribute
 
@@ -79,7 +70,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **downsamplevcf** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **samfindclippedregions** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
 
 The current reference is:
 
@@ -87,15 +78,5 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > http://dx.doi.org/10.6084/m9.figshare.1425030
-
-
-
-## Example
-
-```bash
-$ curl -skL "ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |\
-  gunzip -c |\
-java -jar dist/downsamplevcf.jar -n 100 > output.vcf
-```
 
 

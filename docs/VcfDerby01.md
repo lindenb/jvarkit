@@ -1,78 +1,180 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<!DOCTYPE app [
- <!ENTITY name "VcfDerby01">
- <!ENTITY package "com.github.lindenb.jvarkit.tools.burden">
-]>
-<app xmlns="http://github.com/lindenb/jvarkit/"
-	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-	 xmlns:xi="http://www.w3.org/2001/XInclude"
-	 xmlns:h="http://www.w3.org/1999/xhtml"
-	 xmlns:svg="http://www.w3.org/2000/svg"
-	 xmlns:galaxy="https://usegalaxy.org/"
-	 app="&name;"
-	 package="&package;"
-	 __placeholder__="1"
-	>
-
-<description>Insert similar VCFs into an Apache Derby Database</description>
-<snippet id="read-vcf"/>
-<snippet id="md5"/>
+# VcfDerby01
 
 
-<options>
-	<option name="derbyFilePath" type="string" longopt="derby" opt="d"  default="">
-		<description>REQUIRED. path to Derby database storage directory.</description>
-	</option>
-	<option name="actionStr" type="string" longopt="action" opt="a" default="">
-		<description>REQUIRED. action to perform. 'read': read a zip or a concatenated stream of vcf files and insert it into a derby database. 'list': list the available vcf. 'dump' dump one or more VCF. 'dumpall' dump all VCFs. 'dumpuniq' dum all as a one and only uniq vcf. 'delete' : delete one or more VCF by ID</description>
-	</option>
-	<option name="titleHeaderStr" type="string" longopt="title" argname="TITLE" opt="t" default="">
-		<description>Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the name of the inserted VCF file</description>
-	</option>
-	
-</options>
+## Usage
+
+```
+Usage: vcfderby01 [options] Files
+  Options:
+    -a, --action
+      REQUIRED. action to perform. 'read': read a zip or a concatenated stream 
+      of vcf files and insert it into a derby database. 'list': list the 
+      available vcf. 'dump' dump one or more VCF. 'dumpall' dump all VCFs. 
+      'dumpuniq' dum all as a one and only uniq vcf. 'delete' : delete one or 
+      more VCF by ID
+      Default: <empty string>
+    -d, --derby
+      REQUIRED. path to Derby database storage directory.
+      Default: <empty string>
+    -h, --help
+      print help and exits
+    -o, --output
+      Output file. Optional . Default: stdout
+    -t, --title
+      Try to find ##(TITLE)=abcdefghijk in the VCF header and use it as the 
+      name of the inserted VCF file
+      Default: <empty string>
+    --version
+      print version and exits
+
+```
+
+
+## Description
+
+Insert similar VCFs into an Apache Derby Database
+
+## Compilation
+
+### Requirements / Dependencies
+
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* GNU Make >= 3.81
+* curl/wget
+* git
+* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
+
+
+### Download and Compile
+
+```bash
+$ git clone "https://github.com/lindenb/jvarkit.git"
+$ cd jvarkit
+$ make vcfderby01
+```
+
+The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
+The required libraries will be downloaded and installed in the `dist` directory.
+
+### edit 'local.mk' (optional)
+
+The a file **local.mk** can be created edited to override/add some definitions.
+
+For example it can be used to set the HTTP proxy:
+
+```
+http.proxy.host=your.host.com
+http.proxy.port=124567
+```
+## Source code 
+
+https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfDerby01.java
+
+## Contribute
+
+- Issue Tracker: http://github.com/lindenb/jvarkit/issues
+- Source Code: http://github.com/lindenb/jvarkit
+
+## License
+
+The project is licensed under the MIT license.
+
+## Citing
+
+Should you cite **vcfderby01** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+
+The current reference is:
+
+http://dx.doi.org/10.6084/m9.figshare.1425030
+
+> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
+> http://dx.doi.org/10.6084/m9.figshare.1425030
 
 
 
-<documentation>
-<h:h3>Input VCF</h:h3>
+
+
+### Input VCF
+
 The tool is optimized for storing very similar VCF files into an apache derby database , for example a big VCF file which would have been splitted into one VCF per transcript.
 
-<h:h3>Schema</h:h3>
+
+
+### Schema
+
 At the time of writing this document, the current schema is:
-<h:pre>
+
+
+```
+
 CREATE TABLE ROWCONTENT(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,MD5SUM CHAR(32) UNIQUE,CONTENT CLOB,CONTIG VARCHAR(20),FILTERED SMALLINT NOT NULL,START INT,STOP INT,ALLELE_REF VARCHAR(50));
 CREATE TABLE VCF(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,NAME VARCHAR(255));
 CREATE TABLE VCFROW(ID INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1) PRIMARY KEY,VCF_ID INTEGER CONSTRAINT row2vcf REFERENCES VCF,ROW_ID INTEGER CONSTRAINT row2content REFERENCES ROWCONTENT);
-</h:pre>
+
+```
+
+
 The database is created the first time the database is created. It can be a slow process.
 Whole VCF lines are stored in a CBLOB.
-The embedded database is local and can be removed by a simple <h:pre>rm -rf database.db </h:pre>
+The embedded database is local and can be removed by a simple 
 
-<h:h3>Inserting VCFs into the database</h:h3>
+```
+rm -rf database.db 
+```
+
+
+
+
+
+### Inserting VCFs into the database
+
 Inserting one VCF:
-<h:pre>$ java -jar dist/vcfderby01.jar -a read -d database.db input.vcf input2.vcf.gz
+
+
+```
+$ java -jar dist/vcfderby01.jar -a read -d database.db input.vcf input2.vcf.gz
 
 #ID	NAME
 1	input.vcf
-2	input2.vcf.gz</h:pre>
+2	input2.vcf.gz
+```
+
+
 
 You can insert a VCF any number of times:
-<h:pre>$ java -jar dist/vcfderby01.jar -a read -d database.db input.vcf input.vcf input2.vcf.gz
+
+
+```
+$ java -jar dist/vcfderby01.jar -a read -d database.db input.vcf input.vcf input2.vcf.gz
 #ID	NAME
 3	input.vcf
-4	input2.vcf.gz</h:pre>
+4	input2.vcf.gz
+```
 
-The program also accepts <h:b>concatenated</h:b> VCF files:
-<h:pre>$ gunzip -c input2.vcf.gz input2.vcf.gz input2.vcf.gz input2.vcf.gz | java -jar dist/vcfderby01.jar -a read -d database.db 2> /dev/null 
+
+
+The program also accepts concatenated VCF files:
+
+
+```
+$ gunzip -c input2.vcf.gz input2.vcf.gz input2.vcf.gz input2.vcf.gz | java -jar dist/vcfderby01.jar -a read -d database.db 2> /dev/null 
 #ID	NAME
 5	vcf1461860749175
 6	vcf1461860749176
 7	vcf1461860749177
-8	vcf1461860749178</h:pre>
+8	vcf1461860749178
+```
 
-<h:h3>Listing the available VCFs</h:h3>
-<h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a list
+
+
+
+
+### Listing the available VCFs
+
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a list
 #ID	NAME	COUNT_VARIANTS
 1	input.vcf	35
 2	input2.vcf.gz	35
@@ -82,17 +184,32 @@ The program also accepts <h:b>concatenated</h:b> VCF files:
 6	vcf1461860749176	35
 7	vcf1461860749177	35
 8	vcf1461860749178	35
-</h:pre>
 
-<h:h3>Export one or more VCFs by ID</h:h3>
+```
+
+
+
+
+
+### Export one or more VCFs by ID
+
 if more that one ID is given, the output is a stream of concatenated VCF.
-<h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a dump 5 8 3 2> /dev/null | grep "CHROM"
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a dump 5 8 3 2> /dev/null | grep "CHROM"
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3</h:pre>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
+```
+
+
 
 if the output name ends with '*.zip', each VCF is saved in the zip as a new entry.
-<h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a dump -o out.zip 5 8 3
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a dump -o out.zip 5 8 3
 $ unzip -t out.zip
 
 Archive:  out.zip
@@ -100,10 +217,19 @@ Archive:  out.zip
     testing: vcf1461860749175.vcf     OK
     testing: vcf1461860749178.vcf     OK
 No errors detected in compressed data of out.zip.
-</h:pre>
-<h:h3>Dumping all VCFs</h:h3>
+
+```
+
+
+
+
+### Dumping all VCFs
+
 In a zip:
-<h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a dumpall -o out.zip
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a dumpall -o out.zip
 $ unzip -t out.zip
 Archive:  out.zip
     testing: input.vcf.vcf            OK
@@ -115,10 +241,16 @@ Archive:  out.zip
     testing: vcf1461860749177.vcf     OK
     testing: vcf1461860749178.vcf     OK
 No errors detected in compressed data of out.zip.
-</h:pre>
+
+```
+
+
 
 as a concatenated stream of VCFs:
-<h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a dumpall|\
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a dumpall|\
   grep CHROM
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
@@ -128,32 +260,65 @@ as a concatenated stream of VCFs:
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1.variant	S2.variant4	S3.variant2	S4.variant3
-</h:pre>
 
-<h:h3>Delete some VCFs by ID</h:h3>
-<h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a delete 1 8 10 </h:pre>
+```
 
-<h:h3>Dumping all VCFs</h:h3>
 
-<h:h3>Accessing the database using ij</h:h3>
-<h:b>ij</h:b> is an interactive SQL scripting tool that comes with Derby.
-The libraries for <h:b>ij</h:b> is available in <h:a>http://mvnrepository.com/artifact/org.apache.derby/derbytools</h:a> or you can use something like:
-<h:pre>sudo apt-get install derby-tools</h:pre>
 
-<h:pre>
+
+
+### Delete some VCFs by ID
+
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a delete 1 8 10 
+```
+
+
+
+
+
+### Dumping all VCFs
+
+
+
+
+### Accessing the database using ij
+
+ij is an interactive SQL scripting tool that comes with Derby.
+The libraries for ij is available in http://mvnrepository.com/artifact/org.apache.derby/derbytools or you can use something like:
+
+
+```
+sudo apt-get install derby-tools
+```
+
+
+
+
+
+```
+
  echo " connect 'jdbc:derby:database.db'; select count(*) from VCF; exit" |
  java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
 ij version 10.12
-ij&gt; ij&gt; 1          
+ij> ij> 1          
 -----------
 8          
 
 1 row selected
-</h:pre>
 
-<h:pre>$ echo " connect 'jdbc:derby:database.db'; select ID,NAME from VCF; exit" | java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
+```
+
+
+
+
+
+```
+$ echo " connect 'jdbc:derby:database.db'; select ID,NAME from VCF; exit" | java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
 ij version 10.12
-ij&gt; ij&gt; ID         |NAME                                                                                                                            
+ij> ij> ID         |NAME                                                                                                                            
 --------------------------------------------------------------------------------------------------------------------------------------------
 1          |input.vcf                                                                                                                       
 2          |input2.vcf.gz                                                                                                                   
@@ -165,14 +330,20 @@ ij&gt; ij&gt; ID         |NAME
 8          |vcf1461860749178                                                                                                                
 
 8 rows selected
-ij&gt;&gt;</h:pre>
+ij>>
+```
+
+
 
 Adding a column in the VCF:
-<h:pre>
+
+
+```
+
 $ echo " connect 'jdbc:derby:database.db'; ALTER TABLE VCF ADD COLStatValue DOUBLE DEFAULT -1.0; select * from VCF; exit" | java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
 ij version 10.12
-ij&gt; ij&gt; 0 rows inserted/updated/deleted
-ij&gt; ID         |NAME                                                                                                                            |MYSTATVALUE             
+ij> ij> 0 rows inserted/updated/deleted
+ij> ID         |NAME                                                                                                                            |MYSTATVALUE             
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 1          |input.vcf                                                                                                                       |-1.0                    
 2          |input2.vcf.gz                                                                                                                   |-1.0                    
@@ -184,14 +355,20 @@ ij&gt; ID         |NAME                                                         
 8          |vcf1461860749178                                                                                                                |-1.0                    
 
 8 rows selected
-</h:pre>
+
+```
+
+
 
 Updating the new column MYSTATVALUE:
-<h:pre>echo " connect 'jdbc:derby:database.db'; UPDATE VCF SET MyStatValue =999 WHERE ID=1 OR ID=5 OR ID=8; select ID,MyStatValue from VCF; exit" | java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
+
+
+```
+echo " connect 'jdbc:derby:database.db'; UPDATE VCF SET MyStatValue =999 WHERE ID=1 OR ID=5 OR ID=8; select ID,MyStatValue from VCF; exit" | java -cp ./lib/org/apache/derby/derbytools/10.12.1.1/derbytools-10.12.1.1.jar:./lib/org/apache/derby/derby/10.12.1.1/derby-10.12.1.1.jar:./lib/org/apache/derby/derbyclient/10.12.1.1/derbyclient-10.12.1.1.jar  org.apache.derby.tools.ij
 ij version 10.12
-ij&gt;
-ij&gt; 3 rows inserted/updated/deleted
-ij&gt; ID         |MYSTATVALUE             
+ij>
+ij> 3 rows inserted/updated/deleted
+ij> ID         |MYSTATVALUE             
 ------------------------------------
 1          |999.0                   
 2          |-1.0                    
@@ -203,11 +380,17 @@ ij&gt; ID         |MYSTATVALUE
 8          |999.0                   
 
 8 rows selected
-</h:pre>
+
+```
+
+
 
 When a new column is added in a VCF, it is handled by vcderby01 and the action: 'list'
 
-<h:pre>$ java -jar dist/vcfderby01.jar -d database.db -a list
+
+
+```
+$ java -jar dist/vcfderby01.jar -d database.db -a list
 #ID	MYSTATVALUE	NAME	COUNT_VARIANTS
 1	999.0	input.vcf	35
 2	-1.0	input2.vcf.gz	35
@@ -216,9 +399,11 @@ When a new column is added in a VCF, it is handled by vcderby01 and the action: 
 5	999.0	vcf1461860749175	35
 6	-1.0	vcf1461860749176	35
 7	-1.0	vcf1461860749177	35
-8	999.0	vcf1461860749178	35</h:pre>
+8	999.0	vcf1461860749178	35
+```
 
-</documentation>
 
-<!-- __PLACEHOLDER__ -->
-</app>
+
+
+
+

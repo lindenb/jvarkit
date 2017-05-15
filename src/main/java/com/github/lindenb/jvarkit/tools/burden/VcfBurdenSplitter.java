@@ -32,6 +32,7 @@ package com.github.lindenb.jvarkit.tools.burden;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -54,6 +55,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -61,16 +63,167 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+/**
+
+BEGIN_DOC
+
+### Description
+
+This tools reads a VCF  (it should be sorted on chrom/POS and annotated with Ensembl Variation Predictor) and split data into genomic area of interest (géne, transcripts...).
+For each area, a small VCF is produced and a Fished test is computed.
+The final output is a set of concatenated VCF files. You could insert in a database using VcfDerby01
 
 
+END_DOC
+*/
+
+@Program(name="vcfburdensplitter",description="Split VCF Using a Burden Splitter (by gene, transcript, etc..)")
 public class VcfBurdenSplitter
-	extends AbstractVcfBurdenSplitter
+	extends Launcher
 	{
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(VcfBurdenSplitter.class);
+	
+	AbstractVcfBurdenSplitter x;
+	private static final Logger LOG = Logger.build(VcfBurdenSplitter.class).make();
+
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile = null;
+
+	@Parameter(names={"-ls","--listsplitters"},description="List available splitters and exit",help=true)
+	private boolean listSplitter = false;
+
+	@Parameter(names={"-sp","--splitterName"},description="Splitter Name")
+	private String splitterName = "vepso";
+
+	@Parameter(names={"-if","--ignorefilter"},description="accept variants having a FILTER column. Default is ignore variants with a FILTER column")
+	private boolean acceptFiltered = false;
+
+	@Parameter(names={"-gh","--galaxyhtml"},description="When used with galaxy, the files will be expanded in that path.")
+	private String galaxyHtmlPath = "";
+
+	@Parameter(names={"-vepFeature","--vepFeature"},description="enable VEP 'FEATURE' (transcript)")
+	private boolean enableVepFeature = false;
+
+	@Parameter(names={"-vepHgnc","--vepHgnc"},description="enable VEP 'HGNC'")
+	private boolean enableVepHgnc = false;
+
+	@Parameter(names={"-vepEnsg","--vepEnsg"},description="enable VEP 'ENSG'")
+	private boolean enableVepEnsg = false;
+
+	@Parameter(names={"-vepEnst","--vepEnst"},description="enable VEP 'FEATURE' starting with 'ENST'")
+	private boolean enableVepEnst = false;
+
+	@Parameter(names={"-vepEnsp","--vepEnsp"},description="enable VEP 'ENSP'")
+	private boolean enableVepEnsp = false;
+
+	@Parameter(names={"-vepSymbol","--vepSymbol"},description="enable VEP 'SYMBOL'")
+	private boolean enableVepSymbol = false;
+
+	@Parameter(names={"-vepRefSeq","--vepRefSeq"},description="enable VEP 'SYMBOL'= XM_ or NM_")
+	private boolean enableVepRefSeq = false;
+
+	@Parameter(names={"-all_nm","--all_nm"},description="enable grouping by ALL_NM : gene not empty and transcript starting with NM_")
+	private boolean enableAllNM = false;
+
+	@Parameter(names={"-all_refseq","--all_refseq"},description="enable grouping by ALL_REFSEQ: gene not empty and transcript NOT starting with ENST")
+	private boolean enableAllRefSeq = false;
+
+	@Parameter(names={"-all_enst","--all_enst"},description="enable grouping by ALL_ENST: gene starting with ENST")
+	private boolean enableAllEnst = false;
+
+	@Parameter(names={"-all_transcripts","--all_transcripts"},description="enable grouping by all transcript for a gene using gene name (e.g Nm_12345)")
+	private boolean enableAllTranscript = false;
+
+	@Parameter(names={"-all_genes","--all_genes"},description="enable grouping by all transcript for a gene using transcript name (e.g PRKCB1)")
+	private boolean enableAllGenes = false;
+
+	@Parameter(names={"-all_filtered","--all_filtered"},description="If defined, the group where ALL the variants are FILTERED will be saved here.")
+	private File allFilteredFileOut = null;
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
 	//public for knime
 	public static final String VCF_HEADER_SPLITKEY="VCFBurdenSplitName";
 	
+	
+	/** getter for enableVepFeature */
+	private boolean isEnableVepFeature()
+		{
+		return this.enableVepFeature;
+		}
+
+	/** getter for enableAllNM */
+	private boolean isEnableAllNM()
+		{
+		return this.enableAllNM;
+		}
+
+	/** getter for enableAllGenes */
+	private boolean isEnableAllGenes()
+		{
+		return this.enableAllGenes;
+		}
+	
+	/** getter for enableVepEnsg */
+	private boolean isEnableVepEnsg()
+		{
+		return this.enableVepEnsg;
+		}
+	
+	/** getter for enableAllRefSeq */
+	private boolean isEnableAllRefSeq()
+		{
+		return this.enableAllRefSeq;
+		}
+	
+	/** getter for enableAllEnst */
+	private boolean isEnableAllEnst()
+		{
+		return this.enableAllEnst;
+		}
+
+	/** getter for enableAllTranscript */
+	private boolean isEnableAllTranscript()
+		{
+		return this.enableAllTranscript;
+		}
+	
+	/** getter for enableVepHgnc */
+	private boolean isEnableVepHgnc()
+		{
+		return this.enableVepHgnc;
+		}
+
+	/** getter for enableVepRefSeq */
+	private boolean isEnableVepRefSeq()
+		{
+		return this.enableVepRefSeq;
+		}
+	
+	
+	/** getter for enableVepEnst */
+	private boolean isEnableVepEnst()
+		{
+		return this.enableVepEnst;
+		}
+	
+	
+	/** getter for enableVepSymbol */
+	private boolean isEnableVepSymbol()
+		{
+		return this.enableVepSymbol;
+		}
+	
+	/** getter for enableVepEnsp */
+	private boolean isEnableVepEnsp()
+		{
+		return this.enableVepEnsp;
+		}
+
 	
 	private static String shortName(final VariantContext ctx) {
 		return ctx.getContig()+":"+ctx.getStart()+":"+ctx.getID()+":"+ctx.getAlleles();
@@ -445,39 +598,9 @@ public class VcfBurdenSplitter
 		}
 	
 	
+	
 	@Override
-	public Collection<Throwable> initializeKnime() {
-		
-		if(!super.listSplitter) {
-			if(super.outputFile==null) {
-				LOG.warn("output file option -"+OPTION_OUTPUTFILE+" was not be declared. Zip will be printed to stdout.");
-			}
-			else if(!outputFile.getName().endsWith(".zip")) {
-				return wrapException("output file option -"+OPTION_OUTPUTFILE+" is not be declared a en with .zip");
-			}
-			
-			
-			if(super.splitterName.isEmpty()) {
-				return wrapException("splitter name undefined in option -"+OPTION_SPLITTERNAME);
-			}
-			Splitter splitter=null;
-			for(final Splitter s: this.splitters)
-				{
-				if(super.splitterName.equals(s.getName())) {
-					splitter=s;
-					break;
-					}
-				}
-			if(splitter==null) {
-			return wrapException("Cannot find a splitter named "+super.splitterName);
-			}
-		}
-		return super.initializeKnime();
-	 	}
-	
-	
-	//@Override
-	public Collection<Throwable> doVcfToVcf(final String inputName) throws Exception {
+	protected int doVcfToVcf(String inputName, File outorNull) {
 		SortingCollection<KeyAndLine> sortingcollection=null;
 		BufferedReader in = null;
 		CloseableIterator<KeyAndLine> iter=null;
@@ -489,8 +612,8 @@ public class VcfBurdenSplitter
 					IOUtils.openURIForBufferedReading(inputName)
 					;
 			
-			if( super.allFilteredFileOut!=null) {
-				allDiscardedLog = IOUtils.openFileForPrintWriter(super.allFilteredFileOut);
+			if( this.allFilteredFileOut!=null) {
+				allDiscardedLog = IOUtils.openFileForPrintWriter(this.allFilteredFileOut);
 			}
 					
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
@@ -499,19 +622,19 @@ public class VcfBurdenSplitter
 			Splitter splitter = null;
 			for(final Splitter s: this.splitters)
 				{
-				if(super.splitterName.equals(s.getName())) {
+				if(this.splitterName.equals(s.getName())) {
 					splitter=s;
 					break;
 					}
 				}
 			if(splitter==null) {
-				return wrapException("Cannot find a splitter named "+super.splitterName);
+				return wrapException("Cannot find a splitter named "+this.splitterName);
 			}
 			splitter.initialize(cah.header);
 			LOG.info("splitter is "+splitter);
 			
 			
-			pw= super.openFileOrStdoutAsPrintStream();
+			pw= super.openFileOrStdoutAsPrintStream(outorNull);
 			
 			// read variants
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(cah.header);
@@ -554,7 +677,7 @@ public class VcfBurdenSplitter
 									eqiter.close();
 									return wrapException("illegal state");
 									}
-								if(!ctx.isFiltered() || super.acceptFiltered) {
+								if(!ctx.isFiltered() || this.acceptFiltered) {
 									has_only_filtered=false;
 									//break; NOOOONNN !!!
 									}
@@ -615,8 +738,8 @@ public class VcfBurdenSplitter
 							KeyAndLine.class,
 							new KeyAndLineCodec(),
 							new KeyAndLineComparator(),
-							super.maxRecordsInRam,
-							super.getTmpDirectories()
+							this.writingSortingCollection.maxRecordsInRam,
+							this.writingSortingCollection.getTmpDirectories()
 							);
 					sortingcollection.setDestructiveIteration(true);
 					}
@@ -663,17 +786,44 @@ public class VcfBurdenSplitter
 			CloserUtil.close(allDiscardedLog);
 			}
 		}
+		@Override
+		public int doWork(List<String> args) {
 		
-	@Override
-	protected Collection<Throwable> call(final String inputName) throws Exception {
-		if(super.listSplitter) {
+		if(!this.listSplitter) {
+			if(this.outputFile==null) {
+				LOG.warn("output file option -o was not be declared. Zip will be printed to stdout.");
+			}
+			else if(!outputFile.getName().endsWith(".zip")) {
+				LOG.error("output file option -o is not be declared a en with .zip");
+				return -1;
+			}
+			
+			
+			if(this.splitterName.isEmpty()) {
+				return wrapException("splitter name undefined");
+			}
+			Splitter splitter=null;
+			for(final Splitter s: this.splitters)
+				{
+				if(this.splitterName.equals(s.getName())) {
+					splitter=s;
+					break;
+					}
+				}
+			if(splitter==null) {
+			return wrapException("Cannot find a splitter named "+this.splitterName);
+			}
+		}
+		if(this.listSplitter) {
 			for(final Splitter splitter:this.splitters) {
 				stdout().println(splitter.getName()+"\t"+splitter.getDescription());
 	
 			}
 			return RETURN_OK;
-		}
-		return doVcfToVcf(inputName);
+			}
+		
+		
+		return doVcfToVcf(args,this.outputFile);
 		}
 	 	
 	
