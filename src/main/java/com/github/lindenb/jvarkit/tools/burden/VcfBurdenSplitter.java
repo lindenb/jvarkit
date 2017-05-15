@@ -87,7 +87,6 @@ public class VcfBurdenSplitter
 	extends Launcher
 	{
 	
-	AbstractVcfBurdenSplitter x;
 	private static final Logger LOG = Logger.build(VcfBurdenSplitter.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
