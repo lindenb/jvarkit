@@ -22,6 +22,14 @@ Usage: vcfeigen [options] Files
 
 Annotator for the data of https://xioniti01.u.hpc.mssm.edu/v1.1/ : Eigen makes use of a variety of functional annotations in both coding and noncoding regions (such as made available by the ENCODE and Roadmap Epigenomics projects), and combines them into one single measure of functional importance.
 
+
+## Keywords
+
+ * vcf
+ * annotation
+ * variant
+
+
 ## Compilation
 
 ### Requirements / Dependencies

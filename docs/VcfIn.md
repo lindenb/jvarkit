@@ -226,7 +226,7 @@ output:
 ```
 
 
-Please not that variant 1	11167517 is not flagged because is alternate allele is not contained in 'bad.vcf'
+Please note that variant 1	11167517 is not flagged because is alternate allele is not contained in 'bad.vcf'
 
 
 
