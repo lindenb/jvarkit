@@ -105,12 +105,12 @@ public static  class UsageBuider
 	/** main class */
 	private Class<?> mainClass=Object.class;
 	
-	@Parameter(names = {"-h","--help"},description="print help and exits", help = true)
+	@Parameter(names = {"-h","--help"},description="print help and exit", help = true)
 	public boolean print_help = false;
-	@Parameter(names = {"--markdownhelp"},description="print Markdown help and exits", help = true,hidden=true)
+	@Parameter(names = {"--markdownhelp"},description="print Markdown help and exit", help = true,hidden=true)
 	public boolean print_markdown_help = false;
 
-	@Parameter(names = {"--version"}, help = true,description="print version and exits")
+	@Parameter(names = {"--version"}, help = true,description="print version and exit")
 	public boolean print_version = false;
 
 	public UsageBuider(Class<?> mainClass) {
@@ -130,6 +130,10 @@ public static  class UsageBuider
 		final StringBuilder sb=new StringBuilder();
 		this.usage(jc,sb);
 		return sb.toString();
+		}
+	public String hyperlink(final String url)
+		{
+		return "["+url+"]("+url+")";
 		}
 	
 	public void usage(final JCommander jc,final StringBuilder sb) {
@@ -168,7 +172,7 @@ public static  class UsageBuider
 			}
 			if(programdesc.biostars()!=null && programdesc.biostars().length>0) {
 				sb.append("\n## See also in Biostars\n\n");
-				for(int postid:programdesc.biostars()) sb.append(" * https://www.biostars.org/p/"+postid+"\n");
+				for(int postid:programdesc.biostars()) sb.append(" * "+hyperlink("https://www.biostars.org/p/"+postid)+"\n");
 				sb.append("\n\n");
 			}
 			
@@ -212,14 +216,14 @@ public static  class UsageBuider
 			sb.append("```\n");
 			
 			sb.append("## Source code \n\n");
-			sb.append("https://github.com/lindenb/jvarkit/tree/master/src/main/java/").
-				append(clazz.getName().replace('.','/')).append(".java\n");
+			sb.append(hyperlink("https://github.com/lindenb/jvarkit/tree/master/src/main/java/"+
+				clazz.getName().replace('.','/')+".java\n"));
 			sb.append("\n");
 			
 			sb.append("## Contribute\n");
 			sb.append("\n");
-			sb.append("- Issue Tracker: http://github.com/lindenb/jvarkit/issues\n");
-			sb.append("- Source Code: http://github.com/lindenb/jvarkit\n");
+			sb.append("- Issue Tracker: "+hyperlink("http://github.com/lindenb/jvarkit/issues")+"\n");
+			sb.append("- Source Code: "+hyperlink("http://github.com/lindenb/jvarkit")+"\n");
 			sb.append("\n");
 			sb.append("## License\n");
 			sb.append("\n");
@@ -227,14 +231,14 @@ public static  class UsageBuider
 			sb.append("\n");
 			sb.append("## Citing\n");
 			sb.append("\n");
-			sb.append("Should you cite **"+progName +"** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md\n");
+			sb.append("Should you cite **"+progName +"** ? "+hyperlink("https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md")+"\n");
 			sb.append("\n");
 			sb.append("The current reference is:\n");
 			sb.append("\n");
 			sb.append("http://dx.doi.org/10.6084/m9.figshare.1425030\n");
 			sb.append("\n");
 			sb.append("> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.\n");
-			sb.append("> http://dx.doi.org/10.6084/m9.figshare.1425030\n");
+			sb.append("> "+hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
 			sb.append("\n");
 			}
 		InputStream in=null;

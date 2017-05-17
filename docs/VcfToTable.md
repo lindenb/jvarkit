@@ -7,7 +7,7 @@
 Usage: vcf2table [options] Files
   Options:
     -h, --help
-      print help and exits
+      print help and exit
     -g, --hideGenotypes
       Hide All genotypes
       Default: false
@@ -26,7 +26,7 @@ Usage: vcf2table [options] Files
       0 unaffected, 1 affected,-9 unknown  If undefined, this tool will try to 
       get the pedigree from the header.
     --version
-      print version and exits
+      print version and exit
     -H
       Print Header
       Default: false
@@ -80,12 +80,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToTable.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToTable.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToTable.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -93,14 +94,14 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcf2table** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcf2table** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
 ## Example 
@@ -211,6 +212,18 @@ Samples
  | QD             |       | 2.31     |
  | ReadPosRankSum |       | 2.910    |
  +----------------+-------+----------+
+ VEP
+ +--------------------------+------+----------------+------------+-----------------+--------+------------------+-----------------------------------------------+-------------+---------+-----------------+----------------------+
+ | PolyPhen                 | EXON | SIFT           | ALLELE_NUM | Gene            | SYMBOL | Protein_position | Consequence                                   | Amino_acids | Codons  | Feature         | BIOTYPE              |
+ +--------------------------+------+----------------+------------+-----------------+--------+------------------+-----------------------------------------------+-------------+---------+-----------------+----------------------+
+ | probably_damaging(0.956) | 8/9  | deleterious(0) | 1          | ENSG00000102967 | DHODH  | 346/395          | missense_variant                              | R/W         | Cgg/Tgg | ENST00000219240 | protein_coding       |
+ |                          | 3/4  |                | 1          | ENSG00000102967 | DHODH  |                  | non_coding_exon_variant&nc_transcript_variant |             |         | ENST00000571392 | retained_intron      |
+ |                          |      |                | 1          | ENSG00000102967 | DHODH  |                  | downstream_gene_variant                       |             |         | ENST00000572003 | retained_intron      |
+ |                          |      |                | 1          | ENSG00000102967 | DHODH  |                  | downstream_gene_variant                       |             |         | ENST00000573843 | retained_intron      |
+ |                          |      |                | 1          | ENSG00000102967 | DHODH  |                  | downstream_gene_variant                       |             |         | ENST00000573922 | processed_transcript |
+ |                          |      |                | 1          | ENSG00000102967 | DHODH  | -/193            | intron_variant                                |             |         | ENST00000574309 | protein_coding       |
+ | probably_damaging(0.946) | 8/9  | deleterious(0) | 1          | ENSG00000102967 | DHODH  | 344/393          | missense_variant                              | R/W         | Cgg/Tgg | ENST00000572887 | protein_coding       |
+ +--------------------------+------+----------------+------------+-----------------+--------+------------------+-----------------------------------------------+-------------+---------+-----------------+----------------------+
  Genotypes
  +---------+------+-------+----+----+-----+---------+
  | Sample  | Type | AD    | DP | GQ | GT  | PL      |
