@@ -48,7 +48,8 @@ import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 
 public class KnownGene implements Iterable<Integer>,Feature
 	{
-	public static final String OPT_KNOWNGENE_DESC="UCSC knownGene URI. Beware chromosome names are formatted the same as your REFERENCE";
+	public static final String OPT_KNOWNGENE_DESC="UCSC knownGene URI. Beware chromosome names are formatted the same as your REFERENCE. A typical KnownGene file is http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz ."
+			+ "If you only have a gff file, you can try to generate a knownGene file with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)";
 	
 	/** returns the UCSC URL for knownGene for the given UCSC build e.g: 'hg19' */
 	public static String getUri(final String ucscBuild)

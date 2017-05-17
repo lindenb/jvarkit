@@ -105,7 +105,11 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
 
 END_DOC
  */
-@Program(name="biostar214299",description="Extract allele specific reads from bamfiles",biostars=214299)
+@Program(name="biostar214299",
+	description="Extract allele specific reads from bamfiles",
+	biostars=214299,
+	keywords={"sam","bam","variant","snp"}
+	)
 public class Biostar214299 extends Launcher
 	{
 
@@ -133,7 +137,8 @@ public class Biostar214299 extends Launcher
 	@Override
 	public int doWork(List<String> args) {
 		if(this.positionFile==null) {
-			return wrapException("position File is not defined.");
+			LOG.error("position File is not defined.");
+			return -1;
 			}
 		final String UNAFFECTED_SAMPLE="UNAFFECTED";
 		final String AMBIGOUS_SAMPLE="AMBIGOUS";
@@ -147,7 +152,11 @@ public class Biostar214299 extends Launcher
 			sfr = openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=sfr.getFileHeader();
 			final SAMSequenceDictionary dict =header.getSequenceDictionary();
-			if(dict==null) return wrapException("Dictionary missing in input sam");
+			if(dict==null) 
+				{
+				LOG.error("Dictionary missing in input sam");
+				return -1;
+				}
 			
 			
 			try ( BufferedReader br = IOUtils.openFileForBufferedReading(this.positionFile)) {

@@ -319,7 +319,8 @@ END_DOC
 */
 
 
-@Program(name="vcf2rdf",description="convert VCF to RDF (N3 notation)")
+@Program(name="vcf2rdf",description="convert VCF to RDF (N3 notation)",
+keywords={"vcf","rdf"})
 public class VcfToRdf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfToRdf.class).make();

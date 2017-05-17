@@ -69,8 +69,94 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /**
- * 
- * VcfGeneOntology
+BEGIN_DOC
+
+## Example
+
+
+```make
+INPUT=${HOME}/test.vcf.gz
+VCFGO=java -jar dist/vcfgo.jar -A  gene_association.goa_human.gz -G go_daily-termdb.rdf-xml.gz 
+DEPS=dist/vcfgo.jar gene_association.goa_human.gz go_daily-termdb.rdf-xml.gz 
+
+all: $(addsuffix .vcf,$(addprefix test,1 2 3 4 5 6 7))
+	$(foreach F,$^,echo -e "Output of $F:"  && cat $F; )
+
+test1.vcf: ${DEPS}
+	${VCFGO} ${INPUT} |  grep -v "#" | grep GO | cut -f 7,8 | head -n 1 > $@
+
+test2.vcf: ${DEPS}
+	${VCFGO}  -T MYGOATAG ${INPUT} |  grep -v "#" | grep MYGOATAG | cut -f 7,8 | head -n 1 > $@
+	
+test3.vcf: ${DEPS}
+	${VCFGO}  -C GO:0007283 ${INPUT} |  grep -v "#" | grep GO  | cut -f 7,8 | head -n 1 > $@
+	
+test4.vcf: ${DEPS}
+	${VCFGO} -C GO:0007283 -v  ${INPUT}|  grep -v "#" |  grep GO | cut -f 7,8 | head -n 1 > $@
+
+test5.vcf: ${DEPS}
+	${VCFGO}  -C GO:0007283 -F GOFILTER ${INPUT}| grep -v "#" |   grep GOFILTER | cut -f 7,8 | head -n1 > $@
+	
+test6.vcf: ${DEPS}
+	${VCFGO} -C GO:0007283 -F GOFILTER -v  ${INPUT}| grep -v "#" |   grep GOFILTER | cut -f 7,8 | head -n1 > $@	
+	
+test7.vcf: ${DEPS}
+	${VCFGO} -r ${INPUT} | grep -v "#" | cut -f 7,8 | head -n1 > $@
+		
+	
+gene_association.goa_human.gz :
+	curl -o $@ "http://cvsweb.geneontology.org/cgi-bin/cvsweb.cgi/go/gene-associations/gene_association.goa_human.gz?rev=HEAD"
+
+go_daily-termdb.rdf-xml.gz :
+	curl -o $@ "http://archive.geneontology.org/latest-termdb/$@"
+
+dist/vcfgo.jar:
+	$(MAKE) vcfgo
+
+```
+output of GNU make:
+
+Output of test1.vcf:
+
+```
+.	(...)GOA=AURKAIP1|GO:0070124&GO:0005739&GO:0005515&GO:0070125&GO:0045839&GO:0070126&GO:0032543&GO:0006996&GO:0005743&GO:0005654&GO:0005634&GO:0045862&GO:0043231;MQ=39	GT:PL:DP:GQ	1/1:35,3,0:1:4
+```
+
+Output of test2.vcf:
+
+```
+.	(...)MYGOATAG=AURKAIP1|GO:0070124&GO:0005739&GO:0005515&GO:0070125&GO:0045839&GO:0070126&GO:0032543&GO:0006996&GO:0005743&GO:0005654&GO:0005634&GO:0045862&GO:0043231
+```
+
+Output of test3.vcf:
+
+```
+.	(...)GOA=GJA9|GO:0007154&GO:0005922&GO:0016021,MYCBP|GO:0005739&GO:0005515&GO:0006355&GO:0005813&GO:0005737&GO:0003713&GO:0005634&GO:0007283&GO:0006351;MQ=46
+```
+
+Output of test4.vcf:
+````
+.	(...)GOA=AURKAIP1|GO:0070124&GO:0005739&GO:0005515&GO:0070125&GO:0045839&GO:0070126&GO:0032543&GO:0006996&GO:0005743&GO:0005654&GO:0005634&GO:0045862&GO:0043231
+```
+
+Output of test5.vcf:
+
+```
+GOFILTER	(...)GOA=AURKAIP1|GO:0070124&GO:0005739&GO:0005515&GO:0070125&GO:0045839&GO:0070126&GO:0032543&GO:0006996&GO:0005743&GO:0005654&GO:0005634&GO:0045862&GO:0043231
+```
+
+Output of test6.vcf:
+
+```
+GOFILTER	(...)GOA=GJA9|GO:0007154&GO:0005922&GO:0016021,MYCBP|GO:0005739&GO:0005515&GO:0006355&GO:0005813&GO:0005737&GO:0003713&GO:0005634&GO:0007283&GO:0006351
+```
+
+Output of test7.vcf:
+
+```
+.	(...)GOA=AURKAIP1|GO:0070124&GO:0005739&GO:0005515&GO:0070125&GO:0045839&GO:0070126&GO:0032543&GO:0006996&GO:0005743&GO:0005654&GO:0005634&GO:0045862&GO:0043231
+```
+END_DOC
  *
  */
 @Program(

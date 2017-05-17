@@ -76,7 +76,31 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+/**
 
+BEGIN_DOC
+
+This tools reads a pedigree file and inject it in the VCF header  
+
+
+```
+$ java -jar dist/vcfinjectpedigree.jar \
+	-imih -imip -p input.ped \
+	input.vcf.gz > out.vcf
+
+$ grep Sample out.vcf
+(...)
+##Sample=<Family=F1,ID=INDI1,Father=0,Mother=0,Sex=1,Status=1>
+##Sample=<Family=F2,ID=INDI2,Father=0,Mother=0,Sex=2,Status=1>
+##Sample=<Family=F3,ID=INDI3,Father=INDI1,Mother=INDI2,Sex=1,Status=1>
+(...)
+
+```
+
+END_DOC
+
+
+ */
 @Program(name="vcfinjectpedigree",
 	description="Injects a pedigree (.ped) file in the VCF header",
 	keywords={"vcf","pedigree","burden"})

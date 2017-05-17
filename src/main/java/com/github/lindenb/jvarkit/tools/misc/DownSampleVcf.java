@@ -78,6 +78,7 @@ public class DownSampleVcf extends Launcher
 	@Parameter(names="-N",description=" random seed")
 
 	private long seed=System.currentTimeMillis();
+	
 	private DownSampleVcf()
 		{
 		}

@@ -127,14 +127,53 @@ END_DOC
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+/**
 
+BEGIN_DOC
+
+### XML config
+
+XML root is <treepack>. children is '<node>' .
+A '<node>' has an attribute 'name'. The text content of the <node> will be evaluated as a javascript expression with the embedded javascript engine.
+The javascript engine injects **record** a [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/fastq/FastqRecord.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/fastq/FastqRecord.html) and
+**header** a [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html).
+
+
+### Example
+
+```
+$ cat config.xml
+
+<?xml version="1.0"?>
+<treepack>
+	<node name="length">record.length()</node>
+	<node name="firstBase">(record.length()&gt;0?record.getReadString().charAt(0):null)</node>
+</treepack>
+
+```
+s
+
+```
+$ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data/NA21144/sequence_read/ERR047877.filt.fastq.gz" |\
+   gunzip -c | java -jar dist/fastqrecordtreepack.jar -c) config.xml  > out.svg
+
+```
+
+
+![https://pbs.twimg.com/media/Bem-_tVCEAA9uT1.jpg:large](https://pbs.twimg.com/media/Bem-_tVCEAA9uT1.jpg:large)
+
+
+
+END_DOC
+
+ */
 @Program(name="fastqrecordtreepack",description="Create a TreeMap from one or more Fastq file. Ouput is a SVG file")
 public class FastqRecordTreePack extends AbstractTreePackCommandLine
 	{
 	private static final Logger LOG = Logger.build(FastqRecordTreePack.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

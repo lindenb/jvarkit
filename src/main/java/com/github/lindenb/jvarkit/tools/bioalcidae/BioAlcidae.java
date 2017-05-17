@@ -463,7 +463,7 @@ END_DOC
 */
 
 
-@Program(name="bioAlcidae",
+@Program(name="bioalcidae",
 	description="javascript version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","js","nashorn"},
 	biostars={183197,185162,153060,152016,152720,152820,218444,224402,241751,240452,248385,186610,242127,167389,187494,183197,152820,178004,156250,202400,183982,173201}

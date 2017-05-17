@@ -165,7 +165,10 @@ END_DOC
 */
 
 
-@Program(name="vcfcombinetwosnvs",description="Idea from @SolenaLS and then @AntoineRimbert")
+@Program(name="vcfcombinetwosnvs",
+	description="Idea from @SolenaLS and then @AntoineRimbert",
+	keywords={"vcf","annotation","prediction","protein"}
+	)
 public class VCFCombineTwoSnvs extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFCombineTwoSnvs.class).make();

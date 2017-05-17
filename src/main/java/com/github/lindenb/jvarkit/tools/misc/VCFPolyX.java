@@ -65,15 +65,15 @@ $ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf
 
 END_DOC
 */
-@Program(name="vcfpolyx",description="Number of repeated REF bases around POS.")
+@Program(name="vcfpolyx",description="Number of repeated REF bases around POS.",
+		keywords={"vcf","repeat"})
 public class VCFPolyX extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFPolyX.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 
 	@Parameter(names={"-n","--filter"},description="if number of repeated bases is greater or equal to 'n' set a FILTER = (tag)")
 	private int filterTrehsold = -1 ;

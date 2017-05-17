@@ -79,7 +79,12 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+/*
+BEGIN_DOC
 
+ 
+END_DOC
+ */
 @Program(name="vcfmerge",description="Merge VCF Files",deprecatedMsg="use GATK combineVariants ")
 public class VCFMerge2
 	extends Launcher
@@ -88,7 +93,7 @@ public class VCFMerge2
 	private static final Logger LOG = Logger.build(VCFMerge2.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

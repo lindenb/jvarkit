@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import htsjdk.samtools.GenomicIndexUtil;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -58,37 +59,46 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 /**
 BEGIN_DOC
 
-<h:h3>Example</h:h3>
+## Example
+
+```
 $  curl -s "ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_19/gencode.v19.annotation.gff3.gz" |\
 	gunzip -c |\
 	java -jar dist/gff2kg.jar
 (...)
 1826	ENST00000367917.3	chr1	+	162760522	162782607	162760590	162782210	8	162760522,162762448,162766374,162767591,162769532,162774056,162775183,162782087	162760625,162762652,162766467,162767706,162769727,162774113,162775282,162782607	gene_id=ENSG00000132196.9;transcript_id=ENST00000367917.3;gene_type=protein_coding;gene_status=KNOWN;gene_name=HSD17B7;transcript_type=protein_coding;transcript_name=HSD17B7-201;protein_id=ENSP00000356894.3;havana_gene=OTTHUMG00000034420.6;	ENST00000367917.3
 (...)
-</h:pre>
+```
 
 In the UCSC (not the structure of konwGene, but we can validate intervals):
-<h:pre>$ mysql --user=genome --host=genome-mysql.cse.ucsc.edu -D hg19 -e 'select * from wgEncodeGencodeBasicV19 where name="ENST00000367917.3"' | cat
+
+```
+$ mysql --user=genome --host=genome-mysql.cse.ucsc.edu -D hg19 -e 'select * from wgEncodeGencodeBasicV19 where name="ENST00000367917.3"' | cat
 bin	name	chrom	strand	txStart	txEnd	cdsStart	cdsEnd	exonCount	exonStarts	exonEnds	score	name2	cdsStartStat	cdsEndStat	exonFrames
 1826	ENST00000367917.3	chr1	+	162760522	162782607	162760590	162782210	8	162760522,162762448,162766374,162767591,162769532,162774056,162775183,162782087,	162760625,162762652,162766467,162767706,162769727,162774113,162775282,162782607,	0	HSD17B7	cmpl	cmpl	0,2,2,2,0,0,0,0,
-</h:pre>
+```
 
-<h:h4>From ensembl</h:h4>
-<h:pre>$	wget -O -  "ftp://ftp.ensembl.org/pub/grch37/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh37.82.gtf.gz" |\
+### From ensembl 
+
+```
+$	wget -O -  "ftp://ftp.ensembl.org/pub/grch37/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh37.82.gtf.gz" |\
 	gunzip -c |\
 	java -jar dist/gff2kg.jar
-</h:pre>
+```
 
-<h:h3>See also</h:h3>
-<h:ul>
-	<h:li><h:a>https://github.com/lindenb/jvarkit/wiki/VCFPredictions</h:a></h:li>
-	<h:li>Ensembl vs UCSC <h:a>https://twitter.com/yokofakun/status/743751004785545218</h:a></h:li>
-</h:ul>
+## see also
+
+
+  * Ensembl vs UCSC  [https://twitter.com/yokofakun/status/743751004785545218](https://twitter.com/yokofakun/status/743751004785545218)
+
 
 
 END_DOC
  */
-@Program(name="gff2knowngene",description="Convert GFF3 format to UCSC knownGene format.")
+@Program(name="gff2knowngene",
+		description="Convert GFF3 format to UCSC knownGene format.",
+		keywords={"gff","knownGene","ucsc","convert"}
+		)
 public class Gff2KnownGene extends Launcher {
 	private static final Logger LOG = Logger.build(Gff2KnownGene.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -192,14 +202,7 @@ public class Gff2KnownGene extends Launcher {
 	
     static int reg2bin(final int beg, int end)
     {
-        --end;
-
-        if (beg>>14 == end>>14) return ((1<<15)-1)/7 + (beg>>14);
-        if (beg>>17 == end>>17) return ((1<<12)-1)/7 + (beg>>17);
-        if (beg>>20 == end>>20) return  ((1<<9)-1)/7 + (beg>>20);
-        if (beg>>23 == end>>23) return  ((1<<6)-1)/7 + (beg>>23);
-        if (beg>>26 == end>>26) return  ((1<<3)-1)/7 + (beg>>26);
-        return 0;
+    	return GenomicIndexUtil.regionToBin(beg, end);
     }
 
 	private  static Map.Entry<String,String> split(String s){

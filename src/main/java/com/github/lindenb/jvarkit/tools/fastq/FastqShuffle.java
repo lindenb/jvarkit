@@ -44,6 +44,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -118,13 +119,11 @@ public class FastqShuffle extends Launcher
 	@Parameter(names={"-i"},description="single input is paired reads interleaved.(optional)")
 	private boolean interleaved_input=false;
 
+	@Parameter(names={"-r"},description="random",converter=Launcher.RandomConverter.class)
+	private Random random=Launcher.RandomConverter.now();
 	
-	private Random random=new Random();
-	@Parameter(names={"-T","--tmpDir"},description="mp directory")
-	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
-
-	@Parameter(names={"-N","-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
-	private int maxRecordsInRam =50000;
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
 	private static class OneRead
 		{
@@ -256,8 +255,8 @@ public class FastqShuffle extends Launcher
 				TwoReads.class,
 				new TwoReadsCodec(),
 				new TwoReadsCompare(),
-				this.maxRecordsInRam,
-				this.tmpDir
+				this.writingSortingCollection.getMaxRecordsInRam(),
+				this.writingSortingCollection.getTmpDirectories()
 				);
 		sorting.setDestructiveIteration(true);
 		while(r1.hasNext())
@@ -277,7 +276,7 @@ public class FastqShuffle extends Launcher
 				p.second=r1.next();
 				}
 			
-			if((++nReads)%this.maxRecordsInRam==0)
+			if((++nReads)%this.writingSortingCollection.getMaxRecordsInRam()==0)
 				{
 				LOG.info("Read "+nReads+" reads");
 				}
@@ -310,8 +309,8 @@ public class FastqShuffle extends Launcher
 				OneRead.class,
 				new OneReadCodec(),
 				new OneReadCompare(),
-				this.maxRecordsInRam,
-				this.tmpDir
+				this.writingSortingCollection.getMaxRecordsInRam(),
+				this.writingSortingCollection.getTmpDirectories()
 				);
 		sorting.setDestructiveIteration(true);
 		while(r1.hasNext())
@@ -321,7 +320,7 @@ public class FastqShuffle extends Launcher
 			r.index=nReads;
 			r.first=r1.next();
 			
-			if((++nReads)%this.maxRecordsInRam==0)
+			if((++nReads)%this.writingSortingCollection.getMaxRecordsInRam()==0)
 				{
 				LOG.info("Read "+nReads+" reads");
 				}

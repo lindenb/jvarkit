@@ -239,14 +239,6 @@ x2	0	ref2	20	T	30	22	t	M
  *  2014-04: added qual and samflag. Fixed a bug in soft-clip
  *  2014-11: manage hard+soft clip
 
-
-
-### See also
-
- *  [[Biostar59647]]
- *  https://www.biostars.org/p/157232/
-
-
 ### Citations
 
 
@@ -260,7 +252,8 @@ END_DOC
 */
 @Program(name="sam2tsv",
 	description="Prints the SAM alignments as a TAB delimited file.",
-	keywords={"sam","bam","table","tsv"})
+	keywords={"sam","bam","table","tsv"},
+	biostars={157232,59647})
 public class Sam2Tsv
 	extends Launcher
 	{

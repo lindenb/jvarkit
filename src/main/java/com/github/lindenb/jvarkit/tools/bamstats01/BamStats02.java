@@ -413,7 +413,8 @@ public class BamStats02
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

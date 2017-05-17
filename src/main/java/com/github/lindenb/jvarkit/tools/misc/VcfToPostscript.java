@@ -29,9 +29,14 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+BEGIN_DOC
 
 
-@Program(name="vcf2postscript",description="Print VCF context as Postscript")
+END_DOC
+*/
+@Program(name="vcf2postscript",description="Print VCF context as Postscript",
+		keywords={"vcf","postscript"})
 public class VcfToPostscript extends Launcher
 	{
 	private final static Logger LOG=Logger.build(VcfToPostscript.class).make();

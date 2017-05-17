@@ -95,7 +95,7 @@ public class ConvertBamChromosomes
 	private ContigNameConverter.OnNotFound onNotFound=ContigNameConverter.OnNotFound.RAISE_EXCEPTION;
 	@Parameter(names={"-f","--mapping","-m"},description="load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+",required=true)
 	private File mappingFile=null;
-	@Parameter(names={"-o","--out"},description="output vcf")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output= null;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();

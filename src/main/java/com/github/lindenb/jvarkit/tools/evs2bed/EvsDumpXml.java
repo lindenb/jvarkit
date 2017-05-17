@@ -73,7 +73,81 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
 import edu.washington.gs.evs.SnpData;
 
+/**
+BEGIN_DOC
 
+## Example
+
+```bash
+$  java -jar dist/evs2xml.jar -L 10000 -o test.xml
+$ cat test.xml
+``
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<evsData xmlns="http://webservice.evs.gs.washington.edu/">
+  <snpList>
+    <positionString>1:69428</positionString>
+    <chrPosition>69428</chrPosition>
+    <alleles>G/T</alleles>
+    <uaAlleleCounts>G=313/T=6535</uaAlleleCounts>
+    <aaAlleleCounts>G=14/T=3808</aaAlleleCounts>
+    <totalAlleleCounts>G=327/T=10343</totalAlleleCounts>
+    <uaMAF>4.5707</uaMAF>
+    <aaMAF>0.3663</aaMAF>
+    <totalMAF>3.0647</totalMAF>
+    <avgSampleReadDepth>110</avgSampleReadDepth>
+    <geneList>OR4F5</geneList>
+    <snpFunction>
+      <chromosome>1</chromosome>
+      <position>69428</position>
+      <conservationScore>1.0</conservationScore>
+      <conservationScoreGERP>0.9</conservationScoreGERP>
+      <snpFxnList>
+        <mrnaAccession>NM_001005484.1</mrnaAccession>
+        <fxnClassGVS>missense</fxnClassGVS>
+        <hgvsProteinVar>p.(F113C)</hgvsProteinVar>
+        <hgvsCdnaVar>c.338T&gt;G</hgvsCdnaVar>
+        <codingDnaSize>918</codingDnaSize>
+        <pphPrediction>probably-damaging:0.999</pphPrediction>
+        <granthamScore>205</granthamScore>
+      </snpFxnList>
+      <refAllele>T</refAllele>
+      <ancestralAllele>T</ancestralAllele>
+      <firstRsId>140739101</firstRsId>
+      <approxMapped2RsId>false</approxMapped2RsId>
+      <filters>PASS</filters>
+      <clinicalLink>unknown</clinicalLink>
+    </snpFunction>
+    <conservationScore>1.0</conservationScore>
+    <conservationScoreGERP>0.9</conservationScoreGERP>
+    <refAllele>T</refAllele>
+    <altAlleles>G</altAlleles>
+    <ancestralAllele>T</ancestralAllele>
+    <chromosome>1</chromosome>
+    <hasAtLeastOneAccession>true</hasAtLeastOneAccession>
+    <rsIds>rs140739101</rsIds>
+    <filters>PASS</filters>
+    <clinicalLink>unknown</clinicalLink>
+    <dbsnpVersion>dbSNP_134</dbsnpVersion>
+    <uaGenotypeCounts>GG=92/GT=129/TT=3203</uaGenotypeCounts>
+    <aaGenotypeCounts>GG=1/GT=12/TT=1898</aaGenotypeCounts>
+    <totalGenotypeCounts>GG=93/GT=141/TT=5101</totalGenotypeCounts>
+    <onExomeChip>false</onExomeChip>
+    <gwasPubmedIds>unknown</gwasPubmedIds>
+    <eaMutAge>-1.0</eaMutAge>
+    <eaMutAgeSd>-1.0</eaMutAgeSd>
+    <aaMutAge>-1.0</aaMutAge>
+    <aaMutAgeSd>-1.0</aaMutAgeSd>
+    <grcH38Position>1:69428</grcH38Position>
+  </snpList>
+  <snpList>
+    <positionString>1:69476</positionString>
+    <chrPosition>69476</chrPosition>
+(...)
+```
+END_DOC
+
+*/
 @Program(name="evsdumpxml",description= "Download data from EVS http://evs.gs.washington.edu/EVS as XML file.")
 public class EvsDumpXml
 	extends Launcher

@@ -53,7 +53,7 @@ import htsjdk.samtools.metrics.MetricsFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Histogram;
 
-@Program(name="samjmx",description="transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html")
+@Program(name="picardmetrics2xml",description="transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html")
 public class PicardMetricsToXML
 	extends Launcher
 	{

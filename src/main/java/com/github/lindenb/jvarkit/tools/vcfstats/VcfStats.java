@@ -64,13 +64,17 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactor
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+/*
 
-@Program(name="vcfstats",description="VCF statitics")
+ */
+@Program(name="vcfstats",
+	description="VCF statitics",
+	keywords={"vcf","stats"})
 public class VcfStats extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfStats.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	private static final int HISTOGRAM_STEP=5;

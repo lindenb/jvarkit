@@ -96,15 +96,15 @@ END_DOC
 
 */
 
-@Program(name="vcf2bam",description="vcf to bam")
+@Program(name="vcf2bam",description="vcf to bam",keywords={"ref","vcf","bam"})
 public class VcfToBam extends Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfToBam.class).make();
 
-	@Parameter(names={"-o","--output"},description="Ouput file. Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	
-	@Parameter(names={"-r","-R","--reference"},description="indexed fasta reference",required=true)
+	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx=null;
 
 	@ParametersDelegate

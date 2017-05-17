@@ -56,7 +56,10 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.RDF;
 
 @SuppressWarnings("serial")
-@Program(name="buildwpontology",description="Build a simple RDFS/XML ontology from the Wikipedia Categories")
+@Program(name="buildwpontology",
+	description="Build a simple RDFS/XML ontology from the Wikipedia Categories",
+	keywords={"wikipedia","ontology","rdf","gui"}
+	)
 public class BuildWikipediaOntology extends Launcher
 	{
 	final static String RDFS="http://www.w3.org/2000/01/rdf-schema#";

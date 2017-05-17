@@ -519,7 +519,8 @@ public class BamToFastq
 			}
 		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

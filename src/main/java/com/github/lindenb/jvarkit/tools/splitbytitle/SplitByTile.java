@@ -19,7 +19,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 
-@Program(name="splitbytile",description="Split Bam By tile")
+@Program(name="splitbytile",description="Split Bam By tile",keywords={"sam","bam"})
 public class SplitByTile  extends Launcher
 	{
 	private static final String TILEWORD="__TILE__";

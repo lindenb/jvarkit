@@ -111,7 +111,10 @@ This tool was cited in Extensive sequencing of seven human genomes to characteri
 
 */
 
-@Program(name="samfixcigar",description="Fix Cigar String in SAM replacing 'M' by 'X' or '='")
+@Program(name="samfixcigar",
+	description="Fix Cigar String in SAM replacing 'M' by 'X' or '='",
+	keywords={"sam","bam","cigar"}
+		)
 public class SamFixCigar extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamFixCigar.class).make();

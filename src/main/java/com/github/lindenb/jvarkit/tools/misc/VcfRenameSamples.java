@@ -90,7 +90,7 @@ public class VcfRenameSamples extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfRenameSamples.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	private Map<String,String> oldNameToNewName=new HashMap<String,String>();

@@ -148,7 +148,10 @@ cut -d '    ' -f 1-8 | grep -A 10 CHROM
 END_DOC
 */
 
-@Program(name="vcfpredictions",description="Basic Variant Effect prediction using ucsc-known gene")
+@Program(name="vcfpredictions",
+	description="Basic Variant Effect prediction using ucsc-known gene",
+	keywords={"vcf","annotation","prediction"}
+	)
 public class VCFPredictions extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFPredictions.class).make();

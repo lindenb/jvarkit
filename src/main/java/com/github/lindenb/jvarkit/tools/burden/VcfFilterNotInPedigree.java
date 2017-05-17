@@ -50,8 +50,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
- * VcfFilterNotInPedigree
- *
+BEGIN_DOC
+
+
+END_DOC
  */
 @Program(name="vcffilternotinpedigree",
 	description="Adds a FILTER NotInPedigree if the only not(homref) genotypes are not in a pedigree",
@@ -64,7 +66,7 @@ public class VcfFilterNotInPedigree
 	private static final Logger LOG = Logger.build(VcfFilterNotInPedigree.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

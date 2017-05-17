@@ -132,13 +132,58 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="bamtreepack",description="Create a TreeMap from one or more SAM/BAM file. Ouput is a SVG file.")
+/**
+BEGIN_DOC
 
+
+### XML config
+
+XML root is <treepack>. children is '<node>' .
+A '<node>' has an attribute 'name'. The text content of the <node> will be evaluated as a javascript expression with the embedded javascript engine.
+The javascript engine injects **record** a [https://github.com/samtools/htsjdk/blob/master/src/java/htsjdk/samtools/SAMRecord.java](https://github.com/samtools/htsjdk/blob/master/src/java/htsjdk/samtools/SAMRecord.java) and
+**header** a [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html).
+
+
+
+
+### Example
+
+
+```
+$ cat config.xml
+
+<?xml version="1.0"?>
+<treepack>
+  <node name="chr">(record.getReadUnmappedFlag()?"UNMAPPED":record.getContig())</node>
+  <node name="mapq">(record.getReadUnmappedFlag()?null:record.getMappingQuality())</node>
+</treepack>
+
+
+```
+
+
+
+```
+$ java  -jar dist/bamtreepack.jar -c config.xml  \
+  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/data/NA12340/alignment/NA12340.mapped.ILLUMINA.bwa.CEU.low_coverage.20101123.bam" \
+  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/data/NA12273/alignment/NA12273.mapped.ILLUMINA.bwa.CEU.low_coverage.20101123.bam" > out.svg
+
+```
+
+
+![https://pbs.twimg.com/media/BeaCYQgCEAAZxio.png:large](https://pbs.twimg.com/media/BeaCYQgCEAAZxio.png:large)
+
+
+END_DOC
+
+*/
+@Program(name="bamtreepack",description="Create a TreeMap from one or more SAM/BAM file. Ouput is a SVG file.",
+keywords={"bam","treepack"})
 public class BamTreePack extends AbstractTreePackCommandLine
 	{
 	private static final Logger LOG = Logger.build(BamTreePack.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

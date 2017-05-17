@@ -4,7 +4,7 @@
 ## Usage
 
 ```
-Usage: bioAlcidae [options] Files
+Usage: bioalcidae [options] Files
   Options:
     -e, --expression
       Javascript expression
@@ -13,7 +13,7 @@ Usage: bioAlcidae [options] Files
       XML version 1. DBSNP is XML output of NCBI dbsnp. INSDSEQ is XML output 
       of NCBI EFetch rettype=gbc.
     -h, --help
-      print help and exits
+      print help and exit
     -J, --json
       Optional. Reads a JSON File using google gson 
       (https://google-gson.googlecode.com/svn/trunk/gson/docs/javadocs/index.html 
@@ -23,7 +23,7 @@ Usage: bioAlcidae [options] Files
     -f, --scriptfile
       Javascript file
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -46,28 +46,28 @@ javascript version of awk for bioinformatics
 
 ## See also in Biostars
 
- * https://www.biostars.org/p/183197
- * https://www.biostars.org/p/185162
- * https://www.biostars.org/p/153060
- * https://www.biostars.org/p/152016
- * https://www.biostars.org/p/152720
- * https://www.biostars.org/p/152820
- * https://www.biostars.org/p/218444
- * https://www.biostars.org/p/224402
- * https://www.biostars.org/p/241751
- * https://www.biostars.org/p/240452
- * https://www.biostars.org/p/248385
- * https://www.biostars.org/p/186610
- * https://www.biostars.org/p/242127
- * https://www.biostars.org/p/167389
- * https://www.biostars.org/p/187494
- * https://www.biostars.org/p/183197
- * https://www.biostars.org/p/152820
- * https://www.biostars.org/p/178004
- * https://www.biostars.org/p/156250
- * https://www.biostars.org/p/202400
- * https://www.biostars.org/p/183982
- * https://www.biostars.org/p/173201
+ * [https://www.biostars.org/p/183197](https://www.biostars.org/p/183197)
+ * [https://www.biostars.org/p/185162](https://www.biostars.org/p/185162)
+ * [https://www.biostars.org/p/153060](https://www.biostars.org/p/153060)
+ * [https://www.biostars.org/p/152016](https://www.biostars.org/p/152016)
+ * [https://www.biostars.org/p/152720](https://www.biostars.org/p/152720)
+ * [https://www.biostars.org/p/152820](https://www.biostars.org/p/152820)
+ * [https://www.biostars.org/p/218444](https://www.biostars.org/p/218444)
+ * [https://www.biostars.org/p/224402](https://www.biostars.org/p/224402)
+ * [https://www.biostars.org/p/241751](https://www.biostars.org/p/241751)
+ * [https://www.biostars.org/p/240452](https://www.biostars.org/p/240452)
+ * [https://www.biostars.org/p/248385](https://www.biostars.org/p/248385)
+ * [https://www.biostars.org/p/186610](https://www.biostars.org/p/186610)
+ * [https://www.biostars.org/p/242127](https://www.biostars.org/p/242127)
+ * [https://www.biostars.org/p/167389](https://www.biostars.org/p/167389)
+ * [https://www.biostars.org/p/187494](https://www.biostars.org/p/187494)
+ * [https://www.biostars.org/p/183197](https://www.biostars.org/p/183197)
+ * [https://www.biostars.org/p/152820](https://www.biostars.org/p/152820)
+ * [https://www.biostars.org/p/178004](https://www.biostars.org/p/178004)
+ * [https://www.biostars.org/p/156250](https://www.biostars.org/p/156250)
+ * [https://www.biostars.org/p/202400](https://www.biostars.org/p/202400)
+ * [https://www.biostars.org/p/183982](https://www.biostars.org/p/183982)
+ * [https://www.biostars.org/p/173201](https://www.biostars.org/p/173201)
 
 
 ## Compilation
@@ -86,7 +86,7 @@ javascript version of awk for bioinformatics
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make bioAlcidae
+$ make bioalcidae
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -104,12 +104,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidae.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidae.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidae.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -117,14 +118,14 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **bioAlcidae** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **bioalcidae** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
 

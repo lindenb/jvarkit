@@ -33,8 +33,79 @@ import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+/**
+BEGIN_DOC
 
-@Program(name="vcfregistry.cg",description="")
+## Motivation
+
+CGI/Web tool printing all the variants at a given position for a collection of tabix-ed VCF files.
+
+## output example:
+<table><thead><tr><th>CHROM</th><th>POS</th><th>ID</th><th>REF</th><th>QUAL</th><th>Sample</th><th>Alleles</th><th>DP</th><th>GQ</th><th>File</th></tr></thead><tbody><tr><td>22</td><td>11905981</td><td><a href="http://www.ncbi.nlm.nih.gov/snp/86876">rs86876</a></td><td>A</td><td>3133</td><td>SAMPLE_273</td><td><span style="color:blue;">A/G</span></td><td>211</td><td>99</td><td>/path/to/SAMPLE_273_variations.gatk.annotations.vcf.gz</td></tr><tr><td>22</td><td>11905981</td><td><a href="http://www.ncbi.nlm.nih.gov/snp/86876">rs86876</a></td><td>A</td><td>143</td><td>SAMPLE_273</td><td><span style="color:red;">G/G</span></td><td>221</td><td>99</td><td>/path/to/SAMPLE_273_variations.samtools.annotations.vcf.gz</td></tr><tr><td>22</td><td>11905981</td><td><a href="http://www.ncbi.nlm.nih.gov/snp/86876">rs86876</a></td><td>A</td><td>2455</td><td>SAMPLE_324</td><td><span style="color:blue;">A/G</span></td><td>165</td><td>99</td><td>/path/to/SAMPLE_324_variations.gatk.annotations.vcf.gz</td></tr><tr><td>22</td><td>11905981</td><td><a href="http://www.ncbi.nlm.nih.gov/snp/86876">rs86876</a></td><td>A</td><td>118</td><td>SAMPLE_324</td><td><span style="color:red;">G/G</span></td><td>167</td><td>99</td><td>/path/to/SAMPLE_324_variations.samtools.annotations.vcf.gz</td></tr><tr><td>22</td><td>11905981</td><td><a href="http://www.ncbi.nlm.nih.gov/snp/86876">rs86876</a></td><td>A</td><td>6398</td><td>SAMPLE_016</td><td><span style="color:blue;">A/G</span></td><td>462</td><td>99</td><td>/path/to/SAMPLE_016_variations.gatk.annotations.vcf.gz</td></tr><tr><td>22</td><td>11905981</td><td><a href="http://www.ncbi.nlm.nih.gov/snp/86876">rs86876</a></td><td>A</td><td>133</td><td>SAMPLE_016</td><td><span style="color:blue;">A/G</span></td><td>482</td><td>99</td><td>/path/to/SAMPLE_016_variations.samtools.annotations.vcf.gz</td></tr> <tr><td>(...)</td><td>(...)</td><td><a (...)</td><td>(...)</td><td>(...)</td><td>(...)</td><td>(...)</td><td>(...)</td><td>(...)</td><td>(...)</td></tr></table>
+
+##Compilation/Installation
+
+### Create a Preference file.
+create/update a java preferences file with the following key/example:
+
+```xml
+<?xml version="1.0"?>
+<!DOCTYPE preferences SYSTEM "http://java.sun.com/dtd/preferences.dtd">
+<preferences EXTERNAL_XML_VERSION="1.0">
+  <root type="user">
+    <map>
+      <entry key="vcf.registry.group.file" value="/var/www/cgi-bin/vcfregistry.tsv"/>
+    </map>
+  </root>
+</preferences>
+```
+here /var/www/cgi-bin/vcfregistry.tsv  is a tab delimited file containing the path to some collections of VCFs (path/Title):
+
+```
+$ cat vcfregistry.tsv
+/var/www/cgi-bin/vcfregistry1.tsv       Collection1
+/var/www/cgi-bin/vcfregistry2.tsv       Collection2
+/var/www/cgi-bin/vcfregistry3.tsv       Collection3
+```
+
+A collection file contains a list of VCF indexed with tabix:
+
+```
+$ head /var/www/cgi-bin/vcfregistry1.tsv 
+/commun/data/projects/TEST/align/Samples/SAMPLE_73/VCF/SAMPLE_73_variations.gatk.annotations.vcf.gz
+/commun/data/projects/TEST/align/Samples/SAMPLE_73/VCF/SAMPLE_73_variations.samtools.annotations.vcf.gz
+/commun/data/projects/TEST/align/Samples/SAMPLE_72/VCF/SAMPLE_72_variations.gatk.annotations.vcf.gz
+/commun/data/projects/TEST/align/Samples/SAMPLE_72/VCF/SAMPLE_72_variations.samtools.annotations.vcf.gz
+/commun/data/projects/TEST/align/Samples/SAMPLE_71/VCF/SAMPLE_71_variations.gatk.annotations.vcf.gz
+/commun/data/projects/TEST/align/Samples/SAMPLE_71/VCF/SAMPLE_71_variations.samtools.annotations.vcf.gz
+/commun/data/projects/TEST/align/Samples/SAMPLE_24/VCF/SAMPLE_24_variations.gatk.annotations.vcf.gz
+/commun/data/projects/TEST/align/Samples/SAMPLE_24/VCF/SAMPLE_24_variations.samtools.annotations.vcf.gz
+/commun/data/projects/TEST/align/Samples/SAMPLE_16/VCF/SAMPLE_16_variations.gatk.annotations.vcf.gz
+/commun/data/projects/TEST/align/Samples/SAMPLE_16/VCF/SAMPLE_16_variations.samtools.annotations.vcf.gz
+```
+
+### Compile the program
+
+See also [[Compilation]].
+
+Important : the JAR/library files of picard should be visible from the CGI-bin. The path defined in the build.properties should be absolute.
+
+```bash
+$ make vcfregistry.cgi
+```
+It creates a jar file (vcfregistry.jar) and an executable shell script (vcfregistry.cgi) in the 'dist' folder. Both should be moved in the cgi-bin script of your server:
+```bash
+$ sudo mv dist/vcfregistry* /var/www/cgi-bin/
+```
+
+If needed, edit the script tviewweb.cgi and change the JVM property `Dprefs.file.xml=` to the correct place of your xml preference file.
+```
+java (...) -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml (...)
+````
+
+END_DOC
+ */
+@Program(name="vcfregistry.cg",description="CGI/Web tool printing all the variants at a given position for a collection of tabix-ed VCF files.")
 public class VcfRegistryCGI extends AbstractCGI {
 	private static final Logger LOG=Logger.build(VcfRegistryCGI.class).make();
 

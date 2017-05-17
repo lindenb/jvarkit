@@ -56,7 +56,7 @@ BEGIN_DOC
 END_DOC
 
  */
-@Program(name="concatsam",description="")
+@Program(name="concatsam",description="concat sam files",keywords={"sam","bam"})
 public class ConcatSam extends Launcher
 	{
 	private static final Logger LOG = Logger.build(ConcatSam.class).make();

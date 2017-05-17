@@ -356,9 +356,12 @@ public class Bam2Xml extends Launcher
 						}
 					}
 				
-				String readString= rec.getReadString();
+				final String readString= rec.getReadString();
 				writeCharacters("name",rec.getReadName());
-				writeCharacters("seq",readString);
+				if(!SAMRecord.NULL_SEQUENCE_STRING.equals(rec.getReadString()))
+					{
+					writeCharacters("seq",readString);
+					}
 				if(!SAMRecord.NULL_QUALS_STRING.equals(rec.getBaseQualityString()))
 					{
 					writeCharacters("qual",rec.getBaseQualityString());
@@ -400,7 +403,7 @@ public class Bam2Xml extends Launcher
 				w.writeEndElement();
 				
 				w.writeEndElement();
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				throw new RuntimeException(e);
 				}
 			}

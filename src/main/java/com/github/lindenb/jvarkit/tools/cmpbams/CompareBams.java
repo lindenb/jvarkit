@@ -41,6 +41,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -289,11 +290,9 @@ public class CompareBams  extends Launcher
 	@Parameter(names={"-r","--region"},description="restrict to that region chr:start-end")
 	private String REGION = "";
 
-	@Parameter(names={"-T","--tmpDir"},description="mp directory")
-	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
-
-	@Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
-	private int maxRecordsInRam =50000;
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
+	
 
 	
 	
@@ -511,15 +510,16 @@ public class CompareBams  extends Launcher
 			{
 			if(this.IN.size() <2)
 				{
-				return wrapException("Need more bams please");
+				LOG.error("Need more bams please");
+				return -1;
 				}
 			
 			database = SortingCollection.newInstance(
 					Match.class,
 					new MatchCodec(),
 					new MatchOrderer(),
-					this.maxRecordsInRam,
-					this.tmpDir
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			this.samSequenceDictAreTheSame=true;
 			database.setDestructiveIteration(true);
@@ -535,7 +535,8 @@ public class CompareBams  extends Launcher
 				final SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
 				if(dict==null || dict.isEmpty())
 					{
-					return wrapException("Empty Dict  in "+samFile);
+					LOG.error("Empty Dict  in "+samFile);
+					return -1;
 					}
 				
 				if(!this.sequenceDictionaries.isEmpty() &&
@@ -555,7 +556,8 @@ public class CompareBams  extends Launcher
 					
 					if(!interval.isPresent())
 						{
-						return wrapException("Cannot parse "+REGION+" (bad syntax or not in dictionary)");
+						LOG.error("Cannot parse "+REGION+" (bad syntax or not in dictionary)");
+						return -1;
 						}
 					}
 				else
@@ -714,7 +716,8 @@ public class CompareBams  extends Launcher
 			}
 		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

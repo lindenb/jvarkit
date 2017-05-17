@@ -142,13 +142,15 @@ END_DOC
 */
 
 
-@Program(name="biostar172515",description="Convert BAI to XML (see https://www.biostars.org/p/172515/)")
+@Program(name="biostar172515",
+description="Convert BAI to XML",
+biostars=172515)
 public class Biostar172515 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar172515.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	private XMLStreamWriter w=null;

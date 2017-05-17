@@ -152,11 +152,12 @@ END_DOC
 */
 
 
-@Program(name="samgrep",description="grep read-names in a bam file")
+@Program(name="samgrep",description="grep read-names in a bam file",
+		keywords={"sam","bam"})
 public class SamGrep extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamGrep.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
 	@Parameter(names={"-R","--readname"},description="add the read name")

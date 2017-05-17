@@ -87,7 +87,10 @@ END_DOC
 
 */
 
-@Program(name="biostar76892",description="fix strand of two paired reads close but on the same strand. See http://www.biostars.org/p/76892/ ")
+@Program(name="biostar76892",
+description="fix strand of two paired reads close but on the same strand. ",
+biostars=76892,
+keywords={"sam","bam"})
 public class Biostar76892 extends Launcher
 	{
 
@@ -215,7 +218,8 @@ public class Biostar76892 extends Launcher
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -226,11 +230,6 @@ public class Biostar76892 extends Launcher
 	
 	public static void main(String[] args)throws Exception
 		{
-		/*
-		args=new String[]{
-				"/commun/data/projects/20120828.AC0KTCACXX.WHOLEGENOME1/align/CD05121/CD05121_recal.bam",
-				"/commun/data/users/lindenb/jeter.bam"
-				};*/
 		new Biostar76892().instanceMain(args);
 		}
 	}
