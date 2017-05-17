@@ -16,7 +16,7 @@ Usage: vcffilterjs [options] Files
       the FILTER column
       Default: <empty string>
     -h, --help
-      print help and exits
+      print help and exit
     -json, --json
       json files. syntax key=path/to/file.json . Inject the json object parsed 
       with google gson into the javascript context as 'key'
@@ -32,7 +32,7 @@ Usage: vcffilterjs [options] Files
       Decode prediction tag of ensembl VEP
       Default: false
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -54,24 +54,24 @@ Filtering VCF with javascript expressions
 
 ## See also in Biostars
 
- * https://www.biostars.org/p/88921
- * https://www.biostars.org/p/233587
- * https://www.biostars.org/p/104021
- * https://www.biostars.org/p/213032
- * https://www.biostars.org/p/215885
- * https://www.biostars.org/p/243972
- * https://www.biostars.org/p/111924
- * https://www.biostars.org/p/196057
- * https://www.biostars.org/p/142215
- * https://www.biostars.org/p/229935
- * https://www.biostars.org/p/181358
- * https://www.biostars.org/p/184966
- * https://www.biostars.org/p/245802
- * https://www.biostars.org/p/7403
- * https://www.biostars.org/p/245181
- * https://www.biostars.org/p/117974
- * https://www.biostars.org/p/242281
- * https://www.biostars.org/p/252580
+ * [https://www.biostars.org/p/88921](https://www.biostars.org/p/88921)
+ * [https://www.biostars.org/p/233587](https://www.biostars.org/p/233587)
+ * [https://www.biostars.org/p/104021](https://www.biostars.org/p/104021)
+ * [https://www.biostars.org/p/213032](https://www.biostars.org/p/213032)
+ * [https://www.biostars.org/p/215885](https://www.biostars.org/p/215885)
+ * [https://www.biostars.org/p/243972](https://www.biostars.org/p/243972)
+ * [https://www.biostars.org/p/111924](https://www.biostars.org/p/111924)
+ * [https://www.biostars.org/p/196057](https://www.biostars.org/p/196057)
+ * [https://www.biostars.org/p/142215](https://www.biostars.org/p/142215)
+ * [https://www.biostars.org/p/229935](https://www.biostars.org/p/229935)
+ * [https://www.biostars.org/p/181358](https://www.biostars.org/p/181358)
+ * [https://www.biostars.org/p/184966](https://www.biostars.org/p/184966)
+ * [https://www.biostars.org/p/245802](https://www.biostars.org/p/245802)
+ * [https://www.biostars.org/p/7403](https://www.biostars.org/p/7403)
+ * [https://www.biostars.org/p/245181](https://www.biostars.org/p/245181)
+ * [https://www.biostars.org/p/117974](https://www.biostars.org/p/117974)
+ * [https://www.biostars.org/p/242281](https://www.biostars.org/p/242281)
+ * [https://www.biostars.org/p/252580](https://www.biostars.org/p/252580)
 
 
 ## Compilation
@@ -108,12 +108,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VCFFilterJS.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VCFFilterJS.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VCFFilterJS.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -121,14 +122,14 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcffilterjs** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcffilterjs** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
 

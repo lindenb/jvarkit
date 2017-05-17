@@ -4,14 +4,14 @@
 ## Usage
 
 ```
-Usage: samjmx [options] Files
+Usage: picardmetrics2xml [options] Files
   Options:
     -h, --help
-      print help and exits
+      print help and exit
     -o, --out
       Output or stdout
     --version
-      print version and exits
+      print version and exit
     -s
       print sum
       Default: false
@@ -39,7 +39,7 @@ transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make samjmx
+$ make picardmetrics2xml
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -57,12 +57,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/metrics2xml/PicardMetricsToXML.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/metrics2xml/PicardMetricsToXML.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/metrics2xml/PicardMetricsToXML.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -70,13 +71,13 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samjmx** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **picardmetrics2xml** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 

@@ -15,7 +15,7 @@ Usage: vcfburdenexac [options] Files
       normalized version of Exac (see 
       https://github.com/lindenb/jvarkit/wiki/VCFFixIndels )
     -h, --help
-      print help and exits
+      print help and exit
     -maxFreq, --maxFreq
       set FILTER if max(exac frequency in any pop) is greater than this value)
       Default: 0.001
@@ -29,7 +29,7 @@ Usage: vcfburdenexac [options] Files
       number of variant is low.
       Default: false
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -80,12 +80,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFilterExac.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFilterExac.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFilterExac.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -93,14 +94,14 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcfburdenexac** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfburdenexac** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
 Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.

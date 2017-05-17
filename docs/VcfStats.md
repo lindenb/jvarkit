@@ -24,11 +24,11 @@ Usage: vcfstats [options] Files
     --prefix
       File/zip prefix
       Default: tmp
-    --version
-      print version and exit
-    -select
+    --select, -select
       Optional Jexl expression to use when selecting the adjacent variants
       Default: []
+    --version
+      print version and exit
 
 ```
 

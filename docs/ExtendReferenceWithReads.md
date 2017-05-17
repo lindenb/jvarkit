@@ -15,7 +15,7 @@ Usage: extendrefwithreads [options] Files
       for a complete syntax.
       Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
-      print help and exits
+      print help and exit
     -N, --mincontig
       onsider only gaps in reference with size&gt;=N
       Default: 100
@@ -28,7 +28,7 @@ Usage: extendrefwithreads [options] Files
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -50,7 +50,7 @@ Extending ends of sequences with the help of reads
 
 ## See also in Biostars
 
- * https://www.biostars.org/p/148089
+ * [https://www.biostars.org/p/148089](https://www.biostars.org/p/148089)
 
 
 ## Compilation
@@ -87,12 +87,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/extendref/ExtendReferenceWithReads.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/extendref/ExtendReferenceWithReads.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/extendref/ExtendReferenceWithReads.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -100,14 +101,14 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **extendrefwithreads** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **extendrefwithreads** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
  
  ## Example

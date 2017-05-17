@@ -10,7 +10,7 @@ Usage: sam4weblogo [options] Files
       Use Clipped Bases
       Default: false
     -h, --help
-      print help and exits
+      print help and exit
   * -r, --region, --interval
       Region to observe: chrom:start-end
     -o, --output
@@ -21,7 +21,7 @@ Usage: sam4weblogo [options] Files
       for a complete syntax.
       Default: Accept All/ Filter out nothing
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -42,7 +42,7 @@ Sequence logo for different alleles or generated from SAM/BAM
 
 ## See also in Biostars
 
- * https://www.biostars.org/p/73021
+ * [https://www.biostars.org/p/73021](https://www.biostars.org/p/73021)
 
 
 ## Compilation
@@ -79,12 +79,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam4weblogo/SAM4WebLogo.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam4weblogo/SAM4WebLogo.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam4weblogo/SAM4WebLogo.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -92,14 +93,14 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **sam4weblogo** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **sam4weblogo** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
 ## Motivation

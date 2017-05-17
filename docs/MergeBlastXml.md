@@ -7,7 +7,7 @@
 Usage: mergeblastxml [options] Files
   Options:
     -h, --help
-      print help and exits
+      print help and exit
     --maxRecordsInRam
       Max Records in RAM
       Default: 50000
@@ -15,9 +15,9 @@ Usage: mergeblastxml [options] Files
       Output SVG file or stdout
     --tmpDir
       Tmp Directory
-      Default: /var/folders/zm/23lwd0tn43q33r32881s0p680000gn/T
+      Default: /tmp
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -29,7 +29,7 @@ merge XML blast results (same Iteration/Iteration_query-def in multiple xml file
 
 ## See also in Biostars
 
- * https://www.biostars.org/p/246958
+ * [https://www.biostars.org/p/246958](https://www.biostars.org/p/246958)
 
 
 ## Compilation
@@ -66,12 +66,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/MergeBlastXml.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/MergeBlastXml.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/MergeBlastXml.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -79,14 +80,14 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **mergeblastxml** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **mergeblastxml** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
  
  ## Example

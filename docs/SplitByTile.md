@@ -10,14 +10,14 @@ Usage: splitbytile [options] Files
       Compression Level.
       Default: 5
     -h, --help
-      print help and exits
+      print help and exit
   * -o, --output
       Output file. Must contain __TILE__
     --samoutputformat
       Sam output format.
       Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -25,6 +25,13 @@ Usage: splitbytile [options] Files
 ## Description
 
 Split Bam By tile
+
+
+## Keywords
+
+ * sam
+ * bam
+
 
 ## Compilation
 
@@ -60,12 +67,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/splitbytitle/SplitByTile.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/splitbytitle/SplitByTile.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/splitbytitle/SplitByTile.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -73,13 +81,13 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **splitbytile** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **splitbytile** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 

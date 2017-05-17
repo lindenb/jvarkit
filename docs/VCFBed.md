@@ -19,7 +19,7 @@ Usage: vcfbed [options] Files
       Empty lines will be ignored (no tag) but the FILTERs will be set.
       Default: ${1}:${2}-${3}
     -h, --help
-      print help and exits
+      print help and exit
     -m, --map
       unindexed bed file, will be loaded in memory (faster than tribble/tabix 
       but memory consumming)
@@ -29,7 +29,7 @@ Usage: vcfbed [options] Files
       use the following INFO tag name
       Default: VCFBED
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -49,7 +49,7 @@ Transfer information from a BED to a VCF
 
 ## See also in Biostars
 
- * https://www.biostars.org/p/247224
+ * [https://www.biostars.org/p/247224](https://www.biostars.org/p/247224)
 
 
 ## Compilation
@@ -86,12 +86,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfbed/VCFBed.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfbed/VCFBed.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfbed/VCFBed.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -99,14 +100,14 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcfbed** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfbed** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
 ## Example

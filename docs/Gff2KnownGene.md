@@ -10,7 +10,7 @@ Usage: gff2knowngene [options] Files
       Preppend with 'bin' column
       Default: false
     -h, --help
-      print help and exits
+      print help and exit
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 
@@ -23,7 +23,7 @@ Usage: gff2knowngene [options] Files
       tmp working directory. Default: java.io.tmpDir
       Default: []
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -31,6 +31,15 @@ Usage: gff2knowngene [options] Files
 ## Description
 
 Convert GFF3 format to UCSC knownGene format.
+
+
+## Keywords
+
+ * gff
+ * knownGene
+ * ucsc
+ * convert
+
 
 ## Compilation
 
@@ -66,12 +75,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gff2KnownGene.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gff2KnownGene.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gff2KnownGene.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -79,42 +89,48 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **gff2knowngene** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **gff2knowngene** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-<h:h3>Example</h:h3>
+## Example
+
+```
 $  curl -s "ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_19/gencode.v19.annotation.gff3.gz" |\
 	gunzip -c |\
 	java -jar dist/gff2kg.jar
 (...)
 1826	ENST00000367917.3	chr1	+	162760522	162782607	162760590	162782210	8	162760522,162762448,162766374,162767591,162769532,162774056,162775183,162782087	162760625,162762652,162766467,162767706,162769727,162774113,162775282,162782607	gene_id=ENSG00000132196.9;transcript_id=ENST00000367917.3;gene_type=protein_coding;gene_status=KNOWN;gene_name=HSD17B7;transcript_type=protein_coding;transcript_name=HSD17B7-201;protein_id=ENSP00000356894.3;havana_gene=OTTHUMG00000034420.6;	ENST00000367917.3
 (...)
-</h:pre>
+```
 
 In the UCSC (not the structure of konwGene, but we can validate intervals):
-<h:pre>$ mysql --user=genome --host=genome-mysql.cse.ucsc.edu -D hg19 -e 'select * from wgEncodeGencodeBasicV19 where name="ENST00000367917.3"' | cat
+
+```
+$ mysql --user=genome --host=genome-mysql.cse.ucsc.edu -D hg19 -e 'select * from wgEncodeGencodeBasicV19 where name="ENST00000367917.3"' | cat
 bin	name	chrom	strand	txStart	txEnd	cdsStart	cdsEnd	exonCount	exonStarts	exonEnds	score	name2	cdsStartStat	cdsEndStat	exonFrames
 1826	ENST00000367917.3	chr1	+	162760522	162782607	162760590	162782210	8	162760522,162762448,162766374,162767591,162769532,162774056,162775183,162782087,	162760625,162762652,162766467,162767706,162769727,162774113,162775282,162782607,	0	HSD17B7	cmpl	cmpl	0,2,2,2,0,0,0,0,
-</h:pre>
+```
 
-<h:h4>From ensembl</h:h4>
-<h:pre>$	wget -O -  "ftp://ftp.ensembl.org/pub/grch37/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh37.82.gtf.gz" |\
+### From ensembl 
+
+```
+$	wget -O -  "ftp://ftp.ensembl.org/pub/grch37/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh37.82.gtf.gz" |\
 	gunzip -c |\
 	java -jar dist/gff2kg.jar
-</h:pre>
+```
 
-<h:h3>See also</h:h3>
-<h:ul>
-	<h:li><h:a>https://github.com/lindenb/jvarkit/wiki/VCFPredictions</h:a></h:li>
-	<h:li>Ensembl vs UCSC <h:a>https://twitter.com/yokofakun/status/743751004785545218</h:a></h:li>
-</h:ul>
+## see also
+
+
+  * Ensembl vs UCSC  [https://twitter.com/yokofakun/status/743751004785545218](https://twitter.com/yokofakun/status/743751004785545218)
+
 
 
 

@@ -11,7 +11,7 @@ Usage: vcfinjectpedigree [options] Files
       the new one.
       Default: false
     -h, --help
-      print help and exits
+      print help and exit
     -imih, --ignoreMissingInHeader
       Ignore errors if a sample is declared in the pedigree but is missing in 
       the VCF header
@@ -28,7 +28,7 @@ Usage: vcfinjectpedigree [options] Files
       Ignore pedigree validation
       Default: false
     --version
-      print version and exits
+      print version and exit
 
 ```
 
@@ -79,12 +79,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -92,14 +93,14 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcfinjectpedigree** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfinjectpedigree** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
 
@@ -124,5 +125,23 @@ $ grep Sample out.vcf
 
 
 
+
+
+This tools reads a pedigree file and inject it in the VCF header  
+
+
+```
+$ java -jar dist/vcfinjectpedigree.jar \
+	-imih -imip -p input.ped \
+	input.vcf.gz > out.vcf
+
+$ grep Sample out.vcf
+(...)
+##Sample=<Family=F1,ID=INDI1,Father=0,Mother=0,Sex=1,Status=1>
+##Sample=<Family=F2,ID=INDI2,Father=0,Mother=0,Sex=2,Status=1>
+##Sample=<Family=F3,ID=INDI3,Father=INDI1,Mother=INDI2,Sex=1,Status=1>
+(...)
+
+```
 
 
