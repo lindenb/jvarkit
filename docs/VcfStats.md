@@ -7,11 +7,28 @@
 Usage: vcfstats [options] Files
   Options:
     -h, --help
-      print help and exits
-    -o, --output
-      Output file. Optional . Default: stdout
+      print help and exit
+    -kg, --knownGenes
+      UCSC knownGene URI. Beware chromosome names are formatted the same as 
+      your REFERENCE. A typical KnownGene file is 
+      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
+      .If you only have a gff file, you can try to generate a knownGene file 
+      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
+  * -o, --output
+      output Directory or zip file
+    -ped, --pedigree
+      A pedigree is a text file delimited with tabs. No header. Columns are 
+      (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
+      (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
+      affected,-9 unknown
+    --prefix
+      File/zip prefix
+      Default: tmp
     --version
-      print version and exits
+      print version and exit
+    -select
+      Optional Jexl expression to use when selecting the adjacent variants
+      Default: []
 
 ```
 
@@ -19,6 +36,13 @@ Usage: vcfstats [options] Files
 ## Description
 
 VCF statitics
+
+
+## Keywords
+
+ * vcf
+ * stats
+
 
 ## Compilation
 
@@ -54,12 +78,13 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstats/VcfStats.java
-
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstats/VcfStats.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstats/VcfStats.java
+)
 ## Contribute
 
-- Issue Tracker: http://github.com/lindenb/jvarkit/issues
-- Source Code: http://github.com/lindenb/jvarkit
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
 
 ## License
 
@@ -67,13 +92,13 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcfstats** ? https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md
+Should you cite **vcfstats** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
 http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> http://dx.doi.org/10.6084/m9.figshare.1425030
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 

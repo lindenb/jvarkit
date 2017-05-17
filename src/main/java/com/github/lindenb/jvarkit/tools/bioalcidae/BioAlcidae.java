@@ -284,7 +284,7 @@ while(iter.hasNext())
 	{
 	var ctx = iter.next();
 	if(ctx.alternateAlleles.size()!=1) continue;
-	out.print(ctx.chr +"\t"+ctx.start+"\t"+ctx.reference.displayString+"\t"+ctx.alternateAlleles.get(0).displayString);
+	out.print(ctx.getContig() +"\t"+ctx.start+"\t"+ctx.reference.displayString+"\t"+ctx.alternateAlleles.get(0).displayString);
 	for(var i=0;i< samples.size();++i)
 		{
 		var g = ctx.getGenotype(samples.get(i));
@@ -341,7 +341,7 @@ for 1000 genome data, print CHROM/POS/REF/ALT/AF(europe):
 ```
 
 $ curl  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |  gunzip -c |\
-java -jar dist/bioalcidae.jar  -F VCF -e 'while(iter.hasNext()) {var ctx=iter.next(); if(!ctx.hasAttribute("EUR_AF") || ctx.alternateAlleles.size()!=1) continue; out.println(ctx.chr+"\t"+ctx.start+"\t"+ctx.reference.displayString+"\t"+ctx.alternateAlleles.get(0).displayString+"\t"+ctx.getAttribute("EUR_AF"));}' 
+java -jar dist/bioalcidae.jar  -F VCF -e 'while(iter.hasNext()) {var ctx=iter.next(); if(!ctx.hasAttribute("EUR_AF") || ctx.alternateAlleles.size()!=1) continue; out.println(ctx.getContig()+"\t"+ctx.start+"\t"+ctx.reference.displayString+"\t"+ctx.alternateAlleles.get(0).displayString+"\t"+ctx.getAttribute("EUR_AF"));}' 
 
 1	10177	A	AC	0.4056
 1	10235	T	TA	0
@@ -474,7 +474,7 @@ public class BioAlcidae
 	private static final Logger LOG = Logger.build(BioAlcidae.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

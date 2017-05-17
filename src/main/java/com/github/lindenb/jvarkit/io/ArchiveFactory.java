@@ -55,6 +55,7 @@ public abstract class ArchiveFactory
 	
 	public static ArchiveFactory open(final File f)  throws IOException
 		{
+		if( f == null ) throw new IllegalArgumentException("Cannot open(null)");
 		if(f.getName().toLowerCase().endsWith(".zip"))
 			{
 			return new ZipInstance(f);

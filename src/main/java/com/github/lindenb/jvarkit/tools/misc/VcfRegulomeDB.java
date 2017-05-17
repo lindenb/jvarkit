@@ -96,7 +96,7 @@ public class VcfRegulomeDB extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfRegulomeDB.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names="-b",description=" bed indexed with tabix. Format: chrom(tab)start(tab)end(tab)rank",required=true)
 	private String bedFile=null;
