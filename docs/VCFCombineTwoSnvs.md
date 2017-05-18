@@ -27,7 +27,8 @@ Usage: vcfcombinetwosnvs [options] Files
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --reference
-      Indexed fasta Reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
@@ -39,7 +40,7 @@ Usage: vcfcombinetwosnvs [options] Files
 
 ## Description
 
-Idea from @SolenaLS and then @AntoineRimbert
+Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert
 
 
 ## Keywords
@@ -141,7 +142,7 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 #### Fields
 
-
+```
 KEYEXAMPLEDescription
 CHROM1Chromosome for current variant.
 REFCReference Allele for current variant
@@ -174,7 +175,7 @@ N_READS_NO_VARIANTS1045Number of reads carrying no variants
 N_READS_TOTAL1213Total Number of reads
 N_READS_ONLY_10Number of reads carrying onlt variant 1
 N_READS_ONLY_20Number of reads carrying onlt variant 2
-
+```
 
 
 

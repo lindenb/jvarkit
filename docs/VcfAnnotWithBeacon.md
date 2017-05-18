@@ -25,7 +25,7 @@ Usage: vcfannotwithbeacon [options] Files
       existing annotation
       Default: false
     -o, --out
-      output file . Default:stdout
+      Output file. Optional . Default: stdout
     --stopOnError
       Stop on network error.
       Default: false

@@ -37,7 +37,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import htsjdk.variant.variantcontext.Allele;
@@ -45,6 +44,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
 /**
@@ -56,7 +56,7 @@ sition|Protein_position|Amino_acids|Codons|Existing_variation|HGNC|DISTANCE|SIFT
  */
 public class VepPredictionParser implements PredictionParser
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(VepPredictionParser.class).make();
 
 	/* public, used in VcfBurdenFilterGene 
 	public enum COLS{

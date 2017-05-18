@@ -14,6 +14,11 @@ Usage: vcfstats [options] Files
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
+    -mafTag, --mafTag
+      Do not calculate MAF for controls, but use this tag to get Controls' MAF
+    -nchr, --nocallishomref
+      treat no call as HomRef
+      Default: false
   * -o, --output
       output Directory or zip file
     -ped, --pedigree
@@ -23,10 +28,15 @@ Usage: vcfstats [options] Files
       affected,-9 unknown
     --prefix
       File/zip prefix
-      Default: tmp
-    --select, -select
-      Optional Jexl expression to use when selecting the adjacent variants
-      Default: []
+      Default: <empty string>
+    -tee, --tee
+      output the incoming vcf to stdout. Useful to get intermediary stats in a 
+      pipeline 
+      Default: false
+    --vckey
+      Variant Context Key. if defined, I will look at this key in the INFO 
+      column and produce a CASE/CTRL graf for each item. If undefined, I will 
+      produce a default graph with all variant
     --version
       print version and exit
 
@@ -35,13 +45,15 @@ Usage: vcfstats [options] Files
 
 ## Description
 
-VCF statitics
+Produce VCF statitics
 
 
 ## Keywords
 
  * vcf
  * stats
+ * burden
+ * gnuplot
 
 
 ## Compilation
@@ -100,5 +112,73 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Tip: Adding a new key in the INFO field
+
+Using vcffilterjs :
+
+
+
+the script:
+
+```
+var ArrayList = Java.type("java.util.ArrayList");
+var VariantContextBuilder = Java.type("htsjdk.variant.variantcontext.VariantContextBuilder");
+
+
+function addInfo(v)
+	{
+	var vcb = new VariantContextBuilder(v);
+	var atts = new ArrayList();
+	atts.add(v.getType().name()+ (variant.isFiltered()?"_FILTERED":"_UNFILTERED"));
+	atts.add(v.getType().name()+ (variant.hasID()?"_ID":"_NOID"));
+	vcb.attribute("MYKEY",atts);
+	return vcb.make();
+	}
+
+
+addInfo(variant);
+```
+
+run the program, but first use awk to insert the new INFO definition for 'MYKEY'
+
+```
+cat input.vcf |\
+	awk '/^#CHROM/ {printf("##INFO=<ID=MYKEY,Number=.,Type=String,Description=\"My key\">\n");} {print;}' |\
+	java -jar dist/vcffilterjs.jar -f script.js 
+```
+
+
+## Example
+
+```
+$ java -jar dist/vcfstats.jar ~karaka/BURDEN_JVARKIT/MVP/20170227.pct001gBED.Q.mvp_frex.vcf.gz -o tmp
+$ ls tmp/
+ALL.sample2gtype.tsv  ALL.variant2type.tsv  Makefile
+
+$ head tmp/ALL.sample2gtype.tsv  tmp/ALL.variant2type.tsv
+
+==> tmp/ALL.sample2gtype.tsv <==
+Type	NO_CALL	HOM_REF	HET	HOM_VAR	UNAVAILABLE	MIXED
+X0G73J	2538	3440	218	132	0	0
+Y00G3I	2543	3462	193	130	0	0
+Z03K	2547	3417	252	112	0	0
+A0G3N	2547	3424	209	148	0	0
+B980	1909	4068	202	149	0	0
+C003P	2559	3417	216	136	0	0
+D0741	2557	3428	204	139	0	0
+E073O	2566	3433	212	117	0	0
+F00G7	2560	3444	191	133	0	0
+(...)
+
+==> tmp/ALL.variant2type.tsv <==
+Type	Count
+MIXED	7
+SNP	6125
+INDEL	196
+
+```
+
 
 

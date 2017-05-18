@@ -59,8 +59,8 @@ public class SnpEffPredictionParser implements PredictionParser
 	private enum COLS{ Effect , Effect_Impact , Functional_Class,Codon_Change, 
 		Amino_Acid_change,Amino_Acid_length,Gene_Name , Gene_BioType , Coding , Transcript,
 		Exon  , GenotypeNum , ERRORS , WARNINGS,Transcript_BioType,Gene_Coding,Transcript_ID,Exon_Rank,Genotype_Number};
-	private Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
-	private Pattern pipe=Pattern.compile("[\\|\\(\\)]");
+	private final Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
+	private final Pattern pipe=Pattern.compile("[\\|\\(\\)]");
 	private String tag;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 

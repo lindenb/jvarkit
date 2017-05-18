@@ -118,7 +118,7 @@ BEGIN_DOC
 
 #### Fields
 
-
+```
 KEYEXAMPLEDescription
 CHROM1Chromosome for current variant.
 REFCReference Allele for current variant
@@ -151,7 +151,7 @@ N_READS_NO_VARIANTS1045Number of reads carrying no variants
 N_READS_TOTAL1213Total Number of reads
 N_READS_ONLY_10Number of reads carrying onlt variant 1
 N_READS_ONLY_20Number of reads carrying onlt variant 2
-
+```
 
 
 
@@ -166,7 +166,7 @@ END_DOC
 
 
 @Program(name="vcfcombinetwosnvs",
-	description="Idea from @SolenaLS and then @AntoineRimbert",
+	description="Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert",
 	keywords={"vcf","annotation","prediction","protein"}
 	)
 public class VCFCombineTwoSnvs extends Launcher
@@ -183,9 +183,11 @@ public class VCFCombineTwoSnvs extends Launcher
 	@Parameter(names={"-B","--bam"},description="Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'")
 	private File bamIn = null;
 	
-	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File referenceFile = null;
-
+	
+	
+	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
@@ -208,7 +210,7 @@ public class VCFCombineTwoSnvs extends Launcher
 		private int end=-1;
 		private String newseq=null;
 	
-		MutedSequence(CharSequence wild)
+		MutedSequence(final CharSequence wild)
 			{
 			super(wild);
 			}

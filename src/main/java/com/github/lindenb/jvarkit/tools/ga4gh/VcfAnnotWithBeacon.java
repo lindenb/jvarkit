@@ -67,7 +67,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 		)
 public class VcfAnnotWithBeacon extends Launcher {
 	private static final Logger LOG=Logger.build(VcfAnnotWithBeacon.class).make();
-	@Parameter(names={"-o","--out"},description="output file . Default:stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
 	@Parameter(names={"-B","--bdb"},description="Optional BerkeleyDB directory to store result. Avoid to make the same calls to beacon")

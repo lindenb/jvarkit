@@ -166,7 +166,7 @@ public class VcfFilterSequenceOntology
 	private boolean removeIfNoMoreAttribute = false;
 
 	
-	@Parameter(names={"-A","--acn"},description="add this SO:ACN.")
+	@Parameter(names={"-A","--acn","--accession"},description="add this SO:ACN.")
 	private List<String> userTermsAsString = new ArrayList<>();
 
 	@Parameter(names={"-f","--acnfile"},description="file of SO accession numbers")
