@@ -27,45 +27,41 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import htsjdk.samtools.util.CloserUtil;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.ArchiveFactory;
+import com.github.lindenb.jvarkit.math.RangeOfIntegers;
+import com.github.lindenb.jvarkit.tools.burden.MafCalculator;
+import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.semontology.Term;
 
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextUtils;
-import htsjdk.variant.variantcontext.VariantContextUtils.JexlVCMatchExp;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
-import javafx.scene.chart.XYChart;
-
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.ArchiveFactory;
-import com.github.lindenb.jvarkit.tools.burden.MafCalculator;
-import com.github.lindenb.jvarkit.util.AutoMap;
-import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.semontology.Term;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 /*
 BEGIN_DOC
 
@@ -169,21 +165,35 @@ public class VcfStats extends Launcher
 	boolean no_call_is_homref=false;
 	@Parameter(names={"-tee","--tee"},description="output the incoming vcf to stdout. Useful to get intermediary stats in a pipeline")
 	boolean tee=false;
+	@Parameter(names={"--trancheAffected"},description="tranches for the number of affected. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
+	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100);
+	@Parameter(names={"--trancheDP"},description="tranches for the DEPTH. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
+	private RangeOfIntegers depthTranches =new RangeOfIntegers(0,10,20,30,50,100,200);
+	@Parameter(names={"--trancheIndelSize"},description="tranches for the Indel size "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
+	private RangeOfIntegers indelTranches =new RangeOfIntegers(0,1,2,3,4,5,6,8,9,10,15,20);
+	@Parameter(names={"--trancheAlts"},description="tranches for the number of ALTs. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
+	private RangeOfIntegers altTranches =new RangeOfIntegers(0,1,2,3,4,5,6,8,9,10);
+	@Parameter(names={"--trancheDistance"},description="tranches for the distance between the variants. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
+	private RangeOfIntegers distanceTranches =new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,100,200,300,400,500,1000);
+
 	
 	private ArchiveFactory archiveFactory=null;
 	
-		
 	
 	private class PlotMaf implements Closeable
 		{
 		//final String title;
 		final String filename;
 		final PrintWriter pw;
-		PlotMaf(final String title) throws IOException
+		PlotMaf(final String title)
 			{
 			//this.title=title;
 			this.filename = VcfStats.this.prefix + title+".maf.tsv";
-			this.pw = archiveFactory.openWriter(this.filename);
+			try {
+				this.pw = archiveFactory.openWriter(this.filename);
+			} catch (IOException e) {
+				throw new RuntimeIOException(e);
+			}
 			}
 		void plot(double xcas,double yctrl) {
 			this.pw.print(xcas);
@@ -226,90 +236,321 @@ public class VcfStats extends Launcher
 			};
 
 		
-		
-	private static class HistoGram
+	private abstract class AbstractStat
 		{
-		private final List<String> labels;
-		private final Map<String,Integer> label2column= new LinkedHashMap<>();
-		private final AutoMap<String,List<Integer>> rows;
-		
-		HistoGram(final List<String> labels)
-			{
-			this.labels = Collections.unmodifiableList(labels);
-			for(int i=0;i< this.labels.size();++i) {
-				this.label2column.put(this.labels.get(i),i);
-				}
-			this.rows=new AutoMap<>(new LinkedHashMap<>(),()->{
-				final List<Integer> L = new ArrayList<>(labels.size());
-				while(L.size()< labels.size()) L.add(0);
-				return L;
-				});
+		final Counter<RangeOfIntegers.Range> countDepth = new Counter<>();
+
+		public abstract void visit(final VariantContext ctx);
+		}
+	
+	private class SampleStat extends AbstractStat
+		{
+		final Counter<GenotypeType> countTypes = new Counter<>();
+
+		final String sampleName;
+		SampleStat(final String sampleName) {
+			this.sampleName = sampleName;
 			}
-		public List<Integer> get(final String lbl)
-			{
-			return this.rows.get(lbl);
-			}
-		public void incr (final String rowColumnY,final String columnLabelX)
-			{
-			Integer x= this.label2column.get(columnLabelX);
-			if(x==null) throw new NoSuchElementException("Cannot find "+columnLabelX+" in "+this.labels);
-			final List<Integer> row = get(rowColumnY);
-			row.set(x, row.get(x)+1);
-			}
-		void print(final PrintWriter out)
-			{
-			out.println("Count"+this.labels.stream().collect(Collectors.joining("\t")));
-			for(final String key:this.rows.keySet())
+		@Override
+		public void visit(final VariantContext ctx) {
+			final Genotype genotype = ctx.getGenotype(this.sampleName);
+			if(genotype==null) return;
+			this.countTypes.incr(genotype.getType());
+			
+			
+			if(genotype.hasDP())
 				{
-				out.print(key);
-				out.println(this.rows.get(key).stream().map(N->String.valueOf(N)).collect(Collectors.joining("\t")));
+				final int dp = genotype.getDP();
+				if(dp>=0)
+					{
+					this.countDepth.incr(VcfStats.this.depthTranches.getRange(dp));
+					}
 				}
 			}
 		}
 	
-	private class Stats
+	private class VariantStats extends AbstractStat
 		{
-		Counter<String> counter=new Counter<String>();
-		Counter<Integer> alternate_alleles=new Counter<Integer>();
-		Counter<Integer> depth=new Counter<Integer>();
-		Counter<Integer> qual=new Counter<Integer>();
-		Counter<SequenceOntologyTree.Term> snpEffSo=new Counter<SequenceOntologyTree.Term>();
-		Counter<SequenceOntologyTree.Term> vepSo=new Counter<SequenceOntologyTree.Term>();
-
+		private final String key;
+		private PlotMaf mafPlotter= null;
+		private final Set<String> affectedSamples;
+		private final Set<String> unaffectedSamples;
+		private final Map<String,SampleStat> sample2stats = new TreeMap<>();
+		final Counter<VariantContext.Type> countTypes = new Counter<>();
+		final Counter<RangeOfIntegers.Range> countAffectedSamples = new Counter<>();
+		final Counter<RangeOfIntegers.Range> countAltAlleles = new Counter<>();
+		final Counter<RangeOfIntegers.Range> countIndelSize = new Counter<>();
+		final Counter<RangeOfIntegers.Range> countDistances = new Counter<>();
+		int count_transition=0;
+		int count_transversion=0;
+		private ContigPosRef prevCtx=null;
 		
-		private void watch(boolean is_in_coding,String prefix,Allele allele1,Allele allele2)
-			{
-			for(int i=0;i< 2;++i)
+		VariantStats(final String key,final VCFHeader header) {
+			this.key = key;
+			for(final String sn: header.getSampleNamesInOrder())
 				{
-				Character a1= simpleATGC(allele1);
-				Character a2= simpleATGC(allele2);
-				if(a1==null || a2==null)
-					{
-					if(allele1.getDisplayString().length()!=allele2.getDisplayString().length())
-						{
-						counter.incr(prefix+".indels");
-						}
-					}
-				else
-					{
-					counter.incr(prefix+".substitutions");
-					if(isTransition(a1, a2))
-						{
-						counter.incr(prefix+".transitions");
-						}
-					else if(isTransversion(a1, a2))
-						{
-						counter.incr(prefix+".transversions");
-						}
-					}
-				if(!is_in_coding) break;
-				prefix=prefix+".coding";
+				this.sample2stats.put(sn,new SampleStat(sn));
 				}
+			
+			this.affectedSamples = 
+					VcfStats.this.pedigree.getPersons().stream().
+						filter(P->P.isAffected()).
+						map(P->P.getId()).
+						filter(S->header.getSampleNamesInOrder().contains(S)).
+						collect(Collectors.toSet())
+						;
+			
+			this.unaffectedSamples = 
+					VcfStats.this.pedigree.getPersons().stream().
+						filter(P->P.isUnaffected()).
+						map(P->P.getId()).
+						filter(S->header.getSampleNamesInOrder().contains(S)).
+						collect(Collectors.toSet())
+						;
+
 			}
 		
+		public void visit(final VariantContext ctx) {
+			
+			this.countTypes.incr(ctx.getType());
+			for(final SampleStat st: this.sample2stats.values()) st.visit(ctx);
+			
+			//distance
+			final ContigPosRef contigPosRef = new ContigPosRef(ctx);
+			if(prevCtx!=null && prevCtx.getContig().equals(contigPosRef.getContig()) && prevCtx.getStart() <= contigPosRef.getStart())
+				{
+				final int distance = contigPosRef.getStart() - this.prevCtx.getStart();
+				this.countDistances.incr(VcfStats.this.distanceTranches.getRange(distance));
+				}
+			prevCtx=contigPosRef;
+			
+			// MAF
+			
+			final List<Allele> alternates = ctx.getAlternateAlleles();
+
+			if(alternates.size()==1 )
+				{
+				if(isTransition(asSimpleATGC(ctx.getReference()),asSimpleATGC(alternates.get(0)))) {
+					this.count_transition++;
+					}	
+				if(isTransversion(asSimpleATGC(ctx.getReference()),asSimpleATGC(alternates.get(0)))) {
+					this.count_transversion++;
+					}	
+				}
+			
+			/* can we compute the MAF ? we need (non)affected samples*/
+			if(!(alternates.isEmpty() || this.unaffectedSamples.isEmpty() || this.affectedSamples.isEmpty()))
+				{
+				for(int alt_idx=0;alt_idx < alternates.size();++alt_idx) {
+					final Allele alt = alternates.get(alt_idx);
+					final Double mafs[]={null,null};
+					
+					for(int i=0;i< 2;++i)
+						{
+						if(i==1 && VcfStats.this.controlTag!=null)
+							{
+							if(ctx.hasAttribute(VcfStats.this.controlTag)) {
+								try 
+									{
+									final List<Double> dvals =ctx.getAttributeAsDoubleList(VcfStats.this.controlTag, Double.NaN);
+									if(alt_idx< dvals.size() && dvals.get(alt_idx)!=null) {	
+									    final double d= dvals.get(alt_idx);
+										if(!Double.isNaN(d) && d>=0 && d<=1.0) mafs[1]=d;
+										}
+									}
+								catch(NumberFormatException err)
+									{
+									}
+								}
+							}
+						else
+							{
+							final MafCalculator mafCalculator = new MafCalculator(alt, ctx.getContig());
+							mafCalculator.setNoCallIsHomRef(no_call_is_homref);
+							for(Pedigree.Person person: (i==0?pedigree.getAffected():pedigree.getUnaffected()))
+								{
+								final Genotype genotype = ctx.getGenotype(person.getId());
+								if(genotype==null) continue;
+								mafCalculator.add(genotype, person.isMale());
+								}
+							if(!mafCalculator.isEmpty())
+								{
+								mafs[i]=mafCalculator.getMaf();
+								}
+							}
+						}
+					if(mafs[0]==null || mafs[1]==null) continue;
+					
+					
+						
+						if(this.mafPlotter==null)
+							{
+							//it's a new plotter
+							this.mafPlotter = new PlotMaf(key);
+							
+							//add makefile stuff
+							/**
+							final String png= "$(patsubst %.tsv,%.png,"+plotter.filename+")";
+							makefileWriter.println("ALL_TARGETS+=" + png);
+							makefileWriter.println(png+":"+plotter.filename+" "+generic_maf_gnuplot_filename);
+							makefileWriter.println("\tsed -e '%__OUTPUT__%$@%g' -e '%__INPUT__%$<%g'  -e '%__TITLE__%"+mafkey+"%g' $(word 2,$^) | gnuplot");
+							*/
+							}
+						this.mafPlotter.plot(mafs[0], mafs[1]);
+						
+					
+					}//end of loop over ALT
+				} // end of MAF
 			
 			
+			this.countAffectedSamples.incr(
+					VcfStats.this.affectedTranches.getRange(
+						(int)ctx.getGenotypes().stream().
+							filter(G->!(G.isNoCall() || G.isHomRef() || G.isFiltered() )).
+							count()	)
+					);
+			if(ctx.hasAttribute(VCFConstants.DEPTH_KEY))
+				{
+				int dp = ctx.getAttributeAsInt(VCFConstants.DEPTH_KEY, -1);
+				if(dp>=0)
+					{
+					this.countDepth.incr(VcfStats.this.depthTranches.getRange(dp));
+					}
+				}
+			if(ctx.isIndel())
+				{
+				final int longest = ctx.getAlleles().stream().
+						filter(A->!(A.isSymbolic() || A.equals(Allele.SPAN_DEL))).
+						mapToInt(A->A.length()).max().orElse(0);
+				this.countIndelSize.incr(VcfStats.this.indelTranches.getRange(longest));
+
+				
+				}	
+			if(alternates.size()>1)
+				{
+				this.countAltAlleles.incr(VcfStats.this.altTranches.getRange(alternates.size()));
+				}
 			
+
+			
+			}
+		
+		void finish(PrintWriter makefileWriter) throws IOException
+		{
+
+			{
+			final String filename=prefix+this.key+".variant2type.tsv";
+
+			PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+			pw.println("Type\tCount");
+
+			for(final VariantContext.Type type: this.countTypes.keySet())
+				{
+				pw.println(type.name()+"\t"+this.countTypes.count(type));
+				}
+			pw.flush();
+			pw.close();
+			final String png= "$(patsubst %.tsv,%.png,"+filename+")";
+			makefileWriter.println("ALL_TARGETS+=" + png);
+			makefileWriter.println(png+":"+filename);
+			makefileWriter.println("\techo 'set key autotitle columnheader;set ylabel \"Count\";set size  ratio 0.618;set title \"Variant Types\";set style fill solid border -1;set key  off;set datafile separator \"\t\";set auto x;set style histogram;set style data histogram;set terminal png truecolor  ;set output \"$@\";plot \"$<\" using 2:xtic(1) ti \"Variant Type\";' | gnuplot");
+			}
+
+			{
+			final String filename=prefix+this.key+".sample2gtype.tsv";
+			PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+			pw.println("Type\t"+Arrays.stream(GenotypeType.values()).map(T->T.name()).collect(Collectors.joining("\t")));
+			for(final String sample: this.sample2stats.keySet())
+				{
+				pw.print(sample);
+				for(final GenotypeType gtype: GenotypeType.values())
+					{
+					pw.print("\t"+this.sample2stats.get(sample).countTypes.count(gtype));
+					}
+				pw.println();
+				}
+			pw.flush();
+			pw.close();
+			
+			
+			final String png= "$(patsubst %.tsv,%.png,"+filename+")";
+			makefileWriter.println("ALL_TARGETS+=" + png);
+			makefileWriter.println(png+":"+filename);
+
+			makefileWriter.print("\techo 'set terminal png truecolor size 2600, 1000;"
+					+ "set title \"Genotypes Types\";set xlabel \"Sample\";"
+					+ "set xtic rotate by 90;set ylabel \"Count\";"
+					+ "set key invert reverse Left outside;set datafile separator \"\t\";"
+					+ "set style fill solid border -1;set style data histograms;set style histogram rowstacked;"
+					+ "set boxwidth 0.95;set output \"$@\";plot \"$<\" using 2:xtic(1)");
+			int k=0;
+			for(final GenotypeType gtype: GenotypeType.values())
+				{
+				makefileWriter.print((k==0?"":", \"\" using "+k)+" ti \""+gtype.name()+"\"");
+				++k;
+				}
+			makefileWriter.println("' | gnuplot");
+			}
+			
+			if(!this.countAffectedSamples.isEmpty())
+				{
+				final String filename=prefix+this.key+".affectedSamples.tsv";
+				PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+				for(final RangeOfIntegers.Range k: VcfStats.this.affectedTranches.getRanges())
+					{
+					pw.println(k.toString()+"\t"+this.countAffectedSamples.count(k));
+					}
+				pw.flush();
+				pw.close();
+				}
+				
+			if(!this.countAltAlleles.isEmpty())
+				{
+				final String filename=prefix+this.key+".countAltAlleles.tsv";
+				PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+				for(final RangeOfIntegers.Range k: VcfStats.this.altTranches.getRanges())
+					{
+					pw.println(k.toString()+"\t"+this.countAltAlleles.count(k));
+					}
+				pw.flush();
+				pw.close();
+				}	
+			if(!this.countIndelSize.isEmpty())
+				{
+				final String filename=prefix+this.key+".countIndelSize.tsv";
+				PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+				for(final RangeOfIntegers.Range k: VcfStats.this.indelTranches.getRanges())
+					{
+					pw.println(k.toString()+"\t"+this.countIndelSize.count(k));
+					}
+				pw.flush();
+				pw.close();
+				}
+			if(!this.countDepth.isEmpty())
+				{
+				final String filename=prefix+this.key+".countDepth.tsv";
+				PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+				for(final RangeOfIntegers.Range k: VcfStats.this.depthTranches.getRanges())
+					{
+					pw.println(k.toString()+"\t"+this.countDepth.count(k));
+					}
+				pw.flush();
+				pw.close();
+				}
+			if(!this.countDistances.isEmpty())
+				{
+				final String filename=prefix+this.key+".countDistances.tsv";
+				PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+				for(final RangeOfIntegers.Range k: VcfStats.this.distanceTranches.getRanges())
+					{
+					pw.println(k.toString()+"\t"+this.countDistances.count(k));
+					}
+				pw.flush();
+				pw.close();
+				}
+			
+			
+		}
 		
 		}
 	
@@ -341,7 +582,7 @@ public class VcfStats extends Launcher
 
 	
 	
-	private static Character simpleATGC(Allele al)
+	private static Character asSimpleATGC(Allele al)
 		{
 		if(al==null) return null;
 		String s=al.getBaseString().toUpperCase();
@@ -381,9 +622,8 @@ public class VcfStats extends Launcher
 	
 	private void scan(final String vcfInputStream,VariantContextWriter teeOut) {
 		VcfIterator iter = null;
-		final Map<String,PlotMaf> key2plotMaf= new HashMap<>();
-		final Map<String,Map<String,Counter<GenotypeType>>> category2sample2genotypeType = new HashMap<>();
-		final Map<String,Counter<VariantContext.Type>> category2variant2type = new HashMap<>();
+		final Map<String,VariantStats> category2stats = new HashMap<>();
+		
 		PrintWriter makefileWriter =null;
 		try
 			{			
@@ -418,40 +658,9 @@ public class VcfStats extends Launcher
 						collect(Collectors.toSet())
 						;
 			
-			final Set<String> affectedSamples = 
-					this.pedigree.getPersons().stream().
-						filter(P->P.isAffected()).
-						map(P->P.getId()).
-						filter(S->intersectSamples.contains(S)).
-						collect(Collectors.toSet())
-					;
-			
-			final Set<String> unaffectedSamples = 
-					this.pedigree.getPersons().stream().
-						filter(P->P.isUnaffected()).
-						map(P->P.getId()).
-						filter(S->intersectSamples.contains(S)).
-						collect(Collectors.toSet())
-					;
 
-			final Set<String> maleSamples = 
-					this.pedigree.getPersons().stream().
-						filter(P->P.isMale()).
-						map(P->P.getId()).
-						filter(S->intersectSamples.contains(S)).
-						collect(Collectors.toSet())
-					;
-			final Set<String> femaleSamples = 
-					this.pedigree.getPersons().stream().
-						filter(P->P.isFemale()).
-						map(P->P.getId()).
-						filter(S->intersectSamples.contains(S)).
-						collect(Collectors.toSet())
-					;
 
-			final String generic_maf_gnuplot_filename;
-			if(!( unaffectedSamples.isEmpty() || affectedSamples.isEmpty()))
-				{
+				/*
 				generic_maf_gnuplot_filename = prefix+"maf.gnuplot~";
 				PrintWriter pw= archiveFactory.openWriter(generic_maf_gnuplot_filename);
 				pw.println("set title \"__TITLE__\" ; set ylabel \"Control\"; set xlabel \"Case\";");
@@ -465,11 +674,9 @@ public class VcfStats extends Launcher
 				pw.println("plot '__INPUT__' u 1:2 with circles lc rgb \"blue\"");
 				pw.flush();
 				pw.close();
-				}
-			else
-				{
-				generic_maf_gnuplot_filename = null;
-				}
+				*/
+				
+			
 			
 			if(teeOut!=null) teeOut.writeHeader(header);
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
@@ -478,16 +685,15 @@ public class VcfStats extends Launcher
 				final VariantContext ctx=progress.watch(iter.next());
 				if(teeOut!=null) teeOut.add(ctx);
 
-				final List<Allele> alternates = ctx.getAlternateAlleles();
 				
 				for(final String category: this.variantToCategoryKeys.apply(ctx))
 					{
-					Counter<VariantContext.Type> variant2type= category2variant2type.get(category);
-					if(variant2type==null) {
-						variant2type = new Counter<>();
-						category2variant2type.put(category, variant2type);
+					VariantStats vcstat = category2stats.get(category);
+					if(vcstat==null) {
+						vcstat = new VariantStats(category,header);
+						category2stats.put(category, vcstat);
 						}
-					variant2type.incr(ctx.getType());
+					vcstat.visit(ctx);
 					}
 				if(header.hasGenotypingData())
 					{
@@ -495,167 +701,18 @@ public class VcfStats extends Launcher
 					
 				
 	
-						for(int i=0;i< ctx.getNSamples();++i) {
-							final Genotype g = ctx.getGenotype(i);
-							
-							/** iterator over variants */
-							for(final String category: this.variantToCategoryKeys.apply(ctx))
-								{
-								Map<String,Counter<GenotypeType>> sample2genotypeType= category2sample2genotypeType.get(category);
-								if(sample2genotypeType==null) {
-									sample2genotypeType = new HashMap<>();
-									category2sample2genotypeType.put(category, sample2genotypeType);
-									}
-								
-								Counter<GenotypeType> count= sample2genotypeType.get(g.getSampleName());
-								if(count==null)
-									{
-									count = new Counter<>();
-									sample2genotypeType.put(g.getSampleName(), count);
-									}
-								count.incr(g.getType());
-								}
-							}
-					
-					final List<Genotype> altGenotypes = ctx.getGenotypes().
-							stream().
-							filter(G->!(G.isNoCall() || G.isHomRef() || G.isFiltered())).
-							collect(Collectors.toList());
 					
 					
 					
-					/* can we compute the MAF ? we need (non)affected samples*/
-					if(!(alternates.isEmpty() || unaffectedSamples.isEmpty() || affectedSamples.isEmpty() || variantContextKeys.isEmpty()))
-						{
-						for(int alt_idx=0;alt_idx < alternates.size();++alt_idx) {
-							final Allele alt = alternates.get(alt_idx);
-							final Double mafs[]={null,null};
-							
-							for(int i=0;i< 2;++i)
-								{
-								if(i==1 && this.controlTag!=null)
-									{
-									if(ctx.hasAttribute(this.controlTag)) {
-										try 
-											{
-											final List<Double> dvals =ctx.getAttributeAsDoubleList(this.controlTag, Double.NaN);
-											if(alt_idx< dvals.size() && dvals.get(alt_idx)!=null) {	
-											    final double d= dvals.get(alt_idx);
-												if(!Double.isNaN(d) && d>=0 && d<=1.0) mafs[1]=d;
-												}
-											}
-										catch(NumberFormatException err)
-											{
-											}
-										}
-									}
-								else
-									{
-									final MafCalculator mafCalculator = new MafCalculator(alt, ctx.getContig());
-									mafCalculator.setNoCallIsHomRef(no_call_is_homref);
-									for(Pedigree.Person person: (i==0?pedigree.getAffected():pedigree.getUnaffected()))
-										{
-										final Genotype genotype = ctx.getGenotype(person.getId());
-										if(genotype==null) continue;
-										mafCalculator.add(genotype, person.isMale());
-										}
-									if(!mafCalculator.isEmpty())
-										{
-										mafs[i]=mafCalculator.getMaf();
-										}
-									}
-								}
-							if(mafs[0]==null || mafs[1]==null) continue;
-							
-							
-							for(final String mafkey: this.variantToMafKeys.apply(ctx))
-								{	
-								PlotMaf plotter = key2plotMaf.get(mafkey);
-								if(plotter==null)
-									{
-									//it's a new plotter
-									plotter = new PlotMaf(mafkey);
-									key2plotMaf.put(mafkey,plotter);
-									
-									//add makefile stuff
-									final String png= "$(patsubst %.tsv,%.png,"+plotter.filename+")";
-									makefileWriter.println("ALL_TARGETS+=" + png);
-									makefileWriter.println(png+":"+plotter.filename+" "+generic_maf_gnuplot_filename);
-									makefileWriter.println("\tsed -e '%__OUTPUT__%$@%g' -e '%__INPUT__%$<%g'  -e '%__TITLE__%"+mafkey+"%g' $(word 2,$^) | gnuplot");
-									
-									}
-								plotter.plot(mafs[0], mafs[1]);
-								}
-							
-							}//end of loop over ALT
-						} // end of MAF
 					
 					}
-				else
-					
-					{
-					
-					}
+				
 				
 				}
-			for(final String category: category2variant2type.keySet())
+			for(final String category: category2stats.keySet())
 				{	
-				Counter<VariantContext.Type> variant2type = category2variant2type.get(category);
-				final String filename=prefix+category+".variant2type.tsv";
-
-				PrintWriter pw = this.archiveFactory.openWriter(filename);
-				pw.println("Type\tCount");
-
-				for(final VariantContext.Type type: variant2type.keySet())
-					{
-					pw.println(type.name()+"\t"+variant2type.count(type));
-					}
-				pw.flush();
-				pw.close();
-				final String png= "$(patsubst %.tsv,%.png,"+filename+")";
-				makefileWriter.println("ALL_TARGETS+=" + png);
-				makefileWriter.println(png+":"+filename);
-				makefileWriter.println("\techo 'set key autotitle columnheader;set ylabel \"Count\";set size  ratio 0.618;set title \"Variant Types\";set style fill solid border -1;set key  off;set datafile separator \"\t\";set auto x;set style histogram;set style data histogram;set terminal png truecolor  ;set output \"$@\";plot \"$<\" using 2:xtic(1) ti \"Variant Type\";' | gnuplot");
-
-				}
-			for(final String category: category2sample2genotypeType.keySet())
-				{	
-				Map<String,Counter<GenotypeType>> sample2genotypeType = category2sample2genotypeType.get(category);
-				final String filename=prefix+category+".sample2gtype.tsv";
-				PrintWriter pw = this.archiveFactory.openWriter(filename);
-				pw.println("Type\t"+Arrays.stream(GenotypeType.values()).map(T->T.name()).collect(Collectors.joining("\t")));
-				for(final String sample: sample2genotypeType.keySet())
-					{
-					pw.print(sample);
-					for(final GenotypeType gtype: GenotypeType.values())
-						{
-						pw.print("\t"+sample2genotypeType.get(sample).count(gtype));
-						}
-					pw.println();
-					}
-				pw.flush();
-				pw.close();
-				
-				
-				final String png= "$(patsubst %.tsv,%.png,"+filename+")";
-				makefileWriter.println("ALL_TARGETS+=" + png);
-				makefileWriter.println(png+":"+filename);
-
-				makefileWriter.print("\techo 'set terminal png truecolor size 2600, 1000;"
-						+ "set title \"Genotypes Types\";set xlabel \"Sample\";"
-						+ "set xtic rotate by 90;set ylabel \"Count\";"
-						+ "set key invert reverse Left outside;set datafile separator \"\t\";"
-						+ "set style fill solid border -1;set style data histograms;set style histogram rowstacked;"
-						+ "set boxwidth 0.95;set output \"$@\";plot \"$<\" using 2:xtic(1)");
-				int k=0;
-				for(final GenotypeType gtype: GenotypeType.values())
-					{
-					makefileWriter.print((k==0?"":", \"\" using "+k)+" ti \""+gtype.name()+"\"");
-					++k;
-					}
-				makefileWriter.println("' | gnuplot");
-
-				
+				final VariantStats vcstats = category2stats.get(category);
+				vcstats.finish(makefileWriter);
 				}
 
 			

@@ -33,6 +33,26 @@ Usage: vcfstats [options] Files
       output the incoming vcf to stdout. Useful to get intermediary stats in a 
       pipeline 
       Default: false
+    --trancheAffected
+      tranches for the number of affected. A range of is a list of integers is 
+      ascending order separated with semicolons.
+      Default: [[-Inf / 0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10 / 20[, [20 / 50[, [50 / 100[, [100 / Inf[]
+    --trancheAlts
+      tranches for the number of ALTs. A range of is a list of integers is 
+      ascending order separated with semicolons.
+      Default: [[-Inf / 0[, 0, 1, 2, 3, 4, 5, [6 / 8[, 8, 9, [10 / Inf[]
+    --trancheDP
+      tranches for the DEPTH. A range of is a list of integers is ascending 
+      order separated with semicolons.
+      Default: [[-Inf / 0[, [0 / 10[, [10 / 20[, [20 / 30[, [30 / 50[, [50 / 100[, [100 / 200[, [200 / Inf[]
+    --trancheDistance
+      tranches for the distance between the variants. A range of is a list of 
+      integers is ascending order separated with semicolons.
+      Default: [[-Inf / 0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10 / 20[, [20 / 100[, [100 / 200[, [200 / 300[, [300 / 400[, [400 / 500[, [500 / 1000[, [1000 / Inf[]
+    --trancheIndelSize
+      tranches for the Indel size A range of is a list of integers is 
+      ascending order separated with semicolons.
+      Default: [[-Inf / 0[, 0, 1, 2, 3, 4, 5, [6 / 8[, 8, 9, [10 / 15[, [15 / 20[, [20 / Inf[]
     --vckey
       Variant Context Key. if defined, I will look at this key in the INFO 
       column and produce a CASE/CTRL graf for each item. If undefined, I will 

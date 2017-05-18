@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class RangeOfIntegers {
+public static final String OPT_DESC="A range of is a list of integers is ascending order separated with semicolons. ";
 /** generate RangeOfIntegers from a String with values separated with semicolons */
 public static class StringConverter 
 	implements com.beust.jcommander.IStringConverter<RangeOfIntegers>
@@ -53,7 +54,6 @@ private static class RangeImpl implements Range
 	{
 	final Integer minIncl;
 	final Integer maxExcl;
-	
 	RangeImpl(final Integer minIncl,final Integer maxExcl) {
 		this.minIncl=minIncl;
 		this.maxExcl=maxExcl;
@@ -81,6 +81,11 @@ private static class RangeImpl implements Range
 		}
 	@Override
 	public String toString() {
+		if(minIncl!=null && maxExcl!=null && this.minIncl+1 == this.maxExcl)
+			{
+			return String.valueOf(this.minIncl);
+			}
+		
 		return "[" + 
 				(minIncl==null?"-Inf":String.valueOf(this.minIncl))+ " / "+ 
 				(maxExcl==null?"Inf":String.valueOf(this.maxExcl)) +
@@ -96,7 +101,7 @@ public RangeOfIntegers(final String s) {
 	this(Arrays.asList(s.split(";")).stream().filter(S->!S.trim().isEmpty()).mapToInt(S->new Integer(S)).toArray());
 	}
 
-public RangeOfIntegers(final int array[]) {
+public RangeOfIntegers(final int...array) {
 	if(array==null) throw new IllegalArgumentException("array cannot be null");
 	if(array.length==0) throw new IllegalArgumentException("array cannot be empty");
 	final List<Range> ranges = new ArrayList<>(array.length+2);
@@ -123,5 +128,9 @@ public Range getRange(int value) {
 		if(r.contains(value)) return r;
 		}
 	throw new IllegalStateException("cannot get range ??" +value);
+	}
+@Override
+public String toString() {
+		return getRanges().toString();
 	}
 }
