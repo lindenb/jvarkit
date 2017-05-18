@@ -85,6 +85,20 @@ BEGIN_DOC
 
 Bioinformatics file javascript-based reformatter ( java engine http://openjdk.java.net/projects/nashorn/ ). Something like awk for VCF, BAM, SAM, FASTQ, FASTA etc...
 
+## About Galaxy
+
+At first, this tool is not safe for a public Galaxy server, because the javascript code can access the filesystem.
+But you can use the JVM parameter
+
+```
+-J-Djava.security.manager
+```
+
+to prevent it to access the filesystem. See [http://stackoverflow.com/questions/40177810](http://stackoverflow.com/questions/40177810)
+
+
+## Variables
+
 
 The program injects the following variables:
 

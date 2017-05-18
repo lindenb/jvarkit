@@ -36,7 +36,9 @@ import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
@@ -47,10 +49,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
-import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 import com.github.lindenb.semontology.Term;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -60,48 +58,50 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-
-
-
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 /**
- * Author: Pierre Lindenbaum PhD. @yokofakun
- * Motivation http://www.biostars.org/p/66319/ 
- */
-
-
-/**
-
 BEGIN_DOC
 
+## About the script
 
-Filters a VCF with javascript ( java Nashorn engine http://www.oracle.com/technetwork/articles/java/jf14-nashorn-2126515.html )
 
-This tool is not safe for a public Galaxy server, because the javascript code can access the filesystem.
+The user script is a javascript nashorn script [https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html](https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html).
+The return value should be either:
 
+
+* a boolean : true accept the variant, false reject the variant
+* a [VariantContext](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) to replace the current variant
+* a [java.util.List<VariantContext>](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) to replace the current variant with a list of variants.
+
+
+## About Galaxy
+
+At first, this tool is not safe for a public Galaxy server, because the javascript code can access the filesystem.
+But you can use the JVM parameter
+
+```
+-J-Djava.security.manager
+```
+
+to prevent it to access the filesystem. See [http://stackoverflow.com/questions/40177810](http://stackoverflow.com/questions/40177810)
+
+
+## History
+
+ * 2017-05 : removed the variables 'sneff', 'vep','casecontrol'... 
+
+## Variables
 
 the script binds the following variables:
 
 
- *   variant : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) )
- *   header : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html) ).
-
-
-
-if option snpeff is defined:
-
- *   snpEff (new 2015-02-20 ) a java.util.List of SnpEffPredictionParser$SnpEffPrediction (  https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/SnpEffPredictionParser.java )
-
-
-
-if option vep is defined:
-
- *   vep (new 2015-02-20 )  a java.util.List of VepPredictionParser$VepPrediction  ( https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/VepPredictionParser.java  ) .
-
-
-
-if option casecontrol is defined:
-
- *   individuals (new 2015-02-20 )  a List<Pedigree.Person>.
+ *   **variant** : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) )
+ *   **header** : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html) ).
+ *   **tools** : an instance of com.github.lindenb.jvarkit.util.vcf.VcfTools ( [https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/VcfTools.java](https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/VcfTools.java) ).
+ *   **pedigree** a Pedigree  [https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/Pedigree.java](https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/Pedigree.java):
+ *   **individuals** a List<Pedigree.Person> of the persons affected or non-affected and present in the VCF header.
 
 
 
@@ -112,10 +112,9 @@ if option casecontrol is defined:
 
 
 
-####  Example 1
+####  Example 
 
 the file filter.js
-
 
 
 ```
@@ -141,7 +140,9 @@ myfilterFunction();
 
 ```
 
+#### Example 
 
+cat ~/jeter.vcf | awk '/^#CHROM/ {printf("##INFO=<ID=MYKEY,Number=.,Type=String,Description=\"My key\">\n");} {print;}' | java -jar dist/vcffilterjs.jar -f jeter.js 
 
 
 
@@ -158,14 +159,46 @@ chr22	42526449	.	T	A	151.47	.	AC=1;AF=0.071;AN=14;BaseQRankSum=2.662;DP=1226;DS;
 chr22	42526634	.	T	C	32.60	.	AC=1;AF=0.071;AN=14;BaseQRankSum=1.147;DP=1225;DS;Dels=0.00;FS=0.000;HRun=0;HaplotypeScore=50.0151;MQ=240.65;MQ0=0;MQRankSum=1.151;QD=1.30;ReadPosRankSum=1.276	GT:AD:DP:GQ:PL	0/1:21,4:25:71:71,0,702	0/0:187,2:189:99:0,481,6080	0/0:233,0:233:99:0,667,7351	0/0:230,0:230:99:0,667,7394	0/0:174,1:175:99:0,446,5469	0/0:194,2:196:99:0,498,6239	0/0:174,0:175:99:0,511,5894
 chr22	42527793	rs1080989	C	T	3454.66	.	AC=2;AF=0.167;AN=12;BaseQRankSum=-3.007;DB;DP=1074;DS;Dels=0.01;FS=0.000;HRun=1;HaplotypeScore=75.7865;MQ=209.00;MQ0=0;MQRankSum=3.014;QD=9.36;ReadPosRankSum=0.618	GT:AD:DP:GQ:PL	./.	0/1:72,90:162:99:1699,0,1767	0/1:103,96:202:99:1756,0,2532	0/0:188,0:188:99:0,526,5889	0/0:160,0:160:99:0,457,4983	0/0:197,0:198:99:0,544,6100	0/0:156,0:156:99:0,439,5041
 
+```
 
+####  Example 
+
+
+add a new INFO tag 'MYKEY'
+
+the script:
+
+```
+var ArrayList = Java.type("java.util.ArrayList");
+var VariantContextBuilder = Java.type("htsjdk.variant.variantcontext.VariantContextBuilder");
+
+
+function addInfo(v)
+	{
+	var vcb = new VariantContextBuilder(v);
+	var atts = new ArrayList();
+	atts.add(v.getType().name()+ (variant.isFiltered()?"_FILTERED":"_UNFILTERED"));
+	atts.add(v.getType().name()+ (variant.hasID()?"_ID":"_NOID"));
+	vcb.attribute("MYKEY",atts);
+	return vcb.make();
+	}
+
+
+addInfo(variant);
+```
+
+run the program, but first use awk to insert the new INFO definition for 'MYKEY'
+
+```
+cat input.vcf |\
+	awk '/^#CHROM/ {printf("##INFO=<ID=MYKEY,Number=.,Type=String,Description=\"My key\">\n");} {print;}' |\
+	java -jar dist/vcffilterjs.jar -f script.js 
 ```
 
 
 
 
-
-####  Example 2
+####  Example 
 
 
 Script used for http://plindenbaum.blogspot.fr/2013/10/yes-choice-of-transcripts-and-software.html
@@ -207,7 +240,7 @@ accept(variant);
 
 
 
-####  Example 3
+####  Example
 
 Sample having a unique genotype:
 
@@ -302,7 +335,7 @@ uniq -c
 
 
 
-####  Example 4
+####  Example
 
 filter homozygotes for sample NA12878
 
@@ -313,14 +346,9 @@ java -jar dist/vcffilterjs.jar -e 'variant.getGenotype("NA12878").isHom()'
 
 ```
 
+
 END_DOC
-*/
-
-
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-
+ */
 @Program(
 		name="vcffilterjs",
 		description="Filtering VCF with javascript expressions",
@@ -343,24 +371,16 @@ public class VCFFilterJS
 
 	@Parameter(names={"-F","--filter"},description="If not empty, variants won't be discarded and this name will be used in the FILTER column")
 	private String filteredTag = "";
-
-	@Parameter(names={"-vep","--vep"},description="Decode prediction tag of ensembl VEP")
-	private boolean use_vep = false;
-
-	@Parameter(names={"-snpeff","--snpeff"},description="Decode prediction tag of SNPEFF")
-	private boolean use_snpeff = false;
-
-	@Parameter(names={"-casecontrol","--casecontrol"},description="Decode Case-Control injected with VcfInjectPedigree")
-	private boolean use_casecontrol = false;
-
-	
+	@Parameter(names={"-ped","--pedigree"},description="inject a Pedigree. If it's not specified , the tool will try to extract a pedigree from the VCF header")
+	private File pedigreeFile=null;
 	@Parameter(names={"-e","--expression"},description=" (js expression). Optional.")
 	private String scriptExpr=null;
 	@Parameter(names={"-f","--script"},description=" (js file). Optional.")
 	private File scriptFile=null;
 	@Parameter(names={"-json","--json"},description="json files. syntax key=path/to/file.json . Inject the json object parsed with google gson into the javascript context as 'key'")
 	private List<String> jsonFiles=new  ArrayList<>();
-
+	@Parameter(names={"-casecontrol","--casecontrol"},description="deprecated",hidden=true)
+	private boolean deprecated_use_casecontrol =false;
 	
 	public VCFFilterJS()
 		{
@@ -368,28 +388,37 @@ public class VCFFilterJS
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
+	protected int doVcfToVcf(final String inputName,final VcfIterator r,final VariantContextWriter w) {
 		try
 			{
 			
 			final VCFHeader header = r.getHeader();
 			final VcfTools vcfTools = new VcfTools(header);
-			final SnpEffPredictionParser snpEffPredictionParser =(this.use_snpeff ?
-					new SnpEffPredictionParserFactory().header(header).get():
-					null
-					);
-			final VepPredictionParser vepPredictionParser = (this.use_vep?
-					new VepPredictionParserFactory().header(header).get():
-					null
-					);
+			
+			
+			
 
 			final  VCFHeader h2 = new VCFHeader(header);
 			addMetaData(h2);
 			
-			final List<Pedigree.Person> individuals =(this.use_casecontrol?
-						new ArrayList<>(this.getCasesControlsInPedigree(header)):
-						null
-						);
+			final Pedigree pedigree;
+			if(pedigreeFile!=null) {
+				pedigree = Pedigree.newParser().parse(this.pedigreeFile);
+				}
+			else // try to read from VCF header
+				{
+				Pedigree p=null;
+				try {
+					p = Pedigree.newParser().parse(header);
+					}
+				catch(final Exception err) 
+					{
+					LOG.warn("cannot decode pedigree from vcf header");
+					p = Pedigree.createEmptyPedigree();
+					}
+				pedigree = p;
+				}
+			
 			
 			final VCFFilterHeaderLine filterHeaderLine = (filteredTag.trim().isEmpty()?null:
 				new VCFFilterHeaderLine(this.filteredTag.trim(),"Filtered with "+getProgramName())
@@ -404,10 +433,16 @@ public class VCFFilterJS
 					.createBindings();
 			bindings.put("header", header);
 			bindings.put("tools", vcfTools);
+			bindings.put("pedigree", pedigree);
 			
-			if(this.use_casecontrol) {
-				bindings.put("individuals", individuals);
-			}
+
+			bindings.put("individuals", Collections.unmodifiableList( pedigree.getPersons().stream().
+				filter(P->(P.isAffected() || P.isUnaffected())).
+				filter(P->P.hasUniqId()).
+				filter(P->header.getSampleNamesInOrder().contains(P.getId())).
+				collect(Collectors.toList())))
+				;		
+				
 			
 			for(final String jsonkv :this.jsonFiles)
 				{
@@ -425,17 +460,7 @@ public class VCFFilterJS
 			while (r.hasNext() && !w.checkError())
 				{
 				final  VariantContext variation = progress.watch(r.next());
-
 				bindings.put("variant", variation);
-				if(this.use_snpeff)
-					{
-					bindings.put("snpEff",
-						snpEffPredictionParser.getPredictions(variation));
-					}
-				if(this.use_vep) {
-					bindings.put("vep",
-						vepPredictionParser.getPredictions(variation));
-					}
 
 				final Object result = compiledScript.eval(bindings);
 				// result is an array of a collection of variants

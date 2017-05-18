@@ -52,7 +52,7 @@ public class Pedigree
 	{
 	private static final Logger LOG = Logger.build(Pedigree.class).make();
 	public static final String OPT_DESCRIPTION="A pedigree is a text file delimited with tabs. No header. Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 affected,-9 unknown ";
-	private Map<String,FamilyImpl > families=new TreeMap<String, Pedigree.FamilyImpl>();
+	private final Map<String,FamilyImpl > families=new TreeMap<String, Pedigree.FamilyImpl>();
 	
 	public enum Status
 		{
@@ -152,6 +152,8 @@ public class Pedigree
 		extends Comparable<Person>
 		{
 		public String getId();
+		/** the ID of this individual is unique in the pedigree. It can be associated without ambiguity to a sample in a VCF header */
+		public boolean hasUniqId() ;
 		public Family getFamily();
 		public boolean hasFather();
 		public Person getFather();
@@ -292,6 +294,15 @@ public class Pedigree
 			return	this.family.equals(p.family) &&
 					this.id.equals(p.id);
 			}
+		
+		@Override
+		public boolean hasUniqId() 
+			{
+			return (Pedigree.this.families.values().
+					stream().
+					flatMap(F->F.getIndividuals().stream())).
+					filter(P->getId().equals(P.getId())).count() ==1L;
+			}
 
 		@Override
 		public Person validate() throws IllegalStateException {
@@ -330,6 +341,10 @@ public class Pedigree
 		{
 		
 		}
+	
+	public static Pedigree createEmptyPedigree() {
+		return new Pedigree();
+	}
 	
 	public boolean isEmpty() {
 		return this.families.isEmpty();
@@ -503,6 +518,7 @@ public class Pedigree
 		private final Pattern tab = Pattern.compile("[\t]");
 		private StatusModel statusModel = Pedigree.DefaultStatusModel;
 		private boolean statusRequired=false;
+		private boolean acceptErrorsInVcfHeader=false;
 		
 		public Pedigree parse(final File f) throws IOException
 			{
@@ -530,7 +546,11 @@ public class Pedigree
 			this.statusRequired = statusRequired;
 			return this;
 			}
-
+		public Parser acceptErrorsInVcfHeader(boolean acceptErrorsInVcfHeader)
+			{
+			this.acceptErrorsInVcfHeader = acceptErrorsInVcfHeader;
+			return this;
+			}
 		private void read(final Pedigree ped,final String tokens[])
 			{
 			final String fam= tokens[0];
@@ -587,6 +607,17 @@ public class Pedigree
 		/** should be readPedigree(header.getMetaDataInInputOrder()) */
 		public Pedigree parse(final Collection<VCFHeaderLine> metadata)
 			{
+			final java.util.function.Consumer<String> handleError= (S)->{
+				if(acceptErrorsInVcfHeader)
+					{
+					LOG.warn(S);
+					}
+				else
+					{
+					throw new IllegalArgumentException(S);
+					}
+				};
+			
 			final Pattern comma = Pattern.compile("[,]");
 			final Pedigree ped=new Pedigree();
 			for(final VCFHeaderLine h:metadata) {
@@ -618,32 +649,56 @@ public class Pedigree
 						}
 					final String left = t.substring(0,eq);
 					if(left.equals("Family")) {
-						if(familyId!=null) throw new IllegalArgumentException("Family defined twice in " +value);
+						if(familyId!=null) {
+							handleError.accept("Family defined twice in " +value);
+							continue;
+							}
 						familyId= t.substring(eq+1).trim();
 						}
 					else if(left.equals("ID")) {
-						if(indiId!=null) throw new IllegalArgumentException("ID defined twice in " +value);
+						if(indiId!=null) {
+							handleError.accept("ID defined twice in " +value);
+							continue;
+							}
 						indiId= t.substring(eq+1).trim();
 						}
 					else if(left.equals("Father")) {
-						if(fatherId!=null) throw new IllegalArgumentException("fatherId defined twice in " +value);
+						if(fatherId!=null) {
+							handleError.accept("fatherId defined twice in " +value);
+							continue;
+						}
 						fatherId= t.substring(eq+1).trim();
 						}
 					else if(left.equals("Mother")) {
-						if(motherId!=null) throw new IllegalArgumentException("mother defined twice in " +value);
+						if(motherId!=null) {
+							handleError.accept("mother defined twice in " +value);
+							continue;
+						}
 						motherId= t.substring(eq+1).trim();
 						}
 					else if(left.equals("Sex")) {
-						if(sexx!=null) throw new IllegalArgumentException("sex defined twice in " +value);
+						if(sexx!=null) {
+							handleError.accept("sex defined twice in " +value);
+							continue;
+							}
 						sexx= t.substring(eq+1).trim();
 						}
 					else if(left.equals("Status")) {
-						if(status!=null) throw new IllegalArgumentException("status defined twice in " +value);
+						if(status!=null) {
+							handleError.accept("status defined twice in " +value);
+							continue;
+						}
 						status= t.substring(eq+1).trim();
 						}
 					}
-				if(familyId==null) throw new IllegalArgumentException("Family undefined  in " +value);
-				if(indiId==null) throw new IllegalArgumentException("ID undefined in " +value);
+				if(familyId==null) {
+					handleError.accept("Family undefined  in " +value);
+					continue;
+				}
+				if(indiId==null) {
+					handleError.accept("ID undefined in " +value);
+					continue;
+				}
 				build(ped,familyId,indiId,fatherId,motherId,sexx,status);
 				}
 			return ped;

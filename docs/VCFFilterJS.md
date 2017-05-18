@@ -6,9 +6,6 @@
 ```
 Usage: vcffilterjs [options] Files
   Options:
-    -casecontrol, --casecontrol
-      Decode Case-Control injected with VcfInjectPedigree
-      Default: false
     -e, --expression
        (js expression). Optional.
     -F, --filter
@@ -23,14 +20,11 @@ Usage: vcffilterjs [options] Files
       Default: []
     -o, --output
       Output file. Optional . Default: stdout
+    -ped, --pedigree
+      inject a Pedigree. If it's not specified , the tool will try to extract 
+      a pedigree from the VCF header
     -f, --script
        (js file). Optional.
-    -snpeff, --snpeff
-      Decode prediction tag of SNPEFF
-      Default: false
-    -vep, --vep
-      Decode prediction tag of ensembl VEP
-      Default: false
     --version
       print version and exit
 
@@ -132,35 +126,44 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## About the script
 
-Filters a VCF with javascript ( java Nashorn engine http://www.oracle.com/technetwork/articles/java/jf14-nashorn-2126515.html )
 
-This tool is not safe for a public Galaxy server, because the javascript code can access the filesystem.
+The user script is a javascript nashorn script [https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html](https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html).
+The return value should be either:
 
+
+* a boolean : true accept the variant, false reject the variant
+* a [VariantContext](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) to replace the current variant
+* a [java.util.List<VariantContext>](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) to replace the current variant with a list of variants.
+
+
+## About Galaxy
+
+At first, this tool is not safe for a public Galaxy server, because the javascript code can access the filesystem.
+But you can use the JVM parameter
+
+```
+-J-Djava.security.manager
+```
+
+to prevent it to access the filesystem. See [http://stackoverflow.com/questions/40177810](http://stackoverflow.com/questions/40177810)
+
+
+## History
+
+ * 2017-05 : removed the variables 'sneff', 'vep','casecontrol'... 
+
+## Variables
 
 the script binds the following variables:
 
 
- *   variant : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) )
- *   header : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html) ).
-
-
-
-if option snpeff is defined:
-
- *   snpEff (new 2015-02-20 ) a java.util.List of SnpEffPredictionParser$SnpEffPrediction (  https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/SnpEffPredictionParser.java )
-
-
-
-if option vep is defined:
-
- *   vep (new 2015-02-20 )  a java.util.List of VepPredictionParser$VepPrediction  ( https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/predictions/VepPredictionParser.java  ) .
-
-
-
-if option casecontrol is defined:
-
- *   individuals (new 2015-02-20 )  a List<Pedigree.Person>.
+ *   **variant** : the current variation;  a org.broadinstitute.variant.variantcontext.VariantContext ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) )
+ *   **header** : the VCF header org.broadinstitute.variant.vcf.VCFHeader ( [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html) ).
+ *   **tools** : an instance of com.github.lindenb.jvarkit.util.vcf.VcfTools ( [https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/VcfTools.java](https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/VcfTools.java) ).
+ *   **pedigree** a Pedigree  [https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/Pedigree.java](https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/Pedigree.java):
+ *   **individuals** a List<Pedigree.Person> of the persons affected or non-affected and present in the VCF header.
 
 
 
@@ -171,10 +174,9 @@ if option casecontrol is defined:
 
 
 
-####  Example 1
+####  Example 
 
 the file filter.js
-
 
 
 ```
@@ -200,7 +202,9 @@ myfilterFunction();
 
 ```
 
+#### Example 
 
+cat ~/jeter.vcf | awk '/^#CHROM/ {printf("##INFO=<ID=MYKEY,Number=.,Type=String,Description=\"My key\">\n");} {print;}' | java -jar dist/vcffilterjs.jar -f jeter.js 
 
 
 
@@ -217,14 +221,46 @@ chr22	42526449	.	T	A	151.47	.	AC=1;AF=0.071;AN=14;BaseQRankSum=2.662;DP=1226;DS;
 chr22	42526634	.	T	C	32.60	.	AC=1;AF=0.071;AN=14;BaseQRankSum=1.147;DP=1225;DS;Dels=0.00;FS=0.000;HRun=0;HaplotypeScore=50.0151;MQ=240.65;MQ0=0;MQRankSum=1.151;QD=1.30;ReadPosRankSum=1.276	GT:AD:DP:GQ:PL	0/1:21,4:25:71:71,0,702	0/0:187,2:189:99:0,481,6080	0/0:233,0:233:99:0,667,7351	0/0:230,0:230:99:0,667,7394	0/0:174,1:175:99:0,446,5469	0/0:194,2:196:99:0,498,6239	0/0:174,0:175:99:0,511,5894
 chr22	42527793	rs1080989	C	T	3454.66	.	AC=2;AF=0.167;AN=12;BaseQRankSum=-3.007;DB;DP=1074;DS;Dels=0.01;FS=0.000;HRun=1;HaplotypeScore=75.7865;MQ=209.00;MQ0=0;MQRankSum=3.014;QD=9.36;ReadPosRankSum=0.618	GT:AD:DP:GQ:PL	./.	0/1:72,90:162:99:1699,0,1767	0/1:103,96:202:99:1756,0,2532	0/0:188,0:188:99:0,526,5889	0/0:160,0:160:99:0,457,4983	0/0:197,0:198:99:0,544,6100	0/0:156,0:156:99:0,439,5041
 
+```
 
+####  Example 
+
+
+add a new INFO tag 'MYKEY'
+
+the script:
+
+```
+var ArrayList = Java.type("java.util.ArrayList");
+var VariantContextBuilder = Java.type("htsjdk.variant.variantcontext.VariantContextBuilder");
+
+
+function addInfo(v)
+	{
+	var vcb = new VariantContextBuilder(v);
+	var atts = new ArrayList();
+	atts.add(v.getType().name()+ (variant.isFiltered()?"_FILTERED":"_UNFILTERED"));
+	atts.add(v.getType().name()+ (variant.hasID()?"_ID":"_NOID"));
+	vcb.attribute("MYKEY",atts);
+	return vcb.make();
+	}
+
+
+addInfo(variant);
+```
+
+run the program, but first use awk to insert the new INFO definition for 'MYKEY'
+
+```
+cat input.vcf |\
+	awk '/^#CHROM/ {printf("##INFO=<ID=MYKEY,Number=.,Type=String,Description=\"My key\">\n");} {print;}' |\
+	java -jar dist/vcffilterjs.jar -f script.js 
 ```
 
 
 
 
-
-####  Example 2
+####  Example 
 
 
 Script used for http://plindenbaum.blogspot.fr/2013/10/yes-choice-of-transcripts-and-software.html
@@ -266,7 +302,7 @@ accept(variant);
 
 
 
-####  Example 3
+####  Example
 
 Sample having a unique genotype:
 
@@ -361,7 +397,7 @@ uniq -c
 
 
 
-####  Example 4
+####  Example
 
 filter homozygotes for sample NA12878
 
@@ -371,5 +407,6 @@ filter homozygotes for sample NA12878
 java -jar dist/vcffilterjs.jar -e 'variant.getGenotype("NA12878").isHom()'
 
 ```
+
 
 
