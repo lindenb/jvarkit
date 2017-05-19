@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -121,23 +120,8 @@ public class Biostar81455 extends Launcher
     			LOG.error("undefined kguri");
     			return -1;
     			}
-    		this.kgMap = new IntervalTreeMap<List<KnownGene>>();
-			LOG.info("readubf "+kgUri);
-			r=IOUtils.openURIForBufferedReading(this.kgUri);
-			while((line=r.readLine())!=null)
-				{
-				final String tokens[]=tab.split(line);
-				
-				KnownGene kg=new KnownGene(tokens);
-				if(kg.getExonCount()==0) continue;
-				final Interval interval = new Interval(kg.getChromosome(), kg.getTxStart()+1, kg.getTxEnd());
-				List<KnownGene> L = this.kgMap.get(interval);
-				if(L==null) {
-					L=new ArrayList<>();
-					kgMap.put(interval,L);
-				}
-				L.add(kg);
-				}
+    		LOG.info("readubf "+kgUri);
+    		this.kgMap = KnownGene.loadUriAsIntervalTreeMap(this.kgUri,(kg)->kg.getExonCount()!=0);
 			}
     	catch(final Exception err)
     		{

@@ -8,7 +8,7 @@ Usage: vcfstats [options] Files
   Options:
     -h, --help
       print help and exit
-    -kg, --knownGenes
+    -K, -kg, --knownGenes
       UCSC knownGene URI. Beware chromosome names are formatted the same as 
       your REFERENCE. A typical KnownGene file is 
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
@@ -29,6 +29,11 @@ Usage: vcfstats [options] Files
     --prefix
       File/zip prefix
       Default: <empty string>
+    -so, --soterms
+      Sequence ontology Accession to observe. VCF must be annotated with 
+      SNPEFF or VEP. e.g: "SO:0001818" (protein altering variant) "SO:0001819" 
+      (synonymouse variant)
+      Default: []
     -tee, --tee
       output the incoming vcf to stdout. Useful to get intermediary stats in a 
       pipeline 
@@ -36,23 +41,23 @@ Usage: vcfstats [options] Files
     --trancheAffected
       tranches for the number of affected. A range of is a list of integers is 
       ascending order separated with semicolons.
-      Default: [[-Inf / 0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10 / 20[, [20 / 50[, [50 / 100[, [100 / Inf[]
+      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/20[, [20/50[, [50/100[, [100/Inf[]
     --trancheAlts
       tranches for the number of ALTs. A range of is a list of integers is 
       ascending order separated with semicolons.
-      Default: [[-Inf / 0[, 0, 1, 2, 3, 4, 5, [6 / 8[, 8, 9, [10 / Inf[]
+      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, [6/8[, 8, 9, [10/Inf[]
     --trancheDP
       tranches for the DEPTH. A range of is a list of integers is ascending 
       order separated with semicolons.
-      Default: [[-Inf / 0[, [0 / 10[, [10 / 20[, [20 / 30[, [30 / 50[, [50 / 100[, [100 / 200[, [200 / Inf[]
+      Default: [[-Inf/0[, [0/10[, [10/20[, [20/30[, [30/50[, [50/100[, [100/200[, [200/Inf[]
     --trancheDistance
       tranches for the distance between the variants. A range of is a list of 
       integers is ascending order separated with semicolons.
-      Default: [[-Inf / 0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10 / 20[, [20 / 100[, [100 / 200[, [200 / 300[, [300 / 400[, [400 / 500[, [500 / 1000[, [1000 / Inf[]
+      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/20[, [20/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/1000[, [1000/Inf[]
     --trancheIndelSize
       tranches for the Indel size A range of is a list of integers is 
       ascending order separated with semicolons.
-      Default: [[-Inf / 0[, 0, 1, 2, 3, 4, 5, [6 / 8[, 8, 9, [10 / 15[, [15 / 20[, [20 / Inf[]
+      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, [6/8[, 8, 9, [10/15[, [15/20[, [20/Inf[]
     --vckey
       Variant Context Key. if defined, I will look at this key in the INFO 
       column and produce a CASE/CTRL graf for each item. If undefined, I will 
@@ -173,30 +178,76 @@ cat input.vcf |\
 ## Example
 
 ```
-$ java -jar dist/vcfstats.jar ~karaka/BURDEN_JVARKIT/MVP/20170227.pct001gBED.Q.mvp_frex.vcf.gz -o tmp
+$ java -jar $< -o tmp --soterms SO:0001818 --soterms SO:0001819 -K ucsc/hg19/database/knownGene_noPrefix.txt.gz input.vcf
+$ (cd tmp && make) 
 $ ls tmp/
-ALL.sample2gtype.tsv  ALL.variant2type.tsv  Makefile
+ALL.affectedSamples.png         ALL.countDistances.png  ALL.geneLoc.png  ALL.predictionsBySample.png  ALL.sample2gtype.png  ALL.variant2type.png
+ALL.affectedSamples.tsv         ALL.countDistances.tsv  ALL.geneLoc.tsv  ALL.predictionsBySample.tsv  ALL.sample2gtype.tsv  ALL.variant2type.tsv
+ALL.countDistancesBySample.png  ALL.countIndelSize.png  ALL.maf.png      ALL.predictions.png          ALL.transvers.png     Makefile
+ALL.countDistancesBySample.tsv  ALL.countIndelSize.tsv  ALL.maf.tsv      ALL.predictions.tsv          ALL.transvers.tsv
 
-$ head tmp/ALL.sample2gtype.tsv  tmp/ALL.variant2type.tsv
+==> tmp/ALL.affectedSamples.tsv <==
+1/532	56
+2/532	4
+[10/20[/532	1
+[100/Inf[/532	1
+
+==> tmp/ALL.countDistancesBySample.tsv <==
+Sample	[-Inf/0[	0	1	2	3	4	5	6	7	8	9	[10/20[	[20/100[	[100/200[	[200/300[	[300/400[	[400/500[	[500/1000[	[1000/Inf[
+B00GWF0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1
+B00GWFL	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1
+B00GWFO	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1
+B00GWFS	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1
+
+==> tmp/ALL.countDistances.tsv <==
+1	1
+2	1
+3	1
+6	1
+9	1
+
+==> tmp/ALL.countIndelSize.tsv <==
+2	4
+4	2
+
+==> tmp/ALL.geneLoc.tsv <==
+first_exon	4
+internal_exon	46
+last_exon	9
+
+==> tmp/ALL.maf.tsv <==
+0.006097560975609756	0.014705882352941176
+0.001524390243902439	0.0
+0.001524390243902439	0.0
+0.001524390243902439	0.0
+0.001524390243902439	0.0
+
+==> tmp/ALL.predictionsBySample.tsv <==
+Sample	synonymous_variant	protein_altering_variant
+B00GWE0	0	1
+B00GWE1	0	1
+B00GWE2	0	1
+B00GWE4	0	1
+
+==> tmp/ALL.predictions.tsv <==
+protein_altering_variant	59
 
 ==> tmp/ALL.sample2gtype.tsv <==
-Type	NO_CALL	HOM_REF	HET	HOM_VAR	UNAVAILABLE	MIXED
-X0G73J	2538	3440	218	132	0	0
-Y00G3I	2543	3462	193	130	0	0
-Z03K	2547	3417	252	112	0	0
-A0G3N	2547	3424	209	148	0	0
-B980	1909	4068	202	149	0	0
-C003P	2559	3417	216	136	0	0
-D0741	2557	3428	204	139	0	0
-E073O	2566	3433	212	117	0	0
-F00G7	2560	3444	191	133	0	0
-(...)
+Sample	NO_CALL	HOM_REF	HET	HOM_VAR	UNAVAILABLE	MIXED
+B00GWDY	0	62	0	0	0	0
+B00GWDZ	0	62	0	0	0	0
+B00GWE0	0	61	1	0	0	0
+B00GWE1	0	61	1	0	0	0
+
+==> tmp/ALL.transvers.tsv <==
+TYPE	TRANSITION	TRANSVERSION
+ALL	44	9
+CDS	44	9
 
 ==> tmp/ALL.variant2type.tsv <==
 Type	Count
-MIXED	7
-SNP	6125
-INDEL	196
+INDEL	6
+SNP	56
 
 ```
 

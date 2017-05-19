@@ -108,7 +108,7 @@ public class AnnPredictionParser
 		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(this.tag));
 		if(info==null || info.getDescription()==null)
 			{
-			LOG.warning("no INFO["+tag+"] or no description This VCF was probably NOT annotated with SnpEff . But it's not a problem if this tool doesn't need to access SnpEff Annotations.");
+			LOG.warning("no INFO["+tag+"] or no description This VCF was probably NOT annotated with SnpEff(ANN version) . But it's not a problem if this tool doesn't need to access SnpEff Annotations.");
 			this.valid=false;
 			return;
 			}
@@ -291,7 +291,7 @@ public class AnnPredictionParser
 				if(label.isEmpty()) continue;
 				final SequenceOntologyTree.Term t =AnnPredictionParser.this.soTree.getTermByLabel(label);
 				if(t==null) {
-					LOG.warning("Current Sequence Ontology Tree doesn't contain \""+ label+"\"");
+					LOG.warning("Current Sequence Ontology Tree doesn't contain \""+ label+"\". May be it's a deprecated term or the current version of this package is obsolete.");
 					} 
 				else
 					{

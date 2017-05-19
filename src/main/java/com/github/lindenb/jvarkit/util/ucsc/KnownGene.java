@@ -28,6 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.util.ucsc;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -35,11 +37,16 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.tribble.Feature;
 import htsjdk.tribble.annotation.Strand;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
@@ -210,6 +217,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return iter;
 			}
 		
+		/** return true if the exon contans the genomic position 0-based */
 		public boolean contains(int position)
 			{
 			return getStart()<=position && position< getEnd();
@@ -230,7 +238,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 	
 	public class Exon extends Segment
 		{
-		private Exon(int index)
+		private Exon(final int index)
 			{
 			super(index);
 			}
@@ -320,7 +328,20 @@ public class KnownGene implements Iterable<Integer>,Feature
 						(position==getStart()+2) ;
 				}
 			}
-		
+		/** return true if it's the first exon in the transcription direction */
+		public boolean isFirstExon()
+			{
+			if(this.getGene().isPositiveStrand() &&  this.getIndex()==0) return true;
+			if(this.getGene().isNegativeStrand() && this.getIndex()+1 == this.getGene().getExonCount()) return true;
+			return false;
+			}
+		/** return true if it's the last exon in the transcription direction */
+		public boolean isLastExon()
+			{
+			if(this.getGene().isNegativeStrand() &&  this.getIndex()==0) return true;
+			if(this.getGene().isPositiveStrand() && this.getIndex()+1 == this.getGene().getExonCount()) return true;
+			return false;
+			}
 		}
 		
 	public class Intron extends Segment
@@ -960,7 +981,41 @@ public class KnownGene implements Iterable<Integer>,Feature
 			public GeneticCode getGeneticCode() {
 				return this.geneticCode;
 				}
-			
 			}
 		
+		/** load knownGene file/uri as an IntervalTreeMap. Intervals in the IntervalTreeMap are *1-based* (interval.start= kg.txStart+1)*/
+		public static IntervalTreeMap<List<KnownGene>> loadUriAsIntervalTreeMap(
+				final String uri,
+				final Predicate<KnownGene> filterOrNull
+				) throws IOException
+			{
+			final IntervalTreeMap<List<KnownGene>> treeMap = new IntervalTreeMap<>();
+			BufferedReader in=null;
+			try {
+				in = IOUtils.openURIForBufferedReading(uri);
+				String line;
+				final Pattern tab = Pattern.compile("[\t]");
+				while ((line = in.readLine()) != null) {
+					if (line.isEmpty())
+						continue;
+					final String tokens[] = tab.split(line);
+					final KnownGene g = new KnownGene(tokens);
+					if(filterOrNull!=null && !filterOrNull.test(g)) continue;
+					final Interval interval = new Interval(g.getContig(),g.getTxStart()+1,g.getTxEnd(),g.isNegativeStrand(),g.getName());
+					List<KnownGene> L=  treeMap.get(interval);
+					if(L==null) {
+						L=new ArrayList<>(2);
+						treeMap.put(interval, L);
+						}
+					
+					L.add(g);
+				}
+				in.close();
+				in = null;
+				return treeMap;
+				}
+			finally {
+				CloserUtil.close(in);
+				}
+			}
 	}

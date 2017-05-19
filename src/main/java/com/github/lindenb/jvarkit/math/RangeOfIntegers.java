@@ -87,7 +87,7 @@ private static class RangeImpl implements Range
 			}
 		
 		return "[" + 
-				(minIncl==null?"-Inf":String.valueOf(this.minIncl))+ " / "+ 
+				(minIncl==null?"-Inf":String.valueOf(this.minIncl))+ "/"+ 
 				(maxExcl==null?"Inf":String.valueOf(this.maxExcl)) +
 				"[";
 		}

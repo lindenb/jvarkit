@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -159,6 +160,12 @@ public class Pedigree
 		public Person getFather();
 		public boolean hasMother();
 		public Person getMother();
+		/** returns true if father or mother is present in pedigree */
+		public default boolean hasAtLeastOneParent()
+			{
+			return hasFather() || hasMother();
+			}
+		
 		/** returns the father id or null if there is no father */
 		public default String getFatherId() { 
 			final Person p = getFather();
@@ -337,6 +344,8 @@ public class Pedigree
 			}
 		}
 	
+	
+	
 	private Pedigree()
 		{
 		
@@ -349,6 +358,21 @@ public class Pedigree
 	public boolean isEmpty() {
 		return this.families.isEmpty();
 	}
+	
+	/** returns true if this pedigree has at least one trio (  children has at leat one parent in the pedigree)*/
+	public boolean hasTrios()
+		{
+		return this.getPersons().stream().
+				anyMatch(P->P.hasFather() || P.hasMother());
+				
+		}
+	/** return a list of Children in trio is this pedigree . children has at leat one parent in the pedigree*/
+	public List<Person> getChildrenInTrios()
+		{
+		return this.getPersons().stream().
+				filter(P->P.hasFather() || P.hasMother()).
+				collect(Collectors.toList());
+		}
 	
 	/** utility function for vcf, returns true if all person's ID in the pedigree
 	 * are unique (no same ID shared by two families 

@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
@@ -176,9 +177,12 @@ public boolean isMendelianIncompatibility(final Genotype child,final Genotype pa
 	
 	return true;
 	}
+
+
+
 public boolean isMendelianIncompatibility(final Genotype child,final Genotype father,final Genotype mother)
 	{
-	if(child==null || child.isNoCall()) return false;
+	if(child==null || child.isNoCall() || (father==null && mother==null)) return false;
 	if(father==null || father.isNoCall()) {
 		return this.isMendelianIncompatibility(child,mother);
 		}
@@ -198,6 +202,16 @@ public boolean isMendelianIncompatibility(final Genotype child,final Genotype fa
 	}
 	
 	return true;
+	}
+/** return true if there is a mendelian problem with the children */
+public boolean isMendelianIncompatibility(final VariantContext ctx,final Pedigree.Person child)
+	{
+	final Genotype gc= ctx.getGenotype(child.getId());
+	if(gc==null) return false;
+	final Genotype gf= child.hasFather()?ctx.getGenotype(child.getFatherId()):null;
+	final Genotype gm= child.hasMother()?ctx.getGenotype(child.getMotherId()):null;
+	if(gf==null && gm == null) return false;
+	return isMendelianIncompatibility(gc,gf,gm);
 	}
 
 }
