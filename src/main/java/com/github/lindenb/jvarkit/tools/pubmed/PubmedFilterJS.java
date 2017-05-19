@@ -61,15 +61,85 @@ import javax.xml.bind.Unmarshaller;
 
 
 /**
- * PubmedFilterJS
- *
+
+## Example
+
+<blockquote class="twitter-tweet" lang="en"><p>Same first and last author. Did you see this before? (via <a href="https://twitter.com/joedunckley">@joedunckley</a>) <a href="http://t.co/D0CEqC8UOu">http://t.co/D0CEqC8UOu</a></p>&mdash; Nicolas Robine (@notSoJunkDNA) <a href="https://twitter.com/notSoJunkDNA/statuses/506169374953447424">August 31, 2014</a></blockquote>
+<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+The javascript file:
+
+```javascript
+function getNamePart(author,type)
+	{
+	var L= author.lastNameOrForeNameOrInitialsOrSuffixOrCollectiveName;
+	for(var i=0;i< L.size();++i)
+		{
+		if(L.get(i).getClass().getSimpleName().equals(type))
+			{
+			return L.get(i).value;
+			}
+		}
+	return "";
+	}
+
+function lastName(author)
+	{
+	return getNamePart(author,"LastName");
+	}
+function foreName(author)
+	{
+	return getNamePart(author,"ForeName");
+	}
+
+
+function accept(article)
+	{
+	var authorList= article.medlineCitation.article.authorList;
+	if(! authorList ) return false;
+	var authors =authorList.author;
+	if(!authors || authors.size()<3) return false;
+	var first= authors.get(0);
+	var last= authors.get( authors.size()-1);
+
+	return  lastName(first).equals(lastName(last)) && 
+		foreName(first).equals(foreName(last)) && 
+		lastName(first).length() >0 &&
+		foreName(first).length() >0 
+		;
+	}
+
+
+accept(article);
+```
+
+
+```bash
+java -jar dist/pubmeddump.jar '"Neuro Oncol"[TA]' |\
+java -jar dist/pubmedfilterjs.jar -f authors.js |\
+xmllint  --format -  | grep PMID
+
+      <PMID Version="1">25165367</PMID>
+      <PMID Version="1">25165328</PMID>
+      <PMID Version="1">25165312</PMID>
+      <PMID Version="1">25165305</PMID>
+      <PMID Version="1">25165259</PMID>
+      <PMID Version="1">25165229</PMID>
+      <PMID Version="1">25165197</PMID>
+```
+
+
+
+
  */
-@Program(name="pubmedfilterjs",description="Filters Pubmed XML with a javascript  (java rhino) expression. Context contain 'article' a  PubmedBookArticle or a PubmedArticle and 'index', the index in the XML file.")
+@Program(name="pubmedfilterjs",
+description="Filters Pubmed XML with a javascript  (java rhino) expression. Context contain 'article' a  PubmedBookArticle or a PubmedArticle and 'index', the index in the XML file.",
+keywords={"pubmed","javascript","xml","ncbi"})
 public class PubmedFilterJS
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(PubmedFilterJS.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
 
 	@Parameter(names={"-f","--scriptfile"},description="Javascript file")

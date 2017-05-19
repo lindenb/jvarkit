@@ -88,7 +88,9 @@ tmpOTHER.vcf.gz
 END_DOC
  
  */
-@Program(name="splitvcf",description="split a vcf...",keywords={"vcf"})
+@Program(name="splitvcf",
+description="split a vcf...",
+keywords={"vcf"})
 public class SplitVcf
 	extends Launcher
 	{

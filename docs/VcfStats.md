@@ -20,7 +20,8 @@ Usage: vcfstats [options] Files
       treat no call as HomRef
       Default: false
   * -o, --output
-      output Directory or zip file
+      output Directory or zip file. The output contains the data files as well 
+      as a Makefile to convert the data files to graphics using gnuplot.
     -ped, --pedigree
       A pedigree is a text file delimited with tabs. No header. Columns are 
       (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
@@ -57,7 +58,7 @@ Usage: vcfstats [options] Files
     --trancheIndelSize
       tranches for the Indel size A range of is a list of integers is 
       ascending order separated with semicolons.
-      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, [6/8[, 8, 9, [10/15[, [15/20[, [20/Inf[]
+      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/15[, [15/20[, [20/Inf[]
     --vckey
       Variant Context Key. if defined, I will look at this key in the INFO 
       column and produce a CASE/CTRL graf for each item. If undefined, I will 
@@ -181,73 +182,86 @@ cat input.vcf |\
 $ java -jar $< -o tmp --soterms SO:0001818 --soterms SO:0001819 -K ucsc/hg19/database/knownGene_noPrefix.txt.gz input.vcf
 $ (cd tmp && make) 
 $ ls tmp/
-ALL.affectedSamples.png         ALL.countDistances.png  ALL.geneLoc.png  ALL.predictionsBySample.png  ALL.sample2gtype.png  ALL.variant2type.png
-ALL.affectedSamples.tsv         ALL.countDistances.tsv  ALL.geneLoc.tsv  ALL.predictionsBySample.tsv  ALL.sample2gtype.tsv  ALL.variant2type.tsv
-ALL.countDistancesBySample.png  ALL.countIndelSize.png  ALL.maf.png      ALL.predictions.png          ALL.transvers.png     Makefile
-ALL.countDistancesBySample.tsv  ALL.countIndelSize.tsv  ALL.maf.tsv      ALL.predictions.tsv          ALL.transvers.tsv
+ALL.affectedSamples.png     ALL.countDepthBySample.tsv      ALL.countDistances.png  ALL.geneLoc.tsv  ALL.predictionsBySample.png  ALL.sample2gtype.tsv  Makefile
+ALL.affectedSamples.tsv     ALL.countDepth.png              ALL.countDistances.tsv  ALL.maf.png      ALL.predictionsBySample.tsv  ALL.transvers.png
+ALL.countAltAlleles.png     ALL.countDepth.tsv              ALL.countIndelSize.png  ALL.maf.tsv      ALL.predictions.png          ALL.transvers.tsv
+ALL.countAltAlleles.tsv     ALL.countDistancesBySample.png  ALL.countIndelSize.tsv  ALL.mendel.png   ALL.predictions.tsv          ALL.variant2type.png
+ALL.countDepthBySample.png  ALL.countDistancesBySample.tsv  ALL.geneLoc.png         ALL.mendel.tsv   ALL.sample2gtype.png         ALL.variant2type.tsv
 
+$ head -n3 tmp/*.tsv
 ==> tmp/ALL.affectedSamples.tsv <==
-1/532	56
-2/532	4
-[10/20[/532	1
-[100/Inf[/532	1
+1/57	182265
+2/57	98512
+3/57	67449
+
+==> tmp/ALL.countAltAlleles.tsv <==
+2	11699
+3	2406
+4	679
+
+==> tmp/ALL.countDepthBySample.tsv <==
+Sample	[-Inf/0[	[0/10[	[10/20[	[20/30[	[30/50[	[50/100[	[100/200[	[200/Inf[
+10_T1245	0	305229	97739	61972	75791	72779	14008	686
+11AG09	0	400147	62261	39411	55254	86883	86192	46749
+
+==> tmp/ALL.countDepth.tsv <==
+[0/10[	19435
+[10/20[	95369
+[20/30[	92378
 
 ==> tmp/ALL.countDistancesBySample.tsv <==
 Sample	[-Inf/0[	0	1	2	3	4	5	6	7	8	9	[10/20[	[20/100[	[100/200[	[200/300[	[300/400[	[400/500[	[500/1000[	[1000/Inf[
-B00GWF0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1
-B00GWFL	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1
-B00GWFO	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1
-B00GWFS	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1
+S1	0	0	2643	1755	1491	1430	1156	1106	893	858	867	6826	26696	18252	12411	9348	7270	20975	85769
+S2	0	0	3632	2397	1967	1855	1516	1425	1246	1179	1109	8917	36006	25455	18652	14951	11912	37828	103341
 
 ==> tmp/ALL.countDistances.tsv <==
-1	1
-2	1
-3	1
-6	1
-9	1
+1	16275
+2	11184
+3	8505
 
 ==> tmp/ALL.countIndelSize.tsv <==
-2	4
-4	2
+2	59420
+3	22727
+4	10216
 
 ==> tmp/ALL.geneLoc.tsv <==
-first_exon	4
-internal_exon	46
-last_exon	9
+first_exon	51180
+internal_exon	70074
+last_exon	75341
 
 ==> tmp/ALL.maf.tsv <==
-0.006097560975609756	0.014705882352941176
-0.001524390243902439	0.0
-0.001524390243902439	0.0
-0.001524390243902439	0.0
-0.001524390243902439	0.0
+0.029411764705882353	0.027777777777777776
+0.5	0.43333333333333335
+0.05263157894736842	0.0
+
+==> tmp/ALL.mendel.tsv <==
+Sample	synonymous_variant	protein_altering_variant
+10_T1245	0	0
+11AG09	170	298
 
 ==> tmp/ALL.predictionsBySample.tsv <==
 Sample	synonymous_variant	protein_altering_variant
-B00GWE0	0	1
-B00GWE1	0	1
-B00GWE2	0	1
-B00GWE4	0	1
+S1	13453	14527
+S2	12820	14077
 
 ==> tmp/ALL.predictions.tsv <==
-protein_altering_variant	59
+protein_altering_variant	59516
+synonymous_variant	47454
 
 ==> tmp/ALL.sample2gtype.tsv <==
 Sample	NO_CALL	HOM_REF	HET	HOM_VAR	UNAVAILABLE	MIXED
-B00GWDY	0	62	0	0	0	0
-B00GWDZ	0	62	0	0	0	0
-B00GWE0	0	61	1	0	0	0
-B00GWE1	0	61	1	0	0	0
+S1	345776	429002	98825	100945	0	0
+S2	196925	504211	132576	140836	0	0
 
 ==> tmp/ALL.transvers.tsv <==
 TYPE	TRANSITION	TRANSVERSION
-ALL	44	9
-CDS	44	9
+ALL	581537	133472
+CDS	533340	120720
 
 ==> tmp/ALL.variant2type.tsv <==
 Type	Count
-INDEL	6
-SNP	56
+INDEL	126219
+SNP	846677
 
 ```
 

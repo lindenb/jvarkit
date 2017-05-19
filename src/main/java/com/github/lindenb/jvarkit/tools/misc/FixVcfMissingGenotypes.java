@@ -135,10 +135,7 @@ BEGIN_DOC
 
 
 
-
-
 ### Example
-
 
 
 
@@ -153,7 +150,6 @@ $  java -jar dist/fixvcfmissinggenotypes.jar -f bams.list < merged.vcf > out.vcf
 
 
 
-
 ```
 
 $ find DIR1 -name "PREFIX_*_variations.gatk.annotations.vcf.gz" |\
@@ -163,19 +159,6 @@ java -jar dist/fixvcfmissinggenotypes.jar -d 10 -f <( find DIR1 -name "PREFIX_*f
 gzip --best > out.vcf.gz
 
 ```
-
-
-
-
-
-### See also
-
-
-
- *  https://www.biostars.org/p/119007/
-
-
-
 
 ### History
 
@@ -191,7 +174,11 @@ END_DOC
 */
 
 
-@Program(name="fixvcfmissinggenotypes",description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.")
+@Program(name="fixvcfmissinggenotypes",
+description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.",
+biostars=119007,
+keywords={"sam","bam","vcf"}
+)
 
 public class FixVcfMissingGenotypes extends Launcher
 	{

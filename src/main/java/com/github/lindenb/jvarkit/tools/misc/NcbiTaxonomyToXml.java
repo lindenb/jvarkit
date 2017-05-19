@@ -126,13 +126,14 @@ END_DOC
 
 @Program(name="ncbitaxonomy2xml",
 	description="Dump NCBI taxonomy tree as a hierarchical XML document",
-	keywords={"taxonomy","ncbi","xml"}
+	keywords={"taxonomy","ncbi","xml"},
+	biostars=10327
 	)
 public class NcbiTaxonomyToXml extends Launcher
 	{
 	private static final Logger LOG = Logger.build(NcbiTaxonomyToXml.class).make();
 	
-	@Parameter(names={"-o","--out"},description="Output file or stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-r","--root"},description="NCBI taxon root id.")
 	private int root_id=1;

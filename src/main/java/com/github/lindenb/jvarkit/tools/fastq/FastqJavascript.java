@@ -73,6 +73,36 @@ import htsjdk.samtools.util.CloserUtil;
 The script puts 'rec' a FastqRecord, or 'pair' for an interleaved input, into the script context 
 
 
+
+## Example
+
+Find pairs of fastq where both reads contains a **PmeI** restriction site ( `GTTT/AAAC` )
+
+```bash
+$ paste <(gunzip -c F.fastq.gz | paste - - - -)  <(gunzip -c R.fastq.gz | paste - - - -) |\
+  tr "\t" "\n" |\
+  java -jar dist/fastqjs.jar -i -e 'pair.get(0).getReadString().contains("GTTTAAAC") && pair.get(1).getReadString().contains("GTTTAAAC") '
+
+@HWI-1KL149:13:C0RNFACXX:8:1309:5373:60519 1:N:0:CTTGTA
+TTCCAAAAATGTTTAAACTTTACAAATTTTCTTTCTGCAAAGGATATTTAAAACTTTGTCAAGACAAATATAAAAGTCTGTTCTTTTCATTAGTCTCTATA
++
+CCCFFFFFHHHHHJJJJJJJJJBHIIJJJJJJJJJJIJIJJJJJJJJJJJJJJJJJJJJJJJIJJJJJJJJIJJIFEHIJHIJHHHHHHHFFFFFFFEEDE
+@HWI-1KL149:13:C0RNFACXX:8:1309:5373:60519 2:N:0:CTTGTA
+ACGCTTGATATTTGGTTTAAACATTTCTTGATTCAGAGAAGGTAGATGGTTATAGAGACTAATGAAAAGAACAGACTTTTATATTTGTCTTGACAAAGTTT
++
+CCCFFFFFHHHHHJIIIJJIJJJJJIJJJJEHIJJJGIIIJJ?FHGIGIDDFHJJJJJJJIIJJIJJJJJJJJJIJHHHHHHHFFFFFFFEEEEEEDDDDC
+@HWI-1KL149:13:C0RNFACXX:8:1309:6861:76085 1:N:0:CTTGTA
+ACAGTATATCTATGTGAAAGTTAAAAAGAAATCGCTGTTTAGATGGAAGATGAGACCAGGTTATCATAGTTTTAGAAGAGGAGTTTAAACTTCATGCAGTG
++
+CCCFDFFFHHHHHJIJJJJJIIJJJJJJJJJJJJJJJIJJJJIJJJJJJJJIIJJJJJJJFHIJJJJJJHIIJIJJHHHHHFFFFEEEEEEEDDEDDDDDD
+@HWI-1KL149:13:C0RNFACXX:8:1309:6861:76085 2:N:0:CTTGTA
+GGGTAGTCCACAAACAATGTGTTCATGTTGTCTCCCTCTTACTCACAAGCCTTCTGTAGCTCCCAACATTCACTGCATGAAGTTTAAACTCCTCTTCTAAA
++
+@CCDDDFFHHHHHJJIJJJIJJJJJJJJJJIJJJJJJJJJJJJJJJJJJJGIIJIJIIJJJJJJJJJIJJJIJJHHHHHHFFFFFFCEEEEEEDDDDDDED
+
+```
+
+
 END_DOC
 	*/
 
@@ -86,9 +116,8 @@ public class FastqJavascript
 	private static final Logger LOG = Logger.build(FastqJavascript.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 
 	@Parameter(names={"-N","--limit"},description="limit to 'N' records -1:all")
 	private long LIMIT = -1L ;
@@ -362,7 +391,8 @@ public class FastqJavascript
 	public int doWork(List<String> args) {
 		if( (this.R1FileOut==null && this.R2FileOut!=null) ||
 			(this.R1FileOut!=null && this.R2FileOut==null)) {
-			return wrapException("Option OPTION_R1FILEOUT  / OPTION_R2FILEOUT must be both defined");
+			LOG.error("Option OPTION_R1FILEOUT  / OPTION_R2FILEOUT must be both defined");
+			return -1;
 		}
 		
 		try
@@ -395,13 +425,15 @@ public class FastqJavascript
 				}
 			else
 				{
-				return wrapException("Illegal number of arguments");
+				LOG.error("Illegal number of arguments");
+				return -1;
 				}
 			return RETURN_OK;
 			}
 		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

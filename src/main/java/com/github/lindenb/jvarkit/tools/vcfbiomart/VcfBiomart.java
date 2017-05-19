@@ -170,7 +170,7 @@ END_DOC
 public class VcfBiomart extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfBiomart.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	private List<Element> attributes=new ArrayList<Element>();

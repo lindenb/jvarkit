@@ -95,6 +95,28 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+/**
+BEGIN_DOC
+
+Variant in that VCF should have one and **only one** ALT allele. Use [https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele](https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele) if needed.
+
+### Output
+
+
+#### INFO column
+
+  * **BurdenMAFCas** : MAF cases
+  * **BurdenMAFControls** : MAF controls
+
+#### FILTER column
+
+  * **BurdenMAFCas** : MAF for cases  doesn't meet  user's requirements
+  * **BurdenMAFControls** : MAF for controls  doesn't meet  user's requirements
+  * **BurdenMAFCaseOrControls** : MAF for controls or cases  doesn't meet  user's requirements
+
+END_DOC
+
+*/
 @Program(name="vcfburdenmaf",
 	description="Burden : MAF for Cases / Controls ",
 	keywords={"vcf","burden","maf","case","control"}

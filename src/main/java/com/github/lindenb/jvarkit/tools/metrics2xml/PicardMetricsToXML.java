@@ -52,13 +52,81 @@ import htsjdk.samtools.metrics.MetricBase;
 import htsjdk.samtools.metrics.MetricsFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Histogram;
+/**
+## Example  
 
+beware the **Locale**: For example I generated the file using a french Locale. I had to transform the comma to dot.
+
+```bash
+$ cat jeter.metrics |\
+   tr "," "." |\
+   java -jar dist/metrics2xml.jar |\
+   xsltproc ./src/main/resources/xsl/picardmetrics2html.xsl - 
+
+<html xmlns:p="http://picard.sourceforge.net/">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<script type="text/javascript" src="https://www.google.com/jsapi"></script><scri
+ google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChartidp24896);
+      function drawChartidp24896() {
+        var dataidp24896 = google.visualization.arrayToDataTable([
+          ['insert_size','All_Reads.fr_count','All_Reads.rf_count'],[2,3979.0,38
+        ]);
+
+        var optidp24896 = {
+          title: 'stdin'
+        };
+
+        var chartidp24896 = new google.visualization.LineChart(document.getEleme
+        chartidp24896.draw(dataidp24896, optidp24896);
+        }
+</script>
+</head>
+<body><div>
+<h1>stdin</h1>
+<h2>Headers</h2>
+<dl>
+<dt>net.sf.picard.metrics.StringHeader</dt>
+<dd>net.sf.picard.analysis.CollectMultipleMetrics INPUT=../align/sorted.bam REFE
+<dt>net.sf.picard.metrics.StringHeader</dt>
+<dd>Started on: Tue Nov 19 11:31:58 CET 2013</dd>
+</dl>
+<h2>net.sf.picard.analysis.InsertSizeMetrics</h2>
+<table border="1">
+<thead>
+<th>MEDIAN_INSERT_SIZE</th>
+<th>MEDIAN_ABSOLUTE_DEVIATION</th>
+<th>MIN_INSERT_SIZE</th>
+<th>MAX_INSERT_SIZE</th>
+<th>MEAN_INSERT_SIZE</th>
+<th>STANDARD_DEVIATION</th>
+<th>READ_PAIRS</th>
+<th>PAIR_ORIENTATION</th>
+<th>WIDTH_OF_10_PERCENT</th>
+<th>WIDTH_OF_20_PERCENT</th>
+<th>WIDTH_OF_30_PERCENT</th>
+<th>WIDTH_OF_40_PERCENT</th>
+<th>WIDTH_OF_50_PERCENT</th>
+<th>WIDTH_OF_60_PERCENT</th>
+<th>WIDTH_OF_70_PERCENT</th>
+<th>WIDTH_OF_80_PERCENT</th>
+<th>WIDTH_OF_90_PERCENT</th>
+<th>WIDTH_OF_99_PERCENT</th>
+(...)
+```
+
+### An XML-to-HTML example
+
+![https://jvarkit.googlecode.com/svn/wiki/picardmetrics01.jpg](https://jvarkit.googlecode.com/svn/wiki/picardmetrics01.jpg)
+
+ */
 @Program(name="picardmetrics2xml",description="transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html")
 public class PicardMetricsToXML
 	extends Launcher
 	{
 	private static final Logger LOG=Logger.build(PicardMetricsToXML.class).make();
-	@Parameter(names={"-o","--out"},description="Output or stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output=null;
 	@Parameter(names="-s",description="print sum")
 	private boolean print_sums=false;
