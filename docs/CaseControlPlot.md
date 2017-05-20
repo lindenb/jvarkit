@@ -6,6 +6,8 @@
 ```
 Usage: casecontrolplot [options] Files
   Options:
+  * -c, --config
+      XML config file
     -format, --format
       How to print doubles, printf-life precision format
       Default: %.5f
@@ -104,6 +106,16 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## The XML config
+
+```xml
+
+```
+
+## Example
+
 
 
 
