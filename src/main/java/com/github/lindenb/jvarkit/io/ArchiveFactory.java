@@ -168,7 +168,7 @@ public abstract class ArchiveFactory
 	private static class FileInstance
 	extends ArchiveFactory
 		{
-		private File baseDir;
+		private final File baseDir;
 		
 		FileInstance(final File baseDir) throws IOException
 			{

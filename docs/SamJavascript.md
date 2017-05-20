@@ -18,7 +18,7 @@ Usage: samjs [options] Files
     -h, --help
       print help and exit
     -N, --limit
-      limit to 'N' records.
+      limit to 'N' records (for debugging).
       Default: -1
     -o, --output
       Output file. Optional . Default: stdout
@@ -33,7 +33,7 @@ Usage: samjs [options] Files
 
 ## Description
 
-Filters a BAM using javascript ( java nashorn engine  ).
+Filters a BAM using a javascript expression ( java nashorn engine  ).
 
 
 ## Keywords
@@ -54,6 +54,7 @@ Filters a BAM using javascript ( java nashorn engine  ).
  * [https://www.biostars.org/p/103052](https://www.biostars.org/p/103052)
  * [https://www.biostars.org/p/106900](https://www.biostars.org/p/106900)
  * [https://www.biostars.org/p/150530](https://www.biostars.org/p/150530)
+ * [https://www.biostars.org/p/253774](https://www.biostars.org/p/253774)
 
 
 ## Compilation
@@ -116,10 +117,16 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 
 ## Motivation
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+Filters a BAM using javascript( java nashorn engine).
 
+For eacg read the script injects in the context the following values:
+
+
+* **'record'** a SamRecord  [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)
+* **'header'** a SAMFileHeader  [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html)
+
+
+the script should return a boolean : true accept the read, false: discard the read.
 
 ## Example
 
