@@ -335,6 +335,6 @@ public class Biostar78400 extends Launcher
 	
 	public static void main(String[] args)throws Exception
 		{
-		new Biostar78400().instanceMain(args);
+		new Biostar78400().instanceMainWithExit(args);
 		}
 	}

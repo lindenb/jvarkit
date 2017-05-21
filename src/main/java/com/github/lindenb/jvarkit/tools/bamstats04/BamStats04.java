@@ -50,6 +50,7 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
@@ -119,6 +120,13 @@ public class BamStats04 extends Launcher
 				
 				bedIn=IOUtils.openFileForBufferedReading(this.bedFile);
 				samReader = super.openSamReader(oneFileOrNull(args));
+				final SAMSequenceDictionary dict = samReader.getFileHeader().getSequenceDictionary();
+					if(dict==null) {
+					LOG.error("SAM sequence dictionary missing ");
+					return -1;
+					}
+				
+				
 				if(this.faidxFile!=null) {
 					indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidxFile);
 				}
@@ -134,6 +142,12 @@ public class BamStats04 extends Launcher
 					if(line.isEmpty() || line.startsWith("#")) continue;
 					final BedLine bedLine = codec.decode(line);
 					if(bedLine==null) continue;
+					if(dict.getSequence(bedLine.getContig())==null)
+						{
+						LOG.error("Unknown contig in "+line);
+						return -1;
+						}
+					
 					if(indexedFastaSequenceFile!=null && (genomicSequence==null || !genomicSequence.getChrom().equals(bedLine.getContig()))) {
 						genomicSequence = new GenomicSequence(indexedFastaSequenceFile, bedLine.getContig());
 						}
@@ -144,6 +158,7 @@ public class BamStats04 extends Launcher
 					final int counts[]=new int[bedLine.getEnd()-bedLine.getStart()+1];
 					if(counts.length==0) continue;
 					Arrays.fill(counts, 0);
+					
 					
 					/**
 					 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
@@ -242,12 +257,9 @@ public class BamStats04 extends Launcher
 			}
 		}
 	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) throws Exception
+	public static void main(final String[] args) throws Exception
 		{
-		new BamStats04().instanceMain(args);
+		new BamStats04().instanceMainWithExit(args);
 		}
 
 }

@@ -1546,6 +1546,6 @@ public class Vcf2Xml extends Launcher
 	
 	public static void main(final String[] args)
 		{
-		new Vcf2Xml().instanceMain(args);
+		new Vcf2Xml().instanceMainWithExit(args);
 		}
 }

@@ -437,7 +437,7 @@ public class PcrSliceReads extends Launcher
 
 	
 	public static void main(String[] args) {
-		new PcrSliceReads().instanceMain(args);
+		new PcrSliceReads().instanceMainWithExit(args);
 		}
 
 }

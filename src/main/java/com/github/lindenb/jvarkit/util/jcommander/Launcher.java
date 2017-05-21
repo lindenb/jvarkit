@@ -1004,7 +1004,7 @@ public int doWork(final List<String> args)
 	return -1;
 	}
 public int instanceMain(final String args[]) {
-	int ret=0;
+	int ret=RETURN_OK;
 	try 
 		{
 		final Status status = parseArgs(args);
@@ -1019,8 +1019,8 @@ public int instanceMain(final String args[]) {
 		
 		try 
 			{
-			ret=initialize();
-			if(ret!=0) return ret;
+			ret = initialize();
+			if(ret!=RETURN_OK) return ret;
 			}
 		catch(final Throwable err)
 			{
@@ -1030,7 +1030,7 @@ public int instanceMain(final String args[]) {
 		try 
 			{
 			ret=doWork(getFilenames());
-			if(ret!=0) return ret;
+			if(ret!=RETURN_OK) return ret;
 			}
 		catch(final Throwable err)
 			{
@@ -1215,7 +1215,12 @@ protected String getMessageBundle(final String s){
 	}
 
 public void instanceMainWithExit( final String args[]) {
-	System.exit( instanceMain(args) );
+	final int ret = instanceMain(args);
+
+	if(ret!=RETURN_OK) {
+		LOG.info(getProgramName()+" Exited with failure ("+ret+")");
+		}
+	System.exit( ret );
 	}
 
 /** check we're running under webstart http://stackoverflow.com/questions/216315*/

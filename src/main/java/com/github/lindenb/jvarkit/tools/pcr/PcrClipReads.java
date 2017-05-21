@@ -415,7 +415,7 @@ public class PcrClipReads extends Launcher
 
 	
 	public static void main(String[] args) {
-		new PcrClipReads().instanceMain(args);
+		new PcrClipReads().instanceMainWithExit(args);
 		}
 
 }

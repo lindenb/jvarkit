@@ -396,6 +396,6 @@ public class Gtf2Xml extends Launcher{
 	
 	public static void main(String[] args) throws IOException
 		{
-		new Gtf2Xml().instanceMain(args);
+		new Gtf2Xml().instanceMainWithExit(args);
 		}
 }

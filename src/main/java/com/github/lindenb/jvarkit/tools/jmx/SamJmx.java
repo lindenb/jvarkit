@@ -156,7 +156,7 @@ public class SamJmx extends Launcher
 	
 	public static void main(String[] args) throws IOException
 		{
-		new SamJmx().instanceMain(args);
+		new SamJmx().instanceMainWithExit(args);
 		}
 
 }

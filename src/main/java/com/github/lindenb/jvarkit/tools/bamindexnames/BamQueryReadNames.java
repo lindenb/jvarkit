@@ -312,6 +312,6 @@ public class BamQueryReadNames extends BaseBamIndexReadNames
 		}
 	public static void main(String[] args)
 		{
-		new BamQueryReadNames().instanceMain(args);
+		new BamQueryReadNames().instanceMainWithExit(args);
 		}
 }

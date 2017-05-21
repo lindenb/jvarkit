@@ -230,6 +230,6 @@ public class Biostar76892 extends Launcher
 	
 	public static void main(String[] args)throws Exception
 		{
-		new Biostar76892().instanceMain(args);
+		new Biostar76892().instanceMainWithExit(args);
 		}
 	}

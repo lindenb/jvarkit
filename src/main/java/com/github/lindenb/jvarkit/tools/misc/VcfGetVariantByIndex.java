@@ -315,6 +315,6 @@ public class VcfGetVariantByIndex extends Launcher
 	
 	public static void main(String[] args) throws IOException
 		{
-		new VcfGetVariantByIndex().instanceMain(args);
+		new VcfGetVariantByIndex().instanceMainWithExit(args);
 		}
 	}
