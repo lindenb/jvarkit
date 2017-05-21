@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import com.github.lindenb.jvarkit.annotproc.IncludeSourceInJar;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -53,6 +54,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /** bean to be injected in various contexts like javascript context, etc... */
+@IncludeSourceInJar
 public class VcfTools {
 public static final Logger LOG = Logger.build(VcfTools.class).make();
 

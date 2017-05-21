@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.util.jcommander;
 
@@ -109,7 +105,6 @@ public static  class UsageBuider
 	public boolean print_help = false;
 	@Parameter(names = {"--markdownhelp"},description="print Markdown help and exit", help = true,hidden=true)
 	public boolean print_markdown_help = false;
-
 	@Parameter(names = {"--version"}, help = true,description="print version and exit")
 	public boolean print_version = false;
 
@@ -136,9 +131,69 @@ public static  class UsageBuider
 		return "["+url+"]("+url+")";
 		}
 	
+	private void include(final StringBuilder sb,String className) {
+	InputStream in=null;
+	try {
+		int dollar=className.indexOf('$');
+		if(dollar!=-1) className=className.substring(0, dollar);
+		className=className.replace('.', '/')+".java";
+		in=getMainClass().getResourceAsStream("/"+className);
+		if(in!=null){
+			BufferedReader r=new BufferedReader(new InputStreamReader(in));
+			String line;
+			boolean ok=false;
+			while((line=r.readLine())!=null)
+				{
+				if(line.contains("BEGIN"+"_DOC"))
+					{
+					ok=true;
+					}
+				else if(line.contains("END"+"_DOC"))
+					{
+					if(!ok) LOG.warn("END_"+"DOC without BEGIN");
+					ok=false;
+					}
+				else if(ok)
+					{
+					if(line.trim().startsWith("@@INCLUDE"))
+						{
+						int n=line.indexOf(" ");
+						if(n==-1)  n=line.indexOf("\t");
+						if(n==-1)  n=line.indexOf("=");
+						if(n!=-1) {
+							line=line.substring(n+1).trim();
+							if(!line.isEmpty())
+								{
+								include(sb, line);
+								}
+							}
+						}
+					else
+						{
+						sb.append(line).append("\n");
+						}
+					}
+				}
+			r.close();
+			if(ok) LOG.warn("BEGIN_"+"DOC without END");
+			}
+		else
+			{
+			LOG.debug("cannot find java code for "+className);
+			}
+		}
+	catch(final Exception err) {
+		
+		}
+	finally
+		{
+		CloserUtil.close(in);
+		}
+	}
+	
 	public void usage(final JCommander jc,final StringBuilder sb) {
 
-		final Class<?> clazz=getMainClass();
+		final Class<?> clazz = getMainClass();
 		
 		final Program programdesc = clazz.getAnnotation(Program.class);
 		
@@ -235,52 +290,13 @@ public static  class UsageBuider
 			sb.append("\n");
 			sb.append("The current reference is:\n");
 			sb.append("\n");
-			sb.append("http://dx.doi.org/10.6084/m9.figshare.1425030\n");
+			sb.append(hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
 			sb.append("\n");
 			sb.append("> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.\n");
 			sb.append("> "+hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
 			sb.append("\n");
 			}
-		InputStream in=null;
-		try {
-			String className=clazz.getName();
-			int dollar=className.indexOf('$');
-			if(dollar!=-1) className=className.substring(0, dollar);
-			className=className.replace('.', '/')+".java";
-			in=clazz.getResourceAsStream("/"+className);
-			if(in!=null){
-				BufferedReader r=new BufferedReader(new InputStreamReader(in));
-				String line;
-				boolean ok=false;
-				while((line=r.readLine())!=null)
-					{
-					if(line.contains("BEGIN"+"_DOC"))
-						{
-						ok=true;
-						}
-					else if(line.contains("END"+"_DOC"))
-						{
-						ok=false;
-						}
-					else if(ok)
-						{
-						sb.append(line).append("\n");
-						}
-					}
-				r.close();
-				}
-			else
-				{
-				LOG.debug("cannot find java code for "+className);
-				}
-			}
-		catch(final Exception err) {
-			
-			}
-		finally
-			{
-			CloserUtil.close(in);
-			}
+		include(sb,clazz.getName());
 		
 		}
 	
@@ -953,7 +969,7 @@ protected javax.script.CompiledScript compileJavascript(
 	final javax.script.ScriptEngine engine = manager.getEngineByName("js");
 	if(engine==null)
 		{
-		throw new RuntimeException("not available ScriptEngineManager: javascript. Use the SUN/Oracle JDK ?");
+		throw new JvarkitException.JavaScriptEngineNotFound();
 		}
 	final javax.script.Compilable compilingEngine = (javax.script.Compilable)engine;
 	if(jsFile!=null)

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,8 +27,10 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.awt.Insets;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,9 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.semontology.Term;
+
+import htsjdk.samtools.util.CloserUtil;
 
 
 /**
@@ -65,10 +70,11 @@ $ java -jar dist/sam4weblogo.jar IN=in.bam   REGION="1:630-719" |\
 END_DOC
 
 */
-@Program(name=",biostar77288",
+@Program(name="biostar77288",
 	description="Low resolution sequence alignment visualization",
 	biostars=77288,
-	keywords={"bam","sam","visualization","svg"}
+	keywords={"bam","sam","visualization","svg","alignment"},
+	terms=Term.ID_0000015
 	)
 public class Biostar77288 extends Launcher
     {
@@ -80,10 +86,11 @@ public class Biostar77288 extends Launcher
     private int ALN_WIDTH=1000;
 	@Parameter(names="-r",description="Use Rect")
     private boolean use_rect=false;
-    
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
+    private File outputFile = null;
 
    
-    private Map<String,Seq> sequences=new LinkedHashMap<String,Seq>();
+    private final Map<String,Seq> sequences=new LinkedHashMap<String,Seq>();
     private int max_length=0;
     private int max_name=0;
     private int featureHeight=12;
@@ -99,12 +106,12 @@ public class Biostar77288 extends Launcher
     		}
     	}
     
-    private void attr(String name,Object o) throws XMLStreamException
+    private void attr(final String name,final Object o) throws XMLStreamException
     	{
     	w.writeAttribute(name, String.valueOf(o));
     	}
     
-    private double base2pix(int n)
+    private double base2pix(final int n)
         {
         return (n/(double)this.max_length)*this.ALN_WIDTH + max_name*(double)featureHeight;
         }
@@ -173,18 +180,18 @@ public class Biostar77288 extends Launcher
 	    in.close();    
 	    }
     
-    
-    private int run(String IN) throws IOException
-        {
+    @Override
+    public int doWork(final List<String> args) {
+        PrintStream out=null;
         try
             {
         	if(this.SEQLOGO)
         		{
-        		readingSeqLogo(IN);
+        		readingSeqLogo(oneFileOrNull(args));
         		}
         	else
 	        	{
-	        	readingClustal(IN);
+	        	readingClustal(oneFileOrNull(args));
 	        	}
            
             final Insets svgInset=new Insets(10, 10, 10, 10);
@@ -192,8 +199,9 @@ public class Biostar77288 extends Launcher
             
 
             
-            XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-            this.w= xmlfactory.createXMLStreamWriter(stdout(),"UTF-8");
+            final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
+            out = super.openFileOrStdoutAsPrintStream(outputFile);
+            this.w= xmlfactory.createXMLStreamWriter(out,"UTF-8");
             w.writeStartDocument("UTF-8","1.0");
             w.writeStartElement("svg");
             w.writeDefaultNamespace(SVG.NS);
@@ -213,7 +221,7 @@ public class Biostar77288 extends Launcher
             w.writeEndElement();
             
             w.writeCharacters("\n");
-            for(Seq seq:this.sequences.values())
+            for(final Seq seq:this.sequences.values())
                 {
             	y+=rowInset.top;
             	
@@ -290,30 +298,23 @@ public class Biostar77288 extends Launcher
             w.writeEndElement();
             w.writeEndDocument();
             w.close();
+            out.flush();
+            out.close();
+            out=null;
             return 0;
             }
-        catch (Exception err)
+        catch (final Exception err)
             {
         	LOG.error(err);
             return -1;
             }
+        finally {
+			CloserUtil.close(w);
+			CloserUtil.close(out);
+			}
         }
-    
-    
-	
-
-    @Override
-    public int doWork(final List<String> args) {
-		try {
-			return run(oneFileOrNull(args));
-		} catch (IOException e) {
-			LOG.error(e);
-			return -1;
-		}
-		}
-
     
     public static void main(String[] args) {
 		new Biostar77288().instanceMainWithExit(args);
-	}
+		}
     }

@@ -149,7 +149,27 @@ public static class XmlDomError  extends Error
 		this(node2str(node)+" : "+ msg);
 		}
 	}
-
+public static class ScriptingError  extends Error
+	{	
+	public ScriptingError(final String error) {
+		super(error);
+		}
+	public ScriptingError(final Exception error) {
+		super(error);
+		}
+	}
+public static class ScriptEngineNotFound  extends ScriptingError
+	{	
+	public ScriptEngineNotFound(final String engine) {
+		super("ScriptEngineManager for \""+engine+"\". Do you use the SUN/Oracle JDK ?");
+		}
+	}
+public static class JavaScriptEngineNotFound  extends ScriptEngineNotFound
+	{
+	public JavaScriptEngineNotFound() {
+		super("javascript");
+		}
+	}
 
 
 public static class FileFormatError  extends Error

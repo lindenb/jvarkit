@@ -4,10 +4,12 @@
 ## Usage
 
 ```
-Usage: ,biostar77288 [options] Files
+Usage: biostar77288 [options] Files
   Options:
     -h, --help
       print help and exit
+    -o, --out
+      Output file. Optional . Default: stdout
     --version
       print version and exit
     -S
@@ -34,6 +36,7 @@ Low resolution sequence alignment visualization
  * sam
  * visualization
  * svg
+ * alignment
 
 
 
@@ -58,7 +61,7 @@ Low resolution sequence alignment visualization
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make ,biostar77288
+$ make biostar77288
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -90,7 +93,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **,biostar77288** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **biostar77288** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 

@@ -37,14 +37,18 @@ $  echo -e "1\t1000\t20000\n3\t100\t200\nUn\t10\t11"  |\
 
 END_DOC
  */
-@Program(name="biostar105754",description="bigwig : peak distance from specific genomic region",biostars=105754)
+@Program(name="biostar105754",
+	description="bigwig : peak distance from specific genomic region",
+	biostars=105754,
+	keywords={"wig","bigwig"}
+	)
 public class Biostar105754 extends Launcher
 	{
 
 	private static final Logger LOG = Logger.build(Biostar105754.class).make();
 	
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
 	
@@ -198,7 +202,7 @@ public class Biostar105754 extends Launcher
 					this.out.close();
 					return RETURN_OK;
 					}
-				catch(Exception err)
+				catch(final Exception err)
 					{
 					LOG.error(err);
 					return -1;
