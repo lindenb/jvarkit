@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2015 creation copied from http://plindenbaum.blogspot.fr/2010/11/blastxmlannotations.html
 
 */
 package com.github.lindenb.jvarkit.tools.biostar;
@@ -60,12 +56,6 @@ import htsjdk.samtools.util.CloserUtil;
 
 BEGIN_DOC
 
-
-
-
-### See also
-
-https://www.biostars.org/p/172515/	
 
 
 ### Example
@@ -134,17 +124,14 @@ https://www.biostars.org/p/172515/
 </bai-list>
 ```
 
-
-
-
-
 END_DOC
 */
 
 
 @Program(name="biostar172515",
 description="Convert BAI to XML",
-biostars=172515)
+biostars=172515,
+keywords={"bai","bam","xml"})
 public class Biostar172515 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar172515.class).make();
@@ -158,7 +145,7 @@ public class Biostar172515 extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> inputFiles) {
+	public int doWork(final List<String> inputFiles) {
 		final SamReaderFactory samReaderFactory = SamReaderFactory.makeDefault().
 					setOption(SamReaderFactory.Option.CACHE_FILE_BASED_INDEXES, Boolean.TRUE).
 					validationStringency(ValidationStringency.LENIENT);

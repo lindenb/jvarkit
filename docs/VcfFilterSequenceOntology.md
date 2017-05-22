@@ -6,7 +6,7 @@
 ```
 Usage: vcffilterso [options] Files
   Options:
-    -A, --acn
+    -A, --acn, --accession
       add this SO:ACN.
       Default: []
     -f, --acnfile

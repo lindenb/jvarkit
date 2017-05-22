@@ -29,6 +29,13 @@ Usage: vcfcompare [options] Files
 
 Compares two VCF files
 
+
+## Keywords
+
+ * vcf
+ * compare
+
+
 ## Compilation
 
 ### Requirements / Dependencies

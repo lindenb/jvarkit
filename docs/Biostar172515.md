@@ -21,6 +21,14 @@ Usage: biostar172515 [options] Files
 Convert BAI to XML
 
 
+## Keywords
+
+ * bai
+ * bam
+ * xml
+
+
+
 ## See also in Biostars
 
  * [https://www.biostars.org/p/172515](https://www.biostars.org/p/172515)
@@ -84,12 +92,6 @@ http://dx.doi.org/10.6084/m9.figshare.1425030
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-
-
-
-### See also
-
-https://www.biostars.org/p/172515/	
 
 
 ### Example
@@ -157,9 +159,5 @@ https://www.biostars.org/p/172515/
   </bam>
 </bai-list>
 ```
-
-
-
-
 
 

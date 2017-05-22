@@ -33,6 +33,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -48,7 +50,7 @@ import htsjdk.variant.vcf.VCFHeader;
  *
  */
 public class VCFBuffer implements VariantContextWriter{
-private static final org.apache.commons.logging.Log LOG = org.apache.commons.logging.LogFactory.getLog(VCFBuffer.class);
+private static final Logger LOG = Logger.build(VCFBuffer.class).make();
 
 /** vcf header */
 private VCFHeader header=null;

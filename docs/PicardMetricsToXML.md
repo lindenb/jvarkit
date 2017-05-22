@@ -9,7 +9,7 @@ Usage: picardmetrics2xml [options] Files
     -h, --help
       print help and exit
     -o, --out
-      Output or stdout
+      Output file. Optional . Default: stdout
     --version
       print version and exit
     -s

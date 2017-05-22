@@ -29,7 +29,13 @@ Usage: biostar234230 [options] Files
 
 ## Description
 
-Sliding Window : discriminate partial and fully contained fragments (from a bam file)  see https://www.biostars.org/p/234230/
+Sliding Window : discriminate partial and fully contained fragments (from a bam file)
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/234230](https://www.biostars.org/p/234230)
+
 
 ## Compilation
 

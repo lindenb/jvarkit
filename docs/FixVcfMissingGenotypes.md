@@ -27,6 +27,20 @@ Usage: fixvcfmissinggenotypes [options] Files
 
 After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.
 
+
+## Keywords
+
+ * sam
+ * bam
+ * vcf
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/119007](https://www.biostars.org/p/119007)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -141,10 +155,7 @@ gzip --best > out.vcf.gz
 
 
 
-
-
 ### Example
-
 
 
 
@@ -159,7 +170,6 @@ $  java -jar dist/fixvcfmissinggenotypes.jar -f bams.list < merged.vcf > out.vcf
 
 
 
-
 ```
 
 $ find DIR1 -name "PREFIX_*_variations.gatk.annotations.vcf.gz" |\
@@ -169,19 +179,6 @@ java -jar dist/fixvcfmissinggenotypes.jar -d 10 -f <( find DIR1 -name "PREFIX_*f
 gzip --best > out.vcf.gz
 
 ```
-
-
-
-
-
-### See also
-
-
-
- *  https://www.biostars.org/p/119007/
-
-
-
 
 ### History
 

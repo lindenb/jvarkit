@@ -133,3 +133,20 @@ Variant in that VCF should have one and only one ALT allele. Use https://github.
 
 
 
+Variant in that VCF should have one and **only one** ALT allele. Use [https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele](https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele) if needed.
+
+### Output
+
+
+#### INFO column
+
+  * **BurdenMAFCas** : MAF cases
+  * **BurdenMAFControls** : MAF controls
+
+#### FILTER column
+
+  * **BurdenMAFCas** : MAF for cases  doesn't meet  user's requirements
+  * **BurdenMAFControls** : MAF for controls  doesn't meet  user's requirements
+  * **BurdenMAFCaseOrControls** : MAF for controls or cases  doesn't meet  user's requirements
+
+

@@ -501,7 +501,7 @@ public class IOUtils {
 	
 	
 	/** converts a BufferedReader to a line Iterator */
-	public static  LineIterator toLineIterator(BufferedReader r)
+	public static  LineIterator toLineIterator(final BufferedReader r)
 		{
 		return new BuffReadIter(r);
 		}
@@ -552,4 +552,6 @@ public class IOUtils {
 		if(w==null) return;
 		try { w.flush();} catch(Throwable err) {}
 	}
+	
+	
 	}

@@ -11,7 +11,8 @@ Usage: vcfjaspar [options] Files
     -o, --output
       Output file. Optional . Default: stdout
   * -R, -r, --reference
-      Indexed fasta reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
   * -J
@@ -26,6 +27,14 @@ Usage: vcfjaspar [options] Files
 ## Description
 
 Finds JASPAR profiles in VCF
+
+
+## Keywords
+
+ * vcf
+ * matrix
+ * jaspar
+
 
 ## Compilation
 

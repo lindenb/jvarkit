@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.util.log;
 
 import org.slf4j.Logger;
 
+@Deprecated
 public class Logging
 	{
 	public static Logger getLog(Class<?> clazz)

@@ -9,7 +9,7 @@ Usage: ncbitaxonomy2xml [options] Files
     -h, --help
       print help and exit
     -o, --out
-      Output file or stdout
+      Output file. Optional . Default: stdout
     -r, --root
       NCBI taxon root id.
       Default: 1
@@ -29,6 +29,12 @@ Dump NCBI taxonomy tree as a hierarchical XML document
  * taxonomy
  * ncbi
  * xml
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/10327](https://www.biostars.org/p/10327)
 
 
 ## Compilation

@@ -48,6 +48,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.semontology.Term;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -55,7 +56,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
-@Program(name="samshortinvert",description="Scan short inversions in SAM")
+@Program(name="samshortinvert",
+	description="Scan short inversions in SAM",
+	terms=Term.ID_0000023
+	)
 public class SamShortInvertion extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamShortInvertion.class).make();
@@ -71,7 +75,7 @@ public class SamShortInvertion extends Launcher
 	@Parameter(names={"-c","--mincov"},description="min coverage")
 	private int min_coverage = 10 ;
 
-	
+	@SuppressWarnings("unused")
 	private class SamRecordPair
 		{
 		SAMRecord first;
@@ -110,6 +114,7 @@ public class SamShortInvertion extends Launcher
 		private final List<SamReader> samReaders;
 		private final SAMSequenceDictionary dict;
 		private final String sample ;
+		@SuppressWarnings("unused")
 		final File bamFile;
 		SamReaderList(final File bamFile,int n) {
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
@@ -184,6 +189,7 @@ public class SamShortInvertion extends Launcher
 					{
 					if(samReaders.get(i).sample.equals(samReader.sample))
 						{
+						samReader.close();
 						LOG.error("Sample defined in two bams "+samReader.sample);
 						return -1;
 						}
@@ -191,6 +197,7 @@ public class SamShortInvertion extends Launcher
 						dict = samReader.dict;
 					} else if(!SequenceUtil.areSequenceDictionariesEqual(dict, samReader.dict))
 						{
+						samReader.close();
 						LOG.error("bam contains two sequence dict.");
 						return -1;
 						}

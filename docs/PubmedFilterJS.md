@@ -24,6 +24,15 @@ Usage: pubmedfilterjs [options] Files
 
 Filters Pubmed XML with a javascript  (java rhino) expression. Context contain 'article' a  PubmedBookArticle or a PubmedArticle and 'index', the index in the XML file.
 
+
+## Keywords
+
+ * pubmed
+ * javascript
+ * xml
+ * ncbi
+
+
 ## Compilation
 
 ### Requirements / Dependencies
