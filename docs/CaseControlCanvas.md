@@ -1,54 +1,76 @@
-# CaseControlPlot
+# Main
 
 
 ## Usage
 
 ```
-Usage: casecontrolplot [options] Files
+Usage: Main [options] Files
   Options:
-  * -c, --config
-      XML config file
+    --paper, --background
+      background color.  A named color ('red', 'blue'...) use the syntax 
+      'rgb(int,int,int)'. 
+      Default: java.awt.Color[r=255,g=0,b=0]
+    -caseAtt, --caseAttribute
+      Do not calculate MAF for cases, but use this tag to get Controls' MAF. 
+      Notation 'AC/AN' will use two attributes
+    -ctrlAtt, --ctrlAttribute
+      Do not calculate MAF for controls, but use this tag to get Cases' MAF. 
+      Notation 'AC/AN' will use two attributes
+    --pen, --foreground
+      pen color.  A named color ('red', 'blue'...) use the syntax 
+      'rgb(int,int,int)'. 
+      Default: java.awt.Color[r=255,g=200,b=0]
     -format, --format
       How to print doubles, printf-life precision format
       Default: %.5f
     -h, --help
       print help and exit
-  * -o, --out
-      Output Directory, or a filename ending with '.zip'
+    -nchr, --nocallhomref
+      Consider no call as hom-ref
+      Default: false
+    -opacity, --opacity
+      opacity
+      Default: 0.6
+    -o, --out
+      Output file. Optional . Default: stdout
     -ped, --pedigree
       A pedigree is a text file delimited with tabs. No header. Columns are 
       (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
       (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
       affected,-9 unknown  If not defined, I will try to extract the pedigree 
       from the VCFheader.
-    -prefix, --prefix
-      Output files prefix
-      Default: <empty string>
+    --pointshape
+      Point Shape
+      Default: oval
+      Possible Values: [oval, square, cross]
+    --pointsize
+      Size of point
+      Default: 10.0
+    -sexchr, --sexualchromosomes
+      comma separated list of chromosomes that should be considered as sexual 
+      chromosomes/haploids 
+      Default: chrX,chrY,X,Y
     -tee, --tee
-      Output the incoming VCF to stdout. Useful to capture intermediate 
-      results in pipelines.
+      Tee input to stdout, useful in linux pipelines to get intermediary 
+      results. 
       Default: false
+    -txt, --txt, --text, -tsv, --tsv
+      Input is a tab delimited file. containg x=case and y=controls
+      Default: false
+    -title, --title
+      Title
+      Default: <empty string>
     --version
       print version and exit
+    --width
+      Canvas width
+      Default: 600
+    -xyAttribute, --xyAttribute
+      When using 'tee', add this Attribute containing the MAF for case and 
+      control 
+      Default: MAFCASECTRL
 
 ```
-
-
-## Description
-
-Plot CASE/CTRL data from VCF files
-
-
-## Keywords
-
- * maf
- * burden
- * case
- * control
- * plot
- * chart
- * vcf
-
 
 ## Compilation
 
@@ -66,7 +88,7 @@ Plot CASE/CTRL data from VCF files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make casecontrolplot
+$ make software
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -84,8 +106,8 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/CaseControlPlot.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/CaseControlPlot.java
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/CaseControlCanvas$Main.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/CaseControlCanvas$Main.java
 )
 ## Contribute
 
@@ -98,7 +120,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **casecontrolplot** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **software** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -106,15 +128,6 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-
-## The XML config
-
-```xml
-
-```
-
-## Example
 
 
 

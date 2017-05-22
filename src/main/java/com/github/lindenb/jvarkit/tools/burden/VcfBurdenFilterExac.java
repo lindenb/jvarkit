@@ -84,7 +84,8 @@ Variant in that VCF should have one and only one ALT allele. Use https://github.
 
 END_DOC
 */
-@Program(name="vcfburdenexac",description="Burden filter 3 - Exac",
+@Program(name="vcfburdenexac",
+		description="Burden filter 3 - Exac",
 		keywords={"vcf","burden","exac"}
 		)
 public class VcfBurdenFilterExac
@@ -93,9 +94,8 @@ public class VcfBurdenFilterExac
 	private static final Logger LOG = Logger.build(VcfBurdenFilterExac.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 
 	@Parameter(names={"-exac","--exac"},description="Path to Exac VCF file. At the time of writing, you'd better use a normalized version of Exac (see https://github.com/lindenb/jvarkit/wiki/VCFFixIndels )")
 	private File exacFile = null;

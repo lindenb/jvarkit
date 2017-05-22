@@ -78,7 +78,8 @@ END_DOC
 	name="casectrlplot",
 	description="Plot CASE/CTRL data from VCF files",
 	keywords={"maf","burden","case","control","plot","chart","vcf"},
-	terms=Term.ID_0000018
+	terms=Term.ID_0000018,
+	generate_doc=false
 	)
 public class CaseControlPlot extends Launcher
 	{

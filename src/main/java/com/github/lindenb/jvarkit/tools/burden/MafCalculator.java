@@ -28,6 +28,12 @@ History:
 package com.github.lindenb.jvarkit.tools.burden;
 
 
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import com.beust.jcommander.Parameter;
+
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -39,6 +45,36 @@ public class MafCalculator {
 	private boolean is_chrom_sexual;
 	private final Allele observed_alt;
 	private boolean no_call_is_homref=false;
+		
+	
+	public static class Factory
+		{
+		@Parameter(names={"-nchr","--nocallhomref"},description="Consider no call as hom-ref")
+		private boolean no_call_is_homref=false;		
+		@Parameter(names={"-sexchr","--sexualchromosomes"},description="comma separated list of chromosomes that should be considered as sexual chromosomes/haploids")
+		private String sexChromStr="chrX,chrY,X,Y";		
+		private Set<String> sexChromSet=null;
+		
+		public void setNoCallIsHomRef(boolean no_call_is_homref) {
+			this.no_call_is_homref = no_call_is_homref;
+		}
+		
+		public boolean isNoCallIsHomRef() {
+			return this.no_call_is_homref;
+		}
+		
+		public MafCalculator create(final Allele observed_alt, final String contig)
+			{
+			if(sexChromSet==null) {
+				sexChromSet=Arrays.asList(this.sexChromStr.split("[,]")).
+						stream().filter(S->!S.isEmpty()).
+						collect(Collectors.toSet());
+				}
+			final MafCalculator calc = new MafCalculator(observed_alt,sexChromSet.contains(contig));
+			calc.no_call_is_homref = this.no_call_is_homref;
+			return calc;
+			}
+		}
 	
 	public MafCalculator(final Allele observed_alt,final boolean is_chrom_sexual) {
 		this.is_chrom_sexual = is_chrom_sexual;

@@ -51,6 +51,8 @@ public class ColorUtils
 
 	
 	public static class Converter implements IStringConverter<Color> {
+		public static final String OPT_DESC=" A named color ('red', 'blue'...) use the syntax 'rgb(int,int,int)'.";
+
 		private final ColorUtils cols= new ColorUtils();
 		@Override
 		public Color convert(final String s) {
