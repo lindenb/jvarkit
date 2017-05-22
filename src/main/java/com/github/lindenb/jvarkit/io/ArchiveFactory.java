@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -168,7 +168,7 @@ public abstract class ArchiveFactory
 	private static class FileInstance
 	extends ArchiveFactory
 		{
-		private File baseDir;
+		private final File baseDir;
 		
 		FileInstance(final File baseDir) throws IOException
 			{

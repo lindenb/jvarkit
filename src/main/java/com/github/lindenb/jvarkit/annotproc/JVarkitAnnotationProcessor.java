@@ -25,8 +25,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.annotproc;
 
 import java.io.File;
+import java.io.FileReader;
+import java.io.Reader;
+import java.io.Writer;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -66,12 +68,18 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 	
 	@Override
 	public synchronized void init(ProcessingEnvironment processingEnv) {
-	
 	   super.init(processingEnv);
 	}
+	
 	@Override
 	public Set<String> getSupportedAnnotationTypes() {
-		return Collections.singleton(Program.class.getName());
+		return Arrays.asList(
+				Program.class,
+				IncludeSourceInJar.class
+				).stream().
+			map(C->C.getName()).
+			collect(Collectors.toSet())
+			;
 		}
 	
 	@Override
@@ -82,6 +90,57 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 		final String mainClass = System.getProperty("jvarkit.main.class");
 		final String thisDir = System.getProperty("jvarkit.this.dir");
 		
+		roundEnv.getElementsAnnotatedWith(Program.class).stream().
+			filter(E->E.getKind()==ElementKind.CLASS).
+			filter(E-> E.getAnnotation(IncludeSourceInJar.class) !=null).
+			forEach(E->{
+				Writer writer = null;
+				Reader reader = null;
+				try {
+					if( thisDir==null || thisDir.isEmpty()) return;
+					String className=E.toString();
+					if(className==null ) return;
+					int dollar  = className.indexOf('$');
+					if(dollar!=-1) className=className.substring(0,dollar);
+					File javaFile = new File(thisDir+"/src/main/java/"+className.replace('.','/') +".java");
+					if(!javaFile.exists()) return;
+					final Filer filer = super.processingEnv.getFiler();					
+					final String packageName;
+					final String fileName;
+					int dot= className.lastIndexOf('.');
+					if(dot==-1)
+						{
+						packageName = "";
+						fileName = className;
+						}
+					else
+						{
+						packageName = className.substring(0,dot);
+						fileName = className.substring(dot+1);
+						}
+					FileObject fo=filer.createResource(StandardLocation.CLASS_OUTPUT,
+							packageName,
+							fileName+".java");
+					reader = new FileReader(javaFile);
+					writer=fo.openWriter();
+					int c;
+					while((c=reader.read())!=-1)
+						{
+						writer.write((char)c);
+						}
+					writer.close();writer=null;
+					reader.close();reader=null;
+					}
+				catch(Exception err)
+					{
+					
+					}
+				finally
+					{
+					if(writer!=null) try {writer.close();}catch(Exception err) {}
+					if(reader!=null) try {reader.close();}catch(Exception err) {}
+					}
+				});
 		
 		/* find if roundEnv contains main class annotated with 'Program' annotation
 		 * if true: generate a file that will tell Make to compile the markdown
@@ -200,11 +259,7 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 						LOG.warn("Cannot get "+index_html);
 						}
 					}
-				
 				});
-
-			
-		
 		return false;
 	}
 	

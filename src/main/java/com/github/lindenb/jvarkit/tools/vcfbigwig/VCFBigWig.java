@@ -294,6 +294,6 @@ public class VCFBigWig extends Launcher
 	
 	public static void main(final String[] args) throws IOException
 		{
-		new VCFBigWig().instanceMain(args);
+		new VCFBigWig().instanceMainWithExit(args);
 		}
 }

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -253,7 +253,7 @@ END_DOC
 @Program(name="sam2tsv",
 	description="Prints the SAM alignments as a TAB delimited file.",
 	keywords={"sam","bam","table","tsv"},
-	biostars={157232,59647})
+	biostars={157232,59647,253828})
 public class Sam2Tsv
 	extends Launcher
 	{
@@ -267,7 +267,7 @@ public class Sam2Tsv
 	@Parameter(names={"-A","--printAlignments"},description="Print Alignments")
 	private boolean printAlignment = false;
 
-	@Parameter(names={"-r","-R","--reference"},description="Indexed fasta Reference",required=true)
+	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File refFile = null;
 	
 	
@@ -405,7 +405,7 @@ public class Sam2Tsv
 		int readIndex = 0;
 		for (final CigarElement ce : cigar.getCigarElements())
 		 {
-		 CigarOperator op= ce.getOperator();
+		 final CigarOperator op= ce.getOperator();
 		 
 		 for(int i=0;i< ce.getLength();++i)
 			{
@@ -622,7 +622,7 @@ public class Sam2Tsv
 			}
 		}
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new Sam2Tsv().instanceMainWithExit(args);
 		}

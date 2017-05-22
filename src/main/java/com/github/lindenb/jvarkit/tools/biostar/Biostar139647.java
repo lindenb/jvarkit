@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
@@ -41,7 +37,6 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -110,7 +105,7 @@ public class Biostar139647 extends Launcher
 	private static final Logger LOG = Logger.build(Biostar139647.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
@@ -159,7 +154,6 @@ public class Biostar139647 extends Launcher
 	public int doWork(final List<String> args) {
 		SAMFileWriter w=null;
 		LineIterator r=null;
-		SAMFileWriterFactory sfwf=null;
 		try
 			{
 			final String filename = super.oneFileOrNull(args);
@@ -194,7 +188,8 @@ public class Biostar139647 extends Launcher
 					}
 				else
 					{
-					return wrapException("MSA format not recognized in "+line);
+					LOG.error("MSA format not recognized in "+line);
+					return -1;
 					}
 				}
 			LOG.info("format : "+format);
@@ -211,7 +206,8 @@ public class Biostar139647 extends Launcher
 						curr.name=line.substring(1).trim();
 						if(sample2sequence.containsKey(curr.name))
 							{
-							return wrapException("Sequence ID "+curr.name +" defined twice");
+							LOG.error("Sequence ID "+curr.name +" defined twice");
+							return -1;
 							}
 						sample2sequence.put(curr.name, curr);
 						}
@@ -239,7 +235,8 @@ public class Biostar139647 extends Launcher
 						{
 						if(columnStart==-1)
 							{
-							return wrapException("illegal consensus line for "+line);
+							LOG.error("illegal consensus line for "+line);
+							return -1;
 							}	
 						}
 					else
@@ -249,7 +246,8 @@ public class Biostar139647 extends Launcher
 							columnStart=line.indexOf(' ');
 							if(columnStart==-1)
 								{
-								return wrapException("no whithespace in "+line);
+								LOG.error("no whithespace in "+line);
+								return -1;
 								}
 							while(columnStart< line.length() && line.charAt(columnStart)==' ')
 								{
@@ -271,7 +269,8 @@ public class Biostar139647 extends Launcher
 				}
 			else
 				{
-				return wrapException("Undefined input format");
+				LOG.error("Undefined input format");
+				return -1;
 				}
 			SAMFileHeader header=new SAMFileHeader();
 			SAMSequenceDictionary dict=new SAMSequenceDictionary();
@@ -364,7 +363,8 @@ public class Biostar139647 extends Launcher
 			}
 		catch(Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

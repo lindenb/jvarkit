@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -57,12 +57,21 @@ BEGIN_DOC
 
 ## Motivation
 
-Filters a BAM using javascript( java rhino engine).
-The script puts 'record' a SamRecord (http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)  
-and 'header' ( http://picard.sourceforge.net/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html ) in the script context .
+Filters a BAM using javascript( java nashorn engine).
 
+For eacg read the script injects in the context the following values:
+
+
+* **'record'** a SamRecord  [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)
+* **'header'** a SAMFileHeader  [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMFileHeader.html)
+
+
+the script should return a boolean : true accept the read, false: discard the read.
 
 ## Example
+
+### Example 1
+
 
 get a SAM where the  read OR the mate is unmapped
 
@@ -86,20 +95,26 @@ EAS188_4:8:12:628:973	89	seq1	18	75	35M	*	0	0	AAATGTGTGGTTTAACTCGTCCATGGCCCAGCAT
 (...)
 ```
 
+### Example 2
+
+remove reads with indels:
+
+```
+java -jar dist/samjs.jar -e 'function accept(r) { if(r.getReadUnmappedFlag()) return false; var cigar=r.getCigar();if(cigar==null) return false; for(var i=0;i< cigar.numCigarElements();++i) {if(cigar.getCigarElement(i).getOperator().isIndelOrSkippedRegion()) return false; } return true;} accept(record);' input.bam
+```
 
 
 END_DOC
 */
 @Program(name="samjs",
-	description="Filters a BAM using javascript ( java nashorn engine  ).",
-	keywords={"sam","bam","nashorn","javascript"},
-	biostars={75168,81750,75354,77802,103052,106900,150530}
+	description="Filters a BAM using a javascript expression ( java nashorn engine  ).",
+	keywords={"sam","bam","nashorn","javascript","filter"},
+	biostars={75168,81750,75354,77802,103052,106900,150530,253774}
 	)
 public class SamJavascript
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamJavascript.class).make();
-
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
@@ -108,27 +123,23 @@ public class SamJavascript
 	@Parameter(names={"-X","--fail"},description="Save dicarded reads in that file")
 	private File failingReadsFile = null;
 
-	@Parameter(names={"-N","--limit"},description="limit to 'N' records.")
+	@Parameter(names={"-N","--limit"},description="limit to 'N' records (for debugging).")
 	private long LIMIT = -1L ;
 
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
-	
+
 	@Parameter(names={"-e","--expression"},description="javascript expression")
 	private String jsExpression=null;
 	@Parameter(names={"-f","--file"},description="javascript file")
 	private File jsFile =null;
-	
-	
 	private CompiledScript  script=null;
 	private SAMFileWriter failingReadsWriter=null;
-	
 
 	public SamJavascript()
 		{
-		
 		}
-	
+
 	/* open failing bam if it was not already open */
 	private void openFailing(final SAMFileHeader h)
 		{
@@ -137,20 +148,18 @@ public class SamJavascript
 			{
 			LOG.info("Writing failings to "+ this.failingReadsFile);
 			final SAMFileHeader h2= h.clone();
-			
-		
 			this.failingReadsWriter=this.writingBamArgs.openSAMFileWriter(failingReadsFile, h2,true);
 			}
 		}
-	
-	private void failing(SAMRecord rec,SAMFileHeader h)
+
+	private void failing(final SAMRecord rec,final SAMFileHeader h)
 		{
 		openFailing(h);
 		if(failingReadsWriter!=null) failingReadsWriter.addAlignment(rec);
 		}
-	
+
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		SAMRecordIterator iter=null;
 		SamReader samFileReader=null;
 		SAMFileWriter sw=null;
@@ -160,25 +169,21 @@ public class SamJavascript
 			samFileReader= openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=samFileReader.getFileHeader();
 			sw = writingBamArgs.openSAMFileWriter(outputFile,header, true);
-			
-			
 			long count=0L;
-	        Bindings bindings = this.script.getEngine().createBindings();
-	        bindings.put("header", samFileReader.getFileHeader());
-	        SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
-	        iter = samFileReader.iterator();
+	        	final Bindings bindings = this.script.getEngine().createBindings();
+		        bindings.put("header", samFileReader.getFileHeader());
+		        final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+		        iter = samFileReader.iterator();
 			while(iter.hasNext())
 				{
 				final SAMRecord record=iter.next();
 				progress.watch(record);
 				bindings.put("record", record);
-				
 				if(super.evalJavaScriptBoolean(this.script, bindings))
 					{
 					++count;
 					sw.addAlignment(record);
 					if(this.LIMIT>0L && count>=this.LIMIT) break;
-					
 					}
 				else
 					{
@@ -188,7 +193,6 @@ public class SamJavascript
 			sw.close();
 			/* create empty if never called */
 			openFailing(header);
-			
 			return RETURN_OK;
 			}
 		catch(final Exception err)
@@ -204,14 +208,9 @@ public class SamJavascript
 			CloserUtil.close(failingReadsWriter);
 			}
 		}
-	
-		
+
 	public static void main(String[] args) throws Exception
 		{
 		new SamJavascript().instanceMainWithExit(args);
 		}
-	
-	
-
-	
 	}

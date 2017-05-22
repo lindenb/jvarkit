@@ -112,7 +112,6 @@ END_DOC
 	)
 public class Biostar214299 extends Launcher
 	{
-
 	private static final Logger LOG = Logger.build(Biostar214299.class).make();
 
 
@@ -164,11 +163,17 @@ public class Biostar214299 extends Launcher
 				while((line=br.readLine())!=null) {
 					if(line.trim().isEmpty() || line.startsWith("#")) continue;
 					final String tokens[]=line.split("[\t]");
-					if(tokens.length<4) return wrapException("Not enough columns in "+line);
+					if(tokens.length<4) {
+						LOG.error("Not enough columns in "+line);
+						return -1;
+						}
 					
 					final String contig = tokens[0];
 					if(dict.getSequence(contig)==null) 
-						return wrapException("No such contig in input's sam dictionary: "+contig);
+						{
+						LOG.error("No such contig in input's sam dictionary: "+contig);
+						return -1;
+						}
 					final int refpos = Integer.parseInt(tokens[1]);
 					final Interval interval = new Interval(contig, refpos, refpos);
 					Position position = positionsTreeMap.get(interval);
@@ -181,28 +186,45 @@ public class Biostar214299 extends Launcher
 					
 					final String bases = tokens[2].toUpperCase();
 					if(bases.length()!=1 || !bases.matches("[ATGC]"))
-						return wrapException("in "+line+" bases should be one letter an ATGC");
+						{
+						LOG.error("in "+line+" bases should be one letter an ATGC");
+						return -1;
+						}
 					if(position.base2sample.containsKey(bases)) {
-						return wrapException("in "+line+" bases already defined for this position");
+						LOG.error("in "+line+" bases already defined for this position");
+						return -1;
 					}
 					
 					final String sampleName = tokens[3].trim();
 					if(sampleName.isEmpty())
-						return wrapException("sample name cannot be empty");
+						{
+						LOG.error("sample name cannot be empty");
+						return -1;
+						}
 					samples.add(sampleName);
 					position.base2sample.put(bases.charAt(0), sampleName);
 					
 					}
 			} catch (final IOException err) {
-				return wrapException(err);
+				LOG.error(err);
+				return -1;
 			}
 			
 			if(samples.contains(UNAFFECTED_SAMPLE)) 
-				return wrapException("Sample cannot be named "+UNAFFECTED_SAMPLE);
+				{
+				LOG.error("Sample cannot be named "+UNAFFECTED_SAMPLE);
+				return -1;
+				}
 			if(samples.contains(AMBIGOUS_SAMPLE)) 
-				return wrapException("Sample cannot be named "+AMBIGOUS_SAMPLE);
+				{
+				LOG.error("Sample cannot be named "+AMBIGOUS_SAMPLE);
+				return -1;
+				}
 			if(samples.contains(UNMAPPED)) 
-				return wrapException("Sample cannot be named "+UNMAPPED);
+				{
+				LOG.error("Sample cannot be named "+UNMAPPED);
+				return -1;
+				}
 
 			samples.add(UNAFFECTED_SAMPLE);
 			samples.add(AMBIGOUS_SAMPLE);
@@ -247,7 +269,10 @@ public class Biostar214299 extends Launcher
 				final Set<String> selectedSamples = new HashSet<>();
 				
 				final byte bases[] =rec.getReadBases();
-				if(bases==null) return wrapException("Bases missing in read "+rec);
+				if(bases==null || bases.equals(SAMRecord.NULL_SEQUENCE)) {
+					LOG.error("Bases missing in read "+rec);
+					return -1;
+					}
 				
 				int refPos1=rec.getUnclippedStart();
 				int readPos0=0;
@@ -290,9 +315,10 @@ public class Biostar214299 extends Launcher
 			LOG.info("done");
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -301,10 +327,7 @@ public class Biostar214299 extends Launcher
 			}
 		}
 	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new Biostar214299().instanceMainWithExit(args);
 
 	}

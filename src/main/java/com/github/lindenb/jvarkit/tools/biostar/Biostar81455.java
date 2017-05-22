@@ -224,6 +224,6 @@ public class Biostar81455 extends Launcher
 	
 	public static void main(String[] args)throws Exception
 		{
-		new Biostar81455().instanceMain(args);
+		new Biostar81455().instanceMainWithExit(args);
 		}
 	}

@@ -1,48 +1,53 @@
-# Biostar77288
+# CaseControlPlot
 
 
 ## Usage
 
 ```
-Usage: biostar77288 [options] Files
+Usage: casecontrolplot [options] Files
   Options:
+  * -c, --config
+      XML config file
+    -format, --format
+      How to print doubles, printf-life precision format
+      Default: %.5f
     -h, --help
       print help and exit
-    -o, --out
-      Output file. Optional . Default: stdout
+  * -o, --out
+      Output Directory, or a filename ending with '.zip'
+    -ped, --pedigree
+      A pedigree is a text file delimited with tabs. No header. Columns are 
+      (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
+      (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
+      affected,-9 unknown  If not defined, I will try to extract the pedigree 
+      from the VCFheader.
+    -prefix, --prefix
+      Output files prefix
+      Default: <empty string>
+    -tee, --tee
+      Output the incoming VCF to stdout. Useful to capture intermediate 
+      results in pipelines.
+      Default: false
     --version
       print version and exit
-    -S
-      Input is seqLogo
-      Default: false
-    -W
-       Alignment width
-      Default: 1000
-    -r
-      Use Rect
-      Default: false
 
 ```
 
 
 ## Description
 
-Low resolution sequence alignment visualization
+Plot CASE/CTRL data from VCF files
 
 
 ## Keywords
 
- * bam
- * sam
- * visualization
- * svg
- * alignment
-
-
-
-## See also in Biostars
-
- * [https://www.biostars.org/p/77288](https://www.biostars.org/p/77288)
+ * maf
+ * burden
+ * case
+ * control
+ * plot
+ * chart
+ * vcf
 
 
 ## Compilation
@@ -61,7 +66,7 @@ Low resolution sequence alignment visualization
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make biostar77288
+$ make casecontrolplot
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -79,8 +84,8 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar77288.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar77288.java
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/CaseControlPlot.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/CaseControlPlot.java
 )
 ## Contribute
 
@@ -93,27 +98,24 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **biostar77288** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **casecontrolplot** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
-http://dx.doi.org/10.6084/m9.figshare.1425030
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## The XML config
+
+```xml
+
+```
+
 ## Example
 
-```bash
-curl -s "http://www.tcoffee.org/Courses/Exercises/saragosa_pb_2010/practicals/practical_2/ex.1.19/file/clustalw.msa" |\
-	java -jar dist/biostar77288.jar  > result.svg
-```
-![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/biostar77288.png)
 
-```bash
-$ java -jar dist/sam4weblogo.jar IN=in.bam   REGION="1:630-719" |\
-	java -jar dist/biostar77288.jar  SEQLOGO=true > result.svg
-```
 
 

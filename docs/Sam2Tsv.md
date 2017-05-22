@@ -14,7 +14,8 @@ Usage: sam2tsv [options] Files
       Print Alignments
       Default: false
   * -r, -R, --reference
-      Indexed fasta Reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
 
@@ -39,6 +40,7 @@ Prints the SAM alignments as a TAB delimited file.
 
  * [https://www.biostars.org/p/157232](https://www.biostars.org/p/157232)
  * [https://www.biostars.org/p/59647](https://www.biostars.org/p/59647)
+ * [https://www.biostars.org/p/253828](https://www.biostars.org/p/253828)
 
 
 ## Compilation

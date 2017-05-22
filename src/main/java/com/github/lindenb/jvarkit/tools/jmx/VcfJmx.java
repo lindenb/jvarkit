@@ -177,7 +177,7 @@ public class VcfJmx extends Launcher
 	
 	public static void main(String[] args) throws IOException
 		{
-		new VcfJmx().instanceMain(args);
+		new VcfJmx().instanceMainWithExit(args);
 		}
 
 }
